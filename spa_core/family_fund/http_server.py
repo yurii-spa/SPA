@@ -19,6 +19,7 @@ SPA Family Fund — stdlib HTTP сервер (Phase 0 / MP-359)
 """
 from __future__ import annotations
 
+import hmac
 import http.server
 import json
 import os
@@ -73,12 +74,36 @@ def check_token(provided_token: Optional[str]) -> bool:
     Правила:
     - Если SPA_FUND_TOKEN не задан или пуст — доступ всегда запрещён (False).
     - Сравнение регистрозависимое (case-sensitive).
+    - Сравнение constant-time (hmac.compare_digest) — защита от timing-атак.
     """
     expected: str = os.environ.get(_TOKEN_ENV, "")
     if not expected:
         # Токен не настроен → все приватные запросы блокируются
         return False
-    return provided_token == expected
+    if provided_token is None:
+        return False
+    # Timing-safe сравнение: одинаковое время вне зависимости от совпадения.
+    return hmac.compare_digest(provided_token, expected)
+
+
+# Если paper_trading_status.json старше этого порога — данные считаются stale.
+_SUMMARY_STALE_SECONDS: int = 36 * 3600  # 36ч (daily-cadence + запас)
+
+
+def _parse_cycle_ts(raw: Any) -> Optional[datetime]:
+    """Парсит last_cycle_ts (ISO 8601, с Z или +00:00) в aware-datetime, либо None."""
+    if not raw:
+        return None
+    s = str(raw).strip()
+    if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(s)
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 def build_summary(data_dir: Path, registry: InvestorRegistry) -> dict:
@@ -89,9 +114,13 @@ def build_summary(data_dir: Path, registry: InvestorRegistry) -> dict:
       - investors.json через InvestorRegistry.load()
       - paper_trading_status.json для AUM/APY/last_cycle
 
-    Graceful fallback: при отсутствии файлов возвращает разумные дефолты.
+    HONESTY / FAIL-CLOSED: если paper_trading_status.json отсутствует, пуст или
+    устарел (last_cycle_ts старше _SUMMARY_STALE_SECONDS), сервер НЕ фабрикует
+    цифры. Возвращаются null для aum_usd/current_apy/paper_days, status="stale"
+    и "stale": true — честное "данные недоступны". На investor-эндпоинте мы
+    никогда не показываем выдуманный AUM/APY.
     """
-    # Загружаем инвесторов (с защитой от исключений)
+    # Загружаем инвесторов (с защитой от исключений) — это локальный факт, не stale.
     try:
         investors: List[Investor] = registry.load()
     except Exception:
@@ -100,13 +129,36 @@ def build_summary(data_dir: Path, registry: InvestorRegistry) -> dict:
     # Загружаем статус paper-торговли
     status: dict = _load_paper_status(data_dir)
 
-    # AUM: берём current_equity, по умолчанию $100,000
-    aum: float = float(status.get("current_equity", 100_000.0))
+    # Определяем свежесть данных.
+    cycle_dt = _parse_cycle_ts(status.get("last_cycle_ts"))
+    if not status or cycle_dt is None:
+        is_stale = True
+    else:
+        age = (datetime.now(tz=timezone.utc) - cycle_dt).total_seconds()
+        is_stale = age > _SUMMARY_STALE_SECONDS
 
-    # APY: в paper_trading_status хранится в процентах (3.19%),
-    # конвертируем в доли (0.0319); если 0 — возвращаем дефолт 3.2%
-    apy_pct: float = float(status.get("apy_today_pct", 0.0))
-    current_apy: float = round(apy_pct / 100.0, 6) if apy_pct else 0.032
+    if is_stale:
+        # Fail-closed: никаких выдуманных чисел на investor-поверхности.
+        return {
+            "aum_usd": None,
+            "num_investors": len(investors),
+            "current_apy": None,
+            "paper_days": None,
+            "status": "stale",
+            "stale": True,
+            "last_cycle": cycle_dt.strftime("%Y-%m-%dT%H:%M:%SZ") if cycle_dt else None,
+        }
+
+    # AUM: берём current_equity (свежие данные — нет фабрикации; если поля нет → null)
+    aum_raw = status.get("current_equity")
+    aum: Optional[float] = round(float(aum_raw), 2) if aum_raw is not None else None
+
+    # APY: в paper_trading_status хранится в процентах (3.19%) → доли (0.0319).
+    # Без фабрикации: отсутствие/0 → null (честно «нет цифры»), не выдуманные 3.2%.
+    apy_raw = status.get("apy_today_pct")
+    current_apy: Optional[float] = (
+        round(float(apy_raw) / 100.0, 6) if apy_raw else None
+    )
 
     # Количество дней трека
     paper_start: str = status.get("paper_start_date", "")
@@ -124,14 +176,15 @@ def build_summary(data_dir: Path, registry: InvestorRegistry) -> dict:
         paper_days = int(status.get("days_running", 0))
 
     # Временная метка последнего цикла
-    last_cycle: str = str(status.get("last_cycle_ts", _now_iso()))
+    last_cycle: str = cycle_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     return {
-        "aum_usd": round(aum, 2),
+        "aum_usd": aum,
         "num_investors": len(investors),
         "current_apy": current_apy,
         "paper_days": paper_days,
         "status": "paper_trading",
+        "stale": False,
         "last_cycle": last_cycle,
     }
 

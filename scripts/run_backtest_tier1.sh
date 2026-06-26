@@ -11,6 +11,8 @@ echo "[$(date -u '+%FT%TZ')] tier1 data integrity (no-lookahead audit)..."
 $PY -m spa_core.backtesting.tier1.data_integrity
 echo "[$(date -u '+%FT%TZ')] mass_tournament (real data)..."
 $PY -m spa_core.backtesting.mass_tournament
+echo "[$(date -u '+%FT%TZ')] strategy_tournament_runner (regenerate shadow source from fresh mass results — must NOT freeze; promotion gate reads this)..."
+$PY -m spa_core.backtesting.strategy_tournament_runner
 echo "[$(date -u '+%FT%TZ')] tier1 evaluator (net-of-cost + OOS + capacity)..."
 $PY -m spa_core.backtesting.tier1.evaluator
 echo "[$(date -u '+%FT%TZ')] tier1 gate (backtest->paper eligibility + live divergence)..."

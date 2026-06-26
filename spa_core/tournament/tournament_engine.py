@@ -175,6 +175,19 @@ class TournamentEngine:
         rank_changes: List[Dict[str, Any]] = []
         telegram_sent = False
 
+        # 0. Self-heal the shadow source so it can never freeze at stale (e.g.
+        #    inflated Sharpe-196) values. The promotion gate + public tournament
+        #    page read strategy_tournament.json; if it is missing or staler than
+        #    the freshly-regenerated mass_tournament_results.json, regenerate it
+        #    from the latest mass results. Best-effort, deterministic, atomic.
+        try:
+            regen_err = self._regenerate_shadow_if_stale()
+            if regen_err:
+                errors.append(regen_err)
+        except Exception as exc:  # never fatal
+            _log.error("_regenerate_shadow_if_stale failed: %s", exc)
+            errors.append(f"regenerate_shadow: {exc}")
+
         # 1. Load state
         tournament = _read_json(self._tournament_path, {})
         shadow = _read_json(self._shadow_path, {})
@@ -241,6 +254,60 @@ class TournamentEngine:
             len(promotions), len(rank_changes), len(errors),
         )
         return summary
+
+    def _regenerate_shadow_if_stale(self) -> Optional[str]:
+        """
+        Regenerate data/strategy_tournament.json from the latest
+        data/mass_tournament_results.json when it is missing or stale.
+
+        The shadow source must track the fresh mass-tournament leaderboard; if the
+        daily backtest pipeline regenerated mass results but the shadow file lagged,
+        the promotion gate and the public tournament page would show frozen
+        (potentially inflated) Sharpe values. Deterministic, atomic (the runner
+        writes atomically), best-effort — returns an error string instead of raising.
+
+        Returns None on success/no-op, or an error description string.
+        """
+        mass_path = self._data_dir / "mass_tournament_results.json"
+        if not mass_path.exists():
+            # No mass results yet — nothing to derive from; leave shadow as-is.
+            return None
+
+        try:
+            mass_mtime = mass_path.stat().st_mtime
+        except OSError as exc:
+            return f"regenerate_shadow: stat mass results failed: {exc}"
+
+        needs_regen = True
+        if self._tournament_path.exists():
+            try:
+                shadow_mtime = self._tournament_path.stat().st_mtime
+                # Regenerate only if the shadow source is older than the mass
+                # results (i.e. mass was refreshed but shadow lagged behind).
+                needs_regen = shadow_mtime < mass_mtime
+            except OSError:
+                needs_regen = True
+
+        if not needs_regen:
+            return None
+
+        try:
+            from spa_core.backtesting.strategy_tournament_runner import (
+                StrategyTournamentRunner,
+            )
+        except Exception as exc:
+            return f"regenerate_shadow: import StrategyTournamentRunner failed: {exc}"
+
+        try:
+            StrategyTournamentRunner(data_dir=self._data_dir).run(top_n=5)
+            _log.info(
+                "strategy_tournament.json regenerated from fresh mass results "
+                "(was stale relative to mass_tournament_results.json)"
+            )
+        except Exception as exc:
+            return f"regenerate_shadow: StrategyTournamentRunner.run failed: {exc}"
+
+        return None
 
     def check_promotions(self) -> List[Dict[str, Any]]:
         """

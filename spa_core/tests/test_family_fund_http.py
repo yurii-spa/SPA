@@ -177,6 +177,99 @@ class TestCheckToken(unittest.TestCase):
         os.environ["SPA_FUND_TOKEN"] = "Secret"
         self.assertFalse(check_token("secret"))
 
+    def test_uses_constant_time_compare(self) -> None:
+        """check_token должен использовать timing-safe hmac.compare_digest."""
+        import inspect
+
+        from spa_core.family_fund import http_server
+
+        src = inspect.getsource(http_server.check_token)
+        self.assertIn("compare_digest", src)
+        # Прямого '==' сравнения provided/expected быть не должно.
+        self.assertNotIn("provided_token == expected", src)
+
+    def test_compare_digest_path_matches_and_rejects(self) -> None:
+        """Поведенческая проверка constant-time пути: match=True, mismatch=False."""
+        os.environ["SPA_FUND_TOKEN"] = "abc-123-xyz"
+        self.assertTrue(check_token("abc-123-xyz"))
+        self.assertFalse(check_token("abc-123-xy"))   # короче
+        self.assertFalse(check_token("abc-123-xyzZ"))  # длиннее
+
+
+# ===========================================================================
+# TestCommittedUsersFile — no default creds + fail-closed auth
+# ===========================================================================
+
+class TestCommittedUsersFile(unittest.TestCase):
+    """Гарантирует, что committed users.json НЕ содержит дефолтных кредов."""
+
+    def _users_path(self) -> Path:
+        from spa_core.family_fund import manage_users
+        return manage_users._USERS_PATH
+
+    def test_committed_users_json_has_no_password_hash(self) -> None:
+        """В репозитории не должно быть ни одного password_hash (дефолтных кредов)."""
+        raw = json.loads(self._users_path().read_text(encoding="utf-8"))
+        users = raw.get("users", [])
+        for u in users:
+            self.assertNotIn(
+                "password_hash", u,
+                f"Committed users.json ships a credential hash for "
+                f"{u.get('username')!r} — must be empty/placeholder only",
+            )
+
+    def test_committed_users_json_no_bcrypt_or_pbkdf2_hash(self) -> None:
+        """Никаких bcrypt ($2b$) или pbkdf2 хешей в committed-файле."""
+        text = self._users_path().read_text(encoding="utf-8")
+        self.assertNotIn("$2b$", text)
+        self.assertNotIn("$2a$", text)
+        self.assertNotIn("pbkdf2_sha256$", text)
+
+    def test_committed_users_list_is_empty(self) -> None:
+        """Список пользователей в committed-файле пуст (provision via manage_users)."""
+        raw = json.loads(self._users_path().read_text(encoding="utf-8"))
+        self.assertEqual(raw.get("users", []), [])
+
+
+class TestAuthFailClosed(unittest.TestCase):
+    """authenticate() fail-closed, когда пользователи не провижинены."""
+
+    def setUp(self) -> None:
+        self.tmp_dir = Path(tempfile.mkdtemp())
+        os.environ.setdefault(
+            "FAMILY_FUND_JWT_SECRET",
+            "test-secret-family-fund-32-characters-minimum!!",
+        )
+        from spa_core.family_fund.api import auth
+        self.auth = auth
+        self._orig_path = auth._USERS_PATH
+
+    def tearDown(self) -> None:
+        self.auth.set_users_path(self._orig_path)
+        shutil.rmtree(str(self.tmp_dir), ignore_errors=True)
+
+    def test_empty_users_file_rejects_all_logins(self) -> None:
+        path = self.tmp_dir / "users.json"
+        path.write_text(json.dumps({"users": []}), encoding="utf-8")
+        self.auth.set_users_path(path)
+        self.assertIsNone(self.auth.authenticate("owner", "any-password"))
+        self.assertIsNone(self.auth.authenticate("admin@earn-defi.com", "x"))
+
+    def test_missing_users_file_rejects_all_logins(self) -> None:
+        path = self.tmp_dir / "does_not_exist.json"
+        self.auth.set_users_path(path)
+        self.assertIsNone(self.auth.authenticate("owner", "any-password"))
+
+    def test_empty_users_logs_warning_to_run_manage_users(self) -> None:
+        import logging as _logging
+        path = self.tmp_dir / "users.json"
+        path.write_text(json.dumps({"users": []}), encoding="utf-8")
+        self.auth.set_users_path(path)
+        with self.assertLogs(self.auth.__name__, level="WARNING") as cm:
+            self.auth.authenticate("owner", "pw")
+        joined = "\n".join(cm.output)
+        self.assertIn("manage_users", joined)
+
 
 # ===========================================================================
 # TestNowIso — 2 теста
@@ -246,20 +339,30 @@ class TestBuildSummary(unittest.TestCase):
     def tearDown(self) -> None:
         shutil.rmtree(str(self.tmp_dir), ignore_errors=True)
 
+    def _fresh_ts(self) -> str:
+        """Свежий last_cycle_ts (now, ISO Z) — данные считаются актуальными."""
+        return datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
     def _write_status(self, data: dict) -> None:
+        # По умолчанию добавляем свежий last_cycle_ts, чтобы данные были не stale,
+        # если тест явно не задал свой ts.
+        payload = dict(data)
+        payload.setdefault("last_cycle_ts", self._fresh_ts())
         (self.tmp_dir / "paper_trading_status.json").write_text(
-            json.dumps(data), encoding="utf-8"
+            json.dumps(payload), encoding="utf-8"
         )
 
     def test_empty_dir_returns_all_required_keys(self) -> None:
         summary = build_summary(self.tmp_dir, self.registry)
         required = {"aum_usd", "num_investors", "current_apy",
-                    "paper_days", "status", "last_cycle"}
+                    "paper_days", "status", "last_cycle", "stale"}
         self.assertTrue(required.issubset(summary.keys()))
 
-    def test_status_field_is_paper_trading(self) -> None:
+    def test_status_field_is_paper_trading_when_fresh(self) -> None:
+        self._write_status({"current_equity": 100_000.0, "apy_today_pct": 3.6})
         summary = build_summary(self.tmp_dir, self.registry)
         self.assertEqual(summary["status"], "paper_trading")
+        self.assertFalse(summary["stale"])
 
     def test_aum_from_current_equity(self) -> None:
         self._write_status({"current_equity": 123_456.78})
@@ -272,11 +375,42 @@ class TestBuildSummary(unittest.TestCase):
         summary = build_summary(self.tmp_dir, self.registry)
         self.assertAlmostEqual(summary["current_apy"], 0.03196, places=5)
 
-    def test_default_apy_when_zero(self) -> None:
-        """apy_today_pct=0 → fallback 0.032 (3.2%)."""
-        self._write_status({"apy_today_pct": 0.0})
+    # ── HONESTY: no fabricated numbers ──────────────────────────────────────
+
+    def test_apy_zero_returns_null_not_fabricated(self) -> None:
+        """apy_today_pct=0 → current_apy=None (НЕ выдуманные 3.2%)."""
+        self._write_status({"apy_today_pct": 0.0, "current_equity": 100_000.0})
         summary = build_summary(self.tmp_dir, self.registry)
-        self.assertEqual(summary["current_apy"], 0.032)
+        self.assertIsNone(summary["current_apy"])
+        self.assertNotEqual(summary["current_apy"], 0.032)
+
+    def test_missing_status_file_is_honest_stale(self) -> None:
+        """Нет paper_trading_status.json → stale, null-цифры, никакого фабриката."""
+        summary = build_summary(self.tmp_dir, self.registry)
+        self.assertTrue(summary["stale"])
+        self.assertEqual(summary["status"], "stale")
+        self.assertIsNone(summary["aum_usd"])
+        self.assertIsNone(summary["current_apy"])
+        self.assertIsNone(summary["paper_days"])
+        # Никогда не должно быть выдуманного $100k / 3.2%.
+        self.assertNotEqual(summary["aum_usd"], 100_000.0)
+
+    def test_stale_status_file_is_honest(self) -> None:
+        """Устаревший last_cycle_ts (>36ч) → stale, null-цифры."""
+        old_ts = "2020-01-01T00:00:00Z"
+        (self.tmp_dir / "paper_trading_status.json").write_text(
+            json.dumps({
+                "current_equity": 99_000.0,
+                "apy_today_pct": 5.0,
+                "last_cycle_ts": old_ts,
+            }),
+            encoding="utf-8",
+        )
+        summary = build_summary(self.tmp_dir, self.registry)
+        self.assertTrue(summary["stale"])
+        self.assertEqual(summary["status"], "stale")
+        self.assertIsNone(summary["aum_usd"])
+        self.assertIsNone(summary["current_apy"])
 
     def test_paper_days_from_days_running_field(self) -> None:
         self._write_status({"days_running": 42})
@@ -287,11 +421,12 @@ class TestBuildSummary(unittest.TestCase):
         inv1 = _make_investor("i1", "Alice", "a@x.com", 50000.0, 50.0)
         inv2 = _make_investor("i2", "Bob", "b@x.com", 50000.0, 50.0)
         self.registry.save([inv1, inv2])
+        self._write_status({"current_equity": 100_000.0, "apy_today_pct": 3.6})
         summary = build_summary(self.tmp_dir, self.registry)
         self.assertEqual(summary["num_investors"], 2)
 
     def test_num_investors_zero_when_no_registry_file(self) -> None:
-        """При отсутствии investors.json — num_investors=0."""
+        """При отсутствии investors.json — num_investors=0 (даже когда stale)."""
         summary = build_summary(self.tmp_dir, self.registry)
         self.assertEqual(summary["num_investors"], 0)
 
@@ -378,6 +513,18 @@ class TestFundHTTPIntegration(unittest.TestCase):
         cls._port = _find_free_port()
         os.environ["SPA_FUND_TOKEN"] = cls._TOKEN
 
+        # Свежий status-файл, чтобы /summary не был stale (fresh last_cycle_ts).
+        fresh_ts = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        (cls._tmp_dir / "paper_trading_status.json").write_text(
+            json.dumps({
+                "current_equity": 100_180.31,
+                "apy_today_pct": 3.6,
+                "days_running": 16,
+                "last_cycle_ts": fresh_ts,
+            }),
+            encoding="utf-8",
+        )
+
         handler_cls = make_handler_class(cls._tmp_dir)
         cls._server = _ReusableTCPServer(("127.0.0.1", cls._port), handler_cls)
         cls._thread = threading.Thread(target=cls._server.serve_forever, daemon=True)
@@ -431,6 +578,7 @@ class TestFundHTTPIntegration(unittest.TestCase):
     def test_public_summary_status_equals_paper_trading(self) -> None:
         _, body, _ = _http_get(self._port, "/api/public/fund/summary")
         self.assertEqual(body["status"], "paper_trading")
+        self.assertFalse(body["stale"])
 
     def test_public_summary_cors_header_is_wildcard(self) -> None:
         """Публичные эндпоинты должны отдавать Access-Control-Allow-Origin: *."""

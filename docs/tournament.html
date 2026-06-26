@@ -789,56 +789,18 @@ td.num-cell { text-align: right; }
 <div class="t-footer">
   <a href="../index.html" class="t-footer-back">← Back to Dashboard</a>
   <span class="t-footer-info" id="footer-ts">
-    SPA Strategy Tournament · Generated 2026-06-22 · Advisory only
+    SPA Strategy Tournament · Backtest 2022–2025 · Advisory only
   </span>
 </div>
 
 <script>
 /* ═══════════════════════════════════════════════════
-   Embedded fallback data — real values from
-   data/mass_tournament_results.json (top-20) and
-   data/strategy_tournament.json (top-5 shadow)
+   NO hardcoded leaderboard. All values render SOLELY from
+   live /api/tournament (or the static data/*.json snapshot
+   served by Cloudflare Pages). If neither is reachable the
+   page shows an honest "offline" state — never a fabricated
+   or stale table. (Removed the embedded Sharpe-196 array.)
    ═══════════════════════════════════════════════════ */
-const FALLBACK_MASS = {
-  generated_at: "2026-06-22T11:28:11.595648+00:00",
-  simulation_period: "2022-01-01 to 2025-12-31",
-  strategies_tested: 60,
-  strategies_skipped: 14,
-  total_files_scanned: 74,
-  leaderboard: [
-    {rank:1,  id:"s7_pendle_yt_aggressive",     class:"S7PendleYTAggressive",      sharpe:196.6038, annual_return_pct:0.9926, max_dd_pct:0.0098, volatility_pct:0.005786, total_return_pct:4.0328,  allocation:{morpho_steakhouse:0.20, compound_v3:0.05}},
-    {rank:2,  id:"s12_base_layer_yield",        class:"S12BaseLayerYield",         sharpe:196.1727, annual_return_pct:4.095,  max_dd_pct:0.0392, volatility_pct:0.023517, total_return_pct:17.4267, allocation:{morpho_steakhouse:0.80, aave_v3:0.20}},
-    {rank:3,  id:"s5_pendle_enhanced",          class:"S5PendleEnhanced",          sharpe:185.4788, annual_return_pct:1.3362, max_dd_pct:0.0139, volatility_pct:0.008288, total_return_pct:5.4567,  allocation:{morpho_steakhouse:0.25, compound_v3:0.10}},
-    {rank:4,  id:"s2_pendle_morpho",            class:"S2PendleMorpho",            sharpe:183.3889, annual_return_pct:1.9008, max_dd_pct:0.0199, volatility_pct:0.011903, total_return_pct:7.8284,  allocation:{morpho_steakhouse:0.35, compound_v3:0.15}},
-    {rank:5,  id:"s53_correlated_risk_reducer", class:"S53CorrelatedRiskReducer",  sharpe:175.5289, annual_return_pct:4.1097, max_dd_pct:0.0394, volatility_pct:0.026364, total_return_pct:17.4933, allocation:{aave_v3:0.05, compound_v3:0.05, morpho_steakhouse:0.60, yearn_v3:0.30}},
-    {rank:6,  id:"s11_hybrid_yield_max",        class:"S11HybridYieldMax",         sharpe:166.196,  annual_return_pct:2.4863, max_dd_pct:0.0213, volatility_pct:0.016762, total_return_pct:10.3295, allocation:{morpho_steakhouse:0.30, euler_v2:0.15, maple:0.10}},
-    {rank:7,  id:"s29_barbell_plus",            class:"S29BarbellPlus",            sharpe:155.3193, annual_return_pct:3.594,  max_dd_pct:0.0405, volatility_pct:0.026596, total_return_pct:15.181,  allocation:{aave_v3:0.233, compound_v3:0.233, morpho_steakhouse:0.533}},
-    {rank:8,  id:"s6_max_diversified",          class:"S6MaxDiversified",          sharpe:150.829,  annual_return_pct:2.3145, max_dd_pct:0.0242, volatility_pct:0.017556, total_return_pct:9.5912,  allocation:{morpho_steakhouse:0.30, euler_v2:0.15, compound_v3:0.10, aave_v3:0.05}},
-    {rank:9,  id:"s28_momentum_yield",          class:"S28MomentumYield",          sharpe:147.5082, annual_return_pct:3.6255, max_dd_pct:0.0412, volatility_pct:0.028211, total_return_pct:15.3211, allocation:{aave_v3:0.20, compound_v3:0.20, morpho_steakhouse:0.40, yearn_v3:0.20}},
-    {rank:10, id:"s51_protocol_lifecycle",      class:"S51ProtocolLifecycle",      sharpe:147.5082, annual_return_pct:3.6255, max_dd_pct:0.0412, volatility_pct:0.028211, total_return_pct:15.3211, allocation:{aave_v3:0.20, compound_v3:0.20, morpho_steakhouse:0.40, yearn_v3:0.20}},
-    {rank:11, id:"s52_tvl_momentum",            class:"S52TvlMomentum",            sharpe:147.5082, annual_return_pct:3.6255, max_dd_pct:0.0412, volatility_pct:0.028211, total_return_pct:15.3211, allocation:{aave_v3:0.20, compound_v3:0.20, morpho_steakhouse:0.40, yearn_v3:0.20}},
-    {rank:12, id:"s24_base_chain_max",          class:"BaseChainMaxStrategy",      sharpe:138.5103, annual_return_pct:3.8469, max_dd_pct:0.0410, volatility_pct:0.031584, total_return_pct:16.3106, allocation:{morpho_steakhouse:0.40, aave_v3:0.30, euler_v2:0.30}},
-    {rank:13, id:"s1_t1t2_balanced",            class:"S1T1T2BalancedStrategy",    sharpe:130.9293, annual_return_pct:3.3931, max_dd_pct:0.0416, volatility_pct:0.030068, total_return_pct:14.2895, allocation:{aave_v3:0.40, morpho_steakhouse:0.40, compound_v3:0.20}},
-    {rank:14, id:"s54_daily_yield_maximizer",   class:"S54DailyYieldMaximizer",    sharpe:128.0695, annual_return_pct:3.3203, max_dd_pct:0.0420, volatility_pct:0.030190, total_return_pct:13.9678, allocation:{aave_v3:0.307, compound_v3:0.307, morpho_steakhouse:0.347, yearn_v3:0.04}},
-    {rank:15, id:"s39_morpho_max_plus",         class:"MorphoMaxPlusStrategy",     sharpe:119.7331, annual_return_pct:3.2698, max_dd_pct:0.0402, volatility_pct:0.031632, total_return_pct:13.7449, allocation:{morpho_steakhouse:0.25, euler_v2:0.20, aave_v3:0.30, compound_v3:0.20}},
-    {rank:16, id:"s30_all_weather",             class:"S30AllWeather",             sharpe:116.7407, annual_return_pct:2.7457, max_dd_pct:0.0364, volatility_pct:0.027570, total_return_pct:11.4517, allocation:{aave_v3:0.30, compound_v3:0.25, morpho_steakhouse:0.20, yearn_v3:0.10}},
-    {rank:17, id:"s55_max_sharpe_portfolio",    class:"S55MaxSharpePortfolio",     sharpe:113.8266, annual_return_pct:2.2185, max_dd_pct:0.0298, volatility_pct:0.022966, total_return_pct:9.1803,  allocation:{aave_v3:0.30, compound_v3:0.20, morpho_steakhouse:0.20}},
-    {rank:18, id:"s14_arbitrum_radiant",        class:"S14ArbitrumRadiantMax",     sharpe:112.7479, annual_return_pct:3.5935, max_dd_pct:0.0425, volatility_pct:0.036634, total_return_pct:15.1786, allocation:{aave_v3:0.45, euler_v2:0.35, morpho_steakhouse:0.20}},
-    {rank:19, id:"s38_morpho_max",              class:"MorphoMaxStrategy",         sharpe:112.6831, annual_return_pct:3.1906, max_dd_pct:0.0406, volatility_pct:0.032931, total_return_pct:13.3962, allocation:{morpho_steakhouse:0.20, euler_v2:0.20, aave_v3:0.35, compound_v3:0.20}},
-    {rank:20, id:"s3_aave_arb_morpho",          class:"S3AaveArbMorpho",           sharpe:110.7624, annual_return_pct:3.2994, max_dd_pct:0.0424, volatility_pct:0.034724, total_return_pct:13.8755, allocation:{aave_v3:0.70, morpho_steakhouse:0.30}}
-  ]
-};
-
-const FALLBACK_SHADOW = {
-  generated_at: "2026-06-22T11:28:18.000194+00:00",
-  shadow_active_strategies: [
-    {rank:1, strategy_key:"s7_pendle_yt_aggressive",     name:"S7PendleYTAggressive",     sharpe:196.6038, paper_apy:0.9926, max_dd_pct:0.0098, days_active:0, allocation:{morpho_steakhouse:0.20, compound_v3:0.05}},
-    {rank:2, strategy_key:"s12_base_layer_yield",        name:"S12BaseLayerYield",        sharpe:196.1727, paper_apy:4.095,  max_dd_pct:0.0392, days_active:0, allocation:{morpho_steakhouse:0.80, aave_v3:0.20}},
-    {rank:3, strategy_key:"s5_pendle_enhanced",          name:"S5PendleEnhanced",         sharpe:185.4788, paper_apy:1.3362, max_dd_pct:0.0139, days_active:0, allocation:{morpho_steakhouse:0.25, compound_v3:0.10}},
-    {rank:4, strategy_key:"s2_pendle_morpho",            name:"S2PendleMorpho",           sharpe:183.3889, paper_apy:1.9008, max_dd_pct:0.0199, days_active:0, allocation:{morpho_steakhouse:0.35, compound_v3:0.15}},
-    {rank:5, strategy_key:"s53_correlated_risk_reducer", name:"S53CorrelatedRiskReducer", sharpe:175.5289, paper_apy:4.1097, max_dd_pct:0.0394, days_active:0, allocation:{aave_v3:0.05, compound_v3:0.05, morpho_steakhouse:0.60, yearn_v3:0.30}}
-  ]
-};
 
 /* ═══════════════════════════════════════════════════
    Utilities
@@ -1085,28 +1047,53 @@ let LIVE_MODE = false;
 let _pollTimer = null;
 let _liveLastFetch = 0;
 
+/* ── Offline / no-data state (honest; never fabricates a table) ── */
+function renderOffline(msg) {
+  const note = msg || 'Tournament data unavailable — offline';
+  const podium = document.getElementById('medal-grid');
+  if (podium) podium.innerHTML =
+    `<div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--spa-text-3)">
+       <div style="font-size:24px;margin-bottom:10px">📡</div>${note}</div>`;
+  const tbody = document.getElementById('lb-tbody');
+  if (tbody) tbody.innerHTML =
+    `<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--spa-text-3)">${note}</td></tr>`;
+  const shadow = document.getElementById('shadow-grid');
+  if (shadow) shadow.innerHTML =
+    `<div style="grid-column:1/-1;text-align:center;padding:28px;color:var(--spa-text-3)">${note}</div>`;
+  const sub = document.getElementById('shadow-sub');
+  if (sub) sub.textContent = note;
+}
+
 /* ── Shared render entry point ── */
 function renderAll(massData, tournamentData, shadowPaperData) {
-  const mass = massData || FALLBACK_MASS;
+  const mass = massData;
+
+  // Without a real leaderboard there is nothing honest to show.
+  if (!mass || !Array.isArray(mass.leaderboard) || mass.leaderboard.length === 0) {
+    renderOffline('Tournament data unavailable — offline');
+    return;
+  }
 
   // Resolve active strategies from tournament data (strategy_tournament.json)
-  // or fall back to shadow_paper_trading.json, then hardcoded fallback
+  // or shadow_paper_trading.json. No hardcoded fallback.
   const sArr =
     (tournamentData && (tournamentData.shadow_active_strategies || tournamentData.active_strategies)) ||
     (shadowPaperData && (shadowPaperData.shadow_active_strategies || shadowPaperData.active_strategies)) ||
-    FALLBACK_SHADOW.shadow_active_strategies;
+    [];
 
-  // Build shadow ID set for leaderboard highlight
+  // Build shadow ID set for leaderboard highlight (derived only from live data).
   const shadowSet = new Set(sArr.map(s => s.strategy_key || s.id));
-  if (!shadowSet.size) {
-    ['s7_pendle_yt_aggressive','s12_base_layer_yield','s5_pendle_enhanced',
-     's2_pendle_morpho','s53_correlated_risk_reducer'].forEach(id => shadowSet.add(id));
-  }
 
   renderPipeline(mass, tournamentData || {});
   renderMedals(mass.leaderboard.slice(0, 3));
   renderLeaderboard(mass.leaderboard, shadowSet);
-  renderShadow(sArr.length ? sArr : FALLBACK_SHADOW.shadow_active_strategies);
+  if (sArr.length) {
+    renderShadow(sArr);
+  } else {
+    const shadow = document.getElementById('shadow-grid');
+    if (shadow) shadow.innerHTML =
+      `<div style="grid-column:1/-1;text-align:center;padding:28px;color:var(--spa-text-3)">No active shadow strategies</div>`;
+  }
 
   if (mass.strategies_tested)
     document.getElementById('stat-tested').textContent = mass.strategies_tested;
@@ -1143,7 +1130,8 @@ async function loadStaticData() {
       break;
     } catch(_) { /* try next base */ }
   }
-  renderAll(mass || FALLBACK_MASS, shadow || FALLBACK_SHADOW, null);
+  // No hardcoded fallback — renderAll shows an honest offline state if mass is null.
+  renderAll(mass, shadow, null);
 }
 
 /* ── Live fetch ── */

@@ -13,11 +13,14 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import threading
 import time
 import uuid
 from pathlib import Path
 from typing import Optional
+
+_log = logging.getLogger(__name__)
 
 from .keychain import get_jwt_secret
 from .models import UserRole
@@ -263,6 +266,19 @@ def authenticate(identifier: str, password: str) -> Optional[dict]:
     Время verify тратится даже для несуществующего пользователя (защита от
     user-enumeration по таймингу).
     """
+    # Fail-closed: если пользователи не провижинены (пустой users.json),
+    # вход невозможен. Чётко логируем — оператор должен запустить manage_users.
+    if not load_users():
+        _log.warning(
+            "Family Fund: no users provisioned in users.json — all logins "
+            "rejected (fail-closed). Provision via: "
+            "python -m spa_core.family_fund.manage_users set "
+            "--username owner --email <you> --role owner"
+        )
+        # Фиктивная проверка для выравнивания тайминга, затем отказ.
+        verify_password(password, hash_password("dummy-timing-guard"))
+        return None
+
     user = get_user(identifier)
     if user is None:
         # выполняем фиктивную проверку, чтобы выровнять тайминг
