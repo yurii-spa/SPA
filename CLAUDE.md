@@ -329,6 +329,32 @@ security find-generic-password -s TELEGRAM_CHAT_ID_SPA -w
 
 ---
 
+## 🗂️ data/ git-политика (P3-3, 2026-06-26)
+
+`.gitignore` теперь различает **runtime-only** vs **canonical-in-git** артефакты в `data/`,
+чтобы каждый коммит не запекал транзиентное состояние в историю.
+
+**Runtime-only (игнорируются — транзиентная per-run churn, код сам создаёт при отсутствии):**
+- `data/*.json`, `data/**/*.json` — все live-снимки состояния и per-run отчёты
+  (`daily_report_*.json`, `milestones/`, `daily_summaries/`, `monthly_reports/`, `reports/`)
+- `*.db` / `*.sqlite`, `data/*.db-journal` (SQLite rollback journals)
+- `data/backups/` — daily DB backup snapshots
+- `data/*.jsonl` — append-only runtime audit / hash-chain логи (`audit_trail.jsonl`)
+
+**⚠️ OWNER-GATED (оставлены tracked НАМЕРЕННО — НЕ untrack без решения владельца):**
+`equity_curve_daily.json`, `golive_status.json`, `paper_evidence_history.json` —
+сейчас закоммиченные track-снимки (на них может опираться static-fallback сайта).
+Они **матчатся** правилом `data/*.json`, но остаются в git, т.к. были закоммичены ДО
+этого правила. **OWNER-решение:** должны ли волатильные track-снимки вообще жить в git
+(canonical-in-git vs runtime-only)? До решения — НЕ `git rm --cached`.
+
+**Уже-tracked файлы, которые попали под новые ignore-правила** (нужен `git rm --cached`
+на remote — `push_to_github.py` это не умеет, делает владелец вручную):
+`data/backups/spa_2026-06-1[1-8].db` (8 шт.), `data/*.db-journal`
+(`_probe`, `spa`, `spa_test`, `track`), `data/audit_trail.jsonl`.
+
+---
+
 ## Команды
 
 ```bash

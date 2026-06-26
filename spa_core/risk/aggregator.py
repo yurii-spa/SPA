@@ -17,6 +17,8 @@ from pathlib import Path
 from datetime import datetime
 import json
 
+from spa_core.utils.atomic import atomic_save
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 AGGREGATOR_VERSION = "risk_aggregator_v1.0"
@@ -306,9 +308,6 @@ def run_risk_check(
     LLM_FORBIDDEN.
     """
     # LLM_FORBIDDEN
-    import tempfile
-    import os
-
     drawdowns = load_live_drawdowns()
     result = aggregate_risk(
         engine_drawdowns=drawdowns,
@@ -350,20 +349,10 @@ def run_risk_check(
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Атомарная запись: tmp + os.replace
-    tmp_fd, tmp_path = tempfile.mkstemp(
-        dir=output_path.parent, suffix=".tmp"
-    )
-    try:
-        with os.fdopen(tmp_fd, "w") as f:
-            json.dump(output, f, indent=2)
-        os.replace(tmp_path, output_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+    # Атомарная запись через канонический atomic_save (P3-9).
+    # Байт-идентично: indent=2 (atomic_save добавляет default=str — для
+    # сериализуемого payload вывод тот же).
+    atomic_save(output, str(output_path))
 
     return output
 

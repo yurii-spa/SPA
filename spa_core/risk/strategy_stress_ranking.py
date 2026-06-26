@@ -37,6 +37,7 @@ from typing import Optional
 
 from spa_core.risk.stress_tester import SCENARIO_NAMES, StressTester
 from spa_core.strategies.strategy_registry import REGISTRY
+from spa_core.utils.atomic import atomic_save
 
 __all__ = ["rank_strategies", "extract_allocation"]
 
@@ -290,12 +291,13 @@ def rank_strategies(capital: float = DEFAULT_CAPITAL) -> dict:
 # ─── IO ──────────────────────────────────────────────────────────────────────
 
 def _atomic_write_json(path: str, payload: dict) -> None:
-    directory = os.path.dirname(path) or "."
-    os.makedirs(directory, exist_ok=True)
-    tmp = f"{path}.tmp.{os.getpid()}"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump(payload, fh, indent=2)
-    os.replace(tmp, path)
+    """Atomic JSON write, delegated to the canonical ``atomic_save`` (P3-9).
+
+    Preserves on-disk bytes (``indent=2``). ``atomic_save`` additionally passes
+    ``default=str`` (coerces non-serializable values rather than raising); for
+    the all-serializable payloads here the output is byte-identical.
+    """
+    atomic_save(payload, path)
 
 
 # ─── CLI ─────────────────────────────────────────────────────────────────────

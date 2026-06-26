@@ -35,6 +35,8 @@ import statistics
 import sys
 from typing import Optional
 
+from spa_core.utils.atomic import atomic_save
+
 __all__ = [
     "VaRCalculator",
     "percentile",
@@ -83,13 +85,13 @@ def percentile(sorted_values: list, p: float) -> float:
 
 
 def _atomic_write_json(path: str, payload: dict) -> None:
-    """Write JSON atomically: tmp file in same dir + os.replace."""
-    directory = os.path.dirname(path) or "."
-    os.makedirs(directory, exist_ok=True)
-    tmp = f"{path}.tmp.{os.getpid()}"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump(payload, fh, indent=2)
-    os.replace(tmp, path)
+    """Write JSON atomically, delegated to the canonical ``atomic_save`` (P3-9).
+
+    Preserves on-disk bytes (``indent=2``). ``atomic_save`` additionally passes
+    ``default=str`` (coerces non-serializable values rather than raising); for
+    the all-serializable payloads here the output is byte-identical.
+    """
+    atomic_save(payload, path)
 
 
 # ─── Calculator ──────────────────────────────────────────────────────────────

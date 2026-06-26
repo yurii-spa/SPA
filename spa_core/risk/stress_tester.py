@@ -33,6 +33,8 @@ import os
 import sys
 from typing import Optional
 
+from spa_core.utils.atomic import atomic_save
+
 __all__ = ["StressTester", "SCENARIO_NAMES"]
 
 # ── Scenario parameters (documented assumptions) ─────────────────────────────
@@ -59,12 +61,14 @@ T2_CONTAGION_KEYS = ("morpho", "euler", "yearn")  # T2 vault protocols
 
 
 def _atomic_write_json(path: str, payload: dict) -> None:
-    directory = os.path.dirname(path) or "."
-    os.makedirs(directory, exist_ok=True)
-    tmp = f"{path}.tmp.{os.getpid()}"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump(payload, fh, indent=2)
-    os.replace(tmp, path)
+    """Atomic JSON write, delegated to the canonical ``atomic_save`` (P3-9).
+
+    Preserves on-disk bytes (``indent=2``). ``atomic_save`` additionally passes
+    ``default=str`` so a non-JSON-serializable payload is coerced rather than
+    raising; for the all-serializable report payloads here the output is
+    byte-identical.
+    """
+    atomic_save(payload, path)
 
 
 class StressTester:

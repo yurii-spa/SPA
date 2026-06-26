@@ -66,7 +66,6 @@ import argparse
 import json
 import logging
 import math
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -75,6 +74,7 @@ from spa_core.paper_trading.equity_curve import (
     build_daily_equity_curve,
     load_pnl_history,
 )
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.paper_trading.linearity_analytics")
 
@@ -285,11 +285,9 @@ def generate_linearity_report(
     if output_path is not None:
         out = Path(output_path)
         try:
-            out.parent.mkdir(parents=True, exist_ok=True)
-            # Atomic write: tmp in the same dir + os.replace (mirrors siblings).
-            tmp = out.with_name(f".linearity_analytics_{os.getpid()}.tmp")
-            tmp.write_text(json.dumps(report, indent=2), encoding="utf-8")
-            os.replace(tmp, out)
+            # Atomic write via the canonical atomic_save (P3-9). Byte-identical
+            # (indent=2; atomic_save adds default=str for serializable payloads).
+            atomic_save(report, str(out))
             log.info(
                 "linearity report written: %s (r2=%s, k_ratio=%s, %d pts)",
                 out, report["metrics"]["r_squared"],

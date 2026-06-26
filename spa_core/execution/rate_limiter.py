@@ -24,6 +24,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from spa_core.utils.atomic import atomic_save
+
 # ── Constants ────────────────────────────────────────────────────────────────
 
 COOLDOWN_SECONDS: int = 4 * 3600          # 4 hours
@@ -217,22 +219,17 @@ class RateLimiter:
             return dict(_EMPTY_STATE)
 
     def _save_state(self) -> None:
-        """Atomically persist current state to disk (tmp + os.replace)."""
-        state_path = self._state_path
-        state_path.parent.mkdir(parents=True, exist_ok=True)
-        tmp_path = state_path.with_suffix(".json.tmp")
+        """Atomically persist current state via the canonical ``atomic_save`` (P3-9).
+
+        Byte-identical on disk (``indent=2``). The write is intentionally
+        best-effort: if persistence fails the in-memory state still works, so an
+        :class:`OSError` is swallowed (atomic_save cleans up its own tmp file).
+        """
         try:
-            with open(tmp_path, "w", encoding="utf-8") as fh:
-                json.dump(self._state, fh, indent=2)
-                fh.flush()
-                os.fsync(fh.fileno())
-            os.replace(tmp_path, state_path)
+            atomic_save(self._state, str(self._state_path))
         except OSError:
-            # Best-effort: if we can't persist, the in-memory state still works
-            try:
-                tmp_path.unlink(missing_ok=True)
-            except OSError:
-                pass
+            # Best-effort: if we can't persist, the in-memory state still works.
+            pass
 
     def _maybe_reset_daily(self, now: float) -> None:
         """

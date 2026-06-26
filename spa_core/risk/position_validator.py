@@ -25,6 +25,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from spa_core.utils.atomic import atomic_save
+
 log = logging.getLogger("spa.risk.position_validator")
 
 _REPO = Path(__file__).resolve().parents[2]
@@ -80,20 +82,11 @@ def _send_telegram(message: str) -> bool:
 
 
 def _atomic_write_json(path: Path, data: object) -> None:
-    """Atomic write: tmp + os.replace."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    dir_ = str(path.parent)
-    fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(data, f, indent=2, default=str)
-        os.replace(tmp, str(path))
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
+    """Atomic write, delegated to the canonical ``atomic_save`` (P3-9).
+
+    Byte-identical: both use ``json.dump(..., indent=2, default=str)``.
+    """
+    atomic_save(data, str(path))
 
 
 def _load_violations_history() -> list:

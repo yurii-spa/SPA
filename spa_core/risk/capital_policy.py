@@ -19,6 +19,8 @@ from pathlib import Path
 from datetime import datetime
 import json
 
+from spa_core.utils.atomic import atomic_save
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 CAPITAL_POLICY_VERSION = "capital_policy_v2.0"
@@ -269,16 +271,13 @@ def run_allocation_check(output_path: Optional[Path] = None) -> Dict:
         "LLM_FORBIDDEN": True,
     }
 
-    # ── Атомарная запись ─────────────────────────────────────────────────────
+    # ── Атомарная запись через канонический atomic_save (P3-9) ────────────────
+    # Байт-идентично для сериализуемого payload (indent=2).
     if output_path is None:
         output_path = _PROJECT_ROOT / "data" / "capital_allocation.json"
     output_path = Path(output_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    import os
-    tmp = output_path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(output, indent=2))
-    os.replace(tmp, output_path)
+    atomic_save(output, str(output_path))
 
     return output
 

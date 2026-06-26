@@ -67,7 +67,6 @@ import argparse
 import json
 import logging
 import math
-import os
 import random
 import statistics
 from datetime import datetime, timezone
@@ -78,6 +77,7 @@ from spa_core.paper_trading.equity_curve import (
     build_daily_equity_curve,
     load_pnl_history,
 )
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.paper_trading.monte_carlo_projection")
 
@@ -375,12 +375,9 @@ def generate_monte_carlo_report(
     if out_path is not None:
         out = Path(out_path)
         try:
-            out.parent.mkdir(parents=True, exist_ok=True)
-            # Atomic write: tmp file then os.replace (mirrors the safe-write
-            # convention of benchmark_comparison / the orchestrator modules).
-            tmp = out.with_suffix(out.suffix + ".tmp")
-            tmp.write_text(json.dumps(report, indent=2), encoding="utf-8")
-            os.replace(tmp, out)
+            # Atomic write via the canonical atomic_save (P3-9). Byte-identical
+            # (indent=2; atomic_save adds default=str for serializable payloads).
+            atomic_save(report, str(out))
             proj = report["projection"]
             log.info(
                 "monte carlo projection report written: %s (%d hist returns, "

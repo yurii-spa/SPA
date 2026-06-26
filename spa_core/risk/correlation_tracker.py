@@ -31,6 +31,8 @@ import os
 import sys
 from typing import Optional
 
+from spa_core.utils.atomic import atomic_save
+
 __all__ = ["CorrelationTracker", "pearson", "BENCHMARK_APY"]
 
 BENCHMARK_APY = 0.035            # ETH staking ~3.5% annual
@@ -62,12 +64,13 @@ def pearson(xs: list, ys: list) -> Optional[float]:
 
 
 def _atomic_write_json(path: str, payload: dict) -> None:
-    directory = os.path.dirname(path) or "."
-    os.makedirs(directory, exist_ok=True)
-    tmp = f"{path}.tmp.{os.getpid()}"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump(payload, fh, indent=2)
-    os.replace(tmp, path)
+    """Atomic JSON write, delegated to the canonical ``atomic_save`` (P3-9).
+
+    Preserves on-disk bytes (``indent=2``). ``atomic_save`` additionally passes
+    ``default=str`` (coerces non-serializable values rather than raising); for
+    the all-serializable payloads here the output is byte-identical.
+    """
+    atomic_save(payload, path)
 
 
 def _to_returns(series: list) -> list:

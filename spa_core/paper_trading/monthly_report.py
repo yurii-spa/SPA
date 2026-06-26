@@ -35,12 +35,12 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import os
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+from spa_core.utils.atomic import atomic_save_text
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -725,23 +725,10 @@ def save_report(month: str, data_dir: str = "data") -> str:
     """
     content   = generate_markdown_report(month, data_dir)
     out_path  = Path(data_dir) / f"monthly_report_{month}.md"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    fd, tmp_path = tempfile.mkstemp(
-        dir=str(out_path.parent),
-        prefix=".tmp_monthly_report_",
-        suffix=".md",
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(content)
-        os.replace(tmp_path, str(out_path))
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+    # Atomic text write via the canonical helper (P3-9). Byte-identical content
+    # (same UTF-8 string written verbatim); atomic_save_text also fsyncs.
+    atomic_save_text(content, str(out_path))
 
     return str(out_path)
 

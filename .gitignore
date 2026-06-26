@@ -5,11 +5,38 @@ __pycache__/
 .pytest_cache/
 *.egg-info/
 
+# ─────────────────────────────────────────────────────────────────────────────
+# data/ GIT POLICY (P3-3, 2026-06-26)
+#
+# RUNTIME-ONLY (ignored — transient per-run churn, NEVER canonical, self-created
+#   by code if absent; baking these into history is pure noise):
+#     - data/*.json, data/**/*.json   → all live state snapshots & per-run reports
+#       (incl. data/daily_report_*.json, data/milestones/*, data/daily_summaries/*,
+#        data/monthly_reports/*, data/reports/* — all JSON, covered here)
+#     - *.db / *.sqlite               → live DBs
+#     - data/*.db-journal             → SQLite rollback journals (transient)
+#     - data/backups/                 → daily DB backup snapshots
+#     - data/*.jsonl                  → append-only runtime audit/hash-chain logs
+#                                       (audit_trail.jsonl etc.; self-create on miss)
+#
+# OWNER-GATED DECISION (LEFT TRACKED ON PURPOSE — do NOT untrack without owner):
+#   data/equity_curve_daily.json, data/golive_status.json,
+#   data/paper_evidence_history.json are CURRENTLY committed track snapshots that
+#   the site static-fallback may rely on. They ARE matched by the data/*.json rule
+#   above but remain tracked because they were committed before this rule. Whether
+#   the volatile track snapshots should live in git at all (canonical-in-git vs
+#   runtime-only) is an OWNER decision — see CLAUDE.md "data/ git policy".
+#   These were deliberately NOT `git rm --cached`'d here.
+# ─────────────────────────────────────────────────────────────────────────────
+
 # Data files (runtime, не в git)
 data/*.json
 data/**/*.json
 *.db
 *.sqlite
+data/*.db-journal
+data/backups/
+data/*.jsonl
 logs/*.log
 *.log
 /tmp/

@@ -14,12 +14,11 @@ fail-closed: нет данных → UNKNOWN → трактуется как EXI
 from enum import Enum
 from typing import Optional
 import json
-import os
-import tempfile
 from datetime import datetime
 from pathlib import Path
 
 from spa_core.risk.policy_hy import HY_LIMITS, HYRiskLimits, evaluate_exit
+from spa_core.utils.atomic import atomic_save
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _REGIME_LOG = _PROJECT_ROOT / "data" / "hy_regime_log.json"
@@ -207,18 +206,7 @@ def log_regime_change(
         "entries": entries,
     }
 
-    # Атомарная запись: tmp + os.replace
+    # Атомарная запись через канонический atomic_save (P3-9).
+    # Байт-идентично для сериализуемого payload (indent=2).
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_fd, tmp_path = tempfile.mkstemp(
-        dir=log_path.parent, prefix=".hy_regime_log_"
-    )
-    try:
-        with os.fdopen(tmp_fd, "w") as f:
-            json.dump(updated, f, indent=2)
-        os.replace(tmp_path, log_path)
-    except Exception:
-        try:
-            os.unlink(tmp_path)
-        except Exception:
-            pass
-        raise
+    atomic_save(updated, str(log_path))
