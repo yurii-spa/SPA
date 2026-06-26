@@ -133,7 +133,14 @@ def _risk_for(underlying: str, kind: UnderlyingKind, as_of: str,
             top_borrower_share=Decimal(str(config.top_borrower_share(u))),
         )
     # LST / LRT — documented grinding-drift peg surface (the restaking-tail the gate refuses on LRT).
-    peg = Decimal("0.006") if kind == UnderlyingKind.LRT else Decimal("0.001")
+    # The LRT peg is modelled at the LOWER edge of the real toxic-LRT drawdown band (config cites
+    # "LRT ratio drawdowns reach 5-6%"); 0.025 (2.5%) is a deliberately conservative floor that still
+    # drives the peg haircut to its cap so a toxic restaking book is refused on STRUCTURAL grounds
+    # (peg/nesting tail) at ANY position size — NOT as a side-effect of an over-sized liquidity haircut.
+    # (A milder 0.6% modelled peg previously leaked through once the desk sized to exit-capacity instead
+    # of throwing the full cash book at the gate — that was a sizing artifact masquerading as the veto;
+    # the structural refusal must not depend on over-sizing. Real ezETH/rsETH always carry >= this.)
+    peg = Decimal("0.025") if kind == UnderlyingKind.LRT else Decimal("0.001")
     return UnderlyingRisk(
         underlying=u, as_of=as_of,
         nav_redemption_value=Decimal("1"), market_price=Decimal("1") - peg,

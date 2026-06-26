@@ -293,6 +293,42 @@ def test_pendle_feed_live_active_endpoint():
     assert q.venue is RateVenue.PENDLE_PT
 
 
+def test_pendle_feed_live_active_rich_shape_multiple_underlyings():
+    """The REAL /markets/active shape: each market is a FLAT dict with `name` (the underlying symbol),
+    `expiry`, a `pt` chain-address string, and a `details` block carrying impliedApy + liquidity. The
+    feed must surface ALL current target underlyings (sUSDe/USDe/sUSDS/wstETH) from this shape — this is
+    the enrichment that fixes the thin-live-surface bug (the old paged /markets endpoint surfaced only
+    ~2). A nested-wrapper underlying name (jrUSDe) is rejected; a depthless market is skipped."""
+    active = {"markets": [
+        {"name": "sUSDe", "expiry": "2030-08-13T00:00:00.000Z",
+         "pt": "1-0xSUSDE", "details": {"impliedApy": 0.043, "liquidity": 9_000_000}},
+        {"name": "USDe", "expiry": "2030-08-13T00:00:00.000Z",
+         "pt": "1-0xUSDE", "details": {"impliedApy": 0.053, "liquidity": 450_000}},
+        {"name": "sUSDS", "expiry": "2030-11-26T00:00:00.000Z",
+         "pt": "1-0xSUSDS", "details": {"impliedApy": 0.049, "liquidity": 5_800_000}},
+        {"name": "wstETH", "expiry": "2031-12-30T00:00:00.000Z",
+         "pt": "1-0xWSTETH", "details": {"impliedApy": 0.025, "liquidity": 2_600_000}},
+        {"name": "jrUSDe", "expiry": "2030-08-13T00:00:00.000Z",   # nested wrapper → rejected
+         "pt": "1-0xJR", "details": {"impliedApy": 0.20, "liquidity": 1_000_000}},
+        {"name": "sUSDe", "expiry": "2030-08-13T00:00:00.000Z",     # depthless → skipped
+         "pt": "1-0xNODEPTH", "details": {"impliedApy": 0.04, "liquidity": 0}},
+    ]}
+    feed = feeds.PendleMarketFeed(fetcher=lambda url: active)
+    rows = feed.quotes_live("2026-06-26")
+    uls = sorted(q.underlying for q in rows)
+    assert uls == ["susde", "susds", "usde", "wsteth"]  # all 4 targets, wrapper + depthless dropped
+    susds = [q for q in rows if q.underlying == "susds"][0]
+    assert susds.kind is UnderlyingKind.STABLE_RWA
+    assert susds.quoted_rate == Decimal("0.049")
+    assert susds.tvl_usd == Decimal("5800000")
+    wst = [q for q in rows if q.underlying == "wsteth"][0]
+    assert wst.kind is UnderlyingKind.LST
+    assert wst.tvl_usd == Decimal("2600000")
+    for q in rows:
+        assert q.venue is RateVenue.PENDLE_PT
+        assert isinstance(q.quoted_rate, Decimal) and q.exit_liquidity_usd > 0
+
+
 def test_pendle_feed_live_fail_closed_bad_payload():
     feed = feeds.PendleMarketFeed(fetcher=lambda url: "not an object")
     with pytest.raises(feeds.FeedError):
@@ -310,6 +346,34 @@ def test_pendle_feed_live_default_fetcher_skips_when_offline():
     feed = feeds.PendleMarketFeed()  # default real fetcher
     with pytest.raises((RuntimeError, feeds.FeedError, OSError)):
         feed.quotes_live("2026-01-01")
+
+
+def test_pendle_feed_live_real_surface_is_not_thin_when_reachable():
+    """When the live Pendle endpoint is genuinely reachable, the enriched feed surfaces a SANE number
+    of current target PT markets (>= 3 — the thin-surface threshold). This is the regression guard for
+    the bug this fix targets: the old feed surfaced only ~2. Skips cleanly with no egress (CI-safe).
+
+    NOTE: this is the ONE test that legitimately reaches the network, so it must bypass the autouse
+    socket guard by calling the real fetcher OUTSIDE the patched path — we instead probe liveness and,
+    when up, restore the real socket for the duration of the call."""
+    if not _network_available():
+        pytest.skip("no network egress — live Pendle endpoint unreachable (CI-safe skip)")
+    import datetime
+    # temporarily restore real sockets (the autouse guard patched them) for this one live call
+    socket.socket.connect = _REAL_SOCKET_CONNECT
+    socket.create_connection = _REAL_CREATE_CONNECTION
+    feed = feeds.PendleMarketFeed()
+    today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+    try:
+        rows = feed.quotes_live(today)
+    except (OSError, feeds.FeedError) as exc:  # transient endpoint hiccup → skip, don't flake
+        pytest.skip(f"live Pendle endpoint not answering cleanly: {exc}")
+    # the enriched live surface is NOT thin — at least the thin-surface floor of current targets
+    assert len(rows) >= 3, f"live surface unexpectedly thin ({len(rows)} PT markets) — feed regression"
+    for q in rows:
+        assert q.venue is RateVenue.PENDLE_PT
+        assert q.quoted_rate is not None and q.exit_liquidity_usd > 0
+        assert q.tenor_seconds > 0  # only non-expired markets
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════

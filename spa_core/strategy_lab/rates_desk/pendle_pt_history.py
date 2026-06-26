@@ -76,7 +76,9 @@ TIMEOUT_S = 30
 HARVESTABLE = {
     "sUSDe": UnderlyingKind.STABLE_SYNTH,   # Ethena staked-USDe (the flagship synth-carry PT)
     "USDe":  UnderlyingKind.STABLE_SYNTH,   # Ethena USDe
+    "sUSDS": UnderlyingKind.STABLE_RWA,     # Sky sUSDS (RWA-backed savings — clean t-bill-style carry)
     "eETH":  UnderlyingKind.LST,            # ether.fi eETH (matched via PT-weETH-*, LST baseline)
+    "wstETH": UnderlyingKind.LST,           # Lido wstETH (wrapped stETH — plain LST, LST baseline)
 }
 TOXIC = {
     "ezETH": UnderlyingKind.LRT,            # Renzo restaking (Aug-2024 carry-unwind)
@@ -167,6 +169,22 @@ def _match_underlying(symbol: str) -> Optional[str]:
         token = "weeth" if name.lower() == "eeth" else name.lower()
         if body.startswith(token + "-"):
             return name
+    return None
+
+
+def _match_underlying_by_name(name: str) -> Optional[str]:
+    """Map a Pendle /markets/active `name` field (the UNDERLYING-asset symbol, e.g. `sUSDe`, `wstETH`,
+    `USDe`, `sUSDS`) to a canonical target underlying, or None. Unlike `_match_underlying` (which parses
+    a `PT-<token>-<expiry>` market symbol), the active endpoint already gives the clean underlying name,
+    so we match it EXACTLY (case-insensitive) against the target keys. Exact match is what keeps a
+    nested/wrapper underlying (e.g. `jrUSDe`, `srUSDe`, `reUSDe`) from being mistaken for a clean
+    target — only `usde` itself matches `USDe`, never `jrusde`."""
+    s = (name or "").strip().lower()
+    if not s:
+        return None
+    for target in TARGETS:
+        if s == target.lower():
+            return target
     return None
 
 

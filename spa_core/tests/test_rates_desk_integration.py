@@ -301,6 +301,47 @@ def test_paper_fail_closed_on_empty_surface(tmp_path):
     assert st["gap"] is True  # no usable quote → fail-closed gap, no advance
 
 
+def test_paper_scan_diagnostic_present_and_transparent(tmp_path, deep_dataset):
+    """The 'why N entries' diagnostic must be present in BOTH the status and the series point, and must
+    distinguish a genuine entry from an honest-no-edge / thin-surface sit-in-cash (the transparency the
+    brief demands — 0 entries must never be an opaque flat line)."""
+    from spa_core.strategy_lab.rates_desk import paper_rates
+    provider, day = _paper_provider(deep_dataset)
+    svc = paper_rates.RatesDeskPaperService(surface_provider=provider, state_dir=tmp_path,
+                                            record_proof=False, alert_on_gap=False)
+    st = svc.tick(as_of=day)
+    diag = st["scan_diag"]
+    assert diag is not None
+    # the diagnostic carries the honest fields
+    for fld in ("markets_scanned", "approvals", "refusals", "refused_by_reason",
+                "best_net_edge_bps", "surface_thin", "summary"):
+        assert fld in diag, f"scan_diag missing {fld}"
+    assert diag["markets_scanned"] >= 1
+    assert isinstance(diag["summary"], str) and diag["summary"]
+    # the series point persists the same diagnostic (so the forward track is auditable, not opaque)
+    import json
+    ser = json.loads((tmp_path / "rates_desk_fixed_carry_series.json").read_text())
+    assert ser["series"][-1]["scan_diag"]["markets_scanned"] == diag["markets_scanned"]
+    # a bare status() refresh recovers the last diagnostic from the persisted series
+    st2 = svc.status()
+    assert st2["scan_diag"] is not None
+    assert st2["scan_diag"]["markets_scanned"] == diag["markets_scanned"]
+
+
+def test_paper_scan_diagnostic_flags_thin_surface(tmp_path, deep_dataset):
+    """A surface with too FEW PT markets (< THIN_SURFACE_MARKETS) flags surface_thin=True — so a
+    data/wiring gap (the live feed under-surfacing) is never silently misread as desk discipline."""
+    from spa_core.strategy_lab.rates_desk import paper_rates
+    # the synthetic deep dataset has only sUSDe + ezETH on this day → 2 PT quotes (< the thin floor).
+    provider, day = _paper_provider(deep_dataset)
+    svc = paper_rates.RatesDeskPaperService(surface_provider=provider, state_dir=tmp_path,
+                                            record_proof=False, alert_on_gap=False)
+    st = svc.tick(as_of=day)
+    diag = st["scan_diag"]
+    assert diag["markets_scanned"] < paper_rates.THIN_SURFACE_MARKETS
+    assert diag["surface_thin"] is True
+
+
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 # 5) surface_io round-trip + scan (the API shape)
 # ══════════════════════════════════════════════════════════════════════════════════════════════════

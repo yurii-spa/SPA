@@ -164,8 +164,19 @@ class FixedCarrySleeve(Strategy):
                 continue  # fail-CLOSED: no risk surface → no entry
             if q.market_id in self._books:
                 continue  # already holding this market
+            # REQUEST a size BOUNDED BY EXIT CAPACITY, not the full cash book. The gate prices the
+            # liquidity haircut on requested_size_usd vs one-tick exit liquidity; throwing the whole
+            # $100k cash at a $30k-exit pool maxes that haircut and produces a FALSE tail-veto on an
+            # otherwise-healthy carry book. Requesting what the gate would actually approve
+            # (max_size_frac_of_exit * exit_liquidity, still capped at available cash) makes the
+            # tail-veto reflect REAL structural risk, not an unrealistic over-size. The gate re-applies
+            # the exact same exit cap on the SIZE leg, so this never lets us take more than it allows.
+            exit_cap = self.params.max_size_frac_of_exit * q.exit_liquidity_usd
+            requested = min(self._cash, exit_cap) if exit_cap > D0 else self._cash
+            if requested <= D0:
+                requested = self._cash
             opp = Opportunity(quote=q, shape=TradeShape.FIXED_CARRY,
-                              requested_size_usd=self._cash)
+                              requested_size_usd=requested)
             result, new_state = evaluate_entry(
                 opp=opp, risk=risk, debt_asset_price=debt_asset_price,
                 exit_liquidity=q.exit_liquidity_usd, params=self.params, state=KillState(),

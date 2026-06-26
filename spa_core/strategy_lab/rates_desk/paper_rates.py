@@ -64,9 +64,74 @@ STATUS_NAME = "status.json"
 DEFAULT_CAPITAL = 100_000.0
 _KIND_BY_VALUE = {k.value: k for k in UnderlyingKind}
 
+# Below this many live PT markets the surface is too THIN to credibly evaluate carry — 0 entries then
+# signals a data/wiring gap, NOT desk discipline. The live target universe (sUSDe/USDe/sUSDS/wstETH +
+# any active LRTs) is normally >= this; only 2 reaching the surface was the symptom of the feed bug.
+THIN_SURFACE_MARKETS = 3
+
 
 def _utc_today() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+
+
+def _scan_diagnostic(pt_quotes: List[RateQuote], entry_verdicts: list) -> dict:
+    """Build the TRANSPARENT 'why N entries / why 0 entries' diagnostic from one tick's entry scan.
+
+    Distinguishes the two honest outcomes the desk must surface:
+      • GENUINE no-edge (correct discipline): the surface IS rich, but every candidate is refused for a
+        real economic/structural reason (tail_veto / economics below the >hurdle bar / size_floor ...).
+        The desk correctly sits in cash; entries will appear when real carry shows up.
+      • THIN surface (a wiring gap, NOT discipline): markets_scanned is implausibly low (the live feed
+        under-surfaced), so the desk literally cannot evaluate carry. `surface_thin` flags this.
+
+    Fields:
+      markets_scanned        — how many PENDLE_PT quotes the scan actually saw this tick.
+      approvals / refusals   — entry verdict tally.
+      refused_by_reason      — {reason: count} (tail_veto / economics / size_floor / ...).
+      best_net_edge_bps      — the largest entry-candidate net_edge across the scan, in bps (None if no
+                               candidate produced a numeric edge), with the underlying that achieved it.
+      surface_thin           — True when markets_scanned < THIN_SURFACE_MARKETS (a data/wiring gap).
+      summary                — a one-line human-readable verdict for the status/track UI.
+    """
+    scanned = len(pt_quotes)
+    approvals = sum(1 for v in entry_verdicts if v.approved)
+    refusals = sum(1 for v in entry_verdicts if not v.approved)
+    by_reason: Dict[str, int] = {}
+    best_bps: Optional[float] = None
+    best_ul: Optional[str] = None
+    for v in entry_verdicts:
+        if not v.approved:
+            r = v.reason.value
+            by_reason[r] = by_reason.get(r, 0) + 1
+        try:
+            edge_bps = float(v.net_edge) * 10000.0
+        except (TypeError, ValueError):
+            continue
+        if best_bps is None or edge_bps > best_bps:
+            best_bps, best_ul = edge_bps, v.underlying
+    surface_thin = scanned < THIN_SURFACE_MARKETS
+    if approvals > 0:
+        summary = f"{approvals} entered, {refusals} refused ({scanned} markets scanned)"
+    elif surface_thin:
+        summary = (f"LIVE SURFACE TOO THIN: only {scanned} PT market(s) scanned "
+                   f"(< {THIN_SURFACE_MARKETS}) — cannot evaluate carry (data/wiring gap, not discipline)")
+    elif scanned == 0:
+        summary = "no PT markets in the live surface — nothing to scan"
+    else:
+        top = ";".join(f"{k}={v}" for k, v in sorted(by_reason.items()))
+        edge_txt = "n/a" if best_bps is None else f"{best_bps:.1f}bps (best: {best_ul})"
+        summary = (f"0 entered: {scanned} markets scanned, best net_edge {edge_txt}; "
+                   f"all refused [{top}] — honest no-edge, sitting in cash")
+    return {
+        "markets_scanned": scanned,
+        "approvals": approvals,
+        "refusals": refusals,
+        "refused_by_reason": by_reason,
+        "best_net_edge_bps": (None if best_bps is None else round(best_bps, 2)),
+        "best_net_edge_underlying": best_ul,
+        "surface_thin": surface_thin,
+        "summary": summary,
+    }
 
 
 def _utc_now_iso() -> str:
@@ -287,20 +352,25 @@ class RatesDeskPaperService:
             except Exception as exc:  # noqa: BLE001 — proof logging must never crash the service
                 log.warning("rates-desk proof chain append failed: %s", exc)
 
+        # the "why 0 entries" diagnostic — TRANSPARENT, honest no-edge vs thin-surface visibility.
+        diag = _scan_diagnostic(pt_quotes, entry_verdicts)
         self._persist_state(day, pretick={"date": day, "state": pre})
-        self._append_series_point(self._series_point(day, verdicts))
-        return self._write_status(day, gap=False, gap_reason="")
+        self._append_series_point(self._series_point(day, verdicts, diag))
+        return self._write_status(day, gap=False, gap_reason="", scan_diag=diag)
 
-    def _series_point(self, day: str, verdicts) -> dict:
+    def _series_point(self, day: str, verdicts, scan_diag: Optional[dict] = None) -> dict:
         m = self._sleeve.metrics()
         refusals = sum(1 for v in verdicts if not v.approved)
         approvals = sum(1 for v in verdicts if v.approved)
-        return {
+        pt = {
             "date": day, "ts": _utc_now_iso(),
             "equity_usd": self._sleeve.equity(), "net_apy_pct": m.net_apy_pct,
             "open_books": len(self._sleeve._books), "closed_books": len(self._sleeve._closed),
             "approvals": approvals, "refusals": refusals,
         }
+        if scan_diag is not None:
+            pt["scan_diag"] = scan_diag
+        return pt
 
     # ── fail-closed gap handling ───────────────────────────────────────────────────────────────────
     def _handle_gap(self, day: str, reason: str) -> dict:
@@ -310,7 +380,8 @@ class RatesDeskPaperService:
         return self._write_status(day, gap=True, gap_reason=reason)
 
     # ── status ───────────────────────────────────────────────────────────────────────────────────────
-    def _write_status(self, day: str, gap: bool, gap_reason: str) -> dict:
+    def _write_status(self, day: str, gap: bool, gap_reason: str,
+                      scan_diag: Optional[dict] = None) -> dict:
         m = self._sleeve.metrics()
         status = {
             "generated_at": _utc_now_iso(), "date": day, "gap": gap, "gap_reason": gap_reason,
@@ -320,9 +391,22 @@ class RatesDeskPaperService:
                 "open_books": len(self._sleeve._books), "closed_books": len(self._sleeve._closed),
                 "last_tick": self._last_tick,
             },
+            # the TRANSPARENT 'why N entries' diagnostic (present on a real tick; carried from the last
+            # series point on a no-tick status() refresh so the UI/track always has the latest verdict).
+            "scan_diag": scan_diag if scan_diag is not None else self._last_scan_diag(),
         }
         atomic_save(status, str(self._status_path))
         return status
+
+    def _last_scan_diag(self) -> Optional[dict]:
+        """Recover the most recent tick's scan diagnostic from the persisted series (so a bare
+        status() call still reports WHY the book looks the way it does). None if no tick yet."""
+        doc = atomic_load(str(self._series_path), default=None)
+        if isinstance(doc, dict):
+            series = doc.get("series") or []
+            if series and isinstance(series[-1], dict):
+                return series[-1].get("scan_diag")
+        return None
 
     def status(self) -> dict:
         return self._write_status(self._last_tick or _utc_today(), gap=False, gap_reason="")

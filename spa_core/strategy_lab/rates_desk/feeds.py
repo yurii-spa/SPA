@@ -182,11 +182,25 @@ def exit_liquidity_usd(
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
 # 1) PendleMarketFeed → RateQuote rows (venue = PENDLE_PT)
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
-# Live (active) markets share the v2 /markets endpoint that pendle_pt_history pages — WITHOUT the
-# `expired=true` flag, so only live markets come back. The richer per-market fields the desk needs
-# (pt.symbol, impliedApy, liquidity.usd, tvl) live here; the v1 /markets/active endpoint is metadata-
-# only (pt is a bare address, no implied APY / liquidity) and is NOT usable for quotes.
-PENDLE_ACTIVE_URL = pph.PENDLE_API_BASE + "/{chain}/markets?limit={limit}&skip={skip}"
+# LIVE markets. TWO Pendle endpoints expose the current set with DIFFERENT shapes; we use BOTH so the
+# live surface is as RICH as the deep/backtest one (the data-gap fix the brief calls out):
+#
+#   • /{chain}/markets/active  → the AUTHORITATIVE live set (~60 markets), each a flat dict with
+#       {name(=underlying symbol), expiry, pt(=chain-addr string), underlyingAsset,
+#        details:{impliedApy, liquidity, pendleApy, ...}}. This is what the desk needs: every CURRENT
+#       sUSDe/USDe/sUSDS/wstETH PT with live implied APY + liquidity. We prefer this endpoint.
+#   • /{chain}/markets?limit=&skip=  → the PAGED endpoint pendle_pt_history pages (WITHOUT the
+#       `expired=true` flag). It returns mostly EXPIRED markets (impliedApy=0, expiry in the past) and
+#       only the handful of live ones — too thin on its own (only ~2 live targets survive the
+#       negative-tenor drop). Kept ONLY as a fail-CLOSED FALLBACK + for the injected `pt.symbol` test
+#       shape; the active endpoint is authoritative when reachable.
+#
+# Why the old code under-surfaced: it used the paged /markets endpoint, matched on `pt.symbol`, and so
+# saw only the 2 live target PTs buried among 470 mostly-expired markets — the LRT pools (ezETH/rsETH)
+# have wound down and the sUSDS/wstETH pools never carry a PT-<token> symbol on this endpoint. The
+# active endpoint surfaces all four current targets (sUSDe/USDe/sUSDS/wstETH) with real liquidity.
+PENDLE_ACTIVE_URL = pph.PENDLE_API_BASE + "/{chain}/markets/active"
+PENDLE_MARKETS_PAGED_URL = pph.PENDLE_API_BASE + "/{chain}/markets?limit={limit}&skip={skip}"
 
 
 class PendleMarketFeed:
@@ -289,21 +303,13 @@ class PendleMarketFeed:
         as_of_ts = _as_of_ts(d)
         rows: List[RateQuote] = []
         for m in markets:
-            pt = m.get("pt") or {}
-            symbol = pt.get("symbol") or m.get("symbol") or ""
-            underlying = pph._match_underlying(symbol)
-            if underlying is None:
-                continue
-            implied = m.get("impliedApy")
-            expiry = (m.get("expiry") or "")[:10]
-            if implied is None or not expiry:
-                continue  # incomplete market — skip (never fabricate)
+            parsed = _parse_live_market(m)
+            if parsed is None:
+                continue  # not a target / incomplete market — skip (never fabricate)
+            underlying, market_id, implied, expiry, depth = parsed
             tenor = _maturity_ts(expiry) - as_of_ts
             if tenor < 0:
                 continue  # an /active market past its expiry edge — skip
-            depth = _pendle_depth_usd(m)
-            if depth is None:
-                continue
             kind = pph.TARGETS[underlying]
             ul = underlying.lower()
             sla = int(sla_by_underlying.get(ul, config.redemption_sla_seconds(ul)))
@@ -313,7 +319,7 @@ class PendleMarketFeed:
                     kind=kind,
                     venue=RateVenue.PENDLE_PT,
                     protocol="pendle",
-                    market_id=str(m.get("address") or pt.get("address") or symbol),
+                    market_id=market_id,
                     tenor_seconds=int(tenor),
                     as_of=d,
                     quoted_rate=_D(implied),
@@ -326,11 +332,16 @@ class PendleMarketFeed:
         rows.sort(key=lambda q: (q.underlying, q.market_id))
         return rows
 
-    # ── live markets fetch (paged /markets, no expired flag) ──────────────────────────────────────
+    # ── live markets fetch (/markets/active, rich shape; paged /markets fallback) ──────────────────
     def _fetch_active_markets(self, limit: int = pph.PAGE_LIMIT) -> List[dict]:
-        """Page the live /markets endpoint. The real v2 endpoint wraps markets in `results` with a
-        `total`; an injected test fetcher may instead return {"markets":[...]} or a bare list in one
-        shot (no pagination). fail-CLOSED: a malformed first page RAISES."""
+        """Fetch the live market set. PREFER the authoritative single-shot /markets/active endpoint
+        ({"markets":[...]}) which carries the rich per-market details (impliedApy + liquidity per CURRENT
+        market). An injected test fetcher may return that shape, the paged v2 shape ({"results":[...],
+        "total":N}), or a bare list — all are handled. fail-CLOSED: a malformed payload RAISES.
+
+        We page ONLY when the endpoint returns the paged shape (the real /markets?limit=&skip= fallback
+        the tests may inject); the active endpoint returns everything at once, so the loop exits after
+        the first page."""
         out: List[dict] = []
         skip = 0
         total: Optional[int] = None
@@ -338,7 +349,8 @@ class PendleMarketFeed:
             payload = self._fetch(PENDLE_ACTIVE_URL.format(chain=self._chain, limit=limit, skip=skip))
             page = _pendle_markets_page(payload)
             if page is None:
-                # the injected/simple shape ({"markets":[...]} or a list) returns everything at once
+                # the active endpoint / injected simple shape ({"markets":[...]} or a list) returns
+                # everything at once — no pagination needed.
                 return _pendle_active_markets(payload)
             results, total = page
             out.extend(results)
@@ -374,8 +386,18 @@ def _pendle_active_markets(payload: object) -> List[dict]:
 
 
 def _pendle_depth_usd(m: dict) -> Optional[Decimal]:
-    """Pool depth (USD) of an /active market: prefer tvl.usd, fall back to liquidity.usd (these are
-    AMM pools — AMM liquidity IS the exitable TVL). Returns None if neither is a positive number."""
+    """Pool depth (USD) of a live market, fail-CLOSED. Reads, in order:
+      • the rich /markets/active shape: details.liquidity (a bare USD number) or details.tvl;
+      • the legacy /markets shape: top-level tvl.usd / liquidity.usd (dict or bare number).
+    These are AMM pools, so AMM liquidity IS the exitable TVL. Returns None if no positive depth is
+    present (the market is then SKIPPED — never sized into a depthless pool)."""
+    details = m.get("details")
+    if isinstance(details, dict):
+        for fld in ("liquidity", "tvl"):
+            raw = details.get(fld)
+            val = raw.get("usd") if isinstance(raw, dict) else raw
+            if isinstance(val, (int, float)) and val > 0:
+                return _D(val)
     for fld in ("tvl", "liquidity"):
         raw = m.get(fld)
         val = None
@@ -386,6 +408,53 @@ def _pendle_depth_usd(m: dict) -> Optional[Decimal]:
         if isinstance(val, (int, float)) and val > 0:
             return _D(val)
     return None
+
+
+def _parse_live_market(m: dict):
+    """Normalize ONE live market dict (either Pendle live shape) to (underlying, market_id, implied,
+    expiry_date, depth) or None if it is not a clean target / is incomplete (fail-CLOSED skip).
+
+    Handles BOTH shapes:
+      • /markets/active (authoritative): {name(=underlying symbol), expiry, pt(=chain-addr string),
+        details:{impliedApy, liquidity}}. Underlying matched EXACTLY by `name` (the clean underlying
+        symbol) so a nested wrapper underlying never slips through.
+      • /markets (legacy/injected test): {address, expiry, impliedApy, tvl/liquidity,
+        pt:{address, symbol}}. Underlying matched by parsing the PT `symbol` (PT-<token>-<expiry>),
+        which excludes wrapper PT symbols (PT-zs-ezETH, PT-Karak-sUSDe, ...).
+
+    A market missing implied APY / expiry / positive depth, or not a target, returns None (skipped)."""
+    if not isinstance(m, dict):
+        return None
+    pt = m.get("pt")
+    pt_dict = pt if isinstance(pt, dict) else {}
+    details = m.get("details") if isinstance(m.get("details"), dict) else {}
+
+    # underlying: prefer the active-endpoint `name` (clean underlying symbol), then the legacy PT symbol
+    underlying = pph._match_underlying_by_name(m.get("name") or "")
+    if underlying is None:
+        symbol = pt_dict.get("symbol") or m.get("symbol") or ""
+        underlying = pph._match_underlying(symbol)
+    if underlying is None:
+        return None
+
+    implied = details.get("impliedApy") if "impliedApy" in details else m.get("impliedApy")
+    expiry = (m.get("expiry") or "")[:10]
+    if implied is None or not expiry:
+        return None  # incomplete market — skip (never fabricate)
+
+    depth = _pendle_depth_usd(m)
+    if depth is None:
+        return None
+
+    # market id: the market address (legacy dict) or the pt chain-address string (active), else symbol
+    market_id = (
+        m.get("address")
+        or (pt if isinstance(pt, str) else pt_dict.get("address"))
+        or pt_dict.get("symbol")
+        or m.get("symbol")
+        or f"{underlying}-{expiry}"
+    )
+    return underlying, str(market_id), implied, expiry, depth
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════

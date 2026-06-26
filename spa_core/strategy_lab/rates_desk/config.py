@@ -133,6 +133,7 @@ UNDERLYING_KINDS = {
     "ezeth": "lrt",              # Renzo restaking
     "rseth": "lrt",              # KelpDAO restaking
     "steth": "lst",
+    "wsteth": "lst",             # Lido wstETH (wrapped, value-accruing stETH — same LST risk as stETH)
     "reth":  "lst",
 }
 
@@ -150,6 +151,7 @@ REDEMPTION_SLA_SECONDS = {
     "ezeth": 86400 * 7,          # Renzo restaking exit queue (multi-day)
     "rseth": 86400 * 7,          # KelpDAO restaking exit queue
     "steth": 86400 * 3,          # Lido withdrawal queue
+    "wsteth": 86400 * 3,         # Lido (wstETH = wrapped stETH; same withdrawal queue)
     "reth":  86400 * 2,
 }
 DEFAULT_REDEMPTION_SLA_SECONDS = 86400 * 7   # fail-CLOSED default: assume the LONG cooldown
@@ -171,14 +173,14 @@ ORACLE_KIND = {
     "susde": "chainlink", "usde": "chainlink", "usdy": "chainlink",
     "susds": "chainlink", "usdc": "chainlink",
     "eeth": "redstone", "weeth": "redstone", "ezeth": "redstone",
-    "rseth": "redstone", "steth": "chainlink", "reth": "chainlink",
+    "rseth": "redstone", "steth": "chainlink", "wsteth": "chainlink", "reth": "chainlink",
 }
 DEFAULT_ORACLE_KIND = "unknown"
 ORACLE_STALENESS_SECONDS = {
     # best-effort typical update age at as_of (seconds); chainlink ETH feeds ~heartbeat 3600s,
     # redstone LRT feeds push on deviation (~hourly). Documented baselines, not live ages.
     "susde": 300, "usde": 300, "usdy": 600, "susds": 600, "usdc": 300,
-    "eeth": 600, "weeth": 600, "ezeth": 600, "rseth": 600, "steth": 300, "reth": 300,
+    "eeth": 600, "weeth": 600, "ezeth": 600, "rseth": 600, "steth": 300, "wsteth": 300, "reth": 300,
 }
 DEFAULT_ORACLE_STALENESS_SECONDS = 3600   # fail-CLOSED: assume the worst tolerated age
 
@@ -189,7 +191,7 @@ NESTED_PROTOCOL_COUNT = {
     "eeth": 1, "weeth": 1,
     "ezeth": 2,                  # Renzo (restaking) — restaking layer on top of staking
     "rseth": 2,                  # KelpDAO
-    "steth": 1, "reth": 1,
+    "steth": 1, "wsteth": 1, "reth": 1,
 }
 DEFAULT_NESTED_PROTOCOL_COUNT = 2   # fail-CLOSED: unknown → assume nested
 
@@ -197,13 +199,14 @@ DEFAULT_NESTED_PROTOCOL_COUNT = 2   # fail-CLOSED: unknown → assume nested
 # underlying; a live on-chain top-borrower probe can replace it. Conservative non-zero defaults.
 TOP_BORROWER_SHARE = {
     "susde": 0.10, "usde": 0.10, "usdy": 0.10, "susds": 0.10, "usdc": 0.10,
-    "eeth": 0.20, "weeth": 0.20, "ezeth": 0.30, "rseth": 0.30, "steth": 0.15, "reth": 0.15,
+    "eeth": 0.20, "weeth": 0.20, "ezeth": 0.30, "rseth": 0.30, "steth": 0.15, "wsteth": 0.15,
+    "reth": 0.15,
 }
 DEFAULT_TOP_BORROWER_SHARE = 0.30   # fail-CLOSED: unknown concentration → assume high
 
 # Map an underlying symbol to its price_feed X/ETH ratio key (eeth trades/prices as weeth).
 RATIO_TOKEN = {"eeth": "weeth", "weeth": "weeth", "ezeth": "ezeth",
-               "rseth": "ezeth", "steth": "steth", "reth": "reth"}
+               "rseth": "ezeth", "steth": "steth", "wsteth": "steth", "reth": "reth"}
 
 # ── LendingRateFeed targets (USDC money-markets + PT-collateral markets) ─────────────────────
 # (project, chain, symbol) selectors like restaking_feed/btc_lending_feed. underlying = the quote
