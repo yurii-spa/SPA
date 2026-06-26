@@ -195,6 +195,81 @@ const STAGE_META = {
       </div>
     </section>
 
+    <!-- ============================================================= c2. LIVE PAPER TRACK (accruing) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
+        <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
+           data-ru="Живой paper-трек — rates desk, накапливается">Live paper track — the rates desk, accruing</p>
+        <span class="text-[11px] font-mono" style="color:var(--text-faint)">
+          <span data-ru="источник">source</span>: <span id="track-src" data-ru="статика / офлайн">static / offline</span>
+          · <span id="track-asof">—</span>
+        </span>
+      </div>
+      <p class="text-sm mb-2 leading-relaxed max-w-2xl" style="color:var(--text-primary)"
+         data-ru="Валидированный sleeve FixedCarry теперь работает live в paper-режиме — накапливает форвардный трек.">
+        <strong>The validated FixedCarry sleeve now runs live in paper — accruing a forward track.</strong>
+      </p>
+      <p class="text-sm mb-6 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Валидированный sleeve FixedCarry работает live в paper-режиме (без капитала) через com.spa.rates_desk_paper, накапливая форвардный трек. Это advisory-исследование — не go-live-трек и не реальный капитал — но это тот же движок, что пойдёт в live, записанный прозрачно. Из /api/rates-desk/track.">
+        The validated FixedCarry sleeve runs live in paper (no capital) via
+        <span class="font-mono text-xs">com.spa.rates_desk_paper</span>, accruing a forward track. This
+        is advisory research — <strong style="color:var(--text-primary)">not the go-live track, not real
+        capital</strong> — but it's the same engine that will run live, recorded transparently. From
+        <span class="font-mono text-xs">/api/rates-desk/track</span>.
+      </p>
+
+      <!-- Early-track honesty banner -->
+      <div class="rounded-lg p-4 mb-5" style="background:var(--accent-bg);border:1px solid var(--accent-dim)">
+        <p class="text-xs leading-relaxed" style="color:var(--text-secondary)"
+           data-ru="Этот трек только начался в этом спринте — это РАННИЙ форвардный рекорд, не длинная история. Ниже — «N дней на сегодня», честно.">
+          This track just started this sprint — it is an <strong style="color:var(--text-primary)">early</strong>
+          forward record, not a long history. Below is "<span id="track-days-inline">N</span> days so far",
+          honestly.
+        </p>
+      </div>
+
+      <!-- Summary tiles: days · cumulative return · current equity -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+        <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+          <p class="text-xs font-mono mb-1" style="color:var(--text-muted)" data-ru="Дней накоплено">Days accrued</p>
+          <p id="track-days" class="text-2xl font-bold font-mono" style="color:var(--text-primary)">—</p>
+        </div>
+        <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+          <p class="text-xs font-mono mb-1" style="color:var(--text-muted)" data-ru="Кумулятивная доходность">Cumulative return</p>
+          <p id="track-ret" class="text-2xl font-bold font-mono" style="color:var(--text-secondary)">—</p>
+        </div>
+        <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+          <p class="text-xs font-mono mb-1" style="color:var(--text-muted)" data-ru="Текущий equity (paper)">Current equity (paper)</p>
+          <p id="track-eq" class="text-2xl font-bold font-mono" style="color:var(--text-primary)">—</p>
+        </div>
+      </div>
+
+      <!-- Lightweight inline-SVG sparkline of the equity series (no chart deps). -->
+      <div id="track-spark-wrap" class="rounded-xl p-5 mb-5 hidden" style="background:var(--bg-surface);border:1px solid var(--border)">
+        <p class="text-[11px] uppercase tracking-wider font-mono mb-3" style="color:var(--text-muted)"
+           data-ru="Кривая equity (paper, форвард)">Equity curve (paper, forward)</p>
+        <svg id="track-spark" viewBox="0 0 600 80" preserveAspectRatio="none" class="w-full h-20" aria-hidden="true"></svg>
+      </div>
+
+      <!-- Compact equity table (always rendered as the verifiable fallback). -->
+      <div id="track-table-wrap" class="overflow-x-auto rounded-xl" style="border:1px solid var(--border)">
+        <table class="w-full text-sm" style="color:var(--text-secondary)">
+          <thead>
+            <tr class="text-[11px] font-mono uppercase tracking-wider text-left" style="color:var(--text-muted);background:var(--bg-surface)">
+              <th class="px-4 py-3" data-ru="Дата">Date</th>
+              <th class="px-4 py-3 text-right" data-ru="Equity (paper)">Equity (paper)</th>
+              <th class="px-4 py-3 text-right" data-ru="net APY">net APY</th>
+            </tr>
+          </thead>
+          <tbody id="track-rows">
+            <tr><td colspan="3" class="px-4 py-6 text-center" style="color:var(--text-muted)">
+              <span data-ru="Трек запускается — ещё нет тиков.">Track starting — no ticks yet.</span>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- ============================================================= d. THE REFUSAL LOG (the moat) -->
     <section class="py-10 border-t" style="border-color:var(--border)">
       <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
@@ -359,6 +434,76 @@ const STAGE_META = {
         if (n >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
         if (n >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'k';
         return '$' + n.toFixed(0);
+      }
+
+      /* ---- c2. Live paper forward-track (the validated FixedCarry sleeve, accruing) ----- */
+      function trackRow(p) {
+        var apy = num(p.net_apy_pct);
+        var apyTxt = apy == null ? '—' : apy.toFixed(2) + '%';
+        return '<tr style="border-top:1px solid var(--border)">' +
+          '<td class="px-4 py-3 font-mono text-xs" style="color:var(--text-secondary)">' + esc(p.date || '?') + '</td>' +
+          '<td class="px-4 py-3 font-mono text-right" style="color:var(--text-primary)">' + usd(p.equity != null ? p.equity : p.nav) + '</td>' +
+          '<td class="px-4 py-3 font-mono text-right text-xs" style="color:var(--text-muted)">' + apyTxt + '</td>' +
+        '</tr>';
+      }
+
+      function drawSparkline(series) {
+        var svg = document.getElementById('track-spark');
+        var wrap = document.getElementById('track-spark-wrap');
+        if (!svg || !wrap) return;
+        var pts = [];
+        for (var i = 0; i < series.length; i++) {
+          var v = num(series[i].equity != null ? series[i].equity : series[i].nav);
+          if (v != null) pts.push(v);
+        }
+        if (pts.length < 2) return; // need at least 2 points for a line
+        var W = 600, H = 80, PAD = 4;
+        var lo = Math.min.apply(null, pts), hi = Math.max.apply(null, pts);
+        var span = (hi - lo) || 1; // flat series → a centred line, not a divide-by-zero
+        var coords = pts.map(function (v, i) {
+          var x = PAD + (i / (pts.length - 1)) * (W - 2 * PAD);
+          var y = PAD + (1 - (v - lo) / span) * (H - 2 * PAD);
+          return x.toFixed(1) + ',' + y.toFixed(1);
+        });
+        var up = pts[pts.length - 1] >= pts[0];
+        var stroke = up ? 'var(--ok)' : '#f87171';
+        svg.innerHTML = '<polyline fill="none" stroke="' + stroke + '" stroke-width="2" ' +
+          'stroke-linejoin="round" stroke-linecap="round" points="' + coords.join(' ') + '"></polyline>';
+        wrap.classList.remove('hidden');
+      }
+
+      function loadTrack() {
+        fetch(API + '/api/rates-desk/track').then(function (r) { return r.json(); }).then(function (d) {
+          if (!d || typeof d.days === 'undefined') return;
+          var ru = isRu();
+          var days = num(d.days) || 0;
+          setText('track-days', days + (ru ? (days === 1 ? ' день' : ' дней') : (days === 1 ? ' day' : ' days')));
+          setText('track-days-inline', String(days));
+          var ret = num(d.cumulative_return_pct);
+          if (ret != null) {
+            var retEl = document.getElementById('track-ret');
+            var sign = ret > 0 ? '+' : '';
+            if (retEl) {
+              retEl.textContent = sign + ret.toFixed(2) + '%';
+              retEl.style.color = ret > 0 ? 'var(--ok)' : (ret < 0 ? '#f87171' : 'var(--text-secondary)');
+            }
+          }
+          var eq = num(d.current_equity);
+          if (eq != null) setText('track-eq', usd(eq));
+          var series = Array.isArray(d.daily_series) ? d.daily_series : [];
+          var body = document.getElementById('track-rows');
+          if (body && series.length) {
+            var rows = series.slice();
+            rows.reverse(); // most recent first
+            body.innerHTML = rows.map(trackRow).join('');
+            drawSparkline(series);
+          } else if (body) {
+            body.innerHTML = '<tr><td colspan="3" class="px-4 py-6 text-center" style="color:var(--text-muted)">' +
+              esc(ru ? 'Трек запускается — ещё нет тиков.' : 'Track starting — no ticks yet.') + '</td></tr>';
+          }
+          setText('track-src', 'live');
+          if (d.last_tick) setText('track-asof', d.last_tick);
+        }).catch(function () {});
       }
 
       /* ---- d. Decision / refusal log ---------------------------------------------------- */
@@ -549,7 +694,7 @@ const STAGE_META = {
         }).catch(function () {});
       }
 
-      function init() { loadDecisions(); loadProof(); loadSurface(); loadOpportunities(); }
+      function init() { loadTrack(); loadDecisions(); loadProof(); loadSurface(); loadOpportunities(); }
       if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
       else { init(); }
     })();

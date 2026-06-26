@@ -839,6 +839,73 @@ def get_rates_desk_proof(last_n: int = Query(default=12, ge=1, le=200)):
     }
 
 
+@app.get("/api/rates-desk/track", tags=["strategy_lab"])
+def get_rates_desk_track():
+    """Rates-Desk LIVE paper forward-track — the validated FixedCarry sleeve, accruing.
+
+    The credibility/distribution artifact: the validated FixedCarry sleeve runs live in paper (NO
+    capital) via com.spa.rates_desk_paper, recording a verifiable FORWARD track. This serves that
+    growing record from data/rates_desk/paper/ (status.json + the {sleeve}_series.json time-series):
+    the days accumulated so far, cumulative return, and the equity series.
+
+    Read-only, graceful, fail-CLOSED: returns an empty track (not an error) when no track exists yet
+    (the service has not ticked), mirroring /api/rates-desk/decisions. is_advisory is ALWAYS true — this
+    is advisory research, the same engine that will run live, recorded transparently. NOT the go-live
+    track, NOT real capital.
+    """
+    status = _load_json("rates_desk/paper/status.json", {})
+    series_doc = _load_json("rates_desk/paper/rates_desk_fixed_carry_series.json", {})
+
+    sleeve = status.get("sleeve", {}) if isinstance(status, dict) else {}
+    sleeve_id = sleeve.get("id") or (series_doc.get("id") if isinstance(series_doc, dict) else None) \
+        or "rates_desk_fixed_carry"
+
+    raw_series = series_doc.get("series", []) if isinstance(series_doc, dict) else []
+    daily_series = []
+    for pt in raw_series:
+        if not isinstance(pt, dict):
+            continue
+        eq = pt.get("equity_usd")
+        daily_series.append({
+            "date": pt.get("date"),
+            "equity": eq,
+            "nav": eq,
+            "net_apy_pct": pt.get("net_apy_pct"),
+        })
+
+    started_at = daily_series[0]["date"] if daily_series else None
+    days = len(daily_series)
+
+    current_equity = None
+    cumulative_return_pct = None
+    if daily_series:
+        first_eq = daily_series[0].get("equity")
+        last_eq = daily_series[-1].get("equity")
+        current_equity = last_eq if last_eq is not None else sleeve.get("equity_usd")
+        if isinstance(first_eq, (int, float)) and first_eq and isinstance(last_eq, (int, float)):
+            cumulative_return_pct = round((last_eq / first_eq - 1.0) * 100.0, 6)
+    else:
+        current_equity = sleeve.get("equity_usd")
+
+    return {
+        "generated_at": _now(),
+        "model": "rates_desk_paper_track",
+        "sleeve_id": sleeve_id,
+        "name": sleeve.get("name"),
+        "started_at": started_at,
+        "days": days,
+        "current_equity": current_equity,
+        "cumulative_return_pct": cumulative_return_pct,
+        "net_apy_pct": sleeve.get("net_apy_pct"),
+        "open_books": sleeve.get("open_books"),
+        "closed_books": sleeve.get("closed_books"),
+        "last_tick": sleeve.get("last_tick"),
+        "gap": status.get("gap") if isinstance(status, dict) else None,
+        "daily_series": daily_series,
+        "is_advisory": True,
+    }
+
+
 @app.get("/api/backtest/replay", tags=["backtesting"])
 def get_backtest_replay(days: int = Query(default=90, ge=1, le=365)):
     """
