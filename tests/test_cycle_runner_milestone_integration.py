@@ -180,24 +180,30 @@ class TestMilestoneAllFive:
 class TestCycleRunnerIntegration:
 
     def test_mp512_block_present_in_cycle_runner(self):
-        """cycle_runner.py должен содержать блок MP-512 с ApyMilestoneTracker."""
-        runner_path = (
+        """Блок MP-512 с ApyMilestoneTracker должен присутствовать в цикле.
+
+        N12 decomposition: блок MP-512 (как и весь post-cycle advisory tail) был
+        перенесён ВЕРБАТИМ из ``cycle_runner.run_cycle`` в
+        ``cycle_reporting.run_post_cycle_advisory``. Поведение идентично; ищем
+        блок в новом месте.
+        """
+        reporting_path = (
             Path(__file__).resolve().parents[1]
-            / "spa_core" / "paper_trading" / "cycle_runner.py"
+            / "spa_core" / "paper_trading" / "cycle_reporting.py"
         )
-        assert runner_path.exists(), "cycle_runner.py не найден"
-        source = runner_path.read_text(encoding="utf-8")
-        assert "ApyMilestoneTracker" in source, "ApyMilestoneTracker не найден в cycle_runner.py"
-        assert "MP-512" in source, "Метка MP-512 не найдена в cycle_runner.py"
+        assert reporting_path.exists(), "cycle_reporting.py не найден"
+        source = reporting_path.read_text(encoding="utf-8")
+        assert "ApyMilestoneTracker" in source, "ApyMilestoneTracker не найден"
+        assert "MP-512" in source, "Метка MP-512 не найдена"
         assert "apy_milestone_tracker" in source, "Импорт модуля не найден"
 
     def test_mp512_block_inside_try_except(self):
-        """Блок MP-512 должен быть обёрнут в try/except."""
-        runner_path = (
+        """Блок MP-512 должен быть обёрнут в try/except (новое расположение)."""
+        reporting_path = (
             Path(__file__).resolve().parents[1]
-            / "spa_core" / "paper_trading" / "cycle_runner.py"
+            / "spa_core" / "paper_trading" / "cycle_reporting.py"
         )
-        source = runner_path.read_text(encoding="utf-8")
+        source = reporting_path.read_text(encoding="utf-8")
         # Найдём позицию блока и убедимся что рядом есть except
         idx = source.find("MP-512")
         assert idx != -1

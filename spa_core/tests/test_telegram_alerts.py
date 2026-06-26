@@ -306,7 +306,9 @@ def test_run_cycle_alerts_dispatch(tmp_path):
         send_red_flag=mock.Mock(return_value=True),
         send_gap_alert=mock.Mock(return_value=True),
     ), mock.patch(
-        "spa_core.paper_trading.cycle_runner._should_send_alert",
+        # N12: _run_cycle_alerts (+ _should_send_alert) moved to cycle_reporting;
+        # patch the live call-site module. cycle_runner re-exports both names.
+        "spa_core.paper_trading.cycle_reporting._should_send_alert",
         return_value=True,
     ):
         sent = cycle_runner._run_cycle_alerts(tmp_path, date=date)
