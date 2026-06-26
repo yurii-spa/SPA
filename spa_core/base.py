@@ -27,6 +27,18 @@ class BaseAnalytics(ABC):
         # "repo root" rather than "data directory"; it maps 1-to-1 to data_dir.
         # LLM FORBIDDEN — deterministic initialisation.
         resolved = base_dir if base_dir is not None else data_dir
+        # Fail-CLOSED against the 'junk file in repo root' bug: if a subclass is constructed with
+        # a NON-STRING first positional (a list-of-dicts / object passed where a directory path
+        # was expected), ``Path(resolved)`` would later have us write a junk file named from its
+        # repr (e.g. ``[{'i': 0}]`` / ``<...object at 0x...>``) into the CWD. Refuse loudly here
+        # rather than silently polluting the tree (memory: analyzer-object-path-junk-files).
+        import os as _os
+        if not isinstance(resolved, (str, _os.PathLike)):
+            raise TypeError(
+                f"{type(self).__name__}: data_dir/base_dir must be a str/PathLike, got "
+                f"{type(resolved).__name__} ({resolved!r}) — refusing to derive a junk output "
+                "path from a non-string constructor argument"
+            )
         self._data_dir = Path(resolved)
         self._data_dir.mkdir(parents=True, exist_ok=True)
 

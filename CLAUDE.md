@@ -44,7 +44,7 @@ track record (30 честных дней → go-live). Финмодель — `M
 | Daily yield | **$9.91/день** · APY сегодня ~3.6% (regime VOLATILE) |
 | GoLive | ⛔ **27/29 pass** — NOT READY (2 time-gated блокера) |
 | Sprint | **v12.83** · Done: **1358** · Backlog: 0 |
-| Агенты | ✅ **~42 загружено** (`launchctl list \| grep spa` = 42; agent_health crit=0; источник истины — launchctl / SYSTEM_BRIEFING, НЕ это число) |
+| Агенты | ✅ **51 загружено** (`launchctl list \| grep spa` = 51; agent_health crit=0; источник истины — launchctl / SYSTEM_BRIEFING, НЕ это число) |
 | Repo | `yurii-spa/SPA` (GitHub) |
 | Python | `/Users/yuriikulieshov/miniconda3/bin/python3` (всегда этот путь) |
 
@@ -57,7 +57,7 @@ track record (30 честных дней → go-live). Финмодель — `M
 
 ## ⚙️ LaunchAgents (установлены 2026-06-22, FAIL=0)
 
-~42 агента в `~/Library/LaunchAgents/` — переживают перезагрузку. Таблица ниже —
+**51** агентов в `~/Library/LaunchAgents/` — переживают перезагрузку. Таблица ниже —
 лишь ключевые; полный актуальный список ВСЕГДА `launchctl list | grep spa` (это число
 дрейфует, не доверяй ему — доверяй launchctl/SYSTEM_BRIEFING). `com.spa.system_briefing`
 доустановлен 2026-06-24.
@@ -79,7 +79,9 @@ track record (30 честных дней → go-live). Финмодель — `M
 | `com.spa.system_briefing` | каждые 30 мин | ✅ NEW |
 | `com.spa.strategy_lab_paper` | каждый час | ✅ |
 | `com.spa.refusal` | 05:45 local (advisory) | ✅ |
-| `com.spa.rates_desk_paper` | каждый час (advisory) | ✅ NEW |
+| `com.spa.rates_desk_paper` | каждый час (advisory) | ✅ |
+| `com.spa.rwa_safety_board` | ежедневно (advisory) | ✅ NEW |
+| `com.spa.daily_backup` | ежедневно | ✅ NEW |
 
 Переустановить все: `bash ~/Documents/SPA_Claude/scripts/install_all_agents.sh`
 
@@ -214,7 +216,28 @@ stdlib-only, детерминированный, LLM запрещён в risk/ki
   `data/rates_desk/paper/` + кормит proof-chain (entries И refusals). Advisory: капитал не двигает, go-live трек не трогает.
   Дневной refusal-scorer — отдельный `com.spa.refusal` → `data/refusal_status.json`.
 - **API** (`spa_core/api/server.py`): `/api/rates-desk/surface`, `/api/rates-desk/opportunities`,
-  `/api/rates-desk/decisions` (entries + refusals + proof_hash), `/api/refusal` (per-underlying SAFE/WATCH/REFUSE/UNKNOWN).
+  `/api/rates-desk/decisions` (entries + refusals + proof_hash), `/api/rates-desk/proof` (proof-chain),
+  `/api/refusal` (per-underlying SAFE/WATCH/REFUSE/UNKNOWN), `/api/strategy-lab/promotion` (sleeve promotion ladder).
+
+---
+
+## 🧭 Structural Desk — research arc (3 тезиса, NEW 2026-06-26)
+
+Конвергентный вывод research-арки: **edge — не yield, а структурная роль measurement / underwriting**
+(быть тем, кто честно меряет/андеррайтит риск, который остальные не видят). Канонический человеко-читаемый
+индекс — `docs/STRUCTURAL_DESK.md`. Все три — advisory / read-only, капитал не двигают, go-live трек не трогают.
+
+| # | Тезис | Модуль | Вердикт |
+|---|---|---|---|
+| 1 | **Rates Desk** — refusal-first fair-value, харвест mispriced carry / отказ от tail-comp | `spa_core/strategy_lab/rates_desk/` | ✅ **GO** (FixedCarry validated → live-paper; carry leg реален → fundable) |
+| 2 | **RWA Repo Backstop** — liquidation-NAV underwriter для tokenized-RWA collateral | `spa_core/strategy_lab/rwa_backstop/` | ◐ **measurement-GO / book NO-GO** (10/10 not-cash-like; Safety Board GO, сам андеррайтинг = relationships+capital+legal off-code) |
+| 3 | **Liquidator** — balance-sheet liquidator для long-tail / nested collateral | `spa_core/strategy_lab/liquidator/` | ⛔ **NO-GO** (addressable ~$2–4M/yr gross << $20M bar) |
+
+Детальные доки: `docs/RATES_DESK.md`, `docs/RATES_DESK_VALIDATION.md`, `docs/RWA_BACKSTOP_DERISK.md`,
+`docs/LIQUIDATOR_DERISK.md`. Исходный research-prompt (генератор тезисов): `docs/RESEARCH_PROMPT_MOAT.md`.
+Честная рамка: код доводит тезис до verdict; **$10M — это scale / trust / relationships вне кода** (custody,
+whitelisting, CEX-execution, legal). Новые агенты арки: `com.spa.refusal`, `com.spa.rwa_safety_board`,
+`com.spa.rates_desk_paper`. Новые страницы сайта: `/rates-desk`, `/rwa-backstop`, `/structural-desk`.
 
 ---
 
@@ -272,6 +295,10 @@ security find-generic-password -s TELEGRAM_CHAT_ID_SPA -w
 | `spa_core/adapters/` | Read-only адаптеры + DeFiLlama feed |
 | `spa_core/paper_trading/` | cycle_runner.py, golive_checker.py, gap_monitor.py |
 | `spa_core/strategies/` | Tournament стратегии S0–S77+ |
+| `spa_core/strategy_lab/` | Pluggable sleeve harness + paper-сервис (LST/RWA sleeves) |
+| `spa_core/strategy_lab/rates_desk/` | **Thesis #1** — refusal-first Rates Desk (GO, live-paper) |
+| `spa_core/strategy_lab/rwa_backstop/` | **Thesis #2** — RWA Collateral Safety Board (measurement-GO) |
+| `spa_core/strategy_lab/liquidator/` | **Thesis #3** — balance-sheet liquidator de-risk (NO-GO probe) |
 | `spa_core/risk/` | policy.py (детерминированный, LLM FORBIDDEN) |
 | `spa_core/tournament/` | TournamentEngine, TournamentTelegram |
 | `spa_core/api/` | FastAPI server (api.earn-defi.com:8765) |
@@ -348,7 +375,12 @@ python3 push_to_github.py --files /abs/path/file.py --message "vX.XX: desc"
 
 ---
 
-*Обновлено: 2026-06-26 (v12.85 — добавлена секция **Rates Desk** (validated thesis-#1: RateSurface +
+*Обновлено: 2026-06-26 (v12.86 — Structural-Desk sprint consolidation: agent-count **51** (launchctl,
+hedge сохранён); agent-table +rwa_safety_board +daily_backup; новая секция **Structural Desk** (3 тезиса:
+#1 Rates Desk GO / #2 RWA Backstop measurement-GO·book-NO-GO / #3 Liquidator NO-GO) + индекс `docs/STRUCTURAL_DESK.md`;
+repo-структура +strategy_lab/{rates_desk,rwa_backstop,liquidator}; endpoint-список +`/api/rates-desk/proof`
++`/api/strategy-lab/promotion`; доки RATES_DESK / RATES_DESK_VALIDATION / RWA_BACKSTOP_DERISK / LIQUIDATOR_DERISK /
+RESEARCH_PROMPT_MOAT. v12.85 — добавлена секция **Rates Desk** (validated thesis-#1: RateSurface +
 FairValueEngine refusal-first гейт + 4 trade-shape + FixedCarry GO; новый агент `com.spa.rates_desk_paper`
 hourly advisory live-paper + `/api/rates-desk/*`; док `docs/RATES_DESK.md`); agent-table: +strategy_lab_paper
 /refusal/rates_desk_paper). v12.84 — docs audit: state-table sync 16/30·$100,180·27/29, ~42 агента; реестр

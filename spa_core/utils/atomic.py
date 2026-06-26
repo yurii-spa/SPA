@@ -12,12 +12,45 @@ from typing import Any, Callable, Iterator, Optional
 _MISSING = object()  # sentinel to distinguish "no default" from "default=None"
 
 
+def _reject_repr_junk_path(path: Any) -> str:
+    """Fail-CLOSED guard against the 'junk file in repo root' bug.
+
+    Several analytics modules build their output path as ``str(self._data_file)`` where
+    ``self._data_file`` was set from a constructor positional. If that positional is
+    accidentally a NON-STRING (a list-of-dicts, an object, ``self``), ``str(...)`` yields a
+    Python repr like ``"[{'i': 0}]"`` or ``"<spa_core....object at 0x...>"`` — a bare filename
+    with no directory, so the write lands a junk file in the CWD (repo root). This has corrupted
+    the root with hundreds of junk files before (memory: analyzer-object-path-junk-files).
+
+    A legitimate destination path never starts with ``[`` or ``<`` and never contains the default
+    object-repr marker ``object at 0x``. We RAISE rather than silently write the junk file, so the
+    bad caller surfaces loudly (fail-closed) instead of polluting the tree. ``path`` must be a
+    str/PathLike; anything else is also rejected.
+    """
+    if not isinstance(path, (str, os.PathLike)):
+        raise ValueError(
+            f"atomic write: path must be a str/PathLike, got {type(path).__name__} "
+            f"({path!r}) — refusing to write a junk file from a non-string path arg"
+        )
+    s = os.fspath(path)
+    base = os.path.basename(s)
+    if base.startswith("[") or base.startswith("<") or "object at 0x" in base:
+        raise ValueError(
+            f"atomic write: refusing repr-junk output path {s!r} — a non-string was passed "
+            "where a file path was expected (would create a junk file in the repo root)"
+        )
+    return s
+
+
 def atomic_save(data: Any, path: str, indent: int = 2) -> None:
     """
     Safely saves JSON-serializable data to path using tmp+os.replace.
     Creates parent directories if needed.
     Never leaves partial writes on crash.
+
+    Fail-CLOSED: rejects a repr-junk / non-string path (the 'junk file in repo root' bug).
     """
+    path = _reject_repr_junk_path(path)
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     dir_ = os.path.dirname(os.path.abspath(path)) or "."
     fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")
@@ -111,7 +144,7 @@ def atomic_save_text(text: str, path: str, encoding: str = "utf-8", fsync: bool 
         encoding: Character encoding (default utf-8).
         fsync:    If True (default), flushes OS buffers before rename.
     """
-    path = str(path)
+    path = _reject_repr_junk_path(path)
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     dir_ = os.path.dirname(os.path.abspath(path)) or "."
     fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")
