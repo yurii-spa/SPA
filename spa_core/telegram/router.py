@@ -23,12 +23,36 @@ Stdlib only, deterministic, no LLM.
 """
 from __future__ import annotations
 
+import html as _html
+import re as _re
 import time
 from typing import Any, Dict, Optional, Tuple
 
 from spa_core.telegram import prefs as prefs_store
 from spa_core.telegram.i18n import normalize_lang, t
 from spa_core.telegram.views import get_builder
+
+# Telegram parse_mode=HTML allows only this tag whitelist; ANY other raw < > &
+# in a view body (e.g. "<$20M", "RESEARCH -> BACKTEST", a "β<0" from live data)
+# makes the Bot API reject the message (400 can't-parse-entities) → the
+# editMessageText silently fails → the button "does nothing". So we escape every
+# body to be HTML-safe and then restore only the intentional whitelist tags.
+_ALLOWED_HTML_TAGS = ("b", "i", "u", "s", "code", "pre")
+
+
+def html_safe(text: str) -> str:
+    """Escape raw &<> in a view body, preserving the allowed formatting tags.
+
+    Makes any view body (incl. dynamic data) safe for parse_mode=HTML so a stray
+    '<' / '>' / '&' can never break the panel render (the dead-button bug)."""
+    esc = _html.escape(str(text or ""), quote=False)  # & < >  (leave quotes)
+    for tag in _ALLOWED_HTML_TAGS:
+        esc = esc.replace("&lt;%s&gt;" % tag, "<%s>" % tag)
+        esc = esc.replace("&lt;/%s&gt;" % tag, "</%s>" % tag)
+    # restore <a href="…">…</a> links if a view used them
+    esc = _re.sub(r'&lt;a href=&quot;([^&]*)&quot;&gt;', r'<a href="\1">', esc)
+    esc = esc.replace("&lt;/a&gt;", "</a>")
+    return esc
 
 # slash command → view path (legacy shortcuts open the panel on the matching screen)
 COMMAND_TO_PATH = {
@@ -77,7 +101,10 @@ class Router:
         prefs = prefs_store.get_prefs(chat_id)
         builder = get_builder(path)
         try:
-            return builder(arg=arg, lang=lang, page=page, prefs=prefs)
+            body, kb = builder(arg=arg, lang=lang, page=page, prefs=prefs)
+            # HTML-safe the body so a stray <>& (static or from live data) can
+            # never make the Bot API reject the edit → dead button.
+            return html_safe(body), kb
         except Exception as exc:  # noqa: BLE001 — a broken view must not crash the bot
             return ("⚠️ view error: {}".format(type(exc).__name__),
                     {"inline_keyboard": [[{"text": t("btn.home", lang),
