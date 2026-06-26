@@ -177,6 +177,53 @@ def test_data_file_corrupt_502(client):
     assert r.status_code == 502
 
 
+# ─── health (track-accrual freshness, P4-2) ───────────────────────────────────
+
+def _equity_with_bar(date, evidenced=True):
+    return {"daily": [{"date": date, "close_equity": 100000.0,
+                       "open_equity": 100000.0,
+                       "evidenced": evidenced,
+                       "source": "cycle" if evidenced else "backfill"}]}
+
+
+def test_health_always_200(client):
+    # empty dir → still 200, but degraded (no track to read = fail-closed)
+    r = client.get("/api/live/health")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["version"] == "live-api-v1"
+    assert body["status"] == "degraded"
+    assert body["track_fresh"] is False
+
+
+def test_health_fresh_track_is_ok(client):
+    import datetime as _dt
+    today = _dt.datetime.now(_dt.timezone.utc).date().isoformat()
+    _write(client, "equity_curve_daily.json", _equity_with_bar(today))
+    body = client.get("/api/live/health").json()
+    assert body["status"] == "ok"
+    assert body["track_fresh"] is True
+    assert body["track"]["last_evidenced_date"] == today
+
+
+def test_health_stale_track_is_degraded(client):
+    # evidenced bar dated after the anchor but old → degraded (still 200)
+    _write(client, "equity_curve_daily.json", _equity_with_bar("2026-06-11"))
+    r = client.get("/api/live/health")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "degraded"
+    assert body["track_fresh"] is False
+    assert body["track"]["age_hours"] > body["track"]["sla_hours"]
+
+
+def test_health_fail_closed_corrupt_track(client):
+    (client._data_dir / "equity_curve_daily.json").write_text("{broken", encoding="utf-8")
+    body = client.get("/api/live/health").json()
+    assert body["status"] == "degraded"
+    assert body["track_fresh"] is False
+
+
 # ─── CORS ────────────────────────────────────────────────────────────────────
 
 def test_cors_allows_earn_defi(client):

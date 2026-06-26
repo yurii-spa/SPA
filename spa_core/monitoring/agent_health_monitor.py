@@ -119,6 +119,8 @@ EQUITY_STALE_H = 30.0
 CYCLE_STALE_H = 26.0
 PORTFOLIO_HEALTH_FLOOR = 70.0
 AUTOPUSH_LAG_H = 2.0
+# Track-accrual SLA: daily cadence (24h) + 6h buffer = one fully-missed cycle.
+TRACK_SLA_H = 30.0
 
 
 # ===========================================================================
@@ -462,6 +464,8 @@ def check_system(data_dir: Path, now: datetime,
         "portfolio_health_score": None,
         "critical_flags": 0,
         "autopush_lag_h": None,
+        "track_fresh": None,
+        "track_age_h": None,
     }
     status = OK
     issues: List[str] = []
@@ -492,6 +496,54 @@ def check_system(data_dir: Path, now: datetime,
         if h is not None and h > CYCLE_STALE_H:
             issues.append(f"daily cycle stale {h:.1f}h (>{CYCLE_STALE_H:.0f}h)")
             status = _worst(status, CRITICAL)
+
+    # --- track-accrual SLA (the one thing that matters: the honest go-live track
+    # accruing a fresh EVIDENCED bar daily). Uses the shared track_freshness gate
+    # so the API health endpoint and this monitor agree. Fail-CLOSED: an
+    # unreadable track is stale, not silently healthy. The stable issue string is
+    # deduped by should_alert() → one debounced alert, not one per run. ---
+    # Only assessed when a real track surface is present — i.e. the equity-curve
+    # file carries a ``daily`` bar series (the production host always does). When
+    # there is no bar series there is nothing accruing to alert on here (file
+    # absence / a bare generated_at file are handled by the equity/cycle
+    # freshness checks above and existing fixtures), so we skip rather than
+    # double-flag. When a ``daily`` series IS present, this is fail-CLOSED:
+    # empty / no-evidenced-bar / stale → degraded → CRITICAL alert.
+    _equity_for_track = _load_json(data_dir, "equity_curve_daily.json")
+    if isinstance(_equity_for_track, dict) and isinstance(
+        _equity_for_track.get("daily"), list
+    ):
+        try:
+            from spa_core.paper_trading.track_freshness import (
+                check_track_freshness,
+            )
+
+            track = check_track_freshness(data_dir, now=now, sla_hours=TRACK_SLA_H)
+            checks["track_fresh"] = bool(track.get("track_fresh"))
+            checks["track_age_h"] = track.get("age_hours")
+            if not track.get("track_fresh"):
+                age = track.get("age_hours")
+                if age is None:
+                    issues.append(
+                        f"track accrual STALE: {track.get('reason', 'unreadable')} "
+                        f"(>{TRACK_SLA_H:.0f}h SLA)"
+                    )
+                else:
+                    issues.append(
+                        f"track accrual STALE: newest evidenced bar {age:.1f}h old "
+                        f"(>{TRACK_SLA_H:.0f}h SLA)"
+                    )
+                # Advisory WARNING (not CRITICAL): the stale-track issue is a
+                # STABLE string, so should_alert() fires it exactly ONCE (deduped
+                # against the prior agent_health.json) rather than every run. The
+                # daily cycle / equity-curve CRITICAL checks above still catch a
+                # truly dead cycle; this is the focused, debounced track-SLA signal.
+                status = _worst(status, WARNING)
+        except Exception as exc:  # noqa: BLE001 — never let the gate blind the monitor
+            log.warning("track freshness check failed: %s", exc)
+            checks["track_fresh"] = False
+            issues.append("track accrual STALE: freshness check error (fail-closed)")
+            status = _worst(status, WARNING)
 
     # --- portfolio health score ---
     ph = _load_json(data_dir, "portfolio_health.json")

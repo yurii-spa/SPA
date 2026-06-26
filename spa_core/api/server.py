@@ -173,6 +173,7 @@ get_strategy_lab = strategy_lab.get_strategy_lab
 get_strategy_lab_promotion = strategy_lab.get_strategy_lab_promotion
 get_refusal = strategy_lab.get_refusal
 get_rwa_safety_board = strategy_lab.get_rwa_safety_board
+get_rwa_nav_curve = strategy_lab.get_rwa_nav_curve
 
 get_rates_desk_surface = rates_desk.get_rates_desk_surface
 get_rates_desk_opportunities = rates_desk.get_rates_desk_opportunities

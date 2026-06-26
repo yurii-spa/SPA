@@ -378,6 +378,20 @@ def main() -> int:
     report = build_report(write=True)
     _print_board(report)
     print(f"\nWrote {DEFAULT_OUT}")
+
+    # FORWARD RECORD: the daily agent also accrues ONE measured-NAV point per UTC day so the RWA
+    # thesis has an evidenced forward series (data/rwa_nav_curve.json), parallel to the rates-desk
+    # paper track. Idempotent per day, fail-CLOSED, atomic. Never crashes the board run.
+    try:
+        from spa_core.strategy_lab.rwa_backstop import nav_curve
+        doc = nav_curve.record_forward_point(report)
+        if doc is not None:
+            print(f"Appended forward point {doc['latest']['date']} "
+                  f"(n_points={doc['n_points']}) → {nav_curve.DEFAULT_CURVE_PATH}")
+        else:
+            print("Forward point SKIPPED (no usable measurement — fail-closed)")
+    except Exception as exc:  # noqa: BLE001 — forward record must never break the safety board
+        print(f"Forward-record append failed (board still written): {exc}")
     return 0
 
 

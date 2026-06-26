@@ -120,7 +120,14 @@ async def live_status():
 
 @router.get("/api/live/health")
 async def live_health():
-    """Deep health check — confirms server alive + data dir reachable. Always 200."""
+    """Deep health check — server alive + data dir reachable + TRACK FRESH.
+
+    Always 200 (consumers must not break), but the BODY honestly reports
+    ``status: degraded`` when the one thing that matters — the honest go-live
+    track accruing a fresh evidenced bar — is stale (newest evidenced bar / last
+    cycle older than the SLA window) or unreadable. Fail-CLOSED: an unreadable
+    track degrades, it is never silently reported ``ok``.
+    """
     _dd = data_dir()
     try:
         data_dir_ok: bool = await asyncio.wait_for(
@@ -140,13 +147,37 @@ async def live_health():
     except asyncio.TimeoutError:
         json_count = -1
 
+    # Track-accrual freshness — fail-CLOSED to degraded on any read/parse trouble.
+    try:
+        from spa_core.paper_trading.track_freshness import check_track_freshness
+
+        track = await asyncio.wait_for(
+            asyncio.to_thread(check_track_freshness, _dd), timeout=2.0,
+        )
+    except Exception:  # noqa: BLE001 — timeout/import/any error → fail-CLOSED
+        track = {
+            "track_fresh": False,
+            "status": "degraded",
+            "age_hours": None,
+            "last_evidenced_date": None,
+            "last_cycle_ts": None,
+            "reason": "track freshness check failed (unreadable)",
+        }
+
+    track_fresh = bool(track.get("track_fresh"))
+    # Overall body status: degraded if data dir is unreachable OR track is stale.
+    status = "ok" if (data_dir_ok and track_fresh) else "degraded"
+
     return JSONResponse(
         {
             "ok": data_dir_ok,
+            "status": status,
             "ts": _time.time(),
             "version": "live-api-v1",
             "data_dir_ok": data_dir_ok,
             "json_files": json_count,
+            "track_fresh": track_fresh,
+            "track": track,
         },
         headers=NO_CACHE_HEADERS,
     )

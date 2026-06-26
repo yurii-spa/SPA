@@ -616,9 +616,33 @@ class MassTournament:
         else:
             data_source_label = "none"
 
+        # ── HONESTY GATE: stamp trustworthy + data-source regime ───────────────
+        # The Sharpe-ranked leaderboard is only a trustworthy LIVE ranking when the
+        # underlying returns are NOT near-constant (degenerate). Stablecoin yield is
+        # near-deterministic → Sharpe degenerate by asset class → NOT trustworthy.
+        # Reuses the Tier-1 evaluator's degeneracy detector so producer/API/site agree.
+        # Fail-CLOSED: any failure → trustworthy=False (never present mock as live).
+        try:
+            from spa_core.backtesting.tier1.evaluator import assess_tournament_trust
+            trust = assess_tournament_trust({"leaderboard": leaderboard})
+        except Exception as exc:  # pragma: no cover — defensive, fail-closed
+            _log.warning("assess_tournament_trust failed: %s", exc)
+            trust = {
+                "trustworthy": False,
+                "data_source": "unknown",
+                "data_source_regime": "DEGENERATE_MOCK",
+                "data_quality": {"status": "ERROR", "trustworthy": False, "reason": str(exc)},
+                "reason": f"trust assessment failed ({exc}) — fail-closed",
+            }
+
         meta: Dict[str, Any] = {
             "is_backtest": True,
             "data_source": data_source_label,
+            # Honesty stamp: a Sharpe ranking on near-constant returns is NOT a live result.
+            "trustworthy": trust["trustworthy"],
+            "data_source_regime": trust["data_source_regime"],
+            "trust_reason": trust["reason"],
+            "data_quality": trust["data_quality"],
             "period": "2022-01-01 to 2025-12-31",
             "rank_metric": "sharpe_ratio",
             "rank_metric_owner_gated": True,
@@ -638,6 +662,10 @@ class MassTournament:
             "generated_at":       datetime.now(timezone.utc).isoformat(),
             "version":            VERSION,
             "llm_forbidden":      True,
+            # Top-level honesty flags (mirror meta) so API/site can gate without digging.
+            "trustworthy":        trust["trustworthy"],
+            "data_source":        data_source_label,
+            "data_source_regime": trust["data_source_regime"],
             "meta":               meta,
             "simulation_period":  "2022-01-01 to 2025-12-31",
             "initial_capital_usd": INITIAL_CAPITAL,

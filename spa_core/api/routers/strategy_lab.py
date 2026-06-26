@@ -243,3 +243,29 @@ def get_rwa_safety_board():
             "assets": [],
         }
     return raw
+
+
+@router.get("/api/rwa-nav-curve")
+def get_rwa_nav_curve():
+    """RWA backstop FORWARD RECORD — data/rwa_nav_curve.json.
+
+    The daily measured-NAV forward series for the RWA collateral thesis: one point per UTC day
+    (tvl_weighted_nav, on-chain ERC-4626 vs off-chain-estimate counts, marketing-vs-LiqNAV gap %,
+    n_assets), parallel to the rates-desk paper track. Honest framing: measured on-chain NAV
+    forward record — ADVISORY / RESEARCH only (no capital). Read-only, graceful: served VERBATIM;
+    empty series when missing/corrupt.
+    """
+    raw = read_state("rwa_nav_curve.json", {})
+    if not raw or not isinstance(raw, dict):
+        return {
+            "id": "rwa_backstop_nav_curve",
+            "model": "rwa_backstop_liquidation_nav",
+            "framing": "measured on-chain NAV forward record — advisory, paper research (no capital)",
+            "advisory": True,
+            "research_only": True,
+            "generated_at": None,
+            "n_points": 0,
+            "latest": None,
+            "series": [],
+        }
+    return raw

@@ -470,6 +470,85 @@ def test_system_missing_files_no_crash(tmp_path):
 
 
 # ===========================================================================
+# 6b. track-accrual SLA (P4-2) — the one thing that matters: the honest
+#     go-live track accruing a fresh EVIDENCED bar daily.
+# ===========================================================================
+def _track_bar(date, evidenced=True):
+    return {"date": date, "close_equity": 100000.0, "open_equity": 100000.0,
+            "evidenced": evidenced, "source": "cycle" if evidenced else "backfill"}
+
+
+def test_track_fresh_bar_ok(tmp_path):
+    d = tmp_path / "data"
+    # NOW = 2026-06-21 → a same-day evidenced bar is fresh
+    _write_json(d, "equity_curve_daily.json",
+                {"generated_at": "2026-06-21T08:00:00Z",
+                 "daily": [_track_bar("2026-06-21")]})
+    checks, status, issues = ahm.check_system(d, NOW, "/nonexistent.log")
+    assert checks["track_fresh"] is True
+    assert not any("track accrual STALE" in i for i in issues)
+
+
+def test_track_stale_bar_warns(tmp_path):
+    d = tmp_path / "data"
+    # newest evidenced bar 2026-06-18 → ~88h old at NOW (>30h SLA) → advisory WARN
+    _write_json(d, "equity_curve_daily.json",
+                {"generated_at": "2026-06-21T08:00:00Z",
+                 "daily": [_track_bar("2026-06-18")]})
+    checks, status, issues = ahm.check_system(d, NOW, "/nonexistent.log")
+    assert checks["track_fresh"] is False
+    assert status == ahm.WARNING
+    assert any("track accrual STALE" in i for i in issues)
+
+
+def test_track_non_evidenced_bar_does_not_freshen(tmp_path):
+    d = tmp_path / "data"
+    # fresh-dated bar but NON-evidenced (backfill) → newest evidenced is old → stale
+    _write_json(d, "equity_curve_daily.json",
+                {"daily": [_track_bar("2026-06-17", evidenced=True),
+                           _track_bar("2026-06-21", evidenced=False)]})
+    checks, status, issues = ahm.check_system(d, NOW, "/nonexistent.log")
+    assert checks["track_fresh"] is False
+    assert any("track accrual STALE" in i for i in issues)
+
+
+def test_track_no_daily_series_not_flagged(tmp_path):
+    # a bare equity file (generated_at only, no `daily`) is NOT a track surface
+    # for the SLA check — handled by the equity freshness check, no double-flag.
+    d = tmp_path / "data"
+    _write_json(d, "equity_curve_daily.json", {"generated_at": "2026-06-21T08:00:00Z"})
+    checks, status, issues = ahm.check_system(d, NOW, "/nonexistent.log")
+    assert not any("track accrual STALE" in i for i in issues)
+
+
+def test_track_stale_fires_one_debounced_alert(tmp_path, monkeypatch):
+    la, data = _make_env(tmp_path)
+    # equity file is fresh by generated_at (so the CRITICAL equity check passes),
+    # but the newest EVIDENCED bar is stale → isolates the advisory track-SLA
+    # WARNING and lets us demonstrate the debounce (no re-alert every run).
+    _write_json(data, "equity_curve_daily.json",
+                {"generated_at": "2026-06-21T09:30:00Z",
+                 "daily": [_track_bar("2026-06-18")]})  # evidenced bar stale
+    sent = []
+    monkeypatch.setattr(ahm, "_send_telegram", lambda m: sent.append(m) or True)
+    lc = "PID\tStatus\tLabel"
+    mon = ahm.AgentHealthMonitor(data_dir=data, launch_agents_dir=la,
+                                 launchctl_output=lc,
+                                 autopush_log="/nonexistent.log", now=NOW)
+    rep = mon.run(send=True)
+    # advisory WARNING → fires exactly once (new issue)
+    assert rep["overall_status"] == ahm.WARNING
+    assert len(sent) == 1
+    assert any("track accrual STALE" in s for s in sent)
+    # second run: same stale issue → deduped → NO second alert (debounced)
+    mon2 = ahm.AgentHealthMonitor(data_dir=data, launch_agents_dir=la,
+                                  launchctl_output=lc,
+                                  autopush_log="/nonexistent.log", now=NOW)
+    mon2.run(send=True)
+    assert len(sent) == 1  # idempotent — not re-alerted every run
+
+
+# ===========================================================================
 # 7. report assembly + counts
 # ===========================================================================
 def test_build_report_counts():

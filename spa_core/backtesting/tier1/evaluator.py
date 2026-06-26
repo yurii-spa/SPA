@@ -186,6 +186,53 @@ def _grade(dsr: float, psr: float, net_apy: float) -> str:
     return "D"              # negative net-of-cost or no edge
 
 
+def assess_tournament_trust(result: dict) -> dict:
+    """Trustworthiness stamp for a mass-tournament result — the SINGLE honesty gate.
+
+    Reuses the Tier-1 degeneracy detector (_assess_data_quality) + the real-vs-mock data
+    provenance (_data_source) + the regime classifier (_regime) so the PRODUCER, the API,
+    and the public site all agree on one verdict. A Sharpe-ranked leaderboard is trustworthy
+    ONLY when the underlying returns are not near-constant (degenerate). Stablecoin yield is
+    near-deterministic, so a Sharpe ranking is NOT trustworthy regardless of whether the data
+    is real (LOW_VOL_YIELD) or mock (DEGENERATE_MOCK) — both → trustworthy=False.
+
+    Returns a dict (always; fail-CLOSED → trustworthy=False on any error):
+      {trustworthy, data_source, data_source_regime, data_quality, reason}
+    """
+    try:
+        board = (result or {}).get("leaderboard", []) or []
+        dq = _assess_data_quality(board)
+        src = _data_source()
+        regime = _regime(dq, src)
+        # Trustworthy iff the data is NOT degenerate (NORMAL regime). Sharpe on near-constant
+        # returns (LOW_VOL_YIELD or DEGENERATE_MOCK) is mathematically degenerate → untrusted.
+        trustworthy = bool(dq.get("trustworthy")) and regime == "NORMAL"
+        if regime == "DEGENERATE_MOCK":
+            reason = ("MOCK / no real APY data — Sharpe ranking is degenerate and NOT a live "
+                      "result. " + dq.get("reason", ""))
+        elif regime == "LOW_VOL_YIELD":
+            reason = ("Real DeFiLlama data but stablecoin yield is near-deterministic → Sharpe "
+                      "degenerate by asset class; a Sharpe leaderboard is not a trustworthy live "
+                      "ranking. Rank by net-of-cost APY (Tier-1 verdict) instead.")
+        else:
+            reason = dq.get("reason", "volatility/Sharpe in a plausible range")
+        return {
+            "trustworthy": trustworthy,
+            "data_source": src.get("source") or "none",
+            "data_source_regime": regime,
+            "data_quality": dq,
+            "reason": reason,
+        }
+    except Exception as exc:  # fail-CLOSED — never present an unverified ranking as live
+        return {
+            "trustworthy": False,
+            "data_source": "unknown",
+            "data_source_regime": "DEGENERATE_MOCK",
+            "data_quality": {"status": "ERROR", "trustworthy": False, "reason": str(exc)},
+            "reason": f"trust assessment failed ({exc}) — fail-closed, ranking not trustworthy",
+        }
+
+
 def evaluate(write: bool = True) -> dict:
     result = json.loads(_RESULTS.read_text())
     board = result.get("leaderboard", []) or []

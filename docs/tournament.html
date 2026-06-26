@@ -1080,6 +1080,24 @@ function renderAll(massData, tournamentData, shadowPaperData) {
     return;
   }
 
+  // HONESTY GATE: only show a Sharpe-ranked leaderboard when the backtest is
+  // trustworthy (returns not near-constant). A Sharpe ranking on near-deterministic
+  // stablecoin yield — or on mock data — is degenerate and must NOT be presented as a
+  // live/real ranking. Fail-CLOSED: a MISSING flag is treated as NOT trustworthy.
+  const trust = (typeof mass.trustworthy === 'boolean')
+    ? mass.trustworthy
+    : (mass.meta && typeof mass.meta.trustworthy === 'boolean'
+        ? mass.meta.trustworthy
+        : false);
+  if (!trust) {
+    const why = (mass.meta && mass.meta.trust_reason) ||
+      'Stablecoin yield is near-deterministic, so a Sharpe ranking is statistically degenerate.';
+    renderOffline(
+      'Rankings pending real-data backtest — not shown on degenerate/mock data. ' + why
+    );
+    return;
+  }
+
   // Resolve active strategies from tournament data (strategy_tournament.json)
   // or shadow_paper_trading.json. No hardcoded fallback.
   const sArr =
