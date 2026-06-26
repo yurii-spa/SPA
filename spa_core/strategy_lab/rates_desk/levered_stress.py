@@ -35,21 +35,14 @@ PURE / deterministic / stdlib / Decimal / LLM-FORBIDDEN. Run:
 from __future__ import annotations
 
 import datetime
-import json
-import os
-import shutil
-import tempfile
 from decimal import Decimal
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
-from spa_core.strategy_lab.rates_desk import config
-from spa_core.strategy_lab.rates_desk import pendle_pt_history as pph
-from spa_core.strategy_lab.rates_desk import retro
+from spa_core.strategy_lab.rates_desk import _io
 from spa_core.strategy_lab.rates_desk.backtest_rates import (
     BORROW_APR,
     BORROW_LTV,
-    _funding_neg_frac_90d,
 )
 from spa_core.strategy_lab.rates_desk.contracts import (
     D0,
@@ -126,15 +119,7 @@ STRESS_EVENTS = [
 
 
 def _atomic_write_json(path: Path, obj) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix="." + path.stem + "_", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(obj, f, indent=1, sort_keys=True, default=str)
-        shutil.move(tmp, str(path))
-    finally:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
+    _io.atomic_write_json(path, obj, indent=1, default=str)
 
 
 def _max_dd_pct(equity: List[Decimal]) -> Decimal:
@@ -248,7 +233,6 @@ def replay_event(
         market_id=f"PT-{ev['underlying']}-stress", tenor_seconds=86400 * 60, as_of=as_of0,
         quoted_rate=entry_carry, tvl_usd=Decimal("5e7"), exit_liquidity_usd=Decimal("2e6"),
         hedge_available=True, utilization=Decimal("0.70"), ltv=BORROW_LTV)
-    opp = Opportunity(quote=q0, shape=TradeShape.LEVERED_CARRY, requested_size_usd=exposure)
 
     gated_equity: List[Decimal] = [base_equity]
     naive_equity: List[Decimal] = [base_equity]
@@ -474,14 +458,7 @@ def write_doc_section(result: dict, doc_path: Optional[Path] = None) -> Path:
         body = (pre + "\n\n" + section + ("\n\n" + post if post else "\n")).rstrip("\n") + "\n"
     else:
         body = (existing.rstrip("\n") + "\n\n" + section + "\n") if existing else (section + "\n")
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix="." + path.stem + "_", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(body)
-        shutil.move(tmp, str(path))
-    finally:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
+    _io.atomic_write_text(path, body)
     return path
 
 

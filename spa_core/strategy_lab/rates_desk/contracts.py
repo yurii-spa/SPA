@@ -23,7 +23,7 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 
 # ── canonical zero/one Decimals (avoid re-parsing literals everywhere) ─────────────────────────
 D0 = Decimal("0")

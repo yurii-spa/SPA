@@ -38,13 +38,11 @@ PURE / deterministic / stdlib / LLM-FORBIDDEN. Run:
 from __future__ import annotations
 
 import json
-import os
-import shutil
-import statistics
-import tempfile
 from decimal import Decimal
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+from spa_core.strategy_lab.rates_desk import _io
 
 from spa_core.backtesting.tier1.deflated_sharpe import (
     annualize_sharpe,
@@ -689,15 +687,7 @@ def run(params: Optional[RatePolicyParams] = None) -> dict:
 
 
 def _atomic_write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix="." + path.stem + "_", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(text)
-        shutil.move(tmp, str(path))
-    finally:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
+    _io.atomic_write_text(path, text)
 
 
 def _render_md(out: dict) -> str:

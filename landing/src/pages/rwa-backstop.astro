@@ -25,9 +25,11 @@ import Disclaimer from '../components/Disclaimer.astro';
  * a literal string (NOT runtime-built), matching the convention in rates-desk.astro / system.astro.
  */
 
-// Committed fallback board (documented shape, illustrative honest snapshot). The live feed
-// overwrites this when /api/rwa-safety-board is reachable. Numbers reflect the de-risk finding:
-// 10/10 NOT cash-like on executable exit; 9/10 have ~$0 public DEX exit (redemption-only).
+// Committed fallback board (documented shape, illustrative honest snapshot — clearly labelled
+// "static / offline" on the page). The live feed at /api/rwa-safety-board overwrites this and its
+// derived counters in-place when reachable; the live board is the source of truth and currently
+// carries more assets than this snapshot. The de-risk finding holds regardless: no asset is
+// cash-like on an executable on-chain exit; nearly all have ~$0 public DEX exit (redemption-only).
 const FALLBACK = {
   generated_at: 'committed snapshot',
   source: 'static',
@@ -79,7 +81,7 @@ const FALLBACK_JSON = JSON.stringify(FALLBACK);
 
 <Layout
   title="RWA Repo Backstop — liquidation-safe collateral | earn-defi.com"
-  description="We lend against Liquidation NAV, not marketing NAV. The SPA Collateral Safety Board measures the executable exit value of tokenized-RWA collateral at size ($100k/$1M/$10M) — not the marketing $1.00. The honest finding: 10 of 10 tokenized-RWA collateral assets are NOT cash-like on executable exit; 9 of 10 have ~$0 public on-chain exit. Paper research, advisory, not live."
+  description="We lend against Liquidation NAV, not marketing NAV. The SPA Collateral Safety Board measures the executable exit value of tokenized-RWA collateral at size ($100k/$1M/$10M) — not the marketing $1.00. The honest finding: across the whole board, no tokenized-RWA collateral asset is cash-like on an executable on-chain exit — nearly all have ~$0 public on-chain exit (redemption-only). Live counts on the page. Paper research, advisory, not live."
   canonical="https://earn-defi.com/rwa-backstop"
 >
   <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -172,22 +174,23 @@ const FALLBACK_JSON = JSON.stringify(FALLBACK);
          data-ru="Честная находка">The honest finding</p>
       <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--danger)">
         <p class="text-lg leading-relaxed mb-4" style="color:var(--text-primary)"
-           data-ru="10 из 10 токенизированных RWA-активов залога НЕ являются кэш-эквивалентом на исполнимом выходе; 9 из 10 имеют ~$0 публичного on-chain выхода — кэш доступен только через очередь редемпшена эмитента, ограниченную отношениями. Мы предпочитаем измерить реальный выход, чем предположить $1.00.">
-          <strong>10 of 10 tokenized-RWA collateral assets are NOT cash-like on executable exit; 9 of 10
-          have ~$0 public on-chain exit</strong> — cash only via the relationship-gated issuer
-          redemption queue. We'd rather measure the real exit than assume the $1.00.
+           data-ru="Ни один токенизированный RWA-актив залога на доске НЕ является кэш-эквивалентом на исполнимом on-chain выходе; почти у всех ~$0 публичного on-chain выхода — кэш доступен только через очередь редемпшена эмитента, ограниченную отношениями. Точные счётчики ниже считаются по живой доске. Мы предпочитаем измерить реальный выход, чем предположить $1.00.">
+          <strong>No tokenized-RWA collateral asset on the board is cash-like on an executable on-chain
+          exit; nearly all have ~$0 public on-chain exit</strong> — cash only via the relationship-gated
+          issuer redemption queue. The exact counts below are derived live from the board. We'd rather
+          measure the real exit than assume the $1.00.
         </p>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
           <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
-            <p class="text-2xl font-bold font-mono mb-1" style="color:var(--danger)" id="finding-notcash">10 / 10</p>
+            <p class="text-2xl font-bold font-mono mb-1" style="color:var(--danger)" id="finding-notcash">—</p>
             <p class="text-xs leading-snug" style="color:var(--text-secondary)" data-ru="НЕ кэш-эквивалент на исполнимом выходе">NOT cash-like on executable exit</p>
           </div>
           <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
-            <p class="text-2xl font-bold font-mono mb-1" style="color:var(--warn)" id="finding-noexit">9 / 10</p>
+            <p class="text-2xl font-bold font-mono mb-1" style="color:var(--warn)" id="finding-noexit">—</p>
             <p class="text-xs leading-snug" style="color:var(--text-secondary)" data-ru="~$0 публичного on-chain выхода (только редемпшн)">~$0 public on-chain exit (redemption-only)</p>
           </div>
           <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
-            <p class="text-2xl font-bold font-mono mb-1" style="color:var(--data-teal)" id="finding-liquid">0 / 10</p>
+            <p class="text-2xl font-bold font-mono mb-1" style="color:var(--data-teal)" id="finding-liquid">—</p>
             <p class="text-xs leading-snug" style="color:var(--text-secondary)" data-ru="ликвиден до $10M на публичном DEX">liquid to $10M on a public DEX</p>
           </div>
         </div>

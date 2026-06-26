@@ -44,15 +44,13 @@ from __future__ import annotations
 import datetime
 import gzip
 import json
-import os
-import shutil
 import statistics
-import tempfile
 import urllib.request
 from decimal import Decimal
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
+from spa_core.strategy_lab.rates_desk import _io
 from spa_core.strategy_lab.rates_desk import config
 from spa_core.strategy_lab.rates_desk import pendle_pt_history as pph
 from spa_core.strategy_lab.rates_desk.contracts import (
@@ -908,15 +906,7 @@ def _cache_surface(path: Path, as_of: str, live: bool, quotes, risks, hedge_map)
         "quotes": [_quote_to_dict(q) for q in quotes],
         "underlying_risk": {u: _risk_to_dict(r) for u, r in sorted(risks.items())},
     }
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix="." + path.stem + "_", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(obj, f, indent=1, sort_keys=True)
-        shutil.move(tmp, str(path))
-    finally:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
+    _io.atomic_write_json(path, obj, indent=1)
 
 
 if __name__ == "__main__":  # manual real-network smoke test (run on the Mac)

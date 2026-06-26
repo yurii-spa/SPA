@@ -38,14 +38,12 @@ from typing import Callable, Dict, List, Optional
 from spa_core.strategy_lab.rates_desk import feeds as rd_feeds
 from spa_core.strategy_lab.rates_desk import proof_chain
 from spa_core.strategy_lab.rates_desk.contracts import (
-    D0,
     KillState,
     RatePolicyParams,
     RateQuote,
     RateVenue,
     TradeShape,
     UnderlyingKind,
-    UnderlyingRisk,
 )
 from spa_core.strategy_lab.rates_desk.sleeves import FixedCarrySleeve
 from spa_core.utils.atomic import atomic_load, atomic_save

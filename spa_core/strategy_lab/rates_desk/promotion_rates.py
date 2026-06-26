@@ -38,13 +38,11 @@ from __future__ import annotations
 
 import datetime
 import json
-import os
-import shutil
-import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from spa_core.strategy_lab import promotion as lab_promotion
+from spa_core.strategy_lab.rates_desk import _io
 
 _ROOT = Path(__file__).resolve().parents[3]
 _DATA = _ROOT / "data" / "rates_desk"
@@ -60,15 +58,7 @@ _WF_CONSISTENCY_ON_PASS = 100.0
 
 
 def _atomic_write_json(path: Path, obj: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix="." + path.stem + "_", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(obj, f, indent=2, sort_keys=True)
-        shutil.move(tmp, str(path))
-    finally:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
+    _io.atomic_write_json(path, obj, indent=2)
 
 
 # stage strictness order (lower index = stricter). LeveredCarry's stage can only be made STRICTER by

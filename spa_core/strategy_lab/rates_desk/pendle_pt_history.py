@@ -49,14 +49,12 @@ from __future__ import annotations
 import datetime
 import gzip
 import json
-import os
-import shutil
-import tempfile
 import time
 import urllib.request
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
+from spa_core.strategy_lab.rates_desk import _io
 from spa_core.strategy_lab.rates_desk.contracts import UnderlyingKind
 
 _ROOT = Path(__file__).resolve().parents[3]
@@ -353,15 +351,7 @@ def build(fetcher: Optional[Fetcher] = None, chain: int = CHAIN_ID,
 
 
 def _atomic_write_json(path: Path, obj: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix="." + path.stem + "_", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(obj, f, indent=1, sort_keys=True)
-        shutil.move(tmp, str(path))
-    finally:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
+    _io.atomic_write_json(path, obj, indent=1)
 
 
 # ── loader (used by the validation) ────────────────────────────────────────────────────────────────

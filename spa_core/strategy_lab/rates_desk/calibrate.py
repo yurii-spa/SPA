@@ -33,13 +33,11 @@ import dataclasses
 import datetime
 import itertools
 import json
-import os
-import shutil
-import tempfile
 from decimal import Decimal
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.strategy_lab.rates_desk import _io
 from spa_core.strategy_lab.rates_desk import pendle_pt_history as pph
 from spa_core.strategy_lab.rates_desk import retro
 from spa_core.strategy_lab.rates_desk import validation as V
@@ -98,7 +96,7 @@ def measure(params: RatePolicyParams, deep: dict, funding: Dict[str, float]) -> 
     for ev in V.STRESS_EVENTS:
         risk = V._build_toxic_risk(ev)
         from spa_core.strategy_lab.rates_desk.contracts import (
-            KillState, Opportunity, RateQuote, RateVenue, TradeShape, UnderlyingKind)
+            KillState, Opportunity, RateQuote, RateVenue, TradeShape)
         q = RateQuote(
             underlying=ev["underlying"], kind=ev["kind"], venue=RateVenue.PENDLE_PT,
             protocol="pendle", market_id=f"PT-{ev['underlying']}", tenor_seconds=86400 * 60,
@@ -296,19 +294,11 @@ def _boundary(rows: List[dict]) -> List[dict]:
 
 # ── persistence + doc ──────────────────────────────────────────────────────────────────────────────
 def _atomic_write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix="." + path.stem + "_", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(text)
-        shutil.move(tmp, str(path))
-    finally:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
+    _io.atomic_write_text(path, text)
 
 
 def _atomic_write_json(path: Path, obj) -> None:
-    _atomic_write(path, json.dumps(obj, indent=1, sort_keys=True, default=str))
+    _io.atomic_write_json(path, obj, indent=1, default=str)
 
 
 def _render_doc(result: dict) -> str:

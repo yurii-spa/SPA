@@ -32,8 +32,8 @@ const seats = [
     sub_en: 'On-chain interest-rate & basis', sub_ru: 'On-chain ставки и базис',
     edge_en: 'Price & harvest the disagreement between Pendle implied yield, lending rates and perp funding — and REFUSE books where the high rate is just unpriced tail.',
     edge_ru: 'Оценивать и собирать расхождение между implied-доходностью Pendle, ставками кредитования и funding-ом перпов — и ОТКАЗЫВАТЬСЯ от книг, где высокая ставка — это просто неоценённый хвост.',
-    finding_en: 'Refusal fired early on toxic LRTs (vetoed before the Aug-2024 / Apr-2026 depegs). Carry beats the 3.4% RWA floor through every stress (OOS 11.4%). Live paper track accumulating.',
-    finding_ru: 'Отказ сработал заранее на токсичных LRT (отклонены до депегов авг-2024 / апр-2026). Кэрри обгоняет RWA-пол 3.4% во всех стрессах (OOS 11.4%). Живой paper-трек накапливается.',
+    finding_en: 'Refusal fired early on toxic LRTs (vetoed before the Aug-2024 / Apr-2026 depegs). The validated FixedCarry sleeve clears the 3.4% RWA floor in/out-of-sample and through every stress — net ~6.09% on total capital (advisory, reporting-only). Live paper track accumulating.',
+    finding_ru: 'Отказ сработал заранее на токсичных LRT (отклонены до депегов авг-2024 / апр-2026). Валидированный sleeve FixedCarry обгоняет RWA-пол 3.4% in/out-of-sample и во всех стрессах — нетто ~6.09% на полный капитал (advisory, только отчётность). Живой paper-трек накапливается.',
     cta_en: 'Open the Rates Desk', cta_ru: 'Открыть Rates Desk',
     // teal-leaning GO
     card: 'border-teal-700/35', badge: 'bg-teal-500/10 border-teal-500/30 text-teal-300', dot: 'bg-teal-400', accent: 'group-hover:text-teal-300', arrow: 'group-hover:text-teal-400',
@@ -47,8 +47,8 @@ const seats = [
     sub_en: 'Liquidation-safe collateral', sub_ru: 'Ликвидационно-безопасный залог',
     edge_en: 'Lend against Liquidation NAV, not marketing NAV — underwrite the executable exit of tokenized-RWA collateral, not the assumed $1.00.',
     edge_ru: 'Кредитовать под Ликвидационный NAV, а не маркетинговый — андеррайтить исполнимый выход токенизированного RWA-залога, а не предполагаемый $1.00.',
-    finding_en: 'Built the live Collateral Safety Board: 10 of 10 tokenized-RWA assets are NOT cash-like on executable exit; 9 of 10 have ~$0 public on-chain exit. We ship the measurement layer; the underwriting relationship is capital/legal-gated.',
-    finding_ru: 'Построена живая Доска безопасности залога: 10 из 10 токенизированных RWA НЕ кэш-эквивалент на выходе; 9 из 10 имеют ~$0 публичного on-chain выхода. Мы поставляем измерительный слой; андеррайтинг ограничен капиталом и юрисдикцией.',
+    finding_en: 'Built the live Collateral Safety Board: across the whole board, no tokenized-RWA asset is cash-like on an executable on-chain exit, and nearly all have ~$0 public on-chain exit (live counts on the board). We ship the measurement layer; the underwriting relationship/book is capital/legal-gated — off-code.',
+    finding_ru: 'Построена живая Доска безопасности залога: на всей доске ни один токенизированный RWA НЕ кэш-эквивалент на исполнимом on-chain выходе, и почти у всех ~$0 публичного on-chain выхода (живые счётчики на доске). Мы поставляем измерительный слой; андеррайтинг-книга ограничена капиталом и юрисдикцией — off-code.',
     cta_en: 'Open the Collateral Safety Board', cta_ru: 'Открыть Доску безопасности залога',
     // indigo MEASUREMENT-GO
     card: 'border-indigo-700/40', badge: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300', dot: 'bg-indigo-400', accent: 'group-hover:text-indigo-300', arrow: 'group-hover:text-indigo-400',
@@ -285,11 +285,12 @@ const seats = [
       <h2 class="text-2xl font-bold mb-4" style="color:var(--text-primary)"
           data-ru="Три места — один движок">Three seats, one engine</h2>
       <p class="text-base leading-relaxed max-w-2xl mb-7" style="color:var(--text-secondary)"
-         data-ru="Все три тезиса опираются на ОДНО ядро: детерминированный риск-взвешенный измерительный движок — справедливая цена + хвостовые хейркаты + ёмкость выхода — который говорит, что собирать И от чего отказываться. Этот движок и есть реальный актив. $10M — это многолетняя игра в масштаб и доверие поверх него.">
+         data-ru="Все три тезиса опираются на ОДНО ядро: детерминированный риск-взвешенный измерительный движок — справедливая цена + хвостовые хейркаты + ёмкость выхода — который говорит, что собирать И от чего отказываться. Этот движок и есть реальный актив. $10M — это масштаб, доверие и отношения, а не альфа стратегии: это off-code — многолетняя игра поверх движка.">
         All three theses rest on <strong style="color:var(--text-primary)">one core</strong>: a
         deterministic, risk-adjusted measurement engine — fair value + tail-risk haircuts + exit-capacity
         — that says what to <em>harvest</em> AND what to <em>refuse</em>. That engine is the real asset;
-        $10M is the multi-year scale-and-trust game on top of it.
+        the <strong style="color:var(--text-primary)">$10M is scale, trust and relationships — not
+        strategy alpha. It is off-code</strong>: a multi-year game on top of the engine.
       </p>
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">

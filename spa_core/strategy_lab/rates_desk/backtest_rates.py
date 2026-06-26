@@ -34,10 +34,6 @@ Run (offline, on the deep cached data):
 from __future__ import annotations
 
 import datetime
-import json
-import os
-import shutil
-import tempfile
 from decimal import Decimal
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -51,12 +47,12 @@ from spa_core.backtesting.tier1.deflated_sharpe import (
     probabilistic_sharpe_ratio,
     sharpe_per_period,
 )
+from spa_core.strategy_lab.rates_desk import _io
 from spa_core.strategy_lab.rates_desk import config
 from spa_core.strategy_lab.rates_desk import pendle_pt_history as pph
 from spa_core.strategy_lab.rates_desk.contracts import (
     D0,
     KillReason,
-    KillState,
     RatePolicyParams,
     RateQuote,
     RateVenue,
@@ -130,15 +126,7 @@ GLOBAL_MAX_APY = Decimal("0.30")
 
 # ── atomic JSON write (repo rule #4) ──────────────────────────────────────────────────────────────
 def _atomic_write_json(path: Path, obj) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix="." + path.stem + "_", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(obj, f, indent=1, sort_keys=True)
-        shutil.move(tmp, str(path))
-    finally:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
+    _io.atomic_write_json(path, obj, indent=1)
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -863,14 +851,7 @@ def write_validation_section(result: dict, promotion: Optional[dict] = None,
         body = (pre + "\n\n" + section + ("\n\n" + post if post else "\n")).rstrip("\n") + "\n"
     else:
         body = (existing.rstrip("\n") + "\n\n" + section + "\n") if existing else (section + "\n")
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix="." + path.stem + "_", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(body)
-        shutil.move(tmp, str(path))
-    finally:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
+    _io.atomic_write_text(path, body)
     return path
 
 

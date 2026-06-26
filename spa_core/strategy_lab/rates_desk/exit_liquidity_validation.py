@@ -31,13 +31,11 @@ PURE / deterministic / stdlib / LLM-FORBIDDEN / fail-CLOSED. `as_of` windows are
 # LLM_FORBIDDEN
 from __future__ import annotations
 
-import os
-import shutil
-import tempfile
 from decimal import Decimal
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.strategy_lab.rates_desk import _io
 from spa_core.strategy_lab.rates_desk import config
 from spa_core.strategy_lab.rates_desk import feeds
 from spa_core.strategy_lab.rates_desk import pendle_pt_history as pph
@@ -416,15 +414,7 @@ def write_doc_section(out: dict, doc_path: Optional[Path] = None) -> Path:
         body = (pre + "\n\n" + section + ("\n\n" + post if post else "\n")).rstrip("\n") + "\n"
     else:
         body = (existing.rstrip("\n") + "\n\n" + section + "\n") if existing else (section + "\n")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix="." + path.stem + "_", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(body)
-        shutil.move(tmp, str(path))
-    finally:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
+    _io.atomic_write_text(path, body)
     return path
 
 

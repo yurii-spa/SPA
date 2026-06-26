@@ -46,11 +46,17 @@ from spa_core.strategy_lab.rates_desk.contracts import (
     Opportunity,
     RatePolicyParams,
     RateQuote,
-    TradeShape,
     UnderlyingRisk,
     YieldDecomposition,
 )
 from spa_core.strategy_lab.rates_desk.fair_value_engine import FairValueEngine, _safe_decimal
+
+# A funding "flip tick" = funding was negative for the MAJORITY of the recent window (a hostile
+# carry regime). It is the per-tick event the funding-flip hysteresis streak counts toward
+# `params.funding_flip_streak_kill`. The MAJORITY definition (>= 0.5 of the window) is structural —
+# it is not a calibrated coefficient — so it lives here as one named constant rather than as a bare
+# literal repeated in the entry gate and the hold gate (a duplicated predicate threshold can drift).
+FUNDING_FLIP_TICK_FRAC = Decimal("0.5")
 
 
 def _as_of_epoch(as_of: str) -> Optional[int]:
@@ -116,7 +122,7 @@ def evaluate_entry(
     # ── update funding-flip hysteresis streak FIRST (so it's threaded out even on early refusals) ──
     fneg = _safe_decimal(risk.funding_neg_frac_90d)
     # a "flip tick" = funding is negative the majority of the recent window (hostile carry regime)
-    flip_tick = (fneg is not None and fneg >= Decimal("0.5"))
+    flip_tick = (fneg is not None and fneg >= FUNDING_FLIP_TICK_FRAC)
     new_streak = (state.neg_funding_streak + 1) if flip_tick else 0
     next_state = KillState(
         neg_funding_streak=new_streak,
@@ -262,7 +268,7 @@ def evaluate_hold(
     as_of = q.as_of
 
     fneg = _safe_decimal(risk.funding_neg_frac_90d)
-    flip_tick = (fneg is not None and fneg >= Decimal("0.5"))
+    flip_tick = (fneg is not None and fneg >= FUNDING_FLIP_TICK_FRAC)
     new_streak = (state.neg_funding_streak + 1) if flip_tick else 0
 
     # ── continuous utilization-trap tracking (compute the NEW high_util_since up-front so it threads

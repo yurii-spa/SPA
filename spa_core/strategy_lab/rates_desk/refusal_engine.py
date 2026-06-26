@@ -35,14 +35,12 @@ from __future__ import annotations
 
 import datetime
 import json
-import os
-import shutil
-import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from spa_core.strategy_lab.base import InvalidDataError
 from spa_core.strategy_lab.data.market_data import MarketData
+from spa_core.strategy_lab.rates_desk import _io
 from spa_core.strategy_lab.rates_desk import config as C
 from spa_core.strategy_lab.rates_desk.risk_score import score_on_date
 
@@ -68,17 +66,9 @@ REFUSE = "REFUSE"
 UNKNOWN = "UNKNOWN"
 
 
-# ── atomic JSON write (repo rule #4) ──────────────────────────────────────────────────────────
+# ── atomic JSON write (the shared rates-desk IO primitive, repo rule #4) ──────────────────────
 def _atomic_write_json(path: Path, obj) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix="." + path.stem + "_", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(obj, f, indent=2, sort_keys=True)
-        shutil.move(tmp, str(path))  # atomic, cross-device safe (repo rule #4)
-    finally:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
+    _io.atomic_write_json(path, obj, indent=2)
 
 
 # ── verdict classification (from the VALIDATED thresholds) ────────────────────────────────────
