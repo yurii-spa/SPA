@@ -41,6 +41,13 @@ from spa_core.strategy_lab.rwa_backstop.liquidation_nav import (
     ON_CHAIN_LIQUID_THRESHOLD,
     Fetcher,
 )
+from spa_core.strategy_lab.rwa_backstop.onchain_nav import (
+    OnchainNAV,
+    OnchainNAVReader,
+    NAV_SOURCE_ONCHAIN,
+    NAV_SOURCE_ESTIMATE,
+    RpcFetcher,
+)
 
 _ROOT = Path(__file__).resolve().parents[3]  # …/SPA_Claude
 DEFAULT_OUT = _ROOT / "data" / "rwa_safety_board.json"
@@ -117,8 +124,15 @@ def _exit_capacity_72h_usd(res: LiquidationNAVResult) -> float:
     return round(res.on_chain_dex_tvl_usd * EXIT_CAPACITY_72H_FRAC_OF_TVL, 2)
 
 
-def _asset_record(res: LiquidationNAVResult) -> dict:
-    """One Safety-Board row."""
+def _asset_record(res: LiquidationNAVResult, onchain: Optional[OnchainNAV] = None) -> dict:
+    """One Safety-Board row.
+
+    `onchain` (when present and nav_source=onchain_4626) supplies the REAL intrinsic NAV/share read
+    on-chain via keyless eth_call — a more authoritative redemption-value anchor than the uniform
+    $1.00 marketing assumption. We still report liq_nav as a FRACTION of the marketing NAV (the
+    thesis gap is measured vs marketing), but we surface the on-chain NAV + its divergence from the
+    $1.00 marketing assumption as an additive risk signal. Fail-CLOSED: no on-chain read →
+    nav_source=off_chain_estimate and the marketing value stands."""
     verdict = classify(res)
     liq_100k = res.liq_nav_frac(SMALL_SIZE_USD)
     liq_1m = res.liq_nav_frac(REFERENCE_SIZE_USD)
@@ -131,11 +145,29 @@ def _asset_record(res: LiquidationNAVResult) -> dict:
     # marketing-vs-liq gap at the $1M reference (the headline thesis number).
     gap_pct_1m = None if liq_1m is None else round((1.0 - liq_1m) * 100.0, 4)
 
+    # On-chain intrinsic-NAV layer (additive). nav_source flags whether we got a REAL read.
+    if onchain is not None and onchain.nav_source == NAV_SOURCE_ONCHAIN \
+            and onchain.onchain_nav_usd is not None:
+        nav_source = NAV_SOURCE_ONCHAIN
+        onchain_nav_usd = onchain.onchain_nav_usd
+        # divergence of the REAL intrinsic NAV from the $1.00 marketing assumption (a risk signal).
+        onchain_nav_divergence_pct = round((onchain_nav_usd - nav) / nav * 100.0, 6) if nav else None
+        onchain_rpc = onchain.rpc_endpoint
+    else:
+        nav_source = NAV_SOURCE_ESTIMATE
+        onchain_nav_usd = None
+        onchain_nav_divergence_pct = None
+        onchain_rpc = onchain.rpc_endpoint if onchain is not None else None
+
     return {
         "symbol": res.symbol,
         "issuer": res.issuer,
         "verdict": verdict,
         "marketing_nav_usd": round(nav, 6),
+        "nav_source": nav_source,
+        "onchain_nav_usd": onchain_nav_usd,
+        "onchain_nav_divergence_pct": onchain_nav_divergence_pct,
+        "onchain_rpc_endpoint": onchain_rpc,
         "liq_nav_usd_100k": usd(liq_100k),
         "liq_nav_usd_1m": usd(liq_1m),
         "liq_nav_usd_10m": usd(liq_10m),
@@ -162,33 +194,61 @@ def build_report(
     fetcher: Optional[Fetcher] = None,
     out_path: Optional[Path] = None,
     assets=None,
+    onchain: bool = True,
+    rpc_fetcher: Optional[RpcFetcher] = None,
 ) -> dict:
     """Measure the whole RWA collateral universe and produce the Safety Board.
 
     Args:
-        write:   write data/rwa_safety_board.json atomically when True (default).
-        fetcher: inject a url->json fetcher (tests/hermetic). None → keyless DeFiLlama /pools.
+        write:    write data/rwa_safety_board.json atomically when True (default).
+        fetcher:  inject a url->json fetcher (tests/hermetic). None → keyless DeFiLlama /pools.
         out_path: override output path (tests).
-        assets:  override the asset list (tests). None → the full collateral_registry.
+        assets:   override the asset list (tests). None → the full collateral_registry.
+        onchain:  attempt REAL on-chain intrinsic-NAV reads via keyless JSON-RPC eth_call (default
+                  True). Fail-CLOSED: any RPC failure / non-4626 token → off_chain_estimate, the
+                  board still produces every row on its estimate.
+        rpc_fetcher: inject a (url, payload)->json JSON-RPC fetcher (tests/hermetic). None → the
+                  keyless public mainnet RPC probe.
 
     Returns the report dict. Deterministic + FAIL-CLOSED. RESEARCH / ADVISORY only."""
     asset_list = list(assets) if assets is not None else reg.registry()
     engine = LiquidationNAVEngine(fetcher=fetcher)
     results = engine.measure_universe(asset_list)
 
-    rows = [_asset_record(r) for r in results]
+    # On-chain intrinsic-NAV layer (additive, fail-CLOSED). One endpoint probe for the whole run.
+    onchain_by_symbol: Dict[str, OnchainNAV] = {}
+    if onchain:
+        reader = OnchainNAVReader(rpc_fetcher=rpc_fetcher)
+        try:
+            onchain_by_symbol = reader.read_universe(asset_list)
+        except Exception:  # noqa: BLE001 — fail-CLOSED: any reader failure → estimate everywhere
+            onchain_by_symbol = {}
+
+    rows = [_asset_record(r, onchain_by_symbol.get(r.symbol.upper())) for r in results]
     rows.sort(key=lambda r: r["symbol"])
 
     verdict_counts: Dict[str, int] = {LIQUID: 0, THIN: 0, REDEMPTION_ONLY: 0, UNSAFE: 0}
     gaps_list = []
+    n_onchain_nav = 0
+    n_estimate_nav = 0
+    nav_divergences = []  # (symbol, divergence_pct) for assets with a REAL on-chain NAV
     for row in rows:
         verdict_counts[row["verdict"]] = verdict_counts.get(row["verdict"], 0) + 1
         if row["marketing_vs_liq_gap_pct_1m"] is not None:
             gaps_list.append(row["marketing_vs_liq_gap_pct_1m"])
+        if row["nav_source"] == NAV_SOURCE_ONCHAIN:
+            n_onchain_nav += 1
+            if row["onchain_nav_divergence_pct"] is not None:
+                nav_divergences.append((row["symbol"], row["onchain_nav_divergence_pct"]))
+        else:
+            n_estimate_nav += 1
 
     universe = reg.universe_summary()
     # headline: how much of the universe is NOT cash-like on an executable on-chain exit.
     not_cash_like = verdict_counts[REDEMPTION_ONLY] + verdict_counts[UNSAFE] + verdict_counts[THIN]
+    # max absolute on-chain-vs-marketing NAV divergence (a real intrinsic-value risk signal).
+    max_abs_div = (round(max(abs(d) for _, d in nav_divergences), 6)
+                   if nav_divergences else None)
 
     report = {
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -205,7 +265,25 @@ def build_report(
         "n_assets": len(rows),
         "max_marketing_vs_liq_gap_pct_1m": round(max(gaps_list), 4) if gaps_list else None,
         "thesis_confirmed": not_cash_like >= max(1, len(rows) // 2),
+        "onchain_nav_coverage": {
+            "enabled": bool(onchain),
+            "n_onchain_4626": n_onchain_nav,
+            "n_off_chain_estimate": n_estimate_nav,
+            "rpc_endpoint": next((o.rpc_endpoint for o in onchain_by_symbol.values()
+                                  if o.rpc_endpoint), None),
+            "max_abs_nav_divergence_pct": max_abs_div,
+            "divergences": sorted(
+                [{"symbol": s, "onchain_vs_marketing_nav_divergence_pct": d}
+                 for s, d in nav_divergences],
+                key=lambda r: -abs(r["onchain_vs_marketing_nav_divergence_pct"]),
+            ),
+        },
         "data_caveats": [
+            "ON-CHAIN INTRINSIC NAV (where shown, nav_source=onchain_4626) is a REAL keyless "
+            "eth_call read of totalAssets/totalSupply or convertToAssets — the most authoritative "
+            "redemption-value anchor. Most tokenized-RWA tokens are permissioned/non-4626 and do "
+            "NOT expose it → nav_source=off_chain_estimate (marketing/$1.00 assumption stands). "
+            "Partial on-chain coverage is the HONEST result, not a bug.",
             "ON-CHAIN DEX leg is MEASURABLE read-only (DeFiLlama /pools depth + slippage model).",
             "REDEMPTION leg is DOCUMENTED-ONLY: actual settlement is whitelist/subscription-gated "
             "(relationship + legal access we do not have read-only). Encoded as a transparent "
@@ -231,9 +309,17 @@ def _print_board(report: dict) -> None:
           f"REDEMPTION_ONLY={vc['REDEMPTION_ONLY']}  UNSAFE={vc['UNSAFE']}   "
           f"(not-cash-like: {report['n_not_cash_like']}/{report['n_assets']})")
     print(f"  thesis_confirmed (majority NOT cash-like on executable exit): {report['thesis_confirmed']}")
+    cov = report.get("onchain_nav_coverage", {})
+    print(f"  on-chain intrinsic NAV: {cov.get('n_onchain_4626', 0)} REAL (eth_call) / "
+          f"{cov.get('n_off_chain_estimate', 0)} estimate   "
+          f"(RPC: {cov.get('rpc_endpoint') or 'none responded → all estimate'})")
+    if cov.get("divergences"):
+        for dv in cov["divergences"]:
+            print(f"    ! {dv['symbol']}: on-chain NAV diverges "
+                  f"{dv['onchain_vs_marketing_nav_divergence_pct']:+.4f}% from $1.00 marketing")
     print()
     hdr = (f"{'symbol':8s} {'verdict':16s} {'liqNAV$1M':>10s} {'gap%':>7s} "
-           f"{'dexTVL$':>14s} {'pools':>5s} {'redeem':>7s}  issuer")
+           f"{'navSrc':>16s} {'onchNAV':>9s} {'dexTVL$':>14s} {'pools':>5s} {'redeem':>7s}  issuer")
     print(hdr)
     print("-" * (len(hdr) + 12))
     for a in report["assets"]:
@@ -241,8 +327,11 @@ def _print_board(report: dict) -> None:
         ln_s = f"{ln:10.4f}" if isinstance(ln, (int, float)) else f"{'—':>10s}"
         gap = a["marketing_vs_liq_gap_pct_1m"]
         gap_s = f"{gap:7.2f}" if isinstance(gap, (int, float)) else f"{'—':>7s}"
+        onav = a.get("onchain_nav_usd")
+        onav_s = f"{onav:9.5f}" if isinstance(onav, (int, float)) else f"{'—':>9s}"
         rd = f"T+{a['redemption_delay_days']:g}" if a["redemption_documented"] else "none"
         print(f"{a['symbol']:8s} {a['verdict']:16s} {ln_s} {gap_s} "
+              f"{a.get('nav_source', '?'):>16s} {onav_s} "
               f"{a['on_chain_dex_liquidity_usd']:14,.0f} {a['n_dex_pools']:5d} {rd:>7s}  {a['issuer']}")
 
 
