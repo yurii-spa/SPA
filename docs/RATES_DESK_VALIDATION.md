@@ -273,3 +273,46 @@ RWA floor: **3.4%/yr**. Unconstrained (zero-size) carry: **~10.6533%/yr** — th
 > **Honest verdict — CAPACITY-LIMITED.** CAPACITY-LIMITED (honest). The FixedCarry survivor carry is real but lives in THIN Pendle PT pools: the §9 exit-capacity rule caps per-market deployment at max_size_frac_of_exit of one-tick exit liquidity, so the desk REFUSES to push past the impact band (it sizes DOWN rather than eat slippage). The depth cost therefore shows up not as carry slippage but as IDLE capital — the un-deployable remainder sits @ the RWA floor and the book APY compresses toward the floor as AUM grows. The unconstrained (zero-size) carry is ~10.65%/yr; it does NOT survive size — the fundable ceiling (book APY >= floor+200bps) is ~$250,000 deployed AUM, and the edge saturates to ~the floor by $10,000,000. This is exactly why a $10M/yr target needs SCALE across MANY such gated books, not one — a single rates book caps out well below institutional size before the edge erodes to the floor.
 
 <!-- END rates-desk capacity analysis (capacity) -->
+
+<!-- BEGIN rates-desk portfolio-of-desks (portfolio) -->
+
+## Portfolio of desks — does the edge SCALE?  (the $10M/yr business case)
+
+_Deterministic portfolio-of-desks capacity model: each harvestable (underlying, maturity) Pendle PT market is its OWN capacity-limited book (its own pool depth → its own §9 exit cap), replayed over the DEEP historical RateSurface (2024-01-09→2026-06-25) under the SAME honest accounting as the single-book capacity curve (REUSING capacity.py's replay: §9 exit-capacity sizing, idle cash @ the RWA floor, maturity-retire, 30% global ceiling). The aggregate is the SUM of per-book deployables — bounded by real per-market depth, NOT infinite. PURE / fail-CLOSED / advisory. Re-runnable via `python3 -m spa_core.strategy_lab.rates_desk.portfolio`._
+
+RWA floor: **3.4%/yr**. Target: **$10,000,000/yr of carry ABOVE the floor**. Harvestable markets: **25**; fundable independent books (actually deploy capacity): **22** (aggregate refusal 12.0%).
+
+| underlying | maturity | deployable AUM | net carry %/yr | above floor $/yr | held days |
+|---|---|---:|---:|---:|---:|
+| USDe | 2024-07-25 | $86,193 | 26.6000 | $19,997 | 76 |
+| USDe | 2024-10-24 | $6,489 | 10.1900 | $441 | 96 |
+| USDe | 2024-12-26 | $1,522 | 8.7200 | $81 | 158 |
+| USDe | 2025-03-27 | $1,065 | 11.8900 | $90 | 161 |
+| USDe | 2025-07-31 | $4,250 | 12.4500 | $385 | 152 |
+| USDe | 2025-09-25 | $2,561 | 8.6600 | $135 | 124 |
+| USDe | 2025-11-27 | $5,984 | 12.6400 | $553 | 104 |
+| USDe | 2026-02-05 | $2,164 | 5.7300 | $50 | 93 |
+| USDe | 2026-05-07 | $3,030 | 3.7500 | $11 | 97 |
+| sUSDe | 2024-07-25 | $39,962 | 26.7900 | $9,347 | 32 |
+| sUSDe | 2024-09-26 | $116,848 | 28.5200 | $29,352 | 98 |
+| sUSDe | 2024-10-24 | $14,683 | 15.0000 | $1,703 | 96 |
+| sUSDe | 2024-12-26 | $2,119 | 12.9000 | $201 | 159 |
+| sUSDe | 2025-02-27 | $3,919 | 26.9700 | $924 | 75 |
+| sUSDe | 2025-03-27 | $4,730 | 11.6600 | $391 | 183 |
+| sUSDe | 2025-05-29 | $2,014 | 16.9500 | $273 | 194 |
+| sUSDe | 2025-07-31 | $1,165 | 7.1400 | $44 | 126 |
+| sUSDe | 2025-09-25 | $1,044 | 8.2200 | $50 | 122 |
+| sUSDe | 2025-11-27 | $10,098 | 9.6600 | $632 | 118 |
+| sUSDe | 2026-02-05 | $4,458 | 5.9000 | $111 | 96 |
+| sUSDe | 2026-05-07 | $10,620 | 0.8333 | $0 | 110 |
+| sUSDe | 2026-08-13 | $5,397 | 3.5609 | $9 | 56 |
+
+- **Total deployable AUM (Σ per-book depth):** **$330,315**
+- **Aggregate net APY (deployable-weighted):** **22.9289%/yr**
+- **Carry ABOVE the floor:** **$64,779/yr** (0.6478% of the $10M/yr target)
+- **Books needed for $10M/yr above floor:** **3397** (at $2,945/yr above floor per current book)
+- **Gap to $10M/yr:** $9,935,221/yr
+
+> **Honest fundability verdict.** The CURRENT real harvestable universe is 22 fundable independent books (of 25 harvestable markets), summing to $330,315 of depth-bound deployable AUM at an aggregate 22.93%/yr (RWA floor 3.40%/yr) → $64,779/yr of carry ABOVE the floor. That is only 0.65% of the $10M/yr target — a gap of $9,935,221/yr. Honest verdict: the CURRENT real Pendle PT carry market is TOO THIN to fund $10M/yr above the floor on its own. At the current per-book average of $2,945/yr above floor, clearing $10M/yr would need ~3397 current-average books — far more than the real universe offers today. The §9 exit-capacity cap binds each book to a small depth-bound size, and even SUMMED across every harvestable maturity the real depth is limited. Closing the gap requires the market to GROW (deeper PT pools per maturity → higher per-book deployable), MORE venues/books (lending-carry on PT collateral, more maturities, other chains, additional protocols), AND/OR the OTHER theses (the RWA cash-floor sleeve and directional/neutral ETH sleeves) carrying the balance of the $10M target. This is the honest scale truth: the rates-desk carry edge is REAL and SURVIVES across many gated books, but the current market depth alone does not get to $10M/yr — it is one diversifying sleeve of a larger book, not a standalone $10M business at today's depth.
+
+<!-- END rates-desk portfolio-of-desks (portfolio) -->

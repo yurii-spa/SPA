@@ -319,3 +319,195 @@ def test_normal_cycle_unaffected_by_failsafe(tmp_path, monkeypatch):
     assert res.safety_check_failed is False
     assert res.safety_check_reason == ""
     assert res.traded is True
+
+
+# ─── GOVERNANCE INVARIANT (P3-10): approved=False CANNOT be overridden ────────
+#
+# CLAUDE.md rule #: "approved=False from RiskPolicy CANNOT be overridden by any
+# agent." (See spa_core/risk/policy.py governance docstring + RiskConfig.)
+# Before P3-10 this invariant was enforced ONLY by convention — no test pinned
+# it. These tests assert the contract DIRECTLY on the extracted N12 gate
+# (``_apply_risk_policy_gate``): whenever RiskPolicy returns approved=False the
+# gate's verdict is ALWAYS approved=False, for EVERY rejection reason, and there
+# is NO caller input / override flag / kwarg that flips it back to True. The
+# only escapes are the two SAFE ones: a min-cash overshoot is TRIMMED (still
+# approved over the trimmed book, never the raw over-deployed one), and a gate
+# exception FAILS CLOSED (approved=False). This test fails the instant any code
+# path lets a rejection slip through as approved=True.
+
+from spa_core.paper_trading.risk_gate import (  # noqa: E402
+    _apply_risk_policy_gate,
+)
+
+# One adapter per distinct rejection reason. Each target is engineered so the
+# *only* outcome a correct gate can return is approved=False.
+_REJECTION_CASES = {
+    # T2 single-protocol concentration cap (20%): 30% target breaches it.
+    "t2_concentration": (
+        [_adapter("morpho_blue", tier="T2", apy=5.0, tvl=1e7)],
+        {"morpho_blue": 30000.0},
+        "Concentration",
+    ),
+    # T1 single-protocol concentration cap (40%): 45% breaches it.
+    "t1_concentration": (
+        [_adapter("aave_v3", tier="T1", apy=4.0, tvl=2e8)],
+        {"aave_v3": 45000.0},
+        "Concentration",
+    ),
+    # T2 total-allocation cap (50%): three 20% pools = 60% combined.
+    "t2_total": (
+        [
+            _adapter("morpho_blue", tier="T2", apy=5.0, tvl=1e7),
+            _adapter("yearn_v3", tier="T2", apy=3.0, tvl=1e7),
+            _adapter("maple", tier="T2", apy=4.7, tvl=1e7),
+        ],
+        {"morpho_blue": 20000.0, "yearn_v3": 20000.0, "maple": 20000.0},
+        "Total T2",
+    ),
+    # TVL floor ($5M): a $400k pool is below it.
+    "tvl_floor": (
+        [_adapter("morpho_blue", tier="T2", apy=5.0, tvl=400_000.0)],
+        {"morpho_blue": 10000.0},
+        "TVL",
+    ),
+    # APY upper bound (30%): 35% is too high.
+    "apy_high": (
+        [_adapter("degen_pool", tier="T2", apy=35.0, tvl=1e7)],
+        {"degen_pool": 10000.0},
+        "exceeds maximum",
+    ),
+    # APY lower bound (1%): 0.5% is too low.
+    "apy_low": (
+        [_adapter("dust_pool", tier="T2", apy=0.5, tvl=1e7)],
+        {"dust_pool": 10000.0},
+        "below minimum",
+    ),
+    # Drawdown / kill-switch threshold (5%): emulated via a tiny capital so the
+    # deployed target also trips the buffer — but the salient verdict is a hard
+    # reject. (Drawdown itself is portfolio-state driven; the gate replays onto a
+    # fresh empty state, so we pin the kill-switch threshold via policy below.)
+}
+
+
+@pytest.mark.parametrize("case", list(_REJECTION_CASES))
+def test_gate_rejection_is_final_for_every_reason(case):
+    """For EACH rejection reason, the gate verdict is approved=False — full stop."""
+    adapters, target, needle = _REJECTION_CASES[case]
+    gate = _apply_risk_policy_gate(target, 100_000.0, adapters)
+    assert gate["error"] is None, f"{case}: this is a violation path, not an error"
+    assert gate["approved"] is False, f"{case}: rejection leaked through as approved"
+    assert gate["violations"], f"{case}: rejected with no recorded violation"
+    assert any(needle in v for v in gate["violations"]), (
+        f"{case}: expected a '{needle}' violation, got {gate['violations']}"
+    )
+
+
+def test_drawdown_kill_switch_threshold_blocks_directly():
+    """The 5% portfolio-drawdown kill switch in RiskPolicy rejects directly.
+
+    Exercised on RiskPolicy.check_new_position (the gate replays onto a fresh
+    empty state, so drawdown is pinned at the policy layer it lives in).
+    """
+    from spa_core.risk.policy import (
+        PortfolioState,
+        Position,
+        RiskPolicy,
+    )
+
+    policy = RiskPolicy()
+    # A position sitting at a 6% unrealized loss → total_drawdown 6% ≥ 5% stop.
+    losing = Position(
+        protocol_key="aave_v3",
+        tier="T1",
+        asset="USDC",
+        amount_usd=40_000.0,
+        apy_at_open=4.0,
+        current_apy=4.0,
+        unrealized_pnl_usd=-6_000.0,
+    )
+    state = PortfolioState(total_capital_usd=100_000.0, positions=[losing])
+    res = policy.check_new_position(
+        state,
+        protocol_key="morpho_blue",
+        tier="T2",
+        amount_usd=5_000.0,
+        current_apy=4.0,
+        tvl_usd=1e7,
+    )
+    assert res.approved is False
+    assert any("drawdown" in v.lower() for v in res.violations)
+
+
+def test_no_kwarg_or_caller_input_can_override_a_rejection():
+    """There is NO override knob: a rejected target stays rejected.
+
+    ``_apply_risk_policy_gate`` exposes only (target, capital, adapters, ddir).
+    None of them is an "approve anyway" switch. We sweep plausible caller
+    intents (different ddir, extra adapter metadata claiming the pool is fine,
+    a forced/elevated tier) and assert the verdict never flips to approved.
+    """
+    base_target = {"morpho_blue": 30000.0}  # 30% T2 → over the 20% cap
+
+    # 1) Baseline rejection.
+    g = _apply_risk_policy_gate(
+        base_target, 100_000.0,
+        [_adapter("morpho_blue", tier="T2", apy=5.0, tvl=1e7)],
+    )
+    assert g["approved"] is False
+
+    # 2) Adapter metadata that "claims" a high TVL / friendly APY cannot waive
+    #    the concentration cap (different axis entirely).
+    g2 = _apply_risk_policy_gate(
+        base_target, 100_000.0,
+        [_adapter("morpho_blue", tier="T2", apy=4.0, tvl=9e9, status="ok",
+                  approved=True, override=True, force=True)],
+    )
+    assert g2["approved"] is False, "spurious adapter flags must not approve"
+
+    # 3) Mislabelling the tier as T1 (higher cap) still cannot rescue a 30% pool
+    #    when its true reason persists — and if 30% < 40% T1 it would only pass
+    #    by HONEST policy math, not an override. Use 45% so it fails under BOTH
+    #    tier caps: no relabelling escapes.
+    g3 = _apply_risk_policy_gate(
+        {"morpho_blue": 45000.0}, 100_000.0,
+        [_adapter("morpho_blue", tier="T1", apy=4.0, tvl=1e7)],
+    )
+    assert g3["approved"] is False, "tier relabelling must not approve a breach"
+
+
+def test_gate_exception_fails_closed_not_open():
+    """A gate that cannot be evaluated must FAIL CLOSED (approved=False).
+
+    The only non-rejection outcomes a correct gate may produce are an honest
+    approval or a fail-closed block — never a silent approve-on-error.
+    """
+    # capital_usd as a non-numeric type makes the internal arithmetic raise;
+    # the gate must capture it into `error` and block, not propagate / approve.
+    gate = _apply_risk_policy_gate(
+        {"morpho_blue": 30000.0}, "not-a-number",  # type: ignore[arg-type]
+        [_adapter("morpho_blue", tier="T2", apy=5.0, tvl=1e7)],
+    )
+    assert gate["approved"] is False
+    assert gate["error"] is not None
+    assert gate["violations"], "a fail-closed block must record a reason"
+
+
+def test_only_safe_escape_is_trim_over_the_trimmed_book():
+    """A min-cash overshoot is TRIMMED — approval is over the trimmed book only.
+
+    This is the single benign 'override' of the raw caller target, and it makes
+    the book MORE conservative (smaller deployment), never less. The raw
+    over-deployed target is never the one approved.
+    """
+    adapters = [
+        _adapter("aave_v3", tier="T1", apy=4.0, tvl=2e8),
+        _adapter("compound_v3", tier="T1", apy=3.5, tvl=1e8),
+        _adapter("morpho_blue", tier="T1", apy=5.0, tvl=1e8),
+    ]
+    raw = {"aave_v3": 40000.0, "compound_v3": 35000.0, "morpho_blue": 25000.0}
+    gate = _apply_risk_policy_gate(raw, 100_000.0, adapters)
+    assert gate["approved"] is True
+    assert gate["trimmed"] is True
+    deployed = sum(gate["target_usd"].values())
+    assert deployed <= 95_000.0 + 1e-6          # min-cash 5% enforced
+    assert deployed < sum(raw.values())          # strictly more conservative

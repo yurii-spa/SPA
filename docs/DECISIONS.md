@@ -4,6 +4,68 @@
 
 ---
 
+## 2026-06-26 (P3-10 — Dual-drawdown design note + governance invariant test)
+
+**ADR-style note: the two drawdown switches are INTENTIONALLY DISTINCT (do NOT conflate).**
+
+SPA has **two separate drawdown circuit-breakers** that live in different layers,
+fire on different measurements, and have NO cross-reconciliation today. This is
+deliberate. The 5% and 15% thresholds are **owner-gated** — this note documents
+the design, it does NOT change any value.
+
+| | RiskPolicy 5% stop | Kill-switch 15% stop |
+|---|---|---|
+| File | `spa_core/risk/policy.py` (`RiskConfig.max_drawdown_stop = 0.05`) | `spa_core/governance/kill_switch.py` (`DRAWDOWN_THRESHOLD_PCT = 15.0`) |
+| Measurement | **intra-cycle** unrealized P&L vs deployed capital (`PortfolioState.total_drawdown_pct`, computed fresh each cycle from current positions) | **peak-to-current** over the last 30 **evidenced** equity bars (`check_drawdown_trigger`, warmup/backfill excluded — N1 fix) |
+| Trigger window | the *current* cycle's snapshot | rolling 30-day real track |
+| Effect | **blocks NEW positions** (`check_new_position` → `approved=False`); held book is NOT force-liquidated by this rule | **liquidates ALL** → forces `{"cash": 1.0, …protocols: 0.0}` all-cash allocation |
+| Severity | per-trade gate | account-level emergency stop |
+
+**Why distinct (not a bug):**
+- The 5% policy stop is a *tight intra-cycle brake on adding risk* — if the book
+  is already 5% underwater on a single snapshot, do not pile on new exposure.
+- The 15% kill-switch is a *wider, slower, account-level liquidation* measured
+  over the honest 30-day track, with explicit safety carve-outs (only evidenced
+  real bars count, so a warmup/demo peak can't fabricate a 15% drawdown that
+  closes the live book).
+- They answer different questions ("should I add this position right now?" vs
+  "is the whole account in an emergency?"), so a single threshold would be wrong
+  for at least one of them.
+
+**No cross-check exists today.** Neither switch reads the other's threshold or
+state. A 6% intra-cycle drawdown blocks new trades but does NOT trip the
+kill-switch (which needs 15% peak-to-current over the real series); conversely the
+kill-switch can fire on a slow 30-day bleed that never showed a 5% single-cycle
+snapshot.
+
+**IF the owner ever decides to RECONCILE them** (e.g. tier the policy stop off the
+kill-switch peak, or unify the measurement basis), then **BOTH the values AND their
+pinning tests MUST change together** — never one alone:
+- `spa_core/risk/policy.py` (`max_drawdown_stop`) + `spa_core/tests/test_risk_policy*.py`
+  (incl. `test_drawdown_kill_switch_threshold_blocks_directly` in
+  `test_risk_policy_gate.py`).
+- `spa_core/governance/kill_switch.py` (`DRAWDOWN_THRESHOLD_PCT`) +
+  `spa_core/tests/test_kill_switch.py`.
+- Owner sign-off + a new ADR (per `policy.py` GOVERNANCE change process), because
+  both are owner-gated risk parameters.
+
+This note exists to prevent a future agent from silently conflating the two
+(e.g. "drawdown is 5% in one file and 15% in another — let me 'fix' the
+inconsistency"). They are **not** inconsistent; they are two switches.
+
+**Also shipped (P3-10, Part A): governance non-override invariant test.**
+CLAUDE.md / `policy.py` rule "approved=False from RiskPolicy CANNOT be overridden
+by any agent" was enforced only by convention. Added direct tests on the N12 gate
+(`spa_core/paper_trading/risk_gate.py::_apply_risk_policy_gate`) in
+`spa_core/tests/test_risk_policy_gate.py` asserting: for EVERY rejection reason
+(T1/T2 concentration, T2-total cap, TVL floor, APY bounds, drawdown) the gate
+verdict is always `approved=False`; no caller input / kwarg / adapter flag / tier
+relabelling flips it back to True; a gate exception **fails closed**; the only
+benign escape (min-cash trim) approves a strictly *more conservative* book. Test
+fails the instant any path lets a rejection through as approved.
+
+---
+
 ## 2026-06-21 (APY Expectation Recalibration)
 
 **APY Expectation Recalibration (2026-06-21):** Real blended T1/T2 APY ~4.1% (confirmed by
