@@ -21,6 +21,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
+from spa_core.adapters.apy_contract import canonical_apy_pct
+
 # ─── Canonical fallback APYs (PERCENT units) ──────────────────────────────────
 # Used when an adapter is offline / returns None. Tuned to live paper book
 # levels (Aave ≈ 3.6%, Compound ≈ 3.9%) and CLAUDE.md orientation values.
@@ -79,15 +81,33 @@ T1_PER_PROTOCOL_CAP: float = 0.40
 MIN_CASH_BUFFER:     float = 0.05
 
 
-def normalize_apy(value) -> Optional[float]:
-    """Normalise an adapter APY reading to PERCENT units.
+def canonical_adapter_apy_pct(adapter) -> Optional[float]:
+    """Canonical adapter APY in PERCENT via ``get_yield_info().apy`` (decimal).
 
-    Adapters are inconsistent: some `get_apy()` return decimal fractions
-    (Sky/Aave/Yearn/Euler → 0.065 == 6.5%), others return percent
-    (newer Base/spark adapters → 6.5). Heuristic: a positive reading below
-    1.0 is treated as a decimal fraction and scaled ×100; everything ≥ 1.0
-    is assumed to already be in percent. Returns None for non-numeric /
-    non-positive inputs.
+    Architect P3-5 — replaces the per-strategy ``v < 1.0 → ×100`` magnitude
+    heuristic, which silently mishandled a TRUE sub-1% APY (e.g. a percent
+    adapter honestly returning 0.5% would be read as 50%). This routes through
+    the canonical, unit-unambiguous accessor (``get_yield_info().apy`` is always
+    a decimal), validates the decimal sane-band (fail-closed on the 100x unit
+    hazard), and converts to percent exactly once. No magnitude guessing.
+
+    Returns ``None`` when the adapter has no live data / no canonical accessor /
+    an out-of-band value — callers fall back to their deterministic fallback APY.
+    """
+    return canonical_apy_pct(adapter)
+
+
+def normalize_apy(value) -> Optional[float]:
+    """DEPRECATED magnitude heuristic — kept only for backward compatibility.
+
+    ⚠️ Do NOT use for new code. This guesses units from magnitude (a positive
+    reading < 1.0 is scaled ×100, ≥ 1.0 is assumed percent), which CORRUPTS a
+    true sub-1% percent APY (0.5% → 50%). Use :func:`canonical_adapter_apy_pct`
+    with the adapter object, which reads the canonical decimal accessor instead
+    of guessing. Retained so any external caller importing this symbol keeps
+    working; the income strategies no longer rely on it.
+
+    Returns None for non-numeric / non-positive inputs.
     """
     if value is None or isinstance(value, bool):
         return None
@@ -126,13 +146,18 @@ class AdapterAPYMixin:
         return []
 
     def _get_adapter_apy(self, key: str) -> float:
-        """Live APY (percent) → fallback APY (percent) → 0.0."""
+        """Live APY (percent) → fallback APY (percent) → 0.0.
+
+        Uses the canonical decimal accessor (``get_yield_info().apy``) instead
+        of the deprecated magnitude heuristic, so a true sub-1% APY is never
+        100x-inflated (Architect P3-5).
+        """
         adapter = getattr(self, "_adapters", {}).get(key)
         if adapter is not None:
             try:
-                norm = normalize_apy(adapter.get_apy())  # type: ignore[attr-defined]
-                if norm is not None:
-                    return round(norm, 4)
+                pct = canonical_apy_pct(adapter)
+                if pct is not None and pct > 0.0:
+                    return round(pct, 4)
             except Exception:   # noqa: BLE001
                 pass
         return float(PROTOCOL_FALLBACK_APY.get(key, 0.0))

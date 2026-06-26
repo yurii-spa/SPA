@@ -34,6 +34,7 @@ import os
 import time
 from typing import Any, Dict, List, Optional, Type
 
+from spa_core.adapters.apy_contract import canonical_apy_pct
 from spa_core.utils.atomic import atomic_save
 from spa_core.utils.errors import AdapterError, safe_call
 
@@ -130,14 +131,23 @@ def _extract_apy_pct(adapter_instance: Any) -> Optional[float]:
     """Try various adapter interfaces to retrieve an APY percentage.
 
     Priority order:
-    1. ``get_apy_pct()`` — MP-389 RegistryBaseAdapter interface.
-    2. ``get_yield_info().apy`` — BaseAdapter ABC (decimal → ×100).
-    3. ``get_apy()`` — BaseAdapter ABC shortcut (decimal → ×100).
-    4. ``fetch()["apy"]`` — standalone adapters (CompoundV3Adapter pattern).
+    1. ``get_apy_pct()`` — MP-389 RegistryBaseAdapter interface (explicit percent).
+    2. ``get_yield_info().apy`` — canonical accessor (decimal → ×100 once,
+       via :func:`spa_core.adapters.apy_contract.canonical_apy_pct`, which
+       validates the decimal band and fails CLOSED on a unit violation).
+    3. ``fetch()["apy"]`` — standalone adapters (CompoundV3Adapter pattern,
+       explicit percent).
+
+    NOTE (Architect P3-5): the former step-3 ``get_apy() * 100`` fallback was
+    UNIT-BLIND — ``get_apy()`` is decimal for some adapters and percent for
+    others, so blindly ×100 would 100x-deflate any percent-adapter that lacked
+    ``get_apy_pct()``. It is removed; the canonical decimal accessor (step 2) is
+    the correct decimal→percent route. Adapters exposing only a percent
+    ``get_apy()`` must expose ``get_apy_pct()`` or ``fetch()``.
 
     Returns None on any failure so the caller can decide what to do.
     """
-    # 1. New MP-389 interface
+    # 1. New MP-389 interface (explicit percent)
     if hasattr(adapter_instance, "get_apy_pct") and callable(
         adapter_instance.get_apy_pct
     ):
@@ -148,27 +158,20 @@ def _extract_apy_pct(adapter_instance: Any) -> Optional[float]:
         except Exception as exc:  # noqa: BLE001
             logger.debug("get_apy_pct() failed: %s", exc)
 
-    # 2. BaseAdapter abstract interface: get_yield_info().apy  (decimal)
+    # 2. Canonical accessor: get_yield_info().apy (decimal) → percent, validated.
+    #    canonical_apy_pct routes through get_yield_info().apy, enforces the
+    #    decimal sane-band (fail-closed on the 100x hazard), and ×100 exactly once.
     if hasattr(adapter_instance, "get_yield_info") and callable(
         adapter_instance.get_yield_info
     ):
         try:
-            info = adapter_instance.get_yield_info()
-            if info is not None and getattr(info, "apy", None) is not None:
-                return float(info.apy) * 100.0
+            pct = canonical_apy_pct(adapter_instance)
+            if pct is not None:
+                return pct
         except Exception as exc:  # noqa: BLE001
-            logger.debug("get_yield_info() failed: %s", exc)
+            logger.debug("canonical_apy_pct() failed: %s", exc)
 
-    # 3. BaseAdapter shortcut: get_apy() (decimal)
-    if hasattr(adapter_instance, "get_apy") and callable(adapter_instance.get_apy):
-        try:
-            val = adapter_instance.get_apy()
-            if val is not None:
-                return float(val) * 100.0
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("get_apy() failed: %s", exc)
-
-    # 4. Standalone adapter pattern: fetch()["apy"]  (percent)
+    # 3. Standalone adapter pattern: fetch()["apy"]  (percent)
     if hasattr(adapter_instance, "fetch") and callable(adapter_instance.fetch):
         try:
             result = adapter_instance.fetch()

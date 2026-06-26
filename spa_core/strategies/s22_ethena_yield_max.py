@@ -39,6 +39,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.adapters.apy_contract import canonical_apy_pct
+
 # ─── Identity ─────────────────────────────────────────────────────────────────
 
 STRATEGY_ID   = "S22"
@@ -107,23 +109,19 @@ MAX_DRAWDOWN_PCT:  float = 5.0
 _HISTORY_MAX:      int   = 365
 
 
-def _norm_apy_pct(value: object, fallback: float) -> float:
-    """Normalize an adapter's get_apy() return to *percent*.
+def _canonical_apy_pct(adapter: object, fallback: float) -> float:
+    """Adapter APY in *percent* via the canonical decimal accessor → fallback.
 
-    SPA adapters are inconsistent: newer ones (susde, spark_susds, Base) return
-    percent (e.g. 6.5), older ones (aave_v3, yearn_v3) return a decimal (0.065).
-    Realistic stablecoin APYs are 1–30%, so a positive value < 1.0 is a decimal
-    and is scaled ×100; a value ≥ 1.0 is already percent. None/0/invalid →
-    fallback.
+    Architect P3-5 — replaces the old ``v < 1.0 → ×100`` magnitude heuristic
+    (which read a true sub-1% percent APY as 100x too large). Reads
+    ``get_yield_info().apy`` (always a decimal), validates the decimal sane-band
+    (fail-closed on the 100x unit hazard), and converts to percent exactly once.
+    Returns ``fallback`` when there is no live data / out-of-band / non-positive.
     """
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
+    pct = canonical_apy_pct(adapter)
+    if pct is None or pct <= 0.0:
         return fallback
-    v = float(value)
-    if v != v or v in (float("inf"), float("-inf")):  # NaN / inf guard
-        return fallback
-    if v <= 0.0:
-        return fallback
-    return v * 100.0 if v < 1.0 else v
+    return pct
 
 
 class EthenaYieldMaxStrategy:
@@ -171,7 +169,7 @@ class EthenaYieldMaxStrategy:
         fallback = FALLBACK_APY.get(adapter_key, 0.0)
         if adapter is not None:
             try:
-                return _norm_apy_pct(adapter.get_apy(), fallback)  # type: ignore[attr-defined]
+                return _canonical_apy_pct(adapter, fallback)
             except Exception:   # noqa: BLE001
                 pass
         return fallback

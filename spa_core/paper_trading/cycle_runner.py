@@ -93,6 +93,7 @@ from spa_core.paper_trading._cycle_io import (  # noqa: F401 — re-exported
     _atomic_write_json,
     _DEFAULT_DATA_DIR,
     _read_json,
+    resolve_data_dir,
 )
 from spa_core.paper_trading.equity import (  # noqa: F401 — re-exported
     _accrue_daily_yield,
@@ -520,6 +521,7 @@ def run_cycle(
     risk_scorer_fn: Callable[[Path], Any] | None = None,
     track_persister_fn: Callable[[Path], Any] | None = None,
     write: bool = True,
+    allow_live_write: bool = False,
 ) -> CycleResult:
     """Execute one paper-trading cycle.
 
@@ -548,8 +550,19 @@ def run_cycle(
                  because of persistence. Skipped on dry-run.
     write      : if False, computes everything but writes nothing (dry-run;
                  risk_scores.json is NOT regenerated either).
+    allow_live_write : track-integrity write-interlock (fail-CLOSED, default
+                 DENY). Only when True (or env ``SPA_ALLOW_LIVE_WRITE=1``) may a
+                 cycle write the canonical live track at ``<repo>/data``. Without
+                 opt-in, a run targeting the canonical dir is REROUTED to a
+                 sandbox (``SPA_DATA_DIR`` or a temp dir) so a stray dev-shell
+                 ``python3 -m spa_core.paper_trading.cycle_runner`` can never
+                 overwrite the honest track. An explicit non-canonical
+                 ``data_dir`` is always honoured verbatim. See
+                 ``_cycle_io.resolve_data_dir``.
     """
-    ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
+    ddir, _interlock_redirected = resolve_data_dir(
+        data_dir, allow_live_write=allow_live_write
+    )
     now_dt = now or datetime.now(timezone.utc)
     run_ts = now_dt.isoformat()
     today = now_dt.strftime("%Y-%m-%d")
@@ -1612,6 +1625,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--verbose", action="store_true", help="verbose per-step output")
     parser.add_argument("--data-dir", default=None, help="override data directory")
     parser.add_argument(
+        "--live",
+        action="store_true",
+        help=(
+            "WRITE-INTERLOCK opt-in: permit writing the CANONICAL live track at "
+            "<repo>/data. Default (no flag) is fail-CLOSED — writes are "
+            "redirected to a sandbox so a stray dev-shell run never corrupts the "
+            "honest go-live track. Equivalent env: SPA_ALLOW_LIVE_WRITE=1. The "
+            "production launchd agent MUST pass this flag."
+        ),
+    )
+    parser.add_argument(
         "--no-monitors",
         action="store_true",
         help="skip the MP-107 external monitors (red flags / governance / incidents)",
@@ -1623,7 +1647,24 @@ def main(argv: list[str] | None = None) -> int:
         format="%(levelname)s %(name)s: %(message)s",
     )
 
-    result = run_cycle(data_dir=args.data_dir, write=not args.dry_run)
+    # Resolve the effective data dir ONCE under the write-interlock so that the
+    # cycle AND all post-cycle steps (monitors / alerts / analytics / smart
+    # modules below, which take ``data_dir``) write to the SAME place. Without
+    # this, a default (no --live) run would still let those post-steps mutate
+    # the canonical dir. Fail-CLOSED: no opt-in ⇒ sandbox.
+    _allow_live = bool(args.live)
+    _eff_dir, _redirected = resolve_data_dir(args.data_dir, allow_live_write=_allow_live)
+    if _redirected:
+        print(
+            "(write-interlock: no --live / SPA_ALLOW_LIVE_WRITE=1 — canonical "
+            f"track NOT written; sandbox = {_eff_dir})"
+        )
+    # Downstream steps key off this effective dir (string for back-compat APIs).
+    _eff_data_dir = str(_eff_dir)
+
+    result = run_cycle(
+        data_dir=args.data_dir, write=not args.dry_run, allow_live_write=_allow_live
+    )
     _print_report(result)
 
     # MP-109: backup spa.db after each real cycle run.
@@ -1639,14 +1680,14 @@ def main(argv: list[str] | None = None) -> int:
     # MP-107: refresh external-signal snapshots once per daily run (fail-safe;
     # network-bound, hence here in the CLI and not inside run_cycle()).
     if not args.dry_run and not args.no_monitors:
-        monitors = _run_daily_monitors(args.data_dir)
+        monitors = _run_daily_monitors(_eff_data_dir)
         for name, status in monitors.items():
             print(f"  monitor {name:<12}: {status}")
 
     # MP-016: Telegram alerts after the cycle & monitors (fail-safe;
     # network-bound, hence here in the CLI and not inside run_cycle()).
     if not args.dry_run:
-        alerts = _run_cycle_alerts(args.data_dir, date=result.date)
+        alerts = _run_cycle_alerts(_eff_data_dir, date=result.date)
         for name, ok in alerts.items():
             print(f"  alert   {name:<12}: {'sent' if ok else 'FAILED'}")
 
@@ -1669,7 +1710,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.dry_run:
         try:
             from spa_core.reporting.pdf_report import generate_pdf_report
-            pdf_path = generate_pdf_report(data_dir=args.data_dir)
+            pdf_path = generate_pdf_report(data_dir=_eff_data_dir)
             logging.info("PDF report generated: %s", pdf_path)
             print(f"  pdf report  : {pdf_path}")
         except Exception as _pdf_exc:  # noqa: BLE001
@@ -1682,7 +1723,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.dry_run and datetime.now().weekday() == 6:  # Sunday
         try:
             from spa_core.tuner.allocation_tuner import run_allocation_tuner
-            _suggestion = run_allocation_tuner(data_dir=_DEFAULT_DATA_DIR)
+            _suggestion = run_allocation_tuner(data_dir=_eff_data_dir)
             log.info(
                 "MP-207 Tuner suggestion: expected APY %.2f%%, Sharpe %.3f, "
                 "improvements: %s",
@@ -1701,13 +1742,13 @@ def main(argv: list[str] | None = None) -> int:
     # MP-663: Run unified analytics pipeline after each cycle (fail-safe;
     # purely advisory — never modifies allocator / risk / execution state).
     if not args.dry_run:
-        _run_analytics_pipeline(data_dir=args.data_dir)
+        _run_analytics_pipeline(data_dir=_eff_data_dir)
 
     # MP-1576..1580: smart / autonomous advisory modules after each cycle.
     # All STRICTLY read-only / advisory; each is independently fail-safe and
     # never modifies allocator / risk / execution state or touches capital.
     if not args.dry_run:
-        _run_smart_modules(data_dir=args.data_dir, send_telegram=not args.no_monitors)
+        _run_smart_modules(data_dir=_eff_data_dir, send_telegram=not args.no_monitors)
 
     if args.dry_run:
         print("(dry-run: no files written)")

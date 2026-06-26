@@ -37,7 +37,11 @@ LOG_FILE="$LOG_DIR/daily_cycle_$(date +%Y%m%d).log"
 echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Starting daily paper cycle (cycle_runner)" | tee -a "$LOG_FILE"
 
 # ── Step 1: real cycle engine — advances the paper track ───────────────────
-"$PYTHON" -m spa_core.paper_trading.cycle_runner --verbose >> "$LOG_FILE" 2>&1
+# WRITE-INTERLOCK (track-integrity): cycle_runner is fail-CLOSED by default and
+# will NOT write the canonical live track without an explicit opt-in. This is
+# THE production cycle, so it MUST pass --live (== SPA_ALLOW_LIVE_WRITE=1).
+# Without --live the daily track would silently freeze (writes go to a sandbox).
+"$PYTHON" -m spa_core.paper_trading.cycle_runner --verbose --live >> "$LOG_FILE" 2>&1
 CYCLE_EXIT=$?
 echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] cycle_runner exit=$CYCLE_EXIT" | tee -a "$LOG_FILE"
 

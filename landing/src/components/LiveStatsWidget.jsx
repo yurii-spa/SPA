@@ -6,19 +6,31 @@ const API_URL = 'https://api.earn-defi.com/api/health-public';
 const GOLIVE_URL = 'https://api.earn-defi.com/api/v1/golive';
 const POLL_INTERVAL_MS = 60_000;
 
+// HONESTY: when the API is unreachable we MUST NOT render fabricated
+// performance figures as if they were real. Every measured/performance field
+// is null here -> the UI renders "—" / "unavailable". Only NON-performance
+// structural constants survive, and only because they are clearly labeled
+// (gate count is a fixed criteria total, not a result; go-live target is a plan).
 const FALLBACK = {
-  track_days: 5,   // evidenced (cycle-logged) days, anchor 2026-06-22 — NOT padded
-  sharpe_30d: 1.42,
-  max_drawdown_pct: 0.31,
-  risk_gates_passed: 27,
-  risk_gates_total: 29,
-  ytd_apy_pct: 3.6,
+  track_days: null,            // measured -> unavailable offline
+  sharpe_30d: null,            // measured -> unavailable offline
+  max_drawdown_pct: null,      // measured -> unavailable offline
+  risk_gates_passed: null,     // measured -> unavailable offline
+  risk_gates_total: 29,        // structural: total criteria in GoLiveChecker v6.0
+  ytd_apy_pct: null,           // measured -> unavailable offline
   status: 'PAPER',
   last_cycle_at: null,
-  active_protocols: 8,
-  risk_policy_blocks_30d: 2,
-  golive_target: '2026-07-21',
+  active_protocols: null,      // measured -> unavailable offline
+  risk_policy_blocks_30d: null,// measured -> unavailable offline
+  golive_target: null,         // planned date; only shown if live API provides it
 };
+
+const NA = '—'; // shown in place of any measured value when not live
+
+// Render a measured numeric value, or NA when offline/missing.
+function fmt(value, fn) {
+  return value == null ? NA : fn(value);
+}
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -69,7 +81,7 @@ const CHANGELOG = [
 ];
 
 function formatRelativeTime(isoString) {
-  if (!isoString) return 'today';
+  if (!isoString) return NA;
   const diff = Date.now() - new Date(isoString).getTime();
   const hours = Math.floor(diff / 3_600_000);
   if (hours < 1) return 'just now';
@@ -129,8 +141,8 @@ function OverviewTab({ d }) {
     <div className="space-y-6">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard value="$100,000" label="Total Paper AUM" tooltip="Virtual capital for paper trading" color="text-white" />
-        <StatCard value={`${d.ytd_apy_pct.toFixed(1)}%`} label="Blended APY" tooltip="Annualized yield across all active strategies" color="text-accent-400" />
-        <StatCard value={`${d.track_days}`} unit="days" label="Evidenced Days" tooltip="Cycle-log-evidenced days only (anchor 2026-06-22). We reset the track — earlier flat-rate backfill is not counted. See /track-record." color="text-white" />
+        <StatCard value={fmt(d.ytd_apy_pct, v => `${v.toFixed(1)}%`)} label="Blended APY" tooltip="Annualized yield across all active strategies (live only)" color="text-accent-400" />
+        <StatCard value={fmt(d.track_days, v => `${v}`)} unit="days" label="Evidenced Days" tooltip="Cycle-log-evidenced days only. We reset the track — earlier flat-rate backfill is not counted. See /track-record." color="text-white" />
         <StatCard value="Core" label="Active Strategy" tooltip="Currently paper-tracked strategy" color="text-emerald-400" />
       </div>
 
@@ -149,7 +161,11 @@ function OverviewTab({ d }) {
         />
       </div>
 
-      <ProgressBar value={d.risk_gates_passed} max={d.risk_gates_total} label="GoLiveChecker Progress" />
+      {d.risk_gates_passed == null ? (
+        <div className="text-xs text-white/40">GoLiveChecker progress — unavailable offline (target {d.risk_gates_total} criteria)</div>
+      ) : (
+        <ProgressBar value={d.risk_gates_passed} max={d.risk_gates_total} label="GoLiveChecker Progress" />
+      )}
 
       <div className="rounded-xl bg-white/3 border border-white/8 px-5 py-4">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-y-3 gap-x-4 text-sm">
@@ -162,11 +178,11 @@ function OverviewTab({ d }) {
           </div>
           <div>
             <div className="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Risk Blocks (30d)</div>
-            <span className="text-white/70">{d.risk_policy_blocks_30d} logged</span>
+            <span className="text-white/70">{fmt(d.risk_policy_blocks_30d, v => `${v} logged`)}</span>
           </div>
           <div>
             <div className="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Protocols</div>
-            <span className="text-white/70">{d.active_protocols} monitored</span>
+            <span className="text-white/70">{fmt(d.active_protocols, v => `${v} monitored`)}</span>
           </div>
           <div>
             <div className="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Status</div>
@@ -174,11 +190,11 @@ function OverviewTab({ d }) {
           </div>
           <div>
             <div className="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Last Cycle</div>
-            <span className="text-white/50">{formatRelativeTime(d.last_cycle_at)}</span>
+            <span className="text-white/50">{d.last_cycle_at ? formatRelativeTime(d.last_cycle_at) : NA}</span>
           </div>
           <div>
             <div className="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Go-Live Target</div>
-            <span className="text-white/50">{d.golive_target ?? '2026-07-21'}</span>
+            <span className="text-white/50">{d.golive_target ?? NA}</span>
           </div>
         </div>
       </div>
@@ -186,47 +202,48 @@ function OverviewTab({ d }) {
   );
 }
 
-function CoreTab({ d }) {
-  const protocols = [
-    { name: 'Aave V3', tier: 'T1', alloc: '35%' },
-    { name: 'Morpho Steakhouse', tier: 'T1', alloc: '30%' },
-    { name: 'Compound V3', tier: 'T1', alloc: '10%' },
-    { name: 'Yearn V3', tier: 'T2', alloc: '15%' },
-    { name: 'Cash Buffer', tier: '—', alloc: '10%' },
-  ];
+function CoreTab({ d, isLive }) {
+  // Allocation is a live-only fact. We do NOT ship a hardcoded book that would
+  // render as the "current" allocation when the API is down. When live, the API
+  // may provide d.allocation (array of {name, tier, alloc}); otherwise hide.
+  const protocols = isLive && Array.isArray(d.allocation) ? d.allocation : null;
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard value={`${d.ytd_apy_pct.toFixed(1)}%`} label="Paper APY" tooltip="Annualized yield since tracking began" color="text-accent-400" />
-        <StatCard value={d.sharpe_30d.toFixed(2)} label="Sharpe (30d)" tooltip="Risk-adjusted return. 1.0+ is strong for DeFi." color="text-emerald-400" />
-        <StatCard value={`-${d.max_drawdown_pct.toFixed(2)}%`} label="Max Drawdown" tooltip="Worst peak-to-trough decline. Kill switch at -5%." color="text-amber-400" />
-        <StatCard value={`${d.track_days}`} unit="days" label="Evidenced Days" tooltip="Cycle-log-evidenced days only (anchor 2026-06-22)" color="text-white" />
+        <StatCard value={fmt(d.ytd_apy_pct, v => `${v.toFixed(1)}%`)} label="Paper APY" tooltip="Annualized yield since tracking began (live only)" color="text-accent-400" />
+        <StatCard value={fmt(d.sharpe_30d, v => v.toFixed(2))} label="Sharpe (30d)" tooltip="Risk-adjusted return. 1.0+ is strong for DeFi. (live only)" color="text-emerald-400" />
+        <StatCard value={fmt(d.max_drawdown_pct, v => `-${v.toFixed(2)}%`)} label="Max Drawdown" tooltip="Worst peak-to-trough decline. Kill switch at -5%. (live only)" color="text-amber-400" />
+        <StatCard value={fmt(d.track_days, v => `${v}`)} unit="days" label="Evidenced Days" tooltip="Cycle-log-evidenced days only" color="text-white" />
       </div>
 
       <div className="rounded-xl bg-white/4 border border-white/8 p-5">
         <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4">Current Allocation</h3>
-        <div className="space-y-3">
-          {protocols.map(p => (
-            <div key={p.name} className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-3">
-                <span className="text-white/80">{p.name}</span>
-                <span className="text-[10px] font-mono text-white/30 px-1.5 py-0.5 rounded bg-white/5">{p.tier}</span>
+        {protocols ? (
+          <div className="space-y-3">
+            {protocols.map(p => (
+              <div key={p.name} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-3">
+                  <span className="text-white/80">{p.name}</span>
+                  <span className="text-[10px] font-mono text-white/30 px-1.5 py-0.5 rounded bg-white/5">{p.tier}</span>
+                </div>
+                <span className="font-mono text-white/60">{p.alloc}</span>
               </div>
-              <span className="font-mono text-white/60">{p.alloc}</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-white/40">Live allocation unavailable offline. See <a href="/track-record" className="text-accent-400/60 hover:text-accent-400">/track-record</a> for the latest published positions.</p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl bg-white/4 border border-white/8 p-4">
           <div className="text-[10px] text-white/25 uppercase tracking-wider mb-1">Risk Blocks (30d)</div>
-          <div className="text-xl font-mono text-white/70">{d.risk_policy_blocks_30d}</div>
+          <div className="text-xl font-mono text-white/70">{fmt(d.risk_policy_blocks_30d, v => `${v}`)}</div>
         </div>
         <div className="rounded-xl bg-white/4 border border-white/8 p-4">
           <div className="text-[10px] text-white/25 uppercase tracking-wider mb-1">GoLive Criteria</div>
-          <div className="text-xl font-mono text-white/70">{d.risk_gates_passed}/{d.risk_gates_total}</div>
+          <div className="text-xl font-mono text-white/70">{d.risk_gates_passed == null ? NA : `${d.risk_gates_passed}/${d.risk_gates_total}`}</div>
         </div>
       </div>
 
@@ -324,17 +341,19 @@ function MaxYieldTab() {
   );
 }
 
-function RiskBlocksTab({ d }) {
-  const blocks = [
-    { date: 'Jun 15, 2026', type: 'TVL Floor', reason: 'Euler V2 TVL dropped below $5M threshold', status: 'Resolved' },
-    { date: 'Jun 12, 2026', type: 'APY Bound', reason: 'Morpho Blue APY exceeded 30% upper bound', status: 'Resolved' },
-  ];
+function RiskBlocksTab({ d, isLive }) {
+  // Risk-gate events are live-only facts. Never ship invented dated rows.
+  // When live, the API may provide d.risk_block_events (array of
+  // {date, type, reason, status}); offline -> honest empty/unavailable state.
+  const blocks = isLive && Array.isArray(d.risk_block_events) ? d.risk_block_events : [];
 
   return (
     <div className="space-y-6">
       <div className="rounded-xl bg-white/4 border border-white/8 p-5">
         <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4">Recent Risk Gate Events</h3>
-        {d.risk_policy_blocks_30d === 0 ? (
+        {!isLive ? (
+          <p className="text-sm text-white/40">Risk gate events unavailable offline. See <a href="/track-record" className="text-accent-400/60 hover:text-accent-400">/track-record</a> for the published log.</p>
+        ) : blocks.length === 0 ? (
           <p className="text-sm text-white/40">No risk blocks in current period. All rebalances executed.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -374,9 +393,33 @@ function RiskBlocksTab({ d }) {
   );
 }
 
-function GoLiveTab({ d }) {
+function GoLiveTab({ d, isLive }) {
   const passCount = d.risk_gates_passed;
   const total = d.risk_gates_total;
+
+  // Offline: we cannot honestly mark individual criteria PASS/FAIL.
+  if (!isLive || passCount == null) {
+    return (
+      <div className="space-y-6">
+        <div className="text-xs text-white/40">GoLiveChecker status unavailable offline (target {total} criteria).</div>
+        <div className="rounded-xl bg-white/4 border border-white/8 p-5">
+          <h4 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">Criteria</h4>
+          <div className="space-y-2">
+            {GOLIVE_CRITERIA.map(c => (
+              <div key={c.name} className="flex items-center gap-3 text-sm">
+                <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-white/5 text-white/30 border border-white/10">{NA}</span>
+                <span className="text-white/50">{c.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-lg bg-white/3 border border-white/8 px-4 py-3 text-xs text-white/30 leading-relaxed">
+          Go-live requires all 29 criteria to pass for 7+ consecutive days, plus 30-day gap-free track record
+          and manual owner review (ADR-002).
+        </div>
+      </div>
+    );
+  }
 
   const passSet = new Set([
     'equity_curve_real', 'trades_real', 'status_real', 'no_demo_data',
@@ -522,12 +565,12 @@ export default function LiveStatsWidget() {
 
       {/* Tab content */}
       <div className="pt-2">
-        {activeTab === 'overview' && <OverviewTab d={d} />}
-        {activeTab === 'core' && <CoreTab d={d} />}
+        {activeTab === 'overview' && <OverviewTab d={d} isLive={isLive} />}
+        {activeTab === 'core' && <CoreTab d={d} isLive={isLive} />}
         {activeTab === 'preserve' && <PreserveTab />}
         {activeTab === 'max-yield' && <MaxYieldTab />}
-        {activeTab === 'risk-blocks' && <RiskBlocksTab d={d} />}
-        {activeTab === 'golive' && <GoLiveTab d={d} />}
+        {activeTab === 'risk-blocks' && <RiskBlocksTab d={d} isLive={isLive} />}
+        {activeTab === 'golive' && <GoLiveTab d={d} isLive={isLive} />}
         {activeTab === 'changelog' && <ChangelogTab />}
       </div>
 

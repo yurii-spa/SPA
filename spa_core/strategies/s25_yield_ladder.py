@@ -36,6 +36,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.adapters.apy_contract import canonical_apy_pct
+
 # ─── Identity ─────────────────────────────────────────────────────────────────
 
 STRATEGY_ID   = "S25"
@@ -109,16 +111,17 @@ MAX_DRAWDOWN_PCT: float = 5.0
 _HISTORY_MAX:     int   = 365
 
 
-def _norm_apy_pct(value: object, fallback: float) -> float:
-    """Normalize an adapter get_apy() return to percent (see S22 for rationale)."""
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
+def _canonical_apy_pct(adapter: object, fallback: float) -> float:
+    """Adapter APY in percent via the canonical decimal accessor (see S22).
+
+    Architect P3-5 — reads ``get_yield_info().apy`` (decimal), validates the
+    sane-band (fail-closed on the 100x unit hazard), ×100 once. Returns
+    ``fallback`` on no live data / out-of-band / non-positive.
+    """
+    pct = canonical_apy_pct(adapter)
+    if pct is None or pct <= 0.0:
         return fallback
-    v = float(value)
-    if v != v or v in (float("inf"), float("-inf")):
-        return fallback
-    if v <= 0.0:
-        return fallback
-    return v * 100.0 if v < 1.0 else v
+    return pct
 
 
 class YieldLadderStrategy:
@@ -164,7 +167,7 @@ class YieldLadderStrategy:
         fallback = FALLBACK_APY.get(adapter_key, 0.0)
         if adapter is not None:
             try:
-                return _norm_apy_pct(adapter.get_apy(), fallback)  # type: ignore[attr-defined]
+                return _canonical_apy_pct(adapter, fallback)
             except Exception:   # noqa: BLE001
                 pass
         return fallback

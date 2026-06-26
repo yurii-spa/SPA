@@ -795,13 +795,24 @@ class TestExplicitRegistration(unittest.TestCase):
         self.assertIn("_exp_fetch", results)
         self.assertAlmostEqual(results["_exp_fetch"], 4.4)
 
-    # ── 10. Adapter with get_apy() (decimal) → correctly multiplied by 100 ───
+    # ── 10. Canonical accessor (get_yield_info().apy, decimal) → ×100 once ────
+    #   Architect P3-5: the registry routes the decimal step through the
+    #   canonical accessor get_yield_info().apy (NOT the unit-ambiguous
+    #   get_apy()), converting decimal→percent exactly once.
     def test_get_apy_decimal_multiplied(self):
+        from spa_core.adapters.base_adapter import YieldInfo
+
         class DecimalAdapter:
             TIER = "T1"
 
             def get_apy(self):
-                return 0.048  # 4.8% as decimal
+                return 0.048  # 4.8% as decimal (unit-ambiguous; not used by registry)
+
+            def get_yield_info(self):
+                return YieldInfo(
+                    protocol="_exp_decimal", asset="USDC", apy=0.048,
+                    tvl_usd=1e7, tier="T1", risk_score=0.2,
+                )
 
         register("_exp_decimal", DecimalAdapter)
         results = refresh_all(self._status_path())
@@ -864,12 +875,23 @@ class TestHelpers(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_extract_apy_pct_get_apy_pct_none_fallthrough(self):
+        # Architect P3-5: get_apy_pct()->None falls through to the canonical
+        # accessor get_yield_info().apy (decimal → ×100), not the removed
+        # unit-blind get_apy()*100 step.
+        from spa_core.adapters.base_adapter import YieldInfo
+
         class ReturnsNone:
             def get_apy_pct(self):
                 return None
 
             def get_apy(self):
                 return 0.03
+
+            def get_yield_info(self):
+                return YieldInfo(
+                    protocol="_rn", asset="USDC", apy=0.03,
+                    tvl_usd=1e7, tier="T2", risk_score=0.3,
+                )
 
         result = _extract_apy_pct(ReturnsNone())
         self.assertAlmostEqual(result, 3.0)

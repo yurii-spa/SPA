@@ -56,10 +56,28 @@ class BaseAdapter(ABC):
 
     @abstractmethod
     def get_apy(self) -> Optional[float]:
-        """Return the current APY as a decimal, or ``None`` if no live data."""
+        """Return the current APY, or ``None`` if no live data.
+
+        ⚠️ UNIT WARNING — ``get_apy()`` is NOT unit-consistent across adapters.
+        Historically some adapters return a **decimal** (aave_v3 → ``0.052``)
+        while others return a **percent** (susde/spark → ``5.2``). Do **not**
+        treat the raw magnitude as canonical — that is the latent 100x hazard
+        (Architect P3-5). Cross-adapter consumers MUST use the canonical
+        accessor :meth:`get_yield_info` (its ``.apy`` is always decimal) or the
+        validated helpers in :mod:`spa_core.adapters.apy_contract`.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def get_yield_info(self) -> YieldInfo:
-        """Return a fully-populated :class:`YieldInfo`."""
+        """Return a fully-populated :class:`YieldInfo`.
+
+        CANONICAL APY ACCESSOR (Architect P3-5). ``get_yield_info().apy`` is the
+        single source of truth for an adapter's APY and is ALWAYS a **decimal**
+        fraction (``0.05`` == 5%), or ``None`` when the live feed is unavailable.
+        Every adapter normalises its raw reading into this decimal here; all
+        cross-adapter math, the registry, and strategies must route through this
+        accessor (see :mod:`spa_core.adapters.apy_contract`) rather than the
+        unit-ambiguous :meth:`get_apy`.
+        """
         raise NotImplementedError

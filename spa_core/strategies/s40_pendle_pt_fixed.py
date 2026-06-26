@@ -42,6 +42,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Dict, List
 
+from spa_core.adapters.apy_contract import canonical_apy_pct
+
 # ─── Identity ─────────────────────────────────────────────────────────────────
 
 STRATEGY_ID   = "S40"
@@ -129,24 +131,20 @@ MAX_DRAWDOWN_PCT: float = 5.0
 _HISTORY_MAX:     int   = 365
 
 
-def _norm_apy_pct(value: object, fallback: float) -> float:
-    """Normalize an adapter get_apy() return to percent.
+def _canonical_apy_pct(adapter: object, fallback: float) -> float:
+    """Adapter APY in percent via the canonical decimal accessor.
 
-    Adapters may return APY as a decimal (0.10) or a percent (10.0); both are
-    accepted. Non-numeric / non-positive / non-finite values fall back. A PT
-    leg reporting exactly 0.0 (unwinding) returns 0.0 — *not* the fallback —
-    so the maturity signal is preserved.
+    Architect P3-5 — replaces the old ``v < 1.0 → ×100`` magnitude heuristic.
+    Reads ``get_yield_info().apy`` (decimal), validates the sane-band
+    (fail-closed on the 100x unit hazard) and ×100 exactly once. A PT leg
+    reporting exactly 0.0 (unwinding) returns 0.0 — *not* the fallback — so the
+    maturity signal is preserved; only a missing/out-of-band read (``None``)
+    falls back.
     """
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
+    pct = canonical_apy_pct(adapter)
+    if pct is None:
         return fallback
-    v = float(value)
-    if v != v or v in (float("inf"), float("-inf")):
-        return fallback
-    if v == 0.0:
-        return 0.0
-    if v < 0.0:
-        return fallback
-    return v * 100.0 if v < 1.0 else v
+    return pct
 
 
 class PendlePTFixedRateStrategy:
@@ -224,7 +222,7 @@ class PendlePTFixedRateStrategy:
         fallback = FALLBACK_APY.get(adapter_key, 0.0)
         if adapter is not None:
             try:
-                return _norm_apy_pct(adapter.get_apy(), fallback)  # type: ignore[attr-defined]
+                return _canonical_apy_pct(adapter, fallback)
             except Exception:   # noqa: BLE001
                 pass
         return fallback

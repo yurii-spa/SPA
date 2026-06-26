@@ -371,9 +371,14 @@ def _release_lock(fd) -> None:
 
 def _default_cycle():
     """Штатный paper-цикл (read-only simulation, никаких реальных транзакций).
-    Ленивый импорт: детекция работает, даже если cycle_runner недоступен."""
+    Ленивый импорт: детекция работает, даже если cycle_runner недоступен.
+
+    WRITE-INTERLOCK: this is a PRODUCTION recovery path (com.spa.cycle_gap_monitor
+    re-runs a *missed* canonical cycle), so it MUST opt in to the live write —
+    otherwise the recovered cycle would land in a sandbox and the track would
+    stay frozen. allow_live_write=True is the explicit, intentional opt-in."""
     from spa_core.paper_trading.cycle_runner import run_cycle
-    return run_cycle(write=True)
+    return run_cycle(write=True, allow_live_write=True)
 
 def _log_skip(record: dict) -> dict:
     """Записать пропуск recovery в gap_monitor.json (recovery_skip) и в алерт."""

@@ -14,9 +14,10 @@ from __future__ import annotations
 
 import pytest
 
+from spa_core.adapters.base_adapter import YieldInfo
 from spa_core.strategies.s22_ethena_yield_max import (
     EthenaYieldMaxStrategy,
-    _norm_apy_pct as s22_norm,
+    _canonical_apy_pct as s22_canon,
     SLOTS as S22_SLOTS,
 )
 from spa_core.strategies.s23_pendle_pt_fixed import (
@@ -193,39 +194,57 @@ def test_yield_matches_apy(cls):
     assert abs(res["expected_annual_yield_usd"] - expected) < CAPITAL * 0.02
 
 
-# ─── APY normalization helper ─────────────────────────────────────────────────
+# ─── APY normalization helper (Architect P3-5: canonical decimal accessor) ────
+# _canonical_apy_pct(adapter, fallback) reads adapter.get_yield_info().apy
+# (DECIMAL) and converts to percent once; no magnitude guessing. The old
+# _norm_apy_pct(value, fallback) v<1.0→×100 heuristic is retired.
 
-def test_norm_apy_decimal_scaled():
-    assert s22_norm(0.05, 9.0) == 5.0
+def _fake_adapter(apy_decimal):
+    """Adapter exposing the canonical accessor with the given DECIMAL apy."""
+    class _A:
+        PROTOCOL = "_fake"
 
-
-def test_norm_apy_percent_kept():
-    assert s22_norm(7.5, 9.0) == 7.5
-
-
-def test_norm_apy_none_fallback():
-    assert s22_norm(None, 9.0) == 9.0
-
-
-def test_norm_apy_zero_fallback():
-    assert s22_norm(0.0, 9.0) == 9.0
-
-
-def test_norm_apy_negative_fallback():
-    assert s22_norm(-3.0, 9.0) == 9.0
+        def get_yield_info(self):
+            return YieldInfo(
+                protocol="_fake", asset="USDC", apy=apy_decimal,
+                tvl_usd=1e7, tier="T1", risk_score=0.2,
+            )
+    return _A()
 
 
-def test_norm_apy_bool_fallback():
-    assert s22_norm(True, 9.0) == 9.0
+def test_canon_apy_decimal_to_percent():
+    # 0.05 decimal == 5%
+    assert s22_canon(_fake_adapter(0.05), 9.0) == 5.0
 
 
-def test_norm_apy_string_fallback():
-    assert s22_norm("8", 9.0) == 9.0
+def test_canon_apy_true_sub_one_percent_not_inflated():
+    # 0.005 decimal == 0.5% — must NOT become 50% (the old heuristic bug).
+    assert s22_canon(_fake_adapter(0.005), 9.0) == 0.5
 
 
-def test_norm_apy_boundary_one_is_percent():
-    # exactly 1.0 is treated as 1% (percent), not decimal
-    assert s22_norm(1.0, 9.0) == 1.0
+def test_canon_apy_none_fallback():
+    assert s22_canon(_fake_adapter(None), 9.0) == 9.0
+
+
+def test_canon_apy_zero_fallback():
+    # 0% read → non-positive → fallback (S22 treats 0 as no-signal).
+    assert s22_canon(_fake_adapter(0.0), 9.0) == 9.0
+
+
+def test_canon_apy_negative_fallback():
+    assert s22_canon(_fake_adapter(-0.03), 9.0) == 9.0
+
+
+def test_canon_apy_out_of_band_fallback():
+    # 50.0 as a "decimal" == 5000% > soft-cap → fail-closed → fallback.
+    assert s22_canon(_fake_adapter(50.0), 9.0) == 9.0
+
+
+def test_canon_apy_no_canonical_accessor_fallback():
+    class _NoInfo:
+        def get_apy(self):
+            return 0.05
+    assert s22_canon(_NoInfo(), 9.0) == 9.0
 
 
 # ─── S22: Ethena Yield Maximizer specifics ────────────────────────────────────
