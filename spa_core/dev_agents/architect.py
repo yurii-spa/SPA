@@ -69,9 +69,30 @@ class SpaArchitect:
         }
 
     def _save_kanban(self, kanban: dict):
+        """Persist KANBAN.json under an advisory lock, reload-before-write.
+
+        An autonomous hourly cycle (sprint_coordinator) writes KANBAN.json
+        concurrently. A bare write of our in-memory snapshot would clobber any
+        scalar fields (e.g. ``done_count``) bumped by that cycle since we loaded.
+        We take the lock, reload the on-disk version, then merge our columns
+        (the part the Architect owns) over it so concurrent counter updates are
+        preserved (no lost updates).
+        """
+        from spa_core.utils.filelock import locked_json_update
+
         kanban["last_updated"] = datetime.now(timezone.utc).isoformat()
         kanban["updated_by"] = "Architect"
-        Path(KANBAN_FILE).write_text(json.dumps(kanban, indent=2))
+
+        def _merge(on_disk: dict) -> dict:
+            if not isinstance(on_disk, dict):
+                on_disk = {}
+            merged = dict(on_disk)
+            # The Architect owns columns + the metadata it just stamped; everything
+            # else (scalar counters etc.) keeps the freshest on-disk value.
+            merged.update(kanban)
+            return merged
+
+        locked_json_update(KANBAN_FILE, _merge, default={})
 
     # ── Claude API ────────────────────────────────────────────────────────────
 

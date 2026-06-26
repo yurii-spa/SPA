@@ -52,13 +52,67 @@ def load_registry(path: str = REGISTRY_PATH) -> dict:
         return json.load(f)
 
 
+def _file_lock(path: str):
+    """Best-effort advisory lock context manager for *path*.
+
+    Uses spa_core.utils.filelock if importable (the repo's shared sidecar lock so
+    this writer serializes against any other process touching the registry).
+    Falls back to a no-op contextmanager when run standalone without spa_core on
+    the path — fail-SAFE, never hangs, never raises just because of the import.
+    """
+    try:
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+        from spa_core.utils.filelock import file_lock  # type: ignore
+        return file_lock(path)
+    except Exception:
+        import contextlib
+
+        @contextlib.contextmanager
+        def _noop():
+            yield False
+
+        return _noop()
+
+
 def save_registry(registry: dict, path: str = REGISTRY_PATH) -> None:
-    """Atomic save via tmp file + os.replace."""
-    registry["last_updated"] = str(date.today())
-    tmp_path = path + ".tmp"
-    with open(tmp_path, "w", encoding="utf-8") as f:
-        json.dump(registry, f, indent=2)
-    os.replace(tmp_path, path)
+    """Atomic save via tmp file + os.replace, serialized by an advisory lock.
+
+    The advisory sidecar lock serializes concurrent writers (an autonomous cycle
+    may rewrite the registry while another process does). For a lost-update-safe
+    read-modify-write use :func:`locked_update_registry` instead.
+    """
+    with _file_lock(path):
+        registry["last_updated"] = str(date.today())
+        tmp_path = path + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(registry, f, indent=2)
+        os.replace(tmp_path, path)
+
+
+def locked_update_registry(update_fn, path: str = REGISTRY_PATH) -> dict:
+    """Lost-update-safe read-modify-write for the push registry.
+
+    Acquires the advisory lock, RELOADS the registry from disk (so it sees any
+    concurrent writer's committed change), applies ``update_fn(registry)`` in
+    place (or returns a new dict), then atomically writes — all under the lock.
+
+    Args:
+        update_fn: ``Callable(registry_dict) -> Optional[dict]``. Mutate in place
+                   or return a new dict.
+    Returns:
+        The registry dict that was written.
+    """
+    with _file_lock(path):
+        registry = load_registry(path)
+        result = update_fn(registry)
+        if result is not None:
+            registry = result
+        registry["last_updated"] = str(date.today())
+        tmp_path = path + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(registry, f, indent=2)
+        os.replace(tmp_path, path)
+    return registry
 
 
 def pending_scripts(registry: dict) -> list:
@@ -202,14 +256,24 @@ def main(argv=None) -> int:
     registry = load_registry(args.registry)
 
     if args.scan:
-        added = sync_scan(registry, args.scripts_dir)
-        save_registry(registry, args.registry)
-        print(f"Scan complete. Added {added} new script(s) to registry.")
+        # reload-before-write under the lock so a concurrent writer's new entries
+        # are not lost (locked_update_registry re-reads from disk inside the lock).
+        counters = {}
+
+        def _scan(reg):
+            counters["added"] = sync_scan(reg, args.scripts_dir)
+
+        registry = locked_update_registry(_scan, args.registry)
+        print(f"Scan complete. Added {counters.get('added', 0)} new script(s) to registry.")
 
     if args.mark_done:
-        marked = mark_done(args.mark_done, registry, commit=args.commit)
-        save_registry(registry, args.registry)
-        print(f"Marked {marked} script(s) as DONE.")
+        counters = {}
+
+        def _mark(reg):
+            counters["marked"] = mark_done(args.mark_done, reg, commit=args.commit)
+
+        registry = locked_update_registry(_mark, args.registry)
+        print(f"Marked {counters.get('marked', 0)} script(s) as DONE.")
 
     if args.pending:
         pend = pending_scripts(registry)

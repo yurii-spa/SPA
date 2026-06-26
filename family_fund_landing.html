@@ -443,7 +443,7 @@
 
     <div class="hero-stats reveal">
       <div class="stat-card">
-        <span class="stat-value">~3.6%</span>
+        <span class="stat-value" id="cnt-apy">—</span>
         <span class="stat-label">Paper APY (paper sim · advisory)</span>
       </div>
       <div class="stat-card">
@@ -702,8 +702,9 @@
       <h2 style="font-size:1.6rem;margin-bottom:16px">Paper simulation · Стадия тестирования</h2>
       <p style="color:rgba(255,255,255,0.55);line-height:1.7">
         Система тестируется на виртуальном капитале $100,000 USDC с 2026-06-10.
-        Paper APY на текущий момент: ~3.6% (paper simulation, advisory — не оферта,
-        не гарантия доходности). Проект находится на стадии настройки и валидации —
+        Paper APY на текущий момент: <span id="status-apy">см. дашборд</span>
+        (paper simulation, advisory — не оферта, не гарантия доходности).
+        Проект находится на стадии настройки и валидации —
         не на стадии привлечения внешнего капитала.
       </p>
     </div>
@@ -769,6 +770,30 @@
     animateCount(document.getElementById('cnt-strat'), 0, 8, 1200, '', '');
     animateCount(document.getElementById('cnt-days'), 0, daysDiff, 1400, '', '');
   }, 600);
+
+  // ── Live Paper APY (NEVER hardcode — it drifts from the real track) ──
+  // Bind to the public health endpoint (paper_trading_status.apy_today_pct,
+  // annualized) the same way landing/Hero.astro does. Fail-soft: if the API
+  // is unreachable the placeholders stay non-numeric ("—" / "см. дашборд").
+  (function() {
+    var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+      ? 'http://localhost:8765' : 'https://api.earn-defi.com';
+    fetch(API + '/api/health-public')
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(d) {
+        if (!d) return;
+        var apy = d.apy_today_pct_annualized != null
+          ? d.apy_today_pct_annualized
+          : d.ytd_apy_pct;
+        if (apy == null) return;
+        var txt = '~' + Number(apy).toFixed(1) + '%';
+        var heroEl = document.getElementById('cnt-apy');
+        if (heroEl) heroEl.textContent = txt;
+        var statusEl = document.getElementById('status-apy');
+        if (statusEl) statusEl.textContent = txt;
+      })
+      .catch(function() { /* keep non-numeric placeholders */ });
+  })();
 
   // ── Smooth nav highlight on scroll ──
   var sections = document.querySelectorAll('section[id]');

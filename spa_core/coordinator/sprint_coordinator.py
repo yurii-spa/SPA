@@ -18,7 +18,6 @@ Usage:
 """
 from __future__ import annotations
 
-import fcntl
 import glob
 import importlib
 import json
@@ -286,7 +285,7 @@ def post_gate() -> GateResult:
 
 
 # ---------------------------------------------------------------------------
-# KANBAN atomic updater (single-writer via fcntl)
+# KANBAN atomic updater (cross-process via shared sidecar-lock helper)
 # ---------------------------------------------------------------------------
 
 
@@ -294,29 +293,34 @@ def kanban_update(done_delta: int = 1, sprint: str | None = None) -> dict:
     """
     Atomically update KANBAN.json.
 
-    Uses an exclusive fcntl lock so multiple parallel agents cannot corrupt
-    the file.  Increments ``done_count`` by *done_delta* and optionally sets
+    Uses the shared advisory sidecar lock (spa_core.utils.filelock) so multiple
+    parallel agents cannot corrupt the file or lose each other's updates.
+    Increments ``done_count`` by *done_delta* and optionally sets
     ``sprint_current``.
 
     Returns
     -------
     dict with ``done_count`` and ``sprint`` after the write.
     """
-    with open(KANBAN_PATH, "r+", encoding="utf-8") as fh:
-        fcntl.flock(fh, fcntl.LOCK_EX)
-        try:
-            data = json.load(fh)
-            data["done_count"] = data.get("done_count", 0) + done_delta
-            if sprint is not None:
-                data["sprint_current"] = sprint
-            data["last_updated"] = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
-            data["updated_by"] = f"sprint_coordinator ({datetime.now(tz=timezone.utc).isoformat()})"
+    # Use the shared sidecar-lock helper so this writer serializes against the
+    # OTHER KANBAN writer (dev_agents.architect._save_kanban). Both must lock the
+    # SAME object (<KANBAN.json>.lock); an in-place flock on the data handle would
+    # be a different lock and would NOT mutually exclude with the sidecar writer,
+    # reintroducing the lost-update race. reload-before-write is enforced inside
+    # locked_json_update (it reloads on-disk state under the lock).
+    from spa_core.utils.filelock import locked_json_update
 
-            fh.seek(0)
-            json.dump(data, fh, ensure_ascii=False, indent=2)
-            fh.truncate()
-        finally:
-            fcntl.flock(fh, fcntl.LOCK_UN)
+    def _bump(data: dict) -> dict:
+        if not isinstance(data, dict):
+            data = {}
+        data["done_count"] = data.get("done_count", 0) + done_delta
+        if sprint is not None:
+            data["sprint_current"] = sprint
+        data["last_updated"] = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+        data["updated_by"] = f"sprint_coordinator ({datetime.now(tz=timezone.utc).isoformat()})"
+        return data
+
+    data = locked_json_update(str(KANBAN_PATH), _bump, default={})
 
     return {
         "done_count": data["done_count"],

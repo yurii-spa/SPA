@@ -109,8 +109,14 @@ def get_file_sha(pat: str, repo: str, repo_path: str, branch: str = "main") -> O
 
 
 def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool = False,
-              branch: str = "main") -> dict:
-    """Пушит один файл через GitHub Contents API."""
+              branch: str = "main", _stale_retries: int = 2) -> dict:
+    """Пушит один файл через GitHub Contents API.
+
+    409 stale-sha auto-retry: если параллельный писатель обновил файл между нашим
+    get_file_sha и PUT, GitHub вернёт 409 (sha не совпадает с HEAD). Тогда мы
+    заново читаем актуальный remote sha и повторяем PUT — до ``_stale_retries`` раз.
+    Детерминированно, fail-safe (исчерпали ретраи → честный FAIL).
+    """
     import urllib.request
     import urllib.error
 
@@ -174,7 +180,14 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
         if e.code in (429, 403) and "rate limit" in body.lower():
             print(f"  Rate limit — ждём 60с...")
             time.sleep(60)
-            return push_file(pat, local_path, message, repo, dry_run, branch)
+            return push_file(pat, local_path, message, repo, dry_run, branch, _stale_retries)
+        # 409 stale-sha: параллельный писатель сдвинул HEAD. Перечитываем свежий
+        # remote sha и повторяем PUT (bounded). 422 тоже может означать рассинхрон
+        # sha ("does not match") — обрабатываем так же.
+        if (e.code == 409 or (e.code == 422 and "sha" in body.lower())) and _stale_retries > 0:
+            print(f"  409 stale-sha — перечитываю remote sha и повторяю ({_stale_retries} осталось)...")
+            time.sleep(0.5)
+            return push_file(pat, local_path, message, repo, dry_run, branch, _stale_retries - 1)
         return {"ok": False, "error": f"HTTP {e.code}: {body[:300]}", "path": repo_path}
     except Exception as e:
         return {"ok": False, "error": str(e), "path": repo_path}
