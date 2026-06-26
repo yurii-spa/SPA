@@ -245,3 +245,31 @@ The catastrophic backstop (a position mis-sized against a stale proxy that the l
 > **Net verdict.** The proxy WAS miscalibrated (stale constant) and is now FIXED to contemporaneous depth. With the fix, the proxy shrinks with the real Oct-2025 drain, the 0.25× sizing cap + `CONCENTRATION` derisk kept every test position out of an illiquid bag, and the new `EXIT_CAPACITY` kill is the hard backstop for a true collapse below position size. Two layers of defense, both validated on the real stress.
 
 <!-- END rates-desk exit-liquidity validation (exit_liquidity_validation) -->
+
+<!-- BEGIN rates-desk capacity analysis (capacity) -->
+
+## Capacity — does the edge survive size?  (the fundability ceiling)
+
+_Deterministic capacity curve for the validated FixedCarry SURVIVOR book over the DEEP historical RateSurface (2024-01-09→2026-06-25, 899 days). For each deployed-AUM level the book is replayed under the SAME honest accounting as the backtest (§9 exit-capacity sizing, idle cash @ the RWA floor, maturity-retire, 30% global ceiling). PURE / fail-CLOSED / advisory. Re-runnable via `python3 -m spa_core.strategy_lab.rates_desk.capacity`._
+
+RWA floor: **3.4%/yr**. Unconstrained (zero-size) carry: **~10.6533%/yr** — the edge the book clips with infinite depth. The model: as AUM grows, exit-capacity sizing forces the marginal dollar IDLE @ the floor (diluting the book) or into DEEPER impact (slippage on the carry) — `book_net_apy(AUM) = deployed·carry_after_slippage + idle·floor`.
+
+| deployed AUM | deployed | deployed % | gross carry %/yr | slippage drag %/yr | idle@floor %/yr | book net APY %/yr | beats floor |
+|---|---:|---:|---:|---:|---:|---:|:--:|
+| $100,000 | $18,113 | 18.11 | 3.3060 | 0.0000 | 2.7841 | 6.0901 | yes |
+| $250,000 | $29,426 | 11.77 | 2.6499 | 0.0000 | 2.9998 | 5.6497 | yes |
+| $500,000 | $29,426 | 5.89 | 1.3250 | 0.0000 | 3.1999 | 4.5249 | yes |
+| $1,000,000 | $29,426 | 2.94 | 0.6624 | 0.0000 | 3.3000 | 3.9624 | yes |
+| $10,000,000 | $29,430 | 0.29 | 0.0662 | 0.0000 | 3.3900 | 3.4562 | yes |
+| $50,000,000 | $29,450 | 0.06 | 0.0132 | 0.0000 | 3.3980 | 3.4112 | yes |
+| $100,000,000 | $29,400 | 0.03 | 0.0066 | 0.0000 | 3.3990 | 3.4056 | yes |
+| $250,000,000 | $29,500 | 0.01 | 0.0026 | 0.0000 | 3.3996 | 3.4022 | yes |
+| $500,000,000 | $29,500 | 0.01 | 0.0013 | 0.0000 | 3.3998 | 3.4011 | yes |
+| $1,000,000,000 | $29,000 | 0.00 | 0.0007 | 0.0000 | 3.3999 | 3.4006 | yes |
+
+- **Fundable ceiling (book APY >= floor+200bps = 5.4%):** **$250,000** deployed AUM.
+- **Saturation (book APY → the floor, edge gone):** reached by **$10,000,000** AUM.
+
+> **Honest verdict — CAPACITY-LIMITED.** CAPACITY-LIMITED (honest). The FixedCarry survivor carry is real but lives in THIN Pendle PT pools: the §9 exit-capacity rule caps per-market deployment at max_size_frac_of_exit of one-tick exit liquidity, so the desk REFUSES to push past the impact band (it sizes DOWN rather than eat slippage). The depth cost therefore shows up not as carry slippage but as IDLE capital — the un-deployable remainder sits @ the RWA floor and the book APY compresses toward the floor as AUM grows. The unconstrained (zero-size) carry is ~10.65%/yr; it does NOT survive size — the fundable ceiling (book APY >= floor+200bps) is ~$250,000 deployed AUM, and the edge saturates to ~the floor by $10,000,000. This is exactly why a $10M/yr target needs SCALE across MANY such gated books, not one — a single rates book caps out well below institutional size before the edge erodes to the floor.
+
+<!-- END rates-desk capacity analysis (capacity) -->
