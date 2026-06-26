@@ -42,7 +42,7 @@ def _is_html_safe(body: str) -> bool:
 def test_html_safe_helper_escapes_raw_chars_keeps_tags():
     out = html_safe("Liquidator NO-GO too small (<$20M bar) RESEARCH -> BACKTEST")
     assert "<$20M" not in out and "&lt;$20M" in out
-    assert "->" in out  # the > inside -> is escaped
+    assert "-&gt;" in out  # the '>' inside '->' is escaped to &gt;
     assert _is_html_safe(out)
     # intentional tags survive
     assert html_safe("a <b>bold</b> & c") == "a <b>bold</b> &amp; c"
