@@ -1214,7 +1214,9 @@
   body.is-public [data-tab="tournament"],
   body.is-public [data-tab="decisions"],
   body.is-public [data-tab="backlog"],
-  body.is-public [data-tab="team"] {
+  body.is-public [data-tab="team"],
+  body.is-public #ops-drawer-toggle,
+  body.is-public .ops-advanced-tab {
     display: none !important;
   }
   /* P1-2: hide RU/EN toggle on public — EN is fixed */
@@ -1757,20 +1759,26 @@ body:not(.night) .bee-disclaimer { color: #777; }
 <div class="tabs">
   <button class="tab-btn active"  data-i18n="perf"      onclick="showTab('overview',   this)">🏛 Performance</button>
   <button class="tab-btn"         data-i18n="strat"     onclick="showTab('strategies', this)">📐 Strategies</button>
+  <button class="tab-btn"         onclick="showTab('desk', this)" data-ru="🏛 Структурный деск">🏛 Structural Desk</button>
+  <button class="tab-btn"         onclick="showTab('honesty', this)" data-ru="🛑 Честность">🛑 Honesty</button>
   <button class="tab-btn"         onclick="showTab('backtest',  this)" data-ru="📉 Бэктест">📉 Backtest</button>
   <button class="tab-btn"         onclick="showTab('protocols', this)" data-ru="🔌 Протоколы">🔌 Protocols</button>
   <button class="tab-btn"         onclick="showTab('risk',      this)" data-ru="🛡 Риск">🛡 Risk</button>
-  <button class="tab-btn" style="display:none" data-tab="analytics"  onclick="showTab('analytics',  this)"><span data-i18n="analytics">📈 Statistics</span> <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
   <button class="tab-btn"         onclick="showTab('dashboard',  this)"><span data-i18n="portfolio">💰 Portfolio</span> <span class="spa-tip" data-tip="Paper Trading">?</span></button>
   <button class="tab-btn"         onclick="showTab('golive',     this)"><span data-i18n="golive">🎯 Go-Live</span> <span id="tab-badge-golive" style="display:none;font-size:10px;background:#E6F1FB;color:#185FA5;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
   <button class="tab-btn"         onclick="showTab('evidence',   this)" data-ru="🔬 Доказательства">🔬 Evidence</button>
-  <button class="tab-btn" style="display:none" data-tab="system"     data-i18n="system"    onclick="showTab('system',     this)">⚙️ System</button>
-  <button class="tab-btn" style="display:none" data-i18n="ops"       onclick="showTab('ops',        this)">🗂 Ops</button>
   <a class="tab-btn" href="/tournament" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px">🏆 Tournament <span style="font-size:9px;opacity:0.55">↗</span></a>
-  <!-- Hidden internal tabs — preserved for rollback, not shown to investors -->
-  <button class="tab-btn" style="display:none" onclick="showTab('decisions', this)">✍️ Decisions <span id="decisions-tab-count" style="font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:2px;display:none"></span></button>
-  <button class="tab-btn" style="display:none" onclick="showTab('backlog', this)">📋 Kanban <span id="backlog-tab-count" style="font-size:11px;color:#aaa"></span></button>
-  <button class="tab-btn" style="display:none" onclick="showTab('team', this)">👾 Team</button>
+  <!-- Ops (advanced) drawer toggle — collapses the internal/debug surfaces
+       (Statistics, System, Ops, Decisions, Kanban, Team) out of the honest
+       product read. Visible to the owner, one click away; off by default. -->
+  <button class="tab-btn" id="ops-drawer-toggle" onclick="toggleOpsDrawer(this)" style="background:#f3f4f6;color:#6b7280;border:1px dashed #d1d5db" title="Internal ops surfaces — kanban, decisions, agents, raw JSON">▸ Ops (advanced)</button>
+  <!-- Ops-advanced tabs: hidden until the drawer is opened. -->
+  <button class="tab-btn ops-advanced-tab" style="display:none" data-tab="analytics"  onclick="showTab('analytics',  this)"><span data-i18n="analytics">📈 Statistics</span> <span id="tab-badge-analytics" style="display:none;font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:4px"></span></button>
+  <button class="tab-btn ops-advanced-tab" style="display:none" data-tab="system"     data-i18n="system"    onclick="showTab('system',     this)">⚙️ System</button>
+  <button class="tab-btn ops-advanced-tab" style="display:none" data-i18n="ops"       onclick="showTab('ops',        this)">🗂 Ops</button>
+  <button class="tab-btn ops-advanced-tab" style="display:none" data-tab="decisions" onclick="showTab('decisions', this)">✍️ Decisions <span id="decisions-tab-count" style="font-size:10px;background:#fee2e2;color:#B91C1C;border-radius:10px;padding:1px 6px;margin-left:2px;display:none"></span></button>
+  <button class="tab-btn ops-advanced-tab" style="display:none" data-tab="backlog" onclick="showTab('backlog', this)">📋 Kanban <span id="backlog-tab-count" style="font-size:11px;color:#aaa"></span></button>
+  <button class="tab-btn ops-advanced-tab" style="display:none" data-tab="team" onclick="showTab('team', this)">👾 Team</button>
 </div>
 
 <button id="lang-btn" onclick="toggleLang()" style="position:fixed;top:12px;right:60px;z-index:1000;background:#fff;border:1px solid #ddd;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;color:#555">EN</button>
@@ -2219,7 +2227,10 @@ body:not(.night) .bee-disclaimer { color: #777; }
         <button class="refresh-btn" onclick="loadTournamentLeaderboard()">↻ Refresh</button>
       </div>
     </div>
-    <div style="overflow-x:auto">
+    <!-- Honesty gate (Phase 3): when /api/tournament reports trustworthy=false the
+         Sharpe ranking is degenerate (mock data) → shown for transparency only. -->
+    <div id="tournament-trust-banner" style="display:none;margin-bottom:10px;padding:8px 12px;border-radius:6px;font-size:12px;background:#fef2f2;border-left:3px solid #dc2626;color:#991b1b"></div>
+    <div id="tournament-table-wrap" style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead>
           <tr style="background:var(--bg2,#f5f5f5);border-bottom:2px solid var(--border,#ddd)">
@@ -2306,6 +2317,154 @@ body:not(.night) .bee-disclaimer { color: #777; }
   </div>
 
 </div><!-- /tab-strategies -->
+
+
+<!-- ══════════════════ TAB: STRUCTURAL DESK (Dashboard Arch. Phase 3) ══════════════════
+     Live mirror of the system's "yes and no on the record": the 3 structural-desk
+     verdicts (Rates Desk GO / RWA measurement-GO / Liquidator NO-GO) + the rates-desk
+     sleeve promotion (FixedCarry/LeveredCarry/RateMatrix PAPER_CANDIDATE, BasisHedge
+     BLOCKED-NO-HEDGE). Every number carries an honesty chip. -->
+<div id="tab-desk" class="tab-pane" style="display:none">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <div>
+      <div style="font-size:15px;font-weight:600" data-ru="Структурный деск — вердикты">Structural Desk — Verdicts</div>
+      <div style="font-size:12px;color:#888;margin-top:2px" data-ru="Система, которая говорит «да» и «нет» на записи. Все сборки — advisory, не аллоцируют live до go-live.">A system that says yes and no on the record. All books are advisory — none allocate live before go-live.</div>
+    </div>
+    <button class="refresh-btn" onclick="loadStructuralDesk()">↻ Refresh</button>
+  </div>
+
+  <!-- The 3 structural-desk verdict cards -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section" data-ru="🏛 Вердикты структурного деска">🏛 Structural-Desk Verdicts</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:6px">
+      <div class="db-card" style="border-left:4px solid #16a34a">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:13px;font-weight:700">Rates Desk</span>
+          <span style="font-size:11px;font-weight:800;color:#065f46;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:6px;padding:1px 8px">✅ GO</span>
+        </div>
+        <div style="font-size:12px;color:#555;line-height:1.5">FixedCarry validated, runs live-paper; the refusal engine fires on toxic LRT books → fundable.</div>
+      </div>
+      <div class="db-card" style="border-left:4px solid #d97706">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:13px;font-weight:700">RWA Repo Backstop</span>
+          <span style="font-size:11px;font-weight:800;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:1px 8px">◐ measurement-GO / book NO-GO</span>
+        </div>
+        <div style="font-size:12px;color:#555;line-height:1.5">RWA assets are not cash-like on an executable on-chain exit. Measurement is GO; the book is off-code (legal/capital).</div>
+      </div>
+      <div class="db-card" style="border-left:4px solid #dc2626">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:13px;font-weight:700">Liquidator</span>
+          <span style="font-size:11px;font-weight:800;color:#991b1b;background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:1px 8px">⛔ NO-GO</span>
+        </div>
+        <div style="font-size:12px;color:#555;line-height:1.5">Addressable long-tail ≈ $2–4M/yr gross, ~5–10× below the $20M bar → too small to justify the custody + CEX build.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rates-Desk sleeve promotion (from /api/strategy-lab/promotion → rates_desk) -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="db-section" style="margin-bottom:0" data-ru="📈 Rates Desk — продвижение сборок">📈 Rates Desk — Sleeve Promotion <span id="rates-desk-chip"></span></div>
+      <span id="rates-desk-asof" style="font-size:11px;color:#aaa"></span>
+    </div>
+    <div id="rates-desk-note" style="font-size:11.5px;color:#888;margin-bottom:10px"></div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--bg2,#f5f5f5);border-bottom:2px solid var(--border,#ddd)">
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Sleeve</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Net APY</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Max DD</th>
+            <th style="text-align:center;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Stage</th>
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Note</th>
+          </tr>
+        </thead>
+        <tbody id="rates-desk-tbody">
+          <tr><td colspan="5" style="text-align:center;padding:20px;color:#888">Loading /api/strategy-lab/promotion…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /tab-desk -->
+
+
+<!-- ══════════════════ TAB: HONESTY (Dashboard Arch. Phase 3) ══════════════════
+     The differentiator: what the system refuses & where it flags its own limits.
+     Refusal engine (SAFE/WATCH/REFUSE) + RWA Safety Board (LiqNAV vs marketing). -->
+<div id="tab-honesty" class="tab-pane" style="display:none">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <div>
+      <div style="font-size:15px;font-weight:600" data-ru="Отказы и честность">Refusal &amp; Honesty</div>
+      <div style="font-size:12px;color:#888;margin-top:2px" data-ru="Что мы отказываем и почему. Система, которая публикует свой отказ — это и есть предложение доверия.">What we refuse and why. A system that publishes its own no is the trust proposition.</div>
+    </div>
+    <button class="refresh-btn" onclick="loadHonesty()">↻ Refresh</button>
+  </div>
+
+  <!-- Refusal engine -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="db-section" style="margin-bottom:0" data-ru="🛑 Журнал отказов (rates desk, fail-closed)">🛑 Refusal Log (rates desk, fail-closed) <span id="refusal-chip"></span></div>
+      <span id="refusal-asof" style="font-size:11px;color:#aaa"></span>
+    </div>
+    <div id="refusal-summary" style="font-size:12px;color:#888;margin-bottom:10px"></div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--bg2,#f5f5f5);border-bottom:2px solid var(--border,#ddd)">
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Underlying</th>
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Group</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Tail Score</th>
+            <th style="text-align:center;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Verdict</th>
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Reason</th>
+          </tr>
+        </thead>
+        <tbody id="refusal-tbody">
+          <tr><td colspan="5" style="text-align:center;padding:20px;color:#888">Loading /api/refusal…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- RWA Safety Board -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="db-section" style="margin-bottom:0" data-ru="🏦 RWA — доска безопасности">🏦 RWA Collateral Safety Board <span id="rwa-board-chip"></span></div>
+      <span id="rwa-board-asof" style="font-size:11px;color:#aaa"></span>
+    </div>
+    <div id="rwa-board-summary" style="font-size:12px;color:#888;margin-bottom:10px"></div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--bg2,#f5f5f5);border-bottom:2px solid var(--border,#ddd)">
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Asset</th>
+            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Issuer</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Marketing vs LiqNAV gap</th>
+            <th style="text-align:right;padding:8px 10px;font-size:11px;color:#777;font-weight:600">72h exit cap</th>
+            <th style="text-align:center;padding:8px 10px;font-size:11px;color:#777;font-weight:600">Verdict</th>
+          </tr>
+        </thead>
+        <tbody id="rwa-board-tbody">
+          <tr><td colspan="5" style="text-align:center;padding:20px;color:#888">Loading /api/rwa-safety-board…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="rwa-navcurve-note" style="margin-top:10px;font-size:11.5px;color:#888"></div>
+  </div>
+
+  <!-- Self-reported limits / the reset story -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section" data-ru="📋 Самопризнанные ограничения">📋 Self-reported limits</div>
+    <div style="font-size:12.5px;color:#555;line-height:1.7" id="honesty-limits">
+      <div>• Tournament Sharpe ranking — <span id="honesty-tourn-flag">checking…</span></div>
+      <div>• RWA 72h exit capacity — $0 (redemption is documented-only; no executable on-chain liquidator exit)</div>
+      <div>• The reset: honest <b>5 / 30</b> track-days, not a padded number. Everything before 2026-06-10 is demo and void.</div>
+    </div>
+  </div>
+
+</div><!-- /tab-honesty -->
 
 
 <!-- ══════════════════ TAB: BACKTEST (MP-1229) ══════════════════ -->
@@ -4440,16 +4599,75 @@ const SPA_API = (function () {
     return { data: null, source: null };
   }
 
+  // ── Typed getters for the NEW system surfaces (Dashboard Arch. Phase 3) ──────
+  // Each hits a live FastAPI endpoint (NOT under /api/live/data) and is graceful:
+  // returns null on any failure → the renderer shows an honest "unavailable"
+  // state. NO fabricated fallback. These endpoints are already live & read-only.
+  async function _getEndpoint(path) {
+    const live = await _fetchJSON(_apiBase + path, 5000);
+    if (live && !live.error) return { data: live, source: 'live' };
+    return { data: null, source: null };
+  }
+  // /api/strategy-lab/promotion — carries the clearly-separated rates_desk
+  // section (FixedCarry/LeveredCarry/RateMatrix PAPER_CANDIDATE, BasisHedge
+  // BLOCKED-NO-HEDGE; all is_advisory=True / live_eligible=False).
+  function getStrategyLabPromotion() { return _getEndpoint('/api/strategy-lab/promotion'); }
+  // /api/refusal — per-underlying SAFE/WATCH/REFUSE tail-risk verdicts (advisory).
+  function getRefusal()              { return _getEndpoint('/api/refusal'); }
+  // /api/rwa-safety-board — LiqNAV vs marketing NAV, on-chain coverage (advisory).
+  function getRwaSafetyBoard()       { return _getEndpoint('/api/rwa-safety-board'); }
+  // /api/rwa-nav-curve — measured on-chain NAV forward record (advisory).
+  function getRwaNavCurve()          { return _getEndpoint('/api/rwa-nav-curve'); }
+  // /api/rates-desk/track — rates-desk paper track. /api/rates-desk/surface — rate surface.
+  function getRatesDeskTrack()       { return _getEndpoint('/api/rates-desk/track'); }
+  function getRatesDeskSurface()     { return _getEndpoint('/api/rates-desk/surface'); }
+  // /api/tournament — carries the `trustworthy` honesty flag (fail-closed false).
+  function getTournament()           { return _getEndpoint('/api/tournament'); }
+
   return {
     apiBase: _apiBase,
     staticBase: _staticBase,
     getFacts: getFacts,
     getHealth: getHealth,
     getLive: getLive,
+    getStrategyLabPromotion: getStrategyLabPromotion,
+    getRefusal: getRefusal,
+    getRwaSafetyBoard: getRwaSafetyBoard,
+    getRwaNavCurve: getRwaNavCurve,
+    getRatesDeskTrack: getRatesDeskTrack,
+    getRatesDeskSurface: getRatesDeskSurface,
+    getTournament: getTournament,
     lastSource: function () { return _lastSource; },
   };
 })();
 window.SPA_API = SPA_API;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Shared honesty-chip component (Dashboard UX §5.1 taxonomy). One set, no others:
+//   paper · advisory · live · backtest · stale · unavailable · not-trustworthy
+// Returns an inline-styled <span> string so every number can carry its label.
+// Honesty-first: a backtest/advisory number is visually impossible to confuse
+// with the realized live track.
+// ═══════════════════════════════════════════════════════════════════════════
+function spaHonestyChip(kind, label) {
+  const C = {
+    paper:            { bg:'#fffbeb', fg:'#92400e', bd:'#fde68a', t:'paper' },
+    advisory:         { bg:'#f3f4f6', fg:'#4b5563', bd:'#e5e7eb', t:'advisory' },
+    live:             { bg:'#ecfdf5', fg:'#065f46', bd:'#a7f3d0', t:'live' },
+    backtest:         { bg:'#eef2ff', fg:'#3730a3', bd:'#c7d2fe', t:'backtest' },
+    stale:            { bg:'#fffbeb', fg:'#92400e', bd:'#fde68a', t:'stale' },
+    unavailable:      { bg:'#f9fafb', fg:'#991b1b', bd:'#fecaca', t:'unavailable' },
+    'not-trustworthy':{ bg:'#fef2f2', fg:'#991b1b', bd:'#fca5a5', t:'not trustworthy' },
+  };
+  const c = C[kind] || C.advisory;
+  const txt = (label != null ? label : c.t);
+  return '<span style="display:inline-block;font-family:var(--spa-mono,monospace);'
+       + 'font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;'
+       + 'padding:1px 6px;border-radius:10px;vertical-align:middle;'
+       + 'background:' + c.bg + ';color:' + c.fg + ';border:1px solid ' + c.bd + '">'
+       + txt + '</span>';
+}
+window.spaHonestyChip = spaHonestyChip;
 
 // Render the first-class freshness banner from /api/live/health (Phase 1).
 // ok → green "Live"; degraded → amber "Track stale N h"; offline → red
@@ -4824,6 +5042,8 @@ function showTab(id, btn) {
   btn.classList.add('active');
   if (id === 'overview')    { loadPerformance(); loadTier1(); }
   if (id === 'strategies')  { loadStrategies(); loadTournamentLeaderboard(); loadOptimizer(); loadBasisOpportunities(); }
+  if (id === 'desk')        loadStructuralDesk();
+  if (id === 'honesty')     loadHonesty();
   if (id === 'backtest')    loadBacktest();
   if (id === 'protocols')   loadProtocols();
   if (id === 'risk')        loadRisk();
@@ -4839,8 +5059,191 @@ function showTab(id, btn) {
   if (id === 'tournament')  loadTournamentTab();
   if (id === 'evidence')    loadBEEEvidence();
 }
+// Ops (advanced) drawer — reveal/hide the internal/debug tabs (Statistics,
+// System, Ops, Decisions, Kanban, Team). Honest: clearly labeled, off by
+// default, so the honest product view leads the page.
+function toggleOpsDrawer(btn) {
+  const tabs = document.querySelectorAll('.ops-advanced-tab');
+  const open = btn.getAttribute('data-open') === '1';
+  tabs.forEach(t => { t.style.display = open ? 'none' : 'inline-flex'; });
+  btn.setAttribute('data-open', open ? '0' : '1');
+  btn.innerHTML = (open ? '▸' : '▾') + ' Ops (advanced)';
+}
+
 // alias so any legacy calls still work
 function loadOverview() { loadPerformance(); }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STRUCTURAL DESK + HONESTY panels (Dashboard Arch. Phase 3) — thin renders of
+// the already-live endpoints via SPA_API. Each is graceful: an unreachable
+// endpoint renders an honest "unavailable" row, NEVER a fabricated number.
+// ═══════════════════════════════════════════════════════════════════════════
+function _deskFmtPct(v) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return Number(v).toFixed(2) + '%';
+}
+function _deskFmtUsd(v) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return '$' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+function _deskStageBadge(stage) {
+  const s = String(stage || '').toUpperCase();
+  let bg = '#f3f4f6', fg = '#4b5563', bd = '#e5e7eb';
+  if (s.indexOf('PAPER') >= 0)        { bg = '#ecfdf5'; fg = '#065f46'; bd = '#a7f3d0'; }
+  else if (s.indexOf('BLOCKED') >= 0) { bg = '#fef2f2'; fg = '#991b1b'; bd = '#fca5a5'; }
+  else if (s.indexOf('REJECT') >= 0)  { bg = '#fffbeb'; fg = '#92400e'; bd = '#fde68a'; }
+  return '<span style="font-family:var(--spa-mono,monospace);font-size:10px;font-weight:700;'
+       + 'padding:2px 8px;border-radius:6px;background:' + bg + ';color:' + fg
+       + ';border:1px solid ' + bd + '">' + (stage || '—') + '</span>';
+}
+
+// /api/strategy-lab/promotion → rates_desk section
+async function loadStructuralDesk() {
+  const tbody = document.getElementById('rates-desk-tbody');
+  const chip  = document.getElementById('rates-desk-chip');
+  const note  = document.getElementById('rates-desk-note');
+  const asof  = document.getElementById('rates-desk-asof');
+  if (chip) chip.innerHTML = spaHonestyChip('advisory');
+  let res;
+  try { res = await SPA_API.getStrategyLabPromotion(); } catch (e) { res = { data: null }; }
+  const promo = res && res.data;
+  const rd = promo && promo.rates_desk;
+  if (!rd || !Array.isArray(rd.sleeves) || rd.sleeves.length === 0) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:18px;color:#991b1b">'
+      + spaHonestyChip('unavailable') + ' &nbsp;rates-desk promotion unavailable — live endpoint not reachable</td></tr>';
+    if (note) note.textContent = '';
+    if (asof) asof.textContent = '';
+    return;
+  }
+  if (note) note.textContent = rd.note || '';
+  if (asof) asof.textContent = rd.generated_at ? ('as of ' + rd.generated_at.slice(0, 16).replace('T', ' ') + ' UTC') : '';
+  const rows = rd.sleeves.map(s => {
+    const blocked = String(s.stage || '').toUpperCase().indexOf('BLOCKED') >= 0;
+    const proxyNote = (s.backtest_proxy && s.backtest_proxy.label) ? s.backtest_proxy.label : '';
+    const reason = blocked ? (proxyNote || s.reason || '') : (s.reason || '');
+    const chipHtml = blocked ? spaHonestyChip('backtest', 'backtest-only')
+                             : spaHonestyChip('advisory', 'paper-candidate');
+    return '<tr style="border-bottom:1px solid var(--border,#eee)">'
+      + '<td style="padding:8px 10px;font-weight:600">' + (s.shape_label || s.shape || '—') + ' ' + chipHtml + '</td>'
+      + '<td style="padding:8px 10px;text-align:right;font-family:var(--spa-mono,monospace)">' + _deskFmtPct(s.net_apy_pct) + '</td>'
+      + '<td style="padding:8px 10px;text-align:right;font-family:var(--spa-mono,monospace)">' + _deskFmtPct(s.max_drawdown_pct) + '</td>'
+      + '<td style="padding:8px 10px;text-align:center">' + _deskStageBadge(s.stage) + '</td>'
+      + '<td style="padding:8px 10px;font-size:11.5px;color:#777">' + (reason ? reason.slice(0, 120) : '—') + '</td>'
+      + '</tr>';
+  }).join('');
+  if (tbody) tbody.innerHTML = rows;
+}
+
+// /api/refusal + /api/rwa-safety-board + /api/rwa-nav-curve + tournament trust flag
+async function loadHonesty() {
+  // ── Refusal engine ──
+  (async () => {
+    const tbody = document.getElementById('refusal-tbody');
+    const chip  = document.getElementById('refusal-chip');
+    const sum   = document.getElementById('refusal-summary');
+    const asof  = document.getElementById('refusal-asof');
+    if (chip) chip.innerHTML = spaHonestyChip('advisory');
+    let res; try { res = await SPA_API.getRefusal(); } catch (e) { res = { data: null }; }
+    const d = res && res.data;
+    if (!d || !Array.isArray(d.underlyings) || d.underlyings.length === 0) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:18px;color:#991b1b">'
+        + spaHonestyChip('unavailable') + ' &nbsp;refusal engine unavailable — live endpoint not reachable</td></tr>';
+      if (sum) sum.textContent = ''; if (asof) asof.textContent = '';
+      return;
+    }
+    const th = d.thresholds || {};
+    if (sum) sum.innerHTML = 'fail-closed · safe-band ' + (th.safe_band != null ? th.safe_band : '—')
+      + ' · refuse ≥ ' + (th.refuse_threshold != null ? th.refuse_threshold : '—');
+    if (asof) asof.textContent = d.latest_date ? ('as of ' + d.latest_date) : '';
+    const verdictBadge = (v) => {
+      let bg='#f3f4f6',fg='#4b5563',bd='#e5e7eb';
+      if (v==='SAFE'){bg='#ecfdf5';fg='#065f46';bd='#a7f3d0';}
+      else if (v==='WATCH'){bg='#fffbeb';fg='#92400e';bd='#fde68a';}
+      else if (v==='REFUSE'){bg='#fef2f2';fg='#991b1b';bd='#fca5a5';}
+      return '<span style="font-family:var(--spa-mono,monospace);font-size:10px;font-weight:700;'
+        + 'padding:2px 8px;border-radius:6px;background:'+bg+';color:'+fg+';border:1px solid '+bd+'">'+(v||'—')+'</span>';
+    };
+    if (tbody) tbody.innerHTML = d.underlyings.map(u =>
+      '<tr style="border-bottom:1px solid var(--border,#eee)">'
+      + '<td style="padding:8px 10px;font-weight:600;font-family:var(--spa-mono,monospace)">' + (u.symbol || '—') + '</td>'
+      + '<td style="padding:8px 10px;font-size:12px;color:#777">' + (u.group || '—') + '</td>'
+      + '<td style="padding:8px 10px;text-align:right;font-family:var(--spa-mono,monospace)">' + (u.tail_score != null ? Number(u.tail_score).toFixed(3) : '—') + '</td>'
+      + '<td style="padding:8px 10px;text-align:center">' + verdictBadge(u.verdict) + '</td>'
+      + '<td style="padding:8px 10px;font-size:11px;color:#888">' + (u.reason ? String(u.reason).slice(0, 110) : '—') + '</td>'
+      + '</tr>').join('');
+  })();
+
+  // ── RWA Safety Board ──
+  (async () => {
+    const tbody = document.getElementById('rwa-board-tbody');
+    const chip  = document.getElementById('rwa-board-chip');
+    const sum   = document.getElementById('rwa-board-summary');
+    const asof  = document.getElementById('rwa-board-asof');
+    const navN  = document.getElementById('rwa-navcurve-note');
+    if (chip) chip.innerHTML = spaHonestyChip('advisory');
+    let res; try { res = await SPA_API.getRwaSafetyBoard(); } catch (e) { res = { data: null }; }
+    const d = res && res.data;
+    if (!d || !Array.isArray(d.assets) || d.assets.length === 0) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:18px;color:#991b1b">'
+        + spaHonestyChip('unavailable') + ' &nbsp;RWA safety board unavailable — live endpoint not reachable</td></tr>';
+      if (sum) sum.textContent=''; if (asof) asof.textContent='';
+    } else {
+      const cov = d.onchain_nav_coverage || {};
+      const onchain = cov.onchain_4626 != null ? cov.onchain_4626 : (cov.n_onchain_4626 != null ? cov.n_onchain_4626 : 0);
+      const total = cov.total != null ? cov.total : (d.n_assets || d.assets.length);
+      if (sum) sum.innerHTML = 'on-chain NAV coverage ' + onchain + ' / ' + total
+        + ' · not-cash-like ' + (d.n_not_cash_like != null ? d.n_not_cash_like : '—') + ' / ' + (d.n_assets || d.assets.length)
+        + ' · LiqNAV measured, marketing NAV = $1.00 claimed';
+      if (asof) asof.textContent = d.generated_at ? ('as of ' + d.generated_at.slice(0, 16).replace('T', ' ') + ' UTC') : '';
+      const vBadge = (v) => {
+        let bg='#f3f4f6',fg='#4b5563',bd='#e5e7eb';
+        if (v==='LIQUID'){bg='#ecfdf5';fg='#065f46';bd='#a7f3d0';}
+        else if (v==='THIN'){bg='#fffbeb';fg='#92400e';bd='#fde68a';}
+        else if (v==='REDEMPTION_ONLY'){bg='#fffbeb';fg='#92400e';bd='#fde68a';}
+        else if (v==='UNSAFE'){bg='#fef2f2';fg='#991b1b';bd='#fca5a5';}
+        return '<span style="font-family:var(--spa-mono,monospace);font-size:9.5px;font-weight:700;'
+          + 'padding:2px 7px;border-radius:6px;background:'+bg+';color:'+fg+';border:1px solid '+bd+'">'+(v||'—')+'</span>';
+      };
+      if (tbody) tbody.innerHTML = d.assets.map(a =>
+        '<tr style="border-bottom:1px solid var(--border,#eee)">'
+        + '<td style="padding:8px 10px;font-weight:600;font-family:var(--spa-mono,monospace)">' + (a.symbol || '—') + '</td>'
+        + '<td style="padding:8px 10px;font-size:12px;color:#777">' + (a.issuer || '—') + '</td>'
+        + '<td style="padding:8px 10px;text-align:right;font-family:var(--spa-mono,monospace)">' + _deskFmtPct(a.marketing_vs_liq_gap_pct_1m) + '</td>'
+        + '<td style="padding:8px 10px;text-align:right;font-family:var(--spa-mono,monospace)">' + _deskFmtUsd(a.exit_capacity_72h_usd) + '</td>'
+        + '<td style="padding:8px 10px;text-align:center">' + vBadge(a.verdict) + '</td>'
+        + '</tr>').join('');
+    }
+    // NAV forward record (advisory)
+    let navRes; try { navRes = await SPA_API.getRwaNavCurve(); } catch (e) { navRes = { data: null }; }
+    const nav = navRes && navRes.data;
+    if (navN) {
+      if (nav && nav.latest) {
+        navN.innerHTML = spaHonestyChip('advisory') + ' &nbsp;NAV forward record: ' + (nav.n_points || 0)
+          + ' point(s) · latest ' + (nav.latest.date || '—') + ' · TVL-weighted NAV '
+          + (nav.latest.tvl_weighted_nav != null ? Number(nav.latest.tvl_weighted_nav).toFixed(4) : '—')
+          + ' · on-chain ERC-4626 ' + (nav.latest.onchain_4626_count != null ? nav.latest.onchain_4626_count : '—')
+          + ' / ' + (nav.latest.n_assets != null ? nav.latest.n_assets : '—');
+      } else {
+        navN.innerHTML = spaHonestyChip('unavailable') + ' &nbsp;RWA NAV forward record unavailable';
+      }
+    }
+  })();
+
+  // ── Self-reported tournament-trust limit ──
+  (async () => {
+    const el = document.getElementById('honesty-tourn-flag');
+    if (!el) return;
+    let res; try { res = await SPA_API.getTournament(); } catch (e) { res = { data: null }; }
+    const t = res && res.data;
+    if (!t) { el.innerHTML = spaHonestyChip('unavailable') + ' tournament endpoint unreachable'; return; }
+    if (t.trustworthy === true) {
+      el.innerHTML = spaHonestyChip('live', 'trustworthy') + ' rankings are a trustworthy live ranking';
+    } else {
+      const reason = (t.meta && (t.meta.trust_reason || t.meta.sharpe_note)) || 'ran on near-constant mock data (degenerate Sharpe)';
+      el.innerHTML = spaHonestyChip('not-trustworthy') + ' ' + reason;
+    }
+  })();
+}
 
 // ─── Tier-1 Validation Layer (live /api/tier1/* + /api/ssot/facts) ───────────
 // Fetches 4 endpoints off the FastAPI base (LIVE_API + '/api/...'); each is
@@ -5925,6 +6328,30 @@ async function loadTournamentLeaderboard() {
   const tbody = document.getElementById('tournament-leaderboard-tbody');
   const lastRunEl = document.getElementById('tournament-last-run');
   if (!tbody) return;
+
+  // Honesty gate (Phase 3): consult /api/tournament's `trustworthy` flag.
+  // trustworthy=false → the Sharpe ranking is degenerate (mock data); grey the
+  // table and show the honest "not trustworthy" banner instead of the numbers
+  // as if they were fact. Fail-closed: unreachable also treats as not-trustworthy.
+  (async () => {
+    const banner = document.getElementById('tournament-trust-banner');
+    const wrap   = document.getElementById('tournament-table-wrap');
+    if (!banner) return;
+    let res; try { res = await SPA_API.getTournament(); } catch (e) { res = { data: null }; }
+    const t = res && res.data;
+    const trustworthy = !!(t && t.trustworthy === true);
+    if (trustworthy) {
+      banner.style.display = 'none';
+      if (wrap) wrap.style.opacity = '1';
+    } else {
+      const reason = (t && t.meta && (t.meta.trust_reason || t.meta.sharpe_note))
+        || 'rankings ran on near-constant mock data (degenerate Sharpe) — not valid until real point-in-time historical APY';
+      banner.style.display = 'block';
+      banner.innerHTML = spaHonestyChip('not-trustworthy') + ' &nbsp;<b>Rankings not trustworthy.</b> ' + reason
+        + ' Shown below for transparency only.';
+      if (wrap) wrap.style.opacity = '0.55';
+    }
+  })();
 
   let data = null;
   // tournament_ranking.json (.strategies[]) is the live source; fall back to results.
