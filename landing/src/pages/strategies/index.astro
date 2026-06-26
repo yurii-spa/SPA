@@ -80,6 +80,14 @@ import strategies from '../../data/strategy_config.json';
         </p>
       </div>
 
+      <!-- Honesty chip: backtest / advisory / not realized (from API meta.disclaimer) -->
+      <div class="mb-6">
+        <span id="lab-meta-chip" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono uppercase tracking-wider border border-warn/30 bg-warn/[0.08] text-warn/90">
+          <span class="w-1.5 h-1.5 rounded-full bg-warn/80" aria-hidden="true"></span>
+          <span id="lab-meta-text" data-ru="Бэктест · advisory · не реализованный капитал">Backtest · advisory · not realized capital</span>
+        </span>
+      </div>
+
       <!-- Meta strip: RWA floor + window + source -->
       <div class="flex flex-wrap items-center gap-x-6 gap-y-2 mb-8 text-eyebrow font-mono">
         <span class="text-text-muted">
@@ -149,6 +157,30 @@ import strategies from '../../data/strategy_config.json';
         return '<span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider" style="background:' + color + '1a;color:' + color + ';border:1px solid ' + color + '40">' + esc(s) + '</span>';
       }
 
+      // yield_basis honesty tag: assumed (engine_b/c) | live_feed (rwa) | realized.
+      // Pulls verbatim from the API; absent → no tag (conservative, not fabricated).
+      function basisTag(s) {
+        var b = s.yield_basis;
+        if (b === 'assumed') {
+          var note = (s.id === 'engine_c')
+            ? t('representative target yield — LP fee-only, impermanent loss not modeled — not realized',
+                'ориентир целевой доходности — только комиссии LP, непостоянные потери не моделируются — не реализовано')
+            : t('representative target yield — HY band-median proxy — not realized',
+                'ориентир целевой доходности — прокси по медиане HY-диапазона — не реализовано');
+          return '<div class="mt-3">' +
+              '<span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider" style="background:var(--warn)1a;color:var(--warn);border:1px solid var(--warn)40">' +
+                t('assumed', 'предполагаемый') + '</span>' +
+              '<p class="text-[11px] text-text-faint mt-1.5 leading-snug">' + esc(note) + '</p>' +
+            '</div>';
+        }
+        if (b === 'live_feed') {
+          return '<div class="mt-3">' +
+              '<span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider" style="background:var(--data-teal)1a;color:var(--data-teal);border:1px solid var(--data-teal)40">' +
+                t('live feed', 'живой фид') + '</span></div>';
+        }
+        return ''; // realized → clean
+      }
+
       function card(s) {
         var floorOk = s.beats_rwa_floor;
         var floorCell = floorOk
@@ -177,6 +209,7 @@ import strategies from '../../data/strategy_config.json';
               '<div><p class="text-text-muted font-mono uppercase tracking-wider mb-0.5">β(ETH)</p><p class="text-sm font-mono text-text-secondary">' + (s.beta_to_eth == null ? '—' : Number(s.beta_to_eth).toFixed(2)) + '</p></div>' +
               '<div><p class="text-text-muted font-mono uppercase tracking-wider mb-0.5">' + t('Beats RWA floor', 'Перекрывает пол RWA') + '</p><p class="text-sm font-mono">' + floorCell + '</p></div>' +
             '</div>' +
+            basisTag(s) +
             killRow +
           '</div>';
       }
@@ -184,6 +217,13 @@ import strategies from '../../data/strategy_config.json';
       function render() {
         if (!state) return;
         var d = state;
+        // Honesty chip — prefer the API's meta.disclaimer (verbatim, EN-only from server);
+        // fall back to the bilingual static copy already in the DOM (data-ru handled by i18n).
+        var chipText = document.getElementById('lab-meta-text');
+        if (chipText && d.meta && d.meta.disclaimer && !isRu()) {
+          chipText.textContent = d.meta.disclaimer;
+          chipText.removeAttribute('data-ru');
+        }
         var floorEl = document.getElementById('lab-floor');
         if (floorEl) floorEl.textContent = d.rwa_floor_pct != null ? Number(d.rwa_floor_pct).toFixed(2) + '%' : '—';
         var winEl = document.getElementById('lab-window');
