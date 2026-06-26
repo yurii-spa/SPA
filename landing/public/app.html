@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>SPA — Stable Portfolio Agent</title>
+<title>SPA — systematic onchain stablecoin yield</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -1253,28 +1253,53 @@
   }
 
 /* ═══════════════════════════════════════════════════
-   SPA DESIGN SYSTEM v1.0 — Nansen/Stripe fund style
+   SPA CONSOLE DESIGN SYSTEM — coherent with earn-defi.com
+   Canonical tokens: docs/SITE_DESIGN_SYSTEM.md §3
+   (One product, three surfaces, one voice.)
    ═══════════════════════════════════════════════════ */
 :root {
-  --spa-bg:         #0b0c10;
-  --spa-surface:    #13151c;
-  --spa-surface-2:  #1b1e28;
-  --spa-surface-3:  #242838;
-  --spa-border:     rgba(255,255,255,0.07);
-  --spa-border-2:   rgba(255,255,255,0.13);
-  --spa-text:       #e2e4ec;
-  --spa-text-2:     #9ca3af;
-  --spa-text-3:     #5c6370;
-  --spa-accent:     #1ed8a0;
-  --spa-accent-dim: rgba(30,216,160,0.10);
-  --spa-pos:        #1ed8a0;
-  --spa-neg:        #f16060;
-  --spa-warn:       #f59e0b;
-  --spa-mono:       'JetBrains Mono', 'Courier New', monospace;
-  --spa-sans:       'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --spa-r:          10px;
-  --spa-r-sm:       6px;
-  --spa-shadow:     0 1px 4px rgba(0,0,0,0.5), 0 6px 20px rgba(0,0,0,0.25);
+  /* ── Canonical Console tokens (source of truth, == the site) ── */
+  --bg-base:        #0A0C10;   /* page background, everywhere */
+  --bg-surface:     #11141A;   /* cards, panels */
+  --bg-surface-2:   #181C24;   /* nested panels, table header rows */
+  --bg-elevated:    #1E232C;   /* hover / popover */
+  --border:         #232934;   /* hairline borders */
+  --border-strong:  #313945;   /* card hover border */
+  --text-primary:   #E8EAF0;   /* headings, key numbers */
+  --text-secondary: #A6ADBB;   /* body */
+  --text-muted:     #6B7280;   /* captions, mono labels */
+  --text-faint:     #444B57;   /* eyebrow dim, decorative */
+  --accent:         #5B8DEF;   /* primary accent, links, CTA */
+  --accent-hover:   #79A4F5;
+  --accent-dim:     #2C4A8A;
+  --accent-bg:      rgba(91,141,239,0.10);
+  --data-teal:      #36C2B4;   /* data viz, live ticks, equity curve */
+  /* Semantic — meaning only, never decoration/eyebrow */
+  --ok:             #34D399;   /* pass / live / GO / healthy */
+  --warn:           #F2B53C;   /* paper / pending / stale / measurement-GO */
+  --danger:         #F26D6D;   /* fail / NO-GO / kill / not-trustworthy */
+
+  /* ── Legacy --spa-* aliases (re-pointed to the Console palette so the
+        whole existing override layer adopts the new brand at one stroke) ── */
+  --spa-bg:         var(--bg-base);
+  --spa-surface:    var(--bg-surface);
+  --spa-surface-2:  var(--bg-surface-2);
+  --spa-surface-3:  var(--bg-elevated);
+  --spa-border:     var(--border);
+  --spa-border-2:   var(--border-strong);
+  --spa-text:       var(--text-primary);
+  --spa-text-2:     var(--text-secondary);
+  --spa-text-3:     var(--text-muted);
+  --spa-accent:     var(--accent);
+  --spa-accent-dim: var(--accent-bg);
+  --spa-pos:        var(--ok);
+  --spa-neg:        var(--danger);
+  --spa-warn:       var(--warn);
+  --spa-mono:       'JetBrains Mono', 'SFMono-Regular', ui-monospace, monospace;
+  --spa-sans:       'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --spa-r:          16px;       /* --r-lg, Console card radius */
+  --spa-r-sm:       8px;        /* --r-sm, buttons/chips */
+  --spa-shadow:     0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.45);
 }
 
 /* ── Base ── */
@@ -1696,12 +1721,134 @@ body > .main-wrap, #app, .app-container,
 body:not(.night) .bee-group { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.06); }
 body:not(.night) .bee-disclaimer { color: #777; }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   CONSOLE COHERENCE LAYER — kill the light-theme leftovers + GitHub purples
+   so the dashboard reads as the SAME product as earn-defi.com.
+   (Visual only — no markup/data/wiring touched. Tokens: SITE_DESIGN_SYSTEM §3.)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* 1 — Light-theme heading leftovers (#1a1a1a on a dark body). */
+h1, h2, h3, h4,
+.kb-title, .bk-title, .race-name, .dec-card-title,
+.agent-name, .ov-attention-title, .an-title,
+.section-label, .subtitle {
+  color: var(--text-primary) !important;
+}
+.subtitle, .race-sub, .dec-card-id, .bk-meta, .agent-role,
+.ms-status, .ms-name, .flow-title { color: var(--text-secondary) !important; }
+/* original early rule `h1 { color:#1a1a1a }` is overridden above; header h1 keeps its own rule */
+
+/* 2 — Kanban / backlog columns: pastels → tinted dark surfaces. */
+.kb-col, .bk-col,
+.kb-col.backlog, .kb-col.inprog, .kb-col.review, .kb-col.done,
+.bk-col-p0, .bk-col-backlog, .bk-col-features, .bk-col-done,
+.bk-col-blocked, .bk-col-archived {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border) !important;
+}
+.kb-card, .bk-card {
+  background: var(--bg-surface-2) !important;
+  border: 1px solid var(--border) !important;
+}
+.kb-card .kb-title, .bk-card .bk-title { color: var(--text-primary) !important; }
+.kb-col-header, .group-sep, .kb-count { color: var(--text-muted) !important; }
+.kb-count { background: var(--bg-elevated) !important; border-color: var(--border) !important; }
+
+/* 3 — Tag chips: hand-picked light pastels → one neutral mono chip taxonomy
+        (semantic colors reserved for status only, per the design system). */
+.tag, .tag-infra, .tag-agent, .tag-ui, .tag-strat,
+.tag-doc, .tag-adr, .tag-data, .tag-wl, .tag-paper, .tag-risk,
+.coming-soon {
+  background: var(--accent-bg) !important;
+  color: var(--accent) !important;
+  font-family: var(--spa-mono) !important;
+}
+
+/* 4 — Tier badges: T1 = teal (data), T2 = indigo (NOT GitHub purple). */
+.badge-t1 { background: rgba(54,194,180,0.12) !important; color: var(--data-teal) !important; }
+.badge-t2 { background: var(--accent-bg) !important; color: var(--accent) !important; }
+
+/* 5 — Retire the GitHub/legacy purples (#7F77DD #7c3aed #4c1d95)
+        wherever they survive — bars, badges, KPIs. */
+.bar-fill-t2 { background: var(--accent) !important; }
+.bar-fill-t1, .clock-fill { background: var(--data-teal) !important; }
+.bt-kpi-value, .bt-kpi-value.great, .bt-kpi-value.warn { color: var(--accent) !important; }
+.bt-kpi-value.good { color: var(--ok) !important; }
+
+/* 6 — Semantic status pills: re-tone to Console semantics on dark. */
+.status-ok, .agent-status.running, .race-row-lead td,
+.dec-status-decided, .status-ready, .risk-low {
+  background: rgba(52,211,153,0.12) !important; color: var(--ok) !important;
+}
+.status-err, .dec-status-needs, .sev-critical,
+.risk-high, .ov-urgency-high, .bk-prio-p0, .status-blocked, .status-rejected {
+  background: rgba(242,109,109,0.12) !important; color: var(--danger) !important;
+}
+.sev-warning, .risk-med, .ov-urgency-medium,
+.bk-prio-p1, .dec-status-review, .agent-status.pending {
+  background: rgba(242,181,60,0.12) !important; color: var(--warn) !important;
+}
+.sev-info, .bk-prio-p2, .ov-urgency-low, .compare-badge-v1, .filter-btn.active {
+  background: var(--accent-bg) !important; color: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+.race-row-lead td:first-child { border-left-color: var(--ok) !important; }
+
+/* 7 — Inline accents: the old blue #185FA5 / #16a34a deltas → tokens. */
+.tab-btn.active, a, .ov-open-btn, .dec-open-btn, .refresh-btn:hover { color: var(--accent) !important; }
+.strat-kpi-value.pos, .compare-table .winner, .green { color: var(--ok) !important; }
+.strat-kpi-value.neg, .compare-table .loser, .red { color: var(--danger) !important; }
+.trade-open { color: var(--accent) !important; }
+
+/* 8 — Inner metric / overview cards: warm light bg → dark surface. */
+.db-metric, .ov-metric-card, .ov-attention-card, .strat-info-card,
+.proto-table tr:hover td, .ov-metric-card:hover {
+  background: var(--bg-surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+.ov-metric-card.active-filter { border-color: var(--accent) !important; background: var(--accent-bg) !important; }
+
+/* 9 — Agent modal box (still white) + flow nodes → dark. */
+.agent-modal-box { background: var(--bg-surface) !important; color: var(--text-primary) !important; }
+.flow-node { background: var(--bg-surface-2) !important; border-color: var(--border) !important; color: var(--text-secondary) !important; }
+.flow-node.active { background: var(--accent-bg) !important; border-color: var(--accent) !important; color: var(--accent) !important; }
+.flow-node.data { background: rgba(54,194,180,0.10) !important; border-color: var(--data-teal) !important; color: var(--data-teal) !important; }
+.flow-node.risk { background: rgba(242,181,60,0.10) !important; border-color: var(--warn) !important; color: var(--warn) !important; }
+
+/* 10 — Equity / chart lines: data-teal for live data viz (Console rule). */
+.bar-bg, .clock-bg, .corr-low { background: var(--bg-elevated) !important; }
+.corr-high { background: rgba(52,211,153,0.14) !important; color: var(--ok) !important; }
+.corr-med  { background: rgba(242,181,60,0.14) !important; color: var(--warn) !important; }
+.corr-self { background: var(--accent-bg) !important; color: var(--accent) !important; }
+
+/* 11 — Polish the truth-layer surfaces (Phase 0-3) so they look on-brand,
+         not debug-console. Markup/IDs untouched — visual skin only. */
+#spa-freshness-banner, #data-freshness-badge, #data-mode-badge, #live-indicator {
+  background: var(--bg-surface-2) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-secondary) !important;
+  font-family: var(--spa-mono) !important;
+}
+#spa-hero-asof { color: var(--warn) !important; background: rgba(242,181,60,0.08) !important; border-color: rgba(242,181,60,0.25) !important; }
+.spa-hero-value.accent { color: var(--accent) !important; }
+.spa-paper-badge { background: rgba(242,181,60,0.12) !important; border-color: rgba(242,181,60,0.30) !important; color: var(--warn) !important; }
+/* Ops (advanced) drawer toggle: dashed neutral on dark, not light-grey. */
+#ops-drawer-toggle { background: var(--bg-surface-2) !important; color: var(--text-muted) !important; border: 1px dashed var(--border-strong) !important; }
+/* Floating lang button → Console chip. */
+#lang-btn { background: var(--bg-surface-2) !important; border: 1px solid var(--border-strong) !important; color: var(--text-secondary) !important; }
+
+/* 12 — PDF / print: keep readable on dark; the existing @media print rule wins. */
+.pdf-btn { background: var(--accent) !important; }
+.pdf-btn:hover { background: var(--accent-hover) !important; }
+.spinner { border-top-color: var(--accent) !important; }
+
 </style>
 </head>
 <body>
 
 <div class="spa-header-wrap" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0">
-  <h1>Stable Portfolio Agent — SPA <span style="font-size:11px;font-weight:600;color:#185FA5;background:#E6F1FB;border-radius:6px;padding:2px 7px;margin-left:6px;vertical-align:middle;font-family:var(--spa-mono,monospace)">v4.0 · Full Analytics Suite</span></h1>
+  <h1>SPA <span style="font-size:11px;font-weight:500;color:var(--text-muted);font-family:var(--spa-mono,monospace);margin-left:8px;vertical-align:middle">earn-defi.com</span> <span style="font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-bg);border-radius:6px;padding:2px 7px;margin-left:8px;vertical-align:middle;font-family:var(--spa-mono,monospace)">paper · advisory</span></h1>
   <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
     <div id="data-mode-badge" title="Источник: data/paper_trading_status.json">⏳ mode…</div>
     <div id="data-freshness-badge" style="font-size:11px;padding:4px 10px;background:#f3f4f6;border:1px solid #eee;border-radius:20px;cursor:default;color:#888" title="Checking data freshness…">⏳ Checking…</div>
@@ -1712,7 +1859,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
     <span class="spa-paper-badge" id="spa-paper-badge">PAPER · VIRTUAL CAPITAL</span>
   </div>
 </div>
-<p class="subtitle" id="ts-subtitle">Project · Loading data... · Full Analytics Suite v4.0</p>
+<p class="subtitle" id="ts-subtitle">Systematic onchain stablecoin yield · deterministic, LLM-free · paper-validating in public</p>
 
 <!-- MP-007: Go-Live Status Bar — честный статус из data/golive_status.json
      (фолбэк: golive_combined_verdict.json). Автообновление каждые 5 минут. -->
@@ -1847,7 +1994,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div>
       <div style="font-size:15px;font-weight:600" data-ru="Панель производительности">Performance Dashboard</div>
-      <div style="font-size:12px;color:#888;margin-top:2px" id="overview-updated">SPA · Stable Portfolio Agent · Paper Track</div>
+      <div style="font-size:12px;color:#888;margin-top:2px" id="overview-updated">SPA · systematic onchain stablecoin yield · paper track</div>
     </div>
     <button class="refresh-btn" data-i18n="refresh" onclick="loadPerformance()">↻ Refresh</button>
   </div>
@@ -1972,7 +2119,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
   <div class="db-full" style="margin-bottom:18px;border-left:4px solid #185FA5">
     <div class="db-section" data-ru="🏛 О SPA">🏛 About SPA</div>
     <p style="font-size:13px;color:#444;line-height:1.7;margin-bottom:8px">
-      <strong>SPA (Stable Portfolio Agent)</strong> is an automated DeFi yield optimizer running a verified paper track since 2026-06-10.
+      <strong>SPA — systematic onchain stablecoin yield</strong> is an automated DeFi yield optimizer running a verified paper track since 2026-06-10.
       The system allocates $100,000 virtual USDC across audited Ethereum DeFi protocols using a deterministic, LLM-free risk policy (RiskPolicy v1.0).
       All decisions are logged and auditable.
     </p>
