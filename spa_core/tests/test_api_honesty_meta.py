@@ -126,6 +126,108 @@ def test_strategy_lab_promotion_empty_has_meta(client):
     _assert_backtest_meta(d["meta"])
 
 
+# ── /api/strategy-lab/promotion → rates_desk section (REPORTING ONLY, advisory) ──
+def _write_rates_desk_promotion(data_dir: Path) -> None:
+    """Hermetic rates-desk promotion mapping + backtest (for the BasisHedge proxy)."""
+    _write(data_dir, "rates_desk/rates_desk_promotion.json", {
+        "generated_at": "2026-06-26T00:00:00+00:00",
+        "model": "rates_desk_promotion",
+        "rwa_floor_pct": 3.4,
+        "pipeline": "RESEARCH -> BACKTEST -> WALK-FORWARD -> PAPER -> CANARY -> FULL",
+        "n_sleeves": 4,
+        "stage_counts": {"PAPER_CANDIDATE": 3, "BLOCKED-NO-HEDGE": 1},
+        "sleeves": [
+            {"id": "rates_desk_fixed_carry", "shape": "fixed_carry",
+             "stage": "PAPER_CANDIDATE", "net_apy_pct": 6.0901, "beats_floor": True},
+            {"id": "rates_desk_levered_carry", "shape": "levered_carry",
+             "stage": "PAPER_CANDIDATE", "net_apy_pct": 4.9571, "beats_floor": True},
+            {"id": "rates_desk_rate_matrix", "shape": "rate_matrix",
+             "stage": "PAPER_CANDIDATE", "net_apy_pct": 6.0863, "beats_floor": True},
+            {"id": "rates_desk_basis_hedge", "shape": "basis_hedge",
+             "stage": "BLOCKED-NO-HEDGE", "net_apy_pct": 3.4, "beats_floor": False,
+             "hedge_available": False},
+        ],
+    })
+    _write(data_dir, "rates_desk/rates_backtest.json", {
+        "sleeves": {
+            "basis_hedge": {
+                "blocked_no_hedge": True,
+                "backtest_proxy": {
+                    "net_apy_pct": 4.9886, "mean_apy_pct": 4.9886,
+                    "beats_floor": True, "deflated_sharpe": 1.0, "carry_days": 748,
+                    "hedge_rate_source": "5-venue median perp funding",
+                    "live_eligible": False,
+                    "label": "BACKTEST-ONLY (funding proxy) · live-BLOCKED until Boros permissionless",
+                },
+            },
+        },
+    })
+
+
+def test_promotion_carries_rates_desk_section_with_honest_stages(client):
+    c, data_dir = client
+    _write_rates_desk_promotion(data_dir)
+    d = c.get("/api/strategy-lab/promotion").json()
+    rd = d.get("rates_desk")
+    assert isinstance(rd, dict), "rates_desk section must be present"
+    # clearly separated — NOT merged into the live-pipeline sleeves list
+    assert "rates_desk" in d
+    # four sleeves with their honest stages
+    assert rd["n_sleeves"] == 4
+    by_shape = {s["shape"]: s for s in rd["sleeves"]}
+    assert by_shape["fixed_carry"]["stage"] == "PAPER_CANDIDATE"
+    assert by_shape["levered_carry"]["stage"] == "PAPER_CANDIDATE"
+    assert by_shape["rate_matrix"]["stage"] == "PAPER_CANDIDATE"
+    assert by_shape["basis_hedge"]["stage"] == "BLOCKED-NO-HEDGE"
+    # honest net APYs (FixedCarry 6.09 / LeveredCarry 4.96 / RateMatrix 6.09)
+    assert round(by_shape["fixed_carry"]["net_apy_pct"], 2) == 6.09
+    assert round(by_shape["levered_carry"]["net_apy_pct"], 2) == 4.96
+    assert round(by_shape["rate_matrix"]["net_apy_pct"], 2) == 6.09
+    # BasisHedge backtest-proxy (~4.99%) surfaced research-only + live-blocked
+    proxy = by_shape["basis_hedge"]["backtest_proxy"]
+    assert round(proxy["net_apy_pct"], 2) == 4.99
+    assert proxy["live_eligible"] is False
+    assert proxy["research_only"] is True
+
+
+def test_rates_desk_sleeves_flagged_advisory_and_live_blocked(client):
+    """HARD SEPARATION: every rates-desk sleeve is advisory + never live-eligible, and the
+    section is NOT appended to the live-pipeline sleeves list."""
+    c, data_dir = client
+    # also write a lab promotion file so raw["sleeves"] (the live pipeline list) is populated
+    _write(data_dir, "strategy_lab_promotion.json", {
+        "generated_at": "2026-06-26T00:00:00+00:00", "model": "strategy_lab_promotion",
+        "rwa_floor_pct": 3.4, "n_sleeves": 1, "stage_counts": {"PAPER_CANDIDATE": 1},
+        "sleeves": [{"id": "engine_b", "stage": "PAPER_CANDIDATE"}],
+    })
+    _write_rates_desk_promotion(data_dir)
+    d = c.get("/api/strategy-lab/promotion").json()
+    rd = d["rates_desk"]
+    # section-level advisory flags
+    assert rd["advisory"] is True
+    assert rd["live_eligible"] is False
+    # per-sleeve advisory + live-blocked, regardless of on-disk stage
+    for s in rd["sleeves"]:
+        assert s["is_advisory"] is True
+        assert s["live_eligible"] is False
+    # the rates-desk sleeve ids are ABSENT from the live-pipeline sleeves list
+    live_ids = {s["id"] for s in d["sleeves"]}
+    rates_ids = {s["id"] for s in rd["sleeves"]}
+    assert rates_ids.isdisjoint(live_ids)
+    assert live_ids == {"engine_b"}
+
+
+def test_rates_desk_section_graceful_offline(client):
+    """No rates-desk files → empty, advisory, never-live section (fail-closed, not an error)."""
+    c, _ = client
+    d = c.get("/api/strategy-lab/promotion").json()
+    rd = d["rates_desk"]
+    assert rd["n_sleeves"] == 0
+    assert rd["sleeves"] == []
+    assert rd["advisory"] is True
+    assert rd["live_eligible"] is False
+
+
 # ── /api/tier1/packages ────────────────────────────────────────────────────────
 def test_tier1_packages_meta(client):
     c, data_dir = client

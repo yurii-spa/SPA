@@ -173,6 +173,61 @@ const seats = [
       </div>
     </section>
 
+    <!-- =================================================== b2. RATES DESK — PROMOTION (reporting only) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <div class="flex items-center justify-between gap-3 mb-2 flex-wrap">
+        <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
+           data-ru="Rates Desk · карта продвижения слив">Rates Desk · sleeve promotion map</p>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium border bg-amber-500/10 border-amber-500/30 text-amber-300">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden="true"></span>
+          <span data-ru="ADVISORY · reporting-only · не live">ADVISORY · reporting-only · not live</span>
+        </span>
+      </div>
+      <p class="text-sm leading-relaxed max-w-2xl mb-6" style="color:var(--text-secondary)"
+         data-ru="Четыре слива Rates Desk прогнаны через ТОТ ЖЕ детерминированный promotion-рубрик, что и Strategy Lab, и получили честную стадию. Это ОТЧЁТНОСТЬ: сливы IS_ADVISORY=True и НИКОГДА не попадают в live-турнир/аллокатор до go-live.">
+        The four Rates-Desk sleeves are run through the SAME deterministic promotion rubric as the
+        Strategy Lab and given an honest stage. This is <strong style="color:var(--text-primary)">reporting</strong>:
+        the sleeves are <code>IS_ADVISORY=True</code> and are <em>never</em> routed to the live
+        tournament/allocator before go-live.
+      </p>
+
+      <div id="rd-promo" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <!-- Static, honest fallback (graceful offline). Live values replace these in-place. -->
+        <div class="rounded-xl p-5 border bg-white/[0.02]" style="border-color:var(--border)">
+          <div class="flex items-center justify-between gap-2 mb-1.5">
+            <p class="text-sm font-bold" style="color:var(--text-primary)">FixedCarry</p>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-teal-500/10 border-teal-500/30 text-teal-300">PAPER_CANDIDATE</span>
+          </div>
+          <p class="text-xs font-mono" style="color:var(--text-muted)" data-ru="нетто APY ~6.09% · advisory">net APY ~6.09% · advisory</p>
+        </div>
+        <div class="rounded-xl p-5 border bg-white/[0.02]" style="border-color:var(--border)">
+          <div class="flex items-center justify-between gap-2 mb-1.5">
+            <p class="text-sm font-bold" style="color:var(--text-primary)">LeveredCarry</p>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-teal-500/10 border-teal-500/30 text-teal-300">PAPER_CANDIDATE</span>
+          </div>
+          <p class="text-xs font-mono" style="color:var(--text-muted)" data-ru="нетто APY ~4.96% · advisory">net APY ~4.96% · advisory</p>
+        </div>
+        <div class="rounded-xl p-5 border bg-white/[0.02]" style="border-color:var(--border)">
+          <div class="flex items-center justify-between gap-2 mb-1.5">
+            <p class="text-sm font-bold" style="color:var(--text-primary)">RateMatrix</p>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-teal-500/10 border-teal-500/30 text-teal-300">PAPER_CANDIDATE</span>
+          </div>
+          <p class="text-xs font-mono" style="color:var(--text-muted)" data-ru="нетто APY ~6.09% · advisory">net APY ~6.09% · advisory</p>
+        </div>
+        <div class="rounded-xl p-5 border bg-white/[0.02]" style="border-color:rgba(242,109,109,.35)">
+          <div class="flex items-center justify-between gap-2 mb-1.5">
+            <p class="text-sm font-bold" style="color:var(--text-primary)">BasisHedge</p>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-red-500/10 border-red-500/30 text-red-300">BLOCKED-NO-HEDGE</span>
+          </div>
+          <p class="text-xs font-mono" style="color:var(--text-muted)"
+             data-ru="нет keyless forward-funding (Boros) · ~4.99% — только бэктест-прокси, live заблокировано">no keyless forward-funding (Boros) · ~4.99% backtest-proxy only, live-blocked</p>
+        </div>
+      </div>
+      <p class="mt-4 text-xs font-mono" style="color:var(--text-faint)">
+        <span id="rd-promo-status" data-ru="Стадии слив загружаются…">Loading sleeve stages…</span>
+      </p>
+    </section>
+
     <!-- ============================================================= c. WE PUBLISH WHAT WE KILL -->
     <section class="py-10 border-t" style="border-color:var(--border)">
       <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
@@ -339,6 +394,64 @@ const seats = [
 
       // safety: if both fetches hang, settle to offline copy after 4s
       setTimeout(function () { if (done < 2) { done = 2; render(); } }, 4000);
+
+      // ── Rates Desk — sleeve promotion map (reporting only, advisory; graceful offline) ──
+      // Stage → literal badge class strings (Tailwind only compiles classes it sees literally).
+      var STAGE_BADGE = {
+        'PAPER_CANDIDATE': 'bg-teal-500/10 border-teal-500/30 text-teal-300',
+        'BACKTEST_PASS':   'bg-indigo-500/10 border-indigo-500/30 text-indigo-300',
+        'REJECT':          'bg-red-500/10 border-red-500/30 text-red-300',
+        'BLOCKED-NO-HEDGE':'bg-red-500/10 border-red-500/30 text-red-300'
+      };
+      function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); }
+      function pct(v) { return (typeof v === 'number') ? ('~' + v.toFixed(2) + '%') : '—'; }
+      function rdSleeveCard(s, ru) {
+        var stage = (s && s.stage) || '';
+        var badge = STAGE_BADGE[stage] || 'bg-white/5 border-white/10 text-gray-300';
+        var label = (s && (s.shape_label || s.id)) || '?';
+        var blocked = stage === 'BLOCKED-NO-HEDGE';
+        var border = blocked ? 'rgba(242,109,109,.35)' : 'var(--border)';
+        var meta;
+        if (blocked) {
+          var proxy = s && s.backtest_proxy;
+          var p = proxy ? pct(proxy.net_apy_pct) : '~4.99%';
+          meta = ru ? ('нет keyless forward-funding (Boros) · ' + p + ' — только бэктест-прокси, live заблокировано')
+                    : ('no keyless forward-funding (Boros) · ' + p + ' backtest-proxy only, live-blocked');
+        } else {
+          meta = (ru ? 'нетто APY ' : 'net APY ') + pct(s && s.net_apy_pct) + ' · advisory';
+        }
+        return '' +
+          '<div class="rounded-xl p-5 border bg-white/[0.02]" style="border-color:' + border + '">' +
+            '<div class="flex items-center justify-between gap-2 mb-1.5">' +
+              '<p class="text-sm font-bold" style="color:var(--text-primary)">' + esc(label) + '</p>' +
+              '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border ' + badge + '">' + esc(stage) + '</span>' +
+            '</div>' +
+            '<p class="text-xs font-mono" style="color:var(--text-muted)">' + esc(meta) + '</p>' +
+          '</div>';
+      }
+      function setRdStatus(txt) {
+        var el = document.getElementById('rd-promo-status');
+        if (el) { el.textContent = txt; el.removeAttribute('data-ru'); }
+      }
+      fetch(API + '/api/strategy-lab/promotion').then(function (r) { return r.json(); }).then(function (d) {
+        var ru = isRu();
+        var rd = d && d.rates_desk;
+        var sleeves = rd && Array.isArray(rd.sleeves) ? rd.sleeves : [];
+        if (!sleeves.length) {
+          setRdStatus(ru ? 'Живые стадии недоступны — статичный снимок актуален (advisory).'
+                         : 'Live stages offline — the static snapshot stands (advisory).');
+          return;
+        }
+        var grid = document.getElementById('rd-promo');
+        if (grid) grid.innerHTML = sleeves.map(function (s) { return rdSleeveCard(s, ru); }).join('');
+        var n = sleeves.length;
+        setRdStatus('Live · ' + (ru ? (n + ' слива · reporting-only · IS_ADVISORY · не в live-аллокации')
+                                    : (n + ' sleeves · reporting-only · IS_ADVISORY · not in live allocation')));
+      }).catch(function () {
+        setRdStatus(isRu() ? 'Живые стадии недоступны — статичный снимок актуален (advisory).'
+                           : 'Live stages offline — the static snapshot stands (advisory).');
+      });
     })();
   </script>
 </Layout>

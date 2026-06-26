@@ -660,6 +660,116 @@ def get_strategy_lab():
     }
 
 
+# ── Rates-Desk promotion section (REPORTING ONLY — NEVER a live-allocation path) ───────────────
+# Architect decision T5: the four rates-desk sleeves are surfaced in the promotion REPORTING view,
+# but they are IS_ADVISORY=True and MUST NOT feed the live tournament/allocator pre-go-live. We
+# therefore emit them in a CLEARLY-SEPARATED `rates_desk` section (NOT merged into the lab `sleeves`
+# list the live pipeline reads). Every sleeve carries explicit advisory/live-blocked flags so no
+# consumer can mistake a research stage for a live allocation.
+_RATES_DESK_SHAPE_LABEL = {
+    "fixed_carry": "FixedCarry",
+    "levered_carry": "LeveredCarry",
+    "basis_hedge": "BasisHedge",
+    "rate_matrix": "RateMatrix",
+}
+_RATES_DESK_ORDER = ("fixed_carry", "levered_carry", "rate_matrix", "basis_hedge")
+
+
+def _rates_desk_promotion_section() -> dict:
+    """Build the clearly-separated `rates_desk` reporting section for /api/strategy-lab/promotion.
+
+    Read VERBATIM from data/rates_desk/rates_desk_promotion.json (the rates-desk promotion mapping
+    that reuses promotion.score_sleeve), then enrich the BasisHedge sleeve with its BACKTEST-ONLY
+    funding proxy (~4.99% net APY) pulled from data/rates_desk/rates_backtest.json — surfaced as a
+    RESEARCH-ONLY sub-field, explicitly live-blocked (no keyless Boros forward-funding venue).
+
+    HARD SEPARATION (reporting only, never live allocation):
+      • every sleeve is force-flagged is_advisory=True + live_eligible=False here, regardless of
+        its on-disk stage, so the reporting surface can never imply a live allocation;
+      • the section is returned UNDER its own `rates_desk` key — it is NOT appended to the lab
+        `sleeves` list that the live tournament/allocator pipeline consumes.
+
+    Fail-CLOSED + graceful: a missing/corrupt file → an empty section (n_sleeves=0, never a
+    fabricated promotion), mirroring the other handlers. Imported nothing — pure file read."""
+    raw = _load_json("rates_desk/rates_desk_promotion.json", {})
+    if not raw or not isinstance(raw, dict):
+        return {
+            "generated_at": None,
+            "model": "rates_desk_promotion",
+            "advisory": True,
+            "live_eligible": False,
+            "rwa_floor_pct": None,
+            "n_sleeves": 0,
+            "stage_counts": {},
+            "sleeves": [],
+            "note": ("RATES DESK — reporting only. These sleeves are IS_ADVISORY=True and are "
+                     "NEVER routed to the live tournament/allocator before go-live."),
+        }
+
+    # the BasisHedge backtest-only funding proxy (~4.99% net APY), surfaced research-only.
+    bt = _load_json("rates_desk/rates_backtest.json", {})
+    bh_proxy = None
+    if isinstance(bt, dict):
+        bh_blk = (bt.get("sleeves") or {}).get("basis_hedge")
+        if isinstance(bh_blk, dict):
+            proxy = bh_blk.get("backtest_proxy")
+            if isinstance(proxy, dict):
+                bh_proxy = {
+                    "net_apy_pct": proxy.get("net_apy_pct"),
+                    "mean_apy_pct": proxy.get("mean_apy_pct"),
+                    "beats_floor": bool(proxy.get("beats_floor")),
+                    "deflated_sharpe": proxy.get("deflated_sharpe"),
+                    "carry_days": proxy.get("carry_days"),
+                    "hedge_rate_source": proxy.get("hedge_rate_source"),
+                    "live_eligible": False,
+                    "research_only": True,
+                    "label": proxy.get(
+                        "label",
+                        "BACKTEST-ONLY (funding proxy) · live-BLOCKED until Boros permissionless"),
+                }
+
+    in_sleeves = raw.get("sleeves") if isinstance(raw.get("sleeves"), list) else []
+    by_shape = {}
+    for s in in_sleeves:
+        if isinstance(s, dict):
+            by_shape[s.get("shape")] = s
+
+    out_sleeves = []
+    for shape in _RATES_DESK_ORDER:
+        s = by_shape.get(shape)
+        if not isinstance(s, dict):
+            continue
+        sleeve = dict(s)
+        sleeve["shape_label"] = _RATES_DESK_SHAPE_LABEL.get(shape, shape)
+        # HARD SEPARATION: force advisory + live-blocked on the reporting surface regardless of
+        # the on-disk stage — a PAPER_CANDIDATE here is a RESEARCH stage, NOT a live allocation.
+        sleeve["is_advisory"] = True
+        sleeve["live_eligible"] = False
+        if shape == "basis_hedge" and bh_proxy is not None:
+            sleeve["backtest_proxy"] = bh_proxy
+        out_sleeves.append(sleeve)
+
+    stage_counts = {}
+    for s in out_sleeves:
+        stage_counts[s.get("stage")] = stage_counts.get(s.get("stage"), 0) + 1
+
+    return {
+        "generated_at": raw.get("generated_at"),
+        "model": raw.get("model", "rates_desk_promotion"),
+        "advisory": True,
+        "live_eligible": False,
+        "rwa_floor_pct": raw.get("rwa_floor_pct"),
+        "pipeline": raw.get("pipeline"),
+        "n_sleeves": len(out_sleeves),
+        "stage_counts": stage_counts,
+        "sleeves": out_sleeves,
+        "note": ("RATES DESK — reporting only. These four sleeves are IS_ADVISORY=True and are "
+                 "NEVER routed to the live tournament/allocator before go-live. BasisHedge is "
+                 "live-BLOCKED (no keyless forward-funding venue); its ~4.99% figure is a "
+                 "BACKTEST-ONLY funding proxy under backtest_proxy, research-only."),
+    }
+
+
 @app.get("/api/strategy-lab/promotion", tags=["strategy_lab"])
 def get_strategy_lab_promotion():
     """Strategy-Lab promotion engine verdicts — data/strategy_lab_promotion.json.
@@ -667,6 +777,9 @@ def get_strategy_lab_promotion():
     The deterministic decision layer: each lab sleeve scored on the multi-criterion rubric and
     assigned a pipeline STAGE (REJECT / BACKTEST_PASS / PAPER_CANDIDATE) along
     RESEARCH -> BACKTEST -> WALK-FORWARD -> PAPER -> CANARY -> FULL.
+
+    Additionally carries a clearly-separated `rates_desk` section (the four rates-desk sleeves,
+    REPORTING ONLY — IS_ADVISORY, never a live-allocation path; see _rates_desk_promotion_section).
 
     Read-only, graceful: served VERBATIM from the file; returns an empty payload (not an error)
     when the JSON is missing/corrupt, mirroring /api/strategy-lab and the tier1 handlers.
@@ -676,6 +789,7 @@ def get_strategy_lab_promotion():
         basis="deterministic promotion rubric over strategy_lab backtest/walk-forward metrics",
         period="strategy_lab backtest window",
     )
+    rates_desk = _rates_desk_promotion_section()
     if not raw or not isinstance(raw, dict):
         return {
             "generated_at": None,
@@ -684,9 +798,13 @@ def get_strategy_lab_promotion():
             "n_sleeves": 0,
             "stage_counts": {},
             "sleeves": [],
+            "rates_desk": rates_desk,
             "meta": _promo_meta,
         }
     raw.setdefault("meta", _promo_meta)
+    # ALWAYS expose the rates-desk section under its OWN key — never merged into raw["sleeves"]
+    # (the live-pipeline list). Overwrite any stale on-disk key so the separation is authoritative.
+    raw["rates_desk"] = rates_desk
     return raw
 
 
