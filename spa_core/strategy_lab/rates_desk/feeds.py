@@ -246,10 +246,11 @@ class PendleMarketFeed:
             underlying = str(m.get("underlying", "")).lower()
             if not underlying:
                 raise FeedError(f"pendle market {key}: missing underlying")
-            # Historical pool-depth proxy: the deep series does not carry TVL; we use the documented
-            # per-kind historical depth constant (config) so the §9 exit model still has an honest,
-            # auditable input on backtest days. Live days use the real /active liquidity.
-            depth = _D(config.PENDLE_HIST_POOL_DEPTH_USD)
+            # §9 pool depth — tie to the CONTEMPORANEOUS per-day TVL from the deep series so the exit
+            # model SHRINKS when a pool's real depth collapses (the Oct-2025 calibration fix). Only
+            # when a day carries no usable TVL (an old deep file pulled before the TVL series was
+            # captured) do we fall back to the documented depth constant. Live days use /active liquidity.
+            depth = config.contemporaneous_pool_depth_usd(pt.get("tvl_usd"))
             sla = int(sla_by_underlying.get(underlying, config.redemption_sla_seconds(underlying)))
             rows.append(
                 RateQuote(

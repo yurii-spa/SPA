@@ -18,7 +18,10 @@ SHORT-CIRCUITS on the first failure:
                        collapses below min_tradeable_size_usd is a SIZE_FLOOR refuse.
 
 evaluate_hold is the continuous-kill side: each tick re-checks depeg, carry/basis compression,
-funding flip, maturity buffer, utilization trap, and concentration — and returns a NEW KillState.
+funding flip, maturity buffer, utilization trap, exit-liquidity collapse, and concentration — and
+returns a NEW KillState. The EXIT_CAPACITY kill (§9) unwinds the moment the position's CURRENT one-
+tick exit liquidity falls below the open position size: a safe carry book that can no longer be
+exited at size is an illiquid bag, so the desk derisks BEFORE the basis even compresses.
 
 COMPOSITION: this RatePolicy composes UNDER the global spa_core.risk.policy.RiskPolicy. It is only
 ever MORE restrictive — a RatePolicy approval is necessary but NOT sufficient; the global RiskPolicy
@@ -328,26 +331,43 @@ def evaluate_hold(
                 "high_util_since": next_high_util_since, "elapsed_seconds": elapsed,
                 "max_utilization_seconds": params.max_utilization_seconds})
 
-    # (f) CONCENTRATION — position too large vs current exit liquidity OR borrower concentration.
-    topb = _safe_decimal(risk.top_borrower_share)
+    # (f) EXIT_CAPACITY — the exit-liquidity-COLLAPSE kill (the brief §9's hardest failure mode).
+    #     If the position's CURRENT one-tick exit capacity has fallen BELOW the open position size,
+    #     the desk literally cannot get out at size — a safe carry book has become an illiquid bag.
+    #     This is strictly more severe than the fractional CONCENTRATION breach below (collapse to
+    #     < 1.0x size, not merely > max_size_frac_of_exit), so it is checked FIRST and reported with
+    #     its own reason. fail-CLOSED: a malformed/non-positive exit_liquidity with a real position is
+    #     itself a collapse (you cannot exit into nothing) → kill. A malformed requested size is
+    #     malformed input → kill.
     exitl = _safe_decimal(exit_liquidity)
     req = _safe_decimal(opp.requested_size_usd)
+    if req is None or req <= 0:
+        return _kill(KillReason.EXIT_CAPACITY, {
+            "requested_size_usd": "malformed" if req is None else req,
+            "note": "position size malformed/non-positive (fail-closed)"})
+    if exitl is None or exitl <= 0 or exitl < req:
+        return _kill(KillReason.EXIT_CAPACITY, {
+            "exit_liquidity_usd": "malformed" if exitl is None else exitl,
+            "position_size_usd": req,
+            "note": "one-tick exit capacity collapsed below position size — cannot exit at size"})
+
+    # (g) CONCENTRATION — position too large vs current exit liquidity OR borrower concentration.
+    topb = _safe_decimal(risk.top_borrower_share)
     over_borrower = (topb is not None and topb > params.max_hold_concentration)
-    over_exit = (exitl is not None and req is not None and exitl > 0
-                 and (req / exitl) > params.max_size_frac_of_exit)
+    over_exit = (exitl > 0 and (req / exitl) > params.max_size_frac_of_exit)
     if over_borrower or over_exit:
         return _kill(KillReason.CONCENTRATION, {
             "top_borrower_share": "malformed" if topb is None else topb,
-            "size_vs_exit": "n/a" if (exitl is None or req is None or exitl <= 0) else (req / exitl),
+            "size_vs_exit": (req / exitl),
             "max_borrower": params.max_hold_concentration,
             "max_size_frac_of_exit": params.max_size_frac_of_exit})
 
-    # (g) FUNDING_FLIP — sustained negative-funding streak.
+    # (h) FUNDING_FLIP — sustained negative-funding streak.
     if new_streak >= params.funding_flip_streak_kill:
         return _kill(KillReason.FUNDING_FLIP, {
             "neg_funding_streak": new_streak, "kill": params.funding_flip_streak_kill})
 
-    # (h) CARRY_COMPRESSION — the locked carry/basis has compressed away (economic kill, LAST).
+    # (i) CARRY_COMPRESSION — the locked carry/basis has compressed away (economic kill, LAST).
     cc = _safe_decimal(current_carry)
     entry = state.entry_carry
     if cc is None:

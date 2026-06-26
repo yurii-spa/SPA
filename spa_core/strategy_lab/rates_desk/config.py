@@ -111,9 +111,12 @@ EXIT_PRICE_IMPACT_BAND_BPS = 50      # 50 bps default price-impact band
 SLA_DISCOUNT_PER_DAY = 0.05          # usable-depth haircut per day of redemption cooldown
 SLA_DISCOUNT_FLOOR = 0.20            # never discount usable depth below 20% of the band slice
 
-# Historical PT pool-depth proxy: the deep implied-yield history (pendle_pt_history) carries no TVL,
-# so backtest days use this documented constant for the exit model. Live days use the real /active
-# liquidity. Conservative (PT pools are concentrated): $5M nominal depth.
+# Historical PT pool-depth proxy: a fail-CLOSED FALLBACK only. The deep implied-yield history
+# (pendle_pt_history) NOW carries a per-day `tvl_usd` series, so backtest days tie the §9 exit model
+# to the CONTEMPORANEOUS pool depth (the Oct-2025 validation fix — a stale/peak constant let the
+# proxy stay high while real TVL collapsed). This constant is used ONLY when a day has no recorded
+# TVL (an old deep file pulled before the TVL fix, or a genuinely absent sample). Conservative (PT
+# pools are concentrated): $5M nominal depth.
 PENDLE_HIST_POOL_DEPTH_USD = 5_000_000
 
 # ── per-underlying documented constants (UnderlyingRiskFeed) ─────────────────────────────────
@@ -222,6 +225,28 @@ from decimal import Decimal as _Dec  # noqa: E402
 def exit_price_impact_band() -> _Dec:
     """Price-impact band as a Decimal depth FRACTION (bps/10000)."""
     return _Dec(str(EXIT_PRICE_IMPACT_BAND_BPS)) / _Dec("10000")
+
+
+def contemporaneous_pool_depth_usd(tvl_usd) -> _Dec:
+    """Resolve the §9 pool-depth input for one backtest day, fail-CLOSED.
+
+    Prefer the CONTEMPORANEOUS per-day TVL (`tvl_usd` from the deep PT history's series) so the exit
+    model shrinks when a pool's real depth collapses (the Oct-2025 calibration fix). Only when the day
+    carries NO usable TVL — `None`, non-numeric, or non-positive (an old deep file pulled before the
+    TVL series was captured, or a genuinely absent sample) — do we fall back to the documented
+    PENDLE_HIST_POOL_DEPTH_USD constant. A real, positive, even tiny TVL is used VERBATIM: a pool with
+    $0.10 depth honestly has $0.10 of exit, and the exit-capacity gate refuses to size into it.
+
+    Returns a Decimal depth in USD (>= 0). Never raises (a malformed TVL degrades to the constant)."""
+    if tvl_usd is None:
+        return _Dec(str(PENDLE_HIST_POOL_DEPTH_USD))
+    try:
+        d = _Dec(str(tvl_usd))
+    except Exception:  # noqa: BLE001 — fail-CLOSED to the documented constant on a malformed value
+        return _Dec(str(PENDLE_HIST_POOL_DEPTH_USD))
+    if d <= 0:
+        return _Dec(str(PENDLE_HIST_POOL_DEPTH_USD))
+    return d
 
 
 def underlying_kind(underlying: str):

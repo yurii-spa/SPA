@@ -178,3 +178,58 @@ Top sweep rows (admissible first, then survivor APY desc):
 > Reading the curve: loosening `max_total_haircut` raises the survivor fire-rate/APY (less real carry strangled) but eventually lets a toxic restaking book clear the veto — the `min LEAKING threshold` column is exactly where that happens. The calibrated point sits at the richest admissible carry that is still strictly below every leak. On THIS data the toxic LRT books carry a depeg+nesting tail so far above any healthy sUSDe PT that the safe band is wide — the chosen threshold both vetoes 100% of toxic days and leaves healthy carry intact.
 
 <!-- END rates-desk calibration sweep (calibrate) -->
+
+<!-- BEGIN rates-desk exit-liquidity validation (exit_liquidity_validation) -->
+
+## §9 Exit-liquidity validation (Oct-2025 stress)  →  **VALIDATED**
+
+_The brief §9 calls `exit_liquidity` "the single most important and hardest input ... getting it wrong is how a safe carry book becomes an illiquid bag," and asks to validate the proxy against what actually filled during Oct-2025. Deterministic / PURE / fail-CLOSED over the DEEP Pendle PT history (now carrying a per-day `tvl_usd` series). Re-runnable via `python3 -m spa_core.strategy_lab.rates_desk.exit_liquidity_validation`._
+
+**Calibration finding (the fix).** The proxy was MISCALIBRATED on backtest days: `exit_liquidity = pool_depth × price_impact_band × sla_discount` used a STATIC `PENDLE_HIST_POOL_DEPTH_USD` ($5,000,000) constant because the deep PT implied-yield history carried no TVL. So through the Oct-2025 USDe leverage unwind (USDe ~$14B→$5.6B), while the affected sUSDe/USDe PT pools' real TVL collapsed, the proxy stayed FLAT — exactly the failure mode the brief warns about. **Fix:** the Pendle `historical-data` feed already returns a daily `tvl` series; `pendle_pt_history.py` now captures it and the §9 model is tied to the CONTEMPORANEOUS per-day pool depth (`config.contemporaneous_pool_depth_usd`), falling back to the documented constant ONLY when a day carries no TVL (fail-CLOSED). The exit proxy now shrinks proportionally with real depth.
+
+### (1) Does the proxy SHRINK with real TVL?  →  **YES**
+
+Contemporaneous TVL + exit_liquidity at the in-window peak vs trough for every affected sUSDe/USDe PT market:
+
+| market | peak TVL $ | trough TVL $ | TVL DD % | peak exit $ | trough exit $ | exit DD % |
+|---|---:|---:|---:|---:|---:|---:|
+| PT-USDe-25SEP2025 | 116,433,796 | 83,149,878 | 28.6 | 553,061 | 394,962 | 28.6 |
+| PT-USDe-27NOV2025 | 29,744,347 | 13,324,348 | 55.2 | 141,286 | 63,291 | 55.2 |
+| PT-USDe-5FEB2026 | 1,822,697 | 410,442 | 77.5 | 8,658 | 1,950 | 77.5 |
+| PT-sUSDE-25SEP2025 | 107,017,214 | 91,076,329 | 14.9 | 347,806 | 295,998 | 14.9 |
+| PT-sUSDE-27NOV2025 | 142,825,087 | 82,611,791 | 42.2 | 464,182 | 268,488 | 42.2 |
+| PT-sUSDE-5FEB2026 | 6,709,244 | 3,837,940 | 42.8 | 21,805 | 12,473 | 42.8 |
+
+> The exit DD equals the TVL DD market-by-market (the model is linear in depth): the proxy now tracks the real pool drain. Before the fix the exit column was a flat $5,000,000×band×sla every day — blind to the unwind.
+
+### (2) Did the sizing discipline PROTECT the book?  →  **YES**
+
+A position sized at the gate's cap (`max_size_frac_of_exit` = 0.25) at the peak, HELD through the collapse. `stuck` = exit fell below the position size WHILE the desk failed to unwind (a true illiquid bag). It never happens — a kill always derisks first:
+
+| market | position $ | trough exit $ | pos/trough-exit | first derisk | stuck bag? |
+|---|---:|---:|---:|---|:--:|
+| PT-USDe-25SEP2025 | 138,265 | 394,962 | 0.3501 | `concentration`@2025-09-16 | no |
+| PT-USDe-27NOV2025 | 35,321 | 63,291 | 0.5581 | `concentration`@2025-09-26 | no |
+| PT-USDe-5FEB2026 | 2,164 | 1,950 | 1.1102 | `concentration`@2025-11-03 | no |
+| PT-sUSDE-25SEP2025 | 86,951 | 295,998 | 0.2938 | `concentration`@2025-09-16 | no |
+| PT-sUSDE-27NOV2025 | 116,045 | 268,488 | 0.4322 | `concentration`@2025-09-28 | no |
+| PT-sUSDE-5FEB2026 | 5,451 | 12,473 | 0.437 | `concentration`@2025-11-01 | no |
+
+> The default `max_size_frac_of_exit` = 0.25 is tight enough that the fractional `CONCENTRATION` derisk fires the moment the position breaches 25% of the (shrinking) exit — well before it could become a true illiquid bag. Even the worst case (PT-USDe-5FEB2026, a 77% TVL collapse, position ending at 1.1× trough-exit) was unwound by the `CONCENTRATION` kill days before the trough. **Sizing discipline protected the book — the desk would NOT have been stuck in an illiquid bag.**
+
+### (3) Does the EXIT_CAPACITY collapse kill fire?  →  **YES**
+
+The catastrophic backstop (a position mis-sized against a stale proxy that the live pool can no longer absorb): a position 1.5× the trough exit MUST trip `EXIT_CAPACITY` on the hold path. New hold-side kill `KillReason.EXIT_CAPACITY` — fires when `exit_liquidity_usd < position size` (cannot exit at size), checked BEFORE the milder fractional `CONCENTRATION` breach, pure + KillState-threaded:
+
+| market | trough exit $ | oversize pos $ | kill |
+|---|---:|---:|---|
+| PT-USDe-25SEP2025 | 394,962 | 592,443 | `exit_capacity` |
+| PT-USDe-27NOV2025 | 63,291 | 94,936 | `exit_capacity` |
+| PT-USDe-5FEB2026 | 1,950 | 2,924 | `exit_capacity` |
+| PT-sUSDE-25SEP2025 | 295,998 | 443,997 | `exit_capacity` |
+| PT-sUSDE-27NOV2025 | 268,488 | 402,732 | `exit_capacity` |
+| PT-sUSDE-5FEB2026 | 12,473 | 18,710 | `exit_capacity` |
+
+> **Net verdict.** The proxy WAS miscalibrated (stale constant) and is now FIXED to contemporaneous depth. With the fix, the proxy shrinks with the real Oct-2025 drain, the 0.25× sizing cap + `CONCENTRATION` derisk kept every test position out of an illiquid bag, and the new `EXIT_CAPACITY` kill is the hard backstop for a true collapse below position size. Two layers of defense, both validated on the real stress.
+
+<!-- END rates-desk exit-liquidity validation (exit_liquidity_validation) -->

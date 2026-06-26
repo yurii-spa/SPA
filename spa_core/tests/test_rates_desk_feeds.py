@@ -175,6 +175,87 @@ def test_pendle_feed_historical_emits_valid_rate_quotes():
     assert susde.exit_liquidity_usd > 0
 
 
+def test_pendle_feed_exit_liquidity_tracks_contemporaneous_tvl():
+    """§9 calibration fix: when the deep series carries a per-day `tvl_usd`, the exit_liquidity proxy
+    is tied to that CONTEMPORANEOUS depth and SHRINKS as TVL collapses (the Oct-2025 lesson), NOT to a
+    stale/peak constant. Two days of the SAME market with a TVL collapse → strictly smaller exit."""
+    deep = {
+        "generated_at": "2026-01-01T00:00:00+00:00", "method": "test",
+        "underlyings": ["sUSDe"], "window": {"start": "2025-10-01", "end": "2025-11-15"},
+        "markets": {
+            "PT-sUSDE-27NOV2025": {
+                "underlying": "sUSDe", "kind": "stable_synth", "symbol": "PT-sUSDE-27NOV2025",
+                "market_address": "0xMKT", "pt_address": "0xPT", "maturity": "2025-11-27",
+                "method": "direct_api_implied",
+                "series": [
+                    {"date": "2025-10-01", "implied_yield": 0.10, "underlying_yield": 0.09,
+                     "tvl_usd": 142_000_000, "pt_price": None},
+                    {"date": "2025-11-15", "implied_yield": 0.10, "underlying_yield": 0.09,
+                     "tvl_usd": 88_000_000, "pt_price": None},
+                ],
+            },
+        },
+    }
+    feed = feeds.PendleMarketFeed()
+    peak = feed.quotes_for_date("2025-10-01", deep)[0]
+    trough = feed.quotes_for_date("2025-11-15", deep)[0]
+    # tvl_usd carried verbatim from the contemporaneous series
+    assert peak.tvl_usd == Decimal("142000000")
+    assert trough.tvl_usd == Decimal("88000000")
+    # the proxy SHRANK with the real pool depth (this is the whole fix)
+    assert trough.exit_liquidity_usd < peak.exit_liquidity_usd
+    # and shrank proportionally to TVL (exit = depth * band * sla_discount, linear in depth)
+    ratio = trough.exit_liquidity_usd / peak.exit_liquidity_usd
+    assert abs(ratio - Decimal("88") / Decimal("142")) < Decimal("0.0001")
+
+
+def test_pendle_feed_exit_liquidity_falls_back_when_tvl_absent():
+    """An OLD deep file (no `tvl_usd` in the series) fail-CLOSEs to the documented depth constant — so
+    the model still has an honest, auditable input even on a pre-fix dataset (it just can't shrink)."""
+    deep = _deep_dataset()  # the legacy shape: series carry NO tvl_usd
+    feed = feeds.PendleMarketFeed()
+    q = feed.quotes_for_date("2025-01-01", deep)[0]
+    expected_depth = Decimal(str(config.PENDLE_HIST_POOL_DEPTH_USD))
+    assert q.exit_liquidity_usd == feeds.exit_liquidity_usd(
+        expected_depth, config.redemption_sla_seconds(q.underlying))
+
+
+def test_pendle_feed_tvl_zero_falls_back_to_constant():
+    """A non-positive / placeholder TVL (Pendle reports tvl≈0.1 at a market's pre-liquidity inception
+    via the dust path; an explicit 0 here) degrades to the documented constant, never a 0 exit that
+    would silently look like 'no market'. (A real tiny-but-positive TVL is used verbatim elsewhere.)"""
+    deep = {
+        "generated_at": "x", "method": "test", "underlyings": ["sUSDe"],
+        "window": {"start": "2025-01-01", "end": "2025-01-01"},
+        "markets": {
+            "PT-sUSDE-26DEC2025": {
+                "underlying": "sUSDe", "kind": "stable_synth", "symbol": "PT-sUSDE-26DEC2025",
+                "market_address": "0xMKT", "pt_address": "0xPT", "maturity": "2025-12-26",
+                "method": "direct_api_implied",
+                "series": [{"date": "2025-01-01", "implied_yield": 0.10, "underlying_yield": 0.09,
+                            "tvl_usd": 0, "pt_price": None}],
+            },
+        },
+    }
+    feed = feeds.PendleMarketFeed()
+    q = feed.quotes_for_date("2025-01-01", deep)[0]
+    expected = feeds.exit_liquidity_usd(Decimal(str(config.PENDLE_HIST_POOL_DEPTH_USD)),
+                                        config.redemption_sla_seconds("susde"))
+    assert q.exit_liquidity_usd == expected
+
+
+def test_contemporaneous_pool_depth_helper_failclosed():
+    """The config helper: a real positive TVL is used verbatim; None / 0 / garbage → the constant."""
+    const = Decimal(str(config.PENDLE_HIST_POOL_DEPTH_USD))
+    assert config.contemporaneous_pool_depth_usd(50_000_000) == Decimal("50000000")
+    assert config.contemporaneous_pool_depth_usd(None) == const
+    assert config.contemporaneous_pool_depth_usd(0) == const
+    assert config.contemporaneous_pool_depth_usd(-5) == const
+    assert config.contemporaneous_pool_depth_usd("not-a-number") == const
+    # a genuinely tiny but positive depth is honest, used verbatim (the exit gate refuses to size in)
+    assert config.contemporaneous_pool_depth_usd(0.1) == Decimal("0.1")
+
+
 def test_pendle_feed_date_without_sample_absent():
     deep = _deep_dataset()
     feed = feeds.PendleMarketFeed()

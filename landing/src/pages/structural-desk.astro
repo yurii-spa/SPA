@@ -1,0 +1,344 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+
+/*
+ * Structural Desk — the convergent research hub (canonical /research story).
+ *
+ * Three deep DeFi-edge researches, each de-risked on our own stack, CONVERGE on one truth:
+ * the real $10M-scale edge is NOT yield selection — it is occupying a structural
+ * MEASUREMENT / UNDERWRITING role. We tell that story honestly, including the thesis we KILLED.
+ *
+ *   Thesis #1 — Rates Desk:        GO  (built + validated)            → /rates-desk
+ *   Thesis #2 — RWA Repo Backstop: MEASUREMENT-GO (underwriting gated) → /rwa-backstop
+ *   Thesis #3 — Cross-Domain Liquidator: NO-GO (killed cheaply)       → callout here
+ *
+ * Content is mostly static — the verdicts are settled. An optional live summary line is pulled
+ * client-side from /api/rates-desk/* and /api/rwa-safety-board, graceful offline (the static
+ * narrative renders regardless).
+ *
+ * Tailwind only compiles class strings it can see literally — every badge palette below is a
+ * literal string (NOT runtime-built), matching the convention in rates-desk.astro / system.astro.
+ */
+
+// The three seats, each with its honest verdict. Literal Tailwind/token class strings per verdict.
+const seats = [
+  {
+    n: '01',
+    href: '/rates-desk',
+    verdict: 'GO',
+    verdict_en: 'GO — built + validated', verdict_ru: 'GO — построено + валидировано',
+    title_en: 'Rates Desk', title_ru: 'Rates Desk',
+    sub_en: 'On-chain interest-rate & basis', sub_ru: 'On-chain ставки и базис',
+    edge_en: 'Price & harvest the disagreement between Pendle implied yield, lending rates and perp funding — and REFUSE books where the high rate is just unpriced tail.',
+    edge_ru: 'Оценивать и собирать расхождение между implied-доходностью Pendle, ставками кредитования и funding-ом перпов — и ОТКАЗЫВАТЬСЯ от книг, где высокая ставка — это просто неоценённый хвост.',
+    finding_en: 'Refusal fired early on toxic LRTs (vetoed before the Aug-2024 / Apr-2026 depegs). Carry beats the 3.4% RWA floor through every stress (OOS 11.4%). Live paper track accumulating.',
+    finding_ru: 'Отказ сработал заранее на токсичных LRT (отклонены до депегов авг-2024 / апр-2026). Кэрри обгоняет RWA-пол 3.4% во всех стрессах (OOS 11.4%). Живой paper-трек накапливается.',
+    cta_en: 'Open the Rates Desk', cta_ru: 'Открыть Rates Desk',
+    // teal-leaning GO
+    card: 'border-teal-700/35', badge: 'bg-teal-500/10 border-teal-500/30 text-teal-300', dot: 'bg-teal-400', accent: 'group-hover:text-teal-300', arrow: 'group-hover:text-teal-400',
+  },
+  {
+    n: '02',
+    href: '/rwa-backstop',
+    verdict: 'MEASUREMENT-GO',
+    verdict_en: 'MEASUREMENT-GO — underwriting gated', verdict_ru: 'MEASUREMENT-GO — андеррайтинг под условием',
+    title_en: 'RWA Repo Backstop', title_ru: 'RWA Repo Backstop',
+    sub_en: 'Liquidation-safe collateral', sub_ru: 'Ликвидационно-безопасный залог',
+    edge_en: 'Lend against Liquidation NAV, not marketing NAV — underwrite the executable exit of tokenized-RWA collateral, not the assumed $1.00.',
+    edge_ru: 'Кредитовать под Ликвидационный NAV, а не маркетинговый — андеррайтить исполнимый выход токенизированного RWA-залога, а не предполагаемый $1.00.',
+    finding_en: 'Built the live Collateral Safety Board: 10 of 10 tokenized-RWA assets are NOT cash-like on executable exit; 9 of 10 have ~$0 public on-chain exit. We ship the measurement layer; the underwriting relationship is capital/legal-gated.',
+    finding_ru: 'Построена живая Доска безопасности залога: 10 из 10 токенизированных RWA НЕ кэш-эквивалент на выходе; 9 из 10 имеют ~$0 публичного on-chain выхода. Мы поставляем измерительный слой; андеррайтинг ограничен капиталом и юрисдикцией.',
+    cta_en: 'Open the Collateral Safety Board', cta_ru: 'Открыть Доску безопасности залога',
+    // indigo MEASUREMENT-GO
+    card: 'border-indigo-700/40', badge: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300', dot: 'bg-indigo-400', accent: 'group-hover:text-indigo-300', arrow: 'group-hover:text-indigo-400',
+  },
+  {
+    n: '03',
+    href: null,
+    verdict: 'NO-GO',
+    verdict_en: 'NO-GO — killed cheaply', verdict_ru: 'NO-GO — убито дёшево',
+    title_en: 'Cross-Domain Liquidator', title_ru: 'Кросс-доменный ликвидатор',
+    sub_en: 'Balance-sheet long-tail liquidator', sub_ru: 'Балансовый ликвидатор long-tail',
+    edge_en: 'Be the balance-sheet liquidator for long-tail collateral when MEV bots fail to clear it.',
+    edge_ru: 'Быть балансовым ликвидатором для long-tail залога, когда MEV-боты не справляются с его расчисткой.',
+    finding_en: 'KILLED. The addressable long-tail liquidation opportunity is ~$2–4M/yr gross (top-20 ≈ $2.2M) — 5–10× below the $20M bar that would justify the custody + CEX build. A naive $18M estimate was an artifact of MetaMorpho curator vaults (not liquidatable).',
+    finding_ru: 'УБИТО. Адресуемая возможность по long-tail ликвидациям — ~$2–4M/год брутто (топ-20 ≈ $2.2M) — в 5–10× ниже планки $20M, которая оправдала бы постройку custody + CEX. Наивная оценка в $18M была артефактом кураторских хранилищ MetaMorpho (которые не ликвидируются).',
+    cta_en: null, cta_ru: null,
+    // red NO-GO
+    card: 'border-red-700/40', badge: 'bg-red-500/10 border-red-500/30 text-red-300', dot: 'bg-red-400', accent: '', arrow: '',
+  },
+];
+---
+
+<Layout
+  title="Structural Desk — the convergent research hub | earn-defi.com"
+  description="Our own backtest proved plain crypto yield isn't edge. The real $10M-scale edge is a structural role: the transparent measurement / underwriting desk for on-chain rates, collateral and risk — not picking APY. Three theses, de-risked on our own stack: Rates Desk (GO), RWA Repo Backstop (measurement-GO), Cross-Domain Liquidator (NO-GO — we publish the kill: $2–4M/yr addressable, 5–10x below our bar). Paper research, advisory, not live."
+  canonical="https://earn-defi.com/structural-desk"
+>
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- ============================================================= a. THE THESIS -->
+    <section class="pt-20 pb-10">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full text-xs font-mono"
+           style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">
+        <span class="w-1.5 h-1.5 rounded-full" style="background:var(--accent)" aria-hidden="true"></span>
+        <span data-ru="Исследовательский хаб · конвергентный тезис · paper-исследование">Research hub · the convergent thesis · paper research</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold mb-5 leading-tight" style="color:var(--text-primary)"
+          data-ru="Структурный стол">
+        The Structural Desk
+      </h1>
+      <p class="text-xl leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Наш собственный бэктест доказал: обычная крипто-доходность — это не эдж. Реальный эдж масштаба $10M — это структурная роль: прозрачный стол измерения и андеррайтинга для on-chain ставок, залога и риска, а не подбор APY.">
+        Our own backtest proved plain crypto yield isn't an edge. The real $10M-scale edge is a
+        <strong style="color:var(--text-primary)">structural role</strong>: the transparent measurement
+        and underwriting desk for on-chain rates, collateral and risk — <em>not</em> picking APY.
+      </p>
+
+      <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+             data-ru="Как мы сюда пришли">How we got here</p>
+          <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Мы провели три глубоких исследования DeFi-эджа и де-рискнули каждое на собственном стеке. Все три сходятся к одной истине: деньги не в том, ЧТО держать, а в том, чтобы занять роль того, кто честно ИЗМЕРЯЕТ и АНДЕРРАЙТИТ ставки, залог и риск.">
+            We ran three deep DeFi-edge researches and de-risked each on our own stack. All three
+            converge on one truth: the money is not in <em>what</em> to hold — it is in occupying the
+            seat that honestly <strong style="color:var(--text-primary)">measures and underwrites</strong>
+            rates, collateral and risk.
+          </p>
+        </div>
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+             data-ru="Статус">Status</p>
+          <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Paper-исследование. Advisory — ничего не торгуется вживую. Каждый вердикт детерминирован (LLM запрещён в risk-гейте). Мы публикуем то, что построили, то, что ограничено условиями, И то, что убили.">
+            Paper research. Advisory — nothing trades live. Every verdict is deterministic (LLM forbidden
+            in the risk gate). We publish what we built, what we gated, <strong style="color:var(--text-primary)">and what we killed</strong>.
+          </p>
+        </div>
+      </div>
+
+      <!-- optional live summary line (graceful offline) -->
+      <p class="mt-5 text-xs font-mono" style="color:var(--text-faint)">
+        <span id="sd-live" data-ru="Живые сводки столов загружаются…">Loading live desk summaries…</span>
+      </p>
+    </section>
+
+    <!-- ============================================================= b. THE THREE SEATS -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+         data-ru="Три места за столом">The three seats</p>
+      <p class="text-sm leading-relaxed max-w-2xl mb-7" style="color:var(--text-secondary)"
+         data-ru="Каждый тезис де-рискнут на нашем стеке и получил честный вердикт. Два — построены. Один — убит. Все три проверяют одну гипотезу: эдж — это роль, а не доходность.">
+        Each thesis was de-risked on our stack and given an honest verdict. Two are built. One is
+        killed. All three test the same hypothesis: the edge is a role, not a yield.
+      </p>
+
+      <div class="space-y-4">
+        {seats.map((s) => (
+          <div class:list={["group rounded-xl p-6 border bg-white/[0.02] transition-all", s.card]}>
+            <div class="flex items-start justify-between gap-4 mb-3">
+              <div class="flex items-center gap-3">
+                <span class="text-xs font-mono" style="color:var(--text-faint)">{s.n}</span>
+                <div>
+                  <h2 class:list={["text-xl font-bold", s.accent]} style="color:var(--text-primary)" data-ru={s.title_ru}>{s.title_en}</h2>
+                  <p class="text-xs font-mono mt-0.5" style="color:var(--text-muted)" data-ru={s.sub_ru}>{s.sub_en}</p>
+                </div>
+              </div>
+              <span class:list={["inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium border flex-shrink-0", s.badge]}>
+                <span class:list={["w-1.5 h-1.5 rounded-full", s.dot]} aria-hidden="true"></span>
+                <span data-ru={s.verdict_ru}>{s.verdict_en}</span>
+              </span>
+            </div>
+
+            <p class="text-xs uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)" data-ru="Эдж">The edge</p>
+            <p class="text-sm leading-relaxed mb-4" style="color:var(--text-secondary)" data-ru={s.edge_ru}>{s.edge_en}</p>
+
+            <p class="text-xs uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)" data-ru="Что показал де-риск">The de-risk finding</p>
+            <p class="text-sm leading-relaxed" style="color:var(--text-secondary)" data-ru={s.finding_ru}>{s.finding_en}</p>
+
+            {s.href && (
+              <a href={s.href} class:list={["inline-flex items-center gap-1.5 mt-4 text-sm font-medium transition-colors", s.arrow]} style="color:var(--text-primary)">
+                <span data-ru={s.cta_ru}>{s.cta_en}</span>
+                <span aria-hidden="true">→</span>
+              </a>
+            )}
+            {!s.href && (
+              <p class="mt-4 text-xs font-mono" style="color:var(--text-faint)"
+                 data-ru="Не построено. Полный разбор и цифры — ниже.">Not built. Full reasoning &amp; the numbers — below.</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- ============================================================= c. WE PUBLISH WHAT WE KILL -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+         data-ru="Мы публикуем то, что убиваем">We publish what we kill</p>
+
+      <div class="rounded-2xl p-7 border" style="border-color:rgba(242,109,109,.35);background:rgba(242,109,109,.05)">
+        <div class="flex items-center gap-2.5 mb-4">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium border bg-red-500/10 border-red-500/30 text-red-300">
+            <span class="w-1.5 h-1.5 rounded-full bg-red-400" aria-hidden="true"></span>
+            <span data-ru="NO-GO">NO-GO</span>
+          </span>
+          <span class="text-sm font-bold" style="color:var(--text-primary)" data-ru="Тезис #3 — Кросс-доменный ликвидатор">Thesis #3 — Cross-Domain Liquidator</span>
+        </div>
+
+        <p class="text-lg leading-relaxed mb-5" style="color:var(--text-primary)"
+           data-ru="Мы протестировали тезис «балансового ликвидатора» и УБИЛИ его: ~$2–4M/год адресуемо, в 5–10× ниже нашей планки. Мы публикуем отрицательные результаты, потому что трек-рекорд честных отказов — это и есть ров.">
+          We tested the balance-sheet-liquidator thesis and <strong>KILLED</strong> it:
+          ~$2–4M/yr addressable, 5–10× below our bar. We publish negative results because a track
+          record of <strong>honest refusals is the moat</strong>.
+        </p>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          <div class="rounded-lg p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+            <p class="text-2xl font-bold font-mono" style="color:var(--danger)">$2–4M</p>
+            <p class="text-xs mt-1" style="color:var(--text-muted)" data-ru="адресуемо / год (брутто)">addressable / yr (gross)</p>
+          </div>
+          <div class="rounded-lg p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+            <p class="text-2xl font-bold font-mono" style="color:var(--danger)">~$2.2M</p>
+            <p class="text-xs mt-1" style="color:var(--text-muted)" data-ru="топ-20 пулов">top-20 pools</p>
+          </div>
+          <div class="rounded-lg p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+            <p class="text-2xl font-bold font-mono" style="color:var(--text-primary)">$20M</p>
+            <p class="text-xs mt-1" style="color:var(--text-muted)" data-ru="планка, чтобы оправдать custody + CEX">bar to justify custody + CEX</p>
+          </div>
+          <div class="rounded-lg p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+            <p class="text-2xl font-bold font-mono" style="color:var(--warn)">5–10×</p>
+            <p class="text-xs mt-1" style="color:var(--text-muted)" data-ru="ниже планки">below the bar</p>
+          </div>
+        </div>
+
+        <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+           data-ru="Наивная оценка в $18M, которая сначала выглядела привлекательно, оказалась артефактом: она считала кураторские хранилища MetaMorpho адресуемыми, хотя они не ликвидируются. После очистки от этого артефакта реальная адресуемая возможность падает в 5–10× ниже планки, оправдывающей постройку. Мы убили тезис дёшево — на этапе оценки, до единой строчки execution-кода.">
+          The naive $18M estimate that first looked attractive turned out to be an artifact: it counted
+          MetaMorpho curator vaults as addressable, when those are not liquidatable. Strip that artifact
+          out and the real addressable opportunity falls 5–10× below the bar that would justify the
+          build. We killed it cheaply — at the estimation stage, before a single line of execution code.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============================================================= d. THE SHARED ENGINE -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+         data-ru="Общий движок">The shared engine</p>
+      <h2 class="text-2xl font-bold mb-4" style="color:var(--text-primary)"
+          data-ru="Три места — один движок">Three seats, one engine</h2>
+      <p class="text-base leading-relaxed max-w-2xl mb-7" style="color:var(--text-secondary)"
+         data-ru="Все три тезиса опираются на ОДНО ядро: детерминированный риск-взвешенный измерительный движок — справедливая цена + хвостовые хейркаты + ёмкость выхода — который говорит, что собирать И от чего отказываться. Этот движок и есть реальный актив. $10M — это многолетняя игра в масштаб и доверие поверх него.">
+        All three theses rest on <strong style="color:var(--text-primary)">one core</strong>: a
+        deterministic, risk-adjusted measurement engine — fair value + tail-risk haircuts + exit-capacity
+        — that says what to <em>harvest</em> AND what to <em>refuse</em>. That engine is the real asset;
+        $10M is the multi-year scale-and-trust game on top of it.
+      </p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)" data-ru="Справедливая цена">Fair value</p>
+          <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Разложить каждую котируемую ставку на настоящий кэрри и компенсацию за риск.">
+            Decompose every quoted rate into genuine carry vs. risk compensation.
+          </p>
+        </div>
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)" data-ru="Хвостовые хейркаты">Tail-risk haircuts</p>
+          <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Штрафовать за депег, оракул, governance и кредитный хвост, а не игнорировать их.">
+            Penalize depeg, oracle, governance and credit tail — never ignore them.
+          </p>
+        </div>
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)" data-ru="Ёмкость выхода">Exit capacity</p>
+          <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Оценивать, что реально получишь на выходе при размере — не маркетинговый $1.00.">
+            Measure what you actually realize on exit at size — not the marketing $1.00.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= related: research journal -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-6" style="color:var(--text-muted)"
+         data-ru="Дальше">Go deeper</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <a href="/research" class="group block rounded-xl p-6 border bg-white/[0.02] transition-all"
+           style="border-color:var(--border)" onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <h3 class="text-lg font-bold mb-2" style="color:var(--text-primary)" data-ru="Журнал исследований и Strategy Lab">Research journal &amp; Strategy Lab</h3>
+          <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Полевые заметки, детерминированная методология, стратегии в стадии исследования и турнир Strategy Lab.">
+            Field notes, the deterministic methodology, research-stage strategies, and the Strategy Lab
+            tournament.
+          </p>
+          <span class="inline-flex items-center gap-1.5 mt-3 text-sm font-medium" style="color:var(--accent)" data-ru="Открыть журнал →">Open the journal →</span>
+        </a>
+        <a href="/methodology" class="group block rounded-xl p-6 border bg-white/[0.02] transition-all"
+           style="border-color:var(--border)" onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <h3 class="text-lg font-bold mb-2" style="color:var(--text-primary)" data-ru="Методология">Methodology</h3>
+          <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Детерминированный движок, LLM-free RiskPolicy-гейты и дневной цикл, на которых стоят все три места за столом.">
+            The deterministic engine, the LLM-free RiskPolicy gates, and the daily cycle that all three
+            seats rest on.
+          </p>
+          <span class="inline-flex items-center gap-1.5 mt-3 text-sm font-medium" style="color:var(--accent)" data-ru="Читать методологию →">Read the methodology →</span>
+        </a>
+      </div>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+
+  <!-- Optional live desk summaries — graceful offline; the static narrative stands without them. -->
+  <script is:inline>
+    (function () {
+      "use strict";
+      // api-base detection: same-origin → api.<host>; localhost dev fallback.
+      function apiBase() {
+        try {
+          var h = location.hostname;
+          if (h === 'localhost' || h === '127.0.0.1') return 'http://127.0.0.1:8765';
+          return location.protocol + '//api.' + h.replace(/^www\./, '');
+        } catch (e) { return ''; }
+      }
+      var API = apiBase();
+      function isRu() {
+        try { return (document.documentElement.getAttribute('lang') || 'en') === 'ru'; } catch (e) { return false; }
+      }
+      function setLive(txt) {
+        var el = document.getElementById('sd-live');
+        if (el) { el.textContent = txt; el.removeAttribute('data-ru'); el.removeAttribute('data-en-orig'); }
+      }
+      var ratesOk = null, rwaUnsafe = null, done = 0;
+      function render() {
+        if (done < 2) return;
+        var ru = isRu();
+        var parts = [];
+        if (ratesOk != null) parts.push((ru ? 'Rates Desk: ' + ratesOk + ' решений в логе' : 'Rates Desk: ' + ratesOk + ' decisions logged'));
+        if (rwaUnsafe != null) parts.push((ru ? 'Safety Board: ' + rwaUnsafe + ' из 10 НЕ кэш-эквивалент' : 'Safety Board: ' + rwaUnsafe + ' of 10 NOT cash-like'));
+        if (parts.length) setLive('Live · ' + parts.join('  ·  '));
+        else setLive(ru ? 'Живые сводки недоступны — статичный нарратив актуален.' : 'Live summaries offline — the static narrative stands.');
+      }
+      // re-render on language toggle
+      window.__renderLive = function () { try { render(); } catch (e) {} };
+
+      fetch(API + '/api/rates-desk/decisions').then(function (r) { return r.json(); }).then(function (d) {
+        if (d && Array.isArray(d.decisions)) ratesOk = d.decisions.length;
+      }).catch(function () {}).finally(function () { done++; render(); });
+
+      fetch(API + '/api/rwa-safety-board').then(function (r) { return r.json(); }).then(function (d) {
+        if (d && Array.isArray(d.assets)) {
+          rwaUnsafe = d.assets.filter(function (a) { return a && a.verdict && a.verdict !== 'LIQUID'; }).length;
+        }
+      }).catch(function () {}).finally(function () { done++; render(); });
+
+      // safety: if both fetches hang, settle to offline copy after 4s
+      setTimeout(function () { if (done < 2) { done = 2; render(); } }, 4000);
+    })();
+  </script>
+</Layout>

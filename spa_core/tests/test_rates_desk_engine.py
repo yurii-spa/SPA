@@ -219,6 +219,59 @@ def test_hold_keeps_healthy_position():
     assert ns.killed is False
 
 
+# ── EXIT_CAPACITY — the §9 exit-liquidity-collapse kill (the illiquid-bag backstop) ────────────────
+def test_hold_exit_capacity_kill_when_liquidity_below_position():
+    """If the position's CURRENT one-tick exit capacity falls BELOW the open position size, the desk
+    cannot get out at size → EXIT_CAPACITY kill (a safe carry book has become an illiquid bag)."""
+    risk = _healthy_susde_risk()  # structurally healthy → only the liquidity discipline can kill
+    # position 100k; exit liquidity has collapsed to 80k (< position) → cannot exit at size.
+    q = _quote("susde", UnderlyingKind.STABLE_SYNTH, "0.09", exit_liq="80000", hedge=True)
+    opp = _opp(q, size="100000")
+    state = KillState(entry_carry=D("0.05"))
+    res, ns = evaluate_hold(opp, risk, D("1"), q.exit_liquidity_usd, D("0.05"), P, state, engine=ENG)
+    assert res.approved is False
+    assert res.reason == KillReason.EXIT_CAPACITY
+    assert ns.killed is True
+
+
+def test_hold_exit_capacity_precedes_concentration():
+    """A true collapse (exit < position) is reported as EXIT_CAPACITY, not the milder fractional
+    CONCENTRATION breach — the collapse kill is checked FIRST and is the more severe signal."""
+    risk = _healthy_susde_risk()
+    q = _quote("susde", UnderlyingKind.STABLE_SYNTH, "0.09", exit_liq="50000", hedge=True)
+    opp = _opp(q, size="100000")  # 100k >> 50k exit → collapse, not just > 25% cap
+    res, _ = evaluate_hold(opp, risk, D("1"), q.exit_liquidity_usd, D("0.05"), P,
+                           KillState(entry_carry=D("0.05")), engine=ENG)
+    assert res.reason == KillReason.EXIT_CAPACITY
+
+
+def test_hold_concentration_fires_below_collapse():
+    """When exit liquidity is thinning but still ABOVE the position size (no collapse), the fractional
+    CONCENTRATION cap is what derisks — the position is within exit but breaches max_size_frac_of_exit.
+    This is the early-warning derisk that fires BEFORE a true illiquid bag forms."""
+    risk = _healthy_susde_risk()
+    # position 100k; exit 300k → NOT collapsed (300k > 100k) but 100k/300k = 0.33 > 0.25 cap.
+    q = _quote("susde", UnderlyingKind.STABLE_SYNTH, "0.09", exit_liq="300000", hedge=True)
+    opp = _opp(q, size="100000")
+    res, _ = evaluate_hold(opp, risk, D("1"), q.exit_liquidity_usd, D("0.05"), P,
+                           KillState(entry_carry=D("0.05")), engine=ENG)
+    assert res.approved is False
+    assert res.reason == KillReason.CONCENTRATION
+
+
+def test_hold_exit_capacity_fail_closed_on_zero_exit():
+    """A malformed / zero exit liquidity with a real open position is itself a collapse (cannot exit
+    into nothing) → EXIT_CAPACITY kill, fail-CLOSED."""
+    risk = _healthy_susde_risk()
+    q = _quote("susde", UnderlyingKind.STABLE_SYNTH, "0.09", exit_liq="2e6", hedge=True)
+    opp = _opp(q, size="100000")
+    res, ns = evaluate_hold(opp, risk, D("1"), D("0"), D("0.05"), P,
+                            KillState(entry_carry=D("0.05")), engine=ENG)
+    assert res.approved is False
+    assert res.reason == KillReason.EXIT_CAPACITY
+    assert ns.killed is True
+
+
 # ── composition under the global RiskPolicy (AND, never OR) ────────────────────────────────────────
 def test_composition_is_more_restrictive():
     # rate gate approves but global policy rejects → no capital may move

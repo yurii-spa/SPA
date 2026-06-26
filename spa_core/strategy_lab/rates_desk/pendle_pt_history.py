@@ -228,11 +228,21 @@ def _maturity_ts(maturity: str) -> int:
 
 def fetch_market_history(fetcher: Fetcher, market: dict, chain: int = CHAIN_ID) -> List[dict]:
     """Fetch one market's FULL daily implied/underlying APY series. Returns a sorted list of
-    {date, implied_yield, underlying_yield}. fail-CLOSED: malformed payload RAISES; individual
-    non-numeric points are skipped (a single bad sample is not a fabricated yield, the series as a
-    whole is still real). Near-maturity samples (< NEAR_MATURITY_DAYS to expiry) are dropped: a PT's
-    implied APY explodes into illiquid noise in its final days (price→face), which is not harvestable
-    carry."""
+    {date, implied_yield, underlying_yield, tvl_usd}. fail-CLOSED: malformed payload RAISES;
+    individual non-numeric points are skipped (a single bad sample is not a fabricated yield, the
+    series as a whole is still real). Near-maturity samples (< NEAR_MATURITY_DAYS to expiry) are
+    dropped: a PT's implied APY explodes into illiquid noise in its final days (price→face), which is
+    not harvestable carry.
+
+    The `tvl` series is captured per day so the §9 exit-liquidity proxy can be tied to the
+    CONTEMPORANEOUS pool depth (NOT a stale/peak constant). This is the calibration fix the Oct-2025
+    stress validation demands: when a PT pool's TVL collapses during a de-risk unwind, the desk's
+    exit capacity must shrink with it (so it sizes down / cannot exit at size) — that only works if
+    we record the real per-day depth here. tvl_usd is the raw Pendle TVL (USD) for the day; a
+    non-numeric / absent TVL → None (the consumer fail-CLOSEs to the documented depth constant and
+    flags it). Early pre-liquidity placeholder days (Pendle reports tvl≈0.1 at market inception) are
+    kept VERBATIM and honestly tiny — the desk would never trade a $0.10-depth pool (the gate's
+    exit-capacity check refuses it), so capturing the real value is the correct fail-CLOSED behavior."""
     NEAR_MATURITY_DAYS = 3
     payload = fetcher(HIST_URL.format(chain=chain, addr=market["market_address"]))
     if not isinstance(payload, dict):
@@ -240,9 +250,11 @@ def fetch_market_history(fetcher: Fetcher, market: dict, chain: int = CHAIN_ID) 
     ts = payload.get("timestamp")
     ia = payload.get("impliedApy")
     ua = payload.get("underlyingApy")
+    tv = payload.get("tvl")
     if not isinstance(ts, list) or not isinstance(ia, list) or not ts:
         raise ValueError(f"pendle history {market['symbol']}: missing timestamp/impliedApy")
     ua = ua if isinstance(ua, list) else [None] * len(ts)
+    tv = tv if isinstance(tv, list) else [None] * len(ts)
     mat_ts = _maturity_ts(market["maturity"])
     cutoff = mat_ts - NEAR_MATURITY_DAYS * 86400
     by_date: Dict[str, dict] = {}
@@ -259,9 +271,14 @@ def fetch_market_history(fetcher: Fetcher, market: dict, chain: int = CHAIN_ID) 
             und = float(ua[i]) if i < len(ua) and ua[i] is not None else None
         except (TypeError, ValueError):
             und = None
+        try:
+            tvl = float(tv[i]) if i < len(tv) and tv[i] is not None else None
+        except (TypeError, ValueError):
+            tvl = None
         d = _iso(t)
         by_date[d] = {"date": d, "implied_yield": round(implied, 6),
                       "underlying_yield": (round(und, 6) if und is not None else None),
+                      "tvl_usd": (round(tvl, 2) if tvl is not None else None),
                       "pt_price": None}  # direct method: implied is authoritative, price not needed
     return [by_date[d] for d in sorted(by_date)]
 

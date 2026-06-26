@@ -143,6 +143,25 @@ import Layout from '../layouts/Layout.astro';
     </div>
   </section>
 
+  <!-- ============ RESEARCH / STRUCTURAL DESK ============ -->
+  <section class="band">
+    <div class="container">
+      <div class="sec-head">
+        <span class="eyebrow" data-ru="Исследование">Research</span>
+        <h2 data-ru="Реальный эдж — это структурная роль">The real edge is a structural role</h2>
+      </div>
+      <a class="research-card" href="/structural-desk">
+        <p class="rc-lead" data-ru="Наш собственный бэктест доказал: обычная крипто-доходность — не эдж. Реальный эдж масштаба $10M — это прозрачный стол измерения и андеррайтинга для on-chain ставок, залога и риска. Три тезиса, де-рискнутых на нашем стеке: Rates Desk (GO), RWA-бэкстоп (measurement-GO), Кросс-доменный ликвидатор (NO-GO — мы публикуем то, что убили).">
+          Our own backtest proved plain crypto yield isn't an edge. The real $10M-scale edge is a
+          transparent measurement &amp; underwriting desk for on-chain rates, collateral and risk.
+          Three theses, de-risked on our stack: Rates Desk (GO), RWA Backstop (measurement-GO),
+          Cross-Domain Liquidator (NO-GO — we publish what we killed).
+        </p>
+        <span class="rc-cta" data-ru="Открыть Структурный стол →">Open the Structural Desk →</span>
+      </a>
+    </div>
+  </section>
+
   <!-- ============ FINAL CTA ============ -->
   <section class="band">
     <div class="container final-cta">
@@ -249,6 +268,13 @@ import Layout from '../layouts/Layout.astro';
   .final-cta{text-align:center}
   .final-cta h2{font-size:1.75rem; font-weight:700; color:var(--text-primary); margin-bottom:14px; letter-spacing:-.01em}
   .final-cta p{color:var(--text-secondary); max-width:480px; margin:0 auto 28px}
+
+  /* Research / Structural Desk card */
+  .research-card{display:block; max-width:760px; margin:0 auto; padding:28px 32px; border-radius:var(--r-lg); border:1px solid var(--border); background:var(--bg-surface); transition:all 120ms var(--ease); text-decoration:none}
+  .research-card:hover{border-color:var(--border-strong); transform:translateY(-2px)}
+  .research-card .rc-lead{color:var(--text-secondary); font-size:.9375rem; line-height:1.65; margin:0 0 18px}
+  .research-card .rc-cta{display:inline-flex; align-items:center; gap:6px; color:var(--accent); font-weight:600; font-size:.9375rem}
+  .research-card:hover .rc-cta{color:var(--accent-hover)}
 
   @media (max-width:900px){
     .tier-grid,.steps{grid-template-columns:1fr}

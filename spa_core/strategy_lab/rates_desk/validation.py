@@ -829,6 +829,8 @@ _PRESERVE_MARKERS = [
      "<!-- END rates-desk 4-sleeve validation (backtest_rates) -->"),
     ("<!-- BEGIN rates-desk calibration sweep (calibrate) -->",
      "<!-- END rates-desk calibration sweep (calibrate) -->"),
+    ("<!-- BEGIN rates-desk exit-liquidity validation (exit_liquidity_validation) -->",
+     "<!-- END rates-desk exit-liquidity validation (exit_liquidity_validation) -->"),
 ]
 
 

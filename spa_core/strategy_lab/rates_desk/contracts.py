@@ -72,6 +72,7 @@ class KillReason(enum.Enum):
     MATURITY_BUFFER = "maturity_buffer"      # too close to maturity to safely hold/roll
     UTILIZATION_TRAP = "utilization_trap"    # pool utilization too high to exit (levered/lending)
     CONCENTRATION = "concentration"          # position too large vs current exit liquidity
+    EXIT_CAPACITY = "exit_capacity"          # current exit liquidity < position size — cannot get out
 
 
 # ── market quote / risk inputs ──────────────────────────────────────────────────────────────────

@@ -205,7 +205,10 @@ def build_deep_surface(
         u = str(m.get("underlying", "")).lower()
         if not u:
             raise ValueError(f"deep market {key}: missing underlying")
-        depth = Decimal(str(config.PENDLE_HIST_POOL_DEPTH_USD))
+        # §9 pool depth — CONTEMPORANEOUS per-day TVL (Oct-2025 fix), fail-CLOSED to the documented
+        # constant only when a day carries no recorded TVL (old deep file). The exit model shrinks
+        # with real pool depth so the sleeve sizes down / exits when liquidity thins.
+        depth = config.contemporaneous_pool_depth_usd(pt.get("tvl_usd"))
         sla = config.redemption_sla_seconds(u)
         q = RateQuote(
             underlying=u, kind=kind, venue=RateVenue.PENDLE_PT, protocol="pendle",
