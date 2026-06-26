@@ -289,9 +289,15 @@ def test_health_public_apy_annualized_label(client):
     _write(data_dir, "paper_trading_status.json", {
         "days_running": 16, "apy_today_pct": 3.6, "current_equity": 100180.31,
     })
+    # Canonical track-days = EVIDENCED count from golive_checker, NOT the padded
+    # days_running. With golive_status present, track_days mirrors real_track_days.
+    _write(data_dir, "golive_status.json", {"real_track_days": 5, "passed": 27, "total": 29})
     d = c.get("/api/health-public").json()
-    # backward-compat: existing fields preserved
-    assert d["track_days"] == 16
+    # track_days is now the honest evidenced count, not the padded days_running.
+    assert d["track_days"] == 5
+    assert d["real_track_days"] == 5
+    # Raw padded value retained for transparency only.
+    assert d["days_running_raw"] == 16
     assert d["ytd_apy_pct"] == 3.6
     assert "annualized" in d["ytd_apy_pct_note"]
     assert d["apy_today_pct_annualized"] == 3.6

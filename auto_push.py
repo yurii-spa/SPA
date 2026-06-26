@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """auto_push.py — автоматически пушит новые файлы после каждого спринта SPA."""
-import json, os, subprocess, sys, time, base64, urllib.request
+import json, os, subprocess, sys, time, base64, hashlib, urllib.request
 from pathlib import Path
 from datetime import datetime
 
@@ -64,11 +64,18 @@ def find_changed_files(since_ts: float) -> list[Path]:
             pass
     return sorted(changed, key=lambda p: p.stat().st_mtime)
 
+def git_blob_sha(content: bytes) -> str:
+    """git blob SHA-1 (== поле sha в GitHub Contents API). Stdlib, детерминированно."""
+    header = f"blob {len(content)}\0".encode()
+    return hashlib.sha1(header + content).hexdigest()
+
+
 def push_batch(files: list[Path], pat: str, message: str) -> list[dict]:
     results = []
     for f in files:
         repo_path = str(f.relative_to(SPA_DIR))
-        content_b64 = base64.b64encode(f.read_bytes()).decode()
+        local_bytes = f.read_bytes()
+        content_b64 = base64.b64encode(local_bytes).decode()
         # Get SHA if exists
         sha = None
         try:
@@ -80,6 +87,12 @@ def push_batch(files: list[Path], pat: str, message: str) -> list[dict]:
                 sha = json.loads(resp.read()).get("sha")
         except Exception:
             pass
+        # Idempotency guard (fail-CLOSED): пропускаем PUT только если remote SHA
+        # ТОЧНО == локальному git-blob-SHA. Идентичный контент иначе создаёт
+        # пустой no-op коммит. Любая неопределённость (sha=None) → пушим.
+        if sha is not None and sha == git_blob_sha(local_bytes):
+            results.append({"ok": True, "skipped": True, "path": repo_path, "sha": sha[:8]})
+            continue
         payload = {"message": message, "content": content_b64, "branch": "main"}
         if sha:
             payload["sha"] = sha
@@ -136,17 +149,22 @@ def main():
     # По 5 файлов за раз
     batch_size = 5
     ok_count = 0
+    skip_count = 0
     for i in range(0, len(changed), batch_size):
         batch = changed[i:i+batch_size]
         results = push_batch(batch, pat, message)
         for r in results:
             if r.get("ok"):
-                log(f"  ✅ {r['path']} ({r.get('sha','')})")
-                ok_count += 1
+                if r.get("skipped"):
+                    log(f"  ⏭️  {r['path']} (unchanged, {r.get('sha','')})")
+                    skip_count += 1
+                else:
+                    log(f"  ✅ {r['path']} ({r.get('sha','')})")
+                    ok_count += 1
             else:
                 log(f"  ❌ {r['path']}: {r.get('error','')}")
 
-    log(f"Итого: {ok_count}/{len(changed)} файлов запушено")
+    log(f"Итого: {ok_count}/{len(changed)} файлов запушено (skipped={skip_count})")
     save_state(current_sprint, time.time())
 
 if __name__ == "__main__":

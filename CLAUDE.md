@@ -38,10 +38,10 @@ track record (30 честных дней → go-live). Финмодель — `M
 
 | Поле | Значение |
 |---|---|
-| Реальный трек | начат **2026-06-10** (всё до — демо, недействительно) |
-| Дней трека | **16/30** (14 ещё нужно, target go-live **~2026-07-09**) |
-| Капитал | **$100,180.31** (+0.18% за 16д) |
-| Daily yield | **$9.91/день** · APY сегодня ~3.6% (regime VOLATILE) |
+| Реальный трек | anchor **2026-06-22** (evidenced; всё до — backfill/демо, недействительно) |
+| Дней трека | **5/30** evidenced (25 ещё нужно, target go-live **~2026-07-21**) |
+| Капитал | **$100,190.22** (+0.19% за 5д evidenced) |
+| Daily yield | **~$9.91/день** · APY сегодня ~3.6% (regime VOLATILE) |
 | GoLive | ⛔ **27/29 pass** — NOT READY (2 time-gated блокера) |
 | Sprint | **v12.83** · Done: **1358** · Backlog: 0 |
 | Агенты | ✅ **51 загружено** (`launchctl list \| grep spa` = 51; agent_health crit=0; источник истины — launchctl / SYSTEM_BRIEFING, НЕ это число) |
@@ -49,7 +49,7 @@ track record (30 честных дней → go-live). Финмодель — `M
 | Python | `/Users/yuriikulieshov/miniconda3/bin/python3` (всегда этот путь) |
 
 **GoLive блокеры (оба — просто ожидание 30 трек-дней, нечего чинить кодом):**
-- `gap_monitor_30d`: 16/30 трек-дней (14 дней просто ждать)
+- `gap_monitor_30d`: 5/30 evidenced трек-дней (25 дней просто ждать)
 - `min_track_days_30`: то же что gap_monitor
 - (`autopush_installed` теперь **PASS** на реальном Mac; в sandbox/CI всегда fails — проверяй через `launchctl list | grep spa`)
 

@@ -406,10 +406,22 @@ def get_health_public():
     ts = _load_json("tear_sheet.json", {})
     passed = gl.get("passed", gl.get("passed_count"))
     total = gl.get("total", gl.get("total_count", gl.get("criteria_total")))
+    # Canonical track-days = EVIDENCED count from golive_checker (real_track_days),
+    # NOT paper_trading_status.days_running (the padded raw-bar count). This is the
+    # single honest number every surface must read. Fail-CLOSED: if golive_status
+    # has no real_track_days, expose None rather than silently falling back to the
+    # inflated days_running.
+    real_track_days = gl.get("real_track_days")
     return {
         "generated_at": _now(),
         "source": "live",
-        "track_days": ps.get("days_running"),
+        # Honest, evidenced track-day count (single source of truth = golive_checker).
+        "real_track_days": real_track_days,
+        # track_days is the DISPLAYED field — now the honest evidenced count, not
+        # the padded days_running. Kept for backward-compat with existing consumers.
+        "track_days": real_track_days,
+        # Raw equity-bar count, retained for transparency / debugging only.
+        "days_running_raw": ps.get("days_running"),
         "ytd_apy_pct": ps.get("apy_today_pct"),
         "ytd_apy_pct_note": "annualized, not a daily figure",
         "apy_today_pct_annualized": ps.get("apy_today_pct"),

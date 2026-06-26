@@ -140,14 +140,15 @@ class TestGoliveStatusJson:
         assert isinstance(data, dict)
 
     def test_ready_is_bool(self, data):
-        # ADR-002: go-live requires 30+ honest track days (target ~2026-07-09).
+        # ADR-002: go-live requires 30+ honest evidenced track days (target ~2026-07-21,
+        # anchored to the first evidenced day 2026-06-22 — see golive_status.json).
         # Until that date, ready=False is expected and correct — time-gated.
         # This test verifies the field exists and is a bool, not that it's True.
         ready = data.get("ready")
         assert isinstance(ready, bool), f"golive_status.ready must be a bool, got {ready!r}"
 
     def test_blockers_are_time_gated_only(self, data):
-        # Until 2026-07-09, the only valid blockers are time-gated ones.
+        # Until the go-live target (~2026-07-21), the only valid blockers are time-gated ones.
         # Structural / configuration blockers (anything other than track-days
         # and gap_monitor) should not appear.
         blockers = data.get("blockers", [])

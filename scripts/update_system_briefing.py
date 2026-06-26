@@ -177,6 +177,7 @@ def build_launchd_section() -> str:
 def build_portfolio_section() -> str:
     pos = read_json("current_positions.json")
     eq = read_json("equity_curve_daily.json")
+    golive = read_json("golive_status.json")
 
     if not pos:
         return "## 💰 Portfolio\n_current_positions.json not found_\n"
@@ -192,10 +193,12 @@ def build_portfolio_section() -> str:
     eq_summary = eq.get("summary", {})
     end_equity = eq_summary.get("end_equity", capital)
     total_return = eq_summary.get("total_return_pct", 0.0)
-    # Honest track length: real (non-warmup) days, not the raw bar count which
-    # includes pre-2026-06-10 warmup/demo bars. Prefer summary.real_days; fall back
-    # to counting non-warmup bars directly so it's honest even before the next cycle.
-    num_days = eq_summary.get("real_days")
+    # CANONICAL track length = evidenced count from golive_checker
+    # (golive_status.real_track_days). Single honest number, shared with the header.
+    # Fall back to summary.real_days then non-warmup bar count only if unavailable.
+    num_days = golive.get("real_track_days")
+    if num_days is None:
+        num_days = eq_summary.get("real_days")
     if num_days is None:
         _real = [b for b in eq.get("daily", []) if not b.get("is_warmup", False)]
         num_days = len(_real) if _real else eq_summary.get("num_days", 0)
@@ -326,13 +329,31 @@ def main() -> None:
     agent_ok = agent_h.get("healthy_count", "?")
     eq_end = eq.get("summary", {}).get("end_equity", 100000)
     eq_ret = eq.get("summary", {}).get("total_return_pct", 0.0)
-    # Honest track length: real (non-warmup) days, NOT the raw bar count which
-    # includes pre-2026-06-10 warmup/demo bars. Mirror build_portfolio_section so
-    # the header table and the Portfolio section never disagree (e.g. 35d vs 15d).
-    eq_days = eq.get("summary", {}).get("real_days")
+    # CANONICAL track length = evidenced count from golive_checker
+    # (golive_status.real_track_days). This is the ONE honest number; every surface
+    # reads it so they can't disagree (e.g. 17 days_running vs 5 evidenced). Fall
+    # back to equity summary.real_days, then non-warmup bar count, only if the
+    # canonical source is unavailable.
+    eq_days = golive.get("real_track_days")
+    if eq_days is None:
+        eq_days = eq.get("summary", {}).get("real_days")
     if eq_days is None:
         _real_bars = [b for b in eq.get("daily", []) if not b.get("is_warmup", False)]
         eq_days = len(_real_bars) if _real_bars else eq.get("summary", {}).get("num_days", 0)
+
+    # Honest anchor + go-live target, derived from golive_status (NOT hardcoded).
+    # The evidenced anchor lives in equity summary.evidenced_anchor; the go-live
+    # target is on the time-gated criteria details (target_date).
+    track_anchor = (
+        eq.get("summary", {}).get("evidenced_anchor")
+        or eq.get("summary", {}).get("first_real_date")
+        or "2026-06-22"
+    )
+    golive_target = "?"
+    for crit in golive.get("criteria", []):
+        if crit.get("name") in ("min_track_days_30", "gap_monitor_30d") and crit.get("target_date"):
+            golive_target = crit["target_date"]
+            break
 
     golive_icon = "✅" if golive_ready else "⛔"
     agent_icon = {"OK": "✅", "WARNING": "⚠️", "CRITICAL": "🔴"}.get(agent_status, "❓")
@@ -348,9 +369,9 @@ def main() -> None:
 |--------|-------|
 | GoLive | {golive_icon} {golive_pass}/{golive_total} pass — {"READY" if golive_ready else "NOT READY"} |
 | Agents | {agent_icon} {agent_status} ({agent_ok}/{agent_total} healthy) |
-| Portfolio | ${eq_end:,.2f} ({eq_ret:+.2f}% over {eq_days}d) |
-| Track started | 2026-06-10 (real, non-demo) |
-| Go-live target | 2026-07-09 (30 honest track days) |
+| Portfolio | ${eq_end:,.2f} ({eq_ret:+.2f}% over {eq_days}d evidenced) |
+| Track days (evidenced) | {eq_days}/30 (anchor {track_anchor}) |
+| Go-live target | {golive_target} (30 honest track days) |
 | Sprint | see KANBAN section |
 
 """

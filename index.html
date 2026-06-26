@@ -6911,7 +6911,7 @@ async function loadDashboard() {
   if (spinner) spinner.style.display = 'inline-block';
   try {
     const ts = Date.now();
-    const [orch, posData, meta, alertsData, tradesData, paperStatus, equityCurve] = await Promise.all([
+    const [orch, posData, meta, alertsData, tradesData, paperStatus, equityCurve, goliveStatus] = await Promise.all([
       // MP-007: живые источники вместо демо status.json/protocols.json/strategy_state.json
       fetch(BASE + '/adapter_orchestrator_status.json?_=' + ts).then(r => r.ok ? r.json() : null).catch(() => null),
       fetch(BASE + '/current_positions.json?_=' + ts).then(r => r.ok ? r.json() : null).catch(() => null),
@@ -6920,6 +6920,8 @@ async function loadDashboard() {
       fetch(BASE + '/trades.json?_=' + ts).then(r => r.ok ? r.json() : []).catch(() => []),
       fetch(BASE + '/paper_trading_status.json?cb=' + ts).then(r => r.ok ? r.json() : null).catch(() => null),
       fetch(BASE + '/equity_curve_daily.json?cb=' + ts).then(r => r.ok ? r.json() : null).catch(() => null),
+      // Canonical EVIDENCED track-days source (golive_checker.real_track_days).
+      fetch(BASE + '/golive_status.json?cb=' + ts).then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
     _loadedOnce = true;
     // P0-1: refresh canonical date vars from meta.json (single source of truth)
@@ -6950,17 +6952,34 @@ async function loadDashboard() {
         const _apy = (paperStatus.apy_today_pct != null) ? paperStatus.apy_today_pct
                      : (paperStatus.current_apy_pct != null ? paperStatus.current_apy_pct : paperStatus.apy);
         if (_apy != null) { _heroEl('hero-apy').textContent = Number(_apy).toFixed(2) + '%'; _heroDone(_heroEl('hero-apy')); }
-        if (_heroEl('hero-golive')) _heroEl('hero-golive').textContent = META_GOLIVE || '2026-07-09';
+        if (_heroEl('hero-golive')) {
+          // Go-live target: prefer the canonical target_date from golive_status
+          // time-gated criteria; fall back to META_GOLIVE (meta.json), then '—'.
+          let _gltgt = META_GOLIVE;
+          if (goliveStatus && Array.isArray(goliveStatus.criteria)) {
+            const _c = goliveStatus.criteria.find(c => c && c.target_date &&
+              (c.name === 'min_track_days_30' || c.name === 'gap_monitor_30d'));
+            if (_c) _gltgt = _c.target_date;
+          }
+          _heroEl('hero-golive').textContent = _gltgt || '—';
+        }
         const _st = paperStatus.last_cycle_status || paperStatus.go_live_status || (paperStatus.is_demo === false ? 'live' : null);
         if (_heroEl('hero-status') && _st) _heroEl('hero-status').textContent = _st;
       }
-      // hero-track-days: HONEST track days. Prefer status.days_running (anchored to
-      // PAPER_REAL_START); fall back to counting only real (non-warmup) bars since
-      // REAL_TRACK_START — NOT the raw array length (it includes warmup/demo bars,
-      // and is_demo is a top-level flag, never per-point, so the old filter was a no-op).
+      // hero-track-days: HONEST EVIDENCED track days. Canonical source =
+      // golive_status.real_track_days (golive_checker's evidenced count — only days
+      // with a real daily_cycle log, NOT the padded calendar days_running). Falls
+      // back to counting evidenced bars, then to days_running only if golive_status
+      // is unavailable, then to the raw non-warmup bar count.
       if (_heroEl('hero-track-days')) {
         const _ec = equityCurve && (equityCurve.daily || equityCurve.curve || equityCurve);
-        let _n = Number(paperStatus && paperStatus.days_running) || 0;
+        let _n = (goliveStatus && goliveStatus.real_track_days != null)
+                 ? Number(goliveStatus.real_track_days) : null;
+        if (_n == null && Array.isArray(_ec)) {
+          const _evi = _ec.filter(p => p && p.evidenced === true);
+          if (_evi.length) _n = _evi.length;
+        }
+        if (_n == null) _n = Number(paperStatus && paperStatus.days_running) || 0;
         if (!_n && Array.isArray(_ec)) {
           _n = _ec.filter(p => !p.is_warmup &&
                 (!window.REAL_TRACK_START || String(p.date || '') >= window.REAL_TRACK_START)).length;

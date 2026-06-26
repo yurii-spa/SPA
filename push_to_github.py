@@ -19,6 +19,7 @@ import os
 import sys
 import json
 import base64
+import hashlib
 import argparse
 import subprocess
 import time
@@ -78,6 +79,18 @@ def get_pat() -> str:
     )
 
 
+def git_blob_sha(content: bytes) -> str:
+    """Вычисляет git blob SHA-1 для байтов файла.
+
+    Это в точности тот же хеш, что GitHub возвращает в поле ``sha`` Contents API
+    (git хеширует blob как ``"blob <len>\\0" + content``). Детерминированно,
+    stdlib-only. Позволяет сравнить локальное содержимое с тем, что уже лежит
+    на remote, БЕЗ скачивания файла — и пропустить пуш, если они идентичны.
+    """
+    header = f"blob {len(content)}\0".encode()
+    return hashlib.sha1(header + content).hexdigest()
+
+
 def get_file_sha(pat: str, repo: str, repo_path: str, branch: str = "main") -> Optional[str]:
     """Возвращает SHA файла на GitHub (на указанной ветке)."""
     import urllib.request
@@ -114,13 +127,26 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
     except ValueError:
         repo_path = local.name
 
+    local_bytes = local.read_bytes()
+    local_blob_sha = git_blob_sha(local_bytes)
+
     if dry_run:
         sha = get_file_sha(pat, repo, repo_path, branch)
+        if sha is not None and sha == local_blob_sha:
+            return {"ok": True, "dry_run": True, "path": repo_path, "action": "skip"}
         action = "update" if sha else "create"
         return {"ok": True, "dry_run": True, "path": repo_path, "action": action}
 
-    content_b64 = base64.b64encode(local.read_bytes()).decode()
+    content_b64 = base64.b64encode(local_bytes).decode()
     sha = get_file_sha(pat, repo, repo_path, branch)
+
+    # Idempotency guard (fail-CLOSED): пропускаем PUT, только если remote SHA
+    # ТОЧНО совпадает с локальным git-blob-SHA. Любая неопределённость
+    # (sha=None из-за сетевой ошибки/нового файла) → пушим как обычно, чтобы
+    # реальные изменения никогда не потерялись. Идентичный контент → no-op PUT
+    # создаёт пустой коммит в Contents API — именно его мы и устраняем.
+    if sha is not None and sha == local_blob_sha:
+        return {"ok": True, "skipped": True, "path": repo_path, "sha": sha[:8]}
 
     payload: dict = {
         "message": message,
@@ -209,6 +235,8 @@ def main():
         if r.get("ok"):
             if r.get("dry_run"):
                 print(f"  {r['path']} → {r['action']}")
+            elif r.get("skipped"):
+                print(f"  SKIP {r['path']} (unchanged, sha: {r.get('sha', '?')})")
             else:
                 print(f"  OK {r['path']} (sha: {r.get('sha', '?')})")
         else:
@@ -216,11 +244,13 @@ def main():
         time.sleep(0.3)  # avoid rate limit
 
     failed = [r for r in results if not r.get("ok")]
+    skipped = [r for r in results if r.get("ok") and r.get("skipped")]
+    pushed = [r for r in results if r.get("ok") and not r.get("skipped") and not r.get("dry_run")]
     if failed:
         print(f"\nFAIL: {len(failed)}/{len(results)}")
         sys.exit(1)
     else:
-        print(f"\nOK: {len(results)} файл(ов)")
+        print(f"\nOK: {len(results)} файл(ов) (pushed={len(pushed)}, skipped={len(skipped)})")
         sys.exit(0)
 
 

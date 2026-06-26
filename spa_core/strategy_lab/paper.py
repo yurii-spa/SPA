@@ -194,14 +194,19 @@ class PaperService:
                 self._last_tick[sid] = None
 
     def _persist_state(self, sid: str, strat: Strategy, last_tick_date: str) -> None:
-        doc = {
-            "meta": {
-                "id": sid,
-                "last_tick_date": last_tick_date,
-                "saved_at": _utc_now_iso(),
-            },
-            "state": _dump_strategy_state(strat),
+        # Preserve any existing `pretick` snapshot for this day: _persist_pretick() writes it
+        # BEFORE we advance, and the same-day idempotent re-tick replays from it. Rebuilding the
+        # doc from scratch here (the prior bug) silently dropped `pretick`, leaving the documented
+        # replay path dead — re-ticks fell through to the bare skip branch instead of replaying.
+        doc = atomic_load(str(self._state_path(sid)), default={})
+        if not isinstance(doc, dict):
+            doc = {}
+        doc["meta"] = {
+            "id": sid,
+            "last_tick_date": last_tick_date,
+            "saved_at": _utc_now_iso(),
         }
+        doc["state"] = _dump_strategy_state(strat)
         atomic_save(doc, str(self._state_path(sid)))
         self._last_tick[sid] = last_tick_date
 

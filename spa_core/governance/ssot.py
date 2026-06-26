@@ -186,10 +186,20 @@ def key_facts(data_dir: str | os.PathLike | None = None) -> dict[str, Any]:
     if not isinstance(nav, dict):
         nav = {}
 
+    # CANONICAL track-days = EVIDENCED count from golive_checker
+    # (golive_status.real_track_days), NOT paper_trading_status.days_running (the
+    # padded raw-bar count). This is the single honest number the presentation
+    # layer mirrors. Fail-CLOSED: only fall back to days_running when golive_status
+    # has no real_track_days at all.
+    _real_track_days = golive.get("real_track_days")
+    if _real_track_days is None:
+        _real_track_days = track.get("days_running")
+
     return {
         "ssot_version": SSOT_VERSION,
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "track_days": track.get("days_running"),
+        "track_days": _real_track_days,
+        "real_track_days": _real_track_days,
         "paper_start_date": track.get("paper_start_date"),
         "current_equity": track.get("current_equity"),
         "total_return_pct": track.get("total_return_pct"),
