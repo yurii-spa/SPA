@@ -12,6 +12,11 @@
     ADVISORY / RESEARCH ONLY: never lends, never trades, never touches the go-live track.
     Schedule: daily 05:50 local (after com.spa.refusal 05:45, before the 08:00 UTC daily_cycle) + RunAtLoad.
     Writes:  data/rwa_safety_board.json (atomic write)
+             data/rwa_nav_curve.json   (measured-NAV forward record, one point/UTC day)
+             data/rwa_floor_curve.json (risk-free-FLOOR forward record from the LIVE
+                                        tokenized-T-bill feed, one point/UTC day) — the
+                                        forward audit trail of the rate the RWAFloor benchmark
+                                        + rwa_sleeve accrue at. Idempotent, fail-CLOSED, atomic.
     Exit:    0 = success, non-0 = internal error.
     CLI:     python3 -m spa_core.strategy_lab.rwa_backstop.safety_board
     Install:

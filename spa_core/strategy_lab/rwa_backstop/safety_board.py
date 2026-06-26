@@ -392,6 +392,22 @@ def main() -> int:
             print("Forward point SKIPPED (no usable measurement — fail-closed)")
     except Exception as exc:  # noqa: BLE001 — forward record must never break the safety board
         print(f"Forward-record append failed (board still written): {exc}")
+
+    # FLOOR FORWARD RECORD: the SAME daily agent also accrues ONE risk-free-FLOOR point per UTC
+    # day (data/rwa_floor_curve.json) from the LIVE tokenized-T-bill feed, so the GO-thesis
+    # benchmark rate (what the RWAFloor baseline + rwa_sleeve accrue at) has an evidenced forward
+    # series instead of a single overwritten snapshot. Idempotent per day, fail-CLOSED, atomic.
+    try:
+        from spa_core.strategy_lab.data import rwa_floor_curve
+        fdoc = rwa_floor_curve.record_forward_point()
+        if fdoc is not None:
+            print(f"Appended floor point {fdoc['latest']['date']} "
+                  f"(n_points={fdoc['n_points']}, floor={fdoc['latest']['floor_apy_pct']:.4f}%) "
+                  f"→ {rwa_floor_curve.DEFAULT_CURVE_PATH}")
+        else:
+            print("Floor point SKIPPED (live feed unavailable — fail-closed)")
+    except Exception as exc:  # noqa: BLE001 — floor record must never break the safety board
+        print(f"Floor-record append failed (board still written): {exc}")
     return 0
 
 

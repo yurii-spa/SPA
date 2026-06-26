@@ -1,8 +1,10 @@
 """
 spa_core/strategy_lab/paper.py — the LIVE paper-trading service for the Strategy Lab.
 
-ONE service paper-trades ALL strategies (variant_n, variant_d, engine_a/b/c, rwa_floor) on
-LIVE market data, persists a growing per-strategy time-series, and SURVIVES RESTART. The prior
+ONE service paper-trades ALL strategies (variant_n, variant_d, engine_a/b/c, rwa_floor,
+rwa_sleeve) on LIVE market data, persists a growing per-strategy time-series, and SURVIVES
+RESTART. rwa_sleeve is the REAL allocatable T1 cash floor — it accrues a forward record at the
+SAME live tokenized-T-bill rate the RWAFloor benchmark + the rwa_floor_curve use. The prior
 launchd/background-script reset bug (state zeroed on every relaunch) is the thing this file
 exists to NOT repeat: on init we RELOAD each strategy's persisted state from disk and restore
 it into a freshly-built strategy object, rather than re-initialising to fresh capital.
@@ -34,6 +36,7 @@ from spa_core.strategy_lab import config as lab_config
 from spa_core.strategy_lab.base import InvalidDataError, Strategy
 from spa_core.strategy_lab.data.market_data import MarketData
 from spa_core.strategy_lab.strategies.baselines import build_baselines
+from spa_core.strategy_lab.strategies.rwa_sleeve import RwaSleeve
 from spa_core.strategy_lab.strategies.variant_d import VariantD
 from spa_core.strategy_lab.strategies.variant_n import VariantN
 from spa_core.utils.atomic import atomic_load, atomic_save
@@ -156,6 +159,15 @@ class PaperService:
         # engine_a/b/c + rwa_floor at their configured per-sleeve capital.
         for sid, strat in build_baselines(self._cfg).items():
             out[sid] = strat
+
+        # rwa_sleeve: the REAL allocatable T1 cash floor (holds tokenized T-bills, accrues at the
+        # SAME live rwa_feed rate the RWAFloor benchmark + the floor curve use). Building it here
+        # gives the realized floor a forward paper record like every other sleeve (advisory,
+        # disconnect (c) fix). Its capital comes from its own config block.
+        rwa_block = strategies_cfg["rwa_sleeve"]
+        rs = RwaSleeve()
+        rs.init(float(rwa_block["capital_usd"]), dict(rwa_block))
+        out[rs.id] = rs
         return out
 
     # ── persistence paths ─────────────────────────────────────────────────────────────────
@@ -268,12 +280,18 @@ class PaperService:
     # ── telegram (canonical flood-guarded client) ─────────────────────────────────────────
     @staticmethod
     def _default_telegram_send(text: str) -> bool:
+        # RETIRED as a Telegram push (Phase-1 Telegram rebuild). Strategy-lab
+        # paper updates are informational → digest queue, never pushed. Returns
+        # False. Never raises.
         try:
-            from spa_core.alerts.telegram_client import send_message
-            return send_message(text)
+            from spa_core.telegram import push_policy
+            push_policy.enqueue_digest(
+                "strategy_lab", "Strategy Lab paper", text,
+                reason="strategy_lab_paper_retired_push",
+            )
         except Exception as exc:  # noqa: BLE001 — alerts must never crash the service
-            log.warning("telegram send failed: %s", exc)
-            return False
+            log.warning("strategy_lab paper: digest route failed: %s", exc)
+        return False
 
     # ── live market-data refresh (once per UTC day) ───────────────────────────────────────
     def _refresh_market_data_if_due(self, utc_day: str) -> None:
