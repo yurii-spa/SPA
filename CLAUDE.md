@@ -398,6 +398,15 @@ python3 push_to_github.py --files /abs/path/file.py --message "vX.XX: desc"
 8. **Sky/sUSDS = 0%** до подтверждённого GSM Pause Delay ≥ 48h on-chain.
 9. **Атомарный KANBAN** — перечитывать с диска перед записью (конкурентный процесс).
 10. **IS_ADVISORY=True** для всех новых стратегий T2/T3 до go-live.
+11. **Деплой агента ТОЛЬКО через gate** — перед `launchctl load`/`bootstrap` любого нового/изменённого
+    plist ВСЕГДА запускать `scripts/check_agent_before_deploy.sh <name>` (запуск вручную → exit 0 → лог
+    создан → только потом load). Деплоить **≤3 агентов за раз** (батчами). Все агенты запускаются через
+    **bash-wrapper** (`scripts/agent_template.sh` / `scripts/agent_<name>.sh`), **НИКОГДА** прямой
+    `python3 -m` (или прямой miniconda-python) в `ProgramArguments` — launchd не может exec'нуть
+    miniconda-python напрямую → **exit 78 EX_CONFIG** (программа даже не стартует, лог не пишется).
+    **И:** `StandardOutPath`/`StandardErrorPath` агента должны указывать в **`/tmp/`**, НЕ в
+    `~/Documents/SPA_Claude/logs/` — launchd-процессу TCC блокирует запись под `~/Documents` (Full Disk
+    Access не выдан) → тоже **exit 78**. Wrapper сам пишет timestamped-лог в `/tmp/spa_<name>.log`.
 
 ---
 

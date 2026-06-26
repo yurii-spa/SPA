@@ -4,11 +4,12 @@
 <dict>
     <key>Label</key>
     <string>com.spa.self_heal</string>
+    <!-- launchd CANNOT exec miniconda-python directly (exit 78 EX_CONFIG);
+         runs via bash wrapper (scripts/agent_self_heal.sh -> agent_template.sh). -->
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
-        <string>-m</string>
-        <string>spa_core.monitoring.self_heal</string>
+        <string>/bin/bash</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_self_heal.sh</string>
     </array>
     <key>WorkingDirectory</key>
     <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
@@ -17,9 +18,9 @@
     <key>RunAtLoad</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/self_heal.log</string>
+    <string>/tmp/spa_self_heal.launchd.out</string>
     <key>StandardErrorPath</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/self_heal.err</string>
+    <string>/tmp/spa_self_heal.launchd.err</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>

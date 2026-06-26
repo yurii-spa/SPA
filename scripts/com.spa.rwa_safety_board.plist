@@ -28,11 +28,12 @@
     <key>Label</key>
     <string>com.spa.rwa_safety_board</string>
 
+    <!-- launchd CANNOT exec miniconda-python directly (exit 78 EX_CONFIG);
+         runs via bash wrapper (scripts/agent_rwa_safety_board.sh -> agent_template.sh). -->
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
-        <string>-m</string>
-        <string>spa_core.strategy_lab.rwa_backstop.safety_board</string>
+        <string>/bin/bash</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_rwa_safety_board.sh</string>
     </array>
 
     <key>WorkingDirectory</key>
@@ -54,8 +55,8 @@
     <integer>300</integer>
 
     <key>StandardOutPath</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/rwa_safety_board.log</string>
+    <string>/tmp/spa_rwa_safety_board.launchd.out</string>
     <key>StandardErrorPath</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/rwa_safety_board.err</string>
+    <string>/tmp/spa_rwa_safety_board.launchd.err</string>
 </dict>
 </plist>

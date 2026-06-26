@@ -3,16 +3,18 @@
 <plist version="1.0">
 <dict>
     <key>Label</key><string>com.spa.threat_reactor</string>
+    <!-- launchd CANNOT exec miniconda-python directly (exit 78 EX_CONFIG);
+         runs via bash wrapper (scripts/agent_threat_reactor.sh -> agent_template.sh). -->
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
-        <string>-m</string><string>spa_core.monitoring.threat_reactor</string>
+        <string>/bin/bash</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_threat_reactor.sh</string>
     </array>
     <key>WorkingDirectory</key><string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
     <key>StartInterval</key><integer>300</integer>
     <key>RunAtLoad</key><true/>
-    <key>StandardOutPath</key><string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/threat_reactor.log</string>
-    <key>StandardErrorPath</key><string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/threat_reactor.err</string>
+    <key>StandardOutPath</key><string>/tmp/spa_threat_reactor.launchd.out</string>
+    <key>StandardErrorPath</key><string>/tmp/spa_threat_reactor.launchd.err</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key><string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>

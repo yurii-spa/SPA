@@ -25,11 +25,12 @@
     <key>Label</key>
     <string>com.spa.rates_desk_paper</string>
 
+    <!-- launchd CANNOT exec miniconda-python directly (exit 78 EX_CONFIG);
+         runs via bash wrapper (scripts/agent_rates_desk_paper.sh -> agent_template.sh). -->
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
-        <string>-m</string>
-        <string>spa_core.strategy_lab.rates_desk.paper_rates</string>
+        <string>/bin/bash</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_rates_desk_paper.sh</string>
     </array>
 
     <key>WorkingDirectory</key>
@@ -46,9 +47,9 @@
     <integer>300</integer>
 
     <key>StandardOutPath</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/rates_desk_paper.log</string>
+    <string>/tmp/spa_rates_desk_paper.launchd.out</string>
     <key>StandardErrorPath</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/rates_desk_paper.err</string>
+    <string>/tmp/spa_rates_desk_paper.launchd.err</string>
 
     <key>EnvironmentVariables</key>
     <dict>

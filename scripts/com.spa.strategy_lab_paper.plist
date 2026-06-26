@@ -4,10 +4,12 @@
 <dict>
     <key>Label</key>
     <string>com.spa.strategy_lab_paper</string>
+    <!-- launchd CANNOT exec miniconda-python directly (exit 78 EX_CONFIG);
+         runs via bash wrapper (scripts/agent_strategy_lab_paper.sh -> agent_template.sh). -->
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
-        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/strategy_lab_paper.py</string>
+        <string>/bin/bash</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_strategy_lab_paper.sh</string>
     </array>
     <key>WorkingDirectory</key>
     <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
@@ -16,9 +18,9 @@
     <key>RunAtLoad</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/strategy_lab_paper.log</string>
+    <string>/tmp/spa_strategy_lab_paper.launchd.out</string>
     <key>StandardErrorPath</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/strategy_lab_paper.err</string>
+    <string>/tmp/spa_strategy_lab_paper.launchd.err</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
