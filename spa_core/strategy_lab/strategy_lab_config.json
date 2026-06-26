@@ -13,7 +13,7 @@
     "slippage_bps": 5.0,
     "rebalance_bps": 2.0,
     "funding_settles_per_day": 3,
-    "rwa_floor_apy_pct": 4.5
+    "rwa_floor_apy_pct": 3.4
   },
   "promotion": {
     "_doc": "Thresholds for promotion.py \u2014 the deterministic decision layer that scores each lab sleeve and assigns a pipeline STAGE (REJECT / BACKTEST_PASS / PAPER_CANDIDATE) along RESEARCH\u2192BACKTEST\u2192WALK-FORWARD\u2192PAPER\u2192CANARY\u2192FULL. Fail-CLOSED: any missing criterion fails. NEVER hardcode these in code. RiskPolicy is the gate; LLM FORBIDDEN.",
@@ -121,7 +121,7 @@
       "mandate": "stable",
       "is_advisory": true,
       "capital_usd": 100000,
-      "apy_pct": 4.5
+      "apy_pct": 3.4
     },
     "rwa_sleeve": {
       "name": "RWA Sleeve \u2014 tokenized T-bill cash floor (T1)",

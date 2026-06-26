@@ -108,18 +108,32 @@ def sharpe(daily_returns: Sequence[float], rf_daily: float = 0.0) -> Optional[fl
     return round(annualize_sharpe(sharpe_per_period(rets, rf_daily)), 4)
 
 
-def sortino(daily_returns: Sequence[float], rf_daily: float = 0.0) -> float:
-    """Annualized Sortino: excess mean / downside deviation (only sub-rf returns penalized)."""
+def sortino(daily_returns: Sequence[float], rf_daily: float = 0.0) -> Optional[float]:
+    """Annualized Sortino: excess mean / downside deviation (only sub-rf returns penalized).
+
+    Returns ``None`` — NOT 0.0 — for a book with no real downside dispersion (a fixed-APY
+    accrual or a hedged/floor book whose returns never dip meaningfully below rf). This MIRRORS
+    the sharpe() honesty guard: a zero/near-zero downside-deviation Sortino is mathematically
+    UNDEFINED (excess / 0). Reporting it as 0.0 reads to a user as a BAD risk-adjusted score
+    when the truth is the opposite — the book simply had no downside to penalize, which is
+    excellent. A genuinely low-but-NONZERO downside still gets a finite, honest Sortino. The
+    relative floor (downside deviation < ~1ppm of |mean|) catches a fixed-rate accrual whose
+    only "downside" is float64 rounding noise, exactly as sharpe() does for total variance.
+    """
     rets = _clean(daily_returns)
     if len(rets) < 2:
-        return 0.0
+        return None
     mean = sum(rets) / len(rets)
     downside = [(r - rf_daily) ** 2 for r in rets if r < rf_daily]
     if not downside:
-        return 0.0
+        # No sub-rf return at all → downside deviation is undefined, not zero.
+        return None
     dd = math.sqrt(sum(downside) / len(rets))
-    if dd == 0:
-        return 0.0
+    # Undefined when there is no REAL downside dispersion. Absolute floor catches an exactly-flat
+    # book; the relative test fires when dd is smaller than ~1ppm of |mean| (float-noise-only),
+    # mirroring sharpe(). A genuinely low-vol-yet-noisy book keeps an honest finite Sortino.
+    if dd <= 1e-15 or (mean != 0.0 and dd < abs(mean) * 1e-6):
+        return None
     return round(((mean - rf_daily) / dd) * math.sqrt(DAYS_PER_YEAR), 4)
 
 

@@ -153,23 +153,49 @@ class TestPushFileIdempotency(unittest.TestCase):
 
 
 class TestCopiesInSync(unittest.TestCase):
-    """Both push_to_github.py copies (root + scripts/) must stay byte-identical."""
+    """scripts/push_to_github.py is now a THIN SHIM over the canonical root copy.
 
-    def test_root_and_scripts_identical(self):
-        root = (_ROOT / "push_to_github.py").read_bytes()
-        scripts = (_ROOT / "scripts" / "push_to_github.py").read_bytes()
-        self.assertEqual(
-            root, scripts,
-            "push_to_github.py root and scripts/ copies have drifted — "
-            "the idempotency fix must live in BOTH.",
-        )
+    Formerly the two files had to be byte-identical (and drifted). The shim
+    removes that hazard: there is ONE implementation (root) and the scripts/
+    copy re-exports it. These tests assert the delegation instead of byte-equality.
+    """
 
-    def test_both_have_git_blob_sha(self):
-        for rel in ("push_to_github.py", "scripts/push_to_github.py"):
-            txt = (_ROOT / rel).read_text()
-            self.assertIn("def git_blob_sha", txt, f"{rel} missing git_blob_sha")
-            self.assertIn("git_blob_sha(local_bytes)", txt,
-                          f"{rel} missing idempotency skip guard")
+    def _load_shim(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "_shim_idemp", _ROOT / "scripts" / "push_to_github.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_scripts_copy_is_a_shim_not_a_duplicate(self):
+        shim = (_ROOT / "scripts" / "push_to_github.py").read_text()
+        root = (_ROOT / "push_to_github.py").read_text()
+        self.assertLess(len(shim), len(root) // 2,
+                        "scripts/ copy is a full duplicate, not a shim")
+        # The idempotency implementation must NOT be re-copied into the shim.
+        self.assertNotIn("def git_blob_sha", shim,
+                         "shim re-implements git_blob_sha — drift hazard returns")
+
+    def test_shim_reexports_idempotency_logic_from_root(self):
+        shim = self._load_shim()
+        # The idempotency guard is the root's git_blob_sha; shim must expose it
+        # and produce identical output (same code object).
+        self.assertTrue(hasattr(shim, "git_blob_sha"))
+        self.assertTrue(hasattr(shim, "push_file"))
+        self.assertTrue(callable(shim.push_file))
+        # Same pure output proves the shim runs the root implementation, not a
+        # private copy. (Identity differs: the shim loads root under a distinct
+        # module name to avoid self-import, but it's the same source file.)
+        self.assertEqual(shim.git_blob_sha(b"x\n"), ptg.git_blob_sha(b"x\n"))
+        self.assertEqual(shim.push_file.__code__.co_filename,
+                         str(_ROOT / "push_to_github.py"))
+
+    def test_root_still_has_git_blob_sha_skip_guard(self):
+        txt = (_ROOT / "push_to_github.py").read_text()
+        self.assertIn("def git_blob_sha", txt)
+        self.assertIn("git_blob_sha(local_bytes)", txt,
+                      "root copy missing idempotency skip guard")
 
 
 if __name__ == "__main__":

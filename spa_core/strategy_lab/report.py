@@ -86,8 +86,32 @@ def comparative_report(result: dict) -> str:
         f"- **Window:** `{manifest.get('window_start')}` → `{manifest.get('window_end')}` "
         f"({manifest.get('n_snapshots')} snapshots)"
     )
+    # — window honesty (artifact c): realized vs configured + a LOUD truncation flag —
+    wc = manifest.get("window_configured") or {}
+    wr = manifest.get("window_realized") or {}
+    if wc or wr:
+        lines.append(
+            f"- **Configured window:** `{wc.get('start')}` → `{wc.get('end')}`  ·  "
+            f"**Realized window:** `{wr.get('start')}` → `{wr.get('end')}`"
+        )
+    if manifest.get("window_truncated"):
+        lines.append(
+            "- ⚠️ **WINDOW TRUNCATED:** the realized data span is shorter than the configured "
+            "window (funding-feed depth limited it) — results reflect the realized span, NOT the "
+            "headline window."
+        )
     lines.append(f"- **Initial capital (ALL strategies):** ${manifest.get('initial_capital'):,.0f}")
-    lines.append(f"- **RWA floor:** {floor:.2f}% APY (the row every strategy must beat)")
+    # — RWA floor source honesty (artifact b): never present a fallback floor as if it were live —
+    floor_pct = float(manifest.get("rwa_floor_pct", floor))
+    source = str(manifest.get("rwa_floor_source", "fallback"))
+    if source == "live":
+        source_label = "live tokenized-T-bill feed"
+    else:
+        source_label = "⚠️ fallback (committed literal — live feed unavailable, NOT a live rate)"
+    lines.append(
+        f"- **RWA floor:** {floor_pct:.2f}% APY (the row every strategy must beat) "
+        f"— source: {source_label}"
+    )
     lines.append(f"- **Seed:** {manifest.get('seed')}  ·  **Generated:** {manifest.get('generated_at')}")
     if manifest.get("injected_snapshots"):
         lines.append("- **Data:** injected synthetic snapshots (deterministic test path)")

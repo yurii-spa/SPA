@@ -281,3 +281,99 @@ def test_report_calm_window_warning_section():
     result = BT.run_backtest(config=cfg, snapshots=snaps)
     md = RPT.comparative_report(result)
     assert "WINDOW WARNINGS" in md
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# honesty artifact (b): rwa_floor_source flag in the manifest + report
+# ──────────────────────────────────────────────────────────────────────────────
+def test_manifest_carries_rwa_floor_source_fallback(monkeypatch):
+    import spa_core.strategy_lab.config as LC
+    monkeypatch.setattr(LC, "_USE_LIVE_RWA_FLOOR", False)
+    cfg = _config()
+    snaps, _ = _stress_snapshots()
+    result = BT.run_backtest(config=cfg, snapshots=snaps)
+    man = result["manifest"]
+    assert man["rwa_floor_source"] == "fallback"
+    # fallback uses the committed literal from the config block (4.5 in the self-contained test cfg)
+    assert man["rwa_floor_pct"] == pytest.approx(cfg["global"]["rwa_floor_apy_pct"])
+
+
+def test_manifest_carries_rwa_floor_source_live(monkeypatch):
+    import spa_core.strategy_lab.config as LC
+    import spa_core.strategy_lab.data.rwa_feed as RF
+    monkeypatch.setattr(LC, "_USE_LIVE_RWA_FLOOR", True)
+    # Inject a live feed value so the source is unambiguously "live".
+    monkeypatch.setattr(RF, "current_rwa_floor_pct", lambda *a, **k: 3.375)
+    cfg = _config()
+    snaps, _ = _stress_snapshots()
+    result = BT.run_backtest(config=cfg, snapshots=snaps)
+    man = result["manifest"]
+    assert man["rwa_floor_source"] == "live"
+    assert man["rwa_floor_pct"] == pytest.approx(3.375)
+
+
+def test_report_labels_fallback_floor_not_as_live(monkeypatch):
+    import spa_core.strategy_lab.config as LC
+    monkeypatch.setattr(LC, "_USE_LIVE_RWA_FLOOR", False)
+    cfg = _config()
+    snaps, _ = _stress_snapshots()
+    result = BT.run_backtest(config=cfg, snapshots=snaps)
+    md = RPT.comparative_report(result)
+    assert "fallback" in md.lower()
+    assert "NOT a live rate" in md
+
+
+def test_report_labels_live_floor(monkeypatch):
+    import spa_core.strategy_lab.config as LC
+    import spa_core.strategy_lab.data.rwa_feed as RF
+    monkeypatch.setattr(LC, "_USE_LIVE_RWA_FLOOR", True)
+    monkeypatch.setattr(RF, "current_rwa_floor_pct", lambda *a, **k: 3.375)
+    cfg = _config()
+    snaps, _ = _stress_snapshots()
+    result = BT.run_backtest(config=cfg, snapshots=snaps)
+    md = RPT.comparative_report(result)
+    assert "live tokenized-T-bill feed" in md
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# honesty artifact (c): realized vs configured window + truncation flag
+# ──────────────────────────────────────────────────────────────────────────────
+def test_manifest_window_realized_and_not_truncated():
+    """Injected snapshots span the full configured window → realized==configured, not truncated."""
+    cfg = _config()
+    snaps, _ = _stress_snapshots()
+    # Configure the window to exactly the injected snapshot span so it is NOT truncated.
+    cfg["global"]["window_start"] = snaps[0].date
+    cfg["global"]["window_end"] = snaps[-1].date
+    result = BT.run_backtest(config=cfg, snapshots=snaps)
+    man = result["manifest"]
+    assert man["window_realized"]["start"] == snaps[0].date
+    assert man["window_realized"]["end"] == snaps[-1].date
+    assert man["window_configured"]["start"] == snaps[0].date
+    assert man["window_configured"]["end"] == snaps[-1].date
+    assert man["window_truncated"] is False
+
+
+def test_manifest_window_truncated_when_data_short():
+    """Configured headline window is ~2yr but the injected data is a short span → truncated flag."""
+    cfg = _config()
+    snaps, _ = _stress_snapshots()
+    cfg["global"]["window_start"] = "2024-06-05"   # headline ~2yr window
+    cfg["global"]["window_end"] = "2026-06-24"
+    result = BT.run_backtest(config=cfg, snapshots=snaps)
+    man = result["manifest"]
+    assert man["window_truncated"] is True
+    # realized span reflects the actual data, NOT the headline window
+    assert man["window_realized"]["start"] == snaps[0].date
+    assert man["window_realized"]["end"] == snaps[-1].date
+    assert man["window_configured"]["start"] == "2024-06-05"
+
+
+def test_report_shows_window_truncation_warning():
+    cfg = _config()
+    snaps, _ = _stress_snapshots()
+    cfg["global"]["window_start"] = "2024-06-05"
+    cfg["global"]["window_end"] = "2026-06-24"
+    result = BT.run_backtest(config=cfg, snapshots=snaps)
+    md = RPT.comparative_report(result)
+    assert "WINDOW TRUNCATED" in md

@@ -67,11 +67,30 @@ def test_sharpe_real_jitter_still_finite():
 
 
 def test_sortino_penalizes_only_downside():
-    # All non-negative returns vs rf=0 → no downside → 0.0 by our convention.
-    assert M.sortino([0.001, 0.002, 0.0, 0.001]) == 0.0
-    # With a negative return, downside deviation is finite and Sortino is computed.
+    # HONESTY GUARD (mirrors sharpe): no sub-rf return → downside deviation is UNDEFINED, so
+    # Sortino is None — NOT 0.0 (0.0 reads as a BAD score when the book simply had no downside).
+    assert M.sortino([0.001, 0.002, 0.0, 0.001]) is None
+    # With a negative return, downside deviation is finite and Sortino is a finite number.
     s = M.sortino([0.002, -0.001, 0.002, -0.001])
-    assert s != 0.0
+    assert s is not None and s != 0.0
+
+
+def test_sortino_zero_downside_is_none_not_zero():
+    """A floor/hedged book with no real downside → Sortino None (excellent/undefined), not 0.0."""
+    # A fixed-APY accrual: every return positive, only float-noise → no sub-rf dispersion.
+    apy, eq, rets = 8.33, 100000.0, []
+    for _ in range(750):
+        gain = eq * (apy / 100.0) / 365.0
+        rets.append(gain / eq)
+        eq += gain
+    assert M.sortino(rets) is None
+
+
+def test_sortino_finite_for_real_downside_unchanged():
+    """A genuinely low-but-nonzero downside still gets a finite, honest Sortino (not nulled)."""
+    rets = [0.002, -0.0005, 0.002, -0.0008, 0.0015, -0.0006, 0.002]
+    s = M.sortino(rets)
+    assert s is not None and 0.0 < abs(s) < 1e6
 
 
 def test_volatility_zero_for_constant():

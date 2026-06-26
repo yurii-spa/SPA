@@ -273,13 +273,14 @@ def test_config_falls_back_to_literal_when_feed_unavailable(monkeypatch):
     def boom(*a, **k):
         raise InvalidDataError("feed down")
     monkeypatch.setattr(RWA, "current_rwa_floor_pct", boom)
-    # feed raises → conservative committed literal (4.5), backtest never crashes
-    assert cfg.rwa_floor_apy_pct() == pytest.approx(4.5)
+    # feed raises → conservative committed literal (now 3.4, lowered toward the real floor so even
+    # the fallback is not a 4.5% overstatement), backtest never crashes
+    assert cfg.rwa_floor_apy_pct() == pytest.approx(3.4)
 
 
 def test_config_live_false_pins_literal():
-    # explicit live=False bypasses the feed entirely → committed literal
-    assert cfg.rwa_floor_apy_pct(live=False) == pytest.approx(4.5)
+    # explicit live=False bypasses the feed entirely → committed literal (3.4)
+    assert cfg.rwa_floor_apy_pct(live=False) == pytest.approx(3.4)
 
 
 def test_baseline_and_metrics_pick_up_live_floor(monkeypatch):

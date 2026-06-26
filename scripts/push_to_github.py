@@ -1,271 +1,60 @@
 #!/usr/bin/env python3
 """
-push_to_github.py — универсальный пуш файлов в GitHub через Contents API.
-Читает PAT из переменной окружения GITHUB_PAT, файла ~/.spa_pat
-или macOS Keychain (сервис GITHUB_PAT_SPA).
-НЕ содержит hardcoded secrets.
+scripts/push_to_github.py — THIN SHIM (no implementation lives here).
 
-Использование:
-  # Positional files (новый стиль):
-  python3 scripts/push_to_github.py --repo yurii-spa/SPA --pat "$PAT" file1.py file2.py
+The single canonical implementation is the ROOT copy:
+``/Users/yuriikulieshov/Documents/SPA_Claude/push_to_github.py``.
 
-  # --files флаг (старый стиль):
-  python3 scripts/push_to_github.py --files file1.py file2.py --message "feat: описание"
+Historically there were TWO byte-identical copies of this file (root + scripts/)
+that had to be kept manually in sync and DRIFTED before. This shim removes that
+drift hazard: it imports the root module and re-exports every public symbol, so
+both invocation paths keep working against ONE implementation.
 
-  # --file одиночный (старый стиль):
-  python3 scripts/push_to_github.py --file path/to/file.py --message "feat: описание"
+Invocation paths preserved:
+  * autopush / push_v*.sh (launchd):  python3 scripts/push_to_github.py --files ... --message ...
+  * `cd <root>; python3 push_to_github.py ...`  (root copy, unchanged)
+  * `import push_to_github` with scripts/ on sys.path  (re-exported symbols)
+
+stdlib-only, deterministic. Contains no secrets and no logic of its own.
 """
-import os
 import sys
-import json
-import base64
-import hashlib
-import argparse
-import subprocess
-import time
 from pathlib import Path
-from typing import Optional
 
-REPO = "yurii-spa/SPA"
-API_BASE = "https://api.github.com"
-PROJECT_ROOT = Path("/Users/yuriikulieshov/Documents/SPA_Claude")
+# The root copy is the canonical source. Put the project root on sys.path so we
+# can import it whether this shim is run as a script (launchd PATH has no cwd
+# guarantee) or imported via scripts/ being on sys.path.
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
+# Import the canonical module under an unambiguous name to avoid a self-import
+# when scripts/ is the first entry on sys.path (both files are named
+# push_to_github). We load the root file by its explicit path.
+import importlib.util as _ilu
 
-def get_pat() -> str:
-    """Читает PAT (никогда из hardcode).
+_spec = _ilu.spec_from_file_location("_push_to_github_root", _ROOT / "push_to_github.py")
+_root_mod = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_root_mod)
 
-    Порядок поиска:
-      1. macOS Keychain (сервис GITHUB_PAT_SPA)
-      2. Переменная окружения GITHUB_PAT_SPA
-      3. Переменная окружения SPA_GITHUB_PAT
-      4. Файл ~/.github_pat или рядом со скриптом
-    """
-    # 1. macOS Keychain
-    try:
-        result = subprocess.run(
-            ["security", "find-generic-password", "-s", "GITHUB_PAT_SPA", "-w"],
-            capture_output=True, text=True, timeout=5
-        )
-        if result.returncode == 0:
-            pat = result.stdout.strip()
-            if pat:
-                return pat
-    except Exception:
-        pass
+# Re-export the public API so `from push_to_github import push_file` etc. keep
+# working through the shim, identical to the old duplicated copy.
+get_pat = _root_mod.get_pat
+git_blob_sha = _root_mod.git_blob_sha
+get_file_sha = _root_mod.get_file_sha
+push_file = _root_mod.push_file
+main = _root_mod.main
+REPO = _root_mod.REPO
+API_BASE = _root_mod.API_BASE
+PROJECT_ROOT = _root_mod.PROJECT_ROOT
 
-    # 2–3. Переменные окружения
-    for env_var in ("GITHUB_PAT_SPA", "SPA_GITHUB_PAT", "GITHUB_PAT"):
-        pat = os.environ.get(env_var, "").strip()
-        if pat:
-            return pat
-
-    # 4. Файл
-    for pat_file in [
-        Path.home() / ".github_pat",
-        PROJECT_ROOT / ".github_pat",
-        Path.home() / ".spa_pat",
-    ]:
-        if pat_file.exists():
-            pat = pat_file.read_text().strip()
-            if pat:
-                return pat
-
-    raise RuntimeError(
-        "PAT не найден в Keychain (GITHUB_PAT_SPA).\n"
-        "Добавь PAT командой:\n"
-        "  security add-generic-password -s GITHUB_PAT_SPA -a yurii-spa -w ghp_ТОКЕН\n"
-        "Или через setup_pat.sh:\n"
-        "  bash scripts/setup_pat.sh ghp_ТОКЕН\n"
-    )
-
-
-def git_blob_sha(content: bytes) -> str:
-    """Вычисляет git blob SHA-1 для байтов файла.
-
-    Это в точности тот же хеш, что GitHub возвращает в поле ``sha`` Contents API
-    (git хеширует blob как ``"blob <len>\\0" + content``). Детерминированно,
-    stdlib-only. Позволяет сравнить локальное содержимое с тем, что уже лежит
-    на remote, БЕЗ скачивания файла — и пропустить пуш, если они идентичны.
-    """
-    header = f"blob {len(content)}\0".encode()
-    return hashlib.sha1(header + content).hexdigest()
-
-
-def get_file_sha(pat: str, repo: str, repo_path: str, branch: str = "main") -> Optional[str]:
-    """Возвращает SHA файла на GitHub (на указанной ветке)."""
-    import urllib.request
-    url = f"{API_BASE}/repos/{repo}/contents/{repo_path}?ref={branch}"
-    req = urllib.request.Request(url, headers={
-        "Authorization": f"Bearer {pat}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    })
-    try:
-        with urllib.request.urlopen(req) as resp:
-            data = json.loads(resp.read())
-            return data.get("sha")
-    except Exception:
-        return None
-
-
-def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool = False,
-              branch: str = "main", _stale_retries: int = 2) -> dict:
-    """Пушит один файл через GitHub Contents API.
-
-    409 stale-sha auto-retry: если параллельный писатель обновил файл между нашим
-    get_file_sha и PUT, GitHub вернёт 409 (sha не совпадает с HEAD). Тогда мы
-    заново читаем актуальный remote sha и повторяем PUT — до ``_stale_retries`` раз.
-    Детерминированно, fail-safe (исчерпали ретраи → честный FAIL).
-    """
-    import urllib.request
-    import urllib.error
-
-    local = Path(local_path)
-    # Resolve relative to PROJECT_ROOT if not absolute
-    if not local.is_absolute():
-        local = PROJECT_ROOT / local
-    if not local.exists():
-        return {"ok": False, "error": f"Файл не найден: {local_path}", "path": local_path}
-
-    # Relative path in repo
-    try:
-        repo_path = str(local.relative_to(PROJECT_ROOT))
-    except ValueError:
-        repo_path = local.name
-
-    local_bytes = local.read_bytes()
-    local_blob_sha = git_blob_sha(local_bytes)
-
-    if dry_run:
-        sha = get_file_sha(pat, repo, repo_path, branch)
-        if sha is not None and sha == local_blob_sha:
-            return {"ok": True, "dry_run": True, "path": repo_path, "action": "skip"}
-        action = "update" if sha else "create"
-        return {"ok": True, "dry_run": True, "path": repo_path, "action": action}
-
-    content_b64 = base64.b64encode(local_bytes).decode()
-    sha = get_file_sha(pat, repo, repo_path, branch)
-
-    # Idempotency guard (fail-CLOSED): пропускаем PUT, только если remote SHA
-    # ТОЧНО совпадает с локальным git-blob-SHA. Любая неопределённость
-    # (sha=None из-за сетевой ошибки/нового файла) → пушим как обычно, чтобы
-    # реальные изменения никогда не потерялись. Идентичный контент → no-op PUT
-    # создаёт пустой коммит в Contents API — именно его мы и устраняем.
-    if sha is not None and sha == local_blob_sha:
-        return {"ok": True, "skipped": True, "path": repo_path, "sha": sha[:8]}
-
-    payload: dict = {
-        "message": message,
-        "content": content_b64,
-        "branch": branch,
-    }
-    if sha:
-        payload["sha"] = sha
-
-    url = f"{API_BASE}/repos/{repo}/contents/{repo_path}"
-    data_bytes = json.dumps(payload).encode()
-    req = urllib.request.Request(url, data=data_bytes, method="PUT", headers={
-        "Authorization": f"Bearer {pat}",
-        "Accept": "application/vnd.github+json",
-        "Content-Type": "application/json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    })
-    try:
-        with urllib.request.urlopen(req) as resp:
-            result = json.loads(resp.read())
-            sha_short = result.get("content", {}).get("sha", "")[:8]
-            return {"ok": True, "path": repo_path, "sha": sha_short}
-    except urllib.error.HTTPError as e:
-        body = e.read().decode(errors="replace")
-        if e.code in (429, 403) and "rate limit" in body.lower():
-            print(f"  Rate limit — ждём 60с...")
-            time.sleep(60)
-            return push_file(pat, local_path, message, repo, dry_run, branch, _stale_retries)
-        # 409 stale-sha: параллельный писатель сдвинул HEAD. Перечитываем свежий
-        # remote sha и повторяем PUT (bounded). 422 тоже может означать рассинхрон
-        # sha ("does not match") — обрабатываем так же.
-        if (e.code == 409 or (e.code == 422 and "sha" in body.lower())) and _stale_retries > 0:
-            print(f"  409 stale-sha — перечитываю remote sha и повторяю ({_stale_retries} осталось)...")
-            time.sleep(0.5)
-            return push_file(pat, local_path, message, repo, dry_run, branch, _stale_retries - 1)
-        return {"ok": False, "error": f"HTTP {e.code}: {body[:300]}", "path": repo_path}
-    except Exception as e:
-        return {"ok": False, "error": str(e), "path": repo_path}
-
-
-def main():
-    parser = argparse.ArgumentParser(
-        description="Пуш файлов в GitHub без hardcoded PAT",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    # Новый стиль: positional file args
-    parser.add_argument("files_pos", nargs="*", metavar="FILE", help="Файлы для пуша (positional)")
-    # Старый стиль
-    parser.add_argument("--file", help="Один файл (старый стиль)")
-    parser.add_argument("--files", nargs="+", help="Несколько файлов (старый стиль)")
-    # Общие опции
-    parser.add_argument("--message", "-m", default=None, help="Commit message (авто-генерируется если не указан)")
-    parser.add_argument("--repo", default=REPO, help=f"Репо (default: {REPO})")
-    parser.add_argument("--branch", default="main", help="Целевая ветка (default: main)")
-    parser.add_argument("--dry-run", action="store_true", help="Проверить без пуша")
-    parser.add_argument("--pat", help="GitHub PAT (переопределяет Keychain/env/файл)")
-    args = parser.parse_args()
-
-    # Собираем все файлы из всех источников
-    all_files: list = []
-    if args.files_pos:
-        all_files.extend(args.files_pos)
-    if args.file:
-        all_files.append(args.file)
-    if args.files:
-        all_files.extend(args.files)
-
-    if not all_files:
-        parser.error("Укажи файлы (positional) или --file / --files")
-
-    # Авто-сообщение если не указано
-    message = args.message or f"chore: push {len(all_files)} file(s) via push_to_github.py"
-
-    # PAT
-    if args.pat and args.pat.strip():
-        pat = args.pat.strip()
-    else:
-        try:
-            pat = get_pat()
-        except RuntimeError as e:
-            print(str(e))
-            sys.exit(2)
-
-    if args.dry_run:
-        print(f"DRY RUN — репо: {args.repo}, ветка: {args.branch}, файлов: {len(all_files)}")
-    else:
-        print(f"Пушу {len(all_files)} файл(ов) в {args.repo} ({args.branch})...")
-
-    results = []
-    for f in all_files:
-        r = push_file(pat, f, message, args.repo, dry_run=args.dry_run, branch=args.branch)
-        results.append(r)
-        if r.get("ok"):
-            if r.get("dry_run"):
-                print(f"  {r['path']} → {r['action']}")
-            elif r.get("skipped"):
-                print(f"  SKIP {r['path']} (unchanged, sha: {r.get('sha', '?')})")
-            else:
-                print(f"  OK {r['path']} (sha: {r.get('sha', '?')})")
-        else:
-            print(f"  FAIL {r.get('path', f)}: {r.get('error', '?')}")
-        time.sleep(0.3)  # avoid rate limit
-
-    failed = [r for r in results if not r.get("ok")]
-    skipped = [r for r in results if r.get("ok") and r.get("skipped")]
-    pushed = [r for r in results if r.get("ok") and not r.get("skipped") and not r.get("dry_run")]
-    if failed:
-        print(f"\nFAIL: {len(failed)}/{len(results)}")
-        sys.exit(1)
-    else:
-        print(f"\nOK: {len(results)} файл(ов) (pushed={len(pushed)}, skipped={len(skipped)})")
-        sys.exit(0)
+# Also expose anything else public the root module may grow, so the shim never
+# silently drops a symbol callers rely on.
+for _name in dir(_root_mod):
+    if not _name.startswith("_") and _name not in globals():
+        globals()[_name] = getattr(_root_mod, _name)
 
 
 if __name__ == "__main__":
+    # Delegate the CLI verbatim to the canonical implementation. argparse in
+    # main() reads sys.argv directly, so flags pass through unchanged.
     main()

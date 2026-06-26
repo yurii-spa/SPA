@@ -234,6 +234,32 @@ def _has_negative_funding_flip(snapshots: Sequence[MarketSnapshot]) -> bool:
     return any((s.funding_rate_8h is not None and s.funding_rate_8h < 0.0) for s in snapshots)
 
 
+def _is_window_truncated(
+    cfg_start: Optional[str], cfg_end: Optional[str],
+    real_start: Optional[str], real_end: Optional[str],
+    min_truncation_days: int = 2,
+) -> bool:
+    """True when the REALIZED data span is materially shorter than the CONFIGURED window.
+
+    Funding-feed depth (or any short snapshot range) can force the backtest to run over fewer
+    days than the headline window advertises. We flag a truncation when the realized span starts
+    later or ends earlier than the configured one by more than ``min_truncation_days`` (a 1-day
+    boundary slop on a daily feed is not a real truncation). Any missing/unparseable date is
+    treated fail-closed as truncated (we cannot prove the headline window was realized)."""
+    if not (cfg_start and cfg_end and real_start and real_end):
+        return True
+    try:
+        cs = datetime.date.fromisoformat(cfg_start)
+        ce = datetime.date.fromisoformat(cfg_end)
+        rs = datetime.date.fromisoformat(real_start)
+        re_ = datetime.date.fromisoformat(real_end)
+    except ValueError:
+        return True
+    head_gap = (rs - cs).days          # realized starts later than configured → positive
+    tail_gap = (ce - re_).days         # realized ends earlier than configured → positive
+    return head_gap > min_truncation_days or tail_gap > min_truncation_days
+
+
 def validate_window(snapshots: Sequence[MarketSnapshot]) -> List[str]:
     """Return a list of LOUD warnings if the window under-tests the directional/neutral
     variants. Empty list = the window contains the needed stress."""
@@ -347,11 +373,21 @@ def run_backtest(
     # ~3.3–3.5% floor, not the hardcoded literal. Honors an explicitly-injected config's literal
     # as the fallback (hermetic backtests stay deterministic when offline).
     _literal_floor = float(g["rwa_floor_apy_pct"])
-    try:
-        from spa_core.strategy_lab.data.rwa_feed import current_rwa_floor_pct
-        floor_apy = float(current_rwa_floor_pct()) if lab_config._USE_LIVE_RWA_FLOOR else _literal_floor
-    except Exception:  # noqa: BLE001 — feed unavailable → conservative committed literal
+    # rwa_floor_source: "live" only when the tokenized-T-bill feed actually served the value;
+    # "fallback" when we used the committed literal (live disabled, feed down, or empty cache).
+    # HONESTY: a fallback floor must NEVER be presented as if it were live — the manifest + report
+    # carry this flag so the comparison surface can label a stale/fallback floor explicitly.
+    if not lab_config._USE_LIVE_RWA_FLOOR:
         floor_apy = _literal_floor
+        rwa_floor_source = "fallback"
+    else:
+        try:
+            from spa_core.strategy_lab.data.rwa_feed import current_rwa_floor_pct
+            floor_apy = float(current_rwa_floor_pct())
+            rwa_floor_source = "live"
+        except Exception:  # noqa: BLE001 — feed unavailable → conservative committed literal
+            floor_apy = _literal_floor
+            rwa_floor_source = "fallback"
     settles = int(g["funding_settles_per_day"])
 
     # 1) snapshots (injected or loaded over the window)
@@ -412,10 +448,30 @@ def run_backtest(
             kills[sid] = kill_event
 
     generated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    # — window honesty (artifact c) — the CONFIGURED headline window vs the REALIZED span we
+    # actually had data for. Funding-feed depth (or any short snapshot range) can force a shorter
+    # realized window; publishing the ~2yr headline as if it were fully realized is an overstatement.
+    # window_realized_* = the actual first/last snapshot dates; window_truncated = True when the
+    # realized span is materially shorter than the configured one (it never publishes the headline
+    # as realized when the data didn't cover it).
+    window_configured_start = g["window_start"]
+    window_configured_end = g["window_end"]
+    window_realized_start = snaps[0].date if snaps else None
+    window_realized_end = snaps[-1].date if snaps else None
+    window_truncated = _is_window_truncated(
+        window_configured_start, window_configured_end,
+        window_realized_start, window_realized_end,
+    )
+
     result = {
         "manifest": {
-            "window_start": g["window_start"] if snapshots is None else snaps[0].date if snaps else None,
-            "window_end": g["window_end"] if snapshots is None else snaps[-1].date if snaps else None,
+            # Back-compat: window_start/window_end remain the REALIZED span (what was actually run).
+            "window_start": window_realized_start if snapshots is not None else window_configured_start,
+            "window_end": window_realized_end if snapshots is not None else window_configured_end,
+            "window_configured": {"start": window_configured_start, "end": window_configured_end},
+            "window_realized": {"start": window_realized_start, "end": window_realized_end},
+            "window_truncated": window_truncated,
             "initial_capital": initial_capital,
             "equal_capital": True,
             "equal_capital_note": (
@@ -424,6 +480,8 @@ def run_backtest(
                 "NOT used here."
             ),
             "rwa_floor_apy_pct": floor_apy,
+            "rwa_floor_pct": round(float(floor_apy), 6),
+            "rwa_floor_source": rwa_floor_source,
             "seed": seed,
             "n_snapshots": len(snaps),
             "injected_snapshots": snapshots is not None,

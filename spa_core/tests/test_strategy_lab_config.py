@@ -79,9 +79,10 @@ def test_shipped_config_loads_and_validates():
     assert g["window_start"] == "2024-06-05"
     assert g["window_end"] == "2026-06-24"
     # The committed literal is now the conservative OFFLINE FALLBACK (live feed off → literal).
-    # The live path (default on) is covered in test_strategy_lab_rwa.py with injected fetchers.
-    assert g["rwa_floor_apy_pct"] == 4.5
-    assert cfg.rwa_floor_apy_pct(live=False) == 4.5
+    # It is lowered toward the REAL tokenized-T-bill floor (~3.4%) so even the fallback is not a
+    # 4.5% overstatement. The live path (default on) is covered in test_strategy_lab_rwa.py.
+    assert g["rwa_floor_apy_pct"] == 3.4
+    assert cfg.rwa_floor_apy_pct(live=False) == 3.4
 
 
 def test_strategy_config_blocks():

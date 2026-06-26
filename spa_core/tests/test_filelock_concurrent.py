@@ -232,13 +232,51 @@ class TestPush409Retry(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 3. Both push_to_github.py copies are byte-identical
+# 3. scripts/push_to_github.py is a THIN SHIM over the canonical root copy.
+#    (Formerly: the two copies had to be byte-identical and drifted. Now there
+#    is ONE implementation; the shim imports + re-exports from root.)
 # ---------------------------------------------------------------------------
-class TestPushCopiesIdentical(unittest.TestCase):
-    def test_root_and_scripts_identical(self):
-        root = (_ROOT / "push_to_github.py").read_bytes()
-        scripts = (_ROOT / "scripts" / "push_to_github.py").read_bytes()
-        self.assertEqual(root, scripts, "push_to_github.py copies drifted")
+class TestPushShimDelegates(unittest.TestCase):
+    def _load_shim(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "_push_shim_under_test", _ROOT / "scripts" / "push_to_github.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_shim_is_not_a_duplicate_implementation(self):
+        """The shim must be tiny — no copy of the real implementation."""
+        shim_src = (_ROOT / "scripts" / "push_to_github.py").read_text()
+        root_src = (_ROOT / "push_to_github.py").read_text()
+        self.assertLess(len(shim_src), len(root_src) // 2,
+                        "scripts/ copy looks like a full duplicate, not a shim")
+        # Real implementation markers must NOT be re-implemented in the shim.
+        self.assertNotIn("urllib.error.HTTPError", shim_src,
+                         "shim re-implements push logic")
+        self.assertNotIn("hashlib.sha1", shim_src,
+                         "shim re-implements git_blob_sha")
+
+    def test_shim_reexports_same_callables_as_root(self):
+        """Public API through the shim IS the root implementation (same objects)."""
+        shim = self._load_shim()
+        for name in ("get_pat", "git_blob_sha", "get_file_sha", "push_file", "main"):
+            self.assertTrue(hasattr(shim, name), f"shim missing {name}")
+        # git_blob_sha is pure → identical output proves it's the same code path.
+        self.assertEqual(shim.git_blob_sha(b"abc\n"), ptg.git_blob_sha(b"abc\n"))
+        self.assertEqual(shim.REPO, ptg.REPO)
+        self.assertEqual(shim.API_BASE, ptg.API_BASE)
+
+    def test_shim_cli_runs_as_script(self):
+        """python3 scripts/push_to_github.py --help must work (launchd path)."""
+        import subprocess
+        res = subprocess.run(
+            [sys.executable, str(_ROOT / "scripts" / "push_to_github.py"), "--help"],
+            capture_output=True, text=True, timeout=30,
+        )
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertIn("--files", res.stdout)
+        self.assertIn("--message", res.stdout)
 
 
 if __name__ == "__main__":
