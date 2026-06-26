@@ -114,6 +114,47 @@ _FRESHNESS_THRESHOLD_MIN = {
     CAT_WEEKLY: 7 * 24 * 60,    # alert if log > 7 days old (CRIT at 14 days)
 }
 
+# Categories whose agents launchd keeps RESIDENT in `launchctl list` between runs:
+#   * KeepAlive daemons (always_on) — a live long-running process / port.
+#   * StartInterval agents (high/mid freq) — launchd holds them loaded and fires
+#     them on the interval; absence from launchctl means they were never
+#     bootstrapped / got unloaded → a real fault.
+# Calendar/one-time agents (CAT_DAILY/WEEKLY/ONE_TIME backed by
+# StartCalendarInterval + RunAtLoad:False) legitimately EXIT between scheduled
+# runs and need not be resident at this instant — they are judged by LOG
+# FRESHNESS (did they run within their window?), never by residency. Judging a
+# correctly-idle calendar job "not loaded" is the chronic false-CRITICAL bug.
+_RESIDENCY_REQUIRED_CATS = frozenset({CAT_ALWAYS_ON, CAT_HIGH_FREQ, CAT_MID_FREQ})
+
+# Agents that have been RETIRED / superseded and must NOT be flagged or revived.
+#   * com.spa.bot_commands — replaced by com.spa.telegram_bot, which runs the
+#     IDENTICAL module (spa_core.telegram.bot). Running both would open two
+#     getUpdates long-polls → Telegram 409 conflict. The .plist may linger on a
+#     host; treat it as retired so it is neither false-flagged nor bootstrapped.
+RETIRED_LABELS = frozenset({"com.spa.bot_commands"})
+
+
+def _runs_at_load(plist: Optional[dict]) -> bool:
+    """RunAtLoad value (default True — launchd's documented default when the key
+    is absent). A calendar agent with RunAtLoad:False is the one that should NOT
+    be expected resident between scheduled runs."""
+    if not plist:
+        return True
+    val = plist.get("RunAtLoad")
+    return True if val is None else bool(val)
+
+
+def requires_residency(category: str, plist: Optional[dict]) -> bool:
+    """Whether an agent should be present in `launchctl list` right now.
+
+    KeepAlive daemons and StartInterval guardians: YES (launchd keeps them
+    resident; absence = fault). Calendar/one-time agents that exit between runs
+    (RunAtLoad:False): NO — judge them by log freshness instead. A calendar
+    agent declared RunAtLoad:True is a boot-time one-shot we DO expect resident
+    only transiently, so it is still judged by freshness, not residency.
+    """
+    return category in _RESIDENCY_REQUIRED_CATS
+
 # System-check thresholds
 EQUITY_STALE_H = 30.0
 CYCLE_STALE_H = 26.0
@@ -372,10 +413,21 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
     issues: List[str] = []
 
     # 1) Loaded into launchctl?
+    # Only KeepAlive daemons and StartInterval guardians are expected to be
+    # RESIDENT at this instant — for them, absence is a real fault. Calendar /
+    # one-time agents (StartCalendarInterval + RunAtLoad:False) correctly EXIT
+    # between scheduled runs; "not resident right now" is their normal idle state
+    # and must NOT be CRITICAL. They are judged below by log freshness — i.e. did
+    # they actually run within their schedule window (fail-CLOSED: a calendar job
+    # whose log is stale past its window IS still flagged).
     if not health.loaded:
-        health.status = CRITICAL
-        health.issue = "not loaded in launchctl"
-        return health
+        if requires_residency(cat, plist):
+            health.status = CRITICAL
+            health.issue = "not loaded in launchctl"
+            return health
+        # Non-resident calendar/one-time agent: installed but idle between runs.
+        # Fall through to the freshness check (does NOT short-circuit). With no
+        # launchctl entry there is no PID/exit to read, so skip those checks.
 
     # 2) Malformed plist (loaded but config unparseable) → WARNING
     if not parse_ok:
@@ -414,8 +466,19 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
             # no log configured — can't assess freshness, leave as-is
             pass
         elif age is None:
+            # No log file. For a RESIDENT guardian (high/mid-freq agent launchd
+            # keeps loaded) this means it has never produced output → CRITICAL.
+            # For a non-resident calendar/one-time agent, a missing log is
+            # ambiguous: it may simply not have fired yet within its window, or
+            # its log (often /tmp) was wiped on reboot — we cannot prove a real
+            # outage, so it is an advisory WARNING (fail-closed but not a false
+            # CRITICAL). A calendar agent with a STALE log past its window is
+            # still flagged below — a genuine missed run is NOT masked.
             issues.append("log missing (never ran?)")
-            health.status = _worst(health.status, CRITICAL)
+            if requires_residency(cat, plist):
+                health.status = _worst(health.status, CRITICAL)
+            else:
+                health.status = _worst(health.status, WARNING)
         elif age > 2 * threshold:
             issues.append(f"log stale {_fmt_age(age)} (>{_fmt_age(2*threshold)})")
             health.status = _worst(health.status, CRITICAL)
@@ -703,14 +766,44 @@ def format_alert(report: dict) -> str:
     return "\n".join(lines)
 
 
-def _send_telegram(message: str) -> bool:
-    """Send via the shared telegram client (HTML). Fail-safe."""
+def _push_via_policy(report: dict) -> bool:
+    """Route agent-health CRITICAL through the SINGLE push authority (Tier-1).
+
+    Phase-1 rewire: agent_health no longer pushes directly. It pushes ONLY when
+    the overall status is CRITICAL, via ``push_policy.push_critical`` with the
+    ``agent_health_critical`` whitelisted key. push_policy is EDGE-TRIGGERED, so
+    a *persistent* CRITICAL condition pushes ONCE on entry and is silent while it
+    persists — this is the fix for the hourly 17×/day re-fire. WARNING-only
+    states no longer push at all (their detail lives in the digest / on-demand
+    ``/agents`` view); the monitor keeps WRITING agent_health.json regardless.
+
+    Returns whether a push was actually emitted. Fail-safe (never raises).
+    """
     try:
-        from spa_core.alerts.telegram_client import _post_message
-        return _post_message({"text": message, "parse_mode": "HTML"})
+        from spa_core.telegram import push_policy
     except Exception as exc:  # noqa: BLE001
-        log.warning("telegram send failed: %s", exc)
+        log.warning("push_policy import failed: %s", exc)
         return False
+
+    overall = report.get("overall_status", OK)
+    if overall == CRITICAL:
+        return bool(
+            push_policy.push_critical(
+                "agent_health_critical",
+                "CRITICAL",
+                "SPA Agent Health — CRITICAL",
+                format_alert(report),
+            )
+        )
+    # Not critical anymore → emit the single edge-triggered RESOLVED (no-op if we
+    # were never in a bad state).
+    return bool(
+        push_policy.resolve(
+            "agent_health_critical",
+            "SPA Agent Health — recovered",
+            "All agents healthy again.",
+        )
+    )
 
 
 # ===========================================================================
@@ -745,6 +838,10 @@ class AgentHealthMonitor:
         agents: List[AgentHealth] = []
         for path in discover_plists(self.launch_agents_dir):
             label = label_from_path(path)
+            # Retired/superseded agents (e.g. bot_commands → telegram_bot) are not
+            # part of the live fleet — skip so they neither false-flag nor count.
+            if label in RETIRED_LABELS:
+                continue
             plist, parse_ok = _load_plist(path)
             agents.append(check_agent(label, plist, parse_ok, launchctl, self.now))
 
@@ -767,11 +864,15 @@ class AgentHealthMonitor:
         try:
             previous = self._previous()
             report = self.collect()
-            do_send, new_issues = should_alert(report, previous)
+            # should_alert() is retained for observability (new_issues), but the
+            # SEND decision is now owned entirely by push_policy's edge-trigger:
+            # CRITICAL → one push on entry (silent while it persists), recovery →
+            # one RESOLVED. This kills the hourly CRITICAL re-fire at the source.
+            _, new_issues = should_alert(report, previous)
             report["alert_sent"] = False
             report["new_issues"] = new_issues
-            if send and do_send:
-                ok = _send_telegram(format_alert(report))
+            if send:
+                ok = _push_via_policy(report)
                 report["alert_sent"] = bool(ok)
             self._write(report)
             return report

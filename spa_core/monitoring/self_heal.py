@@ -7,7 +7,13 @@ and re-runs a missed daily cycle. Runs every 5 min via com.spa.self_heal.
 
 Self-healing rules (deterministic, stdlib only, LLM FORBIDDEN):
   1. Expected agents = every ~/Library/LaunchAgents/com.spa.*.plist that is NOT
-     *.disabled. Any expected label missing from `launchctl list` → bootstrap it.
+     *.disabled and NOT retired. An expected label missing from `launchctl list`
+     is only revived when it should be RESIDENT — KeepAlive daemons and
+     StartInterval guardians. Calendar/one-time agents (StartCalendarInterval +
+     RunAtLoad:False) correctly EXIT between scheduled runs, so "not resident" is
+     their normal idle state; bootstrapping them every 5 min is the chronic
+     false-CRITICAL churn loop and is NOT done here (launchd fires them on
+     schedule; their freshness is the agent_health monitor's job).
   2. Always-on servers (KeepAlive) that are loaded but have PID 0 → kickstart -k.
   3. Daily cycle gap: if paper_trading_status.last_cycle_ts is older than
      CYCLE_GAP_HOURS → run the deterministic gap recovery (cycle_runner) and
@@ -36,10 +42,20 @@ _STATUS = _DATA / "self_heal_status.json"
 CYCLE_GAP_HOURS = 28.0          # daily cadence; >28h since last cycle → recover
 SUBPROC_TIMEOUT = 25
 
+# Shared, single-source residency/classification judgement (same one
+# agent_health uses) so self_heal's expected/loaded reconcile with the monitor.
+from spa_core.monitoring.agent_health_monitor import (  # noqa: E402
+    RETIRED_LABELS,
+    classify_agent,
+    requires_residency,
+)
+
 # Always-on servers (KeepAlive) — if loaded but PID 0, kickstart them.
+# bot_commands is RETIRED (replaced by com.spa.telegram_bot, identical module —
+# two long-polls would 409-conflict); telegram_bot is the live KeepAlive bot.
 _SERVERS = {
     "com.spa.apiserver", "com.spa.httpserver", "com.spa.familyfund",
-    "com.spa.cloudflared", "com.spa.dashboard", "com.spa.bot_commands",
+    "com.spa.cloudflared", "com.spa.dashboard", "com.spa.telegram_bot",
 }
 
 
@@ -71,13 +87,36 @@ def _loaded_labels() -> Dict[str, int]:
 
 
 def _expected_labels() -> List[str]:
-    """Every installed (non-disabled) com.spa.*.plist is expected to be loaded."""
+    """Every installed (non-disabled, non-retired) com.spa.*.plist label."""
     if not _LA.exists():
         return []
     return sorted(
         p.stem for p in _LA.glob("com.spa.*.plist")
-        if p.suffix == ".plist" and not p.name.endswith(".disabled")
+        if p.suffix == ".plist"
+        and not p.name.endswith(".disabled")
+        and p.stem not in RETIRED_LABELS
     )
+
+
+def _read_plist(label: str) -> dict | None:
+    """Best-effort plist dict for ``label`` (for residency classification)."""
+    import plistlib
+    plist = _LA / f"{label}.plist"
+    try:
+        with open(plist, "rb") as f:
+            return plistlib.load(f)
+    except Exception:
+        return None
+
+
+def _must_be_resident(label: str) -> bool:
+    """True only for agents launchd keeps resident (KeepAlive / StartInterval).
+
+    Calendar/one-time agents (StartCalendarInterval + RunAtLoad:False) exit
+    between scheduled runs and must NOT be bootstrapped just for being idle.
+    Uses the same shared judgement as agent_health so the two agree."""
+    plist = _read_plist(label)
+    return requires_residency(classify_agent(plist), plist)
 
 
 def _bootstrap(label: str) -> bool:
@@ -144,10 +183,18 @@ def _recover_cycle() -> bool:
 
 
 def _send_telegram(msg: str) -> None:
+    """Route self-heal action through the SINGLE push authority (Tier-1).
+
+    Phase-1 rewire: a dead core agent being revived is a genuine real-time
+    interrupt → push_policy ``core_agent_down`` (edge-triggered, so a flapping
+    agent does not re-push every 5 min). Never raises.
+    """
     try:
-        from spa_core.alerts.telegram_client import send_message
-        send_message(msg)
-    except Exception:
+        from spa_core.telegram import push_policy
+        push_policy.push_critical(
+            "core_agent_down", "CRITICAL", "SPA Self-Heal", msg,
+        )
+    except Exception:  # noqa: BLE001
         pass
 
 
@@ -202,22 +249,33 @@ def run_self_heal(dry_run: bool = False) -> dict:
     expected = _expected_labels()
     hist = _revival_history()
 
-    # 1) Revive expected agents that are NOT loaded — with a CIRCUIT BREAKER: an agent that
-    #    has been revived > MAX_REVIVALS_PER_HOUR is crash-looping; reviving it again only
-    #    makes things worse (e.g. a flooding bot). Stop reviving it and alert instead.
+    # 1) Revive expected agents that are NOT loaded — but ONLY those that should be
+    #    RESIDENT (KeepAlive daemons / StartInterval guardians). A calendar /
+    #    one-time agent (RunAtLoad:False) that isn't resident has simply exited
+    #    between scheduled runs — bootstrapping it every 5 min is the chronic churn
+    #    loop, so it is skipped (launchd fires it on schedule). CIRCUIT BREAKER: an
+    #    agent revived > MAX_REVIVALS_PER_HOUR is crash-looping; reviving it again
+    #    only makes things worse (e.g. a flooding bot) — stop and alert instead.
+    resident_expected = [lbl for lbl in expected if _must_be_resident(lbl)]
+    skipped_calendar = 0
     for label in expected:
-        if label not in loaded:
-            recent = [t for t in hist.get(label, []) if now_epoch - t < 3600.0]
-            if len(recent) >= MAX_REVIVALS_PER_HOUR:
-                breakers.append(f"circuit-breaker: {label} crash-looping ({len(recent)}/h) — NOT revived")
-                continue
-            if dry_run:
-                actions.append(f"would bootstrap {label}")
-            elif _bootstrap(label):
-                actions.append(f"revived (bootstrap) {label}")
-                _record_revival(hist, label, now_epoch)
-            else:
-                failures.append(f"bootstrap failed {label}")
+        if label in loaded:
+            continue
+        if not _must_be_resident(label):
+            # correctly-idle calendar/one-time agent → not a fault, don't bootstrap
+            skipped_calendar += 1
+            continue
+        recent = [t for t in hist.get(label, []) if now_epoch - t < 3600.0]
+        if len(recent) >= MAX_REVIVALS_PER_HOUR:
+            breakers.append(f"circuit-breaker: {label} crash-looping ({len(recent)}/h) — NOT revived")
+            continue
+        if dry_run:
+            actions.append(f"would bootstrap {label}")
+        elif _bootstrap(label):
+            actions.append(f"revived (bootstrap) {label}")
+            _record_revival(hist, label, now_epoch)
+        else:
+            failures.append(f"bootstrap failed {label}")
 
     # 2) Always-on servers loaded but with PID 0 → kickstart.
     for label in _SERVERS:
@@ -255,15 +313,27 @@ def run_self_heal(dry_run: bool = False) -> dict:
     if not dry_run:
         _save_revival_history(hist)
 
+    # Reconcile counts with the CORRECTED judgement so self_heal_status agrees
+    # with live reality (no more "expected==loaded healthy:true" while a dry-run
+    # shows 5 calendar agents "missing"). The meaningful invariant is over the
+    # RESIDENCY-REQUIRED set: every agent that MUST be resident actually is.
+    resident_loaded = sum(1 for lbl in resident_expected if lbl in loaded)
+    resident_missing = sorted(lbl for lbl in resident_expected if lbl not in loaded)
     report = {
         "ts": now,
-        "expected": len(expected),
-        "loaded": len(loaded),
+        "expected": len(expected),               # all installed (non-retired)
+        "loaded": len(loaded),                    # raw launchctl residents
+        "expected_resident": len(resident_expected),
+        "loaded_resident": resident_loaded,
+        "missing_resident": resident_missing,     # genuinely-down residents (real outage)
+        "idle_calendar_skipped": skipped_calendar,  # correctly-idle, NOT churned
         "actions": actions,
         "failures": failures,
         "circuit_breakers": breakers,
         "cycle_age_h": round(age, 2) if age is not None else None,
-        "healthy": not actions and not failures and not breakers,
+        # Healthy = no failures/breakers AND every residency-required agent is
+        # resident. Calendar agents being idle does NOT make us unhealthy.
+        "healthy": (not failures and not breakers and not resident_missing),
         "LLM_FORBIDDEN": True,
     }
     if not dry_run:

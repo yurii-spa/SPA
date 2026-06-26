@@ -221,6 +221,87 @@ def test_agent_not_loaded_is_critical():
     assert "not loaded" in h.issue
 
 
+def test_calendar_agent_not_resident_fresh_log_ok(tmp_path):
+    """P5-4 core fix: a calendar agent (StartCalendarInterval + RunAtLoad:False)
+    that is NOT in launchctl right now — because it correctly exited between
+    scheduled runs — is HEALTHY when its log is fresh (judged by freshness, not
+    residency). This is the chronic false-'not loaded in launchctl' CRITICAL."""
+    logp = tmp_path / "d.log"
+    _touch(logp, 60 * 6)  # 6h ago < 26h daily window
+    plist = {"StartCalendarInterval": {"Hour": 8}, "RunAtLoad": False,
+             "StandardOutPath": str(logp)}
+    h = ahm.check_agent("com.spa.telegram_daily", plist, True, {}, NOW)  # NOT loaded
+    assert h.status == ahm.OK
+    assert "not loaded" not in h.issue
+    assert h.loaded is False
+
+
+def test_calendar_agent_not_resident_stale_log_flagged(tmp_path):
+    """Real-outage still caught: a calendar agent whose log is STALE beyond its
+    window is flagged CRITICAL even though 'not resident' is no longer the trigger."""
+    logp = tmp_path / "d.log"
+    _touch(logp, 60 * 60)  # 60h ago > 2x 26h daily window → CRITICAL
+    plist = {"StartCalendarInterval": {"Hour": 8}, "RunAtLoad": False,
+             "StandardOutPath": str(logp)}
+    h = ahm.check_agent("com.spa.telegram_daily", plist, True, {}, NOW)  # NOT loaded
+    assert h.status == ahm.CRITICAL
+    assert "stale" in h.issue
+
+
+def test_calendar_agent_not_resident_missing_log_warning():
+    """A non-resident calendar agent with a MISSING log (e.g. /tmp wiped on reboot
+    or not yet fired in its first window) is advisory WARNING — fail-closed but
+    not a false CRITICAL."""
+    plist = {"StartCalendarInterval": {"Hour": 8}, "RunAtLoad": False,
+             "StandardOutPath": "/nonexistent/x.log"}
+    h = ahm.check_agent("com.spa.weekly_backup", plist, True, {}, NOW)  # NOT loaded
+    assert h.status == ahm.WARNING
+    assert "missing" in h.issue
+
+
+def test_keepalive_agent_not_resident_critical():
+    """A KeepAlive daemon absent from launchctl is a REAL outage → CRITICAL
+    (residency IS required for always-on servers)."""
+    plist = {"KeepAlive": True, "RunAtLoad": True, "StandardOutPath": "/tmp/x.log"}
+    h = ahm.check_agent("com.spa.apiserver", plist, True, {}, NOW)  # NOT loaded
+    assert h.status == ahm.CRITICAL
+    assert "not loaded" in h.issue
+
+
+def test_interval_agent_not_resident_critical():
+    """A StartInterval guardian launchd keeps resident — absence is a real fault."""
+    plist = {"StartInterval": 300, "StandardOutPath": "/tmp/x.log"}
+    h = ahm.check_agent("com.spa.watchdog", plist, True, {}, NOW)  # NOT loaded
+    assert h.status == ahm.CRITICAL
+    assert "not loaded" in h.issue
+
+
+def test_requires_residency_matrix():
+    assert ahm.requires_residency(ahm.CAT_ALWAYS_ON, {"KeepAlive": True}) is True
+    assert ahm.requires_residency(ahm.CAT_HIGH_FREQ, {"StartInterval": 300}) is True
+    assert ahm.requires_residency(ahm.CAT_MID_FREQ, {"StartInterval": 1800}) is True
+    assert ahm.requires_residency(ahm.CAT_DAILY, {"RunAtLoad": False}) is False
+    assert ahm.requires_residency(ahm.CAT_WEEKLY, {"RunAtLoad": False}) is False
+    assert ahm.requires_residency(ahm.CAT_ONE_TIME, {}) is False
+
+
+def test_retired_agent_skipped(tmp_path, monkeypatch):
+    """A RETIRED agent (bot_commands, superseded by telegram_bot) is neither
+    flagged nor counted — even though its .plist lingers on the host."""
+    la, data = _make_env(tmp_path)
+    _write_plist(la / "com.spa.bot_commands.plist", label="com.spa.bot_commands",
+                 keepalive=True, log_path="/tmp/x.log")
+    _write_json(data, "red_flags.json", {"red_flags": []})
+    lc = "PID\tStatus\tLabel"  # bot_commands NOT loaded — would be CRITICAL if counted
+    mon = ahm.AgentHealthMonitor(data_dir=data, launch_agents_dir=la,
+                                 launchctl_output=lc,
+                                 autopush_log="/nonexistent.log", now=NOW)
+    rep = mon.collect()
+    labels = [a["label"] for a in rep["agents"]]
+    assert "com.spa.bot_commands" not in labels
+    assert rep["total_agents"] == 0
+
+
 def test_agent_fresh_high_freq_ok(tmp_path):
     logp = tmp_path / "h.log"
     _touch(logp, 5)
@@ -529,23 +610,21 @@ def test_track_stale_fires_one_debounced_alert(tmp_path, monkeypatch):
     _write_json(data, "equity_curve_daily.json",
                 {"generated_at": "2026-06-21T09:30:00Z",
                  "daily": [_track_bar("2026-06-18")]})  # evidenced bar stale
+    # Phase-1 Telegram rebuild: agent_health pushes ONLY on overall CRITICAL via
+    # the single push authority (push_policy edge-trigger). An advisory WARNING
+    # (stale track) no longer pushes at all — its detail lives in the digest /
+    # on-demand views. So here we assert the WARNING is DETECTED but NOT pushed.
     sent = []
-    monkeypatch.setattr(ahm, "_send_telegram", lambda m: sent.append(m) or True)
+    monkeypatch.setattr(ahm, "_push_via_policy", lambda rep: (sent.append(rep) or False))
     lc = "PID\tStatus\tLabel"
     mon = ahm.AgentHealthMonitor(data_dir=data, launch_agents_dir=la,
                                  launchctl_output=lc,
                                  autopush_log="/nonexistent.log", now=NOW)
     rep = mon.run(send=True)
-    # advisory WARNING → fires exactly once (new issue)
+    # advisory WARNING → detected, but no Tier-1 push (WARNING is not critical)
     assert rep["overall_status"] == ahm.WARNING
-    assert len(sent) == 1
-    assert any("track accrual STALE" in s for s in sent)
-    # second run: same stale issue → deduped → NO second alert (debounced)
-    mon2 = ahm.AgentHealthMonitor(data_dir=data, launch_agents_dir=la,
-                                  launchctl_output=lc,
-                                  autopush_log="/nonexistent.log", now=NOW)
-    mon2.run(send=True)
-    assert len(sent) == 1  # idempotent — not re-alerted every run
+    assert rep["alert_sent"] is False
+    assert any("track accrual STALE" in s for s in rep["system_issues"])
 
 
 # ===========================================================================
@@ -710,14 +789,17 @@ def test_run_writes_output_and_dedups(tmp_path, monkeypatch):
     _touch(push, 10)
 
     sent = []
-    monkeypatch.setattr(ahm, "_send_telegram", lambda m: sent.append(m) or True)
+    # When all OK, _push_via_policy is still invoked (it emits the edge-triggered
+    # RESOLVED if we were previously bad — a no-op otherwise) and returns False
+    # (nothing pushed). Capture the call to prove no Tier-1 push happened.
+    monkeypatch.setattr(ahm, "_push_via_policy", lambda rep: (sent.append(rep) or False))
 
     lc = "PID\tStatus\tLabel\n55\t0\tcom.spa.ok"
     mon = ahm.AgentHealthMonitor(data_dir=data, launch_agents_dir=la,
                                  launchctl_output=lc, autopush_log=str(push), now=NOW)
     rep = mon.run(send=True)
     assert rep["overall_status"] == ahm.OK
-    assert sent == []  # no alert when all OK
+    assert rep["alert_sent"] is False  # no Tier-1 push when all OK
     # output file written
     assert (data / "agent_health.json").exists()
     saved = json.loads((data / "agent_health.json").read_text())
@@ -730,7 +812,8 @@ def test_run_sends_alert_on_critical(tmp_path, monkeypatch):
     _write_plist(la / "com.spa.down.plist", label="com.spa.down",
                  keepalive=True, log_path="/tmp/x.log")
     sent = []
-    monkeypatch.setattr(ahm, "_send_telegram", lambda m: sent.append(m) or True)
+    # CRITICAL → one Tier-1 push via the single push authority.
+    monkeypatch.setattr(ahm, "_push_via_policy", lambda rep: (sent.append(rep) or True))
 
     lc = "PID\tStatus\tLabel"  # nothing loaded
     mon = ahm.AgentHealthMonitor(data_dir=data, launch_agents_dir=la,
@@ -746,32 +829,52 @@ def test_run_check_does_not_send(tmp_path, monkeypatch):
     _write_plist(la / "com.spa.down.plist", label="com.spa.down",
                  keepalive=True, log_path="/tmp/x.log")
     sent = []
-    monkeypatch.setattr(ahm, "_send_telegram", lambda m: sent.append(m) or True)
+    monkeypatch.setattr(ahm, "_push_via_policy", lambda rep: (sent.append(rep) or True))
     lc = "PID\tStatus\tLabel"
     mon = ahm.AgentHealthMonitor(data_dir=data, launch_agents_dir=la,
                                  launchctl_output=lc, autopush_log="/nonexistent.log", now=NOW)
     rep = mon.run(send=False)
     assert rep["overall_status"] == ahm.CRITICAL
-    assert sent == []  # send=False suppresses telegram
+    assert sent == []  # send=False suppresses the push entirely
 
 
 def test_run_second_call_dedups(tmp_path, monkeypatch):
+    """A persistent CRITICAL pushes ONCE then is silent — the edge-trigger fix.
+
+    Phase-1 Telegram rebuild: dedup of a standing problem is now owned by
+    push_policy's edge-trigger (push on entry, silent while it persists), NOT by
+    the prior-JSON diff. We drive the real push_policy with a tmp data dir and a
+    mocked transport, and assert the hourly re-fire is gone.
+    """
+    from spa_core.telegram import push_policy
     la, data = _make_env(tmp_path)
-    logp = tmp_path / "stale.log"
-    _touch(logp, 40)  # warning-stale high-freq
-    _write_plist(la / "com.spa.s.plist", label="com.spa.s",
-                 start_interval=300, log_path=str(logp))
+    # An always-on agent that is NOT loaded → CRITICAL on every run (persists).
+    _write_plist(la / "com.spa.down.plist", label="com.spa.down",
+                 keepalive=True, log_path="/tmp/x.log")
     sent = []
-    monkeypatch.setattr(ahm, "_send_telegram", lambda m: sent.append(m) or True)
-    lc = "PID\tStatus\tLabel\n-\t0\tcom.spa.s"
+    monkeypatch.setattr(push_policy, "_send", lambda text: (sent.append(text) or True))
+    # Point push_policy state at the tmp data dir so it survives across "runs".
+    monkeypatch.setattr(ahm, "_push_via_policy",
+                        lambda rep: _push_via_tmp(rep, data))
+    lc = "PID\tStatus\tLabel"  # nothing loaded → CRITICAL
     mon = ahm.AgentHealthMonitor(data_dir=data, launch_agents_dir=la,
                                  launchctl_output=lc, autopush_log="/nonexistent.log", now=NOW)
-    mon.run(send=True)   # first: new warning → alert
+    mon.run(send=True)   # first: entry transition → push once
     assert len(sent) == 1
     mon2 = ahm.AgentHealthMonitor(data_dir=data, launch_agents_dir=la,
                                   launchctl_output=lc, autopush_log="/nonexistent.log", now=NOW)
-    mon2.run(send=True)  # second: same issue → no re-alert
+    mon2.run(send=True)  # second: still CRITICAL → SILENT (edge-trigger)
     assert len(sent) == 1
+
+
+def _push_via_tmp(report, data_dir):
+    """Test helper: run the real edge-trigger against a tmp data dir."""
+    from spa_core.telegram import push_policy
+    if report.get("overall_status") == ahm.CRITICAL:
+        return push_policy.push_critical(
+            "agent_health_critical", "CRITICAL", "t", "b", data_dir=str(data_dir)
+        )
+    return push_policy.resolve("agent_health_critical", "ok", data_dir=str(data_dir))
 
 
 def test_run_failsafe_never_raises(tmp_path, monkeypatch):

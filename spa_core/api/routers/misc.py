@@ -79,6 +79,10 @@ def get_portfolio():
         equity = float(pts.get("current_equity", 100_000.0))
         cash = max(0.0, equity - deployed)
         capital = 100_000.0
+        # Honest evidenced track length (cycle-logged days) — sourced from golive_status,
+        # NOT the warmup-inclusive days_running. See /api/health-public for the same pattern.
+        gl = read_state("golive_status.json", {})
+        real_track_days = gl.get("real_track_days")
         return {
             "total_capital_usd": capital,
             "deployed_usd": round(deployed, 2),
@@ -90,6 +94,7 @@ def get_portfolio():
             "apy_today_pct_annualized": round(pts.get("apy_today_pct", 0.0), 2),
             "apy_today_pct_note": "annualized, not a daily figure",
             "days_running": pts.get("days_running", 0),
+            "real_track_days": real_track_days,
             "source": "paper_trading_status",
         }
 

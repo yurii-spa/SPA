@@ -26,6 +26,30 @@ from spa_core.paper_trading._cycle_io import (
 log = logging.getLogger("spa.cycle_runner")
 
 
+_NON_FINITE_SENTINEL = float("nan")
+
+
+def _coerce_feed_value(value) -> float:
+    """Coerce a feed value to float, FAIL-CLOSED on a *present* non-finite value.
+
+    Replaces the old ``float(value or 0.0)`` idiom, which was the NaN bypass:
+    NaN is truthy so ``nan or 0.0`` → nan, and that non-finite value then
+    defeated EVERY RiskPolicy bounds comparison (NaN compares always False).
+
+    Semantics (preserving the legitimate "not provided → 0.0 → registry
+    fallback" path that the gate already handles):
+      * None / missing / non-numeric  → ``0.0`` (treated as "not provided";
+        the MP-1180 registry-fallback path fills it, exactly as before).
+      * a finite number               → that number.
+      * a PRESENT NaN / Inf           → ``float('nan')`` sentinel so the caller
+        rejects it (a corrupt feed must NOT be silently masked as 0.0).
+    """
+    if value is None or isinstance(value, bool) or not isinstance(value, (int, float)):
+        return 0.0
+    fv = float(value)
+    return fv if math.isfinite(fv) else _NON_FINITE_SENTINEL
+
+
 def _compliant_target(
     target_usd: dict[str, float],
     capital_usd: float,
@@ -181,11 +205,23 @@ def _apply_risk_policy_gate(
                     _rfb_exc,
                 )
 
+        # FAIL-CLOSED (architect P5-1): drop bool and keep only FINITE positive
+        # amounts. `Inf > 0` is True, so a non-finite amount could otherwise reach
+        # the gate and defeat the cash/concentration bounds (NaN/Inf comparisons).
+        # Non-finite target amounts are refused here (excluded from the deployed
+        # book) and recorded as a violation below.
         adjusted = {
             str(p): float(v)
             for p, v in target_usd.items()
-            if isinstance(v, (int, float)) and float(v) > 0
+            if isinstance(v, (int, float)) and not isinstance(v, bool)
+            and math.isfinite(float(v)) and float(v) > 0
         }
+        non_finite_amounts = [
+            str(p)
+            for p, v in target_usd.items()
+            if isinstance(v, (int, float)) and not isinstance(v, bool)
+            and not math.isfinite(float(v))
+        ]
 
         # min_cash: trim to the deployable maximum, do not block (MP-005 spec).
         # floor() keeps the trimmed total strictly ≤ the cap despite rounding.
@@ -201,11 +237,25 @@ def _apply_risk_policy_gate(
         state = PortfolioState(total_capital_usd=capital_usd, positions=[])
         violations: list[str] = []
         warnings: list[str] = []
+        for _p in non_finite_amounts:
+            violations.append(f"{_p}: non-finite target amount refused (fail-closed)")
         for pool, usd in sorted(adjusted.items(), key=lambda kv: (-kv[1], kv[0])):
             m = meta.get(pool, {})
             tier = str(m.get("tier") or "T2").upper()
-            apy = float(m.get("apy_pct") or 0.0)
-            tvl = float(m.get("tvl_usd") or 0.0)
+            # FAIL-CLOSED finiteness coercion (architect P5-1). The previous
+            # `float(m.get("apy_pct") or 0.0)` was a NaN bypass: NaN is truthy so
+            # `nan or 0.0` → nan, and that non-finite value then defeated EVERY
+            # bounds check in RiskPolicy (NaN compares always False). A PRESENT
+            # non-finite feed value (NaN/Inf) must be REJECTED, not silently
+            # masked as 0.0 (which would also defeat the bad-feed detection).
+            # Missing/None stays 0.0 → the MP-1180 registry-fallback path below
+            # fills it, exactly as before (no behaviour change for that path).
+            apy = _coerce_feed_value(m.get("apy_pct"))
+            tvl = _coerce_feed_value(m.get("tvl_usd"))
+            if not math.isfinite(apy):
+                violations.append(f"{pool}: non-finite feed apy_pct={m.get('apy_pct')!r}")
+            if not math.isfinite(tvl):
+                violations.append(f"{pool}: non-finite feed tvl_usd={m.get('tvl_usd')!r}")
             # Chain-level limits apply only when the adapter reports its chain.
             # Without it, a per-pool placeholder prevents the single-chain cap
             # from falsely lumping every pool onto "ethereum".

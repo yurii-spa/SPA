@@ -302,6 +302,100 @@ class TestCheckNewPosition:
         assert len(result.violations) >= 3  # минимум 3 нарушения
 
 
+# ─── FAIL-CLOSED finiteness guard (architect P5-1) ────────────────────────────
+
+class TestNonFiniteFailClosed:
+    """A malformed feed (NaN/Inf/non-numeric) must NOT bypass the gate.
+
+    Before the guard: NaN/Inf comparisons are always False and `nan or 0.0`→nan,
+    so check_new_position returned approved=True with zero violations — a live-
+    money bypass of the un-overridable approved=False safety contract.
+    """
+
+    NON_FINITE = [float("nan"), float("inf"), float("-inf")]
+
+    def test_nan_apy_rejected(self, policy, empty_state):
+        result = policy.check_new_position(
+            state=empty_state, protocol_key="aave-v3-usdc-ethereum", tier="T1",
+            amount_usd=3_000.0, current_apy=float("nan"), tvl_usd=1e7,
+        )
+        assert result.approved is False
+        assert any("non-finite input: current_apy" in v for v in result.violations)
+
+    def test_inf_tvl_rejected(self, policy, empty_state):
+        result = policy.check_new_position(
+            state=empty_state, protocol_key="aave-v3-usdc-ethereum", tier="T1",
+            amount_usd=3_000.0, current_apy=5.0, tvl_usd=float("inf"),
+        )
+        assert result.approved is False
+        assert any("non-finite input: tvl_usd" in v for v in result.violations)
+
+    def test_nan_amount_rejected(self, policy, empty_state):
+        result = policy.check_new_position(
+            state=empty_state, protocol_key="aave-v3-usdc-ethereum", tier="T1",
+            amount_usd=float("nan"), current_apy=5.0, tvl_usd=1e7,
+        )
+        assert result.approved is False
+        assert any("non-finite input: amount_usd" in v for v in result.violations)
+
+    def test_none_required_numeric_rejected(self, policy, empty_state):
+        # None where a number is required → fail-closed reject (no valid-None path).
+        result = policy.check_new_position(
+            state=empty_state, protocol_key="aave-v3-usdc-ethereum", tier="T1",
+            amount_usd=3_000.0, current_apy=None, tvl_usd=1e7,
+        )
+        assert result.approved is False
+        assert any("non-finite input: current_apy" in v for v in result.violations)
+
+    @pytest.mark.parametrize("bad", NON_FINITE)
+    def test_all_non_finite_each_field(self, policy, empty_state, bad):
+        for field_name, kw in (
+            ("current_apy", dict(current_apy=bad, tvl_usd=1e7, amount_usd=3_000.0)),
+            ("tvl_usd", dict(current_apy=5.0, tvl_usd=bad, amount_usd=3_000.0)),
+            ("amount_usd", dict(current_apy=5.0, tvl_usd=1e7, amount_usd=bad)),
+        ):
+            result = policy.check_new_position(
+                state=empty_state, protocol_key="aave-v3-usdc-ethereum",
+                tier="T1", **kw,
+            )
+            assert result.approved is False, f"{field_name}={bad} bypassed gate"
+            assert any(f"non-finite input: {field_name}" in v for v in result.violations)
+
+    def test_finite_valid_no_regression(self, policy, empty_state):
+        # The normal finite path must behave identically (no false reject).
+        result = policy.check_new_position(
+            state=empty_state, protocol_key="aave-v3-usdc-ethereum", tier="T1",
+            amount_usd=3_000.0, current_apy=5.5, tvl_usd=1e7,
+        )
+        assert result.approved is True
+        assert result.violations == []
+
+    def test_non_finite_drawdown_kills_portfolio_health(self, policy):
+        class _BadState(PortfolioState):
+            @property
+            def total_drawdown_pct(self):  # corrupted capital/pnl → NaN
+                return float("nan")
+
+        bad = _BadState(total_capital_usd=100_000.0, positions=[])
+        result = policy.check_portfolio_health(bad)
+        assert result.approved is False
+        assert any("non-finite portfolio drawdown" in v for v in result.violations)
+
+    def test_non_finite_depeg_price_kills_portfolio_health(self, policy, empty_state):
+        result = policy.check_portfolio_health(
+            empty_state, stablecoin_prices={"USDC": float("nan")},
+        )
+        assert result.approved is False
+        assert any("non-finite price for USDC" in v for v in result.violations)
+
+    def test_finite_depeg_price_no_regression(self, policy, empty_state):
+        result = policy.check_portfolio_health(
+            empty_state, stablecoin_prices={"USDC": 1.0},
+        )
+        assert result.approved is True
+        assert result.violations == []
+
+
 # ─── check_portfolio_health tests ─────────────────────────────────────────────
 
 class TestCheckPortfolioHealth:

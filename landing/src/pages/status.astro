@@ -14,9 +14,12 @@ const goLiveTarget = "2026-07-21";
 const trackStart = "2026-06-22";  // evidence anchor (NOT the backfilled 06-10)
 const lastUpdated = "2026-06-26";
 
+// Canonical blockers from data/golive_status.json (2 time-gated: same 30-day track wait).
 const blockers = [
-  "30-day track not yet complete — 5/30 evidenced days (time-gated, target 2026-07-21)"
+  "min_track_days_30 — 5/30 evidenced track days (time-gated, target 2026-07-21)",
+  "gap_monitor_30d — 5/30 evidenced track days, continuity (time-gated, target 2026-07-21)"
 ];
+const blockerCount = blockers.length;
 
 type CheckStatus = "pass" | "warn" | "fail";
 
@@ -88,7 +91,7 @@ const statusBg: Record<CheckStatus, string> = {
               style={`width: ${goLiveReadinessPct}%`}
             ></div>
           </div>
-          <p class="text-white/50 text-sm">{goLiveReadinessPct}<span data-ru="% критериев пройдено — остался 1 блокер">% criteria pass — 1 blocker remaining</span></p>
+          <p class="text-white/50 text-sm">{goLiveReadinessPct}<span data-ru={`% критериев пройдено — осталось ${blockerCount} блокера`}>% criteria pass — {blockerCount} blockers remaining</span></p>
         </div>
 
         <!-- Paper Track Record -->

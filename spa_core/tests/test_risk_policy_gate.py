@@ -511,3 +511,53 @@ def test_only_safe_escape_is_trim_over_the_trimmed_book():
     deployed = sum(gate["target_usd"].values())
     assert deployed <= 95_000.0 + 1e-6          # min-cash 5% enforced
     assert deployed < sum(raw.values())          # strictly more conservative
+
+
+# ─── FAIL-CLOSED finiteness guard at the gate (architect P5-1) ────────────────
+# A malformed feed (apy_pct=NaN, tvl_usd=Inf) or a non-finite target amount must
+# NOT slip through `_apply_risk_policy_gate`. The old `float(x or 0.0)` idiom let
+# NaN flow in (NaN is truthy → `nan or 0.0` → nan), and NaN/Inf defeat every
+# bounds comparison → a silent approve. These pin that bypass closed.
+
+_NON_FINITE = [float("nan"), float("inf"), float("-inf")]
+
+
+@pytest.mark.parametrize("bad", _NON_FINITE)
+def test_gate_non_finite_apy_feed_blocks(bad):
+    gate = _apply_risk_policy_gate(
+        {"morpho_blue": 20000.0}, 100_000.0,
+        [_adapter("morpho_blue", tier="T2", apy=bad, tvl=1e7)],
+    )
+    assert gate["approved"] is False, f"apy={bad} feed bypassed the gate"
+    assert any("non-finite" in v for v in gate["violations"])
+
+
+@pytest.mark.parametrize("bad", _NON_FINITE)
+def test_gate_non_finite_tvl_feed_blocks(bad):
+    gate = _apply_risk_policy_gate(
+        {"morpho_blue": 20000.0}, 100_000.0,
+        [_adapter("morpho_blue", tier="T2", apy=4.0, tvl=bad)],
+    )
+    assert gate["approved"] is False, f"tvl={bad} feed bypassed the gate"
+    assert any("non-finite" in v for v in gate["violations"])
+
+
+@pytest.mark.parametrize("bad", _NON_FINITE)
+def test_gate_non_finite_amount_target_blocks(bad):
+    gate = _apply_risk_policy_gate(
+        {"morpho_blue": bad}, 100_000.0,
+        [_adapter("morpho_blue", tier="T2", apy=4.0, tvl=1e7)],
+    )
+    assert gate["approved"] is False, f"amount={bad} target bypassed the gate"
+    assert any("non-finite" in v for v in gate["violations"])
+
+
+def test_gate_finite_feed_no_regression():
+    """The clean finite path is unchanged — honest approval still works."""
+    gate = _apply_risk_policy_gate(
+        {"aave_v3": 40000.0}, 100_000.0,
+        [_adapter("aave_v3", tier="T1", apy=4.0, tvl=2e8)],
+    )
+    assert gate["approved"] is True
+    assert gate["error"] is None
+    assert gate["violations"] == []

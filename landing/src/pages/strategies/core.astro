@@ -5,6 +5,12 @@ import strategies from '../../data/strategy_config.json';
 
 const core = strategies.strategies.find(s => s.id === 'core')!;
 const global = strategies.global;
+
+// Canonical GoLive figures — mirror of data/golive_status.json (passed/total).
+// Live source: /api/v1/golive. Derive the bar from these so it never drifts.
+const goLivePass = 27;
+const goLiveTotal = 29;
+const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
 ---
 
 <Layout
@@ -244,10 +250,10 @@ const global = strategies.global;
       <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
         <div class="flex items-center justify-between mb-4">
           <span class="text-sm text-white/60 font-medium" data-ru="GoLiveChecker">GoLiveChecker</span>
-          <span class="text-sm font-mono text-white">20<span class="text-white/30" data-ru=" / 29 критериев выполнено"> / 29 criteria met</span></span>
+          <span class="text-sm font-mono text-white">{goLivePass}<span class="text-white/30" data-ru={` / ${goLiveTotal} критериев выполнено`}> / {goLiveTotal} criteria met</span></span>
         </div>
         <div class="w-full bg-white/10 rounded-full h-2 mb-4">
-          <div class="bg-accent-500 h-2 rounded-full" style="width: 77%"></div>
+          <div class="bg-accent-500 h-2 rounded-full" style={`width: ${goLivePct}%`}></div>
         </div>
         <p class="text-xs text-white/30" data-ru="Все 29 критериев должны выполняться 7 дней подряд до активации реального капитала (ADR-002). Текущие блокеры видны на дашборде.">
           All 29 criteria must pass for 7 consecutive days before live capital activation (ADR-002).
@@ -352,7 +358,7 @@ const global = strategies.global;
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Когда начнётся реальная торговля?">When does live trading start?</h4>
           <p class="text-sm text-white/40 leading-relaxed">
-            <span data-ru="Целевая дата запуска —">Target go-live is</span> {global.go_live_target}. <span data-ru="Активация требует выполнения всех 26 критериев GoLiveChecker в течение 7+ дней подряд, плюс 30-дневный непрерывный трек-рекорд и ручную проверку владельцем (ADR-002).">Activation requires all 26 GoLiveChecker
+            <span data-ru="Целевая дата запуска —">Target go-live is</span> {global.go_live_target}. <span data-ru="Активация требует выполнения всех 29 критериев GoLiveChecker в течение 7+ дней подряд, плюс 30-дневный непрерывный трек-рекорд и ручную проверку владельцем (ADR-002).">Activation requires all 29 GoLiveChecker
             criteria passing for 7+ consecutive days, plus a 30-day gap-free track record
             and manual owner review (ADR-002).</span>
           </p>

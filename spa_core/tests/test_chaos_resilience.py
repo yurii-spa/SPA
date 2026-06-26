@@ -213,19 +213,47 @@ def test_threat_reactor_kill_switch_tuple_handling(tmp_path, monkeypatch):
 
 
 def test_self_heal_reports_missing_agent(monkeypatch):
-    """An expected agent absent from launchctl list → dry-run reports it WOULD revive it."""
-    expected = ["com.spa.autopush", "com.spa.daily_cycle", "com.spa.rules_watchdog"]
-    loaded = {"com.spa.autopush": 1234, "com.spa.rules_watchdog": 4321}  # daily_cycle MISSING
+    """A RESIDENT-required agent (KeepAlive / StartInterval) absent from launchctl
+    list → dry-run reports it WOULD revive it, and is unhealthy."""
+    expected = ["com.spa.autopush", "com.spa.rules_watchdog", "com.spa.apiserver"]
+    loaded = {"com.spa.autopush": 1234, "com.spa.rules_watchdog": 4321}  # apiserver MISSING
     monkeypatch.setattr(self_heal, "_expected_labels", lambda: list(expected))
     monkeypatch.setattr(self_heal, "_loaded_labels", lambda: dict(loaded))
+    # All three are residency-required (the down apiserver must be revived).
+    monkeypatch.setattr(self_heal, "_must_be_resident", lambda lbl: True)
     # Neutralise side-effect probes so the test is hermetic & deterministic.
     monkeypatch.setattr(self_heal, "_http_up", lambda url: True)
     monkeypatch.setattr(self_heal, "_last_cycle_age_hours", lambda: 1.0)
 
     report = self_heal.run_self_heal(dry_run=True)
     assert report["healthy"] is False
-    assert any("would bootstrap com.spa.daily_cycle" in a for a in report["actions"]), report
+    assert any("would bootstrap com.spa.apiserver" in a for a in report["actions"]), report
+    assert report["missing_resident"] == ["com.spa.apiserver"]
     assert report["failures"] == []
+
+
+def test_self_heal_does_not_bootstrap_idle_calendar_agent(monkeypatch):
+    """A calendar/one-time agent (RunAtLoad:False) that has correctly EXITED
+    between scheduled runs is NOT resident — self_heal must NOT churn-bootstrap it
+    and the fleet stays healthy (this is the chronic false-CRITICAL loop fix)."""
+    expected = ["com.spa.autopush", "com.spa.telegram_daily"]
+    loaded = {"com.spa.autopush": 1234}  # telegram_daily not resident (idle, correct)
+    monkeypatch.setattr(self_heal, "_expected_labels", lambda: list(expected))
+    monkeypatch.setattr(self_heal, "_loaded_labels", lambda: dict(loaded))
+    # autopush is a resident guardian; telegram_daily is an idle calendar agent.
+    monkeypatch.setattr(
+        self_heal, "_must_be_resident",
+        lambda lbl: lbl != "com.spa.telegram_daily",
+    )
+    monkeypatch.setattr(self_heal, "_http_up", lambda url: True)
+    monkeypatch.setattr(self_heal, "_last_cycle_age_hours", lambda: 1.0)
+
+    report = self_heal.run_self_heal(dry_run=True)
+    # No bootstrap of the idle calendar agent; nothing missing among residents.
+    assert not any("telegram_daily" in a for a in report["actions"]), report
+    assert report["missing_resident"] == []
+    assert report["idle_calendar_skipped"] == 1
+    assert report["healthy"] is True
 
 
 def test_self_heal_healthy_when_all_present(monkeypatch):

@@ -263,6 +263,34 @@ class RiskPolicy:
         violations = []
         warnings = []
 
+        # 0. FAIL-CLOSED finiteness guard (architect P5-1 — un-overridable safety
+        #    contract). A malformed feed (apy_pct=NaN, TVL/amount NaN/Inf) defeats
+        #    EVERY bounds comparison below: NaN comparisons are always False, and
+        #    NaN is truthy so `nan or 0.0` → nan flows straight through. Without
+        #    this guard check_new_position returns approved=True with zero
+        #    violations on a non-finite input — a live-money bypass. Reject ANY
+        #    non-finite / non-numeric required numeric input BEFORE any other
+        #    check. amount_usd / current_apy / tvl_usd are required numbers here
+        #    (no legitimate None path), so None / NaN / Inf / non-numeric → reject.
+        finite_violations: list[str] = []
+        for _field_name, _field_val in (
+            ("amount_usd", amount_usd),
+            ("current_apy", current_apy),
+            ("tvl_usd", tvl_usd),
+        ):
+            if not isinstance(_field_val, (int, float)) or isinstance(_field_val, bool) \
+                    or not math.isfinite(_field_val):
+                finite_violations.append(f"non-finite input: {_field_name}={_field_val!r}")
+        if finite_violations:
+            result = RiskCheckResult(
+                approved=False,
+                violations=finite_violations,
+                warnings=[],
+                check_name=f"new_position({protocol_key})",
+            )
+            self._log_result(result)
+            return result
+
         # 1. Circuit breaker: портфельный drawdown
         if state.total_drawdown_pct >= self.config.max_drawdown_stop:
             violations.append(
@@ -433,15 +461,27 @@ class RiskPolicy:
         violations = []
         warnings = []
 
+        # 0. FAIL-CLOSED finiteness guard (architect P5-1). A non-finite portfolio
+        #    drawdown (e.g. total_capital_usd or pnl corrupted to NaN/Inf) would
+        #    make the kill-switch comparison below always False → the kill switch
+        #    silently never fires. Treat a non-finite drawdown as the UNSAFE state:
+        #    trip the kill switch (violation → approved=False), never bypass.
+        _dd = state.total_drawdown_pct
+        if not isinstance(_dd, (int, float)) or not math.isfinite(_dd):
+            violations.append(
+                f"KILL SWITCH (fail-closed): non-finite portfolio drawdown "
+                f"({_dd!r}) — cannot verify safety, close all positions."
+            )
+
         # Kill switch — полный drawdown
-        if state.total_drawdown_pct >= self.config.max_drawdown_stop:
+        if math.isfinite(_dd) and state.total_drawdown_pct >= self.config.max_drawdown_stop:
             violations.append(
                 f"KILL SWITCH TRIGGERED: portfolio drawdown {state.total_drawdown_pct:.1%} "
                 f"≥ {self.config.max_drawdown_stop:.1%}. Close all positions."
             )
 
         # Предупреждение при приближении к лимиту
-        elif state.total_drawdown_pct >= self.config.max_drawdown_stop * 0.75:
+        elif math.isfinite(_dd) and state.total_drawdown_pct >= self.config.max_drawdown_stop * 0.75:
             warnings.append(
                 f"Drawdown {state.total_drawdown_pct:.1%} approaching kill switch "
                 f"{self.config.max_drawdown_stop:.1%}"
@@ -453,13 +493,34 @@ class RiskPolicy:
             # Lazy import to avoid any potential import cycle with data_pipeline.
             from data_pipeline.price_feeds import PriceFeedFetcher
 
+            # FAIL-CLOSED finiteness guard (architect P5-1): a non-finite supplied
+            # price (NaN/Inf) defeats detect_depeg's deviation math (NaN never
+            # crosses the depeg threshold), so a corrupted price feed would emit
+            # NO event and silently bypass the depeg kill-switch. Treat any
+            # non-finite supplied price as the UNSAFE state → kill-switch violation.
+            for _sym, _px in stablecoin_prices.items():
+                if not isinstance(_px, (int, float)) or isinstance(_px, bool) \
+                        or not math.isfinite(_px):
+                    violations.append(
+                        f"DEPEG KILL SWITCH (fail-closed): non-finite price for "
+                        f"{_sym} ({_px!r}) — cannot verify peg, close exposed positions"
+                    )
+
             depeg_events = PriceFeedFetcher().detect_depeg(stablecoin_prices)
             for ev in depeg_events:
                 sym = ev["symbol"]
                 price = ev["price"]
                 dev = ev["deviation_pct"]
                 severity = ev["severity"]
-                if severity == "CRITICAL":
+                # A non-finite price/deviation that slipped through detect_depeg
+                # → escalate to kill, never format-crash or silently pass.
+                if not (isinstance(price, (int, float)) and math.isfinite(price)
+                        and isinstance(dev, (int, float)) and math.isfinite(dev)):
+                    violations.append(
+                        f"DEPEG KILL SWITCH (fail-closed): non-finite depeg metric "
+                        f"for {sym} (price={price!r}, dev={dev!r}) — close exposed positions"
+                    )
+                elif severity == "CRITICAL":
                     violations.append(
                         f"DEPEG KILL SWITCH: {sym} at ${price:.4f} ({dev:+.2f}%) — "
                         f"CRITICAL depeg, close exposed positions"

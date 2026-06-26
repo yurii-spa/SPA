@@ -2607,7 +2607,7 @@ h1, h2, h3, h4,
     <div style="font-size:12.5px;color:#555;line-height:1.7" id="honesty-limits">
       <div>• Tournament Sharpe ranking — <span id="honesty-tourn-flag">checking…</span></div>
       <div>• RWA 72h exit capacity — $0 (redemption is documented-only; no executable on-chain liquidator exit)</div>
-      <div>• The reset: honest <b>5 / 30</b> track-days, not a padded number. Everything before 2026-06-10 is demo and void.</div>
+      <div>• The reset: honest <b id="honesty-track-days">… / 30</b> track-days, not a padded number. Everything before 2026-06-10 is demo and void.</div>
     </div>
   </div>
 
@@ -5390,6 +5390,19 @@ async function loadHonesty() {
       el.innerHTML = spaHonestyChip('not-trustworthy') + ' ' + reason;
     }
   })();
+
+  // ── Honest evidenced track-days (real_track_days / 30) — canonical from
+  //    /api/ssot/facts. Never hardcode the day count (it drifts daily). ──
+  (async () => {
+    const el = document.getElementById('honesty-track-days');
+    if (!el) return;
+    let n = null;
+    try {
+      const r = await SPA_API.getFacts();
+      if (r && r.facts && r.facts.real_track_days != null) n = r.facts.real_track_days;
+    } catch (e) { /* facts unavailable */ }
+    el.textContent = (n != null ? n : '—') + ' / 30';
+  })();
 }
 
 // ─── Tier-1 Validation Layer (live /api/tier1/* + /api/ssot/facts) ───────────
@@ -7434,7 +7447,15 @@ async function loadInvestorSummary() {
 
   const eq  = report.equity_usd;
   const tr  = report.total_return_pct;
-  const days = report.days_running;
+  // "real track" = HONEST evidenced track-days (real_track_days), canonical from
+  // /api/ssot/facts — NOT report.days_running (warmup-inclusive padded count).
+  // Fail-CLOSED to null; only fall back to days_running if SSOT facts unavailable.
+  let days = null;
+  try {
+    const _fr = await SPA_API.getFacts();
+    if (_fr && _fr.facts && _fr.facts.real_track_days != null) days = _fr.facts.real_track_days;
+  } catch (e) { /* facts unavailable */ }
+  if (days == null) days = report.days_running;
   const ready = report.golive_status === 'READY';
   const pnlColor = v => v == null ? '#888' : (v >= 0 ? '#16a34a' : '#dc2626');
   const cell = (label, value, sub, color) =>
