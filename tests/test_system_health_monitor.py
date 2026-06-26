@@ -803,6 +803,31 @@ def test_d6_killswitch_error_critical(good_dir, monkeypatch):
     assert r.status == CRITICAL
 
 
+def test_d6_sub_gate_exception_is_isolated(good_dir, monkeypatch):
+    # Per-gate isolation (architect N11): a transient error in ONE sub-gate
+    # (e.g. a data/*.json rewritten under us by a live agent) must report a
+    # per-check WARNING for THAT gate only — it MUST NOT abort the whole d6
+    # domain and blank the other gates' verdicts.
+    mon = make_mon(good_dir)
+    prelude(mon)
+    _patch_killswitch(mon, monkeypatch)
+
+    def boom(D):
+        raise RuntimeError("transient state rewrite under us")
+    monkeypatch.setattr(mon, "_check_t2_cap", boom)
+
+    res = mon.check_d6_risk_gates()
+    # The failing gate degrades to a per-check WARNING (not an aborted domain)...
+    t2 = by_id(res, "d6.t2.cap")
+    assert t2.status == WARNING
+    assert t2.error and "RuntimeError" in t2.error
+    # ...and the OTHER gates still ran and reported their own verdicts.
+    assert by_id(res, "d6.health") is not None
+    assert by_id(res, "d6.red_flags") is not None
+    assert by_id(res, "d6.killswitch").status == OK
+    assert len(res) == 4
+
+
 # ---------------------------------------------------------------------------
 # DOMAIN 7 — Hygiene
 # ---------------------------------------------------------------------------
