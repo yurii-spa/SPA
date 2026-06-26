@@ -15,10 +15,12 @@ For EACH stage we assert both BLOCK and PASS, plus fail-CLOSED behaviour on
 missing/malformed input. The gate must NEVER proceed (blocked=False) when an
 input is absent or malformed.
 
-These tests are READ-ONLY against the safety code — they do not change its
-behaviour. Where a real fail-OPEN gap exists it is pinned with an xfail test
-(see TestRiskPolicyFailsOpenGap) and reported to the architect, NOT silently
-fixed.
+The RiskPolicy stage is wired to the REAL deterministic
+spa_core.risk.policy.RiskPolicy (correct signature, honours ``.approved``) and
+FAILS CLOSED whenever the policy cannot be evaluated — see
+TestRiskPolicyRealEvaluation. (This replaced a former fail-OPEN gap where a v2
+signature mismatch raised TypeError that was swallowed, so the live policy was
+never consulted.)
 
 Determinism: module-level rate-limit / kill-switch state is reset in fixtures
 so tests do not leak state into one another.
@@ -172,91 +174,132 @@ class TestRiskPolicy:
             assert r.is_hard_block is True
 
     def test_pass_whitelisted_basic(self, safety, healthy_portfolio):
-        # Whitelisted + positive amount → returns a pass (blocking=True result).
-        r = safety.check_risk_policy("aave-v3", "supply", 1000.0, healthy_portfolio)
+        # Whitelisted + positive amount + compliant live inputs → the REAL
+        # RiskPolicy is consulted and approves → pass (blocking=True result).
+        # We supply current_apy/tvl_usd explicitly so the check is deterministic
+        # (no network) and the policy floors (TVL ≥ $5M, 1% ≤ APY ≤ 30%) hold.
+        r = safety.check_risk_policy(
+            "aave-v3", "supply", 1000.0, healthy_portfolio,
+            current_apy=5.0, tvl_usd=200_000_000.0,
+        )
         assert r.passed is True
         assert r.blocking is True
         assert r.is_hard_block is False
+        # Confirm the REAL policy (not a whitelist-only fallback) was consulted.
+        assert "v1.0 PASS" in r.details
 
     def test_explicit_policy_rejection_blocks(self, safety, healthy_portfolio, monkeypatch):
-        """If the live RiskPolicy raises a genuine rejection (not a wiring error),
-        the stage must BLOCK. We simulate this by injecting a policy whose
-        check_new_position raises a rejection-shaped exception."""
+        """If the live RiskPolicy raises for any reason, the stage must FAIL CLOSED
+        (BLOCK). We simulate this by injecting a policy whose check_new_position
+        raises — any exception in the policy call → block, never fall through."""
 
         class _RejectingPolicy:
             def check_new_position(self, *a, **k):
                 raise RuntimeError("RiskPolicy v1.0: TVL below minimum — rejected")
 
-        import types
-        fake_mod = types.ModuleType("risk.policy")
-        fake_mod.RiskPolicy = _RejectingPolicy
-        fake_pkg = types.ModuleType("risk")
-        fake_pkg.policy = fake_mod
-        monkeypatch.setitem(__import__("sys").modules, "risk", fake_pkg)
-        monkeypatch.setitem(__import__("sys").modules, "risk.policy", fake_mod)
+        import spa_core.risk.policy as real_policy_mod
+        monkeypatch.setattr(real_policy_mod, "RiskPolicy", _RejectingPolicy)
 
-        r = safety.check_risk_policy("aave-v3", "supply", 1000.0, healthy_portfolio)
+        r = safety.check_risk_policy(
+            "aave-v3", "supply", 1000.0, healthy_portfolio,
+            current_apy=5.0, tvl_usd=200_000_000.0,
+        )
+        assert r.passed is False
+        assert r.is_hard_block is True
+        assert "fail-closed" in r.details.lower()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# RiskPolicy stage is wired to the REAL deterministic policy (fail-CLOSED)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestRiskPolicyRealEvaluation:
+    """The (formerly fail-OPEN) RiskPolicy stage now calls the REAL
+    spa_core.risk.policy.RiskPolicy.check_new_position with the correct
+    signature and honours its ``.approved`` verdict.
+
+    Previously check_risk_policy called the policy with a v2 signature
+    (protocol=/action=/portfolio=) that raised TypeError, which was swallowed
+    (`except TypeError: pass`) → it fell through to passed=True. The real,
+    deterministic RiskPolicy (TVL floor, concentration caps, APY bounds, cash
+    buffer, drawdown) was NEVER consulted — a position the live policy would
+    reject still PASSED. This was a fail-OPEN go-live blocker.
+
+    These tests pin the corrected, fail-CLOSED behaviour.
+    """
+
+    _PORTFOLIO = {
+        "total_drawdown_pct": 0.0,
+        "cash_usd": 50_000.0,
+        "total_capital_usd": 100_000.0,
+    }
+
+    def test_high_apy_low_tvl_position_is_blocked(self, safety):
+        # APY 99% > 30% ceiling AND TVL $1 < $5M floor → the REAL RiskPolicy
+        # rejects → the gate must BLOCK (was a silent pass before the fix).
+        r = safety.check_risk_policy(
+            "aave-v3", "supply", 1000.0, self._PORTFOLIO,
+            current_apy=99.0, tvl_usd=1.0,
+        )
+        assert r.passed is False
+        assert r.is_hard_block is True
+        # Real policy violations surface in the detail (not a whitelist fallback).
+        assert "rejected" in r.details.lower()
+        assert ("tvl" in r.details.lower() or "apy" in r.details.lower())
+
+    def test_over_concentration_position_is_blocked(self, safety):
+        # A position larger than the T1 40% concentration cap (and that would
+        # bust the cash buffer) → the REAL RiskPolicy rejects → gate BLOCKS.
+        portfolio = {
+            "total_drawdown_pct": 0.0,
+            "cash_usd": 100_000.0,
+            "total_capital_usd": 100_000.0,
+        }
+        r = safety.check_risk_policy(
+            "aave-v3", "supply", 60_000.0, portfolio,   # 60% > 40% T1 cap
+            current_apy=5.0, tvl_usd=200_000_000.0,
+        )
         assert r.passed is False
         assert r.is_hard_block is True
         assert "rejected" in r.details.lower()
 
+    def test_compliant_position_passes_via_real_policy(self, safety):
+        # A fully policy-compliant position → REAL RiskPolicy approves → pass.
+        r = safety.check_risk_policy(
+            "aave-v3", "supply", 1000.0, self._PORTFOLIO,
+            current_apy=5.0, tvl_usd=200_000_000.0,
+        )
+        assert r.passed is True
+        assert r.is_hard_block is False
+        assert "v1.0 PASS" in r.details   # proves the real policy ran
 
-# ═══════════════════════════════════════════════════════════════════════════
-# REAL SAFETY GAP — RiskPolicy stage fails OPEN against the live policy
-# ═══════════════════════════════════════════════════════════════════════════
+    def test_missing_live_inputs_fail_closed(self, safety, monkeypatch):
+        # If APY/TVL are not supplied AND the live feed cannot provide them,
+        # the policy cannot be evaluated → the gate must FAIL CLOSED (block),
+        # never fall through to a pass.
+        import spa_core.execution.safety_checks as scmod
+        monkeypatch.setattr(scmod, "_fetch_protocol_metrics", lambda _pk: (None, None))
+        r = safety.check_risk_policy("aave-v3", "supply", 1000.0, self._PORTFOLIO)
+        assert r.passed is False
+        assert r.is_hard_block is True
+        assert "fail-closed" in r.details.lower()
 
+    def test_policy_error_fail_closed(self, safety, monkeypatch):
+        # Any exception raised while evaluating the policy → FAIL CLOSED.
+        class _BoomPolicy:
+            def check_new_position(self, *a, **k):
+                raise ValueError("boom")
 
-class TestRiskPolicyFailsOpenGap:
-    """PINNED REAL GAP (report to architect — do NOT silently fix the gate).
-
-    spa_core/execution/safety_checks.PreExecutionSafety.check_risk_policy calls
-    the live policy as:
-
-        RiskPolicy().check_new_position(
-            protocol=..., action=..., amount_usd=..., portfolio=...)
-
-    But the live spa_core/risk/policy.RiskPolicy.check_new_position has a totally
-    different signature:
-
-        check_new_position(state, protocol_key, tier, amount_usd,
-                           current_apy, tvl_usd, chain=..., check_capacity=...)
-        -> RiskCheckResult            # RETURNS a result; never raises on reject
-
-    So the v2 call raises TypeError ('unexpected keyword argument protocol'),
-    which check_risk_policy swallows (`except TypeError: pass`) and then falls
-    through to a `passed=True` fallback. NET EFFECT: the real, deterministic
-    RiskPolicy (TVL floor, concentration caps, APY bounds, cash buffer,
-    drawdown) is NEVER actually consulted. A transaction the live policy would
-    REJECT still PASSES this stage on the inline whitelist + amount>0 checks
-    alone.
-
-    This is inert today (LiveTradingGate blocks live exec) but at go-live the
-    RiskPolicy stage of the pre-execution gate is a no-op = fail-OPEN.
-
-    The xfail below pins the expected-correct behaviour: a position the live
-    policy rejects (APY 99% > 25% ceiling, TVL $1) should BLOCK. It currently
-    does not, so the test is xfail(strict=True) — it will flip to a hard
-    failure the moment the gate is wired correctly, prompting removal of xfail.
-    """
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="GAP: check_risk_policy v2 signature mismatch -> TypeError swallowed "
-        "-> live RiskPolicy never consulted -> fails OPEN. Report to architect.",
-    )
-    def test_live_policy_rejection_should_block_but_does_not(self, safety):
-        # This portfolio + a hypothetical bad position WOULD be rejected by the
-        # real RiskPolicy. check_risk_policy as written cannot express APY/TVL
-        # (its signature has no slots for them) and silently passes.
-        portfolio = {
-            "total_drawdown_pct": 0.0,
-            "cash_usd": 50_000.0,
-            "total_capital_usd": 100_000.0,
-        }
-        r = safety.check_risk_policy("aave-v3", "supply", 1000.0, portfolio)
-        # EXPECTED (correct gate): a real policy evaluation occurs and can block.
-        # ACTUAL (current gate): always passes via the fallback. xfail captures this.
-        assert r.passed is False  # <-- currently False==fails, so xfail
+        import spa_core.risk.policy as real_policy_mod
+        monkeypatch.setattr(real_policy_mod, "RiskPolicy", _BoomPolicy)
+        r = safety.check_risk_policy(
+            "aave-v3", "supply", 1000.0, self._PORTFOLIO,
+            current_apy=5.0, tvl_usd=200_000_000.0,
+        )
+        assert r.passed is False
+        assert r.is_hard_block is True
+        assert "fail-closed" in r.details.lower()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -364,6 +407,7 @@ class TestRunAll:
         pipeline = safety.run_all(
             "aave-v3", "supply", 100.0, healthy_portfolio,
             gas_cost_usd=0.5, simulation_result=_good_sim(),
+            current_apy=5.0, tvl_usd=200_000_000.0,
         )
         assert pipeline.all_passed is True
         assert pipeline.blocked is False
@@ -425,6 +469,7 @@ class TestRunAll:
         pipeline = safety.run_all(
             "aave-v3", "supply", 10_000.0, portfolio,
             gas_cost_usd=10.0, simulation_result=_good_sim(),
+            current_apy=5.0, tvl_usd=200_000_000.0,
         )
         assert pipeline.requires_multisig is True
         assert pipeline.blocked is False
@@ -436,6 +481,7 @@ class TestRunAll:
         pipeline = safety.run_all(
             "aave-v3", "supply", 100.0, healthy_portfolio,
             gas_cost_usd=None, simulation_result=_good_sim(),
+            current_apy=5.0, tvl_usd=200_000_000.0,
         )
         gas = next(c for c in pipeline.checks if c.check_name == "Gas Reasonableness")
         assert gas.blocking is False  # documented: gas skip is non-blocking
