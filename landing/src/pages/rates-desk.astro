@@ -220,6 +220,81 @@ const STAGE_META = {
       </div>
     </section>
 
+    <!-- ============================================================= d2. PROOF OF REFUSAL (verifiable chain) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
+        <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
+           data-ru="Доказательство отказа — проверяемый лог решений">Proof of refusal — verifiable decision log</p>
+        <span class="text-[11px] font-mono" style="color:var(--text-faint)">
+          <span data-ru="источник">source</span>: <span id="proof-src" data-ru="статика / офлайн">static / offline</span>
+        </span>
+      </div>
+      <p class="text-sm mb-2 leading-relaxed max-w-2xl" style="color:var(--text-primary)"
+         data-ru="Каждое решение — что мы взяли И от чего отказались — захешировано в защищённую от подмены цепочку.">
+        <strong>Every decision — what we harvested AND what we refused — is hashed into a
+        tamper-evident chain.</strong>
+      </p>
+      <p class="text-sm mb-6 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Любой может проверить, что мы не переписывали историю. Мы публикуем свои отказы, а не только свои победы. Этот сервер заново пересчитывает всю цепочку из /api/rates-desk/proof и сообщает, цела ли она.">
+        Anyone can verify we didn't rewrite history. We publish our refusals, not just our wins. The
+        server re-derives the whole chain from <span class="font-mono text-xs">/api/rates-desk/proof</span>
+        and reports whether it is intact.
+      </p>
+
+      <!-- Chain summary: VERIFIED badge + length + head hash -->
+      <div class="rounded-xl p-5 mb-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+        <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
+          <span id="proof-badge"
+                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-mono"
+                style="background:var(--bg-surface);border-color:var(--border);color:var(--text-muted)">
+            <span id="proof-badge-dot" class="w-2 h-2 rounded-full" style="background:var(--text-muted)" aria-hidden="true"></span>
+            <span id="proof-badge-text" data-ru="проверка цепочки…">verifying chain…</span>
+          </span>
+          <span class="text-[11px] font-mono" style="color:var(--text-faint)">
+            <span data-ru="длина цепочки">chain length</span>: <span id="proof-len" style="color:var(--text-secondary)">—</span>
+          </span>
+        </div>
+        <div>
+          <p class="text-[11px] uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)"
+             data-ru="Хеш головы (отпечаток всей истории)">Head hash (fingerprint of the whole history)</p>
+          <p id="proof-head" class="text-xs font-mono break-all" style="color:var(--text-secondary)">—</p>
+        </div>
+      </div>
+
+      <!-- Recent decisions table: entry vs REFUSAL, underlying, reason, haircut, payload hash -->
+      <div class="overflow-x-auto rounded-xl" style="border:1px solid var(--border)">
+        <table class="w-full text-sm" style="color:var(--text-secondary)">
+          <thead>
+            <tr class="text-[11px] font-mono uppercase tracking-wider text-left" style="color:var(--text-muted);background:var(--bg-surface)">
+              <th class="px-4 py-3" data-ru="Вердикт">Verdict</th>
+              <th class="px-4 py-3" data-ru="Актив">Underlying</th>
+              <th class="px-4 py-3" data-ru="Причина">Reason</th>
+              <th class="px-4 py-3 text-right" data-ru="Хейркат">Haircut</th>
+              <th class="px-4 py-3 text-right" data-ru="Хеш">Payload hash</th>
+            </tr>
+          </thead>
+          <tbody id="proof-rows">
+            <tr><td colspan="5" class="px-4 py-6 text-center" style="color:var(--text-muted)">
+              <span data-ru="Загрузка proof-цепочки…">Loading the proof chain…</span>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- How to verify -->
+      <div class="mt-5 rounded-lg p-4" style="background:var(--accent-bg);border:1px solid var(--accent-dim)">
+        <p class="text-xs uppercase tracking-wider font-mono mb-1.5" style="color:var(--accent-hover)"
+           data-ru="Как это проверить">How to verify</p>
+        <p class="text-xs leading-relaxed" style="color:var(--text-secondary)"
+           data-ru="Цепочка только дописывается. Каждая запись хеширует предыдущую голову (SHA-256), поэтому подмена любого прошлого решения меняет его хеш — и следующая запись перестаёт ссылаться на него, ломая цепочку. Зелёный значок означает, что пересчёт всех хешей с нуля сошёлся: история не переписана.">
+          The chain is <strong style="color:var(--text-primary)">append-only</strong>. Each entry hashes
+          the prior head (SHA-256), so flipping any past decision changes its hash — and the next entry
+          no longer links to it, breaking the chain. A green badge means a from-scratch recompute of
+          every hash agreed: history was not rewritten.
+        </p>
+      </div>
+    </section>
+
     <!-- ============================================================= e. RATE SURFACE (optional) -->
     <section class="py-10 border-t" style="border-color:var(--border)">
       <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
@@ -366,6 +441,71 @@ const STAGE_META = {
         }).catch(function () {});
       }
 
+      /* ---- d2. Proof of refusal — verifiable decision chain ----------------------------- */
+      function proofRow(x) {
+        var ru = isRu();
+        var refused = x.kind === 'REFUSAL' || x.allowed === false;
+        var meta = refused
+          ? { badge: 'bg-red-500/10 border-red-500/30 text-red-300', dot: 'bg-red-400', en: 'REFUSED', ru: 'ОТКАЗ' }
+          : { badge: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300', dot: 'bg-emerald-400', en: 'ENTERED', ru: 'ВХОД' };
+        var reason = x.reason || (refused ? (ru ? 'отказ гейта' : 'gate refusal') : (ru ? 'оценённый кэрри' : 'priced carry'));
+        var hc = num(x.haircut_total);
+        var hcTxt = hc == null ? '—' : (hc * 100).toFixed(2) + '%';
+        var ph = x.payload_hash ? String(x.payload_hash) : '';
+        var phShort = ph ? '#' + ph.slice(0, 12) : '—';
+        return '<tr style="border-top:1px solid var(--border)">' +
+          '<td class="px-4 py-3">' +
+            '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-mono ' + meta.badge + '">' +
+              '<span class="w-1.5 h-1.5 rounded-full ' + meta.dot + '" aria-hidden="true"></span>' + esc(ru ? meta.ru : meta.en) +
+            '</span></td>' +
+          '<td class="px-4 py-3 font-mono" style="color:var(--text-primary)">' + esc(x.underlying || '?') + '</td>' +
+          '<td class="px-4 py-3 text-xs" style="color:var(--text-secondary)">' + esc(reason) + '</td>' +
+          '<td class="px-4 py-3 font-mono text-right text-xs ' + (refused ? 'text-red-300' : '') + '" ' + (refused ? '' : 'style="color:var(--text-secondary)"') + '>' + hcTxt + '</td>' +
+          '<td class="px-4 py-3 font-mono text-right text-[11px]" style="color:var(--text-faint)" title="' + esc(ph) + '">' + esc(phShort) + '</td>' +
+        '</tr>';
+      }
+
+      function setBadge(verified) {
+        var ru = isRu();
+        var badge = document.getElementById('proof-badge');
+        var dot = document.getElementById('proof-badge-dot');
+        var txt = document.getElementById('proof-badge-text');
+        if (!badge || !dot || !txt) return;
+        // Reset to literal Tailwind palettes (Tailwind only compiles classes it can see literally).
+        badge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-mono';
+        if (verified === true) {
+          badge.className += ' bg-emerald-500/10 border-emerald-500/30 text-emerald-300';
+          dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+          txt.textContent = ru ? 'ПОДТВЕРЖДЕНО · цепочка цела' : 'VERIFIED · chain intact';
+        } else if (verified === false) {
+          badge.className += ' bg-red-500/10 border-red-500/30 text-red-300';
+          dot.className = 'w-2 h-2 rounded-full bg-red-400';
+          txt.textContent = ru ? 'НЕ ПОДТВЕРЖДЕНО · цепочка нарушена' : 'NOT VERIFIED · chain broken';
+        }
+      }
+
+      function loadProof() {
+        fetch(API + '/api/rates-desk/proof?last_n=12').then(function (r) { return r.json(); }).then(function (d) {
+          if (!d || typeof d.verified === 'undefined') return;
+          var ru = isRu();
+          setBadge(d.verified);
+          setText('proof-len', (d.chain_length != null ? d.chain_length : '—') + (ru ? ' решений' : ' decisions'));
+          setText('proof-head', d.head_hash ? String(d.head_hash) : (ru ? '— (цепочка пуста)' : '— (empty chain)'));
+          var body = document.getElementById('proof-rows');
+          if (body) {
+            var rows = Array.isArray(d.last_n_decisions) ? d.last_n_decisions.slice() : [];
+            if (rows.length) {
+              rows.reverse(); // most recent first
+              body.innerHTML = rows.map(proofRow).join('');
+            } else {
+              body.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center" style="color:var(--text-muted)">' +
+                esc(ru ? 'Цепочка пуста — решений ещё не записано.' : 'Chain is empty — no decisions recorded yet.') + '</td></tr>';
+            }
+          }
+          setText('proof-src', 'live');
+        }).catch(function () {});
+      }
+
       /* ---- e. RateSurface --------------------------------------------------------------- */
       function surfRow(q) {
         var ru = isRu();
@@ -409,7 +549,7 @@ const STAGE_META = {
         }).catch(function () {});
       }
 
-      function init() { loadDecisions(); loadSurface(); loadOpportunities(); }
+      function init() { loadDecisions(); loadProof(); loadSurface(); loadOpportunities(); }
       if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
       else { init(); }
     })();
