@@ -46,6 +46,7 @@ from spa_core.strategy_lab.rates_desk.contracts import (
     Opportunity,
     RatePolicyParams,
     RateQuote,
+    TradeShape,
     UnderlyingRisk,
     YieldDecomposition,
 )
@@ -358,10 +359,18 @@ def evaluate_hold(
             "note": "one-tick exit capacity collapsed below position size — cannot exit at size"})
 
     # (g) CONCENTRATION — position too large vs current exit liquidity OR borrower concentration.
+    #     SHAPE-AWARE fail-CLOSED: for shapes that carry a BORROW/lending leg (LEVERED_CARRY,
+    #     RATE_MATRIX) borrower concentration is a real tail — a MISSING/malformed top_borrower_share
+    #     means we cannot confirm the pool is not crowded by one borrower → REFUSE (you cannot prove a
+    #     position is safe on a risk you cannot see). For shapes with NO borrow leg (FIXED_CARRY held-
+    #     to-maturity PT, BASIS_HEDGE) borrower concentration is N/A, so a None share is legitimately
+    #     not-applicable and must NOT spuriously refuse.
     topb = _safe_decimal(risk.top_borrower_share)
+    has_borrow_leg = opp.shape in (TradeShape.LEVERED_CARRY, TradeShape.RATE_MATRIX)
     over_borrower = (topb is not None and topb > params.max_hold_concentration)
+    borrower_unknown = (has_borrow_leg and topb is None)  # fail-CLOSED only where concentration matters
     over_exit = (exitl > 0 and (req / exitl) > params.max_size_frac_of_exit)
-    if over_borrower or over_exit:
+    if over_borrower or borrower_unknown or over_exit:
         return _kill(KillReason.CONCENTRATION, {
             "top_borrower_share": "malformed" if topb is None else topb,
             "size_vs_exit": (req / exitl),

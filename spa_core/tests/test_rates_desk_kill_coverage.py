@@ -30,8 +30,6 @@ from __future__ import annotations
 
 from decimal import Decimal as D
 
-import pytest
-
 from spa_core.strategy_lab.rates_desk.contracts import (
     D0,
     KillReason,
@@ -380,15 +378,38 @@ def test_concentration_hold_fail_closed_surfaces_malformed_borrower_share():
     assert res.detail["top_borrower_share"] == "malformed"
 
 
-@pytest.mark.xfail(reason="SOURCE GAP: malformed top_borrower_share alone does NOT fail-closed "
-                          "(over_borrower guards on `is not None`); see CONCENTRATION (g) in "
-                          "rate_policy.evaluate_hold. Documented, not fixed (tests-only task).",
-                   strict=True)
-def test_concentration_malformed_share_alone_does_not_refuse():
-    # If this ever starts PASSING (i.e. a bare malformed borrower share REFUSES), the source was
-    # hardened — flip this from xfail to a normal assertion.
-    res, _ = _hold(_risk(top_borrower_share="bad"))  # healthy exit liquidity, only the share malformed
-    assert res.approved is False  # currently it is True (NONE) → xfail
+def test_concentration_malformed_share_alone_refuses_for_borrow_bearing_shape():
+    """SHAPE-AWARE fail-CLOSED (hardened): for a shape that carries a BORROW/lending leg
+    (LEVERED_CARRY / RATE_MATRIX) borrower concentration is a real tail. A bare malformed/None
+    top_borrower_share — even with otherwise healthy inputs (healthy exit liquidity) — means we
+    cannot confirm the pool is not crowded by one borrower → REFUSE (BORROWER_CONCENTRATION).
+    This is the fix for the former SOURCE GAP (over_borrower short-circuited to False on None)."""
+    levered = Opportunity(quote=_quote(), shape=TradeShape.LEVERED_CARRY,
+                          requested_size_usd=D("100000"))
+    res, ns = _hold(_risk(top_borrower_share="bad"), opp=levered)  # healthy exit, only share malformed
+    assert res.approved is False
+    assert res.reason == KillReason.CONCENTRATION
+    assert res.detail["top_borrower_share"] == "malformed"
+    assert ns.killed is True
+
+    # RATE_MATRIX is the other borrow-bearing shape — same fail-closed behavior.
+    matrix = Opportunity(quote=_quote(), shape=TradeShape.RATE_MATRIX,
+                         requested_size_usd=D("100000"))
+    res2, ns2 = _hold(_risk(top_borrower_share="bad"), opp=matrix)
+    assert res2.approved is False
+    assert res2.reason == KillReason.CONCENTRATION
+    assert ns2.killed is True
+
+
+def test_concentration_malformed_share_alone_is_na_for_fixed_carry():
+    """N/A side of the shape-aware rule: for a NO-borrow-leg shape (FIXED_CARRY held-to-maturity PT)
+    borrower concentration is irrelevant, so a None/malformed top_borrower_share with otherwise
+    healthy inputs is legitimately not-applicable and must NOT spuriously refuse — the gate HOLDS."""
+    # default _opp() shape is FIXED_CARRY, healthy exit liquidity, only the share malformed.
+    res, ns = _hold(_risk(top_borrower_share="bad"))
+    assert res.approved is True
+    assert res.reason == KillReason.NONE
+    assert ns.killed is False
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
