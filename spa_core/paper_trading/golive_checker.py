@@ -52,6 +52,8 @@ from spa_core.utils.atomic import atomic_save
 from spa_core.paper_trading.track_evidence import (
     evidenced_dates as _evidenced_dates,
     first_evidenced_date as _first_evidenced_date,
+    real_max_drawdown_pct as _real_max_drawdown_pct,
+    real_total_return_pct as _real_total_return_pct,
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -670,13 +672,16 @@ class GoLiveChecker:
             return False
         apy = doc.get("apy_today_pct")
         if apy is None:
-            # Fall back to equity curve last return
+            # Fall back to the EVIDENCED equity series only (T10): annualize the
+            # real total return over the real track length. The summary roll-up
+            # (total_return_pct / num_days) spans warmup/backfill bars and would
+            # mis-state the real APY, so it is never used here.
             eq = _read_json(self.data_dir / EQUITY_FILENAME)
-            summary = eq.get("summary") if isinstance(eq, dict) else None
-            if isinstance(summary, dict):
-                total_ret = summary.get("total_return_pct", 0)
-                num_days = summary.get("num_days", 1) or 1
-                apy = (total_ret / num_days) * 365
+            eq_daily = eq.get("daily") if isinstance(eq, dict) else None
+            real_dates = self._real_track_dates(eq_daily)
+            real_days = max(1, len(real_dates))
+            total_ret = _real_total_return_pct(eq_daily, paper_start=self.paper_start)
+            apy = (total_ret / real_days) * 365
         if apy is None:
             blockers.append("apy_above_floor: APY not available in status or equity curve")
             return False
@@ -689,36 +694,25 @@ class GoLiveChecker:
         return True
 
     def _check_drawdown_below_kill(self, blockers: list[str]) -> bool:
-        """Portfolio max drawdown must be below DRAWDOWN_KILL_PCT (5%)."""
+        """Portfolio max drawdown must be below DRAWDOWN_KILL_PCT (5%).
+
+        HONEST TRACK RESET (T10, 2026-06-26): drawdown is a REAL go-live metric,
+        so it is computed STRICTLY over the EVIDENCED series — never over the
+        ``summary.max_drawdown_pct`` roll-up, which spans warmup/backfill/
+        reconstructed bars and can fabricate a drawdown that the real track never
+        experienced (e.g. the warmup→06-10 backfill discontinuity reads as a fake
+        -0.20% drawdown while the real 06-22..26 series is monotonic, dd 0.00%).
+        Segregated via :func:`track_evidence.real_max_drawdown_pct`.
+        """
         doc = _read_json(self.data_dir / EQUITY_FILENAME)
         if not isinstance(doc, dict):
             blockers.append("drawdown_below_kill: equity_curve_daily.json missing")
             return False
-        summary = doc.get("summary", {}) or {}
-        drawdown = summary.get("max_drawdown_pct")
-        if drawdown is None:
-            # Try paper_trading_status.json
-            st = _read_json(self.data_dir / PT_STATUS_FILENAME) or {}
-            drawdown = st.get("max_drawdown_pct")
-        if drawdown is None:
-            # Compute from daily bars
-            daily = doc.get("daily") or []
-            equities = [
-                float(b["close_equity"])
-                for b in daily
-                if isinstance(b, dict) and "close_equity" in b
-            ]
-            if equities:
-                peak = equities[0]
-                max_dd = 0.0
-                for eq in equities:
-                    peak = max(peak, eq)
-                    dd = (peak - eq) / peak * 100.0 if peak > 0 else 0.0
-                    max_dd = max(max_dd, dd)
-                drawdown = max_dd
-        if drawdown is None:
-            # Can't compute — pass conservatively (we have other freshness checks)
-            return True
+        daily = doc.get("daily")
+        # real_max_drawdown_pct returns a non-positive % (≤ 0.0); the kill
+        # threshold is a magnitude, so compare against its absolute value.
+        real_dd = _real_max_drawdown_pct(daily, paper_start=self.paper_start)
+        drawdown = abs(real_dd)
         if float(drawdown) >= DRAWDOWN_KILL_PCT:
             blockers.append(
                 f"drawdown_below_kill: drawdown {drawdown:.2f}% ≥ kill-switch "

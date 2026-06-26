@@ -507,6 +507,32 @@ def _rebuild_summary(daily: list[dict]) -> dict:
         # No real bars yet — report the anchor, never an earlier (warmup) date.
         first_real_date = PAPER_REAL_START_DATE.isoformat()
 
+    # ── T10 segregation: honest roll-up over the EVIDENCED series ONLY ──────────
+    # The fields above (start/end_equity, total_return_pct, max_drawdown_pct, …)
+    # are computed over ALL bars (warmup + backfill + reconstructed + cycle) for
+    # schema back-compat. They MUST NOT be read as real metrics: warmup→backfill
+    # discontinuities fabricate drawdown the real track never had. These ``real_*``
+    # fields are the clean headline computed strictly over evidenced (real
+    # daily_cycle) bars via track_evidence — the single segregation point. They
+    # are additive and never change ``real_days`` / the evidenced count.
+    from spa_core.paper_trading.track_evidence import (
+        evidenced_bars as _evidenced_bars,
+        real_max_drawdown_pct as _real_max_drawdown_pct,
+        real_total_return_pct as _real_total_return_pct,
+    )
+
+    ev = _evidenced_bars(daily, paper_start=PAPER_REAL_START_DATE)
+    if ev:
+        real_start_equity = round(
+            float(ev[0].get("open_equity", ev[0].get("close_equity", 0.0))), 2
+        )
+        real_end_equity = round(float(ev[-1].get("close_equity", 0.0)), 2)
+    else:
+        real_start_equity = 0.0
+        real_end_equity = 0.0
+    real_total_return = _real_total_return_pct(daily, paper_start=PAPER_REAL_START_DATE)
+    real_max_dd = _real_max_drawdown_pct(daily, paper_start=PAPER_REAL_START_DATE)
+
     return {
         "num_days": len(daily),
         # Honest track length = bars dated >= PAPER_REAL_START and not is_warmup.
@@ -525,6 +551,12 @@ def _rebuild_summary(daily: list[dict]) -> dict:
         if worst
         else None,
         "max_drawdown_pct": round(max_dd, 4),
+        # Honest REAL headline — evidenced bars only (T10). Read THESE for real
+        # equity / return / drawdown; the unprefixed fields above include warmup.
+        "real_start_equity": real_start_equity,
+        "real_end_equity": real_end_equity,
+        "real_total_return_pct": real_total_return,
+        "real_max_drawdown_pct": real_max_dd,
         "positive_days": positive,
         "negative_days": negative,
         "daily_volatility_pct": round(vol, 4),

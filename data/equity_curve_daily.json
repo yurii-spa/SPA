@@ -26,7 +26,11 @@
     "first_real_date": "2026-06-22",
     "last_date": "2026-06-26",
     "evidenced_days": 5,
-    "evidenced_anchor": "2026-06-22"
+    "evidenced_anchor": "2026-06-22",
+    "real_start_equity": 100134.79,
+    "real_end_equity": 100190.22,
+    "real_total_return_pct": 0.0554,
+    "real_max_drawdown_pct": 0.0
   },
   "daily": [
     {

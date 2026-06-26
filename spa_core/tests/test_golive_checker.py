@@ -483,7 +483,14 @@ def test_drawdown_below_kill_passes_at_zero(tmp_path):
 
 def test_drawdown_below_kill_fails_at_5pct(tmp_path):
     eq = _equity_doc_30d()
-    eq["summary"]["max_drawdown_pct"] = 5.5  # exceeds 5% kill switch
+    # T10: the kill-switch criterion reads the EVIDENCED series (not the summary
+    # roll-up), so the drawdown must live in the real bars themselves. Drop the
+    # last bar > 5% below the running peak; keep summary at 0.0 to prove the gate
+    # ignores the contamination-prone summary field and uses the real series.
+    daily = eq["daily"]
+    peak = float(daily[0]["close_equity"])  # 100_010.0
+    daily[-1]["close_equity"] = round(peak * 0.94, 2)  # -6% → exceeds 5% kill
+    eq["summary"]["max_drawdown_pct"] = 0.0
     ddir = _make_full_data_dir(tmp_path, **{"equity_curve_daily.json": eq})
     result = _check(ddir, home_dir=_fake_home_with_autopush(tmp_path))
     assert result.checks["drawdown_below_kill"] is False

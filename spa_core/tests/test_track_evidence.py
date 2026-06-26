@@ -233,5 +233,93 @@ def test_golive_target_anchored_to_first_evidenced(tmp_path):
     assert det["target_date"] == "2026-07-21"
 
 
+# ─── T10: real-series segregation (clean evidenced metrics) ────────────────────
+
+
+def test_real_series_returns_only_evidenced():
+    """real_series / evidenced_bars yield ONLY the cycle bars, in order."""
+    daily = _reset_scenario_daily()
+    ev = te.evidenced_bars(daily, paper_start=PAPER_START)
+    assert [b["date"] for b in ev] == [
+        "2026-06-22", "2026-06-23", "2026-06-24", "2026-06-25", "2026-06-26"
+    ]
+    # real_series is the readable alias of the same function.
+    assert te.real_series is te.evidenced_bars
+    assert te.real_series(daily, paper_start=PAPER_START) == ev
+
+
+def test_real_max_drawdown_ignores_warmup_crash():
+    """A catastrophic WARMUP crash must NOT contaminate the real drawdown.
+
+    The whole point of T10: the warmup→anchor discontinuity (here a fake -50%
+    warmup drop) fabricates a drawdown the real evidenced series never had. The
+    real series is monotonically rising → real drawdown 0.0%.
+    """
+    daily = [
+        _bar("2026-05-21", open_equity=100000, close_equity=200000,
+             is_warmup=True, source="warmup", evidenced=False),
+        _bar("2026-05-22", open_equity=200000, close_equity=100000,
+             is_warmup=True, source="warmup", evidenced=False),  # -50% (fake)
+        _bar("2026-06-22", open_equity=100000, close_equity=100050,
+             source="cycle", evidenced=True),
+        _bar("2026-06-23", open_equity=100050, close_equity=100100,
+             source="cycle", evidenced=True),
+    ]
+    assert te.real_max_drawdown_pct(daily, paper_start=PAPER_START) == 0.0
+
+
+def test_real_total_return_over_evidenced_only():
+    daily = [
+        _bar("2026-06-12", open_equity=100000, close_equity=999999,
+             evidenced=False, source="backfill"),  # backfill must not count
+        _bar("2026-06-22", open_equity=100000, close_equity=100050,
+             source="cycle", evidenced=True),
+        _bar("2026-06-23", open_equity=100050, close_equity=100200,
+             source="cycle", evidenced=True),
+    ]
+    # 100000 -> 100200 over the evidenced series = +0.2%
+    assert te.real_total_return_pct(daily, paper_start=PAPER_START) == 0.2
+
+
+def test_real_metrics_empty_series_are_zero():
+    daily = [_bar("2026-06-12", evidenced=False, source="backfill")]
+    assert te.evidenced_bars(daily, paper_start=PAPER_START) == []
+    assert te.real_max_drawdown_pct(daily, paper_start=PAPER_START) == 0.0
+    assert te.real_total_return_pct(daily, paper_start=PAPER_START) == 0.0
+
+
+def test_golive_drawdown_uses_evidenced_series_not_summary(tmp_path):
+    """The kill-switch criterion must read the REAL series, NOT summary roll-up.
+
+    Contaminate summary.max_drawdown_pct with a kill-triggering -50% (spanning
+    warmup bars) while the real evidenced series is flat (dd 0%). The gate must
+    PASS — proving it no longer reads the contaminated summary field.
+    """
+    ddir = tmp_path / "data"
+    ddir.mkdir(parents=True)
+    daily = _reset_scenario_daily()
+    # give the real cycle bars a rising, drawdown-free equity
+    eq = 100000.0
+    for b in daily:
+        if b.get("evidenced"):
+            b["open_equity"] = eq
+            eq += 50.0
+            b["close_equity"] = eq
+    doc = {
+        "is_demo": False,
+        "source": "cycle_runner",
+        # contaminated all-bars roll-up — would FALSE-FIRE the kill switch
+        "summary": {"max_drawdown_pct": -50.0, "total_return_pct": -50.0,
+                    "num_days": len(daily)},
+        "daily": daily,
+    }
+    (ddir / "equity_curve_daily.json").write_text(json.dumps(doc), encoding="utf-8")
+    now = datetime(2026, 6, 26, 12, 0, tzinfo=timezone.utc)
+    checker = GoLiveChecker(data_dir=ddir, now=now, paper_start=PAPER_START)
+    blockers: list[str] = []
+    assert checker._check_drawdown_below_kill(blockers) is True
+    assert blockers == []
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

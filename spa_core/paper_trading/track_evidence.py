@@ -196,6 +196,74 @@ def is_evidenced_bar(bar: Any, *, paper_start: _date = PAPER_REAL_START) -> bool
     return True
 
 
+def evidenced_bars(
+    daily: Iterable[Any], *, paper_start: _date = PAPER_REAL_START
+) -> list[dict]:
+    """Return ONLY the evidenced bars (the clean REAL series), in input order.
+
+    This is the single segregation point for "the real track" (T10): every
+    consumer that computes a REAL metric (equity headline, drawdown, return,
+    volatility, APY) must filter the daily list through here so warmup /
+    backfill / reconstructed bars can never contaminate a real number. History
+    is untouched — the non-evidenced bars stay in the file, they are simply not
+    returned here.
+    """
+    if not isinstance(daily, (list, tuple)):
+        return []
+    return [
+        bar
+        for bar in daily
+        if is_evidenced_bar(bar, paper_start=paper_start)
+    ]
+
+
+# Alias — "real_series" reads naturally at call sites computing real metrics.
+real_series = evidenced_bars
+
+
+def real_max_drawdown_pct(
+    daily: Iterable[Any], *, paper_start: _date = PAPER_REAL_START
+) -> float:
+    """Max drawdown (%, ≤ 0.0) computed STRICTLY over the evidenced series.
+
+    Deterministic, stdlib-only. Empty real series → 0.0 (no real history → no
+    real drawdown). The sign convention matches ``cycle_runner._rebuild_summary``
+    (a drawdown is a non-positive percentage; 0.0 means new highs only).
+    """
+    bars = evidenced_bars(daily, paper_start=paper_start)
+    peak = float("-inf")
+    max_dd = 0.0
+    for bar in bars:
+        try:
+            close = float(bar.get("close_equity", 0.0))
+        except (TypeError, ValueError):
+            continue
+        peak = max(peak, close)
+        if peak > 0:
+            max_dd = min(max_dd, (close / peak - 1.0) * 100.0)
+    return round(max_dd, 4)
+
+
+def real_total_return_pct(
+    daily: Iterable[Any], *, paper_start: _date = PAPER_REAL_START
+) -> float:
+    """Total return (%) of the evidenced series (first open → last close).
+
+    Deterministic, stdlib-only. Fewer than one real bar → 0.0.
+    """
+    bars = evidenced_bars(daily, paper_start=paper_start)
+    if not bars:
+        return 0.0
+    try:
+        start = float(bars[0].get("open_equity", bars[0].get("close_equity", 0.0)))
+        end = float(bars[-1].get("close_equity", 0.0))
+    except (TypeError, ValueError):
+        return 0.0
+    if not start:
+        return 0.0
+    return round((end / start - 1.0) * 100.0, 4)
+
+
 def evidenced_dates(
     daily: Iterable[Any], *, paper_start: _date = PAPER_REAL_START
 ) -> list[str]:
@@ -314,6 +382,10 @@ __all__ = [
     "evidenced_log_dates",
     "classify_bar",
     "is_evidenced_bar",
+    "evidenced_bars",
+    "real_series",
+    "real_max_drawdown_pct",
+    "real_total_return_pct",
     "evidenced_dates",
     "count_evidenced",
     "first_evidenced_date",
