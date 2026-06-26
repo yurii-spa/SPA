@@ -176,6 +176,93 @@ class FeedHealthAlert:
         except Exception as exc:
             return None, exc
 
+    # -- shared run() lifecycle (template method) ---------------------------
+    #
+    # Every concrete monitor's run() is the SAME state-machine — load_state →
+    # evaluate a per-monitor predicate → grow/reset a consecutive-degraded
+    # streak → "fire once at/over threshold then re-fire as the streak grows"
+    # → persist (even on send failure). The only per-monitor differences are
+    # the detection logic + which bookkeeping fields are written + the alert
+    # message + the log strings. ``_drive_lifecycle`` owns the identical
+    # skeleton; each run() now supplies ONLY those differences.
+
+    def _drive_lifecycle(
+        self,
+        state: dict,
+        *,
+        degraded: bool,
+        counter_key: str,
+        threshold: int,
+        log_prefix: str,
+        healthy_updates: dict,
+        healthy_log: str,
+        degraded_updates: dict,
+        build_message,
+        no_alert_log,
+        fired_log,
+        sender,
+    ) -> bool:
+        """
+        Run the shared streak/debounce/fire skeleton against ``state``.
+
+        Behaviour is byte-identical to the historic per-monitor run() tail:
+
+          • healthy → apply ``healthy_updates``, zero the streak +
+            ``last_alerted_cycle``, persist, log ``healthy_log``, return False;
+          • degraded → ++streak (n), apply ``degraded_updates``, debounce with
+            ``n >= threshold and n != last_alerted_cycle``; below threshold →
+            persist, log ``no_alert_log(n)``, return False;
+          • fire → build the message, lazily resolve the sender (persist + bail
+            on miss), send (persist + bail on send error), record
+            ``last_alerted_cycle = n``, persist, log ``fired_log(n, ok)``,
+            return ``bool(ok)``.
+
+        ``healthy_updates`` / ``degraded_updates`` carry the per-monitor
+        bookkeeping fields exactly as the original code wrote them (same keys,
+        same conditional inclusion, same values). The streak counter and
+        ``last_alerted_cycle`` are owned here so they are never duplicated.
+        """
+        if not degraded:
+            state.update(healthy_updates)
+            state[counter_key] = 0
+            state["last_alerted_cycle"] = 0
+            self.write_state(state)
+            log.info(healthy_log)
+            return False
+
+        state[counter_key] = int(state.get(counter_key, 0)) + 1
+        n = state[counter_key]
+        last_alerted = int(state.get("last_alerted_cycle", 0))
+        state.update(degraded_updates)
+
+        should_alert = n >= threshold and n != last_alerted
+        if not should_alert:
+            self.write_state(state)
+            log.info(no_alert_log(n))
+            return False
+
+        msg = build_message(n)
+
+        sender, exc = self.ensure_sender(sender)
+        if sender is None:
+            log.error(
+                f"{log_prefix}: could not create TelegramSender — {exc}"
+            )
+            self.write_state(state)
+            return False
+
+        try:
+            ok = sender.send(msg)
+        except Exception as exc:
+            log.error(f"{log_prefix}: send error — {exc}")
+            self.write_state(state)
+            return False
+
+        state["last_alerted_cycle"] = n
+        self.write_state(state)
+        log.info(fired_log(n, ok))
+        return bool(ok)
+
 
 # ══════════════════════════════════════════════════════════════════════════
 # Concrete monitors.  Each ``run()`` preserves the original decision logic
@@ -200,64 +287,39 @@ class CovarianceHealthAlert(FeedHealthAlert):
             state = self.load_state()
             now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-            if not degraded:
-                state["consecutive_degraded"] = 0
-                state["last_source"] = cov_source
-                state["last_alerted_cycle"] = 0
-                state["updated_at"] = now
-                self.write_state(state)
-                log.info(
+            def build_message(n):
+                src = cov_source if cov_source not in (None, "") else "unavailable"
+                return (
+                    f"⚠️ <b>SPA Covariance Degraded</b>\n\n"
+                    f"Live APY covariance has been unavailable for {n} consecutive cycles.\n"
+                    f"Source: {src}\n"
+                    f"The correlation matrix / dynamic Kelly sizing is running on synthetic fallback data.\n"
+                    f"Action: check DeFiLlama fetch + data/historical_apy.json bridge."
+                )
+
+            return self._drive_lifecycle(
+                state,
+                degraded=degraded,
+                counter_key="consecutive_degraded",
+                threshold=COVARIANCE_DEGRADED_CYCLES_ALERT,
+                log_prefix="alert_covariance_degraded",
+                healthy_updates={"last_source": cov_source, "updated_at": now},
+                healthy_log=(
                     f"alert_covariance_degraded: healthy source={cov_source!r}, "
                     f"streak reset"
-                )
-                return False
-
-            state["consecutive_degraded"] = int(state.get("consecutive_degraded", 0)) + 1
-            state["last_source"] = cov_source
-            state["updated_at"] = now
-            n = state["consecutive_degraded"]
-            last_alerted = int(state.get("last_alerted_cycle", 0))
-
-            should_alert = n >= COVARIANCE_DEGRADED_CYCLES_ALERT and n != last_alerted
-            if not should_alert:
-                self.write_state(state)
-                log.info(
+                ),
+                degraded_updates={"last_source": cov_source, "updated_at": now},
+                build_message=build_message,
+                no_alert_log=lambda n: (
                     f"alert_covariance_degraded: degraded streak={n} "
                     f"(threshold={COVARIANCE_DEGRADED_CYCLES_ALERT}), no alert"
-                )
-                return False
-
-            src = cov_source if cov_source not in (None, "") else "unavailable"
-            msg = (
-                f"⚠️ <b>SPA Covariance Degraded</b>\n\n"
-                f"Live APY covariance has been unavailable for {n} consecutive cycles.\n"
-                f"Source: {src}\n"
-                f"The correlation matrix / dynamic Kelly sizing is running on synthetic fallback data.\n"
-                f"Action: check DeFiLlama fetch + data/historical_apy.json bridge."
+                ),
+                fired_log=lambda n, ok: (
+                    f"alert_covariance_degraded: alert {'sent' if ok else 'failed'} "
+                    f"(streak={n}, source={cov_source!r})"
+                ),
+                sender=sender,
             )
-
-            sender, exc = self.ensure_sender(sender)
-            if sender is None:
-                log.error(
-                    f"alert_covariance_degraded: could not create TelegramSender — {exc}"
-                )
-                self.write_state(state)
-                return False
-
-            try:
-                ok = sender.send(msg)
-            except Exception as exc:
-                log.error(f"alert_covariance_degraded: send error — {exc}")
-                self.write_state(state)
-                return False
-
-            state["last_alerted_cycle"] = n
-            self.write_state(state)
-            log.info(
-                f"alert_covariance_degraded: alert {'sent' if ok else 'failed'} "
-                f"(streak={n}, source={cov_source!r})"
-            )
-            return bool(ok)
         except Exception as exc:
             log.error(f"alert_covariance_degraded: unexpected error — {exc}")
             return False
@@ -328,35 +390,6 @@ class ApyFeedStaleAlert(FeedHealthAlert):
             synthetic = (data_source or "").lower().startswith("synthetic")
             degraded = bool(too_old or stuck or synthetic)
 
-            if not degraded:
-                state["consecutive_stale"] = 0
-                state["last_alerted_cycle"] = 0
-                state["last_generated_at"] = generated_at
-                state["last_source"] = data_source
-                state["updated_at"] = now_iso
-                self.write_state(state)
-                log.info(
-                    f"alert_apy_feed_stale: healthy generated_at={generated_at!r}, "
-                    f"source={data_source!r}, streak reset"
-                )
-                return False
-
-            state["consecutive_stale"] = int(state.get("consecutive_stale", 0)) + 1
-            state["last_generated_at"] = generated_at
-            state["last_source"] = data_source
-            state["updated_at"] = now_iso
-            n = state["consecutive_stale"]
-            last_alerted = int(state.get("last_alerted_cycle", 0))
-
-            should_alert = n >= APY_FEED_STALE_CYCLES_ALERT and n != last_alerted
-            if not should_alert:
-                self.write_state(state)
-                log.info(
-                    f"alert_apy_feed_stale: stale streak={n} "
-                    f"(threshold={APY_FEED_STALE_CYCLES_ALERT}), no alert"
-                )
-                return False
-
             reasons = []
             if stuck:
                 reasons.append("stuck generated_at")
@@ -371,37 +404,45 @@ class ApyFeedStaleAlert(FeedHealthAlert):
                 reasons.append(f"data_source={data_source}")
             reason_str = ", ".join(reasons) if reasons else "stale feed"
 
-            msg = (
-                f"⚠️ <b>SPA APY Feed Stale</b>\n\n"
-                f"historical_apy.json has been stale for {n} consecutive cycles.\n"
-                f"Reason: {reason_str}\n"
-                f"generated_at: {generated_at or 'unavailable'}\n"
-                f"The covariance/Kelly inputs may silently degrade to synthetic data.\n"
-                f"Action: check DeFiLlama fetch + section 9b of export_data.py."
-            )
+            bookkeeping = {
+                "last_generated_at": generated_at,
+                "last_source": data_source,
+                "updated_at": now_iso,
+            }
 
-            sender, exc = self.ensure_sender(sender)
-            if sender is None:
-                log.error(
-                    f"alert_apy_feed_stale: could not create TelegramSender — {exc}"
+            def build_message(n):
+                return (
+                    f"⚠️ <b>SPA APY Feed Stale</b>\n\n"
+                    f"historical_apy.json has been stale for {n} consecutive cycles.\n"
+                    f"Reason: {reason_str}\n"
+                    f"generated_at: {generated_at or 'unavailable'}\n"
+                    f"The covariance/Kelly inputs may silently degrade to synthetic data.\n"
+                    f"Action: check DeFiLlama fetch + section 9b of export_data.py."
                 )
-                self.write_state(state)
-                return False
 
-            try:
-                ok = sender.send(msg)
-            except Exception as exc:
-                log.error(f"alert_apy_feed_stale: send error — {exc}")
-                self.write_state(state)
-                return False
-
-            state["last_alerted_cycle"] = n
-            self.write_state(state)
-            log.info(
-                f"alert_apy_feed_stale: alert {'sent' if ok else 'failed'} "
-                f"(streak={n}, reason={reason_str!r})"
+            return self._drive_lifecycle(
+                state,
+                degraded=degraded,
+                counter_key="consecutive_stale",
+                threshold=APY_FEED_STALE_CYCLES_ALERT,
+                log_prefix="alert_apy_feed_stale",
+                healthy_updates=dict(bookkeeping),
+                healthy_log=(
+                    f"alert_apy_feed_stale: healthy generated_at={generated_at!r}, "
+                    f"source={data_source!r}, streak reset"
+                ),
+                degraded_updates=dict(bookkeeping),
+                build_message=build_message,
+                no_alert_log=lambda n: (
+                    f"alert_apy_feed_stale: stale streak={n} "
+                    f"(threshold={APY_FEED_STALE_CYCLES_ALERT}), no alert"
+                ),
+                fired_log=lambda n, ok: (
+                    f"alert_apy_feed_stale: alert {'sent' if ok else 'failed'} "
+                    f"(streak={n}, reason={reason_str!r})"
+                ),
+                sender=sender,
             )
-            return bool(ok)
         except Exception as exc:
             log.error(f"alert_apy_feed_stale: unexpected error — {exc}")
             return False
@@ -458,35 +499,6 @@ class ApyFeedProtocolDropAlert(FeedHealthAlert):
             )
             degraded = bool(unreadable or too_few or sharp_drop)
 
-            if not degraded:
-                state["consecutive_drops"] = 0
-                state["last_alerted_cycle"] = 0
-                state["prev_num_protocols"] = num_protocols
-                state["updated_at"] = now_iso
-                self.write_state(state)
-                log.info(
-                    f"alert_apy_feed_protocol_drop: healthy "
-                    f"num_protocols={num_protocols!r}, streak reset"
-                )
-                return False
-
-            state["consecutive_drops"] = int(state.get("consecutive_drops", 0)) + 1
-            n = state["consecutive_drops"]
-            last_alerted = int(state.get("last_alerted_cycle", 0))
-            state["updated_at"] = now_iso
-
-            should_alert = n >= 1 and n != last_alerted
-
-            if num_protocols is not None:
-                state["prev_num_protocols"] = num_protocols
-
-            if not should_alert:
-                self.write_state(state)
-                log.info(
-                    f"alert_apy_feed_protocol_drop: degraded streak={n}, no alert"
-                )
-                return False
-
             reasons = []
             if too_few:
                 reasons.append(
@@ -501,40 +513,51 @@ class ApyFeedProtocolDropAlert(FeedHealthAlert):
                 reasons.append("protocol count unreadable")
             reason_str = ", ".join(reasons) if reasons else "protocol-count drop"
 
-            cur_display = num_protocols if num_protocols is not None else "unavailable"
-            msg = (
-                f"⚠️ <b>SPA APY Feed Protocol Drop</b>\n\n"
-                f"historical_apy.json protocol count has degraded for "
-                f"{n} consecutive cycle(s).\n"
-                f"Reason: {reason_str}\n"
-                f"Protocols now: {cur_display} (was {prev if prev is not None else 'n/a'})\n"
-                f"The covariance/Kelly universe is silently thinning.\n"
-                f"Action: check DeFiLlama fetch + section 9b of export_data.py."
-            )
+            # prev_num_protocols: always written when readable (healthy →
+            # num_protocols which is non-None; degraded → only when not None).
+            degraded_updates = {"updated_at": now_iso}
+            if num_protocols is not None:
+                degraded_updates["prev_num_protocols"] = num_protocols
 
-            sender, exc = self.ensure_sender(sender)
-            if sender is None:
-                log.error(
-                    f"alert_apy_feed_protocol_drop: could not create "
-                    f"TelegramSender — {exc}"
+            def build_message(n):
+                cur_display = (
+                    num_protocols if num_protocols is not None else "unavailable"
                 )
-                self.write_state(state)
-                return False
+                return (
+                    f"⚠️ <b>SPA APY Feed Protocol Drop</b>\n\n"
+                    f"historical_apy.json protocol count has degraded for "
+                    f"{n} consecutive cycle(s).\n"
+                    f"Reason: {reason_str}\n"
+                    f"Protocols now: {cur_display} (was {prev if prev is not None else 'n/a'})\n"
+                    f"The covariance/Kelly universe is silently thinning.\n"
+                    f"Action: check DeFiLlama fetch + section 9b of export_data.py."
+                )
 
-            try:
-                ok = sender.send(msg)
-            except Exception as exc:
-                log.error(f"alert_apy_feed_protocol_drop: send error — {exc}")
-                self.write_state(state)
-                return False
-
-            state["last_alerted_cycle"] = n
-            self.write_state(state)
-            log.info(
-                f"alert_apy_feed_protocol_drop: alert {'sent' if ok else 'failed'} "
-                f"(streak={n}, reason={reason_str!r})"
+            return self._drive_lifecycle(
+                state,
+                degraded=degraded,
+                counter_key="consecutive_drops",
+                threshold=1,
+                log_prefix="alert_apy_feed_protocol_drop",
+                healthy_updates={
+                    "prev_num_protocols": num_protocols,
+                    "updated_at": now_iso,
+                },
+                healthy_log=(
+                    f"alert_apy_feed_protocol_drop: healthy "
+                    f"num_protocols={num_protocols!r}, streak reset"
+                ),
+                degraded_updates=degraded_updates,
+                build_message=build_message,
+                no_alert_log=lambda n: (
+                    f"alert_apy_feed_protocol_drop: degraded streak={n}, no alert"
+                ),
+                fired_log=lambda n, ok: (
+                    f"alert_apy_feed_protocol_drop: alert {'sent' if ok else 'failed'} "
+                    f"(streak={n}, reason={reason_str!r})"
+                ),
+                sender=sender,
             )
-            return bool(ok)
         except Exception as exc:
             log.error(f"alert_apy_feed_protocol_drop: unexpected error — {exc}")
             return False
@@ -608,35 +631,6 @@ class ApyFeedTvlDropAlert(FeedHealthAlert):
             )
             degraded = bool(unreadable or too_low or sharp_drop)
 
-            if not degraded:
-                state["consecutive_drops"] = 0
-                state["last_alerted_cycle"] = 0
-                state["prev_tvl_usd"] = total_tvl_usd
-                state["updated_at"] = now_iso
-                self.write_state(state)
-                log.info(
-                    f"alert_apy_feed_tvl_drop: healthy "
-                    f"total_tvl_usd={total_tvl_usd!r}, streak reset"
-                )
-                return False
-
-            state["consecutive_drops"] = int(state.get("consecutive_drops", 0)) + 1
-            n = state["consecutive_drops"]
-            last_alerted = int(state.get("last_alerted_cycle", 0))
-            state["updated_at"] = now_iso
-
-            should_alert = n >= 1 and n != last_alerted
-
-            if total_tvl_usd is not None:
-                state["prev_tvl_usd"] = total_tvl_usd
-
-            if not should_alert:
-                self.write_state(state)
-                log.info(
-                    f"alert_apy_feed_tvl_drop: degraded streak={n}, no alert"
-                )
-                return False
-
             reasons = []
             if too_low:
                 reasons.append(
@@ -651,43 +645,51 @@ class ApyFeedTvlDropAlert(FeedHealthAlert):
                 reasons.append("total TVL unreadable")
             reason_str = ", ".join(reasons) if reasons else "total-TVL drop"
 
-            cur_display = (
-                f"${total_tvl_usd:,.0f}" if total_tvl_usd is not None else "unavailable"
-            )
-            prev_display = f"${prev:,.0f}" if prev is not None else "n/a"
-            msg = (
-                f"⚠️ <b>SPA APY Feed TVL Collapse</b>\n\n"
-                f"historical_apy.json total TVL has collapsed for "
-                f"{n} consecutive cycle(s).\n"
-                f"Reason: {reason_str}\n"
-                f"TVL now: {cur_display} (was {prev_display})\n"
-                f"The covariance/Kelly universe is thinning by capital weight.\n"
-                f"Action: check DeFiLlama fetch + section 9b of export_data.py."
-            )
+            degraded_updates = {"updated_at": now_iso}
+            if total_tvl_usd is not None:
+                degraded_updates["prev_tvl_usd"] = total_tvl_usd
 
-            sender, exc = self.ensure_sender(sender)
-            if sender is None:
-                log.error(
-                    f"alert_apy_feed_tvl_drop: could not create "
-                    f"TelegramSender — {exc}"
+            def build_message(n):
+                cur_display = (
+                    f"${total_tvl_usd:,.0f}"
+                    if total_tvl_usd is not None else "unavailable"
                 )
-                self.write_state(state)
-                return False
+                prev_display = f"${prev:,.0f}" if prev is not None else "n/a"
+                return (
+                    f"⚠️ <b>SPA APY Feed TVL Collapse</b>\n\n"
+                    f"historical_apy.json total TVL has collapsed for "
+                    f"{n} consecutive cycle(s).\n"
+                    f"Reason: {reason_str}\n"
+                    f"TVL now: {cur_display} (was {prev_display})\n"
+                    f"The covariance/Kelly universe is thinning by capital weight.\n"
+                    f"Action: check DeFiLlama fetch + section 9b of export_data.py."
+                )
 
-            try:
-                ok = sender.send(msg)
-            except Exception as exc:
-                log.error(f"alert_apy_feed_tvl_drop: send error — {exc}")
-                self.write_state(state)
-                return False
-
-            state["last_alerted_cycle"] = n
-            self.write_state(state)
-            log.info(
-                f"alert_apy_feed_tvl_drop: alert {'sent' if ok else 'failed'} "
-                f"(streak={n}, reason={reason_str!r})"
+            return self._drive_lifecycle(
+                state,
+                degraded=degraded,
+                counter_key="consecutive_drops",
+                threshold=1,
+                log_prefix="alert_apy_feed_tvl_drop",
+                healthy_updates={
+                    "prev_tvl_usd": total_tvl_usd,
+                    "updated_at": now_iso,
+                },
+                healthy_log=(
+                    f"alert_apy_feed_tvl_drop: healthy "
+                    f"total_tvl_usd={total_tvl_usd!r}, streak reset"
+                ),
+                degraded_updates=degraded_updates,
+                build_message=build_message,
+                no_alert_log=lambda n: (
+                    f"alert_apy_feed_tvl_drop: degraded streak={n}, no alert"
+                ),
+                fired_log=lambda n, ok: (
+                    f"alert_apy_feed_tvl_drop: alert {'sent' if ok else 'failed'} "
+                    f"(streak={n}, reason={reason_str!r})"
+                ),
+                sender=sender,
             )
-            return bool(ok)
         except Exception as exc:
             log.error(f"alert_apy_feed_tvl_drop: unexpected error — {exc}")
             return False
@@ -791,98 +793,73 @@ class ApyFeedProtocolAnomalyAlert(FeedHealthAlert):
 
             anomalous = bool(unreadable or disappeared or apy_crash or tvl_crash)
 
-            if not anomalous:
-                state["consecutive_anomalies"] = 0
-                state["last_alerted_cycle"] = 0
-                if snapshot is not None:
-                    state["prev_snapshot"] = snapshot
-                state["updated_at"] = now_iso
-                self.write_state(state)
-                log.info(
+            # prev_snapshot is only persisted when the current snapshot is
+            # readable (same condition on both healthy + anomalous paths).
+            healthy_updates = {"updated_at": now_iso}
+            degraded_updates = {"updated_at": now_iso}
+            if snapshot is not None:
+                healthy_updates["prev_snapshot"] = snapshot
+                degraded_updates["prev_snapshot"] = snapshot
+
+            def build_message(n):
+                _LIM = 5
+                lines: list[str] = []
+                if disappeared:
+                    lines.append(
+                        "disappeared: " + ", ".join(disappeared[:_LIM])
+                    )
+                if apy_crash:
+                    parts = []
+                    for key in apy_crash[:_LIM]:
+                        pa = (prev or {}).get(key, {}).get("apy")
+                        ca = (snapshot or {}).get(key, {}).get("apy")
+                        parts.append(f"{key} {pa}→{ca}")
+                    lines.append("APY crash: " + ", ".join(parts))
+                if tvl_crash:
+                    parts = []
+                    for key in tvl_crash[:_LIM]:
+                        pt = (prev or {}).get(key, {}).get("tvl_usd")
+                        ct = (snapshot or {}).get(key, {}).get("tvl_usd")
+                        pt_s = f"${pt:,.0f}" if isinstance(pt, (int, float)) else "n/a"
+                        ct_s = f"${ct:,.0f}" if isinstance(ct, (int, float)) else "n/a"
+                        parts.append(f"{key} {pt_s}→{ct_s}")
+                    lines.append("TVL crash: " + ", ".join(parts))
+                if unreadable:
+                    lines.append("snapshot unreadable")
+                detail_str = "\n".join(lines) if lines else "per-protocol anomaly"
+                return (
+                    f"⚠️ <b>SPA APY Feed Protocol Anomaly</b>\n\n"
+                    f"historical_apy.json has a per-protocol anomaly for "
+                    f"{n} consecutive cycle(s).\n"
+                    f"{detail_str}\n"
+                    f"A specific position dropped out or its APY/TVL crashed while "
+                    f"aggregate alerts stayed quiet.\n"
+                    f"Action: check DeFiLlama per-protocol fetch + section 9b export_data.py."
+                )
+
+            return self._drive_lifecycle(
+                state,
+                degraded=anomalous,
+                counter_key="consecutive_anomalies",
+                threshold=1,
+                log_prefix="alert_apy_feed_protocol_anomaly",
+                healthy_updates=healthy_updates,
+                healthy_log=(
                     f"alert_apy_feed_protocol_anomaly: healthy "
                     f"({len(snapshot) if snapshot else 0} protocols), streak reset"
-                )
-                return False
-
-            state["consecutive_anomalies"] = (
-                int(state.get("consecutive_anomalies", 0)) + 1
-            )
-            n = state["consecutive_anomalies"]
-            last_alerted = int(state.get("last_alerted_cycle", 0))
-            state["updated_at"] = now_iso
-
-            should_alert = n >= 1 and n != last_alerted
-
-            if snapshot is not None:
-                state["prev_snapshot"] = snapshot
-
-            if not should_alert:
-                self.write_state(state)
-                log.info(
+                ),
+                degraded_updates=degraded_updates,
+                build_message=build_message,
+                no_alert_log=lambda n: (
                     f"alert_apy_feed_protocol_anomaly: anomalous streak={n}, no alert"
-                )
-                return False
-
-            _LIM = 5
-            lines: list[str] = []
-            if disappeared:
-                lines.append(
-                    "disappeared: " + ", ".join(disappeared[:_LIM])
-                )
-            if apy_crash:
-                parts = []
-                for key in apy_crash[:_LIM]:
-                    pa = (prev or {}).get(key, {}).get("apy")
-                    ca = (snapshot or {}).get(key, {}).get("apy")
-                    parts.append(f"{key} {pa}→{ca}")
-                lines.append("APY crash: " + ", ".join(parts))
-            if tvl_crash:
-                parts = []
-                for key in tvl_crash[:_LIM]:
-                    pt = (prev or {}).get(key, {}).get("tvl_usd")
-                    ct = (snapshot or {}).get(key, {}).get("tvl_usd")
-                    pt_s = f"${pt:,.0f}" if isinstance(pt, (int, float)) else "n/a"
-                    ct_s = f"${ct:,.0f}" if isinstance(ct, (int, float)) else "n/a"
-                    parts.append(f"{key} {pt_s}→{ct_s}")
-                lines.append("TVL crash: " + ", ".join(parts))
-            if unreadable:
-                lines.append("snapshot unreadable")
-            detail_str = "\n".join(lines) if lines else "per-protocol anomaly"
-
-            msg = (
-                f"⚠️ <b>SPA APY Feed Protocol Anomaly</b>\n\n"
-                f"historical_apy.json has a per-protocol anomaly for "
-                f"{n} consecutive cycle(s).\n"
-                f"{detail_str}\n"
-                f"A specific position dropped out or its APY/TVL crashed while "
-                f"aggregate alerts stayed quiet.\n"
-                f"Action: check DeFiLlama per-protocol fetch + section 9b export_data.py."
+                ),
+                fired_log=lambda n, ok: (
+                    f"alert_apy_feed_protocol_anomaly: alert {'sent' if ok else 'failed'} "
+                    f"(streak={n}, disappeared={len(disappeared)}, "
+                    f"apy_crash={len(apy_crash)}, tvl_crash={len(tvl_crash)})"
+                ),
+                sender=sender,
             )
-
-            sender, exc = self.ensure_sender(sender)
-            if sender is None:
-                log.error(
-                    f"alert_apy_feed_protocol_anomaly: could not create "
-                    f"TelegramSender — {exc}"
-                )
-                self.write_state(state)
-                return False
-
-            try:
-                ok = sender.send(msg)
-            except Exception as exc:
-                log.error(f"alert_apy_feed_protocol_anomaly: send error — {exc}")
-                self.write_state(state)
-                return False
-
-            state["last_alerted_cycle"] = n
-            self.write_state(state)
-            log.info(
-                f"alert_apy_feed_protocol_anomaly: alert {'sent' if ok else 'failed'} "
-                f"(streak={n}, disappeared={len(disappeared)}, "
-                f"apy_crash={len(apy_crash)}, tvl_crash={len(tvl_crash)})"
-            )
-            return bool(ok)
         except Exception as exc:
             log.error(f"alert_apy_feed_protocol_anomaly: unexpected error — {exc}")
             return False
@@ -999,89 +976,63 @@ class ApyFeedSchemaDriftAlert(FeedHealthAlert):
             )
             drift = bool(unreadable or too_few or schema_bad)
 
-            if not drift:
-                state["consecutive_drifts"] = 0
-                state["last_alerted_cycle"] = 0
-                state["prev_bad_keys"] = bad_keys
-                state["updated_at"] = now_iso
-                self.write_state(state)
-                log.info(
+            updates = {"prev_bad_keys": bad_keys, "updated_at": now_iso}
+
+            def build_message(n):
+                _LIM = 6
+                lines: list[str] = []
+                if unreadable:
+                    lines.append("feed unreadable / no usable protocols")
+                if too_few:
+                    lines.append(
+                        f"only {total_usable} usable protocol(s) "
+                        f"< {APY_FEED_SCHEMA_MIN_PROTOCOLS} floor"
+                    )
+                if schema_bad:
+                    parts = [
+                        f"{k} ({bad_reasons.get(k, 'bad schema')})"
+                        for k in bad_keys[:_LIM]
+                    ]
+                    more = "" if len(bad_keys) <= _LIM else f" (+{len(bad_keys) - _LIM} more)"
+                    lines.append(
+                        f"{len(bad_keys)}/{total_usable} protocols bad-schema "
+                        f"({int(bad_pct * 100)}% >= {int(APY_FEED_SCHEMA_MAX_BAD_PCT * 100)}%): "
+                        + ", ".join(parts) + more
+                    )
+                detail_str = "\n".join(lines) if lines else "schema drift"
+                return (
+                    f"⚠️ <b>SPA APY Feed Schema Drift</b>\n\n"
+                    f"historical_apy.json schema has drifted for "
+                    f"{n} consecutive cycle(s).\n"
+                    f"{detail_str}\n"
+                    f"Records changed shape/keys/types (string instead of number, "
+                    f"missing field, non-dict record) — aggregate & per-protocol "
+                    f"alerts can't see this.\n"
+                    f"Action: check DeFiLlama parse + section 9b of export_data.py."
+                )
+
+            return self._drive_lifecycle(
+                state,
+                degraded=drift,
+                counter_key="consecutive_drifts",
+                threshold=1,
+                log_prefix="alert_apy_feed_schema_drift",
+                healthy_updates=dict(updates),
+                healthy_log=(
                     f"alert_apy_feed_schema_drift: healthy "
                     f"({total_usable} protocols, {len(bad_keys)} bad), streak reset"
-                )
-                return False
-
-            state["consecutive_drifts"] = int(state.get("consecutive_drifts", 0)) + 1
-            n = state["consecutive_drifts"]
-            last_alerted = int(state.get("last_alerted_cycle", 0))
-            state["prev_bad_keys"] = bad_keys
-            state["updated_at"] = now_iso
-
-            should_alert = n >= 1 and n != last_alerted
-
-            if not should_alert:
-                self.write_state(state)
-                log.info(
+                ),
+                degraded_updates=dict(updates),
+                build_message=build_message,
+                no_alert_log=lambda n: (
                     f"alert_apy_feed_schema_drift: drift streak={n}, no alert"
-                )
-                return False
-
-            _LIM = 6
-            lines: list[str] = []
-            if unreadable:
-                lines.append("feed unreadable / no usable protocols")
-            if too_few:
-                lines.append(
-                    f"only {total_usable} usable protocol(s) "
-                    f"< {APY_FEED_SCHEMA_MIN_PROTOCOLS} floor"
-                )
-            if schema_bad:
-                parts = [
-                    f"{k} ({bad_reasons.get(k, 'bad schema')})"
-                    for k in bad_keys[:_LIM]
-                ]
-                more = "" if len(bad_keys) <= _LIM else f" (+{len(bad_keys) - _LIM} more)"
-                lines.append(
-                    f"{len(bad_keys)}/{total_usable} protocols bad-schema "
-                    f"({int(bad_pct * 100)}% >= {int(APY_FEED_SCHEMA_MAX_BAD_PCT * 100)}%): "
-                    + ", ".join(parts) + more
-                )
-            detail_str = "\n".join(lines) if lines else "schema drift"
-
-            msg = (
-                f"⚠️ <b>SPA APY Feed Schema Drift</b>\n\n"
-                f"historical_apy.json schema has drifted for "
-                f"{n} consecutive cycle(s).\n"
-                f"{detail_str}\n"
-                f"Records changed shape/keys/types (string instead of number, "
-                f"missing field, non-dict record) — aggregate & per-protocol "
-                f"alerts can't see this.\n"
-                f"Action: check DeFiLlama parse + section 9b of export_data.py."
+                ),
+                fired_log=lambda n, ok: (
+                    f"alert_apy_feed_schema_drift: alert {'sent' if ok else 'failed'} "
+                    f"(streak={n}, bad={len(bad_keys)}/{total_usable})"
+                ),
+                sender=sender,
             )
-
-            sender, exc = self.ensure_sender(sender)
-            if sender is None:
-                log.error(
-                    f"alert_apy_feed_schema_drift: could not create "
-                    f"TelegramSender — {exc}"
-                )
-                self.write_state(state)
-                return False
-
-            try:
-                ok = sender.send(msg)
-            except Exception as exc:
-                log.error(f"alert_apy_feed_schema_drift: send error — {exc}")
-                self.write_state(state)
-                return False
-
-            state["last_alerted_cycle"] = n
-            self.write_state(state)
-            log.info(
-                f"alert_apy_feed_schema_drift: alert {'sent' if ok else 'failed'} "
-                f"(streak={n}, bad={len(bad_keys)}/{total_usable})"
-            )
-            return bool(ok)
         except Exception as exc:
             log.error(f"alert_apy_feed_schema_drift: unexpected error — {exc}")
             return False
@@ -1185,90 +1136,64 @@ class ApyFeedValueBoundsAlert(FeedHealthAlert):
             )
             bad = bool(unreadable or too_few or bounds_bad)
 
-            if not bad:
-                state["consecutive_bounds"] = 0
-                state["last_alerted_cycle"] = 0
-                state["prev_bad_keys"] = bad_keys
-                state["updated_at"] = now_iso
-                self.write_state(state)
-                log.info(
+            updates = {"prev_bad_keys": bad_keys, "updated_at": now_iso}
+
+            def build_message(n):
+                _LIM = 6
+                lines: list[str] = []
+                if unreadable:
+                    lines.append("feed unreadable / no usable numeric protocols")
+                if too_few:
+                    lines.append(
+                        f"only {total_usable} usable numeric protocol(s) "
+                        f"< {bounds_min_protocols} floor"
+                    )
+                if bounds_bad:
+                    parts = [
+                        f"{k} ({bad_reasons.get(k, 'out of bounds')})"
+                        for k in bad_keys[:_LIM]
+                    ]
+                    more = "" if len(bad_keys) <= _LIM else f" (+{len(bad_keys) - _LIM} more)"
+                    lines.append(
+                        f"{len(bad_keys)}/{total_usable} protocols out-of-bounds "
+                        f"({int(bad_pct * 100)}% >= {int(APY_FEED_BOUNDS_MAX_BAD_PCT * 100)}%): "
+                        + ", ".join(parts) + more
+                    )
+                detail_str = "\n".join(lines) if lines else "value out of bounds"
+                return (
+                    f"⚠️ <b>SPA APY Feed Value Bounds</b>\n\n"
+                    f"historical_apy.json carries out-of-range values for "
+                    f"{n} consecutive cycle(s).\n"
+                    f"{detail_str}\n"
+                    f"Type-valid garbage numbers (apy>1000% / apy<0 / tvl_usd<=0 / "
+                    f"tvl_usd>$10T) pass stale/drop/anomaly/schema checks but poison "
+                    f"the covariance & Kelly universe.\n"
+                    f"Action: check DeFiLlama parse + section 9b of export_data.py."
+                )
+
+            return self._drive_lifecycle(
+                state,
+                degraded=bad,
+                counter_key="consecutive_bounds",
+                threshold=1,
+                log_prefix="alert_apy_feed_value_bounds",
+                healthy_updates=dict(updates),
+                healthy_log=(
                     f"alert_apy_feed_value_bounds: healthy "
                     f"({total_usable} numeric protocols, {len(bad_keys)} oob), "
                     f"streak reset"
-                )
-                return False
-
-            state["consecutive_bounds"] = int(state.get("consecutive_bounds", 0)) + 1
-            n = state["consecutive_bounds"]
-            last_alerted = int(state.get("last_alerted_cycle", 0))
-            state["prev_bad_keys"] = bad_keys
-            state["updated_at"] = now_iso
-
-            should_alert = n >= 1 and n != last_alerted
-
-            if not should_alert:
-                self.write_state(state)
-                log.info(
+                ),
+                degraded_updates=dict(updates),
+                build_message=build_message,
+                no_alert_log=lambda n: (
                     f"alert_apy_feed_value_bounds: bad streak={n}, no alert"
-                )
-                return False
-
-            _LIM = 6
-            lines: list[str] = []
-            if unreadable:
-                lines.append("feed unreadable / no usable numeric protocols")
-            if too_few:
-                lines.append(
-                    f"only {total_usable} usable numeric protocol(s) "
-                    f"< {bounds_min_protocols} floor"
-                )
-            if bounds_bad:
-                parts = [
-                    f"{k} ({bad_reasons.get(k, 'out of bounds')})"
-                    for k in bad_keys[:_LIM]
-                ]
-                more = "" if len(bad_keys) <= _LIM else f" (+{len(bad_keys) - _LIM} more)"
-                lines.append(
-                    f"{len(bad_keys)}/{total_usable} protocols out-of-bounds "
-                    f"({int(bad_pct * 100)}% >= {int(APY_FEED_BOUNDS_MAX_BAD_PCT * 100)}%): "
-                    + ", ".join(parts) + more
-                )
-            detail_str = "\n".join(lines) if lines else "value out of bounds"
-
-            msg = (
-                f"⚠️ <b>SPA APY Feed Value Bounds</b>\n\n"
-                f"historical_apy.json carries out-of-range values for "
-                f"{n} consecutive cycle(s).\n"
-                f"{detail_str}\n"
-                f"Type-valid garbage numbers (apy>1000% / apy<0 / tvl_usd<=0 / "
-                f"tvl_usd>$10T) pass stale/drop/anomaly/schema checks but poison "
-                f"the covariance & Kelly universe.\n"
-                f"Action: check DeFiLlama parse + section 9b of export_data.py."
+                ),
+                fired_log=lambda n, ok: (
+                    f"alert_apy_feed_value_bounds: alert {'sent' if ok else 'failed'} "
+                    f"(streak={n}, oob={len(bad_keys)}/{total_usable})"
+                ),
+                sender=sender,
             )
-
-            sender, exc = self.ensure_sender(sender)
-            if sender is None:
-                log.error(
-                    f"alert_apy_feed_value_bounds: could not create "
-                    f"TelegramSender — {exc}"
-                )
-                self.write_state(state)
-                return False
-
-            try:
-                ok = sender.send(msg)
-            except Exception as exc:
-                log.error(f"alert_apy_feed_value_bounds: send error — {exc}")
-                self.write_state(state)
-                return False
-
-            state["last_alerted_cycle"] = n
-            self.write_state(state)
-            log.info(
-                f"alert_apy_feed_value_bounds: alert {'sent' if ok else 'failed'} "
-                f"(streak={n}, oob={len(bad_keys)}/{total_usable})"
-            )
-            return bool(ok)
         except Exception as exc:
             log.error(f"alert_apy_feed_value_bounds: unexpected error — {exc}")
             return False
@@ -1420,98 +1345,70 @@ class ApyFeedDateMonotonicityAlert(FeedHealthAlert):
             )
             bad = bool(unreadable or too_few or monotonicity_bad)
 
-            if not bad:
-                state["consecutive_mono"] = 0
-                state["last_alerted_cycle"] = 0
-                state["prev_bad_keys"] = bad_keys
-                state["updated_at"] = now_iso
-                self.write_state(state)
-                log.info(
+            updates = {"prev_bad_keys": bad_keys, "updated_at": now_iso}
+
+            def build_message(n):
+                _LIM = 5
+                lines: list[str] = []
+                if unreadable:
+                    lines.append("feed unreadable / no usable protocols")
+                if too_few:
+                    lines.append(
+                        f"only {total_usable} usable protocol(s) "
+                        f"< {mono_min_protocols} floor"
+                    )
+                if monotonicity_bad:
+                    parts = [
+                        f"{k} ({bad_reasons.get(k, 'date order broken')})"
+                        for k in bad_keys[:_LIM]
+                    ]
+                    more = (
+                        "" if len(bad_keys) <= _LIM
+                        else f" (+{len(bad_keys) - _LIM} more)"
+                    )
+                    lines.append(
+                        f"{len(bad_keys)}/{total_usable} protocols with broken date "
+                        f"series ({int(bad_pct * 100)}% >= "
+                        f"{int(APY_FEED_MONO_MAX_BAD_PCT * 100)}%): "
+                        + ", ".join(parts) + more
+                    )
+                detail_str = "\n".join(lines) if lines else "date series broken"
+                return (
+                    f"⚠️ <b>SPA APY Feed Date Monotonicity</b>\n\n"
+                    f"historical_apy.json has non-monotonic / discontinuous dates for "
+                    f"{n} consecutive cycle(s).\n"
+                    f"{detail_str}\n"
+                    f"Date regression (history runs backwards) or a >"
+                    f"{APY_FEED_MAX_DATE_GAP_HOURS:.0f}h gap (skipped days) passes "
+                    f"stale/drop/anomaly/schema/bounds checks but silently breaks the "
+                    f"rolling-90d covariance & Kelly computation.\n"
+                    f"Action: check DeFiLlama history merge + section 9b export_data.py."
+                )
+
+            return self._drive_lifecycle(
+                state,
+                degraded=bad,
+                counter_key="consecutive_mono",
+                threshold=1,
+                log_prefix="alert_apy_feed_date_monotonicity",
+                healthy_updates=dict(updates),
+                healthy_log=(
                     f"alert_apy_feed_date_monotonicity: healthy "
                     f"({total_usable} protocols, {len(bad_keys)} bad), "
                     f"streak reset"
-                )
-                return False
-
-            state["consecutive_mono"] = int(state.get("consecutive_mono", 0)) + 1
-            n = state["consecutive_mono"]
-            last_alerted = int(state.get("last_alerted_cycle", 0))
-            state["prev_bad_keys"] = bad_keys
-            state["updated_at"] = now_iso
-
-            should_alert = n >= 1 and n != last_alerted
-
-            if not should_alert:
-                self.write_state(state)
-                log.info(
+                ),
+                degraded_updates=dict(updates),
+                build_message=build_message,
+                no_alert_log=lambda n: (
                     f"alert_apy_feed_date_monotonicity: bad streak={n}, no alert"
-                )
-                return False
-
-            _LIM = 5
-            lines: list[str] = []
-            if unreadable:
-                lines.append("feed unreadable / no usable protocols")
-            if too_few:
-                lines.append(
-                    f"only {total_usable} usable protocol(s) "
-                    f"< {mono_min_protocols} floor"
-                )
-            if monotonicity_bad:
-                parts = [
-                    f"{k} ({bad_reasons.get(k, 'date order broken')})"
-                    for k in bad_keys[:_LIM]
-                ]
-                more = (
-                    "" if len(bad_keys) <= _LIM
-                    else f" (+{len(bad_keys) - _LIM} more)"
-                )
-                lines.append(
-                    f"{len(bad_keys)}/{total_usable} protocols with broken date "
-                    f"series ({int(bad_pct * 100)}% >= "
-                    f"{int(APY_FEED_MONO_MAX_BAD_PCT * 100)}%): "
-                    + ", ".join(parts) + more
-                )
-            detail_str = "\n".join(lines) if lines else "date series broken"
-
-            msg = (
-                f"⚠️ <b>SPA APY Feed Date Monotonicity</b>\n\n"
-                f"historical_apy.json has non-monotonic / discontinuous dates for "
-                f"{n} consecutive cycle(s).\n"
-                f"{detail_str}\n"
-                f"Date regression (history runs backwards) or a >"
-                f"{APY_FEED_MAX_DATE_GAP_HOURS:.0f}h gap (skipped days) passes "
-                f"stale/drop/anomaly/schema/bounds checks but silently breaks the "
-                f"rolling-90d covariance & Kelly computation.\n"
-                f"Action: check DeFiLlama history merge + section 9b export_data.py."
+                ),
+                fired_log=lambda n, ok: (
+                    f"alert_apy_feed_date_monotonicity: alert "
+                    f"{'sent' if ok else 'failed'} "
+                    f"(streak={n}, bad={len(bad_keys)}/{total_usable})"
+                ),
+                sender=sender,
             )
-
-            sender, exc = self.ensure_sender(sender)
-            if sender is None:
-                log.error(
-                    f"alert_apy_feed_date_monotonicity: could not create "
-                    f"TelegramSender — {exc}"
-                )
-                self.write_state(state)
-                return False
-
-            try:
-                ok = sender.send(msg)
-            except Exception as exc:
-                log.error(
-                    f"alert_apy_feed_date_monotonicity: send error — {exc}"
-                )
-                self.write_state(state)
-                return False
-
-            state["last_alerted_cycle"] = n
-            self.write_state(state)
-            log.info(
-                f"alert_apy_feed_date_monotonicity: alert "
-                f"{'sent' if ok else 'failed'} "
-                f"(streak={n}, bad={len(bad_keys)}/{total_usable})"
-            )
-            return bool(ok)
         except Exception as exc:
             log.error(
                 f"alert_apy_feed_date_monotonicity: unexpected error — {exc}"
@@ -1614,82 +1511,57 @@ class ApyFeedProtocolStaleAlert(FeedHealthAlert):
 
             degraded = bool(unreadable or stale)
 
-            if not degraded:
-                state["consecutive_stale"] = 0
-                state["last_alerted_cycle"] = 0
-                state["last_stale_keys"] = []
-                state["updated_at"] = now_iso
-                self.write_state(state)
-                log.info(
+            def build_message(n):
+                _LIM = 5
+                lines: list[str] = []
+                if stale:
+                    parts = []
+                    for key, age in stale[:_LIM]:
+                        if age is None:
+                            parts.append(f"{key} (no parseable date)")
+                        else:
+                            parts.append(f"{key} {age:.1f}h old")
+                    more = f" (+{len(stale) - _LIM} more)" if len(stale) > _LIM else ""
+                    lines.append("stale: " + ", ".join(parts) + more)
+                if unreadable:
+                    lines.append("snapshot unreadable")
+                detail_str = "\n".join(lines) if lines else "per-protocol staleness"
+                return (
+                    f"⚠️ <b>SPA APY Feed Protocol Stale</b>\n\n"
+                    f"historical_apy.json has a per-protocol staleness for "
+                    f"{n} consecutive cycle(s).\n"
+                    f"{detail_str}\n"
+                    f"A specific protocol stopped advancing (record older than "
+                    f"{APY_FEED_PROTOCOL_MAX_AGE_HOURS:.0f}h) while the feed as a "
+                    f"whole still looks fresh — its covariance / Kelly input is stale.\n"
+                    f"Action: check DeFiLlama per-protocol fetch + section 9b export_data.py."
+                )
+
+            return self._drive_lifecycle(
+                state,
+                degraded=degraded,
+                counter_key="consecutive_stale",
+                threshold=1,
+                log_prefix="alert_apy_feed_protocol_stale",
+                healthy_updates={"last_stale_keys": [], "updated_at": now_iso},
+                healthy_log=(
                     f"alert_apy_feed_protocol_stale: healthy "
                     f"({len(snapshot) if snapshot else 0} protocols), streak reset"
-                )
-                return False
-
-            state["consecutive_stale"] = int(state.get("consecutive_stale", 0)) + 1
-            n = state["consecutive_stale"]
-            last_alerted = int(state.get("last_alerted_cycle", 0))
-            state["last_stale_keys"] = [k for k, _ in stale]
-            state["updated_at"] = now_iso
-
-            should_alert = n >= 1 and n != last_alerted
-
-            if not should_alert:
-                self.write_state(state)
-                log.info(
+                ),
+                degraded_updates={
+                    "last_stale_keys": [k for k, _ in stale],
+                    "updated_at": now_iso,
+                },
+                build_message=build_message,
+                no_alert_log=lambda n: (
                     f"alert_apy_feed_protocol_stale: stale streak={n}, no alert"
-                )
-                return False
-
-            _LIM = 5
-            lines: list[str] = []
-            if stale:
-                parts = []
-                for key, age in stale[:_LIM]:
-                    if age is None:
-                        parts.append(f"{key} (no parseable date)")
-                    else:
-                        parts.append(f"{key} {age:.1f}h old")
-                more = f" (+{len(stale) - _LIM} more)" if len(stale) > _LIM else ""
-                lines.append("stale: " + ", ".join(parts) + more)
-            if unreadable:
-                lines.append("snapshot unreadable")
-            detail_str = "\n".join(lines) if lines else "per-protocol staleness"
-
-            msg = (
-                f"⚠️ <b>SPA APY Feed Protocol Stale</b>\n\n"
-                f"historical_apy.json has a per-protocol staleness for "
-                f"{n} consecutive cycle(s).\n"
-                f"{detail_str}\n"
-                f"A specific protocol stopped advancing (record older than "
-                f"{APY_FEED_PROTOCOL_MAX_AGE_HOURS:.0f}h) while the feed as a "
-                f"whole still looks fresh — its covariance / Kelly input is stale.\n"
-                f"Action: check DeFiLlama per-protocol fetch + section 9b export_data.py."
+                ),
+                fired_log=lambda n, ok: (
+                    f"alert_apy_feed_protocol_stale: alert {'sent' if ok else 'failed'} "
+                    f"(streak={n}, stale={len(stale)})"
+                ),
+                sender=sender,
             )
-
-            sender, exc = self.ensure_sender(sender)
-            if sender is None:
-                log.error(
-                    f"alert_apy_feed_protocol_stale: could not create "
-                    f"TelegramSender — {exc}"
-                )
-                self.write_state(state)
-                return False
-
-            try:
-                ok = sender.send(msg)
-            except Exception as exc:
-                log.error(f"alert_apy_feed_protocol_stale: send error — {exc}")
-                self.write_state(state)
-                return False
-
-            state["last_alerted_cycle"] = n
-            self.write_state(state)
-            log.info(
-                f"alert_apy_feed_protocol_stale: alert {'sent' if ok else 'failed'} "
-                f"(streak={n}, stale={len(stale)})"
-            )
-            return bool(ok)
         except Exception as exc:
             log.error(f"alert_apy_feed_protocol_stale: unexpected error — {exc}")
             return False

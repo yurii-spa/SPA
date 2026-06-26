@@ -23,6 +23,7 @@ import json
 import os
 import sys
 import argparse
+import functools
 import logging
 import shutil
 import tempfile
@@ -164,6 +165,56 @@ class ExportContext:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Per-writer guard decorator
+# ─────────────────────────────────────────────────────────────────────────────
+def export_step(
+    name: str,
+    *,
+    fail_label: Optional[str] = None,
+    exc_info: bool = False,
+    fallback: Optional[Callable[["ExportContext", Exception], None]] = None,
+):
+    """Centralise the repeated per-writer try/except + section_ok/section_fail.
+
+    Behaviour-preserving wrapper for the ~26 `export_<section>()` writers that
+    each wrapped their body in the identical guard:
+
+        try:
+            <core logic>
+            ctx.section_ok(name)
+        except Exception as e:
+            log.error(f"{fail_label} export failed: {e}", exc_info=...)
+            ctx.section_fail(name)
+            <optional fallback file write>
+
+    The decorated function contains only the core logic; the decorator records
+    health (`section_ok`/`section_fail`), logs the failure with the exact legacy
+    message (`"{fail_label} export failed: {e}"`, defaulting `fail_label` to
+    `name`) and, when supplied, invokes `fallback(ctx, exc)` to emit the
+    fallback JSON. Output bytes and section-health are identical to the inline
+    guards: success → one `section_ok`; failure → log + one `section_fail`
+    (+ fallback). Writers without a guard (e.g. export_status) are left bare so
+    their exceptions still propagate.
+    """
+    label = fail_label if fail_label is not None else name
+
+    def deco(fn: Callable[["ExportContext"], None]) -> Callable[["ExportContext"], None]:
+        @functools.wraps(fn)
+        def wrapper(ctx: "ExportContext") -> None:
+            try:
+                fn(ctx)
+                ctx.section_ok(name)
+            except Exception as e:
+                log.error(f"{label} export failed: {e}", exc_info=exc_info)
+                ctx.section_fail(name)
+                if fallback is not None:
+                    fallback(ctx, e)
+        return wrapper
+
+    return deco
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Pre-amble phases (DB init, agent stability, optional fetch, paper trader)
 # ─────────────────────────────────────────────────────────────────────────────
 def _init_db_phase(ctx: ExportContext) -> None:
@@ -276,60 +327,59 @@ def _paper_trader_phase(ctx: ExportContext) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 # Per-output-file export sections (one function per data/*.json artefact)
 # ─────────────────────────────────────────────────────────────────────────────
+def _fallback_pendle_positions(ctx: ExportContext, e: Exception) -> None:
+    write_json("pendle_positions.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "count": 0,
+        "positions": [],
+        "error": str(e),
+    })
+
+
+@export_step("pendle_positions", exc_info=True, fallback=_fallback_pendle_positions)
 def export_pendle_positions(ctx: ExportContext) -> None:
     # pendle_positions.json — fixed-rate PT positions with accrual detail
     alloc_actions = ctx.alloc_actions
-    try:
-        from paper_trading.pendle_strategy import PendlePosition
-        pendle_records = []
-        for action in alloc_actions:
-            if action.get("action") != "OPEN_PENDLE_PT":
-                continue
-            # Reconstruct a PendlePosition from the action to get computed properties
-            pos = PendlePosition(
-                pool_id=action.get("protocol", "unknown"),
-                symbol=action.get("symbol") or "PT-STABLE",
-                chain=action.get("chain", "arbitrum"),
-                amount_usd=action.get("amount_usd", 0.0),
-                entry_apy=action.get("apy", 0.0),
-                entry_date=datetime.now(timezone.utc).date().isoformat(),
-                maturity_date=action.get("maturity_date"),
-                days_to_maturity=action.get("days_to_maturity") or 90,
-            )
-            pendle_records.append({
-                "pool_name":          pos.symbol,
-                "protocol":           action.get("protocol"),
-                "chain":              pos.chain,
-                "entry_apy":          round(pos.entry_apy, 4),
-                "amount_usd":         round(pos.amount_usd, 2),
-                "days_held":          pos.days_held,
-                "accrued_return_usd": round(pos.accrued_return_usd, 4),
-                "days_remaining":     pos.days_remaining,
-                "maturity_date":      pos.maturity_date,
-                "current_value_usd":  round(pos.current_value_usd, 4),
-                "is_near_maturity":   pos.is_near_maturity,
-                "t1_baseline_apy":    action.get("t1_baseline_apy"),
-                "apy_premium":        action.get("apy_premium"),
-                "tier":               "T2",
-                "special":            "fixed_rate",
-                "note":               action.get("note", "ADR-002 PROPOSED — paper only"),
-            })
-        write_json("pendle_positions.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "count": len(pendle_records),
-            "positions": pendle_records,
+    from paper_trading.pendle_strategy import PendlePosition
+    pendle_records = []
+    for action in alloc_actions:
+        if action.get("action") != "OPEN_PENDLE_PT":
+            continue
+        # Reconstruct a PendlePosition from the action to get computed properties
+        pos = PendlePosition(
+            pool_id=action.get("protocol", "unknown"),
+            symbol=action.get("symbol") or "PT-STABLE",
+            chain=action.get("chain", "arbitrum"),
+            amount_usd=action.get("amount_usd", 0.0),
+            entry_apy=action.get("apy", 0.0),
+            entry_date=datetime.now(timezone.utc).date().isoformat(),
+            maturity_date=action.get("maturity_date"),
+            days_to_maturity=action.get("days_to_maturity") or 90,
+        )
+        pendle_records.append({
+            "pool_name":          pos.symbol,
+            "protocol":           action.get("protocol"),
+            "chain":              pos.chain,
+            "entry_apy":          round(pos.entry_apy, 4),
+            "amount_usd":         round(pos.amount_usd, 2),
+            "days_held":          pos.days_held,
+            "accrued_return_usd": round(pos.accrued_return_usd, 4),
+            "days_remaining":     pos.days_remaining,
+            "maturity_date":      pos.maturity_date,
+            "current_value_usd":  round(pos.current_value_usd, 4),
+            "is_near_maturity":   pos.is_near_maturity,
+            "t1_baseline_apy":    action.get("t1_baseline_apy"),
+            "apy_premium":        action.get("apy_premium"),
+            "tier":               "T2",
+            "special":            "fixed_rate",
+            "note":               action.get("note", "ADR-002 PROPOSED — paper only"),
         })
-        log.info(f"pendle_positions.json: {len(pendle_records)} position(s)")
-        ctx.section_ok("pendle_positions")
-    except Exception as e:
-        log.error(f"pendle_positions export failed: {e}", exc_info=True)
-        ctx.section_fail("pendle_positions")
-        write_json("pendle_positions.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "count": 0,
-            "positions": [],
-            "error": str(e),
-        })
+    write_json("pendle_positions.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "count": len(pendle_records),
+        "positions": pendle_records,
+    })
+    log.info(f"pendle_positions.json: {len(pendle_records)} position(s)")
 
 
 def export_status(ctx: ExportContext) -> None:
@@ -337,34 +387,33 @@ def export_status(ctx: ExportContext) -> None:
     ctx.section_ok("paper_trader")
 
 
+def _fallback_drift_report(ctx: ExportContext, e: Exception) -> None:
+    write_json("drift_report.json", {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "needs_rebalance": False,
+        "positions": [],
+        "error": str(e),
+    })
+
+
+@export_step("drift_report", exc_info=True, fallback=_fallback_drift_report)
 def export_drift_report(ctx: ExportContext) -> None:
     # 3b. drift_report.json — portfolio allocation drift analysis
     trader = ctx.trader
-    try:
-        _drift_state = trader._load_portfolio_state()
-        _drift_positions = [
-            {"protocol": p.protocol_key, "amount_usd": p.amount_usd}
-            for p in _drift_state.positions
-        ]
-        drift = trader.calculate_drift(_drift_positions, _drift_state.total_capital_usd)
-        needs_rebalance = trader.should_rebalance(_drift_positions, _drift_state.total_capital_usd)
-        with open(str(OUTPUT_DIR / "drift_report.json"), "w") as f:
-            json.dump({
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "needs_rebalance": needs_rebalance,
-                "positions": drift,
-            }, f, indent=2)
-        log.info(f"drift_report.json: {len(drift)} positions, needs_rebalance={needs_rebalance}")
-        ctx.section_ok("drift_report")
-    except Exception as e:
-        log.error(f"drift_report export failed: {e}", exc_info=True)
-        ctx.section_fail("drift_report")
-        write_json("drift_report.json", {
+    _drift_state = trader._load_portfolio_state()
+    _drift_positions = [
+        {"protocol": p.protocol_key, "amount_usd": p.amount_usd}
+        for p in _drift_state.positions
+    ]
+    drift = trader.calculate_drift(_drift_positions, _drift_state.total_capital_usd)
+    needs_rebalance = trader.should_rebalance(_drift_positions, _drift_state.total_capital_usd)
+    with open(str(OUTPUT_DIR / "drift_report.json"), "w") as f:
+        json.dump({
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "needs_rebalance": False,
-            "positions": [],
-            "error": str(e),
-        })
+            "needs_rebalance": needs_rebalance,
+            "positions": drift,
+        }, f, indent=2)
+    log.info(f"drift_report.json: {len(drift)} positions, needs_rebalance={needs_rebalance}")
 
 
 def export_protocols(ctx: ExportContext) -> None:
@@ -392,286 +441,274 @@ def export_protocols(ctx: ExportContext) -> None:
     ctx.section_ok("protocols")
 
 
+@export_step("apy_tracking")
 def export_apy_trends(ctx: ExportContext) -> None:
     # 4a. APY history tracking
-    try:
-        from spa_core.analytics.apy_tracker import APYTracker
-        tracker = APYTracker()
-        _pools_for_tracker = ctx.pools if ctx.pools is not None else []
-        if _pools_for_tracker:
-            tracker.record_snapshot(_pools_for_tracker)
-        trends = tracker.all_trends(days=7)
-        with open(str(OUTPUT_DIR / "apy_trends.json"), "w") as f:
-            json.dump({
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "trends": trends,
-                "protocols_tracked": len(trends),
-            }, f, indent=2)
-        ctx.section_ok("apy_tracking")
-    except Exception as e:
-        ctx.section_fail("apy_tracking")
-        log.error(f"apy_tracking export failed: {e}")
+    from spa_core.analytics.apy_tracker import APYTracker
+    tracker = APYTracker()
+    _pools_for_tracker = ctx.pools if ctx.pools is not None else []
+    if _pools_for_tracker:
+        tracker.record_snapshot(_pools_for_tracker)
+    trends = tracker.all_trends(days=7)
+    with open(str(OUTPUT_DIR / "apy_trends.json"), "w") as f:
+        json.dump({
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "trends": trends,
+            "protocols_tracked": len(trends),
+        }, f, indent=2)
 
 
+def _fallback_pools_by_chain(ctx: ExportContext, e: Exception) -> None:
+    write_json("pools_by_chain.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "total_pools": 0, "chains": {}, "error": str(e),
+    })
+    write_json("chains_status.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "chain_count": 0, "chains": {}, "error": str(e),
+    })
+
+
+@export_step("pools_by_chain", fail_label="pools_by_chain/chains_status",
+             exc_info=True, fallback=_fallback_pools_by_chain)
 def export_pools_by_chain(ctx: ExportContext) -> None:
     # 4b. pools_by_chain.json + chains_status.json
-    try:
-        from data_pipeline.defillama_fetcher import POOL_WHITELIST
+    from data_pipeline.defillama_fetcher import POOL_WHITELIST
 
-        db_proto_map = {r["key"]: r for r in ctx.protocols_list}
+    db_proto_map = {r["key"]: r for r in ctx.protocols_list}
 
-        pools_by_chain: dict = {}
-        for key, cfg in POOL_WHITELIST.items():
-            chain = cfg["chain"].lower()
-            if chain not in pools_by_chain:
-                pools_by_chain[chain] = []
-            db = db_proto_map.get(key, {})
-            entry = {
-                "key":       key,
-                "protocol":  cfg["protocol"],
-                "asset":     cfg["asset"],
-                "tier":      cfg["tier"],
-                "chain":     chain,
-                "apy_total": db.get("apy_total"),
-                "tvl_usd":   db.get("tvl_usd"),
-            }
-            pools_by_chain[chain].append(entry)
+    pools_by_chain: dict = {}
+    for key, cfg in POOL_WHITELIST.items():
+        chain = cfg["chain"].lower()
+        if chain not in pools_by_chain:
+            pools_by_chain[chain] = []
+        db = db_proto_map.get(key, {})
+        entry = {
+            "key":       key,
+            "protocol":  cfg["protocol"],
+            "asset":     cfg["asset"],
+            "tier":      cfg["tier"],
+            "chain":     chain,
+            "apy_total": db.get("apy_total"),
+            "tvl_usd":   db.get("tvl_usd"),
+        }
+        pools_by_chain[chain].append(entry)
 
-        chain_stats = {}
-        for chain, pool_list in pools_by_chain.items():
-            apys = [p["apy_total"] for p in pool_list if p["apy_total"] is not None]
-            best_pool = max(pool_list, key=lambda p: p["apy_total"] or 0) if pool_list else {}
-            chain_stats[chain] = {
-                "chain":      chain,
-                "pool_count": len(pool_list),
-                "best_apy":   round(max(apys), 4) if apys else None,
-                "avg_apy":    round(sum(apys) / len(apys), 4) if apys else None,
-                "best_pool":  best_pool.get("key"),
-            }
+    chain_stats = {}
+    for chain, pool_list in pools_by_chain.items():
+        apys = [p["apy_total"] for p in pool_list if p["apy_total"] is not None]
+        best_pool = max(pool_list, key=lambda p: p["apy_total"] or 0) if pool_list else {}
+        chain_stats[chain] = {
+            "chain":      chain,
+            "pool_count": len(pool_list),
+            "best_apy":   round(max(apys), 4) if apys else None,
+            "avg_apy":    round(sum(apys) / len(apys), 4) if apys else None,
+            "best_pool":  best_pool.get("key"),
+        }
 
-        write_json("pools_by_chain.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "total_pools":  sum(len(v) for v in pools_by_chain.values()),
-            "chains":       pools_by_chain,
-        })
-        write_json("chains_status.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "chain_count":  len(chain_stats),
-            "chains":       chain_stats,
-        })
-        log.info(f"pools_by_chain.json + chains_status.json: {len(chain_stats)} chains, "
-                 f"{sum(len(v) for v in pools_by_chain.values())} total pools")
-        ctx.section_ok("pools_by_chain")
-    except Exception as e:
-        log.error(f"pools_by_chain/chains_status export failed: {e}", exc_info=True)
-        ctx.section_fail("pools_by_chain")
-        write_json("pools_by_chain.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "total_pools": 0, "chains": {}, "error": str(e),
-        })
-        write_json("chains_status.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "chain_count": 0, "chains": {}, "error": str(e),
-        })
+    write_json("pools_by_chain.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "total_pools":  sum(len(v) for v in pools_by_chain.values()),
+        "chains":       pools_by_chain,
+    })
+    write_json("chains_status.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "chain_count":  len(chain_stats),
+        "chains":       chain_stats,
+    })
+    log.info(f"pools_by_chain.json + chains_status.json: {len(chain_stats)} chains, "
+             f"{sum(len(v) for v in pools_by_chain.values())} total pools")
 
 
+def _fallback_bus_stats(ctx: ExportContext, e: Exception) -> None:
+    write_json("bus_stats.json", {"generated_at": datetime.now(timezone.utc).isoformat(), "error": str(e)})
+
+
+@export_step("bus_stats", fallback=_fallback_bus_stats)
 def export_bus_stats(ctx: ExportContext) -> None:
     # 5. bus_stats.json
-    try:
-        bus = MessageBus(db_path=ctx.db_path)
-        write_json("bus_stats.json", bus.stats())
-        ctx.section_ok("bus_stats")
-    except Exception as e:
-        log.error(f"bus_stats export failed: {e}")
-        ctx.section_fail("bus_stats")
-        write_json("bus_stats.json", {"generated_at": datetime.now(timezone.utc).isoformat(), "error": str(e)})
+    bus = MessageBus(db_path=ctx.db_path)
+    write_json("bus_stats.json", bus.stats())
 
 
+def _fallback_strategy_state(ctx: ExportContext, e: Exception) -> None:
+    write_json("strategy_state.json", [])
+
+
+@export_step("strategy_state", fallback=_fallback_strategy_state)
 def export_strategy_state(ctx: ExportContext) -> None:
     # 6. strategy_state.json  (хронологический порядок для графиков)
-    try:
-        with get_connection(ctx.db_path) as conn:
-            rows = conn.execute("""
-                SELECT timestamp, total_capital_usd, deployed_capital_usd,
-                       cash_usd, total_pnl_usd, total_pnl_pct,
-                       current_apy, trade_count
-                FROM strategy_state
-                WHERE strategy_id = 'paper-v1'
-                ORDER BY timestamp DESC LIMIT 48
-            """).fetchall()
-        write_json("strategy_state.json", list(reversed([dict(r) for r in rows])))
-        ctx.section_ok("strategy_state")
-    except Exception as e:
-        log.error(f"strategy_state export failed: {e}")
-        ctx.section_fail("strategy_state")
-        write_json("strategy_state.json", [])
+    with get_connection(ctx.db_path) as conn:
+        rows = conn.execute("""
+            SELECT timestamp, total_capital_usd, deployed_capital_usd,
+                   cash_usd, total_pnl_usd, total_pnl_pct,
+                   current_apy, trade_count
+            FROM strategy_state
+            WHERE strategy_id = 'paper-v1'
+            ORDER BY timestamp DESC LIMIT 48
+        """).fetchall()
+    write_json("strategy_state.json", list(reversed([dict(r) for r in rows])))
 
 
+def _fallback_trades(ctx: ExportContext, e: Exception) -> None:
+    write_json("trades.json", [])
+
+
+@export_step("trades", fallback=_fallback_trades)
 def export_trades(ctx: ExportContext) -> None:
     # 7. trades.json (последние 30 сделок)
-    try:
-        with get_connection(ctx.db_path) as conn:
-            rows = conn.execute("""
-                SELECT trade_id, strategy_id, timestamp_open, timestamp_close,
-                       protocol_key, asset, action, amount_usd,
-                       apy_at_open, net_apy_annualized, pnl_usd, reason
-                FROM paper_trades
-                WHERE strategy_id = 'paper-v1'
-                ORDER BY timestamp_open DESC LIMIT 30
-            """).fetchall()
-        write_json("trades.json", [dict(r) for r in rows])
-        ctx.section_ok("trades")
-    except Exception as e:
-        log.error(f"trades export failed: {e}")
-        ctx.section_fail("trades")
-        write_json("trades.json", [])
+    with get_connection(ctx.db_path) as conn:
+        rows = conn.execute("""
+            SELECT trade_id, strategy_id, timestamp_open, timestamp_close,
+                   protocol_key, asset, action, amount_usd,
+                   apy_at_open, net_apy_annualized, pnl_usd, reason
+            FROM paper_trades
+            WHERE strategy_id = 'paper-v1'
+            ORDER BY timestamp_open DESC LIMIT 30
+        """).fetchall()
+    write_json("trades.json", [dict(r) for r in rows])
 
 
+def _fallback_pnl_history(ctx: ExportContext, e: Exception) -> None:
+    write_json("pnl_history.json", [])
+
+
+@export_step("pnl_history", fallback=_fallback_pnl_history)
 def export_pnl_history(ctx: ExportContext) -> None:
     # 7b. pnl_history.json — полная кривая капитала (для графика за всё время)
-    try:
-        with get_connection(ctx.db_path) as conn:
-            rows = conn.execute("""
-                SELECT timestamp, total_capital_usd, deployed_capital_usd,
-                       cash_usd, total_pnl_usd, total_pnl_pct,
-                       current_apy, trade_count
-                FROM strategy_state
-                WHERE strategy_id = 'paper-v1'
-                ORDER BY timestamp ASC
-            """).fetchall()
-        write_json("pnl_history.json", [dict(r) for r in rows])
-        ctx.section_ok("pnl_history")
-    except Exception as e:
-        log.error(f"pnl_history export failed: {e}")
-        ctx.section_fail("pnl_history")
-        write_json("pnl_history.json", [])
+    with get_connection(ctx.db_path) as conn:
+        rows = conn.execute("""
+            SELECT timestamp, total_capital_usd, deployed_capital_usd,
+                   cash_usd, total_pnl_usd, total_pnl_pct,
+                   current_apy, trade_count
+            FROM strategy_state
+            WHERE strategy_id = 'paper-v1'
+            ORDER BY timestamp ASC
+        """).fetchall()
+    write_json("pnl_history.json", [dict(r) for r in rows])
 
 
+@export_step("meta")
 def export_meta(ctx: ExportContext) -> None:
     # 8. meta.json — время обновления
-    try:
-        write_json("meta.json", {
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-            "version": "1.0.0",
-            "source": "github-actions" if ctx.fetch else "local",
-        })
-        ctx.section_ok("meta")
-    except Exception as e:
-        log.error(f"meta export failed: {e}")
-        ctx.section_fail("meta")
+    write_json("meta.json", {
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "version": "1.0.0",
+        "source": "github-actions" if ctx.fetch else "local",
+    })
 
 
+def _fallback_sky_status(ctx: ExportContext, e: Exception) -> None:
+    write_json("watch_list_status.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "protocols": [],
+        "error": str(e),
+    })
+    write_json("sky_status.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "status": "PENDING",
+        "source": "error",
+        "error": str(e),
+    })
+
+
+@export_step("sky_status", fail_label="watch_list_status/sky_status",
+             fallback=_fallback_sky_status)
 def export_sky_status(ctx: ExportContext) -> None:
     # 8c. watch_list_status.json + sky_status.json — Watch List protocol eligibility
-    try:
-        from data_pipeline.sky_monitor import (
-            check_sky_status_live,
-            get_sky_allocation_pct,
-            export_sky_status_json,
-            get_watch_list_status,
-            check_and_emit_upgrade_signal,
+    from data_pipeline.sky_monitor import (
+        check_sky_status_live,
+        get_sky_allocation_pct,
+        export_sky_status_json,
+        get_watch_list_status,
+        check_and_emit_upgrade_signal,
+    )
+
+    # Live check (on-chain → API → manual fallback)
+    sky_live = check_sky_status_live()
+
+    # Export dedicated sky_status.json (includes gsm_hours, source, etc.)
+    export_sky_status_json(sky_live)
+    log.info(
+        f"sky_status.json: status={sky_live['status']}, "
+        f"gsm_hours={sky_live.get('gsm_hours')}, source={sky_live.get('source')}"
+    )
+
+    # F004: Auto-upgrade trigger — write sky_upgrade_needed.json if ELIGIBLE
+    upgrade_signal = check_and_emit_upgrade_signal(sky_live)
+    if upgrade_signal["eligible"]:
+        level = "NEW" if upgrade_signal["first_eligible"] else "ONGOING"
+        log.warning(
+            f"[SKY-T1-UPGRADE {level}] Sky/sUSDS ELIGIBLE for T1 promotion. "
+            f"Action: {upgrade_signal['action']}"
         )
-
-        # Live check (on-chain → API → manual fallback)
-        sky_live = check_sky_status_live()
-
-        # Export dedicated sky_status.json (includes gsm_hours, source, etc.)
-        export_sky_status_json(sky_live)
-        log.info(
-            f"sky_status.json: status={sky_live['status']}, "
-            f"gsm_hours={sky_live.get('gsm_hours')}, source={sky_live.get('source')}"
-        )
-
-        # F004: Auto-upgrade trigger — write sky_upgrade_needed.json if ELIGIBLE
-        upgrade_signal = check_and_emit_upgrade_signal(sky_live)
-        if upgrade_signal["eligible"]:
-            level = "NEW" if upgrade_signal["first_eligible"] else "ONGOING"
-            log.warning(
-                f"[SKY-T1-UPGRADE {level}] Sky/sUSDS ELIGIBLE for T1 promotion. "
+        # Inject into risk_alerts so dashboard highlights this immediately
+        ctx.pending_sky_alert = {
+            "severity":    "warning",
+            "type":        "sky_t1_promotion_required",
+            "message":     (
+                f"Sky/sUSDS is ELIGIBLE for T1 (GSM delay ≥ 48 h). "
+                f"Promote sky-susds to T1 in POOL_WHITELIST. "
                 f"Action: {upgrade_signal['action']}"
-            )
-            # Inject into risk_alerts so dashboard highlights this immediately
-            ctx.pending_sky_alert = {
-                "severity":    "warning",
-                "type":        "sky_t1_promotion_required",
-                "message":     (
-                    f"Sky/sUSDS is ELIGIBLE for T1 (GSM delay ≥ 48 h). "
-                    f"Promote sky-susds to T1 in POOL_WHITELIST. "
-                    f"Action: {upgrade_signal['action']}"
-                ),
-                "detected_at": datetime.now(timezone.utc).isoformat(),
-                "first_eligible": upgrade_signal["first_eligible"],
-            }
-        else:
-            ctx.pending_sky_alert = None
+            ),
+            "detected_at": datetime.now(timezone.utc).isoformat(),
+            "first_eligible": upgrade_signal["first_eligible"],
+        }
+    else:
+        ctx.pending_sky_alert = None
 
-        # Also write the legacy watch_list_status.json for dashboard compatibility
-        write_json("watch_list_status.json", {
-            "generated_at":    datetime.now(timezone.utc).isoformat(),
-            "protocols":       get_watch_list_status(),
-            "sky_live":        sky_live,
-            "sky_allocation_pct": get_sky_allocation_pct(sky_live),
-            "upgrade_signal":  upgrade_signal,
-        })
-        log.info("watch_list_status.json: written")
-        ctx.section_ok("sky_status")
-    except Exception as e:
-        log.error(f"watch_list_status/sky_status export failed: {e}")
-        ctx.section_fail("sky_status")
-        write_json("watch_list_status.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "protocols": [],
-            "error": str(e),
-        })
-        write_json("sky_status.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "status": "PENDING",
-            "source": "error",
-            "error": str(e),
-        })
+    # Also write the legacy watch_list_status.json for dashboard compatibility
+    write_json("watch_list_status.json", {
+        "generated_at":    datetime.now(timezone.utc).isoformat(),
+        "protocols":       get_watch_list_status(),
+        "sky_live":        sky_live,
+        "sky_allocation_pct": get_sky_allocation_pct(sky_live),
+        "upgrade_signal":  upgrade_signal,
+    })
+    log.info("watch_list_status.json: written")
 
 
+def _fallback_backtest_results(ctx: ExportContext, e: Exception) -> None:
+    write_json("backtest_results.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "data_source": "error",
+        "policy_version": "v1.0",
+        "metrics": {},
+        "equity_curve": [],
+        "total_trades": 0,
+        "error": str(e),
+    })
+
+
+@export_step("backtest_results", fail_label="backtest", exc_info=True,
+             fallback=_fallback_backtest_results)
 def export_backtest_results(ctx: ExportContext) -> None:
     # 9. backtest_results.json — 90-day backtest (real DeFiLlama data preferred)
-    try:
-        from backtesting.engine import BacktestEngine
-        from backtesting.data_loader import load_from_defillama_api
+    from backtesting.engine import BacktestEngine
+    from backtesting.data_loader import load_from_defillama_api
 
-        # Try real data first; falls back internally to synthetic on any error
-        bt_data = load_from_defillama_api(days=90)
-        data_source = getattr(load_from_defillama_api, "last_source", "synthetic")
-        log.info(f"Backtest data source: {data_source} ({len(bt_data)} records)")
+    # Try real data first; falls back internally to synthetic on any error
+    bt_data = load_from_defillama_api(days=90)
+    data_source = getattr(load_from_defillama_api, "last_source", "synthetic")
+    log.info(f"Backtest data source: {data_source} ({len(bt_data)} records)")
 
-        bt = BacktestEngine()
-        result = bt.run(bt_data, initial_capital=100_000.0, policy_version="v1.0")
-        write_json("backtest_results.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "data_source": data_source,
-            "policy_version": result.policy_version,
-            "metrics": result.metrics,
-            # Last 30 days of equity curve (keep JSON small for dashboard Chart.js)
-            "equity_curve": result.equity_curve[-30:],
-            "total_trades": len([t for t in result.trades if t["action"] == "OPEN"]),
-        })
-        log.info(
-            f"Backtest: {result.metrics['backtest_days']}d, "
-            f"return={result.metrics['total_return_pct']:.2f}%, "
-            f"Sharpe={result.metrics['sharpe_ratio']:.2f}, "
-            f"source={data_source}"
-        )
-        ctx.section_ok("backtest_results")
-    except Exception as e:
-        log.error(f"backtest export failed: {e}", exc_info=True)
-        ctx.section_fail("backtest_results")
-        write_json("backtest_results.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "data_source": "error",
-            "policy_version": "v1.0",
-            "metrics": {},
-            "equity_curve": [],
-            "total_trades": 0,
-            "error": str(e),
-        })
+    bt = BacktestEngine()
+    result = bt.run(bt_data, initial_capital=100_000.0, policy_version="v1.0")
+    write_json("backtest_results.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "data_source": data_source,
+        "policy_version": result.policy_version,
+        "metrics": result.metrics,
+        # Last 30 days of equity curve (keep JSON small for dashboard Chart.js)
+        "equity_curve": result.equity_curve[-30:],
+        "total_trades": len([t for t in result.trades if t["action"] == "OPEN"]),
+    })
+    log.info(
+        f"Backtest: {result.metrics['backtest_days']}d, "
+        f"return={result.metrics['total_return_pct']:.2f}%, "
+        f"Sharpe={result.metrics['sharpe_ratio']:.2f}, "
+        f"source={data_source}"
+    )
 
 
 def export_historical_apy(ctx: ExportContext) -> None:
@@ -737,158 +774,156 @@ def export_historical_apy(ctx: ExportContext) -> None:
     ctx.section_ok("historical_apy")
 
 
+def _fallback_risk_alerts(ctx: ExportContext, e: Exception) -> None:
+    write_json("risk_alerts.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "count": 0, "status": "ok", "alerts": [], "error": str(e),
+    })
+
+
+@export_step("risk_alerts", fallback=_fallback_risk_alerts)
 def export_risk_alerts(ctx: ExportContext) -> None:
     # 8b. risk_alerts.json — RiskAgent: концентрация + просадка портфеля
     trader = ctx.trader
-    try:
-        status_data = trader.get_status()
-        positions = status_data.get("positions", [])
-        portfolio = status_data.get("portfolio", {})
-        total_cap = portfolio.get("total_capital_usd", 1) or 1
-        risk_alerts = []
+    status_data = trader.get_status()
+    positions = status_data.get("positions", [])
+    portfolio = status_data.get("portfolio", {})
+    total_cap = portfolio.get("total_capital_usd", 1) or 1
+    risk_alerts = []
 
-        # Концентрация: позиция > 45% портфеля
-        for pos in positions:
-            amt = pos.get("amount_usd", 0) or 0
-            pct = amt / total_cap * 100
-            if pct > 45:
-                risk_alerts.append({
-                    "severity": "critical",
-                    "type": "concentration",
-                    "protocol": pos.get("protocol_key", "?"),
-                    "message": f"Концентрация {pct:.1f}% > 45% лимита",
-                    "amount_usd": amt,
-                    "pct": round(pct, 2),
-                })
-            elif pct > 35:
-                risk_alerts.append({
-                    "severity": "warning",
-                    "type": "concentration",
-                    "protocol": pos.get("protocol_key", "?"),
-                    "message": f"Концентрация {pct:.1f}% приближается к лимиту 45%",
-                    "amount_usd": amt,
-                    "pct": round(pct, 2),
-                })
-
-        # Просадка: total_pnl_pct < -5%
-        pnl_pct = portfolio.get("total_pnl_pct", 0) or 0
-        if pnl_pct < -5:
+    # Концентрация: позиция > 45% портфеля
+    for pos in positions:
+        amt = pos.get("amount_usd", 0) or 0
+        pct = amt / total_cap * 100
+        if pct > 45:
             risk_alerts.append({
                 "severity": "critical",
-                "type": "drawdown",
-                "protocol": "portfolio",
-                "message": f"Просадка портфеля {pnl_pct:.2f}% ниже порога -5%",
-                "pct": round(pnl_pct, 2),
+                "type": "concentration",
+                "protocol": pos.get("protocol_key", "?"),
+                "message": f"Концентрация {pct:.1f}% > 45% лимита",
+                "amount_usd": amt,
+                "pct": round(pct, 2),
             })
-        elif pnl_pct < -2:
+        elif pct > 35:
             risk_alerts.append({
                 "severity": "warning",
-                "type": "drawdown",
-                "protocol": "portfolio",
-                "message": f"Просадка портфеля {pnl_pct:.2f}%",
-                "pct": round(pnl_pct, 2),
+                "type": "concentration",
+                "protocol": pos.get("protocol_key", "?"),
+                "message": f"Концентрация {pct:.1f}% приближается к лимиту 45%",
+                "amount_usd": amt,
+                "pct": round(pct, 2),
             })
 
-        # Cash < 2%
-        cash_pct = portfolio.get("cash_usd", 0) / total_cap * 100
-        if cash_pct < 2:
-            risk_alerts.append({
-                "severity": "warning",
-                "type": "low_cash",
-                "protocol": "portfolio",
-                "message": f"Кэш-буфер {cash_pct:.1f}% ниже минимума 2%",
-                "pct": round(cash_pct, 2),
-            })
-
-        # F004: Inject Sky T1 upgrade signal into risk_alerts if ELIGIBLE
-        if ctx.pending_sky_alert is not None:
-            risk_alerts.append(ctx.pending_sky_alert)
-
-        write_json("risk_alerts.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "count": len(risk_alerts),
-            "status": "critical" if any(a["severity"] == "critical" for a in risk_alerts)
-                      else ("warning" if risk_alerts else "ok"),
-            "alerts": risk_alerts,
+    # Просадка: total_pnl_pct < -5%
+    pnl_pct = portfolio.get("total_pnl_pct", 0) or 0
+    if pnl_pct < -5:
+        risk_alerts.append({
+            "severity": "critical",
+            "type": "drawdown",
+            "protocol": "portfolio",
+            "message": f"Просадка портфеля {pnl_pct:.2f}% ниже порога -5%",
+            "pct": round(pnl_pct, 2),
         })
-        log.info(f"RiskAgent: {len(risk_alerts)} alerts (status={risk_alerts and risk_alerts[0]['severity'] or 'ok'})")
-        # Pull Sharpe / MaxDD from backtest if available for the thought message
-        try:
-            _bt = json.load(open(OUTPUT_DIR / "backtest_results.json"))
-            _sharpe = _bt.get("metrics", {}).get("sharpe_ratio", 0.0)
-            _maxdd  = _bt.get("metrics", {}).get("max_drawdown_pct", 0.0)
-            _push_thought(
-                "RiskAgent",
-                f"Checking portfolio health… Sharpe={_sharpe:.2f}, MaxDD={_maxdd:.1f}%"
-                + (f" · {len(risk_alerts)} alert(s)" if risk_alerts else " · all clear ✓"),
-                event_type="risk_alert" if risk_alerts else "agent_thought",
-                data={"alert_count": len(risk_alerts), "sharpe": _sharpe, "max_dd": _maxdd},
-            )
-        except Exception:
-            _push_thought(
-                "RiskAgent",
-                f"Checking portfolio health… {len(risk_alerts)} alert(s)",
-                event_type="risk_alert" if risk_alerts else "agent_thought",
-                data={"alert_count": len(risk_alerts)},
-            )
-        ctx.section_ok("risk_alerts")
-    except Exception as e:
-        log.error(f"risk_alerts export failed: {e}")
-        ctx.section_fail("risk_alerts")
-        write_json("risk_alerts.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "count": 0, "status": "ok", "alerts": [], "error": str(e),
+    elif pnl_pct < -2:
+        risk_alerts.append({
+            "severity": "warning",
+            "type": "drawdown",
+            "protocol": "portfolio",
+            "message": f"Просадка портфеля {pnl_pct:.2f}%",
+            "pct": round(pnl_pct, 2),
         })
 
+    # Cash < 2%
+    cash_pct = portfolio.get("cash_usd", 0) / total_cap * 100
+    if cash_pct < 2:
+        risk_alerts.append({
+            "severity": "warning",
+            "type": "low_cash",
+            "protocol": "portfolio",
+            "message": f"Кэш-буфер {cash_pct:.1f}% ниже минимума 2%",
+            "pct": round(cash_pct, 2),
+        })
 
+    # F004: Inject Sky T1 upgrade signal into risk_alerts if ELIGIBLE
+    if ctx.pending_sky_alert is not None:
+        risk_alerts.append(ctx.pending_sky_alert)
+
+    write_json("risk_alerts.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "count": len(risk_alerts),
+        "status": "critical" if any(a["severity"] == "critical" for a in risk_alerts)
+                  else ("warning" if risk_alerts else "ok"),
+        "alerts": risk_alerts,
+    })
+    log.info(f"RiskAgent: {len(risk_alerts)} alerts (status={risk_alerts and risk_alerts[0]['severity'] or 'ok'})")
+    # Pull Sharpe / MaxDD from backtest if available for the thought message
+    try:
+        _bt = json.load(open(OUTPUT_DIR / "backtest_results.json"))
+        _sharpe = _bt.get("metrics", {}).get("sharpe_ratio", 0.0)
+        _maxdd  = _bt.get("metrics", {}).get("max_drawdown_pct", 0.0)
+        _push_thought(
+            "RiskAgent",
+            f"Checking portfolio health… Sharpe={_sharpe:.2f}, MaxDD={_maxdd:.1f}%"
+            + (f" · {len(risk_alerts)} alert(s)" if risk_alerts else " · all clear ✓"),
+            event_type="risk_alert" if risk_alerts else "agent_thought",
+            data={"alert_count": len(risk_alerts), "sharpe": _sharpe, "max_dd": _maxdd},
+        )
+    except Exception:
+        _push_thought(
+            "RiskAgent",
+            f"Checking portfolio health… {len(risk_alerts)} alert(s)",
+            event_type="risk_alert" if risk_alerts else "agent_thought",
+            data={"alert_count": len(risk_alerts)},
+        )
+
+
+def _fallback_alerts(ctx: ExportContext, e: Exception) -> None:
+    write_json("alerts.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "count": 0,
+        "alerts": [],
+        "error": str(e),
+    })
+
+
+@export_step("alerts", fallback=_fallback_alerts)
 def export_alerts(ctx: ExportContext) -> None:
     # 9. alerts.json — AlertEngine: аномалии APY/TVL + pipeline health
-    try:
-        from monitor.alerts import AlertEngine
-        with get_connection(ctx.db_path) as conn:
-            rows_ranked = conn.execute("""
-                WITH ranked AS (
-                    SELECT protocol_key, apy_total, apy_base, apy_reward,
-                           tvl_usd, timestamp,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY protocol_key ORDER BY timestamp DESC
-                           ) AS rn
-                    FROM apy_snapshots
-                    WHERE is_valid = 1
-                )
-                SELECT * FROM ranked WHERE rn <= 2
-            """).fetchall()
-        all_snaps     = [dict(r) for r in rows_ranked]
-        current_snaps = [s for s in all_snaps if s["rn"] == 1]
-        prev_snaps    = [s for s in all_snaps if s["rn"] == 2]
-        engine = AlertEngine()
-        all_alerts = engine.check_snapshots(current_snaps, prev_snaps)
-        all_alerts += engine.check_pipeline_health(current_snaps)
-        write_json("alerts.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "count": len(all_alerts),
-            "alerts": [
-                {
-                    "severity": a.severity,
-                    "event_type": a.event_type,
-                    "protocol_key": a.protocol_key,
-                    "message": a.message,
-                    "details": a.details,
-                    "timestamp": a.timestamp,
-                }
-                for a in all_alerts
-            ],
-        })
-        ctx.section_ok("alerts")
-    except Exception as e:
-        log.error(f"alerts export failed: {e}")
-        ctx.section_fail("alerts")
-        write_json("alerts.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "count": 0,
-            "alerts": [],
-            "error": str(e),
-        })
+    from monitor.alerts import AlertEngine
+    with get_connection(ctx.db_path) as conn:
+        rows_ranked = conn.execute("""
+            WITH ranked AS (
+                SELECT protocol_key, apy_total, apy_base, apy_reward,
+                       tvl_usd, timestamp,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY protocol_key ORDER BY timestamp DESC
+                       ) AS rn
+                FROM apy_snapshots
+                WHERE is_valid = 1
+            )
+            SELECT * FROM ranked WHERE rn <= 2
+        """).fetchall()
+    all_snaps     = [dict(r) for r in rows_ranked]
+    current_snaps = [s for s in all_snaps if s["rn"] == 1]
+    prev_snaps    = [s for s in all_snaps if s["rn"] == 2]
+    engine = AlertEngine()
+    all_alerts = engine.check_snapshots(current_snaps, prev_snaps)
+    all_alerts += engine.check_pipeline_health(current_snaps)
+    write_json("alerts.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "count": len(all_alerts),
+        "alerts": [
+            {
+                "severity": a.severity,
+                "event_type": a.event_type,
+                "protocol_key": a.protocol_key,
+                "message": a.message,
+                "details": a.details,
+                "timestamp": a.timestamp,
+            }
+            for a in all_alerts
+        ],
+    })
 
 
 def export_email_alerts(ctx: ExportContext) -> None:
@@ -982,290 +1017,300 @@ def export_telegram_alerts(ctx: ExportContext) -> None:
         log.error(f"Telegram alerts failed: {e}")
 
 
+def _fallback_strategy_v2(ctx: ExportContext, e: Exception) -> None:
+    write_json("strategy_v2.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "strategy_id": "paper-v2",
+        "strategy_name": "v2 — Growth Aggressive",
+        "portfolio": {}, "positions": [], "trades": [], "error": str(e),
+    })
+
+
+@export_step("strategy_v2", exc_info=True, fallback=_fallback_strategy_v2)
 def export_strategy_v2(ctx: ExportContext) -> None:
     # 11. strategy_v2.json — v2_aggressive paper trader (paper-v2)
     ctx.status_v2 = None
-    try:
-        trader_v2_logger = DecisionLogger(ctx.db_path, 'TraderAgent', strategy_id='paper-v2')
-        trader_v2 = PaperTrader(db_path=ctx.db_path, strategy_id="paper-v2",
-                                decision_logger=trader_v2_logger)
-        trader_v2.update_prices()
-        trader_v2.rebalance()
-        trader_v2.auto_allocate_v2()
-        status_v2 = trader_v2.get_status()
-        ctx.status_v2 = status_v2
+    trader_v2_logger = DecisionLogger(ctx.db_path, 'TraderAgent', strategy_id='paper-v2')
+    trader_v2 = PaperTrader(db_path=ctx.db_path, strategy_id="paper-v2",
+                            decision_logger=trader_v2_logger)
+    trader_v2.update_prices()
+    trader_v2.rebalance()
+    trader_v2.auto_allocate_v2()
+    status_v2 = trader_v2.get_status()
+    ctx.status_v2 = status_v2
 
-        with get_connection(ctx.db_path) as conn:
-            trades_v2 = conn.execute("""
-                SELECT trade_id, strategy_id, timestamp_open, timestamp_close,
-                       protocol_key, asset, action, amount_usd,
-                       apy_at_open, net_apy_annualized, pnl_usd, reason
-                FROM paper_trades
-                WHERE strategy_id = 'paper-v2'
-                ORDER BY timestamp_open DESC LIMIT 30
-            """).fetchall()
+    with get_connection(ctx.db_path) as conn:
+        trades_v2 = conn.execute("""
+            SELECT trade_id, strategy_id, timestamp_open, timestamp_close,
+                   protocol_key, asset, action, amount_usd,
+                   apy_at_open, net_apy_annualized, pnl_usd, reason
+            FROM paper_trades
+            WHERE strategy_id = 'paper-v2'
+            ORDER BY timestamp_open DESC LIMIT 30
+        """).fetchall()
 
-        port_v2 = status_v2.get("portfolio", {})
-        write_json("strategy_v2.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "strategy_id": "paper-v2",
-            "strategy_name": "v2 — Growth Aggressive",
-            "portfolio": port_v2,
-            "positions": status_v2.get("positions", []),
-            "trades": [dict(r) for r in trades_v2],
-            "risk": status_v2.get("risk", {}),
-            "paper_trading": status_v2.get("paper_trading", {}),
-        })
-        log.info(f"strategy_v2: {len(status_v2.get('positions', []))} positions")
-        ctx.section_ok("strategy_v2")
-    except Exception as e:
-        log.error(f"strategy_v2 export failed: {e}", exc_info=True)
-        ctx.section_fail("strategy_v2")
-        write_json("strategy_v2.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "strategy_id": "paper-v2",
-            "strategy_name": "v2 — Growth Aggressive",
-            "portfolio": {}, "positions": [], "trades": [], "error": str(e),
-        })
+    port_v2 = status_v2.get("portfolio", {})
+    write_json("strategy_v2.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "strategy_id": "paper-v2",
+        "strategy_name": "v2 — Growth Aggressive",
+        "portfolio": port_v2,
+        "positions": status_v2.get("positions", []),
+        "trades": [dict(r) for r in trades_v2],
+        "risk": status_v2.get("risk", {}),
+        "paper_trading": status_v2.get("paper_trading", {}),
+    })
+    log.info(f"strategy_v2: {len(status_v2.get('positions', []))} positions")
 
 
+def _fallback_strategy_comparison(ctx: ExportContext, e: Exception) -> None:
+    write_json("strategy_comparison.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "strategies": {
+            "v1_passive":    {"total_return_pct": 0, "current_apy": 0, "positions_count": 0, "cash_pct": 1},
+            "v2_aggressive": {"total_return_pct": 0, "current_apy": 0, "positions_count": 0, "cash_pct": 1},
+        },
+        "error": str(e),
+    })
+
+
+@export_step("strategy_comparison", exc_info=True, fallback=_fallback_strategy_comparison)
 def export_strategy_comparison(ctx: ExportContext) -> None:
     # 12. strategy_comparison.json — side-by-side metrics v1 vs v2
     trader = ctx.trader
     status_v2 = ctx.status_v2
-    try:
-        def _strategy_summary(port: dict, positions: list) -> dict:
-            total = port.get("total_capital_usd", 100_000) or 100_000
-            pnl   = port.get("total_pnl_usd", 0) or 0
-            cash  = port.get("cash_usd", total) or total
-            apys  = [p.get("current_apy", 0) or 0 for p in positions if p.get("current_apy")]
-            avg_apy = round(sum(apys) / len(apys), 4) if apys else 0.0
-            return {
-                "total_return_pct": round(pnl / total * 100, 4) if total else 0.0,
-                "current_apy":      avg_apy,
-                "positions_count":  len(positions),
-                "cash_pct":         round(cash / total, 4) if total else 1.0,
-                "total_pnl_usd":    round(pnl, 2),
-                "deployed_usd":     round(port.get("deployed_usd", 0) or 0, 2),
-            }
 
-        status_v1 = trader.get_status()
-        port_v1   = status_v1.get("portfolio", {})
-        v2_port      = status_v2.get("portfolio", {}) if status_v2 else {}
-        v2_positions = status_v2.get("positions", []) if status_v2 else []
+    def _strategy_summary(port: dict, positions: list) -> dict:
+        total = port.get("total_capital_usd", 100_000) or 100_000
+        pnl   = port.get("total_pnl_usd", 0) or 0
+        cash  = port.get("cash_usd", total) or total
+        apys  = [p.get("current_apy", 0) or 0 for p in positions if p.get("current_apy")]
+        avg_apy = round(sum(apys) / len(apys), 4) if apys else 0.0
+        return {
+            "total_return_pct": round(pnl / total * 100, 4) if total else 0.0,
+            "current_apy":      avg_apy,
+            "positions_count":  len(positions),
+            "cash_pct":         round(cash / total, 4) if total else 1.0,
+            "total_pnl_usd":    round(pnl, 2),
+            "deployed_usd":     round(port.get("deployed_usd", 0) or 0, 2),
+        }
 
-        write_json("strategy_comparison.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "strategies": {
-                "v1_passive":    _strategy_summary(port_v1,  status_v1.get("positions", [])),
-                "v2_aggressive": _strategy_summary(v2_port,  v2_positions),
-            },
-        })
-        log.info("strategy_comparison: written")
-        ctx.section_ok("strategy_comparison")
-    except Exception as e:
-        log.error(f"strategy_comparison export failed: {e}", exc_info=True)
-        ctx.section_fail("strategy_comparison")
-        write_json("strategy_comparison.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "strategies": {
-                "v1_passive":    {"total_return_pct": 0, "current_apy": 0, "positions_count": 0, "cash_pct": 1},
-                "v2_aggressive": {"total_return_pct": 0, "current_apy": 0, "positions_count": 0, "cash_pct": 1},
-            },
-            "error": str(e),
-        })
+    status_v1 = trader.get_status()
+    port_v1   = status_v1.get("portfolio", {})
+    v2_port      = status_v2.get("portfolio", {}) if status_v2 else {}
+    v2_positions = status_v2.get("positions", []) if status_v2 else []
+
+    write_json("strategy_comparison.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "strategies": {
+            "v1_passive":    _strategy_summary(port_v1,  status_v1.get("positions", [])),
+            "v2_aggressive": _strategy_summary(v2_port,  v2_positions),
+        },
+    })
+    log.info("strategy_comparison: written")
 
 
+def _fallback_optimization_recommendations(ctx: ExportContext, e: Exception) -> None:
+    write_json("optimization_recommendations.json", {
+        "generated_at":    datetime.now(timezone.utc).isoformat(),
+        "policy_version":  "v1.0",
+        "recommendations": [],
+        "portfolio_metrics": {"expected_return_pct": 0.0, "sharpe": 0.0},
+        "vs_current":      {"return_improvement_pct": 0.0},
+        "efficient_frontier": [],
+        "error": str(e),
+    })
+
+
+@export_step("optimization_recommendations", exc_info=True,
+             fallback=_fallback_optimization_recommendations)
 def export_optimization_recommendations(ctx: ExportContext) -> None:
     # 13. optimization_recommendations.json
     trader = ctx.trader
-    try:
-        from optimization.recommender import AllocationRecommender
+    from optimization.recommender import AllocationRecommender
 
-        # Build pools_data from the DB snapshot (same shape as protocols.json)
-        with get_connection(ctx.db_path) as conn:
-            pool_rows = conn.execute("""
-                SELECT p.key AS protocol_key, p.tier,
-                       s.apy_total AS apy, s.tvl_usd
-                FROM protocols p
-                LEFT JOIN (
-                    SELECT protocol_key,
-                           apy_total, tvl_usd,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY protocol_key ORDER BY timestamp DESC
-                           ) AS rn
-                    FROM apy_snapshots
-                    WHERE is_valid = 1
-                ) s ON p.key = s.protocol_key AND s.rn = 1
-                WHERE p.is_active = 1
-                  AND s.apy_total IS NOT NULL
-                  AND s.tvl_usd  IS NOT NULL
-            """).fetchall()
-        pools_data = [dict(r) for r in pool_rows]
+    # Build pools_data from the DB snapshot (same shape as protocols.json)
+    with get_connection(ctx.db_path) as conn:
+        pool_rows = conn.execute("""
+            SELECT p.key AS protocol_key, p.tier,
+                   s.apy_total AS apy, s.tvl_usd
+            FROM protocols p
+            LEFT JOIN (
+                SELECT protocol_key,
+                       apy_total, tvl_usd,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY protocol_key ORDER BY timestamp DESC
+                       ) AS rn
+                FROM apy_snapshots
+                WHERE is_valid = 1
+            ) s ON p.key = s.protocol_key AND s.rn = 1
+            WHERE p.is_active = 1
+              AND s.apy_total IS NOT NULL
+              AND s.tvl_usd  IS NOT NULL
+        """).fetchall()
+    pools_data = [dict(r) for r in pool_rows]
 
-        trader_status = trader.get_status()
-        total_capital = trader_status.get("portfolio", {}).get("total_capital_usd", 0.0) or 0.0
-        current_positions = trader_status.get("positions", [])
+    trader_status = trader.get_status()
+    total_capital = trader_status.get("portfolio", {}).get("total_capital_usd", 0.0) or 0.0
+    current_positions = trader_status.get("positions", [])
 
-        recommender = AllocationRecommender()
-        opt_result = recommender.recommend(
-            pools=pools_data,
-            capital=total_capital,
-            current_positions=current_positions,
-        )
+    recommender = AllocationRecommender()
+    opt_result = recommender.recommend(
+        pools=pools_data,
+        capital=total_capital,
+        current_positions=current_positions,
+    )
 
-        frontier = []
-        if hasattr(recommender, "optimizer") and recommender.optimizer is not None:
-            try:
-                frontier = recommender.optimizer.efficient_frontier(n_points=10)
-            except Exception as _fe:
-                log.warning(f"efficient_frontier failed: {_fe}")
+    frontier = []
+    if hasattr(recommender, "optimizer") and recommender.optimizer is not None:
+        try:
+            frontier = recommender.optimizer.efficient_frontier(n_points=10)
+        except Exception as _fe:
+            log.warning(f"efficient_frontier failed: {_fe}")
 
-        write_json("optimization_recommendations.json", {
-            "generated_at":   datetime.now(timezone.utc).isoformat(),
-            "policy_version": "v1.0",
-            "recommendations": opt_result["recommendations"],
-            "portfolio_metrics": {
-                "expected_return_pct": opt_result["portfolio_expected_return"],
-                "sharpe":              opt_result["portfolio_sharpe"],
-            },
-            "vs_current":        opt_result["vs_current"],
-            "efficient_frontier": frontier,
-        })
-        approved_count = sum(
-            1 for r in opt_result["recommendations"] if r.get("approved_by_risk")
-        )
-        log.info(
-            f"optimization: {len(opt_result['recommendations'])} candidates, "
-            f"{approved_count} approved by RiskPolicy, "
-            f"expected_return={opt_result['portfolio_expected_return']:.2f}%, "
-            f"sharpe={opt_result['portfolio_sharpe']:.2f}"
-        )
-        ctx.section_ok("optimization_recommendations")
-    except Exception as e:
-        log.error(f"optimization_recommendations export failed: {e}", exc_info=True)
-        ctx.section_fail("optimization_recommendations")
-        write_json("optimization_recommendations.json", {
-            "generated_at":    datetime.now(timezone.utc).isoformat(),
-            "policy_version":  "v1.0",
-            "recommendations": [],
-            "portfolio_metrics": {"expected_return_pct": 0.0, "sharpe": 0.0},
-            "vs_current":      {"return_improvement_pct": 0.0},
-            "efficient_frontier": [],
-            "error": str(e),
-        })
+    write_json("optimization_recommendations.json", {
+        "generated_at":   datetime.now(timezone.utc).isoformat(),
+        "policy_version": "v1.0",
+        "recommendations": opt_result["recommendations"],
+        "portfolio_metrics": {
+            "expected_return_pct": opt_result["portfolio_expected_return"],
+            "sharpe":              opt_result["portfolio_sharpe"],
+        },
+        "vs_current":        opt_result["vs_current"],
+        "efficient_frontier": frontier,
+    })
+    approved_count = sum(
+        1 for r in opt_result["recommendations"] if r.get("approved_by_risk")
+    )
+    log.info(
+        f"optimization: {len(opt_result['recommendations'])} candidates, "
+        f"{approved_count} approved by RiskPolicy, "
+        f"expected_return={opt_result['portfolio_expected_return']:.2f}%, "
+        f"sharpe={opt_result['portfolio_sharpe']:.2f}"
+    )
 
 
+def _fallback_covariance_summary(ctx: ExportContext, e: Exception) -> None:
+    ctx.health["covariance_source"] = "synthetic_fallback"
+    write_json("covariance_summary.json", {
+        "schema_version": 1,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "window_days": 90,
+        "source": "synthetic_fallback",
+        "protocols": {},
+        "covariance_matrix": {},
+        "correlation_matrix": {},
+        "error": str(e),
+    })
+
+
+@export_step("covariance_summary", exc_info=True, fallback=_fallback_covariance_summary)
 def export_covariance_summary(ctx: ExportContext) -> None:
     # 13b. covariance_summary.json — live rolling-90d APY covariance/correlation
     #      (FEAT-007 / SPA-V336 artifact, auto-refreshed each cycle — SPA-V338).
     #      Bridges data/historical_apy.json (written above) → estimator store and
     #      writes the dashboard-ready matrix doc. Wrapped graceful: never aborts.
-    try:
-        from analytics.covariance_export import write_covariance_json
-        cov_doc = write_covariance_json(
-            out_path=str(OUTPUT_DIR / "covariance_summary.json"),
-        )
-        log.info(
-            f"covariance_summary.json: source={cov_doc['source']}, "
-            f"{len(cov_doc['protocols'])} protocols"
-        )
-        ctx.health["covariance_source"] = cov_doc.get("source")
-        ctx.section_ok("covariance_summary")
-    except Exception as e:
-        log.error(f"covariance_summary export failed: {e}", exc_info=True)
-        ctx.health["covariance_source"] = "synthetic_fallback"
-        ctx.section_fail("covariance_summary")
-        write_json("covariance_summary.json", {
-            "schema_version": 1,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "window_days": 90,
-            "source": "synthetic_fallback",
-            "protocols": {},
-            "covariance_matrix": {},
-            "correlation_matrix": {},
-            "error": str(e),
-        })
+    from analytics.covariance_export import write_covariance_json
+    cov_doc = write_covariance_json(
+        out_path=str(OUTPUT_DIR / "covariance_summary.json"),
+    )
+    log.info(
+        f"covariance_summary.json: source={cov_doc['source']}, "
+        f"{len(cov_doc['protocols'])} protocols"
+    )
+    ctx.health["covariance_source"] = cov_doc.get("source")
 
 
+@export_step("pdf_report", fail_label="PDF report generation", exc_info=True)
 def export_pdf_report(ctx: ExportContext) -> None:
     # 14. PDF Report
-    try:
-        from reports.report_scheduler import generate_latest_report
-        pdf_path = generate_latest_report(str(OUTPUT_DIR), str(OUTPUT_DIR))
-        log.info(f"PDF report: {pdf_path}")
-        print(f"PDF report: {pdf_path}")
-        ctx.section_ok("pdf_report")
-    except Exception as e:
-        log.error(f"PDF report generation failed: {e}", exc_info=True)
-        ctx.section_fail("pdf_report")
+    from reports.report_scheduler import generate_latest_report
+    pdf_path = generate_latest_report(str(OUTPUT_DIR), str(OUTPUT_DIR))
+    log.info(f"PDF report: {pdf_path}")
+    print(f"PDF report: {pdf_path}")
 
 
+def _fallback_decision_log(ctx: ExportContext, e: Exception) -> None:
+    write_json("decision_log.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "total_decisions": 0,
+        "decisions": [],
+        "error": str(e),
+    })
+
+
+@export_step("decision_log", exc_info=True, fallback=_fallback_decision_log)
 def export_decision_log(ctx: ExportContext) -> None:
     # 15. decision_log.json — agent decision audit trail
-    try:
-        report_logger = DecisionLogger(ctx.db_path, 'ReportAgent')
-        files_written = [
-            "status.json", "protocols.json", "bus_stats.json", "strategy_state.json",
-            "trades.json", "pnl_history.json", "meta.json", "backtest_results.json",
-            "historical_apy.json", "risk_alerts.json", "alerts.json",
-            "strategy_v2.json", "strategy_comparison.json",
-            "optimization_recommendations.json", "covariance_summary.json",
-            "golive_readiness.json", "golive_readiness_score.json",
-            "golive_combined_verdict.json", "apy_gap_report.json",
-            "apy_gap_report_history.json",
-        ]
-        report_logger.log(
-            decision_type='REPORT',
-            reasoning='Export cycle complete: all JSON files written',
-            data_snapshot={
-                'files_written': files_written,
-                'timestamp': datetime.now(timezone.utc).isoformat(),
-            },
-        )
+    report_logger = DecisionLogger(ctx.db_path, 'ReportAgent')
+    files_written = [
+        "status.json", "protocols.json", "bus_stats.json", "strategy_state.json",
+        "trades.json", "pnl_history.json", "meta.json", "backtest_results.json",
+        "historical_apy.json", "risk_alerts.json", "alerts.json",
+        "strategy_v2.json", "strategy_comparison.json",
+        "optimization_recommendations.json", "covariance_summary.json",
+        "golive_readiness.json", "golive_readiness_score.json",
+        "golive_combined_verdict.json", "apy_gap_report.json",
+        "apy_gap_report_history.json",
+    ]
+    report_logger.log(
+        decision_type='REPORT',
+        reasoning='Export cycle complete: all JSON files written',
+        data_snapshot={
+            'files_written': files_written,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+        },
+    )
 
-        with get_connection(ctx.db_path) as conn:
-            dec_rows = conn.execute("""
-                SELECT id, timestamp, agent_name, decision_type,
-                       protocol_key, amount_usd, reasoning, data_snapshot,
-                       policy_version, strategy_id, risk_check_result, outcome
-                FROM agent_decisions
-                ORDER BY timestamp DESC LIMIT 100
-            """).fetchall()
+    with get_connection(ctx.db_path) as conn:
+        dec_rows = conn.execute("""
+            SELECT id, timestamp, agent_name, decision_type,
+                   protocol_key, amount_usd, reasoning, data_snapshot,
+                   policy_version, strategy_id, risk_check_result, outcome
+            FROM agent_decisions
+            ORDER BY timestamp DESC LIMIT 100
+        """).fetchall()
 
-        decisions_out = []
-        for r in dec_rows:
-            d = dict(r)
-            if d.get("data_snapshot"):
-                try:
-                    d["data_snapshot"] = json.loads(d["data_snapshot"])
-                except Exception:
-                    pass
-            decisions_out.append(d)
+    decisions_out = []
+    for r in dec_rows:
+        d = dict(r)
+        if d.get("data_snapshot"):
+            try:
+                d["data_snapshot"] = json.loads(d["data_snapshot"])
+            except Exception:
+                pass
+        decisions_out.append(d)
 
-        write_json("decision_log.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "total_decisions": len(decisions_out),
-            "decisions": decisions_out,
-        })
-        log.info(f"decision_log.json: {len(decisions_out)} decisions")
-        _push_thought(
-            "ReportAgent",
-            f"Exporting JSON files… building daily report ({len(files_written)} files written)",
-            data={"files_written": len(files_written), "decisions": len(decisions_out)},
-        )
-        ctx.section_ok("decision_log")
-    except Exception as e:
-        log.error(f"decision_log export failed: {e}", exc_info=True)
-        ctx.section_fail("decision_log")
-        write_json("decision_log.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "total_decisions": 0,
-            "decisions": [],
-            "error": str(e),
-        })
+    write_json("decision_log.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "total_decisions": len(decisions_out),
+        "decisions": decisions_out,
+    })
+    log.info(f"decision_log.json: {len(decisions_out)} decisions")
+    _push_thought(
+        "ReportAgent",
+        f"Exporting JSON files… building daily report ({len(files_written)} files written)",
+        data={"files_written": len(files_written), "decisions": len(decisions_out)},
+    )
 
 
+def _fallback_golive_readiness(ctx: ExportContext, e: Exception) -> None:
+    from datetime import timedelta as _td
+    write_json("golive_readiness.json", {
+        "generated_at":      datetime.now(timezone.utc).isoformat(),
+        "verdict":           "NOT_READY",
+        "verdict_emoji":     "🔴",
+        "criteria_passed":   0,
+        "criteria_total":    11,
+        "blocking_criteria": [],
+        "next_check_date":   (
+            datetime.now(timezone.utc).date() + _td(days=1)
+        ).isoformat(),
+        "error": str(e),
+    })
+
+
+@export_step("golive_readiness", exc_info=True, fallback=_fallback_golive_readiness)
 def export_golive_readiness(ctx: ExportContext) -> None:
     # 16. golive_readiness.json — daily go-live pre-flight check
     #     Delegates to daily_check.run_daily_golive_check() which:
@@ -1273,212 +1318,190 @@ def export_golive_readiness(ctx: ExportContext) -> None:
     #       • writes golive_readiness.json with criteria_passed / blocking_criteria
     #       • prints the ASCII report card (visible in GitHub Actions log)
     #       • sends a Telegram alert if the verdict has changed since last run
-    try:
-        from golive.daily_check import run_daily_golive_check
-        golive = run_daily_golive_check(str(OUTPUT_DIR))
-        log.info(
-            f"golive_readiness: verdict={golive['verdict']} "
-            f"({golive.get('criteria_passed', '?')}/{golive.get('criteria_total', '?')} criteria)"
-        )
-        ctx.section_ok("golive_readiness")
-    except Exception as e:
-        log.error(f"golive_readiness export failed: {e}", exc_info=True)
-        ctx.section_fail("golive_readiness")
-        from datetime import timedelta as _td
-        write_json("golive_readiness.json", {
-            "generated_at":      datetime.now(timezone.utc).isoformat(),
-            "verdict":           "NOT_READY",
-            "verdict_emoji":     "🔴",
-            "criteria_passed":   0,
-            "criteria_total":    11,
-            "blocking_criteria": [],
-            "next_check_date":   (
-                datetime.now(timezone.utc).date() + _td(days=1)
-            ).isoformat(),
-            "error": str(e),
-        })
+    from golive.daily_check import run_daily_golive_check
+    golive = run_daily_golive_check(str(OUTPUT_DIR))
+    log.info(
+        f"golive_readiness: verdict={golive['verdict']} "
+        f"({golive.get('criteria_passed', '?')}/{golive.get('criteria_total', '?')} criteria)"
+    )
 
 
+def _fallback_agent_summaries(ctx: ExportContext, e: Exception) -> None:
+    write_json("agent_summaries.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "used_llm": False,
+        "trader_summary": "Portfolio export complete. All positions within RiskPolicy v1.0 limits.",
+        "risk_summary": "No active risk violations. Portfolio health: approved.",
+        "error": str(e),
+    })
+
+
+@export_step("agent_summaries", exc_info=True, fallback=_fallback_agent_summaries)
 def export_agent_summaries(ctx: ExportContext) -> None:
     # 17. agent_summaries.json — LLM-generated portfolio commentary
-    try:
-        from agents.llm_agent import TRADER_AGENT
-        from agents.chat_handler import ChatHandler
-        handler = ChatHandler(db_path=str(ctx.db_path), data_dir=str(OUTPUT_DIR))
-        summaries = {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "used_llm": TRADER_AGENT.available,
-            "trader_summary": handler.handle(
-                "Summarize the current portfolio allocation and any concerns"
-            )["response"],
-            "risk_summary": handler.handle(
-                "Summarize the current risk status and any active alerts"
-            )["response"],
-        }
-        write_json("agent_summaries.json", summaries)
-        log.info(
-            f"agent_summaries.json written (used_llm={summaries['used_llm']})"
-        )
-        ctx.section_ok("agent_summaries")
-    except Exception as e:
-        log.error(f"agent_summaries export failed: {e}", exc_info=True)
-        ctx.section_fail("agent_summaries")
-        write_json("agent_summaries.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "used_llm": False,
-            "trader_summary": "Portfolio export complete. All positions within RiskPolicy v1.0 limits.",
-            "risk_summary": "No active risk violations. Portfolio health: approved.",
-            "error": str(e),
-        })
+    from agents.llm_agent import TRADER_AGENT
+    from agents.chat_handler import ChatHandler
+    handler = ChatHandler(db_path=str(ctx.db_path), data_dir=str(OUTPUT_DIR))
+    summaries = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "used_llm": TRADER_AGENT.available,
+        "trader_summary": handler.handle(
+            "Summarize the current portfolio allocation and any concerns"
+        )["response"],
+        "risk_summary": handler.handle(
+            "Summarize the current risk status and any active alerts"
+        )["response"],
+    }
+    write_json("agent_summaries.json", summaries)
+    log.info(
+        f"agent_summaries.json written (used_llm={summaries['used_llm']})"
+    )
 
 
+def _fallback_tournament_results(ctx: ExportContext, e: Exception) -> None:
+    write_json("tournament_results.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "winner": "v1_passive",
+        "confidence": "LOW",
+        "recommendation": "Tournament data unavailable.",
+        "scores": {
+            "v1_passive":        0.0,
+            "v2_aggressive":     0.0,
+            "v3_pendle_focused": 0.0,
+        },
+        "metrics": {},
+        "error": str(e),
+    })
+
+
+@export_step("tournament_results", exc_info=True, fallback=_fallback_tournament_results)
 def export_tournament_results(ctx: ExportContext) -> None:
     # 18. tournament_results.json — strategy tournament
     #     (v1_passive vs v2_aggressive vs v3_pendle_focused on same data)
+    from backtesting.tournament import StrategyTournament
+    from backtesting.data_loader import load_from_defillama_api, generate_synthetic_history
+
     try:
-        from backtesting.tournament import StrategyTournament
-        from backtesting.data_loader import load_from_defillama_api, generate_synthetic_history
+        hist = load_from_defillama_api(days=90)
+    except Exception:
+        hist = generate_synthetic_history(days=90)
 
-        try:
-            hist = load_from_defillama_api(days=90)
-        except Exception:
-            hist = generate_synthetic_history(days=90)
-
-        tournament = StrategyTournament()
-        t_result = tournament.run(hist)
-        write_json("tournament_results.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "winner": t_result.winner,
-            "confidence": t_result.confidence,
-            "recommendation": t_result.recommendation,
-            "scores": t_result.scores,
-            "metrics": t_result.metrics,
-        })
-        log.info(
-            f"tournament: winner={t_result.winner} "
-            f"confidence={t_result.confidence} "
-            f"scores={t_result.scores}"
-        )
-        ctx.section_ok("tournament_results")
-    except Exception as e:
-        log.error(f"tournament_results export failed: {e}", exc_info=True)
-        ctx.section_fail("tournament_results")
-        write_json("tournament_results.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "winner": "v1_passive",
-            "confidence": "LOW",
-            "recommendation": "Tournament data unavailable.",
-            "scores": {
-                "v1_passive":        0.0,
-                "v2_aggressive":     0.0,
-                "v3_pendle_focused": 0.0,
-            },
-            "metrics": {},
-            "error": str(e),
-        })
+    tournament = StrategyTournament()
+    t_result = tournament.run(hist)
+    write_json("tournament_results.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "winner": t_result.winner,
+        "confidence": t_result.confidence,
+        "recommendation": t_result.recommendation,
+        "scores": t_result.scores,
+        "metrics": t_result.metrics,
+    })
+    log.info(
+        f"tournament: winner={t_result.winner} "
+        f"confidence={t_result.confidence} "
+        f"scores={t_result.scores}"
+    )
 
 
+def _fallback_advanced_analytics(ctx: ExportContext, e: Exception) -> None:
+    write_json("advanced_analytics.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "summary": {},
+        "rolling_metrics": [],
+        "data_points": 0,
+        "error": str(e),
+    })
+
+
+@export_step("advanced_analytics", exc_info=True, fallback=_fallback_advanced_analytics)
 def export_advanced_analytics(ctx: ExportContext) -> None:
     # 19. advanced_analytics.json — deep portfolio stats from equity curve
-    try:
-        from analytics.portfolio_stats import portfolio_summary, rolling_metrics
+    from analytics.portfolio_stats import portfolio_summary, rolling_metrics
 
-        with get_connection(ctx.db_path) as conn:
-            pnl_rows = conn.execute(
-                "SELECT timestamp, total_capital_usd FROM strategy_state "
-                "WHERE strategy_id='paper-v1' ORDER BY timestamp ASC"
-            ).fetchall()
+    with get_connection(ctx.db_path) as conn:
+        pnl_rows = conn.execute(
+            "SELECT timestamp, total_capital_usd FROM strategy_state "
+            "WHERE strategy_id='paper-v1' ORDER BY timestamp ASC"
+        ).fetchall()
 
-        equity_curve = [
-            {"date": r[0][:10], "total_capital": r[1]}
-            for r in pnl_rows
-        ]
+    equity_curve = [
+        {"date": r[0][:10], "total_capital": r[1]}
+        for r in pnl_rows
+    ]
 
-        if len(equity_curve) >= 5:
-            summary = portfolio_summary(equity_curve)
-            rolling = rolling_metrics(equity_curve, window=min(30, len(equity_curve)))
-            write_json("advanced_analytics.json", {
-                "generated_at": datetime.now(timezone.utc).isoformat(),
-                "summary": summary,
-                "rolling_metrics": rolling,
-                "data_points": len(equity_curve),
-            })
-            log.info(
-                f"advanced_analytics: {len(equity_curve)} points, "
-                f"calmar={summary.get('calmar_ratio', 0):.3f} "
-                f"sortino={summary.get('sortino_ratio', 0):.3f}"
-            )
-        else:
-            write_json("advanced_analytics.json", {
-                "generated_at": datetime.now(timezone.utc).isoformat(),
-                "summary": {},
-                "rolling_metrics": [],
-                "data_points": len(equity_curve),
-                "note": "Insufficient data (< 5 points)",
-            })
-            log.info("advanced_analytics: insufficient data points")
-        ctx.section_ok("advanced_analytics")
-    except Exception as e:
-        log.error(f"advanced_analytics export failed: {e}", exc_info=True)
-        ctx.section_fail("advanced_analytics")
+    if len(equity_curve) >= 5:
+        summary = portfolio_summary(equity_curve)
+        rolling = rolling_metrics(equity_curve, window=min(30, len(equity_curve)))
+        write_json("advanced_analytics.json", {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "summary": summary,
+            "rolling_metrics": rolling,
+            "data_points": len(equity_curve),
+        })
+        log.info(
+            f"advanced_analytics: {len(equity_curve)} points, "
+            f"calmar={summary.get('calmar_ratio', 0):.3f} "
+            f"sortino={summary.get('sortino_ratio', 0):.3f}"
+        )
+    else:
         write_json("advanced_analytics.json", {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "summary": {},
             "rolling_metrics": [],
-            "data_points": 0,
-            "error": str(e),
+            "data_points": len(equity_curve),
+            "note": "Insufficient data (< 5 points)",
         })
+        log.info("advanced_analytics: insufficient data points")
 
 
+def _fallback_backtest_comparison(ctx: ExportContext, e: Exception) -> None:
+    write_json("backtest_comparison.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "days": 30,
+        "winner": "v1_passive",
+        "winner_metric": "sharpe_ratio",
+        "delta": {},
+        "strategies": {},
+        "equity_curves": {},
+        "error": str(e),
+    })
+
+
+@export_step("backtest_comparison", exc_info=True, fallback=_fallback_backtest_comparison)
 def export_backtest_comparison(ctx: ExportContext) -> None:
     # 20. backtest_comparison.json — side-by-side v1_passive vs v2_aggressive (30d)
-    try:
-        from backtesting.scenario_runner import compare_scenarios
+    from backtesting.scenario_runner import compare_scenarios
 
-        comparison = compare_scenarios(days=30)
-        write_json("backtest_comparison.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "days": comparison["days"],
-            "seed": comparison["seed"],
-            "initial_capital": comparison["initial_capital"],
-            "winner": comparison["winner"],
-            "winner_metric": comparison["winner_metric"],
-            "delta": comparison["delta"],
-            "strategies": {
-                "v1_passive": {
-                    k: v for k, v in comparison["v1_passive"].items()
-                    if k != "equity_curve"
-                },
-                "v2_aggressive": {
-                    k: v for k, v in comparison["v2_aggressive"].items()
-                    if k != "equity_curve"
-                },
+    comparison = compare_scenarios(days=30)
+    write_json("backtest_comparison.json", {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "days": comparison["days"],
+        "seed": comparison["seed"],
+        "initial_capital": comparison["initial_capital"],
+        "winner": comparison["winner"],
+        "winner_metric": comparison["winner_metric"],
+        "delta": comparison["delta"],
+        "strategies": {
+            "v1_passive": {
+                k: v for k, v in comparison["v1_passive"].items()
+                if k != "equity_curve"
             },
-            # Include last 10 days of each equity curve (keep JSON small)
-            "equity_curves": {
-                "v1_passive":    comparison["v1_passive"]["equity_curve"][-10:],
-                "v2_aggressive": comparison["v2_aggressive"]["equity_curve"][-10:],
+            "v2_aggressive": {
+                k: v for k, v in comparison["v2_aggressive"].items()
+                if k != "equity_curve"
             },
-        })
-        log.info(
-            f"backtest_comparison: winner={comparison['winner']}, "
-            f"Δreturn={comparison['delta']['total_return']:+.2f}%, "
-            f"Δsharpe={comparison['delta']['sharpe']:+.4f}"
-        )
-        ctx.section_ok("backtest_comparison")
-    except Exception as e:
-        log.error(f"backtest_comparison export failed: {e}", exc_info=True)
-        ctx.section_fail("backtest_comparison")
-        write_json("backtest_comparison.json", {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "days": 30,
-            "winner": "v1_passive",
-            "winner_metric": "sharpe_ratio",
-            "delta": {},
-            "strategies": {},
-            "equity_curves": {},
-            "error": str(e),
-        })
+        },
+        # Include last 10 days of each equity curve (keep JSON small)
+        "equity_curves": {
+            "v1_passive":    comparison["v1_passive"]["equity_curve"][-10:],
+            "v2_aggressive": comparison["v2_aggressive"]["equity_curve"][-10:],
+        },
+    })
+    log.info(
+        f"backtest_comparison: winner={comparison['winner']}, "
+        f"Δreturn={comparison['delta']['total_return']:+.2f}%, "
+        f"Δsharpe={comparison['delta']['sharpe']:+.4f}"
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

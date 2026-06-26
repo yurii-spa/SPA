@@ -430,22 +430,29 @@ class TestExportPipelineWiring:
 
     def test_pipeline_section_health_tracked(self):
         src = self._pipeline_source()
-        # P3-8: health helpers are now ExportContext methods (ctx.section_ok/fail).
-        assert 'section_ok("covariance_summary")' in src
-        assert 'section_fail("covariance_summary")' in src
+        # P5-9: the per-writer try/except + section_ok/section_fail boilerplate is
+        # now centralised in the @export_step decorator, which records health under
+        # the section name passed to it. The covariance writer is registered as
+        # @export_step("covariance_summary", ...) and its fallback re-raises health
+        # via the decorator — so the section name (not bare section_ok/fail calls)
+        # is the source-of-truth that health is tracked under "covariance_summary".
+        assert 'export_step("covariance_summary"' in src
 
     def test_pipeline_call_is_guarded(self):
-        """The covariance call sits inside a try/except (graceful section)."""
+        """The covariance call sits inside a guarded section (graceful)."""
         src = self._pipeline_source()
         idx = src.index("from analytics.covariance_export import write_covariance_json")
-        # Find the nearest 'try:' preceding the import — it must exist and the
-        # matching except must reference the covariance section fail.
+        # P5-9: the guard is the @export_step decorator on the writer that contains
+        # this import. Verify the decorator precedes the writer body and names the
+        # covariance section (the decorator catches Exception + records section_fail
+        # + invokes the fallback that writes synthetic_fallback covariance JSON).
         head = src[:idx]
-        assert head.rstrip().endswith("try:") or "try:" in head.splitlines()[-3:][0] \
-            or any(line.strip() == "try:" for line in head.splitlines()[-4:])
-        tail = src[idx:idx + 1200]
-        # P3-8: health helpers are now ExportContext methods (ctx.section_fail).
-        assert "section_fail(\"covariance_summary\")" in tail
+        deco_idx = head.rindex('@export_step("covariance_summary"')
+        between = head[deco_idx:]
+        assert "def export_covariance_summary(" in between
+        # The dedicated fallback writes the synthetic_fallback covariance doc.
+        assert "_fallback_covariance_summary" in src
+        assert '"source": "synthetic_fallback"' in src
 
     def test_covariance_failure_does_not_propagate(self, tmp_path, monkeypatch):
         """Simulate the pipeline's covariance section: a raising writer must be
