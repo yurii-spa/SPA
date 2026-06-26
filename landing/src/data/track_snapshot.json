@@ -1,0 +1,159 @@
+{
+  "generated_from": "data/equity_curve_daily.json + data/golive_status.json",
+  "note": "Build-time static fallback for /track-record. Live values come from api.earn-defi.com; this is the last honest snapshot for offline.",
+  "real_track_days": 5,
+  "go_live_target": "2026-07-21",
+  "evidenced_anchor": "2026-06-22",
+  "days_needed": 30,
+  "gates_passed": 27,
+  "gates_total": 29,
+  "end_equity": 100190.22,
+  "total_return_pct": 0.1902,
+  "max_drawdown_pct": -0.2047,
+  "bars": [
+    {
+      "date": "2026-06-09",
+      "equity": 100216.0,
+      "source": "warmup",
+      "evidenced": false,
+      "apy_today": 3.9431,
+      "note": ""
+    },
+    {
+      "date": "2026-06-10",
+      "equity": 100010.81,
+      "source": "backfill",
+      "evidenced": false,
+      "apy_today": 3.943,
+      "note": ""
+    },
+    {
+      "date": "2026-06-11",
+      "equity": 100021.62,
+      "source": "backfill",
+      "evidenced": false,
+      "apy_today": 3.943,
+      "note": ""
+    },
+    {
+      "date": "2026-06-12",
+      "equity": 100032.43,
+      "source": "backfill",
+      "evidenced": false,
+      "apy_today": 3.943,
+      "note": ""
+    },
+    {
+      "date": "2026-06-13",
+      "equity": 100043.24,
+      "source": "backfill",
+      "evidenced": false,
+      "apy_today": 3.943,
+      "note": ""
+    },
+    {
+      "date": "2026-06-14",
+      "equity": 100054.05,
+      "source": "backfill",
+      "evidenced": false,
+      "apy_today": 3.943,
+      "note": ""
+    },
+    {
+      "date": "2026-06-15",
+      "equity": 100064.86,
+      "source": "backfill",
+      "evidenced": false,
+      "apy_today": 3.943,
+      "note": ""
+    },
+    {
+      "date": "2026-06-16",
+      "equity": 100075.67,
+      "source": "backfill",
+      "evidenced": false,
+      "apy_today": 3.943,
+      "note": ""
+    },
+    {
+      "date": "2026-06-17",
+      "equity": 100086.48,
+      "source": "backfill",
+      "evidenced": false,
+      "apy_today": 3.943,
+      "note": ""
+    },
+    {
+      "date": "2026-06-18",
+      "equity": 100097.29,
+      "source": "backfill",
+      "evidenced": false,
+      "apy_today": 3.943,
+      "note": ""
+    },
+    {
+      "date": "2026-06-19",
+      "equity": 100108.1,
+      "source": "backfill",
+      "evidenced": false,
+      "apy_today": 3.943,
+      "note": ""
+    },
+    {
+      "date": "2026-06-20",
+      "equity": 100118.91,
+      "source": "backfill",
+      "evidenced": false,
+      "apy_today": 3.943,
+      "note": ""
+    },
+    {
+      "date": "2026-06-21",
+      "equity": 100134.79,
+      "source": "reconstructed",
+      "evidenced": false,
+      "apy_today": 4.4769,
+      "note": "interpolated \u2014 no daily_cycle log for this date; bounded by real 06-20 and 06-22 close"
+    },
+    {
+      "date": "2026-06-22",
+      "equity": 100150.66,
+      "source": "cycle",
+      "evidenced": true,
+      "apy_today": 4.4763,
+      "note": "real equity recovered from logs/daily_cycle_20260622.log (MP-416 evidence equity=100150.66)"
+    },
+    {
+      "date": "2026-06-23",
+      "equity": 100165.61,
+      "source": "cycle",
+      "evidenced": true,
+      "apy_today": 4.4758,
+      "note": "real equity recovered from logs/daily_cycle_20260623.log canonical 06:00 cycle (equity=100165.61)"
+    },
+    {
+      "date": "2026-06-24",
+      "equity": 100170.4,
+      "source": "cycle",
+      "evidenced": true,
+      "apy_today": 4.4752,
+      "note": "real equity recovered from logs/daily_cycle_20260624.log (equity=100170.40)"
+    },
+    {
+      "date": "2026-06-25",
+      "equity": 100180.31,
+      "source": "cycle",
+      "evidenced": true,
+      "apy_today": 3.6126,
+      "note": "canonical production 06:00 UTC cycle endpoint; continuous track (06-21..06-24 reconstructed, no gap)"
+    },
+    {
+      "date": "2026-06-26",
+      "equity": 100190.22,
+      "source": "cycle",
+      "evidenced": true,
+      "apy_today": 3.6104,
+      "note": ""
+    }
+  ]
+}

@@ -26,7 +26,7 @@
       <span class="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse-slow" aria-hidden="true"></span>
       <span data-ru="Режим бумажной торговли">Paper Trading Mode</span>
       <span class="text-white/30 mx-1">·</span>
-      <span id="hero-paper-day">Paper day · started Jun 10, 2026</span>
+      <span id="hero-paper-day" data-ru="5 подтверждённых дней · якорь 2026-06-22">5 evidenced days · anchor 2026-06-22</span>
     </div>
 
     <!-- H1 — Блок 0 reframe -->
@@ -78,18 +78,29 @@
   </div>
 </section>
 
-<!-- Live status: keep the hero day-count + APY current from the live API (never stale). -->
+<!-- Live status: keep the hero day-count + APY current from the live API (never stale).
+     HONEST count: only cycle-log-evidenced days count (we reset the track — earlier
+     days were flat-rate backfill). Source = /api/v1/golive.real_track_days. -->
 <script is:inline>
   (function () {
-    fetch('https://api.earn-defi.com/api/health-public')
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        var el = document.getElementById('hero-paper-day');
-        if (el && d && d.track_days != null) {
-          var apy = (d.ytd_apy_pct != null) ? ' · ~' + Number(d.ytd_apy_pct).toFixed(1) + '% APY' : '';
-          el.textContent = 'Paper day ' + d.track_days + ' · started Jun 10, 2026' + apy;
-        }
-      })
-      .catch(function () { /* keep static text on failure */ });
+    var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+      ? 'http://localhost:8765' : 'https://api.earn-defi.com';
+    function isRu(){ try { return (localStorage.getItem('spa_lang') || 'en') === 'ru'; } catch (e) { return false; } }
+    var apySuffix = '';
+    function render(days) {
+      var el = document.getElementById('hero-paper-day');
+      if (!el || days == null) return;
+      var en = days + ' evidenced days · anchor 2026-06-22' + apySuffix;
+      var ru = days + ' подтверждённых дней · якорь 2026-06-22' + apySuffix;
+      el.setAttribute('data-ru', ru);
+      el.textContent = isRu() ? ru : en;
+    }
+    fetch(API + '/api/health-public').then(function (r) { return r.json(); }).then(function (d) {
+      if (d && d.ytd_apy_pct != null) apySuffix = ' · ~' + Number(d.ytd_apy_pct).toFixed(1) + '% APY';
+    }).catch(function () {}).finally(function () {
+      fetch(API + '/api/v1/golive').then(function (r) { return r.json(); }).then(function (g) {
+        if (g && g.real_track_days != null) render(g.real_track_days);
+      }).catch(function () { /* keep static text */ });
+    });
   })();
 </script>

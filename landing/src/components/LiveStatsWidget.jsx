@@ -1,21 +1,23 @@
 import { useState, useEffect } from 'react';
 
 const API_URL = 'https://api.earn-defi.com/api/health-public';
+// HONEST evidenced day count + go-live target (we reset the track — only
+// cycle-logged days count; earlier days were flat-rate backfill). See /track-record.
+const GOLIVE_URL = 'https://api.earn-defi.com/api/v1/golive';
 const POLL_INTERVAL_MS = 60_000;
-const TRACK_START = new Date('2026-06-10');
 
 const FALLBACK = {
-  track_days: 9,
+  track_days: 5,   // evidenced (cycle-logged) days, anchor 2026-06-22 — NOT padded
   sharpe_30d: 1.42,
   max_drawdown_pct: 0.31,
-  risk_gates_passed: 20,
-  risk_gates_total: 26,
-  ytd_apy_pct: 6.8,
+  risk_gates_passed: 27,
+  risk_gates_total: 29,
+  ytd_apy_pct: 3.6,
   status: 'PAPER',
   last_cycle_at: null,
   active_protocols: 8,
   risk_policy_blocks_30d: 2,
-  golive_target: '2026-07-09',
+  golive_target: '2026-07-21',
 };
 
 const TABS = [
@@ -128,7 +130,7 @@ function OverviewTab({ d }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard value="$100,000" label="Total Paper AUM" tooltip="Virtual capital for paper trading" color="text-white" />
         <StatCard value={`${d.ytd_apy_pct.toFixed(1)}%`} label="Blended APY" tooltip="Annualized yield across all active strategies" color="text-accent-400" />
-        <StatCard value={`${d.track_days}`} unit="days" label="Track Days" tooltip="Days since paper trading began on June 10, 2026" color="text-white" />
+        <StatCard value={`${d.track_days}`} unit="days" label="Evidenced Days" tooltip="Cycle-log-evidenced days only (anchor 2026-06-22). We reset the track — earlier flat-rate backfill is not counted. See /track-record." color="text-white" />
         <StatCard value="Core" label="Active Strategy" tooltip="Currently paper-tracked strategy" color="text-emerald-400" />
       </div>
 
@@ -176,7 +178,7 @@ function OverviewTab({ d }) {
           </div>
           <div>
             <div className="text-[10px] text-white/25 uppercase tracking-wider mb-0.5">Go-Live Target</div>
-            <span className="text-white/50">{d.golive_target ?? '2026-07-09'}</span>
+            <span className="text-white/50">{d.golive_target ?? '2026-07-21'}</span>
           </div>
         </div>
       </div>
@@ -199,7 +201,7 @@ function CoreTab({ d }) {
         <StatCard value={`${d.ytd_apy_pct.toFixed(1)}%`} label="Paper APY" tooltip="Annualized yield since tracking began" color="text-accent-400" />
         <StatCard value={d.sharpe_30d.toFixed(2)} label="Sharpe (30d)" tooltip="Risk-adjusted return. 1.0+ is strong for DeFi." color="text-emerald-400" />
         <StatCard value={`-${d.max_drawdown_pct.toFixed(2)}%`} label="Max Drawdown" tooltip="Worst peak-to-trough decline. Kill switch at -5%." color="text-amber-400" />
-        <StatCard value={`${d.track_days}`} unit="days" label="Track Days" tooltip="Since June 10, 2026" color="text-white" />
+        <StatCard value={`${d.track_days}`} unit="days" label="Evidenced Days" tooltip="Cycle-log-evidenced days only (anchor 2026-06-22)" color="text-white" />
       </div>
 
       <div className="rounded-xl bg-white/4 border border-white/8 p-5">
@@ -457,6 +459,20 @@ export default function LiveStatsWidget() {
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const json = await response.json();
+      // Override the (padded) raw track_days with the HONEST evidenced count.
+      try {
+        const gl = await fetch(GOLIVE_URL, { signal: AbortSignal.timeout(8_000), headers: { Accept: 'application/json' } });
+        if (gl.ok) {
+          const g = await gl.json();
+          if (g && g.real_track_days != null) json.track_days = g.real_track_days;
+          if (g && g.passed != null) json.risk_gates_passed = g.passed;
+          if (g && g.total != null) json.risk_gates_total = g.total;
+          if (Array.isArray(g && g.criteria)) {
+            const c = g.criteria.find((x) => (x.name === 'min_track_days_30' || x.name === 'gap_monitor_30d') && x.target_date);
+            if (c) json.golive_target = c.target_date;
+          }
+        }
+      } catch { /* keep health-public values */ }
       setData(json);
       setIsLive(true);
       setError(false);

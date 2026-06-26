@@ -25,7 +25,7 @@ import Layout from '../layouts/Layout.astro';
       <div class="status-line" id="statusLine" aria-live="polite">
         <span class="dot" aria-hidden="true"></span>
         <span class="seg" data-ru="режим бумаги">paper mode</span>
-        <span class="div">·</span><span data-ru="день">day</span>&nbsp;<span class="num" id="sl-day">—</span>
+        <span class="div">·</span><span class="num" id="sl-day">—</span>&nbsp;<span data-ru="подтв. дней">evidenced days</span>
         <span class="div">·</span><span class="num" id="sl-apy">~—%</span>&nbsp;<span data-ru="бумажный APY">paper APY</span>
         <span class="div">·</span><span class="num" id="sl-gates">—/—</span>&nbsp;<span data-ru="критериев">criteria</span>
       </div>
@@ -105,7 +105,7 @@ import Layout from '../layouts/Layout.astro';
       </div>
       <div class="track-band">
         <div class="track-metrics">
-          <div class="metric-card"><div class="lbl" data-ru="Дней бумаги">Paper days</div><div class="val" id="m-days">—</div></div>
+          <div class="metric-card"><div class="lbl" data-ru="Подтверждённых дней">Evidenced days</div><div class="val" id="m-days">—</div></div>
           <div class="metric-card"><div class="lbl" data-ru="Бумажный APY">Paper APY</div><div class="val teal" id="m-apy">—</div></div>
           <div class="metric-card"><div class="lbl" data-ru="Макс. просадка">Max drawdown</div><div class="val" id="m-dd">—</div></div>
           <div class="metric-card"><div class="lbl" data-ru="Прогресс Go-Live">Go-live progress</div><div class="val" id="m-gates">—</div></div>
@@ -116,7 +116,7 @@ import Layout from '../layouts/Layout.astro';
             <span class="src" id="spark-src" data-ru="статичная">static</span>
           </div>
           <svg id="spark" viewBox="0 0 400 120" preserveAspectRatio="none" role="img" aria-label="Paper equity curve"></svg>
-          <div class="spark-foot" data-ru="Виртуальный портфель $100,000 USDC · бумажный с 10 июня 2026">Virtual $100,000 USDC portfolio · paper since June 10, 2026</div>
+          <div class="spark-foot" data-ru="Виртуальный портфель $100,000 USDC · считаются только дни с логом цикла (мы сбросили трек) · реестр на /track-record">Virtual $100,000 USDC portfolio · only cycle-logged days count (we reset the track) · ledger at /track-record</div>
         </div>
       </div>
     </div>
@@ -310,16 +310,26 @@ import Layout from '../layouts/Layout.astro';
     function loadHealth(){
       fetch(API + '/api/health-public').then(function(r){ return r.json(); }).then(function(d){
         if(!d) return;
-        var day = d.track_days != null ? d.track_days : '—';
+        // NOTE: day count comes from loadGoLive() (honest evidenced count), NOT
+        // from d.track_days here (that counts raw/backfill bars).
         var apy = d.ytd_apy_pct != null ? Number(d.ytd_apy_pct).toFixed(1) : null;
-        var pass = d.risk_gates_passed, total = d.risk_gates_total;
-        var gates = (pass != null && total != null) ? (pass + '/' + total) : '—/—';
-        setText('sl-day', day);
         setText('sl-apy', apy != null ? '~' + apy + '%' : '~—%');
-        setText('sl-gates', gates);
-        setText('m-days', day);
         setText('m-apy', apy != null ? apy + '%' : '—');
         setText('m-dd', d.max_drawdown_pct != null ? Number(d.max_drawdown_pct).toFixed(2) + '%' : '—');
+      }).catch(function(){});
+    }
+
+    // Honest evidenced day count + gates straight from GoLiveChecker output.
+    function loadGoLive(){
+      fetch(API + '/api/v1/golive').then(function(r){ return r.json(); }).then(function(d){
+        if(!d) return;
+        var day = d.real_track_days != null ? d.real_track_days : '—';
+        var pass = d.passed != null ? d.passed : d.risk_gates_passed;
+        var total = d.total != null ? d.total : d.risk_gates_total;
+        var gates = (pass != null && total != null) ? (pass + '/' + total) : '—/—';
+        setText('sl-day', day);
+        setText('m-days', day);
+        setText('sl-gates', gates);
         setText('m-gates', gates);
       }).catch(function(){});
     }
@@ -401,7 +411,7 @@ import Layout from '../layouts/Layout.astro';
       }).catch(function(){});
     }
 
-    function init(){ loadHealth(); loadPackages(); loadEvidence(); loadNav(); }
+    function init(){ loadHealth(); loadGoLive(); loadPackages(); loadEvidence(); loadNav(); }
     if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
     else { init(); }
   })();

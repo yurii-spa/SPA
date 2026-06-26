@@ -1,32 +1,34 @@
 ---
 import Layout from '../layouts/Layout.astro';
 
-// Shows current system status: GoLive score, paper trading progress
-// Values updated from golive_status.json + equity_curve_daily.json (2026-06-20)
-const goLiveChecks = 25;
-const goLiveTotal = 26;
+// Shows current system status: GoLive score, paper trading progress.
+// Values from golive_status.json + equity_curve_daily.json. The day count is the
+// HONEST evidenced count (we reset the track — only cycle-logged days count;
+// earlier days were flat-rate backfill). Anchor 2026-06-22. See /track-record.
+const goLiveChecks = 27;
+const goLiveTotal = 29;
 const goLiveReadinessPct = Math.round((goLiveChecks / goLiveTotal) * 100);
-const evidenceDays = 10;      // real track since 2026-06-10
+const evidenceDays = 5;       // evidenced (cycle-logged) days, anchor 2026-06-22
 const evidenceTarget = 30;    // 30 honest days required (ADR-002)
-const goLiveTarget = "2026-07-09";
-const trackStart = "2026-06-10";
-const lastUpdated = "2026-06-20";
+const goLiveTarget = "2026-07-21";
+const trackStart = "2026-06-22";  // evidence anchor (NOT the backfilled 06-10)
+const lastUpdated = "2026-06-26";
 
 const blockers = [
-  "autopush daemon not installed — run: bash mp009_fix_launchd.command"
+  "30-day track not yet complete — 5/30 evidenced days (time-gated, target 2026-07-21)"
 ];
 
 type CheckStatus = "pass" | "warn" | "fail";
 
 const checks: { label: string; labelRu: string; status: CheckStatus; detail: string }[] = [
-  { label: "GoLive Criteria", labelRu: "Критерии GoLive", status: "warn", detail: `${goLiveChecks}/${goLiveTotal} checks pass — 1 blocker remaining` },
-  { label: "Paper Track Record", labelRu: "Track record бумажной торговли", status: "warn", detail: `${evidenceDays}/${evidenceTarget} honest days (target: ${goLiveTarget})` },
+  { label: "GoLive Criteria", labelRu: "Критерии GoLive", status: "warn", detail: `${goLiveChecks}/${goLiveTotal} checks pass — 2 time-gated (30-day track)` },
+  { label: "Paper Track Record", labelRu: "Track record бумажной торговли", status: "warn", detail: `${evidenceDays}/${evidenceTarget} evidenced days · anchor ${trackStart} (target: ${goLiveTarget})` },
   { label: "Daily Cycle (launchd)", labelRu: "Ежедневный цикл (launchd)", status: "pass", detail: "com.spa.daily_cycle running at 08:00 UTC" },
   { label: "HTTP Dashboard", labelRu: "HTTP-дашборд", status: "pass", detail: "com.spa.httpserver on port 8765" },
   { label: "Cloudflare Tunnel", labelRu: "Cloudflare Tunnel", status: "pass", detail: "com.spa.cloudflared active" },
   { label: "Risk Policy Gate", labelRu: "Риск-гейт", status: "pass", detail: "RiskPolicy v1.0 — deterministic, LLM forbidden" },
   { label: "Adapter Health", labelRu: "Здоровье адаптеров", status: "pass", detail: "Aave V3, Compound V3, Morpho Steakhouse — all responding" },
-  { label: "Auto-Push (GitHub)", labelRu: "Auto-Push (GitHub)", status: "fail", detail: "com.spa.autopush NOT installed — pending fix" },
+  { label: "Auto-Push (GitHub)", labelRu: "Auto-Push (GitHub)", status: "pass", detail: "com.spa.autopush installed — pushes every 90 min" },
 ];
 
 const statusColor: Record<CheckStatus, string> = {
@@ -152,22 +154,22 @@ const statusBg: Record<CheckStatus, string> = {
           <div class="space-y-6">
             <div class="relative">
               <div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-emerald-400/30"></div>
-              <div class="text-emerald-400 text-sm font-semibold">2026-06-10</div>
-              <div class="text-white/70 text-sm mt-0.5" data-ru="Начало реального бумажного трека (демо-данные признаны недействительными и исключены)">Real paper track begins (demo data invalidated and excluded)</div>
+              <div class="text-emerald-400 text-sm font-semibold">2026-06-22</div>
+              <div class="text-white/70 text-sm mt-0.5" data-ru="Трек сброшен и заякорен на первом дне с реальным логом цикла. Ранний бэкфилл по фиксированной ставке не засчитывается.">Track reset, anchored to the first day with a real cycle log. Earlier flat-rate backfill is not counted.</div>
             </div>
             <div class="relative">
               <div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-amber-400 ring-2 ring-amber-400/30"></div>
-              <div class="text-amber-400 text-sm font-semibold">2026-07-10 <span data-ru="(ориентировочно)">(estimated)</span></div>
-              <div class="text-white/70 text-sm mt-0.5" data-ru="30 честных дней завершены — критерии GoLive полностью выполнены">30 honest days complete — GoLive criteria fully satisfied</div>
+              <div class="text-amber-400 text-sm font-semibold">2026-07-21 <span data-ru="(ориентировочно)">(estimated)</span></div>
+              <div class="text-white/70 text-sm mt-0.5" data-ru="30 подтверждённых дней завершены — критерии GoLive полностью выполнены">30 evidenced days complete — GoLive criteria fully satisfied</div>
             </div>
             <div class="relative">
               <div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-blue-400 ring-2 ring-blue-400/30"></div>
-              <div class="text-blue-400 text-sm font-semibold">2026-07-15 → 2026-07-09</div>
+              <div class="text-blue-400 text-sm font-semibold">~2026-07-21</div>
               <div class="text-white/70 text-sm mt-0.5" data-ru="Ручной review Owner + проверка непрерывности gap_monitor за 30 дней (ADR-002)">Manual Owner review + gap_monitor 30-day continuity check (ADR-002)</div>
             </div>
             <div class="relative">
               <div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-white/20 ring-2 ring-white/10"></div>
-              <div class="text-white/40 text-sm font-semibold">2026-07-09 <span data-ru="(цель)">(target)</span></div>
+              <div class="text-white/40 text-sm font-semibold">2026-07-21 <span data-ru="(цель)">(target)</span></div>
               <div class="text-white/40 text-sm mt-0.5" data-ru="Go-live: ввод реального капитала после подтверждённого верифицированного трека в 30 дней">Go-live: real capital deployment after confirmed 30-day verified track</div>
             </div>
           </div>

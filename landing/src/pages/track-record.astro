@@ -1,28 +1,88 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
+import snap from '../data/track_snapshot.json';
+
+// Honest, build-time static fallback (last evidenced snapshot). Live values
+// override these client-side from api.earn-defi.com; this keeps the page honest
+// and readable when the API is offline. Numbers are NOT hardcoded inline — they
+// are derived from data/golive_status.json + data/equity_curve_daily.json at build.
+const realDays = snap.real_track_days ?? 5;
+const daysNeeded = snap.days_needed ?? 30;
+const goLiveTarget = snap.go_live_target ?? '2026-07-21';
+const anchor = snap.evidenced_anchor ?? '2026-06-22';
+const gatesPassed = snap.gates_passed ?? 27;
+const gatesTotal = snap.gates_total ?? 29;
+const bars = snap.bars ?? [];
+
+// Per-bar source presentation tokens (Console palette). evidenced cycle bars are
+// the only ones that count toward go-live; everything else is shown but dimmed.
+const SOURCE_META = {
+  cycle:         { en: 'cycle', ru: 'цикл',          dot: 'bg-teal-400',   tag: 'text-teal-300 border-teal-500/30 bg-teal-500/10' },
+  reconstructed: { en: 'reconstructed', ru: 'реконструкция', dot: 'bg-amber-400', tag: 'text-amber-300 border-amber-500/30 bg-amber-500/10' },
+  backfill:      { en: 'backfill', ru: 'бэкфилл',    dot: 'bg-white/30',   tag: 'text-white/40 border-border bg-white/[0.03]' },
+  warmup:        { en: 'warmup', ru: 'прогрев',      dot: 'bg-white/20',   tag: 'text-white/30 border-border bg-white/[0.02]' },
+};
+function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
 ---
 
 <Layout
-  title="Track Record — Honest Paper Trading | earn-defi.com"
-  description="The live, honest paper track. Real equity curve since June 10, 2026, current paper APY, drawdown, and go-live progress against 29 deterministic criteria. Live from api.earn-defi.com."
+  title="Track Record — We Reset Our Own Track, Honestly | earn-defi.com"
+  description="We audited our own paper track and reset it: only days backed by a real daily-cycle log count. 5 evidenced days (anchor 2026-06-22), not 15 padded ones. Live from api.earn-defi.com — paper/advisory, not investment advice."
   canonical="https://earn-defi.com/track-record"
 >
   <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 
     <!-- Hero -->
     <section class="pt-20 pb-10">
-      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 font-medium">
-        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" aria-hidden="true"></span>
-        <span data-ru="Бумажный трек · в реальном времени">Paper track · live</span>
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/30 text-xs text-teal-300 font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" aria-hidden="true"></span>
+        <span data-ru="Трек сброшен — честно">Track reset — honestly</span>
       </div>
-      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Честный трек-рекорд">
-        An honest track record
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Мы сбросили собственный трек">
+        We reset our own track
       </h1>
-      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Реальный бумажный трек с 10 июня 2026 года. Каждая точка кривой капитала, каждое решение риск-гейта и каждый день публичны. Без приукрашивания, без бэкфилла.">
-        A real paper track since June 10, 2026. Every equity point, every risk-gate
-        decision, every day is public. No embellishment, no backfill.
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Мы провели аудит собственного бумажного трека и обнулили его. Считаются только дни, подтверждённые реальным логом ежедневного цикла. Сейчас это 5 честных дней (якорь 2026-06-22), а не 15 «надутых». Каждая точка кривой капитала и метка её источника публичны.">
+        We audited our own paper track and reset it. Only days backed by a real
+        daily-cycle log count. Right now that is {realDays} honest days (anchor {anchor}),
+        not 15 padded ones. Every equity point and its source label is public.
       </p>
+    </section>
+
+    <!-- The reset — core trust signal -->
+    <section class="pb-10">
+      <div class="rounded-2xl border border-teal-500/25 bg-gradient-to-b from-teal-500/[0.07] to-transparent p-6 sm:p-8">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="text-xs font-mono uppercase tracking-wider text-teal-300/70" data-ru="Доказуемая честность">Provable honesty</span>
+        </div>
+        <h2 class="text-2xl font-bold text-white mb-3 leading-snug" data-ru="Мы публикуем 5 настоящих дней, а не 15 «надутых»">
+          We publish {realDays} real days, not 15 padded ones
+        </h2>
+        <p class="text-white/55 leading-relaxed max-w-2xl mb-5" data-ru="Аудит собственного трека показал, что ранние дни были бэкфиллом по фиксированной ставке — не результатом реального ежедневного цикла. Мы их не считаем. Теперь засчитывается только день, у которого есть реальный лог daily-cycle. Мы предпочтём показать 5 честных дней, чем 15 надутых. Сам этот сброс — и есть сигнал доверия.">
+          Auditing our own track found the earlier days were a flat-rate backfill — not
+          the output of a real daily cycle. We don't count them. A day now counts only if
+          it has a genuine daily-cycle log behind it. We would rather show {realDays} honest
+          days than 15 padded ones. The reset itself is the trust signal.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="rounded-lg border border-border bg-bg-surface px-4 py-3">
+            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Якорь подтверждения">Evidence anchor</p>
+            <p class="text-sm font-mono text-white/80">{anchor}</p>
+          </div>
+          <div class="rounded-lg border border-border bg-bg-surface px-4 py-3">
+            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Подтверждено / нужно">Evidenced / needed</p>
+            <p class="text-sm font-mono text-teal-300"><span id="tr-reset-days">{realDays}</span> / {daysNeeded} <span class="text-white/30" data-ru="дней">days</span></p>
+          </div>
+          <div class="rounded-lg border border-border bg-bg-surface px-4 py-3">
+            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Цель go-live">Go-live target</p>
+            <p class="text-sm font-mono text-white/80" id="tr-reset-target">{goLiveTarget}</p>
+          </div>
+        </div>
+        <p class="text-xs text-white/30 mt-4 leading-relaxed" data-ru="Бумажный/исследовательский трек на виртуальном портфеле $100k. Не инвестиционный совет, не прогноз. Метки источника на каждом баре ниже — видно, какие дни реальные.">
+          Paper / research track on a virtual $100k book. Not investment advice, not a
+          forecast. Per-bar source labels are shown below — you can see which days are real.
+        </p>
+      </div>
     </section>
 
     <!-- Live metric strip -->
@@ -43,10 +103,10 @@ import Disclaimer from '../components/Disclaimer.astro';
           <p class="text-2xl font-mono font-bold text-white" id="tr-dd">—</p>
           <p class="text-xs text-white/30 mt-1" data-ru="с начала трека">since track start</p>
         </div>
-        <div class="rounded-xl border border-border bg-bg-surface p-5">
-          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Дней трека">Track days</p>
-          <p class="text-2xl font-mono font-bold text-accent-400" id="tr-days">—</p>
-          <p class="text-xs text-white/30 mt-1" data-ru="реальных · 30 для go-live">real · 30 for go-live</p>
+        <div class="rounded-xl border border-teal-500/20 bg-teal-500/[0.04] p-5">
+          <p class="text-xs text-teal-300/50 uppercase tracking-wider font-mono mb-2" data-ru="Подтверждённых дней">Evidenced days</p>
+          <p class="text-2xl font-mono font-bold text-teal-400"><span id="tr-days">{realDays}</span><span class="text-white/30 text-lg"> / {daysNeeded}</span></p>
+          <p class="text-xs text-white/30 mt-1" data-ru="только дни с логом цикла">cycle-logged days only</p>
         </div>
       </div>
     </section>
@@ -64,6 +124,41 @@ import Disclaimer from '../components/Disclaimer.astro';
         <p class="text-xs text-white/30 mt-3 text-center" id="tr-spark-note" data-ru="Кривая загружается из живого фида доказательств. При офлайне показывается последний статический снимок.">
           Curve loads from the live evidence feed. When offline, the last static snapshot is shown.
         </p>
+      </div>
+    </section>
+
+    <!-- Per-bar evidence ledger: which days are real vs backfill vs warmup -->
+    <section class="py-10 border-t border-border">
+      <div class="flex items-baseline justify-between mb-2 flex-wrap gap-2">
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Реестр баров — что считается">Bar ledger — what counts</p>
+        <p class="text-xs text-white/25 font-mono">
+          <span data-ru="источник:">source:</span> <span id="tr-bars-src">static fallback</span>
+        </p>
+      </div>
+      <p class="text-sm text-white/45 leading-relaxed mb-4 max-w-2xl" data-ru="Каждый бар помечен своим источником. Только бары «цикл» подтверждены логом и засчитываются в go-live. «Бэкфилл» и «прогрев» приглушены — они показаны для прозрачности, но не считаются.">
+        Each bar is tagged with its source. Only <span class="text-teal-300 font-medium">cycle</span>
+        bars are evidenced by a log and count toward go-live. <span class="text-white/40">Backfill</span>
+        and <span class="text-white/40">warmup</span> bars are dimmed — shown for transparency, but not counted.
+      </p>
+      <div class="rounded-xl border border-border-strong bg-bg-surface overflow-hidden">
+        <div id="tr-bars" class="divide-y divide-border">
+          {bars.slice().reverse().map((b) => (
+            <div class={`flex items-center gap-3 px-4 py-2.5 ${b.evidenced ? '' : 'opacity-50'}`}>
+              <span class={`w-2 h-2 rounded-full shrink-0 ${meta(b.source).dot}`} aria-hidden="true"></span>
+              <span class="font-mono text-sm text-white/70 w-24 shrink-0">{b.date}</span>
+              <span class="font-mono text-sm text-white/80 w-28 shrink-0 text-right">${Number(b.equity).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+              <span class={`ml-auto inline-flex items-center gap-1.5 text-xs font-mono px-2 py-0.5 rounded-full border ${meta(b.source).tag} shrink-0`}>
+                {b.evidenced && <span aria-hidden="true">✓</span>}
+                <span data-ru={meta(b.source).ru}>{meta(b.source).en}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-xs text-white/40 font-mono">
+        <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-teal-400" aria-hidden="true"></span><span data-ru="цикл · подтверждён · считается">cycle · evidenced · counts</span></span>
+        <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400" aria-hidden="true"></span><span data-ru="реконструкция · помечена">reconstructed · flagged</span></span>
+        <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-white/30" aria-hidden="true"></span><span data-ru="бэкфилл/прогрев · не считается">backfill/warmup · not counted</span></span>
       </div>
     </section>
 
@@ -164,15 +259,15 @@ import Disclaimer from '../components/Disclaimer.astro';
           <p class="text-white/50 text-sm" data-ru="детерминированные критерии (ADR-002) — все должны пройти до go-live">deterministic criteria (ADR-002) — all must pass before go-live</p>
         </div>
         <div class="rounded-xl border border-border-strong bg-bg-surface p-6">
-          <div class="text-sm text-white/40 uppercase tracking-wider mb-3" data-ru="Честные дни трека">Honest track days</div>
+          <div class="text-sm text-white/40 uppercase tracking-wider mb-3" data-ru="Подтверждённые дни трека">Evidenced track days</div>
           <div class="flex items-end gap-2 mb-3">
-            <span class="text-5xl font-mono font-bold text-accent-400" id="tr-days-2">—</span>
-            <span class="text-2xl text-white/30 mb-1">/ 30 <span data-ru="дней">days</span></span>
+            <span class="text-5xl font-mono font-bold text-teal-400" id="tr-days-2">{realDays}</span>
+            <span class="text-2xl text-white/30 mb-1">/ {daysNeeded} <span data-ru="дней">days</span></span>
           </div>
           <div class="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
-            <div class="h-full bg-accent-400 rounded-full transition-all" id="tr-days-bar" style="width:0%"></div>
+            <div class="h-full bg-teal-400 rounded-full transition-all" id="tr-days-bar" style={`width:${Math.round((realDays / daysNeeded) * 100)}%`}></div>
           </div>
-          <p class="text-white/50 text-sm"><span data-ru="Реальный трек начат">Real track started</span> 2026-06-10 <span data-ru="· цель go-live ~2026-07-09">· go-live target ~2026-07-09</span></p>
+          <p class="text-white/50 text-sm"><span data-ru="Якорь подтверждения">Evidence anchor</span> {anchor} <span data-ru="· цель go-live">· go-live target</span> <span id="tr-days-target">{goLiveTarget}</span></p>
         </div>
       </div>
     </section>
@@ -183,11 +278,13 @@ import Disclaimer from '../components/Disclaimer.astro';
       <div class="space-y-3">
         <div class="rounded-lg bg-bg-surface border border-border px-5 py-4">
           <p class="text-sm text-white/55 leading-relaxed">
-            <span class="text-white/80 font-semibold" data-ru="real_days, не сырые бары.">real_days, not raw bars.</span>
-            <span data-ru="Трек-дни отсчитываются от PAPER_REAL_START (10 июня 2026). Всё, что было до — демо и признано недействительным. Мы не считаем доперезагрузочные бары как трек: число дней привязано к реальному старту, а не к длине файла equity.">
-              Track days are anchored to PAPER_REAL_START (June 10, 2026). Everything before that
-              was demo and has been invalidated. We do not count pre-teardown bars as track:
-              the day count is anchored to the real start, not the length of the equity file.</span>
+            <span class="text-white/80 font-semibold" data-ru="Подтверждённые дни, не сырые бары.">Evidenced days, not raw bars.</span>
+            <span data-ru="Каждый бар в файле equity помечен полем source (warmup / backfill / reconstructed / cycle) и evidenced (true/false). Засчитываются только бары cycle — те, у которых есть реальный лог ежедневного цикла. Ранние бары были бэкфиллом по фиксированной ставке; мы их не считаем, хотя и показываем для прозрачности.">
+              Each bar in the equity file is tagged with a <code class="text-teal-300/80">source</code>
+              (warmup / backfill / reconstructed / cycle) and <code class="text-teal-300/80">evidenced</code>
+              flag. Only <code class="text-teal-300/80">cycle</code> bars — those with a real daily-cycle
+              log behind them — count. The earlier bars were a flat-rate backfill; we don't count them,
+              though we still show them for transparency.</span>
           </p>
         </div>
         <div class="rounded-lg bg-bg-surface border border-border px-5 py-4">
@@ -240,23 +337,48 @@ import Disclaimer from '../components/Disclaimer.astro';
       var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
         ? 'http://localhost:8765'
         : 'https://api.earn-defi.com';
+      var DAYS_NEEDED = 30;
       function setText(id, txt){ var el = document.getElementById(id); if(el){ el.textContent = txt; } }
       function setWidth(id, pct){ var el = document.getElementById(id); if(el){ el.style.width = Math.max(0, Math.min(100, pct)) + '%'; } }
+      function isRu(){ try{ return (localStorage.getItem('spa_lang') || 'en') === 'ru'; }catch(e){ return false; } }
 
+      // APY / drawdown / gates only — NOT the day count. days_running in this feed
+      // counts raw bars (incl. backfill); the honest evidenced count comes from
+      // /api/v1/golive.real_track_days, which is what we render here.
       function loadHealth(){
         fetch(API + '/api/health-public').then(function(r){ return r.json(); }).then(function(d){
           if(!d) return;
-          var day = d.track_days != null ? d.track_days : null;
           var apy = d.ytd_apy_pct != null ? Number(d.ytd_apy_pct).toFixed(1) : null;
-          var pass = d.risk_gates_passed, total = d.risk_gates_total;
           setText('tr-apy', apy != null ? apy + '%' : '—');
           setText('tr-dd', d.max_drawdown_pct != null ? Number(d.max_drawdown_pct).toFixed(2) + '%' : '—');
-          setText('tr-days', day != null ? day : '—');
-          setText('tr-days-2', day != null ? day : '—');
-          if(day != null){ setWidth('tr-days-bar', (day / 30) * 100); }
+        }).catch(function(){});
+      }
+
+      // Honest source of truth for evidenced days + gates + go-live target.
+      function loadGoLive(){
+        fetch(API + '/api/v1/golive').then(function(r){ return r.json(); }).then(function(d){
+          if(!d) return;
+          var days = d.real_track_days != null ? d.real_track_days : null;
+          var pass = d.passed != null ? d.passed : d.risk_gates_passed;
+          var total = d.total != null ? d.total : d.risk_gates_total;
+          if(days != null){
+            setText('tr-days', days + ' / ' + DAYS_NEEDED);
+            setText('tr-days-2', days);
+            setText('tr-reset-days', days);
+            setWidth('tr-days-bar', (days / DAYS_NEEDED) * 100);
+          }
           if(pass != null){ setText('tr-gates-pass', pass); }
           if(total != null){ setText('tr-gates-total', total); }
           if(pass != null && total != null){ setWidth('tr-gates-bar', (pass / total) * 100); }
+          // Pull the go-live target date from the time-gated track criterion.
+          var tgt = null;
+          if(Array.isArray(d.criteria)){
+            for(var i = 0; i < d.criteria.length; i++){
+              var c = d.criteria[i];
+              if((c.name === 'min_track_days_30' || c.name === 'gap_monitor_30d') && c.target_date){ tgt = c.target_date; break; }
+            }
+          }
+          if(tgt){ setText('tr-reset-target', tgt); setText('tr-days-target', tgt); }
         }).catch(function(){});
       }
 
@@ -293,6 +415,39 @@ import Disclaimer from '../components/Disclaimer.astro';
           '<path d="' + line + '" fill="none" stroke="#36C2B4" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
       }
 
+      var SRC_META = {
+        cycle:         { en: 'cycle', ru: 'цикл',          dot: 'bg-teal-400', tag: 'text-teal-300 border-teal-500/30 bg-teal-500/10' },
+        reconstructed: { en: 'reconstructed', ru: 'реконструкция', dot: 'bg-amber-400', tag: 'text-amber-300 border-amber-500/30 bg-amber-500/10' },
+        backfill:      { en: 'backfill', ru: 'бэкфилл',    dot: 'bg-white/30', tag: 'text-white/40 border-border bg-white/[0.03]' },
+        warmup:        { en: 'warmup', ru: 'прогрев',      dot: 'bg-white/20', tag: 'text-white/30 border-border bg-white/[0.02]' }
+      };
+      function srcMeta(s){ return SRC_META[s] || SRC_META.warmup; }
+      function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
+
+      function renderBars(rows){
+        var host = document.getElementById('tr-bars'); if(!host) return;
+        var ru = isRu();
+        var tail = rows.slice(-18).reverse();
+        var html = tail.map(function(b){
+          var src = b.source || 'warmup';
+          var ev = b.evidenced === true;
+          var m = srcMeta(src);
+          var eq = b.close_equity != null ? b.close_equity : (b.equity != null ? b.equity : b.nav);
+          var eqTxt = eq != null ? '$' + Number(eq).toLocaleString('en-US', {maximumFractionDigits: 0}) : '—';
+          var label = ru ? m.ru : m.en;
+          return '<div class="flex items-center gap-3 px-4 py-2.5' + (ev ? '' : ' opacity-50') + '">' +
+            '<span class="w-2 h-2 rounded-full shrink-0 ' + m.dot + '" aria-hidden="true"></span>' +
+            '<span class="font-mono text-sm text-white/70 w-24 shrink-0">' + esc(b.date || '') + '</span>' +
+            '<span class="font-mono text-sm text-white/80 w-28 shrink-0 text-right">' + eqTxt + '</span>' +
+            '<span class="ml-auto inline-flex items-center gap-1.5 text-xs font-mono px-2 py-0.5 rounded-full border shrink-0 ' + m.tag + '">' +
+            (ev ? '<span aria-hidden="true">✓</span>' : '') +
+            '<span data-ru="' + m.ru + '">' + label + '</span></span>' +
+          '</div>';
+        }).join('');
+        host.innerHTML = html;
+        setText('tr-bars-src', 'live');
+      }
+
       function loadEvidence(){
         fetch(API + '/api/v1/evidence').then(function(r){ return r.json(); }).then(function(resp){
           var data = resp && (resp.data || resp);
@@ -306,13 +461,15 @@ import Disclaimer from '../components/Disclaimer.astro';
           if(pts.length >= 2){
             drawSpark(pts);
             setText('tr-spark-src', 'live');
-            if(setText('tr-equity', '$' + Number(pts[pts.length-1]).toLocaleString('en-US', {maximumFractionDigits: 0})), true){}
+            setText('tr-equity', '$' + Number(pts[pts.length-1]).toLocaleString('en-US', {maximumFractionDigits: 0}));
           }
+          // Render the per-bar ledger only if the feed carries source/evidenced
+          // labels (equity-curve fallback shape). Otherwise keep the static SSR list.
+          if(daily.some(function(r){ return r && r.source != null; })){ renderBars(daily); }
         }).catch(function(){});
       }
 
       function fmtUsd(v){ return '$' + Number(v).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
-      function isRu(){ try{ return (localStorage.getItem('spa_lang') || 'en') === 'ru'; }catch(e){ return false; } }
 
       function loadNav(){
         fetch(API + '/api/tier1/nav').then(function(r){ return r.json(); }).then(function(d){
@@ -348,7 +505,7 @@ import Disclaimer from '../components/Disclaimer.astro';
         }).catch(function(){});
       }
 
-      function init(){ loadHealth(); loadFacts(); loadEvidence(); loadNav(); }
+      function init(){ loadHealth(); loadGoLive(); loadFacts(); loadEvidence(); loadNav(); }
       if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
       else { init(); }
     })();

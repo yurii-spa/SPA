@@ -329,17 +329,25 @@ import Layout from '../layouts/Layout.astro';
             </tbody>
           </table>
         </div>
-        <p class="text-xs text-white/30 mt-3 font-mono" id="dd-paper-day" data-ru="Paper-день 15 от 2026-06-10 — цель 30+ дней (ADR-002)">
-          Paper day 15 from 2026-06-10 — target 30+ days (ADR-002)
+        <p class="text-xs text-white/30 mt-3 font-mono" id="dd-paper-day" data-ru="5 подтверждённых дней (якорь 2026-06-22) — цель 30 (ADR-002) · реестр на /track-record">
+          5 evidenced days (anchor 2026-06-22) — target 30 (ADR-002) · ledger at /track-record
         </p>
         <script is:inline>
-          // Self-computing paper-day so the figure never goes stale (start = 2026-06-10 UTC).
+          // HONEST count: only cycle-log-evidenced days count (we reset the track —
+          // earlier days were flat-rate backfill). Pull real_track_days live; the
+          // static literal above is the last honest snapshot for offline. NEVER derive
+          // from 2026-06-10 (that inflates the count with backfill bars).
           (function () {
             var el = document.getElementById("dd-paper-day");
             if (!el) return;
-            var days = Math.max(0, Math.floor((Date.now() - Date.UTC(2026, 5, 10)) / 86400000));
-            el.textContent = "Paper day " + days + " from 2026-06-10 — target 30+ days (ADR-002)";
-            el.setAttribute("data-ru", "Paper-день " + days + " от 2026-06-10 — цель 30+ дней (ADR-002)");
+            var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+              ? 'http://localhost:8765' : 'https://api.earn-defi.com';
+            fetch(API + '/api/v1/golive').then(function (r) { return r.json(); }).then(function (d) {
+              if (!d || d.real_track_days == null) return;
+              var n = d.real_track_days;
+              el.textContent = n + " evidenced days (anchor 2026-06-22) — target 30 (ADR-002) · ledger at /track-record";
+              el.setAttribute("data-ru", n + " подтверждённых дней (якорь 2026-06-22) — цель 30 (ADR-002) · реестр на /track-record");
+            }).catch(function () {});
           })();
         </script>
       </div>
