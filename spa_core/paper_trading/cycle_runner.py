@@ -592,6 +592,14 @@ def _upsert_equity_point(
         "apy_today": round(apy_today_pct, 4),
         "daily_yield_usd": round(daily_yield, 4),
         "positions": {p: round(v, 2) for p, v in positions.items()},
+        # HONEST TRACK RESET (2026-06-26): a bar written by THIS running cycle is,
+        # by construction, evidence that a real daily_cycle ran today. Label it as
+        # such so the go-live track (track_evidence / golive_checker / gap_monitor)
+        # counts it honestly without relying on a post-hoc log scan. Flat-rate
+        # backfill / reconstructed bars are NEVER written here, so they never get
+        # source="cycle".
+        "source": "cycle",
+        "evidenced": True,
     }
     daily.append(bar)
     daily = daily[-MAX_EQUITY_POINTS:]  # ring-buffer

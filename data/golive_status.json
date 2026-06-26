@@ -1,6 +1,6 @@
 {
   "ready": false,
-  "passed": 26,
+  "passed": 27,
   "total": 29,
   "checks": {
     "equity_curve_real": true,
@@ -24,7 +24,7 @@
     "gap_monitor_ok": true,
     "gap_monitor_30d": false,
     "autopush_installed": true,
-    "telegram_alert_today": false,
+    "telegram_alert_today": true,
     "min_track_days_30": false,
     "apy_above_floor": true,
     "drawdown_below_kill": true,
@@ -171,9 +171,9 @@
       "name": "gap_monitor_30d",
       "status": "PENDING",
       "blocking": true,
-      "estimated_days_to_pass": 15,
-      "target_date": "2026-07-11",
-      "message": "15/30 honest track days \u2014 15 more needed (target 2026-07-11)"
+      "estimated_days_to_pass": 25,
+      "target_date": "2026-07-21",
+      "message": "5/30 honest track days \u2014 25 more needed (target 2026-07-21)"
     },
     {
       "name": "autopush_installed",
@@ -184,18 +184,18 @@
     },
     {
       "name": "telegram_alert_today",
-      "status": "FAIL",
-      "blocking": true,
-      "estimated_days_to_pass": null,
-      "message": "telegram_alert_today: last daily alert was 2026-06-25 (today is 2026-06-26) \u2014 check com.spa.telegram_daily launchd plist"
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
     },
     {
       "name": "min_track_days_30",
       "status": "PENDING",
       "blocking": true,
-      "estimated_days_to_pass": 15,
-      "target_date": "2026-07-11",
-      "message": "15/30 honest track days \u2014 15 more needed (target 2026-07-11)"
+      "estimated_days_to_pass": 25,
+      "target_date": "2026-07-21",
+      "message": "5/30 honest track days \u2014 25 more needed (target 2026-07-21)"
     },
     {
       "name": "apy_above_floor",
@@ -241,12 +241,11 @@
     }
   ],
   "blockers": [
-    "gap_monitor_30d: 15/30 honest track days (since 2026-06-10; 15 more needed \u2014 target ~2026-07-11)",
-    "telegram_alert_today: last daily alert was 2026-06-25 (today is 2026-06-26) \u2014 check com.spa.telegram_daily launchd plist",
-    "min_track_days_30: 15/30 honest paper-trading days (since 2026-06-10; 15 more needed \u2014 target go-live ~2026-07-11)"
+    "gap_monitor_30d: 5/30 evidenced track days (anchor 2026-06-22; 25 more needed \u2014 target ~2026-07-21)",
+    "min_track_days_30: 5/30 evidenced paper-trading days (anchor 2026-06-22; 25 more needed \u2014 target go-live ~2026-07-21)"
   ],
-  "real_track_days": 15,
-  "timestamp": "2026-06-26T01:37:56.469147+00:00",
+  "real_track_days": 5,
+  "timestamp": "2026-06-26T07:36:15.953416+00:00",
   "source": "golive_checker",
   "version": "v6.0-29criteria",
   "consecutive_ready_days": 0

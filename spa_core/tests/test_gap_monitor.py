@@ -82,12 +82,17 @@ class TestGapDetection(GapMonitorBase):
         self.assertEqual(r["status"], "no_real_entries")
 
     def test_no_timestamp(self):
+        # HONEST TRACK RESET (2026-06-26): an entry with no parseable date can
+        # never be an evidenced track day (a track day is anchored to a real
+        # calendar date with a daily_cycle log), so a date-less bar is filtered
+        # out before the no_timestamp branch and the curve is reported as having
+        # no evidenced entries.
         self.equity.write_text(json.dumps([
             {"is_demo": False, "equity": 100000.0},
         ]))
         r = gap_monitor.check_gaps()
         self.assertTrue(r["gap_detected"])
-        self.assertEqual(r["status"], "no_timestamp")
+        self.assertEqual(r["status"], "no_real_entries")
 
     def test_write_atomic(self):
         self.equity.write_text(json.dumps([

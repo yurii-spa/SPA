@@ -49,6 +49,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.paper_trading.track_evidence import (
+    evidenced_dates as _evidenced_dates,
+    first_evidenced_date as _first_evidenced_date,
+)
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_DATA_DIR = _REPO_ROOT / "data"
@@ -249,38 +253,57 @@ class GoLiveChecker:
     # ── Honesty helper (MP-1228) ──────────────────────────────────────────────
 
     def _real_track_dates(self, daily: Any) -> list[str]:
-        """Unique equity-bar dates ON OR AFTER ``self.paper_start`` that are NOT
-        self-flagged as reconstructed/interpolated.
+        """Unique EVIDENCED equity-bar dates ON OR AFTER ``self.paper_start``.
 
-        Pre-teardown bars are demo/void per CLAUDE.md and must never inflate the
-        track-record length.
+        HONEST TRACK RESET (operator-approved, 2026-06-26)
+        ==================================================
+        The go-live track counts ONLY days backed by real evidence that a live
+        ``daily_cycle`` actually ran. Three classes of bar are NOT evidenced and
+        are excluded from the count (history is preserved on disk, just flagged):
 
-        HONESTY (artifact class 6 — reconstruction inflation): a bar carrying
-        ``reconstructed: true`` is an INTERPOLATED placeholder (no live cycle ran
-        that day; its equity is bounded-guess between two real bars). Counting an
-        interpolated bar toward "honest track days" is self-contradictory — it
-        cannot be evidence of a real paper-trading day. Such bars are excluded from
-        the count here so the go-live gate (min_track_days_30 / gap_monitor_30d) is
-        backed only by non-interpolated bars. (Whether flat-rate BACKFILL bars that
-        lack an explicit reconstructed flag should also be excluded is an operator
-        policy decision and is NOT changed here.)
+        * ``reconstructed: true`` — interpolated placeholder (no live cycle ran).
+        * flat-rate **backfill** (``evidenced: false`` / ``source: "backfill"``)
+          — constant apy/yield/positions, zero down days, no cycle log.
+        * warmup / pre-teardown bars (dated < ``paper_start``).
+
+        Counting is delegated to
+        :func:`spa_core.paper_trading.track_evidence.is_evidenced_bar`, which is
+        the single source of truth for the evidenced-day definition. Bars are
+        labelled honestly (``evidenced`` / ``source``) by ``track_evidence``;
+        this gate simply trusts those labels. Legacy/synthetic bars with no
+        explicit honesty label are still counted (backward-compat), so only the
+        flat-rate backfill and reconstructed days are dropped from the real
+        track.
         """
-        if not isinstance(daily, list):
-            return []
-        out: set[str] = set()
-        for bar in daily:
-            if not isinstance(bar, dict) or not bar.get("date"):
-                continue
-            if bar.get("reconstructed") is True:
-                continue  # interpolated placeholder — not an honest track day
-            ds = str(bar["date"])[:10]
-            try:
-                d = datetime.strptime(ds, "%Y-%m-%d").date()
-            except ValueError:
-                continue
-            if d >= self.paper_start:
-                out.add(ds)
-        return sorted(out)
+        return _evidenced_dates(daily, paper_start=self.paper_start)
+
+    def _evidenced_anchor(self, daily: Any):
+        """First evidenced track date (the honest anchor), or None.
+
+        The go-live target is ``anchor + MIN_TRACK_DAYS``: 30 evidenced days
+        from the first real cycle day. Returns a ``date`` or None when no
+        evidenced day exists yet.
+        """
+        iso = _first_evidenced_date(daily, paper_start=self.paper_start)
+        if not iso:
+            return None
+        try:
+            return datetime.strptime(iso, "%Y-%m-%d").date()
+        except ValueError:
+            return None
+
+    def _golive_target_date(self, daily: Any) -> str:
+        """Honest go-live target = first_evidenced + (MIN_TRACK_DAYS - 1) days.
+
+        Anchored to the first EVIDENCED day so the target is a fixed calendar
+        date that does not drift day to day. Falls back to ``now + days_to_go``
+        only when no evidenced day exists yet.
+        """
+        anchor = self._evidenced_anchor(daily)
+        if anchor is not None:
+            return (anchor + timedelta(days=MIN_TRACK_DAYS - 1)).isoformat()
+        days_to_go = max(0, MIN_TRACK_DAYS - self._real_track_days)
+        return (self.now.date() + timedelta(days=days_to_go)).isoformat()
 
     # ══════════════════════════════════════════════════════════════════════════
     # Group 1: Data Integrity (6 checks — original MP-006 anti-demo gate)
@@ -530,10 +553,11 @@ class GoLiveChecker:
         count = len(dates)
         if count < MIN_TRACK_DAYS:
             days_to_go = MIN_TRACK_DAYS - count
+            anchor = dates[0] if dates else self.paper_start.isoformat()
             blockers.append(
-                f"gap_monitor_30d: {count}/{MIN_TRACK_DAYS} honest track days "
-                f"(since {self.paper_start}; {days_to_go} more needed — target ~"
-                f"{(self.now.date() + timedelta(days=days_to_go)).isoformat()})"
+                f"gap_monitor_30d: {count}/{MIN_TRACK_DAYS} evidenced track days "
+                f"(anchor {anchor}; {days_to_go} more needed — target ~"
+                f"{self._golive_target_date(daily)})"
             )
             return False
         return True
@@ -606,10 +630,11 @@ class GoLiveChecker:
         count = len(dates)
         if count < MIN_TRACK_DAYS:
             days_to_go = MIN_TRACK_DAYS - count
+            anchor = dates[0] if dates else self.paper_start.isoformat()
             blockers.append(
-                f"min_track_days_30: {count}/{MIN_TRACK_DAYS} honest paper-trading days "
-                f"(since {self.paper_start}; {days_to_go} more needed — target go-live ~"
-                f"{(self.now.date() + timedelta(days=days_to_go)).isoformat()})"
+                f"min_track_days_30: {count}/{MIN_TRACK_DAYS} evidenced paper-trading days "
+                f"(anchor {anchor}; {days_to_go} more needed — target go-live ~"
+                f"{self._golive_target_date(daily)})"
             )
             return False
         return True
@@ -829,7 +854,12 @@ class GoLiveChecker:
         ``blocking`` is True for any non-PASS criterion (all 29 gate go-live).
         """
         days_to_track = max(0, MIN_TRACK_DAYS - self._real_track_days)
-        target_date = (self.now.date() + timedelta(days=days_to_track)).isoformat()
+        # Honest go-live target anchored to the first EVIDENCED day (fixed
+        # calendar date, does not drift). Falls back to now+days when no
+        # evidenced day exists yet.
+        eq_doc = _read_json(self.data_dir / EQUITY_FILENAME)
+        eq_daily = eq_doc.get("daily") if isinstance(eq_doc, dict) else None
+        target_date = self._golive_target_date(eq_daily)
         details: dict[str, dict] = {}
         for name, ok in checks.items():
             if ok:

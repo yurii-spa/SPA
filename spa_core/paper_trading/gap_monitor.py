@@ -19,6 +19,10 @@ import json, os, time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from spa_core.utils.atomic import atomic_save, atomic_load  # noqa: F401 — required by atomic migration policy
+from spa_core.paper_trading.track_evidence import (
+    is_evidenced_bar as _is_evidenced_bar,
+    PAPER_REAL_START as _PAPER_REAL_START,
+)
 
 DATA_DIR = Path(__file__).parent.parent.parent / "data"
 EQUITY_FILE = DATA_DIR / "equity_curve_daily.json"
@@ -34,10 +38,15 @@ ALERT_TYPE = "cycle_gap"
 MAX_ALERTS = 200                # страховочный cap списка alerts
 
 def check_day_gaps(entries: list) -> dict:
-    """Проверить пропущенные дни в реальных (не warmup) записях equity curve.
+    """Проверить пропущенные дни в EVIDENCED (real-cycle) записях equity curve.
 
-    Берёт все записи без is_warmup/is_seed, сортирует по дате и ищет
-    промежутки > 3 календарных дней (допускает пропуск выходных: Пт→Пн = 3 дня).
+    HONEST TRACK RESET (2026-06-26): считаем только дни с реальным
+    daily_cycle-логом. Flat-rate backfill (``evidenced:false`` / ``source:
+    "backfill"``) и reconstructed-бары исключены — они не подтверждают, что
+    цикл реально отработал в тот день. История на диске сохраняется (флаги, не
+    удаление); здесь они просто не идут в трек. Берёт evidenced-записи,
+    сортирует по дате и ищет промежутки > 3 календарных дней (допускает пропуск
+    выходных: Пт→Пн = 3 дня).
 
     Args:
         entries: список daily-баров из equity_curve_daily.json ["daily"].
@@ -46,15 +55,14 @@ def check_day_gaps(entries: list) -> dict:
         dict с ключами:
             has_gaps     — True, если найден хотя бы один пропуск > 3 дней.
             day_gaps     — список {"from": date, "to": date, "days_missed": int}.
-            start_date   — первая реальная дата (str ISO) или None.
-            days_count   — кол-во реальных дней.
+            start_date   — первая evidenced дата (str ISO) или None.
+            days_count   — кол-во evidenced дней.
     """
     from datetime import date as _date
 
     real = [e for e in entries
             if isinstance(e, dict)
-            and not e.get("is_warmup", False)
-            and not e.get("is_seed", False)]
+            and _is_evidenced_bar(e, paper_start=_PAPER_REAL_START)]
 
     dates: list[_date] = []
     for e in real:
@@ -127,14 +135,15 @@ def check_gaps() -> dict:
         entries = doc if isinstance(doc, list) else []
         default_demo = True
 
-    # Реальные записи: не demo И не warmup (S0.1: warmup исключены из трека)
+    # Evidenced записи: не demo И evidenced (HONEST TRACK RESET — только дни с
+    # реальным daily_cycle-логом; backfill/reconstructed исключены).
     real = [e for e in entries
             if isinstance(e, dict)
             and not e.get("is_demo", default_demo)
-            and not e.get("is_warmup", False)]
+            and _is_evidenced_bar(e, paper_start=_PAPER_REAL_START)]
     if not real:
         result.update({"gap_detected": True, "status": "no_real_entries",
-                        "message": "Нет реальных (is_demo:false, is_warmup:false) записей"})
+                        "message": "Нет evidenced (real daily_cycle) записей"})
         return _finalize(result)
 
     # --- S0.1: детекция пропущенных дней в истории трека ---

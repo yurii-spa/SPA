@@ -1,29 +1,32 @@
 {
-  "generated_at": "2026-06-22T17:13:45.539264+00:00",
+  "generated_at": "2026-06-26T06:00:02.031156+00:00",
   "source": "cycle_runner",
   "execution_mode": "read_only_simulation",
   "is_demo": false,
   "summary": {
-    "num_days": 33,
-    "num_snapshots": 33,
+    "num_days": 37,
+    "real_days": 5,
+    "num_snapshots": 37,
     "start_equity": 100000.0,
-    "end_equity": 100150.66,
-    "total_return_pct": 0.1507,
+    "end_equity": 100190.22,
+    "total_return_pct": 0.1902,
     "best_day": {
       "date": "2026-06-21",
-      "daily_return_pct": 0.0148
+      "daily_return_pct": 0.0159
     },
     "worst_day": {
       "date": "2026-06-10",
       "daily_return_pct": 0.0
     },
     "max_drawdown_pct": -0.2047,
-    "positive_days": 31,
+    "positive_days": 35,
     "negative_days": 0,
-    "daily_volatility_pct": 0.0022,
+    "daily_volatility_pct": 0.0025,
     "first_date": "2026-06-10",
-    "first_real_date": "2026-06-10",
-    "last_date": "2026-06-22"
+    "first_real_date": "2026-06-22",
+    "last_date": "2026-06-26",
+    "evidenced_days": 5,
+    "evidenced_anchor": "2026-06-22"
   },
   "daily": [
     {
@@ -47,7 +50,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-05-22",
@@ -70,7 +75,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-05-23",
@@ -93,7 +100,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-05-24",
@@ -116,7 +125,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-05-25",
@@ -139,7 +150,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-05-26",
@@ -162,7 +175,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-05-27",
@@ -185,7 +200,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-05-28",
@@ -208,7 +225,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-05-29",
@@ -231,7 +250,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-05-30",
@@ -254,7 +275,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-05-31",
@@ -277,7 +300,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-06-01",
@@ -300,7 +325,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-06-02",
@@ -323,7 +350,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-06-03",
@@ -346,7 +375,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-06-04",
@@ -369,7 +400,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-06-05",
@@ -392,7 +425,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-06-06",
@@ -415,7 +450,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-06-07",
@@ -438,7 +475,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-06-08",
@@ -461,7 +500,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-06-09",
@@ -484,7 +525,9 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": true
+      "is_warmup": true,
+      "source": "warmup",
+      "evidenced": false
     },
     {
       "date": "2026-06-10",
@@ -507,7 +550,8 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": false
+      "source": "backfill",
+      "evidenced": false
     },
     {
       "date": "2026-06-11",
@@ -530,7 +574,8 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": false
+      "source": "backfill",
+      "evidenced": false
     },
     {
       "date": "2026-06-12",
@@ -553,7 +598,8 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": false
+      "source": "backfill",
+      "evidenced": false
     },
     {
       "date": "2026-06-13",
@@ -576,7 +622,8 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": false
+      "source": "backfill",
+      "evidenced": false
     },
     {
       "date": "2026-06-14",
@@ -599,7 +646,8 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": false
+      "source": "backfill",
+      "evidenced": false
     },
     {
       "date": "2026-06-15",
@@ -622,7 +670,8 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": false
+      "source": "backfill",
+      "evidenced": false
     },
     {
       "date": "2026-06-16",
@@ -645,7 +694,8 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": false
+      "source": "backfill",
+      "evidenced": false
     },
     {
       "date": "2026-06-17",
@@ -668,7 +718,8 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": false
+      "source": "backfill",
+      "evidenced": false
     },
     {
       "date": "2026-06-18",
@@ -691,7 +742,8 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": false
+      "source": "backfill",
+      "evidenced": false
     },
     {
       "date": "2026-06-19",
@@ -714,125 +766,199 @@
         "euler_v2": 9564.55,
         "maple": 12455.16
       },
-      "is_warmup": false
+      "source": "backfill",
+      "evidenced": false
     },
     {
       "date": "2026-06-20",
       "open_equity": 100108.1,
-      "close_equity": 100121.33,
-      "high_equity": 100121.33,
+      "close_equity": 100118.91,
+      "high_equity": 100118.91,
       "low_equity": 100108.1,
       "snapshots": 1,
-      "daily_return_pct": 0.013215,
-      "cumulative_return_pct": 0.12133,
-      "drawdown_pct": -0.094466,
-      "equity": 100121.33,
-      "apy_today": 4.823,
-      "daily_yield_usd": 13.2296,
+      "daily_return_pct": 0.010798,
+      "cumulative_return_pct": 0.11891,
+      "drawdown_pct": 0.0,
+      "equity": 100118.91,
+      "nav": 100118.91,
+      "apy_today": 3.943,
+      "daily_yield_usd": 10.8052,
       "positions": {
-        "compound_v3": 7118.15,
-        "aave_v3": 4791.06,
-        "spark_susds": 7528.81,
-        "morpho_steakhouse": 8897.68,
-        "aave_arbitrum": 5612.39,
-        "aave_v3_optimism": 6570.6,
-        "aave_v3_polygon": 6981.26,
-        "morpho_blue": 1898.14,
-        "yearn_v3": 1495.36,
-        "euler_v2": 1273.15,
-        "maple": 2231.48,
-        "pendle": 3703.7,
-        "fluid_fusdc": 3009.25,
-        "sfrax": 2777.78,
-        "wusdm": 2314.81,
-        "scrvusd": 3240.74,
-        "stusd": 2777.78,
-        "sdai": 2546.29,
-        "frax": 3472.22,
-        "aave_v3_base": 2083.33,
-        "morpho_blue_base": 2870.36,
-        "moonwell_base": 2546.29,
-        "susde": 5555.55,
-        "extra_finance_base": 3703.7
-      }
+        "aave_v3": 23750.0,
+        "compound_v3": 38000.0,
+        "yearn_v3": 11230.28,
+        "euler_v2": 9564.55,
+        "maple": 12455.16
+      },
+      "source": "backfill",
+      "evidenced": false
     },
     {
       "date": "2026-06-21",
-      "open_equity": 100121.33,
-      "close_equity": 100136.1,
-      "high_equity": 100136.1,
-      "low_equity": 100121.33,
+      "open_equity": 100118.91,
+      "close_equity": 100134.79,
+      "high_equity": 100134.79,
+      "low_equity": 100118.91,
       "snapshots": 1,
-      "daily_return_pct": 0.014753,
-      "cumulative_return_pct": 0.1361,
-      "drawdown_pct": -0.079727,
-      "equity": 100136.1,
-      "apy_today": 5.384,
-      "daily_yield_usd": 14.7704,
+      "daily_return_pct": 0.015861,
+      "cumulative_return_pct": 0.13479,
+      "drawdown_pct": 0.0,
+      "equity": 100134.79,
+      "nav": 100134.79,
+      "apy_today": 4.4769,
+      "daily_yield_usd": 15.88,
       "positions": {
-        "aave_v3": 4310.13,
-        "compound_v3": 7198.31,
-        "yearn_v3": 1448.16,
-        "euler_v2": 1251.82,
-        "maple": 2223.15,
-        "pendle": 6744.9,
-        "spark_susds": 7613.6,
-        "morpho_steakhouse": 8997.88,
-        "aave_arbitrum": 5675.59,
-        "aave_v3_optimism": 6644.59,
-        "aave_v3_polygon": 7059.88,
-        "fluid_fusdc": 2922.3,
-        "sfrax": 2697.51,
-        "wusdm": 2247.92,
-        "scrvusd": 3147.09,
-        "stusd": 2697.51,
-        "sdai": 2472.71,
-        "frax": 3371.89,
-        "aave_v3_base": 2023.12,
-        "morpho_blue_base": 2787.43,
-        "moonwell_base": 2472.71,
-        "susde": 5395.02,
-        "extra_finance_base": 3596.68
-      }
+        "aave_v3": 23250.0,
+        "compound_v3": 15852.27,
+        "maple": 15852.27,
+        "spark_susds": 13738.64,
+        "morpho_steakhouse": 10568.18,
+        "euler_v2": 10568.18,
+        "yearn_v3": 3170.45
+      },
+      "reconstructed": true,
+      "reconstruction_note": "interpolated \u2014 no daily_cycle log for this date; bounded by real 06-20 and 06-22 close",
+      "source": "reconstructed",
+      "evidenced": false
     },
     {
       "date": "2026-06-22",
-      "open_equity": 100136.1,
+      "open_equity": 100134.79,
       "close_equity": 100150.66,
       "high_equity": 100150.66,
-      "low_equity": 100136.1,
+      "low_equity": 100134.79,
       "snapshots": 1,
-      "daily_return_pct": 0.014539,
-      "cumulative_return_pct": 0.150659,
-      "drawdown_pct": -0.0652,
+      "daily_return_pct": 0.015849,
+      "cumulative_return_pct": 0.15066,
+      "drawdown_pct": 0.0,
       "equity": 100150.66,
-      "apy_today": 5.3061,
-      "daily_yield_usd": 14.559,
+      "nav": 100150.66,
+      "apy_today": 4.4763,
+      "daily_yield_usd": 15.87,
       "positions": {
-        "aave_v3": 4322.08,
-        "compound_v3": 7196.31,
-        "yearn_v3": 1451.31,
-        "euler_v2": 1243.09,
-        "maple": 2264.67,
-        "pendle": 6416.69,
-        "spark_susds": 7611.49,
-        "morpho_steakhouse": 8995.39,
-        "aave_arbitrum": 5674.01,
-        "aave_v3_optimism": 6642.76,
-        "aave_v3_polygon": 7057.92,
-        "fluid_fusdc": 2946.13,
-        "sfrax": 2719.51,
-        "wusdm": 2266.26,
-        "scrvusd": 3172.77,
-        "stusd": 2719.51,
-        "sdai": 2492.88,
-        "frax": 3399.39,
-        "aave_v3_base": 2039.64,
-        "morpho_blue_base": 2810.16,
-        "moonwell_base": 2492.88,
-        "susde": 5439.02,
-        "extra_finance_base": 3626.01
-      }
+        "aave_v3": 23250.0,
+        "compound_v3": 15852.27,
+        "maple": 15852.27,
+        "spark_susds": 13738.64,
+        "morpho_steakhouse": 10568.18,
+        "euler_v2": 10568.18,
+        "yearn_v3": 3170.45
+      },
+      "reconstructed": false,
+      "recovered_from": "daily_cycle_log",
+      "note": "real equity recovered from logs/daily_cycle_20260622.log (MP-416 evidence equity=100150.66)",
+      "source": "cycle",
+      "evidenced": true
+    },
+    {
+      "date": "2026-06-23",
+      "open_equity": 100150.66,
+      "close_equity": 100165.61,
+      "high_equity": 100165.61,
+      "low_equity": 100150.66,
+      "snapshots": 1,
+      "daily_return_pct": 0.014928,
+      "cumulative_return_pct": 0.16561,
+      "drawdown_pct": 0.0,
+      "equity": 100165.61,
+      "nav": 100165.61,
+      "apy_today": 4.4758,
+      "daily_yield_usd": 14.95,
+      "positions": {
+        "aave_v3": 23250.0,
+        "compound_v3": 15852.27,
+        "maple": 15852.27,
+        "spark_susds": 13738.64,
+        "morpho_steakhouse": 10568.18,
+        "euler_v2": 10568.18,
+        "yearn_v3": 3170.45
+      },
+      "reconstructed": false,
+      "recovered_from": "daily_cycle_log",
+      "note": "real equity recovered from logs/daily_cycle_20260623.log canonical 06:00 cycle (equity=100165.61)",
+      "source": "cycle",
+      "evidenced": true
+    },
+    {
+      "date": "2026-06-24",
+      "open_equity": 100165.61,
+      "close_equity": 100170.4,
+      "high_equity": 100170.4,
+      "low_equity": 100165.61,
+      "snapshots": 1,
+      "daily_return_pct": 0.004782,
+      "cumulative_return_pct": 0.1704,
+      "drawdown_pct": 0.0,
+      "equity": 100170.4,
+      "nav": 100170.4,
+      "apy_today": 4.4752,
+      "daily_yield_usd": 4.79,
+      "positions": {
+        "aave_v3": 23250.0,
+        "compound_v3": 15852.27,
+        "maple": 15852.27,
+        "spark_susds": 13738.64,
+        "morpho_steakhouse": 10568.18,
+        "euler_v2": 10568.18,
+        "yearn_v3": 3170.45
+      },
+      "reconstructed": false,
+      "recovered_from": "daily_cycle_log",
+      "note": "real equity recovered from logs/daily_cycle_20260624.log (equity=100170.40)",
+      "source": "cycle",
+      "evidenced": true
+    },
+    {
+      "date": "2026-06-25",
+      "open_equity": 100170.4,
+      "close_equity": 100180.31,
+      "high_equity": 100180.31,
+      "low_equity": 100170.4,
+      "snapshots": 1,
+      "daily_return_pct": 0.009893,
+      "cumulative_return_pct": 0.18031,
+      "drawdown_pct": 0.0,
+      "equity": 100180.31,
+      "nav": 100180.31,
+      "apy_today": 3.6126,
+      "daily_yield_usd": 9.91,
+      "positions": {
+        "aave_v3": 23250.0,
+        "compound_v3": 15852.27,
+        "maple": 15852.27,
+        "spark_susds": 13738.64,
+        "morpho_steakhouse": 10568.18,
+        "euler_v2": 10568.18,
+        "yearn_v3": 3170.45
+      },
+      "note": "canonical production 06:00 UTC cycle endpoint; continuous track (06-21..06-24 reconstructed, no gap)",
+      "source": "cycle",
+      "evidenced": true
+    },
+    {
+      "date": "2026-06-26",
+      "open_equity": 100180.31,
+      "close_equity": 100190.22,
+      "high_equity": 100190.22,
+      "low_equity": 100180.31,
+      "snapshots": 1,
+      "daily_return_pct": 0.009891,
+      "cumulative_return_pct": 0.190219,
+      "drawdown_pct": -0.025725,
+      "equity": 100190.22,
+      "apy_today": 3.6104,
+      "daily_yield_usd": 9.9092,
+      "positions": {
+        "aave_v3": 23250.0,
+        "compound_v3": 15852.27,
+        "spark_susds": 13738.64,
+        "morpho_steakhouse": 10568.18,
+        "maple": 15852.27,
+        "euler_v2": 10568.18,
+        "yearn_v3": 3170.45
+      },
+      "source": "cycle",
+      "evidenced": true
     }
   ]
 }
