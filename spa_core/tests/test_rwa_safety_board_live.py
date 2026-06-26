@@ -170,11 +170,29 @@ def test_api_endpoint_serves_board_verbatim_and_graceful(monkeypatch, tmp_path):
     assert r2.json() == board
 
 
+def _registered_paths(app) -> set:
+    """All registered HTTP paths, expanding FastAPI >=0.115 lazy `_IncludedRouter`
+    proxies (the router split includes routers, so paths hang off original_router)."""
+    found: set = set()
+
+    def walk(routes):
+        for r in routes:
+            inner = getattr(r, "original_router", None)
+            if inner is not None:
+                walk(inner.routes)
+                continue
+            p = getattr(r, "path", None)
+            if p:
+                found.add(p)
+
+    walk(app.routes)
+    return found
+
+
 def test_api_route_registered():
     """The route is registered on the app even if TestClient/uvicorn-stack is unavailable."""
     from spa_core.api import server
-    paths = {getattr(r, "path", None) for r in server.app.routes}
-    assert "/api/rwa-safety-board" in paths
+    assert "/api/rwa-safety-board" in _registered_paths(server.app)
 
 
 # ── 3. agent invocation path (plist + install registration) ────────────────────────────────────

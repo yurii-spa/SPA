@@ -128,8 +128,9 @@ def test_export_writes_apy_gap_report_json():
 
 def test_export_tracks_section_health():
     src = _export_src()
-    assert '_section_ok("apy_gap_report")' in src
-    assert '_section_fail("apy_gap_report")' in src
+    # P3-8: health helpers are now ExportContext methods (ctx.section_ok/fail).
+    assert 'section_ok("apy_gap_report")' in src
+    assert 'section_fail("apy_gap_report")' in src
 
 
 def test_export_registers_file_in_manifest():

@@ -430,8 +430,9 @@ class TestExportPipelineWiring:
 
     def test_pipeline_section_health_tracked(self):
         src = self._pipeline_source()
-        assert '_section_ok("covariance_summary")' in src
-        assert '_section_fail("covariance_summary")' in src
+        # P3-8: health helpers are now ExportContext methods (ctx.section_ok/fail).
+        assert 'section_ok("covariance_summary")' in src
+        assert 'section_fail("covariance_summary")' in src
 
     def test_pipeline_call_is_guarded(self):
         """The covariance call sits inside a try/except (graceful section)."""
@@ -443,7 +444,8 @@ class TestExportPipelineWiring:
         assert head.rstrip().endswith("try:") or "try:" in head.splitlines()[-3:][0] \
             or any(line.strip() == "try:" for line in head.splitlines()[-4:])
         tail = src[idx:idx + 1200]
-        assert "_section_fail(\"covariance_summary\")" in tail
+        # P3-8: health helpers are now ExportContext methods (ctx.section_fail).
+        assert "section_fail(\"covariance_summary\")" in tail
 
     def test_covariance_failure_does_not_propagate(self, tmp_path, monkeypatch):
         """Simulate the pipeline's covariance section: a raising writer must be
