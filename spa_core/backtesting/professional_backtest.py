@@ -470,6 +470,43 @@ def _protocol_apy_series(
     return []
 
 
+def _resolve_protocol_source(
+    protocol: str,
+    bee_data: Dict,
+    fallback_bee: Dict,
+) -> str:
+    """Return the data source that ACTUALLY served *protocol*'s APY series.
+
+    Mirrors the resolution order of :func:`_protocol_apy_series` exactly so the
+    reported provenance is the real source, not a blanket label. Values:
+
+      ``defillama_real``  — live BEE DeFiLlama cache (data/bee/defillama_apy_history.json)
+      ``defillama_fallback`` — hardcoded BEE fallback series (spa_core.bee FALLBACK_APY_DATA)
+      ``modeled_proxy``   — built-in committed proxy series (no DeFiLlama history)
+      ``none``            — no series available (contributes 0 % yield)
+    """
+    BEE_KEY_MAP = {
+        "aave_v3": "aave_v3_usdc_eth",
+        "compound_v3": "compound_v3_usdc_eth",
+        "morpho_steakhouse": "morpho_steakhouse_usdc",
+    }
+    BUILT_IN_PROXY_KEYS = {"spark_susds", "maple", "euler_v2", "yearn_v3"}
+
+    bee_key = BEE_KEY_MAP.get(protocol, protocol)
+    if bee_key:
+        if bee_data and bee_key in bee_data and bee_data[bee_key].get("apy_series"):
+            return "defillama_real"
+        if (
+            fallback_bee
+            and bee_key in fallback_bee
+            and fallback_bee[bee_key].get("apy_series")
+        ):
+            return "defillama_fallback"
+    if protocol in BUILT_IN_PROXY_KEYS:
+        return "modeled_proxy"
+    return "none"
+
+
 def _build_protocol_daily_apy(
     protocol: str,
     bee_data: Dict,
@@ -1212,22 +1249,30 @@ class ProfessionalBacktest:
         n_days = len(days)
         bee_data, fallback_bee, source_tag = self._load_apy_data()
 
-        # Determine data_source label
-        # If any pool from BEE has data_source == "defillama_real", report real
-        all_sources: set = set()
-        for v in bee_data.values():
-            all_sources.add(v.get("data_source", "unknown"))
-        for v in fallback_bee.values():
-            all_sources.add(v.get("data_source", "unknown"))
-        if "defillama_real" in all_sources:
-            data_source_label = "defillama_real"
-        else:
-            data_source_label = "defillama_fallback"
-
         # Collect all protocols used across strategies
         all_protocols: set = set()
         for scfg in self._strategies.values():
             all_protocols.update(scfg["weights"].keys())
+
+        # Resolve the source that ACTUALLY served each protocol's series (honest
+        # provenance) rather than a blanket label derived from a hardcoded whitelist.
+        protocol_data_sources = {
+            proto: _resolve_protocol_source(proto, bee_data, fallback_bee)
+            for proto in sorted(all_protocols)
+        }
+
+        # Top-level data_source label = the strongest real source actually used.
+        # Real if ANY served protocol came from the live DeFiLlama cache; else
+        # fallback if any came from the hardcoded fallback series; else modeled.
+        _served = set(protocol_data_sources.values())
+        if "defillama_real" in _served:
+            data_source_label = "defillama_real"
+        elif "defillama_fallback" in _served:
+            data_source_label = "defillama_fallback"
+        elif "modeled_proxy" in _served:
+            data_source_label = "modeled_proxy"
+        else:
+            data_source_label = "none"
 
         # ── 2. Build daily APY lookup ────────────────────────────────────
         daily_apy: Dict[str, Dict[date, float]] = {}
@@ -1316,6 +1361,7 @@ class ProfessionalBacktest:
             "meta": {
                 "generated_at": datetime.utcnow().isoformat() + "Z",
                 "version": VERSION,
+                "is_backtest": True,
                 "data_source": data_source_label,
                 "period": f"{self.start.isoformat()} to {self.end.isoformat()}",
                 "n_trading_days": n_days,
@@ -1339,27 +1385,21 @@ class ProfessionalBacktest:
                 ),
                 "llm_forbidden": True,
                 "sharpe_note": (
-                    "Sharpe ratios for USDC stablecoin lending strategies are "
-                    "structurally elevated vs. equity (typical equity Sharpe 0.4–1.0). "
-                    "This is correct: lending principal does not fluctuate in price; "
-                    "DeFi protocol risk (hacks, bad debt) is captured in stress tests "
-                    "rather than daily APY variance. Expected Sharpe range for this "
-                    "strategy class: 20–100 with daily DeFiLlama data."
+                    "stablecoin Sharpe is degenerate by construction (near-zero "
+                    "price vol) — ranking is by Sharpe but treat magnitude as a "
+                    "not-noise check, not a quality measure. Sharpe ratios for USDC "
+                    "stablecoin lending strategies are structurally elevated vs. "
+                    "equity (typical equity Sharpe 0.4–1.0): lending principal does "
+                    "not fluctuate in price; DeFi protocol risk (hacks, bad debt) is "
+                    "captured in stress tests rather than daily APY variance. Expected "
+                    "Sharpe range for this strategy class: 20–100 with daily DeFiLlama "
+                    "data. Prefer net-of-cost annualized return (see "
+                    "annualized_return_pct) as the economic quality metric."
                 ),
                 "apy_noise_applied": self._add_noise,
                 "apy_noise_seed": APY_NOISE_SEED if self._add_noise else None,
                 "protocols_used": sorted(all_protocols),
-                "protocol_data_sources": {
-                    proto: (
-                        "defillama_real"
-                        if data_source_label == "defillama_real"
-                        and proto in {"aave_v3", "compound_v3", "morpho_steakhouse"}
-                        else "defillama_fallback"
-                        if proto in {"aave_v3", "compound_v3", "morpho_steakhouse"}
-                        else "modeled_proxy"
-                    )
-                    for proto in sorted(all_protocols)
-                },
+                "protocol_data_sources": protocol_data_sources,
             },
             "strategies": strategies_results,
             "leaderboard": leaderboard,

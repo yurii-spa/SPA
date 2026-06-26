@@ -63,6 +63,30 @@ OK = "OK"
 SKIPPED = "SKIPPED"                       # sentinel — excluded from roll-up
 _SEV = {OK: 0, INFO: 1, WARNING: 2, CRITICAL: 3}
 
+# Shared red-flag severity vocabulary (single source — N8). is_critical() matches
+# the critical SET (CRITICAL/CRIT/FATAL/...) so a writer renaming the level cannot
+# silently disable critical detection here. Import lazily-tolerant: if the shared
+# module is somehow unavailable, fall back to the historical critical literals.
+try:
+    from spa_core.alerts.severity import is_critical as _is_critical_severity
+    from spa_core.alerts.severity import (
+        read_portfolio_health_score as _read_portfolio_health_score,
+    )
+except Exception:                          # noqa: BLE001 — never let an import gap blind the monitor
+    _FALLBACK_CRIT = frozenset({"CRITICAL", "CRIT", "FATAL", "SEVERE", "EMERGENCY"})
+
+    def _is_critical_severity(sev) -> bool:  # type: ignore[no-redef]
+        return isinstance(sev, str) and sev.strip().upper() in _FALLBACK_CRIT
+
+    def _read_portfolio_health_score(doc):   # type: ignore[no-redef]
+        if not isinstance(doc, dict):
+            return None
+        for k in ("health_score", "score", "portfolio_health_score", "overall_score"):
+            v = doc.get(k)
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                return float(v)
+        return None
+
 
 def _worst(statuses) -> str:
     """Highest-severity status among args, ignoring SKIPPED."""
@@ -835,11 +859,25 @@ class SystemHealthMonitor:
     # ======================================================================
     def check_d6_risk_gates(self) -> list[CheckResult]:
         D = "d6_risk_gates"
+        # Each gate is isolated: a transient error in ONE sub-check (e.g. a
+        # data/*.json being rewritten under us by a live agent during a test or
+        # an in-flight cycle) is reported as a WARNING for THAT gate only — it
+        # must NOT abort the whole domain and blank the other gates' verdicts.
+        # On the happy path (all sub-checks succeed) the output is identical, so
+        # this only changes the rare error path and makes d6 order/state-robust.
+        gates = (
+            ("d6.t2.cap", self._check_t2_cap),
+            ("d6.health", self._check_portfolio_health),
+            ("d6.red_flags", self._check_red_flags),
+            ("d6.killswitch", self._check_killswitch),
+        )
         out: list[CheckResult] = []
-        out.append(self._check_t2_cap(D))
-        out.append(self._check_portfolio_health(D))
-        out.append(self._check_red_flags(D))
-        out.append(self._check_killswitch(D))
+        for cid, fn in gates:
+            try:
+                out.append(fn(D))
+            except Exception as exc:           # noqa: BLE001 — one bad gate must not blind the rest
+                out.append(CheckResult(cid, D, WARNING,
+                                       "gate check raised (transient/state)", error=repr(exc)))
         return out
 
     def _check_t2_cap(self, D: str) -> CheckResult:
@@ -879,7 +917,9 @@ class SystemHealthMonitor:
             return CheckResult("d6.health", D, WARNING,
                                "no portfolio health score (absence != breach)", error=ph["error"])
         data = ph["data"]
-        score = data.get("score", data.get("health_score", data.get("portfolio_health_score")))
+        # Read the ACTUAL key the writer emits (health_score) via the one shared
+        # helper both monitors use — not a per-module key guess (N8).
+        score = _read_portfolio_health_score(data)
         if not _is_finite_number(score):
             return CheckResult("d6.health", D, WARNING, "portfolio health score not numeric")
         if score < PORTFOLIO_HEALTH_FLOOR:
@@ -897,8 +937,11 @@ class SystemHealthMonitor:
         flags = rf["data"].get("red_flags") if isinstance(rf["data"], dict) else rf["data"]
         if not isinstance(flags, list):
             return CheckResult("d6.red_flags", D, WARNING, "red_flags not a list")
+        # Match the SET of critical severities (CRITICAL/CRIT/FATAL/...) from the
+        # shared vocabulary — NOT a single literal — so a red_flag_monitor change
+        # to the exact spelling cannot silently disable critical detection (N8).
         crit = [f for f in flags if isinstance(f, dict)
-                and str(f.get("severity", "")).upper() == CRITICAL]
+                and _is_critical_severity(f.get("severity"))]
         if crit:
             # A red flag concerns an EXTERNAL protocol's market conditions, not a
             # failure of SPA itself. It is CRITICAL only when it hits a protocol we
@@ -1171,11 +1214,24 @@ class SystemHealthMonitor:
         return hist[-_HISTORY_MAX:]
 
     def _new_critical(self, report: dict, prev: Optional[dict]) -> bool:
+        """Page ONLY when a genuinely NEW critical appeared since the previous run.
+
+        Returns True iff ``current_criticals - previous_criticals`` is non-empty.
+        Using set difference (rather than set inequality) means:
+          * the documented pre-dawn self-healing dip — which transiently drops the
+            golive count and then RECOVERS the same critical set — does NOT re-page
+            on every run that shares an unchanged (or shrinking) critical set;
+          * a critical CLEARING (set shrinks) is not a page;
+          * a NEW critical id (set grows) IS a page.
+        This stops the false-CRITICAL spam that erodes trust and burns the
+        Telegram budget, while still paging on real new failures. (N9)
+        """
         cur = self._critical_ids(report)
         if not cur:
             return False
         prev_set = self._critical_ids(prev) if prev else set()
-        return cur != prev_set
+        new_criticals = cur - prev_set
+        return bool(new_criticals)
 
     # -- formatting ---------------------------------------------------------
     def _format_page(self, report: dict) -> str:

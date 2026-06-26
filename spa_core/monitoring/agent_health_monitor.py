@@ -65,6 +65,29 @@ WARNING = "WARNING"
 CRITICAL = "CRITICAL"
 _SEVERITY = {OK: 0, WARNING: 1, CRITICAL: 2}
 
+# Shared red-flag severity vocabulary + portfolio_health field reader (single
+# source — N8). Matching the critical SET (not a hard-coded literal) means a
+# red_flag_monitor severity rename can only widen detection, never disable it.
+try:
+    from spa_core.alerts.severity import is_critical as _is_critical_severity
+    from spa_core.alerts.severity import (
+        read_portfolio_health_score as _read_portfolio_health_score,
+    )
+except Exception:                          # noqa: BLE001 — never let an import gap blind the monitor
+    _FALLBACK_CRIT = frozenset({"CRITICAL", "CRIT", "FATAL", "SEVERE", "EMERGENCY"})
+
+    def _is_critical_severity(sev) -> bool:  # type: ignore[no-redef]
+        return isinstance(sev, str) and sev.strip().upper() in _FALLBACK_CRIT
+
+    def _read_portfolio_health_score(doc):   # type: ignore[no-redef]
+        if not isinstance(doc, dict):
+            return None
+        for k in ("health_score", "score", "portfolio_health_score", "overall_score"):
+            v = doc.get(k)
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                return float(v)
+        return None
+
 
 def _worst(*statuses: str) -> str:
     """Return the highest-severity status among the args."""
@@ -473,7 +496,9 @@ def check_system(data_dir: Path, now: datetime,
     # --- portfolio health score ---
     ph = _load_json(data_dir, "portfolio_health.json")
     if ph:
-        score = ph.get("health_score", ph.get("score"))
+        # Read the ACTUAL key the writer emits via the one shared helper both
+        # monitors use (N8): health_score → score → … precedence.
+        score = _read_portfolio_health_score(ph)
         if isinstance(score, (int, float)):
             checks["portfolio_health_score"] = round(float(score), 1)
             if score < PORTFOLIO_HEALTH_FLOOR:
@@ -491,7 +516,7 @@ def check_system(data_dir: Path, now: datetime,
         crit_flags = [
             f for f in flags
             if isinstance(f, dict)
-            and str(f.get("severity", "")).upper() in ("CRITICAL", "CRIT")
+            and _is_critical_severity(f.get("severity"))
         ]
         if crit_flags:
             pos = _load_json(data_dir, "current_positions.json") or {}

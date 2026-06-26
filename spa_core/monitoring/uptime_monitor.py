@@ -90,25 +90,35 @@ AGENT_OUTPUT_FILES: dict[str, tuple[str | None, int]] = {
     "com.spa.peg_monitor":         ("data/peg_report.json", 1800),
     "com.spa.red_flag_monitor":    ("data/red_flags.json", 1800),
 
-    # 15-minute StartInterval → allow 45 min.
+    # 15-minute StartInterval → allow 45 min (3× schedule).
     "com.spa.governance_watcher":  ("data/governance_proposals.json", 2700),
 
-    # 30-minute paper-trading cycle → allow 90 min.
-    "com.spa.daily_cycle":         ("data/paper_trading_status.json", 5400),
+    # Daily paper-trading cycle (StartCalendarInterval 08:00 UTC, NOT 30-min).
+    # A single missed daily tick must not flap DOWN, and a freshly-written status
+    # file at 08:00 is then ~22 h "old" by the next pre-dawn run — so the window
+    # must span a full day + slack (≈30 h, 3× a daily-ish cadence), matching the
+    # other calendar-daily agents below. The previous 5400 s (90 min) window was
+    # the dominant false-DOWN source: it tripped for ~22.5 h out of every 24 h.
+    "com.spa.daily_cycle":         ("data/paper_trading_status.json", 108000),
 
-    # 90-minute autopush → allow 4 h.
-    "com.spa.autopush":            ("logs/auto_push.log", 14400),
+    # 90-minute autopush → allow 4.5 h (3× schedule).
+    "com.spa.autopush":            ("logs/auto_push.log", 16200),
 
     # Calendar-interval (daily / event-driven) agents → allow ~30 h.
     "com.spa.base_gas_monitor":    ("data/base_gas_history.json", 108000),
     "com.spa.sky_monitor":         ("data/sky_status.json", 108000),
-    "com.spa.daily-paper-report":  ("data/paper_trading_status.json", 108000),
+    # com.spa.daily-paper-report is RETIRED and historically shared
+    # paper_trading_status.json with com.spa.daily_cycle. Two labels judging
+    # liveness off the SAME file is a de-dup hazard (a stale shared file flips
+    # BOTH to DOWN; a fresh one masks a real outage). Judge it by launchctl only
+    # so the shared file backs exactly one label (daily_cycle).
+    "com.spa.daily-paper-report":  (None, 0),
     "com.spa.checkpoint-7day":     ("logs/checkpoint_7day.log", 691200),  # weekly → 8 d
     "com.spa.weekly_backup":       (None, 0),   # backup target outside repo
     "com.spa.analytics_tier_c":    ("data/analytics_report_full.json", 129600),  # daily 05:00 → 86400*1.5 = 36h window
-    "com.spa.analytics_tier_b":    ("data/analytics_signals_advisory.json", 7200),  # hourly → 2h window
-    "com.spa.bts-feed":            ("data/perp_funding_rates.json", 3600),  # every 15 min → 1h window
-    "com.spa.bts-monitor":         ("data/basis_trade_opportunities.json", 3600),  # every 15 min → 1h window
+    "com.spa.analytics_tier_b":    ("data/analytics_signals_advisory.json", 10800),  # hourly → 3h window (3× schedule)
+    "com.spa.bts-feed":            ("data/perp_funding_rates.json", 3600),  # every 15 min → 1h window (4× schedule)
+    "com.spa.bts-monitor":         ("data/basis_trade_opportunities.json", 3600),  # every 15 min → 1h window (4× schedule)
     "com.spa.bot_commands":        (None, 0),  # KeepAlive long-poll → judged via launchctl
 }
 
@@ -740,13 +750,25 @@ def run_all_checks(
     # 4. Git push
     checks["git_push"] = check_git_push(repo_dir)
 
-    # Determine all_ok
+    # Determine all_ok.
+    #   * A launchd agent contributes its "running" verdict — but only when that
+    #     verdict is an actual bool. ``running is None`` means "no judgeable
+    #     signal" (e.g. a periodic agent with no output file, idle between runs):
+    #     that is NOT evidence of an outage, so it must NOT flip all_ok to DOWN.
+    #     Folding None in literally (all([None]) is False) was a false-positive
+    #     source on every run that touched such an agent.
+    #   * The widened freshness windows (AGENT_OUTPUT_FILES) ensure a single
+    #     missed tick stays inside the window, so an agent that merely skipped one
+    #     run still reports running=True and does not flip all_ok.
     ok_flags: list[bool] = []
     for key, chk in checks.items():
         if key.startswith("launchd_"):
-            ok_flags.append(chk.get("running", False))
+            running = chk.get("running", False)
+            if running is None:
+                continue  # no verdict → exclude, don't count as DOWN
+            ok_flags.append(bool(running))
         else:
-            ok_flags.append(chk.get("ok", False))
+            ok_flags.append(bool(chk.get("ok", False)))
 
     all_ok = all(ok_flags)
 

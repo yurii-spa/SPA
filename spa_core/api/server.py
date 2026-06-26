@@ -1944,11 +1944,24 @@ async def get_tournament():
 
     result["server_time"] = _now()
     result["live"] = True
-    result["meta"] = _backtest_meta(
+    _meta = _backtest_meta(
         basis="deterministic backtest 2022-2025; leaderboard ranked by Sharpe; "
               "paper_apy is backtest_derived, NOT live paper",
         period="deterministic backtest 2022-2025",
     )
+    # Surface the honest mass-tournament meta (degenerate-Sharpe caveat + real
+    # per-protocol provenance + owner-gated rank-metric note) alongside the
+    # standard backtest meta, without overwriting it.
+    _mass = result.get("mass_results")
+    if isinstance(_mass, dict) and isinstance(_mass.get("meta"), dict):
+        _mm = _mass["meta"]
+        for _k in (
+            "sharpe_note", "data_source", "protocol_data_sources",
+            "rank_metric", "rank_metric_owner_gated", "alt_rank_metric",
+        ):
+            if _k in _mm:
+                _meta.setdefault(_k, _mm[_k])
+    result["meta"] = _meta
     return JSONResponse(result, headers=_NO_CACHE_HEADERS)
 
 

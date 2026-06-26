@@ -42,18 +42,27 @@ jobs:
         env:
           SPA_ENV: ci
 
+      # --- Deterministic test execution (Architect N11) ---------------------
+      # Reproducible order/seed so flakes in the shared-state suite (which gates
+      # go-live evidence) are reproducible across two consecutive CI runs:
+      #   PYTHONHASHSEED=0  fixes dict/set iteration order;
+      #   -p no:randomly    disables pytest-randomly if ever installed (no-op
+      #                     when absent → stable filesystem collection order).
+      # Do NOT remove without re-proving identical collection order.
       - name: Run spa_core/tests (unit)
         run: |
           cd spa_core
-          python -m pytest tests/ -q --tb=short --ignore=tests/test_golive_checker.py
+          python -m pytest tests/ -q --tb=short -p no:randomly --ignore=tests/test_golive_checker.py
         env:
           SPA_ENV: ci
+          PYTHONHASHSEED: '0'
 
       - name: Run tests/ root (integration)
         run: |
-          python -m pytest tests/ -q --tb=short -x --ignore=tests/test_golive_checker.py
+          python -m pytest tests/ -q --tb=short -x -p no:randomly --ignore=tests/test_golive_checker.py
         env:
           SPA_ENV: ci
+          PYTHONHASHSEED: '0'
 
       - name: Presentation-vs-SSOT guard (Law 3)
         run: python3 scripts/check_presentation_ssot.py

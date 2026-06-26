@@ -31,7 +31,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from spa_core.backtesting.professional_backtest import ProfessionalBacktest
+from spa_core.backtesting.professional_backtest import (
+    ProfessionalBacktest,
+    _load_bee_apy_history,
+    _get_fallback_bee_data,
+    _resolve_protocol_source,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -577,17 +582,63 @@ class MassTournament:
             )
 
         # ── Sort by Sharpe ────────────────────────────────────────────────────
+        # NOTE: ranking metric is OWNER-GATED. Do not change the sort key from
+        # Sharpe without an owner decision (it changes the public #1). The honest
+        # alternative metric (net-of-cost annual return) is surfaced per-row as
+        # `net_annual_return_pct` so the owner can later switch the rank to it.
         leaderboard.sort(key=lambda x: x["sharpe"], reverse=True)
         for i, entry in enumerate(leaderboard, 1):
             entry["rank"] = i
+            # Alias annual_return_pct (already net of TX_COST_BPS in the backtest)
+            # as an explicitly-labelled alternative rank metric. Does NOT reorder.
+            entry["net_annual_return_pct"] = entry["annual_return_pct"]
 
         top_5 = leaderboard[:5]
         bottom_5 = leaderboard[-5:] if len(leaderboard) >= 5 else leaderboard[:]
+
+        # ── Honest provenance: which source ACTUALLY served each protocol ──────
+        used_protocols: set = set()
+        for entry in leaderboard:
+            used_protocols.update((entry.get("allocation") or {}).keys())
+        bee_data, _bee_tag = _load_bee_apy_history()
+        fallback_bee = _get_fallback_bee_data()
+        protocol_data_sources = {
+            proto: _resolve_protocol_source(proto, bee_data or {}, fallback_bee or {})
+            for proto in sorted(used_protocols)
+        }
+        _served = set(protocol_data_sources.values())
+        if "defillama_real" in _served:
+            data_source_label = "defillama_real"
+        elif "defillama_fallback" in _served:
+            data_source_label = "defillama_fallback"
+        elif "modeled_proxy" in _served:
+            data_source_label = "modeled_proxy"
+        else:
+            data_source_label = "none"
+
+        meta: Dict[str, Any] = {
+            "is_backtest": True,
+            "data_source": data_source_label,
+            "period": "2022-01-01 to 2025-12-31",
+            "rank_metric": "sharpe_ratio",
+            "rank_metric_owner_gated": True,
+            "alt_rank_metric": "net_annual_return_pct",
+            "protocol_data_sources": protocol_data_sources,
+            "sharpe_note": (
+                "stablecoin Sharpe is degenerate by construction (near-zero vol) "
+                "— ranking is by Sharpe but treat magnitude as a not-noise check, "
+                "not a quality measure. Prefer net_annual_return_pct (net of "
+                "transaction cost) as the economic quality metric. Switching the "
+                "headline rank metric is owner-gated (it changes the public #1)."
+            ),
+            "llm_forbidden": True,
+        }
 
         result: Dict[str, Any] = {
             "generated_at":       datetime.now(timezone.utc).isoformat(),
             "version":            VERSION,
             "llm_forbidden":      True,
+            "meta":               meta,
             "simulation_period":  "2022-01-01 to 2025-12-31",
             "initial_capital_usd": INITIAL_CAPITAL,
             "strategies_tested":  strategies_tested,

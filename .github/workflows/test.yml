@@ -45,17 +45,30 @@ jobs:
       - name: Install test dependencies
         run: pip install pytest
 
+      # --- Deterministic test execution (Architect N11) ---------------------
+      # Two CI runs MUST produce an IDENTICAL collection order + pass/fail set
+      # so any flake in the ~99k shared-state suite is reproducible (this suite
+      # gates go-live evidence).
+      #   * PYTHONHASHSEED=0   — fixes dict/set iteration order so tests that
+      #                          (incorrectly) depend on hash ordering are stable.
+      #   * -p no:randomly     — hard-disables pytest-randomly IF it is ever
+      #                          installed (transitive dep / future add). With
+      #                          the plugin absent it is a harmless no-op, so
+      #                          collection stays in stable filesystem order.
+      # Do NOT remove these flags without re-proving reproducibility.
       - name: Run integration tests
-        run: python -m pytest tests/ -v --tb=short
+        run: python -m pytest tests/ -v --tb=short -p no:randomly
         env:
           SPA_ENV: ci
+          PYTHONHASHSEED: '0'
 
       - name: Run spa_core unit tests
         run: |
-          python -m pytest spa_core/tests/ -q --tb=short \
+          python -m pytest spa_core/tests/ -q --tb=short -p no:randomly \
             --ignore=spa_core/tests/test_golive_checker.py
         env:
           SPA_ENV: ci
+          PYTHONHASHSEED: '0'
 
       - name: Pre-deploy checks (dry run)
         run: python3 scripts/pre_deploy_check.py

@@ -95,6 +95,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
+# Shared severity vocabulary (single source of truth — N8). The writer emits
+# these literals; consumers (system_health / agent_health) match the critical
+# SET via spa_core.alerts.severity.is_critical(). Keep emitted literals in sync
+# with SEVERITIES here so a rename here propagates to consumers automatically.
+from spa_core.alerts.severity import SEV_WARN, SEV_CRITICAL, SEVERITIES as _SEVERITIES
+
 log = logging.getLogger("spa.alerts.red_flag_monitor")
 
 MONITOR_VERSION = "1.0"
@@ -162,7 +168,8 @@ CATEGORIES: tuple[str, ...] = (
     "governance_proposal",
     "token_unlock",
 )
-SEVERITIES: tuple[str, ...] = ("WARN", "CRITICAL")
+# Severity vocabulary now lives in spa_core.alerts.severity (single source).
+SEVERITIES: tuple[str, ...] = _SEVERITIES
 
 
 # ─── Dataclasses ──────────────────────────────────────────────────────────────
@@ -174,7 +181,7 @@ class RedFlag:
 
     protocol: str
     category: str
-    severity: str = "WARN"
+    severity: str = SEV_WARN
     message: str = ""
     source: str = "bootstrap"
     detected_at: str = ""
@@ -803,11 +810,11 @@ class RedFlagMonitor:
             window = "24h" if abs(delta_24h) >= abs(delta_7d) else "7d"
             magnitude = abs(delta_24h) if window == "24h" else abs(delta_7d)
 
-            severity = "WARN"
+            severity = SEV_WARN
             if magnitude >= TVL_DROP_CRITICAL_PCT:
-                severity = "CRITICAL"
+                severity = SEV_CRITICAL
             elif self._grade_is_poor(grades.get(slug)):
-                severity = "CRITICAL"
+                severity = SEV_CRITICAL
             out.append(RedFlag(
                 protocol=slug,
                 category="tvl_drop",
@@ -840,11 +847,11 @@ class RedFlagMonitor:
             ratio = current / baseline if baseline > 0 else 0.0
             if ratio < APY_SPIKE_MULTIPLIER:
                 continue
-            severity = "WARN"
+            severity = SEV_WARN
             if ratio >= APY_SPIKE_CRITICAL_RATIO:
-                severity = "CRITICAL"
+                severity = SEV_CRITICAL
             elif self._grade_is_poor(grades.get(slug)):
-                severity = "CRITICAL"
+                severity = SEV_CRITICAL
             out.append(RedFlag(
                 protocol=slug,
                 category="apy_spike",
@@ -874,11 +881,11 @@ class RedFlagMonitor:
             tag = str(rec.get("tag") or "").lower()
             if not tag:
                 continue
-            severity = "WARN"
+            severity = SEV_WARN
             if tag in GOVERNANCE_CRITICAL_TAGS:
-                severity = "CRITICAL"
+                severity = SEV_CRITICAL
             elif self._grade_is_poor(grades.get(slug)):
-                severity = "CRITICAL"
+                severity = SEV_CRITICAL
             title = str(rec.get("title") or "")[:160]
             out.append(RedFlag(
                 protocol=slug,
@@ -918,11 +925,11 @@ class RedFlagMonitor:
                 except Exception:
                     pass  # If we can't parse, include the alert anyway
             pct_supply = _safe_float(rec.get("pct_supply"), 0.0)
-            severity = "WARN"
+            severity = SEV_WARN
             if pct_supply >= UNLOCK_CRITICAL_PCT_SUPPLY:
-                severity = "CRITICAL"
+                severity = SEV_CRITICAL
             elif self._grade_is_poor(grades.get(slug)):
-                severity = "CRITICAL"
+                severity = SEV_CRITICAL
             unlock_at = unlock_at_str
             symbol    = str(rec.get("symbol") or "").upper()
             out.append(RedFlag(
@@ -961,11 +968,11 @@ class RedFlagMonitor:
                 seen[key] = f
             else:
                 # Prefer CRITICAL over WARN.
-                if existing.severity != "CRITICAL" and f.severity == "CRITICAL":
+                if existing.severity != SEV_CRITICAL and f.severity == SEV_CRITICAL:
                     seen[key] = f
         result = list(seen.values())
         # Stable ordering: category, then protocol, then severity weight desc.
-        sev_weight = {"CRITICAL": 0, "WARN": 1}
+        sev_weight = {SEV_CRITICAL: 0, SEV_WARN: 1}
         result.sort(key=lambda r: (
             r.category,
             r.protocol,

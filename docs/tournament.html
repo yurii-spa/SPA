@@ -761,6 +761,12 @@ td.num-cell { text-align: right; }
             Primary rank: <strong>Sharpe ratio</strong> (excess return / daily volatility).
             Secondary: Sortino, Calmar. 100% win rate across all strategies reflects
             the stablecoin yield nature — no directional risk generating negative return days.
+            <br><br>
+            ⚠️ <strong>Degenerate-Sharpe caveat:</strong> stablecoin Sharpe is degenerate
+            by construction (near-zero price volatility), so values land in the 20–100 range.
+            Ranking is by Sharpe, but treat its <em>magnitude</em> as a not-noise check,
+            not a quality measure — prefer <strong>net-of-cost annualized return (APY %)</strong>
+            as the economic quality metric.
           </div>
         </div>
         <div class="method-item">
