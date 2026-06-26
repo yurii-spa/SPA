@@ -55,6 +55,7 @@ from spa_core.strategy_lab.rates_desk import config
 from spa_core.strategy_lab.rates_desk import pendle_pt_history as pph
 from spa_core.strategy_lab.rates_desk.contracts import (
     D0,
+    KillReason,
     KillState,
     RatePolicyParams,
     RateQuote,
@@ -95,6 +96,16 @@ BORROW_APR = Decimal("0.045")          # USDC borrow APR proxy (~t-bill); below 
 BORROW_LTV = Decimal("0.86")           # PT-collateral max LTV proxy (Morpho PT markets ~86%)
 BORROW_UTILIZATION = Decimal("0.70")   # documented utilization proxy (well below the 0.97 kill)
 BORROW_DEPTH_USD = Decimal("20000000") # money-market depth proxy (deep USDC markets)
+
+# Global RiskPolicy APY ceiling (spa_core/risk/policy.py: max_apy_for_new_position = 30%). The rates
+# desk composes UNDER the global RiskPolicy (compose_under_global_policy): a rate-gate approval is
+# necessary but NOT sufficient — the global policy still has to approve, and it REFUSES any position
+# with APY > 30% as "risk too high". The deep PT history carries synth-PT implied yields up to ~196%
+# (2024 funding boom); a 99%-APY PT locked for months is risk premium, NOT a safe held-to-maturity
+# carry, and the global policy would never let it open. Surfacing those into the book was a core driver
+# of the inflated net APY. We honour the global ceiling here by dropping over-ceiling PT quotes before
+# the sleeve ever sees them (exactly what global_approved=False would do, made explicit per-quote).
+GLOBAL_MAX_APY = Decimal("0.30")
 
 
 # ── atomic JSON write (repo rule #4) ──────────────────────────────────────────────────────────────
@@ -258,6 +269,51 @@ def _all_dates(deep: dict) -> List[str]:
     return sorted(dates)
 
 
+def _maturity_map(deep: dict) -> Dict[str, str]:
+    """market_id -> maturity ISO-date, for the WHOLE deep universe. Used by the replay to RETIRE a PT
+    book the day it matures (the notional redeems back to cash) so a held PT does NOT keep accruing its
+    locked carry forever past maturity. Without this the replay over-states net APY massively: a 99%-APY
+    synth PT bought in 2024 would accrue ~99%/yr indefinitely across the entire 2.5-year window, which
+    is an APY-computation artifact, not a real (held-to-maturity) carry."""
+    out: Dict[str, str] = {}
+    for key, m in deep.get("markets", {}).items():
+        mat = m.get("maturity")
+        if mat:
+            out[str(key)] = str(mat)[:10]
+    return out
+
+
+def _retire_matured(sleeve, maturities: Dict[str, str], as_of: str) -> int:
+    """Retire (redeem→cash) every open FixedCarry book whose PT has reached/passed maturity on `as_of`.
+    Returns the number retired. The notional returns to cash (sleeve._unwind), where it then earns at
+    most the cash/RWA floor — exactly as a real maturing PT would (you get your principal back; you do
+    NOT keep clipping the fixed coupon on an instrument that no longer exists)."""
+    if not hasattr(sleeve, "_books"):
+        return 0
+    retired = 0
+    for mid in list(sleeve._books.keys()):
+        mat = maturities.get(mid)
+        if mat and mat <= as_of[:10]:
+            if hasattr(sleeve, "_unwind"):
+                # FixedCarrySleeve: redeem→cash + audit log via its own unwind path.
+                sleeve._unwind(mid, KillReason.MATURITY_BUFFER, f"matured {mat}")
+            else:
+                # Phase-1 pure sleeves (Levered/Basis/RateMatrix) have no _unwind: redeem the book's
+                # notional back to cash directly (carry was already accrued in step()), mirroring the
+                # cash bookkeeping step_apply does on an 'unwind' order.
+                bk = sleeve._books.pop(mid, None)
+                if bk is not None:
+                    sleeve._cash += bk["size"]
+                    if hasattr(sleeve, "_closed"):
+                        sleeve._closed.append({
+                            "market_id": mid, "reason": KillReason.MATURITY_BUFFER.value,
+                            "note": f"matured {mat}", "size": str(bk["size"]),
+                            "entry_rate": str(bk["entry_rate"]),
+                        })
+            retired += 1
+    return retired
+
+
 def _funding_neg_frac_90d(funding: Dict[str, float], date: str) -> Decimal:
     dates = sorted(d for d in funding if d <= date)
     tail = dates[-90:]
@@ -329,6 +385,8 @@ def replay_sleeve(
     sleeve; this harness only threads the surface stream + bookkeeping. Deterministic."""
     floor = params.rwa_floor
     floor_daily = float(floor) / 365.0
+    floor_daily_dec = floor / Decimal("365")
+    maturities = _maturity_map(deep)
 
     sleeve = _build_sleeve(sleeve_kind, params, costs)
     sleeve.init(float(capital), {})
@@ -339,6 +397,19 @@ def replay_sleeve(
     kills = 0
     carry_days = 0
     no_opp_days = 0
+    matured_count = 0
+
+    def _accrue_idle_cash_floor() -> None:
+        """HONEST capital basis: the un-deployed (idle / refused / between-maturity) cash earns AT MOST
+        the cash/RWA floor — exactly the basis the 3.4% RWA floor is on. Without this the book's net APY
+        would be the annualized return on only the small DEPLOYED slice (ignoring idle-cash drag), which
+        OVER-states the book return. Crediting idle cash at the floor makes net_apy a return on the TOTAL
+        sleeve capital ($100k book), directly comparable to the floor. A sleeve that can only safely
+        deploy a fraction into thin PT pools therefore shows a MODEST book APY (deployed·carry +
+        idle·floor), reflecting the real capacity constraint — not a slice-only number."""
+        cash = getattr(sleeve, "_cash", None)
+        if cash is not None and cash > D0:
+            sleeve._accrued += cash * floor_daily_dec
 
     # FixedCarry uses a synthetic step()-accrual at the sleeve level; the Phase-1 sleeves accrue via
     # their own step(). We drive both uniformly and read equity() after each day.
@@ -349,8 +420,17 @@ def replay_sleeve(
         except ValueError:
             # a malformed surface day is a data gap → fail-CLOSED safe-hold (no advance this day).
             continue
+
+        # RETIRE matured PT books FIRST (notional redeems → cash). A held PT must NOT keep accruing its
+        # locked carry past maturity — doing so was the primary net-APY artifact (a 99%-APY synth PT
+        # bought in 2024 was accruing ~99%/yr across the whole 2.5-year window). After this, the
+        # redeemed notional sits in cash and earns only the floor below.
+        matured_count += _retire_matured(sleeve, maturities, d)
+
         if not surface.pt_quotes:
             no_opp_days += 1
+            # still accrue the idle cash floor on a no-opportunity day (whole book is in cash).
+            _accrue_idle_cash_floor()
             equity.append(sleeve.equity())
             continue
 
@@ -364,8 +444,10 @@ def replay_sleeve(
         if held:
             carry_days += 1
 
-        # one accrual tick (the sleeve's daily carry on its open books)
+        # one accrual tick (the sleeve's daily carry on its open books) + the idle-cash floor on the
+        # un-deployed remainder, so net_apy is on the TOTAL sleeve capital (same basis as the floor).
         sleeve.step(MarketSnapshot(date=d))
+        _accrue_idle_cash_floor()
         equity.append(sleeve.equity())
 
     n = len(equity)
@@ -406,6 +488,9 @@ def replay_sleeve(
         "approvals_count": approvals_count,
         "carry_days": carry_days,
         "no_opportunity_days": no_opp_days,
+        "matured_books": matured_count,
+        "idle_cash_earns_floor": True,
+        "capital_basis": "total_sleeve_capital",
         "final_equity_usd": round(equity[-1], 4) if equity else cap_f,
     }
 
@@ -431,8 +516,19 @@ def _drive_fixed_carry(sleeve: FixedCarrySleeve, surface: RateSurface,
     # continuous hold-kill first (the gate refreshes tenor toward maturity from the held book)
     hold_verdicts = sleeve.tick_hold(risks, current_carries={}, as_of=as_of)
     kills = sum(1 for v in hold_verdicts if not v.approved)
-    # entry scan
-    entry_verdicts = sleeve.scan_and_enter(pt_quotes, risks, as_of)
+    # GLOBAL APY CEILING (compose_under_global_policy): the rates desk composes UNDER the global
+    # RiskPolicy, which REFUSES any position with APY > 30% as "risk too high". A PT whose implied yield
+    # exceeds the ceiling is risk premium, not safe carry — the global policy would never approve it. We
+    # still run it through the rate gate (so it is counted as a candidate/refusal, preserving the visible
+    # refusal edge), but pass global_approved=False so the book can never OPEN. Splitting the scan by the
+    # ceiling makes the composition per-quote without changing the gate. This (with maturity retirement +
+    # idle-cash@floor) is what corrects the inflated net APY — the 2024 boom's 89–99% synth PTs no longer
+    # leak into the book.
+    under = [q for q in pt_quotes if q.quoted_rate <= GLOBAL_MAX_APY]
+    over = [q for q in pt_quotes if q.quoted_rate > GLOBAL_MAX_APY]
+    entry_verdicts = sleeve.scan_and_enter(under, risks, as_of, global_approved=True)
+    if over:
+        entry_verdicts = entry_verdicts + sleeve.scan_and_enter(over, risks, as_of, global_approved=False)
     refusals = sum(1 for v in entry_verdicts if not v.approved)
     approvals = sum(1 for v in entry_verdicts if v.approved)
     return refusals, approvals, kills, bool(sleeve._books)
@@ -443,18 +539,37 @@ def _drive_pure_sleeve(sleeve, surface: RateSurface, risks: Dict[str, Underlying
     """Drive a Phase-1 pure sleeve (Levered / Basis / RateMatrix) one day. Returns (refusals,
     approvals, kills, held_any). Refusals here = candidate shapes the gate did NOT open (scanned −
     opened); kills = unwind orders."""
-    orders = sleeve.step_apply(surface, risks, as_of)
+    # GLOBAL APY CEILING (compose_under_global_policy): drive the sleeve on a surface whose over-ceiling
+    # (>30% APY) PT quotes are removed — the global RiskPolicy would refuse those positions, so they can
+    # never OPEN a book. Candidate counting below uses the FULL surface, so an over-ceiling opportunity
+    # still counts toward refusals (scanned − opened). Keeps the visible refusal edge while preventing the
+    # 2024 boom's 89–99% synth PTs from opening a book.
+    open_surface = _ceiling_filtered_surface(surface)
+    orders = sleeve.step_apply(open_surface, risks, as_of)
     opened = sum(1 for o in orders if o["action"] == "open")
     rotated = sum(1 for o in orders if o["action"] == "rotate")
     unwound = sum(1 for o in orders if o["action"] == "unwind")
     approvals = opened + rotated
-    # count candidate shapes this sleeve cares about that the engine scanned this day
+    # count candidate shapes this sleeve cares about that the engine scanned this day (FULL surface)
     shape = {"rates_desk_levered_carry": "levered_carry",
              "rates_desk_basis_hedge": "basis_hedge",
              "rates_desk_rate_matrix": "rate_matrix"}.get(sleeve.id, "")
     scanned = _count_candidates(sleeve, surface, risks, as_of, shape)
     refusals = max(0, scanned - opened)
     return refusals, approvals, unwound, bool(sleeve._books)
+
+
+def _ceiling_filtered_surface(surface: RateSurface) -> RateSurface:
+    """A copy of the surface with over-ceiling (>GLOBAL_MAX_APY) PT quotes removed, so a sleeve never
+    OPENS a book the global RiskPolicy (30% APY ceiling) would refuse. Lending/boros/supply legs are
+    carried through unchanged (the borrow proxy is well below the ceiling)."""
+    kept = {u: q for u, q in surface.pt_quotes.items() if q.quoted_rate <= GLOBAL_MAX_APY}
+    if len(kept) == len(surface.pt_quotes):
+        return surface
+    return RateSurface(
+        as_of=surface.as_of, pt_quotes=kept, lending_quotes=surface.lending_quotes,
+        boros_quotes=surface.boros_quotes, supply_quotes=surface.supply_quotes,
+    )
 
 
 def _count_candidates(sleeve, surface, risks, as_of, shape: str) -> int:

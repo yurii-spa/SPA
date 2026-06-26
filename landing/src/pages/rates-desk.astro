@@ -10,7 +10,7 @@ import Disclaimer from '../components/Disclaimer.astro';
  *
  * Data sources:
  *   - The 4 trade shapes are rendered server-side from the committed promotion snapshot
- *     (data/rates_desk/rates_desk_promotion.json, 2026-06-25). This is the validated artifact;
+ *     (data/rates_desk/rates_desk_promotion.json, 2026-06-26). This is the validated artifact;
  *     there is no /promotion API endpoint, so it is embedded honestly at build time.
  *   - The live surfaces are fetched client-side, graceful offline:
  *       GET /api/rates-desk/decisions      → the refusal/decision log (ENTRY + REFUSAL)
@@ -21,20 +21,20 @@ import Disclaimer from '../components/Disclaimer.astro';
  * literal string (NOT runtime-built), matching the convention in system.astro.
  */
 
-// The validated 4-sleeve promotion snapshot (committed artifact, 2026-06-25).
+// The validated 4-sleeve promotion snapshot (committed artifact, 2026-06-26).
 const RWA_FLOOR_PCT = 3.4;
 const sleeves = [
   {
     shape: 'FixedCarry', shape_ru: 'Фиксированный кэрри',
     id: 'rates_desk_fixed_carry',
-    stage: 'PAPER_CANDIDATE', net_apy_pct: 23.78, beats_floor: true,
+    stage: 'PAPER_CANDIDATE', net_apy_pct: 6.09, beats_floor: true,
     desc_en: 'Lock a Pendle fixed (PT) rate that is genuine carry, not unpriced tail. Hold to maturity; no leverage.',
     desc_ru: 'Зафиксировать ставку Pendle (PT), которая является настоящим кэрри, а не неоценённым хвостом. Держать до погашения; без плеча.',
   },
   {
     shape: 'LeveredCarry', shape_ru: 'Кэрри с плечом',
     id: 'rates_desk_levered_carry',
-    stage: 'PAPER_CANDIDATE', net_apy_pct: 26.44, beats_floor: true,
+    stage: 'PAPER_CANDIDATE', net_apy_pct: 4.96, beats_floor: true,
     desc_en: 'The same priced carry, modestly levered against the lending rate when the spread is real and exit liquidity covers the size.',
     desc_ru: 'Тот же оценённый кэрри, с умеренным плечом против ставки кредитования, когда спред реален, а ликвидность на выход покрывает размер.',
   },
@@ -48,7 +48,7 @@ const sleeves = [
   {
     shape: 'RateMatrix', shape_ru: 'Матрица ставок',
     id: 'rates_desk_rate_matrix',
-    stage: 'PAPER_CANDIDATE', net_apy_pct: 11.75, beats_floor: true,
+    stage: 'PAPER_CANDIDATE', net_apy_pct: 6.09, beats_floor: true,
     desc_en: 'Cross-venue rate arbitrage: capture the disagreement between PT-implied, lending and funding rates across the matrix of venues.',
     desc_ru: 'Межплощадочный арбитраж ставок: захватить расхождение между PT-implied, кредитной и funding-ставками по матрице площадок.',
   },
@@ -119,8 +119,8 @@ const STAGE_META = {
       <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
          data-ru="Четыре формы сделки">The four trade shapes</p>
       <p class="text-sm mb-6 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
-         data-ru="Стадия и net APY из снимка валидации промоушена (2026-06-25). Все рабочие формы обыгрывают RWA-пол ~3.4%. BasisHedge показан честно заблокированным.">
-        Stage and net APY from the promotion validation snapshot (2026-06-25). Every working shape
+         data-ru="Стадия и net APY из снимка валидации промоушена (2026-06-26). Все рабочие формы обыгрывают RWA-пол ~3.4%. BasisHedge показан честно заблокированным.">
+        Stage and net APY from the promotion validation snapshot (2026-06-26). Every working shape
         beats the ~{RWA_FLOOR_PCT}% RWA floor. BasisHedge is shown honestly blocked.
       </p>
 

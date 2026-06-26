@@ -129,6 +129,91 @@ def test_backtest_real_deep_carry_beats_floor():
     assert r["sleeves"]["fixed_carry"]["deflated_sharpe_passes_0_95"] is True
 
 
+# ── HONEST CAPITAL BASIS: net_apy is on the TOTAL sleeve capital, NOT the deployed slice ────────────
+def test_net_apy_is_on_total_capital_not_deployed_slice(deep_dataset, funding):
+    """PIN: net_apy must be the return on the TOTAL $100k sleeve book (deployed carry + idle cash at the
+    floor), NOT the annualized return on the small deployed slice. A FixedCarry book that can only safely
+    deploy a FRACTION into thin PT pools (exit-capacity sizing) MUST show a MODEST book APY — bounded
+    BELOW the locked carry rate, because the idle remainder only earns the ~3.4% floor.
+
+    This is the guard against the 79.69% artifact: a 12%-implied PT held at exit-cap size with the rest
+    of the book idle can NEVER make the WHOLE book return 12% — let alone the un-maturing 99%-APY bag the
+    bug produced. The capacity-constrained book APY is strictly LESS than the unconstrained carry rate."""
+    r = backtest_rates.run(deep=deep_dataset, funding=funding, write=False)
+    fc = r["sleeves"]["fixed_carry"]
+    floor_pct = r["rwa_floor_pct"]                       # 3.4
+    carry_rate_pct = 0.12 * 100.0                        # the synthetic sUSDe PT implied (12%)
+
+    # the harness records that net_apy is on total capital with idle cash at the floor.
+    assert fc["capital_basis"] == "total_sleeve_capital"
+    assert fc["idle_cash_earns_floor"] is True
+    assert fc["capital_usd"] == 100000.0
+
+    napy = fc["net_apy_pct"]
+    # (1) STRICTLY below the unconstrained carry rate — the capacity constraint costs real edge.
+    assert napy < carry_rate_pct, (
+        f"book APY {napy}% must be < unconstrained carry {carry_rate_pct}% (capacity-bound)")
+    # (2) At/above the floor (the idle remainder alone earns the floor; deployed carry only adds).
+    assert napy >= floor_pct - 0.01
+    # (3) Bounded by the capital-basis identity book_apy ≈ frac·carry + (1-frac)·floor for SOME deploy
+    #     fraction in [0,1]; equivalently it lies in [floor, carry]. (Strict slice-only annualization
+    #     would put it AT or ABOVE the carry rate — which (1) forbids.)
+    assert floor_pct - 0.01 <= napy <= carry_rate_pct
+
+
+def test_idle_cash_floor_credited_when_no_opportunity():
+    """PIN: on a stretch with NO harvestable PT (whole book idle), the book still accrues the RWA floor
+    on its cash — so over a fully-idle window the book APY converges to the floor, never 0% and never the
+    deployed-slice rate. (Confirms idle/refused/between-maturity capital earns AT MOST the floor.)"""
+    import datetime
+    base = datetime.date(2024, 6, 1)
+    # a dataset whose only market MATURED before the window even starts → never harvestable → book idle.
+    deep = {
+        "generated_at": "2024-06-01T00:00:00+00:00", "method": "synthetic_test",
+        "underlyings": ["sUSDe"], "window": {"start": "2024-06-01", "end": "2024-09-08"},
+        "markets": {
+            "PT-sUSDE-MATURED": {
+                "underlying": "sUSDe", "kind": "stable_synth", "symbol": "PT-sUSDE-MATURED",
+                "market_address": "0x", "pt_address": "0x", "maturity": "2099-01-01",
+                # implied yield is ABOVE the 30% global ceiling on every day → never approvable → idle.
+                "series": [
+                    {"date": (base + datetime.timedelta(days=i)).isoformat(),
+                     "implied_yield": 0.95, "underlying_yield": 0.10, "pt_price": None}
+                    for i in range(100)],
+            },
+        },
+    }
+    funding = {(base + datetime.timedelta(days=i)).isoformat(): 0.0001 for i in range(120)}
+    r = backtest_rates.run(deep=deep, funding=funding, write=False)
+    fc = r["sleeves"]["fixed_carry"]
+    floor_pct = r["rwa_floor_pct"]
+    # the 95%-implied PT is over the global APY ceiling → composed-refused → NO book opens (carry_days 0)
+    # → book stays idle → earns only the floor. (approvals_count counts gate-approvals; the global ceiling
+    # blocks the book from opening, so carry_days/net_apy are the honest 'did it actually hold?' signal.)
+    assert fc["carry_days"] == 0, "an over-ceiling PT must not open a carry book"
+    assert abs(fc["net_apy_pct"] - floor_pct) < 0.2, (
+        f"fully-idle book APY {fc['net_apy_pct']}% must converge to the floor {floor_pct}%, "
+        f"not the 95% slice rate")
+
+
+def test_over_ceiling_pt_is_refused_not_held(deep_dataset, funding):
+    """PIN: a PT with implied yield ABOVE the global RiskPolicy 30% APY ceiling is REFUSED (composed
+    under the global policy), never opened — so it cannot inflate the book. The toxic LRT market in the
+    fixture is at 35% implied; the harvestable sUSDe at 12% is the only one that may open."""
+    # raise the toxic market's implied above the ceiling is already the case (0.35 LRT); also confirm a
+    # raised stable-synth above the ceiling does not open.
+    d2 = json.loads(json.dumps(deep_dataset))
+    for pt in d2["markets"]["PT-sUSDE-TEST"]["series"]:
+        pt["implied_yield"] = 0.40                       # push the carry PT over the 30% ceiling
+    r = backtest_rates.run(deep=d2, funding=funding, write=False)
+    fc = r["sleeves"]["fixed_carry"]
+    # nothing opens a book (both markets over the 30% global ceiling → composed-refused), and the book
+    # earns only the idle floor. carry_days==0 is the honest 'no book held' signal (approvals_count counts
+    # gate-approvals; the global ceiling is what blocks the actual book-open).
+    assert fc["carry_days"] == 0, "no carry book may open when every PT is over the global APY ceiling"
+    assert abs(fc["net_apy_pct"] - r["rwa_floor_pct"]) < 0.2
+
+
 def test_backtest_basis_hedge_blocked_no_hedge(deep_dataset, funding):
     r = backtest_rates.run(deep=deep_dataset, funding=funding, write=False)
     bh = r["sleeves"]["basis_hedge"]

@@ -71,6 +71,13 @@ from spa_core.strategy_lab.rates_desk.contracts import (
 from spa_core.strategy_lab.rates_desk.fair_value_engine import FairValueEngine
 from spa_core.strategy_lab.rates_desk.rate_policy import evaluate_entry
 
+# Global RiskPolicy APY ceiling (spa_core/risk/policy.py: max_apy_for_new_position = 30%). The desk
+# composes UNDER the global RiskPolicy, which refuses any position with APY > 30% as "risk too high".
+# A PT whose implied yield exceeds the ceiling is risk premium, not safe held-to-maturity carry, so the
+# global policy would never let it open — the survivor book must NOT hold it. (The 2024 funding boom
+# produced 89–99% implied synth PTs; surfacing those into the survivor book inflated the carry verdict.)
+GLOBAL_MAX_APY = Decimal("0.30")
+
 _ROOT = Path(__file__).resolve().parents[3]
 _DOC = _ROOT / "docs" / "RATES_DESK_VALIDATION.md"
 
@@ -276,13 +283,22 @@ def _stable_kind(name: str) -> UnderlyingKind:
     return UnderlyingKind.STABLE_SYNTH
 
 
-def _gate_market_day(p, eng, m, pt, funding):
+def _gate_market_day(p, eng, m, pt, funding, apply_global_ceiling: bool = True):
     """Run the refusal-first entry gate for one harvestable stable PT on one real day. Returns the
-    GateResult (or None if the day has no implied yield)."""
+    GateResult (or None if the day has no implied yield).
+
+    `apply_global_ceiling` (default True): the desk composes under the global RiskPolicy (>30% APY =
+    refused). When True an over-ceiling PT is treated as un-harvestable (None) so it cannot be held —
+    this is what keeps the PUBLISHED survivor APY honest (the 2024 boom's 89–99% synth PTs do not leak
+    in). The STRUCTURAL-haircut CALIBRATION (calibrate.sweep) passes False, because its objective is the
+    peg/liquidity/protocol tail SEPARATION between toxic-LRT and healthy-carry — a downstream APY ceiling
+    must not move that structural cutoff. (The ceiling is a composition layer, not a tail-haircut input.)"""
     implied = pt.get("implied_yield")
     underlying = pt.get("underlying_yield")
     d = pt["date"]
     if implied is None:
+        return None
+    if apply_global_ceiling and Decimal(str(implied)) > GLOBAL_MAX_APY:
         return None
     fneg = _funding_neg_frac(funding, d, 90)
     risk = UnderlyingRisk(
@@ -310,7 +326,8 @@ def _gate_market_day(p, eng, m, pt, funding):
 
 
 def _deep_survivor_series(p: RatePolicyParams, eng: FairValueEngine,
-                          deep: dict, funding: Dict[str, float]) -> Tuple[List[dict], dict]:
+                          deep: dict, funding: Dict[str, float],
+                          apply_global_ceiling: bool = True) -> Tuple[List[dict], dict]:
     """Build the SURVIVOR BOOK the refusal-first FixedCarry desk WOULD have held over the deep window
     — modelled as the sleeve actually behaves: BUY a PT when the gate approves, LOCK that net carry at
     entry, HOLD TO MATURITY, then roll into the best then-available approved PT.
@@ -343,7 +360,7 @@ def _deep_survivor_series(p: RatePolicyParams, eng: FairValueEngine,
         # per-market carry-day stats (entry-eligible days, for the summary table)
         carry_days, carry_sum = 0, 0.0
         for pt in m["series"]:
-            res = _gate_market_day(p, eng, mm, pt, funding)
+            res = _gate_market_day(p, eng, mm, pt, funding, apply_global_ceiling)
             if res is not None and res.approved:
                 carry_days += 1
                 carry_sum += float(res.net_edge)
@@ -368,7 +385,7 @@ def _deep_survivor_series(p: RatePolicyParams, eng: FairValueEngine,
                 pt = mm["__by_date"].get(d)
                 if pt is None:
                     continue
-                res = _gate_market_day(p, eng, mm, pt, funding)
+                res = _gate_market_day(p, eng, mm, pt, funding, apply_global_ceiling)
                 if res is not None and res.approved:
                     edge = float(res.net_edge)
                     if best_carry is None or edge > best_carry:

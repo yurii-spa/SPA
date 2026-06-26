@@ -38,20 +38,20 @@ Walking the REAL daily implied-yield history of every toxic restaking PT (ezETH 
 
 ## Assertion 2 — Survivor book beats the floor (deflated Sharpe)  →  **GO (carry leg real → fundable)**
 
-RWA floor: **3.4%/yr**. DEEP Pendle PT history: **849 survivor days** (pooled approved-carry days: **2927**, source: expired+live markets 2024→2026, all 3 stress events in-sample).
+RWA floor: **3.4%/yr**. DEEP Pendle PT history: **849 survivor days** (pooled approved-carry days: **2667**, source: expired+live markets 2024→2026, all 3 stress events in-sample).
 
 | market | maturity | days | carry days | avg net carry %/yr |
 |---|---|---:|---:|---:|
-| PT-USDe-4APR2024 | 2024-04-04 | 34 | 34 | 160.04 |
-| PT-sUSDE-25APR2024 | 2024-04-25 | 49 | 49 | 54.124 |
-| PT-USDe-25JUL2024 | 2024-07-25 | 112 | 112 | 36.209 |
-| PT-sUSDE-25JUL2024 | 2024-07-25 | 91 | 91 | 21.951 |
-| PT-sUSDE-26SEP2024 | 2024-09-26 | 127 | 127 | 12.413 |
+| PT-USDe-4APR2024 | 2024-04-04 | 34 | 0 | 0.0 |
+| PT-sUSDE-25APR2024 | 2024-04-25 | 49 | 0 | 0.0 |
+| PT-USDe-25JUL2024 | 2024-07-25 | 112 | 40 | 23.585 |
+| PT-sUSDE-25JUL2024 | 2024-07-25 | 91 | 32 | 12.794 |
+| PT-sUSDE-26SEP2024 | 2024-09-26 | 127 | 98 | 11.168 |
 | PT-USDe-24OCT2024 | 2024-10-24 | 97 | 97 | 16.843 |
 | PT-sUSDE-24OCT2024 | 2024-10-24 | 97 | 97 | 10.848 |
-| PT-USDe-26DEC2024 | 2024-12-26 | 160 | 160 | 19.294 |
-| PT-sUSDE-26DEC2024 | 2024-12-26 | 160 | 160 | 9.893 |
-| PT-sUSDE-27FEB2025 | 2025-02-27 | 77 | 77 | 9.48 |
+| PT-USDe-26DEC2024 | 2024-12-26 | 160 | 151 | 18.249 |
+| PT-sUSDE-26DEC2024 | 2024-12-26 | 160 | 153 | 9.815 |
+| PT-sUSDE-27FEB2025 | 2025-02-27 | 77 | 76 | 9.451 |
 | PT-USDe-27MAR2025 | 2025-03-27 | 188 | 188 | 19.998 |
 | PT-sUSDE-27MAR2025 | 2025-03-27 | 189 | 189 | 8.576 |
 | PT-sUSDE-29MAY2025 | 2025-05-29 | 195 | 195 | 7.442 |
@@ -68,10 +68,10 @@ RWA floor: **3.4%/yr**. DEEP Pendle PT history: **849 survivor days** (pooled ap
 | PT-USDe-13AUG2026 | 2026-08-13 | 69 | 69 | 11.515 |
 | PT-sUSDE-13AUG2026 | 2026-08-13 | 69 | 69 | 7.83 |
 
-- mean survivor book APY: `23.816%`  vs floor `3.4%`
-- Sharpe (annual, vs floor): `16.039`  ·  PSR vs floor: `1.0`  ·  deflated Sharpe: `1.0` (passes 0.95: `True`)
-- minTRL: `1.5` obs (have `849`, satisfied: `True`)
-- OOS (carry yield): in-sample `29.145%` → out-of-sample `11.403%` (decay `17.742%`; beats floor OOS: `True`, no-decay: `False`)
+- mean survivor book APY: `13.527%`  vs floor `3.4%`
+- Sharpe (annual, vs floor): `28.894`  ·  PSR vs floor: `1.0`  ·  deflated Sharpe: `1.0` (passes 0.95: `True`)
+- minTRL: `1.8` obs (have `849`, satisfied: `True`)
+- OOS (carry yield): in-sample `14.439%` → out-of-sample `11.403%` (decay `3.036%`; beats floor OOS: `True`, no-decay: `False`)
 
 Stress-window survival (book mean APY must beat the floor THROUGH each event):
 
@@ -116,10 +116,10 @@ RWA floor: **3.4%/yr**. Boros hedge venue: **OFF — all False (honest)**.
 
 | sleeve | shape | net APY %/yr | beats floor | max DD % | deflated Sharpe (passes 0.95) | kills | refusals | stage |
 |---|---|---:|:--:|---:|---:|---:|---:|---|
-| Fixed Carry (PT→maturity) | `fixed_carry` | 23.7819 | yes | 0.000 | 1.0 (yes) | 20 | 1649 | **PAPER_CANDIDATE** |
-| Levered Carry (borrow stable, buy PT) | `levered_carry` | 26.4398 | yes | 6.856 (stress) | 1.0 (yes) | 27 | 2201 | **PAPER_CANDIDATE** |
-| Basis Hedge (PT vs Boros funding) | `basis_hedge` | 0.0000 | n/a (blocked) | 0.000 | n/a | 0 | 0 | **BLOCKED-NO-HEDGE** |
-| Rate Matrix (argmax venue) | `rate_matrix` | 11.7469 | yes | 0.000 | 1.0 (yes) | 174 | 3258 | **PAPER_CANDIDATE** |
+| Fixed Carry (PT→maturity) | `fixed_carry` | 6.0901 | yes | 0.000 | 1.0 (yes) | 8 | 1070 | **PAPER_CANDIDATE** |
+| Levered Carry (borrow stable, buy PT) | `levered_carry` | 4.9571 | yes | 6.856 (stress) | 1.0 (yes) | 1 | 2211 | **PAPER_CANDIDATE** |
+| Basis Hedge (PT vs Boros funding) | `basis_hedge` | 3.4000 | n/a (blocked) | 0.000 | n/a | 0 | 0 | **BLOCKED-NO-HEDGE** |
+| Rate Matrix (argmax venue) | `rate_matrix` | 6.0863 | yes | 0.000 | 1.0 (yes) | 328 | 3098 | **PAPER_CANDIDATE** |
 
 > **LeveredCarry max DD is the HONEST levered-stress figure**, not the backtest's leverage-blind 0.0% (the replay equity model accrues carry on the base size and never marks the borrow leg / levered PT — see the LeveredCarry stress section). It keeps PAPER_CANDIDATE only because the kill rules unwind every levered loop within the drawdown band; it is GATED-LEVERAGE-DEPENDENT and 'last to enable' per the brief.
 
@@ -136,6 +136,8 @@ RWA floor: **3.4%/yr**. Boros hedge venue: **OFF — all False (honest)**.
 _Brief §9: `max_total_haircut` is the most consequential single parameter. This is an exhaustive, deterministic grid sweep over `max_total_haircut` + `k_peg` + `k_protocol` on the DEEP 2024→2026 data, measuring (toxic-veto coverage) vs (healthy-carry fire-rate / survivor APY). Re-runnable via `python3 -m spa_core.strategy_lab.rates_desk.calibrate`._
 
 **Chosen (calibrated):** `max_total_haircut=0.12`, `k_peg=4.0`, `k_protocol=0.02` → toxic coverage **100.0%** (all stress events refused: `True`), healthy fire-rate **100.0%**, survivor APY **23.82%** vs floor `3.4%` (beats: `True`).
+
+> _Note: this calibration's `survivor APY` is computed WITHOUT the downstream global APY ceiling (30%) and at full-book sizing — deliberately, because this sweep tunes the STRUCTURAL tail-haircut cutoff (peg/liquidity/protocol separation of toxic-LRT vs healthy carry), and that cutoff must not move with a downstream composition layer. It is an OPTIMIZATION objective, NOT the published carry number. The HONEST published, capacity-bound, ceiling-composed book APY is in the Assertion-2 and 4-sleeve sections above (FixedCarry ≈ 6% on the total-capital basis, idle cash at the floor)._
 
 > The current defaults (`max_total_haircut=0.12`, `k_peg=4.0`, `k_protocol=0.02`) **are confirmed optimal by the sweep** (the chosen point equals them). Calibration is pinned in `config.py` (`CALIBRATED_*`), not hardcoded in the engine.
 

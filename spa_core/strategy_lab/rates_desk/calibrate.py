@@ -112,7 +112,12 @@ def measure(params: RatePolicyParams, deep: dict, funding: Dict[str, float]) -> 
     stress_all_refused = (stress_refused == len(V.STRESS_EVENTS))
 
     # (b) HEALTHY: the survivor carry book over the deep window — fire-rate + realized APY vs floor.
-    daily, per_market = V._deep_survivor_series(params, eng, deep, funding)
+    # apply_global_ceiling=False: this STRUCTURAL-haircut calibration optimizes the peg/liquidity/protocol
+    # tail SEPARATION between toxic-LRT and healthy-carry. The downstream global APY ceiling (30%) is a
+    # COMPOSITION layer applied to the PUBLISHED book — it must NOT move the structural cutoff, or it would
+    # churn the risk calibration for a cosmetic APY effect. (The published survivor APY in validation.py
+    # DOES apply the ceiling; the calibration deliberately does not.)
+    daily, per_market = V._deep_survivor_series(params, eng, deep, funding, apply_global_ceiling=False)
     healthy_days = sum(m["n_days"] for m in per_market.values())
     healthy_carry_days = sum(m["carry_days"] for m in per_market.values())
     fire_rate = (healthy_carry_days / healthy_days) if healthy_days else 0.0
@@ -323,6 +328,14 @@ def _render_doc(result: dict) -> str:
             f"`{ch['toxic_stress_all_refused']}`), healthy fire-rate **{ch['healthy_fire_rate']*100:.1f}%**, "
             f"survivor APY **{ch['survivor_mean_apy']*100:.2f}%** vs floor "
             f"`{float(RatePolicyParams().rwa_floor)*100:.1f}%` (beats: `{ch['survivor_beats_floor']}`).\n")
+        lines.append(
+            "> _Note: this calibration's `survivor APY` is computed WITHOUT the downstream global APY "
+            "ceiling (30%) and at full-book sizing — deliberately, because this sweep tunes the "
+            "STRUCTURAL tail-haircut cutoff (peg/liquidity/protocol separation of toxic-LRT vs healthy "
+            "carry), and that cutoff must not move with a downstream composition layer. It is an "
+            "OPTIMIZATION objective, NOT the published carry number. The HONEST published, "
+            "capacity-bound, ceiling-composed book APY is in the Assertion-2 and 4-sleeve sections "
+            "above (FixedCarry ≈ 6% on the total-capital basis, idle cash at the floor)._\n")
         same = (ch["params"]["max_total_haircut"] == df.get("max_total_haircut")
                 and ch["params"]["k_peg"] == df.get("k_peg")
                 and ch["params"]["k_protocol"] == df.get("k_protocol"))
