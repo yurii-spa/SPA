@@ -107,6 +107,11 @@ from spa_core.paper_trading.risk_gate import (  # noqa: F401 — re-exported
     _compliant_target,
     _record_policy_block,
 )
+from spa_core.paper_trading.cycle_gates import (  # noqa: F401 — re-exported
+    apply_analytics_blocking_gate,
+    apply_base_gas_kill_switch,
+    apply_kill_switch_override,
+)
 from spa_core.paper_trading.cycle_reporting import (  # noqa: F401 — re-exported
     _last_trade_id_from_file,
     _run_cycle_alerts,
@@ -1093,57 +1098,15 @@ def run_cycle(
     # blocking signals; any protocol flagged BLOCK has its target_usd zeroed and
     # the freed capital redistributed proportionally to the remaining (allowed)
     # protocols. Fail-open: any exception → WARNING + note, no blocking applied.
-    try:
-        from spa_core.analytics.signal_aggregator import run_tier_a as _analytics_tier_a
-        _blk = _analytics_tier_a(
-            list(target_usd.keys()),
-            context={"cycle_ts": run_ts},
-            data_dir=ddir,
-        )
-        _blk_protos = [
-            p for p, s in (_blk.get("protocols") or {}).items()
-            if isinstance(s, dict) and s.get("signal") == "BLOCK"
-        ]
-        if _blk_protos:
-            _freed = sum(float(target_usd.get(p, 0.0)) for p in _blk_protos)
-            for _p in _blk_protos:
-                target_usd[_p] = 0.0
-            # redistribute freed capital proportionally onto allowed protocols
-            _allowed = {k: v for k, v in target_usd.items()
-                        if k not in _blk_protos and v > 0.0}
-            _allowed_total = sum(_allowed.values())
-            if _freed > 0.0 and _allowed_total > 0.0:
-                for _k, _v in _allowed.items():
-                    target_usd[_k] = _v + _freed * (_v / _allowed_total)
-            # else: freed capital implicitly stays in cash (residual)
-            log.warning("Analytics blocked protocols: %s (freed $%.0f)",
-                        _blk_protos, _freed)
-            notes.append(
-                "analytics_blocking: blocked=" + ",".join(_blk_protos)
-                + f" freed=${_freed:,.0f}"
-            )
-            # ring-buffer audit (data/analytics_blocks.json, max 100)
-            if write:
-                try:
-                    _ab_path = ddir / "analytics_blocks.json"
-                    _ab_hist = _read_json(_ab_path, [])
-                    if not isinstance(_ab_hist, list):
-                        _ab_hist = []
-                    _ab_hist.append({
-                        "ts": run_ts, "date": today,
-                        "blocked": _blk_protos, "freed_usd": round(_freed, 2),
-                        "correlation_id": _correlation_id,
-                        "signals": {p: _blk["protocols"][p] for p in _blk_protos},
-                    })
-                    _atomic_write_json(_ab_path, _ab_hist[-100:])
-                except Exception as _abw_exc:
-                    log.warning("analytics_blocks write failed (%s)", _abw_exc)
-    except Exception as _ag_exc:  # gate must never crash the cycle
-        log.warning(
-            "Analytics Blocking Gate failed (%s) — fail-open, cycle continues",
-            _ag_exc,
-        )
-        notes.append(f"analytics_blocking_error: {type(_ag_exc).__name__}")
+    apply_analytics_blocking_gate(
+        target_usd,
+        ddir=ddir,
+        run_ts=run_ts,
+        today=today,
+        correlation_id=_correlation_id,
+        write=write,
+        notes=notes,
+    )
 
     # ── Step 2b (MP-005): deterministic RiskPolicy gate before any trade ──
     gate = _apply_risk_policy_gate(target_usd, capital_usd, adapters, ddir=ddir)
@@ -1206,54 +1169,22 @@ def run_cycle(
                 )
 
     # ── Step 2c (MP-108): kill-switch override — force all-cash allocation ──
-    if _ks_triggered and _ks_allocation:
-        # Kill-switch overrides both the allocator and the risk policy gate.
-        # All capital moves to cash; all protocol allocations set to 0.
-        target_usd = {
-            k: float(v) * capital_usd if k == "cash" else 0.0
-            for k, v in _ks_allocation.items()
-        }
-        # Remove "cash" as a protocol entry — cash is the residual.
-        target_usd = {k: v for k, v in target_usd.items() if k != "cash"}
-        notes.append(
-            "kill_switch_override: all protocol allocations set to 0 (all-cash)."
-        )
+    target_usd = apply_kill_switch_override(
+        target_usd,
+        ks_triggered=_ks_triggered,
+        ks_allocation=_ks_allocation,
+        capital_usd=capital_usd,
+        notes=notes,
+    )
 
     # ── Step 2d (ADR-025): Base chain gas kill-switch — zero Base allocations ──
-    # Fail-safe: any exception → WARNING log, cycle continues unaffected.
-    # LLM_FORBIDDEN in this block (deterministic gas monitor only).
-    if _BASE_CHAIN_MONITORING and _BASE_GAS_MONITOR_CLASS is not None:
-        try:
-            _base_gas_mon = _BASE_GAS_MONITOR_CLASS(data_dir=ddir)
-            _gas_status = _base_gas_mon.record_reading()
-            if _gas_status.get("kill_switch_active"):
-                _base_adapters = [k for k in target_usd if "base" in k.lower()]
-                _zeroed = []
-                for _aid in _base_adapters:
-                    if target_usd.get(_aid, 0.0) > 0.0:
-                        target_usd[_aid] = 0.0
-                        _zeroed.append(_aid)
-                _gas_gwei = _gas_status.get("gwei")
-                _gas_days = _gas_status.get("consecutive_above")
-                log.warning(
-                    "ADR-025 Base gas kill-switch ACTIVE: %.4f Gwei, %d consecutive days "
-                    "above threshold. Zeroed Base allocations: %s",
-                    _gas_gwei,
-                    _gas_days,
-                    _zeroed or "none",
-                )
-                notes.append(
-                    f"adr025_base_gas_kill_switch: gwei={_gas_gwei}, "
-                    f"consecutive_above={_gas_days}, zeroed={_zeroed}"
-                )
-            elif _gas_status.get("action") == "WARN":
-                log.info(
-                    "ADR-025 Base gas WARN: %.4f Gwei, %d consecutive days above threshold",
-                    _gas_status.get("gwei"),
-                    _gas_status.get("consecutive_above"),
-                )
-        except Exception as _bge:  # never break the main cycle
-            log.warning("ADR-025 base_gas_monitor check failed (%s) — cycle continues", _bge)
+    apply_base_gas_kill_switch(
+        target_usd,
+        ddir=ddir,
+        base_gas_monitor_class=_BASE_GAS_MONITOR_CLASS,
+        base_chain_monitoring=_BASE_CHAIN_MONITORING,
+        notes=notes,
+    )
 
     # ── ALLOC-002 (oscillation fix): collapse the raw allocator target to a
     # policy-compliant ≤8-protocol book BEFORE the rebalance diff. The diff,

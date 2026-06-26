@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 from types import SimpleNamespace
 
 from spa_core.paper_trading import cycle_runner as cr
@@ -390,3 +391,111 @@ def test_characterization_full_cycle(tmp_path):
         round(po["deployed_usd"] + po["cash_usd"] + po["accrued_yield_usd"], 2)
         == po["current_equity_usd"]
     )
+
+
+# ─── P4-5: lifted allocation-mutating gate stages (cycle_gates.py) ────────────
+# These pin the three pure-transform gate helpers extracted from run_cycle so a
+# future move stays byte-identical. They are pure dict transforms — no early
+# returns, no _safety_failed closure — which is exactly why they were liftable.
+
+
+def test_kill_switch_override_forces_all_cash():
+    from spa_core.paper_trading.cycle_gates import apply_kill_switch_override
+
+    target = {"aave_v3": 30_000.0, "compound_v3": 20_000.0}
+    notes: list[str] = []
+    out = apply_kill_switch_override(
+        target,
+        ks_triggered=True,
+        ks_allocation={"cash": 1.0, "aave_v3": 0.0},
+        capital_usd=100_000.0,
+        notes=notes,
+    )
+    # "cash" residual removed; all protocols zeroed.
+    assert out == {"aave_v3": 0.0}
+    assert any("kill_switch_override" in n for n in notes)
+
+
+def test_kill_switch_override_noop_when_not_triggered():
+    from spa_core.paper_trading.cycle_gates import apply_kill_switch_override
+
+    target = {"aave_v3": 30_000.0}
+    notes: list[str] = []
+    out = apply_kill_switch_override(
+        target,
+        ks_triggered=False,
+        ks_allocation={},
+        capital_usd=100_000.0,
+        notes=notes,
+    )
+    assert out == {"aave_v3": 30_000.0}
+    assert notes == []
+
+
+def test_base_gas_kill_switch_disabled_is_noop():
+    from spa_core.paper_trading.cycle_gates import apply_base_gas_kill_switch
+
+    target = {"aave_v3_base": 10_000.0, "aave_v3": 20_000.0}
+    notes: list[str] = []
+    apply_base_gas_kill_switch(
+        target,
+        ddir=Path("/tmp"),
+        base_gas_monitor_class=None,
+        base_chain_monitoring=False,
+        notes=notes,
+    )
+    assert target == {"aave_v3_base": 10_000.0, "aave_v3": 20_000.0}
+    assert notes == []
+
+
+def test_base_gas_kill_switch_zeros_base_allocations():
+    from spa_core.paper_trading.cycle_gates import apply_base_gas_kill_switch
+
+    class _FakeMon:
+        def __init__(self, data_dir):
+            pass
+
+        def record_reading(self):
+            return {"kill_switch_active": True, "gwei": 1.234, "consecutive_above": 3}
+
+    target = {"aave_v3_base": 10_000.0, "aave_v3": 20_000.0}
+    notes: list[str] = []
+    apply_base_gas_kill_switch(
+        target,
+        ddir=Path("/tmp"),
+        base_gas_monitor_class=_FakeMon,
+        base_chain_monitoring=True,
+        notes=notes,
+    )
+    # only the Base adapter is zeroed; ethereum aave untouched.
+    assert target == {"aave_v3_base": 0.0, "aave_v3": 20_000.0}
+    assert any("adr025_base_gas_kill_switch" in n for n in notes)
+
+
+def test_analytics_blocking_gate_failopen_on_missing_signal(tmp_path):
+    """No live signal_aggregator data → fail-open: target unchanged."""
+    from spa_core.paper_trading.cycle_gates import apply_analytics_blocking_gate
+
+    target = {"aave_v3": 30_000.0, "compound_v3": 20_000.0}
+    before = dict(target)
+    notes: list[str] = []
+    apply_analytics_blocking_gate(
+        target,
+        ddir=tmp_path,
+        run_ts="2026-06-10T08:00:00+00:00",
+        today="2026-06-10",
+        correlation_id="test",
+        write=False,
+        notes=notes,
+    )
+    # With no protocol flagged BLOCK, the allocation is unchanged.
+    assert target == before
+
+
+def test_lifted_gates_are_reexported_from_cycle_runner():
+    """Back-compat: the lifted helpers are importable from cycle_runner."""
+    from spa_core.paper_trading import cycle_runner as _cr
+
+    assert _cr.apply_analytics_blocking_gate is not None
+    assert _cr.apply_kill_switch_override is not None
+    assert _cr.apply_base_gas_kill_switch is not None
