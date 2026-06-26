@@ -1703,6 +1703,7 @@ body:not(.night) .bee-disclaimer { color: #777; }
   <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
     <div id="data-mode-badge" title="Источник: data/paper_trading_status.json">⏳ mode…</div>
     <div id="data-freshness-badge" style="font-size:11px;padding:4px 10px;background:#f3f4f6;border:1px solid #eee;border-radius:20px;cursor:default;color:#888" title="Checking data freshness…">⏳ Checking…</div>
+    <div id="spa-freshness-banner" style="display:none;font-size:11px;align-items:center;padding:4px 10px;background:#f3f4f6;border:1px solid #eee;border-radius:20px;cursor:default" title="Track freshness (/api/live/health)"></div>
     <div id="live-indicator" style="font-size:11px;color:#9ca3af;padding:4px 10px;background:#f5f4f0;border:1px solid #eee;border-radius:20px;cursor:default" title="Using static JSON files">
       <span style="color:#9ca3af">●</span> Static
     </div>
@@ -1738,6 +1739,9 @@ body:not(.night) .bee-disclaimer { color: #777; }
     <div style="font-size:11px;color:var(--spa-text-3);margin-top:4px;font-family:var(--spa-mono)" id="spa-status-sub">paper trading</div>
   </div>
 </div>
+<!-- Honest offline-snapshot label: shown ONLY when the hero is served from the
+     committed snapshot (live API down). Never present stale data as live. -->
+<div id="spa-hero-asof" style="display:none;font-size:11px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;padding:5px 12px;border-radius:0 0 8px 8px;font-family:var(--spa-mono,monospace)"></div>
 <!-- end SPA HERO -->
 
 <!-- TABS v3.0 (Dashboard v3.0 Sprint A) -->
@@ -4296,6 +4300,188 @@ if (_isHostedSite) {
   LIVE_BASE = LIVE_API + '/api';
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// SPA_API — THE ONE canonical dashboard client (Dashboard Arch. Phase 2).
+// Every headline number traces to /api/ssot/facts; freshness traces to
+// /api/live/health. No panel re-derives the track from days_running or reads
+// dead keys (criteria_met/total_criteria) — those bugs cannot recur because
+// there is exactly one place that maps API → view model.
+//
+// HONESTY POLICY (Phase 1):
+//   - Live API up  → real, fresh numbers, labeled "live".
+//   - Live API down → fall back to committed ./data snapshot ONLY as a
+//     clearly-LABELED "offline snapshot as-of <date>"; never present a stale
+//     committed snapshot as if it were the live hero.
+//   - Missing value → null (the renderer shows "—"/"unavailable"). NEVER a
+//     fabricated number.
+// ═══════════════════════════════════════════════════════════════════════════
+const SPA_API = (function () {
+  // Centralized base-URL detection (127.0.0.1, NOT localhost, to dodge the
+  // port-8765 IPv4/IPv6 dual-bind hazard on the Mac mini).
+  const _apiBase = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+    ? 'http://127.0.0.1:8765'
+    : 'https://api.earn-defi.com';
+  // Static committed fallback (gitignored live snapshots → may be stale/offline).
+  const _staticBase = location.pathname.startsWith('/SPA') ? '/SPA/data' : './data';
+
+  // Last freshness verdict (set by getHealth / getFacts), readable by the UI.
+  // origin: 'live' | 'offline_snapshot' | 'unknown'
+  let _lastSource = 'unknown';
+
+  function _noStore() { return { cache: 'no-store' }; }
+
+  async function _fetchJSON(url, timeoutMs) {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), timeoutMs || 4000);
+    try {
+      const r = await fetch(url + (url.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now(),
+                            { signal: ctrl.signal, cache: 'no-store' });
+      if (!r.ok) return null;
+      return await r.json();
+    } catch (e) {
+      return null;
+    } finally {
+      clearTimeout(tid);
+    }
+  }
+
+  // /api/ssot/facts — the CANONICAL headline (track 5/30, go-live 27/29,
+  // equity, NAV, target, anchor). Returns { facts, source } where source is
+  // 'live' or 'offline_snapshot' or null. NO fabrication: on total failure the
+  // facts object is null and the caller renders "—".
+  async function getFacts() {
+    // 1) Live SSOT (the one true headline).
+    const live = await _fetchJSON(_apiBase + '/api/ssot/facts', 4000);
+    if (live && !live.error && live.golive_total != null) {
+      _lastSource = 'live';
+      return { facts: live, source: 'live', stale: false };
+    }
+    // 2) Offline: reconstruct the same shape from committed snapshots, but flag
+    //    it as a labeled offline snapshot (NEVER silently as live).
+    let golive = await _fetchJSON(_staticBase + '/golive_status.json', 4000);
+    let track  = await _fetchJSON(_staticBase + '/paper_trading_status.json', 4000);
+    if (golive || track) {
+      golive = golive || {}; track = track || {};
+      _lastSource = 'offline_snapshot';
+      return {
+        source: 'offline_snapshot',
+        stale: true,
+        // as-of stamp comes from the snapshot itself, never "now".
+        as_of: (golive.timestamp || track.last_cycle_ts || track.generated_at || null),
+        facts: {
+          // honest evidenced track-days; fail-CLOSED to null, never days_running.
+          real_track_days: (golive.real_track_days != null ? golive.real_track_days : null),
+          track_days:      (golive.real_track_days != null ? golive.real_track_days : null),
+          golive_passed:   (golive.passed != null ? golive.passed : null),
+          golive_total:    (golive.total  != null ? golive.total  : null),
+          golive_ready:    (golive.ready != null ? golive.ready : null),
+          go_live_target:  golive.target_date || null,
+          evidenced_anchor: golive.evidenced_anchor || null,
+          current_equity:  (track.current_equity != null ? track.current_equity : null),
+          total_return_pct: (track.total_return_pct != null ? track.total_return_pct : null),
+          apy_today_pct:   (track.apy_today_pct != null ? track.apy_today_pct : null),
+          daily_yield_usd: (track.daily_yield_usd != null ? track.daily_yield_usd : null),
+          regime:          track.market_regime || null,
+          nav:             null,
+          nav_reconciliation_ok: null,
+        },
+      };
+    }
+    _lastSource = 'unknown';
+    return { facts: null, source: null, stale: true };
+  }
+
+  // /api/live/health — the P4-2 freshness gate. Returns the verdict block or a
+  // synthetic 'offline' verdict when the tunnel is unreachable. Fail-CLOSED:
+  // unreachable is reported as offline, never silently "ok".
+  async function getHealth() {
+    const h = await _fetchJSON(_apiBase + '/api/live/health', 4000);
+    if (h && h.status) {
+      // New server (P4-2 freshness gate): honest status + track block.
+      return {
+        reachable: true,
+        status: h.status,                                  // 'ok' | 'degraded'
+        track_fresh: !!h.track_fresh,
+        age_hours: (h.track && h.track.age_hours != null) ? h.track.age_hours : null,
+        last_evidenced_date: h.track ? h.track.last_evidenced_date : null,
+        reason: h.track ? h.track.reason : null,
+      };
+    }
+    if (h && (h.ok === true || h.ok === false)) {
+      // Older server answered but lacks the P4-2 freshness block: it IS
+      // reachable; we just can't assert track freshness. Report 'unknown'
+      // (not 'ok' — fail-honest), never silently green.
+      return {
+        reachable: true,
+        status: 'unknown',
+        track_fresh: false,
+        age_hours: null,
+        last_evidenced_date: null,
+        reason: 'live API up; freshness gate not reported by this server build',
+      };
+    }
+    return {
+      reachable: false,
+      status: 'offline',
+      track_fresh: false,
+      age_hours: null,
+      last_evidenced_date: null,
+      reason: 'live API unreachable',
+    };
+  }
+
+  // /api/live/data/{file} verbatim (panels). Falls back to committed ./data
+  // only as a snapshot; carries the source so panels can label staleness.
+  async function getLive(file) {
+    const live = await _fetchJSON(_apiBase + '/api/live/data/' + file, 4000);
+    if (live && !live.error) return { data: live, source: 'live' };
+    const snap = await _fetchJSON(_staticBase + '/' + file, 4000);
+    if (snap) return { data: snap, source: 'offline_snapshot' };
+    return { data: null, source: null };
+  }
+
+  return {
+    apiBase: _apiBase,
+    staticBase: _staticBase,
+    getFacts: getFacts,
+    getHealth: getHealth,
+    getLive: getLive,
+    lastSource: function () { return _lastSource; },
+  };
+})();
+window.SPA_API = SPA_API;
+
+// Render the first-class freshness banner from /api/live/health (Phase 1).
+// ok → green "Live"; degraded → amber "Track stale N h"; offline → red
+// "Live API unreachable — showing offline snapshot". NEVER hides staleness.
+async function renderFreshnessBanner() {
+  const el = document.getElementById('spa-freshness-banner');
+  if (!el) return;
+  let h;
+  try { h = await SPA_API.getHealth(); } catch (e) { h = { reachable: false, status: 'offline' }; }
+  let bg, fg, dot, text;
+  if (h.reachable && h.status === 'ok') {
+    bg = '#ecfdf5'; fg = '#065f46'; dot = '#16a34a';
+    text = 'Live · track fresh' + (h.age_hours != null ? ' (' + Number(h.age_hours).toFixed(1) + 'h ago)' : '');
+  } else if (h.reachable && h.status === 'degraded') {
+    bg = '#fffbeb'; fg = '#92400e'; dot = '#d97706';
+    text = 'Track stale — last evidenced bar '
+         + (h.age_hours != null ? Number(h.age_hours).toFixed(1) + 'h ago' : 'unknown')
+         + ' (SLA 30h)';
+  } else if (h.reachable && h.status === 'unknown') {
+    bg = '#eff6ff'; fg = '#1e40af'; dot = '#2563eb';
+    text = 'Live · freshness not reported';
+  } else {
+    bg = '#fef2f2'; fg = '#991b1b'; dot = '#dc2626';
+    text = 'Live API unreachable — showing offline snapshot, may be stale';
+  }
+  el.style.display = 'inline-flex';
+  el.style.background = bg;
+  el.style.color = fg;
+  el.innerHTML = '<span style="color:' + dot + ';margin-right:6px">●</span>' + text;
+  el.title = h.reason || text;
+}
+
 let _liveWs = null;
 let _livePollTimer = null;
 let _liveVerifyTimer = null;
@@ -4337,6 +4523,8 @@ function startLivePolling() {
     try { loadDashboard(); } catch(e) {}
     try { loadAgentHealth(); } catch(e) {}
     try { loadSystemHealthMonitor(); } catch(e) {}
+    try { renderFreshnessBanner(); } catch(e) {}  // Phase 1: keep freshness honest
+    try { initSpaHero(); } catch(e) {}            // Phase 0: keep hero canonical
     _liveLastFetch = Date.now();
     updateLiveIndicator(true);
   };
@@ -5176,21 +5364,29 @@ function _perfTimeAgo(ts) {
 async function loadPerformance() {
   const ts = Date.now();
   let status = null, equity = null, golive = null, strategies = null;
+  // CANONICAL headline truth (Phase 0): track-days + go-live criteria come from
+  // /api/ssot/facts, NEVER from days_running / dead criteria_met keys.
+  let _facts = null, _factsRes = null;
+  try { _factsRes = await SPA_API.getFacts(); _facts = _factsRes && _factsRes.facts; } catch(e) {}
   try { status     = await fetch(dataBase + '/paper_trading_status.json?_='          + ts).then(r => r.ok ? r.json() : null); } catch(e) {}
   try { equity     = await fetch(dataBase + '/equity_curve_daily.json?_='            + ts).then(r => r.ok ? r.json() : null); } catch(e) {}
   try { golive     = await fetch(dataBase + '/golive_status.json?_='                 + ts).then(r => r.ok ? r.json() : null); } catch(e) {}
   try { strategies = await fetch(dataBase + '/strategy_shadow_comparison.json?_='   + ts).then(r => r.ok ? r.json() : null); } catch(e) {}
 
-  // ── Hero Metrics ──
-  const eq        = status ? status.current_equity : null;
+  // ── Hero Metrics ── (CANONICAL: prefer /api/ssot/facts, fall back to file)
+  const eq        = (_facts && _facts.current_equity != null) ? _facts.current_equity : (status ? status.current_equity : null);
   const pnlUsd    = eq != null ? eq - 100000 : null;
-  const pnlPct    = status ? status.total_return_pct : null;
-  const dailyY    = status ? status.daily_yield_usd : null;
+  const pnlPct    = (_facts && _facts.total_return_pct != null) ? _facts.total_return_pct : (status ? status.total_return_pct : null);
+  const dailyY    = (_facts && _facts.daily_yield_usd != null) ? _facts.daily_yield_usd : (status ? status.daily_yield_usd : null);
   const dailyRPct = status ? status.daily_return_pct : null;
-  const apy       = status ? status.apy_today_pct : null;
+  const apy       = (_facts && _facts.apy_today_pct != null) ? _facts.apy_today_pct : (status ? status.apy_today_pct : null);
   const dd        = (equity && equity.summary) ? equity.summary.max_drawdown_pct : 0;
-  const days      = status ? status.days_running : null;
-  const startDate = status ? (status.paper_start_date || '2026-06-10') : '2026-06-10';
+  // PHASE 0 LIE #1 FIXED: track length = HONEST evidenced real_track_days (5),
+  // NOT paper_trading_status.days_running (17). Source = /api/ssot/facts.
+  const days      = (_facts && _facts.real_track_days != null) ? _facts.real_track_days
+                  : (_facts && _facts.track_days != null ? _facts.track_days : null);
+  const startDate = (_facts && _facts.evidenced_anchor) ? _facts.evidenced_anchor
+                  : (status ? (status.paper_start_date || '2026-06-22') : '2026-06-22');
 
   const fmtUSD  = v => v == null ? '—' : '$' + v.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   const fmtPct  = v => v == null ? '—' : (v >= 0 ? '+' : '') + Number(v).toFixed(4) + '%';
@@ -5204,7 +5400,7 @@ async function loadPerformance() {
       { label: 'Daily Yield',   val: dailyY != null ? '$' + Number(dailyY).toFixed(2) : '—',  sub: fmtPct(dailyRPct) },
       { label: 'Portfolio APY', val: fmtAPY(apy),                                             sub: 'annualised',     color: '#185FA5' },
       { label: 'Max Drawdown',  val: fmtAPY(dd),                                              sub: 'from peak',      color: dd > 2 ? '#B91C1C' : '#3B6D11' },
-      { label: 'Track Length',  val: days != null ? days + 'd' : '—',                         sub: 'since ' + startDate },
+      { label: 'Track Length',  val: days != null ? days + '/30' : '—',                       sub: 'evidenced · anchor ' + startDate },
     ];
     heroEl.innerHTML = cards.map(c =>
       `<div class="db-metric">
@@ -5231,11 +5427,17 @@ async function loadPerformance() {
   if (statusBarEl) {
     const lastTs       = status ? status.last_cycle_ts : null;
     const lastCycleStr = lastTs ? 'Last cycle: ' + _perfTimeAgo(lastTs) : 'No cycle data';
-    const criteriaStr  = golive ? `${golive.criteria_met != null ? golive.criteria_met : '—'}/${golive.total_criteria != null ? golive.total_criteria : 29} criteria` : '—/29 criteria';
+    // PHASE 0 LIE #2 FIXED: go-live = golive_passed/golive_total (27/29) from
+    // /api/ssot/facts. The OLD code read golive.criteria_met/total_criteria —
+    // dead keys (the file ships passed/total) → it rendered "—/29" even when live.
+    const _gp = _facts ? _facts.golive_passed : null;
+    const _gt = _facts ? _facts.golive_total : null;
+    const criteriaStr  = (_gp != null && _gt != null) ? `${_gp}/${_gt} criteria` : '—/29 criteria';
+    const _target = (_facts && _facts.go_live_target) || (golive && golive.target_date) || META_GOLIVE;
     statusBarEl.innerHTML =
       `<span style="color:#3B6D11;font-weight:600">✅ Systems operational</span>` +
       `<span style="color:#888;font-size:12px;margin-left:14px">` + lastCycleStr + `</span>` +
-      `<span style="float:right;font-size:12px">Go-Live: <strong>${criteriaStr}</strong> · Target: <strong>${(golive && golive.target_date) || META_GOLIVE}</strong></span>`;
+      `<span style="float:right;font-size:12px">Go-Live: <strong>${criteriaStr}</strong> · Target: <strong>${_target}</strong></span>`;
   }
 
   // ── Strategy Race Preview (top 3) ──
@@ -6807,7 +7009,7 @@ function renderStalenessBanner(orch, paperStatus) {
 }
 
 // MP-007: day-счётчик реального трека в заголовке
-function renderTrackDayCounter() {
+async function renderTrackDayCounter() {
   const sub = document.getElementById('ts-subtitle');
   if (!sub) return;
   let span = document.getElementById('track-day-counter');
@@ -6816,8 +7018,20 @@ function renderTrackDayCounter() {
     span.id = 'track-day-counter';
     sub.parentElement.insertBefore(span, sub.nextSibling);
   }
-  const d = realTrackDay();
-  span.textContent = d >= 1 ? ' · День ' + d + ' реального трека (с ' + REAL_TRACK_START + ')' : '';
+  // HONEST evidenced track-day (real_track_days), canonical from /api/ssot/facts.
+  // NOT realTrackDay() (wall-clock since REAL_TRACK_START, which over-counts).
+  let d = null, anchor = '2026-06-22';
+  try {
+    const r = await SPA_API.getFacts();
+    if (r && r.facts) {
+      d = (r.facts.real_track_days != null) ? r.facts.real_track_days
+        : (r.facts.track_days != null ? r.facts.track_days : null);
+      if (r.facts.evidenced_anchor) anchor = r.facts.evidenced_anchor;
+    }
+  } catch (e) {}
+  span.textContent = (d != null && d >= 1)
+    ? ' · День ' + d + '/30 evidenced трека (anchor ' + anchor + ')'
+    : '';
 }
 
 // ─── MP-1502 (v11.18): Risk Monitor panel ─────────────────────────────────────
@@ -6953,16 +7167,18 @@ async function loadDashboard() {
                      : (paperStatus.current_apy_pct != null ? paperStatus.current_apy_pct : paperStatus.apy);
         if (_apy != null) { _heroEl('hero-apy').textContent = Number(_apy).toFixed(2) + '%'; _heroDone(_heroEl('hero-apy')); }
         if (_heroEl('hero-golive')) {
-          // Go-live target: prefer the canonical top-level target_date from
-          // golive_status (the ONE evidenced-anchored value), then the per-
-          // criterion target_date, then META_GOLIVE (meta.json), then '—'.
+          // CANONICAL go-live: passed/total (27/29) + evidenced-anchored target.
+          // golive_status ships passed/total (NOT criteria_met/total_criteria).
           let _gltgt = (goliveStatus && goliveStatus.target_date) || META_GOLIVE;
           if (!(goliveStatus && goliveStatus.target_date) && goliveStatus && Array.isArray(goliveStatus.criteria)) {
             const _c = goliveStatus.criteria.find(c => c && c.target_date &&
               (c.name === 'min_track_days_30' || c.name === 'gap_monitor_30d'));
             if (_c) _gltgt = _c.target_date;
           }
-          _heroEl('hero-golive').textContent = _gltgt || '—';
+          const _gp = goliveStatus ? goliveStatus.passed : null;
+          const _gt = goliveStatus ? goliveStatus.total : null;
+          const _crit = (_gp != null && _gt != null) ? _gp + '/' + _gt + ' · ' : '';
+          _heroEl('hero-golive').textContent = _crit + (_gltgt || '—');
         }
         const _st = paperStatus.last_cycle_status || paperStatus.go_live_status || (paperStatus.is_demo === false ? 'live' : null);
         if (_heroEl('hero-status') && _st) _heroEl('hero-status').textContent = _st;
@@ -10149,7 +10365,19 @@ async function loadGoLiveStatusBar() {
 }
 
 // LIVE/DEMO бейдж в шапке + live-полоса на вкладке Paper Trading.
-function renderPaperStatusStrip(ps) {
+async function renderPaperStatusStrip(ps) {
+  // CANONICAL honest evidenced track-days (real_track_days = 5) /30 from
+  // /api/ssot/facts — NOT a wall-clock day count from REAL_TRACK_START.
+  let _evTrack = null, _evTarget = null, _evAnchor = null;
+  try {
+    const _r = await SPA_API.getFacts();
+    if (_r && _r.facts) {
+      _evTrack  = (_r.facts.real_track_days != null) ? _r.facts.real_track_days
+                : (_r.facts.track_days != null ? _r.facts.track_days : null);
+      _evTarget = _r.facts.go_live_target || null;
+      _evAnchor = _r.facts.evidenced_anchor || null;
+    }
+  } catch (e) {}
   const badge = document.getElementById('data-mode-badge');
   const strip = document.getElementById('paper-status-strip');
 
@@ -10170,9 +10398,13 @@ function renderPaperStatusStrip(ps) {
   }
   if (!strip) return;
 
-  // День реального трека: от REAL_TRACK_START (Phase 0 = 56 дней)
-  const startMs = new Date(REAL_TRACK_START + 'T00:00:00Z').getTime();
-  const dayN = Math.max(1, Math.floor((Date.now() - startMs) / 86400000) + 1);
+  // HONEST evidenced track-day (real_track_days = 5) / 30 window — canonical.
+  // Falls back to ps.days_running ONLY if the SSOT facts are unavailable, and
+  // the anchor is the evidenced anchor (2026-06-22), not REAL_TRACK_START.
+  const dayN = (_evTrack != null) ? _evTrack
+             : (typeof ps.days_running === 'number' ? ps.days_running : 0);
+  const trackWindow = 30;
+  const trackAnchor = _evAnchor || '2026-06-22';
   const equity = (typeof ps.current_equity === 'number') ? fmt(ps.current_equity) : '—';
   const retPct = (typeof ps.total_return_pct === 'number')
     ? (ps.total_return_pct >= 0 ? '+' : '') + ps.total_return_pct.toFixed(4) + '%' : '—';
@@ -10192,22 +10424,23 @@ function renderPaperStatusStrip(ps) {
       <span>equity: <strong>${equity}</strong></span>
       <span>return: <strong>${retPct}</strong></span>
       <span>APY today: <strong>${apyToday}</strong></span>
-      <span>день <strong>${dayN}</strong> / ${PHASE0_TRACK_DAYS} <span style="color:#888">(реальный трек с ${REAL_TRACK_START})</span></span>
+      <span>день <strong>${dayN}</strong> / ${trackWindow} <span style="color:#888">(evidenced track · anchor ${trackAnchor})</span></span>
       <span>${nPos} позиций</span>
       <span style="color:#888;font-size:11px">цикл: ${_mpEsc(cycleStr)} · ${_mpEsc(ps.source || '—')}</span>
     </div>${staleNote}`;
 
-  // 8-week clock: реальные дни трека вместо легаси status.json (weeks_elapsed=0)
+  // Track clock: HONEST evidenced day / 30-day window (canonical), not the
+  // legacy 56-day Phase-0 wall-clock.
   try {
-    const weeks = dayN / 7;
     const clockLabel = document.getElementById('clock-label');
     const clockFill = document.getElementById('clock-fill');
     const clockSub = document.getElementById('clock-sub');
     const clockStart = document.getElementById('clock-start');
-    if (clockLabel) clockLabel.textContent = 'неделя ' + weeks.toFixed(1) + ' / 8 требуется';
-    if (clockFill) clockFill.style.width = Math.min(100, (weeks / 8) * 100) + '%';
-    if (clockSub) clockSub.textContent = 'день ' + dayN + ' / ' + PHASE0_TRACK_DAYS + ' реального трека';
-    if (clockStart) clockStart.textContent = 'старт: ' + REAL_TRACK_START;
+    if (clockLabel) clockLabel.textContent = 'день ' + dayN + ' / ' + trackWindow + ' evidenced';
+    if (clockFill) clockFill.style.width = Math.min(100, (dayN / trackWindow) * 100) + '%';
+    if (clockSub) clockSub.textContent = 'день ' + dayN + ' / ' + trackWindow + ' evidenced track'
+                  + (_evTarget ? ' · target ' + _evTarget : '');
+    if (clockStart) clockStart.textContent = 'anchor: ' + trackAnchor;
   } catch (e) { /* clock не критичен */ }
 }
 
@@ -12979,72 +13212,94 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(loadTier1, 1500); // graceful: shows "—" if API unreachable
 });
 
-// SPA Hero v1.0 initializer
+// SPA Hero v1.0 initializer — CANONICAL: every headline number comes from
+// SPA_API.getFacts() (/api/ssot/facts). The track is the HONEST evidenced
+// real_track_days (5/30), NEVER a wall-clock day count or days_running. Go-live
+// is golive_passed/golive_total (27/29), NEVER the dead criteria_met keys.
+// Missing → "—" (no fabrication). Offline → labeled "as-of" snapshot.
 async function initSpaHero() {
+  const _txt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  const _na = '—';
   try {
-    const BASE = (typeof STATIC_BASE !== 'undefined') ? STATIC_BASE : './data';
-    // Primary source: paper_trading_status.json
-    const ptStatus = await fetchJSON(BASE + '/paper_trading_status.json').catch(() => null);
-    if (ptStatus) {
-      // Equity
-      const eq = ptStatus.current_equity ?? ptStatus.total_equity ?? ptStatus.equity ?? ptStatus.portfolio_value ?? null;
-      if (eq != null) {
-        document.getElementById('spa-equity-num').textContent = Number(eq).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
-        const ret = ptStatus.total_return_pct ?? null;
-        if (ret != null) {
-          const el = document.getElementById('spa-equity-delta');
-          const sign = ret >= 0 ? '+' : '';
-          el.textContent = sign + Number(ret).toFixed(4) + '% total return';
-          el.className = 'spa-hero-delta ' + (ret >= 0 ? 'pos' : 'neg');
-        }
-      }
-      // APY from paper_trading_status
-      const apy = ptStatus.apy_today_pct ?? ptStatus.apy ?? null;
-      if (apy != null) {
-        document.getElementById('spa-apy').innerHTML = Number(apy).toFixed(2) + '<span style="font-size:20px;font-weight:400">%</span>';
-        const apyDelta = document.getElementById('spa-apy-delta');
-        if (apyDelta && ptStatus.daily_yield_usd != null) {
-          apyDelta.textContent = '+$' + Number(ptStatus.daily_yield_usd).toFixed(2) + '/day';
-          apyDelta.className = 'spa-hero-delta pos';
-        }
+    // First-class freshness banner from /api/live/health (Phase 1).
+    renderFreshnessBanner();
+
+    const res = await SPA_API.getFacts();
+    const f = res && res.facts ? res.facts : null;
+
+    // Honest offline-snapshot label (only when NOT live).
+    const asofEl = document.getElementById('spa-hero-asof');
+    if (asofEl) {
+      if (res && res.source === 'offline_snapshot') {
+        asofEl.style.display = 'block';
+        asofEl.textContent = '⚠ OFFLINE SNAPSHOT — live API unreachable · as-of ' + (res.as_of || 'unknown') + ' (may be stale)';
+      } else if (res && res.source === null) {
+        asofEl.style.display = 'block';
+        asofEl.textContent = '⚠ DATA UNAVAILABLE — live API and snapshot both unreachable';
+      } else {
+        asofEl.style.display = 'none';
       }
     }
-    // APY fallback: tear_sheet.json
-    if (!ptStatus || document.getElementById('spa-apy').textContent.trim() === '—%') {
-      const ts = await fetchJSON(BASE + '/tear_sheet.json').catch(() => null);
-      if (ts) {
-        const apy2 = ts.annualized_apy_pct ?? ts.live_apy ?? ts.current_apy ?? ts.apy ?? null;
-        if (apy2 != null) {
-          document.getElementById('spa-apy').innerHTML = Number(apy2).toFixed(2) + '<span style="font-size:20px;font-weight:400">%</span>';
-        }
+
+    if (!f) {
+      // No fabrication: leave the hero as "—".
+      _txt('spa-equity-num', _na);
+      document.getElementById('spa-apy').innerHTML = _na + '<span style="font-size:20px;font-weight:400">%</span>';
+      _txt('spa-day-num', _na);
+      _txt('spa-status', _na);
+      _txt('spa-status-sub', 'data unavailable');
+      return;
+    }
+
+    // ── Equity ── (ssot.current_equity)
+    const eq = f.current_equity;
+    if (eq != null) {
+      _txt('spa-equity-num', Number(eq).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0}));
+      const ret = f.total_return_pct;
+      if (ret != null) {
+        const el = document.getElementById('spa-equity-delta');
+        el.textContent = (ret >= 0 ? '+' : '') + Number(ret).toFixed(4) + '% total return';
+        el.className = 'spa-hero-delta ' + (ret >= 0 ? 'pos' : 'neg');
       }
-    }
-    // Day counter from meta.json
-    const meta = await fetchJSON('./data/meta.json').catch(() => null);
-    if (meta && meta.paper_cycle_start) {
-      const start = new Date(meta.paper_cycle_start);
-      const track = meta.track_window_days ?? 30;
-      const dayN = Math.max(1, Math.floor((Date.now() - start.getTime()) / 86400000) + 1);
-      document.getElementById('spa-day-num').textContent = Math.min(dayN, track);
-      const daySpans = document.querySelectorAll('#spa-day span');
-      if (daySpans.length > 1) daySpans[daySpans.length-1].textContent = '/' + track;
-      document.getElementById('spa-day-label').textContent = dayN >= track ? 'track complete' : 'накапливается, день ' + Math.min(dayN,track) + '/' + track;
-    }
-    // GO/NO_GO from golive_status.json
-    const gl = await fetchJSON(BASE + '/golive_status.json').catch(
-      () => fetchJSON(BASE + '/golive_checklist.json').catch(() => null)
-    );
-    if (gl) {
-      const passed = gl.overall_pass ?? gl.go ?? gl.ready ?? false;
-      const passCount = gl.pass_count ?? gl.passed ?? null;
-      const totalCount = gl.total_count ?? gl.total ?? null;
-      const badge = document.getElementById('spa-status');
-      badge.textContent = passed ? 'GO' : 'NO_GO';
-      badge.className = 'spa-go-badge ' + (passed ? 'go' : 'nogo');
-      if (passCount != null && totalCount != null) {
-        document.getElementById('spa-status-sub').textContent = passCount + '/' + totalCount + ' checks';
+    } else { _txt('spa-equity-num', _na); }
+
+    // ── APY ── (ssot.apy_today_pct, annualized)
+    const apy = f.apy_today_pct;
+    const apyEl = document.getElementById('spa-apy');
+    if (apy != null) {
+      apyEl.innerHTML = Number(apy).toFixed(2) + '<span style="font-size:20px;font-weight:400">%</span>';
+      const apyDelta = document.getElementById('spa-apy-delta');
+      if (apyDelta && f.daily_yield_usd != null) {
+        apyDelta.textContent = '+$' + Number(f.daily_yield_usd).toFixed(2) + '/day';
+        apyDelta.className = 'spa-hero-delta pos';
       }
+    } else {
+      apyEl.innerHTML = _na + '<span style="font-size:20px;font-weight:400">%</span>';
     }
+
+    // ── HONEST track days ── (ssot.real_track_days = 5, /30) — NOT wall-clock.
+    const td = (f.real_track_days != null) ? f.real_track_days
+             : (f.track_days != null ? f.track_days : null);
+    _txt('spa-day-num', td != null ? td : _na);
+    const dayLabelEl = document.getElementById('spa-day-label');
+    if (dayLabelEl) {
+      dayLabelEl.textContent = (td != null)
+        ? (td >= 30 ? 'track complete' : 'evidenced day ' + td + '/30')
+        : 'unavailable';
+    }
+
+    // ── Go-Live ── (ssot.golive_passed/golive_total = 27/29) — NOT dead keys.
+    const passCount = f.golive_passed;
+    const totalCount = f.golive_total;
+    const ready = !!f.golive_ready;
+    const badge = document.getElementById('spa-status');
+    if (badge) {
+      badge.textContent = ready ? 'GO' : 'NO_GO';
+      badge.className = 'spa-go-badge ' + (ready ? 'go' : 'nogo');
+    }
+    _txt('spa-status-sub', (passCount != null && totalCount != null)
+      ? passCount + '/' + totalCount + ' checks'
+      : 'paper trading');
   } catch(e) { console.warn('SpaHero init error:', e); }
 }
 </script>

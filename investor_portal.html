@@ -405,8 +405,10 @@ function renderPortal(data) {
   var is_demo = meta.is_demo;
   renderDemoBadge(is_demo);
 
-  // Track-day badge
-  renderTrackDayBadge(track.days_running);
+  // Track-day badge — HONEST evidenced count (real_track_days) when present,
+  // never the padded days_running. Mirrors the canonical /api/ssot/facts field.
+  var _evDays = (track.real_track_days != null) ? track.real_track_days : track.days_running;
+  renderTrackDayBadge(_evDays);
 
   // Headline cards
   var ret = h.total_return_pct;
@@ -420,7 +422,7 @@ function renderPortal(data) {
   var mddEl = document.getElementById('h-mdd');
   mddEl.textContent = mdd != null ? mdd.toFixed(2) + '%' : '—';
   mddEl.className = 'card-value ' + (mdd != null && mdd < 0 ? 'negative' : 'neutral');
-  document.getElementById('h-days').textContent = track.days_running != null ? track.days_running + 'd' : '—';
+  document.getElementById('h-days').textContent = _evDays != null ? _evDays + '/30' : '—';
 
   // Equity chart
   var eq = data.equity || {};
