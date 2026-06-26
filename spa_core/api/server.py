@@ -82,6 +82,51 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# ─── Honesty meta (additive labeling) ─────────────────────────────────────────
+# Honesty-audit requirement: no consumer (direct API / third party / cached page)
+# may see a bare backtest/assumed/annualized number as if it were a realized
+# track record. These helpers attach an ADDITIVE `meta` envelope (and per-field
+# labels) alongside existing payloads — existing fields are never removed or
+# renamed, so the site's renderers keep working unchanged.
+
+_BACKTEST_DISCLAIMER = (
+    "Backtest/paper research — advisory, not realized capital, not a track record"
+)
+
+
+def _backtest_meta(basis: str, period: str, *, is_realized: bool = False) -> dict:
+    """Standard additive meta block for endpoints serving backtest/simulated numbers."""
+    return {
+        "is_backtest": True,
+        "is_realized": bool(is_realized),
+        "basis": basis,
+        "period": period,
+        "disclaimer": _BACKTEST_DISCLAIMER,
+    }
+
+
+# Per-sleeve yield-basis labels for /api/strategy-lab. engine_b (~8.33%) and
+# engine_c (~8.87%) are ASSUMED sleeve yields (HY band-median proxy; LP fee-only,
+# IL not modeled) — NOT realized. rwa_floor is a live tokenized-T-bill feed.
+_SLEEVE_YIELD_BASIS = {
+    "engine_b": "assumed",
+    "engine_c": "assumed",
+    "rwa_floor": "live_feed",
+    "rwa_sleeve": "live_feed",
+}
+_SLEEVE_YIELD_BASIS_NOTE = {
+    "engine_b": "ASSUMED: HY band-median proxy, not realized",
+    "engine_c": "ASSUMED: LP fee-only, impermanent loss NOT modeled, not realized",
+    "rwa_floor": "live tokenized-T-bill feed",
+    "rwa_sleeve": "live tokenized-T-bill feed",
+}
+
+
+def _sleeve_yield_basis(sid: str) -> str:
+    """assumed | live_feed | realized — default 'realized' for live paper sleeves."""
+    return _SLEEVE_YIELD_BASIS.get(sid, "realized")
+
+
 # ─── PaperTrader (optional — graceful fallback) ───────────────────────────────
 def _get_live_portfolio() -> dict | None:
     """
@@ -225,7 +270,11 @@ def get_portfolio():
     """
     live = _get_live_portfolio()
     if live is not None:
-        return live.get("portfolio", {})
+        port = live.get("portfolio", {})
+        if isinstance(port, dict):
+            # Honesty label: any APY in the portfolio is ANNUALIZED, not a daily figure.
+            port.setdefault("apy_today_pct_note", "annualized, not a daily figure")
+        return port
 
     # Primary fallback: paper_trading_status.json (written by cycle_runner every cycle)
     pts = _load_json("paper_trading_status.json", None)
@@ -243,6 +292,9 @@ def get_portfolio():
             "total_pnl_usd": round(equity - capital, 2),
             "total_return_pct": round(pts.get("total_return_pct", 0.0), 4),
             "apy_pct": round(pts.get("apy_today_pct", 0.0), 2),
+            # Honesty label: apy_today_pct is an ANNUALIZED figure, not a daily return.
+            "apy_today_pct_annualized": round(pts.get("apy_today_pct", 0.0), 2),
+            "apy_today_pct_note": "annualized, not a daily figure",
             "days_running": pts.get("days_running", 0),
             "source": "paper_trading_status",
         }
@@ -359,6 +411,8 @@ def get_health_public():
         "source": "live",
         "track_days": ps.get("days_running"),
         "ytd_apy_pct": ps.get("apy_today_pct"),
+        "ytd_apy_pct_note": "annualized, not a daily figure",
+        "apy_today_pct_annualized": ps.get("apy_today_pct"),
         "current_equity": ps.get("current_equity"),
         "total_return_pct": ps.get("total_return_pct"),
         "sharpe_30d": ts.get("sharpe_ratio", ts.get("sharpe")),
@@ -402,19 +456,36 @@ def get_execution_readiness():
 @app.get("/api/tier1/nav", tags=["tier1"])
 def get_tier1_nav():
     """Verifiable NAV / proof-of-reserves snapshot — anyone can recompute from components."""
-    return _load_json("tier1_nav_proof.json", {
+    nav = _load_json("tier1_nav_proof.json", {
         "generated_at": _now(), "computed_nav_usd": None, "reconciliation_ok": None,
     })
+    if isinstance(nav, dict):
+        # Honest pointer — does NOT change any day count (operator-pending decision).
+        nav.setdefault("meta", {
+            "track_basis": "paper, advisory",
+            "is_realized": False,
+            "evidence_note": "see /track-record for which days are live-cycle-evidenced "
+                             "vs backfill",
+        })
+    return nav
 
 
 @app.get("/api/tier1/packages", tags=["tier1"])
 def get_tier1_packages():
     """Tier-1 risk-tier packages (Conservative/Balanced/Aggressive) — data/tier1_packages.json.
     Validated (real-data backtest + net-of-cost + OOS + capacity) ∩ diversified core."""
-    return _load_json("tier1_packages.json", {
+    _pkg_meta = _backtest_meta(
+        basis="real-data backtest, net-of-cost, out-of-sample + capacity-validated; "
+              "risk-tier packages, NOT realized capital",
+        period="tier-1 backtest validation window",
+    )
+    pkgs = _load_json("tier1_packages.json", {
         "generated_at": _now(), "model": "tier1_packages", "packages": {},
         "note": "Tier-1 packages not yet generated (run the backtest pipeline).",
     })
+    if isinstance(pkgs, dict):
+        pkgs.setdefault("meta", _pkg_meta)
+    return pkgs
 
 
 @app.get("/api/tier1/verdict", tags=["tier1"])
@@ -532,6 +603,10 @@ def get_strategy_lab():
         return {
             "strategies": [], "rwa_floor_pct": None,
             "window_start": None, "window_end": None, "generated_at": None,
+            "meta": _backtest_meta(
+                basis="comparative backtest, equal-capital, net-of-cost",
+                period="strategy_lab backtest window (see window_start/window_end)",
+            ),
         }
     manifest = raw.get("manifest", {}) or {}
     kills = raw.get("kills", {}) or {}
@@ -540,8 +615,9 @@ def get_strategy_lab():
         m = blk.get("metrics", {}) or {}
         extra = m.get("extra", {}) or {}
         kill = blk.get("kill") or kills.get(sid)
+        sid_key = blk.get("id", sid)
         strategies.append({
-            "id": blk.get("id", sid),
+            "id": sid_key,
             "name": blk.get("name", sid),
             "mandate": blk.get("mandate", ""),
             "net_apy_pct": m.get("net_apy_pct"),
@@ -552,13 +628,23 @@ def get_strategy_lab():
             "beats_rwa_floor": m.get("beats_rwa_floor"),
             "killed": bool(kill) or bool(extra.get("killed")),
             "kill_reason": (kill or {}).get("reason") if isinstance(kill, dict) else None,
+            # Honesty label: assumed (engine_b/c) vs live_feed (rwa) vs realized.
+            "yield_basis": _sleeve_yield_basis(sid_key),
+            "yield_basis_note": _SLEEVE_YIELD_BASIS_NOTE.get(sid_key),
         })
+    win_start = manifest.get("window_start")
+    win_end = manifest.get("window_end")
     return {
         "strategies": strategies,
         "rwa_floor_pct": manifest.get("rwa_floor_apy_pct"),
-        "window_start": manifest.get("window_start"),
-        "window_end": manifest.get("window_end"),
+        "window_start": win_start,
+        "window_end": win_end,
         "generated_at": manifest.get("generated_at"),
+        "meta": _backtest_meta(
+            basis="comparative backtest, equal-capital, net-of-cost; per-sleeve "
+                  "yield_basis distinguishes assumed/live_feed/realized",
+            period=f"{win_start or '?'} → {win_end or '?'}",
+        ),
     }
 
 
@@ -574,6 +660,10 @@ def get_strategy_lab_promotion():
     when the JSON is missing/corrupt, mirroring /api/strategy-lab and the tier1 handlers.
     """
     raw = _load_json("strategy_lab_promotion.json", {})
+    _promo_meta = _backtest_meta(
+        basis="deterministic promotion rubric over strategy_lab backtest/walk-forward metrics",
+        period="strategy_lab backtest window",
+    )
     if not raw or not isinstance(raw, dict):
         return {
             "generated_at": None,
@@ -582,7 +672,9 @@ def get_strategy_lab_promotion():
             "n_sleeves": 0,
             "stage_counts": {},
             "sleeves": [],
+            "meta": _promo_meta,
         }
+    raw.setdefault("meta", _promo_meta)
     return raw
 
 
@@ -645,12 +737,19 @@ def get_rates_desk_surface():
     VERBATIM from the file; returns an empty payload (not an error) when the JSON is missing/corrupt,
     mirroring /api/strategy-lab and the tier1 handlers.
     """
+    _surface_meta = _backtest_meta(
+        basis="implied/fixed-rate surface from live PT/lending feeds + deep Pendle PT "
+              "history 2024-01→2026-06; quoted rates are research, not realized P&L",
+        period="current surface (see as_of); history 2024-01→2026-06",
+    )
     raw = _load_json("rates_desk/rate_surface.json", {})
     if not raw or not isinstance(raw, dict):
         return {
             "generated_at": None, "as_of": None, "mode": None,
             "hedge_available": {}, "quotes": [], "underlying_risk": {},
+            "meta": _surface_meta,
         }
+    raw.setdefault("meta", _surface_meta)
     return raw
 
 
@@ -662,13 +761,23 @@ def get_rates_desk_opportunities():
     (NO risk veto — that is the gate's job). Read-only, graceful: returns an empty payload (not an error)
     when the surface is missing/corrupt or the scan cannot be built, mirroring the other handlers.
     """
+    _opp_meta = _backtest_meta(
+        basis="ranked trade shapes scanned from the cached rate surface (deep Pendle PT "
+              "history 2024-01→2026-06, total-capital basis, capacity-constrained); "
+              "net_edge is research, not realized P&L",
+        period="current scan (see as_of); history 2024-01→2026-06",
+    )
     raw = _load_json("rates_desk/rate_surface.json", {})
-    empty = {"generated_at": None, "as_of": None, "n_opportunities": 0, "opportunities": []}
+    empty = {"generated_at": None, "as_of": None, "n_opportunities": 0,
+             "opportunities": [], "meta": _opp_meta}
     if not raw or not isinstance(raw, dict) or not raw.get("quotes"):
         return empty
     try:
         from spa_core.strategy_lab.rates_desk.surface_io import scan_cached_surface
-        return scan_cached_surface(raw)
+        scan = scan_cached_surface(raw)
+        if isinstance(scan, dict):
+            scan.setdefault("meta", _opp_meta)
+        return scan
     except Exception as e:  # noqa: BLE001 — graceful, never 500 the dashboard
         log.warning(f"rates-desk opportunities scan failed: {e}")
         return empty
@@ -903,6 +1012,11 @@ def get_rates_desk_track():
         "gap": status.get("gap") if isinstance(status, dict) else None,
         "daily_series": daily_series,
         "is_advisory": True,
+        "meta": _backtest_meta(
+            basis="deep Pendle PT history 2024-01→2026-06, total-capital basis, "
+                  "capacity-constrained; advisory paper forward-track, NOT real capital",
+            period="rates-desk paper forward-track (see started_at/days)",
+        ),
     }
 
 
@@ -1675,8 +1789,25 @@ async def get_tournament():
         except Exception as exc:
             result[key] = {"_error": str(exc)}
 
+    # Honesty label: tournament `paper_apy` is BACKTEST-DERIVED, not live paper.
+    # Tag each strategy row in-place so a direct consumer can't read paper_apy as live.
+    tour = result.get("tournament")
+    if isinstance(tour, dict):
+        for _list_key in ("shadow_active_strategies", "active_strategies",
+                          "ranked_strategies", "top_5", "bottom_5"):
+            rows = tour.get(_list_key)
+            if isinstance(rows, list):
+                for row in rows:
+                    if isinstance(row, dict) and "paper_apy" in row:
+                        row.setdefault("apy_source", "backtest_derived")
+
     result["server_time"] = _now()
     result["live"] = True
+    result["meta"] = _backtest_meta(
+        basis="deterministic backtest 2022-2025; leaderboard ranked by Sharpe; "
+              "paper_apy is backtest_derived, NOT live paper",
+        period="deterministic backtest 2022-2025",
+    )
     return JSONResponse(result, headers=_NO_CACHE_HEADERS)
 
 
@@ -1702,6 +1833,10 @@ async def get_tournament_status():
 
     leaderboard = mass.get("leaderboard", [])
     top3 = leaderboard[:3]
+    # Honesty label: any paper_apy in the top-3 rows is backtest-derived, not live.
+    for row in top3:
+        if isinstance(row, dict) and "paper_apy" in row:
+            row.setdefault("apy_source", "backtest_derived")
 
     # strategy_tournament.json uses "shadow_active_strategies"; older/other
     # producers used "active_strategies". Accept both so the count isn't always 0.
@@ -1717,6 +1852,11 @@ async def get_tournament_status():
             "top3":              top3,
             "server_time":       _now(),
             "live":              True,
+            "meta": _backtest_meta(
+                basis="deterministic backtest 2022-2025; phase counts + Sharpe-ranked top-3; "
+                      "paper_apy is backtest_derived, NOT live paper",
+                period="deterministic backtest 2022-2025",
+            ),
         },
         headers=_NO_CACHE_HEADERS,
     )
