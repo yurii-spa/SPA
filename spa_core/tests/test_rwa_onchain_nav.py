@@ -344,3 +344,89 @@ def test_safety_board_mixed_coverage(tmp_path):
     by_sym = {r["symbol"]: r for r in rep["assets"]}
     assert by_sym["VAULT"]["nav_source"] == NAV_SOURCE_ONCHAIN
     assert by_sym["BUIDL"]["nav_source"] == NAV_SOURCE_ESTIMATE
+
+
+# ── 4. the canonical T6 coverage transparency block ────────────────────────────────────────────
+def _coverage_invariants(cov, rows):
+    """Shared invariants for the onchain_nav_coverage block: canonical keys present, counts
+    consistent (onchain+estimate==total==len(rows)), assets_onchain matches per-asset nav_source,
+    legacy aliases mirror the canonical counts, note is a non-empty string."""
+    for k in ("onchain_4626", "off_chain_estimate", "total", "assets_onchain", "note"):
+        assert k in cov, f"coverage block missing canonical key {k!r}"
+    assert cov["total"] == cov["onchain_4626"] + cov["off_chain_estimate"]
+    assert cov["total"] == len(rows)
+    # assets_onchain must EXACTLY be the rows whose nav_source is the real on-chain read.
+    expected = sorted(r["symbol"] for r in rows if r["nav_source"] == NAV_SOURCE_ONCHAIN)
+    assert sorted(cov["assets_onchain"]) == expected
+    assert len(cov["assets_onchain"]) == cov["onchain_4626"]
+    # legacy aliases stay in sync (back-compat)
+    assert cov["n_onchain_4626"] == cov["onchain_4626"]
+    assert cov["n_off_chain_estimate"] == cov["off_chain_estimate"]
+    assert isinstance(cov["note"], str) and cov["note"]
+
+
+def test_coverage_block_canonical_shape_mixed():
+    """Mixed universe: one real 4626 + one permissioned non-4626 → coverage block carries the
+    canonical T6 keys with counts/assets_onchain matching per-asset nav_source."""
+    v4626 = _asset("VAULT", contract="0xaaa0000000000000000000000000000000000001")
+    perm = CollateralAsset(
+        symbol="BUIDL", issuer="BlackRock", chain="ethereum", asset_class="tokenized_mmf",
+        token_contract="0xbbb0000000000000000000000000000000000002", transfer_restricted=True,
+        redemption_delay_days=1.0, redemption_fee_bps=0.0, min_redemption_usd=250_000.0,
+        redemption_documented=True,
+    )
+
+    class _Router:
+        def __call__(self, url, payload):
+            if payload.get("method") == "eth_chainId":
+                return {"result": _u256(1)}
+            to = payload["params"][0]["to"]
+            sel = payload["params"][0]["data"][:10]
+            if to == _PROBE_4626_CONTRACT.lower() and sel == SEL_DECIMALS:
+                return {"result": _u256(_PROBE_EXPECT_DECIMALS)}
+            if to == "0xaaa0000000000000000000000000000000000001":
+                table = {
+                    SEL_DECIMALS: _u256(6), SEL_TOTAL_SUPPLY: _u256(10 ** 12),
+                    SEL_TOTAL_ASSETS: _u256(10 ** 12), SEL_CONVERT_TO_ASSETS: _u256(10 ** 6),
+                }
+                return {"result": table.get(sel, "0x")}
+            if sel == SEL_DECIMALS:
+                return {"result": _u256(6)}
+            if sel == SEL_TOTAL_SUPPLY:
+                return {"result": _u256(10 ** 12)}
+            return {"error": {"code": 3, "message": "execution reverted"}}
+
+    rep = sb.build_report(write=False, fetcher=_FakePoolsFetcher(_pools_payload([])),
+                          assets=[v4626, perm], onchain=True, rpc_fetcher=_Router())
+    cov = rep["onchain_nav_coverage"]
+    _coverage_invariants(cov, rep["assets"])
+    assert cov["onchain_4626"] == 1
+    assert cov["off_chain_estimate"] == 1
+    assert cov["assets_onchain"] == ["VAULT"]
+    assert "VAULT" in cov["note"]
+
+
+def test_coverage_block_zero_when_rpc_down():
+    """Fail-CLOSED: RPC down → 0 on-chain, all estimate, total==len, board still valid, note honest."""
+    a = _asset("VAULT")
+    b = _asset("OTHER", contract="0xccc0000000000000000000000000000000000003")
+    rep = sb.build_report(write=False, fetcher=_FakePoolsFetcher(_pools_payload([])),
+                          assets=[a, b], onchain=True, rpc_fetcher=_FakeRpc(down=True))
+    cov = rep["onchain_nav_coverage"]
+    _coverage_invariants(cov, rep["assets"])
+    assert cov["onchain_4626"] == 0
+    assert cov["off_chain_estimate"] == 2
+    assert cov["total"] == 2
+    assert cov["assets_onchain"] == []
+    assert "0/2" in cov["note"]
+    # board still valid: every row carries a verdict from the closed set
+    for row in rep["assets"]:
+        assert row["verdict"] in (sb.LIQUID, sb.THIN, sb.REDEMPTION_ONLY, sb.UNSAFE)
+
+
+def test_coverage_block_full_registry_counts_match_nav_source():
+    """On the REAL registry (no rpc → fail-closed estimate everywhere) the coverage counts and
+    assets_onchain are internally consistent with per-asset nav_source. Hermetic (no network)."""
+    rep = sb.build_report(write=False, fetcher=_FakePoolsFetcher(_pools_payload([])),
+                          onchain=True, rpc_fetcher=_FakeRpc(down=True))
+    _coverage_invariants(rep["onchain_nav_coverage"], rep["assets"])

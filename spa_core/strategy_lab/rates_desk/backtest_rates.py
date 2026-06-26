@@ -97,6 +97,26 @@ BORROW_LTV = Decimal("0.86")           # PT-collateral max LTV proxy (Morpho PT 
 BORROW_UTILIZATION = Decimal("0.70")   # documented utilization proxy (well below the 0.97 kill)
 BORROW_DEPTH_USD = Decimal("20000000") # money-market depth proxy (deep USDC markets)
 
+# ── BACKTEST-ONLY hedge-rate proxy flag (architect T4) ─────────────────────────────────────────────
+# HEDGE_IS_BACKTEST_PROXY gates a RESEARCH-ONLY simulation of the BasisHedge sleeve (shape C) over the
+# deep window, using the historical 5-venue median funding (funding_feed) as the hedge-leg rate proxy.
+# It answers ONE question honestly: "would the isolated basis have been a real edge?" — WITHOUT enabling
+# live execution.
+#
+# CRITICAL SAFETY INVARIANT (architect): this flag NEVER touches the live path. It is read ONLY inside
+# this backtest module. `feeds.BorosFeed.HEDGE_ENABLED` stays False; `BorosFeed().hedge_available(...)`
+# stays all-False; the live gate still refuses any BasisHedge live entry (no Boros venue → shape never
+# forms). When the proxy is ON, the basis_hedge result block STILL carries blocked_no_hedge=True (so
+# promotion_rates keeps it STAGE_BLOCKED_NO_HEDGE) and the proxy APY is reported in a SEPARATE
+# `backtest_proxy` sub-block, clearly labelled BACKTEST-ONLY · live-BLOCKED. Default False → live path
+# and every existing result are byte-identical (the proxy adds nothing unless explicitly turned on).
+HEDGE_IS_BACKTEST_PROXY = False
+
+# Funding is a per-8h rate (the median of the 5-venue feed). The hedge leg PAYS funding continuously, so
+# the annualized hedge cost = funding_8h * 3 settlements/day * 365 days/yr. This is the documented PROXY
+# the BACKTEST uses for the Boros pay-variable leg (no executable Boros venue exists live).
+FUNDING_8H_PERIODS_PER_YEAR = Decimal("3") * Decimal("365")  # 1095
+
 # Global RiskPolicy APY ceiling (spa_core/risk/policy.py: max_apy_for_new_position = 30%). The rates
 # desk composes UNDER the global RiskPolicy (compose_under_global_policy): a rate-gate approval is
 # necessary but NOT sufficient — the global policy still has to approve, and it REFUSES any position
@@ -175,6 +195,26 @@ def _as_of_ts(as_of: str) -> int:
     return int(datetime.datetime(d.year, d.month, d.day, tzinfo=datetime.timezone.utc).timestamp())
 
 
+def _funding_8h_as_of(funding: Dict[str, float], date: str) -> Optional[Decimal]:
+    """The latest median 8h funding observation on-or-before `date` (Decimal, via str — no float→Decimal
+    binary noise). None if the funding series has no day <= `date` (fail-CLOSED: no proxy rate that day).
+    PURE: explicit date, sorted iteration."""
+    dates = sorted(d for d in funding if d <= date)
+    if not dates:
+        return None
+    return Decimal(str(funding[dates[-1]]))
+
+
+def _proxy_hedge_apy(funding: Dict[str, float], date: str) -> Optional[Decimal]:
+    """BACKTEST-ONLY hedge-leg rate proxy: annualize the 8h median funding to a per-year APY-equivalent
+    (funding_8h * 3 * 365). This is the cost the basis trade PAYS on the hedge leg. None when no funding
+    observation exists on-or-before `date`. NEVER used on the live path."""
+    f8 = _funding_8h_as_of(funding, date)
+    if f8 is None:
+        return None
+    return f8 * FUNDING_8H_PERIODS_PER_YEAR
+
+
 def build_deep_surface(
     as_of: str,
     deep: dict,
@@ -182,6 +222,7 @@ def build_deep_surface(
     hedge_map: Dict[str, bool],
     *,
     include_lending: bool = True,
+    proxy_hedge_apy: Optional[Decimal] = None,
 ) -> Tuple[RateSurface, Dict[str, UnderlyingRisk]]:
     """Assemble the historical RateSurface + risk map for one `as_of` from the deep PT dataset.
 
@@ -189,9 +230,16 @@ def build_deep_surface(
     AND has not yet matured (the desk holds the freshest, furthest-out fixed rate). The PT quote uses
     the documented historical pool-depth proxy for the §9 exit model. A synthetic LENDING borrow leg is
     attached per underlying (the documented borrow proxy) so the LEVERED/RATE_MATRIX shapes can form.
-    BOROS legs are empty (no keyless hedge venue → BASIS_HEDGE never forms — reported honestly).
+
+    BOROS legs: by default EMPTY (no keyless hedge venue → BASIS_HEDGE never forms — reported honestly).
+    When `proxy_hedge_apy` is given (BACKTEST-ONLY, HEDGE_IS_BACKTEST_PROXY path), a SYNTHETIC Boros
+    pay-variable leg is attached per underlying at that annualized funding-proxy rate and the PT quotes
+    are stamped hedge_available=True, so the BASIS_HEDGE shape forms and the isolated basis (PT fixed −
+    funding proxy − costs) can be simulated. This NEVER touches the live feed (BorosFeed.HEDGE_ENABLED
+    stays False); it is research/reporting only.
 
     PURE / fail-CLOSED: a malformed market RAISES; a market without an as_of sample is simply absent."""
+    proxy_on = proxy_hedge_apy is not None
     as_of_ts = _as_of_ts(as_of)
     pt_quotes: Dict[str, RateQuote] = {}
     lending_quotes: Dict[str, RateQuote] = {}
@@ -233,7 +281,9 @@ def build_deep_surface(
             market_id=str(key), tenor_seconds=int(tenor), as_of=as_of,
             quoted_rate=Decimal(str(implied)), tvl_usd=depth,
             exit_liquidity_usd=exit_liquidity_usd(depth, sla),
-            hedge_available=bool(hedge_map.get(u, False)),
+            # hedge_available reflects the live map by default; the BACKTEST-ONLY proxy path stamps it
+            # True so the BASIS_HEDGE shape forms against the synthetic funding-proxy Boros leg below.
+            hedge_available=bool(proxy_on or hedge_map.get(u, False)),
         )
         prev = best_by_u.get(u)
         if prev is None or tenor > prev[0]:
@@ -249,6 +299,16 @@ def build_deep_surface(
                 quoted_rate=BORROW_APR, tvl_usd=BORROW_DEPTH_USD,
                 exit_liquidity_usd=exit_liquidity_usd(BORROW_DEPTH_USD, sla),
                 hedge_available=False, utilization=BORROW_UTILIZATION, ltv=BORROW_LTV,
+            )
+        if proxy_on:
+            # BACKTEST-ONLY synthetic Boros pay-variable leg at the annualized funding-proxy rate. Same
+            # exit depth as the PT leg (the hedge sits on the same underlying's liquidity surface), so
+            # the §9 exit model binds on the thinner of the two legs (here equal). NEVER live.
+            boros_quotes[u] = RateQuote(
+                underlying=u, kind=q.kind, venue=RateVenue.BOROS, protocol="funding_proxy",
+                market_id=f"boros_proxy:{u}", tenor_seconds=q.tenor_seconds, as_of=as_of,
+                quoted_rate=proxy_hedge_apy, tvl_usd=q.tvl_usd,
+                exit_liquidity_usd=q.exit_liquidity_usd, hedge_available=True,
             )
 
     surface = RateSurface(
@@ -376,13 +436,18 @@ def replay_sleeve(
     params: RatePolicyParams,
     costs: CostConfig,
     capital: Decimal = DEFAULT_CAPITAL,
+    use_funding_proxy: bool = False,
 ) -> dict:
     """Replay ONE sleeve over the full historical date stream. Returns the per-sleeve result block.
 
     Pipeline per day (date order): build the surface for the day → drive the sleeve (FixedCarry uses
     scan_and_enter+tick_hold on the flat PT quotes; the Phase-1 sleeves use step_apply on the
     RateSurface) → accrue carry (sleeve.step) → record equity + count refusals/kills. PURE w.r.t. the
-    sleeve; this harness only threads the surface stream + bookkeeping. Deterministic."""
+    sleeve; this harness only threads the surface stream + bookkeeping. Deterministic.
+
+    `use_funding_proxy` (BACKTEST-ONLY, basis_hedge only): when True each day's surface is built with a
+    synthetic Boros pay-variable leg at the annualized funding-proxy rate (so BASIS_HEDGE forms). NEVER
+    set on the live path — the live BasisHedge stays BLOCKED-NO-HEDGE."""
     floor = params.rwa_floor
     floor_daily = float(floor) / 365.0
     floor_daily_dec = floor / Decimal("365")
@@ -415,8 +480,9 @@ def replay_sleeve(
     # their own step(). We drive both uniformly and read equity() after each day.
     for d in dates:
         fneg = _funding_neg_frac_90d(funding, d)
+        proxy = _proxy_hedge_apy(funding, d) if use_funding_proxy else None
         try:
-            surface, risks = build_deep_surface(d, deep, fneg, hedge_map)
+            surface, risks = build_deep_surface(d, deep, fneg, hedge_map, proxy_hedge_apy=proxy)
         except ValueError:
             # a malformed surface day is a data gap → fail-CLOSED safe-hold (no advance this day).
             continue
@@ -599,9 +665,17 @@ def run(
     write: bool = True,
     out_path: Optional[Path] = None,
     capital: Decimal = DEFAULT_CAPITAL,
+    hedge_backtest_proxy: Optional[bool] = None,
 ) -> dict:
     """Replay all four rates-desk sleeves over the deep historical surface and (optionally) write
     data/rates_desk/rates_backtest.json atomically. Deterministic: same (deep, funding) → same result.
+
+    `hedge_backtest_proxy` (BACKTEST-ONLY): when True (default = the module-level HEDGE_IS_BACKTEST_PROXY
+    flag), the BasisHedge sleeve is ADDITIONALLY simulated with the historical 5-venue median funding as
+    the hedge-leg rate proxy, and the research-only result is attached to the basis_hedge block under
+    `backtest_proxy`. The PRIMARY basis_hedge block (and its blocked_no_hedge=True / live promotion
+    stage) is UNCHANGED — the proxy is research/reporting only and NEVER enables live execution. The live
+    hedge map (BorosFeed.hedge_available) stays all-False regardless of this flag.
 
     fail-CLOSED: a missing deep dataset RAISES (we never produce a fabricated backtest)."""
     from spa_core.strategy_lab.rates_desk import retro
@@ -625,7 +699,7 @@ def run(
     for kind in ("fixed_carry", "levered_carry", "basis_hedge", "rate_matrix"):
         sleeves[kind] = replay_sleeve(kind, dates, deep, funding, hedge_map, params, costs, capital)
 
-    # BasisHedge honesty: if hedge is unavailable everywhere, annotate the block.
+    # BasisHedge honesty: if hedge is unavailable everywhere (LIVE truth), the PRIMARY block is BLOCKED.
     hedge_available_any = any(hedge_map.values())
     if not hedge_available_any:
         bh = sleeves["basis_hedge"]
@@ -633,6 +707,26 @@ def run(
         bh["blocked_reason"] = (
             "BASIS_HEDGE unavailable — BorosFeed.HEDGE_ENABLED is False (no keyless forward-funding "
             "venue), so the shape never forms. Reported honestly as zero opportunities, never fabricated.")
+
+    # ── BACKTEST-ONLY funding-proxy simulation of BasisHedge (research/reporting only) ──
+    # Replays the BasisHedge sleeve with a synthetic Boros leg priced at the annualized 5-venue median
+    # funding (the hedge-rate proxy), under the SAME honest accounting as the others (net_apy on total
+    # capital, idle@floor, maturity-retire, 30% ceiling). The result is attached as a SEPARATE
+    # `backtest_proxy` sub-block; it does NOT change blocked_no_hedge or the live promotion stage. The
+    # live path (BorosFeed.HEDGE_ENABLED / hedge_map / the live gate) is untouched.
+    proxy_on = HEDGE_IS_BACKTEST_PROXY if hedge_backtest_proxy is None else bool(hedge_backtest_proxy)
+    if proxy_on and funding:
+        proxy_block = replay_sleeve(
+            "basis_hedge", dates, deep, funding, hedge_map, params, costs, capital,
+            use_funding_proxy=True)
+        floor_pct = round(float(params.rwa_floor) * 100.0, 4)
+        proxy_block.update({
+            "label": "BACKTEST-ONLY (funding proxy) · live-BLOCKED until Boros permissionless",
+            "hedge_rate_source": "5-venue median perp funding (funding_feed), annualized funding_8h*3*365",
+            "live_eligible": False,
+            "beats_floor_backtest_proxy": bool(proxy_block.get("net_apy_pct", 0.0) > floor_pct),
+        })
+        sleeves["basis_hedge"]["backtest_proxy"] = proxy_block
 
     result = {
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -646,6 +740,7 @@ def run(
         "rwa_floor_pct": round(float(params.rwa_floor) * 100.0, 4),
         "hedge_available": hedge_map,
         "hedge_available_any": hedge_available_any,
+        "hedge_is_backtest_proxy": bool(proxy_on),
         "borrow_proxy": {
             "borrow_apr": str(BORROW_APR), "ltv": str(BORROW_LTV),
             "utilization": str(BORROW_UTILIZATION),
@@ -717,6 +812,34 @@ def _render_doc_section(result: dict, promotion: Optional[dict]) -> str:
     bh = result["sleeves"]["basis_hedge"]
     if bh.get("blocked_no_hedge"):
         lines.append(f"> **BasisHedge — BLOCKED-NO-HEDGE.** {bh.get('blocked_reason', '')}\n")
+    # ── THIRD honest stage: the BACKTEST-ONLY funding-proxy BasisHedge result (research, live-BLOCKED) ──
+    proxy = bh.get("backtest_proxy")
+    if isinstance(proxy, dict):
+        p_napy = proxy.get("net_apy_pct", 0.0)
+        p_beats = "yes" if proxy.get("beats_floor_backtest_proxy") else "no"
+        p_ds = proxy.get("deflated_sharpe")
+        p_ds_s = (f"{p_ds} ({'yes' if proxy.get('deflated_sharpe_passes_0_95') else 'no'})"
+                  if p_ds is not None else "—")
+        lines.append("### BasisHedge — BACKTEST-ONLY (funding proxy) · live-BLOCKED until Boros permissionless\n")
+        lines.append(
+            "_Isolated-basis simulation: PT receive-fixed minus the 5-venue median perp funding paid on "
+            "the hedge leg (the documented hedge-rate proxy, annualized funding_8h·3·365), minus costs, "
+            "over the deep window. SAME honest accounting as the carry sleeves (net APY on TOTAL capital, "
+            "idle cash @ floor, maturity-retire, 30% global ceiling) so the number is comparable — NOT an "
+            "inflated slice. This is RESEARCH ONLY: the live BasisHedge stays BLOCKED-NO-HEDGE (no keyless "
+            "Boros venue), and this proxy result never enables live execution._\n")
+        lines.append("| basis (funding proxy) | net APY %/yr | beats floor | max DD % | deflated Sharpe "
+                     "(passes 0.95) | kills | refusals | live |")
+        lines.append("|---|---:|:--:|---:|---:|---:|---:|:--:|")
+        lines.append(
+            f"| isolated basis | {p_napy:.4f} | {p_beats} | {proxy.get('max_drawdown_pct', 0.0):.3f} | "
+            f"{p_ds_s} | {proxy.get('kills', 0)} | {proxy.get('refusals_count', 0)} | **BLOCKED** |")
+        verdict = ("**beats** the" if proxy.get("beats_floor_backtest_proxy") else "does **NOT** beat the")
+        lines.append(
+            f"\n> **Honest verdict:** on the funding proxy the isolated basis {verdict} {floor}%/yr RWA "
+            f"floor (net {p_napy:.4f}%/yr, total-capital basis). Either way it stays live-BLOCKED until a "
+            "permissionless Boros forward-funding venue exists; the proxy answers the research question "
+            "without flipping any live eligibility.\n")
     lines.append(
         "> The desk's whole edge is visible in the **refusals** column: the gate refused the toxic "
         "restaking (LRT) books on most days — the carry sleeves only ever held the harvestable "
@@ -769,10 +892,21 @@ def _print_table(result: dict) -> None:
         extra = "  [BLOCKED-NO-HEDGE]" if s.get("blocked_no_hedge") else ""
         print(f"{kind:16s} {s.get('net_apy_pct', 0.0):9.4f} {s.get('max_drawdown_pct', 0.0):8.3f} "
               f"{ds_s:>11s} {beats:>6s} {s.get('kills', 0):6d} {s.get('refusals_count', 0):9d}{extra}")
+    # THIRD honest stage: BACKTEST-ONLY funding-proxy basis (research, live-BLOCKED)
+    proxy = result["sleeves"]["basis_hedge"].get("backtest_proxy")
+    if isinstance(proxy, dict):
+        ds = proxy.get("deflated_sharpe")
+        ds_s = f"{ds:.3f}" if isinstance(ds, (int, float)) else "—"
+        beats = "yes" if proxy.get("beats_floor_backtest_proxy") else "no"
+        print(f"{'basis(proxy)':16s} {proxy.get('net_apy_pct', 0.0):9.4f} "
+              f"{proxy.get('max_drawdown_pct', 0.0):8.3f} {ds_s:>11s} {beats:>6s} "
+              f"{proxy.get('kills', 0):6d} {proxy.get('refusals_count', 0):9d}  "
+              f"[BACKTEST-ONLY · live-BLOCKED]")
 
 
 def main() -> int:
-    result = run(write=True)
+    # Reporting run turns the BACKTEST-ONLY funding proxy ON (research only — live stays BLOCKED).
+    result = run(write=True, hedge_backtest_proxy=True)
     _print_table(result)
     print(f"\nWrote {_OUT}")
     # also map into the promotion engine + (re)write the 4-sleeve section of the validation doc

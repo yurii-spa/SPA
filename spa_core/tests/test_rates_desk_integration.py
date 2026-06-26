@@ -225,6 +225,79 @@ def test_backtest_basis_hedge_blocked_no_hedge(deep_dataset, funding):
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
+# 1b) BACKTEST-ONLY funding-proxy BasisHedge (architect T4) — research only, NEVER live
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+def test_hedge_proxy_default_off_leaves_live_path_unchanged(deep_dataset, funding):
+    """DEFAULT (HEDGE_IS_BACKTEST_PROXY=False): the basis_hedge block is BLOCKED-NO-HEDGE, carries NO
+    backtest_proxy sub-block, and the live hedge map is all-False — byte-identical to the prior result."""
+    assert backtest_rates.HEDGE_IS_BACKTEST_PROXY is False  # the module flag ships OFF
+    r = backtest_rates.run(deep=deep_dataset, funding=funding, write=False)
+    bh = r["sleeves"]["basis_hedge"]
+    assert bh.get("blocked_no_hedge") is True
+    assert "backtest_proxy" not in bh
+    assert r.get("hedge_is_backtest_proxy") is False
+    assert r["hedge_available_any"] is False
+
+
+def test_hedge_proxy_on_produces_backtest_apy_but_stays_blocked(deep_dataset, funding):
+    """HEDGE_IS_BACKTEST_PROXY=True (via arg): the BasisHedge sleeve produces a backtest APY using the
+    funding proxy (a SEPARATE backtest_proxy block), under the SAME honest accounting (total-capital
+    basis, idle@floor). The PRIMARY block STILL carries blocked_no_hedge=True and the live hedge map is
+    STILL all-False — the proxy is research/reporting only and never flips live eligibility."""
+    r = backtest_rates.run(deep=deep_dataset, funding=funding, write=False, hedge_backtest_proxy=True)
+    bh = r["sleeves"]["basis_hedge"]
+    # PRIMARY (live) verdict unchanged
+    assert bh.get("blocked_no_hedge") is True
+    assert r["hedge_available_any"] is False
+    assert r.get("hedge_is_backtest_proxy") is True
+    # the research-only proxy block exists with the honest accounting + a clear live-BLOCKED label
+    proxy = bh.get("backtest_proxy")
+    assert isinstance(proxy, dict)
+    assert proxy["live_eligible"] is False
+    assert "BACKTEST-ONLY" in proxy["label"] and "live-BLOCKED" in proxy["label"]
+    assert proxy["capital_basis"] == "total_sleeve_capital"
+    assert proxy["idle_cash_earns_floor"] is True
+    assert "net_apy_pct" in proxy and isinstance(proxy["net_apy_pct"], float)
+    # the proxy actually formed BASIS_HEDGE candidates (the synthetic Boros leg made the shape exist)
+    assert proxy["approvals_count"] > 0 or proxy["refusals_count"] > 0
+
+
+def test_hedge_proxy_determinism(deep_dataset, funding):
+    """Same (deep, funding) + proxy ON → identical basis_hedge backtest_proxy block (PURE/deterministic)."""
+    a = backtest_rates.run(deep=deep_dataset, funding=funding, write=False, hedge_backtest_proxy=True)
+    b = backtest_rates.run(deep=deep_dataset, funding=funding, write=False, hedge_backtest_proxy=True)
+    pa = a["sleeves"]["basis_hedge"]["backtest_proxy"]
+    pb = b["sleeves"]["basis_hedge"]["backtest_proxy"]
+    assert json.dumps(pa, sort_keys=True) == json.dumps(pb, sort_keys=True)
+
+
+def test_hedge_proxy_does_not_touch_live_feed_or_gate(deep_dataset, funding):
+    """SAFETY INVARIANT: even with the proxy ON, the LIVE Boros feed and the live gate are untouched —
+    BorosFeed.HEDGE_ENABLED stays False, hedge_available() stays all-False, and the live (proxy-free)
+    surface still yields ZERO executable BASIS_HEDGE candidates → the live gate cannot open one."""
+    from spa_core.strategy_lab.rates_desk.opportunity_engine import OpportunityEngine
+    from spa_core.strategy_lab.rates_desk.contracts import TradeShape
+
+    # run with proxy ON; it must not mutate the live feed class state
+    backtest_rates.run(deep=deep_dataset, funding=funding, write=False, hedge_backtest_proxy=True)
+    assert BorosFeed.HEDGE_ENABLED is False
+    assert all(v is False for v in BorosFeed().hedge_available(["susde", "ezeth", "wsteth"]).values())
+
+    # the LIVE-style surface (no proxy) carries NO boros quotes and hedge_available all-False, so the
+    # OpportunityEngine emits zero BASIS_HEDGE candidates → nothing for the live gate to ever approve.
+    fneg = D("0")
+    hedge_map = BorosFeed().hedge_available(
+        sorted({m["underlying"].lower() for m in deep_dataset["markets"].values()}))
+    surface, risks = backtest_rates.build_deep_surface("2024-09-01", deep_dataset, fneg, hedge_map)
+    assert surface.boros_quotes == {}
+    assert all(q.hedge_available is False for q in surface.pt_quotes.values())
+    eng = OpportunityEngine()
+    cands = [so for so in eng.scan_detailed(surface, risks, "2024-09-01")
+             if so.opportunity.shape == TradeShape.BASIS_HEDGE]
+    assert cands == [], "live (proxy-free) surface must never form a BASIS_HEDGE candidate"
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
 # 2) promotion mapping
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 def test_promotion_mapping_assigns_stages(deep_dataset, funding):

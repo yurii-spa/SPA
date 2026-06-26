@@ -735,6 +735,13 @@ def get_rwa_safety_board():
             "research_only": True,
             "verdict_counts": {},
             "n_assets": 0,
+            # transparent on-chain-NAV coverage (T6): how many assets have a REAL ERC-4626 intrinsic
+            # NAV read on-chain vs how many are permissioned/non-4626 → off-chain estimate.
+            "onchain_nav_coverage": {
+                "enabled": False, "onchain_4626": 0, "off_chain_estimate": 0, "total": 0,
+                "assets_onchain": [],
+                "note": "board not yet generated → coverage unavailable.",
+            },
             "assets": [],
         }
     return raw

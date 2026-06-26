@@ -125,6 +125,16 @@ RWA floor: **3.4%/yr**. Boros hedge venue: **OFF — all False (honest)**.
 
 > **BasisHedge — BLOCKED-NO-HEDGE.** BASIS_HEDGE unavailable — BorosFeed.HEDGE_ENABLED is False (no keyless forward-funding venue), so the shape never forms. Reported honestly as zero opportunities, never fabricated.
 
+### BasisHedge — BACKTEST-ONLY (funding proxy) · live-BLOCKED until Boros permissionless
+
+_Isolated-basis simulation: PT receive-fixed minus the 5-venue median perp funding paid on the hedge leg (the documented hedge-rate proxy, annualized funding_8h·3·365), minus costs, over the deep window. SAME honest accounting as the carry sleeves (net APY on TOTAL capital, idle cash @ floor, maturity-retire, 30% global ceiling) so the number is comparable — NOT an inflated slice. This is RESEARCH ONLY: the live BasisHedge stays BLOCKED-NO-HEDGE (no keyless Boros venue), and this proxy result never enables live execution._
+
+| basis (funding proxy) | net APY %/yr | beats floor | max DD % | deflated Sharpe (passes 0.95) | kills | refusals | live |
+|---|---:|:--:|---:|---:|---:|---:|:--:|
+| isolated basis | 4.9886 | yes | 0.000 | 1.0 (yes) | 8 | 1687 | **BLOCKED** |
+
+> **Honest verdict:** on the funding proxy the isolated basis **beats** the 3.4%/yr RWA floor (net 4.9886%/yr, total-capital basis). Either way it stays live-BLOCKED until a permissionless Boros forward-funding venue exists; the proxy answers the research question without flipping any live eligibility.
+
 > The desk's whole edge is visible in the **refusals** column: the gate refused the toxic restaking (LRT) books on most days — the carry sleeves only ever held the harvestable stable-synth PTs. Net APY is the locked-at-entry carry held to maturity (degenerate-Sharpe near-zero downside by construction — the verdict rests on beating the floor across stress, see Assertion 2 above).
 
 <!-- END rates-desk 4-sleeve validation (backtest_rates) -->

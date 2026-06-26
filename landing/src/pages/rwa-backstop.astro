@@ -31,6 +31,14 @@ import Disclaimer from '../components/Disclaimer.astro';
 const FALLBACK = {
   generated_at: 'committed snapshot',
   source: 'static',
+  // On-chain NAV coverage (T6 transparency): real ERC-4626 intrinsic-NAV reads vs off-chain estimate.
+  // The live board overwrites this; cUSDO + wUSDM are genuine ERC-4626 RWA wrappers that answer
+  // convertToAssets() on the keyless RPC — the rest of the universe is permissioned/non-4626.
+  onchain_nav_coverage: {
+    enabled: true, onchain_4626: 2, off_chain_estimate: 8, total: 10,
+    assets_onchain: ['cUSDO', 'wUSDM'],
+    note: '2 of 10 assets have a REAL on-chain ERC-4626 intrinsic NAV via keyless eth_call (cUSDO, wUSDM); the rest are permissioned/non-4626 tokens whose NAV is NOT on-chain-verifiable → off-chain estimate. Partial coverage is the honest, transparent result — not a gap to hide.',
+  },
   assets: [
     { symbol: 'BUIDL',  issuer: 'BlackRock / Securitize', marketing_nav: 1.0, liq_nav_100k: 1.0, liq_nav_1m: 1.0, liq_nav_10m: 1.0, verdict: 'REDEMPTION_ONLY', marketing_vs_liq_gap_pct: 0.0, on_chain_dex_liquidity: 0, redemption_delay: 'T+1 (issuer queue, KYC-gated)' },
     { symbol: 'USYC',   issuer: 'Hashnote / Circle',      marketing_nav: 1.0, liq_nav_100k: 1.0, liq_nav_1m: 1.0, liq_nav_10m: 1.0, verdict: 'REDEMPTION_ONLY', marketing_vs_liq_gap_pct: 0.0, on_chain_dex_liquidity: 0, redemption_delay: 'T+0/T+1 (whitelist redeem)' },
@@ -136,6 +144,22 @@ const FALLBACK_JSON = JSON.stringify(FALLBACK);
         UNSAFE</span>. UNSAFE and REDEMPTION-ONLY are surfaced first. A live feed from
         <span class="font-mono text-xs">/api/rwa-safety-board</span>.
       </p>
+
+      <!-- on-chain NAV coverage transparency (T6): N real ERC-4626 / M off-chain estimate -->
+      <div id="rsb-coverage" class="rounded-xl p-5 mb-5" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
+        <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
+          <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--accent-hover)"
+             data-ru="On-chain покрытие NAV">On-chain NAV coverage</p>
+          <span class="text-base font-bold font-mono" id="rsb-cov-count" style="color:var(--text-primary)">—</span>
+        </div>
+        <p class="text-sm leading-relaxed" id="rsb-cov-note" style="color:var(--text-secondary)"
+           data-ru="Сколько активов имеют РЕАЛЬНЫЙ on-chain ERC-4626 intrinsic-NAV (keyless eth_call totalAssets/convertToAssets) против off-chain оценки. Частичное/нулевое покрытие — это и есть смысл: NAV пермиссированных non-4626 токенов НЕ верифицируется on-chain.">
+          How many assets carry a REAL on-chain ERC-4626 intrinsic NAV (keyless eth_call of
+          totalAssets/convertToAssets) vs an off-chain estimate. Partial/zero coverage is the point —
+          the NAV of permissioned, non-4626 tokens is not on-chain-verifiable.
+        </p>
+        <p class="text-xs font-mono mt-2" id="rsb-cov-assets" style="color:var(--text-muted)"></p>
+      </div>
 
       <div id="rsb-cards" class="space-y-3">
         <p class="text-sm" style="color:var(--text-muted)" data-ru="Загрузка доски безопасности залога…">Loading the collateral safety board…</p>
@@ -294,6 +318,26 @@ const FALLBACK_JSON = JSON.stringify(FALLBACK);
         setText('finding-notcash', notCash + ' / ' + total);
         setText('finding-noexit', noExit + ' / ' + total);
         setText('finding-liquid', liquid10m + ' / ' + total);
+
+        // On-chain NAV coverage transparency (T6): N real ERC-4626 / M total.
+        var cov = board && board.onchain_nav_coverage;
+        if (cov && typeof cov === 'object') {
+          var on = num(cov.onchain_4626); var tot = num(cov.total);
+          if (on == null) on = num(cov.n_onchain_4626);
+          if (tot == null) {
+            var off = num(cov.off_chain_estimate); if (off == null) off = num(cov.n_off_chain_estimate);
+            tot = (on != null && off != null) ? on + off : null;
+          }
+          if (on != null && tot != null) {
+            var ru = isRu();
+            setText('rsb-cov-count', on + ' / ' + tot + (ru ? ' on-chain' : ' on-chain'));
+            var assets = Array.isArray(cov.assets_onchain) ? cov.assets_onchain : [];
+            var ael = document.getElementById('rsb-cov-assets');
+            if (ael) ael.textContent = assets.length
+              ? ((ru ? 'on-chain NAV: ' : 'on-chain NAV: ') + assets.join(', '))
+              : (ru ? 'нет активов с on-chain ERC-4626 NAV' : 'no assets with on-chain ERC-4626 NAV');
+          }
+        }
       }
 
       // Render committed fallback immediately so the page is never empty / always carries the finding.

@@ -232,12 +232,14 @@ def build_report(
     n_onchain_nav = 0
     n_estimate_nav = 0
     nav_divergences = []  # (symbol, divergence_pct) for assets with a REAL on-chain NAV
+    assets_onchain = []   # symbols whose intrinsic NAV is read on-chain (real ERC-4626 coverage)
     for row in rows:
         verdict_counts[row["verdict"]] = verdict_counts.get(row["verdict"], 0) + 1
         if row["marketing_vs_liq_gap_pct_1m"] is not None:
             gaps_list.append(row["marketing_vs_liq_gap_pct_1m"])
         if row["nav_source"] == NAV_SOURCE_ONCHAIN:
             n_onchain_nav += 1
+            assets_onchain.append(row["symbol"])
             if row["onchain_nav_divergence_pct"] is not None:
                 nav_divergences.append((row["symbol"], row["onchain_nav_divergence_pct"]))
         else:
@@ -249,6 +251,30 @@ def build_report(
     # max absolute on-chain-vs-marketing NAV divergence (a real intrinsic-value risk signal).
     max_abs_div = (round(max(abs(d) for _, d in nav_divergences), 6)
                    if nav_divergences else None)
+
+    # Transparent on-chain-NAV coverage note: how many assets have a REAL keyless-eth_call ERC-4626
+    # intrinsic NAV vs how many fall back to an off-chain estimate. Partial/zero coverage is the
+    # HONEST point — the permissioned RWA tokens' NAV is simply not on-chain-verifiable.
+    total_cov = n_onchain_nav + n_estimate_nav
+    if not onchain:
+        coverage_note = ("on-chain intrinsic-NAV reads disabled for this run → all assets on "
+                         "off-chain estimate.")
+    elif n_onchain_nav == 0:
+        coverage_note = (
+            f"0/{total_cov} assets have a real on-chain ERC-4626 intrinsic NAV. The RWA "
+            f"collateral universe is structurally permissioned/non-4626 (BUIDL, USYC, OUSG, "
+            f"BENJI, VBILL…): their tokens do NOT expose totalAssets/convertToAssets, so their "
+            f"NAV is not on-chain-verifiable → off-chain estimate. That non-verifiability is "
+            f"itself the finding."
+        )
+    else:
+        onchain_list = ", ".join(assets_onchain)
+        coverage_note = (
+            f"{n_onchain_nav}/{total_cov} assets have a REAL on-chain ERC-4626 intrinsic NAV via "
+            f"keyless eth_call ({onchain_list}); the remaining {n_estimate_nav} are permissioned/"
+            f"non-4626 tokens whose NAV is NOT on-chain-verifiable → off-chain estimate. Partial "
+            f"coverage is the honest, transparent result — not a gap to hide."
+        )
 
     report = {
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -267,6 +293,13 @@ def build_report(
         "thesis_confirmed": not_cash_like >= max(1, len(rows) // 2),
         "onchain_nav_coverage": {
             "enabled": bool(onchain),
+            # canonical transparency block (task T6): N real on-chain ERC-4626 / M off-chain estimate.
+            "onchain_4626": n_onchain_nav,
+            "off_chain_estimate": n_estimate_nav,
+            "total": total_cov,
+            "assets_onchain": list(assets_onchain),
+            "note": coverage_note,
+            # legacy aliases kept for back-compat with existing consumers/tests.
             "n_onchain_4626": n_onchain_nav,
             "n_off_chain_estimate": n_estimate_nav,
             "rpc_endpoint": next((o.rpc_endpoint for o in onchain_by_symbol.values()
@@ -310,9 +343,13 @@ def _print_board(report: dict) -> None:
           f"(not-cash-like: {report['n_not_cash_like']}/{report['n_assets']})")
     print(f"  thesis_confirmed (majority NOT cash-like on executable exit): {report['thesis_confirmed']}")
     cov = report.get("onchain_nav_coverage", {})
-    print(f"  on-chain intrinsic NAV: {cov.get('n_onchain_4626', 0)} REAL (eth_call) / "
-          f"{cov.get('n_off_chain_estimate', 0)} estimate   "
+    print(f"  on-chain intrinsic NAV coverage: {cov.get('onchain_4626', 0)} REAL (eth_call) / "
+          f"{cov.get('total', 0)} total   "
           f"(RPC: {cov.get('rpc_endpoint') or 'none responded → all estimate'})")
+    if cov.get("assets_onchain"):
+        print(f"    on-chain assets: {', '.join(cov['assets_onchain'])}")
+    if cov.get("note"):
+        print(f"    note: {cov['note']}")
     if cov.get("divergences"):
         for dv in cov["divergences"]:
             print(f"    ! {dv['symbol']}: on-chain NAV diverges "

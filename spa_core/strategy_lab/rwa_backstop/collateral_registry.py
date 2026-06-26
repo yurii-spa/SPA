@@ -145,13 +145,35 @@ _REGISTRY: Tuple[CollateralAsset, ...] = (
               "fail-CLOSED (redemption leg treated as unredeemable until documented).",
     ),
     CollateralAsset(
-        symbol="cUSDO", issuer="OpenEden / Compound-style wrapper", chain="ethereum",
+        symbol="cUSDO", issuer="OpenEden", chain="ethereum",
         asset_class="tokenized_tbill",
-        token_contract=None,
-        transfer_restricted=True,
+        # cUSDO is a GENUINE ERC-4626 wrapper of USDO (OpenEden tokenized T-bills) that exposes
+        # convertToAssets()/totalAssets() read-only on mainnet — so onchain_nav.py reads its REAL
+        # intrinsic NAV/share via keyless eth_call (≈ $1.05, accrued T-bill yield since inception).
+        # The wrapper itself is freely transferable (the 4626  compounding share); mint/redeem of the
+        # underlying USDO is KYC-gated, hence redemption documented but relationship-gated downstream.
+        token_contract="0xaD55aebc9b8c03FC43cd9f62260391c13c23e7c0",
+        transfer_restricted=False,
         redemption_delay_days=1.0, redemption_fee_bps=0.0, min_redemption_usd=100_000.0,
-        redemption_documented=False,
-        notes="Wrapped permissioned T-bill token. Public exit path not established → fail-CLOSED.",
+        redemption_documented=True,
+        notes="OpenEden cUSDO — REAL ERC-4626 wrapper of USDO tokenized T-bills. Exposes "
+              "convertToAssets()/totalAssets() on-chain → intrinsic NAV is keyless-eth_call READABLE "
+              "(nav_source=onchain_4626). Underlying USDO mint/redeem is KYC-gated.",
+    ),
+    CollateralAsset(
+        symbol="wUSDM", issuer="Mountain Protocol", chain="ethereum",
+        asset_class="tokenized_tbill",
+        # wUSDM is the GENUINE ERC-4626 wrapper of USDM (Mountain rebasing T-bill stablecoin). It
+        # exposes convertToAssets()/totalAssets() read-only on mainnet, so onchain_nav.py reads its
+        # REAL intrinsic NAV/share via keyless eth_call (≈ $1.08, accrued since inception). The
+        # wrapper is permissionless/transferable; mint/redeem of USDM is KYC-gated downstream.
+        token_contract="0x57F5E098CaD7A3D1Eed53991D4d66C45C9AF7812",
+        transfer_restricted=False,
+        redemption_delay_days=1.0, redemption_fee_bps=0.0, min_redemption_usd=0.0,
+        redemption_documented=True,
+        notes="Mountain wUSDM — REAL ERC-4626 wrapper of USDM T-bill-backed USD. Exposes "
+              "convertToAssets()/totalAssets() on-chain → intrinsic NAV is keyless-eth_call READABLE "
+              "(nav_source=onchain_4626). Underlying USDM mint/redeem is KYC-gated.",
     ),
     CollateralAsset(
         symbol="BENJI", issuer="Franklin Templeton", chain="ethereum",
