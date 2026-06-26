@@ -14,6 +14,8 @@ Coverage:
   - historical_range ascending ordering + bad-range rejection.
 """
 # LLM_FORBIDDEN
+import json
+
 import pytest
 
 from spa_core.strategy_lab.base import InvalidDataError, MarketSnapshot
@@ -907,3 +909,177 @@ def test_marketdata_deep_restaking_series_in_snapshot(tmp_path):
     snap = md.snapshot("2024-06-06")
     assert snap.restaking_apy["eeth"] == pytest.approx(0.034)  # per-DATE value, not flat latest
     assert "restaking_apy" not in snap.gaps
+
+
+# ── P4-9: persistent funding deep-history cache (merge / grow / dedup / fail-closed / replay) ────
+from spa_core.strategy_lab.data.funding_feed import FundingCache, CACHE_SCHEMA
+
+
+def test_funding_cache_first_fetch_persists(tmp_path):
+    c = FundingCache(symbol="ETH", cache_dir=tmp_path)
+    assert c.load() == {}  # no cache yet
+    merged = c.merge_fetch({"2024-06-01": 0.0001, "2024-06-02": 0.0002})
+    assert merged == {"2024-06-01": 0.0001, "2024-06-02": 0.0002}
+    assert c.path.exists()
+    doc = json.loads(c.path.read_text())
+    assert doc["schema"] == CACHE_SCHEMA and doc["symbol"] == "ETH"
+    assert doc["fetch_count"] == 1 and doc["n_days"] == 2
+
+
+def test_funding_cache_append_grows_and_dedups(tmp_path):
+    c = FundingCache(symbol="ETH", cache_dir=tmp_path)
+    c.merge_fetch({"2024-06-01": 0.0001, "2024-06-02": 0.0002})
+    # a later fetch returns a ROLLING window that OVERLAPS (06-02) and EXTENDS (06-03, 06-04)
+    merged = c.merge_fetch({"2024-06-02": 0.0002, "2024-06-03": 0.0003, "2024-06-04": 0.0004})
+    # union grows; no duplicate dates (dict keys are unique by construction)
+    assert sorted(merged) == ["2024-06-01", "2024-06-02", "2024-06-03", "2024-06-04"]
+    assert len(merged) == 4
+    doc = json.loads(c.path.read_text())
+    assert doc["fetch_count"] == 2 and doc["n_days"] == 4
+    assert doc["last_added_days"] == 2  # only 06-03, 06-04 were new
+
+
+def test_funding_cache_overlap_latest_fetch_wins(tmp_path):
+    c = FundingCache(symbol="ETH", cache_dir=tmp_path)
+    c.merge_fetch({"2024-06-02": 0.0002})
+    merged = c.merge_fetch({"2024-06-02": 0.0009})  # fresher value for an overlapping date
+    assert merged["2024-06-02"] == 0.0009  # latest fetch supersedes stale
+
+
+def test_funding_cache_bad_fetch_preserves_prior_cache(tmp_path):
+    """Fail-CLOSED: a feed error during refresh_into_cache leaves the prior cache untouched."""
+    c = FundingCache(symbol="ETH", cache_dir=tmp_path)
+    c.merge_fetch({"2024-06-01": 0.0001, "2024-06-02": 0.0002})
+    before = c.path.read_bytes()
+
+    # a FundingFeed whose every venue raises → history() raises → cache must NOT change
+    routes = {
+        "binance": InvalidDataError("down"), "bybit": InvalidDataError("down"),
+        "okx": InvalidDataError("down"), "kucoin": InvalidDataError("down"),
+        "hyperliquid": InvalidDataError("down"),
+    }
+    feed = FundingFeed(fetcher=FakeFetcher(routes), page_delay_s=0)
+    with pytest.raises(InvalidDataError):
+        feed.refresh_into_cache("2024-06-03", "2024-06-04", cache=c)
+    assert c.path.read_bytes() == before          # byte-for-byte preserved (not corrupted)
+    assert c.load() == {"2024-06-01": 0.0001, "2024-06-02": 0.0002}
+
+
+def test_funding_refresh_into_cache_merges_live_fetch(tmp_path):
+    """A real (faked) paginated fetch is merged into the cache, growing the persisted union."""
+    c = FundingCache(symbol="ETH", cache_dir=tmp_path)
+    # seed with an older day the live fetch won't return
+    c.merge_fetch({"2024-05-31": 0.0000})
+
+    day1 = 1717200000000  # 2024-06-01 00:00 UTC
+    day2 = day1 + 86400000
+    # short pages (len < page-limit) so pagination stops after one page per venue
+    routes = {
+        "binance": [
+            {"symbol": "ETHUSDT", "fundingTime": day1, "fundingRate": "0.00010000"},
+            {"symbol": "ETHUSDT", "fundingTime": day2, "fundingRate": "0.00010000"},
+        ],
+        "bybit": {"retCode": 0, "result": {"list": [
+            {"symbol": "ETHUSDT", "fundingRate": "0.00010000", "fundingRateTimestamp": str(day1)},
+            {"symbol": "ETHUSDT", "fundingRate": "0.00010000", "fundingRateTimestamp": str(day2)},
+        ]}},
+        "okx": {"code": "0", "data": [
+            {"fundingRate": "0.00010000", "fundingTime": str(day1)},
+            {"fundingRate": "0.00010000", "fundingTime": str(day2)},
+        ]},
+        "kucoin": {"code": "200000", "data": [
+            {"symbol": "ETHUSDTM", "fundingRate": 0.0001, "timepoint": day1},
+            {"symbol": "ETHUSDTM", "fundingRate": 0.0001, "timepoint": day2},
+        ]},
+        "hyperliquid": InvalidDataError("hl skip"),  # one venue down: median over the rest
+    }
+    feed = FundingFeed(fetcher=FakeFetcher(routes), page_delay_s=0)
+    merged = feed.refresh_into_cache("2024-06-01", "2024-06-02", cache=c)
+    # seeded day + the two fetched days, all present (union grew across fetches)
+    assert "2024-05-31" in merged and "2024-06-01" in merged and "2024-06-02" in merged
+    assert len(merged) == 3
+
+
+def test_funding_history_cached_reads_union_and_is_deterministic(tmp_path):
+    """The backtest reads from the persisted cache → deterministic replay; clip respects window."""
+    c = FundingCache(symbol="ETH", cache_dir=tmp_path)
+    c.merge_fetch({"2024-06-01": 0.0001, "2024-06-02": 0.0002})
+    c.merge_fetch({"2024-06-03": 0.0003, "2024-06-04": 0.0004})
+
+    feed = FundingFeed(page_delay_s=0)  # no network — reads cache only
+    full = feed.history_cached(cache=c)
+    assert sorted(full) == ["2024-06-01", "2024-06-02", "2024-06-03", "2024-06-04"]
+
+    # same cache → identical series every call (deterministic replay)
+    assert feed.history_cached(cache=c) == full
+
+    clipped = feed.history_cached("2024-06-02", "2024-06-03", cache=c)
+    assert sorted(clipped) == ["2024-06-02", "2024-06-03"]
+
+
+def test_funding_history_cached_empty_cache_fails_closed(tmp_path):
+    feed = FundingFeed(page_delay_s=0)
+    with pytest.raises(InvalidDataError):
+        feed.history_cached(cache=FundingCache(symbol="ETH", cache_dir=tmp_path))
+
+
+def test_funding_cache_corrupt_reads_empty(tmp_path):
+    c = FundingCache(symbol="ETH", cache_dir=tmp_path)
+    c.path.parent.mkdir(parents=True, exist_ok=True)
+    c.path.write_text("{not json")
+    assert c.load() == {}  # corrupt → treated as absent (fail-closed)
+
+
+def test_funding_cache_wrong_symbol_reads_empty(tmp_path):
+    eth = FundingCache(symbol="ETH", cache_dir=tmp_path)
+    eth.merge_fetch({"2024-06-01": 0.0001})
+    # a BTC cache pointed at a DIFFERENT path won't see the ETH file; prove symbol-guard on load
+    doc = json.loads(eth.path.read_text())
+    doc["symbol"] = "BTC"
+    eth.path.write_text(json.dumps(doc))
+    assert eth.load() == {}  # symbol mismatch → empty (never serve a mismatched series)
+
+
+def test_marketdata_unions_persisted_funding_cache(tmp_path):
+    """MarketData.refresh merges funding into the cache; a later run unions the deeper history."""
+    cache_dir = tmp_path / "md"
+
+    class _P:
+        def history(self, span=90, start_date=None, end_date=None):
+            return {"eth": {"2024-06-03": 3000.0, "2024-06-04": 3010.0}}
+        def history_ratios(self, span=90, start_date=None, end_date=None):
+            return {}
+        def history_btc_ratios(self, span=90, start_date=None, end_date=None):
+            return {}
+
+    class _R:
+        def history(self, start_date, end_date):
+            return {}
+
+    class _FundingWindowA:
+        def history(self, start_date=None, end_date=None):
+            return {"2024-06-03": 0.0003, "2024-06-04": 0.0004}
+
+    # run 1: fetch window A, persists to the funding cache
+    md1 = MarketData(funding_feed=_FundingWindowA(), price_feed=_P(), restaking_feed=_R(),
+                     cache_dir=cache_dir, window=("2024-06-03", "2024-06-04"))
+    md1.refresh()
+
+    # run 2: the live feed only returns a LATER rolling window (06-05..06-06) — but the cache
+    # already holds 06-03/06-04, so the union seen on load is DEEPER than this single fetch.
+    class _FundingWindowB:
+        def history(self, start_date=None, end_date=None):
+            return {"2024-06-05": 0.0005, "2024-06-06": 0.0006}
+
+    class _P2(_P):
+        def history(self, span=90, start_date=None, end_date=None):
+            return {"eth": {"2024-06-03": 3000.0, "2024-06-04": 3010.0,
+                            "2024-06-05": 3020.0, "2024-06-06": 3030.0}}
+
+    md2 = MarketData(funding_feed=_FundingWindowB(), price_feed=_P2(), restaking_feed=_R(),
+                     cache_dir=cache_dir, window=("2024-06-05", "2024-06-06"))
+    md2.refresh()
+    md2._loaded = False
+    md2._load_cache()  # reload to exercise the cache-union path
+    # the loaded funding series spans BOTH windows — deeper than either single fetch
+    assert set(md2._funding_series) >= {"2024-06-03", "2024-06-04", "2024-06-05", "2024-06-06"}

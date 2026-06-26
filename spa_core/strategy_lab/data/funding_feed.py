@@ -58,8 +58,12 @@ from __future__ import annotations
 
 import datetime
 import json
+import os
+import shutil
 import statistics
+import tempfile
 import time
+from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 from spa_core.strategy_lab.base import InvalidDataError
@@ -125,6 +129,138 @@ HL_HOURS_PER_8H = 3.0       # three 8h settlement periods per UTC day on the 8h 
 PAGE_DELAY_S = 0.25         # polite delay between page fetches
 MAX_PAGES = 60              # safety cap on total page fetches per venue (~years of depth)
 _DAY_MS = 86_400_000
+
+# ── persistent deep-history cache (P4-9) ────────────────────────────────────────────────────
+# The keyless venue endpoints only return a ROLLING window per call (Bybit/OKX hard-cap pages,
+# Binance ~111d/page, HL paginated forward). A single fetch therefore yields a bounded depth.
+# To ACCUMULATE depth beyond one fetch, we persist the merged per-day MEDIAN series to a local
+# cache and MERGE every new fetch into it (union by date). Over repeated runs the cache grows /
+# stays full; an individual fetch can never shrink it. The cache is the deterministic source of
+# truth for replay: same cache file → same backtest, byte-for-byte.
+#
+# Stored shape: {"symbol","schema","generated_at","fetch_count","series":{date(ISO):rate}}.
+# RUNTIME-ONLY: gitignored (data/*.json rule); self-creates on first refresh if absent.
+_ROOT = Path(__file__).resolve().parents[3]  # …/SPA_Claude
+_CACHE_DIR = _ROOT / "data"
+CACHE_SCHEMA = "funding_history_cache.v1"
+
+
+def _cache_path(symbol: str, cache_dir: Optional[Path] = None) -> Path:
+    """Per-asset cache file (ETH→funding_history_cache.json, BTC→funding_history_cache_btc.json).
+
+    ETH keeps the bare name for back-compat / least surprise; other assets get a suffix so the
+    two perp series never collide in one file."""
+    base = (cache_dir or _CACHE_DIR)
+    sym = (symbol or "ETH").upper()
+    name = "funding_history_cache.json" if sym == "ETH" else f"funding_history_cache_{sym.lower()}.json"
+    return base / name
+
+
+def _atomic_write_json(path: Path, obj) -> None:
+    """tmp + shutil.move (atomic, cross-device-safe — repo rule #4). Never a bare open(...,'w')."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix="." + path.stem + "_", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(obj, f, indent=2, sort_keys=True)
+        shutil.move(tmp, str(path))
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
+class FundingCache:
+    """Persistent, growing per-day funding-median cache for ONE perp asset.
+
+    Accumulates depth across fetches: each `merge_fetch` UNIONS a freshly-fetched {date: rate}
+    series into the stored series (dedup BY DATE). The cache only grows or refreshes in place —
+    a fetch can never delete a date that a prior fetch persisted. This is what lets the replay
+    window exceed any single keyless-endpoint fetch.
+
+    Determinism: `load()` returns the persisted union verbatim → identical input every replay.
+    Atomicity: writes go through `_atomic_write_json` (tmp + move).
+    Fail-CLOSED: `merge_fetch` is only called with an already-validated non-empty series; a bad/
+    empty fetch is rejected by the caller (`FundingFeed.refresh_into_cache`) and the prior cache
+    is left byte-for-byte untouched — the cache is never corrupted by a bad fetch.
+    """
+
+    def __init__(self, symbol: str = "ETH", cache_dir: Optional[Path] = None):
+        self.symbol = (symbol or "ETH").upper()
+        self.path = _cache_path(self.symbol, cache_dir)
+
+    def load(self) -> Dict[str, float]:
+        """The persisted union {date(ISO) -> median 8h funding}. Empty dict if no cache yet.
+
+        A corrupt / wrong-schema / wrong-symbol cache reads as EMPTY (fail-CLOSED — we never
+        serve a mismatched series; the next refresh repopulates it)."""
+        if not self.path.exists():
+            return {}
+        try:
+            with open(self.path) as f:
+                doc = json.load(f)
+        except Exception:  # noqa: BLE001 — corrupt cache treated as absent
+            return {}
+        if not isinstance(doc, dict):
+            return {}
+        if doc.get("schema") != CACHE_SCHEMA or str(doc.get("symbol", "ETH")).upper() != self.symbol:
+            return {}
+        series = doc.get("series")
+        if not isinstance(series, dict):
+            return {}
+        out: Dict[str, float] = {}
+        for d, v in series.items():
+            try:
+                datetime.date.fromisoformat(str(d))  # validate the date key shape
+                out[str(d)] = float(v)
+            except (TypeError, ValueError):
+                continue  # drop an unparseable row, keep the rest (fail-closed on the bad cell)
+        return out
+
+    def _fetch_count(self) -> int:
+        if not self.path.exists():
+            return 0
+        try:
+            with open(self.path) as f:
+                doc = json.load(f)
+            return int(doc.get("fetch_count", 0)) if isinstance(doc, dict) else 0
+        except Exception:  # noqa: BLE001
+            return 0
+
+    def merge_fetch(self, new_series: Dict[str, float]) -> Dict[str, float]:
+        """UNION a freshly-fetched {date: rate} into the persisted series; write atomically.
+
+        Dedup by date: a date already in the cache is OVERWRITTEN by the fresh value (latest
+        fetch wins for an overlapping date — fresher settlement data supersedes stale), while
+        NEW dates extend the series. No date is ever dropped. Returns the merged union.
+
+        Caller guarantees `new_series` is non-empty & validated (fail-CLOSED upstream); we still
+        skip unparseable cells defensively."""
+        merged = self.load()  # prior union (empty on first run)
+        added = 0
+        for d, v in (new_series or {}).items():
+            try:
+                datetime.date.fromisoformat(str(d))
+                fv = float(v)
+            except (TypeError, ValueError):
+                continue
+            key = str(d)
+            if key not in merged:
+                added += 1
+            merged[key] = fv  # overwrite-on-overlap (latest fetch wins)
+        doc = {
+            "schema": CACHE_SCHEMA,
+            "symbol": self.symbol,
+            "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "fetch_count": self._fetch_count() + 1,
+            "n_days": len(merged),
+            "first_date": min(merged) if merged else None,
+            "last_date": max(merged) if merged else None,
+            "last_added_days": added,
+            "series": merged,
+        }
+        _atomic_write_json(self.path, doc)
+        return merged
+
 
 Fetcher = Callable[[str], object]
 
@@ -568,6 +704,69 @@ class FundingFeed:
             if self._page_delay:
                 time.sleep(self._page_delay)
         return rows
+
+    # ── persistent deep-history cache (P4-9) ────────────────────────────────────────────────
+    def refresh_into_cache(
+        self,
+        start_date: str,
+        end_date: str,
+        cache: Optional[FundingCache] = None,
+    ) -> Dict[str, float]:
+        """Fetch [start_date, end_date] then MERGE it into the persisted cache; return the union.
+
+        This is how the replay window GROWS beyond a single keyless fetch: each call accumulates
+        whatever fresh window the endpoints serve into the cache, deduped by date. Run it
+        repeatedly (e.g. a daily agent) and the cache fills toward the venues' full retained depth.
+
+        FAIL-CLOSED: if the live fetch raises (bad schema / no venue returned), the PRIOR cache is
+        left byte-for-byte untouched (we never write a partial/empty/fabricated series) and the
+        exception propagates. A successful but empty merged window also raises (history() does)."""
+        cache = cache or FundingCache(symbol=self._symbol)
+        fetched = self.history(start_date=start_date, end_date=end_date)  # raises on bad/empty
+        if not fetched:  # defensive — history() already raises, but never persist an empty fetch
+            raise InvalidDataError("funding refresh_into_cache: empty fetch, prior cache preserved")
+        return cache.merge_fetch(fetched)
+
+    def history_cached(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        cache: Optional[FundingCache] = None,
+    ) -> Dict[str, float]:
+        """The PERSISTED union (deterministic replay source), optionally clipped to [start,end].
+
+        Reads ONLY the local cache — no network — so a backtest replays the FULL accumulated
+        depth (deeper than any single fetch) deterministically: same cache file → same series.
+        Populate / extend the cache out-of-band via `refresh_into_cache`. Fail-CLOSED: an empty
+        cache (never refreshed) raises rather than silently returning nothing."""
+        cache = cache or FundingCache(symbol=self._symbol)
+        series = cache.load()
+        if not series:
+            raise InvalidDataError(
+                "funding history_cached: cache empty — run refresh_into_cache first "
+                f"(cache: {cache.path})"
+            )
+        if start_date is None and end_date is None:
+            return series
+        if start_date is None or end_date is None:
+            raise InvalidDataError("funding history_cached: provide BOTH start_date and end_date")
+        try:
+            datetime.date.fromisoformat(start_date)
+            datetime.date.fromisoformat(end_date)
+        except ValueError as exc:
+            raise InvalidDataError(
+                f"funding history_cached: bad date(s) {start_date!r}..{end_date!r}"
+            ) from exc
+        if end_date < start_date:
+            raise InvalidDataError(
+                f"funding history_cached: end {end_date} before start {start_date}"
+            )
+        clipped = {d: v for d, v in series.items() if start_date <= d <= end_date}
+        if not clipped:
+            raise InvalidDataError(
+                f"funding history_cached: cache holds no days in {start_date}..{end_date}"
+            )
+        return clipped
 
     def latest(self) -> tuple[str, float]:
         """(date, median 8h funding) for the most recent available day."""

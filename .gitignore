@@ -29,6 +29,14 @@ __pycache__/
 #   These were deliberately NOT `git rm --cached`'d here.
 # ─────────────────────────────────────────────────────────────────────────────
 
+# P4-9 funding deep-history cache (RUNTIME-ONLY — explicit per owner-flag): the 5-venue funding
+# median is persisted/merged across fetches into these files so the hedged-sleeve + rates-desk
+# backtest replay window GROWS beyond a single keyless fetch. It can get large and self-creates
+# on first refresh — NEVER commit it (keep it out of git history, like all of data/). Already
+# matched by the data/*.json rule below, but pinned here so the policy is explicit.
+data/funding_history_cache.json
+data/funding_history_cache_*.json
+
 # Data files (runtime, не в git)
 data/*.json
 data/**/*.json

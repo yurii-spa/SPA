@@ -166,3 +166,29 @@ turn it into $10M.
 `docs/LIQUIDATOR_DERISK.md`, `docs/RESEARCH_PROMPT_MOAT.md`.*
 </content>
 </invoke>
+
+<!-- BEGIN combined portfolio-capacity (portfolio_capacity) -->
+
+## Combined multi-sleeve portfolio capacity — how much does the WHOLE book absorb?
+
+_Deterministic COMBINED capacity model (`spa_core/strategy_lab/portfolio_capacity.py`): aggregates the THREE sleeve families — (1) rates-desk PT carry (reused verbatim from `rates_desk.portfolio`), (2) the deep tokenized-T-bill RWA cash floor, (3) the production stable engines A/B/C — and applies a CORRELATION HAIRCUT where families share exit liquidity / venues (rates carry + RWA both redeem through stablecoin rails → not fully additive). PURE / fail-CLOSED / advisory. Re-runnable via `python3 -m spa_core.strategy_lab.portfolio_capacity`._
+
+RWA floor: **3.4%/yr**. Target: **$10,000,000/yr ABOVE the floor**. Correlation haircut: **50%** of the shared-venue overlap.
+
+| family | deployable AUM | net APY %/yr | above floor $/yr | shares exit venue |
+|---|---:|---:|---:|:--:|
+| rates_desk | $330,315 | 22.9289 | $64,507 | yes |
+| rwa_floor | $596,951,610 | 3.4000 | $0 | yes |
+| stable_engines | $130,000 | 4.5000 | $1,430 | no |
+
+- **Naive sum deployable:** $597,411,924
+- **Correlation haircut:** −$165,157 (applied: True)
+- **Combined deployable AUM:** **$597,246,767**
+- **Blended net APY:** **3.4056%/yr**
+- **Combined yield ABOVE the floor:** **$33,683/yr** (0.3368% of the $10M/yr target)
+- **Gap to $10M/yr:** $9,966,317/yr
+- **Binding constraint:** **RWA_YIELD_TOO_LOW**
+
+> **Honest combined fundability verdict.** COMBINED book across 3 sleeve families: rates desk $330,315 @ 22.9289% (above-floor), RWA floor $596,951,610 @ 3.4% (AT floor, deep), stable engines $130,000 @ 4.5%. Naive sum $597,411,924 − correlation haircut $165,157 (shared stablecoin-venue exit liquidity, 50% of the binding overlap) = $597,246,767 combined deployable at a blended 3.41%/yr (RWA floor 3.40%/yr) → $33,683/yr ABOVE the floor. That is only 0.34% of the $10M/yr target — a gap of $9,966,317/yr. Honest verdict: even the COMBINED real-market book is well short of $10M/yr above the floor at today's market depth. Binding constraint: RWA_YIELD_TOO_LOW. The deep family (RWA, $596,951,610 deployable) yields AT the floor → it adds ~$0 above floor despite being by far the largest book. The only above-floor edge is the thin rates desk ($64,507/yr). Depth is not the problem — the deep book's yield is at the floor, and the above-floor edge (rates) is too thin to clear $10M. What would CLOSE the gap: (1) DEEPER PT markets — more per-book carry depth lifts the only meaningful above-floor source; (2) MORE venues/chains — decorrelating the exit rails shrinks the correlation haircut so the deep + carry books become additive; and (3) REAL AUM at the floor — the deep RWA family banks the floor today (~$0 above), so its huge depth only becomes above-floor dollars once real capital is deployed AND a spread over the floor is captured. The honest truth: the combined book is a real, diversified, fail-closed research book, but $10M/yr above floor is a SCALE + DECORRELATION + real-AUM play, not reachable on the current thin above-floor edge.
+
+<!-- END combined portfolio-capacity (portfolio_capacity) -->

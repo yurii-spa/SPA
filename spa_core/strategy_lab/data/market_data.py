@@ -38,7 +38,7 @@ from typing import Dict, List, Optional
 
 from spa_core.strategy_lab.base import InvalidDataError, MarketSnapshot
 from spa_core.strategy_lab.data.btc_lending_feed import BtcLendingFeed
-from spa_core.strategy_lab.data.funding_feed import FundingFeed
+from spa_core.strategy_lab.data.funding_feed import FundingCache, FundingFeed
 from spa_core.strategy_lab.data.price_feed import (
     BTC_REF_SYMBOL,
     BTC_WRAPPER_SYMBOLS,
@@ -144,6 +144,7 @@ class MarketData:
         window: Optional[tuple] = None,
         btc_funding_feed: Optional[FundingFeed] = None,
         btc_lending_feed: Optional[BtcLendingFeed] = None,
+        persist_funding_cache: bool = True,
     ):
         self._funding = funding_feed or FundingFeed()
         self._price = price_feed or PriceFeed()
@@ -156,6 +157,15 @@ class MarketData:
         self._cache_dir = Path(cache_dir) if cache_dir else _CACHE_DIR
         self._ff_limit = ff_limit_days
         self._price_span = price_span
+        # P4-9 persistent funding cache: each deep refresh MERGES the fetched funding window into
+        # data/funding_history_cache.json (union by date) so depth ACCUMULATES across runs beyond
+        # any single keyless fetch. On load we union that persisted series under the per-run
+        # snapshot → backtests replay the deeper accumulated window. Cache lives under THIS
+        # MarketData's cache_dir (so a test cache_dir is hermetic). Disable for pure-unit hermetic
+        # paths via persist_funding_cache=False.
+        self._persist_funding_cache = persist_funding_cache
+        self._funding_cache = FundingCache(symbol="ETH", cache_dir=self._cache_dir)
+        self._btc_funding_cache = FundingCache(symbol="BTC", cache_dir=self._cache_dir)
         # Deep-history window (start_date, end_date) ISO. When set, refresh() pulls the full
         # PAGINATED range from every feed instead of the most-recent single page.
         self._window = window
@@ -198,6 +208,17 @@ class MarketData:
         if funding is None or prices is None:
             return False
         self._funding_series = {k: float(v) for k, v in funding.get("series", {}).items()}
+        # P4-9: union the PERSISTED deep funding cache (accumulated over many fetches) on top of
+        # this run's snapshot so the backtest sees the FULL accumulated depth. The per-run snapshot
+        # wins on overlap (freshest), the cache fills in the older days a single fetch couldn't.
+        if self._persist_funding_cache:
+            persisted = self._funding_cache.load()
+            if persisted:
+                self._funding_series = {**persisted, **self._funding_series}
+            persisted_btc = self._btc_funding_cache.load()
+            if persisted_btc:
+                # btc_funding loaded further down; seed it now, snapshot unions over it below
+                self._btc_funding_series = dict(persisted_btc)
         self._price_series = {
             sym: {d: float(p) for d, p in s.items()}
             for sym, s in (prices.get("series", {}) or {}).items()
@@ -218,9 +239,12 @@ class MarketData:
                 proto: {d: float(a) for d, a in s.items()}
                 for proto, s in defi["series"].items()
             }
-        # BTC series (optional — absent on an ETH-only cache; left empty → snapshot gaps)
+        # BTC series (optional — absent on an ETH-only cache; left empty → snapshot gaps).
+        # P4-9: union the per-run snapshot over any persisted BTC funding cache seeded above
+        # (snapshot wins on overlap). Without persistence this is just the snapshot.
         self._btc_funding_series = {
-            k: float(v) for k, v in ((btc_funding or {}).get("series", {}) or {}).items()
+            **(self._btc_funding_series if self._persist_funding_cache else {}),
+            **{k: float(v) for k, v in ((btc_funding or {}).get("series", {}) or {}).items()},
         }
         self._btc_ratio_series = {
             sym: {d: float(p) for d, p in s.items()}
@@ -280,6 +304,16 @@ class MarketData:
             btc_funding = _try_btc(lambda: self._btc_funding.history())
             btc_ratio_hist = _try_btc(lambda: self._price.history_btc_ratios(span=self._price_span))
             btc_lending_latest = _try_btc(lambda: self._btc_lending.apys())
+
+        # P4-9: MERGE this fetch's funding window into the persistent growing cache (union by
+        # date) BEFORE rewriting the per-run snapshot. Fail-CLOSED: only merge a non-empty fetch;
+        # an empty/failed fetch never touches the cache (history() already raised upstream on a
+        # truly empty merged series, so reaching here means we have data).
+        if self._persist_funding_cache:
+            if funding:
+                funding = self._funding_cache.merge_fetch(funding)  # use the grown union downstream
+            if btc_funding:
+                btc_funding = self._btc_funding_cache.merge_fetch(btc_funding)
 
         ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
         _atomic_write_json(self._p("funding"), {"generated_at": ts, "series": funding})
