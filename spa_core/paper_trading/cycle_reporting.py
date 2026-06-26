@@ -580,10 +580,13 @@ def run_post_cycle_advisory(
         from spa_core.backtesting.strategy_tournament_runner import (
             run_shadow_day as _run_shadow_day,
         )
+        # MP-1357 fix: `today` may arrive as an ISO str (live cycle) or a
+        # date/datetime (some callers) — handle both, fail-safe.
+        _shadow_date_str = today if isinstance(today, str) else today.isoformat()
         _shadow_result = _run_shadow_day(
             apy_map=apy_map,
             data_dir=ddir,
-            date_str=today.isoformat(),
+            date_str=_shadow_date_str,
         )
         _shadow_best = _shadow_result.get("best_strategy")
         _shadow_best_apy = _shadow_result.get("best_apy_pct", 0.0)
