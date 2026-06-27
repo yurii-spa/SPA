@@ -224,6 +224,99 @@ def test_health_fail_closed_corrupt_track(client):
     assert body["track_fresh"] is False
 
 
+# ─── fleet (agent_health.json summary + snapshot-age staleness) ───────────────
+
+def _fleet_snapshot(ts, ok=45, warn=2, crit=0, total=47, overall="WARNING", agents=None):
+    if agents is None:
+        agents = [
+            {"label": "com.spa.agent_health", "status": "OK", "issue": ""},
+            {"label": "com.spa.daily_cycle", "status": "WARNING",
+             "issue": "log missing (never ran?)"},
+            {"label": "com.spa.weekly_backup", "status": "WARNING",
+             "issue": "log missing (never ran?)"},
+        ]
+    return {
+        "timestamp": ts, "overall_status": overall,
+        "healthy_count": ok, "warning_count": warn, "critical_count": crit,
+        "total_agents": total, "agents": agents,
+    }
+
+
+def _iso(minutes_ago):
+    import datetime as _dt
+    return (_dt.datetime.now(_dt.timezone.utc)
+            - _dt.timedelta(minutes=minutes_ago)).isoformat()
+
+
+def test_fleet_missing_is_honest_unavailable(client):
+    r = client.get("/api/live/fleet")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["available"] is False
+    assert body["stale"] is True
+    # must NOT fabricate counts
+    assert "healthy" not in body
+
+
+def test_fleet_fresh_snapshot_not_stale(client):
+    _write(client, "agent_health.json", _fleet_snapshot(_iso(5.0)))
+    body = client.get("/api/live/fleet").json()
+    assert body["available"] is True
+    assert body["stale"] is False
+    assert body["healthy"] == 45
+    assert body["warning"] == 2
+    assert body["critical"] == 0
+    assert body["total"] == 47
+    assert body["overall_status"] == "WARNING"
+    assert body["snapshot_age_min"] is not None and body["snapshot_age_min"] < 35
+    # only the warn/crit agents are surfaced (the OK one is filtered out)
+    names = {a["name"] for a in body["agents"]}
+    assert names == {"com.spa.daily_cycle", "com.spa.weekly_backup"}
+    assert all(a["reason"] for a in body["agents"])
+
+
+def test_fleet_old_snapshot_is_stale(client):
+    # snapshot older than the 35-min threshold → stale:true (counts still echoed)
+    _write(client, "agent_health.json", _fleet_snapshot(_iso(90.0)))
+    body = client.get("/api/live/fleet").json()
+    assert body["available"] is True
+    assert body["stale"] is True
+    assert body["snapshot_age_min"] > 35
+    assert body["healthy"] == 45  # last-known still echoed, but flagged stale
+
+
+def test_fleet_unparseable_timestamp_fail_closed_stale(client):
+    _write(client, "agent_health.json", _fleet_snapshot("not-a-timestamp"))
+    body = client.get("/api/live/fleet").json()
+    assert body["available"] is True
+    assert body["stale"] is True
+    assert body["snapshot_age_min"] is None
+
+
+def test_fleet_corrupt_json_honest_unavailable(client):
+    (client._data_dir / "agent_health.json").write_text("{broken", encoding="utf-8")
+    r = client.get("/api/live/fleet")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["available"] is False
+    assert body["stale"] is True
+
+
+def test_fleet_critical_agents_surfaced(client):
+    agents = [
+        {"label": "com.spa.daily_cycle", "status": "CRITICAL", "issue": "dead"},
+        {"label": "com.spa.ok_one", "status": "OK", "issue": ""},
+    ]
+    _write(client, "agent_health.json",
+           _fleet_snapshot(_iso(2.0), ok=1, warn=0, crit=1, total=2,
+                           overall="CRITICAL", agents=agents))
+    body = client.get("/api/live/fleet").json()
+    assert body["overall_status"] == "CRITICAL"
+    assert len(body["agents"]) == 1
+    assert body["agents"][0]["name"] == "com.spa.daily_cycle"
+    assert body["agents"][0]["status"] == "CRITICAL"
+
+
 # ─── CORS ────────────────────────────────────────────────────────────────────
 
 def test_cors_allows_earn_defi(client):
@@ -263,6 +356,6 @@ def test_cors_disallows_unknown_origin(client):
 # ─── read-only guarantee ─────────────────────────────────────────────────────
 
 def test_live_endpoints_are_get_only(client):
-    for path in ["/api/live/ping", "/api/live/agents",
+    for path in ["/api/live/ping", "/api/live/agents", "/api/live/fleet",
                  "/api/live/portfolio", "/api/live/system"]:
         assert client.post(path).status_code == 405

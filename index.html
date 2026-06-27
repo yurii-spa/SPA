@@ -888,6 +888,34 @@
   #health-recs-list li { font-size:12px; color:#d1d5db; margin-bottom:4px; }
   #health-last-checked { font-size:11px; color:#4b5563; margin-top:4px; }
 
+  /* ── Agent Fleet Health Panel (data/agent_health.json) ───────────────── */
+  #fleet-overall-badge { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; letter-spacing:.04em; padding:7px 18px; border-radius:24px; margin:0 8px 16px 0; vertical-align:middle; }
+  #fleet-overall-badge.healthy  { background:rgba(16,185,129,.12); color:#34d399; border:1px solid rgba(16,185,129,.30); }
+  #fleet-overall-badge.warning  { background:rgba(245,158,11,.12); color:#fbbf24; border:1px solid rgba(245,158,11,.28); }
+  #fleet-overall-badge.critical { background:rgba(239,68,68,.12); color:#f87171; border:1px solid rgba(239,68,68,.28); }
+  #fleet-overall-badge.loading,
+  #fleet-overall-badge.unavailable { background:rgba(255,255,255,.06); color:#9ca3af; border:1px solid rgba(255,255,255,.10); }
+  .fleet-age-badge { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; letter-spacing:.04em; padding:5px 12px; border-radius:20px; margin-bottom:16px; vertical-align:middle; text-transform:uppercase; }
+  .fleet-age-badge.live    { background:rgba(16,185,129,.10); color:#34d399; border:1px solid rgba(16,185,129,.24); }
+  .fleet-age-badge.aging   { background:rgba(245,158,11,.10); color:#fbbf24; border:1px solid rgba(245,158,11,.22); }
+  .fleet-age-badge.stale   { background:rgba(239,68,68,.12); color:#f87171; border:1px solid rgba(239,68,68,.28); }
+  .fleet-age-badge.loading { background:rgba(255,255,255,.06); color:#6b7280; border:1px solid rgba(255,255,255,.10); }
+  #fleet-counts-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  @media(max-width:700px){#fleet-counts-grid{grid-template-columns:repeat(2,1fr)}}
+  .fleet-count-card { background:rgba(8,10,26,0.97); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:14px 16px; display:flex; flex-direction:column; gap:4px; }
+  .fleet-count-num { font-size:24px; font-weight:800; line-height:1; font-family:'SF Mono',monospace; }
+  .fleet-count-num.healthy  { color:#34d399; }
+  .fleet-count-num.warning  { color:#fbbf24; }
+  .fleet-count-num.critical { color:#f87171; }
+  .fleet-count-num.total    { color:#e2e8f0; }
+  .fleet-count-label { font-size:10px; font-weight:700; letter-spacing:.06em; color:#9ca3af; text-transform:uppercase; }
+  #fleet-problems-list { display:flex; flex-direction:column; gap:6px; }
+  .fleet-problem-row { display:flex; align-items:baseline; gap:10px; background:rgba(245,158,11,.05); border:1px solid rgba(245,158,11,.16); border-radius:8px; padding:8px 12px; }
+  .fleet-problem-row.crit { background:rgba(239,68,68,.07); border-color:rgba(239,68,68,.22); }
+  .fleet-problem-name { font-size:12px; font-weight:700; color:#e2e8f0; font-family:'SF Mono',monospace; flex-shrink:0; }
+  .fleet-problem-reason { font-size:11.5px; color:#9ca3af; }
+  #fleet-health-container .fleet-unavail { color:#9ca3af; font-size:12px; padding:8px 0; }
+
   .ops-card-footer { display:flex; align-items:center; justify-content:space-between; border-top:1px solid rgba(255,255,255,0.06); padding-top:11px; }
   .ops-last-action { font-size:10px; color:#4b5563; line-height:1.4; }
   .ops-last-time { color:#6b7280; }
@@ -3044,6 +3072,25 @@ h1, h2, h3, h4,
     </div>
   </div>
 
+  <!-- 🛰️ Agent Fleet Health (data/agent_health.json — trustworthy single source) -->
+  <div class="db-full" style="margin-bottom:18px">
+    <div class="db-section" style="display:flex;justify-content:space-between;align-items:center">
+      <span>🛰️ Agent Fleet Health</span>
+      <button class="refresh-btn" onclick="loadFleetHealth()">↻ Обновить</button>
+    </div>
+    <div id="fleet-health-container">
+      <div id="fleet-overall-badge" class="loading">⏳ Loading...</div>
+      <span id="fleet-age-badge" class="fleet-age-badge loading">⏳</span>
+      <div id="fleet-counts-grid">
+        <!-- populated by loadFleetHealth() -->
+      </div>
+      <div id="fleet-problems" style="display:none">
+        <h4 style="font-size:13px;font-weight:700;color:#cbd5e1;margin:14px 0 8px">⚠️ Warn / Crit agents</h4>
+        <div id="fleet-problems-list"></div>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /tab-ops -->
 
 
@@ -4770,6 +4817,16 @@ const SPA_API = (function () {
   function getRatesDeskSurface()     { return _getEndpoint('/api/rates-desk/surface'); }
   // /api/tournament — carries the `trustworthy` honesty flag (fail-closed false).
   function getTournament()           { return _getEndpoint('/api/tournament'); }
+  // /api/live/fleet — the trustworthy fleet-health summary from agent_health.json
+  // (T1 single source). Graceful: returns the raw verdict (incl. its own
+  // {available, stale, snapshot_age_min} honesty flags) or a synthetic
+  // unavailable verdict when the tunnel is unreachable. Fail-CLOSED:
+  // unreachable → available:false, stale:true (never a fabricated fresh count).
+  async function getFleet() {
+    const f = await _fetchJSON(_apiBase + '/api/live/fleet', 4000);
+    if (f && typeof f === 'object') return f;
+    return { available: false, stale: true, reason: 'live API unreachable' };
+  }
 
   return {
     apiBase: _apiBase,
@@ -4784,6 +4841,7 @@ const SPA_API = (function () {
     getRatesDeskTrack: getRatesDeskTrack,
     getRatesDeskSurface: getRatesDeskSurface,
     getTournament: getTournament,
+    getFleet: getFleet,
     lastSource: function () { return _lastSource; },
   };
 })();
@@ -7233,6 +7291,95 @@ async function loadOps() {
 
   // System Health
   loadHealthStatus();
+
+  // Agent Fleet Health (trustworthy single source: agent_health.json)
+  loadFleetHealth();
+}
+
+// ─── Agent Fleet Health (data/agent_health.json via /api/live/fleet) ───────────
+// Honesty-first: renders the trustworthy fleet counts + overall status + a
+// snapshot-age badge that makes a STALE snapshot (>35min) visibly stale rather
+// than silently wrong (the T1 lesson). Unavailable → honest "unavailable",
+// never a fabricated count.
+async function loadFleetHealth() {
+  const badgeEl   = document.getElementById('fleet-overall-badge');
+  const ageEl     = document.getElementById('fleet-age-badge');
+  const gridEl    = document.getElementById('fleet-counts-grid');
+  const probEl    = document.getElementById('fleet-problems');
+  const probListEl= document.getElementById('fleet-problems-list');
+  if (!badgeEl) return;
+
+  let f = null;
+  try { f = await SPA_API.getFleet(); } catch (e) { f = null; }
+
+  // Unavailable / unreachable → honest unavailable, no fabricated counts.
+  if (!f || f.available === false) {
+    badgeEl.className = 'unavailable';
+    badgeEl.textContent = '⚪ Fleet status unavailable';
+    if (ageEl) { ageEl.className = 'fleet-age-badge stale'; ageEl.textContent = '✕ no snapshot'; }
+    if (gridEl) gridEl.innerHTML = '<div class="fleet-unavail">agent_health.json unavailable'
+      + (f && f.reason ? ' — ' + f.reason : '') + ' (showing nothing rather than a stale count).</div>';
+    if (probEl) probEl.style.display = 'none';
+    return;
+  }
+
+  // ── overall badge ──────────────────────────────────────────────────
+  const overall = String(f.overall_status || 'UNKNOWN').toUpperCase();
+  const bm = ({
+    OK:       { cls: 'healthy',  icon: '✅' },
+    HEALTHY:  { cls: 'healthy',  icon: '✅' },
+    WARNING:  { cls: 'warning',  icon: '⚠️' },
+    CRITICAL: { cls: 'critical', icon: '🚨' },
+  })[overall] || { cls: 'unavailable', icon: '❓' };
+  badgeEl.className = bm.cls;
+  badgeEl.textContent = bm.icon + ' ' + overall;
+
+  // ── snapshot-age badge (the honest staleness signal) ───────────────
+  const age = f.snapshot_age_min;
+  if (ageEl) {
+    if (f.stale) {
+      ageEl.className = 'fleet-age-badge stale';
+      ageEl.textContent = '⚠ STALE' + (age != null ? ' · ' + age + ' min old' : '');
+    } else if (age == null) {
+      ageEl.className = 'fleet-age-badge loading';
+      ageEl.textContent = '· age unknown';
+    } else if (age < 1) {
+      ageEl.className = 'fleet-age-badge live';
+      ageEl.textContent = '● live';
+    } else {
+      ageEl.className = 'fleet-age-badge aging';
+      ageEl.textContent = '● ' + Math.round(age) + ' min ago';
+    }
+  }
+
+  // ── count chips ────────────────────────────────────────────────────
+  const fmt = v => (v == null ? '—' : v);
+  if (gridEl) {
+    gridEl.innerHTML =
+      `<div class="fleet-count-card"><div class="fleet-count-num healthy">${fmt(f.healthy)}</div><div class="fleet-count-label">Healthy</div></div>`
+    + `<div class="fleet-count-card"><div class="fleet-count-num warning">${fmt(f.warning)}</div><div class="fleet-count-label">Warning</div></div>`
+    + `<div class="fleet-count-card"><div class="fleet-count-num critical">${fmt(f.critical)}</div><div class="fleet-count-label">Critical</div></div>`
+    + `<div class="fleet-count-card"><div class="fleet-count-num total">${fmt(f.total)}</div><div class="fleet-count-label">Total agents</div></div>`;
+  }
+
+  // ── warn / crit agents + reasons ───────────────────────────────────
+  const agents = Array.isArray(f.agents) ? f.agents : [];
+  if (probEl && probListEl) {
+    if (agents.length > 0) {
+      probListEl.innerHTML = agents.map(a => {
+        const st = String(a.status || '').toUpperCase();
+        const isCrit = st.indexOf('CRIT') === 0 || st === 'ERROR';
+        return `<div class="fleet-problem-row${isCrit ? ' crit' : ''}">`
+          + `<span class="fleet-problem-name">${a.name || 'unknown'}</span>`
+          + `<span class="fleet-problem-reason">${(a.reason && a.reason.length) ? a.reason : st}</span>`
+          + `</div>`;
+      }).join('');
+      probEl.style.display = '';
+    } else {
+      probListEl.innerHTML = '<div class="fleet-unavail" style="color:#34d399">✅ All agents nominal — no warn/crit.</div>';
+      probEl.style.display = '';
+    }
+  }
 }
 
 // ─── System Health ────────────────────────────────────────────────────────────

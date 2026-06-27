@@ -13,6 +13,7 @@ import json
 import logging
 import re
 import time as _time
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -58,6 +59,104 @@ async def live_agents():
         )
     except Exception as e:
         return JSONResponse({"status": "error", "error": str(e), "ts": _time.time()}, headers=NO_CACHE_HEADERS)
+
+
+# Snapshot is considered STALE if older than this many minutes. agent_health
+# runs ~hourly but writes a fresh snapshot every run; >35min means the writer
+# (com.spa.agent_health) itself is lagging → the counts must be shown as stale,
+# never silently as if live (the T1 lesson: a stale briefing must look stale).
+FLEET_STALE_MIN: float = 35.0
+
+
+def _snapshot_age_min(ts: Any) -> float | None:
+    """Minutes since the snapshot ISO `timestamp`; None if unparseable (→ stale)."""
+    if not isinstance(ts, str) or not ts:
+        return None
+    try:
+        dt = datetime.fromisoformat(ts)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        age = (datetime.now(timezone.utc) - dt).total_seconds() / 60.0
+        return round(age, 1)
+    except (ValueError, TypeError):
+        return None
+
+
+@router.get("/api/live/fleet")
+async def live_fleet():
+    """Fleet-health summary from data/agent_health.json — the trustworthy single
+    source (T1). Serves a compact, honesty-first verdict for the dashboard:
+
+        {overall_status, healthy, warning, critical, total,
+         snapshot_age_min, stale (bool, >35min OR unparseable),
+         agents: [{name, status, reason}]  # warn/crit agents only}
+
+    Fail-CLOSED: a missing/corrupt/unparseable-timestamp snapshot is reported as
+    ``available: false`` (honest unavailable) or ``stale: true`` — NEVER as a
+    fabricated fresh count. Always 200 (consumers must not break)."""
+    path = data_dir() / "agent_health.json"
+    if not await aio_exists(path):
+        return JSONResponse(
+            {"available": False, "stale": True, "reason": "agent_health.json missing",
+             "ts": _time.time()},
+            headers=NO_CACHE_HEADERS,
+        )
+    try:
+        data = await aio_read_json(path)
+    except asyncio.TimeoutError:
+        return JSONResponse(
+            {"available": False, "stale": True, "reason": "read_timeout",
+             "ts": _time.time()},
+            status_code=503, headers=NO_CACHE_HEADERS,
+        )
+    except Exception as e:  # noqa: BLE001 — corrupt JSON / any read error → unavailable
+        return JSONResponse(
+            {"available": False, "stale": True, "reason": f"unreadable: {e}",
+             "ts": _time.time()},
+            headers=NO_CACHE_HEADERS,
+        )
+
+    if not isinstance(data, dict):
+        return JSONResponse(
+            {"available": False, "stale": True, "reason": "unexpected snapshot shape",
+             "ts": _time.time()},
+            headers=NO_CACHE_HEADERS,
+        )
+
+    age = _snapshot_age_min(data.get("timestamp"))
+    # Unparseable/missing timestamp → fail-CLOSED to stale.
+    stale = (age is None) or (age > FLEET_STALE_MIN)
+
+    # Surface only the warn/crit agents + their reasons (the actionable ones).
+    problem_agents: list[dict[str, Any]] = []
+    for a in data.get("agents", []) or []:
+        if not isinstance(a, dict):
+            continue
+        status = str(a.get("status", "")).upper()
+        if status in ("WARNING", "WARN", "CRITICAL", "CRIT", "ERROR"):
+            problem_agents.append({
+                "name": a.get("label") or a.get("name") or "unknown",
+                "status": a.get("status"),
+                "reason": a.get("issue") or a.get("reason") or "",
+            })
+
+    return JSONResponse(
+        {
+            "available": True,
+            "overall_status": data.get("overall_status"),
+            "healthy": data.get("healthy_count"),
+            "warning": data.get("warning_count"),
+            "critical": data.get("critical_count"),
+            "total": data.get("total_agents"),
+            "snapshot_age_min": age,
+            "stale": stale,
+            "stale_threshold_min": FLEET_STALE_MIN,
+            "timestamp": data.get("timestamp"),
+            "agents": problem_agents,
+            "_fetched_at": _time.time(),
+        },
+        headers=NO_CACHE_HEADERS,
+    )
 
 
 @router.get("/api/live/portfolio")
