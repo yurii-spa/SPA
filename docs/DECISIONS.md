@@ -55,6 +55,45 @@ No `RiskConfig` field changed → no version bump required; this ADR records tha
 decision. A future change to the 5% or 15% *values* still requires the full
 owner-gated process (value + pinning test together, per the P3-10 note).
 
+### ADDENDUM (2026-06-27, Day-2 sprint — E2E-validated, closing the two-tier behaviour)
+
+The TWO-TIER ladder above is now **end-to-end validated** by the PRE-CUTOVER
+READINESS GATE (`spa_core/paper_trading/pre_cutover_gate.py`). The gate DRIVES a
+cycle through each tier against a sandbox and ASSERTS the response:
+
+- **SOFT tier** (`SOFT_DERISK` drill): an 8% evidenced drawdown → `drawdown_tier`
+  returns `SOFT_DERISK`, `check_derisk_trigger` fires, and `apply_soft_derisk_gate`
+  blocks a brand-new protocol, caps an INCREASE of a held protocol to its held
+  size, leaves a REDUCTION intact, and does **NOT** liquidate (held position
+  stays > 0). This is the Day-1-validated, post-ALLOC-002 behaviour, now pinned.
+- **HARD tier** (`HARD_KILL_DRAWDOWN` drill): a 20% evidenced drawdown →
+  `check_drawdown_trigger` fires → `apply_kill_switch_override` forces ALL-CASH.
+
+**Day-1 findings recorded as OWNER-DECISIONS to reconcile (flagged, not changed):**
+
+1. **DL-02 @ 10% peak preempts HARD @ 15%.** The `DailyLimitsChecker` DL-02 peak
+   drawdown HALT fires at **10%** — *below* the kill-switch HARD threshold of
+   **15%**. In a falling book the cycle therefore HALTs (no new trades) at 10%
+   *before* the 15% all-cash kill is ever reached. This is arguably correct
+   (HALT-then-kill is a safe ordering), but the two thresholds were set
+   independently and their interaction is implicit. **OWNER-DECISION:** confirm
+   the DL-02 10% HALT / HARD-kill 15% ordering is intentional, or reconcile the
+   numbers into one explicit ladder (DL-01 2% daily · DL-02 10% peak · SOFT 5% ·
+   HARD 15% — note SOFT 5% < DL-02 10% < HARD 15%, so the order of *effects* down
+   a drawdown is: SOFT de-risk → DL-02 HALT → HARD all-cash).
+2. **The 15.0% boundary gap.** `check_drawdown_trigger` HARD-kills on
+   `drawdown > 15.0%` (strictly greater), while `drawdown_tier` classifies
+   `drawdown >= 15.0%` as `TIER_HARD_KILL`. At **exactly 15.0%** the classifier
+   says HARD but the trigger does **not** fire (it needs > 15.0%). The boundary is
+   left strictly-greater **intentionally** to preserve the existing eval-path
+   tests, but the classifier/trigger disagree on the single point 15.0%.
+   **OWNER-DECISION:** make the boundary consistent (both `>=` or both `>`), or
+   accept the documented 0.0%-wide gap as immaterial.
+
+Both findings are documented here and in `docs/PRE_CUTOVER_GATE.md`; neither is a
+code defect (the gate proves the defenses fire on either side of the boundary) —
+they are owner-gated *threshold-reconciliation* decisions deferred to the owner.
+
 ---
 
 ## 2026-06-27 (Investigation: dual engines / track.db / data git-policy — design clarity)

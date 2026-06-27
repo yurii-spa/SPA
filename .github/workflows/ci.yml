@@ -64,6 +64,21 @@ jobs:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
 
+      # --- Pre-cutover readiness gate (ADVISORY, non-blocking) ----------------
+      # Drives a cycle through EACH money-path failure mode against an ephemeral
+      # SANDBOX and asserts every defense fires (HARD/SOFT kill, DL-01/DL-02,
+      # RiskPolicy, analytics, Base-gas, NAV-reconcile, position-monitor,
+      # fail-safe HOLD, inert live-gate). INERT / sandbox-only / never imports
+      # execution/. `continue-on-error: true` → ADVISORY: it never gates the
+      # push and never flips is_live; the LiveTradingGate stays the master block.
+      # Doc: docs/PRE_CUTOVER_GATE.md.
+      - name: Pre-cutover readiness gate (advisory)
+        continue-on-error: true
+        run: python3 scripts/pre_cutover_gate.py
+        env:
+          SPA_ENV: ci
+          PYTHONHASHSEED: '0'
+
       - name: Presentation-vs-SSOT guard (Law 3)
         run: python3 scripts/check_presentation_ssot.py
         env:
