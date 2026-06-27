@@ -243,18 +243,23 @@ def test_calendar_agent_not_resident_stale_log_flagged(tmp_path):
     _touch(logp, 60 * 60)  # 60h ago > 2x 26h daily window → CRITICAL
     plist = {"StartCalendarInterval": {"Hour": 8}, "RunAtLoad": False,
              "StandardOutPath": str(logp)}
-    h = ahm.check_agent("com.spa.telegram_daily", plist, True, {}, NOW)  # NOT loaded
+    # Isolated label + project_root so the synthesized /tmp/spa_<name>.log and
+    # legacy logs/<name>.log candidates don't pick up an unrelated host file.
+    h = ahm.check_agent("com.spa.cal_stale_probe_xyz", plist, True, {}, NOW,
+                        project_root=tmp_path)  # NOT loaded
     assert h.status == ahm.CRITICAL
     assert "stale" in h.issue
 
 
-def test_calendar_agent_not_resident_missing_log_warning():
+def test_calendar_agent_not_resident_missing_log_warning(tmp_path):
     """A non-resident calendar agent with a MISSING log (e.g. /tmp wiped on reboot
     or not yet fired in its first window) is advisory WARNING — fail-closed but
     not a false CRITICAL."""
     plist = {"StartCalendarInterval": {"Hour": 8}, "RunAtLoad": False,
              "StandardOutPath": "/nonexistent/x.log"}
-    h = ahm.check_agent("com.spa.weekly_backup", plist, True, {}, NOW)  # NOT loaded
+    # Isolated label + project_root so no real host /tmp or logs/ file is found.
+    h = ahm.check_agent("com.spa.cal_missing_probe_xyz", plist, True, {}, NOW,
+                        project_root=tmp_path)  # NOT loaded
     assert h.status == ahm.WARNING
     assert "missing" in h.issue
 
@@ -919,3 +924,59 @@ def test_main_check_smoke(tmp_path, monkeypatch, capsys):
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))
+
+
+# ===========================================================================
+# Fleet log-path migration (GAP 1): /tmp/spa_<name>.log + legacy fallback
+# ===========================================================================
+def test_candidate_log_paths_order_and_synthesis(tmp_path):
+    """candidate_log_paths = plist streams + /tmp wrapper log + legacy logs/."""
+    plist = {"StandardOutPath": "/tmp/spa_foo.launchd.out",
+             "StandardErrorPath": "/tmp/spa_foo.launchd.err"}
+    paths = ahm.candidate_log_paths("com.spa.foo", plist, project_root=tmp_path)
+    assert paths[0] == "/tmp/spa_foo.launchd.out"
+    assert paths[1] == "/tmp/spa_foo.launchd.err"
+    assert "/tmp/spa_foo.log" in paths                         # wrapper log
+    assert str(tmp_path / "logs" / "foo.log") in paths         # legacy fallback
+
+
+def test_agent_fresh_from_wrapper_tmp_log(tmp_path):
+    """Migration regression: plist StandardOut/Err are stale (only carry the
+    launchd START banner) but the wrapper log /tmp/spa_<name>.log was written
+    minutes ago → the agent must be judged FRESH, not stale CRITICAL."""
+    label = "com.spa.gap1probe"
+    stale_out = tmp_path / "probe.launchd.out"
+    _touch(stale_out, 200)  # > 2x high-freq threshold → would be CRITICAL alone
+    wrapper = Path("/tmp/spa_gap1probe.log")
+    try:
+        _touch(wrapper, 3)  # ran 3 min ago
+        plist = {"StartInterval": 300, "StandardOutPath": str(stale_out)}
+        h = ahm.check_agent(label, plist, True, _lc(label), NOW)
+        assert h.status == ahm.OK
+        assert h.issue == ""
+        assert h.log_age_min is not None and h.log_age_min < 5
+    finally:
+        wrapper.unlink(missing_ok=True)
+
+
+def test_agent_fresh_from_legacy_logs_dir(tmp_path):
+    """Pre-migration fallback: only logs/<name>.log exists and is fresh → FRESH."""
+    label = "com.spa.legacyprobe"
+    logs_dir = tmp_path / "logs"
+    logs_dir.mkdir()
+    _touch(logs_dir / "legacyprobe.log", 5)
+    plist = {"StartInterval": 300, "StandardOutPath": "/nonexistent/x.launchd.out"}
+    h = ahm.check_agent(label, plist, True, _lc(label), NOW, project_root=tmp_path)
+    assert h.status == ahm.OK
+
+
+def test_agent_genuinely_not_run_still_flags(tmp_path):
+    """Fail-CLOSED: an agent with NO log anywhere (/tmp, plist, legacy) is still
+    flagged — the freshness fix must not mask a genuinely-dead agent."""
+    label = "com.spa.neverran_gap1_unique"
+    plist = {"StartInterval": 300,
+             "StandardOutPath": "/nonexistent/never.launchd.out"}
+    # project_root has no logs/ entry and /tmp/spa_neverran_gap1_unique.log absent
+    h = ahm.check_agent(label, plist, True, _lc(label), NOW, project_root=tmp_path)
+    assert h.status in (ahm.WARNING, ahm.CRITICAL)
+    assert "missing" in h.issue

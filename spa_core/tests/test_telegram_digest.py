@@ -125,3 +125,51 @@ def test_weekly_digest_sends_one_and_is_idempotent(tmp_path, sent_weekly):
     )
     assert second["skipped"] is True
     assert len(sent_weekly) == 1
+
+
+# ── go-live regression: digest writes telegram_alert_state (GAP 2) ───────────
+def test_daily_digest_writes_telegram_alert_state(tmp_path, sent_daily):
+    """A successful daily digest must record daily_summary=today in
+    telegram_alert_state.json so GoLive's telegram_alert_today can pass — the
+    retired legacy daily-report agents used to own that write."""
+    import json
+
+    state = tmp_path / "telegram_alert_state.json"
+    # Pre-seed other keys to prove they survive the partial update.
+    state.write_text(json.dumps(
+        {"daily_summary": "2026-06-01", "red_flag": "2026-06-14",
+         "weekly_report": "2026-06-08"}
+    ))
+
+    res = daily_digest.run_daily_digest(
+        "2026-06-15", data_dir=str(tmp_path), send=True, now=_dt()
+    )
+    assert res["sent"] is True
+
+    doc = json.loads(state.read_text())
+    assert doc["daily_summary"] == "2026-06-15"           # set to today (UTC)
+    assert doc["red_flag"] == "2026-06-14"                # preserved
+    assert doc["weekly_report"] == "2026-06-08"           # preserved
+
+    # And the go-live criterion now passes against that state.
+    from spa_core.paper_trading.golive_checker import GoLiveChecker
+
+    gc = GoLiveChecker(data_dir=tmp_path, now=_dt())
+    blockers: list[str] = []
+    assert gc._check_telegram_alert_today(blockers) is True
+    assert blockers == []
+
+
+def test_daily_digest_failed_send_leaves_alert_state_untouched(tmp_path, monkeypatch):
+    """An UNSUCCESSFUL send must NOT mark daily_summary — honest, not force-pass."""
+    import json
+
+    monkeypatch.setattr(daily_digest, "_send_html", lambda msg: False)
+    state = tmp_path / "telegram_alert_state.json"
+    state.write_text(json.dumps({"daily_summary": "2026-06-01"}))
+
+    res = daily_digest.run_daily_digest(
+        "2026-06-15", data_dir=str(tmp_path), send=True, now=_dt()
+    )
+    assert res["sent"] is False
+    assert json.loads(state.read_text())["daily_summary"] == "2026-06-01"

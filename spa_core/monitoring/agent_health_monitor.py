@@ -350,6 +350,49 @@ def plist_log_paths(plist: Optional[dict]) -> List[str]:
     return paths
 
 
+def _agent_short_name(label: str) -> str:
+    """``com.spa.foo`` → ``foo`` (the per-agent log basename)."""
+    return label[len("com.spa."):] if label.startswith("com.spa.") else label
+
+
+def candidate_log_paths(
+    label: str,
+    plist: Optional[dict],
+    project_root: Path = _PROJECT_ROOT,
+) -> List[str]:
+    """All log paths whose mtime can evidence an agent's last run.
+
+    After the launchd fleet migration, agents no longer write
+    ``logs/<name>.log`` under ~/Documents. Each agent now logs through the
+    canonical wrapper (``scripts/agent_template.sh``) to
+    ``/tmp/spa_<name>.log`` while launchd captures the wrapper's stdout/stderr
+    to the plist's StandardOutPath/StandardErrorPath
+    (``/tmp/spa_<name>.launchd.{out,err}``).
+
+    The wrapper redirects ALL of its python's output to ``/tmp/spa_<name>.log``,
+    so the plist's ``.launchd.out``/``.launchd.err`` only get touched at the
+    launchd START banner and can lag the real run — judging freshness solely by
+    them falsely flags a recently-run agent stale (the migration regression).
+
+    Resolution order (freshest mtime wins — see ``freshest_log_age_minutes``):
+      1. the plist's StandardOutPath/StandardErrorPath (true new location),
+      2. the wrapper log ``/tmp/spa_<name>.log`` (where the work actually logs),
+      3. the legacy ``logs/<name>.log`` under the repo (pre-migration fallback).
+
+    A genuinely-not-run agent has NONE of these → freshness is None → still
+    flagged (fail-CLOSED). Order/dedup is preserved; only readable paths matter.
+    """
+    paths: List[str] = list(plist_log_paths(plist))
+    short = _agent_short_name(label)
+    for cand in (
+        f"/tmp/spa_{short}.log",
+        str(Path(project_root) / "logs" / f"{short}.log"),
+    ):
+        if cand not in paths:
+            paths.append(cand)
+    return paths
+
+
 # ===========================================================================
 # Time helpers (now & file age injectable for tests)
 # ===========================================================================
@@ -403,7 +446,8 @@ def _hours_since(ts: Optional[str], now: datetime) -> Optional[float]:
 # Per-agent check
 # ===========================================================================
 def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
-                launchctl: Dict[str, dict], now: datetime) -> AgentHealth:
+                launchctl: Dict[str, dict], now: datetime,
+                project_root: Path = _PROJECT_ROOT) -> AgentHealth:
     """Classify the health of a single agent. Fail-safe."""
     cat = classify_agent(plist)
     health = AgentHealth(label=label, category=cat)
@@ -459,10 +503,13 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
             issues.append("PID=0 (server down)")
             health.status = _worst(health.status, CRITICAL)
     elif cat in _FRESHNESS_THRESHOLD_MIN:
-        # 5) Scheduled agents: log freshness. Judge by the *freshest* of the
-        # stdout/stderr logs — modules that log via Python's `logging` write to
-        # stderr, leaving StandardOutPath empty/frozen (false "stale" otherwise).
-        logps = plist_log_paths(plist)
+        # 5) Scheduled agents: log freshness. Judge by the *freshest* of ALL
+        # candidate logs — the plist's stdout/stderr streams PLUS the migrated
+        # wrapper log /tmp/spa_<name>.log and the legacy logs/<name>.log. After
+        # the fleet migration the plist's .launchd.out/.err only carry the START
+        # banner and lag the real run, while the wrapper writes the actual work
+        # to /tmp/spa_<name>.log — judging by the freshest avoids false "stale".
+        logps = candidate_log_paths(label, plist, project_root)
         age = freshest_log_age_minutes(logps, now)
         health.log_age_min = age
         threshold = _FRESHNESS_THRESHOLD_MIN[cat]

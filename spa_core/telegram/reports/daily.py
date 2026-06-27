@@ -48,6 +48,7 @@ log = logging.getLogger("spa.telegram.reports.daily")
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _DEFAULT_DATA_DIR = _REPO_ROOT / "data"
 GUARD_FILENAME = ".last_daily_digest"
+ALERT_STATE_FILENAME = "telegram_alert_state.json"
 
 
 def _esc(value: Any) -> str:
@@ -126,6 +127,29 @@ def _mark_sent_today(ddir: Path, today: str, now_iso: str) -> None:
         log.warning("daily digest: guard write failed", exc_info=True)
 
 
+def _mark_daily_summary_sent(ddir: Path, today: str) -> None:
+    """Record that today's daily Telegram summary went out.
+
+    Updates ``data/telegram_alert_state.json`` setting ``daily_summary`` to the
+    UTC date, atomically, PRESERVING the other state keys (red_flag, gap_alert,
+    weekly_report). This is the state the go-live gate
+    (``GoLiveChecker._check_telegram_alert_today``) reads — the RETIRED legacy
+    daily-report agents used to write it, so the new digest must take that over
+    or ``telegram_alert_today`` could never pass again. Honest: only called on a
+    SUCCESSFUL send, so the criterion reflects "the summary actually went out
+    today", never force-passed. Fail-safe (never raises).
+    """
+    try:
+        path = ddir / ALERT_STATE_FILENAME
+        doc = atomic_load(str(path), default={})
+        if not isinstance(doc, dict):
+            doc = {}
+        doc["daily_summary"] = today
+        atomic_save(doc, str(path))
+    except Exception:  # noqa: BLE001
+        log.warning("daily digest: alert-state write failed", exc_info=True)
+
+
 # ── transport (allowlisted) ──────────────────────────────────────────────────
 def _send_html(message: str) -> bool:
     try:
@@ -171,6 +195,11 @@ def run_daily_digest(
             result["sent"] = ok
             if ok:
                 _mark_sent_today(ddir, today, now_dt.isoformat())
+                # The go-live gate's telegram_alert_today criterion reads
+                # data/telegram_alert_state.json:daily_summary — record that the
+                # daily summary went out today so it can pass (the retired legacy
+                # daily-report agents used to own this write).
+                _mark_daily_summary_sent(ddir, today)
             else:
                 result["error"] = "Telegram send returned False"
     except Exception as exc:  # noqa: BLE001 — never raises
