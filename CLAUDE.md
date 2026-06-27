@@ -242,6 +242,9 @@ stdlib-only, детерминированный, LLM запрещён в risk/ki
 - **API** (`spa_core/api/server.py`): `/api/rates-desk/surface`, `/api/rates-desk/opportunities`,
   `/api/rates-desk/decisions` (entries + refusals + proof_hash), `/api/rates-desk/proof` (proof-chain),
   `/api/refusal` (per-underlying SAFE/WATCH/REFUSE/UNKNOWN), `/api/strategy-lab/promotion` (sleeve promotion ladder).
+- **Safety endpoint (NEW 2026-06-27):** `/api/live/safety` (`spa_core/api/routers/live.py`) — публичная
+  surface двух-tier kill-switch'а (SOFT-derisk / HARD-kill state + текущий evidenced drawdown). Парная
+  health-проверка — **`d6.safety_state`** в `spa_core/monitoring/system_health_monitor.py` (домен `d6_risk_gates`).
 
 ---
 
@@ -304,9 +307,34 @@ Proof-of-Reserves поверхность. Двуязычно (EN|RU) по все
 | T2 total cap | ≤ 50% портфеля |
 | APY-границы | 1% … 30% |
 | Min cash buffer | ≥ 5% |
-| Kill switch | drawdown ≥ 5% → всё закрыть |
+| Kill switch | **two-tier ladder** (ADR-034): **SOFT −5%** de-risk / **HARD −15%** all-cash |
 
 `approved=False` не может быть переопределён никем.
+
+### 🛑 Two-tier kill-switch (ADR-034, owner-approved 2026-06-27)
+
+Drawdown-ответ — **одна лестница** над общим evidenced peak-to-current drawdown
+(`spa_core/governance/kill_switch.py::evidenced_drawdown_pct` → `drawdown_tier`):
+
+| Tier | Порог | Эффект |
+|---|---|---|
+| **SOFT_DERISK** | drawdown ∈ **[5%, 15%)** | DE-RISK: halt new / no INCREASE (hold + reduce OK), edge-triggered WARNING. **НЕ ликвидирует.** Гейт — `spa_core/paper_trading/cycle_gates.py::apply_soft_derisk_gate` (caps `target_usd` → `min(target, held)`; new protocol → 0). |
+| **HARD_KILL** | drawdown ≥ **15%** | Full kill → all-cash `{"cash": 1.0, …: 0.0}` (`check_drawdown_trigger`). |
+
+Полная лестница эффектов вниз по drawdown'у: **SOFT 5% → DL-02 HALT 10% → HARD all-cash 15%**
+(DL-01 2% single-day может HALT'нуть в любой точке). RiskPolicy version **остаётся v1.0** —
+two-tier живёт в governance-слое, `RiskConfig` не тронут.
+
+**Pre-cutover readiness gate** — единственный авторитетный «все money-path защиты доказуемо
+срабатывают»-артефакт перед любым cutover-размышлением: `spa_core/paper_trading/pre_cutover_gate.py`
+/ CLI `scripts/pre_cutover_gate.py` / док `docs/PRE_CUTOVER_GATE.md`. **INERT** (`would_cutover`
+всегда False, не двигает капитал, не импортирует `execution/`, refuses live `data/`); прогоняет
+цикл через каждый failure-mode в sandbox и ASSERT'ит защитный ответ (HARD/SOFT/DL-01/DL-02/
+RiskPolicy/analytics/NAV-reconcile/position-monitor/fail-safe HOLD). Advisory CI-step, не гейтит push.
+
+**Day-1 OWNER-DECISIONS (флаги, не код-дефекты — оба в ADR-034 addendum):**
+DL-02 @10% preempts HARD @15% (ordering intentional?); 15.0%-boundary gap
+(`check_drawdown_trigger` `>15.0`, `drawdown_tier` `>=15.0` → разойдутся ровно в 15.0%).
 
 ---
 
@@ -335,7 +363,7 @@ security find-generic-password -s TELEGRAM_CHAT_ID_SPA -w
 | Путь | Назначение |
 |---|---|
 | `spa_core/adapters/` | Read-only адаптеры + DeFiLlama feed |
-| `spa_core/paper_trading/` | cycle_runner.py, golive_checker.py, gap_monitor.py |
+| `spa_core/paper_trading/` | cycle_runner.py, golive_checker.py, gap_monitor.py, **cycle_gates.py** (`apply_soft_derisk_gate`), **pre_cutover_gate.py** (inert readiness gate) |
 | `spa_core/strategies/` | Tournament стратегии S0–S77+ |
 | `spa_core/strategy_lab/` | Pluggable sleeve harness + paper-сервис (LST/RWA sleeves) |
 | `spa_core/strategy_lab/forward_analytics.py` | Risk-adjusted scorecard НА живых forward-сериях (T4 attribution vs RWA floor + T5 stress overlay) → `data/forward_analytics.json` → feeds `docs/FUNDABILITY.md`; insufficient-history → UNKNOWN |
