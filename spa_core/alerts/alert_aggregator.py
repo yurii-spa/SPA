@@ -14,6 +14,7 @@ from typing import Dict, List, Optional
 
 from spa_core.base import BaseAnalytics
 from spa_core.utils.atomic import atomic_load, atomic_save
+from spa_core.utils import clock
 
 log = logging.getLogger("spa.alerts.aggregator")
 
@@ -120,7 +121,7 @@ class AlertAggregator(BaseAnalytics):
             return False  # Corrupted timestamp → not throttled
 
         elapsed_mins = (
-            datetime.datetime.utcnow() - last_sent
+            clock.utcnow() - last_sent
         ).total_seconds() / 60.0
 
         return elapsed_mins < throttle_mins
@@ -129,7 +130,7 @@ class AlertAggregator(BaseAnalytics):
         """Record that an alert with this key was just sent."""
         if "sent" not in self._data:
             self._data["sent"] = {}
-        self._data["sent"][key] = datetime.datetime.utcnow().isoformat()
+        self._data["sent"][key] = clock.utcnow().isoformat()
 
     def _load_state(self) -> None:
         """Load persisted aggregator state from disk (if present)."""

@@ -34,12 +34,12 @@ CLI::
 """
 from __future__ import annotations
 
-import datetime
 import logging
 from dataclasses import dataclass, asdict
 from typing import Callable, Dict, List, Optional
 
 from spa_core.utils.atomic import atomic_load, atomic_append_ring
+from spa_core.utils import clock
 
 log = logging.getLogger("spa.alerts.apy_spike")
 
@@ -170,7 +170,7 @@ class APYSpikeMonitor:
         handy for tests and for the cycle runner passing its own snapshot.
         """
         current = self._coerce_apys(apys) if apys is not None else self._load_current_apys()
-        ts = datetime.datetime.utcnow().isoformat()
+        ts = clock.utcnow().isoformat()
 
         spikes: List[SpikeAlert] = []
         for proto, threshold in self.SPIKE_THRESHOLDS.items():
@@ -198,16 +198,21 @@ class APYSpikeMonitor:
         return spikes
 
     def send_telegram_alert(self, spike: SpikeAlert) -> bool:
-        """Send a yield-spike Telegram alert. Fail-safe (never raises)."""
+        """RETIRED as a Telegram push (Phase-1 Telegram rebuild).
+
+        APY spikes are advisory (market intel, not live-capital risk) and are
+        routed to the digest queue / on-demand views, never pushed. Always
+        returns False. Never raises.
+        """
         try:
-            import spa_core.alerts.telegram_client as _tc  # module ref — patchable in tests
-            msg = self.format_alert(spike)
-            # HTML parse_mode: protocol names contain '_' which Telegram's legacy
-            # Markdown parser 400s on (see telegram_client docstring).
-            return _tc.send_message(msg, parse_mode="HTML")
+            from spa_core.telegram import push_policy
+            push_policy.enqueue_digest(
+                "apy_spike", "APY spike", self.format_alert(spike),
+                severity="WARNING", reason="apy_spike_monitor_retired_push",
+            )
         except Exception as exc:  # noqa: BLE001 — alerts must never crash callers
-            log.warning("Telegram spike alert failed: %s", exc)
-            return False
+            log.warning("apy_spike: digest route failed: %s", exc)
+        return False
 
     @staticmethod
     def format_alert(spike: SpikeAlert) -> str:

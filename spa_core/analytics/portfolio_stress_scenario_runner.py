@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import json
 import os
-import datetime
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
+from spa_core.utils import clock
 
 # ---------------------------------------------------------------------------
 # Path helpers
@@ -408,7 +408,7 @@ def save_results(result: PortfolioStressResult, data_dir: str = _DATA_DIR) -> st
 
     # Append new entry
     entry = _result_to_dict(result)
-    entry["_saved_at"] = datetime.datetime.utcnow().isoformat() + "Z"
+    entry["_saved_at"] = clock.utcnow().isoformat() + "Z"
     history.append(entry)
 
     # Ring-buffer cap

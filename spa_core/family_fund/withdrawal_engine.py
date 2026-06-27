@@ -13,7 +13,6 @@ Rules:
 """
 from __future__ import annotations
 
-import datetime
 import hashlib
 import json
 import os
@@ -24,6 +23,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils import clock
 
 __all__ = [
     "WithdrawalStatus",
@@ -267,4 +267,4 @@ class WithdrawalEngine:
 
 def _utcnow_iso() -> str:
     """Return current UTC time as ISO 8601 string (UTC, second precision)."""
-    return datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    return clock.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")

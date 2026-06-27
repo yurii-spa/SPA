@@ -12,8 +12,8 @@ Ring-buffer log capped at 100 entries.
 
 import json
 import os
-import datetime
 from typing import Any, Dict
+from spa_core.utils import clock
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -181,7 +181,7 @@ class DeFiProtocolTokenPriceImpactOnYieldAnalyzer:
             "daily_yield_usd": round(daily_yield_usd, 6),
             "price_sensitivity_score": price_sensitivity_score,
             "price_impact_label": price_impact_label,
-            "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+            "timestamp": clock.utcnow().isoformat() + "Z",
         }
 
     def analyze_and_log(

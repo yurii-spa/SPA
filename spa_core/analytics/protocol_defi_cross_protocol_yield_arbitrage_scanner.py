@@ -13,8 +13,8 @@ Ring-buffer log capped at 100 entries.
 import json
 import math
 import os
-import datetime
 from typing import Any, Dict, List, Optional
+from spa_core.utils import clock
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -182,7 +182,7 @@ class ProtocolDeFiCrossProtocolYieldArbitrageScanner:
             "opportunity_count": opportunity_count,
             "scanner_label": scanner_label,
             "ranked_candidates": ranked,
-            "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+            "timestamp": clock.utcnow().isoformat() + "Z",
         }
 
     def scan_and_log(

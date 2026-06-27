@@ -10,8 +10,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 import json
-from datetime import datetime
-import copy
+from spa_core.utils import clock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -404,7 +403,7 @@ def run_full_failure_analysis(
 
     summary = {
         "failure_boundary_version": FAILURE_BOUNDARY_VERSION,
-        "run_at": datetime.utcnow().isoformat() + "Z",
+        "run_at": clock.utcnow().isoformat() + "Z",
         "total_scenarios": len(SYNTHETIC_SCENARIOS),
         "survived": survived,
         "alarmed": alarmed,

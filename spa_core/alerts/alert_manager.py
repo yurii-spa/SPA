@@ -21,16 +21,18 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
 from spa_core.utils.atomic import atomic_save
-from spa_core.alerts import telegram_client
+# telegram_client import removed (Phase-1 Telegram rebuild): alert_manager no
+# longer reaches the transport directly — its sends are routed to the digest
+# queue via push_policy (see _send below).
 from spa_core.alerts.telegram_format_ru import (
     build_detail_keyboard,
     format_message_ru,
 )
+from spa_core.utils import clock
 
 log = logging.getLogger("spa.alerts.alert_manager")
 
@@ -62,14 +64,14 @@ def _save_alert_state(state: dict) -> None:
 
 def _already_sent_today(key: str) -> bool:
     """Return True if ``key`` alert was already sent today (UTC date)."""
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = clock.utcnow().strftime("%Y-%m-%d")
     state = _load_alert_state()
     return state.get(key) == today
 
 
 def _mark_sent_today(key: str) -> None:
     """Record that ``key`` alert was sent today (UTC date)."""
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = clock.utcnow().strftime("%Y-%m-%d")
     state = _load_alert_state()
     state[key] = today
     _save_alert_state(state)
@@ -100,15 +102,20 @@ def _send(name: str, text: str, *, keyboard=True) -> bool:
     ``keyboard=<dict>``→ attach the given custom inline keyboard dict.
     ``keyboard=False`` → plain message, no keyboard.
     """
+    # RETIRED as a Telegram push (Phase-1 Telegram rebuild). alert_manager fired
+    # daily-summary / red-flag / gap messages from inside the cycle, duplicating
+    # the dedicated paths. Those are now owned by push_policy (critical) and the
+    # one daily digest, so this routes its text to the digest queue and never
+    # pushes. Returns False. Never raises.
     try:
-        if keyboard is True:
-            return telegram_client.send_message_with_keyboard(text, _KEYBOARD)
-        if isinstance(keyboard, dict):
-            return telegram_client.send_message_with_keyboard(text, keyboard)
-        return telegram_client.send_message(text)
+        from spa_core.telegram import push_policy
+        push_policy.enqueue_digest(
+            "alert_manager", str(name), text,
+            reason="alert_manager_retired_push",
+        )
     except Exception as exc:  # noqa: BLE001 — alerts must never crash the cycle
-        log.warning("%s failed (%s) — alert skipped", name, exc)
-        return False
+        log.warning("%s digest route failed (%s) — alert skipped", name, exc)
+    return False
 
 
 def _read_json(path: Path, default):

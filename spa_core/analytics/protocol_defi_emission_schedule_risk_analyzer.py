@@ -10,10 +10,10 @@ Scores a protocol's token-emission model across three risk axes:
 """
 from __future__ import annotations
 
-import datetime
 import json
 import os
 from typing import Any, Dict, List, Optional
+from spa_core.utils import clock
 
 _LOG_CAP = 100
 _DEFAULT_LOG_PATH = os.path.join(
@@ -227,7 +227,7 @@ class ProtocolDeFiEmissionScheduleRiskAnalyzer:
     def _log(self, token_name: str, result: dict) -> None:
         try:
             entry = {
-                "ts":         datetime.datetime.utcnow().isoformat() + "Z",
+                "ts":         clock.utcnow().isoformat() + "Z",
                 "token_name": token_name,
             }
             entry.update(result)

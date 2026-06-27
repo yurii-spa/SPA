@@ -25,8 +25,9 @@ import json
 import math
 import os
 import sys
-from datetime import date, datetime
+from datetime import date
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils import clock
 
 
 # ─── Data loaders ─────────────────────────────────────────────────────────────
@@ -159,7 +160,7 @@ def compute_calmar(annualized_apy_pct: float, max_drawdown_pct: float, min_obs: 
 
 def compute_report(data_dir: str = "data") -> dict:
     """Compute all tear-sheet metrics. Returns dict (available=True|False)."""
-    generated_at = datetime.utcnow().isoformat() + "+00:00"
+    generated_at = clock.utcnow().isoformat() + "+00:00"
 
     # Load equity curve
     try:

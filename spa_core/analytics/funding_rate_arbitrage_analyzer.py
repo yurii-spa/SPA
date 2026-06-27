@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import json
 import os
-import time
 from dataclasses import dataclass, asdict, field
 from typing import List, Optional
+from spa_core.utils import clock
 
 # ---------------------------------------------------------------------------
 # Path helpers
@@ -479,7 +479,7 @@ def load_history(data_dir: str = _DATA_DIR) -> list:
 
 def _now_iso() -> str:
     import datetime
-    return datetime.datetime.utcnow().isoformat() + "Z"
+    return clock.utcnow().isoformat() + "Z"
 
 
 # ---------------------------------------------------------------------------

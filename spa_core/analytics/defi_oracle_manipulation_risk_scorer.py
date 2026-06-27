@@ -7,10 +7,9 @@ Atomic log writes: tmp + os.replace.
 from __future__ import annotations
 
 import json
-import math
 import os
-import datetime
 from typing import Any
+from spa_core.utils import clock
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -88,7 +87,7 @@ class DeFiOracleManipulationRiskScorer:
         aggregates = self._compute_aggregates(results)
 
         output = {
-            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "timestamp": clock.utcnow().isoformat(),
             "oracle_count": len(oracles),
             "results": results,
             "aggregates": aggregates,

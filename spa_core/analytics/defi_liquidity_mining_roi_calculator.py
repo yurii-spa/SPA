@@ -8,10 +8,9 @@ MP-960: DeFiLiquidityMiningROICalculator
 import json
 import math
 import os
-import time
-from datetime import datetime
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils import clock
 
 
 # ---------------------------------------------------------------------------
@@ -77,7 +76,7 @@ class DeFiLiquidityMiningROICalculator:
 
         aggregate = self._aggregate(results)
         output = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": clock.utcnow().isoformat() + "Z",
             "program_count": len(programs),
             "programs": results,
             "aggregate": aggregate,

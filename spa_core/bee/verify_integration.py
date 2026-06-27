@@ -22,9 +22,9 @@ stdlib only. Атомарные записи (tmp + os.replace).
 import hashlib
 import json
 import os
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
+from spa_core.utils import clock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -118,7 +118,7 @@ def pin_file(file_path: Path, name: Optional[str] = None) -> Dict:
             "name": pin_name,
             "file": str(file_path),
             "sha256": file_hash,
-            "pinned_at": datetime.utcnow().isoformat() + "Z",
+            "pinned_at": clock.utcnow().isoformat() + "Z",
             "LLM_FORBIDDEN": True,
         }
         _atomic_write(
@@ -250,7 +250,7 @@ def build_hash_chain(
 
     chain = {
         "verify_integration_version": VERIFY_INTEGRATION_VERSION,
-        "built_at": datetime.utcnow().isoformat() + "Z",
+        "built_at": clock.utcnow().isoformat() + "Z",
         "chain_length": len(chain_entries),
         "chain_head": prev_hash,
         "genesis": previous_chain_hash is None,
@@ -319,7 +319,7 @@ def run_full_verification(
 
     summary = {
         "verify_integration_version": VERIFY_INTEGRATION_VERSION,
-        "run_at": datetime.utcnow().isoformat() + "Z",
+        "run_at": clock.utcnow().isoformat() + "Z",
         "files_checked": len(files_to_verify),
         "pinned_ok": pinned_count,
         "verified_ok": verified_count,

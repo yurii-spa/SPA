@@ -15,12 +15,12 @@ LLM ЗАПРЕЩЁН (LLM_FORBIDDEN_AGENTS). Только stdlib. Атомарн
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils import clock
 
 # ---------------------------------------------------------------------------
 # Константы путей
@@ -525,7 +525,7 @@ class APYAggregator:
             }
 
         payload = {
-            "generated_at":    datetime.datetime.utcnow().isoformat() + "Z",
+            "generated_at":    clock.utcnow().isoformat() + "Z",
             "count":           len(self._snapshots),
             "summary":         self.to_summary_dict(),
             "by_apy":          [_snap_to_dict(s) for s in self.rank_by_apy()],

@@ -17,8 +17,8 @@ import http.server
 import json
 import os
 import sys
-import datetime
 from pathlib import Path
+from spa_core.utils import clock
 
 # ---------------------------------------------------------------------------
 # Config
@@ -54,7 +54,7 @@ def _load_json(filename: str) -> dict:
 
 
 def _now_iso() -> str:
-    return datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    return clock.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _build_summary() -> dict:

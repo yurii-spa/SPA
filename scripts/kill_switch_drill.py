@@ -11,7 +11,6 @@ Kill-Switch Drill — MP-312
 from __future__ import annotations
 
 import argparse
-import datetime
 import inspect
 import json
 import sys
@@ -20,6 +19,8 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_REPO_ROOT))
+
+from spa_core.utils import clock  # noqa: E402  (after sys.path setup for standalone run)
 
 
 def run_drill(data_dir: str | None = None) -> dict:
@@ -30,7 +31,7 @@ def run_drill(data_dir: str | None = None) -> dict:
     ddir = Path(data_dir) if data_dir else _REPO_ROOT / "data"
 
     results: dict = {
-        "drill_timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+        "drill_timestamp": clock.utcnow().isoformat() + "Z",
         "mp": "MP-312",
         "steps": [],
         "passed": False,

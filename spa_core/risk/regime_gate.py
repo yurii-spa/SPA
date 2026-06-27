@@ -14,11 +14,11 @@ fail-closed: нет данных → UNKNOWN → трактуется как EXI
 from enum import Enum
 from typing import Optional
 import json
-from datetime import datetime
 from pathlib import Path
 
 from spa_core.risk.policy_hy import HY_LIMITS, HYRiskLimits, evaluate_exit
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils import clock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _REGIME_LOG = _PROJECT_ROOT / "data" / "hy_regime_log.json"
@@ -70,7 +70,7 @@ def evaluate_regime(
     fail-closed: None данные → UNKNOWN.
     """
     # LLM_FORBIDDEN
-    ts = datetime.utcnow().isoformat() + "Z"
+    ts = clock.utcnow().isoformat() + "Z"
 
     # --- FAIL-CLOSED: отсутствие данных → UNKNOWN ---
     if funding_rate is None or depeg_pct is None:
@@ -188,7 +188,7 @@ def log_regime_change(
         "reason": regime_result.get("reason", ""),
         "signals": regime_result.get("signals", {}),
         "timestamp": regime_result.get(
-            "timestamp", datetime.utcnow().isoformat() + "Z"
+            "timestamp", clock.utcnow().isoformat() + "Z"
         ),
         "previous_state": previous_state,
     }
@@ -202,7 +202,7 @@ def log_regime_change(
         "version": "1.0",
         "description": "Engine B (Carry/HY) regime change log",
         "current_state": _state_str,
-        "last_updated": datetime.utcnow().isoformat() + "Z",
+        "last_updated": clock.utcnow().isoformat() + "Z",
         "entries": entries,
     }
 

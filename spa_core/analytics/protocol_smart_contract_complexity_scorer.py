@@ -5,8 +5,8 @@ Pure stdlib, no external dependencies.
 """
 import json
 import os
-import datetime
 from typing import Optional
+from spa_core.utils import clock
 
 # Normalization maxima for raw complexity components
 _LOC_MAX = 10_000
@@ -243,7 +243,7 @@ class ProtocolSmartContractComplexityScorer:
         if config:
             self.config = {**self.config, **config}
 
-        timestamp = datetime.datetime.utcnow().isoformat()
+        timestamp = clock.utcnow().isoformat()
 
         if not contracts:
             result = {
@@ -316,7 +316,7 @@ class ProtocolSmartContractComplexityScorer:
 
         agg = result.get('aggregates', {})
         log_entry = {
-            'timestamp': result.get('timestamp', datetime.datetime.utcnow().isoformat()),
+            'timestamp': result.get('timestamp', clock.utcnow().isoformat()),
             'total_contracts': agg.get('total_contracts', 0),
             'average_complexity_score': agg.get('average_complexity_score', 0.0),
             'critical_complexity_count': agg.get('critical_complexity_count', 0),

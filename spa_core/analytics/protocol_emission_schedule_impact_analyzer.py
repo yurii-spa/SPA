@@ -6,9 +6,9 @@ MP-961: ProtocolEmissionScheduleImpactAnalyzer
 
 import json
 import os
-from datetime import datetime
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils import clock
 
 
 # ---------------------------------------------------------------------------
@@ -74,7 +74,7 @@ class ProtocolEmissionScheduleImpactAnalyzer:
 
         aggregate = self._aggregate(results)
         output = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": clock.utcnow().isoformat() + "Z",
             "schedule_count": len(schedules),
             "schedules": results,
             "aggregate": aggregate,

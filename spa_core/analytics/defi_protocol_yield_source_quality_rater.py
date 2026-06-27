@@ -9,7 +9,8 @@ Pure stdlib, read-only analytics, atomic ring-buffer log (cap 100).
 
 import json
 import os
-import datetime
+
+from spa_core.utils import clock
 
 # --------------------------------------------------------------------------- #
 # Log config
@@ -73,6 +74,7 @@ def compute_totals(yield_sources: list) -> tuple:
     """
     Compute (total_apy_pct, sustainable_yield_pct, speculative_yield_pct)
     from a list of source dicts.
+
     sustainable = sum of Tier-1 source apy_pcts
     speculative = sum of Tier-2 source apy_pcts
     """
@@ -232,7 +234,7 @@ class DeFiProtocolYieldSourceQualityRater:
         score = compute_quality_score(yield_sources)
         label = quality_label(score)
 
-        timestamp = datetime.datetime.utcnow().isoformat() + "Z"
+        timestamp = clock.utcnow().isoformat() + "Z"
 
         result = {
             "protocol_name": protocol_name,

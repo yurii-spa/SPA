@@ -24,6 +24,7 @@ from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from spa_core.utils import clock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _DATA_BEE_DEFAULT = _PROJECT_ROOT / "data" / "bee"
@@ -368,7 +369,7 @@ def run_walk_forward(
     # --- Atomic write ---
     output_dict = {
         "version": "1.0",
-        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "generated_at": clock.utcnow().isoformat() + "Z",
         "LLM_FORBIDDEN": True,
         **asdict(result),
     }

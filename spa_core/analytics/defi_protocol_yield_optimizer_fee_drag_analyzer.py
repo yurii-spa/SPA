@@ -8,12 +8,12 @@ Pure stdlib, read-only analytics, atomic writes, ring-buffer log capped at 100.
 
 from __future__ import annotations
 
-import datetime
 import json
 import math
 import os
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils import clock
 
 __version__ = "1.0.0"
 __mp__ = "MP-1088"
@@ -268,7 +268,7 @@ class DeFiProtocolYieldOptimizerFeeDragAnalyzer:
                 "withdrawal_drag_pct": round(drag["withdrawal_drag"], 6),
             },
             "holding_period_days": days,
-            "analysis_timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+            "analysis_timestamp": clock.utcnow().isoformat() + "Z",
             "module": __mp__,
             "version": __version__,
         }

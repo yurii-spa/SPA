@@ -6,9 +6,9 @@ Evaluates risks of using NFTs as collateral in DeFi protocols.
 
 import json
 import os
-import datetime
 from typing import List, Dict, Any, Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils import clock
 
 _DEFAULT_CONFIG: Dict[str, Any] = {
     "ring_buffer_cap": 100,
@@ -112,7 +112,7 @@ class DeFiProtocolNFTCollateralRiskAnalyzer:
         output: Dict[str, Any] = {
             "analyzer": self.name,
             "version": self.version,
-            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "timestamp": clock.utcnow().isoformat(),
             "position_count": len(results),
             "positions": results,
             "aggregates": {
@@ -259,7 +259,7 @@ class DeFiProtocolNFTCollateralRiskAnalyzer:
         return {
             "analyzer": self.name,
             "version": self.version,
-            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "timestamp": clock.utcnow().isoformat(),
             "position_count": 0,
             "positions": [],
             "aggregates": {

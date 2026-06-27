@@ -4,10 +4,10 @@ Structured JSON logging for SPA components.
 All log entries are JSON for easy parsing and alerting.
 """
 import json
-import datetime
 import logging
 import sys
 from typing import Any
+from spa_core.utils import clock
 
 
 class SPALogger:
@@ -30,7 +30,7 @@ class SPALogger:
 
     def _log(self, level: str, message: str, **kwargs: Any) -> None:
         entry = {
-            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "timestamp": clock.utcnow().isoformat(),
             "level": level,
             "component": self.component,
             "message": message,

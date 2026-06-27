@@ -11,10 +11,10 @@ Usage:
 """
 
 import argparse
-import datetime
 import os
 import subprocess
 import sys
+from spa_core.utils import clock
 
 
 # ---------------------------------------------------------------------------
@@ -156,7 +156,7 @@ def _render_changelog(commits: list[dict], title: str = "") -> str:
         lines.append(f"> {title}\n\n")
 
     lines.append(
-        f"> Generated: {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}"
+        f"> Generated: {clock.utcnow().strftime('%Y-%m-%d %H:%M UTC')}"
         f"  |  Commits: {len(commits)}\n\n"
     )
     lines.append("---\n\n")

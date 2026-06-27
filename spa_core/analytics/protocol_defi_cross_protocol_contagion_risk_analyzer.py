@@ -5,8 +5,8 @@ Pure stdlib, no external dependencies. Read-only / advisory.
 """
 import json
 import os
-import datetime
 from typing import Optional
+from spa_core.utils import clock
 
 # ---------------------------------------------------------------------------
 # Defaults & constants
@@ -284,7 +284,7 @@ class ProtocolDeFiCrossProtocolContagionRiskAnalyzer:
         }
 
         log_entry = {
-            "ts": datetime.datetime.utcnow().isoformat() + "Z",
+            "ts": clock.utcnow().isoformat() + "Z",
             "protocol_name": protocol_name,
             "contagion_surface_usd": result["contagion_surface_usd"],
             "contagion_risk_score": result["contagion_risk_score"],

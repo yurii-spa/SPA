@@ -16,10 +16,10 @@ fail-closed: risk_level=CRITICAL → все движки уходят в Defensi
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple
 from pathlib import Path
-from datetime import datetime
 import json
 
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils import clock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -110,7 +110,7 @@ def compute_allocation(
     LLM_FORBIDDEN. fail-closed: CRITICAL → Defensive.
     """
     # LLM_FORBIDDEN
-    now = datetime.utcnow().isoformat() + "Z"
+    now = clock.utcnow().isoformat() + "Z"
 
     # fail-closed: CRITICAL → Defensive mode
     is_defensive = (overall_risk == "CRITICAL")

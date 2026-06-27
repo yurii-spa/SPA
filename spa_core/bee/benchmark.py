@@ -9,7 +9,7 @@ from typing import List, Optional, Dict
 from pathlib import Path
 import json
 import math
-from datetime import datetime
+from spa_core.utils import clock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -284,7 +284,7 @@ def run_benchmark(output_path: Optional[Path] = None) -> Dict:
     if len(history) < 2:
         result = {
             "benchmark_version": BENCHMARK_VERSION,
-            "run_at": datetime.utcnow().isoformat() + "Z",
+            "run_at": clock.utcnow().isoformat() + "Z",
             "status": "insufficient_data",
             "data_points": len(history),
             "min_required": 2,
@@ -314,7 +314,7 @@ def run_benchmark(output_path: Optional[Path] = None) -> Dict:
 
         result = {
             "benchmark_version": BENCHMARK_VERSION,
-            "run_at": datetime.utcnow().isoformat() + "Z",
+            "run_at": clock.utcnow().isoformat() + "Z",
             "honest_start": honest_start,
             "status": "ok",
             "data_points": len(daily_returns),

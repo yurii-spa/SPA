@@ -18,10 +18,10 @@ stdlib only. No external dependencies.
 """
 # LLM_FORBIDDEN
 import json
-import hashlib
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
+from spa_core.utils import clock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _DATA_BEE = _PROJECT_ROOT / "data" / "bee"
@@ -235,7 +235,7 @@ def simulate_gate_reaction(
             "доказывает дизайн гейта, не гарантирует будущее. "
             "Counterfactual, не обещание."
         ),
-        "computed_at": datetime.utcnow().isoformat() + "Z",
+        "computed_at": clock.utcnow().isoformat() + "Z",
         "policy_version": current_policy.get("version", "unknown"),
     }
 
@@ -408,7 +408,7 @@ def _build_safety_report(results: List[Dict]) -> Dict:
 
     return {
         "version": "1.0",
-        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "generated_at": clock.utcnow().isoformat() + "Z",
         "total_events_analyzed": len(results),
         "events_where_gate_triggered": sum(
             1 for r in results if r["gate_reaction"]["exit_triggered"]

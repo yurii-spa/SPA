@@ -28,10 +28,11 @@ import os
 import re
 import sys
 import tempfile
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils import clock
 
 # ── Repo root ─────────────────────────────────────────────────────────────────
 
@@ -576,7 +577,7 @@ def generate_report(base_dir: str = ".") -> dict:
     recommendations = _build_recommendations(summary, critical, coverage, dead, arch)
 
     report = {
-        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "generated_at": clock.utcnow().isoformat() + "Z",
         "base_dir": str(root),
         "summary": summary,
         "critical_issues": critical,
@@ -752,7 +753,7 @@ def render_markdown(report: dict) -> str:
 
 def _atomic_write_json(data: Any, path: Path) -> None:
     """Atomic JSON write via centralized atomic_save (MP-1453)."""
-    atomic_save(path, str(data))
+    atomic_save(data, str(path))
 def _atomic_write_text(text: str, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")

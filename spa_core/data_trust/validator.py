@@ -10,6 +10,7 @@ from typing import Optional, Dict, List
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+from spa_core.utils import clock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -146,7 +147,7 @@ class DataTrustValidator:
         max_divergence = cfg.get("max_divergence_pct", 0.20)
         min_sources = cfg.get("min_sources", 2)
 
-        now = as_of or datetime.utcnow()
+        now = as_of or clock.utcnow()
 
         # PIT фильтрация: только данные до as_of (для бэктеста)
         if as_of is not None:

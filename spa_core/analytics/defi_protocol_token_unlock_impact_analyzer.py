@@ -5,8 +5,8 @@ Pure stdlib, no external dependencies.
 """
 import json
 import os
-import datetime
 from typing import Optional
+from spa_core.utils import clock
 
 DEFAULT_CONFIG = {
     'log_path': 'data/token_unlock_impact_log.json',
@@ -241,7 +241,7 @@ class DeFiProtocolTokenUnlockImpactAnalyzer:
                 entries = []
 
         entry = {
-            'ts': datetime.datetime.utcnow().isoformat() + 'Z',
+            'ts': clock.utcnow().isoformat() + 'Z',
             'total_analyzed': result.get('total_analyzed', 0),
             'critical_overhang_count': result.get('critical_overhang_count', 0),
             'negligible_count': result.get('negligible_count', 0),

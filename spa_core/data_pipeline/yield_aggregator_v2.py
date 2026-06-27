@@ -25,13 +25,12 @@ Architecture
 """
 from __future__ import annotations
 
-import datetime
 import json
 import logging
-import os
 from typing import Optional
 
 from spa_core.base import BaseAnalytics
+from spa_core.utils import clock
 
 logger = logging.getLogger(__name__)
 
@@ -189,7 +188,7 @@ class YieldAggregatorV2(BaseAnalytics):
             "sources": {k: v["description"] for k, v in SOURCE_QUALITY.items()},
             "aggregated_apys": {k: v["apy_pct"] for k, v in results.items()},
             "quality_scores": {k: v["quality"] for k, v in results.items()},
-            "last_update": datetime.datetime.utcnow().isoformat(),
+            "last_update": clock.utcnow().isoformat(),
             "detail": results,
         }
         return results

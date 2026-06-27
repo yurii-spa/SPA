@@ -5,6 +5,7 @@ LLM_FORBIDDEN.
 # LLM_FORBIDDEN
 from datetime import datetime
 from typing import Optional, Dict
+from spa_core.utils import clock
 
 
 def check_staleness(
@@ -32,7 +33,7 @@ def check_staleness(
     except ValueError:
         return {"ok": False, "age_seconds": None, "stale": True, "reason": "invalid_timestamp"}
 
-    now = as_of or datetime.utcnow()
+    now = as_of or clock.utcnow()
     age = (now - ts).total_seconds()
     stale = age > max_seconds
 

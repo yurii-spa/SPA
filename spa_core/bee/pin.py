@@ -19,9 +19,9 @@ stdlib only. Атомарные записи.
 import json
 import hashlib
 import os
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
+from spa_core.utils import clock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _DATA_BEE = _PROJECT_ROOT / "data" / "bee"
@@ -45,7 +45,7 @@ def pin_data(name: str, data: Dict, seed: int = 42) -> Dict:
     _PINNED_DIR.mkdir(parents=True, exist_ok=True)
     _HASHES_DIR.mkdir(parents=True, exist_ok=True)
 
-    pinned_at = datetime.utcnow().isoformat() + "Z"
+    pinned_at = clock.utcnow().isoformat() + "Z"
 
     payload = {
         "name": name,
@@ -111,7 +111,7 @@ def verify_pin(name: str) -> Dict:
         "name": name,
         "stored_hash": stored_hash,
         "actual_hash": actual_hash,
-        "verified_at": datetime.utcnow().isoformat() + "Z",
+        "verified_at": clock.utcnow().isoformat() + "Z",
     }
 
 

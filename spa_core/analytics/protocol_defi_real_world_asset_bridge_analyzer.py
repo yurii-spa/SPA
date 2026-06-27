@@ -6,9 +6,9 @@ Analyzes RWA tokenization protocols and quality of the DeFi bridge to on-chain a
 
 import json
 import os
-import datetime
 from typing import List, Dict, Any, Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils import clock
 
 _DEFAULT_CONFIG: Dict[str, Any] = {
     "ring_buffer_cap": 100,
@@ -135,7 +135,7 @@ class ProtocolDeFiRealWorldAssetBridgeAnalyzer:
         output: Dict[str, Any] = {
             "analyzer": self.name,
             "version": self.version,
-            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "timestamp": clock.utcnow().isoformat(),
             "protocol_count": len(results),
             "protocols": results,
             "aggregates": {
@@ -296,7 +296,7 @@ class ProtocolDeFiRealWorldAssetBridgeAnalyzer:
         return {
             "analyzer": self.name,
             "version": self.version,
-            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "timestamp": clock.utcnow().isoformat(),
             "protocol_count": 0,
             "protocols": [],
             "aggregates": {

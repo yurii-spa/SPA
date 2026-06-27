@@ -12,9 +12,9 @@ import json
 import math
 import os
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import List
+from spa_core.utils import clock
 
 DATA_FILE = Path(__file__).parent.parent.parent / "data" / "position_age_log.json"
 RING_BUFFER_CAP = 100
@@ -202,7 +202,7 @@ def save_results(
         "action": analysis.action,
         "next_review_days": analysis.next_review_days,
         "opportunity_cost_pct": analysis.opportunity_cost_pct,
-        "saved_at": datetime.utcnow().isoformat(),
+        "saved_at": clock.utcnow().isoformat(),
     }
 
     history.append(record)

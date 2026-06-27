@@ -18,16 +18,15 @@ PRODUCT_DECISIONS:
 
 from __future__ import annotations
 
-import datetime
 import hashlib
 import json
-import os
 import time
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Optional
 
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils import clock
 
 __all__ = [
     "InvestorRecord",
@@ -246,4 +245,4 @@ class InvestorRegistry:
 
 def _utcnow_iso() -> str:
     """Return current UTC timestamp in ISO 8601 format."""
-    return datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    return clock.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")

@@ -9,7 +9,7 @@ Pure stdlib, read-only analytics, atomic ring-buffer log (cap 100).
 
 import json
 import os
-import datetime
+from spa_core.utils import clock
 
 # --------------------------------------------------------------------------- #
 # Log config
@@ -326,7 +326,7 @@ class ProtocolDeFiCrossChainBridgeFeeAnalyzer:
         bridge_efficiency_score = compute_bridge_efficiency_score(breakeven_days, net_apy_advantage_pct)
         bridge_label = compute_bridge_label(breakeven_days, net_apy_advantage_pct)
 
-        timestamp = datetime.datetime.utcnow().isoformat() + "Z"
+        timestamp = clock.utcnow().isoformat() + "Z"
 
         result = {
             "protocol_name":           protocol_name,

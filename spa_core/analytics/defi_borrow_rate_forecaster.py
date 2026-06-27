@@ -46,10 +46,10 @@ Pure stdlib only. No external dependencies.
 
 from __future__ import annotations
 
-import datetime
 import json
 import os
 from typing import Any, Dict, List, Optional
+from spa_core.utils import clock
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 _RING_CAP = 100
@@ -229,7 +229,7 @@ class DeFiBorrowRateForecaster:
         aggregates = self._compute_aggregates(market_results)
 
         output: Dict = {
-            "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+            "timestamp": clock.utcnow().isoformat() + "Z",
             "markets": market_results,
             "aggregates": aggregates,
         }

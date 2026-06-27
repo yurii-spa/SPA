@@ -7,11 +7,10 @@ Domains: read-only analytics — never imports execution/, never calls LLM.
 All file writes are atomic (tmp + os.replace).
 """
 
-import os
 import json
-import datetime
 from pathlib import Path
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils import clock
 
 
 # Strategy IDs that are NEVER auto-promoted regardless of metrics (ADR-029 + ADR-021).
@@ -68,7 +67,7 @@ def _safe_int(value, default: int = 0) -> int:
 
 def _utcnow_iso() -> str:
     """Return current UTC time as ISO-8601 string with Z suffix."""
-    return datetime.datetime.utcnow().isoformat() + "Z"
+    return clock.utcnow().isoformat() + "Z"
 
 
 # ---------------------------------------------------------------------------

@@ -8,7 +8,7 @@ Pure stdlib, read-only analytics, atomic ring-buffer log.
 import json
 import os
 import math
-import datetime
+from spa_core.utils import clock
 
 _LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "protocol_adoption_log.json"
@@ -278,7 +278,7 @@ class DeFiProtocolAdoptionTracker:
         results = [_analyse_protocol(p) for p in protocols]
         aggregates = _build_aggregates(results)
 
-        timestamp = datetime.datetime.utcnow().isoformat() + "Z"
+        timestamp = clock.utcnow().isoformat() + "Z"
 
         output = {
             "protocols": results,

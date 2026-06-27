@@ -5,11 +5,10 @@ Secrets expected: SPA_ALERT_EMAIL (sender), SPA_ALERT_PASSWORD (app password),
 """
 import os
 import smtplib
-import json
 import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from datetime import datetime
+from spa_core.utils import clock
 
 log = logging.getLogger("spa.alerts.email")
 
@@ -78,7 +77,7 @@ def build_risk_alert_email(
 
     Returns (subject, html_body, text_body).
     """
-    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    now_str = clock.utcnow().strftime("%Y-%m-%d %H:%M UTC")
     count = len(alerts)
     subject = f"🚨 SPA Risk Alert: {count} alert(s) — {now_str}"
 
@@ -208,8 +207,8 @@ def build_cycle_summary_email(
 
     Returns (subject, html_body, text_body).
     """
-    now_str    = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
-    date_str   = datetime.utcnow().strftime("%Y-%m-%d")
+    now_str    = clock.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    date_str   = clock.utcnow().strftime("%Y-%m-%d")
     total_val  = portfolio.get("total_capital_usd", 0)
     cash_usd   = portfolio.get("cash_usd", 0)
     invested   = portfolio.get("invested_usd", 0)

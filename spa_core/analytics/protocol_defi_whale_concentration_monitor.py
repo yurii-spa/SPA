@@ -6,8 +6,8 @@ Read-only analytics. stdlib only. Atomic ring-buffer write.
 
 import json
 import os
-import datetime
 from typing import Any
+from spa_core.utils import clock
 
 LOG_FILE = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "whale_concentration_log.json"
@@ -62,7 +62,7 @@ class ProtocolDeFiWhaleConcentrationMonitor:
         report = {
             "protocols": results,
             "aggregates": aggregates,
-            "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+            "timestamp": clock.utcnow().isoformat() + "Z",
             "version": "1.0.0",
             "module": "MP-999",
         }

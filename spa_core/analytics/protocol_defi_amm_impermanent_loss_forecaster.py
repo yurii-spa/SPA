@@ -18,7 +18,7 @@ Pure stdlib, read-only analytics, atomic ring-buffer log (cap 100).
 import json
 import math
 import os
-import datetime
+from spa_core.utils import clock
 
 # --------------------------------------------------------------------------- #
 # Log config
@@ -307,7 +307,7 @@ class ProtocolDeFiAmmImpermanentLossForecaster:
             best_case_net_pnl_pct = 0.0
 
         label = il_risk_label(worst_case_il_pct)
-        timestamp = datetime.datetime.utcnow().isoformat() + "Z"
+        timestamp = clock.utcnow().isoformat() + "Z"
 
         result = {
             "pool_name": pool_name,

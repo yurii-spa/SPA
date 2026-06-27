@@ -21,13 +21,13 @@ Freshness thresholds (seconds):
 """
 from __future__ import annotations
 
-import datetime
 import json
 import logging
 import os
 from typing import Optional
 
 from spa_core.base import BaseAnalytics
+from spa_core.utils import clock
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +149,7 @@ class DataFreshnessMonitor(BaseAnalytics):
             "stale_files": stale,
             "missing_files": missing,
             "fresh_files": fresh,
-            "last_run": datetime.datetime.utcnow().isoformat(),
+            "last_run": clock.utcnow().isoformat(),
             "summary": {
                 "total": len(checks),
                 "fresh": len(fresh),

@@ -7,7 +7,7 @@ Pure stdlib, read-only analytics, atomic ring-buffer log.
 
 import json
 import os
-import datetime
+from spa_core.utils import clock
 
 _LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "yield_sustainability_log.json"
@@ -351,7 +351,7 @@ class DeFiYieldSustainabilityRater:
         results = [_rate_strategy(s) for s in strategies]
         aggregates = _build_aggregates(results)
 
-        timestamp = datetime.datetime.utcnow().isoformat() + "Z"
+        timestamp = clock.utcnow().isoformat() + "Z"
 
         output = {
             "strategies": results,

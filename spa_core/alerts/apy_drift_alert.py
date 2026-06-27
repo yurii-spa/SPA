@@ -9,12 +9,12 @@ Atomic writes only. LLM FORBIDDEN.
 """
 from __future__ import annotations
 
-import datetime
 import logging
 from typing import Dict, List, Optional
 
 from spa_core.base import BaseAnalytics
 from spa_core.utils.atomic import atomic_load, atomic_save
+from spa_core.utils import clock
 
 log = logging.getLogger("spa.alerts.apy_drift")
 
@@ -71,7 +71,7 @@ class APYDriftAlert(BaseAnalytics):
                 "avg_7d_apy": avg_7d,
                 "drift_pct": drift * 100,
                 "severity": severity,
-                "timestamp": datetime.datetime.utcnow().isoformat(),
+                "timestamp": clock.utcnow().isoformat(),
             }
             log.warning(
                 "APY drift alert %s: current=%.4f avg_7d=%.4f drift=%.1f%% sev=%s",
@@ -96,7 +96,7 @@ class APYDriftAlert(BaseAnalytics):
                 self._send_telegram_alert(alert)
 
         self._data["alerts"] = alerts
-        self._data["last_check"] = datetime.datetime.utcnow().isoformat()
+        self._data["last_check"] = clock.utcnow().isoformat()
         atomic_save(self._data, self._path(OUTPUT_PATH))
         return alerts
 
@@ -113,21 +113,27 @@ class APYDriftAlert(BaseAnalytics):
         return [float(v) for v in history if v is not None]
 
     def _send_telegram_alert(self, alert: Dict) -> bool:
-        """Sends Telegram alert for APY drift. Fail-safe."""
-        try:
-            from spa_core.alerts.telegram_client import send_message  # type: ignore
+        """RETIRED as a Telegram push (Phase-1 Telegram rebuild).
 
+        APY drift is advisory market intel; routed to the digest queue, never
+        pushed. Always returns False. Never raises.
+        """
+        try:
+            from spa_core.telegram import push_policy
             msg = (
-                f"⚠️ APY Drift Alert — {alert['strategy']}\n"
+                f"APY Drift — {alert['strategy']}\n"
                 f"Current: {alert['current_apy']:.2%}\n"
                 f"7d avg: {alert['avg_7d_apy']:.2%}\n"
                 f"Drift: -{alert['drift_pct']:.1f}%\n"
                 f"Severity: {alert['severity']}"
             )
-            return send_message(msg)
-        except Exception as exc:
-            log.warning("Telegram send failed: %s", exc)
-            return False
+            push_policy.enqueue_digest(
+                "apy_drift", "APY drift", msg,
+                severity="WARNING", reason="apy_drift_alert_retired_push",
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("apy_drift: digest route failed: %s", exc)
+        return False
 
     # ------------------------------------------------------------------
     # BaseAnalytics required
@@ -142,7 +148,6 @@ class APYDriftAlert(BaseAnalytics):
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import json
     import sys
 
     base = "." if len(sys.argv) < 2 else sys.argv[1]

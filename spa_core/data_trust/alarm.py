@@ -9,13 +9,14 @@ LLM_FORBIDDEN. fail-closed: alarm → log + (optional) Telegram.
 """
 # LLM_FORBIDDEN
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 from enum import Enum
 from typing import Optional, Dict, List
 from pathlib import Path
 import json
 import os
 import tempfile
+from spa_core.utils import clock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _ALARM_LOG = _PROJECT_ROOT / "data" / "datatrust_alarm_log.json"
@@ -84,8 +85,8 @@ def create_alarm(
     LLM_FORBIDDEN. fail-closed.
     """
     # LLM_FORBIDDEN
-    now = datetime.utcnow().isoformat() + "Z"
-    alarm_id = f"DT-{metric[:10]}-{int(datetime.utcnow().timestamp())}"
+    now = clock.utcnow().isoformat() + "Z"
+    alarm_id = f"DT-{metric[:10]}-{int(clock.utcnow().timestamp())}"
 
     alarm = DataAlarm(
         alarm_id=alarm_id,
@@ -126,22 +127,30 @@ def send_alarm_telegram(alarm: "DataAlarm") -> bool:
     Secrets — только через macOS Keychain (не в файлах, SECRETS POLICY).
     """
     # LLM_FORBIDDEN
+    # Phase-1 Telegram rebuild: a CRITICAL data-trust alarm (data corruption /
+    # fail-closed) is a genuine Tier-1 interrupt → push_policy ``system_critical``
+    # (edge-triggered). WARN/INFO alarms are advisory → digest queue, never
+    # pushed. Never raises.
     try:
-        from spa_core.alerts.telegram_client import send_message  # stdlib-only wrapper
-        icon = (
-            "\U0001f6a8" if alarm.level == AlarmLevel.CRITICAL
-            else "⚠️" if alarm.level == AlarmLevel.WARN
-            else "ℹ️"
-        )
-        text = (
-            f"{icon} *DataTrust Alarm*\n"
-            f"Metric: `{alarm.metric}`\n"
-            f"Signal: `{alarm.signal}`\n"
-            f"Level: `{alarm.level}`\n"
+        from spa_core.telegram import push_policy
+        body = (
+            f"Metric: {alarm.metric}\n"
+            f"Signal: {alarm.signal}\n"
+            f"Level: {alarm.level}\n"
             f"Message: {alarm.message}\n"
-            f"Time: `{alarm.created_at}`"
+            f"Time: {alarm.created_at}"
         )
-        return send_message(text)
+        if alarm.level == AlarmLevel.CRITICAL:
+            return bool(
+                push_policy.push_critical(
+                    "system_critical", "CRITICAL", "DataTrust Alarm", body,
+                )
+            )
+        push_policy.enqueue_digest(
+            "data_trust", "DataTrust alarm", body,
+            severity=str(alarm.level), reason="data_trust_alarm_advisory",
+        )
+        return False
     except Exception:  # noqa: BLE001 — alarm must never crash callers
         return False
 
@@ -200,7 +209,7 @@ def get_active_alarms(lookback_hours: int = 24) -> List["DataAlarm"]:
     try:
         log = json.loads(_ALARM_LOG.read_text(encoding="utf-8"))
         alarms = log.get("alarms", [])
-        cutoff_str = (datetime.utcnow() - timedelta(hours=lookback_hours)).isoformat()
+        cutoff_str = (clock.utcnow() - timedelta(hours=lookback_hours)).isoformat()
 
         active = [
             DataAlarm(

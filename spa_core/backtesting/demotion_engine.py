@@ -36,11 +36,11 @@ Date: 2026-06-20 (MP-1513, Sprint v11.29)
 """
 from __future__ import annotations
 
-import datetime
 from typing import Dict, List, Optional, Tuple
 
 from spa_core.base import BaseAnalytics
 from spa_core.utils.errors import GateError
+from spa_core.utils import clock
 
 
 # ─── Demotion triggers (ADR-023) ──────────────────────────────────────────────
@@ -227,7 +227,7 @@ class DemotionEngine(BaseAnalytics):
         """
         entry = {
             "strategy_id": strategy_id,
-            "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+            "timestamp": clock.utcnow().isoformat() + "Z",
             "reason": reason,
         }
         self._data["demotions_executed"].append(entry)

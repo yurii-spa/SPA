@@ -26,6 +26,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
+from spa_core.utils import clock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _DATA_BEE = _PROJECT_ROOT / "data" / "bee"
@@ -548,7 +549,7 @@ def run_backtest_live_fit(output_path: Optional[Path] = None) -> Dict:
 
     result = {
         "version": "1.1",
-        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "generated_at": clock.utcnow().isoformat() + "Z",
         "honest_start_date": HONEST_START,
         "live_days_since_honest_start": len(live_history),
         "current_apy": current_apy,

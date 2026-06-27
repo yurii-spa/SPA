@@ -9,9 +9,9 @@ from __future__ import annotations
 import json
 import math
 import os
-import datetime
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils import clock
 
 __version__ = "1.0.0"
 __mp__ = "MP-952"
@@ -260,7 +260,7 @@ class DeFiYieldAggregatorFeeAnalyzer:
         output = {
             "aggregators": results,
             "aggregates": aggregates,
-            "analysis_timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+            "analysis_timestamp": clock.utcnow().isoformat() + "Z",
             "module": __mp__,
             "version": __version__,
         }

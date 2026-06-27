@@ -12,9 +12,9 @@ GoLiveChecker-LP: нужно 14+ дней paper trading для прохожде�
 """
 # LLM_FORBIDDEN
 from pathlib import Path
-from datetime import datetime
 import json
 import os
+from spa_core.utils import clock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _LP_DATA_PATH = _PROJECT_ROOT / "data" / "lp_paper_trading.json"
@@ -54,7 +54,7 @@ def _default_lp_state() -> dict:
     return {
         "sleeve": "C",
         "engine": "LP/Liquidity",
-        "start_date": datetime.utcnow().strftime("%Y-%m-%d"),
+        "start_date": clock.utcnow().strftime("%Y-%m-%d"),
         "seed_equity": 0.0,
         "equity": 0.0,
         "peak_equity": 0.0,
@@ -127,7 +127,7 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
     LLM_FORBIDDEN. fail-closed. dry_run=True по умолчанию.
     """
     # LLM_FORBIDDEN
-    now = datetime.utcnow()
+    now = clock.utcnow()
     today = now.strftime("%Y-%m-%d")
 
     # fail-closed: ошибка загрузки → skip cycle

@@ -26,11 +26,11 @@ Date: 2026-06-20 (MP-1512, Sprint v11.28)
 """
 from __future__ import annotations
 
-import datetime
 import statistics
 from typing import Dict, List, Optional
 
 from spa_core.base import BaseAnalytics
+from spa_core.utils import clock
 
 
 # ─── Constants ────────────────────────────────────────────────────────────────
@@ -148,7 +148,7 @@ class TournamentRunnerV2(BaseAnalytics):
                 demotion_candidates.append(r_copy)
 
         self._data["demotions_pending"] = demotion_candidates
-        self._data["last_run"] = datetime.datetime.utcnow().isoformat() + "Z"
+        self._data["last_run"] = clock.utcnow().isoformat() + "Z"
         self._data["strategy_count"] = len(results)
 
         if save:

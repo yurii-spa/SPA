@@ -32,6 +32,9 @@ from typing import Any
 # PROJECT_ROOT — родитель директории scripts/
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+from spa_core.utils import clock  # noqa: E402  (after sys.path setup for standalone run)
 
 EQUITY_HISTORY_PATH   = DATA_DIR / "equity_history.json"
 PNL_HISTORY_PATH      = DATA_DIR / "pnl_history.json"
@@ -245,7 +248,7 @@ def update_adapter_status(apy_map: dict[str, float], dry_run: bool) -> bool:
         return False
 
     status["simulate_day_snapshot"] = {
-        "simulated_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "simulated_at": clock.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "source":       "defi_llama",
         "apy_by_adapter": {k: round(v, 4) for k, v in apy_map.items()},
     }

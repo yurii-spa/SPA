@@ -8,7 +8,7 @@ Pure stdlib, read-only analytics, atomic ring-buffer log (cap 100).
 
 import json
 import os
-import datetime
+from spa_core.utils import clock
 
 # --------------------------------------------------------------------------- #
 # Log config
@@ -254,7 +254,7 @@ class DeFiProtocolYieldReserveBufferAnalyzer:
         )
         reserve_label = compute_reserve_label(reserve_ratio_pct, bad_debt_coverage_ratio)
 
-        timestamp = datetime.datetime.utcnow().isoformat() + "Z"
+        timestamp = clock.utcnow().isoformat() + "Z"
 
         result = {
             "protocol_name":           protocol_name,

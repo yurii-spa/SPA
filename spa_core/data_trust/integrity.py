@@ -10,6 +10,7 @@ import json
 import hashlib
 import os
 import tempfile
+from spa_core.utils import clock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -110,7 +111,7 @@ def check_data_age(path: Path, field: str, max_age_hours: int = 24) -> Dict:
             return {"ok": False, "status": "missing_timestamp", "field": field}
 
         ts = datetime.fromisoformat(str(ts_str).rstrip("Z"))
-        age_hours = (datetime.utcnow() - ts).total_seconds() / 3600
+        age_hours = (clock.utcnow() - ts).total_seconds() / 3600
 
         return {
             "ok": age_hours <= max_age_hours,
@@ -209,7 +210,7 @@ def run_integrity_check(
 
     summary = {
         "integrity_version": INTEGRITY_VERSION,
-        "run_at": datetime.utcnow().isoformat() + "Z",
+        "run_at": clock.utcnow().isoformat() + "Z",
         "overall_ok": overall_ok,
         "files_checked": len(files),
         "critical_failures": critical_failures,

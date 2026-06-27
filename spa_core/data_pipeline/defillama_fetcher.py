@@ -16,6 +16,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
+from spa_core.utils import clock
 
 # ─── Конфигурация ───────────────────────────────────────────────────────────────
 
@@ -626,7 +627,7 @@ class DeFiLlamaFetcher:
                 s["best_apy"] = round(s["best_apy"], 4)
 
             chains_status = {
-                "generated_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+                "generated_at": clock.utcnow().isoformat() + "Z",
                 "total_pools_fetched": len(results),
                 "total_pools_skipped": len(skipped),
                 "chains": chain_stats,

@@ -5,8 +5,8 @@ Pure stdlib, no external dependencies.
 """
 import json
 import os
-import datetime
 from typing import Optional
+from spa_core.utils import clock
 
 # Velocity label thresholds (annualized)
 _VELOCITY_THRESHOLDS = [
@@ -174,7 +174,7 @@ class DeFiProtocolTokenVelocityAnalyzer:
         if config:
             self.config = {**self.config, **config}
 
-        timestamp = datetime.datetime.utcnow().isoformat()
+        timestamp = clock.utcnow().isoformat()
 
         if not tokens:
             result = {
@@ -256,7 +256,7 @@ class DeFiProtocolTokenVelocityAnalyzer:
 
         agg = result.get('aggregates', {})
         log_entry = {
-            'timestamp': result.get('timestamp', datetime.datetime.utcnow().isoformat()),
+            'timestamp': result.get('timestamp', clock.utcnow().isoformat()),
             'total_tokens': agg.get('total_tokens', 0),
             'average_velocity': agg.get('average_velocity', 0.0),
             'speculation_count': agg.get('speculation_count', 0),

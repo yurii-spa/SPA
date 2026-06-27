@@ -7,8 +7,8 @@ LLM_FORBIDDEN. fail-closed: нет данных → 0/pending.
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 from pathlib import Path
-from datetime import datetime
 import json
+from spa_core.utils import clock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 REPORT_VERSION = "multi_engine_report_v2.0"
@@ -175,7 +175,7 @@ def generate_multi_engine_report(output_path: Optional[Path] = None) -> MultiEng
     LLM_FORBIDDEN. fail-closed.
     """
     # LLM_FORBIDDEN
-    now = datetime.utcnow()
+    now = clock.utcnow()
 
     engine_a = _get_engine_a_report()
     engine_b = _get_engine_b_report()

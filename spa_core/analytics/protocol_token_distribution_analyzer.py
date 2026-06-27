@@ -53,10 +53,10 @@ Pure stdlib only. No external dependencies.
 
 from __future__ import annotations
 
-import datetime
 import json
 import os
 from typing import Any, Dict, List, Optional
+from spa_core.utils import clock
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 _RING_CAP = 100
@@ -224,7 +224,7 @@ class ProtocolTokenDistributionAnalyzer:
         aggregates = self._compute_aggregates(token_results)
 
         output: Dict = {
-            "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+            "timestamp": clock.utcnow().isoformat() + "Z",
             "tokens": token_results,
             "aggregates": aggregates,
         }

@@ -14,10 +14,10 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 from enum import Enum
 from pathlib import Path
-from datetime import datetime
 import json
 
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils import clock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -146,7 +146,7 @@ def snapshot_engine(
         kill_threshold_pct=kill_threshold,
         drawdown_to_kill_pct=abs(drawdown_pct) / kill_threshold,
         details=details or {},
-        checked_at=datetime.utcnow().isoformat() + "Z",
+        checked_at=clock.utcnow().isoformat() + "Z",
     )
 
 
@@ -256,7 +256,7 @@ def aggregate_risk(
         any_critical=any_critical,
         any_red=any_red,
         block_new_positions=block_new_positions,
-        aggregated_at=datetime.utcnow().isoformat() + "Z",
+        aggregated_at=clock.utcnow().isoformat() + "Z",
         policy_versions=policy_versions,
         LLM_FORBIDDEN=True,
     )

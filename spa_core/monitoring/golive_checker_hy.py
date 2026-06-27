@@ -18,12 +18,12 @@ LLM_FORBIDDEN. fail-closed: нет данных → CHECK_FAIL.
 from dataclasses import dataclass, field
 from typing import List
 from pathlib import Path
-from datetime import datetime
 import importlib.util
 import json
 import os
 import sys
 import tempfile
+from spa_core.utils import clock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 GOLIVE_HY_VERSION = "golive_hy_v1.0"
@@ -324,7 +324,7 @@ def run_golive_check_hy() -> HYGoLiveReport:
         overall_status=overall,
         ready_for_golive=ready,
         blocker_ids=blockers,
-        checked_at=datetime.utcnow().isoformat() + "Z",
+        checked_at=clock.utcnow().isoformat() + "Z",
         policy_version=GOLIVE_HY_VERSION,
         LLM_FORBIDDEN=True,
     )

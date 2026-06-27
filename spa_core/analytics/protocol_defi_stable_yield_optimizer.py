@@ -5,8 +5,8 @@ Pure stdlib, no external dependencies.
 """
 import json
 import os
-import datetime
 from typing import Optional
+from spa_core.utils import clock
 
 DEFAULT_CONFIG = {
     'log_path': 'data/stable_yield_optimizer_log.json',
@@ -277,7 +277,7 @@ class ProtocolDeFiStableYieldOptimizer:
 
         top = result.get('top_opportunity')
         entry = {
-            'ts': datetime.datetime.utcnow().isoformat() + 'Z',
+            'ts': clock.utcnow().isoformat() + 'Z',
             'total_analyzed': result.get('total_analyzed', 0),
             'top_allocation_count': result.get('top_allocation_count', 0),
             'avoid_count': result.get('avoid_count', 0),

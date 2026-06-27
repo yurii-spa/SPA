@@ -5,8 +5,8 @@ Pure stdlib, no external dependencies. Read-only / advisory.
 """
 import json
 import os
-import datetime
 from typing import Optional
+from spa_core.utils import clock
 
 # ---------------------------------------------------------------------------
 # Defaults & constants
@@ -268,7 +268,7 @@ class DeFiProtocolTokenUnlockPriceImpactEstimator:
         }
 
         log_entry = {
-            "ts": datetime.datetime.utcnow().isoformat() + "Z",
+            "ts": clock.utcnow().isoformat() + "Z",
             "token_name": result["token_name"],
             "unlock_value_usd": result["unlock_value_usd"],
             "price_impact_pct": result["price_impact_pct"],

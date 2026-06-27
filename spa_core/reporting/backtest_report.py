@@ -29,10 +29,9 @@ Usage:
     report.save_markdown()
 """
 
-import datetime
-import os
 from spa_core.base import BaseReport
 from spa_core.utils.atomic import atomic_load
+from spa_core.utils import clock
 
 
 _GATE_STATES = ("BACKTEST_PASS", "PRE_PAPER_PASS", "PAPER_IN_PROGRESS", "LIVE_LOCKED")
@@ -69,7 +68,7 @@ class BacktestReport(BaseReport):
         """
         self._report = {
             "strategy": self.strategy_id,
-            "generated_at": datetime.datetime.utcnow().isoformat() + "Z",
+            "generated_at": clock.utcnow().isoformat() + "Z",
             "summary": self._build_summary(),
             "walk_forward": self._load_walk_forward(),
             "monte_carlo": self._load_monte_carlo(),

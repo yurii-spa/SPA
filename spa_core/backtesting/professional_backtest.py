@@ -29,9 +29,10 @@ import os
 import random as _random
 import shutil
 import statistics
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from spa_core.utils import clock
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Project paths
@@ -1359,7 +1360,7 @@ class ProfessionalBacktest:
         # ── 9. Assemble result ───────────────────────────────────────────
         result: Dict = {
             "meta": {
-                "generated_at": datetime.utcnow().isoformat() + "Z",
+                "generated_at": clock.utcnow().isoformat() + "Z",
                 "version": VERSION,
                 "is_backtest": True,
                 "data_source": data_source_label,
@@ -1477,7 +1478,7 @@ class ProfessionalBacktest:
                 "historical APY data (2022-2025)."
             ),
             "redirects_to": "data/professional_backtest_result.json",
-            "superseded_at": datetime.utcnow().isoformat() + "Z",
+            "superseded_at": clock.utcnow().isoformat() + "Z",
             "version": VERSION,
             "data_source": "synthetic (deprecated)",
         }

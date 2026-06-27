@@ -13,12 +13,14 @@ import json
 import os
 import sys
 import tempfile
-import datetime
 
 # ---------------------------------------------------------------------------
 # Пути
 # ---------------------------------------------------------------------------
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+from spa_core.utils import clock  # noqa: E402  (after sys.path setup for standalone run)
 CYCLE_RUNNER = os.path.join(REPO_ROOT, "spa_core", "paper_trading", "cycle_runner.py")
 PAPER_EVIDENCE = os.path.join(REPO_ROOT, "data", "paper_evidence.json")
 ADAPTER_STATUS = os.path.join(REPO_ROOT, "data", "adapter_status.json")
@@ -155,7 +157,7 @@ def check_golive_status_json() -> dict:
 def main() -> int:
     print("=" * 60)
     print("SPA MP-446 — Day 1 Pre-flight Validation")
-    print(f"Timestamp : {datetime.datetime.utcnow().isoformat()}Z")
+    print(f"Timestamp : {clock.utcnow().isoformat()}Z")
     print(f"Repo root : {REPO_ROOT}")
     print("=" * 60)
 
@@ -190,7 +192,7 @@ def main() -> int:
 
     # Атомарная запись результата
     output = {
-        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+        "timestamp": clock.utcnow().isoformat() + "Z",
         "mp": "MP-446",
         "verdict": verdict,
         "all_pass": all_pass,

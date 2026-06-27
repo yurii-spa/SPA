@@ -10,8 +10,8 @@ Storage: data/decision_audit.jsonl (append-only, 10 MB rotation).
 import json
 import os
 import uuid
-import datetime
 from typing import List, Optional
+from spa_core.utils import clock
 
 MAX_FILE_BYTES = 10 * 1024 * 1024  # 10 MB
 
@@ -53,7 +53,7 @@ class DecisionAuditTrail:
         entry = {
             "id": str(uuid.uuid4()),
             "correlation_id": cid,
-            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "timestamp": clock.utcnow().isoformat(),
             "type": entry_type,
             "description": description,
             "outcome": outcome,

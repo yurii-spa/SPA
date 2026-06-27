@@ -8,10 +8,10 @@ for bridge fees, annualised gas costs, and entry slippage.
 """
 from __future__ import annotations
 
-import datetime
 import json
 import os
 from typing import Any, Dict, List, Optional
+from spa_core.utils import clock
 
 _LOG_CAP = 100
 _DEFAULT_LOG_PATH = os.path.join(
@@ -239,7 +239,7 @@ class DeFiProtocolCrossChainYieldComparator:
         try:
             top = enriched[0] if enriched else {}
             entry = {
-                "ts":                  datetime.datetime.utcnow().isoformat() + "Z",
+                "ts":                  clock.utcnow().isoformat() + "Z",
                 "capital_usd":         capital_usd,
                 "holding_period_days": holding_period_days,
                 "n_positions":         len(enriched),

@@ -29,6 +29,7 @@ import logging
 from typing import Optional
 
 from spa_core.base import BaseAnalytics
+from spa_core.utils import clock
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +121,7 @@ class APYHistoryTracker(BaseAnalytics):
         if len(history) > self._max_history_days:
             self._data["adapters"][adapter_name] = history[-self._max_history_days:]
 
-        self._data["last_update"] = datetime.datetime.utcnow().isoformat()
+        self._data["last_update"] = clock.utcnow().isoformat()
         self.save()
 
     def get_trend(self, adapter_name: str) -> dict:

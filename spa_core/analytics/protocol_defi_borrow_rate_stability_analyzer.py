@@ -8,12 +8,12 @@ Pure stdlib, read-only analytics, atomic writes, ring-buffer log capped at 100.
 
 from __future__ import annotations
 
-import datetime
 import json
 import math
 import os
 from typing import Any
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils import clock
 
 __version__ = "1.0.0"
 __mp__ = "MP-1089"
@@ -255,7 +255,7 @@ class ProtocolDeFiBorrowRateStabilityAnalyzer:
             "optimal_utilization_pct": round(optimal, 6),
             "base_rate_pct": round(base, 6),
             "observations": len(rates),
-            "analysis_timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+            "analysis_timestamp": clock.utcnow().isoformat() + "Z",
             "module": __mp__,
             "version": __version__,
         }

@@ -11,10 +11,10 @@ Stdlib only. No numpy / pandas.
 """
 import json
 import random
-import datetime
 import os
 import tempfile
 import math
+from spa_core.utils import clock
 
 # ---------------------------------------------------------------------------
 # S11 allocation config
@@ -161,7 +161,7 @@ def run_backtest(n_simulations: int = N_SIMULATIONS,
         "meta": {
             "strategy":        "S11 Hybrid Yield Maximizer",
             "version":         "v1.0",
-            "simulation_date": datetime.datetime.utcnow().isoformat() + "Z",
+            "simulation_date": clock.utcnow().isoformat() + "Z",
             "n_simulations":   n_simulations,
             "days":            DAYS,
             "capital":         CAPITAL,

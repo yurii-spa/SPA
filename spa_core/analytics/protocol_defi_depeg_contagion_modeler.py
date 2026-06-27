@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import json
 import os
-import datetime
 from typing import Any
+from spa_core.utils import clock
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -106,7 +106,7 @@ class ProtocolDeFiDepegContagionModeler:
         aggregates = self._compute_aggregates(results)
 
         output = {
-            "timestamp":        datetime.datetime.utcnow().isoformat(),
+            "timestamp":        clock.utcnow().isoformat(),
             "stablecoin_count": len(stablecoins),
             "results":          results,
             "aggregates":       aggregates,

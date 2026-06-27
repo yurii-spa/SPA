@@ -9,8 +9,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 import json
-from datetime import datetime
-import copy
+from spa_core.utils import clock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -296,7 +295,7 @@ def run_full_robustness_analysis(
 
     summary = {
         "robustness_version": ROBUSTNESS_VERSION,
-        "run_at": datetime.utcnow().isoformat() + "Z",
+        "run_at": clock.utcnow().isoformat() + "Z",
         "params_analyzed": len(all_reports),
         "critical_params": critical_params,
         "stable_params": stable_params,

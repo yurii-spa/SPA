@@ -5,11 +5,11 @@ No external dependencies — stores in-memory and periodically flushes to JSON.
 Tracks: counters, gauges, timers.
 """
 import contextlib
-import datetime
 import time
 from typing import Dict, List, Optional
 
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils import clock
 
 
 class MetricsCollector:
@@ -96,7 +96,7 @@ class MetricsCollector:
             }
 
         data = {
-            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "timestamp": clock.utcnow().isoformat(),
             "counters": dict(self._counters),
             "gauges": dict(self._gauges),
             "timers": timer_summary,

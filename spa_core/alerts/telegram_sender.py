@@ -11,11 +11,8 @@ Setup:
 Secrets: SPA_TELEGRAM_TOKEN, SPA_TELEGRAM_CHAT_ID
 """
 import os
-import json
-import urllib.request
-import urllib.error
 import logging
-from datetime import datetime
+from spa_core.utils import clock
 
 log = logging.getLogger("spa.alerts.telegram")
 
@@ -44,18 +41,18 @@ class TelegramSender:
         POST a message to the Telegram Bot API.
         Returns True on success, False on any failure. Never raises.
         """
-        if not self.available:
-            return False
-
-        # FLOOD-GUARD: route through the canonical rate-limited chokepoint so all
-        # sends share one cross-process rate limit. Transport only — same payload.
-        # (Credentials now resolved by telegram_client from the macOS Keychain.)
+        # RETIRED as a Telegram push (Phase-1 Telegram rebuild). telegram_sender
+        # is superseded by push_policy (critical) + the digest builders. Routed
+        # to the digest queue, never pushed. Always returns False. Never raises.
         try:
-            from spa_core.alerts.telegram_client import send_message
-            return send_message(text, parse_mode=parse_mode)
+            from spa_core.telegram import push_policy
+            push_policy.enqueue_digest(
+                "telegram_sender", "Sender message", text,
+                reason="telegram_sender_retired_push",
+            )
         except Exception as exc:
-            log.error(f"Telegram unexpected error: {exc}")
-            return False
+            log.error(f"telegram_sender digest route error: {exc}")
+        return False
 
     # -----------------------------------------------------------------------
     # Formatted senders
@@ -140,7 +137,7 @@ class TelegramSender:
             return False
 
         try:
-            now_str   = datetime.utcnow().strftime("%H:%M")
+            now_str   = clock.utcnow().strftime("%H:%M")
             total_val = portfolio.get("total_capital_usd", 0)
             pnl_pct   = portfolio.get("total_pnl_pct", 0)
             pnl_sign  = "+" if pnl_pct >= 0 else ""
@@ -204,7 +201,7 @@ class TelegramSender:
             ✅ No Critical Alerts
             [...]
 
-            Next milestone: 2026-07-09
+            Next milestone: 2026-07-21
         """
         if not self.available:
             return False

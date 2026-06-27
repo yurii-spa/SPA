@@ -13,11 +13,12 @@ LLM_FORBIDDEN. fail-closed: OPEN → не пропускает.
 # LLM_FORBIDDEN
 from enum import Enum
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 import json
 import os
 import tempfile
+from spa_core.utils import clock
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _CB_STATE_FILE = _PROJECT_ROOT / "data" / "circuit_breaker_state.json"
@@ -73,7 +74,7 @@ def load_state() -> dict:
         return json.loads(_CB_STATE_FILE.read_text(encoding="utf-8"))
     except Exception:
         # FAIL-CLOSED: ошибка чтения → OPEN (безопасное состояние)
-        now = datetime.utcnow().isoformat() + "Z"
+        now = clock.utcnow().isoformat() + "Z"
         return {
             "state": CBState.OPEN,
             "consecutive_alarms": CONSECUTIVE_ALARMS_TO_OPEN,
@@ -89,7 +90,7 @@ def load_state() -> dict:
 def save_state(state_dict: dict) -> None:
     """Сохраняет состояние circuit breaker атомарно. LLM_FORBIDDEN."""
     # LLM_FORBIDDEN
-    state_dict["updated_at"] = datetime.utcnow().isoformat() + "Z"
+    state_dict["updated_at"] = clock.utcnow().isoformat() + "Z"
     state_dict.setdefault("version", CB_VERSION)
     _atomic_write(_CB_STATE_FILE, json.dumps(state_dict, indent=2))
 
@@ -103,7 +104,7 @@ def record_alarm(metric: str) -> dict:
     """
     # LLM_FORBIDDEN
     state = load_state()
-    now = datetime.utcnow().isoformat() + "Z"
+    now = clock.utcnow().isoformat() + "Z"
 
     state["consecutive_alarms"] = state.get("consecutive_alarms", 0) + 1
     state["last_alarm_at"] = now
@@ -138,7 +139,7 @@ def record_success() -> dict:
     """
     # LLM_FORBIDDEN
     state = load_state()
-    now = datetime.utcnow()
+    now = clock.utcnow()
     current = state.get("state", CBState.CLOSED)
 
     if current == CBState.CLOSED:
@@ -291,7 +292,7 @@ def reset_circuit() -> dict:
         "opened_at": None,
         "half_open_at": None,
         "version": CB_VERSION,
-        "reset_at": datetime.utcnow().isoformat() + "Z",
+        "reset_at": clock.utcnow().isoformat() + "Z",
         "note": "Manual reset via reset_circuit()",
     }
     save_state(state)
