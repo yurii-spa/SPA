@@ -1,3 +1,11 @@
+> ⚠️ **SUPERSEDED — DO NOT FOLLOW.** This document is **STALE** (references the
+> deleted `install_agents.sh`, the retired `com.spa.httpserver`, and pre-rebuild
+> assumptions). The **canonical** disaster-recovery procedure is
+> **[`DISASTER_RECOVERY.md`](DISASTER_RECOVERY.md)** — use that. This file is
+> retained for history only.
+
+---
+
 # SPA Disaster Recovery Procedure v1
 
 **Версия:** 1.0  

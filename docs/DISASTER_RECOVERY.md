@@ -1,233 +1,353 @@
-# SPA Disaster Recovery Playbook
-*Дата: 2026-06-14 | Версия: 1.0*
+# SPA Disaster Recovery Playbook — CANONICAL
 
-> Назначение: пошаговое восстановление инфраструктуры SPA при отказах.
-> Все команды — реальные из репозитория `~/Documents/SPA_Claude`.
-> Источник истины по статусу инфраструктуры — `CURRENT_STATE.md` + `data/uptime_status.json`.
-> Проверка статуса в любой момент: `bash ~/Documents/SPA_Claude/scripts/agent_status.sh`
+*Version: 3.0 · Rewritten 2026-06-27 · Owner: Yurii (yuriycooleshov@gmail.com)*
 
----
-
-## Карта инфраструктуры (что и где)
-
-| Сервис | Label (launchd) | Запуск | Лог |
-|--------|-----------------|--------|-----|
-| HTTP дашборд (порт 8765) | `com.spa.httpserver` | persistent (RunAtLoad) | — |
-| Cloudflare tunnel | `com.spa.cloudflared` | persistent | — |
-| Uptime monitor | `com.spa.uptime_monitor` | каждые 300с | `/tmp/spa_uptime_monitor.log`, `/tmp/spa_uptime_monitor_err.log` |
-| Дневной цикл (paper trading) | `com.spa.daily_cycle` | 08:00 | `/tmp/spa_cycle.log` |
-| Autopush | `com.spa.autopush` | каждые 90 мин | `/tmp/spa_autopush.log` |
-| Tier C analytics | `com.spa.analytics_tier_c` | 05:00 | — |
-| Telegram bot (long-poll) | `com.spa.bot_commands` | KeepAlive | — |
-
-- **Plist-шаблоны:** `scripts/com.spa.*.plist`
-- **Установленные plist:** `~/Library/LaunchAgents/com.spa.*.plist`
-- **Python:** `/Users/yuriikulieshov/miniconda3/bin/python3`
-- **PAT в Keychain:** сервис `GITHUB_PAT_SPA` — `security find-generic-password -s GITHUB_PAT_SPA -w`
-- **Репозиторий:** `yurii-spa/SPA` (GitHub)
+> **THIS IS THE CANONICAL DR DOCUMENT.** All other DR / runbook docs
+> (`DR_PROCEDURE_v1.md`, `DR_PROCEDURE_v2.md`, `RUNBOOK.md`,
+> `operator_runbook.md`) are **SUPERSEDED** and carry a header pointing here.
+> If anything below conflicts with them, **this file wins.**
+>
+> Every command in this file is **copy-paste runnable today** against the real
+> Mac Mini host. No retired agents, no deleted scripts, no wrong ports.
+> The drift-guard test `spa_core/tests/test_doc_drift.py` fails CI if a retired
+> token is reintroduced here.
 
 ---
 
-## Сценарии и восстановление
+## 0. The 5 facts that make recovery correct (read first)
 
-### Сценарий 1: Mac Mini перезагрузился
-**Симптомы:** agents не запускаются, dashboard недоступен на `localhost:8765`.
+1. **Agents load on LOGIN, not on boot.** SPA agents are **gui-domain**
+   LaunchAgents in `~/Library/LaunchAgents/`. After a reboot or OS update you
+   must **log in once**; launchd then loads the whole fleet (RunAtLoad fires the
+   one-shots, KeepAlive starts the daemons, schedules resume). Auto-login is
+   currently **OFF** → one manual login is required after every reboot.
 
-**Восстановление:**
-1. Убедись, что включён автологин (System Settings → Users & Groups → Automatically log in as). Без него launchd-агенты в user-домене не стартуют до ручного логина.
-2. При логине launchd автоматически загружает `~/Library/LaunchAgents/com.spa.*` (у всех `RunAtLoad=true`).
-3. Если агенты не загрузились — переустановить:
+2. **One command confirms + heals the fleet after login:**
    ```bash
-   bash ~/Documents/SPA_Claude/scripts/install_agents.sh
+   bash ~/Documents/SPA_Claude/scripts/verify_fleet_after_reboot.sh
    ```
-   (скрипт idempotent: unload перед load, не трогает запущенные сервисы)
-4. Проверить статус:
-   ```bash
-   bash ~/Documents/SPA_Claude/scripts/agent_status.sh
-   launchctl list | grep com.spa
-   ```
-5. Проверить дашборд: открыть `http://localhost:8765` в браузере.
+   It is read-mostly + idempotent: it only (re)bootstraps agents that aren't
+   loaded, boots out any retired agent that lingers, and never mutates the
+   go-live track. Output ends in `✅ FLEET HEALTHY` or tells you what to fix.
 
----
+3. **The installer is `scripts/install_all_agents.sh`** (NOT the deleted
+   standalone `install_agents.sh` — that script no longer exists). It is
+   idempotent (unload → cp → load per agent) and prints `[OK]/[SKIP]/[FAIL]`.
 
-### Сценарий 2: cycle_runner не запускается
-**Симптомы:** нет свежих данных в `data/paper_trading_status.json`, в дашборде "цикл устарел", uptime_monitor сигналит degraded.
+4. **NEVER revive a RETIRED agent.** See §6. Reviving any of them re-triggers
+   the Telegram-409 / duplicate-flood regression that was just fixed.
 
-**Восстановление:**
-1. Проверить, загружен ли агент и его последний exit-код:
-   ```bash
-   launchctl list | grep com.spa.daily_cycle
-   ```
-   (вторая колонка = последний exit; ненулевой = ошибка)
-2. Посмотреть лог:
-   ```bash
-   tail -50 /tmp/spa_cycle.log
-   ```
-3. Прогнать цикл вручную из корня репо, чтобы увидеть traceback:
-   ```bash
-   cd ~/Documents/SPA_Claude
-   /Users/yuriikulieshov/miniconda3/bin/python3 cycle_runner.py
-   ```
-4. Частые причины:
-   - Python-путь в plist не совпадает с реальным miniconda → исправить и `install_agents.sh`.
-   - Повреждённый JSON в `data/*.json` (нарушено правило атомарной записи) → восстановить из `data/*.bak` или git.
-   - Импорт-ошибка после правок модуля → запустить тесты: `python3 -m pytest spa_core/tests/ -q`.
-5. После фикса перезагрузить агент:
-   ```bash
-   launchctl unload ~/Library/LaunchAgents/com.spa.daily_cycle.plist
-   launchctl load   ~/Library/LaunchAgents/com.spa.daily_cycle.plist
-   ```
+5. **NEVER run a live cycle against `data/` during recovery.** `cycle_runner`
+   without `--live` (and without `SPA_ALLOW_LIVE_WRITE=1`) is fail-CLOSED and
+   writes to a sandbox, not the canonical track. An ad-hoc `--live` run can
+   corrupt `data/equity_curve_daily.json`. See §7.
 
 ---
 
-### Сценарий 3: Развёртывание на новую машину (полное)
-**Цель:** поднять SPA с нуля на чистом macOS.
+## 1. Infrastructure map (current reality)
 
-**Шаги:**
-1. **Homebrew** (если нет):
-   ```bash
-   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-   ```
-2. **Git + cloudflared:**
-   ```bash
-   brew install git
-   brew install cloudflared
-   ```
-3. **Miniconda** (Python 3) — установить в `~/miniconda3`:
-   ```bash
-   curl -fsSL https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-arm64.sh -o /tmp/miniconda.sh
-   bash /tmp/miniconda.sh -b -p ~/miniconda3
-   ~/miniconda3/bin/python3 --version   # подтвердить путь, ожидается /Users/<user>/miniconda3/bin/python3
-   ```
-4. **Клонировать репозиторий** в `~/Documents/SPA_Claude`:
-   ```bash
-   mkdir -p ~/Documents
-   git clone https://github.com/yurii-spa/SPA.git ~/Documents/SPA_Claude
-   ```
-5. **Python-зависимости** (если есть requirements / pyproject):
-   ```bash
-   cd ~/Documents/SPA_Claude
-   ~/miniconda3/bin/python3 -m pip install -r requirements.txt 2>/dev/null || true
-   ```
-6. **Keychain setup** — записать GitHub PAT и Telegram-токены в Keychain (вводит ПОЛЬЗОВАТЕЛЬ, не агент):
-   ```bash
-   bash ~/Documents/SPA_Claude/setup_pat.sh        # GITHUB_PAT_SPA
-   # Telegram (если не настроен):
-   security add-generic-password -s TELEGRAM_BOT_TOKEN_SPA -a spa -w '<TOKEN>'
-   security add-generic-password -s TELEGRAM_CHAT_ID_SPA   -a spa -w '<CHAT_ID>'
-   ```
-   Проверка: `security find-generic-password -s GITHUB_PAT_SPA -w`
-7. **Проверить путь Python в install_agents.sh** — переменная `PYTHON` должна указывать на реальный miniconda (`/Users/<user>/miniconda3/bin/python3`). При другом имени пользователя — отредактировать plist-шаблоны.
-8. **Установить launchd-агенты:**
-   ```bash
-   bash ~/Documents/SPA_Claude/scripts/install_agents.sh
-   ```
-9. **Включить автологин** (System Settings → Users & Groups) — обязательно для user-домена launchd.
-10. **Проверка:**
-    ```bash
-    bash ~/Documents/SPA_Claude/scripts/agent_status.sh
-    open http://localhost:8765
-    ```
+| Service | launchd label | Schedule | Log |
+|---|---|---|---|
+| Daily paper cycle | `com.spa.daily_cycle` | 08:00 UTC | `logs/launchd_stdout.log` |
+| Autopush → GitHub | `com.spa.autopush` | every 90 min | `/tmp/spa_autopush.log` |
+| API server (FastAPI/uvicorn) | `com.spa.apiserver` | KeepAlive | `/tmp/spa_api.log` |
+| Family Fund cabinet API | `com.spa.familyfund` | KeepAlive | `/tmp/spa_familyfund.log` |
+| Dashboard static server | `com.spa.dashboard` | KeepAlive | `/tmp/spa_dashboard.log` |
+| Cloudflare tunnel | `com.spa.cloudflared` | KeepAlive | `/tmp/spa_cloudflared.log` |
+| Telegram bot (interactive) | `com.spa.telegram_bot` | KeepAlive | `/tmp/spa_telegram_bot.log` |
+| Telegram daily digest | `com.spa.digest_daily` | 08:10 UTC | `/tmp/spa_digest_daily.log` |
+| Telegram weekly digest | `com.spa.digest_weekly` | Sun 10:00 | `/tmp/spa_digest_weekly.log` |
+| Self-heal watchdog | `com.spa.self_heal` | every 5 min | `/tmp/spa_self_heal.log` |
+| Threat reactor | `com.spa.threat_reactor` | every 5 min | `/tmp/spa_threat_reactor.log` |
+| Watchdog-of-watchdogs | `com.spa.watchdog` | every 10 min | `/tmp/spa_watchdog.log` |
+| Agent health monitor | `com.spa.agent_health` | hourly | `/tmp/spa_agent_health.log` |
+| System briefing | `com.spa.system_briefing` | every 30 min | `/tmp/spa_system_briefing.log` |
+
+Full live list is always `launchctl list | grep com.spa` — the table is a
+snapshot. Source of truth for fleet state: `verify_fleet_after_reboot.sh` and
+`docs/SYSTEM_BRIEFING.md`.
+
+### Ports (canonical — do NOT confuse them)
+
+| Port | Owner | Notes |
+|---|---|---|
+| **8765** | `com.spa.apiserver` (FastAPI/uvicorn) | `api.earn-defi.com` via cloudflared. **Only the apiserver may bind 8765.** |
+| **8766** | `com.spa.familyfund` (investor cabinet API) | |
+| **8767** | `com.spa.dashboard` (static dashboard) | |
+
+> The legacy stdlib `com.spa.httpserver` is **RETIRED** — it bound 8765 and
+> crash-looped on `EADDRINUSE` against the apiserver. Do **not** revive it (§6).
+
+### Constants
+
+- **Python:** `/Users/yuriikulieshov/miniconda3/bin/python3` (always this path).
+- **Repo:** `~/Documents/SPA_Claude`, GitHub `yurii-spa/SPA`.
+- **PAT:** Keychain service `GITHUB_PAT_SPA` —
+  `security find-generic-password -s GITHUB_PAT_SPA -w`.
+- **Plist templates:** `scripts/com.spa.*.plist` and `launchd/com.spa.*.plist`.
+  All agents run via a **/bin/bash wrapper** and log to **`/tmp/`** (never under
+  `~/Documents` — TCC blocks launchd writes there → exit 78). See §8.
 
 ---
 
-### Сценарий 4: GitHub push не работает (PAT истёк)
-**Симптомы:** `/tmp/spa_autopush.log` показывает 401/403, новые коммиты не появляются в `yurii-spa/SPA`.
+## 2. Scenario: Mac Mini rebooted / OS updated
 
-**Восстановление:**
-1. Подтвердить причину — прогнать push вручную:
-   ```bash
-   cd ~/Documents/SPA_Claude
-   bash scripts/auto_push.sh
-   tail -30 /tmp/spa_autopush.log
-   ```
-   401/403 = PAT истёк или отозван.
-2. Создать новый PAT на GitHub (Settings → Developer settings → Fine-grained tokens), scope `Contents: Read and write` для репозитория `yurii-spa/SPA`. **Это делает пользователь — агент не вводит токены и не создаёт аккаунты.**
-3. Записать новый PAT в Keychain (ротация):
-   ```bash
-   bash ~/Documents/SPA_Claude/setup_pat.sh
-   ```
-   (перезаписывает сервис `GITHUB_PAT_SPA`)
-4. Проверить, что `push_to_github.py` читает новый PAT (порядок: Keychain → env `GITHUB_PAT_SPA` → env `SPA_GITHUB_PAT` → `~/.github_pat`):
-   ```bash
-   security find-generic-password -s GITHUB_PAT_SPA -w | head -c 8; echo "…"
-   bash scripts/auto_push.sh
-   ```
-5. **Запрет:** никогда не встраивать PAT в файлы (инцидент 2026-06-10 — токен утёк в 90+ файлов). Только Keychain / env / `~/.github_pat`.
+**Symptoms:** dashboard down, no fresh data, agents absent from `launchctl list`.
 
----
-
-### Сценарий 5: Kill-switch ложно активировался
-**Симптомы:** торговый цикл остановлен kill-switch'ем, в логе сигнал по Sharpe при коротком треке.
-
-**Контекст:** kill-switch на основе Sharpe требует минимум `MIN_DAYS_FOR_SHARPE = 30` дней данных. На малой выборке (~5 дней) Sharpe даёт ложные срабатывания (зафиксирован Sharpe -61). Текущий статус трека — `inactive` (трек < 30 дней с 2026-06-10).
-
-**Восстановление:**
-1. Проверить причину срабатывания:
-   ```bash
-   tail -50 /tmp/spa_cycle.log
-   cat ~/Documents/SPA_Claude/data/kill_switch_status.json 2>/dev/null
-   ```
-2. Если срабатывание по Sharpe при числе дней трека < 30 — это ложное срабатывание (insufficient data должно трактоваться как no signal, см. RULES.md).
-3. Убедиться, что число дней трека действительно меньше `MIN_DAYS_FOR_SHARPE`:
-   ```bash
-   cat ~/Documents/SPA_Claude/data/paper_trading_status.json | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('track_start'), d.get('days'))"
-   ```
-4. Сбросить kill-switch только после подтверждения причины (manual review). Не отключать kill-switch навсегда — это защитный контур.
-5. Если срабатывание корректное (реальный drawdown / нарушение лимитов) — не сбрасывать, разобрать причину в `docs/DECISIONS.md` и эскалировать.
-
----
-
-### Сценарий 6: httpserver не отвечает на порту 8765
-**Симптомы:** `http://localhost:8765` не открывается, дашборд недоступен; uptime_monitor помечает `launchd_httpserver` как degraded.
-
-**Восстановление:**
-1. Проверить, занят ли порт и каким процессом:
-   ```bash
-   lsof -i :8765
-   launchctl list | grep com.spa.httpserver
-   ```
-2. Если процесс завис/осиротел — перезагрузить агент:
-   ```bash
-   launchctl unload ~/Library/LaunchAgents/com.spa.httpserver.plist
-   launchctl load   ~/Library/LaunchAgents/com.spa.httpserver.plist
-   ```
-3. Если порт занят посторонним процессом — снять его и перезапустить агент:
-   ```bash
-   lsof -ti :8765 | xargs kill   # осторожно: убедись, что это именно httpserver
-   launchctl load ~/Library/LaunchAgents/com.spa.httpserver.plist
-   ```
-4. Проверить свежесть данных в `data/uptime_status.json` (поле `checks.launchd_httpserver.running`):
-   ```bash
-   cat ~/Documents/SPA_Claude/data/uptime_status.json | python3 -m json.tool | grep -A4 httpserver
-   ```
-5. Подтвердить восстановление:
-   ```bash
-   curl -sI http://localhost:8765 | head -1
-   bash ~/Documents/SPA_Claude/scripts/agent_status.sh
-   ```
-
----
-
-## Универсальные команды диагностики
+**Recovery (the whole thing is one login + one script):**
 
 ```bash
-# Полный статус всех агентов
-bash ~/Documents/SPA_Claude/scripts/agent_status.sh
+# 1. Log in to the user account once (agents are gui-domain → load on LOGIN).
+#    launchd auto-loads every ~/Library/LaunchAgents/com.spa.*.plist at login.
 
-# Сырой список launchd
-launchctl list | grep com.spa
+# 2. Confirm + heal the fleet (idempotent, never touches the track):
+bash ~/Documents/SPA_Claude/scripts/verify_fleet_after_reboot.sh
+#    → "✅ FLEET HEALTHY" or a list of what to fix.
 
-# Свежесть инфраструктуры (JSON, atomic)
-cat ~/Documents/SPA_Claude/data/uptime_status.json | python3 -m json.tool
+# 3. If some agents are STILL down, reinstall the whole fleet (idempotent):
+bash ~/Documents/SPA_Claude/scripts/install_all_agents.sh
 
-# Переустановка всех агентов (idempotent)
-bash ~/Documents/SPA_Claude/scripts/install_agents.sh
+# 4. Spot-check the critical user-facing services:
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8765/api/live/ping   # → 200
+launchctl list | grep -E 'com\.spa\.(apiserver|telegram_bot|cloudflared)'
+```
 
-# Немедленный push
+The `self_heal` agent (every 5 min) will also revive any resident agent that
+didn't come up and recover a missed cycle — but run the verify script so you
+don't wait on the next tick.
+
+**Fully-autonomous recovery without a login** is an owner decision (security
+trade-off): either enable auto-login, or move the critical KeepAlive daemons
+(apiserver/cloudflared/bot) into system-domain LaunchDaemons (boot without
+login, needs sudo). Today auto-login is OFF → one login is required.
+
+---
+
+## 3. Scenario: daily cycle didn't run
+
+**Symptoms:** `data/paper_trading_status.json` `last_cycle_ts` > 26 h old; no
+fresh commit; `gap_monitor.json` flags a gap; `agent_health` alert.
+
+```bash
+cd ~/Documents/SPA_Claude
+
+# 1. Is the agent loaded? What was its last exit?
+launchctl list | grep com.spa.daily_cycle      # col 2 = last exit (0 = ok)
+
+# 2. Read the cycle log:
+tail -50 logs/launchd_stdout.log
+
+# 3. Recover the gap the SAFE way (deterministic, file-locked, idempotent 1/day).
+#    This is what self_heal calls — it does NOT need --live and won't corrupt
+#    the track:
+/Users/yuriikulieshov/miniconda3/bin/python3 -m spa_core.paper_trading.gap_monitor --recover
+
+# 4. Re-trigger the scheduled agent so the next run is on track:
+launchctl kickstart -k gui/$(id -u)/com.spa.daily_cycle
+
+# 5. Confirm freshness:
+/Users/yuriikulieshov/miniconda3/bin/python3 -m spa_core.paper_trading.golive_checker
+```
+
+**Do NOT** run `cycle_runner --live` by hand to "catch up" — use
+`gap_monitor --recover`. (See §7 on the track-corruption hazard.)
+
+If the agent's `last_exit` is 78 → it's the config/wrapper class of failure; see
+§8 (Adding/fixing an agent) — re-bootstrap it through the gate.
+
+---
+
+## 4. Scenario: GitHub push fails (PAT expired / GitHub down)
+
+**Symptoms:** `/tmp/spa_autopush.log` shows 401/403 (PAT) or 50x (GitHub down);
+no new commits in `yurii-spa/SPA`.
+
+```bash
+cd ~/Documents/SPA_Claude
+
+# 1. Confirm the cause — push manually and read the log:
+bash scripts/auto_push.sh
+tail -30 /tmp/spa_autopush.log
+#    401/403 = PAT expired/revoked;  50x = GitHub outage (SPA keeps running locally).
+
+# 2. PAT check (Keychain is the ONLY source — never a file):
+security find-generic-password -s GITHUB_PAT_SPA -w | head -c 8; echo "…"
+
+# 3. If the PAT is bad: the OWNER creates a new fine-grained PAT on GitHub
+#    (Contents: Read+write on yurii-spa/SPA) and rotates it into Keychain:
+bash ~/Documents/SPA_Claude/setup_pat.sh        # overwrites GITHUB_PAT_SPA
+#    Full procedure: docs/TOKEN_ROTATION_RUNBOOK.md
+
+# 4. Re-push the accumulated state:
+bash scripts/auto_push.sh
+```
+
+SPA trading does **not** depend on GitHub — a GitHub outage only delays the
+data mirror. Accumulated commits flush once it returns.
+
+**NEVER embed a PAT in any file** (2026-06-10 incident: a PAT leaked into 90+
+files). Keychain only.
+
+---
+
+## 5. Scenario: data corrupted / lost
+
+**Symptoms:** a cycle crashes with `json.JSONDecodeError` / `KeyError`; a
+`data/*.json` is empty or garbage.
+
+```bash
+cd ~/Documents/SPA_Claude
+
+# 1. Find the damage:
+for f in equity_curve_daily paper_trading_status current_positions trades golive_status gap_monitor; do
+  /Users/yuriikulieshov/miniconda3/bin/python3 -c "import json;json.load(open('data/${f}.json'));print('OK: ${f}')" 2>&1
+done
+
+# 2. Restore the golden copy from GitHub (autopush mirror, ≤ 90 min old):
+git fetch origin
+git checkout origin/main -- data/equity_curve_daily.json data/paper_trading_status.json \
+    data/current_positions.json data/golive_status.json data/gap_monitor.json
+#    (or restore everything:  git checkout origin/main -- data/ )
+
+# 3. Fall back to the daily pre-cycle backup snapshots if GitHub is also stale:
+ls -lt data/backups/ | head
+
+# 4. Recover the cycle the SAFE way (NOT --live) and confirm:
+/Users/yuriikulieshov/miniconda3/bin/python3 -m spa_core.paper_trading.gap_monitor --recover
+/Users/yuriikulieshov/miniconda3/bin/python3 -m spa_core.paper_trading.golive_checker
+```
+
+`data/equity_curve_daily.json`, `golive_status.json`,
+`paper_evidence_history.json` are the **canonical track snapshots** — restore
+them from the GitHub golden copy, never regenerate them with a live cycle.
+
+---
+
+## 6. RETIRED agents — NEVER revive these
+
+These agents are retired. The authoritative set lives in
+`spa_core/monitoring/agent_health_monitor.py` → `RETIRED_LABELS`
+(`verify_fleet_after_reboot.sh` and `self_heal.py` import / mirror it). Reviving
+any of them re-introduces the regression listed:
+
+| Retired agent | Replaced by | Why reviving breaks things |
+|---|---|---|
+| `com.spa.bot_commands` | `com.spa.telegram_bot` | identical module → two Telegram `getUpdates` long-polls → **409 conflict** |
+| `com.spa.httpserver` | `com.spa.apiserver` | bound **:8765** → `EADDRINUSE` crash-loop against the apiserver |
+| `com.spa.telegram_daily` | `com.spa.digest_daily` | ran the digest builder directly → **duplicate** daily sends |
+| `com.spa.telegram_weekly` | `com.spa.digest_weekly` | duplicate weekly sends |
+| `com.spa.morning_digest` | `com.spa.digest_daily` | legacy daily report → **flood** |
+| `com.spa.daily-paper-report` | `com.spa.digest_daily` | legacy daily report → **flood** |
+
+If a stale retired plist lingers and got loaded, boot it out:
+```bash
+launchctl bootout gui/$(id -u)/com.spa.httpserver   # example; substitute the label
+```
+`verify_fleet_after_reboot.sh` does this automatically.
+
+---
+
+## 7. Track-corruption hazard (recovery-critical)
+
+The canonical go-live track (`data/equity_curve_daily.json` and the evidence
+files) anchors on `PAPER_REAL_START` and accrues one **evidenced** bar per day.
+It is fragile:
+
+- An ad-hoc `cycle_runner --live` (or `SPA_ALLOW_LIVE_WRITE=1`) run in dev/QA
+  **mutates the live track** and has corrupted it before (2026-06-25).
+- The runner is **fail-CLOSED**: without `--live` / `SPA_ALLOW_LIVE_WRITE=1`, or
+  with an explicit non-canonical `--data-dir` / `SPA_DATA_DIR`, all writes go to
+  a sandbox and the canonical track is provably untouched.
+
+**Rules during any recovery:**
+- To advance the track: only the scheduled `com.spa.daily_cycle`, or
+  `gap_monitor --recover` (deterministic, idempotent 1/day).
+- To test/inspect: run with a sandbox data dir, never `--live`:
+  ```bash
+  /Users/yuriikulieshov/miniconda3/bin/python3 -m spa_core.paper_trading.cycle_runner \
+      --verbose --data-dir /tmp/spa_recovery_sandbox
+  ```
+- To restore a damaged track: `git checkout origin/main -- data/…` (§5),
+  never regenerate it live.
+
+---
+
+## 8. Adding / fixing an agent (the deploy gate)
+
+Before `launchctl bootstrap`/`load` of any new or changed plist, ALWAYS run the
+gate (CLAUDE.md FORBIDDEN rule #11):
+
+```bash
+bash ~/Documents/SPA_Claude/scripts/check_agent_before_deploy.sh <name>
+#    e.g.  check_agent_before_deploy.sh watchdog
+#    Runs the command once (SANDBOXED — strips --live, can't touch the track),
+#    asserts exit 0 + a log was written + the canonical track is byte-identical,
+#    THEN bootout → bootstrap → kickstart and asserts the loaded exit != 78.
+```
+
+Deploy **≤ 3 agents at a time**. Every plist must:
+- run via a **/bin/bash wrapper** (`scripts/agent_<name>.sh` →
+  `agent_template.sh`), **never** a direct `python3 -m` / miniconda-python in
+  `ProgramArguments` — launchd can't exec miniconda-python directly → **exit 78
+  EX_CONFIG** (the program never even starts; no log is written).
+- point `StandardOutPath`/`StandardErrorPath` at **`/tmp/`**, never under
+  `~/Documents` — TCC blocks launchd writes there → also **exit 78**.
+
+If you see `exit 78` in `launchctl list | grep com.spa`, it's one of the two
+causes above. `verify_fleet_after_reboot.sh` reports any exit-78 agents.
+
+---
+
+## 9. Self-heal & circuit-breaker behaviour (what auto-recovers)
+
+`com.spa.self_heal` (every 5 min, deterministic, stdlib, LLM-forbidden) actively
+recovers — the other monitors only alert:
+
+- **Revives** an expected resident agent (KeepAlive daemon / StartInterval
+  guardian) that's missing from `launchctl list`. Calendar/one-time agents that
+  correctly exit between runs are **not** churned.
+- **Kickstarts** a down server (loaded but PID 0) and any local port that isn't
+  listening (probes 8765/8766/8767).
+- **Recovers a missed cycle** (`gap_monitor --recover`) when the last cycle is
+  > 28 h old.
+- **Circuit breaker:** an agent revived > 5 times/hour is treated as
+  crash-looping — self_heal **stops reviving it** and alerts instead (so a
+  flooding bot can't be revived into a loop). `com.spa.watchdog` (every 10 min)
+  revives self_heal / threat_reactor themselves if they die.
+
+State: `data/self_heal_status.json`, `data/self_heal_revivals.json`. `healthy`
+is true only when no failures/breakers AND every residency-required agent is
+resident.
+
+---
+
+## 10. Universal diagnostics
+
+```bash
+# Fleet snapshot:
+launchctl list | grep com.spa | sort
+
+# Post-reboot confirm + heal:
+bash ~/Documents/SPA_Claude/scripts/verify_fleet_after_reboot.sh
+
+# Reinstall the whole fleet (idempotent):
+bash ~/Documents/SPA_Claude/scripts/install_all_agents.sh
+
+# Self-heal dry-run (shows what it WOULD do, mutates nothing):
+/Users/yuriikulieshov/miniconda3/bin/python3 -m spa_core.monitoring.self_heal --dry-run
+
+# Agent health (compute + write, no Telegram):
+/Users/yuriikulieshov/miniconda3/bin/python3 -m spa_core.monitoring.agent_health_monitor --check
+
+# Critical service ping:
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8765/api/live/ping   # → 200
+
+# Force a push:
 bash ~/Documents/SPA_Claude/scripts/auto_push.sh
 ```
 
 ---
 
-*Связанные документы: `docs/DR_PROCEDURE_v1.md`, `docs/DR_PROCEDURE_v2.md`, `RULES.md`, `CURRENT_STATE.md`, `docs/ADR-032-push-strategy.md`.*
+*Canonical DR doc. Supersedes DR_PROCEDURE_v1.md, DR_PROCEDURE_v2.md, RUNBOOK.md,
+operator_runbook.md. Drift-guarded by `spa_core/tests/test_doc_drift.py`
+(retired tokens sourced from `agent_health_monitor.RETIRED_LABELS`).*

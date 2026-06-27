@@ -1,3 +1,12 @@
+> ⚠️ **SUPERSEDED — SEVERELY STALE, DO NOT FOLLOW.** This document describes a
+> long-gone GitHub-Actions-every-4-hours architecture (11 go-live criteria,
+> `ANTHROPIC_API_KEY` secret, `push_workflow.command`) that no longer matches
+> reality (SPA now runs on local launchd agents on the Mac Mini). For recovery,
+> use the **canonical** **[`DISASTER_RECOVERY.md`](DISASTER_RECOVERY.md)**.
+> Retained for history only.
+
+---
+
 # SPA Operator Runbook
 
 **System:** Smart Passive Aggregator (SPA) — DeFi Yield Management, Paper Trading  

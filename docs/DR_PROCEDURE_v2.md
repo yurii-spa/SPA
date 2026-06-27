@@ -1,3 +1,13 @@
+> ⚠️ **SUPERSEDED — DO NOT FOLLOW for infra recovery.** The infrastructure
+> sections of this document are **STALE** (retired `com.spa.httpserver`, the
+> deleted `install_agents.sh`, pre-login-domain reboot assumptions). The
+> **canonical** disaster-recovery procedure is
+> **[`DISASTER_RECOVERY.md`](DISASTER_RECOVERY.md)** — use that.
+> (The fund-level / investor-exit material in §7–8 here is not yet folded into
+> the canonical doc and remains a historical reference only.)
+
+---
+
 # SPA Disaster Recovery Procedure v2
 
 **Версия:** 2.0  

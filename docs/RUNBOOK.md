@@ -1,3 +1,11 @@
+> ⚠️ **SUPERSEDED for disaster recovery.** This operations runbook is **STALE**
+> (retired `com.spa.httpserver`, 26-criteria go-live, pre-rebuild agent list).
+> For recovery, use the **canonical**
+> **[`DISASTER_RECOVERY.md`](DISASTER_RECOVERY.md)**. This file is retained for
+> historical day-to-day-ops context only.
+
+---
+
 # SPA Operations Runbook
 
 **Version:** 1.0  

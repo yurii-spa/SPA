@@ -42,6 +42,19 @@ _STATUS = _DATA / "self_heal_status.json"
 CYCLE_GAP_HOURS = 28.0          # daily cadence; >28h since last cycle → recover
 SUBPROC_TIMEOUT = 25
 
+# R5 — apiserver DATA-staleness probe. The port-liveness probe below treats any
+# HTTP response (even 200) as UP, so a hung-but-listening apiserver serving
+# FROZEN data (the classic "stale API after a server.py edit") is invisible to
+# it. This compares the cycle the apiserver SERVES against the cycle on disk: if
+# disk is fresh (the cycle DID run) but the served status is stale past this
+# threshold (daily cadence 24h + 6h buffer = one fully-missed cycle), the
+# apiserver is serving frozen in-memory state → kickstart it ONCE. Edge-triggered
+# + circuit-broken with the SAME revival discipline as agent revivals (keyed
+# under the synthetic label below) so a wedged server is never kickstart-looped.
+API_STALE_HOURS = 30.0
+_API_STATUS_URL = "http://127.0.0.1:8765/api/health-public"
+_API_STALE_LABEL = "com.spa.apiserver::stale_data"  # circuit-breaker key
+
 # Shared, single-source residency/classification judgement (same one
 # agent_health uses) so self_heal's expected/loaded reconcile with the monitor.
 from spa_core.monitoring.agent_health_monitor import (  # noqa: E402
@@ -165,6 +178,45 @@ def _last_cycle_age_hours() -> float | None:
         return (now - t).total_seconds() / 3600.0
     except Exception:
         return None
+
+
+def _served_cycle_age_hours(url: str = _API_STATUS_URL) -> float | None:
+    """Age (hours) of the cycle timestamp the APISERVER SERVES, or None.
+
+    Fetches the served status JSON and reads the freshest of the cycle/served
+    timestamps it carries (``last_cycle_at`` / ``last_cycle_ts`` / ``generated_at``).
+    None when the server is unreachable, the body is unparseable, or no usable
+    timestamp is present — callers treat None as "can't prove staleness" and take
+    NO action (fail-safe: a probe error must not trigger a kickstart loop)."""
+    import urllib.error
+    import urllib.request
+    try:
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            body = resp.read()
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+    try:
+        d = json.loads(body)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(d, dict):
+        return None
+    now = datetime.datetime.now(datetime.timezone.utc)
+    youngest: float | None = None
+    for key in ("last_cycle_at", "last_cycle_ts", "generated_at"):
+        ts = d.get(key)
+        if not ts or not isinstance(ts, str):
+            continue
+        try:
+            t = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=datetime.timezone.utc)
+        age = (now - t).total_seconds() / 3600.0
+        if youngest is None or age < youngest:
+            youngest = age
+    return youngest
 
 
 def _recover_cycle() -> bool:
@@ -298,6 +350,41 @@ def run_self_heal(dry_run: bool = False) -> dict:
             actions.append(f"restarted unreachable {label} ({url})")
         else:
             failures.append(f"kickstart failed (unreachable) {label}")
+
+    # 2c) R5 — apiserver DATA-staleness probe. The 2b liveness probe only proves
+    # the port is LISTENING; a hung-but-listening apiserver serving FROZEN data
+    # answers 200 and looks healthy there. Cross-check what it SERVES against the
+    # cycle on disk: disk fresh (cycle ran) + served-status stale past
+    # API_STALE_HOURS ⇒ frozen in-memory state ⇒ kickstart apiserver ONCE.
+    #   - Edge-triggered: only when disk is fresh but the SERVED data is stale.
+    #     A fresh API (or a genuinely-stale cycle, handled by step 3) → no action.
+    #   - Circuit-broken: shares the revival-history breaker (keyed under
+    #     _API_STALE_LABEL) so a server that stays wedged is kickstarted at most
+    #     MAX_REVIVALS_PER_HOUR/h — never a kickstart loop.
+    disk_age = _last_cycle_age_hours()
+    if disk_age is not None and disk_age <= CYCLE_GAP_HOURS:
+        served_age = _served_cycle_age_hours()
+        if served_age is not None and served_age > API_STALE_HOURS:
+            recent = [t for t in hist.get(_API_STALE_LABEL, []) if now_epoch - t < 3600.0]
+            if len(recent) >= MAX_REVIVALS_PER_HOUR:
+                breakers.append(
+                    f"circuit-breaker: apiserver stale-data kickstart "
+                    f"suppressed ({len(recent)}/h) — served cycle {served_age:.1f}h "
+                    f"old while disk {disk_age:.1f}h"
+                )
+            elif dry_run:
+                actions.append(
+                    f"would kickstart apiserver (serving STALE data: "
+                    f"{served_age:.1f}h old vs disk {disk_age:.1f}h)"
+                )
+            elif _kickstart("com.spa.apiserver"):
+                actions.append(
+                    f"restarted apiserver serving STALE data "
+                    f"(served {served_age:.1f}h old vs disk {disk_age:.1f}h)"
+                )
+                _record_revival(hist, _API_STALE_LABEL, now_epoch)
+            else:
+                failures.append("kickstart failed (stale-data) com.spa.apiserver")
 
     # 3) Daily cycle gap → recover.
     age = _last_cycle_age_hours()
