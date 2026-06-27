@@ -367,10 +367,76 @@ def test_persister_exception_does_not_crash_cycle(tmp_path, caplog):
     assert res.status == "ok"
     assert any("track_persist_failed" in n for n in res.notes)
     assert any("OSError" in n for n in res.notes)
-    assert any("track persistence/backup failed" in r.getMessage() for r in caplog.records)
+    # The failure is now LOUD (logged, not silently swallowed).
+    assert any("track persistence/backup raised" in r.getMessage() for r in caplog.records)
+    # ...and OBSERVABLE: a status flag flips so monitoring can SEE it even though
+    # the cycle itself still reports status:ok.
+    status = json.loads((tmp_path / "track_persist_status.json").read_text())
+    assert status["track_persist_ok"] is False
+    assert "OSError" in status["reason"]
     # The JSON track record is fully persisted despite the broken persister.
     assert (tmp_path / "trades.json").exists()
     assert (tmp_path / "equity_curve_daily.json").exists()
+
+
+def test_persist_silent_empty_mirror_is_flagged(tmp_path):
+    """CORE BUG: a persister that returns cleanly but leaves a 0-byte track.db
+    (a direct ``sqlite3.connect`` stub — the observed live root cause) is no
+    longer treated as healthy. On-disk verification flips track_persist_ok."""
+    def _stub_persister(ddir):
+        # Header-less 0-byte stub, exactly like a connect() that never wrote.
+        sqlite3.connect(str(ddir / "track.db")).close()
+        # Legacy contract: persister returns None.
+
+    notes: list[str] = []
+    ok = cr._persist_track(tmp_path, _stub_persister, notes)
+    assert ok is False
+    assert any("track_persist_failed" in n for n in notes)
+    status = json.loads((tmp_path / "track_persist_status.json").read_text())
+    assert status["track_persist_ok"] is False
+    assert status["db_size_bytes"] == 0
+
+
+def test_persist_success_writes_valid_nonempty_db_and_ok_flag(tmp_path):
+    """A healthy default persist → non-empty integrity-clean track.db + ok flag."""
+    _seed(tmp_path)  # real-shaped trades.json + equity_curve_daily.json
+    notes: list[str] = []
+    ok = cr._persist_track(tmp_path, cr._default_track_persister, notes)
+    assert ok is True
+    db = tmp_path / "track.db"
+    assert db.stat().st_size > 0
+    conn = sqlite3.connect(str(db))
+    try:
+        assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        assert conn.execute("SELECT COUNT(*) FROM equity_curve").fetchone()[0] > 0
+    finally:
+        conn.close()
+    status = json.loads((tmp_path / "track_persist_status.json").read_text())
+    assert status["track_persist_ok"] is True
+    assert status["db_size_bytes"] > 0
+
+
+def test_backup_dir_unavailable_does_not_block_local_track_db(tmp_path, monkeypatch):
+    """ROOT-CAUSE DECOUPLING: an unwritable / exploding backup dir must NOT
+    prevent the local crash-recovery track.db from being written + flagged ok."""
+    from spa_core.persistence import backup as _backup_mod
+
+    _seed(tmp_path)
+
+    def _broken_backup(data_dir, backup_dir=None, **kw):
+        # run_backup is itself fail-safe → returns status="error", never raises.
+        return {"status": "error", "errors": ["RuntimeError: icloud unavailable"]}
+
+    monkeypatch.setattr(_backup_mod, "run_backup", _broken_backup)
+
+    notes: list[str] = []
+    ok = cr._persist_track(tmp_path, None, notes)  # default persister
+    # The local mirror is healthy DESPITE the backup failure.
+    assert ok is True
+    assert (tmp_path / "track.db").stat().st_size > 0
+    status = json.loads((tmp_path / "track_persist_status.json").read_text())
+    assert status["track_persist_ok"] is True
+    assert status["backup_status"] == "error"  # backup failure recorded, not masked
 
 
 def test_default_persister_wired_when_fn_omitted(tmp_path, monkeypatch):

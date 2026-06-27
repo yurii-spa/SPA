@@ -111,6 +111,12 @@ def good_dir(tmp_path):
     _write(data, "current_positions.json", _good_positions())
     _write(data, "red_flags.json", _good_red_flags())
     _write(data, "strategy_tournament.json", _good_tournament())
+    # Healthy SQLite track mirror so d1.track_db.mirror passes (a real cycle
+    # writes this; without it the mirror check correctly flags a 0-byte db).
+    _write(data, "trades.json", [{"trade_id": "T001", "ts": "2026-06-10T00:00:00+00:00",
+                                   "diff_usd": 1.0, "is_demo": False}])
+    from spa_core.persistence.track_store import TrackStore
+    TrackStore(db_path=data / "track.db").sync_from_json(data)
     return tmp_path
 
 
@@ -192,6 +198,37 @@ def test_d1_all_good(good_dir):
     assert by_id(res, "d1.equity.range").status == OK
     assert by_id(res, "d1.status.demo").status == OK
     assert by_id(res, "d1.adapter.present").status == OK
+    # Healthy SQLite mirror present → mirror check passes.
+    assert by_id(res, "d1.track_db.mirror").status == OK
+
+
+def test_d1_track_db_zero_bytes_is_critical(good_dir):
+    """A 0-byte track.db (the historical silent bug) now surfaces as CRITICAL
+    in monitoring instead of hiding behind the cycle's status:ok."""
+    (good_dir / "data" / "track.db").write_bytes(b"")
+    mon = make_mon(good_dir)
+    prelude(mon)
+    res = mon.check_d1_data_pipeline()
+    chk = by_id(res, "d1.track_db.mirror")
+    assert chk.status == CRITICAL
+    assert "0 bytes" in chk.title
+
+
+def test_d1_track_db_persist_flag_false_is_critical(good_dir):
+    """The cycle-written track_persist_status.json flag is honoured: a
+    track_persist_ok:false flag → CRITICAL with the recorded reason."""
+    import json as _json
+    (good_dir / "data" / "track_persist_status.json").write_text(
+        _json.dumps({"track_persist_ok": False, "reason": "sqlite open/query failed",
+                     "db_size_bytes": 0}),
+        encoding="utf-8",
+    )
+    mon = make_mon(good_dir)
+    prelude(mon)
+    res = mon.check_d1_data_pipeline()
+    chk = by_id(res, "d1.track_db.mirror")
+    assert chk.status == CRITICAL
+    assert "sqlite open/query failed" in chk.title
 
 
 def test_d1_equity_missing_is_critical_and_skips_dependents(good_dir):

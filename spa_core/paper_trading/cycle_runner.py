@@ -477,22 +477,109 @@ def _refresh_risk_scores(
         return False
 
 
-def _default_track_persister(data_dir: Path) -> None:
-    """MP-109: mirror the track into SQLite + run the daily off-site backup.
+TRACK_PERSIST_STATUS_FILENAME = "track_persist_status.json"
 
-    Invocation only — ALL persistence logic lives in
-    ``spa_core/persistence/track_store.py`` (idempotent SQLite mirror of
-    ``trades.json`` / ``equity_curve_daily.json``; the JSON files stay the
-    source of truth and are NEVER modified) and
+
+def _verify_track_db(db_path: Path) -> tuple[bool, int, str]:
+    """Open ``track.db`` and assert it is a non-empty, integrity-clean SQLite
+    mirror. Returns ``(ok, size_bytes, reason)``. Never raises.
+
+    This is the guard that turns the historical *silent* 0-byte failure into an
+    observable one: a freshly-published mirror that is 0 bytes (e.g. a direct
+    ``sqlite3.connect`` left a header-less stub, an interrupted publish, or a
+    git/working-tree restore truncated the file) is reported as NOT-ok with a
+    concrete reason instead of passing for a healthy DB.
+    """
+    import sqlite3
+
+    try:
+        size = db_path.stat().st_size if db_path.exists() else 0
+    except OSError as exc:
+        return False, 0, f"stat failed: {exc}"
+    if size == 0:
+        return False, 0, "track.db is 0 bytes (empty/stub mirror)"
+    try:
+        conn = sqlite3.connect(os.fspath(db_path))
+        try:
+            integ = conn.execute("PRAGMA integrity_check").fetchone()
+            if not integ or integ[0] != "ok":
+                return False, size, f"integrity_check={integ[0] if integ else 'None'}"
+            # A mirror with neither table populated is as useless as a 0-byte file.
+            n_eq = conn.execute("SELECT COUNT(*) FROM equity_curve").fetchone()[0]
+        finally:
+            conn.close()
+    except Exception as exc:  # noqa: BLE001 — verification must never raise
+        return False, size, f"sqlite open/query failed: {type(exc).__name__}: {exc}"
+    if n_eq == 0:
+        return False, size, "track.db has 0 equity_curve rows"
+    return True, size, "ok"
+
+
+def _default_track_persister(data_dir: Path) -> dict:
+    """MP-109: mirror the track into SQLite, VERIFY it, then run the off-site
+    backup. Returns a structured result; never raises.
+
+    ALL persistence logic lives in ``spa_core/persistence/track_store.py``
+    (idempotent SQLite mirror of ``trades.json`` / ``equity_curve_daily.json``;
+    the JSON files stay the source of truth and are NEVER modified) and
     ``spa_core/persistence/backup.py`` (dated folder on iCloud Drive /
-    ``$SPA_BACKUP_DIR``, sha256 manifest, 14-folder rotation). Both modules
-    are themselves fail-safe, but the wrapper below catches everything anyway."""
+    ``$SPA_BACKUP_DIR``, sha256 manifest, 14-folder rotation).
+
+    ROOT-CAUSE DECOUPLING (the historical 0-byte ``data/track.db`` bug): the
+    local SQLite mirror is the machine's crash-recovery copy and MUST succeed
+    independently of the off-site backup. The mirror is therefore synced AND
+    verified FIRST; only then is ``run_backup`` attempted. A backup failure
+    (missing / unwritable ``$SPA_BACKUP_DIR`` or iCloud path) can no longer
+    prevent or mask the local ``track.db`` write — its error is recorded
+    separately and never poisons ``mirror_ok``.
+    """
     from spa_core.persistence.backup import run_backup
     from spa_core.persistence.track_store import TrackStore
 
     ddir = Path(data_dir)
-    TrackStore(db_path=ddir / "track.db").sync_from_json(ddir)
-    run_backup(ddir)
+    db_path = ddir / "track.db"
+
+    # 1) Local mirror FIRST and independently — this is crash-recovery, it must
+    #    write to data/track.db regardless of the offsite/backup dir's state.
+    sync = TrackStore(db_path=db_path).sync_from_json(ddir)
+    mirror_ok, db_size, verify_reason = _verify_track_db(db_path)
+    mirror_ok = mirror_ok and sync.get("status") == "ok"
+
+    # 2) Off-site backup SECOND and decoupled — its outcome is reported but can
+    #    never flip mirror_ok (a missing $SPA_BACKUP_DIR/iCloud is not a local
+    #    crash-recovery failure).
+    backup = run_backup(ddir)
+
+    return {
+        "mirror_ok": bool(mirror_ok),
+        "db_size_bytes": int(db_size),
+        "sync_status": sync.get("status"),
+        "sync_errors": list(sync.get("errors") or []),
+        "verify_reason": verify_reason,
+        "equity_points_total": sync.get("equity_points_total"),
+        "trades_total": sync.get("trades_total"),
+        "backup_status": backup.get("status"),
+        "backup_errors": list(backup.get("errors") or []),
+    }
+
+
+def _write_track_persist_status(
+    ddir: Path, *, ok: bool, reason: str, detail: dict | None = None
+) -> None:
+    """Persist an OBSERVABLE track-persist health flag so agent_health /
+    monitoring can SEE a mirror failure that the cycle's ``status:ok`` would
+    otherwise hide. Atomic; never raises."""
+    try:
+        doc = {
+            "track_persist_ok": bool(ok),
+            "reason": reason,
+            "ts": datetime.now(timezone.utc).isoformat(),
+        }
+        if detail:
+            doc.update(detail)
+        _atomic_write_json(ddir / TRACK_PERSIST_STATUS_FILENAME, doc)
+    except Exception as exc:  # noqa: BLE001 — status-write must never crash the cycle
+        log.warning("track_persist_status write failed (%s)", exc)
 
 
 def _persist_track(
@@ -500,23 +587,64 @@ def _persist_track(
     track_persister_fn: Callable[[Path], Any] | None,
     notes: list[str],
 ) -> bool:
-    """MP-109 fail-safe wrapper: any exception → WARNING + note
-    ``track_persist_failed``, the cycle NEVER fails because of
-    persistence/backup. Never raises."""
+    """MP-109 fail-safe wrapper. The cycle NEVER fails because of
+    persistence/backup, but the outcome is now OBSERVABLE rather than silently
+    swallowed:
+
+    * an exception OR a verified-bad mirror (0-byte / corrupt / empty
+      ``track.db``) → WARNING + ``note`` + ``track_persist_status.json``
+      ``track_persist_ok:false`` with a concrete reason;
+    * a healthy publish → ``track_persist_ok:true`` + db size.
+
+    Never raises."""
     try:
-        (track_persister_fn or _default_track_persister)(ddir)
-        return True
+        result = (track_persister_fn or _default_track_persister)(ddir)
     except Exception as exc:  # noqa: BLE001 — persistence must never crash the cycle
-        log.warning(
-            "track persistence/backup failed (%s) — cycle continues; the JSON "
-            "track record is unaffected",
-            exc,
+        reason = f"{type(exc).__name__}: {exc}"
+        log.error(
+            "track persistence/backup raised (%s) — cycle continues; the JSON "
+            "track record is unaffected, but track.db was NOT refreshed",
+            reason,
         )
         notes.append(
-            f"track_persist_failed: {type(exc).__name__}: {exc} — "
+            f"track_persist_failed: {reason} — "
             "cycle continues; JSON track record unaffected."
         )
+        _write_track_persist_status(ddir, ok=False, reason=reason)
         return False
+
+    # An injected persister may return None (legacy contract) — treat a clean
+    # return as success but still verify the on-disk mirror so a silently-empty
+    # track.db can never again pass as healthy.
+    detail = result if isinstance(result, dict) else {}
+    mirror_ok, db_size, verify_reason = _verify_track_db(ddir / "track.db")
+    if isinstance(result, dict):
+        mirror_ok = bool(result.get("mirror_ok"))
+        db_size = int(result.get("db_size_bytes") or db_size)
+        verify_reason = result.get("verify_reason") or verify_reason
+
+    if not mirror_ok:
+        log.error(
+            "track.db mirror is UNHEALTHY after persist (%s, %d bytes) — cycle "
+            "continues but the SQLite track mirror was NOT refreshed; "
+            "track_persist_ok=false flagged for monitoring",
+            verify_reason,
+            db_size,
+        )
+        notes.append(
+            f"track_persist_failed: mirror unhealthy ({verify_reason}, "
+            f"{db_size} bytes) — cycle continues; JSON track record unaffected."
+        )
+        _write_track_persist_status(
+            ddir, ok=False, reason=verify_reason, detail={"db_size_bytes": db_size, **detail}
+        )
+        return False
+
+    _write_track_persist_status(
+        ddir, ok=True, reason="ok",
+        detail={"db_size_bytes": db_size, **detail},
+    )
+    return True
 
 
 # ─── Public entry point ──────────────────────────────────────────────────────

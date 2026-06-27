@@ -478,7 +478,41 @@ class SystemHealthMonitor:
             else:
                 out.append(CheckResult("d1.golive.count", D, OK,
                                        f"golive {passed}/{total}", value=passed, expected=total))
+
+        # --- track.db mirror health (MP-109) ------------------------------
+        # The SQLite mirror is the machine's crash-recovery copy of the track.
+        # A historical silent bug left it at 0 bytes while the cycle still
+        # logged status:ok. _persist_track now writes an observable flag
+        # (track_persist_status.json) AND the file itself is stat'd here so a
+        # stale/empty mirror surfaces in monitoring instead of hiding.
+        out.append(self._check_track_db_mirror(D))
         return out
+
+    def _check_track_db_mirror(self, D: str) -> CheckResult:
+        cid = "d1.track_db.mirror"
+        db = self.data_dir / "track.db"
+        flag = self.data_dir / "track_persist_status.json"
+        # Prefer the explicit cycle-written flag (carries the reason); fall back
+        # to stat'ing track.db directly so a missing flag never hides a 0-byte db.
+        try:
+            if flag.exists():
+                with open(flag, "r", encoding="utf-8") as fh:
+                    fd = json.load(fh)
+                if fd.get("track_persist_ok") is False:
+                    return CheckResult(cid, D, CRITICAL,
+                                       f"track.db mirror unhealthy: {fd.get('reason')}",
+                                       value=fd.get("db_size_bytes"))
+        except Exception as exc:  # noqa: BLE001 — health check must never raise
+            return CheckResult(cid, D, WARNING,
+                               "track_persist_status.json unreadable", error=str(exc))
+        try:
+            size = db.stat().st_size if db.exists() else 0
+        except OSError as exc:
+            return CheckResult(cid, D, WARNING, "track.db stat failed", error=str(exc))
+        if size == 0:
+            return CheckResult(cid, D, CRITICAL,
+                               "track.db is 0 bytes (empty/stub mirror)", value=size)
+        return CheckResult(cid, D, OK, f"track.db mirror healthy ({size:,} bytes)", value=size)
 
     def _check_equity_dates(self, daily: list, D: str) -> CheckResult:
         dates: list[date] = []
