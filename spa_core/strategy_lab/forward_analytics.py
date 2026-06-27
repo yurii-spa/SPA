@@ -1,0 +1,458 @@
+"""
+spa_core/strategy_lab/forward_analytics.py — risk-adjusted analytics ON the LIVE accruing
+forward series (rates-desk FixedCarry + each Strategy-Lab sleeve).
+
+WHY THIS EXISTS (T4+T5 sprint): generate_fundability_onepager.py reads a VERDICT
+(rates_desk_promotion.json) but NOTHING computes risk-adjusted metrics ON the forward series
+THEMSELVES. The series in data/rates_desk/paper/*_series.json + data/strategy_lab_paper/
+*_series.json grow one point per UTC day. At day 30 (target 2026-07-21) they become the
+FUNDABLE evidence — but evidence needs honest risk-adjusted measurement, attribution against the
+~3.4% RWA risk-free floor, and a stress overlay on the REALIZED record (not just the backtest).
+
+This module is the tooling that turns the accruing forward tracks into that scorecard:
+
+  T4 — risk-adjusted attribution on the live forward series
+    • ingest one *_series.json, VALIDATE via track_integrity (gaps/dups/out-of-order/future →
+      fail-CLOSED → verdict UNKNOWN, NEVER a fabricated number),
+    • compute (REUSING metrics.py — NOT reinvented): realized Sharpe, Sortino, max-drawdown,
+      annualized vol, annualized return — HONEST:
+        – fewer than MIN_POINTS_FOR_RATIO usable points → ratio = UNKNOWN (a 2-point Sharpe is a
+          degenerate artifact, not a risk-adjusted score),
+        – a locked-volatility book (fixed-rate accrual whose only "variance" is float noise) →
+          metrics.sharpe()/sortino() return None; we FLAG locked_vol and report UNKNOWN, never a
+          fabricated ~4.5e8 Sharpe (the documented degenerate-Sharpe hazard),
+    • ATTRIBUTION vs the live ~3.4% RWA floor: excess annualized return decomposed into the floor
+      leg and the carry-above-floor leg (how much of the realized return is genuine excess).
+
+  T5 — drawdown + stress overlay on the forward record
+    • apply the CANONICAL 2024–2026 stress scenarios (the same PT mark-down shocks the promotion
+      gate uses — NO looser) to the CURRENTLY-HELD carry-book composition (read from the rates-desk
+      paper state), measuring worst-case DD on the realized forward equity + the shock,
+    • per scenario: stress DD % and survives:bool (DD within the promotion drawdown band),
+      consistent with levered_stress.MAX_DD_BAND_PCT semantics.
+
+Emits a deterministic risk-adjusted scorecard → data/forward_analytics.json (atomic).
+
+stdlib-only, deterministic, fail-CLOSED, atomic. LLM FORBIDDEN. Advisory: reads the forward
+series + the live floor; never moves capital, never touches execution/*, never blocks a tick.
+
+Run:  python3 -m spa_core.strategy_lab.forward_analytics
+"""
+# LLM_FORBIDDEN
+from __future__ import annotations
+
+import datetime
+import logging
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+from spa_core.utils.atomic import atomic_load, atomic_save
+from spa_core.strategy_lab import metrics
+from spa_core.strategy_lab import track_integrity as ti
+
+log = logging.getLogger("spa.strategy_lab.forward_analytics")
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]  # …/SPA_Claude
+DATA_DIR = _REPO_ROOT / "data"
+RATES_PAPER_DIR = DATA_DIR / "rates_desk" / "paper"
+LAB_PAPER_DIR = DATA_DIR / "strategy_lab_paper"
+SCORECARD_FILE = DATA_DIR / "forward_analytics.json"
+
+# The rates-desk paper STATE file (carry-book composition currently held). Used by the stress
+# overlay so the shock is applied to what is ACTUALLY held now, not a backtest book.
+RATES_STATE_FILE = RATES_PAPER_DIR / "rates_desk_fixed_carry_state.json"
+
+# A risk-adjusted ratio (Sharpe/Sortino) needs enough RETURN observations to mean anything. With
+# fewer than this many equity points the ratio is a degenerate artifact (a 2-point series has a
+# single return → "Sharpe" is mean/0-or-noise). Below the floor we report UNKNOWN, never a number.
+# Honest at the current ~3–6-day track depth: the ratios SHOULD read UNKNOWN today, by design.
+MIN_POINTS_FOR_RATIO = 7      # ≥ 7 equity points → ≥ 6 daily returns before a ratio is trusted
+
+# The promotion drawdown band — a forward track whose stressed DD exceeds this does NOT survive.
+# MIRRORS levered_stress.MAX_DD_BAND_PCT (15%) so the stress overlay is NO looser than the gate.
+MAX_DD_BAND_PCT = 15.0
+
+
+# ── canonical 2024–2026 stress scenarios (the PT mark-down shocks the gate replays) ──────────────
+# These mirror levered_stress.STRESS_EVENTS' realized PT mark-downs (per unit of held exposure). We
+# reuse the SAME magnitudes so the forward stress overlay is consistent with the promotion gate's
+# stress semantics. `pt_markdown` is the fraction marked DOWN on the held PT notional in the shock.
+STRESS_SCENARIOS: Tuple[Dict[str, Any], ...] = (
+    {"label": "2024-08 ETH crash / carry-unwind", "pt_markdown": 0.015},
+    {"label": "2025-10 USDe leverage unwind (THE test)", "pt_markdown": 0.030},
+    {"label": "2026-04 KelpDAO rsETH depeg", "pt_markdown": 0.060},
+)
+
+
+def _utc_now_iso() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# series ingestion
+# ──────────────────────────────────────────────────────────────────────────────
+def _extract_equity(points: Sequence[dict]) -> List[float]:
+    """Pull the equity_usd value from each in-order point. Fail-CLOSED on a missing/non-numeric
+    equity (a point without a usable equity is a malformed track, never a fabricated 0)."""
+    eq: List[float] = []
+    for p in points:
+        v = p.get("equity_usd")
+        if not isinstance(v, (int, float)):
+            raise ValueError(f"point missing numeric equity_usd: {p!r}")
+        eq.append(float(v))
+    return eq
+
+
+def _daily_returns(equity: Sequence[float]) -> List[float]:
+    """Fractional day-over-day returns from an equity curve. e[i]/e[i-1] - 1."""
+    out: List[float] = []
+    for i in range(1, len(equity)):
+        prev = equity[i - 1]
+        if prev <= 0:
+            out.append(0.0)
+        else:
+            out.append(equity[i] / prev - 1.0)
+    return out
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# T4 — risk-adjusted scorecard for ONE forward track
+# ──────────────────────────────────────────────────────────────────────────────
+def analyze_track(
+    series_doc: Any,
+    *,
+    name: str = "track",
+    floor_apy_pct: Optional[float] = None,
+) -> dict:
+    """Risk-adjusted scorecard for ONE forward series.
+
+    Args:
+        series_doc   : on-disk doc {"id":.., "series":[{date, equity_usd, ...}]} or a bare list.
+        name         : track name for the report.
+        floor_apy_pct: the RWA risk-free floor (%); None → resolved live via metrics' config.
+
+    Returns a per-track scorecard dict. Fail-CLOSED: a track that fails track_integrity (gap /
+    duplicate / out-of-order / future / malformed) yields verdict="UNKNOWN" with the integrity
+    reason — NEVER a computed Sharpe/return on a broken series. A track with fewer than
+    MIN_POINTS_FOR_RATIO usable points yields sharpe/sortino="UNKNOWN" (not a degenerate number),
+    but still reports n_points / dates / realized return where those ARE defined.
+    """
+    floor = metrics.rwa_floor_apy_pct() if floor_apy_pct is None else float(floor_apy_pct)
+
+    base = {
+        "name": name,
+        "n_points": 0,
+        "first_date": None,
+        "last_date": None,
+        "integrity_ok": False,
+        "integrity_reason": "malformed",
+        "ann_return_pct": None,
+        "max_dd_pct": None,
+        "rolling_vol_pct": None,
+        "sharpe": "UNKNOWN",
+        "sortino": "UNKNOWN",
+        "locked_vol": False,
+        "floor_apy_pct": round(floor, 4),
+        "excess_vs_floor_pct": None,
+        "attribution": None,
+        "verdict": "UNKNOWN",
+    }
+
+    # ── 1. integrity gate (fail-CLOSED) ──────────────────────────────────────────────────────
+    integ = ti.check_track_integrity(series_doc)
+    base["integrity_ok"] = bool(integ["ok"])
+    base["integrity_reason"] = integ["reason"]
+    base["n_points"] = integ["n_points"]
+    base["first_date"] = integ["first_date"]
+    base["last_date"] = integ["last_date"]
+
+    if not integ["ok"]:
+        # a broken (gapped/dup/out-of-order/future/malformed) track → never compute a number on it
+        base["verdict"] = "UNKNOWN"
+        return base
+
+    points = ti._coerce_series(series_doc) or []
+    if not points:
+        base["verdict"] = "UNKNOWN"  # empty track — integrity ok="empty" but nothing to score
+        base["integrity_reason"] = integ["reason"]
+        return base
+
+    # ── 2. equity → returns ──────────────────────────────────────────────────────────────────
+    try:
+        equity = _extract_equity(points)
+    except ValueError as exc:
+        base["integrity_ok"] = False
+        base["integrity_reason"] = f"malformed:{exc}"
+        base["verdict"] = "UNKNOWN"
+        return base
+
+    rets = _daily_returns(equity)
+
+    # ── 3. metrics (REUSE metrics.py) ────────────────────────────────────────────────────────
+    # These are honest at any depth: ann_return / max_dd / vol are well-defined from ≥2 points.
+    ann_return = metrics.net_apy_from_equity(equity)
+    max_dd = metrics.max_drawdown_pct(equity)
+    vol = metrics.volatility_pct(rets)
+    base["ann_return_pct"] = ann_return
+    base["max_dd_pct"] = max_dd
+    base["rolling_vol_pct"] = vol
+
+    # Sharpe / Sortino — HONEST. metrics.sharpe()/sortino() return None for a locked-vol book
+    # (float-noise-only variance → the documented degenerate-Sharpe hazard) AND for <2 returns.
+    sh = metrics.sharpe(rets)
+    so = metrics.sortino(rets)
+    # locked-vol detection: enough points exist but the ratio came back None because dispersion is
+    # float-noise (constant accrual). Distinguish that from simply-too-few-points.
+    enough_points = len(equity) >= MIN_POINTS_FOR_RATIO
+    locked_vol = bool(enough_points and (sh is None or so is None))
+    base["locked_vol"] = locked_vol
+
+    if not enough_points:
+        base["sharpe"] = "UNKNOWN"      # thin track — a ratio here is a degenerate artifact
+        base["sortino"] = "UNKNOWN"
+    else:
+        base["sharpe"] = sh if sh is not None else "UNKNOWN"
+        base["sortino"] = so if so is not None else "UNKNOWN"
+
+    # ── 4. attribution vs the RWA floor ──────────────────────────────────────────────────────
+    # Decompose the realized annualized return into the risk-free floor leg + the carry-above-floor
+    # (excess) leg. excess_vs_floor = realized ann return − floor. Positive → the track is earning
+    # above the risk-free RWA benchmark; negative → it is NOT beating cash, risk-adjusted.
+    excess = round(ann_return - floor, 4)
+    base["excess_vs_floor_pct"] = excess
+    base["attribution"] = {
+        "realized_ann_return_pct": ann_return,
+        "rwa_floor_pct": round(floor, 4),
+        "floor_leg_pct": round(floor, 4),            # the return attributable to sitting in RWA cash
+        "excess_carry_pct": excess,                  # the return attributable to the strategy's edge
+        "beats_floor": bool(excess > 0.0),
+    }
+
+    # ── 5. verdict ───────────────────────────────────────────────────────────────────────────
+    # HONEST: a thin/locked-vol track gets THIN_TRACK (we have an honest return + attribution but
+    # not yet a trustworthy risk-adjusted ratio). A track with a real Sharpe gets a beats/below
+    # verdict. Never a fabricated PASS on insufficient evidence.
+    if base["sharpe"] == "UNKNOWN":
+        base["verdict"] = "THIN_TRACK"   # honest: not enough evidence for a risk-adjusted verdict
+    elif excess > 0.0:
+        base["verdict"] = "BEATS_FLOOR"
+    else:
+        base["verdict"] = "BELOW_FLOOR"
+    return base
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# T5 — drawdown + stress overlay on the realized forward record
+# ──────────────────────────────────────────────────────────────────────────────
+def _held_pt_notional(state_doc: Any) -> Tuple[float, float, int]:
+    """From the rates-desk paper state, sum the PT notional CURRENTLY held (open books) and the
+    book equity. Returns (held_pt_notional_usd, current_equity_usd, n_open_books).
+
+    The state shape (rates_desk_fixed_carry_state.json):
+      {"state": {"capital": "...", "cash": "...", "accrued": "...", "books": {id: {"size": ...}}}}
+    Decimal-strings are coerced to float. Fail-CLOSED returns (0,0,0) on an unusable shape so the
+    overlay reports an honest no-exposure stress (never a fabricated held size)."""
+    if not isinstance(state_doc, dict):
+        return 0.0, 0.0, 0
+    st = state_doc.get("state")
+    if not isinstance(st, dict):
+        return 0.0, 0.0, 0
+    try:
+        capital = float(st.get("capital", 0.0))
+        cash = float(st.get("cash", 0.0))
+        accrued = float(st.get("accrued", 0.0))
+    except (TypeError, ValueError):
+        return 0.0, 0.0, 0
+    books = st.get("books")
+    held = 0.0
+    n_open = 0
+    if isinstance(books, dict):
+        for b in books.values():
+            if not isinstance(b, dict):
+                continue
+            try:
+                size = float(b.get("size", 0.0))
+            except (TypeError, ValueError):
+                continue
+            if size > 0:
+                held += size
+                n_open += 1
+    # current book equity = cash + held PT notional + accrued carry (the live equity the desk marks)
+    equity = cash + held + accrued
+    if equity <= 0:
+        equity = capital  # fall back to nominal capital if the state didn't carry cash/held
+    return held, equity, n_open
+
+
+def stress_overlay(
+    realized_equity: Sequence[float],
+    held_pt_notional_usd: float,
+    current_equity_usd: float,
+    *,
+    scenarios: Sequence[Dict[str, Any]] = STRESS_SCENARIOS,
+    max_dd_band_pct: float = MAX_DD_BAND_PCT,
+) -> dict:
+    """Apply each canonical stress scenario to the CURRENTLY-held carry book on top of the REALIZED
+    forward equity, and report per-scenario worst-case drawdown + survives.
+
+    The shock model (consistent with the gate's PT mark-down semantics): on the stress day the held
+    PT notional marks DOWN by `pt_markdown` → a one-day equity hit of (held_notional × markdown).
+    We append that shocked point to the realized forward equity curve and measure max-drawdown over
+    the combined path (so a track already in drawdown compounds honestly with the shock). survives =
+    the stressed DD stays within the promotion drawdown band (NO looser than the gate's 15%).
+
+    Returns {held_pt_notional_usd, current_equity_usd, max_dd_band_pct,
+             scenarios:[{label, pt_markdown_pct, shock_usd, stressed_equity_usd, stress_dd_pct,
+                         survives}], worst_stress_dd_pct, survives_all}.
+    fail-CLOSED: with no held notional the shock is $0 → the overlay honestly reports 0% stress DD
+    (a cash book takes no PT mark-down) rather than fabricating a loss."""
+    base_curve = [float(x) for x in realized_equity] or [float(current_equity_usd)]
+    results: List[dict] = []
+    worst = 0.0
+    survives_all = True
+    for sc in scenarios:
+        markdown = float(sc["pt_markdown"])
+        shock_usd = held_pt_notional_usd * markdown
+        shocked_equity = current_equity_usd - shock_usd
+        # combined path: the realized forward record, then the shocked mark-to-market point.
+        stressed_curve = list(base_curve) + [shocked_equity]
+        stress_dd = metrics.max_drawdown_pct(stressed_curve)
+        survives = bool(stress_dd <= max_dd_band_pct)
+        if not survives:
+            survives_all = False
+        if stress_dd > worst:
+            worst = stress_dd
+        results.append({
+            "label": sc["label"],
+            "pt_markdown_pct": round(markdown * 100.0, 4),
+            "shock_usd": round(shock_usd, 2),
+            "stressed_equity_usd": round(shocked_equity, 2),
+            "stress_dd_pct": stress_dd,
+            "survives": survives,
+        })
+    return {
+        "held_pt_notional_usd": round(held_pt_notional_usd, 2),
+        "current_equity_usd": round(current_equity_usd, 2),
+        "max_dd_band_pct": max_dd_band_pct,
+        "scenarios": results,
+        "worst_stress_dd_pct": round(worst, 4),
+        "survives_all": survives_all,
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# aggregate — scorecard over every forward track
+# ──────────────────────────────────────────────────────────────────────────────
+def _discover_series_files(data_dir: Path) -> List[Path]:
+    out: List[Path] = []
+    for sub in (data_dir / "rates_desk" / "paper", data_dir / "strategy_lab_paper"):
+        if sub.is_dir():
+            out.extend(sorted(sub.glob("*_series.json")))
+    return out
+
+
+def _track_name(path: Path) -> str:
+    return f"{path.parent.name}/{path.name[:-len('_series.json')]}"
+
+
+def build_scorecard(
+    data_dir: Optional[Path] = None,
+    *,
+    floor_apy_pct: Optional[float] = None,
+    write: bool = True,
+) -> dict:
+    """Build the risk-adjusted scorecard over EVERY forward track + the stress overlay on the
+    CURRENT rates-desk carry book. Writes data/forward_analytics.json atomically (unless write=False).
+
+    The stress overlay is computed on the rates-desk FixedCarry forward record (the only track with
+    a held PT carry book to mark down). Each track gets its T4 risk-adjusted scorecard; the T5
+    overlay is attached to the carry track and surfaced at the top level.
+
+    Returns the full scorecard doc. fail-CLOSED throughout: a broken/thin track → UNKNOWN/THIN_TRACK,
+    never a fabricated number; an unreadable file → an explicit unreadable track entry.
+    """
+    root = Path(data_dir) if data_dir is not None else DATA_DIR
+
+    # Resolve the floor ONCE (live tokenized-T-bill yield, fail-closed to committed literal).
+    floor = metrics.rwa_floor_apy_pct() if floor_apy_pct is None else float(floor_apy_pct)
+
+    files = _discover_series_files(root)
+    tracks: List[dict] = []
+    carry_track_equity: Optional[List[float]] = None
+    for f in files:
+        name = _track_name(f)
+        try:
+            doc = atomic_load(str(f), default=None)
+        except Exception:  # noqa: BLE001 — a corrupt file is an UNKNOWN track, never a crash
+            doc = None
+        if doc is None:
+            tracks.append({
+                "name": name, "n_points": 0, "first_date": None, "last_date": None,
+                "integrity_ok": False, "integrity_reason": "unreadable",
+                "ann_return_pct": None, "max_dd_pct": None, "rolling_vol_pct": None,
+                "sharpe": "UNKNOWN", "sortino": "UNKNOWN", "locked_vol": False,
+                "floor_apy_pct": round(floor, 4), "excess_vs_floor_pct": None,
+                "attribution": None, "verdict": "UNKNOWN",
+            })
+            continue
+        card = analyze_track(doc, name=name, floor_apy_pct=floor)
+        tracks.append(card)
+        # capture the carry track's realized equity for the stress overlay
+        if name.endswith("rates_desk_fixed_carry") and card["integrity_ok"]:
+            pts = ti._coerce_series(doc) or []
+            try:
+                carry_track_equity = _extract_equity(pts)
+            except ValueError:
+                carry_track_equity = None
+
+    # ── T5 stress overlay on the CURRENT carry book ──────────────────────────────────────────
+    state_doc = None
+    state_path = root / "rates_desk" / "paper" / "rates_desk_fixed_carry_state.json"
+    try:
+        state_doc = atomic_load(str(state_path), default=None)
+    except Exception:  # noqa: BLE001
+        state_doc = None
+    held, cur_equity, n_open = _held_pt_notional(state_doc)
+    if carry_track_equity:
+        # prefer the realized forward record's last equity as the marking base if it's sane
+        if not cur_equity:
+            cur_equity = carry_track_equity[-1]
+    overlay = stress_overlay(
+        carry_track_equity or ([cur_equity] if cur_equity else [0.0]),
+        held, cur_equity or 0.0,
+    )
+    overlay["n_open_books"] = n_open
+
+    n_unknown = sum(1 for t in tracks if t["verdict"] == "UNKNOWN")
+    n_thin = sum(1 for t in tracks if t["verdict"] == "THIN_TRACK")
+    n_beats = sum(1 for t in tracks if t["verdict"] == "BEATS_FLOOR")
+
+    out = {
+        "generated_at": _utc_now_iso(),
+        "model": "forward_analytics",
+        "llm_forbidden": True,
+        "deterministic": True,
+        "rwa_floor_apy_pct": round(floor, 4),
+        "min_points_for_ratio": MIN_POINTS_FOR_RATIO,
+        "max_dd_band_pct": MAX_DD_BAND_PCT,
+        "n_tracks": len(tracks),
+        "n_unknown": n_unknown,
+        "n_thin_track": n_thin,
+        "n_beats_floor": n_beats,
+        "tracks": tracks,
+        "carry_book_stress_overlay": overlay,
+    }
+    if write:
+        atomic_save(out, str(root / SCORECARD_FILE.name))
+    return out
+
+
+def main() -> int:
+    import json
+    rep = build_scorecard()
+    print(json.dumps(rep, indent=2, default=str))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
