@@ -345,7 +345,25 @@ class PaperService:
         for sid, strat in self._strategies.items():
             self._tick_one(sid, strat, snapshot, market_date)
 
+        # ── forward-track continuity guard (advisory, never blocks the tick) ──────────────────
+        # After the per-strategy series points are appended, verify the forward tracks are still
+        # append-only & continuous (no dup/gap/out-of-order/future day). A break is FLAGGED via
+        # the digest queue (never a Telegram flood). Fail-open: a guard bug must not fault a tick.
+        self._check_forward_track_integrity()
+
         return self._write_status(market_date, gap=False, gap_reason="")
+
+    def _check_forward_track_integrity(self) -> None:
+        """Advisory continuity check over ALL forward-track series (this service's state dir's
+        parent = data/, so it covers both rates_desk/paper + strategy_lab_paper). Detects a
+        missing/duplicate/out-of-order/future day the moment it happens — same gap discipline
+        as the main go-live track. Never raises."""
+        try:
+            from spa_core.strategy_lab import track_integrity
+            data_dir = self._state_dir.parent  # …/data
+            track_integrity.flag_if_broken(data_dir=data_dir)
+        except Exception as exc:  # noqa: BLE001 — the guard must never crash the paper tick
+            log.warning("forward-track integrity guard failed (non-fatal): %s", exc)
 
     def _tick_one(self, sid: str, strat: Strategy, snapshot, market_date: str) -> None:
         """Advance one strategy idempotently for `market_date`.

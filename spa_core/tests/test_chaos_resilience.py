@@ -535,3 +535,309 @@ def test_kill_switch_drawdown_trigger_via_tuple(tmp_path):
     active, reason = checker.is_kill_switch_active(equity_curve=curve)
     assert active is True
     assert "drawdown" in reason.lower()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 8) DAILY-CYCLE FAULT INJECTION — SAFE DEGRADATION (track-corruption hazard)
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Sprint Task 5. The sections above prove the DETECTION modules work in
+# isolation. This section drives the REAL ``cycle_runner.run_cycle`` end-to-end
+# against realistic faults and asserts the daily cycle degrades SAFELY: each
+# fault → the cycle either completes cleanly OR aborts WITHOUT mutating live
+# state into a corrupt/torn/duplicated/discontinuous equity curve, and the NEXT
+# cycle recovers. This is the regression guard for the 2026-06-25 track
+# corruption (ad-hoc runs mutated the live track).
+#
+# Hermetic: every run targets an explicit ``tmp_path`` data dir (an explicit
+# NON-canonical dir is honoured verbatim by the write-interlock, so the real
+# repo ``data/`` is NEVER read or written). Orchestrator / allocator / risk
+# scorer / track persister are in-process fakes (network-free). Timestamps are
+# pinned so the per-UTC-day idempotency verdict is deterministic.
+
+import logging as _logging  # noqa: E402
+from datetime import datetime as _dt, timezone as _tz  # noqa: E402
+from types import SimpleNamespace as _NS  # noqa: E402
+
+from spa_core.paper_trading import cycle_runner as _cr  # noqa: E402
+from spa_core.paper_trading._cycle_io import EQUITY_FILENAME as _EQF  # noqa: E402
+from spa_core.paper_trading._cycle_io import STATUS_FILENAME as _STF  # noqa: E402
+from spa_core.utils import atomic as _atomic  # noqa: E402
+
+
+# A policy-compliant target: T1 aave ≤40%, one T2 ≤20%, T2 total ≤50%, cash >5%
+# → the cycle is APPROVED so it actually accrues yield (lets us assert a
+# continuous, monotonically-advancing real curve across days).
+_CLEAN_TARGET = {"aave_v3": 35_000.0, "compound_v3": 20_000.0}
+
+
+def _clean_orch(data_dir):
+    adapters = [
+        {
+            "protocol": p,
+            "apy_pct": 4.0,
+            "tvl_usd": 1e7,
+            "tier": "T1" if p == "aave_v3" else "T2",
+            "status": "ok",
+        }
+        for p in _CLEAN_TARGET
+    ]
+    return _NS(adapters=adapters, status="ok", data_freshness="live")
+
+
+def _stale_orch(data_dir):
+    """Stale/empty adapter feed: no usable live APY (the P5-1 / N3 fault)."""
+    return _NS(adapters=[], status="no_live_data", data_freshness="stale")
+
+
+class _CleanAllocator:
+    def allocate(self):
+        return _NS(
+            target_usd=dict(_CLEAN_TARGET),
+            target_weights={p: v / 100_000 for p, v in _CLEAN_TARGET.items()},
+            expected_apy_pct=4.0,
+            model_used="risk_adjusted",
+            strategy_loop_active=False,
+        )
+
+
+def _run_chaos_cycle(ddir, now, *, orch=_clean_orch):
+    """Drive the REAL run_cycle against an explicit (non-canonical) tmp data dir.
+
+    The orchestrator/allocator/scorer/persister are network-free fakes. The dir
+    is explicit + non-canonical, so the write-interlock honours it verbatim and
+    the real repo data/ is never touched.
+    """
+    return _cr.run_cycle(
+        data_dir=str(ddir),
+        now=now,
+        orchestrator_fn=orch,
+        allocator=_CleanAllocator(),
+        risk_scorer_fn=lambda d: None,
+        track_persister_fn=lambda d: None,
+        write=True,
+        allow_live_write=False,
+    )
+
+
+def _assert_curve_valid_and_continuous(ddir):
+    """Assert equity_curve_daily.json is parseable, has unique ascending dates,
+    no torn/partial content, and is monotonically forward in time. Returns the
+    list of (date, close_equity) for further per-test assertions."""
+    path = ddir / _EQF
+    raw = path.read_text(encoding="utf-8")
+    doc = json.loads(raw)  # raises if torn/partial → proves no torn canonical
+    daily = doc.get("daily") or []
+    dates = [b["date"] for b in daily]
+    # No duplicate same-day bars (idempotency invariant).
+    assert len(dates) == len(set(dates)), f"duplicate equity bars: {dates}"
+    # Strictly ascending dates (continuity / no out-of-order corruption).
+    assert dates == sorted(dates), f"equity dates not ascending: {dates}"
+    # Every bar has a finite, positive close_equity (no NaN/garbage accrual).
+    for b in daily:
+        ce = b.get("close_equity")
+        assert isinstance(ce, (int, float)) and ce == ce and ce > 0, b
+    return [(b["date"], float(b["close_equity"])) for b in daily]
+
+
+@pytest.fixture(autouse=False)
+def _quiet_cycle_logs():
+    """Silence the cycle's verbose WARNING/INFO chatter during fault injection."""
+    prev = _logging.getLogger().manager.disable
+    _logging.disable(_logging.CRITICAL)
+    try:
+        yield
+    finally:
+        _logging.disable(prev)
+
+
+# ── FAULT 1: stale / empty adapter feed → no fabricated APY, no garbage bar ───
+
+
+def test_fault_stale_feed_skips_without_garbage_bar(tmp_path, _quiet_cycle_logs):
+    """A stale/empty adapter feed (no usable live APY) → the cycle takes the
+    fail-closed no-live-data path: status='skipped_no_live_data', zero yield, and
+    it does NOT append a fabricated equity bar for that day. The prior real curve
+    is left intact, and the NEXT cycle (feed restored) recovers and advances it."""
+    # Day 1: healthy → one real bar.
+    _run_chaos_cycle(tmp_path, _dt(2026, 6, 11, 8, tzinfo=_tz.utc))
+    before = _assert_curve_valid_and_continuous(tmp_path)
+    assert [d for d, _ in before] == ["2026-06-11"]
+
+    # Day 2: stale feed.
+    r = _run_chaos_cycle(
+        tmp_path, _dt(2026, 6, 12, 8, tzinfo=_tz.utc), orch=_stale_orch
+    )
+    assert r.status == "skipped_no_live_data"
+    assert r.live_data is False
+    assert r.daily_yield_usd == 0.0
+    # No fabricated bar for the stale day — curve unchanged (still 1 bar).
+    after = _assert_curve_valid_and_continuous(tmp_path)
+    assert [d for d, _ in after] == ["2026-06-11"], "stale feed fabricated a bar!"
+
+    # Day 3: feed restored → recovers, advances the curve, stays continuous.
+    r3 = _run_chaos_cycle(tmp_path, _dt(2026, 6, 13, 8, tzinfo=_tz.utc))
+    assert r3.status == "ok"
+    recov = _assert_curve_valid_and_continuous(tmp_path)
+    assert [d for d, _ in recov] == ["2026-06-11", "2026-06-13"]
+
+
+# ── FAULT 2: torn / partial JSON write (crash mid-write) ──────────────────────
+
+
+def test_fault_atomic_write_crash_leaves_old_complete_file(tmp_path):
+    """A crash DURING the equity write must leave the canonical file as the OLD
+    COMPLETE version (os.replace is atomic — it never ran), NEVER a torn file, and
+    must leave no .tmp turd behind. This is the core atomic-write guarantee the
+    whole cycle relies on (tmp + os.replace)."""
+    target = tmp_path / _EQF
+    old = {"source": "cycle_runner", "daily": [
+        {"date": "2026-06-11", "close_equity": 100_000.0}]}
+    _atomic.atomic_save(old, str(target))
+    old_bytes = target.read_bytes()
+
+    real_dump = json.dump
+
+    def _boom(obj, fh, *a, **k):  # write partial bytes then crash mid-write
+        fh.write('{"source":"cycle_runner","daily":[{"date":"2026-06-12","clo')
+        raise RuntimeError("simulated crash mid-write")
+
+    json.dump = _boom
+    try:
+        with pytest.raises(RuntimeError):
+            _atomic.atomic_save({"new": "doc"}, str(target))
+    finally:
+        json.dump = real_dump
+
+    # Canonical is byte-identical to the old COMPLETE file → never torn.
+    assert target.read_bytes() == old_bytes
+    # And it still parses cleanly (no partial read as canonical).
+    assert json.loads(target.read_text())["daily"][0]["date"] == "2026-06-11"
+    # No leftover tmp file in the dir.
+    assert list(tmp_path.glob("*.tmp")) == []
+
+
+def test_fault_preexisting_torn_equity_file_recovers(tmp_path, _quiet_cycle_logs):
+    """If a torn/partial equity file somehow exists on disk (worst case), the
+    cycle's defensive read must not crash on it — it recovers and the next write
+    produces a VALID, parseable curve (never propagates the torn content)."""
+    _run_chaos_cycle(tmp_path, _dt(2026, 6, 11, 8, tzinfo=_tz.utc))
+    # Corrupt the canonical equity file out-of-band (truncated mid-object).
+    (tmp_path / _EQF).write_text(
+        '{"source":"cycle_runner","daily":[{"date":"2026-06-11","clo'
+    )
+    # Next cycle must not raise, and must leave a valid curve behind.
+    r = _run_chaos_cycle(tmp_path, _dt(2026, 6, 12, 8, tzinfo=_tz.utc))
+    assert r.status in ("ok", "blocked_by_policy", "skipped_no_live_data")
+    _assert_curve_valid_and_continuous(tmp_path)  # parses → no torn canonical
+
+
+# ── FAULT 3: missing data file (current_positions.json absent) ────────────────
+
+
+def test_fault_missing_positions_file_no_crash(tmp_path, _quiet_cycle_logs):
+    """A missing current_positions.json (lost/deleted) must fail-closed to an
+    empty position set — the cycle does NOT crash and the equity curve stays
+    valid and continuous."""
+    _run_chaos_cycle(tmp_path, _dt(2026, 6, 11, 8, tzinfo=_tz.utc))
+    _run_chaos_cycle(tmp_path, _dt(2026, 6, 12, 8, tzinfo=_tz.utc))
+    # Lose the positions file.
+    (tmp_path / "current_positions.json").unlink()
+    r = _run_chaos_cycle(tmp_path, _dt(2026, 6, 13, 8, tzinfo=_tz.utc))
+    assert r.status in ("ok", "blocked_by_policy")
+    curve = _assert_curve_valid_and_continuous(tmp_path)
+    assert [d for d, _ in curve] == ["2026-06-11", "2026-06-12", "2026-06-13"]
+
+
+# ── FAULT 4: clock skew / duplicate same-day run → idempotent ─────────────────
+
+
+def test_fault_duplicate_same_day_run_is_idempotent(tmp_path, _quiet_cycle_logs):
+    """Two cycles on the SAME UTC day (e.g. a clock-skew double-fire or a manual
+    re-run) must NOT append a second bar for that day, must NOT double-accrue
+    yield, and must recompute the bar off the PRIOR day's close (idempotent)."""
+    _run_chaos_cycle(tmp_path, _dt(2026, 6, 11, 8, tzinfo=_tz.utc))
+    r2a = _run_chaos_cycle(tmp_path, _dt(2026, 6, 12, 8, tzinfo=_tz.utc))
+    # Re-run the SAME day at a different wall-clock time.
+    r2b = _run_chaos_cycle(tmp_path, _dt(2026, 6, 12, 23, 59, tzinfo=_tz.utc))
+
+    curve = _assert_curve_valid_and_continuous(tmp_path)
+    dates = [d for d, _ in curve]
+    assert dates == ["2026-06-11", "2026-06-12"], f"same-day duplicate: {dates}"
+    # The re-run must reproduce the SAME close (no double-accrual / compounding).
+    assert r2b.current_equity == pytest.approx(r2a.current_equity, abs=0.01)
+
+
+# ── FAULT 5: killed mid-cycle (equity written, status not) → next cycle recovers
+
+
+def test_fault_killed_after_equity_before_status_recovers(tmp_path, _quiet_cycle_logs):
+    """Process dies AFTER the equity bar is written but BEFORE the status file is
+    refreshed (torn cross-file state). The next cycle must reconcile: it advances
+    to the new day, updates the stale status, and does NOT duplicate the
+    already-written bar. No torn/duplicated equity state survives."""
+    _run_chaos_cycle(tmp_path, _dt(2026, 6, 11, 8, tzinfo=_tz.utc))
+    _run_chaos_cycle(tmp_path, _dt(2026, 6, 12, 8, tzinfo=_tz.utc))
+
+    # Simulate the crash: append a day-13 equity bar but DON'T update the status
+    # (status still reflects day-12 → the cross-file state is torn).
+    eq = json.loads((tmp_path / _EQF).read_text())
+    last = eq["daily"][-1]
+    bar13 = dict(last)
+    bar13.update({
+        "date": "2026-06-13",
+        "open_equity": last["close_equity"],
+        "close_equity": round(last["close_equity"] + 6.0, 2),
+        "equity": round(last["close_equity"] + 6.0, 2),
+    })
+    eq["daily"].append(bar13)
+    _atomic.atomic_save(eq, str(tmp_path / _EQF))
+    status_before = json.loads((tmp_path / _STF).read_text())
+    assert str(status_before.get("last_cycle_ts", ""))[:10] == "2026-06-12"
+
+    # Next cycle = day 14. It must recover without duplicating day-13.
+    r = _run_chaos_cycle(tmp_path, _dt(2026, 6, 14, 8, tzinfo=_tz.utc))
+    curve = _assert_curve_valid_and_continuous(tmp_path)
+    dates = [d for d, _ in curve]
+    assert dates == ["2026-06-11", "2026-06-12", "2026-06-13", "2026-06-14"]
+    assert dates.count("2026-06-13") == 1, "recovery duplicated the day-13 bar"
+    # Status reconciled forward to the recovery day.
+    status_after = json.loads((tmp_path / _STF).read_text())
+    assert str(status_after.get("last_cycle_ts", ""))[:10] == "2026-06-14"
+    assert r.status in ("ok", "blocked_by_policy")
+
+
+# ── Cross-cutting: a fault run must NEVER touch the canonical live track ───────
+
+
+def test_fault_runs_never_touch_canonical_track(tmp_path, monkeypatch):
+    """Defense-in-depth: even a DEFAULT (no data_dir, no opt-in) cycle under the
+    interlock must redirect to a sandbox, never the canonical repo data/. Pin the
+    'canonical' dir to a temp dir so this assertion can never touch real data/."""
+    from spa_core.paper_trading import _cycle_io as _cio
+
+    canon = tmp_path / "data"
+    canon.mkdir()
+    monkeypatch.setattr(_cio, "_DEFAULT_DATA_DIR", canon, raising=True)
+    monkeypatch.setattr(_cr, "_DEFAULT_DATA_DIR", canon, raising=True)
+    monkeypatch.setenv("SPA_DATA_DIR", str(tmp_path / "sbx"))
+    monkeypatch.delenv("SPA_ALLOW_LIVE_WRITE", raising=False)
+
+    _logging.disable(_logging.CRITICAL)
+    try:
+        _cr.run_cycle(
+            data_dir=None,
+            now=_dt(2026, 6, 11, 8, tzinfo=_tz.utc),
+            orchestrator_fn=_clean_orch,
+            allocator=_CleanAllocator(),
+            risk_scorer_fn=lambda d: None,
+            track_persister_fn=lambda d: None,
+            write=True,
+            allow_live_write=False,
+        )
+    finally:
+        _logging.disable(_logging.NOTSET)
+
+    # The canonical equity curve was never created; the sandbox got the write.
+    assert not (canon / _EQF).exists(), "fault run mutated the canonical track!"
+    assert (tmp_path / "sbx" / _EQF).exists()

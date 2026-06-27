@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -219,7 +220,12 @@ class KillSwitchChecker:
         except (TypeError, ValueError):
             return False, "invalid equity data"
 
-        closes = [c for c in closes if c > 0]
+        # SAFETY (P5-1): a corrupt NaN/Inf equity bar must NOT silently mask a
+        # drawdown nor fabricate one (a NaN sneaks through `> THRESHOLD` as False;
+        # an Inf peak yields a NaN drawdown). Drop every non-finite close BEFORE
+        # computing peak/current — a corrupted bar is treated as no-data (like the
+        # `c > 0` filter), never as a real reading. Fail-CLOSED on the comparison.
+        closes = [c for c in closes if math.isfinite(c) and c > 0]
         if len(closes) < 2:
             return False, "insufficient evidenced equity data (need ≥2 real bars)"
 
@@ -230,6 +236,10 @@ class KillSwitchChecker:
             return False, "peak equity is zero"
 
         drawdown_pct = (peak - current) / peak * 100.0
+
+        # Defensive: never let a non-finite drawdown decide the kill either way.
+        if not math.isfinite(drawdown_pct):
+            return False, "non-finite drawdown computed (corrupt equity) — fail-closed"
 
         if drawdown_pct > DRAWDOWN_THRESHOLD_PCT:
             reason = (

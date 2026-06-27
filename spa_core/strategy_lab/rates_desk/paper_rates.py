@@ -302,12 +302,17 @@ class RatesDeskPaperService:
 
     @staticmethod
     def _default_telegram_send(text: str) -> bool:
+        # RETIRED as a Telegram push (Phase-1 Telegram rebuild). Rates-desk paper
+        # updates are informational → digest queue, never pushed. Returns False.
         try:
-            from spa_core.alerts.telegram_client import send_message
-            return send_message(text)
+            from spa_core.telegram import push_policy
+            push_policy.enqueue_digest(
+                "rates_desk", "Rates Desk paper", text,
+                reason="rates_desk_paper_retired_push",
+            )
         except Exception as exc:  # noqa: BLE001 — alerts must never crash the service
-            log.warning("telegram send failed: %s", exc)
-            return False
+            log.warning("rates_desk paper: digest route failed: %s", exc)
+        return False
 
     # ── the tick ─────────────────────────────────────────────────────────────────────────────────────
     def tick(self, as_of: Optional[str] = None) -> dict:
@@ -354,7 +359,23 @@ class RatesDeskPaperService:
         diag = _scan_diagnostic(pt_quotes, entry_verdicts)
         self._persist_state(day, pretick={"date": day, "state": pre})
         self._append_series_point(self._series_point(day, verdicts, diag))
+        # forward-track continuity guard (advisory, never blocks the tick): after appending the
+        # series point, verify ALL forward tracks are still append-only & continuous and FLAG a
+        # break via the digest queue. Same gap discipline as the main go-live track. Never raises.
+        self._check_forward_track_integrity()
         return self._write_status(day, gap=False, gap_reason="", scan_diag=diag)
+
+    def _check_forward_track_integrity(self) -> None:
+        """Advisory continuity check over ALL forward-track series (rates_desk/paper +
+        strategy_lab_paper). Detects a missing/duplicate/out-of-order/future day the moment it
+        happens. Never raises (a guard bug must not fault a paper tick)."""
+        try:
+            from spa_core.strategy_lab import track_integrity
+            # this service's state dir is …/data/rates_desk/paper → repo data dir is two up.
+            data_dir = self._state_dir.parent.parent  # …/data
+            track_integrity.flag_if_broken(data_dir=data_dir)
+        except Exception as exc:  # noqa: BLE001 — the guard must never crash the paper tick
+            log.warning("rates-desk forward-track integrity guard failed (non-fatal): %s", exc)
 
     def _series_point(self, day: str, verdicts, scan_diag: Optional[dict] = None) -> dict:
         m = self._sleeve.metrics()
