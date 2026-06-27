@@ -210,6 +210,129 @@ def get_rates_desk_proof(last_n: int = Query(default=12, ge=1, le=200)):
     }
 
 
+# ── Public refusal-log surface (human-readable; distinct from the machine /decisions) ──────────
+# Substrings that must NEVER appear in any key of the PUBLIC refusal payload (defense-in-depth: the
+# log itself is risk/audit data, but a future producer field could leak a secret — fail-CLOSED by
+# dropping any matching key from the public projection).
+_REFUSAL_REDACT_KEY_SUBSTRINGS = ("secret", "token", "key", "pat", "wallet", "address", "private")
+
+
+def _redact_public(obj):
+    """Recursively drop any dict key whose lowercased name contains a denylisted substring.
+
+    Defense-in-depth over the public refusal projection: the human-readable feed is built from a
+    fixed, audited set of fields, but this guard guarantees that even if an upstream field were
+    renamed to carry a secret/token/key/pat/raw-wallet-address it can never reach the public payload.
+    Lists/dicts are walked; scalars pass through unchanged. PURE."""
+    if isinstance(obj, dict):
+        return {
+            k: _redact_public(v)
+            for k, v in obj.items()
+            if not any(s in str(k).lower() for s in _REFUSAL_REDACT_KEY_SUBSTRINGS)
+        }
+    if isinstance(obj, list):
+        return [_redact_public(v) for v in obj]
+    return obj
+
+
+@router.get("/api/rates-desk/refusals")
+def get_rates_desk_refusals(limit: int = Query(default=50, ge=1, le=500)):
+    """PUBLIC, human-readable REFUSAL LOG — the declined-trades-with-reasons surface no competitor
+    publishes. Distinct from the machine /api/rates-desk/decisions: this composes the hashed decision
+    log with the STATIC audited refusal_explain map and the live chain verification.
+
+    Each decision carries a plain-English + plain-Russian rationale whose every number is traceable
+    to the row's own hashed YieldDecomposition (re-derivable via docs/PROOF_CHAIN_SPEC.md). Most-
+    recent-first. Read-only, graceful, fail-CLOSED: a missing log yields an empty list with
+    chain.verified=false, NEVER a 500. REDACTED: no secret/token/key/pat/raw-wallet field can appear;
+    sizes are labeled advisory_size_usd (never raw size implying real capital)."""
+    path = (data_dir() / "rates_desk" / "decision_log.jsonl")
+    rows: list = []
+    read_ok = False
+    if path.exists():
+        try:
+            for ln in path.read_text(encoding="utf-8").splitlines():
+                ln = ln.strip()
+                if not ln:
+                    continue
+                try:
+                    rows.append(json.loads(ln))
+                except json.JSONDecodeError:
+                    rows.append({"__corrupt__": True})
+            read_ok = True
+        except OSError as e:
+            log.warning(f"rates-desk refusals: decision log read failed: {e}")
+
+    # Verify the WHOLE chain (tamper-evidence) before projecting any subset.
+    chain = _verify_decision_log(rows)
+    chain_badge = {
+        "verified": bool(chain["valid"]),
+        "head_hash": chain["head_hash"],
+        "chain_length": chain["length"],
+        "broken_at": chain["broken_at"],
+        "spec": "docs/PROOF_CHAIN_SPEC.md",
+    }
+    # fail-CLOSED: if we never managed to read an existing log, report unverified explicitly.
+    if path.exists() and not read_ok:
+        chain_badge["verified"] = False
+
+    counts = {"ENTRY": 0, "REFUSAL": 0}
+    for r in rows:
+        if isinstance(r, dict):
+            k = r.get("kind")
+            if k in counts:
+                counts[k] += 1
+
+    try:
+        from spa_core.strategy_lab.rates_desk import refusal_explain
+    except Exception as e:  # noqa: BLE001 — fail-CLOSED if the explain layer is unavailable
+        log.warning(f"rates-desk refusals: refusal_explain import failed: {e}")
+        return {
+            "generated_at": now(),
+            "model": "rates_desk_public_refusal_log",
+            "chain": {**chain_badge, "verified": False},
+            "counts": counts,
+            "decisions": [],
+        }
+
+    # Most-recent-first projection, bounded by limit. Skip corrupt rows (they already failed the
+    # chain check above → surfaced via chain.verified=false).
+    decisions = []
+    for r in reversed(rows):
+        if len(decisions) >= limit:
+            break
+        if not isinstance(r, dict) or r.get("__corrupt__"):
+            continue
+        ex = refusal_explain.explain(r)
+        decisions.append({
+            "seq": r.get("seq"),
+            "as_of": r.get("as_of"),
+            "underlying": ex["underlying"],
+            "shape": r.get("shape"),
+            "kind": r.get("kind"),
+            "headline": ex["headline"],
+            "plain_en": ex["plain_en"],
+            "plain_ru": ex["plain_ru"],
+            "structural_reason": ex["structural_reason"],
+            "drivers": ex["drivers"],
+            "net_edge": r.get("net_edge"),
+            "advisory_size_usd": ex["advisory_size_usd"],
+            "proof_hash": r.get("proof_hash"),
+            "entry_hash": r.get("entry_hash"),
+            "prev_hash": r.get("prev_hash"),
+        })
+
+    payload = {
+        "generated_at": now(),
+        "model": "rates_desk_public_refusal_log",
+        "chain": chain_badge,
+        "counts": counts,
+        "decisions": decisions,
+    }
+    # Defense-in-depth redaction over the entire public projection.
+    return _redact_public(payload)
+
+
 @router.get("/api/rates-desk/exit-nav")
 def get_rates_desk_exit_nav():
     """Rates-Desk LIQUIDATION-NAV-BY-SIZE — the per-ticket exit schedule for the desk's open book.
