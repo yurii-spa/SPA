@@ -1,84 +1,40 @@
 #!/usr/bin/env bash
-# scripts/dr_offsite_copy.sh — copy the newest DR backup to an OFFSITE/secondary location.
+# scripts/dr_offsite_copy.sh — copy the newest DR backup OFFSITE + sha256-verify + status.
 #
-# Self-Healing Plane 1.7 — DR offsite copy.
+# Resilience Plane (R6) — make the offsite-backup mechanism PROVABLY EXERCISED.
 #
-# spa_core/backtesting/tier1/dr_backup.py produces data/backups/spa_state_*.tar.gz on the
-# SAME host. A single-host backup is necessary-but-not-sufficient for HA: if the Mac mini
-# dies, the backups die with it. This script copies the newest archive to a SEPARATE
-# destination directory (a stand-in for a second disk / offsite host) and verifies the copy
-# is bit-for-bit identical via sha256.
+# Thin wrapper over spa_core/dr/offsite_copy.py (stdlib-only, deterministic, atomic,
+# fail-CLOSED). The Python helper holds the testable logic:
+#   1) select newest data/backups/spa_state_*.tar.gz
+#   2) atomic copy → $SPA_OFFSITE_DEST   (tmp + fsync + os.replace, never partial)
+#   3) sha256 verify source == dest      (mismatch → remove dest, verified:false, exit!=0)
+#   4) prune offsite copies, keep last 14
+#   5) emit data/dr_offsite_status.json (atomic):
+#        {last_offsite_ts, archive_name, sha256, dest, verified, n_offsite_kept, is_real_remote}
 #
-# HONEST SCOPE: with no real offsite target configured this copies to a local stand-in dir
-# ($HOME/spa_offsite_backups/ by default). That proves the MECHANISM (newest-archive
-# selection + transfer + integrity verify). TRUE offsite (cloud bucket / remote host) is
-# INFRASTRUCTURE, not code: set SPA_OFFSITE_DEST to a real target. A remote target would be
-# wired the same way — replace the `cp` with `rsync`/`aws s3 cp` to SPA_OFFSITE_DEST and the
-# sha256 verify stays identical in spirit.
+# HONEST SCOPE: with no real offsite target the dest is a LOCAL stand-in
+# ($HOME/spa_offsite_backups). That proves the MECHANISM; is_real_remote=false then.
 #
-#   SPA_OFFSITE_DEST   override destination dir (default: $HOME/spa_offsite_backups)
+#   ┌─ ONE-LINE SWITCH TO A REAL REMOTE (owner-flagged infra, not code) ───────────┐
+#   │  export SPA_OFFSITE_DEST=/Volumes/Backup/spa   # mounted 2nd disk / NAS / s3  │
+#   │  Mechanism (copy + sha-verify + prune + status) is identical; is_real_remote  │
+#   │  flips to true. Single-host backups remain a SPOF until this is set. (R6)     │
+#   └──────────────────────────────────────────────────────────────────────────────┘
+#   --> DR runbook follow-up: provision a real SPA_OFFSITE_DEST (owner decision).
 #
-# Deterministic, stdlib-only tooling (cp + shasum). Fail-safe: non-zero exit on any failure.
+# RUN MODES:
+#   standalone:        bash scripts/dr_offsite_copy.sh
+#   real remote:       SPA_OFFSITE_DEST=/Volumes/Backup/spa bash scripts/dr_offsite_copy.sh
+#   backup-agent tail: the daily/weekly backup script calls this after the archive is built
+#                      (see scripts/daily_backup.sh tail step). Idempotent + fail-CLOSED.
 #
-# Usage:  bash scripts/dr_offsite_copy.sh
-#         SPA_OFFSITE_DEST=/Volumes/Backup/spa bash scripts/dr_offsite_copy.sh
-
 set -uo pipefail
 
 REPO="/Users/yuriikulieshov/Documents/SPA_Claude"
-BACKUP_DIR="$REPO/data/backups"
-DEST_DIR="${SPA_OFFSITE_DEST:-$HOME/spa_offsite_backups}"
+PY="/Users/yuriikulieshov/miniconda3/bin/python3"
+[[ -x "$PY" ]] || PY="python3"
 
-echo "=============================================="
-echo " SPA DR offsite copy"
-echo "=============================================="
-echo "  source:  $BACKUP_DIR"
-echo "  dest:    $DEST_DIR"
-echo ""
+cd "$REPO" || { echo "[FAIL] cannot cd $REPO"; exit 1; }
 
-# 1) Find the newest backup archive (names are lexically sortable: spa_state_<UTCts>.tar.gz).
-if [[ ! -d "$BACKUP_DIR" ]]; then
-    echo "[FAIL] backup dir not found: $BACKUP_DIR — run dr_backup.snapshot() first."
-    exit 1
-fi
-
-NEWEST="$(ls -1 "$BACKUP_DIR"/spa_state_*.tar.gz 2>/dev/null | sort | tail -n 1)"
-if [[ -z "$NEWEST" ]]; then
-    echo "[FAIL] no spa_state_*.tar.gz archives in $BACKUP_DIR — nothing to copy."
-    exit 1
-fi
-echo "[OK] newest archive: $(basename "$NEWEST")"
-
-# 2) Compute source sha256.
-SRC_SHA="$(shasum -a 256 "$NEWEST" | awk '{print $1}')"
-if [[ -z "$SRC_SHA" ]]; then
-    echo "[FAIL] could not compute source sha256."
-    exit 1
-fi
-echo "[OK] source sha256: $SRC_SHA"
-
-# 3) Copy to the offsite/secondary destination.
-mkdir -p "$DEST_DIR" || { echo "[FAIL] cannot create dest dir: $DEST_DIR"; exit 1; }
-DEST_FILE="$DEST_DIR/$(basename "$NEWEST")"
-if ! cp -f "$NEWEST" "$DEST_FILE"; then
-    echo "[FAIL] copy failed → $DEST_FILE"
-    exit 1
-fi
-echo "[OK] copied → $DEST_FILE"
-
-# 4) Verify the copy's sha256 matches the source (integrity proof).
-DST_SHA="$(shasum -a 256 "$DEST_FILE" | awk '{print $1}')"
-echo "[OK] dest   sha256: $DST_SHA"
-if [[ "$SRC_SHA" != "$DST_SHA" ]]; then
-    echo "[FAIL] sha256 MISMATCH — offsite copy is CORRUPT. Removing."
-    rm -f "$DEST_FILE"
-    exit 1
-fi
-
-echo ""
-echo "[VERIFIED] offsite copy sha256 matches source — backup transferred INTACT."
-echo ""
-echo "NOTE: destination '$DEST_DIR' is a LOCAL stand-in for offsite. TRUE offsite"
-echo "      (cloud bucket / remote host) is INFRASTRUCTURE: set SPA_OFFSITE_DEST and"
-echo "      swap 'cp' for 'rsync'/'aws s3 cp' to that target. The mechanism is proven here."
-exit 0
+# SPA_OFFSITE_DEST (if set) is honored by the Python helper via the env var.
+exec "$PY" -m spa_core.dr.offsite_copy "$@"
