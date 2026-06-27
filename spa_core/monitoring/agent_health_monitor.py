@@ -131,7 +131,11 @@ _RESIDENCY_REQUIRED_CATS = frozenset({CAT_ALWAYS_ON, CAT_HIGH_FREQ, CAT_MID_FREQ
 #     IDENTICAL module (spa_core.telegram.bot). Running both would open two
 #     getUpdates long-polls → Telegram 409 conflict. The .plist may linger on a
 #     host; treat it as retired so it is neither false-flagged nor bootstrapped.
-RETIRED_LABELS = frozenset({"com.spa.bot_commands"})
+#   * com.spa.httpserver — retired (owner decision 2026-06-27): its module bound
+#     :8765, the same port the apiserver (FastAPI/uvicorn) owns → EADDRINUSE
+#     crash-loop. apiserver fully covers the HTTP-API surface, so httpserver is
+#     retired rather than rehomed to another port.
+RETIRED_LABELS = frozenset({"com.spa.bot_commands", "com.spa.httpserver"})
 
 
 def _runs_at_load(plist: Optional[dict]) -> bool:
