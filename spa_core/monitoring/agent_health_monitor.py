@@ -135,7 +135,30 @@ _RESIDENCY_REQUIRED_CATS = frozenset({CAT_ALWAYS_ON, CAT_HIGH_FREQ, CAT_MID_FREQ
 #     :8765, the same port the apiserver (FastAPI/uvicorn) owns → EADDRINUSE
 #     crash-loop. apiserver fully covers the HTTP-API surface, so httpserver is
 #     retired rather than rehomed to another port.
-RETIRED_LABELS = frozenset({"com.spa.bot_commands", "com.spa.httpserver"})
+#   * The RETIRED DAILY-REPORT fleet (Telegram rebuild 2026-06-27): the daily /
+#     weekly Telegram digest is now owned SOLELY by com.spa.digest_daily
+#     (@08:10 UTC → spa_core.telegram.reports.daily) and com.spa.digest_weekly
+#     (Sun 10:00 → spa_core.telegram.reports.weekly), which collapse the former
+#     four+ duplicate daily/weekly senders into ONE message each and route
+#     everything else through push_policy. The standalone senders below ran the
+#     digest BUILDERS directly (or were earlier daily reports) → duplicate sends.
+#     Their .plist may linger on a host (some already *.disabled); treat them as
+#     retired so they are neither false-flagged "Missing (not loaded)" nor
+#     revived. (NOT retired and intentionally absent here: telegram_milestone =
+#     distinct milestone celebrations via push_policy; tier1_digest = distinct
+#     weekly Tier-1 strategy digest; both remain live.)
+#       - com.spa.telegram_daily       → replaced by com.spa.digest_daily
+#       - com.spa.telegram_weekly      → replaced by com.spa.digest_weekly
+#       - com.spa.morning_digest       → old daily report (already *.disabled)
+#       - com.spa.daily-paper-report   → old daily report (already *.disabled)
+RETIRED_LABELS = frozenset({
+    "com.spa.bot_commands",
+    "com.spa.httpserver",
+    "com.spa.telegram_daily",
+    "com.spa.telegram_weekly",
+    "com.spa.morning_digest",
+    "com.spa.daily-paper-report",
+})
 
 
 def _runs_at_load(plist: Optional[dict]) -> bool:

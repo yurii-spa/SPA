@@ -610,21 +610,34 @@ class GoLiveChecker:
     def _check_telegram_alert_today(self, blockers: list[str]) -> bool:
         """Telegram daily summary must have been sent today (UTC).
 
-        Checks data/telegram_alert_state.json for ``daily_summary == today``.
+        Gate (UNCHANGED): data/telegram_alert_state.json must carry
+        ``daily_summary == today`` (UTC). That key is written ONLY on a
+        SUCCESSFUL send, by the SOLE daily-alert owner com.spa.digest_daily
+        (~08:10 UTC → spa_core.telegram.reports.daily). So a same-UTC-day pass
+        means the daily digest genuinely went out today — never force-passed.
+
+        This is the only non-time-gated near-blocker, so the blocker MESSAGE is
+        worded to say plainly what is (not) yet true — "the daily digest has not
+        run yet today" — rather than implying Telegram is broken: pre-08:10 UTC
+        this is simply the expected idle state and clears once the digest fires.
         """
         doc = _read_json(self.data_dir / "telegram_alert_state.json")
         if not isinstance(doc, dict):
             blockers.append(
-                "telegram_alert_today: telegram_alert_state.json missing — "
-                "daily alert not configured"
+                "telegram_alert_today: data/telegram_alert_state.json missing — "
+                "the daily digest (com.spa.digest_daily @08:10 UTC) has not "
+                "written its send-state yet; it is created on the first "
+                "successful daily digest send"
             )
             return False
         today = self.now.strftime("%Y-%m-%d")
         last_sent = str(doc.get("daily_summary", ""))[:10]
         if last_sent != today:
             blockers.append(
-                f"telegram_alert_today: last daily alert was {last_sent or 'never'} "
-                f"(today is {today}) — check com.spa.telegram_daily launchd plist"
+                f"telegram_alert_today: daily digest has not run yet today "
+                f"(last sent {last_sent or 'never'}, today is {today}) — "
+                f"com.spa.digest_daily fires ~08:10 UTC; this clears once today's "
+                f"digest sends (not a Telegram outage)"
             )
             return False
         return True

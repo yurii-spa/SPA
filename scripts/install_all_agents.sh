@@ -206,31 +206,32 @@ install_agent \
     "com.spa.familyfund" \
     "1"
 
-# 15. Telegram Daily Report — 08:00 local daily
-install_agent \
-    "$REPO/scripts/com.spa.telegram_daily.plist" \
-    "com.spa.telegram_daily" \
-    "1"
+# 15-16. (RETIRED 2026-06-27 — Telegram rebuild) com.spa.telegram_daily and
+#     com.spa.telegram_weekly ran the digest BUILDERS (daily/weekly_telegram_report
+#     --run) directly → DUPLICATE daily/weekly sends. The daily/weekly Telegram
+#     digest is now owned SOLELY by com.spa.digest_daily / com.spa.digest_weekly
+#     (installed at 17b/17c below), which collapse the former four+ senders into
+#     ONE message each. Do NOT reinstall telegram_daily/telegram_weekly — they are
+#     in RETIRED_LABELS (agent_health/self_heal won't flag or revive them).
 
-# 16. Telegram Weekly Report — Mon 10:00 local
-install_agent \
-    "$REPO/scripts/com.spa.telegram_weekly.plist" \
-    "com.spa.telegram_weekly" \
-    "1"
-
-# 17. Telegram Milestone Alerts — hourly
+# 17. Telegram Milestone Alerts — hourly (DISTINCT from the daily digest: one-time
+#     celebratory crossings via push_policy; NOT retired).
 install_agent \
     "$REPO/scripts/com.spa.telegram_milestone.plist" \
     "com.spa.telegram_milestone" \
     "1"
 
-# 17b. Telegram digest (daily) — was MISSING from installer (audit 2026-06-27).
+# 17b. Telegram digest (DAILY) — THE sole daily-alert owner (~08:10 UTC). Writes
+#      data/telegram_alert_state.json:daily_summary on a successful send, which is
+#      the go-live telegram_alert_today criterion. Was MISSING from installer
+#      (audit 2026-06-27); replaces the retired com.spa.telegram_daily.
 install_agent \
     "$REPO/scripts/com.spa.digest_daily.plist" \
     "com.spa.digest_daily" \
     "1"
 
-# 17c. Telegram digest (weekly) — was MISSING from installer (audit 2026-06-27).
+# 17c. Telegram digest (WEEKLY) — THE sole weekly-report owner (Sun 10:00). Was
+#      MISSING from installer (audit 2026-06-27); replaces com.spa.telegram_weekly.
 install_agent \
     "$REPO/scripts/com.spa.digest_weekly.plist" \
     "com.spa.digest_weekly" \

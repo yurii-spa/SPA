@@ -23,6 +23,16 @@ DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 DOCS_DIR = os.path.join(PROJECT_ROOT, "docs")
 OUTPUT = os.path.join(DOCS_DIR, "SYSTEM_BRIEFING.md")
 
+# agent_health.json is written by com.spa.agent_health (hourly). The briefing
+# (every 30 min) CONSUMES it as the single source of truth for the agent fleet —
+# it must NOT independently re-derive agent freshness (that was the chronic
+# "log missing (never ran?)" detector bug: the briefing read raw logs/<name>.log
+# while agents migrated to /tmp/spa_<name>.*). If the snapshot is older than this
+# threshold the briefing marks it STALE (fail-honest) rather than presenting a
+# possibly-contradictory number. 35 min = the hourly writer's cadence is 60 min;
+# anything materially past one extra 30-min briefing tick is suspect.
+AGENT_SNAPSHOT_STALE_MIN = 35
+
 
 # ── JSON helpers ───────────────────────────────────────────────────────────────
 def read_json(name: str) -> dict:
@@ -57,6 +67,47 @@ def _age_str(ts: str) -> str:
         return ts[:10]
 
 
+def _age_minutes(ts: str):
+    """Return age in minutes since ISO timestamp ``ts``, or None if unparseable.
+
+    Used by the agent-snapshot staleness guard so the briefing can fail-honest
+    (mark the agent_health.json snapshot STALE) instead of presenting a number
+    that may no longer reflect the live fleet.
+    """
+    if not ts:
+        return None
+    try:
+        ts_clean = ts[:19].replace(" ", "T")
+        dt = datetime.fromisoformat(ts_clean).replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        return max(0.0, (now - dt).total_seconds() / 60.0)
+    except Exception:
+        return None
+
+
+def agent_snapshot_state(d: dict):
+    """Classify the agent_health.json snapshot for the briefing.
+
+    Returns one of:
+      * ("missing", None)  — file absent/empty/unreadable → fail-honest
+      * ("stale", age_min) — present but older than AGENT_SNAPSHOT_STALE_MIN
+      * ("fresh", age_min) — present and recent (or unknown age but present)
+
+    The briefing reflects agent_health.json VERBATIM when fresh, and refuses to
+    present its counts when missing/stale (it says so instead).
+    """
+    if not d:
+        return ("missing", None)
+    age = _age_minutes(d.get("timestamp", ""))
+    if age is None:
+        # Present but timestamp unparseable — cannot prove freshness → treat as
+        # stale (fail-CLOSED: don't vouch for a snapshot we can't date).
+        return ("stale", None)
+    if age > AGENT_SNAPSHOT_STALE_MIN:
+        return ("stale", age)
+    return ("fresh", age)
+
+
 # ── Section builders ───────────────────────────────────────────────────────────
 def build_golive_section() -> str:
     d = read_json("golive_status.json")
@@ -88,9 +139,29 @@ def build_golive_section() -> str:
 
 
 def build_agents_section() -> str:
+    """Agent fleet section — agent_health.json is the SINGLE SOURCE OF TRUTH.
+
+    The briefing CONSUMES the hourly com.spa.agent_health snapshot verbatim; it
+    does NOT independently re-derive per-agent freshness from raw logs (the old
+    "log missing (never ran?)" detector bug read the pre-migration
+    logs/<name>.log path and false-flagged agents that demonstrably ran — the
+    canonical freshness logic now lives in agent_health_monitor.candidate_log_paths
+    reading /tmp/spa_<name>.* + the plist streams). Counts and per-agent verdicts
+    here equal agent_health.json's ±0.
+
+    Fail-honest: if the snapshot is missing or stale (> AGENT_SNAPSHOT_STALE_MIN),
+    the briefing SAYS SO instead of presenting a number that may no longer reflect
+    the live fleet.
+    """
     d = read_json("agent_health.json")
-    if not d:
-        return "## 🤖 Agent Health\n_agent_health.json not found — run scripts/agent_status.sh to check_\n"
+    state, age_min = agent_snapshot_state(d)
+
+    if state == "missing":
+        return ("## 🤖 Agent Health\n"
+                "❓ **SNAPSHOT UNAVAILABLE** — `data/agent_health.json` missing/unreadable. "
+                "Cannot vouch for the agent fleet. "
+                "Run `python3 -m spa_core.monitoring.agent_health_monitor --check` "
+                "(or check `launchctl list | grep spa`).\n")
 
     overall = d.get("overall_status", "UNKNOWN")
     total = d.get("total_agents", 0)
@@ -99,18 +170,28 @@ def build_agents_section() -> str:
     crit = d.get("critical_count", 0)
     ts = d.get("timestamp", "")
 
+    if state == "stale":
+        age_txt = f"{age_min:.0f} min" if age_min is not None else "unknown age"
+        return ("## 🤖 Agent Health\n"
+                f"⚠️ **SNAPSHOT STALE** — `agent_health.json` is {age_txt} old "
+                f"(> {AGENT_SNAPSHOT_STALE_MIN} min); the com.spa.agent_health writer may be lagging. "
+                "Counts below are LAST-KNOWN, not live — verify with "
+                "`launchctl list | grep spa`.\n"
+                f"_Last-known: {ok} OK / {warn} WARN / {crit} CRIT (of {total}), "
+                f"overall {overall}, snapshot {_age_str(ts)}._\n")
+
     icon_map = {"OK": "✅", "WARNING": "⚠️", "CRITICAL": "🔴", "UNKNOWN": "❓"}
     icon = icon_map.get(overall, "❓")
 
     lines = [
         "## 🤖 Agent Health",
-        f"{icon} **{overall}** — {ok} OK / {warn} WARN / {crit} CRIT  (of {total})  ·  updated {_age_str(ts)}",
+        f"{icon} **{overall}** — {ok} OK / {warn} WARN / {crit} CRIT  (of {total})  ·  snapshot {_age_str(ts)}",
     ]
 
     agents = d.get("agents", [])
     problems = [a for a in agents if a.get("status") in ("CRITICAL", "WARNING")]
     if problems:
-        lines.append("\n**Problems:**")
+        lines.append("\n**Problems (verbatim from agent_health.json):**")
         for a in problems:
             icon2 = "🔴" if a.get("status") == "CRITICAL" else "⚠️"
             issue = a.get("issue", "")
@@ -324,6 +405,11 @@ def main() -> None:
     golive_ready = golive.get("ready", False)
     golive_pass = golive.get("pass_count") or golive.get("passed") or "?"
     golive_total = golive.get("total", 29)
+    # Agent fleet header cell — driven by the SAME staleness guard as the
+    # detailed section so the two surfaces can never disagree. When the snapshot
+    # is missing/stale the header says so (fail-honest) rather than printing a
+    # possibly-contradictory count.
+    agent_state, agent_age_min = agent_snapshot_state(agent_h)
     agent_status = agent_h.get("overall_status", "UNKNOWN")
     agent_total = agent_h.get("total_agents", "?")
     agent_ok = agent_h.get("healthy_count", "?")
@@ -359,7 +445,17 @@ def main() -> None:
                 break
 
     golive_icon = "✅" if golive_ready else "⛔"
-    agent_icon = {"OK": "✅", "WARNING": "⚠️", "CRITICAL": "🔴"}.get(agent_status, "❓")
+    if agent_state == "missing":
+        agent_icon = "❓"
+        agent_cell = "❓ snapshot unavailable (agent_health.json missing)"
+    elif agent_state == "stale":
+        agent_icon = "⚠️"
+        age_txt = f"{agent_age_min:.0f}m" if agent_age_min is not None else "unknown age"
+        agent_cell = (f"⚠️ SNAPSHOT STALE ({age_txt} > {AGENT_SNAPSHOT_STALE_MIN}m) — "
+                      f"last-known {agent_ok}/{agent_total}")
+    else:
+        agent_icon = {"OK": "✅", "WARNING": "⚠️", "CRITICAL": "🔴"}.get(agent_status, "❓")
+        agent_cell = f"{agent_icon} {agent_status} ({agent_ok}/{agent_total} healthy)"
 
     header = f"""\
 # SPA System Briefing
@@ -371,7 +467,7 @@ def main() -> None:
 | Metric | Value |
 |--------|-------|
 | GoLive | {golive_icon} {golive_pass}/{golive_total} pass — {"READY" if golive_ready else "NOT READY"} |
-| Agents | {agent_icon} {agent_status} ({agent_ok}/{agent_total} healthy) |
+| Agents | {agent_cell} |
 | Portfolio | ${eq_end:,.2f} ({eq_ret:+.2f}% over {eq_days}d evidenced) |
 | Track days (evidenced) | {eq_days}/30 (anchor {track_anchor}) |
 | Go-live target | {golive_target} (30 honest track days) |
