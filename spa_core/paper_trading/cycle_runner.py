@@ -1040,7 +1040,7 @@ def run_cycle(
         )
         _mark_safety_failure(f"kill_switch_check_error: {type(exc).__name__}: {exc}")
 
-    # ── Step 1c (ADR-034): SOFT-tier de-risk check — drawdown ∈ [5%, 15%) ──────
+    # ── Step 1c (ADR-034/048): SOFT-tier de-risk check — drawdown ∈ [5%, 10%) ──
     # Parallel to the HARD kill above. When the evidenced drawdown is in the soft
     # band the cycle must HALT new allocations / block any position INCREASE
     # (hold + reduce only) and emit an edge-triggered WARNING — it does NOT
@@ -1069,7 +1069,7 @@ def run_cycle(
                         "protocol": "PORTFOLIO",
                         "severity": "WARN",
                         "category": "soft_derisk",
-                        "message": f"Soft de-risk (drawdown 5–15%): {_derisk_reason}",
+                        "message": f"Soft de-risk (drawdown 5–10%): {_derisk_reason}",
                         "source": "cycle_runner",
                     }])
                 except Exception as _da_exc:  # noqa: BLE001
@@ -1158,6 +1158,38 @@ def run_cycle(
         )
         _dl_result = _dl_checker.check(_dl_eq_history, target_usd, _dl_apy_map)
         _dl_checker.save_result(_dl_result, ddir)
+        # ── ADR-048 (DL-02 ⊂ HARD kill) reconciliation ────────────────────────
+        # At ≥10% evidenced peak drawdown the AUTHORITATIVE response is the
+        # hard-kill ALL-CASH (the stronger action), NOT DL-02's HOLD/HALT. DL-02
+        # also HALTs at >10% peak drawdown and runs HERE (Step 2a), BEFORE the
+        # kill-switch override (Step 2c) — so an un-reconciled DL-02 HALT would
+        # early-return "blocked_by_daily_limits" (positions held, no all-cash)
+        # and SHADOW the kill. Reconciliation (minimal, money-path order
+        # preserved): when the hard kill is ARMED (_ks_triggered, computed in
+        # Step 1b) we DEFER any DL-02-only HALT — we drop the DL-02 halt reason
+        # so the cycle flows through to Step 2c where apply_kill_switch_override
+        # forces all-cash. DL-01 (daily-loss) ALWAYS HALTs (it is a distinct axis
+        # and is never deferred). If DL-01 is among the halt reasons the cycle
+        # still HALTs as before.
+        _dl_halt_reasons = list(_dl_result.get("halt_reasons") or [])
+        if _dl_result["gate"] == "HALT" and _ks_triggered:
+            _dl01_present = any("DL-01" in r for r in _dl_halt_reasons)
+            _dl02_deferred = [r for r in _dl_halt_reasons if "DL-02" in r]
+            if _dl02_deferred and not _dl01_present:
+                # DL-02-only HALT while the hard kill is armed → defer to the
+                # all-cash kill (stronger action wins). Do NOT early-return.
+                log.critical(
+                    "DAILY LIMITS DL-02 HALT DEFERRED to HARD kill (ADR-048): %s "
+                    "→ cycle proceeds to all-cash kill-switch override",
+                    "; ".join(_dl02_deferred),
+                )
+                notes.append(
+                    "daily_limits_dl02_deferred_to_hard_kill (ADR-048): "
+                    + "; ".join(_dl02_deferred)
+                )
+                _dl_result = dict(_dl_result)
+                _dl_result["gate"] = "PASS"
+                _dl_result["halt_reasons"] = []
         if _dl_result["gate"] == "HALT":
             log.critical(
                 "DAILY LIMITS HALT: %s", "; ".join(_dl_result["halt_reasons"])
@@ -1354,8 +1386,8 @@ def run_cycle(
         notes=notes,
     )
 
-    # ── Step 2c-soft (ADR-034): SOFT de-risk gate — halt new/increase ─────────
-    # Drawdown ∈ [5%, 15%): cap every protocol's target to its currently-held
+    # ── Step 2c-soft (ADR-034/048): SOFT de-risk gate — halt new/increase ─────
+    # Drawdown ∈ [5%, 10%): cap every protocol's target to its currently-held
     # USD (no NEW positions, no INCREASES; hold + reduce stay allowed). Mutually
     # exclusive with the HARD kill above (_derisk_active is False when killed),
     # so this never fights the all-cash override.
@@ -1400,7 +1432,7 @@ def run_cycle(
             # silently UNDOING the soft "no-new / no-increase" guarantee the
             # earlier gate established. Re-clamping here makes the composition
             # cap-preserving: held positions can only be held or reduced, never
-            # grown, and no new protocol can be opened while in [5%,15%) drawdown.
+            # grown, and no new protocol can be opened while in [5%,10%) drawdown.
             # Idempotent + no-op when _derisk_active is False (non-derisk path
             # unchanged). The freed capital implicitly stays in cash.
             target_usd = apply_soft_derisk_gate(

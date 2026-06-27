@@ -142,7 +142,7 @@ def apply_soft_derisk_gate(
 ) -> dict[str, float]:
     """SOFT tier (ADR-034): de-risk → halt new allocations / no INCREASES.
 
-    When the evidenced drawdown is in the soft band ``[5%, 15%)`` the cycle must
+    When the evidenced drawdown is in the soft band ``[5%, 10%)`` the cycle must
     NOT open any new position nor INCREASE an existing one — it may only HOLD or
     REDUCE. This is enforced deterministically by capping every protocol's target
     to its currently-held USD:
@@ -192,7 +192,7 @@ def apply_soft_derisk_gate(
         len(capped),
     )
     notes.append(
-        "soft_derisk_gate: drawdown in [5%,15%) — halted new allocations / "
+        "soft_derisk_gate: drawdown in [5%,10%) — halted new allocations / "
         f"increases (blocked_new={blocked_new}, capped_increase={capped}); "
         "hold/reduce only, NOT liquidated."
     )

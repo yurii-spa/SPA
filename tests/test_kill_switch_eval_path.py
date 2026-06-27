@@ -126,10 +126,10 @@ class TestDrawdownToKillToAllCash(unittest.TestCase):
         self.assertAlmostEqual(sum(alloc.values()), 1.0, places=9)
 
     def test_below_threshold_no_kill_no_allcash(self) -> None:
-        """14% drawdown (< 15% current threshold) → no kill, empty allocation."""
-        curve = _evidenced_curve(100_000.0, drawdown_pct=14.0, days=12)
+        """ADR-048: 9% drawdown (< 10% threshold) → no kill, empty allocation."""
+        curve = _evidenced_curve(100_000.0, drawdown_pct=9.0, days=12)
         active, reason = self.checker.is_kill_switch_active(equity_curve=curve)
-        self.assertFalse(active, f"14% must not trigger: {reason}")
+        self.assertFalse(active, f"9% must not trigger: {reason}")
         status = run_kill_switch_check(equity_curve=curve, data_dir=self.data_dir)
         self.assertFalse(status["triggered"])
         self.assertEqual(status["allocation"], {})
@@ -394,9 +394,10 @@ class TestKillSwitchEdgeCases(unittest.TestCase):
         triggered, reason = self.checker.check_drawdown_trigger(curve)
         self.assertTrue(triggered, f"real -20% must still fire past a corrupt bar: {reason}")
 
-    def test_threshold_constant_unchanged(self) -> None:
-        """OWNER-GATED: the eval path is pinned at the CURRENT threshold (15.0)."""
-        self.assertEqual(DRAWDOWN_THRESHOLD_PCT, 15.0)
+    def test_threshold_constant(self) -> None:
+        """OWNER-GATED (ADR-048, owner-approved 2026-06-27): the eval path is
+        pinned at the hard-kill threshold lowered 15.0 → 10.0."""
+        self.assertEqual(DRAWDOWN_THRESHOLD_PCT, 10.0)
 
 
 if __name__ == "__main__":

@@ -36,12 +36,12 @@ the response. The report is a list of `{gate, expected, actual, pass, detail}`.
 
 | Gate | Drives | Asserts |
 |---|---|---|
-| `HARD_KILL_DRAWDOWN` | 20% evidenced drawdown | `KillSwitchChecker` fires → kill-switch override forces **all-cash** |
+| `HARD_KILL_DRAWDOWN` | 15% evidenced drawdown (≥ 10% hard threshold) | `KillSwitchChecker` fires → kill-switch override forces **all-cash** |
 | `HARD_KILL_MANUAL` | manual `kill_switch_active.json` present | kill fires → all-cash override |
 | `HARD_KILL_RED_FLAGS` | > 5 CRITICAL red-flags on a **held** protocol | kill fires → all-cash override |
-| `SOFT_DERISK` | 8% evidenced drawdown (∈ [5%,15%)) | **no new** position, **no increase** of held (clamped to held), reduction intact, **not liquidated** |
-| `DL01_DAILY_LOSS` | single-day loss > 2% | `DailyLimitsChecker` **HALT** (DL-01) |
-| `DL02_PEAK_DRAWDOWN` | peak-to-trough > 10% | `DailyLimitsChecker` **HALT** (DL-02) |
+| `SOFT_DERISK` | 8% evidenced drawdown (∈ [5%,10%)) | **no new** position, **no increase** of held (clamped to held), reduction intact, **not liquidated** |
+| `DL01_DAILY_LOSS` | single-day loss > 2% | `DailyLimitsChecker` **HALT** (DL-01) — distinct daily-loss axis, never deferred |
+| `DL02_DEFERS_TO_KILL` | peak-to-trough ≥ 10% (DL-02 rung) | **ADR-048:** the hard kill OWNS this rung → DL-02's HALT is **deferred** in `run_cycle` so the **all-cash** kill fires (stronger action wins; the DL-02 primitive still HALTs in isolation) |
 | `RISKPOLICY_BLOCK` | a 90%-concentration target | `RiskPolicy` `approved=False` (T1 cap breach) |
 | `ANALYTICS_BLOCK` | a Tier-A `BLOCK` signal | the blocked protocol's target is **zeroed** |
 | `BASE_GAS_BLOCK` | Base-gas kill-switch active | all **Base** allocations zeroed (non-Base intact) |
@@ -108,35 +108,36 @@ until the named defense is fixed. A drill that itself raises is treated as
 Four deterministic, evidenced-bars-only, non-finite-safe thresholds gate the
 money path down a drawdown. Order of **effects** as the book falls:
 
+The ladder (ADR-048, owner-approved 2026-06-27 — hard kill lowered 15→10, boundary
+inclusive, DL-02 reconciled):
+
 | Rung | Threshold | Source | Effect |
 |---|---|---|---|
-| **SOFT de-risk** | drawdown **≥ 5%** (and < 15%) | `kill_switch.py` `SOFT_DERISK_THRESHOLD_PCT` | halt new / no increase, **hold + reduce only**; edge-triggered WARNING; **no liquidation** |
-| **DL-02 peak** | peak drawdown **> 10%** | `daily_limits.py` `MAX_DRAWDOWN_PCT` | **HALT** the cycle (no new trades this cycle) |
-| **HARD kill** | drawdown **≥/> 15%** | `kill_switch.py` `DRAWDOWN_THRESHOLD_PCT` | **all-cash** kill `{cash:1.0, …:0.0}` |
-| **DL-01 daily** | single-day loss **> 2%** | `daily_limits.py` `MAX_DAILY_LOSS_PCT` | **HALT** the cycle (independent of cumulative drawdown) |
+| **DL-01 daily** | single-day loss **> 2%** | `daily_limits.py` `MAX_DAILY_LOSS_PCT` | **HALT** the cycle (independent of cumulative drawdown). **NEVER deferred.** |
+| **SOFT de-risk** | drawdown **∈ [5%, 10%)** | `kill_switch.py` `SOFT_DERISK_THRESHOLD_PCT` | halt new / no increase, **hold + reduce only**; edge-triggered WARNING; **no liquidation** |
+| **HARD kill** | drawdown **≥ 10%** (inclusive `>=`) | `kill_switch.py` `DRAWDOWN_THRESHOLD_PCT` | **all-cash** kill `{cash:1.0, …:0.0}` — **OWNS the 10% peak-drawdown rung** |
+| **DL-02 peak** | peak drawdown **> 10%** | `daily_limits.py` `MAX_DRAWDOWN_PCT` | HALT primitive (unchanged), but in `run_cycle` it **DEFERS** to the armed hard kill at ≥10% → cycle goes **all-cash**, not HOLD |
 
 So down a single sustained drawdown the sequence is:
-**SOFT de-risk (5%) → DL-02 HALT (10%) → HARD all-cash (15%)**, with DL-01 (2%
-single-day) able to HALT at any point on a sharp daily move.
+**SOFT de-risk (5%) → HARD all-cash (≥10%)**, with DL-01 (2% single-day) able to
+HALT at any point on a sharp daily move. The DL-02 10%-peak rung is now SUBSUMED by
+the hard kill (the stronger action) — a ≥10% peak drawdown goes all-cash, it no
+longer HOLDs.
 
-### Day-1 findings — flagged as OWNER-DECISIONS to reconcile
+### Day-1 findings — RESOLVED by ADR-048
 
-These are **not code defects** (the gate proves the defenses fire on both sides of
-each boundary). They are threshold-coordination questions deferred to the owner;
-they are also recorded in `docs/DECISIONS.md` (ADR-034 addendum).
+The two findings below were flagged at Day-1 as OWNER-DECISIONs; the owner resolved
+both on 2026-06-27 (ADR-048 in `docs/DECISIONS.md`). Kept here for the audit trail.
 
-1. **DL-02 @ 10% preempts HARD @ 15%.** The DL-02 peak-drawdown HALT (10%) fires
-   *below* the HARD all-cash kill (15%). A falling book therefore HALTs (stops
-   adding) at 10% before the 15% all-cash kill is reached. Arguably correct
-   (HALT-then-kill is safe ordering), but the two numbers were chosen
-   independently. **OWNER-DECISION:** confirm the 10%-HALT / 15%-kill ordering is
-   intentional, or reconcile into one explicit ladder.
-2. **The 15.0% boundary gap.** `check_drawdown_trigger` HARD-kills on
-   `drawdown > 15.0%` (strictly greater), while `drawdown_tier` classifies
-   `drawdown >= 15.0%` as `HARD_KILL`. At **exactly 15.0%** the classifier says
-   HARD but the trigger does not yet fire. The strictly-greater boundary is kept
-   to preserve existing eval-path tests. **OWNER-DECISION:** make both `>=` (or
-   both `>`), or accept the documented zero-width gap as immaterial.
+1. **DL-02 @ 10% peak shadowed the HARD kill.** ~~The DL-02 HALT fired below the 15%
+   hard kill and (because DL-02 runs at Step 2a, before the Step 2c kill override)
+   early-returned a HOLD, preempting the all-cash kill.~~ **RESOLVED:** the hard kill
+   was lowered to **10%** and now OWNS that rung; in `run_cycle` a DL-02-only HALT
+   **DEFERS** to the armed hard kill so the all-cash override fires. DL-01 (daily
+   loss) is never deferred. End state: ≥10% peak drawdown → ALL-CASH.
+2. **The boundary gap.** ~~`check_drawdown_trigger` used strict `>` while
+   `drawdown_tier` used `>=`, so they disagreed at exactly the threshold.~~
+   **RESOLVED:** `check_drawdown_trigger` now uses `>=` — both fire at exactly 10.0%.
 
 ---
 

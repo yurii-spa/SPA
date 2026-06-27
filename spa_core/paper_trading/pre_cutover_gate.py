@@ -16,18 +16,23 @@ against a sandbox and ASSERTS the correct defensive response actually fires.
 
 THE DEFENSES IT ASSERTS (each: drive the failure mode → assert the response)
 ---------------------------------------------------------------------------
-  HARD_KILL_DRAWDOWN     15% evidenced drawdown → KillSwitchChecker fires → the
-                         kill-switch override forces an ALL-CASH allocation.
+  HARD_KILL_DRAWDOWN     10% evidenced drawdown → KillSwitchChecker fires → the
+                         kill-switch override forces an ALL-CASH allocation
+                         (ADR-048: hard kill lowered 15→10).
   HARD_KILL_MANUAL       manual kill file present → KillSwitchChecker fires →
                          all-cash override.
   HARD_KILL_RED_FLAGS    > threshold CRITICAL red-flags on a HELD protocol →
                          KillSwitchChecker fires → all-cash override.
-  SOFT_DERISK            evidenced drawdown in [5%, 15%) → de-risk gate: NO new
+  SOFT_DERISK            evidenced drawdown in [5%, 10%) → de-risk gate: NO new
                          positions, NO increase of held (hold/reduce only), and
                          (Day-1-validated, post-ALLOC-002) the gate does NOT
                          liquidate.
-  DL01_DAILY_LOSS        daily loss > 2% → DailyLimitsChecker HALT.
-  DL02_PEAK_DRAWDOWN     peak drawdown > 10% → DailyLimitsChecker HALT.
+  DL01_DAILY_LOSS        daily loss > 2% → DailyLimitsChecker HALT (distinct
+                         daily-loss axis, UNCHANGED).
+  DL02_DEFERS_TO_KILL    peak drawdown ≥ 10% → the hard kill now OWNS this rung
+                         (ADR-048): DL-02's HALT is DEFERRED in run_cycle so the
+                         all-cash kill-switch override fires (the stronger action
+                         wins; DL-02 no longer shadows the kill).
   RISKPOLICY_BLOCK       a RiskPolicy-violating target (over-concentration) →
                          _apply_risk_policy_gate approved=False.
   ANALYTICS_BLOCK        a Tier-A BLOCK signal → analytics gate zeroes the
@@ -270,7 +275,7 @@ def _seed_sandbox(ddir: Path) -> None:
 # --------------------------------------------------------------------------- #
 def _drill_hard_kill_drawdown(ddir: Path) -> dict:
     gate = "HARD_KILL_DRAWDOWN"
-    curve = _curve_for_drawdown(DRAWDOWN_THRESHOLD_PCT + 5.0)  # 20% > 15% hard
+    curve = _curve_for_drawdown(DRAWDOWN_THRESHOLD_PCT + 5.0)  # 15% > 10% hard
     checker = KillSwitchChecker(data_dir=str(ddir))
     triggered, reason = checker.check_drawdown_trigger(curve)
     # The override turns a triggered kill into an all-cash allocation.
@@ -283,7 +288,7 @@ def _drill_hard_kill_drawdown(ddir: Path) -> dict:
     )
     all_cash = triggered and all(float(v) == 0.0 for v in final.values())
     return _result(
-        gate, "drawdown ≥15% → kill fires → all-cash override",
+        gate, "drawdown ≥10% → kill fires → all-cash override",
         f"triggered={triggered}, all_cash={all_cash}", all_cash,
         detail=reason,
     )
@@ -383,20 +388,41 @@ def _drill_dl01_daily_loss(ddir: Path) -> dict:
     )
 
 
-def _drill_dl02_peak_drawdown(ddir: Path) -> dict:
-    gate = "DL02_PEAK_DRAWDOWN"
-    # Peak→trough > 10% over the history, but the LAST step small (so it is DL-02,
-    # not DL-01, that HALTs).
+def _drill_dl02_defers_to_kill(ddir: Path) -> dict:
+    gate = "DL02_DEFERS_TO_KILL"
+    # ADR-048: at ≥10% peak drawdown the hard kill OWNS the rung. DL-02 still
+    # HALTs as an isolated primitive (unchanged), but the AUTHORITATIVE cycle
+    # response at ≥10% is the all-cash hard kill — DL-02's HALT is DEFERRED in
+    # run_cycle so the kill-switch override wins (the stronger action). We assert
+    # BOTH facts here: (1) the DL-02 primitive still HALTs at >10% (unchanged),
+    # and (2) at the SAME ≥10% drawdown the evidenced hard kill fires and its
+    # override produces an ALL-CASH book (the response that subsumes DL-02).
+    # Peak→trough > 10% over the history, last step small (DL-02, not DL-01).
     hist = [
         {"close_equity": 100_000.0},
         {"close_equity": 88_000.0},   # -12% peak drawdown
         {"close_equity": 87_500.0},   # last step only -0.57% (under DL-01 2%)
     ]
     res = DailyLimitsChecker().check(hist, {"aave_v3": 50_000.0}, {"aave_v3": 4.0})
-    halted = res["gate"] == "HALT" and any("DL-02" in r for r in res["halt_reasons"])
+    dl02_primitive_halts = (
+        res["gate"] == "HALT" and any("DL-02" in r for r in res["halt_reasons"])
+    )
+    # Same drawdown band, evidenced curve → hard kill fires → all-cash override.
+    curve = _curve_for_drawdown(12.0)  # ≥ 10% hard kill
+    checker = KillSwitchChecker(data_dir=str(ddir))
+    triggered, reason = checker.check_drawdown_trigger(curve)
+    ks_alloc = checker.get_kill_switch_allocation() if triggered else {}
+    final = apply_kill_switch_override(
+        {"aave_v3": 50_000.0}, ks_triggered=triggered, ks_allocation=ks_alloc,
+        capital_usd=100_000.0, notes=[],
+    )
+    kill_all_cash = triggered and all(float(v) == 0.0 for v in final.values())
+    ok = dl02_primitive_halts and kill_all_cash
     return _result(
-        gate, "peak drawdown >10% → DailyLimits HALT",
-        f"gate={res['gate']}", halted, detail="; ".join(res["halt_reasons"]),
+        gate,
+        "≥10% peak drawdown → hard kill OWNS it (all-cash); DL-02 HALT deferred",
+        f"dl02_primitive_halts={dl02_primitive_halts} kill_all_cash={kill_all_cash}",
+        ok, detail=f"DL-02: {'; '.join(res['halt_reasons'])} | kill: {reason}",
     )
 
 
@@ -566,7 +592,7 @@ _DRILLS: tuple[tuple[str, Callable[[Path], dict]], ...] = (
     ("HARD_KILL_RED_FLAGS", _drill_hard_kill_red_flags),
     ("SOFT_DERISK", _drill_soft_derisk),
     ("DL01_DAILY_LOSS", _drill_dl01_daily_loss),
-    ("DL02_PEAK_DRAWDOWN", _drill_dl02_peak_drawdown),
+    ("DL02_DEFERS_TO_KILL", _drill_dl02_defers_to_kill),
     ("RISKPOLICY_BLOCK", _drill_riskpolicy_block),
     ("ANALYTICS_BLOCK", _drill_analytics_block),
     ("BASE_GAS_BLOCK", _drill_base_gas_block),
@@ -721,9 +747,9 @@ def _print_report(report: dict) -> None:
     print(f"sandbox data_dir : {report['sandbox_data_dir']}")
     print(f"live_data_untouched: {report['live_data_untouched']}   is_inert: {report['is_inert']}")
     th = report["thresholds"]
-    print(f"ladder: DL-01 {th['dl01_daily_loss_pct']}%/day · DL-02 "
-          f"{th['dl02_peak_drawdown_pct']}% peak · SOFT {th['soft_derisk_pct']}% "
-          f"· HARD {th['hard_kill_pct']}%")
+    print(f"ladder (ADR-048): DL-01 {th['dl01_daily_loss_pct']}%/day · SOFT "
+          f"{th['soft_derisk_pct']}% de-risk · HARD {th['hard_kill_pct']}% all-cash "
+          f"(owns DL-02 {th['dl02_peak_drawdown_pct']}% peak → DL-02 HALT deferred to kill)")
     print("-" * 74)
     for r in report["defenses"]:
         mark = "PASS" if r["pass"] else "FAIL"

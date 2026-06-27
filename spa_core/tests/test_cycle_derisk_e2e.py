@@ -3,10 +3,10 @@
 
 ADR-034 introduced a two-tier drawdown ladder:
 
-  * SOFT de-risk  (drawdown ∈ [5%, 15%))  → ``apply_soft_derisk_gate`` caps every
+  * SOFT de-risk  (drawdown ∈ [5%, 10%))  → ``apply_soft_derisk_gate`` caps every
     protocol target to ``min(target, currently-held USD)`` — NO new protocol, NO
-    increase of a held one (hold / reduce only).
-  * HARD kill     (drawdown ≥ 15%)         → ``apply_kill_switch_override`` forces
+    increase of a held one (hold / reduce only).  (ADR-048: band upper bound 15→10)
+  * HARD kill     (drawdown ≥ 10%)         → ``apply_kill_switch_override`` forces
     the all-cash book; the soft gate is a no-op (``_derisk_active`` is False).
 
 The unit tests for ``kill_switch.py`` / ``cycle_gates.py`` pass, but the
@@ -154,14 +154,16 @@ def _gradual_closes_for_drawdown(dd_pct: float, peak: float = 102_000.0) -> list
 
     The integrated ``run_cycle`` runs the DailyLimits gate (DL-01 daily-loss ≤2%,
     DL-02 peak-drawdown ≤10%) BEFORE the de-risk / kill stages — a sharp single
-    drop would HALT the cycle before the gate under test ever runs. A gradual
-    decline keeps each daily step within DL-01 so the cycle reaches the de-risk
-    composition we are validating.
+    drop would HALT the cycle on DL-01 before the gate under test ever runs. A
+    gradual decline keeps each daily step within DL-01 so the cycle reaches the
+    de-risk / kill composition we are validating.
 
-    NOTE (finding): because DL-02 HALTs at >10% drawdown, the integrated cycle
-    can only exercise the SOFT band up to ~10%. The 10–15% upper SOFT band and
-    the ≥15% HARD-via-drawdown kill are PRE-EMPTED by DL-02 in the full cycle, so
-    those boundaries are validated at the classifier level (see D1-T2).
+    ADR-048 (the shadow is FIXED): the hard kill is now at 10% and DL-02's
+    10%-peak HALT DEFERS to it (DL-02-only HALT + armed kill → no early-return →
+    the all-cash override fires). A gradual ≥10% decline therefore now reaches the
+    kill in the full cycle and goes ALL-CASH — exercised end-to-end by
+    ``test_d1t2_hard_kill_drawdown_fires_in_run_cycle``. DL-01 (daily loss) still
+    HALTs and is never deferred.
     """
     current = peak * (1.0 - dd_pct / 100.0)
     closes = [100_000.0, peak]
@@ -369,27 +371,27 @@ def test_d1t1_no_new_protocol_opened_under_softderisk(tmp_path):
     [
         (4.9, TIER_NONE, False),          # below soft → no action
         (5.0, TIER_SOFT_DERISK, False),   # exactly SOFT boundary (>=) → SOFT
-        (9.99, TIER_SOFT_DERISK, False),  # high SOFT band → still SOFT, no kill
-        (14.9, TIER_SOFT_DERISK, False),  # just below HARD → still SOFT
-        (15.0, TIER_HARD_KILL, False),    # tier-boundary GAP: classifier says
-        #                                   HARD_KILL (>=) but the kill TRIGGER
-        #                                   needs strict >15% → does NOT fire.
-        (16.0, TIER_HARD_KILL, True),     # above HARD → kill trigger fires.
+        (7.5, TIER_SOFT_DERISK, False),   # mid SOFT band → still SOFT, no kill
+        (9.99, TIER_SOFT_DERISK, False),  # just below HARD → still SOFT
+        (10.0, TIER_HARD_KILL, True),     # ADR-048: boundary now CONSISTENT —
+        #                                   classifier (>=) AND trigger (>=) BOTH
+        #                                   fire at exactly 10.0% (no gap).
+        (12.0, TIER_HARD_KILL, True),     # above HARD → kill trigger fires.
+        (15.0, TIER_HARD_KILL, True),     # old threshold, still a hard kill.
     ],
 )
 def test_d1t2_tier_ladder_classifier_and_trigger(tmp_path, dd_pct, expect_tier, expect_kill_trigger):
     """The documented tier ladder + the kill-TRIGGER, asserted at the boundaries.
 
-    ``drawdown_tier`` is the documented classifier (half-open intervals, all
-    ``>=``); ``KillSwitchChecker.check_drawdown_trigger`` is the actual all-cash
-    authority. They AGREE everywhere EXCEPT at exactly 15.0%, where the classifier
-    says ``HARD_KILL`` (``>=``) but the trigger uses STRICT ``>`` (so 15.0% does
-    NOT close the book). This is intentional (boundary preserved by the kill
-    trigger) and is encoded explicitly here — see the owner heads-up in the report.
+    ADR-048: ``drawdown_tier`` (classifier, half-open ``>=``) and
+    ``KillSwitchChecker.check_drawdown_trigger`` (the all-cash authority, now also
+    ``>=``) AGREE EVERYWHERE — including at exactly 10.0%, where BOTH fire the hard
+    kill. The previous 0-width 15.0% gap (classifier ``>=`` vs trigger strict
+    ``>``) is closed.
 
-    These boundaries are validated at the classifier/trigger level (not via the
-    full cycle) because the cycle's DailyLimits gate (DL-02, 10% drawdown) HALTs
-    the cycle before any drawdown ≥10% reaches the de-risk/kill stages.
+    The ≥10% boundaries are now ALSO validated through the full cycle (see
+    ``test_d1t2_hard_kill_drawdown_fires_in_run_cycle``): under ADR-048 the DL-02
+    10%-peak HALT no longer preempts the kill — it DEFERS to the all-cash kill.
     """
     from spa_core.governance.kill_switch import drawdown_tier, KillSwitchChecker
 
@@ -457,6 +459,93 @@ def test_d1t2_hard_kill_makes_soft_gate_a_noop(tmp_path):
         assert ds["active"] is False, "soft de-risk must be a no-op under HARD kill"
         book = _final_book(td, result)
         assert not {k: v for k, v in book.items() if v > 0}, "HARD kill must be all-cash"
+    finally:
+        logging.disable(logging.NOTSET)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# D1-T2b — ADR-048 HEADLINE: ≥10% EVIDENCED drawdown → ALL-CASH actually fires in
+# run_cycle (the previously DL-02-SHADOWED hard-kill path now works end-to-end)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.parametrize("dd_pct", [10.0, 12.0, 15.0])
+def test_d1t2_hard_kill_drawdown_fires_in_run_cycle(tmp_path, dd_pct):
+    """ADR-048 regression guard for the SHADOW BUG.
+
+    BEFORE: at ≥10% peak drawdown the DailyLimits DL-02 HALT (Step 2a) early-
+    returned ``blocked_by_daily_limits`` (positions HELD) BEFORE the kill-switch
+    override (Step 2c) — so the 15% hard kill could (and the new 10% kill would)
+    never go all-cash via the drawdown path. The cycle held instead of killing.
+
+    AFTER: the hard kill is at 10% and a DL-02-only HALT DEFERS to the armed kill,
+    so the cycle flows to Step 2c and forces ALL-CASH. This drives a GRADUAL
+    (≤1.5%/day, under DL-01's 2%) evidenced decline to ``dd_pct`` ≥ 10% through
+    the REAL ``run_cycle`` and asserts the post-cycle book is all-cash — the
+    previously-shadowed path, now working.
+    """
+    logging.disable(logging.CRITICAL)
+    try:
+        td = tmp_path / f"d1t2b_{int(dd_pct * 10)}"
+        held = dict(_HELD_9)
+        closes = _gradual_closes_for_drawdown(dd_pct)
+        _seed_sandbox(td, held=held, closes=closes)
+        target = {p: 18_000.0 for p, _ in _UNIVERSE_9}
+
+        result = _run(td, universe=_UNIVERSE_9, target=target, closes=closes, held=held)
+
+        # The hard kill OWNS the response (not DL-02's HALT, not soft de-risk).
+        assert result.kill_switch_active is True, (
+            f"dd={dd_pct}%: hard kill did NOT fire in run_cycle (shadowed?)"
+        )
+        # It must NOT have early-returned on DailyLimits — a DL-02 HALT (which
+        # fires for peak drawdown STRICTLY > 10%) is DEFERRED to the kill, NOT
+        # honoured as a HOLD. At exactly 10.0% DL-02 itself does not fire (strict
+        # >), so the kill simply flows through with no deferral needed.
+        assert result.status != "blocked_by_daily_limits", (
+            f"dd={dd_pct}%: DL-02 HALT preempted the kill (status={result.status})"
+        )
+        if dd_pct > 10.0:
+            assert any("dl02_deferred_to_hard_kill" in n for n in result.notes), (
+                "DL-02 fired (>10%) but the deferral-to-kill note is missing"
+            )
+        # Soft de-risk is a no-op under the hard kill (mutually exclusive).
+        ds = json.loads((td / DERISK_STATUS_FILENAME).read_text(encoding="utf-8"))
+        assert ds["active"] is False, "soft de-risk must be off under HARD kill"
+        # END STATE: the committed book is ALL-CASH (no positive position).
+        book = _final_book(td, result)
+        positive = {k: v for k, v in book.items() if v > 0}
+        assert not positive, (
+            f"dd={dd_pct}%: HARD kill must be ALL-CASH end-to-end, got {positive}"
+        )
+    finally:
+        logging.disable(logging.NOTSET)
+
+
+def test_d1t2_dl01_daily_loss_still_halts_not_killed(tmp_path):
+    """DL-01 (daily loss > 2%) is a DISTINCT axis and must STILL HALT — it is
+    NEVER deferred by the ADR-048 reconciliation. A single-day >2% drop with the
+    overall drawdown BELOW the 10% kill threshold → blocked_by_daily_limits HOLD
+    (no all-cash kill), positions preserved."""
+    logging.disable(logging.CRITICAL)
+    try:
+        td = tmp_path / "d1t2_dl01"
+        held = dict(_HELD_9)
+        # Peak then a single -3% day (> DL-01 2%) but total drawdown only 3% (< 10%).
+        closes = [100_000.0, 102_000.0, 98_940.0]  # last step -3%, peak-dd ~3%
+        _seed_sandbox(td, held=held, closes=closes)
+        target = {p: 18_000.0 for p, _ in _UNIVERSE_9}
+
+        result = _run(td, universe=_UNIVERSE_9, target=target, closes=closes, held=held)
+
+        assert result.status == "blocked_by_daily_limits", (
+            f"DL-01 must HALT (status={result.status})"
+        )
+        assert result.kill_switch_active is False, "no hard kill below 10% drawdown"
+        assert any("DL-01" in n for n in result.notes)
+        # Positions HELD (DL-01 HALT does not liquidate).
+        pos = json.loads((td / POSITIONS_FILENAME).read_text(encoding="utf-8"))
+        assert pos["positions"] == held, "DL-01 HALT must hold positions, not all-cash"
     finally:
         logging.disable(logging.NOTSET)
 

@@ -5,9 +5,10 @@
 переводит все позиции в Cash (allocation = {"cash": 1.0, все протоколы: 0.0}).
 
 Триггеры:
-1. drawdown_trigger  — просадка equity > 15% от максимума за последние 30 дней,
-                       считается СТРОГО по evidenced (real) барам — warmup /
-                       backfill / pre-anchor бары исключаются (N1 safety fix).
+1. drawdown_trigger  — просадка equity ≥ 10% от максимума за последние 30 дней
+                       (ADR-048: 15→10, граница теперь >=), считается СТРОГО по
+                       evidenced (real) барам — warmup / backfill / pre-anchor
+                       бары исключаются (N1 safety fix).
 2. red_flags_trigger — более 5 CRITICAL красных флагов на УДЕРЖИВАЕМЫХ протоколах
                        в data/red_flags.json (advisory/WARN/bootstrap/внешние —
                        не в счёт; N1 safety fix).
@@ -46,7 +47,7 @@ log = logging.getLogger("spa.kill_switch")
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
-# TWO-TIER drawdown response (owner-approved 2026-06-27, ADR-034):
+# TWO-TIER drawdown response (owner-approved 2026-06-27, ADR-034 + ADR-048):
 #   • SOFT_DERISK_THRESHOLD_PCT (5%)  → DE-RISK state: HALT new allocations / no
 #     INCREASING exposure (hold + allow only REDUCING), emit an edge-triggered
 #     WARNING. Does NOT liquidate. This is the threshold the old RiskPolicy /
@@ -54,13 +55,16 @@ log = logging.getLogger("spa.kill_switch")
 #     de-risk threshold, not a full kill (rationale: a 5% drawdown is most often
 #     a recoverable depeg/vol wobble; panic-liquidating it crystallises a loss
 #     that would otherwise mean-revert).
-#   • DRAWDOWN_THRESHOLD_PCT  (15%)   → HARD kill: close everything to cash
-#     (a 15% drawdown on a stablecoin book signals real protocol collapse, not
-#     noise — full liquidation is correct). UNCHANGED behaviour.
+#   • DRAWDOWN_THRESHOLD_PCT  (10%)   → HARD kill: close everything to cash
+#     (a 10% drawdown on a stablecoin book signals real protocol collapse, not
+#     noise — full liquidation is correct). LOWERED 15% → 10% (ADR-048,
+#     owner-approved 2026-06-27): the hard kill now OWNS the 10% peak-drawdown
+#     rung — the stronger ALL-CASH action subsumes the old DailyLimits DL-02
+#     10%-peak HALT, which previously SHADOWED the kill by early-returning first.
 # Both tiers are computed STRICTLY over the EVIDENCED real series (T6/P5-4) and
 # are non-finite-safe (P5-1). See drawdown_tier() / DrawdownTier below.
 SOFT_DERISK_THRESHOLD_PCT = 5.0  # % просадки → soft de-risk (no new/increase)
-DRAWDOWN_THRESHOLD_PCT = 15.0   # % просадки от 30-дневного максимума → hard kill
+DRAWDOWN_THRESHOLD_PCT = 10.0   # % просадки от 30-дневного максимума → hard kill
 RED_FLAGS_THRESHOLD = 5          # количество красных флагов для срабатывания
 SHARPE_THRESHOLD = -1.0          # порог Sharpe ratio (нормальный период, ≥60 дней)
 LOOKBACK_DAYS = 30               # окно для drawdown/Sharpe
@@ -83,8 +87,8 @@ DERISK_STATUS_FILENAME = "derisk_status.json"  # soft-tier de-risk state (ADR-03
 # JSON-serialisable). The three mutually-exclusive states of the evidenced
 # drawdown ladder.
 TIER_NONE = "NONE"              # drawdown < SOFT_DERISK_THRESHOLD_PCT → no action
-TIER_SOFT_DERISK = "SOFT_DERISK"  # SOFT ≤ drawdown < HARD → halt new/increase
-TIER_HARD_KILL = "HARD_KILL"   # drawdown ≥ DRAWDOWN_THRESHOLD_PCT → all-cash
+TIER_SOFT_DERISK = "SOFT_DERISK"  # SOFT ≤ drawdown < HARD (5–10%) → halt new/increase
+TIER_HARD_KILL = "HARD_KILL"   # drawdown ≥ DRAWDOWN_THRESHOLD_PCT (10%) → all-cash
 RED_FLAGS_FILENAME = "red_flags.json"
 ANALYTICS_FILENAME = "analytics_summary.json"
 ADAPTER_STATUS_FILENAME = "adapter_status.json"
@@ -251,8 +255,8 @@ def drawdown_tier(equity_curve: list[dict]) -> tuple[str, str]:
     Tier boundaries (monotone, half-open intervals so the ladder is exhaustive
     and non-overlapping):
         drawdown < SOFT (5%)            → TIER_NONE
-        SOFT (5%) ≤ drawdown < HARD(15%)→ TIER_SOFT_DERISK
-        drawdown ≥ HARD (15%)           → TIER_HARD_KILL
+        SOFT (5%) ≤ drawdown < HARD(10%)→ TIER_SOFT_DERISK
+        drawdown ≥ HARD (10%)           → TIER_HARD_KILL
 
     When the drawdown cannot be computed (insufficient / corrupt evidenced data)
     the tier is ``TIER_NONE`` — the per-tier gates (the existing drawdown kill
@@ -306,8 +310,14 @@ class KillSwitchChecker:
         REAL series — warmup / seed / pre-PAPER_REAL_START / backfill /
         reconstructed bars are excluded BEFORE the window is taken. A warmup
         bar's inflated equity (e.g. a pre-teardown demo peak) must never
-        fabricate a drawdown that closes the honest go-live track. The drawdown
-        THRESHOLD value is intentionally LEFT UNCHANGED (owner-gated).
+        fabricate a drawdown that closes the honest go-live track.
+
+        THRESHOLD (ADR-048, owner-approved 2026-06-27): the HARD kill fires at
+        ``drawdown >= DRAWDOWN_THRESHOLD_PCT`` (now 10%). The boundary is now
+        INCLUSIVE (``>=``, was strictly ``>``) so it AGREES with
+        :func:`drawdown_tier` — at EXACTLY 10.0% both the classifier and the
+        trigger fire the all-cash kill (the previous 0-width 15.0% gap between
+        the ``>=`` classifier and the ``>`` trigger is closed).
 
         Parameters
         ----------
@@ -330,18 +340,18 @@ class KillSwitchChecker:
                 "excluded or corrupt) — fail-closed"
             )
 
-        # HARD tier (≥ DRAWDOWN_THRESHOLD_PCT) → full kill. Boundary semantics
-        # UNCHANGED: strictly-greater-than preserves the existing eval-path
-        # tests (exactly-15% does NOT fire the kill).
-        if drawdown_pct > DRAWDOWN_THRESHOLD_PCT:
+        # HARD tier (≥ DRAWDOWN_THRESHOLD_PCT) → full kill. Boundary is INCLUSIVE
+        # (>=) so the trigger AGREES with drawdown_tier() at exactly 10.0%
+        # (ADR-048) — exactly-10% DOES fire the all-cash kill.
+        if drawdown_pct >= DRAWDOWN_THRESHOLD_PCT:
             reason = (
-                f"drawdown {drawdown_pct:.2f}% > {DRAWDOWN_THRESHOLD_PCT}% threshold "
+                f"drawdown {drawdown_pct:.2f}% ≥ {DRAWDOWN_THRESHOLD_PCT}% threshold "
                 f"(window={LOOKBACK_DAYS}d)"
             )
             log.warning("KILL SWITCH drawdown trigger: %s", reason)
             return True, reason
 
-        return False, f"drawdown {drawdown_pct:.2f}% ≤ {DRAWDOWN_THRESHOLD_PCT}%"
+        return False, f"drawdown {drawdown_pct:.2f}% < {DRAWDOWN_THRESHOLD_PCT}%"
 
     # ── Soft de-risk signal (ADR-034) ─────────────────────────────────────────
 

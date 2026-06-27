@@ -1,13 +1,15 @@
-"""Two-tier drawdown kill-switch tests (ADR-034, owner-approved 2026-06-27).
+"""Two-tier drawdown kill-switch tests (ADR-034 + ADR-048, owner-approved 2026-06-27).
 
-Pins the TWO-TIER drawdown ladder end-to-end:
+Pins the TWO-TIER drawdown ladder end-to-end (ADR-048: hard kill lowered 15→10,
+boundary now inclusive `>=` so classifier and trigger AGREE at exactly 10.0%):
 
     drawdown < 5%            → TIER_NONE        (no action)
-    5% ≤ drawdown < 15%      → TIER_SOFT_DERISK (halt new/increase, hold/reduce,
+    5% ≤ drawdown < 10%      → TIER_SOFT_DERISK (halt new/increase, hold/reduce,
                                                  WARNING, NOT all-cash)
-    drawdown ≥ 15%           → TIER_HARD_KILL   (all-cash liquidation)
+    drawdown ≥ 10%           → TIER_HARD_KILL   (all-cash liquidation; exactly
+                                                 10.0% FIRES the kill)
 
-Plus: boundaries (exactly 5%, exactly 15%), monotonicity, evidenced-bars-only
+Plus: boundaries (exactly 5%, exactly 10%), monotonicity, evidenced-bars-only
 preserved, non-finite fail-closed preserved, and the SOFT gate semantics
 (blocks NEW + INCREASE, allows HOLD + REDUCE; does NOT liquidate held book).
 
@@ -70,7 +72,7 @@ def _evidenced_curve(peak: float, drawdown_pct: float, days: int = 10) -> list[d
 class TestTierConstants(unittest.TestCase):
     def test_thresholds(self) -> None:
         self.assertEqual(SOFT_DERISK_THRESHOLD_PCT, 5.0)
-        self.assertEqual(DRAWDOWN_THRESHOLD_PCT, 15.0)
+        self.assertEqual(DRAWDOWN_THRESHOLD_PCT, 10.0)  # ADR-048: 15→10
         self.assertLess(SOFT_DERISK_THRESHOLD_PCT, DRAWDOWN_THRESHOLD_PCT)
 
 
@@ -89,22 +91,22 @@ class TestDrawdownTier(unittest.TestCase):
         self.assertEqual(self._tier(5.0), TIER_SOFT_DERISK)
 
     def test_mid_band_soft(self) -> None:
-        for dd in (5.0, 7.5, 10.0, 14.0, 14.99):
+        for dd in (5.0, 6.5, 7.5, 9.0, 9.99):
             self.assertEqual(self._tier(dd), TIER_SOFT_DERISK, f"dd={dd}")
 
-    def test_15pct_boundary_is_hard(self) -> None:
-        """Exactly 15% → HARD (upper band is closed)."""
-        self.assertEqual(self._tier(15.0), TIER_HARD_KILL)
+    def test_10pct_boundary_is_hard(self) -> None:
+        """ADR-048: exactly 10% → HARD (upper band is closed, inclusive >=)."""
+        self.assertEqual(self._tier(10.0), TIER_HARD_KILL)
 
-    def test_above_15_hard(self) -> None:
-        for dd in (15.0, 16.0, 25.0, 50.0):
+    def test_above_10_hard(self) -> None:
+        for dd in (10.0, 12.0, 15.0, 25.0, 50.0):
             self.assertEqual(self._tier(dd), TIER_HARD_KILL, f"dd={dd}")
 
     def test_monotone_ladder(self) -> None:
         """As drawdown rises, tier severity never decreases."""
         rank = {TIER_NONE: 0, TIER_SOFT_DERISK: 1, TIER_HARD_KILL: 2}
         prev = -1
-        for dd in [0, 1, 4, 4.99, 5, 6, 10, 14, 14.99, 15, 16, 30]:
+        for dd in [0, 1, 4, 4.99, 5, 6, 9, 9.99, 10, 12, 15, 30]:
             r = rank[self._tier(float(dd))]
             self.assertGreaterEqual(r, prev, f"non-monotone at dd={dd}")
             prev = r
@@ -117,10 +119,10 @@ class TestDrawdownTier(unittest.TestCase):
                          TIER_NONE)
 
 
-# ── HARD tier unchanged: 15%+ → kill → all-cash ───────────────────────────────
+# ── HARD tier (ADR-048): 10%+ → kill → all-cash; exactly 10% FIRES ────────────
 
 
-class TestHardTierUnchanged(unittest.TestCase):
+class TestHardTier(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory(prefix="spa_tt_hard_")
         self.data_dir = Path(self._tmp.name)
@@ -129,28 +131,40 @@ class TestHardTierUnchanged(unittest.TestCase):
     def tearDown(self) -> None:
         self._tmp.cleanup()
 
-    def test_16pct_hard_kill_allcash(self) -> None:
-        curve = _evidenced_curve(100_000.0, 16.0, days=12)
+    def test_12pct_hard_kill_allcash(self) -> None:
+        curve = _evidenced_curve(100_000.0, 12.0, days=12)
         triggered, _ = self.checker.check_drawdown_trigger(curve)
         self.assertTrue(triggered)
         status = run_kill_switch_check(equity_curve=curve, data_dir=self.data_dir)
         self.assertTrue(status["triggered"])
         self.assertEqual(status["allocation"].get("cash"), 1.0)
 
-    def test_exact_15pct_does_not_hard_kill(self) -> None:
-        """Boundary preserved: exactly 15% does NOT fire the all-cash kill
-        (strictly-greater-than in check_drawdown_trigger, as pinned before)."""
+    def test_15pct_still_hard_kill_allcash(self) -> None:
+        """The old 15% case still kills (now well above the 10% threshold)."""
         curve = _evidenced_curve(100_000.0, 15.0, days=12)
         triggered, _ = self.checker.check_drawdown_trigger(curve)
-        self.assertFalse(triggered)
+        self.assertTrue(triggered)
+        status = run_kill_switch_check(equity_curve=curve, data_dir=self.data_dir)
+        self.assertTrue(status["triggered"])
+        self.assertEqual(status["allocation"].get("cash"), 1.0)
 
-    def test_14pct_no_hard_kill(self) -> None:
-        curve = _evidenced_curve(100_000.0, 14.0, days=12)
+    def test_exact_10pct_DOES_hard_kill(self) -> None:
+        """ADR-048: boundary now INCLUSIVE — exactly 10% FIRES the all-cash kill
+        (check_drawdown_trigger uses >= so it agrees with drawdown_tier)."""
+        curve = _evidenced_curve(100_000.0, 10.0, days=12)
+        triggered, _ = self.checker.check_drawdown_trigger(curve)
+        self.assertTrue(triggered)
+        status = run_kill_switch_check(equity_curve=curve, data_dir=self.data_dir)
+        self.assertTrue(status["triggered"])
+        self.assertEqual(status["allocation"].get("cash"), 1.0)
+
+    def test_9pct_no_hard_kill(self) -> None:
+        curve = _evidenced_curve(100_000.0, 9.0, days=12)
         triggered, _ = self.checker.check_drawdown_trigger(curve)
         self.assertFalse(triggered)
 
 
-# ── SOFT tier signal: 5-14% → de-risk, NOT all-cash ───────────────────────────
+# ── SOFT tier signal: 5–9.99% → de-risk, NOT all-cash (ADR-048) ───────────────
 
 
 class TestSoftTierSignal(unittest.TestCase):
@@ -167,15 +181,15 @@ class TestSoftTierSignal(unittest.TestCase):
         self.assertFalse(active)
 
     def test_soft_band_derisk_active(self) -> None:
-        for dd in (5.0, 8.0, 14.0):
+        for dd in (5.0, 7.0, 9.0, 9.99):  # SOFT band [5,10) under ADR-048
             active, reason = self.checker.is_derisk_active(
                 _evidenced_curve(100_000.0, dd)
             )
             self.assertTrue(active, f"dd={dd}: {reason}")
 
     def test_soft_does_not_hard_kill(self) -> None:
-        """A 10% drawdown fires SOFT but NOT the all-cash hard kill."""
-        curve = _evidenced_curve(100_000.0, 10.0, days=12)
+        """A 9% drawdown fires SOFT but NOT the all-cash hard kill."""
+        curve = _evidenced_curve(100_000.0, 9.0, days=12)
         derisk, _ = self.checker.is_derisk_active(curve)
         self.assertTrue(derisk)
         kill, _ = self.checker.check_drawdown_trigger(curve)
@@ -185,9 +199,9 @@ class TestSoftTierSignal(unittest.TestCase):
         self.assertEqual(status["allocation"], {})
 
     def test_hard_band_excludes_soft(self) -> None:
-        """At ≥15% the SOFT signal is False (hard owns the response)."""
+        """At ≥10% the SOFT signal is False (hard owns the response)."""
         active, _ = self.checker.is_derisk_active(
-            _evidenced_curve(100_000.0, 16.0)
+            _evidenced_curve(100_000.0, 12.0)
         )
         self.assertFalse(active, "soft and hard tiers are mutually exclusive")
 

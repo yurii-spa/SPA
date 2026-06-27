@@ -4,6 +4,74 @@
 
 ---
 
+## 2026-06-27 (ADR-048 — HARD kill 15→10 + DL-02 reconciliation + boundary fix, owner-approved)
+
+**Decision (owner-approved 2026-06-27): lower the HARD kill-switch drawdown
+threshold 15% → 10%, make the boundary INCLUSIVE (`>=`), and reconcile the
+DailyLimits DL-02 10%-peak HALT so it no longer SHADOWS the hard kill.** This
+closes the two OWNER-DECISIONs flagged in the ADR-034 addendum below (now RESOLVED).
+
+This supersedes the 15% rung of the ADR-034 ladder. The owner-approved ladder is now:
+
+| Rung | Axis | Threshold | Effect |
+|---|---|---|---|
+| **DL-01** | single-day loss | **> 2%/day** | `DailyLimitsChecker` **HALT** (HOLD, no new trades). UNCHANGED. Distinct daily-loss axis — NEVER deferred. |
+| **SOFT de-risk** | peak→current drawdown | **[5%, 10%)** | de-risk: halt new / no INCREASE (hold + reduce only), edge-triggered WARNING. Does NOT liquidate. UNCHANGED. |
+| **HARD kill** | peak→current drawdown | **≥ 10%** | full kill → **ALL-CASH** `{"cash":1.0, …:0.0}`. LOWERED 15→10; now OWNS the 10% peak-drawdown rung. |
+
+**The shadow bug (found by the architect, now FIXED).** Inside `run_cycle` the money-path order is:
+Step 1b kill-switch *check* (arms `_ks_triggered`) → Step 1c soft de-risk check →
+Step 2 allocator → **Step 2a DailyLimits HALT (DL-01/DL-02) — EARLY-RETURNS** →
+Step 2b emergency breakers → **Step 2c `apply_kill_switch_override` (the ALL-CASH action)**.
+Because DL-02 (peak drawdown > 10%) early-returned `blocked_by_daily_limits` (a HOLD,
+positions unchanged) at Step 2a — *before* the all-cash override at Step 2c — a ≥10%
+drawdown HALTed instead of going all-cash. The hard kill was computed but its effect
+was preempted. With the hard kill now at 10%, the same rung is owned by the kill, so
+the shadow had to be reconciled.
+
+**Reconciliation chosen — option (a), DL-02 DEFERS to the armed hard kill (minimal-risk).**
+In `cycle_runner.run_cycle`, when the DL gate returns HALT and the hard kill is ARMED
+(`_ks_triggered`, computed in Step 1b), a **DL-02-only** HALT is DEFERRED: its halt
+reason is dropped (gate → PASS) so the cycle flows through to Step 2c where the
+all-cash override fires. **DL-01 (daily loss) is NEVER deferred** — if DL-01 is among
+the halt reasons the cycle still HALTs as before. Chosen over option (b) (retiring
+DL-02's rung) because it is the **least invasive**: the money-path order is untouched,
+the `DailyLimitsChecker` primitive is unchanged (still a reusable HALT for other
+callers / a recovered book whose historical peak-drawdown exceeded 10% but current
+drawdown is < 10% → kill NOT armed → DL-02 still HALTs correctly), and DL-01 is fully
+preserved. End state: **at ≥10% evidenced peak drawdown the cycle goes ALL-CASH.**
+
+**Boundary fix.** `check_drawdown_trigger` now fires on `drawdown >= DRAWDOWN_THRESHOLD_PCT`
+(was strict `>`), so it AGREES with `drawdown_tier` (`>=`) at exactly 10.0% — the old
+0-width 15.0% gap (classifier `>=` vs trigger `>`) is closed. Exactly 10.0% DOES kill.
+
+**Files changed (deterministic, stdlib-only, LLM-FORBIDDEN, fail-CLOSED, atomic):**
+- `spa_core/governance/kill_switch.py` — `DRAWDOWN_THRESHOLD_PCT 15.0 → 10.0`;
+  `check_drawdown_trigger` boundary `>` → `>=`; tier-band + docstrings updated.
+- `spa_core/paper_trading/cycle_runner.py` — Step 2a DL-02→hard-kill deferral
+  (DL-01 intact); soft-band docstrings 15→10.
+- `spa_core/paper_trading/pre_cutover_gate.py` — `DL02_PEAK_DRAWDOWN` drill
+  replaced by `DL02_DEFERS_TO_KILL` (asserts ≥10% → all-cash kill owns the rung);
+  HARD drawdown drill + ladder print updated.
+- `spa_core/paper_trading/cycle_gates.py` — soft-band docstrings 15→10.
+- Tests: `tests/test_kill_switch_two_tier.py`, `spa_core/tests/test_cycle_derisk_e2e.py`
+  (new E2E `test_d1t2_hard_kill_drawdown_fires_in_run_cycle` @ 10/12/15% → all-cash;
+  `test_d1t2_dl01_daily_loss_still_halts_not_killed`), `spa_core/tests/test_pre_cutover_gate.py`,
+  `spa_core/tests/test_kill_switch.py`, `spa_core/tests/test_kill_switch_sharpe.py`,
+  `tests/test_kill_switch_eval_path.py`.
+- Docs: this ADR, `docs/PRE_CUTOVER_GATE.md`, `CLAUDE.md` RiskPolicy ladder.
+
+**Validated (sandbox-only, live `data/` NEVER touched):** `python3 -m spa_core.paper_trading.pre_cutover_gate`
+→ all defenses fire, exit 0; the new E2E test proves 10/12/15% evidenced drawdown →
+ALL-CASH end-to-end in `run_cycle` (the previously-shadowed path now works).
+
+**RiskPolicy version:** stays **v1.0** — the two-tier/kill logic lives in the
+governance layer (`kill_switch.py` / `cycle_gates.py` / `cycle_runner.py`), not in
+`RiskConfig`. Per the P3-10 / ADR-034 process this owner-gated threshold change is
+recorded as an ADR with its pinning tests updated in the same change.
+
+---
+
 ## 2026-06-27 (ADR-034 — TWO-TIER drawdown kill-switch, owner-approved)
 
 **Decision (owner-approved 2026-06-27): the drawdown response becomes an explicit
@@ -70,6 +138,9 @@ cycle through each tier against a sandbox and ASSERTS the response:
   `check_drawdown_trigger` fires → `apply_kill_switch_override` forces ALL-CASH.
 
 **Day-1 findings recorded as OWNER-DECISIONS to reconcile (flagged, not changed):**
+**→ BOTH RESOLVED by ADR-048 (owner-approved 2026-06-27) at the top of this file:
+finding #1 reconciled (hard kill lowered to 10% and DL-02 now DEFERS to it);
+finding #2 fixed (boundary made inclusive `>=` so classifier and trigger agree).**
 
 1. **DL-02 @ 10% peak preempts HARD @ 15%.** The `DailyLimitsChecker` DL-02 peak
    drawdown HALT fires at **10%** — *below* the kill-switch HARD threshold of

@@ -474,18 +474,18 @@ class TestDrawdownIndependent(unittest.TestCase):
         self.assertFalse(triggered, f"0.2% drawdown << 15% threshold: ok, reason: {reason}")
 
     # E-3
-    def test_drawdown_15pct_no_trigger(self) -> None:
-        """15% drawdown (ровно на пороге, строгое >) → НЕ triggered."""
-        curve = self._make_curve(peak=100_000.0, current=85_000.0)
+    def test_drawdown_9pct_no_trigger(self) -> None:
+        """ADR-048: 9% drawdown (< 10% порога) → НЕ triggered."""
+        curve = self._make_curve(peak=100_000.0, current=91_000.0)
         triggered, reason = self.checker.check_drawdown_trigger(curve)
-        self.assertFalse(triggered, f"15% ровно на пороге: НЕ triggered, reason: {reason}")
+        self.assertFalse(triggered, f"9% < 10% порога: НЕ triggered, reason: {reason}")
 
     # E-4
-    def test_drawdown_16pct_triggers(self) -> None:
-        """16% drawdown > 15% → TRIGGERED."""
-        curve = self._make_curve(peak=100_000.0, current=84_000.0)
+    def test_drawdown_12pct_triggers(self) -> None:
+        """ADR-048: 12% drawdown ≥ 10% → TRIGGERED."""
+        curve = self._make_curve(peak=100_000.0, current=88_000.0)
         triggered, reason = self.checker.check_drawdown_trigger(curve)
-        self.assertTrue(triggered, f"16% drawdown > 15%: triggered, reason: {reason}")
+        self.assertTrue(triggered, f"12% drawdown ≥ 10%: triggered, reason: {reason}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

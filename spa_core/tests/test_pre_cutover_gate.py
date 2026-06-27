@@ -162,4 +162,4 @@ def test_report_documents_owner_blockers_and_ladder(tmp_path: Path):
     assert th["dl01_daily_loss_pct"] == 2.0
     assert th["dl02_peak_drawdown_pct"] == 10.0
     assert th["soft_derisk_pct"] == 5.0
-    assert th["hard_kill_pct"] == 15.0
+    assert th["hard_kill_pct"] == 10.0  # ADR-048: lowered 15→10 (owns DL-02 rung)

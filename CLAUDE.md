@@ -307,23 +307,26 @@ Proof-of-Reserves поверхность. Двуязычно (EN|RU) по все
 | T2 total cap | ≤ 50% портфеля |
 | APY-границы | 1% … 30% |
 | Min cash buffer | ≥ 5% |
-| Kill switch | **two-tier ladder** (ADR-034): **SOFT −5%** de-risk / **HARD −15%** all-cash |
+| Kill switch | **two-tier ladder** (ADR-034/048): **SOFT −5%** de-risk / **HARD −10%** all-cash |
 
 `approved=False` не может быть переопределён никем.
 
-### 🛑 Two-tier kill-switch (ADR-034, owner-approved 2026-06-27)
+### 🛑 Two-tier kill-switch (ADR-034 + ADR-048, owner-approved 2026-06-27)
 
 Drawdown-ответ — **одна лестница** над общим evidenced peak-to-current drawdown
-(`spa_core/governance/kill_switch.py::evidenced_drawdown_pct` → `drawdown_tier`):
+(`spa_core/governance/kill_switch.py::evidenced_drawdown_pct` → `drawdown_tier`).
+**ADR-048: HARD kill снижен 15→10, граница inclusive (`>=`), DL-02 примирён с kill'ом.**
 
 | Tier | Порог | Эффект |
 |---|---|---|
-| **SOFT_DERISK** | drawdown ∈ **[5%, 15%)** | DE-RISK: halt new / no INCREASE (hold + reduce OK), edge-triggered WARNING. **НЕ ликвидирует.** Гейт — `spa_core/paper_trading/cycle_gates.py::apply_soft_derisk_gate` (caps `target_usd` → `min(target, held)`; new protocol → 0). |
-| **HARD_KILL** | drawdown ≥ **15%** | Full kill → all-cash `{"cash": 1.0, …: 0.0}` (`check_drawdown_trigger`). |
+| **SOFT_DERISK** | drawdown ∈ **[5%, 10%)** | DE-RISK: halt new / no INCREASE (hold + reduce OK), edge-triggered WARNING. **НЕ ликвидирует.** Гейт — `spa_core/paper_trading/cycle_gates.py::apply_soft_derisk_gate` (caps `target_usd` → `min(target, held)`; new protocol → 0). |
+| **HARD_KILL** | drawdown ≥ **10%** (inclusive) | Full kill → all-cash `{"cash": 1.0, …: 0.0}` (`check_drawdown_trigger`, теперь `>=`). **OWNS** the 10% peak-drawdown rung. |
 
-Полная лестница эффектов вниз по drawdown'у: **SOFT 5% → DL-02 HALT 10% → HARD all-cash 15%**
-(DL-01 2% single-day может HALT'нуть в любой точке). RiskPolicy version **остаётся v1.0** —
-two-tier живёт в governance-слое, `RiskConfig` не тронут.
+Полная лестница эффектов вниз по drawdown'у: **SOFT 5% → HARD all-cash ≥10%**
+(DL-01 2% single-day может HALT'нуть в любой точке; DL-02 10%-peak теперь **DEFERS**
+к hard-kill'у в `run_cycle` — при ≥10% цикл идёт all-cash, не HOLD; DL-01 никогда не
+deferred). RiskPolicy version **остаётся v1.0** — two-tier живёт в governance-слое,
+`RiskConfig` не тронут.
 
 **Pre-cutover readiness gate** — единственный авторитетный «все money-path защиты доказуемо
 срабатывают»-артефакт перед любым cutover-размышлением: `spa_core/paper_trading/pre_cutover_gate.py`
@@ -332,9 +335,11 @@ two-tier живёт в governance-слое, `RiskConfig` не тронут.
 цикл через каждый failure-mode в sandbox и ASSERT'ит защитный ответ (HARD/SOFT/DL-01/DL-02/
 RiskPolicy/analytics/NAV-reconcile/position-monitor/fail-safe HOLD). Advisory CI-step, не гейтит push.
 
-**Day-1 OWNER-DECISIONS (флаги, не код-дефекты — оба в ADR-034 addendum):**
-DL-02 @10% preempts HARD @15% (ordering intentional?); 15.0%-boundary gap
-(`check_drawdown_trigger` `>15.0`, `drawdown_tier` `>=15.0` → разойдутся ровно в 15.0%).
+**Day-1 OWNER-DECISIONS — ОБА RESOLVED в ADR-048 (owner-approved 2026-06-27):**
+(1) DL-02 @10% больше не shadow'ит HARD-kill — kill снижен до 10% и DL-02 DEFERS к нему
+(`run_cycle` Step 2a: DL-02-only HALT + armed kill → no early-return → all-cash override);
+DL-01 daily-loss intact. (2) boundary-gap закрыт — `check_drawdown_trigger` теперь `>=`
+(согласован с `drawdown_tier`), ровно 10.0% срабатывает.
 
 ---
 
