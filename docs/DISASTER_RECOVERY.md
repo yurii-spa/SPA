@@ -14,6 +14,29 @@
 
 ---
 
+## DR docs index (single entry point — start here)
+
+Open **this file** for any recovery. The others exist for history or for a
+narrow sub-topic; the **SUPERSEDED** ones must **not** be followed for infra
+recovery (they reference retired agents / deleted scripts).
+
+| Doc | Status | Use for |
+|---|---|---|
+| **`DISASTER_RECOVERY.md`** (this file) | ✅ **CANONICAL** | All disaster recovery — reboot, missed cycle, push fail, data loss, agent fix |
+| `DR_PROCEDURE_v1.md` | ⛔ SUPERSEDED | History only |
+| `DR_PROCEDURE_v2.md` | ⛔ SUPERSEDED (infra) | History; §7–8 fund-level / investor-exit material not yet folded in here |
+| `RUNBOOK.md` | ⛔ SUPERSEDED (recovery) | Historical day-to-day-ops context only |
+| `operator_runbook.md` | ⛔ SUPERSEDED (severely stale) | History only |
+| `TOKEN_ROTATION_RUNBOOK.md` | ✅ active (sub-topic) | PAT rotation detail (referenced from §4) |
+| `kill_switch_drill.md` | ✅ active (sub-topic) | Kill-switch drill record |
+| `DEPLOYMENT_RUNBOOK.md` / `LIVE_LAUNCH_RUNBOOK.md` | ✅ active (deploy/launch) | Deploy + go-live launch, not disaster recovery |
+
+Live resilience posture (offsite copy / restore drill / fleet-down drill) is
+rolled up in `data/resilience_status.json` and surfaced in the **Resilience**
+section of `docs/SYSTEM_BRIEFING.md`.
+
+---
+
 ## 0. The 5 facts that make recovery correct (read first)
 
 1. **Agents load on LOGIN, not on boot.** SPA agents are **gui-domain**

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import sqlite3
 import tarfile
 from pathlib import Path
 
@@ -17,15 +18,34 @@ import pytest
 from spa_core.backtesting.tier1 import dr_backup as dr
 
 
-# A representative subset of the critical files (incl. the bee/ subdir nesting and the
-# .jsonl audit chain) — enough to exercise nesting, missing files, and round-trip.
+# The json/jsonl critical fixtures (incl. the bee/ subdir nesting and the .jsonl audit
+# chain). This set now covers the FULL MUST_HAVE recovery set (golive_status +
+# paper_evidence_history added) so snapshots pass the fail-CLOSED completeness gate.
+# track.db is a sqlite file, seeded separately in the fixture (see below) and counted
+# via _CRITICAL_DB_COUNT — it is NOT a byte-literal fixture.
 _FIXTURE_FILES = {
     "paper_trading_status.json": b'{"status":"ok","capital":100149.54}\n',
     "equity_curve_daily.json": b'[{"d":"2026-06-10","eq":100000.0}]\n',
     "current_positions.json": b'{"positions":[]}\n',
+    "golive_status.json": b'{"passed":27,"total":29,"real_track_days":5}\n',
+    "paper_evidence_history.json": b'{"days":[{"date":"2026-06-22"}]}\n',
     "audit_chain.jsonl": b'{"i":0,"h":"abc"}\n{"i":1,"h":"def"}\n',
     "bee/defillama_apy_history.json": b'{"source":"defillama_real","pool_results":{}}\n',
 }
+# track.db is captured as one additional in-tar member (consistent sqlite copy).
+_CRITICAL_DB_COUNT = 1
+# Total members a complete snapshot of this fixture produces.
+_TOTAL_FIXTURE_MEMBERS = len(_FIXTURE_FILES) + _CRITICAL_DB_COUNT
+
+
+def _seed_track_db(data: Path) -> None:
+    con = sqlite3.connect(str(data / "track.db"))
+    try:
+        con.execute("CREATE TABLE evidence_records(id INTEGER, val TEXT)")
+        con.execute("INSERT INTO evidence_records VALUES (1, 'a')")
+        con.commit()
+    finally:
+        con.close()
 
 
 @pytest.fixture()
@@ -39,6 +59,7 @@ def env(tmp_path, monkeypatch):
         p = data / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_bytes(content)
+    _seed_track_db(data)
     monkeypatch.setattr(dr, "_DATA", data)
     monkeypatch.setattr(dr, "_BACKUPS", backups)
     return {"data": data, "backups": backups, "tmp": tmp_path}
@@ -57,24 +78,41 @@ def test_snapshot_creates_tar_with_manifest(env):
     # All present fixture files are members; the bee/ nesting is preserved.
     for rel in _FIXTURE_FILES:
         assert rel in names
-    assert rep["file_count"] == len(_FIXTURE_FILES)
+    assert "track.db" in names  # sqlite carried INSIDE the tar (converged contract)
+    assert rep["file_count"] == _TOTAL_FIXTURE_MEMBERS
 
 
 def test_snapshot_records_missing_files_gracefully(env):
-    # Remove one source; it must be reported as missing, not crash.
-    (env["data"] / "current_positions.json").unlink()
+    # Remove one NON-critical source; it must be reported as missing, not crash. (A missing
+    # MUST_HAVE critical file fail-CLOSES instead — see test_snapshot_fails_closed_*.)
+    (env["data"] / "audit_chain.jsonl").unlink()
     rep = dr.snapshot(ts="20260624T130000Z")
-    assert "current_positions.json" in rep["missing"]
-    assert rep["file_count"] == len(_FIXTURE_FILES) - 1
+    assert "audit_chain.jsonl" in rep["missing"]
+    assert rep["file_count"] == _TOTAL_FIXTURE_MEMBERS - 1
     ver = dr.verify_backup(rep["archive"])
     assert ver["valid"] is True  # a backup missing an absent source is still valid
+
+
+def test_snapshot_fails_closed_on_missing_critical(env):
+    """A MUST_HAVE critical file absent → fail-CLOSED (raise) + NO partial archive."""
+    (env["data"] / "golive_status.json").unlink()
+    with pytest.raises(dr.BackupIncompleteError):
+        dr.snapshot(ts="20260624T131500Z")
+    assert list(env["backups"].glob("spa_state_*.tar.gz")) == []
+
+
+def test_snapshot_fails_closed_on_missing_trackdb(env):
+    (env["data"] / "track.db").unlink()
+    with pytest.raises(dr.BackupIncompleteError):
+        dr.snapshot(ts="20260624T132500Z")
+    assert list(env["backups"].glob("spa_state_*.tar.gz")) == []
 
 
 def test_snapshot_dry_run_writes_nothing(env):
     rep = dr.snapshot(write=False, ts="20260624T140000Z")
     assert rep["written"] is False
     assert not Path(rep["archive"]).exists()
-    assert rep["file_count"] == len(_FIXTURE_FILES)
+    assert rep["file_count"] == _TOTAL_FIXTURE_MEMBERS
 
 
 def test_manifest_embedded_matches_report(env):
@@ -93,7 +131,7 @@ def test_verify_true_on_fresh_backup(env):
     assert ver["valid"] is True
     assert ver["mismatches"] == []
     assert ver["missing_members"] == []
-    assert ver["file_count"] == len(_FIXTURE_FILES)
+    assert ver["file_count"] == _TOTAL_FIXTURE_MEMBERS
 
 
 def test_verify_false_on_tampered_member(env):
@@ -234,7 +272,7 @@ def test_latest_status_reports_age_and_validity(env):
     assert st["valid"] is True
     assert st["age_hours"] == pytest.approx(12.0, abs=0.01)
     assert st["stale"] is False
-    assert st["file_count"] == len(_FIXTURE_FILES)
+    assert st["file_count"] == _TOTAL_FIXTURE_MEMBERS
 
 
 def test_latest_status_flags_stale(env):

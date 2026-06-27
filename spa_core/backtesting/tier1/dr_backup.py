@@ -31,7 +31,9 @@ import datetime
 import hashlib
 import json
 import shutil
+import sqlite3
 import tarfile
+import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -46,22 +48,44 @@ MANIFEST_NAME = "backup_manifest.json"
 ARCHIVE_PREFIX = "spa_state_"
 ARCHIVE_SUFFIX = ".tar.gz"
 
-# CRITICAL state files, as POSIX-relative paths under data/. Only those that exist are
-# included; a missing source is recorded (not fatal) so DR degrades gracefully.
+# State files, as POSIX-relative paths under data/. Only those that exist are included;
+# a missing NON-critical source is recorded (not fatal) so DR degrades gracefully.
 CRITICAL_FILES = [
     "paper_trading_status.json",
     "equity_curve_daily.json",
     "current_positions.json",
     "golive_status.json",
+    "paper_evidence_history.json",
     "trades.json",
     "gap_monitor.json",
     "audit_chain.jsonl",
     "tier1_verdict.json",
     "tier1_packages.json",
     "bee/defillama_apy_history.json",
+    "track.db",
 ]
 
+# The MUST-HAVE recovery set. A backup that omits any of these is INCOMPLETE and the
+# producer fail-CLOSES (raises) rather than ship a partial archive (no backup theater).
+# These are exactly the files a real restore needs (drill_restore.py validates the same
+# set), with track.db captured INSIDE the archive (not as a separate bare .db snapshot).
+MUST_HAVE = [
+    "golive_status.json",
+    "equity_curve_daily.json",
+    "paper_evidence_history.json",
+    "current_positions.json",
+    "track.db",
+]
+
+# Files that need a CONSISTENT copy (sqlite may be mid-write / WAL): copied via the
+# sqlite3 online backup API into a temp file, then added to the tar.
+_SQLITE_FILES = frozenset({"track.db"})
+
 _CHUNK = 1 << 20  # 1 MiB hashing chunk
+
+
+class BackupIncompleteError(RuntimeError):
+    """Raised fail-CLOSED when a produced archive is missing a MUST_HAVE critical file."""
 
 
 def _data_dir() -> Path:
@@ -94,6 +118,23 @@ def _archive_path(ts: str) -> Path:
     return _backup_dir() / f"{ARCHIVE_PREFIX}{ts}{ARCHIVE_SUFFIX}"
 
 
+def _consistent_sqlite_copy(src: Path, dst: Path) -> None:
+    """Copy a (possibly mid-write) sqlite DB to *dst* using the online backup API.
+
+    The online backup API yields a transactionally-consistent snapshot even if the
+    source has an open WAL / is being written, so the archived .db always opens clean.
+    """
+    src_con = sqlite3.connect(f"file:{src}?mode=ro", uri=True)
+    try:
+        dst_con = sqlite3.connect(str(dst))
+        try:
+            src_con.backup(dst_con)
+        finally:
+            dst_con.close()
+    finally:
+        src_con.close()
+
+
 def snapshot(write: bool = True, ts: Optional[str] = None) -> dict:
     """Create a timestamped, integrity-checked gzip-tar backup of the critical state files.
 
@@ -108,59 +149,130 @@ def snapshot(write: bool = True, ts: Optional[str] = None) -> dict:
     data = _data_dir()
     ts = ts or _utc_ts()
 
-    entries: List[Dict] = []
-    missing: List[str] = []
-    total = 0
-    for rel in CRITICAL_FILES:
-        src = data / rel
-        if src.exists() and src.is_file():
-            size = src.stat().st_size
-            entries.append({"name": rel, "sha256": _sha256_file(src), "size": size})
+    # Stage track.db (and any sqlite member) as a consistent copy in a scratch dir, so the
+    # bytes we hash are EXACTLY the bytes we tar (and they open clean). Scratch is removed
+    # in finally. The staged path is what we add to the tar.
+    scratch = Path(tempfile.mkdtemp(prefix="spa_dr_stage_"))
+    try:
+        entries: List[Dict] = []
+        missing: List[str] = []
+        total = 0
+        for rel in CRITICAL_FILES:
+            src = data / rel
+            if not (src.exists() and src.is_file()):
+                missing.append(rel)
+                continue
+            if rel in _SQLITE_FILES:
+                staged = scratch / Path(rel).name
+                _consistent_sqlite_copy(src, staged)
+                add_path = staged
+            else:
+                add_path = src
+            size = add_path.stat().st_size
+            entries.append({
+                "name": rel,
+                "sha256": _sha256_file(add_path),
+                "size": size,
+                "_src": str(add_path),  # internal: what to tar (stripped from manifest)
+            })
             total += size
-        else:
-            missing.append(rel)
 
-    manifest = {
-        "schema": "spa_dr_backup/v1",
-        "llm_forbidden": True,
-        "ts": ts,
-        "created_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "file_count": len(entries),
-        "total_bytes": total,
-        "files": entries,
-        "missing": missing,
-    }
-    manifest_bytes = json.dumps(manifest, indent=2, sort_keys=True).encode("utf-8")
+        # Fail-CLOSED completeness pre-check: every MUST_HAVE critical file must be a real,
+        # staged entry. A missing critical source means we REFUSE to produce a partial
+        # archive (backup theater). Non-critical missing files only degrade gracefully.
+        present = {e["name"] for e in entries}
+        missing_critical = [c for c in MUST_HAVE if c not in present]
+        if missing_critical:
+            raise BackupIncompleteError(
+                "REFUSING to write backup: missing critical file(s) "
+                f"{missing_critical} (have={sorted(present)})"
+            )
 
-    report = {
-        "ts": ts,
-        "archive": str(_archive_path(ts)),
-        "files": entries,
-        "missing": missing,
-        "total_bytes": total,
-        "file_count": len(entries),
-        "manifest_sha256": _sha256_bytes(manifest_bytes),
-        "written": False,
-    }
-    if not write:
+        manifest_files = [{k: v for k, v in e.items() if not k.startswith("_")}
+                          for e in entries]
+        manifest = {
+            "schema": "spa_dr_backup/v2",
+            "llm_forbidden": True,
+            "ts": ts,
+            "created_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "file_count": len(manifest_files),
+            "total_bytes": total,
+            "files": manifest_files,
+            "missing": missing,
+            "must_have": list(MUST_HAVE),
+        }
+        manifest_bytes = json.dumps(manifest, indent=2, sort_keys=True).encode("utf-8")
+
+        report = {
+            "ts": ts,
+            "archive": str(_archive_path(ts)),
+            "files": manifest_files,
+            "missing": missing,
+            "total_bytes": total,
+            "file_count": len(manifest_files),
+            "manifest_sha256": _sha256_bytes(manifest_bytes),
+            "written": False,
+        }
+        if not write:
+            return report
+
+        backups = _backup_dir()
+        backups.mkdir(parents=True, exist_ok=True)
+        # Atomic: build into a temp tar in the SAME dir, then rename into the final name.
+        with atomic_write_via_tmp(str(_archive_path(ts))) as tmp:
+            with tarfile.open(str(tmp), "w:gz") as tar:
+                # Manifest first so it is cheap to read back.
+                info = tarfile.TarInfo(name=MANIFEST_NAME)
+                info.size = len(manifest_bytes)
+                info.mtime = 0  # deterministic
+                tar.addfile(info, fileobj=_BytesReader(manifest_bytes))
+                for e in entries:
+                    # Store under the same relative path; arcname keeps the bee/ subdir.
+                    tar.add(e["_src"], arcname=e["name"], recursive=False)
+            # Fail-CLOSED POST assertion: re-open the produced tar and prove every MUST_HAVE
+            # member is physically present (and track.db opens) BEFORE declaring success.
+            # If it fails, atomic_write_via_tmp discards the tmp on the raised exception, so
+            # no partial archive is ever moved into place.
+            _assert_archive_complete(str(tmp))
+        report["written"] = True
         return report
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
 
-    backups = _backup_dir()
-    backups.mkdir(parents=True, exist_ok=True)
-    # Atomic: build into a temp tar in the SAME dir, then rename into the final name.
-    with atomic_write_via_tmp(str(_archive_path(ts))) as tmp:
-        with tarfile.open(str(tmp), "w:gz") as tar:
-            # Manifest first so it is cheap to read back.
-            info = tarfile.TarInfo(name=MANIFEST_NAME)
-            info.size = len(manifest_bytes)
-            info.mtime = 0  # deterministic
-            tar.addfile(info, fileobj=_BytesReader(manifest_bytes))
-            for e in entries:
-                src = data / e["name"]
-                # Store under the same relative path; arcname keeps the bee/ subdir.
-                tar.add(str(src), arcname=e["name"], recursive=False)
-    report["written"] = True
-    return report
+
+def _assert_archive_complete(archive_path: str) -> None:
+    """Fail-CLOSED: open the just-built tar and prove every MUST_HAVE critical member is
+    present, and that track.db extracts + opens via sqlite (integrity_check ok). Raises
+    BackupIncompleteError on any gap so the caller never ships a partial/corrupt archive."""
+    with tarfile.open(archive_path, "r:gz") as tar:
+        members = {m.name for m in tar.getmembers()}
+        missing = [c for c in MUST_HAVE if c not in members]
+        if missing:
+            raise BackupIncompleteError(
+                f"completeness assertion FAILED: archive missing {missing} "
+                f"(members={sorted(members)})"
+            )
+        # Prove track.db opens from inside the archive.
+        if "track.db" in MUST_HAVE:
+            f = tar.extractfile("track.db")
+            if f is None:
+                raise BackupIncompleteError("completeness assertion FAILED: track.db unreadable in tar")
+            tmpdir = tempfile.mkdtemp(prefix="spa_dr_verify_")
+            try:
+                dbp = Path(tmpdir) / "track.db"
+                with open(dbp, "wb") as w:
+                    shutil.copyfileobj(f, w)
+                con = sqlite3.connect(f"file:{dbp}?mode=ro", uri=True)
+                try:
+                    row = con.execute("PRAGMA integrity_check").fetchone()
+                    if not row or row[0] != "ok":
+                        raise BackupIncompleteError(
+                            f"completeness assertion FAILED: track.db integrity_check={row}"
+                        )
+                finally:
+                    con.close()
+            finally:
+                shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 class _BytesReader:

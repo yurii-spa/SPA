@@ -332,6 +332,60 @@ def build_system_health_section() -> str:
     return "\n".join(lines) + "\n"
 
 
+def build_resilience_section() -> str:
+    """Resilience posture — mirrors the T1 snapshot-age / fail-honest style.
+
+    Reads data/resilience_status.json (written by
+    spa_core.monitoring.resilience_status), which itself rolls up the three
+    resilience proofs (offsite copy R6, restore drill R7, fleet-down drill R4).
+    Each proof shows its last pass date + a visible STALE / never-run marker so
+    a dormant or failed proof can never hide behind a green headline.
+    """
+    d = read_json("resilience_status.json")
+    if not d:
+        return ("## 🛡️ Resilience (DR posture)\n"
+                "❓ **ROLLUP UNAVAILABLE** — `data/resilience_status.json` missing. "
+                "Run `python3 -m spa_core.monitoring.resilience_status` to generate it.\n")
+
+    overall = d.get("overall", "UNKNOWN")
+    ts = d.get("generated_at", "")
+    icon = {"OK": "✅", "WARNING": "⚠️", "UNKNOWN": "❓"}.get(overall, "❓")
+
+    def _proof_line(label: str, p: dict, pass_key: str, pass_label: str) -> str:
+        if not p:
+            return f"- ❓ **{label}** — no data"
+        if p.get("never_run"):
+            return f"- 🔴 **{label}** — ⛔ NEVER RUN (proof not yet exercised)"
+        last = p.get("last_ts") or "unknown"
+        last_date = last[:10] if isinstance(last, str) else "unknown"
+        passed = p.get(pass_key, False)
+        stale = p.get("stale", False)
+        bits = []
+        bits.append("✅ " + pass_label if passed else "🔴 NOT " + pass_label)
+        if stale:
+            bits.append("⚠️ STALE")
+        marker = "  ·  ".join(bits)
+        return f"- {'⚠️' if (stale or not passed) else '✅'} **{label}** — last {last_date}  ·  {marker}"
+
+    off = d.get("offsite", {})
+    real_remote = off.get("is_real_remote", False)
+    remote_txt = "real remote" if real_remote else "local stand-in (owner-flagged)"
+
+    lines = [
+        "## 🛡️ Resilience (DR posture)",
+        f"{icon} **{overall}** — offsite + restore-drill + fleet-drill rollup  ·  updated {_age_str(ts)}",
+        _proof_line(f"Offsite copy ({remote_txt})", off, "verified", "verified"),
+        _proof_line("Restore drill", d.get("restore_drill", {}), "all_ok", "passed"),
+        _proof_line("Fleet-down drill", d.get("fleet_drill", {}), "all_ok", "passed"),
+    ]
+    notes = d.get("notes", [])
+    if notes:
+        lines.append("\n**Why WARNING:**" if overall != "OK" else "\n**Notes:**")
+        for n in notes:
+            lines.append(f"- {n}")
+    return "\n".join(lines) + "\n"
+
+
 def build_sprint_section() -> str:
     try:
         kanban_path = os.path.join(PROJECT_ROOT, "KANBAN.json")
@@ -401,6 +455,7 @@ def main() -> None:
     golive = read_json("golive_status.json")
     agent_h = read_json("agent_health.json")
     eq = read_json("equity_curve_daily.json")
+    resil = read_json("resilience_status.json")
 
     golive_ready = golive.get("ready", False)
     golive_pass = golive.get("pass_count") or golive.get("passed") or "?"
@@ -444,6 +499,15 @@ def main() -> None:
                 golive_target = crit["target_date"]
                 break
 
+    # Resilience header cell — fail-honest, mirrors the agent/snapshot style.
+    if not resil:
+        resil_cell = "❓ rollup unavailable (resilience_status.json missing)"
+    else:
+        r_overall = resil.get("overall", "UNKNOWN")
+        r_icon = {"OK": "✅", "WARNING": "⚠️", "UNKNOWN": "❓"}.get(r_overall, "❓")
+        n_notes = len(resil.get("notes", []))
+        resil_cell = f"{r_icon} {r_overall}" + (f" ({n_notes} note{'s' if n_notes != 1 else ''})" if n_notes else "")
+
     golive_icon = "✅" if golive_ready else "⛔"
     if agent_state == "missing":
         agent_icon = "❓"
@@ -471,6 +535,7 @@ def main() -> None:
 | Portfolio | ${eq_end:,.2f} ({eq_ret:+.2f}% over {eq_days}d evidenced) |
 | Track days (evidenced) | {eq_days}/30 (anchor {track_anchor}) |
 | Go-live target | {golive_target} (30 honest track days) |
+| Resilience (DR) | {resil_cell} |
 | Sprint | see KANBAN section |
 
 """
@@ -482,6 +547,7 @@ def main() -> None:
         build_launchd_section() + "\n",
         build_portfolio_section() + "\n",
         build_system_health_section() + "\n",
+        build_resilience_section() + "\n",
         build_sprint_section() + "\n",
         build_rules_section() + "\n",
         build_commands_section() + "\n",

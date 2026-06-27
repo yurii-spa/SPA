@@ -21,9 +21,11 @@ DESIGN (fail-CLOSED, stdlib-only, deterministic):
        - current_positions.json      → JSON parses.
        - track.db (sqlite)           → opens via sqlite3 + a sanity query (list tables,
                                         count a known table) without corruption.
-         track.db is NOT carried inside the state tar (the *.json snapshot scheme), so it
-         is validated from the newest bare data/backups/spa_*.db snapshot. If no usable
-         .db snapshot exists, track.db is reported FAIL (fail-closed).
+         track.db is now carried INSIDE the converged state tar (both the dr_backup and
+         daily_backup producers add a consistent sqlite copy), so it is validated from the
+         in-archive member. For LEGACY archives produced before convergence (no track.db
+         member) the drill falls back to the newest bare data/backups/spa_*.db snapshot. If
+         no usable source exists, track.db is reported FAIL (fail-closed).
   4. Print a clear PASS/FAIL report and write data/restore_drill_status.json (atomic).
   5. Exit 0 iff EVERY critical file was restored + valid. Otherwise non-zero.
 
@@ -267,6 +269,7 @@ def run_drill(archive: str = "", keep: bool = False, quiet: bool = False) -> dic
     files_validated = []
     all_ok = True
     db_snapshot = ""
+    db_source_label = None
     try:
         members = safe_extract(archive, sandbox)
         member_set = set(members)
@@ -285,14 +288,24 @@ def run_drill(archive: str = "", keep: bool = False, quiet: bool = False) -> dic
             all_ok = all_ok and entry["ok"]
             files_validated.append(entry)
 
-        # 2) track.db — restored from newest bare .db snapshot (never inside the tar)
-        db_snapshot = find_newest_db()
-        ok, detail = _validate_sqlite(db_snapshot)
+        # 2) track.db — PREFER the copy now carried INSIDE the converged archive (every
+        #    backup ships the full critical set). Fall back to the newest bare .db snapshot
+        #    only for legacy archives produced before convergence (backward compat).
+        db_source_label = None
+        if CRITICAL_DB in member_set:
+            db_path = os.path.join(sandbox, CRITICAL_DB)
+            ok, detail = _validate_sqlite(db_path)
+            db_source_label = f"in-archive:{os.path.basename(archive)}"
+            db_snapshot = ""  # in-tar, not a bare snapshot
+        else:
+            db_snapshot = find_newest_db()
+            ok, detail = _validate_sqlite(db_snapshot)
+            db_source_label = os.path.basename(db_snapshot) if db_snapshot else None
         files_validated.append({
             "file": CRITICAL_DB,
             "ok": ok,
             "detail": detail,
-            "source": os.path.basename(db_snapshot) if db_snapshot else None,
+            "source": db_source_label,
         })
         all_ok = all_ok and ok
     finally:
@@ -308,7 +321,7 @@ def run_drill(archive: str = "", keep: bool = False, quiet: bool = False) -> dic
         "last_drill_ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "archive": os.path.basename(archive),
         "archive_path": archive,
-        "db_snapshot": os.path.basename(db_snapshot) if db_snapshot else None,
+        "db_snapshot": db_source_label,
         "sandbox": sandbox_note,
         "files_validated": files_validated,
         "all_ok": all_ok,
