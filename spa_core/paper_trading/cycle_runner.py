@@ -1393,6 +1393,22 @@ def run_cycle(
                     len(target_usd), len(target_usd)
                 )
             )
+            # ── ADR-034 (D1-T1 fix): RE-APPLY the soft de-risk cap AFTER the
+            # ALLOC-002 collapse. _compliant_target redistributes freed capital
+            # across the survivor book (rebalancer / safe-fallback) and can
+            # RE-GROW a protocol above its held size — or re-open an un-held one —
+            # silently UNDOING the soft "no-new / no-increase" guarantee the
+            # earlier gate established. Re-clamping here makes the composition
+            # cap-preserving: held positions can only be held or reduced, never
+            # grown, and no new protocol can be opened while in [5%,15%) drawdown.
+            # Idempotent + no-op when _derisk_active is False (non-derisk path
+            # unchanged). The freed capital implicitly stays in cash.
+            target_usd = apply_soft_derisk_gate(
+                target_usd,
+                current_positions=current_positions,
+                derisk_active=_derisk_active,
+                notes=notes,
+            )
 
     # ── Step 3: virtual rebalance trade if allocation moved > threshold ───
     trades: list[dict] = _read_json(ddir / TRADES_FILENAME, [])
