@@ -6,4 +6,8 @@
 # Plist must call: ProgramArguments = [/bin/bash, <abs path to this file>]
 export AGENT_NAME="rates_desk_paper"
 export MODULE="spa_core.strategy_lab.rates_desk.paper_rates"
-exec /bin/bash /Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_template.sh
+# Run the paper tick (advances the forward carry track) via the canonical template,
+# then ALSO rebuild the investor-facing liquidation-NAV-by-size exit schedule from the
+# now-current surface/book (advisory, read-only, fail-CLOSED — never moves capital).
+/bin/bash /Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_template.sh
+/bin/bash /Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_template.sh rates_desk_exit_nav spa_core.strategy_lab.rates_desk.exit_nav

@@ -316,3 +316,23 @@ RWA floor: **3.4%/yr**. Target: **$10,000,000/yr of carry ABOVE the floor**. Har
 > **Honest fundability verdict.** The CURRENT real harvestable universe is 22 fundable independent books (of 25 harvestable markets), summing to $330,315 of depth-bound deployable AUM at an aggregate 22.93%/yr (RWA floor 3.40%/yr) → $64,779/yr of carry ABOVE the floor. That is only 0.65% of the $10M/yr target — a gap of $9,935,221/yr. Honest verdict: the CURRENT real Pendle PT carry market is TOO THIN to fund $10M/yr above the floor on its own. At the current per-book average of $2,945/yr above floor, clearing $10M/yr would need ~3397 current-average books — far more than the real universe offers today. The §9 exit-capacity cap binds each book to a small depth-bound size, and even SUMMED across every harvestable maturity the real depth is limited. Closing the gap requires the market to GROW (deeper PT pools per maturity → higher per-book deployable), MORE venues/books (lending-carry on PT collateral, more maturities, other chains, additional protocols), AND/OR the OTHER theses (the RWA cash-floor sleeve and directional/neutral ETH sleeves) carrying the balance of the $10M target. This is the honest scale truth: the rates-desk carry edge is REAL and SURVIVES across many gated books, but the current market depth alone does not get to $10M/yr — it is one diversifying sleeve of a larger book, not a standalone $10M business at today's depth.
 
 <!-- END rates-desk portfolio-of-desks (portfolio) -->
+
+<!-- BEGIN rates-desk exit-NAV-by-size schedule (exit_nav) -->
+
+## Liquidation-NAV-by-size — the per-ticket EXIT schedule (the flagship surface)
+
+_The investor-facing per-ticket exit schedule for the desk's OWN open carry book — what a forced unwind realises at $100k / $250k / $1M / $5M / $10M, and how long it takes. PUBLISHED AS A CONSERVATIVE LOWER BOUND (constant-product `L/(L+S)`), not a precise execution model: concentrated-liquidity Pendle PT pools are deeper near peg but FAR thinner in a forced unwind, so a defensible floor beats a precise-looking number we cannot defend. Depth is the SINGLE-market contemporaneous Pendle PT exit liquidity (never aggregated). Tied to the validated §9 Oct-2025 exit-liquidity stress (docs/RATES_DESK_VALIDATION.md#exit-liquidity (Oct-2025 stress)). PURE / fail-CLOSED / advisory. Re-runnable via `python3 -m spa_core.strategy_lab.rates_desk.exit_nav`._
+
+Book: **live** · market `0x177768caf9d0e036725a51d3f60d7e20f2d4d194` (susde) · gross $7,635 · depth $30,524 · as_of `2026-06-26` · source `rate_surface.exit_liquidity_usd`
+
+| ticket | gross $ | price impact % | net proceeds $ | haircut % | time-to-exit (days) | within 1 tick | flag |
+|---:|---:|---:|---:|---:|---:|:--:|---|
+| $100,000 | $100,000 | — | — | — | — | no | insufficient_contemporaneous_depth |
+| $250,000 | $250,000 | — | — | — | — | no | insufficient_contemporaneous_depth |
+| $1,000,000 | $1,000,000 | — | — | — | — | no | insufficient_contemporaneous_depth |
+| $5,000,000 | $5,000,000 | — | — | — | — | no | insufficient_contemporaneous_depth |
+| $10,000,000 | $10,000,000 | — | — | — | — | no | insufficient_contemporaneous_depth |
+
+> **Honest framing.** Conservative LOWER BOUND on forced-unwind proceeds, NOT a precise execution estimate or a realized exit. The constant-product L/(L+S) model under-states deliverable proceeds near peg and is published only as a defensible floor; concentrated-liquidity Pendle pools can be far thinner in a forced unwind. Single-market depth, never aggregated. Advisory — moves no capital.
+
+<!-- END rates-desk exit-NAV-by-size schedule (exit_nav) -->

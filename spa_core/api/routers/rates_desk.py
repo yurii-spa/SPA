@@ -210,6 +210,42 @@ def get_rates_desk_proof(last_n: int = Query(default=12, ge=1, le=200)):
     }
 
 
+@router.get("/api/rates-desk/exit-nav")
+def get_rates_desk_exit_nav():
+    """Rates-Desk LIQUIDATION-NAV-BY-SIZE — the per-ticket exit schedule for the desk's open book.
+
+    Serves data/rates_desk/exit_nav.json VERBATIM (built by the deterministic exit_nav engine): for
+    each liquidation ticket ($100k/$250k/$1M/$5M/$10M) the CONSERVATIVE LOWER-BOUND net proceeds,
+    price impact, haircut, and time-to-exit against the SINGLE-market contemporaneous Pendle PT depth.
+    Read-only, graceful, fail-CLOSED: a missing/corrupt file yields an empty FLAGGED schedule with
+    as_of=null, NEVER a 500. is_advisory is ALWAYS true.
+    """
+    _meta = backtest_meta(
+        basis="conservative LOWER BOUND (constant-product L/(L+S)) on forced-unwind proceeds from "
+              "single-market contemporaneous Pendle PT exit liquidity; NOT realized exits, NOT a "
+              "precise execution model — tied to the Oct-2025 §9 exit-liquidity stress validation",
+        period="current schedule (see as_of)",
+    )
+    raw = read_state("rates_desk/exit_nav.json", {})
+    if not raw or not isinstance(raw, dict):
+        return {
+            "generated_at": None,
+            "model": "constant_product_amm_conservative_lower_bound",
+            "as_of": None,
+            "depth_usd": None,
+            "book": None,
+            "schedule": [],
+            "flagged": True,
+            "flag_reason": "exit_nav_unavailable",
+            "is_advisory": True,
+            "validation_ref": "docs/RATES_DESK_VALIDATION.md#exit-liquidity (Oct-2025 stress)",
+            "meta": _meta,
+        }
+    raw.setdefault("is_advisory", True)
+    raw.setdefault("meta", _meta)
+    return raw
+
+
 @router.get("/api/rates-desk/track")
 def get_rates_desk_track():
     """Rates-Desk LIVE paper forward-track — the validated FixedCarry sleeve, accruing.

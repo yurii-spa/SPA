@@ -164,19 +164,39 @@ def _discover_dex_depth(pools: List[dict], symbol: str) -> Tuple[float, int]:
 
 
 # ── exit-leg math (deterministic, fail-CLOSED) ────────────────────────────────────────────────
-def _on_chain_exit_frac(dex_tvl_usd: float, size_usd: float) -> Optional[float]:
-    """Realised fraction of NAV from selling `size_usd` into aggregate DEX depth `dex_tvl_usd`.
+def dex_exit_frac(depth_usd: float, size_usd: float) -> Optional[float]:
+    """Realised fraction of NAV from selling `size_usd` into aggregate DEX depth `depth_usd`.
 
-    Returns None if there is NO qualifying DEX depth (the permissioned-token case — the exit
-    does not exist, NOT a 100% fill). One-sided liquidity L ≈ dex_tvl/2; constant-product average
+    The repo's ONE constant-product slippage primitive — the conservative lower bound on what a
+    forced unwind realises. Promoted from the RWA backstop's `_on_chain_exit_frac` to be REUSED by
+    the rates-desk exit-NAV engine (the alias below preserves the old private name so nothing
+    breaks). Same body.
+
+    Returns None if there is NO qualifying depth (the permissioned-token / no-pool case — the exit
+    does not exist, NOT a 100% fill). One-sided liquidity L ≈ depth/2; constant-product average
     realised price fraction = L/(L+S), minus a fixed routing/taker cost. Monotonic decreasing in
-    size_usd. Floored at 0."""
-    if dex_tvl_usd <= 0.0:
+    size_usd. Floored at 0.
+
+    Conservative by construction: real concentrated-liquidity pools (Pendle PT) can be deeper near
+    peg but FAR thinner in a forced unwind, so `L/(L+S)` is published only as a LOWER BOUND, never
+    as a precise execution model (see the rates-desk exit-NAV engine + the Oct-2025 §9 stress)."""
+    if not isinstance(depth_usd, (int, float)) or not isinstance(size_usd, (int, float)):
         return None
-    one_sided = dex_tvl_usd / 2.0
+    # non-finite (NaN/inf) or non-positive depth/size ⇒ no defensible bound ⇒ fail-CLOSED to None.
+    if depth_usd != depth_usd or size_usd != size_usd:  # NaN
+        return None
+    if depth_usd in (float("inf"), float("-inf")) or size_usd in (float("inf"), float("-inf")):
+        return None
+    if depth_usd <= 0.0 or size_usd < 0.0:
+        return None
+    one_sided = depth_usd / 2.0
     slip_frac = one_sided / (one_sided + size_usd)        # < 1, decreasing in size
     routing = DEX_ROUTING_COST_BPS / 10_000.0
     return max(0.0, slip_frac - routing)
+
+
+# Backward-compatible alias — the RWA backstop engine + its tests call the private name.
+_on_chain_exit_frac = dex_exit_frac
 
 
 def _redemption_exit_frac(asset: CollateralAsset) -> Optional[float]:

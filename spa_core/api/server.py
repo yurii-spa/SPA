@@ -180,6 +180,7 @@ get_rates_desk_opportunities = rates_desk.get_rates_desk_opportunities
 get_rates_desk_decisions = rates_desk.get_rates_desk_decisions
 get_rates_desk_proof = rates_desk.get_rates_desk_proof
 get_rates_desk_track = rates_desk.get_rates_desk_track
+get_rates_desk_exit_nav = rates_desk.get_rates_desk_exit_nav
 
 v1_status = v1.v1_status
 v1_golive = v1.v1_golive
