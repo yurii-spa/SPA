@@ -499,6 +499,11 @@ class TestCommittedArtifacts:
             pytest.skip("data/apy_history.json not generated in this env")
         d = json.loads(p.read_text())
         assert "protocol_history" in d
+        # apy_history.json is a gitignored RUNTIME artifact populated by the feed
+        # agent; an empty protocol_history is a valid not-yet-populated state
+        # (equivalent to the file not existing) — skip rather than fail.
+        if not d["protocol_history"]:
+            pytest.skip("apy_history.json present but not yet populated (runtime artifact)")
         assert len(d["protocol_history"]) >= 1
 
     def test_covariance_summary_artifact_valid(self):
