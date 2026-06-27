@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.spa.analytics_tier_b</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_analytics_tier_b.sh</string>
+	</array>
+	<key>StandardErrorPath</key>
+	<string>/tmp/spa_analytics_tier_b.launchd.err</string>
+	<key>StandardOutPath</key>
+	<string>/tmp/spa_analytics_tier_b.launchd.out</string>
+	<key>StartInterval</key>
+	<integer>3600</integer>
+	<key>WorkingDirectory</key>
+	<string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+</dict>
+</plist>

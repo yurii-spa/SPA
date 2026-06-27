@@ -2,50 +2,27 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!--
-    L4 — Base Gas Monitor (ежедневно в 06:00 UTC)
-    Module: spa_core/monitoring/base_gas_monitor.py
-    Функция: ADR-025 kill-switch — Base gas > 10 Gwei 3+ дней подряд
-             → kill_switch_active=true → cycle_runner должен проверять этот флаг
-             и сократить Base-аллокацию до 0%.
-             Один reading в сутки (dedup по calendar date).
-             Источники: BlockNative / Infura gas API (fallback: 0.1 Gwei)
-    Пишет:   data/base_gas_history.json  (ring-buffer 30 дней, atomic)
-    CLI:     python3 -m spa_core.monitoring.base_gas_monitor - -run
-    Установка:
-      cp scripts/com.spa.base_gas_monitor.plist ~/Library/LaunchAgents/
-      launchctl load ~/Library/LaunchAgents/com.spa.base_gas_monitor.plist
-    -->
-
-    <key>Label</key>
-    <string>com.spa.base_gas_monitor</string>
-
-    <key>ProgramArguments</key>
-    <array>
-        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
-        <string>-m</string>
-        <string>spa_core.monitoring.base_gas_monitor</string>
-        <string>--run</string>
-    </array>
-
-    <key>WorkingDirectory</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
-
-    <!-- Ежедневно в 06:00 (за 2 часа до cycle_runner в 08:00) -->
-    <key>StartCalendarInterval</key>
-    <dict>
-        <key>Hour</key>
-        <integer>6</integer>
-        <key>Minute</key>
-        <integer>0</integer>
-    </dict>
-
-    <key>RunAtLoad</key>
-    <false/>
-
-    <key>StandardOutPath</key>
-    <string>/tmp/spa_base_gas_monitor.log</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/spa_base_gas_monitor_err.log</string>
+	<key>Label</key>
+	<string>com.spa.base_gas_monitor</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_base_gas_monitor.sh</string>
+	</array>
+	<key>RunAtLoad</key>
+	<false/>
+	<key>StandardErrorPath</key>
+	<string>/tmp/spa_base_gas_monitor.launchd.err</string>
+	<key>StandardOutPath</key>
+	<string>/tmp/spa_base_gas_monitor.launchd.out</string>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key>
+		<integer>6</integer>
+		<key>Minute</key>
+		<integer>0</integer>
+	</dict>
+	<key>WorkingDirectory</key>
+	<string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
 </dict>
 </plist>

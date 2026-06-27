@@ -19,9 +19,9 @@
 	<key>RunAtLoad</key>
 	<false/>
 	<key>StandardErrorPath</key>
-	<string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/mass_tournament.err</string>
+	<string>/tmp/spa_mass_tournament.launchd.err</string>
 	<key>StandardOutPath</key>
-	<string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/mass_tournament.log</string>
+	<string>/tmp/spa_mass_tournament.launchd.out</string>
 	<key>StartCalendarInterval</key>
 	<dict>
 		<key>Hour</key>

@@ -2,31 +2,29 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>Label</key>
-    <string>com.spa.telegram_daily</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
-        <string>-m</string>
-        <string>spa_core.reporting.daily_telegram_report</string>
-        <string>--run</string>
-    </array>
-    <key>WorkingDirectory</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
-    <key>StartCalendarInterval</key>
-    <dict>
-        <key>Hour</key>
-        <integer>8</integer>
-        <key>Minute</key>
-        <integer>0</integer>
-    </dict>
-    <key>RunAtLoad</key>
-    <false/>
-    <key>KeepAlive</key>
-    <false/>
-    <key>StandardOutPath</key>
-    <string>/tmp/spa_telegram_daily.log</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/spa_telegram_daily_err.log</string>
+	<key>KeepAlive</key>
+	<false/>
+	<key>Label</key>
+	<string>com.spa.telegram_daily</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_telegram_daily.sh</string>
+	</array>
+	<key>RunAtLoad</key>
+	<false/>
+	<key>StandardErrorPath</key>
+	<string>/tmp/spa_telegram_daily.launchd.err</string>
+	<key>StandardOutPath</key>
+	<string>/tmp/spa_telegram_daily.launchd.out</string>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key>
+		<integer>8</integer>
+		<key>Minute</key>
+		<integer>0</integer>
+	</dict>
+	<key>WorkingDirectory</key>
+	<string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
 </dict>
 </plist>

@@ -19,9 +19,9 @@
 	<key>RunAtLoad</key>
 	<false/>
 	<key>StandardErrorPath</key>
-	<string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/tier1_governance.err</string>
+	<string>/tmp/spa_tier1_governance.launchd.err</string>
 	<key>StandardOutPath</key>
-	<string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/tier1_governance.log</string>
+	<string>/tmp/spa_tier1_governance.launchd.out</string>
 	<key>StartCalendarInterval</key>
 	<dict>
 		<key>Hour</key>

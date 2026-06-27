@@ -2,46 +2,24 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!--
-    L2 — Cycle Health Monitor (каждые 5 минут)
-    Module: spa_core/monitoring/cycle_health_monitor.py
-    Функция: мониторит здоровье cycle_runner — пропущенные/задержанные циклы,
-             аномалии equity, свежесть data-файлов.
-             Status: OK / DEGRADED / FAILED; health_score 0-100.
-    Пишет:   data/cycle_health_log.json  (ring-buffer 100, atomic)
-    Exit:    0 = HEALTHY/WARNING, 1 = CRITICAL
-    CLI:     python3 -m spa_core.monitoring.cycle_health_monitor -run
-    Установка:
-      cp scripts/com.spa.cycle_health.plist ~/Library/LaunchAgents/
-      launchctl load ~/Library/LaunchAgents/com.spa.cycle_health.plist
-    -->
-
-    <key>Label</key>
-    <string>com.spa.cycle_health</string>
-
-    <key>ProgramArguments</key>
-    <array>
-        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
-        <string>-m</string>
-        <string>spa_core.monitoring.cycle_health_monitor</string>
-        <string>--run</string>
-    </array>
-
-    <key>WorkingDirectory</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
-
-    <key>StartInterval</key>
-    <integer>300</integer>
-
-    <key>RunAtLoad</key>
-    <true/>
-
-    <key>ThrottleInterval</key>
-    <integer>60</integer>
-
-    <key>StandardOutPath</key>
-    <string>/tmp/spa_cycle_health.log</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/spa_cycle_health_err.log</string>
+	<key>Label</key>
+	<string>com.spa.cycle_health</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_cycle_health.sh</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/tmp/spa_cycle_health.launchd.err</string>
+	<key>StandardOutPath</key>
+	<string>/tmp/spa_cycle_health.launchd.out</string>
+	<key>StartInterval</key>
+	<integer>300</integer>
+	<key>ThrottleInterval</key>
+	<integer>60</integer>
+	<key>WorkingDirectory</key>
+	<string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
 </dict>
 </plist>

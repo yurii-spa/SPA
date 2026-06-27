@@ -21,6 +21,9 @@ EXPECTED=(
   "com.spa.checkpoint-7day"
   com.spa.weekly_backup
   com.spa.analytics_tier_c
+  com.spa.analytics_tier_b
+  "com.spa.bts-feed"
+  "com.spa.bts-monitor"
 )
 
 echo "=== SPA Agent Status $(date) ==="

@@ -1,53 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<!--
-    MP-1427 (v10.43): Updated to use run_daily_paper_cycle.sh wrapper.
-    Shell script wraps CPACycleWithEvidence (not cycle_runner directly),
-    logs to logs/daily_cycle_YYYYMMDD.log per-day file.
-
-    BUG FIX (TELEGRAM_AUDIT 2026-06-18):
-        Was: StartInterval 1800 (every 30 minutes) — caused Telegram spam
-             because _run_cycle_alerts fired send_red_flag / send_gap_alert
-             (no dedup) every 30 min whenever red_flags.json was non-empty.
-        Now: StartCalendarInterval 08:00 daily — one cycle per day as intended.
-        CLAUDE.md has always said "ежедневно 08:00"; the plist was wrong.
-
-    BUG FIX (PATH 2026-06-20 v12.03):
-        Was: PATH без miniconda → python3 → /usr/bin/python3 (нет spa_core пакетов)
-        Now: PATH включает /Users/yuriikulieshov/miniconda3/bin (как в cyclerunner)
-        Also: HOME добавлен (run_daily_paper_cycle.sh использует ~ для путей)
-        Also: SPA_ENV=production добавлен (паритет с cyclerunner)
--->
 <dict>
-    <key>Label</key>
-    <string>com.spa.daily_cycle</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/bin/bash</string>
-        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/run_daily_paper_cycle.sh</string>
-    </array>
-    <key>StartCalendarInterval</key>
-    <dict>
-        <key>Hour</key>
-        <integer>8</integer>
-        <key>Minute</key>
-        <integer>0</integer>
-    </dict>
-    <key>RunAtLoad</key>
-    <false/>
-    <key>StandardOutPath</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/launchd_stdout.log</string>
-    <key>StandardErrorPath</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/launchd_stderr.log</string>
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>HOME</key>
-        <string>/Users/yuriikulieshov</string>
-        <key>PATH</key>
-        <string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
-        <key>SPA_ENV</key>
-        <string>production</string>
-    </dict>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>HOME</key>
+		<string>/Users/yuriikulieshov</string>
+		<key>PATH</key>
+		<string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+		<key>SPA_ENV</key>
+		<string>production</string>
+	</dict>
+	<key>Label</key>
+	<string>com.spa.daily_cycle</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/run_daily_paper_cycle.sh</string>
+	</array>
+	<key>RunAtLoad</key>
+	<false/>
+	<key>StandardErrorPath</key>
+	<string>/tmp/spa_daily_cycle.launchd.err</string>
+	<key>StandardOutPath</key>
+	<string>/tmp/spa_daily_cycle.launchd.out</string>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key>
+		<integer>8</integer>
+		<key>Minute</key>
+		<integer>0</integer>
+	</dict>
 </dict>
 </plist>

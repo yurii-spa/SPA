@@ -8,17 +8,15 @@
 	<string>com.spa.telegram_milestone</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
-		<string>-m</string>
-		<string>spa_core.reporting.alert_on_milestone</string>
-		<string>--run</string>
+		<string>/bin/bash</string>
+		<string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_telegram_milestone.sh</string>
 	</array>
 	<key>RunAtLoad</key>
 	<false/>
 	<key>StandardErrorPath</key>
-	<string>/tmp/spa_telegram_milestone_err.log</string>
+	<string>/tmp/spa_telegram_milestone.launchd.err</string>
 	<key>StandardOutPath</key>
-	<string>/tmp/spa_telegram_milestone.log</string>
+	<string>/tmp/spa_telegram_milestone.launchd.out</string>
 	<key>StartInterval</key>
 	<integer>86400</integer>
 	<key>WorkingDirectory</key>

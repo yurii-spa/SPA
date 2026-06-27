@@ -17,23 +17,15 @@
 	<string>com.spa.apiserver</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
-		<string>-m</string>
-		<string>uvicorn</string>
-		<string>spa_core.api.server:app</string>
-		<string>--host</string>
-		<string>127.0.0.1</string>
-		<string>--port</string>
-		<string>8765</string>
-		<string>--log-level</string>
-		<string>warning</string>
+		<string>/bin/bash</string>
+		<string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_apiserver.sh</string>
 	</array>
 	<key>RunAtLoad</key>
 	<true/>
 	<key>StandardErrorPath</key>
-	<string>/tmp/spa_api_err.log</string>
+	<string>/tmp/spa_apiserver.launchd.err</string>
 	<key>StandardOutPath</key>
-	<string>/tmp/spa_api.log</string>
+	<string>/tmp/spa_apiserver.launchd.out</string>
 	<key>WorkingDirectory</key>
 	<string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
 </dict>

@@ -2,51 +2,24 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!--
-    L2b — Governance Watcher (каждые 15 минут)
-    Module: spa_core/alerts/governance_watcher.py
-    Функция: сканирует активные governance-предложения по протоколам
-             через Snapshot (GraphQL) и Tally (REST).
-             Категории: parameter_change / treasury / upgrade / emergency /
-                        risk_param / general / unknown
-             Severity: HIGH (upgrade/emergency/risk_param на активной позиции)
-                       MEDIUM (parameter_change/treasury) / LOW (general)
-    Пишет:   data/governance_proposals.json  (atomic)
-    CLI:     python3 -m spa_core.alerts.governance_watcher - -write
-    Внешние API: Snapshot GraphQL + Tally REST (offline-tolerant, never raises)
-    Интервал 15 мин (не 5) — внешние API медленнее, предложения редки.
-    Установка:
-      cp scripts/com.spa.governance_watcher.plist ~/Library/LaunchAgents/
-      launchctl load ~/Library/LaunchAgents/com.spa.governance_watcher.plist
-    -->
-
-    <key>Label</key>
-    <string>com.spa.governance_watcher</string>
-
-    <key>ProgramArguments</key>
-    <array>
-        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
-        <string>-m</string>
-        <string>spa_core.alerts.governance_watcher</string>
-        <string>--write</string>
-    </array>
-
-    <key>WorkingDirectory</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
-
-    <!-- 15 минут — меньше нагрузки на публичные GraphQL API -->
-    <key>StartInterval</key>
-    <integer>900</integer>
-
-    <key>RunAtLoad</key>
-    <true/>
-
-    <key>ThrottleInterval</key>
-    <integer>120</integer>
-
-    <key>StandardOutPath</key>
-    <string>/tmp/spa_governance_watcher.log</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/spa_governance_watcher_err.log</string>
+	<key>Label</key>
+	<string>com.spa.governance_watcher</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_governance_watcher.sh</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/tmp/spa_governance_watcher.launchd.err</string>
+	<key>StandardOutPath</key>
+	<string>/tmp/spa_governance_watcher.launchd.out</string>
+	<key>StartInterval</key>
+	<integer>900</integer>
+	<key>ThrottleInterval</key>
+	<integer>120</integer>
+	<key>WorkingDirectory</key>
+	<string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
 </dict>
 </plist>

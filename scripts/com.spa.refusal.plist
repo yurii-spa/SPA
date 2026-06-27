@@ -2,54 +2,29 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!--
-    Rates-Desk Refusal Engine (daily, ADVISORY)
-    Module: spa_core.strategy_lab.rates_desk.refusal_engine
-    Function: scores every tracked underlying (eeth/ezeth/weeth/steth/reth) from LIVE feed data
-              using the §8-validated tail-risk scorer + REFUSE classifier, writes a per-underlying
-              SAFE/WATCH/REFUSE/UNKNOWN verdict to data/refusal_status.json (atomic).
-    ADVISORY ONLY: never trades, never touches the go-live track, never overrides a sleeve kill.
-    Schedule: daily 05:45 local (before the 08:00 UTC daily_cycle) + RunAtLoad.
-    Writes:  data/refusal_status.json (atomic write)
-    Exit:    0 = success, non-0 = internal error.
-    CLI:     python3 -m spa_core.strategy_lab.rates_desk.refusal_engine
-    Install:
-      cp scripts/com.spa.refusal.plist ~/Library/LaunchAgents/
-      launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.spa.refusal.plist
-      launchctl kickstart -k gui/$(id -u)/com.spa.refusal
-    -->
-
-    <key>Label</key>
-    <string>com.spa.refusal</string>
-
-    <key>ProgramArguments</key>
-    <array>
-        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
-        <string>-m</string>
-        <string>spa_core.strategy_lab.rates_desk.refusal_engine</string>
-    </array>
-
-    <key>WorkingDirectory</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
-
-    <key>StartCalendarInterval</key>
-    <dict>
-        <key>Hour</key>
-        <integer>5</integer>
-        <key>Minute</key>
-        <integer>45</integer>
-    </dict>
-
-    <key>RunAtLoad</key>
-    <true/>
-
-    <!-- Не запускать повторно если предыдущий ещё не завершился -->
-    <key>ThrottleInterval</key>
-    <integer>300</integer>
-
-    <key>StandardOutPath</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/refusal.log</string>
-    <key>StandardErrorPath</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude/logs/refusal.err</string>
+	<key>Label</key>
+	<string>com.spa.refusal</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_refusal.sh</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/tmp/spa_refusal.launchd.err</string>
+	<key>StandardOutPath</key>
+	<string>/tmp/spa_refusal.launchd.out</string>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key>
+		<integer>5</integer>
+		<key>Minute</key>
+		<integer>45</integer>
+	</dict>
+	<key>ThrottleInterval</key>
+	<integer>300</integer>
+	<key>WorkingDirectory</key>
+	<string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
 </dict>
 </plist>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.spa.telegram_watcher</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
+        <string>-m</string>
+        <string>spa_core.monitoring.telegram_watcher</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <!-- Run every 5 minutes -->
+    <key>StartInterval</key>
+    <integer>300</integer>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/yuriikulieshov/Library/Logs/SPA/telegram_watcher.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/yuriikulieshov/Library/Logs/SPA/telegram_watcher.err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/yuriikulieshov</string>
+        <key>PATH</key>
+        <string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>SPA_ENV</key>
+        <string>production</string>
+        <key>PYTHONPATH</key>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+    </dict>
+
+    <!-- Throttle restart if it crashes to avoid log spam -->
+    <key>ThrottleInterval</key>
+    <integer>60</integer>
+</dict>
+</plist>

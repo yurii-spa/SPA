@@ -2,44 +2,24 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!--
-    Dashboard Watcher (every 5 minutes)
-    Module: spa_core/monitoring/dashboard_watcher.py
-    Polls the live API (127.0.0.1:8765/api/live/*) and sends Telegram alerts
-    on agent down, portfolio anomaly, system CRITICAL, API unreachable, or
-    GoLive regression. Silent on success; 6-hourly liveness pulse.
-    STDLIB ONLY, no LLM. Reads our own trusted JSON API.
-    CLI:     python3 -m spa_core.monitoring.dashboard_watcher
-    Install:
-      cp scripts/com.spa.dashboard_watcher.plist ~/Library/LaunchAgents/
-      launchctl load ~/Library/LaunchAgents/com.spa.dashboard_watcher.plist
-    -->
-
-    <key>Label</key>
-    <string>com.spa.dashboard_watcher</string>
-
-    <key>ProgramArguments</key>
-    <array>
-        <string>/Users/yuriikulieshov/miniconda3/bin/python3</string>
-        <string>-m</string>
-        <string>spa_core.monitoring.dashboard_watcher</string>
-    </array>
-
-    <key>WorkingDirectory</key>
-    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
-
-    <key>StartInterval</key>
-    <integer>300</integer>
-
-    <key>RunAtLoad</key>
-    <true/>
-
-    <key>ThrottleInterval</key>
-    <integer>60</integer>
-
-    <key>StandardOutPath</key>
-    <string>/tmp/spa_dashboard_watcher.log</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/spa_dashboard_watcher_err.log</string>
+	<key>Label</key>
+	<string>com.spa.dashboard_watcher</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_dashboard_watcher.sh</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/tmp/spa_dashboard_watcher.launchd.err</string>
+	<key>StandardOutPath</key>
+	<string>/tmp/spa_dashboard_watcher.launchd.out</string>
+	<key>StartInterval</key>
+	<integer>300</integer>
+	<key>ThrottleInterval</key>
+	<integer>60</integer>
+	<key>WorkingDirectory</key>
+	<string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
 </dict>
 </plist>

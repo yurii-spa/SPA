@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 # install_all_agents.sh — Установка ВСЕХ критических SPA LaunchAgents
+# v1365 (2026-06-27) — STABLE-AGENT STANDARD: every plist this installs now uses
+#   the /bin/bash wrapper (scripts/agent_<name>.sh -> agent_template.sh) and
+#   /tmp/spa_<name>.launchd.{out,err} log paths (NEVER ~/Documents — TCC blocks
+#   launchd writes there → exit 78). The plists referenced below were migrated to
+#   that standard, so a clean reinstall is exit-78-proof. Reconciled 3 missing
+#   agents (digest_daily, digest_weekly, telegram_bot); retired duplicate
+#   bot_commands (same module as telegram_bot → 409). See CLAUDE.md rule #11.
 # v1364 (2026-06-25) — SRE audit: added 18 loaded-but-uninstalled agents
 #   (apiserver/httpserver/bot_commands/dashboard_watcher, hy_cycle/lp_cycle,
 #    portfolio/peg/red_flag/governance/base_gas/sky/bts monitors,
@@ -217,6 +224,18 @@ install_agent \
     "com.spa.telegram_milestone" \
     "1"
 
+# 17b. Telegram digest (daily) — was MISSING from installer (audit 2026-06-27).
+install_agent \
+    "$REPO/scripts/com.spa.digest_daily.plist" \
+    "com.spa.digest_daily" \
+    "1"
+
+# 17c. Telegram digest (weekly) — was MISSING from installer (audit 2026-06-27).
+install_agent \
+    "$REPO/scripts/com.spa.digest_weekly.plist" \
+    "com.spa.digest_weekly" \
+    "1"
+
 # 18. Dashboard static server — :8767 (moved off :8766 to avoid familyfund conflict)
 install_agent \
     "$REPO/scripts/com.spa.dashboard.plist" \
@@ -286,17 +305,27 @@ install_agent \
     "com.spa.apiserver" \
     "1"
 
-# 24. HTTP server — stdlib family-fund/static server (legacy :8765 sibling)
+# 24. (DISABLED 2026-06-27) HTTP server — stdlib family-fund server binds :8765, the
+#     SAME port apiserver (uvicorn) owns → crash-loops on EADDRINUSE (exit 1). It was
+#     NEVER actually running its module (a stale `http.server` orphan masked this).
+#     Do NOT install until the port conflict is resolved (give httpserver its own port,
+#     or retire it in favour of apiserver). Its plist is on-standard for when fixed.
+# install_agent \
+#     "$REPO/scripts/com.spa.httpserver.plist" \
+#     "com.spa.httpserver" \
+#     "1"
+
+# 25. Telegram bot — the live interactive command poller (long-running, KeepAlive).
+#     CANONICAL bot. plist in launchd/. Was MISSING from installer (audit 2026-06-27).
 install_agent \
-    "$REPO/scripts/com.spa.httpserver.plist" \
-    "com.spa.httpserver" \
+    "$REPO/launchd/com.spa.telegram_bot.plist" \
+    "com.spa.telegram_bot" \
     "1"
 
-# 25. Bot commands — Telegram bot command poller (long-running)
-install_agent \
-    "$REPO/scripts/com.spa.bot_commands.plist" \
-    "com.spa.bot_commands" \
-    "1"
+# 25b. (RETIRED 2026-06-27) bot_commands ran the SAME module (spa_core.telegram.bot)
+#      as telegram_bot above → two pollers = Telegram getUpdates 409 conflict. Only
+#      ONE poller may run; telegram_bot is canonical. Do NOT reinstall bot_commands.
+#      Its plist/wrapper are kept on-standard but it is intentionally not loaded.
 
 # 26. Dashboard watcher — polls live API → Telegram alerts (every 5 min)
 install_agent \
