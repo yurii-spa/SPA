@@ -645,8 +645,12 @@ def test_pipeline_registers_in_manifest():
 
 def test_pipeline_section_health_tracked():
     src = _pipeline_source()
-    assert '_section_ok("golive_readiness_score")' in src
-    assert '_section_fail("golive_readiness_score")' in src
+    # P3-8/P5-9: the former nested `_section_ok`/`_section_fail` helpers were
+    # promoted to ExportContext methods (`ctx.section_ok`/`ctx.section_fail`).
+    # Behaviour is identical — each export section's health is still recorded
+    # under its section name; only the call spelling changed.
+    assert 'ctx.section_ok("golive_readiness_score")' in src
+    assert 'ctx.section_fail("golive_readiness_score")' in src
 
 
 def test_pipeline_call_is_guarded():
@@ -657,7 +661,7 @@ def test_pipeline_call_is_guarded():
     # A 'try:' must precede the import within the last few lines.
     assert any(line.strip() == "try:" for line in head.splitlines()[-4:])
     tail = src[idx:idx + 1200]
-    assert "_section_fail(\"golive_readiness_score\")" in tail
+    assert 'ctx.section_fail("golive_readiness_score")' in tail
 
 
 # ─── SPA-V366: combined go/no-go gate (operational readiness + checklist) ─────
@@ -878,8 +882,11 @@ def test_pipeline_registers_combined_in_manifest():
 
 def test_pipeline_combined_section_health_tracked():
     src = _pipeline_source()
-    assert '_section_ok("golive_combined_verdict")' in src
-    assert '_section_fail("golive_combined_verdict")' in src
+    # P3-8/P5-9: nested `_section_ok`/`_section_fail` -> ExportContext methods
+    # (`ctx.section_ok`/`ctx.section_fail`). Same section-health tracking,
+    # different call spelling.
+    assert 'ctx.section_ok("golive_combined_verdict")' in src
+    assert 'ctx.section_fail("golive_combined_verdict")' in src
 
 
 def test_pipeline_combined_call_is_guarded():
@@ -890,7 +897,7 @@ def test_pipeline_combined_call_is_guarded():
     head = src[:idx]
     assert any(line.strip() == "try:" for line in head.splitlines()[-4:])
     tail = src[idx:idx + 1200]
-    assert '_section_fail("golive_combined_verdict")' in tail
+    assert 'ctx.section_fail("golive_combined_verdict")' in tail
 
 
 def test_pipeline_combined_runs_after_readiness_score():
