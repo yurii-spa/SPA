@@ -1,38 +1,43 @@
 ---
-// /dashboard — the SINGLE canonical dashboard for earn-defi.com.
+// /dashboard — the SINGLE canonical COMMAND CENTER for earn-defi.com.
 //
-// This is now a FIRST-CLASS page of the unified site: it renders inside <Layout>
+// This is a FIRST-CLASS page of the unified site: it renders inside <Layout>
 // (canonical SiteHeader + PaperStrip + SiteFooter + Console design tokens), so it
 // looks like /track-record and /research — one site, not a separate app. The old
 // 756KB self-contained public/app.html blob is retired; this replaces it.
 //
-// The live, real-time surface is the <DashboardLive /> React island (client:load),
-// which polls api.earn-defi.com every ~15s (SSOT facts + fleet + status + golive)
-// and renders an honest LIVE / "snapshot — live API offline" state. No fabricated
-// numbers offline. Bilingual (EN|RU) via the same data-ru / spa_lang mechanism the
-// rest of the site uses.
+// The live surface is the <DashboardLive /> React island (client:load): a tabbed
+// hub with six sections — Overview, Parallel strategies (Strategy Lab sleeves),
+// Tournament, Research desks (BTC/ETH/RWA), System, and How-to-use. Each section
+// polls its OWN endpoint(s) on api.earn-defi.com every ~15s and shows an honest
+// per-section LIVE / "offline" state; a dead endpoint degrades to "—" for that
+// section only and never breaks the others. No fabricated numbers offline.
+// Bilingual (EN|RU) via the same data-ru / spa_lang mechanism the rest of the
+// site uses. The dashboard is the navigable HUB — it deep-links to /rates-desk,
+// /structural-desk, /rwa-backstop, /tournament, /strategies, /system, /research.
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import DashboardLive from '../components/DashboardLive.jsx';
 ---
 
 <Layout
-  title="Live Dashboard — Paper Track in Real Time | earn-defi.com"
-  description="The live SPA dashboard: evidenced track days, go-live criteria, paper portfolio, agent fleet and safety state — updating in real time from api.earn-defi.com. Paper / research, not investment advice."
+  title="Command Center — Live Dashboard | earn-defi.com"
+  description="The SPA command center: paper track + go-live, the parallel Strategy-Lab sleeves, the strategy tournament, and the BTC/ETH/RWA research desks — all live from api.earn-defi.com in one navigable hub. Paper / research, not investment advice."
   canonical="https://earn-defi.com/dashboard"
 >
   <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
     <!-- Page title block (mirrors the doc/marketing template header) -->
     <section class="pt-16 pb-8">
-      <p class="text-xs font-mono uppercase tracking-[0.12em] text-text-faint mb-4" data-ru="Живой дашборд">Live dashboard</p>
-      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Бумажный трек в реальном времени">
-        The paper track, in real time
+      <p class="text-xs font-mono uppercase tracking-[0.12em] text-text-faint mb-4" data-ru="Командный центр">Command center</p>
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Всё в одном живом хабе">
+        Everything, in one live hub
       </h1>
-      <p class="text-lg text-white/50 leading-relaxed max-w-2xl" data-ru="Каждая метрика обновляется вживую из api.earn-defi.com — подтверждённые дни трека, критерии go-live, бумажный портфель, парк агентов и состояние защиты. Всё бумажное и исследовательское, не инвестиционный совет.">
-        Every metric updates live from <span class="font-mono text-white/70">api.earn-defi.com</span> —
-        evidenced track days, go-live criteria, the paper portfolio, the agent fleet, and the
-        safety state. All paper / research, not investment advice.
+      <p class="text-lg text-white/50 leading-relaxed max-w-2xl" data-ru="Не только бумажный трек. Используйте вкладки ниже, чтобы видеть параллельные стратегии Strategy Lab, турнир стратегий и research-desk’и по BTC / ETH / RWA — всё вживую из api.earn-defi.com. Каждая секция обновляется каждые ~15с и честно помечает live / офлайн. Всё бумажное и исследовательское, не инвестиционный совет.">
+        Not just the paper track. Use the tabs below to see the parallel Strategy-Lab sleeves,
+        the strategy tournament, and the BTC / ETH / RWA research desks — all live from
+        <span class="font-mono text-white/70">api.earn-defi.com</span>. Each section refreshes
+        every ~15s and honestly flags live / offline. All paper / research, not investment advice.
       </p>
     </section>
 
