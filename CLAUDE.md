@@ -85,6 +85,26 @@ track record (30 честных дней → go-live). Финмодель — `M
 
 Переустановить все: `bash ~/Documents/SPA_Claude/scripts/install_all_agents.sh`
 
+### 🔄 После ребута / OS-обновления
+
+Агенты — **gui-domain** LaunchAgents → грузятся при **логине пользователя** (НЕ при boot).
+После ребута: **залогинься один раз** → launchd сам поднимет весь fleet (RunAtLoad запустит
+one-shot'ы, KeepAlive — демоны apiserver/bot/cloudflared, расписания возобновятся; self_heal
+добьёт отставших). Все plist'ы на исправленном стандарте (bash-wrapper + /tmp логи) → **никакого
+exit-78** при загрузке (проверено симуляцией bootout+bootstrap = exit 0).
+
+Подтвердить/вылечить fleet одной командой после логина:
+```bash
+bash ~/Documents/SPA_Claude/scripts/verify_fleet_after_reboot.sh   # → ✅ FLEET HEALTHY или что чинить
+```
+Хелпер идемпотентен, скипает RETIRED-агентов (bot_commands/httpserver/telegram_daily/weekly/
+morning_digest/daily-paper-report — их plist'ы удалены, чтобы при ребуте не поднимались дубли → 409/флуд).
+
+**Для ПОЛНОСТЬЮ автономного восстановления без логина** (owner-решение, security trade-off):
+либо включить auto-login (`Системные настройки → Пользователи → Автовход` — пароль на boot не спросит),
+либо перенести критичные демоны (apiserver/cloudflared/bot) в system-domain LaunchDaemons (boot без логина, нужен sudo).
+Сейчас auto-login **выключен** → после ребута требуется один логин.
+
 ---
 
 ## 🏗️ Архитектура (реальный runtime)
