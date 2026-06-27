@@ -197,20 +197,29 @@ def test_api_route_registered():
 
 # ── 3. agent invocation path (plist + install registration) ────────────────────────────────────
 def test_launchd_plist_invokes_the_cli_module():
-    """The launchd plist runs miniconda python on the same module the CLI exposes, logs to
-    logs/rwa_safety_board.{log,err}, and RunAtLoad — mirroring com.spa.refusal."""
+    """The launchd plist runs the safety_board module daily via the standard
+    bash WRAPPER (agent_<name>.sh) — NOT a direct `python3 -m` (launchd can't
+    exec miniconda-python directly → exit 78) — and logs to /tmp (macOS TCC
+    blocks launchd writing under ~/Documents → exit 78). See CLAUDE.md rule #11
+    + scripts/agent_template.sh."""
     plist = _ROOT / "scripts" / "com.spa.rwa_safety_board.plist"
     assert plist.exists()
     with open(plist, "rb") as fh:
         d = plistlib.load(fh)
     assert d["Label"] == "com.spa.rwa_safety_board"
     args = d["ProgramArguments"]
-    assert args[-3:] == ["-m", "spa_core.strategy_lab.rwa_backstop.safety_board"] or \
-        args[1:] == ["-m", "spa_core.strategy_lab.rwa_backstop.safety_board"]
-    assert "python3" in args[0]
+    # Standard: /bin/bash → the per-agent wrapper (never direct python -m).
+    assert "bash" in args[0]
+    wrapper = next((a for a in args if a.endswith(".sh")), "")
+    assert "agent_rwa_safety_board" in wrapper or "rwa_safety_board" in wrapper, args
+    # The wrapper must ultimately run the safety_board module.
+    wrapper_path = _ROOT / "scripts" / Path(wrapper).name
+    if wrapper_path.exists():
+        assert "rwa_backstop.safety_board" in wrapper_path.read_text()
     assert d.get("RunAtLoad") is True
-    assert d["StandardOutPath"].endswith("logs/rwa_safety_board.log")
-    assert d["StandardErrorPath"].endswith("logs/rwa_safety_board.err")
+    # Logs in /tmp (NOT ~/Documents/logs — TCC → exit 78).
+    assert d["StandardOutPath"].startswith("/tmp/")
+    assert d["StandardErrorPath"].startswith("/tmp/")
     # daily cadence
     assert "StartCalendarInterval" in d
 
