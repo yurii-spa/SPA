@@ -133,6 +133,72 @@ def apply_kill_switch_override(
     return target_usd
 
 
+def apply_soft_derisk_gate(
+    target_usd: dict[str, float],
+    *,
+    current_positions: dict[str, float],
+    derisk_active: bool,
+    notes: list[str],
+) -> dict[str, float]:
+    """SOFT tier (ADR-034): de-risk → halt new allocations / no INCREASES.
+
+    When the evidenced drawdown is in the soft band ``[5%, 15%)`` the cycle must
+    NOT open any new position nor INCREASE an existing one — it may only HOLD or
+    REDUCE. This is enforced deterministically by capping every protocol's target
+    to its currently-held USD:
+
+        * a brand-new protocol (not currently held) is forced to 0.0  (no NEW);
+        * an existing protocol's target is clamped to ``min(target, held)``
+          (no INCREASE — a reduction below ``held`` is left intact).
+
+    The freed capital implicitly stays in cash (residual). Does NOT liquidate:
+    held positions are preserved at their current size when the allocator wanted
+    to keep or grow them. Mutates ``target_usd`` and ``notes`` in place and
+    returns ``target_usd`` (for symmetry with ``apply_kill_switch_override``).
+
+    Deterministic, fail-safe: when not active it is a no-op.
+    """
+    if not derisk_active:
+        return target_usd
+
+    held = {
+        str(p): float(v)
+        for p, v in (current_positions or {}).items()
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and float(v) > 0
+    }
+    blocked_new: list[str] = []
+    capped: list[str] = []
+    for proto in list(target_usd.keys()):
+        try:
+            want = float(target_usd[proto])
+        except (TypeError, ValueError):
+            want = 0.0
+        held_usd = held.get(proto, 0.0)
+        if held_usd <= 0.0:
+            # Not currently held → no NEW position allowed under de-risk.
+            if want > 0.0:
+                blocked_new.append(proto)
+            target_usd[proto] = 0.0
+        elif want > held_usd:
+            # Currently held → no INCREASE; clamp to the held size (hold).
+            target_usd[proto] = held_usd
+            capped.append(proto)
+        # want <= held_usd (a reduction or unchanged hold) → left intact.
+
+    log.warning(
+        "SOFT DE-RISK gate ACTIVE (ADR-034): blocked %d new, capped %d increase "
+        "(hold/reduce only)",
+        len(blocked_new),
+        len(capped),
+    )
+    notes.append(
+        "soft_derisk_gate: drawdown in [5%,15%) — halted new allocations / "
+        f"increases (blocked_new={blocked_new}, capped_increase={capped}); "
+        "hold/reduce only, NOT liquidated."
+    )
+    return target_usd
+
+
 def apply_base_gas_kill_switch(
     target_usd: dict[str, float],
     *,

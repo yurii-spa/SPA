@@ -111,6 +111,7 @@ from spa_core.paper_trading.cycle_gates import (  # noqa: F401 — re-exported
     apply_analytics_blocking_gate,
     apply_base_gas_kill_switch,
     apply_kill_switch_override,
+    apply_soft_derisk_gate,
 )
 from spa_core.paper_trading.cycle_reporting import (  # noqa: F401 — re-exported
     _last_trade_id_from_file,
@@ -911,6 +912,47 @@ def run_cycle(
         )
         _mark_safety_failure(f"kill_switch_check_error: {type(exc).__name__}: {exc}")
 
+    # ── Step 1c (ADR-034): SOFT-tier de-risk check — drawdown ∈ [5%, 15%) ──────
+    # Parallel to the HARD kill above. When the evidenced drawdown is in the soft
+    # band the cycle must HALT new allocations / block any position INCREASE
+    # (hold + reduce only) and emit an edge-triggered WARNING — it does NOT
+    # liquidate. Mutually exclusive with the HARD kill (which already all-cashes).
+    # Fail-safe: any error degrades to "no de-risk" (the HARD kill remains the
+    # fail-closed safety authority for a real collapse).
+    _derisk_active = False
+    _derisk_reason = ""
+    try:
+        from spa_core.governance.kill_switch import run_derisk_check
+
+        _derisk_equity = (
+            list(equity_doc.get("daily") or []) if isinstance(equity_doc, dict) else []
+        )
+        _derisk_status = run_derisk_check(equity_curve=_derisk_equity, data_dir=ddir)
+        _derisk_active = bool(_derisk_status.get("active"))
+        _derisk_reason = str(_derisk_status.get("reason") or "")
+        if _derisk_active:
+            log.warning("SOFT DE-RISK ACTIVE: %s", _derisk_reason)
+            notes.append(f"soft_derisk_active: {_derisk_reason}")
+            # Edge-triggered WARNING via the existing alert path (no flood).
+            if write and _derisk_status.get("should_alert"):
+                try:
+                    from spa_core.alerts.alert_manager import send_red_flag
+                    send_red_flag([{
+                        "protocol": "PORTFOLIO",
+                        "severity": "WARN",
+                        "category": "soft_derisk",
+                        "message": f"Soft de-risk (drawdown 5–15%): {_derisk_reason}",
+                        "source": "cycle_runner",
+                    }])
+                except Exception as _da_exc:  # noqa: BLE001
+                    log.warning("soft de-risk alert dispatch failed (%s)", _da_exc)
+    except Exception as _dexc:  # noqa: BLE001 — de-risk is advisory, never HALT
+        log.warning(
+            "soft de-risk check failed (%s) — continuing (hard kill is the "
+            "fail-closed authority)", _dexc,
+        )
+        notes.append(f"soft_derisk_check_error: {type(_dexc).__name__}")
+
     # ── Step 2: allocator → target allocation ─────────────────────────────
     alloc = (allocator or _default_allocator(ddir)).allocate()
     target_usd = {
@@ -1181,6 +1223,18 @@ def run_cycle(
         ks_triggered=_ks_triggered,
         ks_allocation=_ks_allocation,
         capital_usd=capital_usd,
+        notes=notes,
+    )
+
+    # ── Step 2c-soft (ADR-034): SOFT de-risk gate — halt new/increase ─────────
+    # Drawdown ∈ [5%, 15%): cap every protocol's target to its currently-held
+    # USD (no NEW positions, no INCREASES; hold + reduce stay allowed). Mutually
+    # exclusive with the HARD kill above (_derisk_active is False when killed),
+    # so this never fights the all-cash override.
+    target_usd = apply_soft_derisk_gate(
+        target_usd,
+        current_positions=current_positions,
+        derisk_active=_derisk_active,
         notes=notes,
     )
 

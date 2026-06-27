@@ -46,7 +46,21 @@ log = logging.getLogger("spa.kill_switch")
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
-DRAWDOWN_THRESHOLD_PCT = 15.0   # % просадки от 30-дневного максимума
+# TWO-TIER drawdown response (owner-approved 2026-06-27, ADR-034):
+#   • SOFT_DERISK_THRESHOLD_PCT (5%)  → DE-RISK state: HALT new allocations / no
+#     INCREASING exposure (hold + allow only REDUCING), emit an edge-triggered
+#     WARNING. Does NOT liquidate. This is the threshold the old RiskPolicy /
+#     CLAUDE.md "5% kill switch" actually referred to — it is now the soft
+#     de-risk threshold, not a full kill (rationale: a 5% drawdown is most often
+#     a recoverable depeg/vol wobble; panic-liquidating it crystallises a loss
+#     that would otherwise mean-revert).
+#   • DRAWDOWN_THRESHOLD_PCT  (15%)   → HARD kill: close everything to cash
+#     (a 15% drawdown on a stablecoin book signals real protocol collapse, not
+#     noise — full liquidation is correct). UNCHANGED behaviour.
+# Both tiers are computed STRICTLY over the EVIDENCED real series (T6/P5-4) and
+# are non-finite-safe (P5-1). See drawdown_tier() / DrawdownTier below.
+SOFT_DERISK_THRESHOLD_PCT = 5.0  # % просадки → soft de-risk (no new/increase)
+DRAWDOWN_THRESHOLD_PCT = 15.0   # % просадки от 30-дневного максимума → hard kill
 RED_FLAGS_THRESHOLD = 5          # количество красных флагов для срабатывания
 SHARPE_THRESHOLD = -1.0          # порог Sharpe ratio (нормальный период, ≥60 дней)
 LOOKBACK_DAYS = 30               # окно для drawdown/Sharpe
@@ -63,6 +77,14 @@ SHARPE_EARLY_THRESHOLD = -2.0   # мягкий порог в early period
 
 KILL_SWITCH_ACTIVE_FILENAME = "kill_switch_active.json"
 KILL_SWITCH_STATUS_FILENAME = "kill_switch_status.json"
+DERISK_STATUS_FILENAME = "derisk_status.json"  # soft-tier de-risk state (ADR-034)
+
+# Drawdown-tier enum values (strings, not an Enum, to stay stdlib-trivial and
+# JSON-serialisable). The three mutually-exclusive states of the evidenced
+# drawdown ladder.
+TIER_NONE = "NONE"              # drawdown < SOFT_DERISK_THRESHOLD_PCT → no action
+TIER_SOFT_DERISK = "SOFT_DERISK"  # SOFT ≤ drawdown < HARD → halt new/increase
+TIER_HARD_KILL = "HARD_KILL"   # drawdown ≥ DRAWDOWN_THRESHOLD_PCT → all-cash
 RED_FLAGS_FILENAME = "red_flags.json"
 ANALYTICS_FILENAME = "analytics_summary.json"
 ADAPTER_STATUS_FILENAME = "adapter_status.json"
@@ -161,6 +183,102 @@ def _load_held_protocols(data_dir: Path) -> set[str]:
     return held
 
 
+# ─── Shared evidenced-drawdown computation ──────────────────────────────────────
+
+
+def evidenced_drawdown_pct(equity_curve: list[dict]) -> float | None:
+    """Drawdown (%, ≥ 0) of the EVIDENCED real series over the lookback window.
+
+    The single, shared peak-to-current drawdown computation used by BOTH tiers
+    (soft de-risk + hard kill) so they can never disagree about the drawdown.
+
+    SAFETY contracts preserved verbatim from ``check_drawdown_trigger``:
+      * EVIDENCED-bars-only (T6/P5-4): warmup / seed / pre-anchor / backfill /
+        reconstructed bars are excluded BEFORE the 30-day window is taken, so an
+        inflated warmup peak can never fabricate a drawdown.
+      * NON-FINITE-SAFE (P5-1): every non-finite / non-positive close is dropped
+        as no-data (never masks nor fabricates a drawdown); a non-finite computed
+        drawdown returns ``None`` (fail-CLOSED — the caller treats it as "cannot
+        verify").
+
+    Returns
+    -------
+    float
+        The drawdown percentage (0.0 = at new highs, positive = below peak).
+    None
+        Not enough evidenced data to compute a drawdown, OR a corrupt
+        (non-finite) result — the caller must fail CLOSED on ``None``.
+    """
+    if not equity_curve or not isinstance(equity_curve, list):
+        return None
+
+    real_bars = evidenced_bars(equity_curve, paper_start=PAPER_REAL_START)
+    if not real_bars:
+        return None
+
+    window = real_bars[-LOOKBACK_DAYS:]
+    if not window:
+        return None
+
+    try:
+        closes = [float(bar.get("close_equity") or bar.get("equity") or 0.0)
+                  for bar in window]
+    except (TypeError, ValueError):
+        return None
+
+    # Drop every non-finite / non-positive close (corrupt bar == no-data).
+    closes = [c for c in closes if math.isfinite(c) and c > 0]
+    if len(closes) < 2:
+        return None
+
+    peak = max(closes)
+    current = closes[-1]
+    if peak <= 0:
+        return None
+
+    drawdown_pct = (peak - current) / peak * 100.0
+    if not math.isfinite(drawdown_pct):
+        return None
+    return drawdown_pct
+
+
+def drawdown_tier(equity_curve: list[dict]) -> tuple[str, str]:
+    """Classify the evidenced drawdown into the TWO-TIER ladder (ADR-034).
+
+    Deterministic, fail-CLOSED, evidenced-bars-only, non-finite-safe — it is a
+    thin classifier over :func:`evidenced_drawdown_pct`.
+
+    Tier boundaries (monotone, half-open intervals so the ladder is exhaustive
+    and non-overlapping):
+        drawdown < SOFT (5%)            → TIER_NONE
+        SOFT (5%) ≤ drawdown < HARD(15%)→ TIER_SOFT_DERISK
+        drawdown ≥ HARD (15%)           → TIER_HARD_KILL
+
+    When the drawdown cannot be computed (insufficient / corrupt evidenced data)
+    the tier is ``TIER_NONE`` — the per-tier gates (the existing drawdown kill
+    trigger and the soft de-risk gate) are themselves the fail-closed authority;
+    this classifier never *fabricates* a more severe tier from missing data.
+
+    Returns
+    -------
+    (tier, reason) : (str, str)
+        ``tier`` ∈ {TIER_NONE, TIER_SOFT_DERISK, TIER_HARD_KILL}.
+    """
+    dd = evidenced_drawdown_pct(equity_curve)
+    if dd is None:
+        return TIER_NONE, "no/insufficient evidenced drawdown data"
+    if dd >= DRAWDOWN_THRESHOLD_PCT:
+        return TIER_HARD_KILL, (
+            f"drawdown {dd:.2f}% ≥ {DRAWDOWN_THRESHOLD_PCT}% (HARD kill → all-cash)"
+        )
+    if dd >= SOFT_DERISK_THRESHOLD_PCT:
+        return TIER_SOFT_DERISK, (
+            f"drawdown {dd:.2f}% ≥ {SOFT_DERISK_THRESHOLD_PCT}% soft de-risk "
+            f"(< {DRAWDOWN_THRESHOLD_PCT}% hard) — halt new/increase, hold/reduce only"
+        )
+    return TIER_NONE, f"drawdown {dd:.2f}% < {SOFT_DERISK_THRESHOLD_PCT}% (no action)"
+
+
 # ─── KillSwitchChecker ────────────────────────────────────────────────────────
 
 
@@ -202,54 +320,54 @@ class KillSwitchChecker:
         if not equity_curve or not isinstance(equity_curve, list):
             return False, "no equity data"
 
-        # Exclude warmup / pre-anchor / backfill / reconstructed bars so an
-        # inflated warmup peak cannot fabricate a drawdown (mirrors the honest
-        # real-series segregation used by system_health_monitor + track_evidence).
-        real_bars = evidenced_bars(equity_curve, paper_start=PAPER_REAL_START)
-        if not real_bars:
-            return False, "no evidenced equity data (warmup/backfill excluded)"
+        # Shared evidenced + non-finite-safe drawdown (T6/P5-4 + P5-1). Returns
+        # None when the drawdown cannot be computed (insufficient / corrupt
+        # evidenced data) → fail-CLOSED to "no kill" exactly as before.
+        drawdown_pct = evidenced_drawdown_pct(equity_curve)
+        if drawdown_pct is None:
+            return False, (
+                "no/insufficient evidenced drawdown data (warmup/backfill "
+                "excluded or corrupt) — fail-closed"
+            )
 
-        # Берём последние 30 ТРЕК-точек (после исключения warmup-баров)
-        window = real_bars[-LOOKBACK_DAYS:]
-        if not window:
-            return False, "empty evidenced equity window"
-
-        try:
-            closes = [float(bar.get("close_equity") or bar.get("equity") or 0.0)
-                      for bar in window]
-        except (TypeError, ValueError):
-            return False, "invalid equity data"
-
-        # SAFETY (P5-1): a corrupt NaN/Inf equity bar must NOT silently mask a
-        # drawdown nor fabricate one (a NaN sneaks through `> THRESHOLD` as False;
-        # an Inf peak yields a NaN drawdown). Drop every non-finite close BEFORE
-        # computing peak/current — a corrupted bar is treated as no-data (like the
-        # `c > 0` filter), never as a real reading. Fail-CLOSED on the comparison.
-        closes = [c for c in closes if math.isfinite(c) and c > 0]
-        if len(closes) < 2:
-            return False, "insufficient evidenced equity data (need ≥2 real bars)"
-
-        peak = max(closes)
-        current = closes[-1]
-
-        if peak <= 0:
-            return False, "peak equity is zero"
-
-        drawdown_pct = (peak - current) / peak * 100.0
-
-        # Defensive: never let a non-finite drawdown decide the kill either way.
-        if not math.isfinite(drawdown_pct):
-            return False, "non-finite drawdown computed (corrupt equity) — fail-closed"
-
+        # HARD tier (≥ DRAWDOWN_THRESHOLD_PCT) → full kill. Boundary semantics
+        # UNCHANGED: strictly-greater-than preserves the existing eval-path
+        # tests (exactly-15% does NOT fire the kill).
         if drawdown_pct > DRAWDOWN_THRESHOLD_PCT:
             reason = (
                 f"drawdown {drawdown_pct:.2f}% > {DRAWDOWN_THRESHOLD_PCT}% threshold "
-                f"(peak={peak:.2f}, current={current:.2f}, window={len(window)}d)"
+                f"(window={LOOKBACK_DAYS}d)"
             )
             log.warning("KILL SWITCH drawdown trigger: %s", reason)
             return True, reason
 
         return False, f"drawdown {drawdown_pct:.2f}% ≤ {DRAWDOWN_THRESHOLD_PCT}%"
+
+    # ── Soft de-risk signal (ADR-034) ─────────────────────────────────────────
+
+    def check_derisk_trigger(self, equity_curve: list[dict]) -> tuple[bool, str]:
+        """SOFT tier: drawdown ∈ [SOFT, HARD) → de-risk (no new/increase).
+
+        Parallel to (and STRICTLY weaker than) :meth:`check_drawdown_trigger`:
+        it fires ONLY in the band where the hard kill does NOT. The cycle uses
+        this to halt new allocations / block any position INCREASE (hold +
+        reduce stay allowed) and emit a WARNING — it never liquidates.
+
+        Deterministic, evidenced-bars-only, non-finite-safe, fail-CLOSED:
+        a non-computable drawdown returns ``(False, …)`` (no de-risk fabricated
+        from missing data — the hard kill trigger is the fail-closed authority).
+
+        Returns
+        -------
+        (in_soft_band, reason)
+        """
+        if not equity_curve or not isinstance(equity_curve, list):
+            return False, "no equity data"
+        tier, reason = drawdown_tier(equity_curve)
+        if tier == TIER_SOFT_DERISK:
+            log.warning("SOFT DE-RISK trigger: %s", reason)
+            return True, reason
+        return False, reason
 
     # ── Trigger 2: red flags ──────────────────────────────────────────────────
 
@@ -499,6 +617,32 @@ class KillSwitchChecker:
 
         return False, "all triggers clear"
 
+    def is_derisk_active(
+        self, equity_curve: list[dict] | None = None
+    ) -> tuple[bool, str]:
+        """SOFT-tier de-risk signal — parallel to :meth:`is_kill_switch_active`.
+
+        Returns ``(True, reason)`` iff the evidenced drawdown is in the soft band
+        ``[SOFT, HARD)`` — i.e. the cycle must halt new allocations / block any
+        increase while still holding (and allowing reductions). It is mutually
+        exclusive with the HARD kill: at ≥ HARD the kill owns the response and
+        this returns ``(False, …)`` (the all-cash kill already reduces exposure).
+
+        Same ``(bool, reason)`` contract, same deterministic / fail-closed /
+        evidenced-bars-only / non-finite-safe guarantees as the hard signal.
+
+        Parameters
+        ----------
+        equity_curve : список дневных баров; если None — будет прочитан из файла.
+        """
+        if equity_curve is None:
+            equity_doc = _read_json(self.data_dir / "equity_curve_daily.json", {})
+            if isinstance(equity_doc, dict):
+                equity_curve = equity_doc.get("daily") or []
+            else:
+                equity_curve = []
+        return self.check_derisk_trigger(equity_curve)
+
     def _check_manual_wrap(self, _curve: Any) -> tuple[bool, str]:
         return self.check_manual_trigger()
 
@@ -649,5 +793,69 @@ def run_kill_switch_check(
         "triggered": triggered,
         "reason": reason,
         "allocation": allocation,
+        "ts": now_ts,
+    }
+
+
+def run_derisk_check(
+    equity_curve: list[dict] | None = None,
+    data_dir: str | os.PathLike | None = None,
+) -> dict:
+    """SOFT-tier (ADR-034) entry point for cycle_runner — parallel to the kill.
+
+    Evaluates the soft de-risk band ``[SOFT, HARD)`` and persists
+    ``data/derisk_status.json``. The WARNING alert is EDGE-TRIGGERED: it is
+    flagged ``should_alert=True`` only on the inactive→active transition (the
+    prior persisted state was not de-risk-active), so a multi-day de-risk window
+    does not flood the alert channel. The actual dispatch is left to the caller
+    (cycle_runner) via the existing alert/push_policy path.
+
+    Returns
+    -------
+    dict with keys:
+        active        : bool  — soft de-risk band entered (and not hard-killed)
+        reason        : str
+        should_alert  : bool  — True only on the inactive→active edge
+        tier          : str   — TIER_NONE / TIER_SOFT_DERISK / TIER_HARD_KILL
+        ts            : str
+    """
+    checker = KillSwitchChecker(data_dir=data_dir)
+    now_ts = datetime.now(timezone.utc).isoformat()
+
+    tier, tier_reason = drawdown_tier(
+        equity_curve
+        if equity_curve is not None
+        else (
+            (_read_json(checker.data_dir / "equity_curve_daily.json", {}) or {}).get(
+                "daily"
+            )
+            or []
+        )
+    )
+    active = tier == TIER_SOFT_DERISK
+
+    # Edge-trigger: alert only on the inactive→active transition.
+    prev = _read_json(checker.data_dir / DERISK_STATUS_FILENAME, {})
+    prev_active = bool(prev.get("active")) if isinstance(prev, dict) else False
+    should_alert = active and not prev_active
+
+    status_doc = {
+        "generated_at": now_ts,
+        "active": active,
+        "tier": tier,
+        "reason": tier_reason,
+        # The de-risk policy this asserts onto the cycle (advisory record).
+        "policy": "halt_new_allocations_no_increase_hold_reduce_only" if active else "none",
+    }
+    try:
+        _atomic_write_json(checker.data_dir / DERISK_STATUS_FILENAME, status_doc)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Failed to write %s: %s", DERISK_STATUS_FILENAME, exc)
+
+    return {
+        "active": active,
+        "reason": tier_reason,
+        "should_alert": should_alert,
+        "tier": tier,
         "ts": now_ts,
     }
