@@ -544,11 +544,17 @@ class TestSendDigest(unittest.TestCase):
     # so these tests mock that chokepoint instead of urllib. The canonical client
     # returns bool, so message_id is no longer surfaced (reported as None).
 
-    @mock.patch("spa_core.alerts.telegram_client.send_message", return_value=True)
-    def test_successful_send_returns_ok_true(self, mock_send):
-        result = self.d.send_digest("fake_token", "-100123")
-        self.assertTrue(result["ok"])
-        self.assertEqual(result["status_code"], 200)
+    def test_successful_send_returns_ok_true(self):
+        # RETIRED (Phase-1 Telegram rebuild): send_digest no longer pushes — the
+        # analytics digest is folded into the single canonical daily message.
+        # It still BUILDS the digest text but returns ok=False (no send).
+        with mock.patch.object(
+            self.d, "build_digest", wraps=self.d.build_digest
+        ) as build:
+            result = self.d.send_digest("fake_token", "-100123")
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["status_code"], 0)
+        build.assert_called_once()  # build_digest still produced the text
 
     @mock.patch("spa_core.alerts.telegram_client.send_message", return_value=True)
     def test_successful_send_returns_message_id(self, mock_send):
@@ -580,11 +586,14 @@ class TestSendDigest(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertIn("error", result)
 
-    @mock.patch("spa_core.alerts.telegram_client.send_message", return_value=True)
+    @mock.patch("spa_core.alerts.telegram_client.send_message")
     def test_send_calls_urlopen_once(self, mock_send):
-        # Now: send_digest calls the canonical client exactly once.
-        self.d.send_digest("token", "chat")
-        mock_send.assert_called_once()
+        # RETIRED (Phase-1 Telegram rebuild): send_digest no longer hits the
+        # transport at all — neither urlopen nor the canonical client. It only
+        # builds the text and returns ok=False.
+        result = self.d.send_digest("token", "chat")
+        mock_send.assert_not_called()
+        self.assertFalse(result["ok"])
 
     @mock.patch("spa_core.alerts.telegram_client.send_message", return_value=True)
     def test_result_has_required_keys_on_success(self, mock_send):

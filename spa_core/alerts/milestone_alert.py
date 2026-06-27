@@ -16,7 +16,6 @@ from __future__ import annotations
 import html
 import json
 import logging
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -199,21 +198,18 @@ def run_milestone_alert(data_dir: str | Path | None = None) -> dict:
         message = format_milestone_message(new_milestones, progress)
 
         try:
-            # Use _post_message directly to pass parse_mode=HTML (our format uses <b> tags).
-            # _post_message is fail-safe: missing credentials / network errors → WARNING + False.
-            from spa_core.alerts.telegram_client import _post_message as _tg_post  # type: ignore[import]
-            sent = _tg_post({"text": message, "parse_mode": "HTML"})
-        except ImportError:
-            # Fallback: module-level send_message (Markdown mode — best-effort)
-            try:
-                from spa_core.alerts.telegram_client import send_message as _send  # type: ignore[import]
-                sent = _send(message)
-            except Exception as exc:  # noqa: BLE001
-                log.warning("milestone_alert: Telegram send failed: %s", exc)
-                result["error"] = str(exc)
-                return result
+            # Phase-1 Telegram rebuild: a milestone (e.g. go-live READY) is a
+            # one-shot Tier-1 interrupt routed through the SINGLE push authority.
+            # push_policy's ``golive_ready`` edge-trigger guarantees one push per
+            # transition (no re-fire while it persists). Non-milestone runs hit
+            # the early ``return result`` above, so reaching here means there is
+            # a new milestone worth interrupting for.
+            from spa_core.telegram import push_policy  # type: ignore[import]
+            sent = push_policy.push_critical(
+                "golive_ready", "CRITICAL", "SPA Milestone", message,
+            )
         except Exception as exc:  # noqa: BLE001
-            log.warning("milestone_alert: Telegram send failed: %s", exc)
+            log.warning("milestone_alert: push_policy send failed: %s", exc)
             result["error"] = str(exc)
             return result
 

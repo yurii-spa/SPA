@@ -83,20 +83,15 @@ def _build_message(data_dir: Path) -> str:
 
 
 def _send_telegram(text: str) -> bool:
-    """Отправляет сообщение через telegram_client (Keychain credentials). Fail-safe."""
-    try:
-        from spa_core.alerts import telegram_client  # noqa: PLC0415
-        # The report body is built with HTML tags (<b>…</b>); legacy Markdown
-        # 400s on the "_" in protocol names (aave_v3, compound_v3, …).
-        ok = telegram_client.send_message(text, parse_mode="HTML")
-        if ok:
-            log.info("Daily report sent to Telegram")
-        else:
-            log.warning("telegram_client.send_message returned False")
-        return bool(ok)
-    except Exception as exc:
-        log.warning("telegram send failed (%s)", exc)
-        return False
+    """RETIRED (Phase-1 Telegram rebuild) — duplicate daily-report sender.
+
+    This was one of four overlapping daily-report Telegram paths. The single
+    canonical daily message is now ``spa_core.telegram.reports.daily``; this
+    builder no longer pushes Telegram directly. The text is still BUILT (callers
+    may render it elsewhere), but no send occurs. Always returns False.
+    """
+    log.info("daily_report._send_telegram retired → use telegram.reports.daily")
+    return False
 
 
 # ─── Public API ───────────────────────────────────────────────────────────────

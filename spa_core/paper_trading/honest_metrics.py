@@ -33,14 +33,14 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import os
 import random
 import statistics
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
+
+from spa_core.utils.atomic import atomic_save
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_DATA_DIR = _REPO_ROOT / "data"
@@ -496,18 +496,8 @@ def run_honest_metrics(
     # ------------------------------------------------------------------
     # Atomic write
     # ------------------------------------------------------------------
-    out_dir = out_path.parent
-    out_dir.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
-        mode="w",
-        dir=out_dir,
-        suffix=".tmp",
-        delete=False,
-        encoding="utf-8",
-    ) as tmp:
-        json.dump(output, tmp, indent=2)
-        tmp_name = tmp.name
-    os.replace(tmp_name, out_path)
+    # Atomic write via the canonical atomic_save (P3-9). Byte-identical (indent=2).
+    atomic_save(output, str(out_path))
 
     return output
 

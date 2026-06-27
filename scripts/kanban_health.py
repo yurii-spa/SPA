@@ -114,12 +114,17 @@ def check_kanban(k: dict) -> list:
     elif not sprint_current:
         issues.append("sprint_current is missing or empty")
 
-    # 4. version must match expected value
-    expected_version = "10.0.0"
+    # 4. version must be present and >= the minimum supported schema version.
+    # NOTE: an autonomous hourly cycle bumps KANBAN.json "version" continuously,
+    # so an exact-match check would break CI on every bump. We only enforce a
+    # floor (>= MIN_VERSION) so forward bumps stay healthy.
+    min_version = "10.0.0"
     actual_version = k.get("version", "")
-    if actual_version != expected_version:
+    if not actual_version:
+        issues.append("version is missing or empty")
+    elif not _sprint_gte(actual_version, min_version):
         issues.append(
-            f"version mismatch: got '{actual_version}', expected '{expected_version}'"
+            f"version too old: got '{actual_version}', expected >= '{min_version}'"
         )
 
     # 5. Check for duplicate task IDs in done[]
@@ -183,8 +188,10 @@ def fix_kanban(k: dict, sprint_current: Optional[str] = None) -> dict:
     # Fix current_sprint consistency
     k["current_sprint"] = sc
 
-    # Fix version
-    k["version"] = "10.0.0"
+    # Fix version — only set a floor; never downgrade a higher live version
+    # (the autonomous cycle bumps this continuously).
+    if not _sprint_gte(k.get("version", ""), "10.0.0"):
+        k["version"] = "10.0.0"
 
     # Fix last_updated
     if not k.get("last_updated"):

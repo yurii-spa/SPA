@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 import math
 import argparse
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -35,7 +35,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from database.init_db import get_connection, get_db_path
 from spa_core.risk.policy import RiskPolicy, RiskConfig, Position, PortfolioState, RiskCheckResult
-from spa_core.utils.errors import SPAError, RegistryError
 
 # Pendle PT strategy (imported lazily where needed to avoid heavy deps at startup)
 # from paper_trading.pendle_strategy import PendlePosition, pendle_allocation_size, build_pendle_position

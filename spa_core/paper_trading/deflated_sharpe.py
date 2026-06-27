@@ -107,7 +107,6 @@ import argparse
 import json
 import logging
 import math
-import os
 import statistics
 import sys
 from datetime import datetime, timezone
@@ -115,15 +114,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 # ── Math REUSED BY IMPORT from probabilistic_sharpe (do NOT reimplement) ──────
-from spa_core.paper_trading.probabilistic_sharpe import (
-    _daily_returns,
-    _norm_cdf,  # noqa: F401  (re-exported for symmetry / test discoverability)
-    _inv_norm_cdf,
-    _skewness,
-    _excess_kurtosis,
-    _variance_term,  # noqa: F401  (re-exported; underlying PSR variance bracket)
-    _probabilistic_sharpe,
-)
+from spa_core.paper_trading.probabilistic_sharpe import _daily_returns, _inv_norm_cdf, _skewness, _excess_kurtosis, _probabilistic_sharpe  # noqa: F401  (re-exported for symmetry / test discoverability)
 
 # ── Observed equity track (same source as probabilistic_sharpe) ───────────────
 from spa_core.paper_trading.equity_curve import (

@@ -13,8 +13,8 @@ LLM_FORBIDDEN. fail-closed: CRITICAL → Defensive allocation.
 fail-closed: risk_level=CRITICAL → все движки уходят в Defensive.
 """
 # LLM_FORBIDDEN
-from dataclasses import dataclass, field
-from typing import Dict, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, Optional
 from pathlib import Path
 import json
 

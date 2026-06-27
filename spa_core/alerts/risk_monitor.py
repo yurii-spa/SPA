@@ -355,7 +355,7 @@ class RiskMonitor:
 
         # Format time for display
         try:
-            from datetime import datetime, timezone
+            from datetime import datetime
             ts = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
             ts_display = ts.strftime("%Y-%m-%d %H:%M UTC")
         except Exception:

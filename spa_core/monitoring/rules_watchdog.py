@@ -85,13 +85,26 @@ def _get_tg_creds() -> tuple:
 
 
 def _send_telegram(message: str) -> bool:
-    # FLOOD-GUARD: route through the canonical rate-limited chokepoint so this
-    # 5-min watchdog can never flood Telegram. Transport only — same HTML alert.
+    """Route a CRITICAL rule breach through the SINGLE push authority (Tier-1).
+
+    Phase-1 rewire: the 5-min watchdog no longer POSTs Telegram directly (that
+    re-fired every run while a breach persisted). It pushes the whitelisted
+    ``rules_critical`` key via push_policy, which is edge-triggered — one push on
+    the breach transition, silent while it persists, RESOLVED on recovery.
+    Returns True if a push was emitted. Never raises.
+    """
     try:
-        from spa_core.alerts.telegram_client import send_message
-        return send_message(message[:4096], parse_mode="HTML")
-    except Exception as e:
-        log.warning("Telegram send failed: %s", e)
+        from spa_core.telegram import push_policy
+        return bool(
+            push_policy.push_critical(
+                "rules_critical",
+                "CRITICAL",
+                "SPA Rules Watchdog — CRITICAL breach",
+                message[:4000],
+            )
+        )
+    except Exception as e:  # noqa: BLE001
+        log.warning("rules_watchdog: push_policy send failed: %s", e)
         return False
 
 

@@ -31,11 +31,8 @@ Tests must mock urllib.request.urlopen and subprocess.run to avoid real network 
 
 from __future__ import annotations
 
-import json
 import logging
 import subprocess
-import urllib.error
-import urllib.request
 from typing import Optional
 
 log = logging.getLogger("spa.alerts.telegram_research_alerts")
@@ -251,52 +248,26 @@ class TelegramResearchAlerts:
         Returns:
             True on success (HTTP 200 + ok=True), False otherwise.
         """
+        # RETIRED as a Telegram push (Phase-1 Telegram rebuild). Research alerts
+        # are on-demand (the bot's /research view); they no longer interrupt the
+        # owner. The composed text is routed to the digest queue. Always returns
+        # False. Never raises.
         try:
-            token = self._resolve_token()
-            chat_id = self._resolve_chat_id()
-        except EnvironmentError as exc:
-            log.warning("Telegram send skipped (credentials): %s", exc)
-            return False
-
-        # FLOOD-GUARD: honour the shared cross-process rate limit before sending.
-        # We POST directly with the resolved (explicit or Keychain) credentials,
-        # so call the guard explicitly rather than routing through
-        # telegram_client.send_message (which would ignore explicit credentials).
-        try:
-            from spa_core.alerts.telegram_client import flood_guard_ok
-            if not flood_guard_ok(text):
-                return False
-        except Exception:  # noqa: BLE001 — guard error must never block a send
+            from spa_core.telegram import push_policy
+            push_policy._enqueue_digest(
+                push_policy._tg_dir(),
+                {
+                    "ts": push_policy._now_iso(),
+                    "event_key": "research_alert",
+                    "severity": "INFO",
+                    "title": "Research alert",
+                    "body": (text or "")[:500],
+                    "reason": "telegram_research_alerts_retired_push",
+                },
+            )
+        except Exception:  # noqa: BLE001
             pass
-
-        url = f"{_TELEGRAM_API_BASE}/bot{token}/sendMessage"
-        payload = {
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "Markdown",
-        }
-        data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            url,
-            data=data,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-
-        try:
-            with urllib.request.urlopen(req, timeout=_HTTP_TIMEOUT_S) as resp:
-                body = resp.read()
-                result = json.loads(body)
-                if result.get("ok"):
-                    return True
-                log.warning("Telegram API returned ok=False: %s", result)
-                return False
-        except urllib.error.URLError as exc:
-            log.warning("Telegram network error: %s", exc)
-            return False
-        except Exception as exc:  # noqa: BLE001
-            log.warning("Telegram send failed: %s", exc)
-            return False
+        return False
 
     # ── Credential resolution ──────────────────────────────────────────────────
 

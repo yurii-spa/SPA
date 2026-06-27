@@ -289,17 +289,24 @@ class TestSend(unittest.TestCase):
                 self.fail(f"send() raised: {exc}")
 
     def test_G2_send_updates_last_sent(self):
+        # RETIRED (Phase-1 Telegram rebuild): send() no longer pushes Telegram.
+        # It COMPOSES + saves state (last_composed / last_digest) and returns
+        # False; it no longer sets "last_sent".
         with tempfile.TemporaryDirectory() as tmp:
             d = _make_digest(pathlib.Path(tmp))
-            d.send()
-            self.assertIsNotNone(d._data["last_sent"])
+            self.assertIs(d.send(), False)
+            self.assertIsNotNone(d._data["last_composed"])
+            self.assertTrue(d._data["last_digest"])
 
     def test_G3_send_increments_send_count(self):
+        # RETIRED: send() does not push, so send_count is NOT incremented.
+        # It still composes each call (last_digest set).
         with tempfile.TemporaryDirectory() as tmp:
             d = _make_digest(pathlib.Path(tmp))
             d.send()
             d.send()
-            self.assertEqual(d._data["send_count"], 2)
+            self.assertEqual(d._data["send_count"], 0)
+            self.assertTrue(d._data["last_digest"])
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -357,7 +364,9 @@ class TestRobustness(unittest.TestCase):
             self.assertIn("&lt;script&gt;", msg)
 
     def test_H5_send_uses_html_parse_mode(self):
-        # send() must route through the canonical client with parse_mode="HTML".
+        # OBSOLETE intent (Phase-1 Telegram rebuild): send() no longer routes
+        # through the telegram client at all — it composes + saves state and
+        # returns False without any Telegram call.
         with tempfile.TemporaryDirectory() as tmp:
             d = _make_digest(pathlib.Path(tmp))
             fake = unittest.mock.MagicMock(return_value=True)
@@ -366,9 +375,10 @@ class TestRobustness(unittest.TestCase):
                 {"spa_core.alerts.telegram_client":
                     unittest.mock.MagicMock(send_message=fake)},
             ):
-                d.send()
-            fake.assert_called_once()
-            self.assertEqual(fake.call_args.kwargs.get("parse_mode"), "HTML")
+                result = d.send()
+            self.assertIs(result, False)
+            fake.assert_not_called()
+            self.assertTrue(d._data["last_digest"])
 
     def test_H6_dry_run_main_exits_zero_without_sending(self):
         # `python -m spa_core.alerts.morning_digest --dry` composes + exits 0

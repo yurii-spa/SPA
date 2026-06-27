@@ -118,7 +118,7 @@ The system architecture:
   S9 (E-Mode Looping), S10 (Pendle YT, advisory only per ADR-021)
 - **RiskPolicy:** deterministic, version-locked at v1.0 for the entire paper period
 - **GoLiveChecker:** 26 criteria; current status 16/26 PASS
-- **Target go-live:** 2026-08-01 (ADR-002: 30 gap-free days + READY ≥ 7 days + manual review)
+- **Target go-live:** 2026-07-21 (ADR-002: 30 gap-free days + READY ≥ 7 days + manual review)
 
 **LLM_FORBIDDEN_AGENTS policy:** LLM calls are prohibited in risk, execution, and
 monitoring components. Prompt injection into capital decisions is a critical attack vector.
@@ -266,7 +266,7 @@ The owner confirms awareness of the following gate statuses at time of signing:
 | GoLiveChecker (26 criteria) | {golive_pass} {golive_ready} | `data/golive_status.json`       |
 | Gap Monitor              | Active          | 30-day continuity required (ADR-002)     |
 | RiskPolicy               | v1.0 LOCKED     | No changes permitted during paper period |
-| ADR-002 Go-Live Rule     | IN PROGRESS     | Target: 2026-08-01                       |
+| ADR-002 Go-Live Rule     | IN PROGRESS     | Target: 2026-07-21                       |
 
 ### Backtest Gate Requirements
 

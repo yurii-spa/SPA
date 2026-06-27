@@ -16,6 +16,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import math
 import time
 import urllib.error
 import urllib.request
@@ -122,13 +123,21 @@ def _http_get_with_retry(
 # ── Parsing helpers ───────────────────────────────────────────────────────────
 
 def _safe_float(value: object, fallback: float = 0.0) -> float:
-    """Coerce a value (str/int/float/None) to float without raising."""
+    """Coerce a value (str/int/float/None) to a FINITE float without raising.
+
+    ``float("NaN")`` / ``float("inf")`` and ``1e400`` do not raise — they yield
+    non-finite floats. Returning those would propagate a fabricated/unbounded
+    value (e.g. NaN tvl) into allocation. Fail-CLOSED: non-finite → ``fallback``.
+    """
     if value is None:
         return fallback
     try:
-        return float(value)
+        result = float(value)
     except (TypeError, ValueError):
         return fallback
+    if not math.isfinite(result):
+        return fallback
+    return result
 
 
 def _parse_maturity(expiry_str: str) -> Optional[datetime.date]:
@@ -187,31 +196,40 @@ def _parse_market(raw: dict) -> Optional[PendleMarketData]:
         maturity_date_str = maturity.isoformat() if maturity else ""
         days_left = _days_to_maturity(maturity)
 
-        # Liquidity — Pendle API returns nested {"usd": ...} or plain float
+        # Liquidity — Pendle API returns nested {"usd": ...} or plain float.
+        # USD pool size can never be negative; floor at 0 (fail-closed) so a
+        # malformed negative value never leaks downstream as a bound.
         liq_raw = raw.get("liquidity") or {}
         if isinstance(liq_raw, dict):
-            liquidity_usd = _safe_float(liq_raw.get("usd"))
+            liquidity_usd = max(0.0, _safe_float(liq_raw.get("usd")))
         else:
-            liquidity_usd = _safe_float(liq_raw)
+            liquidity_usd = max(0.0, _safe_float(liq_raw))
 
         # TVL — the v2 /markets endpoint returns ``tvl: null``; the pool's USD
         # value lives in ``liquidity.usd`` (these are AMM pools, so AMM liquidity
         # is the pool TVL). Use ``tvl`` when present, else fall back to liquidity.
         tvl_raw = raw.get("tvl") or {}
         if isinstance(tvl_raw, dict):
-            tvl_usd = _safe_float(tvl_raw.get("usd"))
+            tvl_usd = max(0.0, _safe_float(tvl_raw.get("usd")))
         else:
-            tvl_usd = _safe_float(tvl_raw)
+            tvl_usd = max(0.0, _safe_float(tvl_raw))
         if tvl_usd <= 0.0:
             tvl_usd = liquidity_usd
 
-        # APY values — Pendle returns decimals (0.089 = 8.9%); we store %
+        # APY values — Pendle returns decimals (0.089 = 8.9%); we store %.
+        # ``_pct`` re-checks finiteness after the *100 scale: a huge-but-finite
+        # input (e.g. 1e308) overflows to inf when multiplied, which would leak
+        # a non-finite "APY". Fail-closed → 0.0 on any non-finite product.
+        def _pct(dec: float) -> float:
+            scaled = dec * 100
+            return round(scaled, 4) if math.isfinite(scaled) else 0.0
+
         implied_apy_dec = _safe_float(raw.get("impliedApy"))
         underlying_apy_dec = _safe_float(raw.get("underlyingInterestApy"))
 
-        pt_apy = round(implied_apy_dec * 100, 4)
-        underlying_apy = round(underlying_apy_dec * 100, 4)
-        implied_apy = round(implied_apy_dec * 100, 4)
+        pt_apy = _pct(implied_apy_dec)
+        underlying_apy = _pct(underlying_apy_dec)
+        implied_apy = _pct(implied_apy_dec)
 
         is_expired: bool = bool(raw.get("isExpired", False))
 

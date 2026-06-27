@@ -347,12 +347,18 @@ class T2ConcentrationAlert:
             return False
         if report.status.severity < ConcentrationStatus.WARNING.severity:
             return False
+        # RETIRED as a Telegram push (Phase-1 Telegram rebuild). Concentration
+        # WARNINGs are advisory (RiskPolicy already gates allocation); routed to
+        # the digest queue, never pushed. Always returns False. Never raises.
         try:
-            from spa_core.alerts.telegram_client import send_message
-            return bool(send_message(report.message, parse_mode="HTML"))
+            from spa_core.telegram import push_policy
+            push_policy.enqueue_digest(
+                "concentration", "T2 concentration", report.message,
+                severity="WARNING", reason="concentration_monitor_retired_push",
+            )
         except Exception as exc:  # noqa: BLE001 — alerts must never crash the cycle
-            log.warning("T2 concentration Telegram send failed (non-critical): %s", exc)
-            return False
+            log.warning("concentration: digest route failed (non-critical): %s", exc)
+        return False
 
     # ── End-to-end (used by cycle_runner) ────────────────────────────────────
 

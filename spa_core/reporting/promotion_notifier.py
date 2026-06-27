@@ -17,12 +17,9 @@ Tier routing (ADR-029):
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 import subprocess
-import urllib.error
-import urllib.request
 from datetime import datetime, timedelta, timezone
 
 log = logging.getLogger("spa.reporting.promotion_notifier")
@@ -98,61 +95,29 @@ class PromotionNotifier:
     # ------------------------------------------------------------------
 
     def _send_message(self, text: str) -> bool:
-        """POST *text* to Telegram sendMessage endpoint.
+        """RETIRED as a Telegram push (Phase-1 Telegram rebuild).
 
-        Returns True on HTTP 200, False on any failure.  Never raises.
+        Strategy promotions are informational, not a real-time interrupt — they
+        belong in the on-demand tournament view + weekly digest movers. This no
+        longer POSTs to Telegram; it routes the composed text to the digest
+        queue. Always returns False. Never raises.
         """
-        token   = self._get_token()
-        chat_id = self._get_chat_id()
-
-        if not token or not chat_id:
-            log.warning("PromotionNotifier: credentials not configured — message not sent.")
-            return False
-
-        # FLOOD-GUARD: honour the shared cross-process rate limit before sending.
-        # We POST directly (own credentials), so we call the guard explicitly
-        # rather than routing through telegram_client.send_message (which would
-        # ignore these per-instance credentials).
         try:
-            from spa_core.alerts.telegram_client import flood_guard_ok
-            if not flood_guard_ok(text):
-                return False
-        except Exception:  # noqa: BLE001 — guard import/error must never block a send
-            pass
-
-        url     = f"{_TELEGRAM_BASE}{token}/sendMessage"
-        payload = json.dumps({
-            "chat_id":                  chat_id,
-            "text":                     text,
-            "parse_mode":               "HTML",
-            "disable_web_page_preview": True,
-        }).encode("utf-8")
-
-        try:
-            req = urllib.request.Request(
-                url,
-                data    = payload,
-                headers = {"Content-Type": "application/json"},
-                method  = "POST",
+            from spa_core.telegram import push_policy
+            push_policy._enqueue_digest(
+                push_policy._tg_dir(),
+                {
+                    "ts": push_policy._now_iso(),
+                    "event_key": "promotion",
+                    "severity": "INFO",
+                    "title": "Strategy promotion",
+                    "body": (text or "")[:500],
+                    "reason": "promotion_notifier_retired_push",
+                },
             )
-            with urllib.request.urlopen(req, timeout=_HTTP_TIMEOUT_S) as resp:
-                ok = (resp.status == 200)
-                if ok:
-                    log.info("PromotionNotifier: message delivered.")
-                else:
-                    log.warning("PromotionNotifier: unexpected HTTP status %s.", resp.status)
-                return ok
-
-        except urllib.error.HTTPError as exc:
-            body = exc.read().decode("utf-8", errors="replace") if hasattr(exc, "read") else ""
-            log.warning("PromotionNotifier: HTTP error %s — %s", exc.code, body)
-            return False
-        except urllib.error.URLError as exc:
-            log.warning("PromotionNotifier: URL error — %s", exc.reason)
-            return False
-        except Exception as exc:
-            log.warning("PromotionNotifier: unexpected error — %s", exc)
-            return False
+        except Exception as exc:  # noqa: BLE001
+            log.warning("PromotionNotifier digest route failed: %s", exc)
+        return False
 
     # ------------------------------------------------------------------
     # Tier A — AUTO_PROMOTE

@@ -150,16 +150,28 @@ def _tg_request(token: str, method: str, payload: Optional[Dict] = None,
 
 
 def send_telegram(token: str, chat_id: str, text: str) -> bool:
-    """Send a message to Telegram. Returns True on success."""
-    result = _tg_request(token, "sendMessage", {
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "HTML",
-    }, timeout=15)
-    ok = bool(result and result.get("ok"))
-    if not ok:
-        log.warning("send_telegram failed: %s", result)
-    return ok
+    """RETIRED as a Telegram push (Phase-1 Telegram rebuild).
+
+    telegram_watcher is superseded by the single push authority (push_policy)
+    and the interactive bot. It no longer POSTs unsolicited messages; outbound
+    text is routed to the digest queue. Always returns False. Never raises.
+    """
+    try:
+        from spa_core.telegram import push_policy
+        push_policy._enqueue_digest(
+            push_policy._tg_dir(),
+            {
+                "ts": push_policy._now_iso(),
+                "event_key": "telegram_watcher",
+                "severity": "INFO",
+                "title": "Watcher message",
+                "body": (text or "")[:500],
+                "reason": "telegram_watcher_retired_push",
+            },
+        )
+    except Exception:  # noqa: BLE001
+        pass
+    return False
 
 
 def get_updates(token: str, offset: Optional[int] = None,

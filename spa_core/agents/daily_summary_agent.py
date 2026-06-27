@@ -277,17 +277,17 @@ class DailySummaryAgent:
     # -- send -----------------------------------------------------------------
 
     def _default_sender(self, text: str) -> bool:
+        # RETIRED as a Telegram push (Phase-1 Telegram rebuild) — duplicate of
+        # the one canonical daily digest. Routed to the digest queue, not pushed.
         try:
-            from spa_core.telegram.bot import TelegramBot
-            bot = TelegramBot()
-            if not bot.token or not bot.chat_id:
-                log.warning("daily_summary: no Telegram creds — skipping send")
-                return False
-            resp = bot.send_message(text, parse_mode="HTML")
-            return bool(resp and resp.get("ok"))
+            from spa_core.telegram import push_policy
+            push_policy.enqueue_digest(
+                "daily_summary_agent", "Daily summary", text,
+                reason="daily_summary_agent_retired_push",
+            )
         except Exception as exc:  # noqa: BLE001 — never crash on Telegram
-            log.warning("daily_summary: telegram send failed (%s)", exc)
-            return False
+            log.warning("daily_summary: digest route failed (%s)", exc)
+        return False
 
     def send_telegram(self, summary: Dict[str, Any]) -> bool:
         text = self.format_telegram(summary)

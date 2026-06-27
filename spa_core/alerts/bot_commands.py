@@ -20,7 +20,6 @@ from __future__ import annotations
 import calendar
 import json
 import logging
-import os
 import subprocess
 import urllib.error
 import urllib.request

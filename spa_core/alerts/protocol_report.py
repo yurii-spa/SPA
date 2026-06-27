@@ -32,8 +32,6 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -661,19 +659,18 @@ def _post_telegram(bot_token: str, chat_id: str, text: str) -> bool:
     The ``bot_token``/``chat_id`` args are kept for signature compatibility;
     the canonical client re-resolves them from the Keychain (TELEGRAM_*_SPA).
     """
-    if not bot_token or not chat_id:
-        log.warning("send_protocol_report: missing bot_token or chat_id")
-        return False
-
+    # RETIRED as a Telegram push (Phase-1 Telegram rebuild). The protocol report
+    # is on-demand (a bot pull-view); it no longer pushes. Routed to the digest
+    # queue. Always returns False. Never raises.
     try:
-        from spa_core.alerts.telegram_client import send_message
-        ok = send_message(text, parse_mode="MarkdownV2")
-        if ok:
-            log.info("Protocol report sent successfully")
-        return ok
+        from spa_core.telegram import push_policy
+        push_policy.enqueue_digest(
+            "protocol_report", "Protocol report", text,
+            reason="protocol_report_retired_push",
+        )
     except Exception as exc:  # noqa: BLE001
-        log.warning("Telegram send failed: %s", exc)
-        return False
+        log.warning("protocol_report: digest route failed: %s", exc)
+    return False
 
 
 # ---------------------------------------------------------------------------

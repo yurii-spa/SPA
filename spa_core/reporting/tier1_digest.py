@@ -117,11 +117,21 @@ def build_message() -> str:
 
 
 def send() -> bool:
+    """RETIRED as a Telegram push (Phase-1 Telegram rebuild).
+
+    The Tier-1 plane summary is folded into the one daily digest (a section),
+    not pushed on its own. build_message() is still produced for that consumer;
+    here it routes to the digest queue. Always returns False. Never raises.
+    """
     try:
-        from spa_core.alerts.telegram_client import send_message
-        return send_message(build_message(), parse_mode="HTML")
-    except Exception:
-        return False
+        from spa_core.telegram import push_policy
+        push_policy.enqueue_digest(
+            "tier1_digest", "Tier-1 digest", build_message(),
+            reason="tier1_digest_retired_push",
+        )
+    except Exception:  # noqa: BLE001
+        pass
+    return False
 
 
 if __name__ == "__main__":

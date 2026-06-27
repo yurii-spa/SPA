@@ -394,30 +394,20 @@ class TestSendMessage(unittest.TestCase):
         result = n._send_message("hello")
         self.assertFalse(result)
 
-    def test_send_message_posts_correct_json(self):
-        """Verify the payload sent to urlopen contains the expected keys."""
+    def test_send_message_routes_to_digest(self):
+        """Phase-1 Telegram rebuild: promotions are informational and no longer
+        push — _send_message routes the text to the digest queue and returns
+        False (its old urlopen POST path is gone)."""
         n = PromotionNotifier()
-        n._get_token   = lambda: "MY_TOKEN"
-        n._get_chat_id = lambda: "MY_CHAT"
 
-        captured = {}
-        def fake_urlopen(req, timeout):
-            captured["data"] = req.data
-            captured["url"]  = req.full_url
-            mock_resp = MagicMock()
-            mock_resp.__enter__ = lambda s: s
-            mock_resp.__exit__  = MagicMock(return_value=False)
-            mock_resp.status    = 200
-            return mock_resp
+        with patch("spa_core.telegram.push_policy._enqueue_digest") as enq:
+            result = n._send_message("Test payload")
 
-        with patch("urllib.request.urlopen", side_effect=fake_urlopen):
-            n._send_message("Test payload")
-
-        import json as _json
-        payload = _json.loads(captured["data"].decode("utf-8"))
-        self.assertEqual(payload["chat_id"], "MY_CHAT")
-        self.assertEqual(payload["text"],    "Test payload")
-        self.assertIn("MY_TOKEN", captured["url"])
+        self.assertFalse(result)
+        enq.assert_called_once()
+        # _enqueue_digest(tg_dir, item) — the item dict carries the text in body.
+        item = enq.call_args.args[1]
+        self.assertEqual(item["body"], "Test payload")
 
 
 # ===========================================================================

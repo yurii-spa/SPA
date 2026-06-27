@@ -1,7 +1,8 @@
 # SPA Error Code Reference
 
 **Source:** `spa_core/utils/errors.py` · **Catalog:** `spa_core/utils/error_catalog.py`  
-**Updated:** 2026-06-20 (MP-1485 v11.01)
+**Updated:** 2026-06-20 (MP-1485 v11.01)  
+Version: v11.01
 
 All SPA exceptions inherit from `SPAError`. Each instance carries:
 - `.code` — machine-readable string (e.g. `"GATE_BACKTEST_FAIL"`)
@@ -291,6 +292,17 @@ lookup_by_class("LiveTradingForbiddenError")
 | P001 | RiskPolicyError | risk | Yes |
 | L001 | AllocationError | allocation | Yes |
 | X001 | LiveTradingForbiddenError | safety | Yes (hard stop) |
+
+---
+
+## Special Runtime Codes
+
+| Code | Description |
+|------|-------------|
+| `NOT_INITIALIZED` | Analytics module accessed before `run()` was called. Raised as `SPAError` with `code="NOT_INITIALIZED"`. Fix: call `.run()` before accessing results. |
+| `LIVE_TRADING_FORBIDDEN` | Live trading blocked by safeguard (X001). |
+| `ADAPTER_ERROR` | Adapter fetch/parse failure (A001). |
+| `CONFIG_ERROR` | Missing or invalid configuration key (C001). |
 
 ---
 

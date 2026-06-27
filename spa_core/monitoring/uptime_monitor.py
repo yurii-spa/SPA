@@ -595,31 +595,60 @@ def _write_prev_state(data_dir: Path, state: dict[str, Any]) -> None:
             pass
 
 
+# Cycle-critical agents: their being down threatens track integrity, so a
+# running→down transition is a genuine Tier-1 interrupt. ANY other agent going
+# down is informational → demoted to the digest (surfaced on-demand in /agents).
+CORE_AGENTS = frozenset({
+    "com.spa.daily_cycle",
+    "com.spa.httpserver",
+    "com.spa.cloudflared",
+    "com.spa.autopush",
+})
+
+
 def _send_agent_alert(label: str, age_minutes: int, file_hint: str | None) -> bool:
-    """
-    Send a Telegram alert that a launchd agent has gone down.
+    """Route a launchd agent-down event through the SINGLE push authority.
 
-    Uses the shared Keychain-backed helper spa_core.alerts.telegram_client.
-    Fail-safe: any failure (import error, missing credentials, network) →
-    returns False, never raises.
-
-    Returns True only if the message was accepted by the Telegram API.
+    Phase-1 rewire: uptime_monitor no longer POSTs to Telegram directly. A
+    CORE (cycle-critical) agent going down pushes the whitelisted
+    ``core_agent_down`` key via push_policy (edge-triggered — one push on the
+    running→down transition, RESOLVED on recovery). A non-core agent going down
+    is demoted to the digest queue (no interrupt) — its detail is on-demand in
+    the ``/agents`` view. Returns True only if a Tier-1 push was emitted.
+    Fail-safe: never raises.
     """
     file_line = f"\nФайл: {file_hint}" if file_hint else ""
     text = (
-        f"⚠️ SPA Agent DOWN: {label}\n"
+        f"SPA Agent DOWN: {label}\n"
         f"Остановлен {age_minutes} минут назад{file_line}"
     )
     try:
-        from spa_core.alerts.telegram_client import send_message
-        # parse_mode="HTML": the default Markdown parser 400s on the underscores
-        # in labels/filenames (e.g. "com.spa.bot_commands",
-        # "paper_trading_status.json"). The alert text carries no HTML tags, so
-        # HTML mode renders it verbatim and stops the "API error 400" loop.
-        return bool(send_message(text, parse_mode="HTML"))
+        from spa_core.telegram import push_policy
+        if label in CORE_AGENTS:
+            return bool(
+                push_policy.push_critical(
+                    "core_agent_down",
+                    "CRITICAL",
+                    f"SPA Core Agent DOWN: {label}",
+                    text,
+                )
+            )
+        # Non-core: demote to the digest (never interrupt).
+        push_policy._enqueue_digest(
+            push_policy._tg_dir(),
+            {
+                "ts": push_policy._now_iso(),
+                "event_key": "agent_down",
+                "severity": "WARNING",
+                "title": f"Agent down: {label}",
+                "body": text,
+                "reason": "non_core_agent",
+            },
+        )
+        return False
     except Exception as exc:  # noqa: BLE001 — alerts must never crash the monitor
         print(
-            f"[uptime_monitor] WARNING: Telegram alert failed for {label}: {exc}",
+            f"[uptime_monitor] WARNING: push_policy routing failed for {label}: {exc}",
             file=sys.stderr,
         )
         return False

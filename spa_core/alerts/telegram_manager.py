@@ -37,11 +37,8 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 import subprocess
 import sys
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Optional
@@ -303,12 +300,18 @@ class TelegramManager:
         args are retained for signature compatibility; the canonical client
         re-resolves them from the same Keychain entries (TELEGRAM_*_SPA).
         """
+        # RETIRED as a Telegram push (Phase-1 Telegram rebuild). TelegramManager
+        # is superseded by push_policy (critical) + the digest builders. Routed
+        # to the digest queue, never pushed. Always returns False. Never raises.
         try:
-            from spa_core.alerts.telegram_client import send_message
-            return send_message(text, parse_mode=parse_mode)
+            from spa_core.telegram import push_policy
+            push_policy.enqueue_digest(
+                "telegram_manager", "Manager message", text,
+                reason="telegram_manager_retired_push",
+            )
         except Exception as exc:
-            log.error("TelegramManager send error: %s", exc)
-            return False
+            log.error("TelegramManager digest route error: %s", exc)
+        return False
 
 
 # ---------------------------------------------------------------------------

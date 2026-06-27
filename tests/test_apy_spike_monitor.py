@@ -187,21 +187,23 @@ def test_missing_adapter_status_is_safe(mon):
 # ---------------------------------------------------------------------------
 
 def test_send_telegram_alert_calls_client(mon, monkeypatch):
+    """RETIRED as a Telegram push: send_telegram_alert routes the spike text to the
+    digest queue and returns False (advisory, not live-capital risk)."""
     sent = {}
 
-    def fake_send(text, parse_mode="Markdown"):
-        sent["text"] = text
-        sent["parse_mode"] = parse_mode
-        return True
+    def fake_enqueue(event_key, title, body, *args, **kwargs):
+        sent["event_key"] = event_key
+        sent["title"] = title
+        sent["body"] = body
 
     monkeypatch.setattr(
-        "spa_core.alerts.telegram_client.send_message", fake_send
+        "spa_core.telegram.push_policy.enqueue_digest", fake_enqueue
     )
     spike = mon.check_spikes(apys={"aave_v3": 12.60})[0]
-    assert mon.send_telegram_alert(spike) is True
-    assert "YIELD SPIKE" in sent["text"]
-    assert "aave_v3" in sent["text"]
-    assert sent["parse_mode"] == "HTML"
+    assert mon.send_telegram_alert(spike) is False
+    assert sent["event_key"] == "apy_spike"
+    assert "YIELD SPIKE" in sent["body"]
+    assert "aave_v3" in sent["body"]
 
 
 def test_send_telegram_alert_failsafe(mon, monkeypatch):
@@ -247,13 +249,14 @@ def test_history_ring_buffer_cap(mon):
 
 
 def test_run_sends_and_logs(mon, tmp_path, monkeypatch):
+    # RETIRED push: run() routes each spike to the digest queue (no Telegram POST).
     calls = []
     monkeypatch.setattr(
-        "spa_core.alerts.telegram_client.send_message",
-        lambda text, parse_mode="Markdown": calls.append(text) or True,
+        "spa_core.telegram.push_policy.enqueue_digest",
+        lambda event_key, title, body, *a, **k: calls.append(body),
     )
     spikes = mon.run(apys={"aave_v3": 12.60, "compound_v3": 11.70})
     assert len(spikes) == 2
-    assert len(calls) == 2  # one telegram per spike
+    assert len(calls) == 2  # one digest enqueue per spike
     data = json.loads((tmp_path / HISTORY_PATH).read_text())
     assert len(data["spikes"]) == 2

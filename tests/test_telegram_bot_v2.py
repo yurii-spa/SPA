@@ -232,9 +232,10 @@ def test_get_updates_advances_offset(data_dir):
 
 
 def test_handle_update_routes_correctly(bot):
+    # Interactive rebuild: a command (re)spawns the Home panel (UX §3).
     bot.handle_update({"update_id": 1, "message": {"text": "/status",
                                                    "chat": {"id": 999}}})
-    assert "SPA Status" in _last_text(bot)
+    assert "SPA Monitor" in _last_text(bot)
 
 
 def test_send_message_formats_html(bot):
@@ -245,10 +246,11 @@ def test_send_message_formats_html(bot):
 
 
 def test_unknown_command_shows_help(bot):
+    # Interactive rebuild: any unknown command falls back to the Home panel.
     bot.handle_update({"update_id": 2, "message": {"text": "/frobnicate",
                                                    "chat": {"id": 999}}})
     text = _last_text(bot)
-    assert "SPA Bot v2" in text  # help/welcome text (version may be 2.0 or 2.1)
+    assert "SPA Monitor" in text  # Home panel is the universal fallback
 
 
 def test_callback_query_answered_and_dispatched(bot):

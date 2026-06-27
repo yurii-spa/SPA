@@ -177,7 +177,7 @@ class SourceError(SPAError):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class ValidationError(SPAError):
+class ValidationError(SPAError, ValueError):
     """
     Field-level validation failed.
 

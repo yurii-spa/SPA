@@ -119,15 +119,32 @@ def get_chat_id() -> Optional[str]:
 
 def send_telegram(text: str, token: Optional[str] = None,
                   chat_id: Optional[str] = None) -> bool:
-    """Send an HTML message via the canonical telegram_client (single shared client
-    with the 400→plain-text fallback). token/chat_id args kept for back-compat but
-    ignored — the client reads creds from Keychain. Fail-safe → False on any error."""
+    """RETIRED as a Telegram push (Phase-1 Telegram rebuild).
+
+    dashboard_watcher used to push ~26 alerts/day every 5 min. Everything it
+    reports (agent/portfolio/system/api/golive) is now answered on demand by the
+    interactive bot's ``/status`` ``/agents`` ``/alerts`` views, so it MUST NOT
+    interrupt the owner. The watcher keeps RUNNING and DETECTING, but its
+    findings are routed to the digest queue (folded into the one daily digest)
+    instead of pushed. token/chat_id args kept for back-compat (ignored).
+    Always returns False (nothing was pushed). Never raises.
+    """
     try:
-        from spa_core.alerts.telegram_client import send_message
-        return send_message(text, parse_mode="HTML")
-    except Exception as exc:  # noqa: BLE001 — alerts must never crash the watcher
-        log.warning("send_telegram error: %s", exc)
-        return False
+        from spa_core.telegram import push_policy
+        push_policy._enqueue_digest(
+            push_policy._tg_dir(),
+            {
+                "ts": push_policy._now_iso(),
+                "event_key": "dashboard_watch",
+                "severity": "INFO",
+                "title": "Dashboard watcher finding",
+                "body": text[:500],
+                "reason": "dashboard_watcher_retired_push",
+            },
+        )
+    except Exception as exc:  # noqa: BLE001 — never crash the watcher
+        log.warning("send_telegram (digest route) error: %s", exc)
+    return False
 
 
 # ===========================================================================

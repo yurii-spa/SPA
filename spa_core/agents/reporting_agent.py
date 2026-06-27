@@ -377,12 +377,18 @@ def send_daily_report_telegram(
         log.info("send_daily_report_telegram [DRY RUN]:\n%s", report_text)
         sent = True  # dry_run counts as "would be sent"
     else:
+        # RETIRED as a Telegram push (Phase-1 Telegram rebuild) — duplicate daily
+        # report path. Routed to the digest queue (folded into the one daily
+        # digest), not pushed. ``sent`` stays False.
         try:
-            from spa_core.alerts import telegram_client  # noqa: PLC0415
-            sent = bool(telegram_client.send_message(report_text))
+            from spa_core.telegram import push_policy  # noqa: PLC0415
+            push_policy.enqueue_digest(
+                "reporting_agent", "Daily report", report_text,
+                reason="reporting_agent_retired_push",
+            )
         except Exception as exc:
-            log.warning("telegram send failed (%s)", exc)
-            sent = False
+            log.warning("reporting_agent: digest route failed (%s)", exc)
+        sent = False
 
     result = {
         "report_text": report_text,

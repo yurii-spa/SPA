@@ -243,20 +243,27 @@ def _send_safety_failsafe_alert(reason: str, correlation_id: str = "") -> None:
     raises (alerting must not crash the cycle that is already degrading safely).
     """
     try:
-        from spa_core.alerts import telegram_client  # noqa: PLC0415
+        # Phase-1 Telegram rebuild: a fail-safe HOLD (safety check could not be
+        # evaluated → cycle integrity at risk) is a genuine Tier-1 interrupt and
+        # is routed through the SINGLE push authority (edge-triggered).
+        from spa_core.telegram import push_policy  # noqa: PLC0415
 
-        msg = (
-            "🚨 <b>SPA FAIL-SAFE: safety check error</b>\n"
+        body = (
             "A risk/safety check could not be evaluated — the cycle is "
             "<b>HOLDING current positions</b> and suppressing all new "
             "deployment/rebalancing (LAW 1, fail-safe).\n\n"
             f"<b>Reason:</b> {reason}\n"
         )
         if correlation_id:
-            msg += f"<b>correlation_id:</b> {correlation_id}"
-        telegram_client.send_message(msg, parse_mode="HTML")
+            body += f"<b>correlation_id:</b> {correlation_id}"
+        push_policy.push_critical(
+            "cycle_failed",
+            "CRITICAL",
+            "SPA FAIL-SAFE: safety check error",
+            body,
+        )
     except Exception as _alert_exc:  # noqa: BLE001
-        log.warning("fail-safe Telegram alert failed (%s)", _alert_exc)
+        log.warning("fail-safe push_policy alert failed (%s)", _alert_exc)
 
 
 # ─── Pure helpers ────────────────────────────────────────────────────────────

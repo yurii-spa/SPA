@@ -201,12 +201,21 @@ def check_milestones(
 
 
 def _send_html(message: str) -> bool:
-    """Send via Keychain-backed telegram_client (HTML mode). Never raises."""
+    """Route a milestone through the SINGLE push authority (Tier-1, one-shot).
+
+    Phase-1 rebuild: equity/track milestones (incl. go-live READY) are routed
+    through push_policy ``golive_ready`` (edge-triggered → one push per
+    transition). Never raises.
+    """
     try:
-        from spa_core.alerts.telegram_client import _post_message as _tg_post
-        return _tg_post({"text": message, "parse_mode": "HTML"})
+        from spa_core.telegram import push_policy
+        return bool(
+            push_policy.push_critical(
+                "golive_ready", "CRITICAL", "SPA Milestone", message,
+            )
+        )
     except Exception as exc:  # noqa: BLE001 — alerts must never crash callers
-        log.warning("alert_on_milestone: send failed: %s", exc)
+        log.warning("alert_on_milestone: push_policy send failed: %s", exc)
         return False
 
 

@@ -67,7 +67,6 @@ import json
 import logging
 import math
 import os
-import re  # noqa: F401  (kept for parity with sibling tolerant-IO modules)
 import sys
 from datetime import datetime, timezone
 from pathlib import Path

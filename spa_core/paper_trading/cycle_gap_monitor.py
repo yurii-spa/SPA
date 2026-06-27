@@ -264,29 +264,46 @@ def _compute_days_to_golive(now: datetime) -> int:
 
 
 def _send_telegram_alert(message: str) -> bool:
-    """Send an HTML-formatted Telegram message via the keychain-backed client.
+    """Route the cycle-gap alert through the SINGLE push authority (Tier-1).
 
-    Uses ``_post_message`` directly with ``parse_mode=HTML`` so that ``<b>``
-    tags render correctly (same pattern as ``milestone_alert``). Falls back to
-    ``send_message`` (Markdown mode) if the private symbol is unavailable.
+    Phase-1 rewire: cycle_gap_monitor no longer POSTs to Telegram directly. It
+    pushes the whitelisted ``cycle_gap`` key via ``push_policy.push_critical``,
+    which is EDGE-TRIGGERED — one push when the gap first appears, silent while
+    it persists, one RESOLVED when the cycle recovers. Combined with the
+    monitor's own per-calendar-day dedup this guarantees ≤1 gap push/day.
 
-    Returns ``True`` on success, ``False`` on any failure. Never raises.
+    Returns ``True`` if a push was emitted. Never raises.
     """
     try:
-        from spa_core.alerts.telegram_client import _post_message as _tg_post  # type: ignore[import]
-        return bool(_tg_post({"text": message, "parse_mode": "HTML"}))
-    except ImportError:
-        pass
-    except Exception as exc:
-        log.warning("cycle_gap_monitor: Telegram send failed: %s", exc)
+        from spa_core.telegram import push_policy  # type: ignore[import]
+        return bool(
+            push_policy.push_critical(
+                "cycle_gap",
+                "CRITICAL",
+                "SPA — Cycle Gap Detected",
+                message,
+            )
+        )
+    except Exception as exc:  # noqa: BLE001 — alerts must never crash the monitor
+        log.warning("cycle_gap_monitor: push_policy send failed: %s", exc)
         return False
-    # Fallback
+
+
+def _resolve_cycle_gap() -> None:
+    """Emit the single edge-triggered RESOLVED when the cycle is healthy again.
+
+    No-op (silent) if push_policy was never in the ``cycle_gap`` bad state.
+    Never raises.
+    """
     try:
-        from spa_core.alerts.telegram_client import send_message as _send  # type: ignore[import]
-        return bool(_send(message))
-    except Exception as exc:
-        log.warning("cycle_gap_monitor: Telegram send (fallback) failed: %s", exc)
-        return False
+        from spa_core.telegram import push_policy  # type: ignore[import]
+        push_policy.resolve(
+            "cycle_gap",
+            "SPA — Cycle Gap Resolved",
+            "Daily cycle is running again.",
+        )
+    except Exception:  # noqa: BLE001
+        pass
 
 
 # ─── Public entry point ───────────────────────────────────────────────────────
@@ -353,6 +370,10 @@ def run_cycle_gap_monitor(
             log.debug(
                 "cycle_gap_monitor: no gap (%.1fh since last cycle)", hours_since
             )
+            # Edge-trigger RESOLVED: emit one "cycle recovered" push IFF we were
+            # previously in the gap (push_policy no-ops otherwise). Healthy.
+            if not dry_run:
+                _resolve_cycle_gap()
             # HEARTBEAT: write state even when healthy so monitors can see us
             if not dry_run:
                 heartbeat = _build_heartbeat_state(

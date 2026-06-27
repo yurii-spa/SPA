@@ -157,10 +157,23 @@ def _kickstart_cycle() -> None:
 
 
 def _send_telegram(msg: str) -> None:
+    """Route the kill-switch alert through the SINGLE push authority (Tier-1).
+
+    Phase-1 rewire: threat_reactor no longer calls send_message directly. The
+    kill-switch firing is a genuine real-time interrupt (capital action taken),
+    so it pushes the whitelisted ``kill_switch`` key via push_policy. It is
+    edge-triggered, so a kill that stays active does not re-push every 5 min.
+    Never raises.
+    """
     try:
-        from spa_core.alerts.telegram_client import send_message
-        send_message(msg)
-    except Exception:
+        from spa_core.telegram import push_policy
+        push_policy.push_critical(
+            "kill_switch",
+            "CRITICAL",
+            "SPA Threat Reactor — Kill Switch",
+            msg,
+        )
+    except Exception:  # noqa: BLE001
         pass
 
 

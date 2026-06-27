@@ -296,19 +296,27 @@ class TestSend(unittest.TestCase):
         _populate(self.base)
 
     def test_send_returns_true_on_success(self):
+        """send() is RETIRED as a push: it routes the message to the digest queue
+        and returns False. Assert the composed message text is enqueued."""
         rpt = ResearchProgressTelegram(
             bot_token="test_tok",
             chat_id="test_cid",
             base_dir=str(self.base),
         )
-        mock_resp       = MagicMock()
-        mock_resp.read.return_value = json.dumps({"ok": True}).encode()
-        ctx = MagicMock()
-        ctx.__enter__ = lambda s: mock_resp
-        ctx.__exit__  = MagicMock(return_value=False)
-        with patch("urllib.request.urlopen", return_value=ctx):
+        captured = {}
+
+        def fake_enqueue(tg_dir, item, *args, **kwargs):
+            captured["body"] = item.get("body", "")
+
+        with patch(
+            "spa_core.telegram.push_policy._enqueue_digest",
+            side_effect=fake_enqueue,
+        ):
             result = rpt.send()
-        self.assertTrue(result)
+        # Retired push → routes to digest, returns False.
+        self.assertFalse(result)
+        # The composed message text was routed to the digest queue.
+        self.assertIn("Research Update", captured.get("body", ""))
 
     def test_send_returns_false_on_network_error(self):
         rpt = ResearchProgressTelegram(

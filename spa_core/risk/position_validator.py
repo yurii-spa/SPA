@@ -19,8 +19,6 @@ import logging
 import os
 import subprocess
 import sys
-import tempfile
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -68,17 +66,21 @@ def _get_telegram_creds() -> tuple:
 
 
 def _send_telegram(message: str) -> bool:
-    """Send Telegram alert via the canonical rate-limited client. Returns True on success.
+    """RETIRED as a Telegram push (Phase-1 Telegram rebuild).
 
-    FLOOD-GUARD: routed through spa_core.alerts.telegram_client so the shared
-    cross-process rate limit applies. Transport only — same HTML alert.
+    Position-validation findings are advisory (the RiskPolicy gate is the
+    enforcement); routed to the digest queue, never pushed. Always returns
+    False. Never raises.
     """
     try:
-        from spa_core.alerts.telegram_client import send_message
-        return send_message(message, parse_mode="HTML")
-    except Exception as e:
-        log.warning("Telegram send failed: %s", e)
-        return False
+        from spa_core.telegram import push_policy
+        push_policy.enqueue_digest(
+            "position_validator", "Position validation", message,
+            severity="WARNING", reason="position_validator_retired_push",
+        )
+    except Exception as e:  # noqa: BLE001
+        log.warning("position_validator: digest route failed: %s", e)
+    return False
 
 
 def _atomic_write_json(path: Path, data: object) -> None:

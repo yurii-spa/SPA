@@ -340,7 +340,10 @@ class TestMilestoneAlerts(unittest.TestCase):
     def test_run_sends_and_persists_state(self):
         _write(self.ddir, "paper_trading_status.json", _status_doc(days_running=30, apy_today_pct=7.0))
         _write(self.ddir, "golive_status.json", _golive_doc(26, 26))
-        with patch(_SENDER, return_value=True) as m:
+        # Phase-1 Telegram rebuild: alert_on_milestone routes through the single
+        # push authority (push_policy.push_critical "golive_ready"), not the
+        # transport's _post_message. Mock that seam.
+        with patch("spa_core.telegram.push_policy.push_critical", return_value=True) as m:
             res = milestone.run_milestone_alerts(self.ddir, send=True)
             self.assertTrue(m.called)
         self.assertTrue(res["sent"])

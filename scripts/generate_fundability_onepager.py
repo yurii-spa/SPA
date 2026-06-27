@@ -113,6 +113,10 @@ def load_sources(root: str) -> dict:
         "rwa": load_json(os.path.join(d, "rwa_safety_board.json")),
         "forward": load_json(os.path.join(d, "forward_track_integrity.json")),
         "dry_run": load_json(os.path.join(d, "golive_dry_run.json")),
+        # Live risk-adjusted scorecard on the accruing forward series (T4+T5).
+        # Sourced from the on-disk artifact the forward_analytics module writes;
+        # missing -> UNAVAILABLE, never recomputed/fabricated here.
+        "forward_analytics": load_json(os.path.join(d, "forward_analytics.json")),
     }
 
 
@@ -337,8 +341,160 @@ def _section_forward_track(golive, forward) -> str:
     return "\n".join(lines)
 
 
+def _fmt_ratio(v):
+    """Render a Sharpe/Sortino. The source emits the string "UNKNOWN" for a thin or
+    locked-vol track; we pass that through VERBATIM (never coerce it to a number)."""
+    if isinstance(v, str):
+        # The module's honest sentinel ("UNKNOWN") — surfaced as-is.
+        return v
+    if v is None:
+        return "UNKNOWN"
+    try:
+        return f"{float(v):.2f}"
+    except (TypeError, ValueError):
+        return "UNKNOWN"
+
+
+def _section_forward_analytics(fa) -> str:
+    """Live forward-record analytics — risk-adjusted attribution + stress overlay,
+    sourced from data/forward_analytics.json. Fail-CLOSED: missing module/data ->
+    UNAVAILABLE; thin tracks render "THIN (N/30 days, metrics pending)" NOT a
+    fabricated Sharpe; UNKNOWN stays UNKNOWN."""
+    lines = ["## 4. Live forward-record analytics (risk-adjusted, accruing)\n"]
+    lines.append(
+        "The verdict above is static; THIS is the live risk-adjusted picture computed "
+        "ON the accruing forward series themselves (per-day equity for the rates-desk "
+        "carry book + each Strategy-Lab sleeve). Honestly labeled: the forward record is "
+        "still thin, so trustworthy risk-adjusted ratios arrive near day 30 — until then a "
+        "thin track reads **THIN (metrics pending)**, never a fabricated Sharpe. The honest "
+        "thin-labeling IS the credibility.\n"
+    )
+
+    if fa is None or not isinstance(fa, dict) or not fa.get("tracks"):
+        lines.append(
+            f"\nForward-record analytics: {UNAVAILABLE} (forward_analytics.json missing "
+            "or empty — the scorecard has not been generated yet).\n"
+        )
+        return "\n".join(lines)
+
+    floor = fa.get("rwa_floor_pct", fa.get("rwa_floor_apy_pct"))
+    min_pts = fa.get("min_points_for_ratio")
+    n_tracks = fa.get("n_tracks")
+    n_thin = fa.get("n_thin_track")
+    n_beats = fa.get("n_beats_floor")
+    n_unknown = fa.get("n_unknown")
+    lines.append(
+        f"\n**{n_tracks if n_tracks is not None else UNAVAILABLE} forward tracks** "
+        f"(beats-floor {n_beats if n_beats is not None else UNAVAILABLE} · "
+        f"thin {n_thin if n_thin is not None else UNAVAILABLE} · "
+        f"unknown {n_unknown if n_unknown is not None else UNAVAILABLE}). "
+        f"Attribution baseline: the live RWA floor **{_fmt_pct(floor, 1)}/yr**; a "
+        f"realized Sharpe/Sortino is only trusted at **>= "
+        f"{min_pts if min_pts is not None else UNAVAILABLE} equity points** — below that "
+        "the ratio is a degenerate artifact and is reported THIN, not a number.\n"
+    )
+
+    # Per-track risk-adjusted scorecard.
+    lines.append(
+        "\n| track | days | realized APY %/yr | excess vs floor %/yr | Sharpe | Sortino | "
+        "max DD % | status |"
+    )
+    lines.append("|---|---:|---:|---:|---:|---:|---:|:--|")
+    tracks = fa.get("tracks") or []
+    for t in tracks:
+        if not isinstance(t, dict):
+            continue
+        name = t.get("name", "?")
+        n_pts = t.get("n_points")
+        ann = t.get("ann_return_pct")
+        excess = t.get("excess_vs_floor_pct")
+        max_dd = t.get("max_dd_pct")
+        verdict = t.get("verdict", "UNKNOWN")
+        sharpe = _fmt_ratio(t.get("sharpe"))
+        sortino = _fmt_ratio(t.get("sortino"))
+        # Honest status: a thin track is labeled "THIN (N/30 days, metrics pending)";
+        # an integrity-broken track is UNKNOWN; only a real ratio earns beats/below.
+        if verdict == "THIN_TRACK":
+            status = (
+                f"THIN ({n_pts if n_pts is not None else '?'}/30 days, metrics pending)"
+            )
+        elif verdict == "BEATS_FLOOR":
+            status = "beats floor"
+        elif verdict == "BELOW_FLOOR":
+            status = "below floor"
+        else:
+            status = "UNKNOWN"
+            if not t.get("integrity_ok", True):
+                reason = t.get("integrity_reason")
+                if reason:
+                    status = f"UNKNOWN ({reason})"
+        lines.append(
+            f"| {name} | "
+            f"{n_pts if n_pts is not None else UNAVAILABLE} | "
+            f"{_fmt_pct(ann, 2) if ann is not None else UNAVAILABLE} | "
+            f"{_fmt_pct(excess, 2) if excess is not None else UNAVAILABLE} | "
+            f"{sharpe} | {sortino} | "
+            f"{_fmt_pct(max_dd, 2) if max_dd is not None else UNAVAILABLE} | "
+            f"{status} |"
+        )
+    lines.append("")
+
+    # T5 — stress overlay on the live carry book.
+    overlay = fa.get("carry_book_stress_overlay")
+    if not isinstance(overlay, dict) or not overlay.get("scenarios"):
+        lines.append(
+            f"Forward stress overlay: {UNAVAILABLE} (no carry-book stress overlay in the "
+            "scorecard).\n"
+        )
+    else:
+        held = overlay.get("held_pt_notional_usd")
+        band = overlay.get("max_dd_band_pct")
+        worst = overlay.get("worst_stress_dd_pct")
+        survives_all = overlay.get("survives_all")
+        sa = (
+            "survives ALL" if survives_all is True
+            else "does NOT survive all" if survives_all is False
+            else UNAVAILABLE
+        )
+        lines.append(
+            f"**Forward stress overlay** (canonical 2024-2026 PT mark-down shocks applied to "
+            f"the **currently-held** carry book — {_fmt_usd(held)} PT notional — on top of the "
+            f"REALIZED forward equity, drawdown band "
+            f"{_fmt_pct(band, 0) if band is not None else UNAVAILABLE}): "
+            f"worst-case stressed DD **{_fmt_pct(worst, 2) if worst is not None else UNAVAILABLE}**, "
+            f"**{sa}**.\n"
+        )
+        lines.append("\n| stress scenario | PT mark-down % | shock $ | stressed DD % | survives |")
+        lines.append("|---|---:|---:|---:|:--:|")
+        for sc in overlay.get("scenarios") or []:
+            if not isinstance(sc, dict):
+                continue
+            surv = (
+                "yes" if sc.get("survives") is True
+                else "no" if sc.get("survives") is False
+                else UNAVAILABLE
+            )
+            lines.append(
+                f"| {sc.get('label', '?')} | "
+                f"{_fmt_pct(sc.get('pt_markdown_pct'), 2) if sc.get('pt_markdown_pct') is not None else UNAVAILABLE} | "
+                f"{_fmt_usd(sc.get('shock_usd'))} | "
+                f"{_fmt_pct(sc.get('stress_dd_pct'), 2) if sc.get('stress_dd_pct') is not None else UNAVAILABLE} | "
+                f"{surv} |"
+            )
+        lines.append("")
+
+    lines.append(
+        "**Framed honestly for a funder:** the forward record is *accruing* — this is the "
+        "risk-adjusted picture to date, every number sourced live from the realized series and "
+        "labeled THIN where a ratio would be premature. The refusal chain plus this honest "
+        "thin-labeling is exactly what makes the day-30 artifact trustworthy: the ratios that "
+        "land near day 30 will rest on a record that was never fabricated along the way.\n"
+    )
+    return "\n".join(lines)
+
+
 def _section_safety(dry_run, golive) -> str:
-    lines = ["## 4. The safety architecture\n"]
+    lines = ["## 5. The safety architecture\n"]
     lines.append(
         "- **Refusal-first gate** — a deterministic policy composed *under* the global "
         "RiskPolicy, only ever stricter; LLM-forbidden in risk/kill; fail-CLOSED "
@@ -381,7 +537,7 @@ def _section_safety(dry_run, golive) -> str:
 
 def _section_offcode_gates() -> str:
     return (
-        "## 5. The off-code gates — honestly, what stands between here and $10M\n\n"
+        "## 6. The off-code gates — honestly, what stands between here and $10M\n\n"
         "The code did its job: it took each thesis to an honest verdict for free. But across "
         "all three, the same boundary appears — **the code can measure and refuse; the $10M is "
         "off-code.** Stated plainly, not hidden:\n\n"
@@ -418,6 +574,7 @@ def build_document(sources: dict, now_iso: str) -> str:
     rwa = sources.get("rwa")
     forward = sources.get("forward")
     dry_run = sources.get("dry_run")
+    forward_analytics = sources.get("forward_analytics")
 
     parts = [
         "# SPA — Fundability one-pager\n",
@@ -432,6 +589,8 @@ def build_document(sources: dict, now_iso: str) -> str:
         "\n---\n",
         _section_forward_track(golive, forward),
         "\n---\n",
+        _section_forward_analytics(forward_analytics),
+        "\n---\n",
         _section_safety(dry_run, golive),
         "\n---\n",
         _section_offcode_gates(),
@@ -439,7 +598,8 @@ def build_document(sources: dict, now_iso: str) -> str:
         f"_Regenerated {now_iso}. All numbers live from `data/` "
         "(golive_status.json · rates_desk/rates_desk_promotion.json · "
         "rates_desk/decision_log.jsonl · rwa_safety_board.json · "
-        "forward_track_integrity.json · golive_dry_run.json). Regenerable via "
+        "forward_track_integrity.json · forward_analytics.json · golive_dry_run.json). "
+        "Regenerable via "
         "`python3 scripts/generate_fundability_onepager.py --md`. "
         "Follow-up: a public `/fundability` site page mirroring this doc._\n",
     ]

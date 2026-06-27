@@ -21,6 +21,7 @@ from __future__ import annotations
 import gzip
 import json as _json
 import logging
+import math
 import time
 import urllib.error
 import urllib.request
@@ -38,6 +39,10 @@ REQUEST_TIMEOUT = 8
 # Liveness filters for the ``fetch_*`` surface.
 MIN_TVL_USD_DEFAULT = 100_000.0  # below this a pool is treated as dead/spam.
 APY_SANITY_MAX = 200.0  # APY above this (or below 0) is rejected as an anomaly.
+# A TVL above this is not real on-chain data (the whole DeFi market is << $1T).
+# Beyond it (incl. an overflow-prone huge-but-finite value) we reject rather
+# than leak an unbounded figure into allocation (fail-closed).
+TVL_SANITY_MAX = 1e15
 
 
 class DeFiLlamaFeed:
@@ -150,9 +155,15 @@ class DeFiLlamaFeed:
         if pool is None:
             return None
         apy = pool.get("apy")
-        if not isinstance(apy, (int, float)):
+        # bool is an int subclass; never treat True/False as a numeric APY.
+        if not isinstance(apy, (int, float)) or isinstance(apy, bool):
             return None
-        return float(apy) / 100.0
+        apy = float(apy)
+        # json.loads accepts NaN/Infinity tokens by default → reject non-finite
+        # so we never hand a fabricated/unbounded value downstream (fail-closed).
+        if not math.isfinite(apy):
+            return None
+        return apy / 100.0
 
     def get_tvl(
         self, project: str, symbol: str, chain: str = "Ethereum"
@@ -162,9 +173,13 @@ class DeFiLlamaFeed:
         if pool is None:
             return None
         tvl = pool.get("tvlUsd")
-        if not isinstance(tvl, (int, float)):
+        if not isinstance(tvl, (int, float)) or isinstance(tvl, bool):
             return None
-        return float(tvl)
+        tvl = float(tvl)
+        # Reject NaN/Infinity (json.loads emits them), negative and absurd TVL.
+        if not math.isfinite(tvl) or tvl < 0 or tvl > TVL_SANITY_MAX:
+            return None
+        return tvl
 
     # --- liveness-filtered surface (SPA-V398) -------------------------------
 
@@ -215,16 +230,25 @@ class DeFiLlamaFeed:
                     continue
 
                 tvl = pool.get("tvlUsd")
-                tvl = float(tvl) if isinstance(tvl, (int, float)) else 0.0
-                if tvl < min_tvl_usd:
-                    # Dead/spam pool — not live data.
+                if isinstance(tvl, (int, float)) and not isinstance(tvl, bool):
+                    tvl = float(tvl)
+                else:
+                    tvl = 0.0
+                # Reject NaN/Infinity TVL (json.loads emits them): treat as 0
+                # so the pool fails the floor below rather than leaking inf.
+                if not math.isfinite(tvl):
+                    tvl = 0.0
+                if tvl < min_tvl_usd or tvl > TVL_SANITY_MAX:
+                    # Dead/spam pool (too small) or absurd (not real) — skip.
                     continue
 
                 apy = pool.get("apy")
-                if not isinstance(apy, (int, float)):
+                if not isinstance(apy, (int, float)) or isinstance(apy, bool):
                     continue
                 apy = float(apy)
-                if apy < 0 or apy > APY_SANITY_MAX:
+                # NaN slips past `apy < 0 or apy > MAX` (NaN comparisons are
+                # always False) → reject non-finite explicitly first (fail-closed).
+                if not math.isfinite(apy) or apy < 0 or apy > APY_SANITY_MAX:
                     logger.warning(
                         "DeFiLlama %s/%s on %s: anomalous APY %.4f%% rejected",
                         project,

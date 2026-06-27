@@ -15,7 +15,6 @@ LLM_FORBIDDEN_AGENTS = {risk, execution, monitoring}
 from dataclasses import dataclass
 from typing import Optional
 from pathlib import Path
-import json
 import math
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]

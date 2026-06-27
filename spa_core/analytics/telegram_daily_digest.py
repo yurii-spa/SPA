@@ -441,23 +441,17 @@ class TelegramDailyDigest:
         # signature compatibility; the canonical client re-resolves creds from
         # the Keychain (TELEGRAM_*_SPA). message_id is not exposed by the
         # canonical client (returns bool), so it is reported as None on success.
-        digest = self.build_digest(date_str=date_str)
-        try:
-            from spa_core.alerts.telegram_client import send_message
-            ok = send_message(digest, parse_mode="MarkdownV2")
-            if ok:
-                return {"ok": True, "status_code": 200, "message_id": None}
-            return {
-                "ok": False,
-                "status_code": 0,
-                "error": "send failed or suppressed by flood guard",
-            }
-        except Exception as exc:  # noqa: BLE001
-            return {
-                "ok": False,
-                "status_code": 0,
-                "error": f"Unexpected error: {exc}",
-            }
+        # RETIRED (Phase-1 Telegram rebuild): this analytics digest no longer
+        # pushes Telegram directly — its metrics are folded into the single
+        # canonical daily message (``spa_core.telegram.reports.daily``) and the
+        # on-demand analytics view. build_digest() still produces the text for
+        # those consumers; no send occurs here.
+        _ = self.build_digest(date_str=date_str)
+        return {
+            "ok": False,
+            "status_code": 0,
+            "error": "retired: use spa_core.telegram.reports.daily",
+        }
 
     # ------------------------------------------------------------------
     # Save

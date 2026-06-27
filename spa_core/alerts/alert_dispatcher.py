@@ -33,8 +33,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
-import urllib.request
-import urllib.error
 from email.message import EmailMessage
 from spa_core.utils.atomic import atomic_save
 
@@ -367,81 +365,35 @@ class AlertDispatcher:
     # Channel: Telegram
     # ------------------------------------------------------------------
     def dispatch_to_telegram(self, alert: Alert) -> bool:
+        """RETIRED as a direct Telegram push (Phase-1 Telegram rebuild).
+
+        AlertDispatcher carried many alert types and POSTed each one directly,
+        bypassing the single push authority. It no longer pushes Telegram. The
+        genuine Tier-1 cases that used to flow through here (e.g. a CRITICAL peg
+        break) are now routed by their owning monitor through
+        ``spa_core.telegram.push_policy`` (held-scoped, edge-triggered); every
+        other alert is demoted to the digest queue (folded into the one daily
+        digest / on-demand views). The dispatcher still records alerts into its
+        own JSON history via ``dispatch``. Always returns False (no push). Never
+        raises.
         """
-        Send alert via Telegram Bot API.
-
-        Reads env vars:
-          TELEGRAM_BOT_TOKEN_SPA — bot token
-          TELEGRAM_CHAT_ID_SPA   — target chat / channel ID
-
-        Returns False and logs if credentials are absent or the send fails.
-        Never raises.
-        """
-        token = os.environ.get("TELEGRAM_BOT_TOKEN_SPA", "").strip()
-        chat_id = os.environ.get("TELEGRAM_CHAT_ID_SPA", "").strip()
-
-        if not token or not chat_id:
-            log.debug(
-                "Telegram not configured "
-                "(TELEGRAM_BOT_TOKEN_SPA / TELEGRAM_CHAT_ID_SPA missing)"
-            )
-            return False
-
-        text = _format_telegram_message(alert)
-
-        # FLOOD-GUARD: honour the shared cross-process rate limit before sending.
-        # We POST directly with the env-var credentials (preserving the configured
-        # check above), so call the guard explicitly rather than routing through
-        # telegram_client.send_message (which reads its own Keychain credentials).
         try:
-            from spa_core.alerts.telegram_client import flood_guard_ok
-            if not flood_guard_ok(text):
-                return False
-        except Exception:  # noqa: BLE001 — guard error must never block a send
-            pass
-
-        url = _TELEGRAM_API_BASE.format(token=token)
-        payload_bytes = json.dumps(
-            {
-                "chat_id": chat_id,
-                "text": text,
-                "parse_mode": "HTML",
-                "disable_web_page_preview": True,
-            }
-        ).encode("utf-8")
-
-        try:
-            req = urllib.request.Request(
-                url,
-                data=payload_bytes,
-                headers={"Content-Type": "application/json"},
-                method="POST",
+            text = _format_telegram_message(alert)
+            from spa_core.telegram import push_policy
+            push_policy._enqueue_digest(
+                push_policy._tg_dir(),
+                {
+                    "ts": push_policy._now_iso(),
+                    "event_key": "alert_dispatcher",
+                    "severity": getattr(getattr(alert, "level", None), "name", "INFO"),
+                    "title": getattr(alert, "title", ""),
+                    "body": text[:500],
+                    "reason": "alert_dispatcher_retired_push",
+                },
             )
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                ok = resp.status == 200
-                if ok:
-                    log.info(
-                        "Telegram alert sent [%s] %s",
-                        alert.level.name,
-                        alert.title,
-                    )
-                else:
-                    log.warning(
-                        "Telegram unexpected status=%d alert_id=%s",
-                        resp.status,
-                        alert.correlation_id,
-                    )
-                return ok
-        except urllib.error.HTTPError as exc:
-            body = exc.read().decode("utf-8", errors="replace")
-            log.error("Telegram HTTPError %d: %s", exc.code, body)
-            return False
-        except urllib.error.URLError as exc:
-            log.error("Telegram URLError: %s", exc.reason)
-            return False
-        except Exception as exc:  # noqa: BLE001
-            log.error("Telegram unexpected error: %s", exc)
-            return False
+        except Exception as exc:  # noqa: BLE001 — must never crash a caller
+            log.warning("alert_dispatcher: digest route failed: %s", exc)
+        return False
 
     # ------------------------------------------------------------------
     # Main dispatch

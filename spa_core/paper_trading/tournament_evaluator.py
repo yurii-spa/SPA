@@ -21,9 +21,7 @@ TournamentEvaluator: оценивает все стратегии из VPortfoli
 """
 from __future__ import annotations
 
-import json
 import math
-import os
 import random
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -31,7 +29,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from spa_core.base import BaseAnalytics
-from spa_core.paper_trading.strategy_registry import STRATEGY_REGISTRY, StrategyConfig
+from spa_core.paper_trading.strategy_registry import STRATEGY_REGISTRY
 from spa_core.paper_trading.vportfolio import VPortfolio, VPortfolioManager
 from spa_core.utils.atomic import atomic_save
 

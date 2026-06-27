@@ -505,18 +505,29 @@ def _resolve_credentials(
 
 
 def _post_message(token: str, chat_id: str, text: str) -> dict:
-    """Send one message via the canonical rate-limited client. Returns an
-    API-shaped response dict ``{"ok": bool}``.
+    """RETIRED as a Telegram push (Phase-1 Telegram rebuild).
 
-    FLOOD-GUARD: routed through spa_core.alerts.telegram_client so the shared
-    cross-process rate limit applies. Transport only — same Markdown message.
-    The ``token``/``chat_id`` args are kept for signature compatibility; the
-    canonical client re-resolves them from the Keychain (TELEGRAM_*_SPA).
-    A dropped (rate-limited) or failed send returns ``{"ok": False}``.
+    The /protocols report is on-demand (a bot pull-view), not an unsolicited
+    push. This no longer routes to the transport; the composed text is dropped
+    to the digest queue. The ``token``/``chat_id`` args are kept for signature
+    compatibility. Returns an API-shaped ``{"ok": False}``. Never raises.
     """
-    from spa_core.alerts.telegram_client import send_message
-    ok = send_message(text, parse_mode="Markdown")
-    return {"ok": bool(ok)}
+    try:
+        from spa_core.telegram import push_policy
+        push_policy._enqueue_digest(
+            push_policy._tg_dir(),
+            {
+                "ts": push_policy._now_iso(),
+                "event_key": "protocols_report",
+                "severity": "INFO",
+                "title": "Protocols report",
+                "body": (text or "")[:500],
+                "reason": "protocols_reporter_retired_push",
+            },
+        )
+    except Exception:  # noqa: BLE001
+        pass
+    return {"ok": False}
 
 
 # ──────────────────────────── public: send ─────────────────────────────────

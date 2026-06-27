@@ -207,7 +207,7 @@ def build_investor_report(
 
 def _atomic_write_json(data: dict, path: str | Path) -> None:
     """Atomic JSON write via centralized atomic_save (MP-1453)."""
-    atomic_save(path, str(data))
+    atomic_save(data, str(path))
 def _maybe_generate_pdf(report: dict, json_path: str | Path) -> str | None:
     """Render a PDF next to the JSON, only if reportlab + pdf_generator exist.
 

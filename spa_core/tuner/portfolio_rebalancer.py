@@ -26,11 +26,8 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import subprocess
 import sys
-import tempfile
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -109,17 +106,21 @@ def _read_keychain(service: str) -> Optional[str]:
 
 
 def _send_telegram(message: str) -> bool:
-    """Send Telegram alert via the canonical rate-limited client. Best-effort, never raises.
+    """RETIRED as a Telegram push (Phase-1 Telegram rebuild).
 
-    FLOOD-GUARD: routed through spa_core.alerts.telegram_client so the shared
-    cross-process rate limit applies. Transport only — same HTML alert.
+    Rebalance notices are informational (the rebalance itself is logged + shown
+    in the daily digest / on-demand views); routed to the digest queue, never
+    pushed. Always returns False. Never raises.
     """
     try:
-        from spa_core.alerts.telegram_client import send_message
-        return send_message(message[:4096], parse_mode="HTML")
-    except Exception as e:
-        log.warning("Telegram send failed: %s", e)
-        return False
+        from spa_core.telegram import push_policy
+        push_policy.enqueue_digest(
+            "rebalance", "Portfolio rebalance", message[:4000],
+            reason="portfolio_rebalancer_retired_push",
+        )
+    except Exception as e:  # noqa: BLE001
+        log.warning("portfolio_rebalancer: digest route failed: %s", e)
+    return False
 
 
 # ─── Core logic ──────────────────────────────────────────────────────────────

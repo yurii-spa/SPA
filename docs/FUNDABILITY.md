@@ -29,7 +29,7 @@ A risk-adjusted fair-value model for tokenized yield that (a) harvests genuinely
 | basis_hedge | BLOCKED-NO-HEDGE | 3.4000% | no | 0.000% | 0 | 0 |
 | rate_matrix | PAPER_CANDIDATE | 6.0863% | yes | 0.000% | 3098 | 328 |
 
-**Proof chain** (live, hash-linked `data/rates_desk/decision_log.jsonl`): **246** logged decisions — **132 refusals** (of which **111** structural tail-vetoes) and **114 entries**. Every decision — entry AND refusal — is hashed into a tamper-evident record: the public "what we traded AND what we refused, and why."
+**Proof chain** (live, hash-linked `data/rates_desk/decision_log.jsonl`): **296** logged decisions — **157 refusals** (of which **126** structural tail-vetoes) and **139 entries**. Every decision — entry AND refusal — is hashed into a tamper-evident record: the public "what we traded AND what we refused, and why."
 
 
 **Honest caveats (stated, not hidden):**
@@ -60,7 +60,40 @@ Forward-track integrity: **all_ok** — 8 forward tracks, 0 failing (no duplicat
 
 ---
 
-## 4. The safety architecture
+## 4. Live forward-record analytics (risk-adjusted, accruing)
+
+The verdict above is static; THIS is the live risk-adjusted picture computed ON the accruing forward series themselves (per-day equity for the rates-desk carry book + each Strategy-Lab sleeve). Honestly labeled: the forward record is still thin, so trustworthy risk-adjusted ratios arrive near day 30 — until then a thin track reads **THIN (metrics pending)**, never a fabricated Sharpe. The honest thin-labeling IS the credibility.
+
+
+**8 forward tracks** (beats-floor 0 · thin 8 · unknown 0). Attribution baseline: the live RWA floor **3.4%/yr**; a realized Sharpe/Sortino is only trusted at **>= 7 equity points** — below that the ratio is a degenerate artifact and is reported THIN, not a number.
+
+
+| track | days | realized APY %/yr | excess vs floor %/yr | Sharpe | Sortino | max DD % | status |
+|---|---:|---:|---:|---:|---:|---:|:--|
+| paper/rates_desk_fixed_carry | 3 | 0.68% | -2.72% | UNKNOWN | UNKNOWN | 0.00% | THIN (3/30 days, metrics pending) |
+| strategy_lab_paper/engine_a | 4 | 3.80% | 0.40% | UNKNOWN | UNKNOWN | 0.00% | THIN (4/30 days, metrics pending) |
+| strategy_lab_paper/engine_b | 4 | 8.33% | 4.93% | UNKNOWN | UNKNOWN | 0.00% | THIN (4/30 days, metrics pending) |
+| strategy_lab_paper/engine_c | 4 | 8.87% | 5.47% | UNKNOWN | UNKNOWN | 0.00% | THIN (4/30 days, metrics pending) |
+| strategy_lab_paper/rwa_floor | 4 | 3.80% | 0.40% | UNKNOWN | UNKNOWN | 0.00% | THIN (4/30 days, metrics pending) |
+| strategy_lab_paper/rwa_sleeve | 2 | 3.38% | -0.02% | UNKNOWN | UNKNOWN | 0.00% | THIN (2/30 days, metrics pending) |
+| strategy_lab_paper/variant_d | 4 | -86.39% | -89.79% | UNKNOWN | UNKNOWN | 3.94% | THIN (4/30 days, metrics pending) |
+| strategy_lab_paper/variant_n | 4 | -1.44% | -4.84% | UNKNOWN | UNKNOWN | 0.13% | THIN (4/30 days, metrics pending) |
+
+**Forward stress overlay** (canonical 2024-2026 PT mark-down shocks applied to the **currently-held** carry book — $14,546 PT notional — on top of the REALIZED forward equity, drawdown band 15%): worst-case stressed DD **0.87%**, **survives ALL**.
+
+
+| stress scenario | PT mark-down % | shock $ | stressed DD % | survives |
+|---|---:|---:|---:|:--:|
+| 2024-08 ETH crash / carry-unwind | 1.50% | $218 | 0.22% | yes |
+| 2025-10 USDe leverage unwind (THE test) | 3.00% | $436 | 0.44% | yes |
+| 2026-04 KelpDAO rsETH depeg | 6.00% | $873 | 0.87% | yes |
+
+**Framed honestly for a funder:** the forward record is *accruing* — this is the risk-adjusted picture to date, every number sourced live from the realized series and labeled THIN where a ratio would be premature. The refusal chain plus this honest thin-labeling is exactly what makes the day-30 artifact trustworthy: the ratios that land near day 30 will rest on a record that was never fabricated along the way.
+
+
+---
+
+## 5. The safety architecture
 
 - **Refusal-first gate** — a deterministic policy composed *under* the global RiskPolicy, only ever stricter; LLM-forbidden in risk/kill; fail-CLOSED (missing/invalid data -> max tail-risk, never a silent pass).
 - **Kill switch** — drawdown >= 5% closes everything; cannot be overridden.
@@ -73,7 +106,7 @@ Forward-track integrity: **all_ok** — 8 forward tracks, 0 failing (no duplicat
 
 ---
 
-## 5. The off-code gates — honestly, what stands between here and $10M
+## 6. The off-code gates — honestly, what stands between here and $10M
 
 The code did its job: it took each thesis to an honest verdict for free. But across all three, the same boundary appears — **the code can measure and refuse; the $10M is off-code.** Stated plainly, not hidden:
 
@@ -87,4 +120,4 @@ This is the honest scale truth: SPA contributes the cheapest, most defensible fi
 
 ---
 
-_Regenerated 2026-06-27 01:36 UTC. All numbers live from `data/` (golive_status.json · rates_desk/rates_desk_promotion.json · rates_desk/decision_log.jsonl · rwa_safety_board.json · forward_track_integrity.json · golive_dry_run.json). Regenerable via `python3 scripts/generate_fundability_onepager.py --md`. Follow-up: a public `/fundability` site page mirroring this doc._
+_Regenerated 2026-06-27 11:16 UTC. All numbers live from `data/` (golive_status.json · rates_desk/rates_desk_promotion.json · rates_desk/decision_log.jsonl · rwa_safety_board.json · forward_track_integrity.json · forward_analytics.json · golive_dry_run.json). Regenerable via `python3 scripts/generate_fundability_onepager.py --md`. Follow-up: a public `/fundability` site page mirroring this doc._

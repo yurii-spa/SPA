@@ -210,7 +210,8 @@ def portfolio_metrics(weights: Dict[str, float], series: Dict[str, List[float]])
 
     mean_r = _mean(rets)
     std_r = _std(rets)
-    sharpe_daily = mean_r / std_r if std_r > 0 else 0.0
+    # float-safe: near-zero std (constant series) → Sharpe is meaningless → 0
+    sharpe_daily = mean_r / std_r if std_r >= 1e-10 else 0.0
 
     # Expected (mean) APY = weighted average of each protocol's mean APY.
     exp_apy = sum(w * _mean(series[k]) for k, w in weights.items())

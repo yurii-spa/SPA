@@ -543,15 +543,17 @@ class TestSendProtocolReport(unittest.TestCase):
                           mock_apy={"ethereum": {"USDC": 4.2}}),
         ])
 
-    @unittest.mock.patch("urllib.request.urlopen")
-    def test_returns_true_on_200(self, mock_urlopen):
-        mock_urlopen.return_value = _FakeResponse(200)
+    @unittest.mock.patch("spa_core.telegram.push_policy.enqueue_digest")
+    def test_returns_true_on_200(self, mock_enqueue):
+        """send_protocol_report is RETIRED as a push: it routes the report to the
+        digest queue and returns False."""
         result = pr.send_protocol_report(
             bot_token="test_token",
             chat_id="-100123",
             data_dir=self.tmp_path,
         )
-        self.assertTrue(result)
+        self.assertFalse(result)
+        mock_enqueue.assert_called_once()
 
     @unittest.mock.patch("urllib.request.urlopen")
     def test_returns_false_on_non_200(self, mock_urlopen):
@@ -588,18 +590,19 @@ class TestSendProtocolReport(unittest.TestCase):
         )
         self.assertFalse(result)
 
-    @unittest.mock.patch("urllib.request.urlopen")
-    def test_post_uses_markdownv2(self, mock_urlopen):
-        mock_urlopen.return_value = _FakeResponse(200)
+    @unittest.mock.patch("spa_core.telegram.push_policy.enqueue_digest")
+    def test_report_routed_to_digest(self, mock_enqueue):
+        """The MarkdownV2 path is gone (no direct POST). Assert the composed report
+        TEXT is routed to the digest queue instead."""
         pr.send_protocol_report(
             bot_token="test_token",
             chat_id="-100123",
             data_dir=self.tmp_path,
         )
-        call_args = mock_urlopen.call_args
-        req = call_args[0][0]
-        body = req.data.decode("utf-8")
-        self.assertIn("MarkdownV2", body)
+        mock_enqueue.assert_called_once()
+        # enqueue_digest(event_key, title, body, *, ...) — body is positional index 2.
+        body = mock_enqueue.call_args[0][2]
+        self.assertIn("SPA Protocol Report", body)
 
     @unittest.mock.patch(
         "urllib.request.urlopen",
@@ -615,17 +618,21 @@ class TestSendProtocolReport(unittest.TestCase):
         )
         self.assertFalse(result)
 
-    @unittest.mock.patch("urllib.request.urlopen")
-    def test_filter_passed_through(self, mock_urlopen):
-        """Filtered report is still sent."""
-        mock_urlopen.return_value = _FakeResponse(200)
+    @unittest.mock.patch("spa_core.telegram.push_policy.enqueue_digest")
+    def test_filter_passed_through(self, mock_enqueue):
+        """Filtered report is still composed and routed to the digest; the filter
+        still affects the enqueued text (aave present, compound absent)."""
         result = pr.send_protocol_report(
             bot_token="tok",
             chat_id="cid",
             protocol_filter="aave-v3",
             data_dir=self.tmp_path,
         )
-        self.assertTrue(result)
+        self.assertFalse(result)
+        mock_enqueue.assert_called_once()
+        body = mock_enqueue.call_args[0][2]
+        self.assertIn("Aave", body)
+        self.assertNotIn("Compound", body)
 
 
 # ---------------------------------------------------------------------------

@@ -393,7 +393,7 @@ class PaperPeriodSimulator:
                 ),
                 f"Estimated evidence accumulation: ~{round(daily_rate, 1)} points/day",
                 "Neutral/bear regimes produce higher stress-tested evidence quality (ADR-002)",
-                "GoLiveChecker: 16/26 criteria passing; go-live target 2026-08-01",
+                "GoLiveChecker: 16/26 criteria passing; go-live target 2026-07-21",
             ],
         }
 

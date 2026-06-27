@@ -979,51 +979,64 @@ def test_collect_skipgraph_no_critical_spam(good_dir, monkeypatch):
     assert report["counts"][SKIPPED] >= 5
 
 
+# Phase-1 Telegram rebuild: system_health no longer has _send_telegram. It now
+# (a) pushes CRITICAL via _push_system_critical (push_policy edge-trigger),
+# (b) emits _resolve_system_critical when healthy, and (c) routes the twice-daily
+# summary to the digest queue via _digest_summary (never a push). The tests below
+# patch those three seams.
 def test_run_check_does_not_send_telegram(good_dir, monkeypatch):
     _patch_all_io(shm, monkeypatch)
-    calls = []
-    monkeypatch.setattr(shm, "_send_telegram", lambda msg: calls.append(msg) or True)
+    pushes, summaries = [], []
+    monkeypatch.setattr(shm, "_push_system_critical", lambda m: pushes.append(m) or True)
+    monkeypatch.setattr(shm, "_resolve_system_critical", lambda: None)
+    monkeypatch.setattr(shm, "_digest_summary", lambda m: summaries.append(m))
     mon = make_mon(good_dir)
     mon.run(send=False)
-    assert calls == []
+    assert pushes == [] and summaries == []
     assert (good_dir / "data" / "system_health.json").exists()
 
 
-def test_run_send_emits_summary(good_dir, monkeypatch):
+def test_run_send_emits_summary_to_digest(good_dir, monkeypatch):
     _patch_all_io(shm, monkeypatch)
     _write(good_dir / "data", "portfolio_health.json", {"score": 90})
-    calls = []
-    monkeypatch.setattr(shm, "_send_telegram", lambda msg: calls.append(msg) or True)
+    summaries = []
+    monkeypatch.setattr(shm, "_push_system_critical", lambda m: True)
+    monkeypatch.setattr(shm, "_resolve_system_critical", lambda: None)
+    monkeypatch.setattr(shm, "_digest_summary", lambda m: summaries.append(m))
     mon = make_mon(good_dir)
     mon.run(send=True)
-    assert len(calls) >= 1                      # at least the summary
+    assert len(summaries) == 1                   # summary goes to the digest
 
 
-def test_run_send_pages_on_new_critical(good_dir, monkeypatch):
+def test_run_send_pushes_on_critical(good_dir, monkeypatch):
     _patch_all_io(shm, monkeypatch)
     _write(good_dir / "data", "red_flags.json",
            {"red_flags": [{"severity": "CRITICAL", "message": "boom"}]})
-    calls = []
-    monkeypatch.setattr(shm, "_send_telegram", lambda msg: calls.append(msg) or True)
+    pushes, summaries = [], []
+    monkeypatch.setattr(shm, "_push_system_critical", lambda m: pushes.append(m) or True)
+    monkeypatch.setattr(shm, "_resolve_system_critical", lambda: None)
+    monkeypatch.setattr(shm, "_digest_summary", lambda m: summaries.append(m))
     mon = make_mon(good_dir)
     mon.run(send=True)
-    # page + summary
-    assert len(calls) == 2
-    assert any("CRITICAL" in c for c in calls)
+    # one Tier-1 push (CRITICAL page) + one digest summary
+    assert len(pushes) == 1
+    assert len(summaries) == 1
 
 
-def test_run_no_repage_same_critical(good_dir, monkeypatch):
+def test_run_edge_trigger_handles_repeat_critical(good_dir, monkeypatch):
+    # The edge-trigger (one push per critical episode) is owned + unit-tested by
+    # push_policy; here we just confirm the monitor routes CRITICAL to it every
+    # run (push_policy itself suppresses the re-fire).
     _patch_all_io(shm, monkeypatch)
     _write(good_dir / "data", "red_flags.json",
            {"red_flags": [{"severity": "CRITICAL", "message": "boom"}]})
-    monkeypatch.setattr(shm, "_send_telegram", lambda msg: True)
-    mon = make_mon(good_dir)
-    mon.run(send=True)                           # first run writes critical fp
-    calls = []
-    monkeypatch.setattr(shm, "_send_telegram", lambda msg: calls.append(msg) or True)
-    mon2 = make_mon(good_dir)
-    mon2.run(send=True)                          # same critical -> only summary
-    assert len(calls) == 1
+    pushes = []
+    monkeypatch.setattr(shm, "_push_system_critical", lambda m: pushes.append(m) or True)
+    monkeypatch.setattr(shm, "_resolve_system_critical", lambda: None)
+    monkeypatch.setattr(shm, "_digest_summary", lambda m: None)
+    make_mon(good_dir).run(send=True)
+    make_mon(good_dir).run(send=True)
+    assert len(pushes) == 2  # routed both runs; push_policy dedups the actual send
 
 
 def test_history_ring_buffer_caps_at_30(good_dir, monkeypatch):

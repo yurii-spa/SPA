@@ -12,7 +12,7 @@ from __future__ import annotations
 import datetime
 import html
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from spa_core.base import BaseAnalytics
 from spa_core.utils.atomic import atomic_load
@@ -106,24 +106,24 @@ class MorningDigest(BaseAnalytics):
             return default
 
     def send(self) -> bool:
-        """Compose and send the morning digest via Telegram. Fail-safe."""
+        """RETIRED (Phase-1 Telegram rebuild) — folded into the one daily digest.
+
+        morning_digest was one of FOUR duplicate daily-report senders. It no
+        longer pushes Telegram directly; the single canonical daily message is
+        ``spa_core.telegram.reports.daily``. This method still COMPOSES + saves
+        its state for back-compat (callers/tests reading ``last_digest``), but
+        performs no Telegram send and always returns False.
+        """
         try:
-            from spa_core.alerts.telegram_client import send_message  # type: ignore
-
             msg = self.compose()
-            result = send_message(msg, parse_mode="HTML")
-
-            self._data["last_sent"] = datetime.datetime.now(
+            self._data["last_composed"] = datetime.datetime.now(
                 datetime.timezone.utc
             ).isoformat()
             self._data["last_digest"] = msg
-            self._data["send_count"] = self._data.get("send_count", 0) + 1
             self.save()
-
-            return result
-        except Exception as exc:
-            log.warning("Morning digest send failed: %s", exc)
-            return False
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Morning digest compose failed: %s", exc)
+        return False
 
     # ------------------------------------------------------------------
     # Data helpers

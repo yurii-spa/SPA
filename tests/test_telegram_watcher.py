@@ -376,10 +376,13 @@ class TestEdgeCases:
         assert _content_hash("a") != _content_hash("b")
 
     def test_send_telegram_success(self):
-        with patch("spa_core.monitoring.telegram_watcher._tg_request",
-                   return_value={"ok": True}):
+        # Phase-1 Telegram rebuild: telegram_watcher is superseded by push_policy
+        # + the bot. send_telegram no longer POSTs; it routes to the digest queue
+        # and returns False. (_tg_request is no longer used for sends.)
+        with patch("spa_core.telegram.push_policy._enqueue_digest") as enq:
             result = send_telegram("TOKEN", "CHAT", "hello")
-            assert result is True
+            assert result is False
+            enq.assert_called_once()
 
     def test_send_telegram_failure(self):
         with patch("spa_core.monitoring.telegram_watcher._tg_request",

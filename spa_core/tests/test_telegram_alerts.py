@@ -166,24 +166,29 @@ def test_send_message_no_raise_without_credentials(caplog):
 
 
 def _sent_text(fn, *args):
-    """Run an alert function with send_message(_with_keyboard) mocked; return text."""
-    # _send() uses send_message_with_keyboard when keyboard=True (default),
-    # and send_message when keyboard=False. Patch both so the helper works for all.
-    # Also bypass _already_sent_today dedup so tests are hermetic.
-    with mock.patch.object(
-        alert_manager.telegram_client, "send_message", return_value=True
-    ) as send_plain, mock.patch.object(
-        alert_manager.telegram_client, "send_message_with_keyboard", return_value=True
-    ) as send_kb, mock.patch(
+    """Run an alert function and return the composed text routed to the digest.
+
+    Phase-1 Telegram rebuild: alert_manager is RETIRED as a Telegram push — its
+    ``_send`` now routes the composed text to
+    ``spa_core.telegram.push_policy.enqueue_digest(event_key, title, body, ...)``
+    and returns False (no transport). We mock that chokepoint and read the
+    ``body`` positional arg (index 2) — the composed message text.
+
+    The public functions return False now (no push), so we no longer assert the
+    return value here. Dedup is bypassed so the tests stay hermetic regardless
+    of any persisted alert-state on disk.
+    """
+    with mock.patch(
+        "spa_core.telegram.push_policy.enqueue_digest"
+    ) as enqueue, mock.patch(
         "spa_core.alerts.alert_manager._already_sent_today", return_value=False
     ), mock.patch(
         "spa_core.alerts.alert_manager._mark_sent_today",
     ):
-        assert fn(*args) is True
-    # Whichever was called, extract the first positional arg (the text).
-    if send_kb.called:
-        return send_kb.call_args.args[0]
-    return send_plain.call_args.args[0]
+        fn(*args)
+    enqueue.assert_called_once()
+    # enqueue_digest(event_key, title, body, *, ...) — body is positional idx 2.
+    return enqueue.call_args.args[2]
 
 
 def test_send_daily_summary_format():
@@ -261,12 +266,10 @@ def test_send_startup_test_format():
 
 
 def test_alert_manager_fail_safe_on_send_crash(caplog):
-    # send_startup_test uses keyboard=True → send_message_with_keyboard; crash both.
-    with mock.patch.object(
-        alert_manager.telegram_client, "send_message",
-        side_effect=RuntimeError("boom"),
-    ), mock.patch.object(
-        alert_manager.telegram_client, "send_message_with_keyboard",
+    # Phase-1: _send routes to push_policy.enqueue_digest. If that chokepoint
+    # raises, the public func must still return False without propagating.
+    with mock.patch(
+        "spa_core.telegram.push_policy.enqueue_digest",
         side_effect=RuntimeError("boom"),
     ), caplog.at_level("WARNING", "spa.alerts.alert_manager"):
         assert alert_manager.send_startup_test() is False
@@ -274,11 +277,13 @@ def test_alert_manager_fail_safe_on_send_crash(caplog):
 
 
 def test_alert_manager_fail_safe_on_bad_report():
-    with mock.patch.object(
-        alert_manager.telegram_client, "send_message", return_value=True
-    ) as send:
+    # A malformed report must short-circuit during formatting → nothing routed
+    # to the digest, and the public func returns False.
+    with mock.patch(
+        "spa_core.telegram.push_policy.enqueue_digest"
+    ) as enqueue:
         assert alert_manager.send_daily_summary({"equity_usd": "garbage"}) is False
-    send.assert_not_called()
+    enqueue.assert_not_called()
 
 
 # ─── cycle_runner hook (MP-016) ──────────────────────────────────────────────
@@ -327,12 +332,13 @@ def test_run_cycle_alerts_quiet_when_nothing_to_send(tmp_path):
     (tmp_path / "red_flags.json").write_text(json.dumps({"red_flags": []}))
     (tmp_path / "gap_monitor.json").write_text(json.dumps({"gap_detected": False}))
 
-    with mock.patch.object(
-        alert_manager.telegram_client, "send_message", return_value=True
-    ) as send:
+    # Nothing to report → no message composed → nothing routed to the digest.
+    with mock.patch(
+        "spa_core.telegram.push_policy.enqueue_digest"
+    ) as enqueue:
         sent = cycle_runner._run_cycle_alerts(tmp_path, date="2026-06-10")
     assert sent == {}
-    send.assert_not_called()
+    enqueue.assert_not_called()
 
 
 # ─── alert_history.json audit trail (observability) ──────────────────────────

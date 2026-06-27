@@ -10,8 +10,8 @@ Governance:
   - LLM_FORBIDDEN_AGENTS = {risk, execution, monitoring}
 """
 # LLM_FORBIDDEN
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from typing import Dict, Optional
 from enum import Enum
 from pathlib import Path
 import json

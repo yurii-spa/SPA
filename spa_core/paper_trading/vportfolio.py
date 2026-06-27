@@ -19,18 +19,12 @@ from __future__ import annotations
 
 import json
 import math
-import os
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
-from spa_core.paper_trading.strategy_registry import (
-    STRATEGY_REGISTRY,
-    StrategyConfig,
-    active_strategies,
-)
+from spa_core.paper_trading.strategy_registry import STRATEGY_REGISTRY
 from spa_core.utils.atomic import atomic_save
 
 # ─── Константы ────────────────────────────────────────────────────────────────

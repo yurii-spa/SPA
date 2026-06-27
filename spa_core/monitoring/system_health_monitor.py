@@ -1269,9 +1269,16 @@ class SystemHealthMonitor:
         prev = self._prev_cache
         if send:
             try:
-                if report["overall_status"] == CRITICAL and self._new_critical(report, prev):
-                    _send_telegram(self._format_page(report))
-                _send_telegram(self._format_summary(report))
+                # Phase-1 Telegram rebuild: CRITICAL system health is a genuine
+                # Tier-1 interrupt → push_policy (edge-triggered: one push on
+                # entry, silent while it persists, RESOLVED on recovery). The
+                # twice-daily summary is informational → digest queue (folded
+                # into the one daily digest), never pushed.
+                if report["overall_status"] == CRITICAL:
+                    _push_system_critical(self._format_page(report))
+                else:
+                    _resolve_system_critical()
+                _digest_summary(self._format_summary(report))
             except Exception as exc:       # noqa: BLE001
                 log.warning("telegram dispatch failed: %s", exc)
         try:
@@ -1297,13 +1304,53 @@ def strat_list(tdata: dict) -> list:
     return []
 
 
-def _send_telegram(msg: str) -> bool:
+def _push_system_critical(msg: str) -> bool:
+    """Route CRITICAL system health through the SINGLE push authority (Tier-1)."""
     try:
-        from spa_core.alerts.telegram_client import _post_message
-        return _post_message({"text": msg, "parse_mode": "HTML"})
+        from spa_core.telegram import push_policy
+        return bool(
+            push_policy.push_critical(
+                "system_critical",
+                "CRITICAL",
+                "SPA System Health — CRITICAL",
+                msg,
+            )
+        )
     except Exception as exc:               # noqa: BLE001
-        log.warning("tg: %s", exc)
+        log.warning("system_health: push_policy send failed: %s", exc)
         return False
+
+
+def _resolve_system_critical() -> None:
+    """Emit the single edge-triggered RESOLVED when health recovers (no-op else)."""
+    try:
+        from spa_core.telegram import push_policy
+        push_policy.resolve(
+            "system_critical",
+            "SPA System Health — recovered",
+            "System health is OK again.",
+        )
+    except Exception:                      # noqa: BLE001
+        pass
+
+
+def _digest_summary(msg: str) -> None:
+    """Route the twice-daily health summary to the digest queue (never a push)."""
+    try:
+        from spa_core.telegram import push_policy
+        push_policy._enqueue_digest(
+            push_policy._tg_dir(),
+            {
+                "ts": push_policy._now_iso(),
+                "event_key": "system_health_summary",
+                "severity": "INFO",
+                "title": "System health summary",
+                "body": (msg or "")[:500],
+                "reason": "system_health_summary_digest",
+            },
+        )
+    except Exception:                      # noqa: BLE001
+        pass
 
 
 # ===========================================================================

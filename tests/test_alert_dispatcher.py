@@ -692,10 +692,16 @@ class TestDispatchToTelegramWithEnv(unittest.TestCase):
         return resp
 
     def test_returns_true_on_200(self):
+        # Phase-1 Telegram rebuild: dispatch_to_telegram is RETIRED as a direct
+        # push — it routes the alert to the digest queue (push_policy._enqueue_digest)
+        # and ALWAYS returns False. No urlopen call is made.
         d, _ = _make_dispatcher()
-        with patch("urllib.request.urlopen", return_value=self._mock_response(200)):
+        with patch("spa_core.telegram.push_policy._enqueue_digest") as enqueue, \
+                patch("urllib.request.urlopen") as urlopen:
             result = d.dispatch_to_telegram(_make_alert())
-        self.assertTrue(result)
+        self.assertFalse(result)
+        enqueue.assert_called_once()
+        urlopen.assert_not_called()
 
     def test_returns_false_on_non_200(self):
         d, _ = _make_dispatcher()
@@ -764,11 +770,14 @@ class TestDispatchToTelegramWithEnv(unittest.TestCase):
                 self.fail(f"dispatch_to_telegram raised: {exc}")
 
     def test_all_alert_levels_dispatched(self):
+        # Phase-1: every level is now demoted to the digest queue (one route per
+        # call) and dispatch_to_telegram returns False — no level pushes directly.
         d, _ = _make_dispatcher()
         for level in AlertLevel:
-            with patch("urllib.request.urlopen", return_value=self._mock_response(200)):
+            with patch("spa_core.telegram.push_policy._enqueue_digest") as enqueue:
                 result = d.dispatch_to_telegram(_make_alert(level=level))
-            self.assertTrue(result, f"Expected True for level {level}")
+            self.assertFalse(result, f"Expected False (digest) for level {level}")
+            enqueue.assert_called_once()
 
     def test_adapter_id_included_in_message(self):
         d, _ = _make_dispatcher()
@@ -865,16 +874,18 @@ class TestDispatchMain(unittest.TestCase):
         self.assertEqual(len(entries), 3)
 
     def test_telegram_succeeded_on_200(self):
+        # Phase-1 Telegram rebuild: with creds present the telegram channel is
+        # still ATTEMPTED, but dispatch_to_telegram now routes to the digest and
+        # returns False — so telegram no longer appears in channels_succeeded
+        # (only "log" succeeds). The alert is demoted, not pushed.
         os.environ["TELEGRAM_BOT_TOKEN_SPA"] = "tok"
         os.environ["TELEGRAM_CHAT_ID_SPA"] = "123"
         d, _ = _make_dispatcher()
-        resp = MagicMock()
-        resp.status = 200
-        resp.__enter__ = lambda s: s
-        resp.__exit__ = MagicMock(return_value=False)
-        with patch("urllib.request.urlopen", return_value=resp):
+        with patch("spa_core.telegram.push_policy._enqueue_digest"):
             result = d.dispatch(_make_alert())
-        self.assertIn("telegram", result["channels_succeeded"])
+        self.assertIn("telegram", result["channels_attempted"])
+        self.assertNotIn("telegram", result["channels_succeeded"])
+        self.assertIn("log", result["channels_succeeded"])
         os.environ.pop("TELEGRAM_BOT_TOKEN_SPA", None)
         os.environ.pop("TELEGRAM_CHAT_ID_SPA", None)
 

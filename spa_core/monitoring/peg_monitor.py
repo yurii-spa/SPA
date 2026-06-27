@@ -426,6 +426,40 @@ class PegStabilityMonitor:
     # Alert creation
     # ------------------------------------------------------------------
 
+    def _is_held_protocol(self, adapter_id: str) -> bool:
+        """True if ``adapter_id`` maps to a protocol in current_positions.json.
+
+        Read-only, fail-safe (an unreadable positions file → not held, so a peg
+        break that can't be confirmed held is demoted to the digest, never
+        spuriously interrupted). Loose substring match handles dashes/suffixes.
+        """
+        try:
+            data_dir = getattr(self, "_data_dir", None) or _DEFAULT_DATA_DIR
+            path = Path(data_dir) / "current_positions.json"
+            if not path.exists():
+                return False
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            positions = doc.get("positions") if isinstance(doc, dict) else None
+            held = {str(k).lower().replace("-", "_") for k in (positions or {})}
+            aid = str(adapter_id).lower().replace("-", "_")
+            return any(h and (h in aid or aid in h) for h in held)
+        except Exception:  # noqa: BLE001 — fail-safe: unknown ⇒ not held ⇒ no push
+            return False
+
+    def _push_peg_break(self, status, title: str, message: str) -> None:
+        """Route a CRITICAL peg break through push_policy (held-scoped, edge)."""
+        try:
+            from spa_core.telegram import push_policy
+            push_policy.push_critical(
+                "peg_break",
+                "CRITICAL",
+                title,
+                message,
+                held_protocol=self._is_held_protocol(status.adapter_id),
+            )
+        except Exception as exc:  # noqa: BLE001 — alerts must never crash the monitor
+            log.warning("peg_monitor: push_policy routing failed: %s", exc)
+
     def _create_alerts(self, statuses: List[PegStatus]) -> int:
         """
         Для каждого WARNING/CRITICAL создаёт Alert через AlertDispatcher.
@@ -447,6 +481,15 @@ class PegStabilityMonitor:
                 f"Chain: {status.chain} | Price: {status.current_price:.6f} | "
                 f"Deviation: {status.deviation_pct:.4f}%"
             )
+
+            # Tier-1 PUSH path (Phase-1 Telegram rebuild): a CRITICAL peg break on
+            # a HELD protocol is a genuine real-time interrupt (live capital at
+            # risk) and is routed through the SINGLE push authority, held-scoped
+            # + edge-triggered. WARNING / non-held breaks never push (they are
+            # advisory → digest count + on-demand /alerts). The dispatcher still
+            # records the alert into its own JSON history below.
+            if status.status == "CRITICAL":
+                self._push_peg_break(status, title, message)
 
             if dispatcher is not None:
                 try:

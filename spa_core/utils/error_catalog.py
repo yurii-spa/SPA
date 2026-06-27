@@ -132,17 +132,6 @@ ERROR_CATALOG: Dict[str, Dict[str, Any]] = {
     },
     "L001": {
         "code": "L001",
-        "class": "LiveTradingForbiddenError",
-        "runtime_code": "LIVE_TRADING_FORBIDDEN",
-        "module": "spa_core.utils.errors",
-        "category": "safety",
-        "description": "Live trading was attempted without the required gate PASS.",
-        "when": "Raised by require_gate() when live_trading_forbidden() is enforced.",
-        "remediation": "Pass all safety gates before enabling live trading mode.",
-        "example": "raise LiveTradingForbiddenError('LIVE_TRADING_FORBIDDEN', details={'gate': 'BacktestGate'})",
-    },
-    "X001": {
-        "code": "X001",
         "class": "AllocationError",
         "runtime_code": "ALLOCATION_INVALID",
         "module": "spa_core.utils.errors",
@@ -151,6 +140,17 @@ ERROR_CATALOG: Dict[str, Dict[str, Any]] = {
         "when": "Raised when the allocator produces an allocation that violates hard constraints.",
         "remediation": "Check the allocator inputs and ensure capital totals are consistent.",
         "example": "raise AllocationError('ALLOCATION_INVALID', details={'reason': 'negative allocation'})",
+    },
+    "X001": {
+        "code": "X001",
+        "class": "LiveTradingForbiddenError",
+        "runtime_code": "LIVE_TRADING_FORBIDDEN",
+        "module": "spa_core.utils.errors",
+        "category": "safety",
+        "description": "Live trading was attempted without the required gate PASS.",
+        "when": "Raised by require_gate() when live_trading_forbidden() is enforced.",
+        "remediation": "Pass all safety gates before enabling live trading mode.",
+        "example": "raise LiveTradingForbiddenError('LIVE_TRADING_FORBIDDEN', details={'gate': 'BacktestGate'})",
     },
 }
 
@@ -161,29 +161,53 @@ ERROR_CATALOG: Dict[str, Dict[str, Any]] = {
 
 def lookup(code: str, default: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
     """
-    Return the catalog entry for *code*, or *default* if not found.
+    Return the catalog entry for *code*.
+
+    If *code* is not in the catalog and *default* is provided, return *default*.
+    If *code* is not found and no *default* given, return a fallback dict with
+    class="Unknown" so callers can always subscript the result safely.
 
     >>> lookup("G001")["class"]
     'GateError'
-    >>> lookup("UNKNOWN") is None
-    True
+    >>> lookup("ZZZ")["class"]
+    'Unknown'
     """
-    return ERROR_CATALOG.get(code, default)
+    if code in ERROR_CATALOG:
+        return ERROR_CATALOG[code]
+    if default is not None:
+        return default
+    return {
+        "code": code,
+        "class": "Unknown",
+        "runtime_code": "UNKNOWN",
+        "module": "spa_core.utils.errors",
+        "category": "unknown",
+        "description": f"Unknown error code {code}",
+        "when": "N/A",
+        "remediation": "Check spa_core/utils/error_catalog.py for valid codes.",
+        "example": "",
+    }
 
 
 def list_codes() -> List[str]:
-    """Return all error codes in sorted order."""
-    return sorted(ERROR_CATALOG.keys())
+    """Return all error codes in catalog insertion order."""
+    return list(ERROR_CATALOG.keys())
 
 
-def lookup_by_class(class_name: str) -> List[Dict[str, Any]]:
+def lookup_by_class(class_name: str) -> Optional[Dict[str, Any]]:
     """
-    Return all catalog entries whose 'class' field matches *class_name*.
+    Return the first catalog entry whose 'class' field matches *class_name*,
+    or None if no match exists.
 
-    >>> lookup_by_class("GateError")[0]["code"]
+    >>> lookup_by_class("GateError")["code"]
     'G001'
+    >>> lookup_by_class("NoSuchError") is None
+    True
     """
-    return [e for e in ERROR_CATALOG.values() if e["class"] == class_name]
+    for entry in ERROR_CATALOG.values():
+        if entry["class"] == class_name:
+            return entry
+    return None
 
 
 def lookup_by_category(category: str) -> List[Dict[str, Any]]:

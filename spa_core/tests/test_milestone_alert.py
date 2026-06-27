@@ -387,9 +387,14 @@ class TestRunMilestoneAlert(unittest.TestCase):
         _write_json(directory, ALERT_STATE_FILE, state)
 
     def _mock_post_message(self, sent: bool = True):
-        """Patch the telegram _post_message used inside run_milestone_alert."""
+        """Patch the push authority used inside run_milestone_alert.
+
+        Phase-1 Telegram rebuild: milestones (incl. go-live READY) route through
+        push_policy.push_critical("golive_ready", ...) instead of the transport's
+        _post_message. Mock that single seam.
+        """
         return patch(
-            "spa_core.alerts.telegram_client._post_message",
+            "spa_core.telegram.push_policy.push_critical",
             return_value=sent,
         )
 

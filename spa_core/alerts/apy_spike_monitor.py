@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, asdict
-from typing import Callable, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from spa_core.utils.atomic import atomic_load, atomic_append_ring
 from spa_core.utils import clock

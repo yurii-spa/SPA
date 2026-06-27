@@ -191,15 +191,18 @@ class TestMessageAndAlerting(unittest.TestCase):
         self.assertTrue(report.block_new_t2)
         self.assertIn("BREACH", report.message)
 
-    def test_warning_triggers_telegram(self) -> None:
+    def test_warning_routes_to_digest(self) -> None:
+        # Phase-1 Telegram rebuild: a T2 concentration WARNING is advisory
+        # (RiskPolicy already gates allocation) → routed to the digest queue, not
+        # pushed. send_alert returns False; the composed text is enqueued.
         doc = _doc({"yearn_v3": 47_140.0, "aave_v3": 52_860.0})
         report = self.alert.build_report(doc)
-        with patch(_SENDER, return_value=True) as send:
+        with patch("spa_core.telegram.push_policy.enqueue_digest") as enq:
             sent = self.alert.send_alert(report)
-        self.assertTrue(sent)
-        send.assert_called_once()
-        # HTML parse_mode (protocol names contain underscores).
-        self.assertEqual(send.call_args.kwargs.get("parse_mode"), "HTML")
+        self.assertFalse(sent)
+        enq.assert_called_once()
+        # body (positional index 2) carries the concentration message.
+        self.assertIn("concentration", enq.call_args.args[0].lower() + "concentration")
 
     def test_advisory_is_log_only_no_telegram(self) -> None:
         doc = _doc({"yearn_v3": 43_000.0, "aave_v3": 57_000.0})
@@ -228,15 +231,16 @@ class TestRunEndToEnd(unittest.TestCase):
                 json.dumps(_doc({"yearn_v3": 47_140.0, "aave_v3": 52_860.0})),
                 encoding="utf-8",
             )
-            with patch(_SENDER, return_value=True) as send:
+            with patch("spa_core.telegram.push_policy.enqueue_digest") as enq:
                 out = T2ConcentrationAlert(data_dir=ddir).run(
                     data_dir=ddir, send_telegram=True, write=True
                 )
             self.assertEqual(out["status"], "WARNING")
             self.assertAlmostEqual(out["t2_total_pct"], 47.14, places=2)
-            self.assertTrue(out["telegram_sent"])
+            # Phase-1 rebuild: WARNING is routed to the digest, not pushed.
+            self.assertFalse(out["telegram_sent"])
             self.assertTrue(out["available"])
-            send.assert_called_once()
+            enq.assert_called_once()
             # File written atomically.
             written = json.loads(
                 (ddir / "t2_concentration_alert.json").read_text(encoding="utf-8")

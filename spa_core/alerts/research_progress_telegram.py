@@ -42,8 +42,6 @@ from __future__ import annotations
 
 import datetime
 import json
-import urllib.error
-import urllib.request
 from pathlib import Path
 from typing import Optional
 
@@ -237,45 +235,27 @@ class ResearchProgressTelegram:
         Returns:
             True on successful send (HTTP 200 + ok=True), False otherwise.
         """
+        # RETIRED as a Telegram push (Phase-1 Telegram rebuild). Research
+        # progress is on-demand (the bot's /research view), not a weekly push.
+        # The composed message is routed to the digest queue; no Telegram POST.
+        # Always returns False. Never raises.
         try:
-            token   = self._resolve_token()
-            chat_id = self._resolve_chat_id()
-        except EnvironmentError:
-            return False
-
-        text = self.build_message()
-
-        # FLOOD-GUARD: honour the shared cross-process rate limit. We POST
-        # directly with the resolved credentials, so call the guard explicitly
-        # instead of routing through telegram_client.send_message (which would
-        # re-resolve from Keychain and ignore explicit/constructor credentials).
-        try:
-            from spa_core.alerts.telegram_client import flood_guard_ok
-            if not flood_guard_ok(text):
-                return False
-        except Exception:  # noqa: BLE001 — guard error must never block a send
+            text = self.build_message()
+            from spa_core.telegram import push_policy
+            push_policy._enqueue_digest(
+                push_policy._tg_dir(),
+                {
+                    "ts": push_policy._now_iso(),
+                    "event_key": "research_progress",
+                    "severity": "INFO",
+                    "title": "Research progress",
+                    "body": (text or "")[:500],
+                    "reason": "research_progress_retired_push",
+                },
+            )
+        except Exception:  # noqa: BLE001
             pass
-
-        url     = f"https://api.telegram.org/bot{token}/sendMessage"
-        payload = {
-            "chat_id":    chat_id,
-            "text":       text,
-            "parse_mode": "Markdown",
-        }
-        data = json.dumps(payload).encode("utf-8")
-        req  = urllib.request.Request(
-            url,
-            data=data,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=_HTTP_TIMEOUT_S) as resp:
-                body   = resp.read()
-                result = json.loads(body)
-                return bool(result.get("ok"))
-        except (urllib.error.URLError, Exception):  # noqa: BLE001
-            return False
+        return False
 
     # ── Private data readers ───────────────────────────────────────────────────
 

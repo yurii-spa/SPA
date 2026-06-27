@@ -109,10 +109,17 @@ def _status_age_minutes(status_file: Path) -> float | None:
 
 
 def _send_telegram(msg: str) -> None:
+    """Route watchdog escalation through the SINGLE push authority (Tier-1).
+
+    Phase-1 rewire: a core agent down/escalation is a genuine interrupt →
+    push_policy ``core_agent_down`` (edge-triggered). Never raises.
+    """
     try:
-        from spa_core.alerts.telegram_client import send_message
-        send_message(msg)
-    except Exception:
+        from spa_core.telegram import push_policy
+        push_policy.push_critical(
+            "core_agent_down", "CRITICAL", "SPA Watchdog", msg,
+        )
+    except Exception:  # noqa: BLE001
         pass
 
 

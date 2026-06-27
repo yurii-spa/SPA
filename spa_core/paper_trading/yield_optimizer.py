@@ -72,7 +72,6 @@ import argparse
 import json
 import logging
 import math
-import os
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone

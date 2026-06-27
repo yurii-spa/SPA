@@ -298,16 +298,17 @@ class AnomalyDetector:
                 f"{anomaly.message}")
 
     def _default_sender(self, text: str) -> bool:
+        # RETIRED as a Telegram push (Phase-1 Telegram rebuild). Anomaly findings
+        # are informational/on-demand; routed to the digest queue, not pushed.
         try:
-            from spa_core.telegram.bot import TelegramBot
-            bot = TelegramBot()
-            if not bot.token or not bot.chat_id:
-                return False
-            resp = bot.send_message(text, parse_mode="HTML")
-            return bool(resp and resp.get("ok"))
+            from spa_core.telegram import push_policy
+            push_policy.enqueue_digest(
+                "anomaly", "Anomaly detected", text,
+                severity="WARNING", reason="anomaly_detector_retired_push",
+            )
         except Exception as exc:  # noqa: BLE001
-            log.warning("anomaly_detector: telegram failed (%s)", exc)
-            return False
+            log.warning("anomaly_detector: digest route failed (%s)", exc)
+        return False
 
     def alert(self, anomalies: List[Anomaly]) -> int:
         """Send a Telegram alert per anomaly. Returns count successfully sent."""
