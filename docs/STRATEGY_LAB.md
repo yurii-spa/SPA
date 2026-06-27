@@ -99,3 +99,68 @@ it held flat thereafter. **Honest finding:** over a deep window with real ETH cr
 candidates hit their kill switches and do NOT beat the stable engines / RWA floor — exactly what the
 lab exists to surface. (On a calm short window, Variant N's neutral carry did beat the floor; it is
 the tail/crash behaviour that disqualifies it here.)
+
+## Forward-record analytics (live, risk-adjusted) — `forward_analytics.py`
+
+`spa_core/strategy_lab/forward_analytics.py` computes a deterministic risk-adjusted scorecard **on
+the LIVE accruing forward series themselves** — the per-day equity tracks the paper services grow
+(`data/strategy_lab_paper/*_series.json` + the rates-desk `data/rates_desk/paper/*_series.json`).
+The backtest table above is historical; this is the realized forward record. stdlib-only,
+deterministic, fail-CLOSED, LLM-forbidden, advisory (reads the series + the live floor — never moves
+capital, never touches `execution/`, never blocks a tick). Reuses `metrics.py` (no reinvented math)
+and gates every series through `track_integrity` first.
+
+**What it computes per track (T4 — risk-adjusted attribution):**
+- ingest one `*_series.json`, VALIDATE via `track_integrity` (gap / dup / out-of-order / future /
+  malformed → fail-CLOSED → verdict `UNKNOWN`, never a fabricated number);
+- realized `ann_return_pct`, `max_dd_pct`, `rolling_vol_pct` (well-defined from ≥2 points);
+- realized Sharpe / Sortino — **HONEST insufficient-history → UNKNOWN rule:** fewer than
+  `MIN_POINTS_FOR_RATIO` (= 7 equity points → ≥ 6 daily returns) → the ratio is a degenerate
+  artifact, so it is reported `"UNKNOWN"`, not a number. A locked-volatility book (fixed-rate
+  accrual whose only variance is float noise → `metrics.sharpe()` returns `None`) is FLAGGED
+  `locked_vol` and reported `UNKNOWN` — never a fabricated ~4.5e8 Sharpe (the documented
+  degenerate-Sharpe hazard);
+- **attribution vs the ~3.4% RWA floor:** `excess_vs_floor_pct = realized ann return − floor`,
+  decomposed into the floor leg (return attributable to sitting in RWA cash) and the
+  excess-carry leg (return attributable to the strategy's edge). Positive → beating the risk-free
+  benchmark;
+- per-track verdict: `UNKNOWN` (broken series), `THIN_TRACK` (honest return + attribution but not
+  yet a trustworthy ratio — the current state at ~3–6 track-days), `BEATS_FLOOR`, or `BELOW_FLOOR`.
+  Never a fabricated PASS on insufficient evidence.
+
+**Stress overlay (T5 — drawdown on the realized record):** applies the canonical 2024–2026 PT
+mark-down shocks (the SAME magnitudes the promotion gate replays via `levered_stress`, NO looser) to
+the **currently-held** rates-desk carry book (read from `rates_desk_fixed_carry_state.json`) on top
+of the realized forward equity. Per scenario: `stress_dd_pct` + `survives` (DD within the promotion
+drawdown band, `MAX_DD_BAND_PCT = 15%`); a cash book with no held PT notional honestly reports 0%
+stress DD rather than fabricating a loss.
+
+**Output:** `data/forward_analytics.json` (atomic) — `{rwa_floor_apy_pct, min_points_for_ratio,
+max_dd_band_pct, n_tracks, n_unknown, n_thin_track, n_beats_floor, tracks:[…per-track scorecard…],
+carry_book_stress_overlay:{…}}`. Run: `python3 -m spa_core.strategy_lab.forward_analytics`.
+
+**Feeds the fundability one-pager:** `scripts/generate_fundability_onepager.py` reads
+`data/forward_analytics.json` for its *Live forward-record analytics* section (`docs/FUNDABILITY.md`),
+surfacing each track's risk-adjusted scorecard + the stress overlay. It passes the `UNKNOWN` /
+`THIN_TRACK` sentinels through **verbatim** — a thin track renders as `THIN (N/30 days, metrics
+pending)`, never a coerced number. The honest thin-labeling is the credibility: trustworthy
+risk-adjusted ratios only arrive near day 30 (target **2026-07-21**), and until then the forward
+tracks (~3–6 days today) are honestly UNKNOWN by design.
+
+### Promotion ladder (canonical criteria)
+
+A sleeve only climbs `backtest → paper_Nd → live` if it clears the canonical promotion criteria —
+the constants live in `spa_core/tournament/tournament_engine.py` (`PROMOTION_CRITERIA`), imported,
+not re-hardcoded:
+
+| criterion | constant | bar |
+|---|---|---|
+| Sharpe | `min_sharpe` | ≥ 1.5 |
+| paper days | `min_days_paper` | ≥ 7 |
+| APY | `min_apy_pct` | ≥ 3% |
+| max drawdown | `max_drawdown` | ≥ −15% (band) |
+
+The full rung-by-rung flow (GOOD promotes only on the 7th cleared day; a TOXIC / refused sleeve never
+ages into a promotion; BLOCKED-NO-HEDGE is terminal off-ladder) is asserted end-to-end in
+`spa_core/tests/test_promotion_ladder_e2e.py`, importing the REAL constants so a criteria change
+breaks the test, not the ladder silently.

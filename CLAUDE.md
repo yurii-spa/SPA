@@ -31,7 +31,7 @@ track record (30 честных дней → go-live). Финмодель — `M
 
 ---
 
-## 📊 Текущее состояние (2026-06-25)
+## 📊 Текущее состояние (2026-06-27)
 
 > ⚠️ Живые цифры — `docs/SYSTEM_BRIEFING.md` (auto, 30 мин) + `data/golive_status.json` +
 > `data/paper_trading_status.json`. Таблица ниже — снимок, может дрейфовать.
@@ -39,17 +39,16 @@ track record (30 честных дней → go-live). Финмодель — `M
 | Поле | Значение |
 |---|---|
 | Реальный трек | anchor **2026-06-22** (evidenced; всё до — backfill/демо, недействительно) |
-| Дней трека | **5/30** evidenced (25 ещё нужно, target go-live **~2026-07-21**) |
-| Капитал | **$100,190.22** (+0.19% за 5д evidenced) |
-| Daily yield | **~$9.91/день** · APY сегодня ~3.6% (regime VOLATILE) |
-| GoLive | ⛔ **27/29 pass** — NOT READY (2 time-gated блокера) |
-| Sprint | **v12.83** · Done: **1358** · Backlog: 0 |
-| Агенты | ✅ **51 загружено** (`launchctl list \| grep spa` = 51; agent_health crit=0; источник истины — launchctl / SYSTEM_BRIEFING, НЕ это число) |
+| Дней трека | **6/30** evidenced (24 ещё нужно, target go-live **~2026-07-21**) |
+| Капитал | живые цифры — `data/golive_status.json` / SYSTEM_BRIEFING (снимок дрейфует) |
+| GoLive | ⛔ **26/29 pass** — NOT READY (time-gated блокеры) |
+| Sprint | **v12.86+** · Backlog: 0 (точные счётчики — KANBAN.json) |
+| Агенты | ✅ **~45 загружено** (`launchctl list \| grep -c com.spa` = 45 на этом Mac после retirement'ов; agent_health crit=0; источник истины — launchctl / SYSTEM_BRIEFING, НЕ это число — оно дрейфует) |
 | Repo | `yurii-spa/SPA` (GitHub) |
 | Python | `/Users/yuriikulieshov/miniconda3/bin/python3` (всегда этот путь) |
 
-**GoLive блокеры (оба — просто ожидание 30 трек-дней, нечего чинить кодом):**
-- `gap_monitor_30d`: 5/30 evidenced трек-дней (25 дней просто ждать)
+**GoLive блокеры (просто ожидание 30 трек-дней, нечего чинить кодом):**
+- `gap_monitor_30d`: 6/30 evidenced трек-дней (24 дня просто ждать)
 - `min_track_days_30`: то же что gap_monitor
 - (`autopush_installed` теперь **PASS** на реальном Mac; в sandbox/CI всегда fails — проверяй через `launchctl list | grep spa`)
 
@@ -57,10 +56,15 @@ track record (30 честных дней → go-live). Финмодель — `M
 
 ## ⚙️ LaunchAgents (установлены 2026-06-22, FAIL=0)
 
-**51** агентов в `~/Library/LaunchAgents/` — переживают перезагрузку. Таблица ниже —
-лишь ключевые; полный актуальный список ВСЕГДА `launchctl list | grep spa` (это число
-дрейфует, не доверяй ему — доверяй launchctl/SYSTEM_BRIEFING). `com.spa.system_briefing`
-доустановлен 2026-06-24.
+**~45** агентов в `~/Library/LaunchAgents/` (`launchctl list | grep -c com.spa` = 45 на этом
+Mac после retirement'ов) — переживают перезагрузку. Таблица ниже — лишь ключевые; полный
+актуальный список ВСЕГДА `launchctl list | grep spa` (это число дрейфует, не доверяй ему —
+доверяй launchctl/SYSTEM_BRIEFING). `com.spa.system_briefing` доустановлен 2026-06-24.
+
+**RETIRED-агенты** (`RETIRED_LABELS` в `spa_core/monitoring/agent_health_monitor.py`, источник
+истины): `bot_commands`, `httpserver`, `telegram_daily`, `telegram_weekly`, `morning_digest`,
+`daily-paper-report` — их plist'ы удалены и они **НЕ** должны подниматься (revival → Telegram-409 /
+duplicate-flood регрессия). `agent_health` и `verify_fleet_after_reboot.sh` скипают этот набор.
 
 | Агент | Расписание | Статус |
 |---|---|---|
@@ -261,6 +265,24 @@ whitelisting, CEX-execution, legal). Новые агенты арки: `com.spa.
 
 ---
 
+## 🛡️ Resilience Plane (NEW, 2026-06-27 — R-sprint)
+
+DR-механизмы теперь **provably exercised**, не dormant. Все три пишут собственный status JSON,
+а `resilience_status.py` сворачивает их в один posture-файл:
+
+| Модуль | Что | Status JSON |
+|---|---|---|
+| `spa_core/dr/offsite_copy.py` (R6) | копирует свежайший backup-архив на отдельный destination + sha256-verify | `data/dr_offsite_status.json` |
+| `spa_core/dr/drill_restore.py` (R7) | restore-from-backup drill (восстановление из архива, проверка) | `data/restore_drill_status.json` |
+| `scripts/drill_fleet_down.py` (R4) → `spa_core/monitoring/` | fleet-down drill (симуляция падения агентов + self-heal) | `data/fleet_drill_status.json` |
+| `spa_core/monitoring/resilience_status.py` (R8) | read-derive-write rollup трёх выше → единый posture (OK/WARNING) с freshness-окнами | `data/resilience_status.json` |
+
+resilience_status: stdlib-only, детерминированный, fail-CLOSED; OK только если каждый proof
+свежий И прошёл (offsite verified, drills all_ok); missing status → WARNING ("never run").
+Post-reboot heal остаётся `scripts/verify_fleet_after_reboot.sh` (см. секцию «После ребута»).
+
+---
+
 ## 🌐 Сайт (rebuilt 2026-06-25, unified design system)
 
 Лендинг (`landing/`, Astro → CF Pages, **earn-defi.com**) пересобран на едином дизайн-системе —
@@ -316,18 +338,20 @@ security find-generic-password -s TELEGRAM_CHAT_ID_SPA -w
 | `spa_core/paper_trading/` | cycle_runner.py, golive_checker.py, gap_monitor.py |
 | `spa_core/strategies/` | Tournament стратегии S0–S77+ |
 | `spa_core/strategy_lab/` | Pluggable sleeve harness + paper-сервис (LST/RWA sleeves) |
+| `spa_core/strategy_lab/forward_analytics.py` | Risk-adjusted scorecard НА живых forward-сериях (T4 attribution vs RWA floor + T5 stress overlay) → `data/forward_analytics.json` → feeds `docs/FUNDABILITY.md`; insufficient-history → UNKNOWN |
 | `spa_core/strategy_lab/rates_desk/` | **Thesis #1** — refusal-first Rates Desk (GO, live-paper) |
 | `spa_core/strategy_lab/rwa_backstop/` | **Thesis #2** — RWA Collateral Safety Board (measurement-GO) |
 | `spa_core/strategy_lab/liquidator/` | **Thesis #3** — balance-sheet liquidator de-risk (NO-GO probe) |
 | `spa_core/risk/` | policy.py (детерминированный, LLM FORBIDDEN) |
 | `spa_core/tournament/` | TournamentEngine, TournamentTelegram |
 | `spa_core/api/` | FastAPI server (api.earn-defi.com:8765) |
-| `spa_core/monitoring/` | system_health_monitor.py, agent_health.py |
+| `spa_core/monitoring/` | system_health_monitor.py, agent_health.py, **resilience_status.py** (R8 rollup → `data/resilience_status.json`), drill_fleet_down.py |
+| `spa_core/dr/` | **offsite_copy.py** (R6 offsite-copy + sha256 verify), drill_restore.py (R7 restore-from-backup drill) |
 | `spa_core/execution/` | **НЕ импортировать** из read-only кода |
 | `spa_core/family_fund/` | http_server.py (port 8765), pnl_attribution.py |
 | `data/` | Все JSON-state файлы |
 | `docs/` | SYSTEM_BRIEFING.md, ADR, tournament.html, index.html |
-| `scripts/` | LaunchAgent plists, install_all_agents.sh, push_v*.sh |
+| `scripts/` | LaunchAgent plists, install_all_agents.sh, push_v*.sh, **verify_fleet_after_reboot.sh** (post-reboot fleet heal), **drill_fleet_down.py / drill_restore.py** (resilience-drill runners) |
 | `launchd/` | LaunchAgent plists (tournament, rules_watchdog) |
 | `KANBAN.json` | Kanban (источник MP-xxx задач) |
 

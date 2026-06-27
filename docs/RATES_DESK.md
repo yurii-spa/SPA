@@ -124,6 +124,28 @@ into `data/refusal_status.json` (SAFE / WATCH / REFUSE / UNKNOWN), 05:45 local, 
 
 ---
 
+## Forward-record analytics + fundability
+
+The hourly `FixedCarry` forward track (`rates_desk_fixed_carry_series.json`) is measured by the
+shared **`spa_core/strategy_lab/forward_analytics.py`** scorecard (see `docs/STRATEGY_LAB.md` for the
+full module). It is the only track with a held PT carry book, so the **T5 stress overlay** is
+attached to it: the canonical 2024–2026 PT mark-down shocks are applied to the *currently-held* book
+(read from `rates_desk_fixed_carry_state.json`) on top of the realized forward equity, reporting
+per-scenario stressed drawdown + `survives` against the promotion band (`MAX_DD_BAND_PCT = 15%`, NO
+looser than the gate). The **T4** scorecard reports the realized APY + attribution vs the ~3.4% RWA
+floor and, **honestly**, `UNKNOWN` Sharpe/Sortino until the track reaches `MIN_POINTS_FOR_RATIO`
+(7 equity points) — locked held-to-maturity carry has near-zero downside variance, so a vanilla
+Sharpe there is a degenerate artifact, never reported as a number. The forward track is ~3–6 days
+today → metrics are UNKNOWN by design until ~day 30 (target **2026-07-21**).
+
+The scorecard (`data/forward_analytics.json`) feeds `docs/FUNDABILITY.md` via
+`scripts/generate_fundability_onepager.py`. Promotion follows the canonical
+`PROMOTION_CRITERIA` in `spa_core/tournament/tournament_engine.py` (Sharpe ≥ 1.5 · ≥ 7 paper days ·
+APY ≥ 3% · DD ≥ −15%); `BASIS_HEDGE` stays **BLOCKED-NO-HEDGE** off-ladder (asserted end-to-end in
+`spa_core/tests/test_promotion_ladder_e2e.py`).
+
+---
+
 ## API (`spa_core/api/server.py`)
 
 | endpoint | what |
