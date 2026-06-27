@@ -535,14 +535,34 @@ class TestMassTournamentRun(unittest.TestCase):
         ]:
             self.assertIn(key, self._result, f"Missing key: {key}")
 
-    def test_run_leaderboard_sorted_by_sharpe(self):
+    def test_run_leaderboard_sorted_by_net_return(self):
+        # OWNER DECISION 2026-06-27: leaderboard ranks by net-of-cost annual
+        # return (net_annual_return_pct), NOT Sharpe. Rows with a finite net
+        # return are ordered descending; UNKNOWN rows (no finite net return)
+        # sort last. Sharpe is only a tiebreaker.
         lb = self._result["leaderboard"]
-        if len(lb) >= 2:
-            for i in range(len(lb) - 1):
-                self.assertGreaterEqual(
-                    lb[i]["sharpe"], lb[i + 1]["sharpe"],
-                    "Leaderboard not sorted by Sharpe desc"
-                )
+        self.assertEqual(self._result["meta"]["rank_metric"], "net_annual_return_pct")
+        finite = [e for e in lb if not e.get("rank_unknown", False)]
+        for i in range(len(finite) - 1):
+            self.assertGreaterEqual(
+                finite[i]["annual_return_pct"], finite[i + 1]["annual_return_pct"],
+                "Leaderboard not sorted by net return desc"
+            )
+        # UNKNOWN rows (if any) must all come after the finite ones.
+        seen_unknown = False
+        for e in lb:
+            if e.get("rank_unknown", False):
+                seen_unknown = True
+            elif seen_unknown:
+                self.fail("A finite-net-return row ranked below an UNKNOWN row")
+
+    def test_degenerate_sharpe_flagged(self):
+        # |Sharpe| > 100 must be flagged degenerate and shown as locked-vol n/a.
+        for e in self._result["leaderboard"]:
+            if e.get("sharpe_degenerate"):
+                self.assertEqual(e["sharpe_display"], "n/a (locked-vol)")
+            else:
+                self.assertIsInstance(e["sharpe_display"], (int, float))
 
     def test_run_leaderboard_has_ranks(self):
         for i, entry in enumerate(self._result["leaderboard"], 1):

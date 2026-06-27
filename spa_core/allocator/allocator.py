@@ -1,5 +1,11 @@
 """StrategyAllocator (SPA-V388) — advisory-распределение $100K paper-капитала.
 
+CANONICAL live money-path allocator. Это единственный аллокатор, который запускает
+ежедневный цикл: cycle_runner ``_build_real_allocator`` → ``StrategyAllocator(...)``
+→ target allocation → RiskPolicy gate → virtual rebalance. Прочие аллокаторы
+(``dynamic_allocator.DynamicAllocator``, ``analytics/*allocator*``) — secondary /
+experimental / Tier-C background, НЕ в money-path. См. docs/DECISIONS.md.
+
 Читает снимок адаптеров (``data/adapter_orchestrator_status.json``), применяет
 одну из моделей аллокации (``allocation_models``) и кап'ы по тирам, после чего
 возвращает целевое распределение в виде :class:`AllocationResult`.

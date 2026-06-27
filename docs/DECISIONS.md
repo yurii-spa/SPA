@@ -4,6 +4,103 @@
 
 ---
 
+## 2026-06-27 (ADR-034 — TWO-TIER drawdown kill-switch, owner-approved)
+
+**Decision (owner-approved 2026-06-27): the drawdown response becomes an explicit
+TWO-TIER ladder, resolving the long-standing 5%-vs-15% contradiction documented in
+the P3-10 note below.**
+
+The earlier P3-10 note recorded that SPA had *two* drawdown switches at 5% and 15%
+that were "intentionally distinct" but **uncoordinated** — a recurring source of
+"which threshold is the kill-switch?" confusion (CLAUDE.md / `RiskPolicy` said the
+"5% drawdown kill switch", while `kill_switch.py` killed at 15%). The owner has now
+chosen a single coherent semantics: the 5% threshold is a **soft de-risk**, the 15%
+threshold is the **hard kill**. They are no longer two unrelated switches but two
+rungs of one ladder over the **same** evidenced peak-to-current drawdown.
+
+| Tier | Threshold | Effect | Rationale |
+|---|---|---|---|
+| **SOFT_DERISK** | drawdown ∈ **[5%, 15%)** | DE-RISK: **halt new allocations / no INCREASE** of any position (hold + reduce allowed); emit an **edge-triggered WARNING**. Does **NOT** liquidate. | A 5% drawdown on a stablecoin book is most often a recoverable depeg / funding wobble. Panic-liquidating it crystallises a loss that would otherwise mean-revert. So we stop *adding* risk and let the book recover — we do not sell into the dip. |
+| **HARD_KILL** | drawdown ≥ **15%** | Full kill → all-cash `{"cash": 1.0, …protocols: 0.0}` (unchanged `check_drawdown_trigger` behaviour). | A 15% drawdown on a stablecoin book is not noise — it signals a real protocol collapse. Full liquidation to cash is the correct emergency stop. |
+
+**Implementation (deterministic, stdlib-only, LLM-FORBIDDEN, fail-CLOSED, atomic):**
+- `spa_core/governance/kill_switch.py`:
+  - `SOFT_DERISK_THRESHOLD_PCT = 5.0` added; `DRAWDOWN_THRESHOLD_PCT = 15.0` kept.
+  - `evidenced_drawdown_pct()` — the single shared evidenced + non-finite-safe
+    drawdown used by BOTH tiers (so they can never disagree). Preserves the
+    T6/P5-4 evidenced-bars-only segregation and the P5-1 non-finite guard verbatim.
+  - `drawdown_tier()` → `NONE` / `SOFT_DERISK` / `HARD_KILL` (monotone, half-open
+    bands; fail-closed to `NONE` when the drawdown is not computable).
+  - `check_derisk_trigger()` + `is_derisk_active()` — the SOFT-tier `(bool, reason)`
+    signal, parallel to and strictly weaker than `check_drawdown_trigger()` /
+    `is_kill_switch_active()` (HARD tier — `(bool, reason)` contract UNCHANGED).
+  - `run_derisk_check()` — entry point writing `data/derisk_status.json`; the
+    WARNING is **edge-triggered** (only on the inactive→active transition) so a
+    multi-day de-risk window does not flood the alert channel.
+- `spa_core/paper_trading/cycle_gates.py::apply_soft_derisk_gate()` — caps every
+  protocol's `target_usd` to its **currently-held** USD (new protocol → 0; held →
+  `min(target, held)`), so the cycle can only hold or reduce, never open/increase,
+  under soft de-risk. Freed capital stays in cash. Does NOT liquidate.
+- `spa_core/paper_trading/cycle_runner.py` — Step 1c runs `run_derisk_check` (advisory,
+  never HALTs the cycle); Step 2c-soft applies the gate AFTER the hard kill override
+  (mutually exclusive — `_derisk_active` is False whenever the hard kill fires).
+
+**RiskPolicy version:** stays **v1.0**. Per the `policy.py` GOVERNANCE process the
+owner-gated thresholds in `RiskConfig` are **untouched** by this ADR — the two-tier
+logic lives entirely in the governance kill-switch layer (`kill_switch.py` /
+`cycle_gates.py`), not in `RiskConfig`. `RiskConfig.max_drawdown_stop = 0.05`
+continues to gate `check_new_position` exactly as before (it is itself a "do not add
+risk at 5%" brake, consistent with — and subsumed by — the new SOFT tier's intent).
+No `RiskConfig` field changed → no version bump required; this ADR records that
+decision. A future change to the 5% or 15% *values* still requires the full
+owner-gated process (value + pinning test together, per the P3-10 note).
+
+---
+
+## 2026-06-27 (Investigation: dual engines / track.db / data git-policy — design clarity)
+
+**Dual promotion engines — BOTH LIVE, distinct subsystems (NOT duplicates):**
+- `spa_core/paper_trading/promotion_engine.py` (PromotionEngine, Sharpe>0.8 / 14d) —
+  CANONICAL для **daily-cycle** shadow-панели; вызывается из `cycle_reporting.py`
+  (run_post_cycle_advisory) поверх `TournamentEvaluator`. Своих data-файлов:
+  `promotion_report.json`.
+- `spa_core/tournament/tournament_engine.py` (TournamentEngine, Sharpe≥1.5 / 7d / 3% / -15%) —
+  CANONICAL для **standalone Tournament** сабсистема; отдельный агент
+  `com.spa.tournament_engine` (09:00 UTC), свой `data/strategy_tournament.json`.
+- Вердикт: РАЗНЫЕ подсистемы (разные расписания, data-файлы, пороги) — НЕ dead, НЕ
+  дубликаты. Docstrings обоих помечены canonical-for-X. Кода не удалял.
+
+**Allocators — single live money-path:**
+- `spa_core/allocator/allocator.py::StrategyAllocator` — CANONICAL live money-path
+  (cycle_runner `_build_real_allocator`). Помечен в docstring.
+- `dynamic_allocator.DynamicAllocator` — SECONDARY/experimental, only `__main__`+tests.
+- `analytics/{chain,regime_adjusted,risk_weighted_capital}_allocator*` — Tier-C
+  background catalog (`_module_registry`), не в money-path. Помечены / закода не удалял.
+
+**track.db = 0 bytes — ANOMALY (benign for SSOT, defeats mirror purpose):**
+- track.db = SQLite mirror (`spa_core/persistence/track_store.py`), пишется в каждом
+  цикле через `_default_track_persister` (cycle_runner). JSON = SSOT; track.db — лишь
+  crash-recovery зеркало + то, что `backup.py`/`dr_backup.py` пакуют в архив.
+- Прогон `TrackStore.sync_from_json` против sandbox-копии живого JSON → 94 KB DB
+  (17 trades, 38 equity points). `_publish` использует `os.replace` полностью
+  собранной scratch-DB → 0 байт НЕ может быть результатом успешного sync.
+- Вывод: live track.db рассинхронизирован/clobbered (mtime сегодня 12:02 ≠ cycle 06:00),
+  `_persist_track` глотает ВСЕ исключения (cycle логирует `ok`). Site/SSOT не страдает
+  (читает JSON), но backup-архивы сейчас несут ПУСТУЮ track.db. Рекомендация: проверить
+  `/tmp/spa_daily_cycle*.log` на `track_persist_failed` + проверить доступность
+  `$SPA_BACKUP_DIR`/iCloud (run_backup в том же персистере). НЕ удалял.
+
+**data/ git-policy (equity_curve_daily / golive_status / paper_evidence_history):**
+- Вердикт: **KEEP-TRACKED** (НЕ untrack). GitHub Pages dashboard (`index.html`,
+  deploy-pages.yml `path:'.'`, yurii-spa.github.io/SPA/) читает committed копии как
+  static/offline fallback: `STATIC_DATA_BASE='/SPA/data'` И remote
+  `RAW_DATA_BASE='https://raw.githubusercontent.com/yurii-spa/SPA/main/data'`
+  (`golive_status.json`). Untrack → сломает fallback когда live API down.
+- (Astro-landing использует ОТДЕЛЬНЫЙ `landing/src/data/track_snapshot.json`, не
+  committed data/*.json — но github.io dashboard зависит от committed копий.)
+
+---
+
 ## 2026-06-26 (P3-10 — Dual-drawdown design note + governance invariant test)
 
 **ADR-style note: the two drawdown switches are INTENTIONALLY DISTINCT (do NOT conflate).**

@@ -164,6 +164,14 @@ class StrategyTournamentRunner:
                 "strategy_key":      s["id"],
                 "name":              s.get("class", s["id"]),
                 "sharpe":            round(s["sharpe"], 4),
+                # OWNER DECISION 2026-06-27: Sharpe is a secondary/displayed metric.
+                # Carry through the degenerate flag + display string from the mass
+                # leaderboard so the ranking page shows "n/a (locked-vol)" instead of
+                # a meaningless 451M Sharpe artifact. Ranking is by net return.
+                "sharpe_degenerate": s.get("sharpe_degenerate"),
+                "sharpe_display":    s.get("sharpe_display"),
+                "rank_unknown":      s.get("rank_unknown", False),
+                "net_annual_return_pct": s.get("net_annual_return_pct", s["annual_return_pct"]),
                 "paper_apy":         round(s["annual_return_pct"], 4),
                 "annual_return_pct": round(s["annual_return_pct"], 4),
                 "max_drawdown":      round(s["max_dd_pct"] / 100.0, 6),
@@ -185,7 +193,10 @@ class StrategyTournamentRunner:
             "generated_at":      datetime.now(timezone.utc).isoformat(),
             "version":           VERSION,
             "source":            "mass_tournament_results.json",
-            "metric":            "sharpe_ratio",
+            # OWNER DECISION 2026-06-27: ranked by net-of-cost annual return,
+            # Sharpe demoted to a secondary/displayed-and-flagged metric.
+            "metric":            "net_annual_return_pct",
+            "secondary_metric":  "sharpe_ratio",
             "simulation_period": mass.get("simulation_period", "2022-01-01 to 2025-12-31"),
             "initial_capital_usd": mass.get("initial_capital_usd", 100_000.0),
             "total_strategies":  mass.get("strategies_tested", len(leaderboard)),

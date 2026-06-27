@@ -1,5 +1,11 @@
 """Dynamic allocator (MP-1231) — Kelly × equal-weight blend под RiskConfig.
 
+STATUS: SECONDARY / experimental. НЕ в live money-path. Канонический аллокатор
+ежедневного цикла — ``spa_core.allocator.allocator.StrategyAllocator`` (см.
+cycle_runner ``_build_real_allocator`` → ``StrategyAllocator(...)``). DynamicAllocator
+вызывается только из собственного ``__main__`` (CLI) и тестов; цикл его не импортирует.
+Оставлен как advisory research-инструмент. См. docs/DECISIONS.md.
+
 Расширенный advisory-аллокатор, который:
 
   1. Считает Kelly-оптимальные веса по протоколам (:class:`KellySizer`).

@@ -79,13 +79,15 @@ from alerts.apy_feed_monitors import (  # noqa: F401
 log = logging.getLogger("spa.alerts.risk_monitor")
 
 # ──────────────────────────────────────────────────────────────────────────
-# Portfolio-risk thresholds (owner-tunable).
-# CONCENTRATION_CRITICAL_PCT is the owner-flagged 45%-vs-30% reconciliation
-# knob — the single named constant to change for that future reconciliation.
-# Its VALUE is intentionally UNCHANGED by this refactor.
+# Portfolio-risk thresholds (owner-tunable). These are ADVISORY Telegram-alert
+# thresholds — NOT the hard RiskPolicy gate (spa_core/risk/policy.py caps
+# per-protocol concentration at 40% T1 / 20% T2 and CANNOT be overridden here).
+# OWNER DECISION 2026-06-27: tighten the concentration ALERT from 45% → 30% to
+# match the stricter RiskPolicy intent (stricter = safer). The hard cap in
+# policy.py is unchanged; this only makes the monitor warn/alert earlier.
 # ──────────────────────────────────────────────────────────────────────────
-CONCENTRATION_CRITICAL_PCT = 45.0    # owner-flagged: 45%-vs-30% reconciliation lands here (one line)
-CONCENTRATION_WARNING_PCT  = 35.0
+CONCENTRATION_CRITICAL_PCT = 30.0    # OWNER DECISION 2026-06-27: advisory alert tightened 45% → 30%
+CONCENTRATION_WARNING_PCT  = 25.0    # warning tier kept below the 30% critical (was 35%)
 DAILY_DRAWDOWN_PCT         = 2.0     # single-day drop that triggers alert
 APY_DROP_THRESHOLD         = 1.0     # pp drop vs last snapshot
 CASH_BUFFER_MIN_PCT        = 3.0

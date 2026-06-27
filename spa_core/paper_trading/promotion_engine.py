@@ -4,6 +4,15 @@ spa_core/paper_trading/promotion_engine.py — Tournament auto-promotion engine
 PromotionEngine: автоматический promote/demote/kill стратегий по tournament метрикам.
 Решения принимаются детерминированно по 30-дневным метрикам из TournamentEvaluator.
 
+CANONICAL для DAILY-CYCLE shadow-панели. Вызывается из
+``spa_core/paper_trading/cycle_reporting.py`` (run_post_cycle_advisory, часть
+ежедневного paper-цикла) поверх ``TournamentEvaluator`` / in-cycle strategy panel.
+Пороги здесь (PROMOTE_SHARPE=0.8, MIN_DAYS=14) — НЕ то же самое, что у отдельного
+standalone-сабсистема ``spa_core/tournament/tournament_engine.py`` (TournamentEngine,
+агент com.spa.tournament_engine 09:00 UTC, своя data/strategy_tournament.json,
+Sharpe≥1.5/7d/3%/-15%). Оба ЖИВЫЕ, но это РАЗНЫЕ подсистемы с разными data-файлами
+и расписаниями — не дубликаты. См. docs/DECISIONS.md.
+
 Правила:
   - Минимум MIN_DAYS=14 дней для любого решения
   - Kill: drawdown < -10% ИЛИ Calmar < -0.5

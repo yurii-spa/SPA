@@ -23,6 +23,7 @@ from __future__ import annotations
 import importlib
 import json
 import logging
+import math
 import os
 import re
 import shutil
@@ -581,17 +582,44 @@ class MassTournament:
                 metrics["max_drawdown_pct"],
             )
 
-        # ── Sort by Sharpe ────────────────────────────────────────────────────
-        # NOTE: ranking metric is OWNER-GATED. Do not change the sort key from
-        # Sharpe without an owner decision (it changes the public #1). The honest
-        # alternative metric (net-of-cost annual return) is surfaced per-row as
-        # `net_annual_return_pct` so the owner can later switch the rank to it.
-        leaderboard.sort(key=lambda x: x["sharpe"], reverse=True)
+        # ── Sort by NET RETURN (OWNER DECISION 2026-06-27) ────────────────────
+        # PRIMARY rank key is realized net-of-cost annual return (`annual_return_pct`,
+        # already net of TX_COST_BPS in the backtest), NOT Sharpe. Sharpe is
+        # DEGENERATE for locked-vol / fixed-rate stablecoin strategies (near-zero
+        # vol → Sharpe explodes to 451M/1.2B artifacts), so a Sharpe-ranked board is
+        # untrustworthy. Net return is the honest economic-quality metric. Sharpe is
+        # demoted to a SECONDARY tiebreaker + a displayed-but-flagged metric.
+        # A strategy with insufficient data (no finite net return) ranks LAST
+        # (UNKNOWN), never a fabricated number.
+        DEGENERATE_SHARPE_ABS = 100.0  # |Sharpe| > this → "n/a (locked-vol)" on display
+
+        def _rank_key(x: Dict[str, Any]):
+            napy = x.get("annual_return_pct")
+            has_napy = isinstance(napy, (int, float)) and math.isfinite(napy)
+            # Sort key: (has-net-return first, net return desc, sharpe desc tiebreak).
+            # `not has_napy` is False (0) for valid rows so they sort ahead of UNKNOWNs.
+            sh = x.get("sharpe")
+            sh = sh if isinstance(sh, (int, float)) and math.isfinite(sh) else float("-inf")
+            return (not has_napy, -(napy if has_napy else 0.0), -sh)
+
+        leaderboard.sort(key=_rank_key)
         for i, entry in enumerate(leaderboard, 1):
             entry["rank"] = i
-            # Alias annual_return_pct (already net of TX_COST_BPS in the backtest)
-            # as an explicitly-labelled alternative rank metric. Does NOT reorder.
-            entry["net_annual_return_pct"] = entry["annual_return_pct"]
+            # Explicit net-return rank metric (does NOT reorder — it IS the order now).
+            entry["net_annual_return_pct"] = entry.get("annual_return_pct")
+            # Flag a degenerate Sharpe so the display can show "n/a (locked-vol)"
+            # instead of a meaningless 451M artifact. Sharpe value is kept verbatim
+            # for provenance; the flag is advisory and never affects ranking.
+            sh = entry.get("sharpe")
+            sh_finite = isinstance(sh, (int, float)) and math.isfinite(sh)
+            entry["sharpe_degenerate"] = (not sh_finite) or abs(sh) > DEGENERATE_SHARPE_ABS
+            entry["sharpe_display"] = (
+                "n/a (locked-vol)" if entry["sharpe_degenerate"]
+                else round(float(sh), 4)
+            )
+            # UNKNOWN rank for a strategy with no finite net return (insufficient data).
+            napy = entry.get("annual_return_pct")
+            entry["rank_unknown"] = not (isinstance(napy, (int, float)) and math.isfinite(napy))
 
         top_5 = leaderboard[:5]
         bottom_5 = leaderboard[-5:] if len(leaderboard) >= 5 else leaderboard[:]
@@ -644,16 +672,23 @@ class MassTournament:
             "trust_reason": trust["reason"],
             "data_quality": trust["data_quality"],
             "period": "2022-01-01 to 2025-12-31",
-            "rank_metric": "sharpe_ratio",
-            "rank_metric_owner_gated": True,
-            "alt_rank_metric": "net_annual_return_pct",
+            # OWNER DECISION 2026-06-27: rank by realized net-of-cost annual return.
+            # Sharpe demoted to a secondary/displayed metric (degenerate for
+            # locked-vol books). `secondary_rank_metric` is the tiebreaker.
+            "rank_metric": "net_annual_return_pct",
+            "rank_metric_owner_gated": False,
+            "secondary_rank_metric": "sharpe_ratio",
+            "alt_rank_metric": "sharpe_ratio",
+            "sharpe_degenerate_abs_threshold": 100.0,
             "protocol_data_sources": protocol_data_sources,
             "sharpe_note": (
-                "stablecoin Sharpe is degenerate by construction (near-zero vol) "
-                "— ranking is by Sharpe but treat magnitude as a not-noise check, "
-                "not a quality measure. Prefer net_annual_return_pct (net of "
-                "transaction cost) as the economic quality metric. Switching the "
-                "headline rank metric is owner-gated (it changes the public #1)."
+                "OWNER DECISION (2026-06-27): leaderboard is ranked by net-of-cost "
+                "annual return (net_annual_return_pct), NOT Sharpe. Stablecoin Sharpe "
+                "is degenerate by construction (near-zero vol → Sharpe explodes to "
+                "millions/billions), so it is shown as a secondary metric and flagged "
+                "'n/a (locked-vol)' per row when |Sharpe| > 100 (sharpe_degenerate). "
+                "Sharpe is only a tiebreaker between equal net returns. Strategies "
+                "with no finite net return rank last (rank_unknown=True)."
             ),
             "llm_forbidden": True,
         }

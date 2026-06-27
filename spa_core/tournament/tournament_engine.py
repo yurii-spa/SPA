@@ -12,6 +12,13 @@ Daily entry point for the strategy tournament lifecycle:
 
 IS_ADVISORY = True: all promotions are advisory until manual go-live confirmation.
 
+CANONICAL для STANDALONE Tournament-сабсистема (агент com.spa.tournament_engine,
+09:00 UTC) со своим lifecycle-файлом ``data/strategy_tournament.json`` и
+PROMOTION_CRITERIA (Sharpe≥1.5 / ≥7d paper / APY≥3% / drawdown≥-15%). Это ОТДЕЛЬНЫЙ
+движок от daily-cycle ``spa_core/paper_trading/promotion_engine.py`` (PromotionEngine,
+Sharpe>0.8/14d, вызывается из cycle_reporting поверх TournamentEvaluator). Оба ЖИВЫЕ
+и не дубликаты — разные подсистемы, data-файлы и расписания. См. docs/DECISIONS.md.
+
 LLM_FORBIDDEN: no AI calls. Pure deterministic logic.
 Constraints
 -----------
