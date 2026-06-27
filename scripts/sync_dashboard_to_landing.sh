@@ -1,8 +1,14 @@
 #!/bin/bash
-# Sync the live dashboard (root index.html) into the Astro landing so Cloudflare
-# Pages serves it at earn-defi.com/app.html. Run after editing the dashboard.
-# LLM_FORBIDDEN. stdlib only.
-set -e
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cp "$ROOT/index.html" "$ROOT/landing/public/app.html"
-echo "synced index.html -> landing/public/app.html ($(wc -c <"$ROOT/landing/public/app.html" | tr -d ' ') bytes)"
+# RETIRED 2026-06-27. LLM_FORBIDDEN. stdlib only.
+#
+# This used to copy the standalone root index.html dashboard into
+# landing/public/app.html so Cloudflare Pages served it at earn-defi.com/app.
+# That self-contained 756KB blob is gone: the canonical dashboard is now a
+# first-class Astro page — landing/src/pages/dashboard.astro — rendered inside
+# <Layout> (canonical chrome + Console design tokens) with a real-time React
+# island (landing/src/components/DashboardLive.jsx) polling api.earn-defi.com.
+#
+# There is nothing to sync. /app 301-redirects to /dashboard (landing/public/_redirects).
+# Do NOT re-introduce app.html — it re-fragments the site.
+echo "sync_dashboard_to_landing.sh is RETIRED — the dashboard is now landing/src/pages/dashboard.astro (no blob to sync)." >&2
+exit 0

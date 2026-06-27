@@ -2,10 +2,14 @@
 # SPA fallback — not needed for Astro static, but good for future dynamic routes
 /risk-disclosure /risk-disclosure/index.html 200
 
-# Old Astro dashboard superseded by /app (real live dashboard)
-/dashboard /app 302
+# Canonical dashboard is now /dashboard (a first-class Astro page rendered in
+# <Layout> — same chrome/tokens as the rest of earn-defi.com). /app is the legacy
+# URL; keep it working as a safety net → /dashboard. The old 756KB public/app.html
+# blob is retired.
+/app /dashboard 301
+/app.html /dashboard 301
 
-# App shortcut routes
+# Old status shortcut → the dashboard go-live section.
 /status /dashboard#golive 302
 
 # Redirect www to apex

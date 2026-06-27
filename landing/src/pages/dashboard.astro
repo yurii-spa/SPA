@@ -1,20 +1,47 @@
 ---
-// /dashboard is superseded by /app — the real live dashboard (root index.html served at
-// earn-defi.com/app). This page used to be a weaker Astro dashboard with stale/dead panels;
-// it now redirects so there is ONE canonical dashboard. (_redirects also maps /dashboard→/app;
-// this in-page redirect guarantees it even where the static page would otherwise be served.)
+// /dashboard — the SINGLE canonical dashboard for earn-defi.com.
+//
+// This is now a FIRST-CLASS page of the unified site: it renders inside <Layout>
+// (canonical SiteHeader + PaperStrip + SiteFooter + Console design tokens), so it
+// looks like /track-record and /research — one site, not a separate app. The old
+// 756KB self-contained public/app.html blob is retired; this replaces it.
+//
+// The live, real-time surface is the <DashboardLive /> React island (client:load),
+// which polls api.earn-defi.com every ~15s (SSOT facts + fleet + status + golive)
+// and renders an honest LIVE / "snapshot — live API offline" state. No fabricated
+// numbers offline. Bilingual (EN|RU) via the same data-ru / spa_lang mechanism the
+// rest of the site uses.
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+import DashboardLive from '../components/DashboardLive.jsx';
 ---
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="refresh" content="0; url=/app" />
-    <link rel="canonical" href="/app" />
-    <meta name="robots" content="noindex, nofollow" />
-    <title>Redirecting to dashboard — SPA</title>
-  </head>
-  <body style="background:#0b0c10;color:#e2e4ec;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0">
-    <script is:inline>location.replace('/app');</script>
-    <p>Redirecting to the live dashboard — <a href="/app" style="color:#1ed8a0">/app</a>…</p>
-  </body>
-</html>
+
+<Layout
+  title="Live Dashboard — Paper Track in Real Time | earn-defi.com"
+  description="The live SPA dashboard: evidenced track days, go-live criteria, paper portfolio, agent fleet and safety state — updating in real time from api.earn-defi.com. Paper / research, not investment advice."
+  canonical="https://earn-defi.com/dashboard"
+>
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Page title block (mirrors the doc/marketing template header) -->
+    <section class="pt-16 pb-8">
+      <p class="text-xs font-mono uppercase tracking-[0.12em] text-text-faint mb-4" data-ru="Живой дашборд">Live dashboard</p>
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Бумажный трек в реальном времени">
+        The paper track, in real time
+      </h1>
+      <p class="text-lg text-white/50 leading-relaxed max-w-2xl" data-ru="Каждая метрика обновляется вживую из api.earn-defi.com — подтверждённые дни трека, критерии go-live, бумажный портфель, парк агентов и состояние защиты. Всё бумажное и исследовательское, не инвестиционный совет.">
+        Every metric updates live from <span class="font-mono text-white/70">api.earn-defi.com</span> —
+        evidenced track days, go-live criteria, the paper portfolio, the agent fleet, and the
+        safety state. All paper / research, not investment advice.
+      </p>
+    </section>
+
+    <!-- The real-time island. client:load so it mounts + starts polling immediately. -->
+    <section class="pb-16">
+      <DashboardLive client:load />
+    </section>
+
+  </main>
+
+  <Disclaimer />
+</Layout>
