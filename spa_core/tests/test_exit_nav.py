@@ -261,6 +261,87 @@ def test_history_fallback_depth():
     assert r["depth_usd"] == pytest.approx(200_000_000.0 * band)
 
 
+# ── ILLUSTRATIVE schedule: real-market-sourced, clearly labeled, monotonic, fail-CLOSED ───────────
+def test_illustrative_schedule_real_market_and_labeled():
+    """The illustrative block is anchored to the DEEPEST REAL market on the surface, UNMISTAKABLY
+    labeled hypothetical, and NEVER blended with the (thin, all-holes) live book."""
+    # live book is honestly too thin → all-holes; surface has a deep usdc market to illustrate on.
+    book = {"market_id": "THIN", "underlying": "susde", "gross_usd": 7_600.0,
+            "as_of": "2026-06-25", "source": "live"}
+    surface = {"as_of": "2026-06-25", "quotes": [
+        {"market_id": "THIN", "underlying": "susde", "exit_liquidity_usd": 30_000.0},   # < floor
+        {"market_id": "DEEP", "underlying": "usdc", "exit_liquidity_usd": 80_000_000.0},  # deepest
+    ]}
+    r = build_exit_nav_schedule(write=False, surface=surface, deep={}, book=book)
+
+    # live book is the honest thin one → every ticket a hole
+    assert r["book"]["source"] == "live"
+    assert all(row["flagged"] for row in r["schedule"])
+
+    il = r["illustrative"]
+    assert il is not None
+    # labeled UNMISTAKABLY illustrative + sourced from the REAL deepest market (not the thin one)
+    assert il["kind"] == "illustrative"
+    assert il["market"] == "DEEP"
+    assert il["underlying"] == "usdc"
+    assert il["depth_usd"] == pytest.approx(80_000_000.0)
+    assert il["book"]["source"] == "hypothetical"
+    assert "NOT our live book" in il["basis"]
+    assert "ILLUSTRATIVE ONLY" in il["disclaimer"]
+    assert il["depth_source"] == "rate_surface.exit_liquidity_usd"
+
+
+def test_illustrative_schedule_monotonic_and_real_rows():
+    """On a deep real market the illustrative ladder shows REAL monotonic haircuts (the model is
+    visible): haircut non-decreasing, net-of-gross non-increasing, with reproducible proof hashes."""
+    surface, _ = _deep_book(depth_usd=80_000_000.0)
+    book = {"market_id": "THIN", "underlying": "susde", "gross_usd": 5_000.0,
+            "as_of": "2026-06-25", "source": "live"}
+    r = build_exit_nav_schedule(write=False, surface=surface, deep={}, book=book)
+    il = r["illustrative"]
+    rows = il["schedule"]
+    assert len(rows) == len(EXIT_TICKETS_USD)
+    cleared = [row for row in rows if not row["flagged"]]
+    assert cleared, "deep market should clear at least the small tickets"
+    haircuts = [row["haircut_pct"] for row in cleared]
+    net_fracs = [row["net_proceeds_usd"] / row["gross_usd"] for row in cleared]
+    for i in range(1, len(cleared)):
+        assert haircuts[i] >= haircuts[i - 1] - 1e-9
+        assert net_fracs[i] <= net_fracs[i - 1] + 1e-9
+        assert cleared[i]["net_proceeds_usd"] <= cleared[i]["gross_usd"] + 1e-6
+    # every cleared row carries a reproducible proof
+    for row in cleared:
+        assert row["proof_hash"]
+
+
+def test_illustrative_fail_closed_on_thin_market():
+    """If the deepest available real market is ITSELF below the DEX floor, the illustrative ladder is
+    fail-CLOSED holes (no fabricated fills) — and the engine never invents depth it cannot source."""
+    book = {"market_id": "THIN", "underlying": "susde", "gross_usd": 5_000.0,
+            "as_of": "2026-06-25", "source": "live"}
+    surface = {"as_of": "2026-06-25", "quotes": [
+        {"market_id": "THIN", "underlying": "susde", "exit_liquidity_usd": 30_000.0},  # only thin mkt
+    ]}
+    r = build_exit_nav_schedule(write=False, surface=surface, deep={}, book=book)
+    il = r["illustrative"]
+    assert il is not None  # still anchored on the real (thin) market
+    assert il["market"] == "THIN"
+    assert il["depth_usd"] == pytest.approx(30_000.0)
+    # below the floor ⇒ every ticket a hole, NOTHING fabricated
+    assert all(row["flagged"] for row in il["schedule"])
+    assert all(row["net_proceeds_usd"] is None for row in il["schedule"])
+
+
+def test_illustrative_none_when_no_real_market():
+    """No surface depth AND no history ⇒ no real market to anchor on ⇒ illustrative is None
+    (fail-CLOSED: we never invent a market to illustrate on)."""
+    book = {"market_id": "X", "underlying": "usdc", "gross_usd": 5_000.0,
+            "as_of": "2026-06-25", "source": "live"}
+    surface = {"as_of": "2026-06-25", "quotes": []}
+    r = build_exit_nav_schedule(write=False, surface=surface, deep={}, book=book)
+    assert r["illustrative"] is None
+
+
 def test_write_atomic_and_readable(tmp_path):
     """write=True ⇒ a valid JSON file is produced atomically (no half-write); re-readable."""
     surface, book = _deep_book()

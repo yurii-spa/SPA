@@ -358,6 +358,7 @@ def get_rates_desk_exit_nav():
             "depth_usd": None,
             "book": None,
             "schedule": [],
+            "illustrative": None,
             "flagged": True,
             "flag_reason": "exit_nav_unavailable",
             "is_advisory": True,

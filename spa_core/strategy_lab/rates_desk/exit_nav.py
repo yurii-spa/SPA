@@ -382,6 +382,136 @@ def _hypothetical_book(surface: dict, deep: dict) -> Optional[dict]:
     return None
 
 
+def _deepest_real_market(surface: dict, deep: dict) -> Optional[dict]:
+    """The single DEEPEST real market available — priority (a) the live surface's largest
+    `exit_liquidity_usd` quote, else priority (b) the deepest contemporaneous Pendle PT history TVL.
+
+    Returns {market_id, underlying, depth_usd, as_of, data_source} or None. This is the anchor for the
+    ILLUSTRATIVE schedule: a REAL contemporaneous on-chain depth (never invented), used to DEMONSTRATE
+    the model on a market deep enough to show monotonic haircuts — explicitly NOT our live book."""
+    as_of = surface.get("as_of") if isinstance(surface, dict) else None
+    # ── priority (a): deepest live-surface quote (already the §9 exit_liquidity proxy) ──
+    quotes = surface.get("quotes") if isinstance(surface, dict) else None
+    best = None
+    if isinstance(quotes, list):
+        for q in quotes:
+            if not isinstance(q, dict):
+                continue
+            depth = _to_float(q.get("exit_liquidity_usd"))
+            if depth is None or depth <= 0:
+                continue
+            cand = {
+                "market_id": q.get("market_id"),
+                "underlying": (q.get("underlying") or "").lower(),
+                "depth_usd": depth,
+                "as_of": q.get("as_of") or as_of,
+                "data_source": "rate_surface.exit_liquidity_usd",
+            }
+            if best is None or depth > best["depth_usd"]:
+                best = cand
+    if best is not None:
+        return best
+    # ── priority (b): deepest contemporaneous Pendle PT history TVL × impact band ──
+    from spa_core.strategy_lab.rates_desk import config
+
+    markets = deep.get("markets") if isinstance(deep, dict) else None
+    if not isinstance(markets, dict):
+        return None
+    band = float(config.EXIT_PRICE_IMPACT_BAND_BPS) / 10_000.0
+    for m in markets.values():
+        if not isinstance(m, dict):
+            continue
+        last = None
+        for pt in m.get("series", []):
+            if not isinstance(pt, dict):
+                continue
+            d = pt.get("date")
+            t = _to_float(pt.get("tvl_usd"))
+            if not isinstance(d, str) or t is None or t <= 0:
+                continue
+            if as_of is not None and d > as_of:
+                continue
+            if last is None or d > last[0]:
+                last = (d, t)
+        if last is None:
+            continue
+        depth = last[1] * band
+        cand = {
+            "market_id": m.get("market_address") or m.get("pt_address") or m.get("symbol"),
+            "underlying": (m.get("underlying") or "").lower(),
+            "depth_usd": depth,
+            "as_of": last[0],
+            "data_source": "pendle_pt_history.tvl_usd×impact_band",
+        }
+        if best is None or depth > best["depth_usd"]:
+            best = cand
+    return best
+
+
+def build_illustrative_schedule(
+    surface: dict,
+    deep: dict,
+    params: RatePolicyParams,
+    tickets: Tuple[int, ...],
+) -> Optional[dict]:
+    """The ILLUSTRATIVE per-ticket schedule — the SAME engine, SAME conservative-bound + fail-CLOSED
+    rigor as the live one, run against the DEEPEST REAL contemporaneous market on the surface so the
+    model is actually VISIBLE (monotonic haircuts across $100k..$10m, some tickets clear, the largest
+    show real haircuts/holes). UNMISTAKABLY labeled hypothetical — NEVER blended with the live book.
+
+    The hypothetical book is sized at a few × the deepest market's single one-tick capacity
+    (`max_size_frac_of_exit × depth`) so the schedule spans the full ladder honestly. Depth is the
+    market's REAL contemporaneous on-chain exit liquidity — we invent the BOOK SIZE, never the DEPTH.
+    Returns None only if there is no real market at all to anchor on (fail-CLOSED → no illustration)."""
+    mkt = _deepest_real_market(surface, deep)
+    if mkt is None or mkt.get("depth_usd") is None or mkt["depth_usd"] <= 0:
+        return None
+    depth_usd = float(mkt["depth_usd"])
+    data_source = mkt["data_source"]
+    row_as_of = mkt.get("as_of")
+    max_frac = float(params.max_size_frac_of_exit)
+    # A representative hypothetical book: a few × the one-tick capacity of THIS real depth. Sized so the
+    # ladder demonstrates the full descent. We expose this as the book gross; the per-ticket rows still
+    # exit the TICKET notional (the investor's requested pull) against the REAL depth.
+    one_tick_capacity = max_frac * depth_usd
+    hypo_gross = round(max(float(tickets[-1]), one_tick_capacity * 4.0), 6)
+
+    schedule: List[dict] = []
+    any_flagged = False
+    for t in tickets:
+        row = compute_ticket_row(
+            ticket_usd=int(t), gross_usd=float(t), depth_usd=depth_usd,
+            as_of=row_as_of, data_source=data_source, params=params,
+        )
+        if row["flagged"]:
+            any_flagged = True
+        schedule.append(row)
+
+    return {
+        "kind": "illustrative",
+        "basis": (f"hypothetical book on {mkt.get('market_id')}'s REAL contemporaneous on-chain depth "
+                  f"— demonstrates the model; NOT our live book"),
+        "market": mkt.get("market_id"),
+        "underlying": mkt.get("underlying"),
+        "depth_usd": _round6(depth_usd),
+        "depth_source": data_source,
+        "as_of": row_as_of,
+        "book": {
+            "source": "hypothetical",
+            "market_id": mkt.get("market_id"),
+            "underlying": mkt.get("underlying"),
+            "gross_usd": hypo_gross,
+            "as_of": row_as_of,
+        },
+        "tickets_usd": [int(t) for t in tickets],
+        "schedule": schedule,
+        "flagged": bool(any_flagged),
+        "disclaimer": ("ILLUSTRATIVE ONLY — a hypothetical book on a REAL deep market's contemporaneous "
+                       "on-chain depth, to demonstrate the conservative model. This is NOT our live "
+                       "position. Our actual live book is shown separately (and is honestly thin)."),
+    }
+
+
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 # build_exit_nav_schedule — the engine
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -447,6 +577,11 @@ def build_exit_nav_schedule(
             any_flagged = True
         schedule.append(row)
 
+    # ── ILLUSTRATIVE schedule: SAME engine on the DEEPEST REAL market, so the model is visible even
+    #    when the live book is honestly too thin to model. Clearly labeled hypothetical — NEVER blended
+    #    with the live `schedule`. fail-CLOSED: None if no real market exists to anchor on. ──
+    illustrative = build_illustrative_schedule(surface, deep, params, tickets)
+
     result = {
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "model": MODEL_NAME,
@@ -473,6 +608,7 @@ def build_exit_nav_schedule(
         },
         "tickets_usd": [int(t) for t in tickets],
         "schedule": schedule,
+        "illustrative": illustrative,
         "flagged": bool(any_flagged or depth_usd is None),
         "basis": ("paper/backtest-derived from contemporaneous on-chain Pendle PT depth; "
                   "conservative lower bound; NOT realized exits"),
@@ -507,6 +643,7 @@ def _empty_result(as_of, params: RatePolicyParams, reason: str) -> dict:
         "book": None,
         "tickets_usd": list(EXIT_TICKETS_USD),
         "schedule": [],
+        "illustrative": None,
         "flagged": True,
         "flag_reason": reason,
         "basis": ("paper/backtest-derived from contemporaneous on-chain Pendle PT depth; "

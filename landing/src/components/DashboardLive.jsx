@@ -178,6 +178,44 @@ const T = {
   deepRwa: { en: 'RWA backstop →', ru: 'RWA backstop →' },
   deepResearch: { en: 'Research journal →', ru: 'Журнал исследований →' },
 
+  /* exit-NAV waterfall (Panel A) */
+  exitTitle: { en: 'Exit NAV by size', ru: 'Exit NAV по размеру' },
+  exitSub: {
+    en: 'Modeled net proceeds if you exited at each size, from real on-chain Pendle depth. Conservative lower bound — not realized exits.',
+    ru: 'Моделируемые чистые поступления при выходе на каждом размере, из реальной on-chain Pendle-глубины. Консервативная нижняя граница — не реализованные выходы.',
+  },
+  exitModelChip: { en: 'advisory · conservative model', ru: 'advisory · консервативная модель' },
+  exitIllustrative: { en: 'illustrative · hypothetical book', ru: 'иллюстративно · гипотетич. книга' },
+  exitIllustrativeNote: {
+    en: 'Illustrative schedule on a real market’s contemporaneous on-chain depth — it demonstrates the model. This is NOT our live book.',
+    ru: 'Иллюстративный график на реальной on-chain глубине рынка — демонстрирует модель. Это НЕ наша live-книга.',
+  },
+  exitLiveBook: { en: 'Our live book', ru: 'Наша live-книга' },
+  exitLiveThin: {
+    en: 'Our actual book is {x} — too small to model an exit at these sizes; we show holes, not fabricated fills.',
+    ru: 'Наша реальная книга — {x} — слишком мала, чтобы моделировать выход на этих размерах; мы показываем дыры, а не выдуманные заливки.',
+  },
+  exitNet: { en: 'net', ru: 'чистыми' },
+  exitHaircut: { en: 'haircut', ru: 'хейркат' },
+  exitTime: { en: 'time-to-exit', ru: 'время выхода' },
+  exitDepthLimited: { en: 'depth-limited', ru: 'ограничено глубиной' },
+  exitMethodology: { en: 'Methodology →', ru: 'Методология →' },
+  exitOffline: { en: 'Exit-NAV unavailable — /api/rates-desk/exit-nav offline.', ru: 'Exit-NAV недоступен — /api/rates-desk/exit-nav офлайн.' },
+
+  /* public refusal log (Panel B) */
+  refLogTitle: { en: 'Public refusal log', ru: 'Публичный журнал отказов' },
+  refLogSub: {
+    en: 'Every declined trade, with a plain-language reason and a tamper-evident proof. We publish what we refuse, not only what we trade.',
+    ru: 'Каждая отклонённая сделка — с объяснением простым языком и защищённым от подмены доказательством. Мы публикуем отказы, а не только сделки.',
+  },
+  refChainOk: { en: 'chain verified', ru: 'цепочка проверена' },
+  refChainBroken: { en: 'INTEGRITY BROKEN', ru: 'ЦЕЛОСТНОСТЬ НАРУШЕНА' },
+  refEntries: { en: 'entries', ru: 'входов' },
+  refRefusals: { en: 'refusals', ru: 'отказов' },
+  refProof: { en: 'proof', ru: 'доказательство' },
+  refProofSpec: { en: 'chain spec →', ru: 'спецификация цепочки →' },
+  refLogOffline: { en: 'Refusal log unavailable — /api/rates-desk/refusals offline.', ru: 'Журнал отказов недоступен — /api/rates-desk/refusals офлайн.' },
+
   /* system */
   sysEyebrow: { en: 'Operations', ru: 'Эксплуатация' },
   sysTitle: { en: 'System & safety', ru: 'Система и защита' },
@@ -418,6 +456,8 @@ export default function DashboardLive() {
   const [ratesOpps, setRatesOpps] = useState(undefined);
   const [ratesDecisions, setRatesDecisions] = useState(undefined);
   const [ratesTrack, setRatesTrack] = useState(undefined);
+  const [exitNav, setExitNav] = useState(undefined);
+  const [refusalLog, setRefusalLog] = useState(undefined);
 
   const [phase, setPhase] = useState('connecting'); // connecting | live | offline
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -455,6 +495,8 @@ export default function DashboardLive() {
       ['/api/rates-desk/opportunities', setRatesOpps],
       ['/api/rates-desk/decisions?limit=40', setRatesDecisions],
       ['/api/rates-desk/track', setRatesTrack],
+      ['/api/rates-desk/exit-nav', setExitNav],
+      ['/api/rates-desk/refusals?limit=40', setRefusalLog],
     ];
     indep.forEach(([path, setter]) => {
       getJson(path).then((d) => setter(d)).catch(() => setter(null));
@@ -679,7 +721,8 @@ export default function DashboardLive() {
       {tab === 'desks' && (
         <DesksSection
           surface={ratesSurface} opps={ratesOpps} decisions={ratesDecisions} track={ratesTrack}
-          refusal={refusal} rwaBoard={rwaBoard} lang={lang} tr={tr}
+          refusal={refusal} rwaBoard={rwaBoard} exitNav={exitNav} refusalLog={refusalLog}
+          lang={lang} tr={tr}
         />
       )}
 
@@ -865,7 +908,7 @@ function TournamentSection({ tournament, lang, tr }) {
 }
 
 /* ───────────────────────────────────── DESKS SECTION ────────────────────────────── */
-function DesksSection({ surface, opps, decisions, track, refusal, rwaBoard, lang, tr }) {
+function DesksSection({ surface, opps, decisions, track, refusal, rwaBoard, exitNav, refusalLog, lang, tr }) {
   const surfaceQuotes = (surface && Array.isArray(surface.quotes)) ? surface.quotes : [];
   const oppN = (opps && Array.isArray(opps.opportunities)) ? opps.opportunities.length : null;
   const decCounts = (decisions && decisions.counts) || {};
@@ -883,6 +926,9 @@ function DesksSection({ surface, opps, decisions, track, refusal, rwaBoard, lang
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <SectionHead eyebrow={tr('desksEyebrow')} title={tr('desksTitle')} intro={tr('desksIntro')} />
+
+      {/* ★ FLAGSHIP Panel A — Exit-NAV-by-size waterfall (the centerpiece) */}
+      <ExitNavPanel exitNav={exitNav} lang={lang} tr={tr} />
 
       {/* Rates Desk */}
       <Panel>
@@ -936,6 +982,9 @@ function DesksSection({ surface, opps, decisions, track, refusal, rwaBoard, lang
           <p style={{ fontSize: '.8125rem', color: 'var(--text-muted)' }}>{refusalLive ? (lang === 'ru' ? 'нет активов' : 'no underlyings') : tr('deskOffline')}</p>
         )}
       </Panel>
+
+      {/* ★ FLAGSHIP Panel B — Public refusal log (the trust signal) */}
+      <RefusalLogPanel refusalLog={refusalLog} lang={lang} tr={tr} />
 
       {/* BTC / ETH + RWA — two-up */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
@@ -1103,6 +1152,249 @@ function HelpSection({ lang, tr }) {
         </p>
       </Panel>
     </div>
+  );
+}
+
+/* ═══════════════════════════════════ FLAGSHIP A — EXIT-NAV WATERFALL ════════════════════════════
+ * A horizontal stepped waterfall (pure divs, no chart lib). x = ticket ($100K→$10M); each bar's
+ * height = net proceeds as % of gross; the haircut is a --danger sliver shaded on top. Monotonic
+ * descent IS the visual proof of a conservative model. Depth-limited (flagged) tickets render a
+ * hatched bar with net = "—" — never a fabricated number.
+ * ─────────────────────────────────────────────────────────────────────────────────────────────── */
+function tickLabel(usd) {
+  const n = Number(usd);
+  if (!isFinite(n)) return NA;
+  if (n >= 1e6) return '$' + (n / 1e6).toFixed(n % 1e6 === 0 ? 0 : 1) + 'M';
+  if (n >= 1e3) return '$' + Math.round(n / 1e3) + 'K';
+  return '$' + n;
+}
+
+function Waterfall({ schedule, lang, tr }) {
+  const rows = Array.isArray(schedule) ? schedule : [];
+  if (rows.length === 0) return null;
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', overflowX: 'auto', paddingBottom: 4 }}>
+      {rows.map((r, i) => {
+        const flagged = r.flagged === true || r.net_proceeds_usd == null;
+        const gross = Number(r.gross_usd) || 0;
+        const net = flagged ? null : Number(r.net_proceeds_usd);
+        const netFrac = (!flagged && gross > 0) ? Math.max(0, Math.min(1, net / gross)) : 0;
+        const haircutPct = (!flagged && r.haircut_pct != null) ? Number(r.haircut_pct) : null;
+        const tte = r.time_to_exit_days;
+        const COL_H = 132; // px column height for the 0–100% bar
+        const netH = Math.round(netFrac * COL_H);
+        return (
+          <div key={r.ticket_usd || i} style={{ flex: '1 1 0', minWidth: 92, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+            {/* the stacked bar */}
+            <div style={{ position: 'relative', width: '100%', maxWidth: 64, height: COL_H, borderRadius: 'var(--r-sm)', background: 'var(--bg-base)', border: '1px solid var(--border)', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+              {flagged ? (
+                /* hatched depth-limited bar — visible hole, never a fake fill */
+                <div title={tr('exitDepthLimited')} style={{ position: 'absolute', inset: 0, backgroundImage: 'repeating-linear-gradient(45deg, var(--bg-surface-2) 0, var(--bg-surface-2) 5px, transparent 5px, transparent 10px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ ...mono, fontSize: '.625rem', color: 'var(--text-faint)', transform: 'rotate(-90deg)', whiteSpace: 'nowrap', letterSpacing: '.04em' }}>{tr('exitDepthLimited')}</span>
+                </div>
+              ) : (
+                <>
+                  {/* haircut sliver (danger) above the net portion */}
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: COL_H - netH, background: 'rgba(242,109,109,.16)', borderBottom: '1px dashed rgba(242,109,109,.45)' }} />
+                  {/* net proceeds (teal) */}
+                  <div style={{ width: '100%', height: netH, background: 'linear-gradient(180deg, var(--data-teal), rgba(54,194,180,.55))', transition: 'height 600ms cubic-bezier(.4,0,.2,1)' }} />
+                </>
+              )}
+            </div>
+            {/* x-axis ticket label */}
+            <span style={{ ...mono, fontSize: '.6875rem', fontWeight: 600, color: 'var(--text-primary)' }}>{tickLabel(r.ticket_usd)}</span>
+            {/* net $ / haircut % / time-to-exit */}
+            <div style={{ textAlign: 'center', lineHeight: 1.5 }}>
+              <p style={{ ...mono, fontSize: '.6875rem', color: flagged ? 'var(--text-faint)' : 'var(--data-teal)' }}>
+                {flagged ? NA : usdCompact(net)}
+              </p>
+              <p style={{ ...mono, fontSize: '.625rem', color: haircutPct == null ? 'var(--text-faint)' : 'var(--danger)' }}>
+                {haircutPct == null ? NA : '−' + haircutPct.toFixed(1) + '%'}
+              </p>
+              <p style={{ ...mono, fontSize: '.5625rem', color: 'var(--text-faint)' }}>
+                {tte == null ? NA : tte + 'd'}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ExitNavPanel({ exitNav, lang, tr }) {
+  const offline = exitNav === null;
+  const loading = exitNav === undefined;
+  const il = (exitNav && exitNav.illustrative) || null;
+  const liveSchedule = (exitNav && Array.isArray(exitNav.schedule)) ? exitNav.schedule : [];
+  const liveBook = (exitNav && exitNav.book) || null;
+  const liveAllFlagged = liveSchedule.length > 0 && liveSchedule.every((r) => r.flagged === true || r.net_proceeds_usd == null);
+  const liveGross = liveBook && liveBook.gross_usd != null ? liveBook.gross_usd : null;
+
+  // Main visual = the illustrative schedule (so the engine is visible). If no illustrative exists,
+  // fall back to the live schedule itself (honest holes).
+  const mainSchedule = il && Array.isArray(il.schedule) ? il.schedule : liveSchedule;
+  const mainIsIllustrative = !!(il && Array.isArray(il.schedule) && il.schedule.length);
+
+  return (
+    <Panel>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <h3 style={{ ...HEADING, fontSize: '1.15rem' }}>{tr('exitTitle')}</h3>
+          <Chip tone="warn">{tr('exitModelChip')}</Chip>
+        </div>
+        <SourceTag live={!offline && !loading} lang={lang} />
+      </div>
+      <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)', lineHeight: 1.55, marginBottom: 14, maxWidth: 720 }}>{tr('exitSub')}</p>
+
+      {offline ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('exitOffline')}</p>
+      ) : loading ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('connecting')}</p>
+      ) : (
+        <>
+          {mainIsIllustrative && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+              <Chip tone="teal" title={il.basis}>
+                {tr('exitIllustrative')}{il.underlying ? ` · real ${il.underlying} depth` : ''}
+              </Chip>
+              {il.depth_usd != null && <span style={{ ...mono, fontSize: '.6875rem', color: 'var(--text-muted)' }}>depth {usdCompact(il.depth_usd)}</span>}
+            </div>
+          )}
+
+          <Waterfall schedule={mainSchedule} lang={lang} tr={tr} />
+
+          {mainIsIllustrative && (
+            <p style={{ fontSize: '.6875rem', color: 'var(--text-faint)', lineHeight: 1.5, marginTop: 10 }}>{tr('exitIllustrativeNote')}</p>
+          )}
+
+          {/* compact honest LIVE-book line */}
+          <div style={{ ...card, padding: '12px 14px', background: 'var(--bg-base)', marginTop: 14 }}>
+            <p style={{ ...mono, fontSize: '.625rem', textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-faint)', marginBottom: 4 }}>{tr('exitLiveBook')}</p>
+            <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              {liveAllFlagged
+                ? tr('exitLiveThin').replace('{x}', liveGross != null ? usdCompact(liveGross) : NA)
+                : (liveSchedule.length === 0
+                    ? tr('exitLiveThin').replace('{x}', liveGross != null ? usdCompact(liveGross) : NA)
+                    : (lang === 'ru'
+                        ? `Live-книга ${liveGross != null ? usdCompact(liveGross) : NA} (${liveBook && liveBook.underlying ? liveBook.underlying : '—'}) — график выше иллюстративный.`
+                        : `Live book ${liveGross != null ? usdCompact(liveGross) : NA} (${liveBook && liveBook.underlying ? liveBook.underlying : '—'}) — the chart above is illustrative.`))}
+            </p>
+          </div>
+
+          <div style={{ marginTop: 14 }}><DeepLink href="/rates-desk" label={tr('exitMethodology')} inline /></div>
+        </>
+      )}
+    </Panel>
+  );
+}
+
+/* ═══════════════════════════════════ FLAGSHIP B — PUBLIC REFUSAL LOG ═════════════════════════════
+ * Top: green integrity badge from chain.verified/head_hash → flips danger "INTEGRITY BROKEN @ seq N"
+ * if verified:false (this honesty IS the trust signal). Below: a vertical feed, newest-first; each
+ * card = date + underlying + REFUSE/ENTRY chip + headline + plain-language paragraph + a collapsible
+ * proof line (structural_reason + driver haircuts + monospace proof_hash + chain-spec link).
+ * ─────────────────────────────────────────────────────────────────────────────────────────────── */
+function shortHash(h) {
+  if (!h || typeof h !== 'string') return NA;
+  return h.length > 12 ? h.slice(0, 4) + '…' + h.slice(-4) : h;
+}
+
+function RefusalCard({ d, lang, tr }) {
+  const [open, setOpen] = useState(false);
+  const isRefuse = (d.kind || '').toUpperCase() === 'REFUSAL';
+  const plain = lang === 'ru' ? (d.plain_ru || d.plain_en) : (d.plain_en || d.plain_ru);
+  const drivers = Array.isArray(d.drivers) ? d.drivers : [];
+  return (
+    <div style={{ ...card, padding: '14px 16px', background: 'var(--bg-base)', borderLeft: `3px solid ${isRefuse ? 'var(--danger)' : 'var(--ok)'}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+        <span style={{ ...mono, fontSize: '.6875rem', color: 'var(--text-muted)' }}>{d.as_of || NA}</span>
+        <Chip tone="muted">{d.underlying || '?'}</Chip>
+        <Chip tone={isRefuse ? 'danger' : 'ok'}>{isRefuse ? 'REFUSE' : 'ENTRY'}</Chip>
+        {d.shape && <span style={{ ...mono, fontSize: '.625rem', color: 'var(--text-faint)' }}>{String(d.shape).replace(/_/g, ' ')}</span>}
+        <span style={{ ...mono, fontSize: '.625rem', color: 'var(--text-faint)', marginLeft: 'auto' }}>#{d.seq ?? NA}</span>
+      </div>
+      <p style={{ fontSize: '.8125rem', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.45, marginBottom: 6 }}>{d.headline || NA}</p>
+      {plain && <p style={{ fontSize: '.75rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>{plain}</p>}
+
+      <button onClick={() => setOpen((v) => !v)} style={{ ...mono, fontSize: '.625rem', color: 'var(--accent)', background: 'transparent', border: 'none', padding: '8px 0 0', cursor: 'pointer' }}>
+        {open ? '▾ ' : '▸ '}{tr('refProof')}
+      </button>
+      {open && (
+        <div style={{ marginTop: 8, paddingTop: 10, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {d.structural_reason && (
+            <p style={{ ...mono, fontSize: '.6875rem', color: 'var(--text-secondary)' }}>
+              <span style={{ color: 'var(--text-faint)' }}>structural_reason:</span> {d.structural_reason}
+            </p>
+          )}
+          {drivers.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {drivers.map((dr, i) => (
+                <span key={dr.field || i} title={dr.label} style={{ ...mono, fontSize: '.625rem', padding: '3px 7px', borderRadius: 'var(--r-full)', background: 'var(--bg-surface-2)', border: '1px solid var(--border)', color: dr.field === 'total_haircut' ? 'var(--danger)' : dr.field === 'fair_yield' ? 'var(--text-muted)' : 'var(--text-secondary)' }}>
+                  {dr.label}: {dr.pct ?? NA}
+                </span>
+              ))}
+            </div>
+          )}
+          <p style={{ ...mono, fontSize: '.625rem', color: 'var(--text-faint)', wordBreak: 'break-all' }}>
+            <span style={{ color: 'var(--text-faint)' }}>proof_hash:</span> {d.proof_hash || NA}
+          </p>
+          <a href="/rates-desk" style={{ ...mono, fontSize: '.625rem', color: 'var(--accent)' }}>{tr('refProofSpec')}</a>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RefusalLogPanel({ refusalLog, lang, tr }) {
+  const offline = refusalLog === null;
+  const loading = refusalLog === undefined;
+  const chain = (refusalLog && refusalLog.chain) || null;
+  const counts = (refusalLog && refusalLog.counts) || {};
+  const decisions = (refusalLog && Array.isArray(refusalLog.decisions)) ? refusalLog.decisions : [];
+  const verified = chain ? chain.verified === true : null;
+
+  return (
+    <Panel>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+        <h3 style={{ ...HEADING, fontSize: '1.15rem' }}>{tr('refLogTitle')}</h3>
+        <SourceTag live={!offline && !loading} lang={lang} />
+      </div>
+      <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)', lineHeight: 1.55, marginBottom: 14, maxWidth: 720 }}>{tr('refLogSub')}</p>
+
+      {offline ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('refLogOffline')}</p>
+      ) : loading ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('connecting')}</p>
+      ) : (
+        <>
+          {/* integrity badge — the trust signal */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
+            {verified === false ? (
+              <Chip tone="danger">{tr('refChainBroken')}{chain && chain.broken_at != null ? ` @ seq ${chain.broken_at}` : ''}</Chip>
+            ) : (
+              <Chip tone="ok"><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ok)' }} aria-hidden="true" />{tr('refChainOk')} · head {shortHash(chain && chain.head_hash)}</Chip>
+            )}
+            <span style={{ ...mono, fontSize: '.6875rem', color: 'var(--ok)' }}>{counts.ENTRY ?? 0} {tr('refEntries')}</span>
+            <span style={{ ...mono, fontSize: '.6875rem', color: 'var(--danger)' }}>{counts.REFUSAL ?? 0} {tr('refRefusals')}</span>
+          </div>
+
+          {/* vertical feed, newest first (API already returns most-recent-first) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 540, overflowY: 'auto' }}>
+            {decisions.length === 0 ? (
+              <p style={{ fontSize: '.8125rem', color: 'var(--text-muted)' }}>{lang === 'ru' ? 'нет решений' : 'no decisions'}</p>
+            ) : (
+              decisions.map((d, i) => <RefusalCard key={(d.seq ?? i) + '-' + i} d={d} lang={lang} tr={tr} />)
+            )}
+          </div>
+
+          <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+            <DeepLink href="/rates-desk" label={tr('deepRates')} />
+            <DeepLink href="/research" label={tr('deepResearch')} />
+          </div>
+        </>
+      )}
+    </Panel>
   );
 }
 
