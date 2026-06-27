@@ -109,6 +109,7 @@ APY_RANGE_MIN = 0.5
 APY_RANGE_MAX = 25.0
 
 STATUS_FRESH_H = 26.0                     # paper_trading_status staleness
+DERISK_FRESH_H = 26.0                     # derisk_status.json staleness (cycle-written, daily)
 ALLOC_CAP_PCT = 30.0                      # monitor tripwire (RiskPolicy T1 cap is 40%)
 T2_CAP_PCT = 50.0                         # ADR-019
 PORTFOLIO_HEALTH_FLOOR = 70.0
@@ -904,6 +905,7 @@ class SystemHealthMonitor:
             ("d6.health", self._check_portfolio_health),
             ("d6.red_flags", self._check_red_flags),
             ("d6.killswitch", self._check_killswitch),
+            ("d6.safety_state", self._check_safety_state),
         )
         out: list[CheckResult] = []
         for cid, fn in gates:
@@ -1035,6 +1037,116 @@ class SystemHealthMonitor:
                                evidence={"report": line[3:]})
         return CheckResult("d6.killswitch", D, OK,
                            "kill-switch DRY responds (no trigger)", evidence={"report": line[3:]})
+
+    def _check_safety_state(self, D: str) -> CheckResult:
+        """Make the TWO-TIER safety state OBSERVABLE (D3-T3, ADR-034).
+
+        A safety state the owner can't SEE is a blind spot. The two-tier
+        kill-switch added two new persisted states that were invisible to the
+        health surface until now:
+
+          * SOFT de-risk (``data/derisk_status.json`` ``active=true``) — the
+            cycle has halted new allocations / blocked increases on a 5–15%
+            evidenced drawdown (NOT all-cash). Reported as **WARNING**.
+          * HARD kill / all-cash (``data/kill_switch_active.json`` present with
+            ``active != False``, or ``kill_switch_status.json`` ``triggered``)
+            — the book is closed to cash. Reported as **CRITICAL**.
+
+        Read-only, fail-CLOSED, and edge-honest:
+          * Both files absent/clear → OK ("no safety state active").
+          * A de-risk file that is STALE (its ``generated_at`` is older than
+            DERISK_FRESH_H, or unparseable) is flagged — a stale safety snapshot
+            must look stale, never silently authoritative. A stale *active*
+            de-risk stays WARNING (its claim may be outdated, but a possibly-live
+            de-risk is worth surfacing); a stale *inactive* de-risk is INFO.
+          * A corrupt/unreadable status file is reported WARNING (cannot verify),
+            never silently OK.
+
+        This is the OBSERVABILITY surface; it never writes/activates anything
+        and is parallel to ``_check_killswitch`` (which DRY-evaluates triggers).
+        """
+        cid = "d6.safety_state"
+
+        # ── HARD kill / all-cash state (highest severity) ─────────────────────
+        active_doc, active_err = self._load_json("kill_switch_active.json")
+        kill_active = False
+        if active_doc is not None:
+            # File present. active=False is an explicit deactivation marker.
+            if isinstance(active_doc, dict) and active_doc.get("active") is False:
+                kill_active = False
+            else:
+                kill_active = True
+        elif active_err and active_err != "missing":
+            # Unreadable kill-switch marker → cannot verify, fail-loud (WARNING).
+            return CheckResult(cid, D, WARNING,
+                               "kill_switch_active.json unreadable — cannot verify kill state",
+                               error=active_err)
+
+        # Corroborate with kill_switch_status.json (cycle-written verdict).
+        status_doc, _status_err = self._load_json("kill_switch_status.json")
+        status_triggered = (isinstance(status_doc, dict)
+                            and status_doc.get("triggered") is True)
+
+        if kill_active or status_triggered:
+            reason = ""
+            if isinstance(active_doc, dict):
+                reason = str(active_doc.get("reason") or "")
+            if not reason and isinstance(status_doc, dict):
+                reason = str(status_doc.get("reason") or "")
+            return CheckResult(cid, D, CRITICAL,
+                               "HARD kill ACTIVE — book is all-cash"
+                               + (f": {reason}" if reason else ""),
+                               value="HARD_KILL",
+                               evidence={"reason": reason,
+                                         "kill_switch_active": kill_active,
+                                         "status_triggered": status_triggered})
+
+        # ── SOFT de-risk state ────────────────────────────────────────────────
+        derisk_doc, derisk_err = self._load_json("derisk_status.json")
+        if derisk_doc is None:
+            if derisk_err and derisk_err != "missing":
+                return CheckResult(cid, D, WARNING,
+                                   "derisk_status.json unreadable — cannot verify de-risk state",
+                                   error=derisk_err)
+            # Absent entirely → de-risk never fired (clean). No kill either → OK.
+            return CheckResult(cid, D, OK,
+                               "no safety state active (no de-risk, no kill)",
+                               value="CLEAR")
+
+        if not isinstance(derisk_doc, dict):
+            return CheckResult(cid, D, WARNING,
+                               "derisk_status.json malformed — cannot verify de-risk state")
+
+        derisk_active = bool(derisk_doc.get("active"))
+        tier = derisk_doc.get("tier")
+        dr_reason = str(derisk_doc.get("reason") or "")
+        age = _age_hours(derisk_doc.get("generated_at"))
+        stale = (age is None) or (age > DERISK_FRESH_H)
+        ev = {"tier": tier, "reason": dr_reason,
+              "age_hours": round(age, 1) if age is not None else None,
+              "stale": stale}
+
+        if derisk_active:
+            # A stale-but-active de-risk is still surfaced as WARNING (a possibly
+            # live de-risk the owner must see), with the staleness noted.
+            suffix = f": {dr_reason}" if dr_reason else ""
+            if stale:
+                return CheckResult(cid, D, WARNING,
+                                   "SOFT de-risk ACTIVE (snapshot STALE — verify cycle)"
+                                   + suffix, value="SOFT_DERISK", evidence=ev)
+            return CheckResult(cid, D, WARNING,
+                               "SOFT de-risk ACTIVE — new allocations/increase halted"
+                               + suffix, value="SOFT_DERISK", evidence=ev)
+
+        # Inactive de-risk. If the snapshot is stale, flag it (INFO) so a frozen
+        # writer doesn't masquerade as a confidently-clear state; else OK.
+        if stale:
+            return CheckResult(cid, D, INFO,
+                               "de-risk inactive but snapshot STALE (cycle may be lagging)",
+                               value="CLEAR", evidence=ev)
+        return CheckResult(cid, D, OK,
+                           "no safety state active (de-risk inactive, fresh)",
+                           value="CLEAR", evidence=ev)
 
     # ======================================================================
     # DOMAIN 7 — Operational Hygiene

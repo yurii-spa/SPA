@@ -335,3 +335,139 @@ def test_build_scorecard_unreadable_file_is_unknown(tmp_path, monkeypatch):
     broken = [t for t in rep["tracks"] if t["name"].endswith("broken")][0]
     assert broken["integrity_ok"] is False
     assert broken["verdict"] == "UNKNOWN"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# D3-T2 — non-finite safety on the forward analytics (NaN / inf / zero-var / single)
+# ──────────────────────────────────────────────────────────────────────────────
+_INF = float("inf")
+_NAN = float("nan")
+
+
+def _card_has_no_nonfinite(card: dict) -> bool:
+    """No numeric field in a per-track scorecard may be a leaked NaN/inf."""
+    for v in card.values():
+        if isinstance(v, float) and not math.isfinite(v):
+            return False
+        if isinstance(v, dict):
+            for vv in v.values():
+                if isinstance(vv, float) and not math.isfinite(vv):
+                    return False
+    return True
+
+
+@pytest.mark.parametrize("bad", [_NAN, _INF, -_INF])
+def test_nonfinite_equity_point_fails_closed(bad):
+    """A NaN/inf equity_usd is a CORRUPT point → integrity not-ok → verdict UNKNOWN, never a
+    leaked NaN/inf metric (isinstance(nan, float) is True, so it must be explicitly rejected)."""
+    doc = _series([100000.0, 100010.0, 100020.0, 100030.0, 100040.0, 100050.0, 100060.0])
+    doc["series"][3]["equity_usd"] = bad
+    card = fa.analyze_track(doc, name="badeq", floor_apy_pct=_FLOOR)
+    assert card["integrity_ok"] is False
+    assert "malformed" in card["integrity_reason"]
+    assert card["verdict"] == "UNKNOWN"
+    assert card["ann_return_pct"] is None
+    assert card["sharpe"] == "UNKNOWN"
+    assert _card_has_no_nonfinite(card)
+
+
+def test_all_nonfinite_series_never_leaks_nan():
+    """Even an all-NaN / all-inf series must fail closed to UNKNOWN, never serialize NaN."""
+    for bad in (_NAN, _INF):
+        doc = _series([bad] * 8)
+        card = fa.analyze_track(doc, name="allbad", floor_apy_pct=_FLOOR)
+        assert card["verdict"] == "UNKNOWN"
+        assert _card_has_no_nonfinite(card)
+
+
+def test_zero_variance_track_no_nan_and_unknown_sharpe():
+    """A perfectly flat track (zero variance) → finite return/DD/vol, Sharpe UNKNOWN, no NaN."""
+    doc = _series([100000.0] * 8)  # exactly flat → zero variance
+    card = fa.analyze_track(doc, name="flat", floor_apy_pct=_FLOOR)
+    assert card["integrity_ok"] is True
+    assert card["sharpe"] == "UNKNOWN"        # locked/zero-vol → undefined, never a number
+    assert _card_has_no_nonfinite(card)
+    # the well-defined stats are finite numbers
+    assert isinstance(card["ann_return_pct"], (int, float)) and math.isfinite(card["ann_return_pct"])
+    assert isinstance(card["max_dd_pct"], (int, float)) and math.isfinite(card["max_dd_pct"])
+    assert isinstance(card["rolling_vol_pct"], (int, float)) and math.isfinite(card["rolling_vol_pct"])
+
+
+def test_single_point_track_unknown_never_nan():
+    """A single-point track has no return → THIN/UNKNOWN, never a NaN metric."""
+    doc = _series([100000.0])
+    card = fa.analyze_track(doc, name="one", floor_apy_pct=_FLOOR)
+    assert card["sharpe"] == "UNKNOWN"
+    assert card["sortino"] == "UNKNOWN"
+    assert _card_has_no_nonfinite(card)
+
+
+def test_stress_overlay_nonfinite_state_fails_closed():
+    """A NaN/inf in the carry STATE must not poison the stress overlay into NaN shocks."""
+    for bad in ("nan", "inf", "-inf"):
+        held, equity, n_open = fa._held_pt_notional(
+            {"state": {"capital": "100000.0", "cash": "85000.0", "accrued": "5.0",
+                       "books": {"a": {"size": bad}, "b": {"size": "8000.0"}}}}
+        )
+        # the corrupt book is skipped, the good one still counted; nothing non-finite
+        assert math.isfinite(held) and math.isfinite(equity)
+        assert held == pytest.approx(8000.0)
+        assert n_open == 1
+    # a non-finite top-level capital/cash fails the whole extraction closed
+    held, equity, n_open = fa._held_pt_notional(
+        {"state": {"capital": "inf", "cash": "1.0", "accrued": "0.0", "books": {}}}
+    )
+    assert (held, equity, n_open) == (0.0, 0.0, 0)
+
+
+def test_stress_overlay_output_always_finite():
+    """The stress overlay never emits a NaN/inf stress DD even from a degenerate equity base."""
+    ov = fa.stress_overlay([100000.0, 100005.0], 14546.0, 100005.0)
+    assert math.isfinite(ov["worst_stress_dd_pct"])
+    for sc in ov["scenarios"]:
+        assert math.isfinite(sc["stress_dd_pct"])
+        assert math.isfinite(sc["shock_usd"])
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# D3-T2 — determinism: byte-stable scorecard regen from FIXED inputs
+# ──────────────────────────────────────────────────────────────────────────────
+def _seed_forward_fixture(tmp_path):
+    rates_dir = tmp_path / "rates_desk" / "paper"
+    lab_dir = tmp_path / "strategy_lab_paper"
+    _write_series(rates_dir, "rates_desk_fixed_carry",
+                  [100000.0, 100001.85, 100003.69])
+    _write_series(lab_dir, "engine_a",
+                  [100000.0, 100012.0, 100024.0, 100033.0, 100043.0, 100050.0, 100060.0, 100070.0])
+    (rates_dir / "rates_desk_fixed_carry_state.json").write_text(json.dumps({
+        "state": {"capital": "100000.0", "cash": "85454.0", "accrued": "3.69",
+                  "books": {"x": {"size": "7634.0"}, "y": {"size": "6911.0"}}}
+    }))
+
+
+def test_scorecard_byte_stable_from_fixed_inputs(tmp_path, monkeypatch):
+    """Regenerating the scorecard from FIXED inputs (with an injected timestamp) is byte-stable
+    across repeated runs — no dict-ordering / float-format / wall-clock drift."""
+    monkeypatch.setattr(fa.metrics, "rwa_floor_apy_pct", lambda *a, **k: _FLOOR)
+    _seed_forward_fixture(tmp_path)
+    fixed_ts = "2026-06-27T00:00:00+00:00"
+    runs = []
+    for _ in range(3):
+        fa.build_scorecard(data_dir=tmp_path, floor_apy_pct=_FLOOR, write=True, now_iso=fixed_ts)
+        runs.append((tmp_path / "forward_analytics.json").read_bytes())
+    assert runs[0] == runs[1] == runs[2]
+
+
+def test_scorecard_only_timestamp_varies(tmp_path, monkeypatch):
+    """The ONLY field that may differ between two live regenerations is generated_at; injecting
+    the same timestamp makes the dicts equal (proves no other hidden non-determinism)."""
+    monkeypatch.setattr(fa.metrics, "rwa_floor_apy_pct", lambda *a, **k: _FLOOR)
+    _seed_forward_fixture(tmp_path)
+    a = fa.build_scorecard(data_dir=tmp_path, floor_apy_pct=_FLOOR, write=False, now_iso="A")
+    b = fa.build_scorecard(data_dir=tmp_path, floor_apy_pct=_FLOOR, write=False, now_iso="B")
+    a.pop("generated_at"); b.pop("generated_at")
+    assert a == b
+    # with the SAME injected stamp the full docs are identical
+    c = fa.build_scorecard(data_dir=tmp_path, floor_apy_pct=_FLOOR, write=False, now_iso="A")
+    d = fa.build_scorecard(data_dir=tmp_path, floor_apy_pct=_FLOOR, write=False, now_iso="A")
+    assert c == d

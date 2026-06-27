@@ -38,7 +38,21 @@ from spa_core.backtesting.tier1.deflated_sharpe import (
 
 
 def _clean(xs: Sequence[Optional[float]]) -> List[float]:
-    return [float(x) for x in xs if x is not None]
+    """Drop None AND non-finite (NaN/inf) inputs — fail-CLOSED.
+
+    A NaN/inf in an equity or return series is a corrupt point, never a real
+    observation; left in, it poisons every downstream sum/ratio into a silent
+    NaN/inf (which then serializes to invalid JSON ``NaN``/``Infinity`` tokens).
+    Dropping it here is a no-op for a valid (all-finite) series and turns a
+    degenerate series into honest "too few points" rather than a leaked NaN.
+    """
+    return [float(x) for x in xs if x is not None and math.isfinite(x)]
+
+
+def _finite_or(value: float, fallback: float) -> float:
+    """Return ``value`` if finite, else ``fallback`` — last-line fail-CLOSED guard so a
+    metric NEVER returns NaN/inf even if a non-finite slips past the input clean."""
+    return value if math.isfinite(value) else fallback
 
 
 def net_apy_from_equity(equity_series: Sequence[float]) -> float:
@@ -50,8 +64,13 @@ def net_apy_from_equity(equity_series: Sequence[float]) -> float:
     total_growth = eq[-1] / eq[0]
     if total_growth <= 0:
         return -100.0
-    annual_growth = total_growth ** (DAYS_PER_YEAR / n_days)
-    return round((annual_growth - 1.0) * 100.0, 4)
+    try:
+        annual_growth = total_growth ** (DAYS_PER_YEAR / n_days)
+    except OverflowError:
+        annual_growth = float("inf")
+    # fail-CLOSED: an overflow/non-finite annualization is not a real APY — report 0.0
+    # rather than leak inf/NaN into the scorecard JSON.
+    return round(_finite_or((annual_growth - 1.0) * 100.0, 0.0), 4)
 
 
 def max_drawdown_pct(equity_series: Sequence[float]) -> float:
@@ -68,7 +87,7 @@ def max_drawdown_pct(equity_series: Sequence[float]) -> float:
             dd = (peak - v) / peak
             if dd > worst:
                 worst = dd
-    return round(worst * 100.0, 4)
+    return round(_finite_or(worst * 100.0, 0.0), 4)
 
 
 def volatility_pct(daily_returns: Sequence[float]) -> float:
@@ -77,7 +96,7 @@ def volatility_pct(daily_returns: Sequence[float]) -> float:
     if len(rets) < 2:
         return 0.0
     std = moments(rets)["std"]
-    return round(std * math.sqrt(DAYS_PER_YEAR) * 100.0, 4)
+    return round(_finite_or(std * math.sqrt(DAYS_PER_YEAR) * 100.0, 0.0), 4)
 
 
 def sharpe(daily_returns: Sequence[float], rf_daily: float = 0.0) -> Optional[float]:
@@ -105,7 +124,9 @@ def sharpe(daily_returns: Sequence[float], rf_daily: float = 0.0) -> Optional[fl
     # above this floor, so it still gets an honest finite Sharpe.
     if std <= 1e-15 or (mean != 0.0 and std < abs(mean) * 1e-6):
         return None
-    return round(annualize_sharpe(sharpe_per_period(rets, rf_daily)), 4)
+    val = annualize_sharpe(sharpe_per_period(rets, rf_daily))
+    # fail-CLOSED: a non-finite Sharpe is undefined (UNKNOWN), never a leaked NaN/inf number.
+    return round(val, 4) if math.isfinite(val) else None
 
 
 def sortino(daily_returns: Sequence[float], rf_daily: float = 0.0) -> Optional[float]:
@@ -134,13 +155,21 @@ def sortino(daily_returns: Sequence[float], rf_daily: float = 0.0) -> Optional[f
     # mirroring sharpe(). A genuinely low-vol-yet-noisy book keeps an honest finite Sortino.
     if dd <= 1e-15 or (mean != 0.0 and dd < abs(mean) * 1e-6):
         return None
-    return round(((mean - rf_daily) / dd) * math.sqrt(DAYS_PER_YEAR), 4)
+    val = ((mean - rf_daily) / dd) * math.sqrt(DAYS_PER_YEAR)
+    # fail-CLOSED: a non-finite Sortino is undefined (UNKNOWN), never a leaked NaN/inf number.
+    return round(val, 4) if math.isfinite(val) else None
 
 
 def _aligned(a: Sequence[Optional[float]], b: Sequence[Optional[float]]):
+    """Align two series, dropping any pair where EITHER value is None or non-finite
+    (NaN/inf) — fail-CLOSED, so beta/correlation never ingest a corrupt point that
+    would silently poison the regression into NaN."""
     xs, ys = [], []
     for x, y in zip(a, b):
-        if x is not None and y is not None:
+        if (
+            x is not None and y is not None
+            and math.isfinite(x) and math.isfinite(y)
+        ):
             xs.append(float(x))
             ys.append(float(y))
     return xs, ys
@@ -159,7 +188,7 @@ def beta(strategy_returns: Sequence[float], market_returns: Sequence[float]) -> 
     if var_m == 0:
         return 0.0
     cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
-    return round(cov / var_m, 4)
+    return round(_finite_or(cov / var_m, 0.0), 4)
 
 
 def correlation(a: Sequence[Optional[float]], b: Sequence[Optional[float]]) -> Optional[float]:
@@ -175,7 +204,9 @@ def correlation(a: Sequence[Optional[float]], b: Sequence[Optional[float]]) -> O
     if sx == 0 or sy == 0:
         return None
     cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
-    return round(cov / (sx * sy), 4)
+    val = cov / (sx * sy)
+    # fail-CLOSED: a non-finite correlation is undefined (None), never a leaked NaN.
+    return round(val, 4) if math.isfinite(val) else None
 
 
 def funding_drag_pct(events: Sequence[dict], capital: float) -> float:

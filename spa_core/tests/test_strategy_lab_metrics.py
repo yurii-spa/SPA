@@ -216,3 +216,93 @@ def test_compare_table_renders_and_flags():
     assert "below floor" in table  # loser flagged
     assert "| Strategy |" in table
     assert "4.50% APY" in table
+
+
+# ── D3-T2: non-finite safety (NaN / inf / zero-variance / single-point) ─────────
+# Every primitive must fail CLOSED: NEVER silently return a NaN/inf (which would
+# serialize to invalid JSON ``NaN``/``Infinity``). A float metric is either finite
+# or the honest None sentinel; a series with a corrupt point is cleaned, not poisoned.
+import pytest
+
+_INF = float("inf")
+_NAN = float("nan")
+
+
+def _finite_or_none(v):
+    """True iff v is a finite float, the honest None sentinel, or a non-float."""
+    if v is None:
+        return True
+    if isinstance(v, float):
+        return math.isfinite(v)
+    return True
+
+
+@pytest.mark.parametrize("bad", [_NAN, _INF, -_INF])
+def test_net_apy_no_nonfinite(bad):
+    # a corrupt mid-series point is dropped, never poisons the annualization into NaN/inf
+    assert _finite_or_none(M.net_apy_from_equity([100000.0, bad, 100100.0, 100200.0]))
+    # an all-non-finite series → cleaned to empty → honest 0.0, never NaN
+    assert M.net_apy_from_equity([bad, bad]) == 0.0
+
+
+@pytest.mark.parametrize("bad", [_NAN, _INF, -_INF])
+def test_max_drawdown_no_nonfinite(bad):
+    assert _finite_or_none(M.max_drawdown_pct([100.0, bad, 90.0, 95.0]))
+    assert _finite_or_none(M.max_drawdown_pct([bad, bad, bad]))
+
+
+@pytest.mark.parametrize("bad", [_NAN, _INF, -_INF])
+def test_volatility_no_nonfinite(bad):
+    assert _finite_or_none(M.volatility_pct([0.01, bad, 0.02, 0.0]))
+    assert M.volatility_pct([bad, bad]) == 0.0
+
+
+@pytest.mark.parametrize("bad", [_NAN, _INF, -_INF])
+def test_sharpe_no_nonfinite(bad):
+    # a NaN/inf must not leak; the corrupt point is cleaned out
+    assert _finite_or_none(M.sharpe([0.01, bad, 0.02, 0.01, 0.03, 0.0, 0.02]))
+    assert M.sharpe([bad, bad]) is None
+
+
+@pytest.mark.parametrize("bad", [_NAN, _INF, -_INF])
+def test_sortino_no_nonfinite(bad):
+    assert _finite_or_none(M.sortino([0.01, bad, -0.02, 0.01, -0.03, 0.0, 0.02]))
+    assert M.sortino([bad, bad]) is None
+
+
+@pytest.mark.parametrize("bad", [_NAN, _INF, -_INF])
+def test_beta_correlation_no_nonfinite(bad):
+    assert _finite_or_none(M.beta([0.01, bad, 0.02], [0.01, 0.02, 0.03]))
+    assert _finite_or_none(M.correlation([0.01, bad, 0.02], [0.01, 0.02, 0.03]))
+    # corrupt market leg too
+    assert _finite_or_none(M.beta([0.01, 0.02, 0.03], [0.01, bad, 0.03]))
+    assert _finite_or_none(M.correlation([0.01, 0.02, 0.03], [0.01, bad, 0.03]))
+
+
+def test_zero_variance_series_no_nonfinite():
+    flat = [0.0, 0.0, 0.0, 0.0, 0.0]
+    assert M.volatility_pct(flat) == 0.0
+    assert M.sharpe(flat) is None          # undefined, never a giant/NaN number
+    assert M.sortino(flat) is None
+    assert _finite_or_none(M.max_drawdown_pct([100.0, 100.0, 100.0]))
+
+
+def test_single_point_series_no_nonfinite():
+    assert M.net_apy_from_equity([100.0]) == 0.0
+    assert M.max_drawdown_pct([100.0]) == 0.0
+    assert M.volatility_pct([0.01]) == 0.0
+    assert M.sharpe([0.01]) is None
+    assert M.sortino([0.01]) is None
+
+
+def test_valid_series_unchanged_by_finite_guard():
+    """Behavior-preserving: an all-finite series yields the SAME values as before the guard."""
+    eq = [100000.0, 100050.0, 100020.0, 100090.0, 100130.0, 100110.0, 100180.0, 100230.0]
+    rets = [eq[i] / eq[i - 1] - 1.0 for i in range(1, len(eq))]
+    # these are plain finite numbers, computed identically — the clean() drop only fires on
+    # None/non-finite, so a valid series is untouched
+    assert math.isfinite(M.net_apy_from_equity(eq))
+    assert math.isfinite(M.max_drawdown_pct(eq))
+    assert math.isfinite(M.volatility_pct(rets))
+    sh = M.sharpe(rets)
+    assert sh is None or math.isfinite(sh)

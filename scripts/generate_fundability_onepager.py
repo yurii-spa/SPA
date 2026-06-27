@@ -19,6 +19,7 @@ Re-runnable:
 
 import argparse
 import json
+import math
 import os
 import shutil
 import sys
@@ -80,23 +81,34 @@ def _get(d, *keys, default=None):
 
 
 def _fmt_pct(v, digits=2):
-    """Format a percent value, honestly UNAVAILABLE if absent/non-numeric."""
+    """Format a percent value, honestly UNAVAILABLE if absent/non-numeric/non-finite.
+
+    Fail-CLOSED on NaN/inf: a non-finite number is a corrupt upstream metric, NOT a real
+    percent — it renders as the honest UNAVAILABLE sentinel, never a leaked 'nan%'/'inf%'
+    (which would otherwise pass an honest-looking number to a funder)."""
     if v is None:
         return UNAVAILABLE
     try:
-        return f"{float(v):.{digits}f}%"
+        f = float(v)
     except (TypeError, ValueError):
         return UNAVAILABLE
+    if not math.isfinite(f):
+        return UNAVAILABLE
+    return f"{f:.{digits}f}%"
 
 
 def _fmt_usd(v):
-    """Format a USD value, honestly UNAVAILABLE if absent/non-numeric."""
+    """Format a USD value, honestly UNAVAILABLE if absent/non-numeric/non-finite (fail-CLOSED on
+    NaN/inf — a non-finite dollar figure is corrupt, never rendered as 'nan'/'inf')."""
     if v is None:
         return UNAVAILABLE
     try:
-        return f"${float(v):,.0f}"
+        f = float(v)
     except (TypeError, ValueError):
         return UNAVAILABLE
+    if not math.isfinite(f):
+        return UNAVAILABLE
+    return f"${f:,.0f}"
 
 
 # --------------------------------------------------------------------------- #
@@ -350,9 +362,13 @@ def _fmt_ratio(v):
     if v is None:
         return "UNKNOWN"
     try:
-        return f"{float(v):.2f}"
+        f = float(v)
     except (TypeError, ValueError):
         return "UNKNOWN"
+    # fail-CLOSED on NaN/inf: a non-finite ratio is undefined → UNKNOWN, never a leaked 'nan'.
+    if not math.isfinite(f):
+        return "UNKNOWN"
+    return f"{f:.2f}"
 
 
 def _section_forward_analytics(fa) -> str:

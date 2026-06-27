@@ -317,6 +317,116 @@ def test_fleet_critical_agents_surfaced(client):
     assert body["agents"][0]["status"] == "CRITICAL"
 
 
+# ─── safety (two-tier kill/de-risk state, D3-T3 / ADR-034) ────────────────────
+
+def _iso_now():
+    import datetime as _dt
+    return _dt.datetime.now(_dt.timezone.utc).isoformat()
+
+
+def test_safety_clear_when_no_state_files(client):
+    # no derisk_status / kill_switch files at all → CLEAR, available, not stale
+    r = client.get("/api/live/safety")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["available"] is True
+    assert body["state"] == "CLEAR"
+    assert body["kill_active"] is False
+    assert body["derisk_active"] is False
+    assert body["stale"] is False
+
+
+def test_safety_soft_derisk_active(client):
+    _write(client, "derisk_status.json", {
+        "generated_at": _iso_now(), "active": True, "tier": "SOFT_DERISK",
+        "reason": "drawdown 8.00% ≥ 5.0% soft de-risk",
+        "policy": "halt_new_allocations_no_increase_hold_reduce_only",
+    })
+    body = client.get("/api/live/safety").json()
+    assert body["state"] == "SOFT_DERISK"
+    assert body["derisk_active"] is True
+    assert body["kill_active"] is False
+    assert body["tier"] == "SOFT_DERISK"
+    assert "8.00%" in body["reason"]
+    assert body["stale"] is False
+
+
+def test_safety_hard_kill_via_active_file(client):
+    _write(client, "kill_switch_active.json", {
+        "activated_at": _iso_now(), "reason": "drawdown 16.00% > 15.0% threshold",
+        "source": "kill_switch_checker",
+    })
+    body = client.get("/api/live/safety").json()
+    assert body["state"] == "HARD_KILL"
+    assert body["kill_active"] is True
+    assert body["derisk_active"] is False
+    assert "16.00%" in body["reason"]
+
+
+def test_safety_hard_kill_via_status_triggered(client):
+    # no active-marker file, but status verdict says triggered → still HARD_KILL
+    _write(client, "kill_switch_status.json", {
+        "generated_at": _iso_now(), "triggered": True,
+        "reason": "manual trigger active", "allocation": {"cash": 1.0},
+    })
+    body = client.get("/api/live/safety").json()
+    assert body["state"] == "HARD_KILL"
+    assert body["kill_active"] is True
+
+
+def test_safety_kill_active_false_is_not_kill(client):
+    # explicit deactivation marker must NOT read as an active kill
+    _write(client, "kill_switch_active.json",
+           {"active": False, "reason": "deactivated"})
+    body = client.get("/api/live/safety").json()
+    assert body["state"] == "CLEAR"
+    assert body["kill_active"] is False
+
+
+def test_safety_hard_kill_wins_over_soft(client):
+    # both active → HARD kill is reported (higher severity)
+    _write(client, "derisk_status.json",
+           {"generated_at": _iso_now(), "active": True, "tier": "SOFT_DERISK"})
+    _write(client, "kill_switch_active.json",
+           {"activated_at": _iso_now(), "reason": "drawdown 20%"})
+    body = client.get("/api/live/safety").json()
+    assert body["state"] == "HARD_KILL"
+
+
+def test_safety_stale_derisk_flagged(client):
+    import datetime as _dt
+    old = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(hours=48)).isoformat()
+    _write(client, "derisk_status.json",
+           {"generated_at": old, "active": True, "tier": "SOFT_DERISK",
+            "reason": "drawdown 7%"})
+    body = client.get("/api/live/safety").json()
+    assert body["state"] == "SOFT_DERISK"   # last-known still echoed
+    assert body["stale"] is True            # but flagged stale
+
+
+def test_safety_corrupt_derisk_is_unknown_not_clear(client):
+    (client._data_dir / "derisk_status.json").write_text("{broken", encoding="utf-8")
+    r = client.get("/api/live/safety")
+    assert r.status_code == 200
+    body = r.json()
+    # fail-CLOSED: an unreadable state is UNKNOWN, never silently CLEAR
+    assert body["state"] == "UNKNOWN"
+    assert body["stale"] is True
+
+
+def test_safety_inactive_derisk_is_clear(client):
+    _write(client, "derisk_status.json",
+           {"generated_at": _iso_now(), "active": False, "tier": "NONE"})
+    body = client.get("/api/live/safety").json()
+    assert body["state"] == "CLEAR"
+    assert body["derisk_active"] is False
+    assert body["stale"] is False
+
+
+def test_safety_is_get_only(client):
+    assert client.post("/api/live/safety").status_code == 405
+
+
 # ─── CORS ────────────────────────────────────────────────────────────────────
 
 def test_cors_allows_earn_defi(client):
@@ -357,5 +467,5 @@ def test_cors_disallows_unknown_origin(client):
 
 def test_live_endpoints_are_get_only(client):
     for path in ["/api/live/ping", "/api/live/agents", "/api/live/fleet",
-                 "/api/live/portfolio", "/api/live/system"]:
+                 "/api/live/safety", "/api/live/portfolio", "/api/live/system"]:
         assert client.post(path).status_code == 405

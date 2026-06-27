@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import math
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -97,8 +98,14 @@ def _extract_equity(points: Sequence[dict]) -> List[float]:
     eq: List[float] = []
     for p in points:
         v = p.get("equity_usd")
-        if not isinstance(v, (int, float)):
+        # bool is an int subclass — exclude it; a True/False equity is malformed.
+        if not isinstance(v, (int, float)) or isinstance(v, bool):
             raise ValueError(f"point missing numeric equity_usd: {p!r}")
+        # fail-CLOSED on NaN/inf: isinstance(nan, float) is True, so a non-finite equity
+        # would otherwise slip through and poison every downstream metric into a silent
+        # NaN/inf (and invalid JSON). A non-finite equity is a corrupt point, not a real one.
+        if not math.isfinite(float(v)):
+            raise ValueError(f"point has non-finite equity_usd: {p!r}")
         eq.append(float(v))
     return eq
 
@@ -263,6 +270,10 @@ def _held_pt_notional(state_doc: Any) -> Tuple[float, float, int]:
         accrued = float(st.get("accrued", 0.0))
     except (TypeError, ValueError):
         return 0.0, 0.0, 0
+    # fail-CLOSED on non-finite state numbers — a NaN/inf capital/cash/accrued is a corrupt
+    # state file, never a real book; ignoring it stops the shock math leaking NaN/inf.
+    if not (math.isfinite(capital) and math.isfinite(cash) and math.isfinite(accrued)):
+        return 0.0, 0.0, 0
     books = st.get("books")
     held = 0.0
     n_open = 0
@@ -274,6 +285,8 @@ def _held_pt_notional(state_doc: Any) -> Tuple[float, float, int]:
                 size = float(b.get("size", 0.0))
             except (TypeError, ValueError):
                 continue
+            if not math.isfinite(size):
+                continue  # a non-finite book size is corrupt — skip, never accumulate NaN/inf
             if size > 0:
                 held += size
                 n_open += 1
@@ -360,6 +373,7 @@ def build_scorecard(
     *,
     floor_apy_pct: Optional[float] = None,
     write: bool = True,
+    now_iso: Optional[str] = None,
 ) -> dict:
     """Build the risk-adjusted scorecard over EVERY forward track + the stress overlay on the
     CURRENT rates-desk carry book. Writes data/forward_analytics.json atomically (unless write=False).
@@ -367,6 +381,10 @@ def build_scorecard(
     The stress overlay is computed on the rates-desk FixedCarry forward record (the only track with
     a held PT carry book to mark down). Each track gets its T4 risk-adjusted scorecard; the T5
     overlay is attached to the carry track and surfaced at the top level.
+
+    ``now_iso`` (the ``generated_at`` stamp) is INJECTABLE: passing a fixed value makes the whole
+    scorecard byte-stable from fixed inputs (the only wall-clock field). When None it defaults to
+    the live UTC instant — the only intentional non-determinism in normal operation.
 
     Returns the full scorecard doc. fail-CLOSED throughout: a broken/thin track → UNKNOWN/THIN_TRACK,
     never a fabricated number; an unreadable file → an explicit unreadable track entry.
@@ -428,7 +446,7 @@ def build_scorecard(
     n_beats = sum(1 for t in tracks if t["verdict"] == "BEATS_FLOOR")
 
     out = {
-        "generated_at": _utc_now_iso(),
+        "generated_at": now_iso if now_iso is not None else _utc_now_iso(),
         "model": "forward_analytics",
         "llm_forbidden": True,
         "deterministic": True,

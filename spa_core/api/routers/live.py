@@ -159,6 +159,151 @@ async def live_fleet():
     )
 
 
+# A de-risk snapshot is considered STALE if older than this many minutes. The
+# cycle (which writes derisk_status.json) runs daily; >26h means the writer is
+# lagging → a possibly-outdated safety claim must be flagged, never shown as if
+# freshly confirmed (the T1 lesson: a stale snapshot must look stale).
+SAFETY_STALE_MIN: float = 26.0 * 60.0
+
+
+@router.get("/api/live/safety")
+async def live_safety():
+    """Two-tier safety state (D3-T3, ADR-034) — owner-visible kill/de-risk surface.
+
+    Makes the NEW safety states visible to the dashboard/owner:
+
+        {state, label, derisk_active, kill_active, tier, reason,
+         snapshot_age_min, stale, ...}
+
+      • ``state == "HARD_KILL"``  → book is all-cash (CRITICAL). Set when
+        ``kill_switch_active.json`` is present (and not ``active=False``) OR
+        ``kill_switch_status.json`` reports ``triggered``.
+      • ``state == "SOFT_DERISK"`` → ``derisk_status.json`` ``active=true``:
+        new allocations / increases halted, held book retained (WARNING).
+      • ``state == "CLEAR"``      → neither active.
+      • ``state == "UNKNOWN"``    → a status file is present but unreadable /
+        malformed (fail-CLOSED: an unverifiable state is never reported CLEAR).
+
+    Read-only, verbatim, fail-CLOSED, always 200. A SOFT de-risk snapshot older
+    than ~26h is flagged ``stale: true`` (the writer is lagging), with the
+    last-known state still echoed so the owner sees it — just flagged."""
+    dd = data_dir()
+
+    # ── HARD kill / all-cash (highest severity) ───────────────────────────────
+    kill_active = False
+    kill_reason = ""
+    kill_unreadable = False
+    p_active = dd / "kill_switch_active.json"
+    if await aio_exists(p_active):
+        try:
+            doc = await aio_read_json(p_active)
+            if isinstance(doc, dict) and doc.get("active") is False:
+                kill_active = False  # explicit deactivation marker
+            else:
+                kill_active = True
+                if isinstance(doc, dict):
+                    kill_reason = str(doc.get("reason") or "")
+        except Exception:  # noqa: BLE001 — corrupt marker → cannot verify, fail-CLOSED
+            kill_unreadable = True
+
+    # Corroborate with the cycle-written verdict.
+    status_triggered = False
+    p_status = dd / "kill_switch_status.json"
+    if await aio_exists(p_status):
+        try:
+            sdoc = await aio_read_json(p_status)
+            if isinstance(sdoc, dict) and sdoc.get("triggered") is True:
+                status_triggered = True
+                if not kill_reason:
+                    kill_reason = str(sdoc.get("reason") or "")
+        except Exception:  # noqa: BLE001
+            kill_unreadable = True
+
+    if kill_active or status_triggered:
+        return JSONResponse(
+            {"available": True, "state": "HARD_KILL",
+             "label": "HARD kill — all cash",
+             "kill_active": True, "derisk_active": False,
+             "tier": "HARD_KILL", "reason": kill_reason,
+             "stale": False, "_fetched_at": _time.time()},
+            headers=NO_CACHE_HEADERS,
+        )
+
+    # ── SOFT de-risk ──────────────────────────────────────────────────────────
+    p_derisk = dd / "derisk_status.json"
+    if not await aio_exists(p_derisk):
+        # De-risk never fired and no kill → clean (unless a kill marker was
+        # unreadable, in which case we cannot confirm CLEAR).
+        if kill_unreadable:
+            return JSONResponse(
+                {"available": True, "state": "UNKNOWN",
+                 "label": "safety state unverifiable (kill marker unreadable)",
+                 "kill_active": False, "derisk_active": False,
+                 "reason": "kill_switch_active/status unreadable",
+                 "stale": True, "_fetched_at": _time.time()},
+                headers=NO_CACHE_HEADERS,
+            )
+        return JSONResponse(
+            {"available": True, "state": "CLEAR",
+             "label": "no safety state active",
+             "kill_active": False, "derisk_active": False,
+             "tier": "NONE", "reason": "no de-risk, no kill",
+             "stale": False, "_fetched_at": _time.time()},
+            headers=NO_CACHE_HEADERS,
+        )
+
+    try:
+        ddoc = await aio_read_json(p_derisk)
+    except Exception as e:  # noqa: BLE001 — corrupt → UNKNOWN, never silently CLEAR
+        return JSONResponse(
+            {"available": True, "state": "UNKNOWN",
+             "label": "de-risk state unverifiable (file unreadable)",
+             "kill_active": False, "derisk_active": False,
+             "reason": f"derisk_status.json unreadable: {e}",
+             "stale": True, "_fetched_at": _time.time()},
+            headers=NO_CACHE_HEADERS,
+        )
+
+    if not isinstance(ddoc, dict):
+        return JSONResponse(
+            {"available": True, "state": "UNKNOWN",
+             "label": "de-risk state unverifiable (malformed)",
+             "kill_active": False, "derisk_active": False,
+             "reason": "derisk_status.json malformed", "stale": True,
+             "_fetched_at": _time.time()},
+            headers=NO_CACHE_HEADERS,
+        )
+
+    derisk_active = bool(ddoc.get("active"))
+    age = _snapshot_age_min(ddoc.get("generated_at"))
+    stale = (age is None) or (age > SAFETY_STALE_MIN)
+    tier = ddoc.get("tier")
+    reason = str(ddoc.get("reason") or "")
+
+    if derisk_active:
+        return JSONResponse(
+            {"available": True, "state": "SOFT_DERISK",
+             "label": "SOFT de-risk active" + (f" — {reason}" if reason else ""),
+             "kill_active": False, "derisk_active": True,
+             "tier": tier, "reason": reason, "policy": ddoc.get("policy"),
+             "snapshot_age_min": age, "stale": stale,
+             "stale_threshold_min": SAFETY_STALE_MIN,
+             "_fetched_at": _time.time()},
+            headers=NO_CACHE_HEADERS,
+        )
+
+    return JSONResponse(
+        {"available": True, "state": "CLEAR",
+         "label": "no safety state active",
+         "kill_active": False, "derisk_active": False,
+         "tier": tier, "reason": reason,
+         "snapshot_age_min": age, "stale": stale,
+         "stale_threshold_min": SAFETY_STALE_MIN,
+         "_fetched_at": _time.time()},
+        headers=NO_CACHE_HEADERS,
+    )
+
+
 @router.get("/api/live/portfolio")
 async def live_portfolio():
     """Live portfolio bundle — merges available portfolio/pnl/equity files."""

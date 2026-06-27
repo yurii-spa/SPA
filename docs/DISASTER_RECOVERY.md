@@ -344,6 +344,49 @@ resident.
 
 ---
 
+## 9a. Two-tier safety state: SOFT de-risk & HARD kill (what to do when you see it)
+
+The drawdown response is **two-tier** (ADR-034, owner-approved 2026-06-27). Both
+tiers are computed STRICTLY over the *evidenced* real track; warmup/backfill bars
+can never fabricate them. Each leaves an **observable** state file, surfaced in
+`system_health.json` (check `d6.safety_state`) and on `/api/live/safety`.
+
+**See the current state (read-only, no side effects):**
+```bash
+curl -s http://127.0.0.1:8765/api/live/safety | python3 -m json.tool
+#   state ∈ {CLEAR, SOFT_DERISK, HARD_KILL, UNKNOWN}
+cat ~/Documents/SPA_Claude/data/derisk_status.json        2>/dev/null   # SOFT tier snapshot
+cat ~/Documents/SPA_Claude/data/kill_switch_active.json   2>/dev/null   # HARD kill marker (absent = no kill)
+```
+
+| State | Meaning | Trigger | Allocation effect | How it CLEARS |
+|---|---|---|---|---|
+| **SOFT de-risk** (`derisk_status.json` `active=true`, WARNING) | Evidenced drawdown in **5–15%** band. A recoverable vol/depeg wobble — we do **not** panic-liquidate. | Drawdown ≥ 5% and < 15% | Halts NEW allocations + blocks any position INCREASE; **holds + allows reductions**. Held book is NOT sold to cash. | **Auto-clears** when the evidenced drawdown recovers back **below 5%**. The next daily cycle re-evaluates and writes `active=false`. Nothing to do by hand — it is self-clearing. |
+| **HARD kill / all-cash** (`kill_switch_active.json` present, CRITICAL) | Book is liquidated to **100% cash**. A 15%+ drawdown on a stablecoin book = real protocol collapse, not noise. | Drawdown ≥ 15%, OR >5 CRITICAL red flags on HELD protocols, OR the manual file, OR Sharpe < threshold (≥30d) | Allocation forced to `{"cash": 1.0, …protocols: 0.0}`. | **Manual only** — auto-deactivation is deliberately impossible. See below. |
+
+**Clearing a HARD kill (manual, owner-gated — do NOT automate):**
+```bash
+cd ~/Documents/SPA_Claude
+# 1. UNDERSTAND why it fired before clearing — read the reason:
+cat data/kill_switch_active.json data/kill_switch_status.json 2>/dev/null
+# 2. Confirm the underlying cause is resolved (drawdown recovered / red flags gone).
+# 3. Deactivate (removes data/kill_switch_active.json):
+/Users/yuriikulieshov/miniconda3/bin/python3 -c \
+  "from spa_core.governance.kill_switch import KillSwitchChecker; KillSwitchChecker().deactivate_kill_switch()"
+# 4. Verify it cleared:
+curl -s http://127.0.0.1:8765/api/live/safety | python3 -m json.tool   # → state: CLEAR
+```
+A kill that auto-deactivated could re-open positions into the very collapse it
+fled — so deactivation is **always** a human decision. The next daily cycle then
+re-allocates normally (subject to the usual RiskPolicy gate).
+
+**Stale safety snapshot:** if `/api/live/safety` or `d6.safety_state` reports
+`stale: true`, the de-risk snapshot is older than ~26h → the **daily cycle is
+lagging** (treat as §3 "daily cycle didn't run"); the last-known state is still
+shown but must be re-confirmed by running the cycle / `gap_monitor --recover`.
+
+---
+
 ## 10. Universal diagnostics
 
 ```bash
@@ -364,6 +407,9 @@ bash ~/Documents/SPA_Claude/scripts/install_all_agents.sh
 
 # Critical service ping:
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8765/api/live/ping   # → 200
+
+# Safety state (two-tier kill/de-risk — §9a):
+curl -s http://127.0.0.1:8765/api/live/safety | python3 -m json.tool          # → state: CLEAR/SOFT_DERISK/HARD_KILL
 
 # Force a push:
 bash ~/Documents/SPA_Claude/scripts/auto_push.sh

@@ -862,7 +862,10 @@ def test_d6_sub_gate_exception_is_isolated(good_dir, monkeypatch):
     assert by_id(res, "d6.health") is not None
     assert by_id(res, "d6.red_flags") is not None
     assert by_id(res, "d6.killswitch").status == OK
-    assert len(res) == 4
+    # d6.safety_state (D3-T3) is the 5th gate — present with a clean (no
+    # de-risk / no kill files in a good_dir) verdict.
+    assert by_id(res, "d6.safety_state") is not None
+    assert len(res) == 5
 
 
 # ---------------------------------------------------------------------------
