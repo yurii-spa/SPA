@@ -108,7 +108,7 @@ app.add_middleware(
         "http://localhost:3000",
         "http://localhost:5173",
         "http://127.0.0.1:8765",
-        "https://yurii-spa.github.io",
+        # (legacy github.io dashboard origin removed 2026-06-28 — github.io dashboard deleted)
         # Public dashboard origins (live API via api.earn-defi.com tunnel)
         "https://earn-defi.com",
         "https://www.earn-defi.com",

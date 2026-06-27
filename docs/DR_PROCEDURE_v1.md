@@ -223,9 +223,10 @@ curl -s http://localhost:8765/health  # локально должен работ
 which cloudflared || echo "нужна установка"
 # Установить: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
 
-# 5. Альтернатива: Dashboard доступен через GitHub Pages
-echo "GitHub Pages: https://yurii-spa.github.io/SPA/"
-# (данные = последний autopush, возможно устарел на 90 мин)
+# 5. Альтернатива: Dashboard доступен на Cloudflare Pages
+echo "Dashboard: https://earn-defi.com/dashboard"
+# (реальное время из api.earn-defi.com; если туннель/API down — показывает
+#  честный "snapshot — live API offline", без фабрикации цифр)
 ```
 
 **RTO оценка:** 5–15 мин (перезапуск daemon).  
@@ -240,7 +241,7 @@ echo "GitHub Pages: https://yurii-spa.github.io/SPA/"
 | # | Проверка | Команда | Ожидаемый результат |
 |---|----------|---------|---------------------|
 | 1 | Launchd autopush жив | `launchctl list com.spa.autopush` | PID > 0 |
-| 2 | Launchd httpserver жив | `launchctl list com.spa.httpserver` | PID > 0 |
+| 2 | Launchd apiserver жив | `launchctl list com.spa.apiserver` | PID > 0 |
 | 3 | HTTP-сервер отвечает | `curl -s http://localhost:8765/health` | HTTP 200 |
 | 4 | Цикл завершился успешно | `python3 -m spa_core.paper_trading.cycle_runner --verbose` | `cycle complete` |
 | 5 | paper_trading_status актуален | `python3 -c "import json; d=json.load(open('data/paper_trading_status.json')); print(d['last_cycle_status'], d['last_cycle_ts'])"` | `ok`, timestamp свежий |
@@ -249,7 +250,7 @@ echo "GitHub Pages: https://yurii-spa.github.io/SPA/"
 | 8 | Equity curve в порядке | `python3 -c "import json; c=json.load(open('data/equity_curve_daily.json')); print(len(c), c[-1].get('equity') if c else 'empty')"` | > 0 записей |
 | 9 | Uptime monitor всё OK | `python3 -m spa_core.monitoring.uptime_monitor` | `Status: ALL OK ✓` |
 | 10 | Данные запушены на GitHub | `git -C ~/Documents/SPA_Claude log -1 --format="%ci %s"` | коммит < 3 ч назад |
-| 11 | GitHub Pages обновился | `curl -s https://yurii-spa.github.io/SPA/ \| grep -c "SPA"` | > 0 |
+| 11 | Dashboard доступен | `curl -s https://earn-defi.com/dashboard \| grep -c "dashboard"` | > 0 |
 | 12 | Kill switch неактивен | `python3 -c "import json; d=json.load(open('data/kill_switch_status.json')); print(d.get('active'))"` | `False` |
 | 13 | RiskPolicy не блокирует | `cat data/risk_policy_blocks.json \| python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d), 'blocks')"` | 0 новых блокировок |
 | 14 | Инцидент задокументирован | добавить в `data/incidents.json` | запись создана |
@@ -268,8 +269,8 @@ SPA Data Backup Architecture
   ├── ~/Documents/SPA_Claude/data/spa.db   ← SQLite (analytics)
   │
   ├── ──► GitHub (com.spa.autopush, 90 мин)
-  │        └── github.com/yurii-spa/SPA/data/
-  │             └── GitHub Pages: yurii-spa.github.io/SPA/
+  │        └── github.com/yurii-spa/SPA/  (код + история; не дашборд)
+  │             └── Cloudflare Pages: earn-defi.com/dashboard (Astro, live API)
   │
   └── ──► iCloud Drive (автоматически, если папка в iCloud)
            └── Дополнительная копия spa.db

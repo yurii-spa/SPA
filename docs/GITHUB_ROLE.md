@@ -9,7 +9,7 @@
 |---|---|
 | **Код и история** | Версионирование `spa_core/`, `scripts/`, документов. Основное назначение. |
 | **CI / проверки** | `ci.yml`, `test.yml`, `spa-lint.yml` — pytest + lint + **запрет LLM/внешних либ** в `risk/execution` + stdlib-контракт. Это страхует правила проекта. |
-| **Деплой сайта** | `deploy-landing.yml` → **earn-defi.com** (Astro-лендинг + дашборд `/app` + `/agents` + `/tournament`, Cloudflare Pages). `deploy-pages.yml` → github.io — **резервное зеркало** дашборда. |
+| **Деплой сайта** | `deploy-landing.yml` → **earn-defi.com** (Astro-сайт: лендинг + **единый** canonical дашборд `/dashboard` + `/agents` + `/tournament`, Cloudflare Pages). **Единственный** frontend-деплой. Legacy `deploy-pages.yml` → github.io удалён 2026-06-28 (root `index.html` + `spa_frontend/` сняты). |
 | **Бэкап кода** | Удалённая копия репозитория. |
 
 ## 🚫 Чем GitHub НЕ должен быть (исправлено)

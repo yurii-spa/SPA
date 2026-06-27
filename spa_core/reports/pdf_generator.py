@@ -403,8 +403,8 @@ def generate_report(data: dict, output_path: str) -> str:
     story.append(HRFlowable(width=PAGE_W, thickness=0.5, color=MID_GREY))
     story.append(Spacer(1, 4))
     story.append(Paragraph(
-        "Dashboard: <a href='https://yurii-spa.github.io/SPA/'>"
-        "https://yurii-spa.github.io/SPA/</a>",
+        "Dashboard: <a href='https://earn-defi.com/dashboard'>"
+        "https://earn-defi.com/dashboard</a>",
         S["footer_link"],
     ))
     story.append(Spacer(1, 2))

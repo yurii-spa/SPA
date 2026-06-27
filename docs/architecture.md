@@ -59,13 +59,18 @@ The system has three hard constraints embedded in its design:
                        │ git push → data/*.json committed
                        ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        GITHUB PAGES                                 │
+│                  CLOUDFLARE PAGES (earn-defi.com)                   │
 │                                                                     │
-│   yurii-spa.github.io                                               │
-│   index.html  ←  polls data/*.json (static)                        │
-│              or  polls localhost:8765 (live, if server is running)  │
+│   Astro site (landing/, deploy-landing.yml)                        │
+│   /dashboard  ←  DashboardLive.jsx island, polls api.earn-defi.com │
+│                  (the SINGLE canonical dashboard, real-time ~15s)  │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+> **Note (2026-06-28):** the legacy GitHub Pages dashboard (root `index.html`,
+> `deploy-pages.yml`, `spa_frontend/` React source) has been **removed**. The single
+> canonical dashboard is now `earn-defi.com/dashboard` (Astro page, real-time via the
+> live API). `deploy-landing.yml` is the only remaining frontend deploy.
 
 **Data flow summary:**
 1. GitHub Actions triggers `export_data.py` every 4 hours.
@@ -241,7 +246,7 @@ The GitHub Actions runner has write access to the repo (for data commits) but no
 
 ### CORS policy
 
-The FastAPI server allows requests from `localhost:*` (development) and `yurii-spa.github.io` (production dashboard). No wildcard origin. Credentials are not allowed.
+The FastAPI server allows requests from `localhost:*` (development) and `earn-defi.com` (production dashboard, via the `api.earn-defi.com` Cloudflare Tunnel). No wildcard origin. Credentials are not allowed.
 
 ---
 
@@ -262,15 +267,13 @@ The DB file is committed to git by the GitHub Actions bot after each export cycl
 
 ---
 
-## 8. Dashboard (index.html)
+## 8. Dashboard (earn-defi.com/dashboard)
 
-The dashboard is a single-file HTML/JS application served by GitHub Pages at `yurii-spa.github.io`. It has two data modes:
+The single canonical dashboard is an Astro page — `landing/src/pages/dashboard.astro` — served by Cloudflare Pages at `earn-defi.com/dashboard` (deployed by `deploy-landing.yml`). It renders inside the unified site `<Layout>` (canonical header/footer/design tokens), so it is a first-class page of the site, not a separate app.
 
-**Static mode (default):** fetches `data/*.json` relative to the page URL. Updates whenever GitHub Actions pushes new data (every 4h).
+The live, real-time surface is the `<DashboardLive />` React island (`landing/src/components/DashboardLive.jsx`, `client:load`), which polls `api.earn-defi.com` every ~15s (SSOT facts + fleet + status + go-live) and renders an honest **LIVE** / **"snapshot — live API offline"** state. No fabricated numbers when the API is offline. Bilingual (EN|RU).
 
-**Live mode (auto-detected):** if `GET http://localhost:8765/health` returns 200, switches all data fetches to the local FastAPI server and opens a WebSocket to `/ws/agents` for real-time agent activity.
-
-The mode switch is automatic — no user action required.
+> The legacy single-file `index.html` dashboard served by GitHub Pages (`yurii-spa.github.io`), its `deploy-pages.yml` workflow, and its `spa_frontend/` React source were **removed on 2026-06-28**. Their committed `data/*.json` static fallback is no longer read by any consumer.
 
 ---
 

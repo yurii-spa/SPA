@@ -68,7 +68,7 @@ KEYCHAIN_ACCOUNT = "spa"
 TOKEN_SERVICE = "TELEGRAM_BOT_TOKEN_SPA"
 CHAT_ID_SERVICE = "TELEGRAM_CHAT_ID_SPA"
 
-DASHBOARD_URL = "https://yuriiykulieshov.github.io/SPA_Claude/"
+DASHBOARD_URL = "https://earn-defi.com/dashboard"
 
 
 # ─── Credential helpers ─────────────────────────────────────────────────────

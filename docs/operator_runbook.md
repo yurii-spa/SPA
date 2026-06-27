@@ -102,7 +102,7 @@ The system sends two types of Telegram messages:
 
 ### How to read the dashboard
 
-Open `https://yurii-spa.github.io/SPA/` in your browser (or open `index.html` locally). The key numbers to check:
+Open `https://earn-defi.com/dashboard` in your browser (the single canonical live dashboard, real-time from `api.earn-defi.com`). The key numbers to check:
 
 - **APY (weighted):** should trend toward 7.3% over the 8 weeks. Currently ~4.2% — the gap closes as Pendle positions accumulate.
 - **Max drawdown:** should stay below 3%. Anything above 4% is a problem.
@@ -456,20 +456,15 @@ The 8-week paper trading period ends around 2026-07-09 (Day 50, when the duratio
 
 ---
 
-## 10. Enable GitHub Pages (one-time)
+## 10. The dashboard deploy (Cloudflare Pages)
 
-The dashboard auto-deploys to GitHub Pages after every paper trading run.
+The single canonical dashboard is part of the Astro site and auto-deploys to **Cloudflare Pages** (`earn-defi.com`) via the `deploy-landing.yml` workflow on every push that touches `landing/`.
 
-**Setup:**
-1. Go to your repo → Settings → Pages
-2. Source: GitHub Actions (not "Deploy from branch")  
-3. Wait for the first deploy_pages workflow to run
-4. Your dashboard URL: `https://yurii-spa.github.io/SPA/`
+- Dashboard URL: `https://earn-defi.com/dashboard`
+- Real-time data comes from the live API (`api.earn-defi.com`, Cloudflare Tunnel → Mac mini `:8765`) — no static-export step, no per-run redeploy needed.
+- Access from any device — no local server needed.
 
-**After setup:**
-- Every `SPA — Run & Export` completion triggers a dashboard redeploy
-- Manual push to `index.html` or `data/` also triggers redeploy
-- Access from any device — no local server needed
+> The legacy GitHub Pages deploy (`deploy-pages.yml` → `yurii-spa.github.io`, serving the old root `index.html`) was removed on 2026-06-28.
 
 ---
 

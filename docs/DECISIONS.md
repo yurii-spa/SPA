@@ -209,6 +209,14 @@ they are owner-gated *threshold-reconciliation* decisions deferred to the owner.
 - (Astro-landing использует ОТДЕЛЬНЫЙ `landing/src/data/track_snapshot.json`, не
   committed data/*.json — но github.io dashboard зависит от committed копий.)
 
+> **UPDATE 2026-06-28 — обоснование SUPERSEDED:** legacy github.io dashboard
+> (`index.html`, `deploy-pages.yml`, `spa_frontend/`) **удалён**. Это был ЕДИНСТВЕННЫЙ
+> потребитель committed `STATIC_DATA_BASE`/`RAW_DATA_BASE`-fallback. Теперь ничего не
+> читает закоммиченные `data/*.json` (canonical дашборд `earn-defi.com/dashboard` —
+> Astro, берёт всё вживую из `api.earn-defi.com`). → Untrack этих трёх снимков теперь
+> **технически безопасен** (fallback нечего ломать). Сам untrack остаётся **owner-gated**;
+> здесь фиксируется лишь, что блокер «сломает fallback» больше не действует.
+
 ---
 
 ## 2026-06-26 (P3-10 — Dual-drawdown design note + governance invariant test)

@@ -111,4 +111,4 @@ SPA_DATA_DIR=/path/to/data python run_server.py
 - The server is **stateless** — it reads from `data/*.json` and the PaperTrader DB on every request.
 - It starts cleanly even if `data/*.json` files don't exist yet (returns empty defaults).
 - No authentication is required — this is for local development only.
-- CORS is enabled for `localhost:*` and `yurii-spa.github.io`.
+- CORS is enabled for `localhost:*` and `earn-defi.com` (the production dashboard, via the `api.earn-defi.com` tunnel).

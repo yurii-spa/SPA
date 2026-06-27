@@ -4,7 +4,7 @@
 **Duration:** 8 weeks minimum (56 days)  
 **Capital:** $100,000 virtual USDC  
 **Decision date:** 2026-07-15  
-**Dashboard:** https://yurii-spa.github.io
+**Dashboard:** https://earn-defi.com/dashboard (single canonical live dashboard)
 
 Paper trading is the mandatory validation phase before any real capital is deployed. The system runs fully automated — you observe, it trades.
 
@@ -88,7 +88,7 @@ The `PaperTrader` has no wallet connection — it cannot touch real funds. The c
 
 ## How to read the dashboard
 
-Open https://yurii-spa.github.io (or `index.html` locally).
+Open https://earn-defi.com/dashboard (the single canonical live dashboard, real-time from `api.earn-defi.com`).
 
 ### Portfolio panel
 

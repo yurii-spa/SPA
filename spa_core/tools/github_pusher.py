@@ -29,9 +29,9 @@ API_BASE   = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents"
 # File manifest  (local_path, repo_path, commit_message)
 # ──────────────────────────────────────────────
 PUSH_MANIFEST = [
-    # Frontend
-    ("index.html", "index.html",
-     "feat: v1.6 dashboard — System Health tab, pipeline monitor, data freshness"),
+    # (legacy root index.html dashboard removed 2026-06-28 — the single
+    #  canonical dashboard is now the Astro page landing/src/pages/dashboard.astro,
+    #  deployed by deploy-landing.yml; nothing to push from here)
 
     # Core Python modules
     ("spa_core/export_data.py", "spa_core/export_data.py",
@@ -273,9 +273,7 @@ PUSH_MANIFEST = [
     ("spa_core/api/README.md", "spa_core/api/README.md",
      "docs: API module README"),
 
-    # Frontend README
-    ("spa_frontend/README.md", "spa_frontend/README.md",
-     "docs: frontend README"),
+    # (spa_frontend/ legacy React dashboard source removed 2026-06-28)
 
     # New tests
     ("spa_core/tests/__init__.py", "spa_core/tests/__init__.py",
@@ -321,9 +319,8 @@ PUSH_MANIFEST = [
     ("docs/ADR_003_rate_limiting.md", "docs/ADR_003_rate_limiting.md",
      "docs: ADR-003 rate limiting and circuit breaker"),
 
-    # NOTE: requires 'workflow' scope token — use push_workflow.command
-    (".github/workflows/deploy-pages.yml", ".github/workflows/deploy-pages.yml",
-     "ci: GitHub Pages auto-deploy workflow"),
+    # (deploy-pages.yml GitHub Pages workflow removed 2026-06-28 — the only
+    #  frontend deploy is now deploy-landing.yml → Cloudflare Pages)
 
     # Demo data seeder
     ("spa_core/tools/seed_demo_data.py", "spa_core/tools/seed_demo_data.py",

@@ -1,5 +1,17 @@
 # Dashboard Architecture — Reconnecting the "Separate World"
 
+> **STATUS UPDATE (2026-06-28) — SUPERSEDED / HISTORICAL.** This doc was the architecture
+> audit that proposed rebuilding the dashboard. That rebuild has happened: the legacy
+> single-file `index.html` (served by GitHub Pages, `deploy-pages.yml`), the duplicate
+> `landing/public/app.html`, and the `spa_frontend/` React source have all been **removed**.
+> The SINGLE canonical dashboard is now `landing/src/pages/dashboard.astro` +
+> `landing/src/components/DashboardLive.jsx`, served at `earn-defi.com/dashboard`,
+> rendering live from `api.earn-defi.com`. The "three frontends / two-copies-in-sync /
+> committed stale fallback" problems described below are RESOLVED by that removal — there
+> is now one editable dashboard source and no committed-data fallback consumer. The text
+> below is kept verbatim as the historical audit that motivated the rebuild; do not treat
+> file/LOC references (`index.html`, `app.html`) as current.
+
 **Author:** Senior Architect · **Date:** 2026-06-26 · **Status:** AUDIT + DESIGN (owner reviews before rebuild)
 **Companion:** the DESIGNER's UX doc (layout/visual). This doc is the **data-flow / architecture** half.
 **Mandate:** make the dashboard a TRUE LIVE MIRROR of the real system. Honesty-first. No fabricated/stale

@@ -16,7 +16,7 @@ from spa_core.utils import clock
 
 log = logging.getLogger("spa.alerts.telegram")
 
-DASHBOARD_URL = "https://yuriiykulieshov.github.io/SPA_Claude/"
+DASHBOARD_URL = "https://earn-defi.com/dashboard"
 
 
 class TelegramSender:

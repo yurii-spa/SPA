@@ -259,8 +259,8 @@ for p in aave[:3]: print(p.get('project'), p.get('apy'), p.get('tvlUsd'))
 ### P3-A: Dashboard stale
 
 **Симптомы:**
-- `https://yurii-spa.github.io/SPA/` показывает старые данные
-- Autopush не пушил > 90 мин
+- `https://earn-defi.com/dashboard` показывает "snapshot — live API offline" / устаревшие данные
+- Live API (`api.earn-defi.com`) недоступен или туннель/apiserver упал
 
 **Диагностика и ответ:**
 ```bash
@@ -348,7 +348,7 @@ Postmortem (для P1/P2): записать в data/incidents.json
 | Ресурс | Адрес |
 |--------|-------|
 | Владелец | yuriycooleshov@gmail.com |
-| Dashboard | https://yurii-spa.github.io/SPA/ |
+| Dashboard | https://earn-defi.com/dashboard |
 | GitHub репо | https://github.com/yurii-spa/SPA |
 | Локальный сервер | http://localhost:8765 |
 | DR Procedure | `docs/DR_PROCEDURE_v1.md` |

@@ -19,18 +19,15 @@ Constraints
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import subprocess
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 _log = logging.getLogger(__name__)
 
-DASHBOARD_URL = "https://yuriiykulieshov.github.io/SPA_Claude/"
+DASHBOARD_URL = "https://earn-defi.com/dashboard"
 
 # Rank medals for top-3
 _MEDALS = {1: "🥇", 2: "🥈", 3: "🥉"}
@@ -87,43 +84,27 @@ class TournamentTelegram:
         POST a message to the Telegram Bot API.
         Returns True on success, False on any failure. Never raises.
         """
-        if not self.available:
-            _log.debug("TournamentTelegram.send: skipped (not configured)")
-            return False
-
-        # FLOOD-GUARD: honour the shared cross-process rate limit before sending.
-        # We POST directly with this instance's resolved credentials, so call the
-        # guard explicitly rather than routing through telegram_client.send_message
-        # (which reads its own Keychain credentials and ignores SPA_TELEGRAM_*).
+        # RETIRED as a Telegram push (Phase-1 Telegram rebuild). Tournament
+        # standings are informational, not a real-time interrupt: they belong in
+        # the on-demand tournament view + the weekly digest movers, not a daily
+        # push. This sender no longer POSTs to Telegram; it routes the composed
+        # text to the digest queue. Always returns False. Never raises.
         try:
-            from spa_core.alerts.telegram_client import flood_guard_ok
-            if not flood_guard_ok(text):
-                return False
-        except Exception:  # noqa: BLE001 — guard error must never block a send
-            pass
-
-        url = f"https://api.telegram.org/bot{self.token}/sendMessage"
-        payload = json.dumps({
-            "chat_id": self.chat_id,
-            "text": text,
-            "parse_mode": parse_mode,
-            "disable_web_page_preview": True,
-        }).encode("utf-8")
-        try:
-            req = urllib.request.Request(
-                url,
-                data=payload,
-                headers={"Content-Type": "application/json"},
-                method="POST",
+            from spa_core.telegram import push_policy
+            push_policy._enqueue_digest(
+                push_policy._tg_dir(),
+                {
+                    "ts": push_policy._now_iso(),
+                    "event_key": "tournament",
+                    "severity": "INFO",
+                    "title": "Tournament update",
+                    "body": (text or "")[:500],
+                    "reason": "tournament_telegram_retired_push",
+                },
             )
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                return resp.status == 200
-        except urllib.error.HTTPError as exc:
-            _log.warning("TournamentTelegram HTTP error %s: %s", exc.code, exc.reason)
-            return False
-        except Exception as exc:  # noqa: BLE001 — alerts must never crash callers
-            _log.error("Telegram unexpected error: %s", exc)
-            return False
+        except Exception as exc:  # noqa: BLE001 — never crash callers
+            _log.warning("TournamentTelegram digest route failed: %s", exc)
+        return False
 
     # ─────────────────────────────────────────────────────────────────────────
     # Tournament-specific senders

@@ -1,5 +1,12 @@
 # SPA Dashboard v2.0 — Финальный отчёт
 
+> **СТАТУС (2026-06-28) — ИСТОРИЧЕСКИЙ.** Этот отчёт описывает старый дашборд
+> `index.html` на GitHub Pages (`yurii-spa.github.io/SPA/`). Этот legacy-дашборд,
+> его workflow `deploy-pages.yml` и React-исходник `spa_frontend/` **удалены 2026-06-28**.
+> Единственный canonical дашборд теперь — `earn-defi.com/dashboard` (Astro,
+> `landing/src/pages/dashboard.astro`, real-time из `api.earn-defi.com`). Текст ниже
+> сохранён как дата-фиксированная запись; URL/файлы в нём — историчны, не актуальны.
+
 **Дата:** 2026-06-12  
 **Сессия:** SPA-V433  
 **Автор:** Claude (Dashboard v2.0 полный редизайн, T1–T9)  

@@ -135,13 +135,18 @@ Mac Mini (production host) — earn-defi.com
 ├── launchd com.spa.system_briefing (каждые 30 мин)
 │     └── update_system_briefing.py → docs/SYSTEM_BRIEFING.md
 │
-├── launchd com.spa.httpserver — HTTP API port 8765 (FastAPI)
+├── launchd com.spa.apiserver — HTTP API port 8765 (FastAPI)
 │     └── api.earn-defi.com (Cloudflare Tunnel)
 │
-└── Cloudflare Pages — earn-defi.com (статика из docs/)
+└── Cloudflare Pages — earn-defi.com (Astro-сайт из landing/, deploy-landing.yml)
+      landing/src/pages/dashboard.astro — ЕДИНЫЙ canonical дашборд
+        (DashboardLive.jsx island, live via api.earn-defi.com, polls ~15s)
       docs/tournament.html — Tournament страница (live via /api/tournament)
-      index.html — Dashboard v3.0 (live via /api/live/ping)
 ```
+
+> Legacy github.io дашборд (root `index.html` 756KB blob + `deploy-pages.yml` +
+> `spa_frontend/` React-исходник) **удалён 2026-06-28**. Единственный дашборд теперь —
+> `earn-defi.com/dashboard` (Astro). Единственный frontend-деплой — `deploy-landing.yml`.
 
 **Стек:** Python 3, **только stdlib** в runtime. Атомарные записи: `shutil.move` (не `os.replace` — cross-device в sandbox).
 
@@ -420,10 +425,17 @@ security find-generic-password -s TELEGRAM_CHAT_ID_SPA -w
 
 **⚠️ OWNER-GATED (оставлены tracked НАМЕРЕННО — НЕ untrack без решения владельца):**
 `equity_curve_daily.json`, `golive_status.json`, `paper_evidence_history.json` —
-сейчас закоммиченные track-снимки (на них может опираться static-fallback сайта).
-Они **матчатся** правилом `data/*.json`, но остаются в git, т.к. были закоммичены ДО
-этого правила. **OWNER-решение:** должны ли волатильные track-снимки вообще жить в git
-(canonical-in-git vs runtime-only)? До решения — НЕ `git rm --cached`.
+сейчас закоммиченные track-снимки. Они **матчатся** правилом `data/*.json`, но остаются
+в git, т.к. были закоммичены ДО этого правила. **OWNER-решение:** должны ли волатильные
+track-снимки вообще жить в git (canonical-in-git vs runtime-only)? До решения — НЕ
+`git rm --cached`.
+
+> 🔓 **Зависимость снята (2026-06-28):** единственным потребителем этих committed-копий
+> был legacy github.io дашборд (root `index.html` читал `STATIC_DATA_BASE`/`RAW_DATA_BASE`
+> как static/offline fallback). Он **удалён** → ничего больше не читает закоммиченные
+> копии (Astro-дашборд `dashboard.astro` берёт всё вживую из `api.earn-defi.com`, без
+> committed-fallback). Untrack теперь **БЕЗОПАСЕН** — fallback больше нечего ломать.
+> Решение всё ещё owner-gated; здесь только фиксируем, что технический блокер ушёл.
 
 **Уже-tracked файлы, которые попали под новые ignore-правила** (нужен `git rm --cached`
 на remote — `push_to_github.py` это не умеет, делает владелец вручную):

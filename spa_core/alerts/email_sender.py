@@ -160,7 +160,7 @@ def build_risk_alert_email(
 
     <!-- Footer -->
     <div style="background:#f9fafb;padding:16px 32px;text-align:center;border-top:1px solid #e5e7eb;">
-      <a href="https://yuriiykulieshov.github.io/SPA_Claude/" style="color:#6366f1;font-size:13px;text-decoration:none;">Open SPA Dashboard →</a>
+      <a href="https://earn-defi.com/dashboard" style="color:#6366f1;font-size:13px;text-decoration:none;">Open SPA Dashboard →</a>
       <p style="margin:8px 0 0;color:#9ca3af;font-size:12px;">Smart Passive Aggregator · Paper Trading Bot</p>
     </div>
   </div>
@@ -190,7 +190,7 @@ def build_risk_alert_email(
         f"Invested    : ${invested:,.2f}",
         f"Total PnL   : {pnl_sign}${total_pnl:,.2f} ({pnl_sign}{total_pnl_p:.2f}%)",
         "",
-        "Dashboard: https://yuriiykulieshov.github.io/SPA_Claude/",
+        "Dashboard: https://earn-defi.com/dashboard",
     ]
     text = "\n".join(lines)
 
@@ -332,7 +332,7 @@ def build_cycle_summary_email(
 
     <!-- Footer -->
     <div style="background:#f9fafb;padding:16px 32px;text-align:center;border-top:1px solid #e5e7eb;">
-      <a href="https://yuriiykulieshov.github.io/SPA_Claude/" style="color:#6366f1;font-size:13px;text-decoration:none;">Open SPA Dashboard →</a>
+      <a href="https://earn-defi.com/dashboard" style="color:#6366f1;font-size:13px;text-decoration:none;">Open SPA Dashboard →</a>
       <p style="margin:8px 0 0;color:#9ca3af;font-size:12px;">Smart Passive Aggregator · Paper Trading Bot · {now_str}</p>
     </div>
   </div>
@@ -377,7 +377,7 @@ def build_cycle_summary_email(
 
     lines += [
         "",
-        "Dashboard: https://yuriiykulieshov.github.io/SPA_Claude/",
+        "Dashboard: https://earn-defi.com/dashboard",
     ]
     text = "\n".join(lines)
 
