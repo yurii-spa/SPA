@@ -291,6 +291,30 @@ class RiskPolicy:
             self._log_result(result)
             return result
 
+        # 0b. FAIL-CLOSED zero/negative-capital guard. Every concentration / T2 /
+        #     chain check below divides by state.total_capital_usd. With
+        #     total_capital_usd == 0 the concentration math (line ~336) raises
+        #     ZeroDivisionError → the eval path crashes instead of failing closed
+        #     (an exception out of the gate is itself a bypass: the caller may
+        #     swallow it and proceed). A non-positive-capital portfolio cannot
+        #     safely take ANY new position, so reject deterministically. This is
+        #     behaviour-preserving for valid inputs (a real trade always has
+        #     positive capital) and changes NO threshold value.
+        if not (isinstance(state.total_capital_usd, (int, float))
+                and math.isfinite(state.total_capital_usd)
+                and state.total_capital_usd > 0):
+            result = RiskCheckResult(
+                approved=False,
+                violations=[
+                    f"non-positive/invalid total_capital_usd="
+                    f"{state.total_capital_usd!r} — cannot size or bound a position"
+                ],
+                warnings=[],
+                check_name=f"new_position({protocol_key})",
+            )
+            self._log_result(result)
+            return result
+
         # 1. Circuit breaker: портфельный drawdown
         if state.total_drawdown_pct >= self.config.max_drawdown_stop:
             violations.append(
@@ -633,13 +657,38 @@ class RiskPolicy:
         violations: list[str] = []
         warnings: list[str] = []
 
+        # FAIL-CLOSED finiteness guard (architect P5-1, extended to the standalone
+        # depeg gate). detect_depeg computes |price - 1| < thr to decide pegged:
+        # for a NaN price that comparison is False → it does NOT `continue`, then
+        # `nan >= 2*thr` is also False → severity falls through to "WARN" →
+        # approved=True. A corrupted NaN price thus silently bypasses the depeg
+        # kill-switch (live-money bypass). Treat ANY non-finite supplied price as
+        # the UNSAFE state → violation (approved=False), never a silent pass.
+        # (±inf already trip CRITICAL via the math, but guard them too so the
+        #  verdict is structural, not an accident of float comparison ordering.)
+        for _sym, _px in prices.items():
+            if not isinstance(_px, (int, float)) or isinstance(_px, bool) \
+                    or not math.isfinite(_px):
+                violations.append(
+                    f"DEPEG KILL SWITCH (fail-closed): non-finite price for "
+                    f"{_sym} ({_px!r}) — cannot verify peg, close exposed positions"
+                )
+
         events = PriceFeedFetcher().detect_depeg(prices, threshold)
         for ev in events:
             sym = ev["symbol"]
             price = ev["price"]
             dev = ev["deviation_pct"]
             severity = ev["severity"]
-            if severity == "CRITICAL":
+            # A non-finite price/deviation that slipped through detect_depeg
+            # → escalate to kill, never format-crash or silently pass.
+            if not (isinstance(price, (int, float)) and math.isfinite(price)
+                    and isinstance(dev, (int, float)) and math.isfinite(dev)):
+                violations.append(
+                    f"DEPEG KILL SWITCH (fail-closed): non-finite depeg metric "
+                    f"for {sym} (price={price!r}, dev={dev!r}) — close exposed positions"
+                )
+            elif severity == "CRITICAL":
                 violations.append(
                     f"DEPEG KILL SWITCH: {sym} at ${price:.4f} ({dev:+.2f}%) — "
                     f"CRITICAL depeg, close exposed positions"

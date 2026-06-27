@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -361,8 +362,21 @@ class StrategyAllocator:
         ok: list[dict] = []
         rejected: list[str] = []
         for a in adapters:
-            tvl = float(a.get("tvl_usd") or a.get("tvl") or 0.0)
-            if tvl >= self.TVL_FLOOR_USD:
+            raw_tvl = a.get("tvl_usd")
+            if raw_tvl is None:
+                raw_tvl = a.get("tvl")
+            try:
+                tvl = float(raw_tvl) if raw_tvl is not None else 0.0
+            except (TypeError, ValueError):
+                tvl = float("nan")
+            # FAIL-CLOSED (property-test PROP-TVL-NONFINITE): a non-finite TVL
+            # (NaN/Inf from a malformed feed) cannot be verified against the
+            # floor — `inf >= floor` would wrongly PASS the pool and then the
+            # MP-209 capacity cap divides by that TVL → a NaN target weight
+            # flows straight into target_usd / the rebalancer (a money-path
+            # corruption). Reject any non-finite TVL exactly like the RiskPolicy
+            # finiteness gate. Behaviour is unchanged for every finite TVL.
+            if math.isfinite(tvl) and tvl >= self.TVL_FLOOR_USD:
                 ok.append(a)
             else:
                 rejected.append(a.get("protocol", "?"))
@@ -375,10 +389,24 @@ class StrategyAllocator:
             # Fallback: все адаптеры ниже floor — не возвращаем пустую вселенную
             # (иначе аллокатор молча уйдёт в 100% кэш). RiskPolicy-гейт всё равно
             # отклонит такие позиции — но это будет видно в risk_policy_blocks.json.
+            # FAIL-CLOSED (property-test PROP-TVL-NONFINITE): даже в fallback'е
+            # НЕ возвращаем адаптеры с non-finite TVL — иначе MP-209 capacity-cap
+            # делит на inf/NaN и пишет NaN-вес в target_usd. Финитные-но-низкие
+            # TVL остаются (gate их заблокирует, видно в risk_policy_blocks).
+            def _finite_tvl(a: dict) -> bool:
+                raw = a.get("tvl_usd")
+                if raw is None:
+                    raw = a.get("tvl")
+                try:
+                    return math.isfinite(float(raw)) if raw is not None else True
+                except (TypeError, ValueError):
+                    return False
+
+            finite_fallback = [a for a in adapters if _finite_tvl(a)]
             log.warning(
                 "MP-011: ВСЕ адаптеры ниже TVL-floor — fallback на исходный список"
             )
-            return adapters, rejected
+            return finite_fallback, rejected
         return ok, rejected
 
     # ── MP-011: совокупный T2-кап ─────────────────────────────────────────
@@ -740,7 +768,19 @@ class StrategyAllocator:
             log.warning("MP-209: capacity_cap ошибка (%s) — пропущен", _cap_exc)
 
         # APY портфеля: веса как доли капитала; нераспределённый кэш = 0% APY.
-        expected_apy = sum(capped[p] * apy_map.get(p, 0.0) for p in capped)
+        # FAIL-CLOSED (property-test PROP-NAN): non-finite per-protocol APY
+        # (NaN/Inf from a malformed feed) must NOT propagate into the portfolio
+        # APY metric — a single NaN poisons expected_apy_pct → equity-curve /
+        # reporting / dashboard consumers silently ingest NaN. Sanitize any
+        # non-finite APY to 0.0 in THIS sum only (weights/caps are already safe;
+        # behaviour is unchanged for every finite input).
+        def _finite_apy(p: str) -> float:
+            v = apy_map.get(p, 0.0)
+            if not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v):
+                return 0.0
+            return float(v)
+
+        expected_apy = sum(capped[p] * _finite_apy(p) for p in capped)
 
         # Пересчитываем метрики после capacity cap (если был)
         allocated = sum(capped.values())
