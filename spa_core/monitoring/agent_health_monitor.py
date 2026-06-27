@@ -726,8 +726,16 @@ def check_system(data_dir: Path, now: datetime,
                 issues.append(f"{len(held_crit)} CRITICAL red flag(s) on HELD protocols")
                 status = _worst(status, CRITICAL)
             if advisory > 0:
-                issues.append(f"{advisory} red flag(s) on external protocols (advisory)")
-                status = _worst(status, WARNING)
+                # Advisory ONLY: red flags on EXTERNAL (non-held) protocols — or
+                # from fallback/bootstrap data — are market intel, NOT a fault in
+                # SPA's own agents. They must NOT escalate the overall health
+                # status (that produced false WARNING on a fully-healthy fleet).
+                # Recorded for visibility (checks["advisory_flags"] + this note)
+                # but deliberately kept OUT of the status-driving `issues` list.
+                checks["advisory_note"] = (
+                    f"{advisory} red flag(s) on external protocols "
+                    f"(advisory, non-escalating)"
+                )
         else:
             checks["critical_flags"] = 0
 

@@ -516,7 +516,10 @@ def test_system_critical_red_flags(tmp_path):
 
 
 def test_system_external_red_flags_advisory(tmp_path):
-    # CRITICAL flags on non-held protocols → advisory WARNING, not system CRITICAL.
+    # CRITICAL flags on non-held protocols are market intel (advisory), NOT a
+    # fault in SPA's own agents → RECORDED for visibility but must NOT escalate
+    # the overall health status (escalating produced a false WARNING on a fully
+    # healthy fleet). Only HELD-protocol crit flags escalate (→ CRITICAL).
     d = tmp_path / "data"
     _write_json(d, "current_positions.json", {"positions": {"aave_v3": 50_000.0}})
     _write_json(d, "red_flags.json", {"red_flags": [
@@ -525,7 +528,11 @@ def test_system_external_red_flags_advisory(tmp_path):
     checks, status, issues = ahm.check_system(d, NOW, "/nonexistent.log")
     assert checks["critical_flags"] == 0
     assert checks.get("advisory_flags") == 2
-    assert status == ahm.WARNING
+    # recorded as a non-escalating advisory note...
+    assert "advisory" in checks.get("advisory_note", "")
+    # ...and the overall status is NOT raised to WARNING by advisory-only flags
+    assert status == ahm.OK
+    assert not any("external protocols" in i for i in issues)
 
 
 def test_system_autopush_lag_warning(tmp_path):
