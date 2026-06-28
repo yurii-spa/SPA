@@ -62,8 +62,13 @@ def test_evaluator_regime_and_ranking():
         # Real low-vol yield → rank by net-of-cost APY, not Sharpe; validated strategies graded.
         assert v["ranking_metric"] == "net_of_cost_apy"
         board = v["leaderboard_tier1"]
-        nets = [s["net_apy_pct"] for s in board if s["validated"]]
-        assert nets == sorted(nets, reverse=True)  # validated ranked by net APY desc
+        # The leaderboard ranks validated-first, then by RISK-ADJUSTED net APY (net-of-cost
+        # minus tail/principal risk) — the documented Tier-1 yield ranking key (evaluator.py
+        # L314-316), i.e. "the yield you keep after expected principal loss". Assert ordering
+        # against THAT key, not raw net_apy_pct (which is only one input to it). Raw net APY can
+        # legitimately be non-monotonic across validated rows once tail risk is netted out.
+        ras = [s["risk_adjusted_apy_pct"] for s in board if s["validated"]]
+        assert ras == sorted(ras, reverse=True)  # validated ranked by risk-adjusted net APY desc
         assert all(s["tier1_grade"] in ("A", "B", "C", "D") for s in board)
     elif v["regime"] == "DEGENERATE_MOCK":
         assert v["validated_count"] == 0

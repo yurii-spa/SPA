@@ -22,13 +22,13 @@ _A structured, auto-generated, REAL-DATA data-room for an LP / investor due-dili
 
 **Proof-chain head (re-derived live, the fingerprint of the entire decision history):**
 
-- chain valid: **yes** · length: **394** decisions
-- head_hash: `0bbfe1fdab4c6a9ad0950454bcbcb1b41c126381f21a8600aa7f7321f5b3984c`
+- chain valid: **yes** · length: **446** decisions
+- head_hash: `67badf4148479e36233abcd631292c98d792557e65ed80faafd733eefca243b5`
 
 Reproduce + assert this exact head yourself:
 
 ```
-python3 scripts/verify_spa.py --expect-head 0bbfe1fdab4c6a9ad0950454bcbcb1b41c126381f21a8600aa7f7321f5b3984c data/rates_desk/
+python3 scripts/verify_spa.py --expect-head 67badf4148479e36233abcd631292c98d792557e65ed80faafd733eefca243b5 data/rates_desk/
 ```
 
 ---
@@ -86,10 +86,10 @@ The very next decision in the chain (its `prev_hash` == the refusal's `entry_has
 
 ## 3. The decision record (refusals AND entries, all hashed)
 
-The public, hash-linked `data/rates_desk/decision_log.jsonl` carries **394** logged decisions:
+The public, hash-linked `data/rates_desk/decision_log.jsonl` carries **446** logged decisions:
 
-- **207 refusals** — of which **154** structural tail-vetoes (toxic carry refused before economics) and **53** size-floor declines (real carry, but below the fundable depth floor).
-- **187 entries** — approved, depth-bounded carry books.
+- **228 refusals** — of which **162** structural tail-vetoes (toxic carry refused before economics) and **66** size-floor declines (real carry, but below the fundable depth floor).
+- **218 entries** — approved, depth-bounded carry books.
 
 Every row — entry AND refusal — is hashed. This is the surface no competitor publishes: **what we refused, and why.** Live human-readable view: `/refusals`. Machine: `/api/rates-desk/refusals`.
 
@@ -147,7 +147,7 @@ SPA contributes the cheapest, most defensible first layer: the transparent, fail
 
 - evidenced track days: **6/30** — **accruing, not yet 30**. Only days backed by a real daily-cycle log count; the earlier backfill bars were reset OUT. The low number IS the credibility.
 - honest anchor: **2026-06-22** · go-live target: **2026-07-21**.
-- go-live criteria: **26/29 pass** — NOT READY. The remaining blockers are **time-gated** (track days to accrue) — nothing to fix in code.
+- go-live criteria: **25/29 pass** — NOT READY. The remaining blockers are **time-gated** (track days to accrue) — nothing to fix in code.
 
 - forward-track integrity: **all_ok** — **8** forward tracks, **0** failing (no duplicates / gaps / out-of-order / future-dated points).
 
@@ -169,10 +169,10 @@ python3 verify_spa.py data/rates_desk/
 3. It re-derives EVERY decision `entry_hash`, every exit-NAV `proof_hash`, and the anchor head-checkpoints — and reports the precise `broken_at` if a single byte of history was altered after the fact. Exit 0 = everything reproduces.
 4. Cross-check the worked example in §2: its `proof_hash` values are emitted by the same recipe (`docs/PROOF_CHAIN_SPEC.md`).
 
-The append-only anchor ledger currently holds **1** head-checkpoint(s) (a genesis reset over the security-corrected chain head is auditable in the ledger note).
+The append-only anchor ledger currently holds **4** head-checkpoint(s) (a genesis reset over the security-corrected chain head is auditable in the ledger note).
 
 **Honesty contract for this doc:** every numeric token in DD_PACK.md is asserted (by `test_dd_pack.py`) to be present in the set of numbers sourced from `data/` files or hashed decision rows. A number that drifts from its source fails the build. There are no un-sourced claims.
 
 ---
 
-_Regenerated 2026-06-28 03:04 UTC. All numbers live from `data/` (golive_status.json · rates_desk/{rates_desk_promotion,portfolio_capacity}.json · rates_desk/decision_log.jsonl · rates_desk/anchors.jsonl · rwa_safety_board.json · forward_track_integrity.json · golive_dry_run.json) and the hashed decision rows; Liquidator NO-GO figures from `docs/LIQUIDATOR_DERISK.md`. Regenerable via `python3 scripts/generate_dd_pack.py`. Mirror page: `/fundability`._
+_Regenerated 2026-06-28 07:37 UTC. All numbers live from `data/` (golive_status.json · rates_desk/{rates_desk_promotion,portfolio_capacity}.json · rates_desk/decision_log.jsonl · rates_desk/anchors.jsonl · rwa_safety_board.json · forward_track_integrity.json · golive_dry_run.json) and the hashed decision rows; Liquidator NO-GO figures from `docs/LIQUIDATOR_DERISK.md`. Regenerable via `python3 scripts/generate_dd_pack.py`. Mirror page: `/fundability`._

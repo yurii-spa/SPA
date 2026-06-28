@@ -499,7 +499,9 @@ def _verify_track_db(db_path: Path) -> tuple[bool, int, str]:
     if size == 0:
         return False, 0, "track.db is 0 bytes (empty/stub mirror)"
     try:
-        conn = sqlite3.connect(os.fspath(db_path))
+        # allow-raw-sqlite-connect: sqlite-native PRAGMA integrity_check on the local
+        # track.db mirror; no postgres equivalent, so it cannot use the DB abstraction.
+        conn = sqlite3.connect(os.fspath(db_path))  # allow-raw-sqlite-connect
         try:
             integ = conn.execute("PRAGMA integrity_check").fetchone()
             if not integ or integ[0] != "ok":

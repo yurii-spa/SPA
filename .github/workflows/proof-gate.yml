@@ -1,0 +1,105 @@
+name: SPA Proof Gate
+
+# A FOCUSED, FAST merge gate that runs on every pull request to main.
+#
+# Unlike the heavy ci.yml (which is intentionally [skip ci]-able for routine
+# auto-push commits), this gate runs on `pull_request` events — which are NOT
+# suppressed by a `[skip ci]` token in a commit message — so a change that
+# breaks a published proof or the standalone verifier CANNOT merge green.
+#
+# It guards the things that make the "don't trust us, check us" claim true:
+#   1. scripts/verify_spa.py re-derives EVERY published proof in data/rates_desk/
+#      (decision chain + exit_nav + cross-eviction anchors + the EVIDENCED equity
+#      / go-live track hash chain) byte-for-byte, with NO spa_core on the path.
+#   2. The DD_PACK head-staleness test (the published head matches the verifier).
+#   3. The stdlib-only + LLM-forbidden contract guards (no external deps, no LLM
+#      in deterministic risk/verify code paths).
+#   4. The proof-chain unit tests (decision chain, exit-nav, anchors, equity track).
+#
+# Target: < 3 minutes. The full 100k-test suite stays in ci.yml.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual run'
+        required: false
+        default: 'manual proof-gate run'
+
+# Cancel superseded runs on the same PR to keep it fast.
+concurrency:
+  group: proof-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  proof-gate:
+    name: Proof Gate (verify_spa + DD_PACK head + guards)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pytest (stdlib-only runtime; pytest is test-only)
+        run: python3 -m pip install --quiet pytest
+
+      # ── (1) Standalone verifier: re-derive every published proof, zero-dep ──
+      # Rebuild the EVIDENCED equity-track chain from the committed equity curve so
+      # the gate verifies the chain against the CURRENT committed track (the producer
+      # is deterministic — a clean track reproduces the same head every time).
+      - name: Rebuild evidenced equity-track chain (deterministic)
+        run: |
+          if [ -f data/equity_curve_daily.json ]; then
+            python3 -m spa_core.audit.equity_proof_chain --build
+          else
+            echo "no data/equity_curve_daily.json — skipping equity-track rebuild"
+          fi
+
+      - name: verify_spa.py — re-derive every published proof (no spa_core on path)
+        run: |
+          if [ -d data/rates_desk ] && \
+             ( [ -f data/rates_desk/decision_log.jsonl ] || \
+               [ -f data/rates_desk/exit_nav.json ] || \
+               [ -f data/rates_desk/anchors.jsonl ] || \
+               [ -f data/rates_desk/equity_track.jsonl ] ); then
+            echo "=== Verifying published proofs in data/rates_desk/ ==="
+            python3 scripts/verify_spa.py data/rates_desk/
+          else
+            echo "::error::data/rates_desk/ has no published proof artifacts to verify — the proof gate cannot pass without them."
+            exit 1
+          fi
+
+      # ── (2) DD_PACK head staleness + the proof-chain unit tests ──────────────
+      # Prefer the dedicated head-staleness test the DD_PACK suite ships; fall back
+      # to the whole DD_PACK head check if the named test is not present yet.
+      - name: DD_PACK head staleness test
+        run: |
+          if python3 -m pytest spa_core/tests/test_dd_pack.py --collect-only -q 2>/dev/null \
+               | grep -q "test_dd_pack_head_live"; then
+            python3 -m pytest spa_core/tests/test_dd_pack.py -k "dd_pack_head_live or head_matches_verifier" -p no:randomly -q
+          else
+            python3 -m pytest spa_core/tests/test_dd_pack.py -k "head" -p no:randomly -q
+          fi
+
+      - name: Proof-chain + equity-track unit tests
+        run: |
+          python3 -m pytest \
+            spa_core/tests/test_verify_spa_standalone.py \
+            spa_core/tests/test_equity_proof_chain.py \
+            spa_core/tests/test_portfolio_exit_nav_and_anchors.py \
+            -p no:randomly -q
+
+      # ── (3) stdlib-only + LLM-forbidden contract guards ──────────────────────
+      - name: stdlib-only contract guard
+        run: python3 scripts/stdlib_contract_guard.py
+
+      - name: LLM-forbidden guard
+        run: python3 scripts/lint_llm_forbidden.py

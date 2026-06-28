@@ -122,9 +122,15 @@ def test_position_monitor_catches_corruption():
 
 # ── 6. never imports execution/ ───────────────────────────────────────────────
 def test_no_execution_import(tmp_path: Path):
+    # Robust to test-pollution / import order: snapshot the execution modules already
+    # in sys.modules (left there by OTHER tests) BEFORE running the gate, and assert the
+    # gate itself imports NO NEW execution module transitively. (Asserting an empty set
+    # globally is order-dependent — a prior test may have imported execution/.)
+    before = {m for m in sys.modules if m.startswith("spa_core.execution")}
     pcg.run_gate(data_dir=str(tmp_path), write=False)
-    leaked = [m for m in sys.modules if m.startswith("spa_core.execution")]
-    assert leaked == [], f"execution/ imported transitively: {leaked}"
+    after = {m for m in sys.modules if m.startswith("spa_core.execution")}
+    newly_imported = sorted(after - before)
+    assert newly_imported == [], f"execution/ imported transitively by the gate: {newly_imported}"
 
 
 # ── 7. refuses live data/ ─────────────────────────────────────────────────────

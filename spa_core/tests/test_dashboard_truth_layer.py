@@ -28,6 +28,20 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _INDEX = _REPO_ROOT / "index.html"
 _APP = _REPO_ROOT / "landing" / "public" / "app.html"
 
+# RETIRED ARTIFACT: these truth-layer guards lock honesty fixes into the legacy github.io
+# single-file dashboard (repo-root index.html), which was retired ON PURPOSE. The canonical
+# dashboard is now the Astro /dashboard page; the same anti-padding / honest-go-live honesty
+# is now enforced on the live-data contract (test_track_days_reconciliation re-derives the
+# evidenced count from the checker; the track-record page reads /api/v1/golive.real_track_days
+# + passed/total). With the deleted file gone by design, these source-string assertions are
+# obsolete → skipped while it is absent (they resume if the file ever returns).
+if not _INDEX.is_file():
+    pytest.skip(
+        "legacy repo-root index.html retired (canonical dashboard is now Astro /dashboard, "
+        "honesty enforced on the live-data contract); these string-match guards are obsolete",
+        allow_module_level=True,
+    )
+
 
 @pytest.fixture(scope="module")
 def index_src() -> str:

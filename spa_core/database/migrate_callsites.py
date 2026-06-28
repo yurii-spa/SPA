@@ -42,8 +42,18 @@ _EXCLUDED_FILES: frozenset[str] = frozenset(
         "spa_core/database/sqlite_manager.py",  # abstraction layer — uses sqlite3 directly by design
         "spa_core/persistence/pg_migration.py",
         "spa_core/persistence/track_store.py",
+        # dr_backup.py uses the SQLite-native online .backup() API + `mode=ro` URI to snapshot and
+        # integrity-verify a (possibly mid-write) track.db. That API and the read-only URI only
+        # exist on raw sqlite3 connections — it cannot route through the postgres-capable abstraction.
+        "spa_core/backtesting/tier1/dr_backup.py",
     }
 )
+
+#: Inline opt-out marker. A ``sqlite3.connect(...)`` call on a line carrying this
+#: comment is an INTENTIONAL sqlite-native call (e.g. a ``PRAGMA integrity_check``
+#: on the local mirror, which has no postgres equivalent). Finer-grained than a
+#: whole-file exclusion so the rest of the file stays under scrutiny.
+_ALLOW_MARKER = "allow-raw-sqlite-connect"
 
 #: Directory subtrees that should never be scanned (tests, caches, etc.).
 _EXCLUDED_DIRS: frozenset[str] = frozenset(
@@ -70,6 +80,14 @@ def _sqlite_connect_linenos(source: str) -> List[int]:
     except SyntaxError:
         return []
 
+    src_lines = source.splitlines()
+
+    def _is_allowed(lineno: int) -> bool:
+        # 1-based lineno → 0-based index; an inline marker exempts that line.
+        if 1 <= lineno <= len(src_lines):
+            return _ALLOW_MARKER in src_lines[lineno - 1]
+        return False
+
     hits: List[int] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
@@ -80,6 +98,7 @@ def _sqlite_connect_linenos(source: str) -> List[int]:
             and func.attr == "connect"
             and isinstance(func.value, ast.Name)
             and func.value.id == "sqlite3"
+            and not _is_allowed(node.lineno)
         ):
             hits.append(node.lineno)
     return hits

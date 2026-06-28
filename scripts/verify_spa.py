@@ -18,7 +18,7 @@ follows ONLY the public docs/PROOF_CHAIN_SPEC.md recipe (canonical-JSON + SHA-25
 stdlib-only · deterministic · fail-CLOSED · NO `spa_core` import · NO network. Exit 0 = everything
 reproduces byte-for-byte; exit 1 = ANY mismatch / missing-required / malformed input.
 
-It verifies three independent published proofs:
+It verifies FOUR independent published proofs:
   (A) decision_log.jsonl — the tamper-evident decision chain (PROOF_CHAIN_SPEC §2-§5):
       re-derive every entry_hash, check single-genesis + contiguous seq + prev-linkage; print
       valid / broken_at / head_hash.
@@ -31,8 +31,15 @@ It verifies three independent published proofs:
       been evicted (or which claim more rows than the public chain) are reported as UNCHECKABLE from
       public files (cross-eviction proof needs the producer ledger — PROOF_CHAIN_SPEC §6a). No over-claim.
 
+  (D) equity_track.jsonl is the EVIDENCED equity / go-live track, hash-chained the same way as (A):
+      each row covers one evidenced equity bar (open/close equity, daily yield, apy, source) and the
+      chain is single-genesis + contiguous seq + prev-linkage. A forged equity number, or a
+      reordered/dropped/inserted/back-dated day, DIVERGES the recompute and is reported as a precise
+      broken_at. This is what makes the track-record page's "verify this track yourself" claim
+      literally true: the equity track is now independently re-derivable, not just the decisions.
+
 USAGE
-    python3 verify_spa.py data/rates_desk/                # a directory: auto-discovers the 3 files
+    python3 verify_spa.py data/rates_desk/                # a directory: auto-discovers the files
     python3 verify_spa.py decision_log.jsonl exit_nav.json anchors.jsonl   # explicit files
     python3 verify_spa.py --expect-head <hex> data/rates_desk/  # also assert the published head
     python3 verify_spa.py --json data/rates_desk/          # machine-readable verdict to stdout
@@ -71,6 +78,13 @@ EXIT_NAV_ROW_OUTPUT_KEYS = (
 )
 EXIT_NAV_GENESIS_PREV = "0" * 64
 
+# equity-track §8 (F2): the EVIDENCED equity / go-live track, hash-chained like the decision log.
+# Each row's entry_hash = sha256(canonical({seq, date, kind, payload, prev_hash})) with kind fixed
+# and payload = the row minus the four envelope keys. Single-genesis '0'*64, contiguous seq.
+EQUITY_TRACK_EVENT_TYPE = "equity_track_bar"
+EQUITY_TRACK_GENESIS_PREV = "0" * 64
+EQUITY_TRACK_ENVELOPE_KEYS = ("seq", "date", "prev_hash", "entry_hash")
+
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 # canonical JSON + the two published hash recipes (inlined per the spec — no shared lib)
@@ -106,6 +120,21 @@ def exit_nav_proof_hash(proof_obj: dict) -> str:
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
+def recompute_equity_entry_hash(row: dict) -> str:
+    """equity-track §8 — SHA-256 over canonical({seq, date, kind, payload, prev_hash}) where
+    payload = the row minus the four envelope keys and kind = the fixed EQUITY_TRACK_EVENT_TYPE.
+    Mirrors recompute_entry_hash; the equity track is just a second single-genesis chain."""
+    payload = {k: v for k, v in row.items() if k not in EQUITY_TRACK_ENVELOPE_KEYS}
+    canonical = _canonical({
+        "seq": row.get("seq"),
+        "date": row.get("date"),
+        "kind": EQUITY_TRACK_EVENT_TYPE,
+        "payload": payload,
+        "prev_hash": row.get("prev_hash"),
+    })
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 # (A) decision chain — PROOF_CHAIN_SPEC §5
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -132,6 +161,46 @@ def verify_decision_chain(rows: List[dict]) -> dict:
         expected_prev = row["entry_hash"]
         head_hash = row["entry_hash"]
     return {"valid": True, "length": n, "broken_at": None, "head_hash": head_hash}
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# (D) equity track — the EVIDENCED equity / go-live track, hash-chained like (A)  [F2]
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+def verify_equity_track(rows: List[dict]) -> dict:
+    """Walk evidenced equity rows in seq order; at each row require (1) seq == idx, (2) prev_hash ==
+    previous entry_hash (genesis '0'*64), (3) recompute_equity_entry_hash(row) == entry_hash.
+    fail-CLOSED on any malformed row. Returns {valid, length, broken_at, head_hash, n_days,
+    first_date, last_date}. Empty is vacuously valid (no evidenced days yet → honest empty chain)."""
+    expected_prev = EQUITY_TRACK_GENESIS_PREV
+    head_hash: Optional[str] = None
+    first_date: Optional[str] = None
+    last_date: Optional[str] = None
+    n = len(rows)
+
+    def _fail(idx: int) -> dict:
+        return {"valid": False, "length": n, "broken_at": idx, "head_hash": None,
+                "n_days": 0, "first_date": None, "last_date": None}
+
+    for idx, row in enumerate(rows):
+        if not isinstance(row, dict):
+            return _fail(idx)
+        if row.get("seq") != idx:
+            return _fail(idx)
+        if row.get("prev_hash") != expected_prev:
+            return _fail(idx)
+        try:
+            recomputed = recompute_equity_entry_hash(row)
+        except Exception:  # noqa: BLE001 — malformed row → fail-CLOSED
+            return _fail(idx)
+        if recomputed != row.get("entry_hash"):
+            return _fail(idx)
+        if first_date is None:
+            first_date = row.get("date")
+        last_date = row.get("date")
+        expected_prev = row["entry_hash"]
+        head_hash = row["entry_hash"]
+    return {"valid": True, "length": n, "broken_at": None, "head_hash": head_hash,
+            "n_days": n, "first_date": first_date, "last_date": last_date}
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -354,7 +423,7 @@ def _read_json(path: Path) -> Tuple[Optional[dict], Optional[str]]:
 def _resolve_inputs(args_paths: List[str]) -> dict:
     """Map the CLI paths to {decision_log, exit_nav, anchors}. A single directory auto-discovers the
     canonical filenames; explicit files are matched by suffix/name."""
-    found = {"decision_log": None, "exit_nav": None, "anchors": None}
+    found = {"decision_log": None, "exit_nav": None, "anchors": None, "equity_track": None}
     for raw in args_paths:
         p = Path(raw)
         if p.is_dir():
@@ -362,13 +431,16 @@ def _resolve_inputs(args_paths: List[str]) -> dict:
                 "decision_log": p / "decision_log.jsonl",
                 "exit_nav": p / "exit_nav.json",
                 "anchors": p / "anchors.jsonl",
+                "equity_track": p / "equity_track.jsonl",
             }
             for k, fp in cand.items():
                 if fp.exists() and found[k] is None:
                     found[k] = fp
         else:
             name = p.name
-            if name.endswith("decision_log.jsonl") or name == "decision_log.jsonl":
+            if name.endswith("equity_track.jsonl") or name == "equity_track.jsonl":
+                found["equity_track"] = p
+            elif name.endswith("decision_log.jsonl") or name == "decision_log.jsonl":
                 found["decision_log"] = p
             elif name.endswith("anchors.jsonl") or name == "anchors.jsonl":
                 found["anchors"] = p
@@ -398,13 +470,14 @@ def run(paths: List[str], expect_head: Optional[str] = None) -> dict:
         "decision_chain": None,
         "exit_nav": None,
         "anchors": None,
+        "equity_track": None,
         "errors": [],
         "ok": False,
     }
 
     if not any(inputs.values()):
         report["errors"].append("no recognizable public files supplied (decision_log.jsonl / "
-                                "exit_nav.json / anchors.jsonl)")
+                                "exit_nav.json / anchors.jsonl / equity_track.jsonl)")
         return report
 
     decision_head: Optional[str] = None
@@ -453,6 +526,20 @@ def run(paths: List[str], expect_head: Optional[str] = None) -> dict:
             if not res["valid"]:
                 report["errors"].append(f"anchors: broken at index {res['broken_at']}")
 
+    # (D) equity track — the EVIDENCED equity / go-live track hash chain (F2)
+    if inputs["equity_track"]:
+        rows, err = _read_jsonl(inputs["equity_track"])
+        if err is not None:
+            report["errors"].append(f"equity_track: {err}")
+            report["equity_track"] = {"valid": False, "broken_at": None, "head_hash": None,
+                                      "length": None, "n_days": None}
+        else:
+            res = verify_equity_track(rows)
+            report["equity_track"] = res
+            if not res["valid"]:
+                report["errors"].append(
+                    f"equity_track: chain broken at row {res['broken_at']}")
+
     # --expect-head assertion (the published head a reviewer was told to expect)
     if expect_head is not None:
         if decision_head != expect_head:
@@ -493,6 +580,13 @@ def _print_human(report: dict) -> None:
         print(f"    historical     : verified_in_window={an.get('n_historical_verified')}  "
               f"uncheckable_from_public_files={an.get('n_uncheckable')}  "
               f"(uncheckable anchors require the producer ledger — see PROOF_CHAIN_SPEC §6a)")
+
+    et = report["equity_track"]
+    if et is not None:
+        print(f"[D] equity track   : valid={et.get('valid')}  evidenced_days={et.get('n_days')}  "
+              f"broken_at={et.get('broken_at')}  "
+              f"window={et.get('first_date')}..{et.get('last_date')}")
+        print(f"    head_hash      : {et.get('head_hash')}")
 
     if "expected_head" in report:
         ok = report["decision_chain"] and report["decision_chain"].get("head_hash") == report["expected_head"]

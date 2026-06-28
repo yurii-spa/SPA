@@ -21,11 +21,24 @@ import os
 import re
 import unittest
 
+import pytest
+
 # Resolve paths relative to repo root
 _REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
 _INDEX = os.path.join(_REPO, 'index.html')
 _CE_JSON = os.path.join(_REPO, 'data', 'capital_efficiency.json')
 _FC_JSON = os.path.join(_REPO, 'data', 'yield_forecast.json')
+
+# RETIRED ARTIFACT: the legacy github.io single-file dashboard (repo-root index.html)
+# was retired ON PURPOSE — the canonical dashboard is now the Astro /dashboard page,
+# verified by its live-data contract, not by string-matching a deleted HTML blob. These
+# MP-618 structure/CSS/JS assertions test that deleted file → skipped while it is absent.
+if not os.path.isfile(_INDEX):
+    pytest.skip(
+        "legacy repo-root index.html retired (canonical dashboard is now Astro /dashboard); "
+        "MP-618 string-match tests obsolete",
+        allow_module_level=True,
+    )
 
 
 def _html() -> str:

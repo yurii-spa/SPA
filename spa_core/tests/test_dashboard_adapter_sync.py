@@ -339,9 +339,21 @@ class TestTransformerParity(unittest.TestCase):
 # ─── Front-end wiring guard (index.html edits are in place) ──────────────────
 
 class TestFrontEndWiring(unittest.TestCase):
+    """Front-end wiring guard for the LEGACY single-file dashboard (repo-root index.html).
+
+    That dashboard was retired ON PURPOSE — the canonical dashboard is now the Astro
+    /dashboard page. The registry<->artifact transformer-parity tests above stay valuable
+    and run regardless; only THIS class needs the deleted HTML, so it skips while the file
+    is absent (gone by design). The adapter-status data contract is still enforced above.
+    """
+
     @classmethod
     def setUpClass(cls):
-        assert _INDEX_HTML.exists(), f"missing {_INDEX_HTML}"
+        if not _INDEX_HTML.exists():
+            raise unittest.SkipTest(
+                "legacy repo-root index.html retired (canonical dashboard is now Astro "
+                "/dashboard); front-end wiring string-match tests obsolete"
+            )
         cls.html = _INDEX_HTML.read_text(encoding="utf-8")
 
     def test_token_present(self):

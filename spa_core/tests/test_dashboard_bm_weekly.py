@@ -11,9 +11,23 @@ import os
 import re
 import unittest
 
+import pytest
+
 # ── Paths ──────────────────────────────────────────────────────────────────
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 INDEX_HTML = os.path.join(REPO_ROOT, 'index.html')
+
+# RETIRED ARTIFACT: the legacy github.io single-file dashboard (repo-root index.html)
+# was retired ON PURPOSE — the canonical dashboard is now the Astro /dashboard page
+# (landing/), verified by its live-data contract, not by string-matching a deleted HTML
+# blob. These MP-613 structure/CSS/JS assertions test that deleted file, so they are
+# skipped while it is absent (gone by design). They resume only if the file ever returns.
+if not os.path.isfile(INDEX_HTML):
+    pytest.skip(
+        "legacy repo-root index.html retired (canonical dashboard is now Astro /dashboard); "
+        "MP-613 string-match tests obsolete",
+        allow_module_level=True,
+    )
 BENCHMARK_JSON = os.path.join(REPO_ROOT, 'data', 'benchmark_report.json')
 WEEKLY_JSON = os.path.join(REPO_ROOT, 'data', 'weekly_summary.json')
 

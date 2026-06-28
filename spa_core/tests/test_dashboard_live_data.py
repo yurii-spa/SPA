@@ -14,8 +14,23 @@ import os
 import re
 import unittest
 
+import pytest
+
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 INDEX_HTML = os.path.join(REPO_ROOT, "index.html")
+
+# RETIRED ARTIFACT: the legacy github.io single-file dashboard (repo-root index.html) was
+# retired ON PURPOSE. The canonical dashboard is now the Astro /dashboard page, which fetches
+# live data from api.earn-defi.com (/api/v1/golive, /api/v1/evidence, /api/health-public) —
+# its honesty is verified by that live-data CONTRACT (see test_track_days_reconciliation and
+# the track-record page wiring), not by string-matching this deleted single-file dashboard.
+# These SPA-V414/MP-007 source assertions target the deleted file → skipped while it is absent.
+if not os.path.isfile(INDEX_HTML):
+    pytest.skip(
+        "legacy repo-root index.html retired (canonical dashboard is now Astro /dashboard, "
+        "verified by its live-data contract); these string-match tests are obsolete",
+        allow_module_level=True,
+    )
 
 # Демо-файлы (снапшот 2026-05-22), которые дашборд НЕ должен читать.
 # Префикс «'/» или «"/» исключает ложное срабатывание на risk_alerts.json и т.п.

@@ -312,13 +312,17 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
     <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Проверьте этот трек сами">Verify this track yourself</p>
       <div class="rounded-xl border border-teal-500/25 bg-gradient-to-b from-teal-500/[0.05] to-transparent p-6 sm:p-8">
-        <p class="text-sm text-white/55 leading-relaxed max-w-2xl mb-4" data-ru="Трек — не просто график: это верифицируемый артефакт. Решения, на которых он строится, попадают в хешированную цепочку, привязанную к голове (anchors), а NAV каждого дня сверяется (см. Доказательство резервов выше). Не верьте нам — проверьте нас: один автономный верификатор без зависимостей пересчитает каждый хеш и сообщит точный broken_at, если хоть один байт истории изменён задним числом. Никакого бэкфилла: засчитываются только дни с реальным логом цикла.">
+        <p class="text-sm text-white/55 leading-relaxed max-w-2xl mb-4" data-ru="Трек — не просто график: это верифицируемый артефакт. Сам ряд капитала (только подтверждённые дни) попадает в хешированную цепочку с единым генезисом — equity_track.jsonl; решения, на которых он строится, — в свою цепочку (decision_log) с привязкой к голове (anchors), а NAV каждого дня сверяется (см. Доказательство резервов выше). Не верьте нам — проверьте нас: один автономный верификатор без зависимостей (без импорта нашего кода) пересчитывает каждый хеш ОБЕИХ цепочек и сообщает точный broken_at, если хоть один байт истории — подтверждённое значение капитала, переставленный или задним числом изменённый день — был изменён. Никакого бэкфилла: в цепочку капитала входят только дни с реальным логом цикла.">
           The track is not just a chart — it is a <strong class="text-white/85">verifiable artifact</strong>.
-          The decisions behind it are committed to a hash-anchored chain (head-checkpoint anchors), and
-          each day's NAV reconciles (see Proof of Reserves above). Don't trust us — check us: one
-          zero-dependency verifier re-derives every hash and reports the exact
-          <code class="text-teal-300/80">broken_at</code> if a single byte of history was altered. No
-          backfill claims: only days with a real cycle log count.
+          The evidenced equity series itself is committed to a single-genesis hash chain
+          (<code class="text-teal-300/80">equity_track.jsonl</code>); the decisions behind it are
+          committed to their own chain (<code class="text-teal-300/80">decision_log</code>, head-checkpoint
+          anchors), and each day's NAV reconciles (see Proof of Reserves above). Don't trust us — check
+          us: one zero-dependency verifier (it does not import our code) re-derives every hash of
+          <strong class="text-white/85">both</strong> chains and reports the exact
+          <code class="text-teal-300/80">broken_at</code> if a single byte of history — an evidenced
+          equity value, a reordered or back-dated day — was altered. No backfill claims: only days with
+          a real cycle log enter the equity chain.
         </p>
         <div class="rounded-lg bg-black/30 border border-border px-4 py-3 mb-4 overflow-x-auto">
           <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Команда">Command</p>
@@ -326,6 +330,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         </div>
         <p class="text-xs text-white/30 leading-relaxed">
           <span data-ru="Верификатор:">Verifier:</span> <span class="font-mono text-white/50">scripts/verify_spa.py</span>
+          · <span data-ru="цепочка капитала:">equity chain:</span> <span class="font-mono text-white/50">data/rates_desk/equity_track.jsonl</span>
           · <span data-ru="рецепт:">recipe:</span> <span class="font-mono text-white/50">docs/PROOF_CHAIN_SPEC.md</span>
           · <span data-ru="кейс с проверяемыми числами:">checkable case:</span> <span class="font-mono text-white/50">docs/DD_PACK.md</span>
         </p>
