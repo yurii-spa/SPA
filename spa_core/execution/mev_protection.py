@@ -93,6 +93,164 @@ def get_protected_rpc() -> str:
         return FLASHBOTS_RPC_FAST  # default: fast
 
 
+# ─── Gas / sandwich adversarial guard (WS-3.4) ────────────────────────────────
+#
+# A purely deterministic pre-broadcast gate. It NEVER touches the network and
+# NEVER signs — it only DECIDES, given (a) the gas price the cycle proposes,
+# (b) a (gas-oracle reading, reading-age) pair, and (c) an MEV/sandwich risk
+# score, whether to:
+#     * "OK"      — proceed on the public path (cheap, low MEV risk),
+#     * "PROTECT" — re-route through a private/protected relay (gas spike or
+#                   sandwich risk that a private route mitigates), or
+#     * "ABORT"   — fail-CLOSED (oracle stale → we can't trust the price; or the
+#                   gas spike is so large we refuse to overpay blindly).
+#
+# fail-CLOSED bias: any UNKNOWN / stale / non-finite input ⇒ ABORT, never a
+# naive public submit.
+
+# A gas oracle reading older than this is untrustworthy → ABORT.
+GAS_ORACLE_MAX_STALENESS_S = 60.0
+# Proposed gas price above this MULTIPLE of the oracle baseline is a "spike".
+# A spike is routable privately, but…
+GAS_SPIKE_PROTECT_MULT = 1.5
+# …above this HARD multiple we refuse to overpay blindly → ABORT.
+GAS_SPIKE_ABORT_MULT = 3.0
+# Sandwich/MEV composite risk at/above this routes PRIVATE; below proceeds.
+SANDWICH_PROTECT_RISK = 0.10
+# …and at/above this HARD score even a private route is refused → ABORT.
+SANDWICH_ABORT_RISK = 0.85
+
+_GAS_DECISIONS = ("OK", "PROTECT", "ABORT")
+
+
+def evaluate_gas_and_mev(
+    proposed_gas_gwei: float,
+    oracle_gas_gwei: float,
+    oracle_age_s: float,
+    sandwich_risk: float = 0.0,
+) -> dict:
+    """Deterministic, fail-CLOSED decision for a pending broadcast.
+
+    Parameters
+    ----------
+    proposed_gas_gwei : float
+        The gas price the cycle intends to pay (gwei).
+    oracle_gas_gwei : float
+        The current gas oracle baseline (gwei).
+    oracle_age_s : float
+        Seconds since the oracle reading was taken. A stale oracle ⇒ ABORT.
+    sandwich_risk : float
+        Composite MEV/sandwich risk in [0, 1] (e.g. from MEVRiskDetector).
+
+    Returns
+    -------
+    dict
+        ``{"decision": "OK"|"PROTECT"|"ABORT", "reason": str,
+           "gas_ratio": float|None, "require_private": bool}``.
+
+    The function NEVER raises on bad input — a non-finite / negative / stale
+    reading deterministically yields ``ABORT`` (fail-CLOSED).
+    """
+    def _abort(reason: str) -> dict:
+        return {"decision": "ABORT", "reason": reason, "gas_ratio": None,
+                "require_private": True}
+
+    # --- Input sanity → fail-CLOSED on anything we can't trust. ---
+    for name, val in (("proposed_gas_gwei", proposed_gas_gwei),
+                      ("oracle_gas_gwei", oracle_gas_gwei),
+                      ("oracle_age_s", oracle_age_s),
+                      ("sandwich_risk", sandwich_risk)):
+        if not isinstance(val, (int, float)) or isinstance(val, bool):
+            return _abort(f"{name} not numeric → ABORT (fail-closed)")
+        if val != val or val in (float("inf"), float("-inf")):  # NaN / Inf
+            return _abort(f"{name} non-finite → ABORT (fail-closed)")
+    if proposed_gas_gwei < 0 or oracle_gas_gwei <= 0 or oracle_age_s < 0:
+        return _abort("non-positive/negative gas or age → ABORT (fail-closed)")
+    if not (0.0 <= sandwich_risk <= 1.0):
+        return _abort(f"sandwich_risk {sandwich_risk} outside [0,1] → ABORT (fail-closed)")
+
+    # --- Stale oracle: we can't trust the baseline → never submit blindly. ---
+    if oracle_age_s > GAS_ORACLE_MAX_STALENESS_S:
+        return _abort(
+            f"gas oracle stale ({oracle_age_s:.0f}s > {GAS_ORACLE_MAX_STALENESS_S:.0f}s) "
+            "→ ABORT (fail-closed)"
+        )
+
+    gas_ratio = proposed_gas_gwei / oracle_gas_gwei
+
+    # --- Hard sandwich risk: even a private relay can't make this safe. ---
+    if sandwich_risk >= SANDWICH_ABORT_RISK:
+        return {"decision": "ABORT",
+                "reason": f"sandwich risk {sandwich_risk:.2f} >= {SANDWICH_ABORT_RISK} → ABORT",
+                "gas_ratio": round(gas_ratio, 4), "require_private": True}
+
+    # --- Hard gas spike: refuse to overpay blindly. ---
+    if gas_ratio >= GAS_SPIKE_ABORT_MULT:
+        return {"decision": "ABORT",
+                "reason": (f"gas spike {gas_ratio:.2f}x baseline >= "
+                           f"{GAS_SPIKE_ABORT_MULT}x → ABORT (won't overpay)"),
+                "gas_ratio": round(gas_ratio, 4), "require_private": True}
+
+    # --- Routable spike or elevated sandwich risk → require PRIVATE route. ---
+    if gas_ratio >= GAS_SPIKE_PROTECT_MULT:
+        return {"decision": "PROTECT",
+                "reason": (f"gas spike {gas_ratio:.2f}x baseline >= "
+                           f"{GAS_SPIKE_PROTECT_MULT}x → route PRIVATE"),
+                "gas_ratio": round(gas_ratio, 4), "require_private": True}
+    if sandwich_risk >= SANDWICH_PROTECT_RISK:
+        return {"decision": "PROTECT",
+                "reason": (f"sandwich risk {sandwich_risk:.2f} >= "
+                           f"{SANDWICH_PROTECT_RISK} → route PRIVATE"),
+                "gas_ratio": round(gas_ratio, 4), "require_private": True}
+
+    # --- Calm market, low MEV risk → public path is fine. ---
+    return {"decision": "OK", "reason": "gas normal, MEV risk low",
+            "gas_ratio": round(gas_ratio, 4), "require_private": False}
+
+
+def guard_broadcast(
+    signed_tx_hex: str,
+    proposed_gas_gwei: float,
+    oracle_gas_gwei: float,
+    oracle_age_s: float,
+    sandwich_risk: float = 0.0,
+    fallback_rpc: Optional[str] = None,
+    timeout: int = 30,
+) -> dict[str, Any]:
+    """Gas/MEV-aware broadcast: evaluate FIRST, then route protected or ABORT.
+
+    This is the WS-3.4 fail-CLOSED entry point. It will NEVER do a naive public
+    submit under a gas spike or sandwich pattern:
+
+      * ``ABORT``   → returns ``{"status": "ABORTED", ...}`` and broadcasts
+                      NOTHING (stale oracle / extreme spike / extreme sandwich).
+      * ``PROTECT`` → routes through :func:`send_protected` (private relay), with
+                      NO public fallback (a private-required tx must not silently
+                      fall through to the mempool).
+      * ``OK``      → routes through :func:`send_protected` as well, but the
+                      caller-supplied ``fallback_rpc`` is permitted.
+
+    The tx is only ever handed to a protected relay; the public path is reachable
+    only as an explicit fallback on an ``OK`` decision.
+    """
+    verdict = evaluate_gas_and_mev(
+        proposed_gas_gwei, oracle_gas_gwei, oracle_age_s, sandwich_risk
+    )
+    decision = verdict["decision"]
+    if decision == "ABORT":
+        log.error("guard_broadcast ABORT — %s (no tx submitted)", verdict["reason"])
+        return {"status": "ABORTED", "reason": verdict["reason"],
+                "protection": "aborted", "gas_ratio": verdict["gas_ratio"]}
+
+    # PROTECT → private only (no public fallback). OK → may fall back to public.
+    fb = None if verdict["require_private"] else fallback_rpc
+    log.info("guard_broadcast %s — %s", decision, verdict["reason"])
+    result = send_protected(signed_tx_hex, fallback_rpc=fb, timeout=timeout)
+    result["gas_decision"] = decision
+    result["gas_reason"] = verdict["reason"]
+    return result
+
+
 # ─── Core send function ───────────────────────────────────────────────────────
 
 def send_protected(

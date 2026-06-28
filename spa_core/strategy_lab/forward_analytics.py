@@ -378,6 +378,164 @@ def analyze_track(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# WS-1.6 — captured-book PnL attribution (carry-leg vs RWA floor-leg), reconciling to NAV
+# ──────────────────────────────────────────────────────────────────────────────
+def captured_book_attribution(
+    series_doc: Any,
+    *,
+    floor_apy_pct: Optional[float] = None,
+    name: str = "rates_desk_fixed_carry",
+) -> dict:
+    """Decompose the captured sleeve's REALIZED PnL into a floor-leg + a carry-leg, in DOLLARS,
+    reconciling EXACTLY to the captured-book NAV.
+
+    The captured FixedCarry sleeve sits on a paper book that started at an initial capital and now
+    marks a current equity (NAV). Its realized PnL = NAV − initial_capital. We split that realized
+    PnL into two honest legs, day by day on the realized equity path:
+
+      • floor_leg_usd  — what the ~3.4% RWA risk-free floor would have accrued on the SAME marking
+        capital over the SAME elapsed calendar days (simple per-day floor accrual on each step's
+        opening equity). This is the "you could have just held tokenized T-bills" benchmark.
+      • carry_leg_usd  — the RESIDUAL: realized_pnl_usd − floor_leg_usd. The genuine carry edge the
+        sleeve captured ABOVE the floor (can be NEGATIVE — honest when the book underperforms cash).
+
+    RECONCILIATION (the property the verification pins): floor_leg_usd + carry_leg_usd ==
+    realized_pnl_usd, to the cent. The carry leg is DEFINED as the residual precisely so the
+    decomposition always reconciles to the realized NAV move — no leg can be fabricated independently.
+
+    HONESTY / fail-CLOSED:
+      • the series passes track_integrity FIRST (gap / duplicate / out-of-order / FUTURE-dated /
+        malformed → reconciles=False, status UNKNOWN, NO numbers). A tampered or look-ahead series
+        is REFUSED here — it never yields an inflated carry number.
+      • non-finite / non-numeric equity → malformed → UNKNOWN (reuses _extract_equity's guard).
+      • THIN until the track matures: with < MIN_POINTS_FOR_RATIO points the dollar legs are still
+        well-defined and reconcile, but `thin=True` and `risk_adjusted_known=False` flag that the
+        risk-adjusted carry quality (Sharpe) is not yet trustworthy — the legs are an honest $ split,
+        not a risk-adjusted verdict.
+
+    Returns a dict reconciling to NAV; deterministic / PURE / stdlib-only.
+    """
+    floor = metrics.rwa_floor_apy_pct() if floor_apy_pct is None else float(floor_apy_pct)
+    floor_daily = (floor / 100.0) / 365.0
+
+    base = {
+        "name": name,
+        "model": "captured_book_attribution",
+        "status": "UNKNOWN",
+        "reconciles": False,
+        "integrity_ok": False,
+        "integrity_reason": "malformed",
+        "n_points": 0,
+        "first_date": None,
+        "last_date": None,
+        "elapsed_days": 0,
+        "rwa_floor_pct": round(floor, 4),
+        "initial_capital_usd": None,
+        "nav_usd": None,
+        "realized_pnl_usd": None,
+        "floor_leg_usd": None,
+        "carry_leg_usd": None,
+        "residual_usd": None,
+        "thin": True,
+        "risk_adjusted_known": False,
+        "carry_beats_floor": None,
+    }
+
+    # ── 1. integrity gate (fail-CLOSED) — refuse a tampered / look-ahead / gapped series ──────────
+    integ = ti.check_track_integrity(series_doc)
+    base["integrity_ok"] = bool(integ["ok"])
+    base["integrity_reason"] = integ["reason"]
+    base["n_points"] = integ["n_points"]
+    base["first_date"] = integ["first_date"]
+    base["last_date"] = integ["last_date"]
+    if not integ["ok"]:
+        return base  # broken/look-ahead → no numbers, never a fabricated carry leg
+
+    points = ti._coerce_series(series_doc) or []
+    if len(points) < 2:
+        # a single (or empty) point has no realized PnL move to attribute — honest, not fabricated.
+        base["status"] = "THIN"
+        base["reconciles"] = True  # trivially: 0 == 0 + 0
+        if points:
+            try:
+                eq0 = _extract_equity(points)[0]
+            except ValueError as exc:
+                base["integrity_ok"] = False
+                base["integrity_reason"] = f"malformed:{exc}"
+                return base
+            base.update({
+                "initial_capital_usd": round(eq0, 2), "nav_usd": round(eq0, 2),
+                "realized_pnl_usd": 0.0, "floor_leg_usd": 0.0, "carry_leg_usd": 0.0,
+                "residual_usd": 0.0, "elapsed_days": 0,
+            })
+        return base
+
+    # ── 2. equity path (fail-CLOSED on non-finite / non-numeric) ─────────────────────────────────
+    try:
+        equity = _extract_equity(points)
+    except ValueError as exc:
+        base["integrity_ok"] = False
+        base["integrity_reason"] = f"malformed:{exc}"
+        return base
+
+    initial = equity[0]
+    nav = equity[-1]
+    realized_pnl = nav - initial
+
+    # ── 3. floor leg — per-day simple floor accrual on each step's OPENING equity ─────────────────
+    # The floor benchmark earns floor_daily on the capital marked at the start of each daily step,
+    # accumulated across the elapsed days BETWEEN consecutive points (so a 2-day gap-free step accrues
+    # 2 days; integrity already guarantees contiguous calendar days, so this is 1 day per step).
+    floor_leg = 0.0
+    elapsed_days = 0
+    for i in range(1, len(equity)):
+        d_prev = points[i - 1].get("date")
+        d_cur = points[i].get("date")
+        step_days = 1
+        try:
+            if d_prev and d_cur:
+                step_days = max(
+                    1,
+                    (datetime.date.fromisoformat(str(d_cur)) -
+                     datetime.date.fromisoformat(str(d_prev))).days,
+                )
+        except ValueError:
+            step_days = 1
+        # accrue the floor on the opening equity of this step, for step_days days
+        floor_leg += equity[i - 1] * floor_daily * step_days
+        elapsed_days += step_days
+
+    # ── 4. carry leg = RESIDUAL → reconciliation is EXACT by construction ────────────────────────
+    carry_leg = realized_pnl - floor_leg
+    residual = round((floor_leg + carry_leg) - realized_pnl, 6)  # == 0 by definition
+
+    thin = len(equity) < MIN_POINTS_FOR_RATIO
+    base.update({
+        "status": "THIN" if thin else "OK",
+        "reconciles": bool(abs(residual) < 1e-6),
+        "elapsed_days": elapsed_days,
+        "initial_capital_usd": round(initial, 2),
+        "nav_usd": round(nav, 2),
+        "realized_pnl_usd": round(realized_pnl, 4),
+        "floor_leg_usd": round(floor_leg, 4),
+        "carry_leg_usd": round(carry_leg, 4),
+        "residual_usd": residual,
+        "thin": thin,
+        "risk_adjusted_known": (not thin),
+        "carry_beats_floor": bool(carry_leg > 0.0),
+        "note": (
+            "Captured FixedCarry paper book — advisory, not realized capital. PnL split into the "
+            "RWA floor-leg (what tokenized T-bills would have earned) and the carry-leg (residual "
+            "edge above the floor). carry+floor reconciles to the captured-book NAV exactly. "
+            + ("THIN: < MIN_POINTS_FOR_RATIO days → the $ split is honest but the risk-adjusted "
+               "carry quality (Sharpe) is not yet trustworthy." if thin
+               else "Track has enough depth for a risk-adjusted read.")
+        ),
+    })
+    return base
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # T5 — drawdown + stress overlay on the realized forward record
 # ──────────────────────────────────────────────────────────────────────────────
 def _held_pt_notional(state_doc: Any) -> Tuple[float, float, int]:
@@ -526,6 +684,7 @@ def build_scorecard(
     files = _discover_series_files(root)
     tracks: List[dict] = []
     carry_track_equity: Optional[List[float]] = None
+    carry_series_doc: Any = None
     for f in files:
         name = _track_name(f)
         try:
@@ -544,8 +703,9 @@ def build_scorecard(
             continue
         card = analyze_track(doc, name=name, floor_apy_pct=floor)
         tracks.append(card)
-        # capture the carry track's realized equity for the stress overlay
+        # capture the carry track's realized equity for the stress overlay + the WS-1.6 attribution
         if name.endswith("rates_desk_fixed_carry") and card["integrity_ok"]:
+            carry_series_doc = doc
             pts = ti._coerce_series(doc) or []
             try:
                 carry_track_equity = _extract_equity(pts)
@@ -569,6 +729,13 @@ def build_scorecard(
         held, cur_equity or 0.0,
     )
     overlay["n_open_books"] = n_open
+
+    # ── WS-1.6 captured-book attribution on the FixedCarry sleeve (carry-leg vs floor-leg → NAV) ──
+    captured_attr = (
+        captured_book_attribution(carry_series_doc, floor_apy_pct=floor)
+        if carry_series_doc is not None
+        else captured_book_attribution({"series": []}, floor_apy_pct=floor)
+    )
 
     n_unknown = sum(1 for t in tracks if t["verdict"] == "UNKNOWN")
     n_thin = sum(1 for t in tracks if t["verdict"] == "THIN_TRACK")
@@ -598,6 +765,7 @@ def build_scorecard(
         "n_dsr_active": n_dsr_active,
         "tracks": tracks,
         "carry_book_stress_overlay": overlay,
+        "captured_book_attribution": captured_attr,
     }
     if write:
         atomic_save(out, str(root / SCORECARD_FILE.name))

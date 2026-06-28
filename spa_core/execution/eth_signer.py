@@ -30,6 +30,11 @@ keccak256(data) -> bytes
 get_nonce(address, rpc_url) -> int
     eth_getTransactionCount("pending").
 
+assert_nonce_ok(intended_nonce, pending_nonce) -> int
+    Fail-CLOSED nonce-gap / reuse guard (WS-3.3) — call BEFORE signing.  Raises
+    ValidationError if the intended nonce is not exactly the on-chain pending
+    nonce (a gap would stall the tx; a lower value is reuse).
+
 estimate_gas(tx_dict, rpc_url) -> int
     eth_estimateGas.
 
@@ -72,6 +77,115 @@ log = logging.getLogger("spa.eth_signer")
 
 # Ethereum mainnet chain id — MEV protection only applies here.
 _ETHEREUM_MAINNET_CHAIN_ID = 1
+
+
+# ─── Key-material handling (centralised, leak-proof) ──────────────────────────
+#
+# SECURITY CONTRACT (WS-3.3 hardening, builds on the WS-1.1 redaction):
+#   * The raw private key must NEVER appear in ANY surfaced diagnostic — not in
+#     a ValidationError message, not in a log line, not in the repr() of an
+#     exception raised on the signing path.
+#   * All key normalisation lives in ONE place (_strip_hex_prefix / _pk_to_bytes)
+#     so the redaction can't be reintroduced piecemeal by a future inline edit.
+#   * Every call into the crypto backend is wrapped by ``_scrub_key`` so that
+#     even if the backend echoes the key into its own exception (some
+#     eth_account versions stringify ``private_key=...``), we re-raise a scrubbed
+#     error rather than letting the secret propagate.
+
+_REDACTED = "<redacted>"
+
+
+def _strip_hex_prefix(value: str) -> str:
+    """Strip a leading ``0x`` / ``0X`` prefix WITHOUT eating significant zeros.
+
+    A naive ``value.lstrip("0x")`` removes ANY leading 0/x chars and so corrupts
+    keys/selectors whose first nibble is zero (e.g. ``0x00ab…`` → ``ab…``). This
+    helper removes ONLY the two-char prefix.
+    """
+    if value[:2] in ("0x", "0X"):
+        return value[2:]
+    return value
+
+
+def _pk_to_bytes(private_key_hex: str) -> bytes:
+    """Normalise a hex private key to its raw 32 bytes, fail-CLOSED on shape.
+
+    Raises ``ValidationError`` (with the key REDACTED — never echoed) if the
+    value is not exactly 64 hex chars after stripping the ``0x`` prefix.
+    """
+    pk_hex = _strip_hex_prefix(private_key_hex)
+    if len(pk_hex) != 64:
+        # SECURITY: never echo the raw key material into the error (it would
+        # propagate into logs / tracebacks). Report only the redacted value + length.
+        raise ValidationError(
+            "private_key", _REDACTED, f"must be 64 hex chars (0x prefix optional); got {len(pk_hex)}"
+        )
+    try:
+        raw = bytes.fromhex(pk_hex)
+    except ValueError:
+        # A non-hex character — report redacted, never the offending nibble.
+        raise ValidationError("private_key", _REDACTED, "must be valid hex (0-9a-fA-F)")
+    if len(raw) != 32:  # pragma: no cover - defensive; 64 hex chars == 32 bytes
+        raise ValidationError("private_key", _REDACTED, f"must be 32 bytes; got {len(raw)}")
+    return raw
+
+
+def _normalised_pk(private_key_hex: str) -> str:
+    """Return the canonical ``0x`` + 64-hex form of *private_key_hex*.
+
+    Validates shape via :func:`_pk_to_bytes` (fail-CLOSED, key redacted), then
+    rebuilds the canonical string from the validated bytes so leading zeros and
+    case are preserved deterministically.
+    """
+    return "0x" + _pk_to_bytes(private_key_hex).hex()
+
+
+def _scrub(text: object, secrets: tuple[str, ...]) -> str:
+    """Replace every occurrence of each secret (and its 0x-variants) in *text*.
+
+    Used to sanitise any backend-raised message before we re-surface it.
+    """
+    out = str(text)
+    for s in secrets:
+        if not s:
+            continue
+        for variant in (s, "0x" + s, "0X" + s, s.lower(), s.upper()):
+            if variant and variant in out:
+                out = out.replace(variant, _REDACTED)
+    return out
+
+
+def _scrub_key(fn: Any, private_key_hex: str, normalised_pk: str) -> Any:
+    """Invoke ``fn()`` (a crypto-backend call) and, on ANY exception, re-raise a
+    scrubbed copy so the private key can never leak through the backend's own
+    error message / args / repr.
+
+    The original exception type is preserved; only its textual content is
+    scrubbed. We deliberately do NOT log the key here (nothing logs it).
+    """
+    # Build the set of secret forms to scrub: the raw input, the 0x-stripped
+    # body, and the canonical normalised form.
+    body = _strip_hex_prefix(private_key_hex)
+    norm_body = _strip_hex_prefix(normalised_pk)
+    secrets = tuple({private_key_hex, body, normalised_pk, norm_body})
+    try:
+        return fn()
+    except BaseException as exc:  # noqa: BLE001 - re-raised scrubbed, never swallowed
+        scrubbed_msg = _scrub(exc, secrets)
+        # If the backend leaked nothing, re-raise the original untouched so the
+        # traceback / type stays maximally faithful.
+        original = str(exc)
+        if scrubbed_msg == original and not any(
+            s and (s in repr(exc.args)) for s in secrets
+        ):
+            raise
+        # Otherwise re-raise the SAME exception type with a scrubbed message.
+        try:
+            raise type(exc)(scrubbed_msg) from None
+        except TypeError:
+            # Exception type can't be rebuilt from a single str arg → raise a
+            # generic RuntimeError carrying only the scrubbed text.
+            raise RuntimeError(scrubbed_msg) from None
 
 
 # ─── eth_account lazy loader ──────────────────────────────────────────────────
@@ -127,14 +241,13 @@ def get_address_from_private_key(private_key_hex: str) -> str:
         ValidationError: If the key length is wrong or not valid hex.
         ImportError: If eth_account is not installed.
     """
-    pk_hex = private_key_hex[2:] if private_key_hex[:2].lower() == "0x" else private_key_hex
-    if len(pk_hex) != 64:
-        # SECURITY: never echo the raw key material into the error (it propagates
-        # into logs / tracebacks). Report only the length, redacted value.
-        raise ValidationError("private_key", "<redacted>", f"must be 64 hex chars (0x prefix optional); got {len(pk_hex)}")
+    normalised = _normalised_pk(private_key_hex)  # fail-CLOSED, key redacted on bad shape
     Account = _get_account()
-    normalised = "0x" + pk_hex
-    return Account.from_key(normalised).address
+    return _scrub_key(
+        lambda: Account.from_key(normalised).address,
+        private_key_hex,
+        normalised,
+    )
 
 
 # ─── EIP-1559 transaction signing ─────────────────────────────────────────────
@@ -164,11 +277,13 @@ def sign_transaction(private_key_hex: str, tx_dict: dict) -> bytes:
         ValidationError: If the private key is malformed.
         ImportError: If eth_account is not installed.
     """
-    pk_hex = private_key_hex[2:] if private_key_hex[:2].lower() == "0x" else private_key_hex
-    if len(pk_hex) != 64:
-        # SECURITY: redact the key material — never surface it in errors/logs.
-        raise ValidationError("private_key", "<redacted>", f"must be 64 hex chars; got {len(pk_hex)}")
-    normalised_pk = "0x" + pk_hex
+    normalised_pk = _normalised_pk(private_key_hex)  # fail-CLOSED, key redacted on bad shape
+
+    # SECURITY (WS-3.3): a malformed nonce is a fail-CLOSED abort BEFORE we sign.
+    # A negative or non-integer nonce can never produce a valid tx — refuse to
+    # build one rather than sign garbage the chain would reject (or worse,
+    # accept at an unintended slot).
+    nonce_val = _coerce_nonce(tx_dict.get("nonce"))
 
     # Normalise data field
     data_raw = tx_dict.get("data", b"")
@@ -184,14 +299,18 @@ def sign_transaction(private_key_hex: str, tx_dict: dict) -> bytes:
         "gas":                  int(tx_dict["gas"]),
         "maxFeePerGas":         int(tx_dict["maxFeePerGas"]),
         "maxPriorityFeePerGas": int(tx_dict["maxPriorityFeePerGas"]),
-        "nonce":                int(tx_dict["nonce"]),
+        "nonce":                nonce_val,
         "chainId":              int(tx_dict["chainId"]),
         "data":                 data_field,
         "type":                 2,
     }
 
     Account = _get_account()
-    signed = Account.sign_transaction(tx, private_key=normalised_pk)
+    signed = _scrub_key(
+        lambda: Account.sign_transaction(tx, private_key=normalised_pk),
+        private_key_hex,
+        normalised_pk,
+    )
 
     # rawTransaction attribute may differ between eth_account versions
     raw = getattr(signed, "rawTransaction", None)
@@ -225,11 +344,7 @@ def sign_message(message: str | bytes, private_key_hex: str) -> str:
         ValidationError: If the private key is malformed.
         ImportError: If eth_account is not installed.
     """
-    pk_hex = private_key_hex[2:] if private_key_hex[:2].lower() == "0x" else private_key_hex
-    if len(pk_hex) != 64:
-        # SECURITY: redact the key material — never surface it in errors/logs.
-        raise ValidationError("private_key", "<redacted>", f"must be 64 hex chars; got {len(pk_hex)}")
-    normalised_pk = "0x" + pk_hex
+    normalised_pk = _normalised_pk(private_key_hex)  # fail-CLOSED, key redacted on bad shape
 
     from eth_account.messages import encode_defunct  # type: ignore
 
@@ -239,7 +354,11 @@ def sign_message(message: str | bytes, private_key_hex: str) -> str:
         msg = encode_defunct(message)
 
     Account = _get_account()
-    signed = Account.sign_message(msg, private_key=normalised_pk)
+    signed = _scrub_key(
+        lambda: Account.sign_message(msg, private_key=normalised_pk),
+        private_key_hex,
+        normalised_pk,
+    )
     return "0x" + signed.signature.hex()
 
 
@@ -351,6 +470,65 @@ def get_nonce(address: str, rpc_url: str) -> int:
     """Return the pending transaction count (nonce) for *address*."""
     result = _rpc_call(rpc_url, "eth_getTransactionCount", [address, "pending"])
     return int(result, 16)
+
+
+# ─── Nonce safety (WS-3.3) ────────────────────────────────────────────────────
+
+def _coerce_nonce(nonce: Any) -> int:
+    """Validate + coerce a tx nonce, fail-CLOSED on anything malformed.
+
+    A nonce must be a non-negative integer. ``bool`` is rejected explicitly
+    (``True``/``False`` are ints in Python and would silently become 1/0). A
+    negative, non-finite, or non-integral nonce raises ``ValidationError`` so a
+    garbage tx is never signed.
+    """
+    if isinstance(nonce, bool):
+        raise ValidationError("nonce", nonce, "must be an integer, not bool")
+    if isinstance(nonce, float):
+        # Reject NaN/Inf and any non-integral float (e.g. 5.5) — never round.
+        if nonce != nonce or nonce in (float("inf"), float("-inf")) or not nonce.is_integer():
+            raise ValidationError("nonce", nonce, "must be a non-negative integer")
+        nonce = int(nonce)
+    if not isinstance(nonce, int):
+        raise ValidationError("nonce", nonce, "must be a non-negative integer")
+    if nonce < 0:
+        raise ValidationError("nonce", nonce, "must be non-negative (no nonce reuse below current)")
+    return nonce
+
+
+def assert_nonce_ok(intended_nonce: int, pending_nonce: int) -> int:
+    """Fail-CLOSED nonce-gap / reuse guard, to be called BEFORE signing.
+
+    The on-chain ``pending`` nonce (from :func:`get_nonce`) is the ONLY value
+    that produces an immediately-includable tx. Deviations are refused:
+
+      * ``intended < pending``  → REUSE: a tx at this nonce is already pending or
+        mined; re-using it would either replace-by-fee an unrelated tx or be
+        dropped. ABORT.
+      * ``intended > pending``  → GAP: the tx would be stuck (the chain executes
+        nonces strictly in order) until the gap is filled, leaving capital in an
+        indeterminate state. ABORT.
+
+    Returns *intended_nonce* unchanged when it exactly equals *pending_nonce*.
+
+    Raises:
+        ValidationError: on a gap or reuse, or on malformed inputs.
+    """
+    intended = _coerce_nonce(intended_nonce)
+    pending = _coerce_nonce(pending_nonce)
+    if intended < pending:
+        raise ValidationError(
+            "nonce",
+            intended,
+            f"nonce reuse: intended {intended} < on-chain pending {pending} — ABORT (no submit)",
+        )
+    if intended > pending:
+        raise ValidationError(
+            "nonce",
+            intended,
+            f"nonce gap: intended {intended} > on-chain pending {pending} — ABORT (tx would stall)",
+        )
+    return intended
 
 
 def get_base_fee(rpc_url: str) -> int:

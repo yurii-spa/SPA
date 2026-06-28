@@ -129,21 +129,40 @@ class SafeTxBuilder:
     НИКОГДА не передавай приватные ключи в этот класс.
     """
 
-    def __init__(self, safe_address: str, chain_id: int = 1) -> None:
+    def __init__(
+        self,
+        safe_address: str,
+        chain_id: int = 1,
+        owners: Optional[list] = None,
+        threshold: Optional[int] = None,
+    ) -> None:
         """
         Args:
             safe_address: Ethereum-адрес Safe контракта (checksum-формат, 0x + 40 hex).
             chain_id:     Chain ID. 1 = Mainnet, 11155111 = Sepolia.
+            owners:       Optional list of Safe owner addresses (the signer set).
+                          When provided it is validated against *threshold* so an
+                          UNSIGNABLE multisig config is refused at construction
+                          (WS-3.3 — never build a tx that can't reach threshold).
+            threshold:    Optional M of the M-of-N policy (e.g. 2 for 2-of-3).
+                          Defaults to ADR-022 2-of-3 semantics when owners are
+                          supplied without an explicit threshold.
 
         Raises:
-            ValueError: если safe_address имеет неправильный формат.
-            ValueError: если chain_id не является положительным целым числом.
+            ValidationError: если safe_address имеет неправильный формат.
+            ValidationError: если chain_id не является положительным целым числом.
+            ValidationError: если owner-set/threshold не образуют подписываемую
+                             конфигурацию (insufficient/missing signer set).
         """
         _validate_safe_address(safe_address)
         if not isinstance(chain_id, int) or chain_id <= 0:
             raise ValidationError("chain_id", chain_id, "must be a positive integer")
         self._safe_address = safe_address
         self._chain_id = chain_id
+        # Signer-set policy. When owners are not supplied the builder stays in its
+        # historical mode (proposal-only; the external client supplies signers) —
+        # but if a caller DOES declare owners/threshold we enforce signability.
+        self._owners, self._threshold = _validate_signer_set(owners, threshold)
         self._mode = os.environ.get("SPA_EXECUTION_MODE", "paper").lower()
 
         if not self.is_paper_mode():
@@ -209,6 +228,9 @@ class SafeTxBuilder:
         """
         if self.is_paper_mode():
             return {}
+
+        # WS-3.3: never build a tx the configured signer set can't sign.
+        self.assert_signable()
 
         if amount_usd <= 0:
             raise ValidationError("amount_usd", amount_usd, "must be positive")
@@ -294,6 +316,9 @@ class SafeTxBuilder:
         if self.is_paper_mode():
             return {}
 
+        # WS-3.3: never build a tx the configured signer set can't sign.
+        self.assert_signable()
+
         if amount_usd <= 0:
             raise ValidationError("amount_usd", amount_usd, "must be positive")
 
@@ -364,6 +389,44 @@ class SafeTxBuilder:
         """Возвращает chain ID."""
         return self._chain_id
 
+    def get_signer_set(self) -> tuple:
+        """Возвращает (owners, threshold) — declared signer-set policy.
+
+        ``owners`` is an empty tuple when no signer set was declared (historical
+        proposal-only mode, signers supplied by the external client).
+        """
+        return (tuple(self._owners), self._threshold)
+
+    def is_signable(self) -> bool:
+        """True если объявленный signer-set может достичь threshold (или не объявлен)."""
+        try:
+            self.assert_signable()
+            return True
+        except ValidationError:
+            return False
+
+    def assert_signable(self) -> None:
+        """Fail-CLOSED guard: refuse to proceed if the multisig is UNSIGNABLE.
+
+        When a signer set is declared (``owners`` non-empty), it must contain at
+        least ``threshold`` distinct owners — otherwise no valid M-of-N signature
+        can ever be collected and any tx we build would be unsignable. When NO
+        signer set is declared the builder stays in proposal-only mode (the
+        external Safe client supplies signers) and this is a no-op.
+
+        Raises:
+            ValidationError: если signer-set недостаточен для threshold.
+        """
+        if not self._owners:
+            return  # proposal-only mode — external client owns the signer set
+        if len(self._owners) < self._threshold:
+            raise ValidationError(
+                "signer_set",
+                f"{len(self._owners)} owners",
+                f"insufficient signer set: {len(self._owners)} owners < threshold "
+                f"{self._threshold} — UNSIGNABLE multisig, refusing to build tx",
+            )
+
     def describe(self) -> dict:
         """
         Возвращает конфигурацию SafeTxBuilder (для логирования и диагностики).
@@ -378,6 +441,9 @@ class SafeTxBuilder:
             "tx_service_url": self.get_safe_tx_service_url(),
             "single_sig_threshold_usd": SINGLE_SIG_THRESHOLD_USD,
             "protocol_whitelist_keys": list(PROTOCOL_WHITELIST.keys()),
+            "owner_count": len(self._owners),
+            "threshold": self._threshold,
+            "is_signable": self.is_signable(),
         }
 
     def validate_proposal(self, proposal: dict) -> list:
@@ -681,6 +747,63 @@ def _encode_withdraw_stub(
 # ---------------------------------------------------------------------------
 # Вспомогательные функции: ABI encoding (stdlib only)
 # ---------------------------------------------------------------------------
+
+def _validate_signer_set(owners: Optional[list], threshold: Optional[int]) -> tuple:
+    """Validate + normalise a declared (owners, threshold) signer-set policy.
+
+    Returns ``(owners_tuple, threshold_int)``. When *owners* is None/empty the
+    builder stays proposal-only and we return ``((), 1)`` (a no-op threshold).
+
+    A declared signer set is checked fail-CLOSED at construction time:
+      * every owner must be a well-formed 0x+40-hex address,
+      * owners must be distinct (duplicate owners can't each contribute a sig),
+      * threshold must be a positive int that does NOT exceed the owner count
+        (an unreachable threshold = permanently unsignable Safe).
+
+    Raises:
+        ValidationError: on any malformed / unsignable configuration.
+    """
+    if owners is None:
+        owners = []
+    if not isinstance(owners, (list, tuple)):
+        raise ValidationError("owners", type(owners).__name__, "must be a list of addresses")
+
+    # No owners declared → proposal-only mode (default threshold 1, never used).
+    if len(owners) == 0:
+        if threshold not in (None, 0):
+            raise ValidationError(
+                "threshold", threshold,
+                "threshold declared without an owner set — ambiguous, refusing",
+            )
+        return ((), 1)
+
+    # Validate each owner address and reject duplicates (case-insensitive).
+    seen: set[str] = set()
+    normalised: list[str] = []
+    for o in owners:
+        _validate_safe_address(o)  # same 0x + 40 hex contract as the Safe address
+        key = o.lower()
+        if key in seen:
+            raise ValidationError("owners", o, "duplicate owner address — each owner signs once")
+        seen.add(key)
+        normalised.append(o)
+
+    # Default to ADR-022 2-of-3 semantics when threshold omitted, but clamp to a
+    # sane value and ALWAYS verify it is reachable.
+    if threshold is None:
+        threshold = 2 if len(normalised) >= 2 else 1
+    if isinstance(threshold, bool) or not isinstance(threshold, int):
+        raise ValidationError("threshold", threshold, "must be a positive integer")
+    if threshold < 1:
+        raise ValidationError("threshold", threshold, "must be >= 1")
+    if threshold > len(normalised):
+        raise ValidationError(
+            "threshold", threshold,
+            f"threshold {threshold} exceeds owner count {len(normalised)} — "
+            "UNSIGNABLE multisig (can never reach M-of-N)",
+        )
+    return (tuple(normalised), threshold)
+
 
 def _validate_safe_address(addr: str) -> None:
     """

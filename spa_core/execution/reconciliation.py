@@ -27,6 +27,8 @@ from __future__ import annotations
 
 import datetime
 import json
+import math
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Optional
 
@@ -40,6 +42,61 @@ _OUT = _DATA / "execution_reconciliation.json"
 # Tolerances (USD) for floating-point comparison.
 POSITION_TOLERANCE_USD = 1.0
 NAV_TOLERANCE_USD = 1.0
+
+# ── WS-3.2 hardening constants ──────────────────────────────────────────────
+# NAV conservation is checked TO THE CENT with Decimal (no float fuzz): the
+# deployed/expected NAVs must agree within one cent. This is INDEPENDENT of the
+# coarser ``NAV_TOLERANCE_USD`` operator-facing band above (which still drives
+# the ``nav_conserved`` boolean for the existing cost-drag semantics). The cent
+# axis is reported as ``nav_conserved_to_cent`` and is the stricter gate.
+NAV_CENT = Decimal("0.01")
+
+# Dust floor: a sub-threshold position delta (|delta| < this) is treated as
+# clean (rounding/dust); at or above it the delta is a real mismatch. This is
+# the SAME magnitude as POSITION_TOLERANCE_USD, named explicitly so the
+# dust-vs-mismatch boundary is a first-class, tested contract.
+DUST_TOLERANCE_USD = POSITION_TOLERANCE_USD
+
+# Stale-price guard: a reconciliation that is fed a price/quote snapshot must
+# carry an ``as_of`` no older than this many seconds, else we cannot trust the
+# valuation and MUST fail-CLOSED (block). 0/None ``as_of`` is unknown → block
+# only when a ``price_as_of`` was supplied at all (callers that pass none keep
+# the legacy behaviour — the gate is opt-in but, once a price age is supplied,
+# strictly enforced).
+MAX_PRICE_AGE_SECONDS = 120.0
+
+
+def _to_decimal_cents(value: float | int | str) -> Optional[Decimal]:
+    """Quantise a USD value to cents as Decimal, or None if non-finite/invalid.
+
+    Returns ``None`` (NOT 0) on NaN/Inf/garbage so the caller fails CLOSED — a
+    non-finite valuation can NEVER be silently coerced to a number that passes a
+    conservation check.
+    """
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(f):
+        return None
+    try:
+        return Decimal(str(f)).quantize(NAV_CENT)
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def _all_positions_finite(*books: dict) -> bool:
+    """True iff every position value across the given books is a finite number.
+
+    Bools are rejected (a ``True`` would coerce to 1.0 and masquerade as $1).
+    """
+    for book in books:
+        for v in (book or {}).values():
+            if isinstance(v, bool) or not isinstance(v, (int, float)):
+                return False
+            if not math.isfinite(float(v)):
+                return False
+    return True
 
 # Deterministic per-trade cost model (analytical, NOT chain-derived):
 #   cost = fixed_gas + slippage_bps * notional
@@ -174,44 +231,119 @@ def reconcile(
     resulting: dict,
     nav_before: float,
     costs_usd: float = 0.0,
+    *,
+    price_as_of: Optional[float] = None,
+    now: Optional[float] = None,
+    max_price_age_seconds: float = MAX_PRICE_AGE_SECONDS,
 ) -> dict:
     """Verify intent (``target``) matches outcome (``resulting``) and NAV is conserved.
 
-    Returns::
+    FAIL-CLOSED CONTRACT (WS-3.2). The reconcile reconciles correctly OR blocks
+    (never a silent proceed) under EVERY failure mode:
 
-        {
-          "matches_target": bool,          # every position within POSITION_TOLERANCE_USD
-          "max_position_delta_usd": float, # worst |resulting - target| across all protocols
-          "deltas_usd": {protocol: delta}, # signed (resulting - target) where non-trivial
-          "nav_before": float,
-          "nav_after": float,              # sum(resulting positions)
-          "expected_nav_after": float,     # nav_before - costs
-          "nav_conserved": bool,           # |nav_after - expected| <= NAV_TOLERANCE_USD
-          "costs_usd": float,
-          "position_tolerance_usd": float,
-          "nav_tolerance_usd": float,
-        }
+      * **partial-fill / reorg / state-change** — any position differs from target
+        by ≥ ``DUST_TOLERANCE_USD`` → ``matches_target=False`` → block.
+      * **non-finite valuation** — any NaN/Inf/garbage position (a corrupt feed
+        read) → ``matches_target=False`` AND ``nav_conserved=False`` →
+        ``blocked=True``. A non-finite value is NEVER coerced into a passing
+        number.
+      * **stale-price** — when a ``price_as_of`` epoch is supplied and it is older
+        than ``max_price_age_seconds`` → ``price_stale=True`` → block.
+      * **dust-tolerance** — a sub-``DUST_TOLERANCE_USD`` delta passes; at/above it
+        blocks. NAV conservation is checked TO THE CENT with Decimal
+        (``nav_conserved_to_cent``).
+
+    ``ok`` / ``blocked`` are the single safe verdict: ``ok`` is True ONLY when
+    matches_target AND nav_conserved AND nav_conserved_to_cent AND not price_stale
+    AND all positions finite. Any mismatch → ``blocked=True``.
+
+    Returns the existing keys plus: ``finite`` (bool), ``nav_conserved_to_cent``
+    (bool — Decimal cent axis), ``price_stale`` (bool), ``price_age_seconds``,
+    ``ok`` / ``blocked`` (the consolidated safe verdict), ``block_reasons``.
     """
     target = target or {}
     resulting = resulting or {}
     protocols = sorted(set(target) | set(resulting))
 
+    # ── Non-finite guard (fail-CLOSED) ───────────────────────────────────────
+    # A NaN position makes ``abs(delta) > max_delta`` False, so without this
+    # guard a NaN would leave max_delta at 0 and matches_target True (fail-OPEN).
+    finite = _all_positions_finite(target, resulting)
+
     deltas = {}
     max_delta = 0.0
     for protocol in protocols:
-        tgt = float(target.get(protocol, 0.0) or 0.0)
-        res = float(resulting.get(protocol, 0.0) or 0.0)
+        try:
+            tgt = float(target.get(protocol, 0.0) or 0.0)
+            res = float(resulting.get(protocol, 0.0) or 0.0)
+        except (TypeError, ValueError):
+            finite = False
+            continue
+        if not (math.isfinite(tgt) and math.isfinite(res)):
+            # leave finite=False (set above); record an infinite delta marker.
+            finite = False
+            continue
         delta = res - tgt
         if abs(delta) >= 0.005:
             deltas[protocol] = round(delta, 6)
         if abs(delta) > max_delta:
             max_delta = abs(delta)
 
-    matches_target = max_delta <= POSITION_TOLERANCE_USD
+    # A non-finite book can NEVER match the target.
+    matches_target = bool(finite) and (max_delta < DUST_TOLERANCE_USD)
 
-    nav_after = round(sum(float(v or 0.0) for v in resulting.values()), 6)
+    # ── NAV: float band (legacy) + Decimal cent axis (strict) ────────────────
+    nav_after = round(sum(float(v or 0.0) for v in resulting.values()
+                          if isinstance(v, (int, float)) and not isinstance(v, bool)
+                          and math.isfinite(float(v))), 6)
     expected_nav_after = round(float(nav_before) - float(costs_usd), 6)
-    nav_conserved = abs(nav_after - expected_nav_after) <= NAV_TOLERANCE_USD
+    nav_conserved = bool(finite) and (abs(nav_after - expected_nav_after) <= NAV_TOLERANCE_USD)
+
+    # Decimal conservation to the cent — the stricter, exact axis.
+    dec_after = _to_decimal_cents(nav_after) if finite else None
+    dec_expected = _to_decimal_cents(expected_nav_after)
+    if dec_after is None or dec_expected is None:
+        nav_conserved_to_cent = False
+        nav_residual_cents = None
+    else:
+        residual = abs(dec_after - dec_expected)
+        nav_residual_cents = str(residual)
+        nav_conserved_to_cent = residual <= NAV_CENT
+
+    # ── Stale-price guard (opt-in; strict once a price age is supplied) ───────
+    price_age_seconds = None
+    price_stale = False
+    if price_as_of is not None:
+        ref_now = float(now) if now is not None else datetime.datetime.now(
+            datetime.timezone.utc).timestamp()
+        try:
+            age = ref_now - float(price_as_of)
+        except (TypeError, ValueError):
+            price_stale = True
+            age = None
+        else:
+            price_age_seconds = round(age, 6)
+            # A future-dated or NaN price is also untrustworthy → stale/block.
+            if not math.isfinite(age) or age < 0 or age > float(max_price_age_seconds):
+                price_stale = True
+
+    # ── Consolidated safe verdict ────────────────────────────────────────────
+    block_reasons: list[str] = []
+    if not finite:
+        block_reasons.append("non-finite position (corrupt valuation) — fail-closed")
+    if not matches_target:
+        block_reasons.append(
+            f"intent != outcome (max delta ${max_delta:,.2f} ≥ dust ${DUST_TOLERANCE_USD})"
+        )
+    if not nav_conserved:
+        block_reasons.append("NAV not conserved (band)")
+    if not nav_conserved_to_cent:
+        block_reasons.append("NAV not conserved to the cent")
+    if price_stale:
+        block_reasons.append(
+            f"stale price (age {price_age_seconds}s > {max_price_age_seconds}s)"
+        )
+    ok = not block_reasons
 
     return {
         "matches_target": bool(matches_target),
@@ -221,8 +353,19 @@ def reconcile(
         "nav_after": nav_after,
         "expected_nav_after": expected_nav_after,
         "nav_conserved": bool(nav_conserved),
+        "nav_conserved_to_cent": bool(nav_conserved_to_cent),
+        "nav_residual_cents": nav_residual_cents,
+        "finite": bool(finite),
+        "price_as_of": price_as_of,
+        "price_age_seconds": price_age_seconds,
+        "price_stale": bool(price_stale),
+        "max_price_age_seconds": float(max_price_age_seconds),
+        "ok": bool(ok),
+        "blocked": not bool(ok),
+        "block_reasons": block_reasons,
         "costs_usd": round(float(costs_usd), 6),
         "position_tolerance_usd": POSITION_TOLERANCE_USD,
+        "dust_tolerance_usd": DUST_TOLERANCE_USD,
         "nav_tolerance_usd": NAV_TOLERANCE_USD,
     }
 

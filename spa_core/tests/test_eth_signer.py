@@ -247,7 +247,9 @@ class TestEncodeFunctionCall:
 
     def test_unsupported_type_raises(self):
         from spa_core.execution.eth_signer import encode_function_call
-        with pytest.raises(TypeError, match="unsupported type"):
+        # encode_function_call fails CLOSED on an unsupported arg type by raising
+        # ValidationError (a ValueError subclass) — never silently encoding junk.
+        with pytest.raises(ValueError, match="unsupported type"):
             encode_function_call("095ea7b3", [1, 2, 3])  # list not supported
 
     def test_bool_encoding(self):

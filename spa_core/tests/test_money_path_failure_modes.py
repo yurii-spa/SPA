@@ -516,3 +516,404 @@ class TestInert:
         builder = SafeTxBuilder(safe_address="0x" + "0" * 39 + "1")
         with pytest.raises(Exception):  # LiveTradingForbiddenError subclass
             builder.submit_proposal({"dummy": True})
+
+
+# =========================================================================== #
+# WS-3.3 — SIGNER KEY-MATERIAL: EXHAUSTIVE NO-LEAK SWEEP.
+# Every signer entry-point, on every failure mode, must surface ZERO key
+# material in its message / repr / log lines. These mock _get_account so they
+# run WITHOUT eth_account installed.
+# =========================================================================== #
+class TestSignerNoKeyLeakExhaustive:
+    # A realistic, secret-shaped (but public, fund-less) key used as the canary.
+    KEY = _PUBLIC_DEV_KEY
+
+    def _tx(self) -> dict:
+        return {
+            "to": "0x" + "0" * 40, "value": 0, "gas": 21000,
+            "maxFeePerGas": 1, "maxPriorityFeePerGas": 1,
+            "nonce": 0, "chainId": 1, "data": b"",
+        }
+
+    def _assert_no_key(self, blob: str):
+        """The raw key, its 0x form, and the 32-byte body must NOT appear."""
+        for form in (self.KEY, "0x" + self.KEY, self.KEY.upper(), self.KEY.lower()):
+            assert form not in blob, "PRIVATE KEY LEAKED into a diagnostic"
+
+    def _hostile_backend(self):
+        """A backend whose EVERY method echoes the key verbatim — the worst case.
+
+        WS-3.3 must scrub this so the key never reaches a surfaced diagnostic.
+        """
+        key = self.KEY
+
+        class _Hostile:
+            @staticmethod
+            def from_key(k):
+                raise RuntimeError(f"corrupt keystore for key={key} 0x{key}")
+
+            @staticmethod
+            def sign_transaction(_tx, private_key):
+                raise RuntimeError(f"backend blew up with private_key={private_key}")
+
+            @staticmethod
+            def sign_message(_msg, private_key):
+                raise RuntimeError(f"signing failed key={private_key}")
+
+        return _Hostile
+
+    def test_hostile_backend_from_key_scrubbed(self, monkeypatch, caplog):
+        monkeypatch.setattr(eth_signer, "_get_account", lambda: self._hostile_backend())
+        with caplog.at_level(logging.DEBUG, logger="spa.eth_signer"):
+            with pytest.raises(Exception) as ei:
+                eth_signer.get_address_from_private_key(self.KEY)
+        self._assert_no_key(str(ei.value))
+        self._assert_no_key(repr(ei.value))
+        self._assert_no_key("\n".join(r.getMessage() for r in caplog.records))
+
+    def test_hostile_backend_sign_transaction_scrubbed(self, monkeypatch, caplog):
+        monkeypatch.setattr(eth_signer, "_get_account", lambda: self._hostile_backend())
+        with caplog.at_level(logging.DEBUG, logger="spa.eth_signer"):
+            with pytest.raises(Exception) as ei:
+                eth_signer.sign_transaction(self.KEY, self._tx())
+        self._assert_no_key(str(ei.value))
+        self._assert_no_key(repr(ei.value))
+        self._assert_no_key("\n".join(r.getMessage() for r in caplog.records))
+
+    def test_hostile_backend_sign_message_scrubbed(self, monkeypatch, caplog):
+        # sign_message needs eth_account.messages.encode_defunct; skip if absent.
+        pytest.importorskip("eth_account")
+        monkeypatch.setattr(eth_signer, "_get_account", lambda: self._hostile_backend())
+        with caplog.at_level(logging.DEBUG, logger="spa.eth_signer"):
+            with pytest.raises(Exception) as ei:
+                eth_signer.sign_message("hello", self.KEY)
+        self._assert_no_key(str(ei.value))
+        self._assert_no_key(repr(ei.value))
+        self._assert_no_key("\n".join(r.getMessage() for r in caplog.records))
+
+    def test_hostile_backend_with_0x_prefixed_key_scrubbed(self, monkeypatch):
+        """The 0x-prefixed input form must ALSO be scrubbed (not just the body)."""
+        monkeypatch.setattr(eth_signer, "_get_account", lambda: self._hostile_backend())
+        with pytest.raises(Exception) as ei:
+            eth_signer.sign_transaction("0x" + self.KEY, self._tx())
+        self._assert_no_key(str(ei.value))
+        self._assert_no_key(repr(ei.value))
+
+    def test_malformed_key_redacted_every_entry_point(self):
+        """A wrong-length key never echoes into the ValidationError on ANY path."""
+        from spa_core.utils.errors import ValidationError
+        bad = self.KEY + "ff"  # 66 chars, wrong length, secret-shaped
+        for fn in (
+            lambda: eth_signer.get_address_from_private_key(bad),
+            lambda: eth_signer.sign_transaction(bad, self._tx()),
+        ):
+            try:
+                fn()
+                pytest.fail("expected ValidationError")
+            except ValidationError as exc:
+                self._assert_no_key(str(exc))
+                self._assert_no_key(repr(exc))
+                assert "<redacted>" in str(exc)
+
+    def test_non_hex_key_redacted(self):
+        """A non-hex (but right-length) key fails CLOSED with the value redacted."""
+        from spa_core.utils.errors import ValidationError
+        bad = "zz" * 32  # 64 chars, not hex
+        with pytest.raises(ValidationError) as ei:
+            eth_signer.sign_transaction(bad, self._tx())
+        assert bad not in str(ei.value)
+        assert "<redacted>" in str(ei.value)
+
+    def test_scrub_helper_redacts_all_variants(self):
+        """Unit: _scrub replaces the secret and its 0x/case variants."""
+        secret = self.KEY
+        text = f"key={secret} or 0x{secret} or {secret.upper()}"
+        out = eth_signer._scrub(text, (secret,))
+        self._assert_no_key(out)
+        assert "<redacted>" in out
+
+
+# =========================================================================== #
+# WS-3.3 — NONCE SAFETY: a gap or reuse is detected and aborts before signing.
+# =========================================================================== #
+class TestNonceSafety:
+    def test_nonce_gap_aborts(self):
+        """intended > on-chain pending → GAP → ABORT (tx would stall)."""
+        from spa_core.utils.errors import ValidationError
+        with pytest.raises(ValidationError, match="gap"):
+            eth_signer.assert_nonce_ok(intended_nonce=9, pending_nonce=7)
+
+    def test_nonce_reuse_aborts(self):
+        """intended < on-chain pending → REUSE → ABORT."""
+        from spa_core.utils.errors import ValidationError
+        with pytest.raises(ValidationError, match="reuse"):
+            eth_signer.assert_nonce_ok(intended_nonce=5, pending_nonce=7)
+
+    def test_nonce_match_passes(self):
+        """intended == pending → the only includable nonce → OK."""
+        assert eth_signer.assert_nonce_ok(7, 7) == 7
+
+    def test_negative_nonce_in_tx_aborts_before_sign(self, monkeypatch):
+        """A negative nonce in tx_dict fails CLOSED in sign_transaction — the
+        backend is never reached (so no tx could be built/submitted)."""
+        from spa_core.utils.errors import ValidationError
+
+        class _ShouldNotRun:
+            @staticmethod
+            def sign_transaction(_tx, private_key):
+                raise AssertionError("backend reached despite bad nonce!")
+
+        monkeypatch.setattr(eth_signer, "_get_account", lambda: _ShouldNotRun)
+        with pytest.raises(ValidationError):
+            eth_signer.sign_transaction(_PUBLIC_DEV_KEY, {
+                "to": "0x" + "0" * 40, "value": 0, "gas": 21000,
+                "maxFeePerGas": 1, "maxPriorityFeePerGas": 1,
+                "nonce": -1, "chainId": 1, "data": b"",
+            })
+
+    def test_float_nonce_aborts(self):
+        from spa_core.utils.errors import ValidationError
+        with pytest.raises(ValidationError):
+            eth_signer._coerce_nonce(5.5)
+
+    def test_bool_nonce_aborts(self):
+        """A bool nonce (True==1) must be rejected, never silently coerced."""
+        from spa_core.utils.errors import ValidationError
+        with pytest.raises(ValidationError):
+            eth_signer._coerce_nonce(True)
+
+    def test_nan_nonce_aborts(self):
+        from spa_core.utils.errors import ValidationError
+        with pytest.raises(ValidationError):
+            eth_signer._coerce_nonce(float("nan"))
+
+
+# =========================================================================== #
+# WS-3.3 — MULTISIG: an insufficient / missing signer set must BLOCK (never
+# build an unsignable tx).
+# =========================================================================== #
+class TestMultisigUnsignableBlocks:
+    SAFE = "0x" + "0" * 39 + "1"
+    A = "0x" + "1" * 40
+    B = "0x" + "2" * 40
+    C = "0x" + "3" * 40
+
+    def test_valid_2_of_3_is_signable(self):
+        from spa_core.execution.safe_tx_builder import SafeTxBuilder
+        b = SafeTxBuilder(self.SAFE, owners=[self.A, self.B, self.C], threshold=2)
+        assert b.is_signable() is True
+        assert b.get_signer_set() == ((self.A, self.B, self.C), 2)
+
+    def test_threshold_exceeds_owners_blocks_at_construction(self):
+        """3-of-2 can never reach M-of-N → refused at construction."""
+        from spa_core.execution.safe_tx_builder import SafeTxBuilder
+        from spa_core.utils.errors import ValidationError
+        with pytest.raises(ValidationError, match="UNSIGNABLE|exceeds"):
+            SafeTxBuilder(self.SAFE, owners=[self.A, self.B], threshold=3)
+
+    def test_duplicate_owners_blocked(self):
+        from spa_core.execution.safe_tx_builder import SafeTxBuilder
+        from spa_core.utils.errors import ValidationError
+        with pytest.raises(ValidationError, match="duplicate"):
+            SafeTxBuilder(self.SAFE, owners=[self.A, self.A, self.B], threshold=2)
+
+    def test_malformed_owner_address_blocked(self):
+        from spa_core.execution.safe_tx_builder import SafeTxBuilder
+        from spa_core.utils.errors import ValidationError
+        with pytest.raises(ValidationError):
+            SafeTxBuilder(self.SAFE, owners=[self.A, "0xnothex"], threshold=1)
+
+    def test_zero_threshold_blocked(self):
+        from spa_core.execution.safe_tx_builder import SafeTxBuilder
+        from spa_core.utils.errors import ValidationError
+        with pytest.raises(ValidationError):
+            SafeTxBuilder(self.SAFE, owners=[self.A], threshold=0)
+
+    def test_no_owners_is_proposal_only_signable(self):
+        """Historical proposal-only mode (no declared owners) stays a no-op."""
+        from spa_core.execution.safe_tx_builder import SafeTxBuilder
+        b = SafeTxBuilder(self.SAFE)
+        assert b.is_signable() is True
+        assert b.get_signer_set() == ((), 1)
+
+    def test_build_blocks_when_signer_set_degraded(self, monkeypatch):
+        """RED-TEAM: if the signer set is degraded below threshold AFTER
+        construction (e.g. an owner removed), building in LIVE mode must ABORT —
+        never emit an unsignable proposal."""
+        from spa_core.execution.safe_tx_builder import SafeTxBuilder
+        from spa_core.utils.errors import ValidationError
+        monkeypatch.setenv("SPA_EXECUTION_MODE", "live")
+        b = SafeTxBuilder(self.SAFE, owners=[self.A, self.B, self.C], threshold=2)
+        # Simulate two owners lost → only 1 left, threshold still 2 → unsignable.
+        b._owners = (self.A,)
+        assert b.is_signable() is False
+        with pytest.raises(ValidationError, match="UNSIGNABLE|insufficient"):
+            b.build_allocate_tx("aave_v3", 500.0)
+        with pytest.raises(ValidationError, match="UNSIGNABLE|insufficient"):
+            b.build_withdraw_tx("aave_v3", 500.0)
+
+
+# =========================================================================== #
+# WS-3.4 — GAS / MEV: the protection triggers on adversarial fixtures. A gas
+# spike or sandwich pattern must route protected-or-ABORT; a stale oracle fails
+# CLOSED. NEVER a naive public submit.
+# =========================================================================== #
+class TestGasMevProtection:
+    from spa_core.execution import mev_protection as _mp
+
+    def test_stale_oracle_aborts(self):
+        from spa_core.execution import mev_protection as mp
+        v = mp.evaluate_gas_and_mev(20.0, 20.0, oracle_age_s=120.0)
+        assert v["decision"] == "ABORT"
+        assert "stale" in v["reason"]
+
+    def test_gas_spike_routes_protected(self):
+        from spa_core.execution import mev_protection as mp
+        # 2x baseline → routable spike → PROTECT (private).
+        v = mp.evaluate_gas_and_mev(40.0, 20.0, oracle_age_s=5.0)
+        assert v["decision"] == "PROTECT"
+        assert v["require_private"] is True
+
+    def test_extreme_gas_spike_aborts(self):
+        from spa_core.execution import mev_protection as mp
+        # 4x baseline → refuse to overpay blindly → ABORT.
+        v = mp.evaluate_gas_and_mev(80.0, 20.0, oracle_age_s=5.0)
+        assert v["decision"] == "ABORT"
+
+    def test_sandwich_pattern_routes_protected(self):
+        from spa_core.execution import mev_protection as mp
+        v = mp.evaluate_gas_and_mev(20.0, 20.0, oracle_age_s=5.0, sandwich_risk=0.3)
+        assert v["decision"] == "PROTECT"
+        assert v["require_private"] is True
+
+    def test_extreme_sandwich_aborts(self):
+        from spa_core.execution import mev_protection as mp
+        v = mp.evaluate_gas_and_mev(20.0, 20.0, oracle_age_s=5.0, sandwich_risk=0.9)
+        assert v["decision"] == "ABORT"
+
+    def test_calm_market_low_risk_is_ok(self):
+        from spa_core.execution import mev_protection as mp
+        v = mp.evaluate_gas_and_mev(21.0, 20.0, oracle_age_s=5.0, sandwich_risk=0.01)
+        assert v["decision"] == "OK"
+        assert v["require_private"] is False
+
+    def test_non_finite_gas_aborts(self):
+        from spa_core.execution import mev_protection as mp
+        for bad in (float("nan"), float("inf"), float("-inf")):
+            assert mp.evaluate_gas_and_mev(bad, 20.0, 5.0)["decision"] == "ABORT"
+            assert mp.evaluate_gas_and_mev(20.0, bad, 5.0)["decision"] == "ABORT"
+
+    def test_zero_oracle_baseline_aborts(self):
+        """A zero/negative oracle baseline is untrustworthy → ABORT (no div-by-0)."""
+        from spa_core.execution import mev_protection as mp
+        assert mp.evaluate_gas_and_mev(20.0, 0.0, 5.0)["decision"] == "ABORT"
+
+    def test_out_of_range_sandwich_risk_aborts(self):
+        from spa_core.execution import mev_protection as mp
+        assert mp.evaluate_gas_and_mev(20.0, 20.0, 5.0, sandwich_risk=1.5)["decision"] == "ABORT"
+        assert mp.evaluate_gas_and_mev(20.0, 20.0, 5.0, sandwich_risk=-0.1)["decision"] == "ABORT"
+
+    def test_guard_broadcast_aborts_submits_nothing(self, monkeypatch):
+        """RED-TEAM: on an ABORT verdict (stale oracle), guard_broadcast must
+        broadcast NOTHING — send_protected is never called."""
+        from spa_core.execution import mev_protection as mp
+        called = {"n": 0}
+
+        def _boom(*a, **k):
+            called["n"] += 1
+            raise AssertionError("send_protected called on an ABORT verdict!")
+
+        monkeypatch.setattr(mp, "send_protected", _boom)
+        res = mp.guard_broadcast(
+            "0x" + "cc" * 64, proposed_gas_gwei=20.0, oracle_gas_gwei=20.0,
+            oracle_age_s=999.0,  # stale → ABORT
+        )
+        assert res["status"] == "ABORTED"
+        assert called["n"] == 0
+
+    def test_guard_broadcast_protect_has_no_public_fallback(self, monkeypatch):
+        """RED-TEAM: a PROTECT verdict must route private with NO public fallback —
+        a private-required tx may not silently fall through to the mempool."""
+        from spa_core.execution import mev_protection as mp
+        captured = {}
+
+        def _fake_send(signed, fallback_rpc=None, timeout=30):
+            captured["fallback_rpc"] = fallback_rpc
+            return {"status": "PENDING", "tx_hash": "0x" + "ab" * 32,
+                    "endpoint": mp.FLASHBOTS_RPC_FAST, "protection": "flashbots"}
+
+        monkeypatch.setattr(mp, "send_protected", _fake_send)
+        res = mp.guard_broadcast(
+            "0x" + "cc" * 64, proposed_gas_gwei=40.0, oracle_gas_gwei=20.0,
+            oracle_age_s=5.0,  # 2x spike → PROTECT
+            fallback_rpc="https://public.example.com",
+        )
+        # PROTECT requires private — the public fallback must be suppressed.
+        assert captured["fallback_rpc"] is None
+        assert res["gas_decision"] == "PROTECT"
+
+    def test_guard_broadcast_ok_allows_fallback(self, monkeypatch):
+        """An OK verdict still routes through the protected relay but MAY use the
+        public fallback the caller supplied."""
+        from spa_core.execution import mev_protection as mp
+        captured = {}
+
+        def _fake_send(signed, fallback_rpc=None, timeout=30):
+            captured["fallback_rpc"] = fallback_rpc
+            return {"status": "PENDING", "tx_hash": "0x" + "ab" * 32,
+                    "endpoint": mp.FLASHBOTS_RPC_FAST, "protection": "flashbots"}
+
+        monkeypatch.setattr(mp, "send_protected", _fake_send)
+        res = mp.guard_broadcast(
+            "0x" + "cc" * 64, proposed_gas_gwei=21.0, oracle_gas_gwei=20.0,
+            oracle_age_s=5.0, sandwich_risk=0.0,
+            fallback_rpc="https://public.example.com",
+        )
+        assert captured["fallback_rpc"] == "https://public.example.com"
+        assert res["gas_decision"] == "OK"
+
+
+# =========================================================================== #
+# WS-3.3/3.4 — INERT SMOKE: the signer + MEV path run with NO real chain calls
+# and is_live OFF.
+# =========================================================================== #
+class TestSignerMevInertSmoke:
+    def test_signer_path_makes_no_network_call(self, monkeypatch):
+        """Signing is pure-crypto — it must never touch the network."""
+        import urllib.request
+        monkeypatch.setattr(eth_signer, "_get_account", lambda: _StubAccount())
+
+        def _no_net(*a, **k):
+            raise AssertionError("signer made a network call!")
+
+        monkeypatch.setattr(urllib.request, "urlopen", _no_net)
+        raw = eth_signer.sign_transaction(_PUBLIC_DEV_KEY, {
+            "to": "0x" + "0" * 40, "value": 0, "gas": 21000,
+            "maxFeePerGas": 1, "maxPriorityFeePerGas": 1,
+            "nonce": 0, "chainId": 1, "data": b"",
+        })
+        assert raw == b"\x02stubraw"
+
+    def test_gas_guard_makes_no_network_call(self):
+        """evaluate_gas_and_mev is a pure decision — no HTTP at all."""
+        import unittest.mock as mock
+        from spa_core.execution import mev_protection as mp
+        with mock.patch("urllib.request.urlopen") as m:
+            mp.evaluate_gas_and_mev(40.0, 20.0, 5.0, 0.3)
+            m.assert_not_called()
+
+    def test_is_live_never_flipped(self):
+        """The signer/MEV modules carry no live flag we could flip — assert the
+        SafeTxBuilder default stays paper (is_live OFF)."""
+        from spa_core.execution.safe_tx_builder import SafeTxBuilder
+        b = SafeTxBuilder(safe_address="0x" + "0" * 39 + "1")
+        assert b.is_paper_mode() is True
+
+
+class _StubAccount:
+    """A minimal eth_account stand-in for the inert smoke test (no real crypto)."""
+    @staticmethod
+    def sign_transaction(_tx, private_key):
+        class _Signed:
+            raw_transaction = b"\x02stubraw"
+        return _Signed()

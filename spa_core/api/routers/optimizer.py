@@ -146,6 +146,21 @@ def get_captured_book():
         base = first_eq if isinstance(first_eq, (int, float)) else 100000.0
         accrued = round(float(equity) - float(base), 6)
 
+    # ── WS-1.6 captured-book attribution (carry-leg vs RWA floor-leg, reconciling to NAV) ──
+    # Read-only, fail-CLOSED: decompose the realized captured-book PnL into the floor-leg (what the
+    # ~3.4% RWA floor would have earned) and the carry-leg (residual edge), reconciling to NAV. A
+    # tampered/look-ahead/gapped series is REFUSED by track_integrity → status UNKNOWN (no numbers),
+    # never an inflated carry figure. Honest THIN flag until the sleeve track matures.
+    attribution = None
+    try:
+        from spa_core.strategy_lab.forward_analytics import captured_book_attribution
+        attribution = captured_book_attribution(series_doc)
+    except Exception:  # noqa: BLE001 — analytics must never break the read-only public surface
+        attribution = {
+            "status": "UNKNOWN", "reconciles": False, "model": "captured_book_attribution",
+            "note": "attribution unavailable (series unreadable) — no fabricated number.",
+        }
+
     payload = {
         "status": "ok",
         "model": "rates_desk_captured_book",
@@ -164,6 +179,7 @@ def get_captured_book():
         # latest scan diagnostics: approvals/refusals + refusal reasons (verbatim).
         "scan_diag": scan if isinstance(scan, dict) else {},
         "refusals": (scan.get("refused_by_reason", {}) if isinstance(scan, dict) else {}),
+        "attribution": attribution,
         "daily_series": daily_series,
         "meta": {
             "is_backtest": True,

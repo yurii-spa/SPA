@@ -182,6 +182,7 @@ def get_strategy_lab_promotion():
         period="strategy_lab backtest window",
     )
     rates_desk = _rates_desk_promotion_section()
+    trust, trust_reason = _tournament_trust_verdict()
     if not raw or not isinstance(raw, dict):
         return {
             "generated_at": None,
@@ -191,11 +192,33 @@ def get_strategy_lab_promotion():
             "stage_counts": {},
             "sleeves": [],
             "rates_desk": rates_desk,
+            "tournament_trustworthy": trust,
+            "tournament_trust_reason": trust_reason,
             "meta": _promo_meta,
         }
     raw.setdefault("meta", _promo_meta)
     raw["rates_desk"] = rates_desk
+    # Surface the tournament-trust verdict on the promotion surface so the dashboard's
+    # promotion-refusal panel can show "NOT TRUSTWORTHY" WITHOUT a separate fetch. Fail-CLOSED:
+    # a missing/unreadable flag → False (a degenerate Sharpe leaderboard is never rendered live).
+    raw["tournament_trustworthy"] = trust
+    raw["tournament_trust_reason"] = trust_reason
     return raw
+
+
+def _tournament_trust_verdict() -> tuple[bool, str | None]:
+    """The mass-tournament honesty gate, read for the promotion surface. Fail-CLOSED: a missing /
+    unreadable trust flag returns (False, None) — a Sharpe leaderboard on near-zero stablecoin vol
+    is degenerate, so absence of an explicit trustworthy=True is treated as NOT trustworthy."""
+    raw = read_state("mass_tournament_results.json", {})
+    if not isinstance(raw, dict):
+        return False, None
+    trust = raw.get("trustworthy")
+    meta = raw.get("meta") if isinstance(raw.get("meta"), dict) else {}
+    if trust is None:
+        trust = meta.get("trustworthy")
+    reason = meta.get("trust_reason")
+    return (bool(trust) if trust is not None else False), reason
 
 
 @router.get("/api/refusal")

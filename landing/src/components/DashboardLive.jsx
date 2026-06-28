@@ -138,6 +138,80 @@ const T = {
   },
   fullTournament: { en: 'Browse all strategies →', ru: 'Все стратегии →' },
 
+  /* edge (WS-1.5 — the real edge surfaced) */
+  tabEdge: { en: 'The edge', ru: 'Edge' },
+  edgeEyebrow: { en: 'The real edge · what the owner decides on', ru: 'Реальный edge · на чём решает владелец' },
+  edgeTitle: { en: 'The edge — captured carry, optimizer uplift, what we refuse', ru: 'Edge — захваченный carry, прирост оптимизатора, отказы' },
+  edgeIntro: {
+    en: 'Three surfaces the owner needs to SEE to decide promotion: the live captured FixedCarry paper book (and how its PnL splits vs the RWA floor), the honest optimizer A/B uplift, and the fail-closed promotion refusals. All advisory / paper — separate from the go-live $100k. Each polls its own API every 15s; a dead API shows offline / —, never a fabricated number.',
+    ru: 'Три поверхности, которые владелец должен ВИДЕТЬ для решения о промоушене: живая захваченная FixedCarry бумажная книга (и как её PnL делится против RWA-пола), честный прирост оптимизатора A/B и fail-closed отказы промоушена. Всё advisory / paper — отдельно от go-live $100k. Каждая опрашивает свой API каждые 15с; мёртвый API → офлайн / —, никогда выдуманное число.',
+  },
+
+  /* captured book */
+  capTitle: { en: 'Captured carry book (FixedCarry)', ru: 'Захваченная carry-книга (FixedCarry)' },
+  capWhat: {
+    en: 'The live FixedCarry paper sleeve: accrued carry, open books and the daily refusals. Advisory PAPER research — no real capital, separate from the go-live $100k track.',
+    ru: 'Живой FixedCarry бумажный sleeve: накопленный carry, открытые книги и ежедневные отказы. Advisory PAPER-исследование — без реального капитала, отдельно от go-live $100k.',
+  },
+  capPaperChip: { en: 'PAPER · advisory', ru: 'PAPER · advisory' },
+  capEquity: { en: 'Book equity (NAV)', ru: 'Капитал книги (NAV)' },
+  capAccrued: { en: 'Accrued carry', ru: 'Накопленный carry' },
+  capNetApy: { en: 'Net APY', ru: 'Net APY' },
+  capOpen: { en: 'Open books', ru: 'Открытые книги' },
+  capRefusalsToday: { en: 'Refusals (latest scan)', ru: 'Отказы (посл. скан)' },
+  capLastTick: { en: 'Last tick', ru: 'Посл. tick' },
+  capAttrTitle: { en: 'PnL attribution vs RWA floor', ru: 'Атрибуция PnL против RWA-пола' },
+  capAttrSub: {
+    en: 'Realized PnL split into the floor-leg (what tokenized T-bills would have earned) and the carry-leg (the residual edge above the floor). carry + floor reconciles to NAV exactly.',
+    ru: 'Реализованный PnL делится на floor-leg (что заработали бы tokenized T-bills) и carry-leg (остаточный edge над полом). carry + floor точно сходится к NAV.',
+  },
+  capFloorLeg: { en: 'Floor leg', ru: 'Floor-leg' },
+  capCarryLeg: { en: 'Carry leg (excess)', ru: 'Carry-leg (excess)' },
+  capRealizedPnl: { en: 'Realized PnL', ru: 'Реализ. PnL' },
+  capReconciled: { en: 'reconciles to NAV ✓', ru: 'сходится к NAV ✓' },
+  capNotReconciled: { en: 'attribution unavailable', ru: 'атрибуция недоступна' },
+  capThin: {
+    en: 'THIN: the $ split is honest, but the risk-adjusted carry quality (Sharpe) is not trustworthy until the track is ~30 days deep.',
+    ru: 'THIN: долларовый сплит честен, но risk-adjusted качество carry (Sharpe) не надёжно, пока трек не накопит ~30 дней.',
+  },
+  capRefused: {
+    en: 'Attribution REFUSED — the series failed an integrity check (gap / duplicate / look-ahead / malformed). We show no number, not a fabricated one.',
+    ru: 'Атрибуция ОТКЛОНЕНА — серия не прошла проверку целостности (gap / дубль / look-ahead / порча). Показываем отсутствие числа, а не выдуманное.',
+  },
+  capOffline: { en: 'Captured book unavailable — /api/captured-book offline.', ru: 'Захваченная книга недоступна — /api/captured-book офлайн.' },
+  capUnavailable: { en: 'Captured FixedCarry book not yet generated — the rates-desk paper agent writes it each UTC day.', ru: 'Захваченная FixedCarry книга ещё не сгенерирована — rates-desk paper-агент пишет её каждый UTC-день.' },
+
+  /* optimizer A/B */
+  optTitle: { en: 'Optimizer A/B uplift', ru: 'Прирост оптимизатора A/B' },
+  optWhat: {
+    en: 'Legacy risk_adjusted heuristic vs the WS-1.2 optimized_yield optimizer, replayed over the REAL evidenced live-APY window. The owner needs to SEE this to decide promotion.',
+    ru: 'Legacy risk_adjusted эвристика против WS-1.2 optimized_yield оптимизатора, реплей по РЕАЛЬНОМУ подтверждённому окну live-APY. Владелец должен ВИДЕТЬ это для решения о промоушене.',
+  },
+  optUplift: { en: 'Risk-adjusted uplift', ru: 'Risk-adjusted прирост' },
+  optLegacy: { en: 'Legacy (yield-on-deployed)', ru: 'Legacy (yield-on-deployed)' },
+  optOptimized: { en: 'Optimized (yield-on-deployed)', ru: 'Optimized (yield-on-deployed)' },
+  optWindow: { en: 'Replay window', ru: 'Окно реплея' },
+  optCapDiag: { en: 'Cap-binding diagnostics', ru: 'Диагностика cap-binding' },
+  optDaysUplift: { en: 'days uplift materialised', ru: 'дней прирост реализован' },
+  optDaysBound: { en: 'days caps fully bound', ru: 'дней caps полностью связаны' },
+  optBehindFlag: { en: 'behind flag · NOT cycle default', ru: 'за флагом · НЕ дефолт цикла' },
+  optCaveat: { en: 'Honest caveat', ru: 'Честная оговорка' },
+  optOffline: { en: 'Optimizer A/B unavailable — /api/optimizer-ab offline.', ru: 'Оптимизатор A/B недоступен — /api/optimizer-ab офлайн.' },
+  optUnavailable: { en: 'Optimizer A/B artifact not yet generated.', ru: 'Артефакт оптимизатора A/B ещё не сгенерирован.' },
+
+  /* tournament / promotion refusals */
+  promoTitle: { en: 'Promotion refusals (fail-closed)', ru: 'Отказы промоушена (fail-closed)' },
+  promoWhat: {
+    en: 'The deterministic promotion engine REJECTS every sleeve that does not clear the RWA floor risk-adjusted — with the plain reason. Plus the tournament-trust verdict: a Sharpe leaderboard on near-zero stablecoin vol is degenerate, so it is flagged not-trustworthy. Distinct from the per-underlying rates-desk refusals.',
+    ru: 'Детерминированный движок промоушена ОТКЛОНЯЕТ каждый sleeve, который не проходит RWA-пол risk-adjusted — с простой причиной. Плюс вердикт доверия турниру: Sharpe-лидерборд при почти нулевой волатильности стейблов вырожден, поэтому помечен как не доверенный. Отличается от отказов rates-desk по активам.',
+  },
+  promoTrustGate: { en: 'Tournament trust gate', ru: 'Гейт доверия турниру' },
+  promoNotTrust: { en: 'NOT TRUSTWORTHY', ru: 'НЕ ДОВЕРЕННЫЙ' },
+  promoTrust: { en: 'TRUSTWORTHY', ru: 'ДОВЕРЕННЫЙ' },
+  promoCandidates: { en: 'Promotion candidates', ru: 'Кандидаты промоушена' },
+  promoRejected: { en: 'Rejected (with reason)', ru: 'Отклонены (с причиной)' },
+  promoOffline: { en: 'Promotion verdicts unavailable — /api/strategy-lab/promotion offline.', ru: 'Вердикты промоушена недоступны — /api/strategy-lab/promotion офлайн.' },
+
   /* desks */
   desksEyebrow: { en: 'Structural desk · advisory research', ru: 'Структурный desk · advisory-исследование' },
   desksTitle: { en: 'Research desks — BTC / ETH / RWA', ru: 'Исследования — BTC / ETH / RWA' },
@@ -509,6 +583,9 @@ export default function DashboardLive() {
   const [ratesTrack, setRatesTrack] = useState(undefined);
   const [exitNav, setExitNav] = useState(undefined);
   const [refusalLog, setRefusalLog] = useState(undefined);
+  /* WS-1.5 — the real-edge surfaces (each polls its OWN endpoint, honest LIVE/offline per-panel) */
+  const [capturedBook, setCapturedBook] = useState(undefined);
+  const [optimizerAb, setOptimizerAb] = useState(undefined);
 
   const [phase, setPhase] = useState('connecting'); // connecting | live | offline
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -548,6 +625,8 @@ export default function DashboardLive() {
       ['/api/rates-desk/track', setRatesTrack],
       ['/api/rates-desk/exit-nav', setExitNav],
       ['/api/rates-desk/refusals?limit=40', setRefusalLog],
+      ['/api/captured-book', setCapturedBook],
+      ['/api/optimizer-ab', setOptimizerAb],
     ];
     indep.forEach(([path, setter]) => {
       getJson(path).then((d) => setter(d)).catch(() => setter(null));
@@ -586,6 +665,7 @@ export default function DashboardLive() {
 
   const TABS = [
     ['overview', tr('tabOverview')],
+    ['edge', tr('tabEdge')],
     ['strategies', tr('tabStrategies')],
     ['tournament', tr('tabTournament')],
     ['desks', tr('tabDesks')],
@@ -760,6 +840,16 @@ export default function DashboardLive() {
         </PanelBoundary>
       )}
 
+      {/* ───────────────────────────────── EDGE (WS-1.5) ──────────────────────── */}
+      {tab === 'edge' && (
+        <PanelBoundary lang={lang}>
+          <EdgeSection
+            capturedBook={capturedBook} optimizerAb={optimizerAb} promotion={promotion}
+            lang={lang} tr={tr}
+          />
+        </PanelBoundary>
+      )}
+
       {/* ───────────────────────────────── PARALLEL STRATEGIES ────────────────── */}
       {tab === 'strategies' && (
         <PanelBoundary lang={lang}>
@@ -886,6 +976,235 @@ function SleeveStat({ label, value, accent }) {
       <p style={{ ...mono, fontSize: '.625rem', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-faint)', marginBottom: 3 }}>{label}</p>
       <p style={{ ...mono, fontSize: '.95rem', fontWeight: 600, color: accent || 'var(--text-primary)' }}>{value}</p>
     </div>
+  );
+}
+
+/* ═══════════════════════════════════ EDGE SECTION (WS-1.5) ═══════════════════════════════════
+ * Three panels surfacing the REAL edge the owner decides on:
+ *   A — Captured book (FixedCarry paper book + carry-leg/floor-leg PnL attribution → NAV).
+ *   B — Optimizer A/B (the honest +1.37pp risk-adjusted uplift + the verbatim caveat + cap diag).
+ *   C — Promotion refusals (fail-closed REJECTs with reasons + the tournament-trust verdict).
+ * Each panel polls its OWN API; a dead/null API renders offline / — (never a fabricated number).
+ * ─────────────────────────────────────────────────────────────────────────────────────────── */
+function signedUsd(v) {
+  if (v == null || !isFinite(Number(v))) return NA;
+  const n = Number(v);
+  return (n >= 0 ? '+' : '−') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function EdgeSection({ capturedBook, optimizerAb, promotion, lang, tr }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <SectionHead eyebrow={tr('edgeEyebrow')} title={tr('edgeTitle')} intro={tr('edgeIntro')} />
+      <CapturedBookPanel capturedBook={capturedBook} lang={lang} tr={tr} />
+      <OptimizerAbPanel optimizerAb={optimizerAb} lang={lang} tr={tr} />
+      <PromotionRefusalPanel promotion={promotion} lang={lang} tr={tr} />
+    </div>
+  );
+}
+
+/* ── A · Captured book + attribution ── */
+function CapturedBookPanel({ capturedBook, lang, tr }) {
+  const offline = capturedBook === null;
+  const loading = capturedBook === undefined;
+  const unavailable = capturedBook && capturedBook.status === 'unavailable';
+  const live = !offline && !loading && !unavailable;
+  const attr = (capturedBook && capturedBook.attribution) || null;
+  const reconciles = attr && attr.reconciles === true;
+  const refused = attr && attr.status === 'UNKNOWN';
+  const refuseList = (capturedBook && capturedBook.refusals) || {};
+  const refuseEntries = Object.entries(refuseList);
+
+  return (
+    <Panel>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <h3 style={{ ...HEADING, fontSize: '1.15rem' }}>{tr('capTitle')}</h3>
+          <Chip tone="warn">{tr('capPaperChip')}</Chip>
+        </div>
+        <SourceTag live={live} lang={lang} />
+      </div>
+      <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)', lineHeight: 1.55, marginBottom: 14, maxWidth: 720 }}>{tr('capWhat')}</p>
+
+      {offline ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('capOffline')}</p>
+      ) : loading ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('connecting')}</p>
+      ) : unavailable ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('capUnavailable')}</p>
+      ) : (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
+            <Metric label={tr('capEquity')} value={fmtUsd2(capturedBook.equity_usd)} accent="var(--data-teal)" />
+            <Metric label={tr('capAccrued')} value={signedUsd(capturedBook.accrued_carry_usd)} accent={(capturedBook.accrued_carry_usd ?? 0) >= 0 ? 'var(--ok)' : 'var(--danger)'} />
+            <Metric label={tr('capNetApy')} value={fmtPct(capturedBook.net_apy_pct, 4)} />
+            <Metric label={tr('capOpen')} value={capturedBook.n_open_books == null ? NA : capturedBook.n_open_books} />
+            <Metric label={tr('capLastTick')} value={capturedBook.last_tick || NA} />
+          </div>
+
+          {/* refusal reasons (latest scan) */}
+          <div style={{ marginTop: 14 }}>
+            <p style={{ ...mono, fontSize: '.625rem', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-faint)', marginBottom: 8 }}>{tr('capRefusalsToday')}</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {refuseEntries.length === 0
+                ? <Chip tone="muted">{NA}</Chip>
+                : refuseEntries.map(([reason, n]) => (
+                    <Chip key={reason} tone="danger">{String(reason).replace(/_/g, ' ')} · {n}</Chip>
+                  ))}
+            </div>
+          </div>
+
+          {/* PnL attribution → NAV */}
+          <div style={{ ...card, padding: '16px', background: 'var(--bg-base)', marginTop: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
+              <p style={{ ...mono, fontSize: '.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>{tr('capAttrTitle')}</p>
+              {refused
+                ? <Chip tone="danger">{tr('capNotReconciled')}</Chip>
+                : reconciles
+                  ? <Chip tone="ok">{tr('capReconciled')}</Chip>
+                  : <Chip tone="muted">{tr('capNotReconciled')}</Chip>}
+            </div>
+            <p style={{ fontSize: '.75rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 12 }}>{tr('capAttrSub')}</p>
+            {refused || !attr ? (
+              <p style={{ fontSize: '.8125rem', color: 'var(--danger)', lineHeight: 1.55 }}>{tr('capRefused')}</p>
+            ) : (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
+                  <SleeveStat label={tr('capFloorLeg')} value={signedUsd(attr.floor_leg_usd)} accent="var(--text-secondary)" />
+                  <SleeveStat label={tr('capCarryLeg')} value={signedUsd(attr.carry_leg_usd)} accent={(attr.carry_leg_usd ?? 0) >= 0 ? 'var(--ok)' : 'var(--danger)'} />
+                  <SleeveStat label={tr('capRealizedPnl')} value={signedUsd(attr.realized_pnl_usd)} accent="var(--data-teal)" />
+                </div>
+                {attr.thin && (
+                  <p style={{ fontSize: '.6875rem', color: 'var(--warn)', lineHeight: 1.5, marginTop: 12 }}>{tr('capThin')}</p>
+                )}
+              </>
+            )}
+          </div>
+
+          <div style={{ marginTop: 14 }}><DeepLink href="/rates-desk" label={tr('deepRates')} inline /></div>
+        </>
+      )}
+    </Panel>
+  );
+}
+
+/* ── B · Optimizer A/B uplift ── */
+function OptimizerAbPanel({ optimizerAb, lang, tr }) {
+  const offline = optimizerAb === null;
+  const loading = optimizerAb === undefined;
+  const unavailable = optimizerAb && optimizerAb.status === 'unavailable';
+  const live = !offline && !loading && !unavailable;
+  const cap = (optimizerAb && optimizerAb.cap_binding_diagnostics) || {};
+  const caveat = optimizerAb && (optimizerAb.honest_caveat || optimizerAb.disclaimer);
+
+  return (
+    <Panel>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <h3 style={{ ...HEADING, fontSize: '1.15rem' }}>{tr('optTitle')}</h3>
+          <Chip tone="muted">{tr('optBehindFlag')}</Chip>
+        </div>
+        <SourceTag live={live} lang={lang} />
+      </div>
+      <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)', lineHeight: 1.55, marginBottom: 14, maxWidth: 720 }}>{tr('optWhat')}</p>
+
+      {offline ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('optOffline')}</p>
+      ) : loading ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('connecting')}</p>
+      ) : unavailable ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('optUnavailable')}</p>
+      ) : (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+            <Metric
+              label={tr('optUplift')}
+              value={optimizerAb.uplift_pp == null ? NA : (Number(optimizerAb.uplift_pp) >= 0 ? '+' : '') + Number(optimizerAb.uplift_pp).toFixed(2) + 'pp'}
+              accent={(optimizerAb.uplift_pp ?? 0) >= 0 ? 'var(--ok)' : 'var(--danger)'}
+            />
+            <Metric label={tr('optLegacy')} value={fmtPct(optimizerAb.legacy_apy, 2)} />
+            <Metric label={tr('optOptimized')} value={fmtPct(optimizerAb.optimized_apy, 2)} accent="var(--data-teal)" />
+            <Metric label={tr('optWindow')} value={optimizerAb.n_days == null ? NA : `${optimizerAb.n_days}d`} sub={optimizerAb.window_start ? `${optimizerAb.window_start} → ${optimizerAb.window_end || '?'}` : undefined} />
+          </div>
+
+          {/* cap-binding diagnostics */}
+          <div style={{ ...card, padding: '14px 16px', background: 'var(--bg-base)', marginTop: 16 }}>
+            <p style={{ ...mono, fontSize: '.625rem', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-faint)', marginBottom: 8 }}>{tr('optCapDiag')}</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Chip tone="teal">{cap.days_uplift_materialised ?? 0} / {cap.days_total ?? (optimizerAb.n_days ?? 0)} {tr('optDaysUplift')}</Chip>
+              <Chip tone={cap.days_caps_fully_bound ? 'warn' : 'muted'}>{cap.days_caps_fully_bound ?? 0} {tr('optDaysBound')}</Chip>
+            </div>
+          </div>
+
+          {/* HONEST caveat — verbatim from the artifact */}
+          {caveat && (
+            <div style={{ ...card, padding: '14px 16px', background: 'var(--accent-bg)', border: '1px solid var(--accent-dim)', borderLeft: '3px solid var(--warn)', marginTop: 14 }}>
+              <p style={{ ...mono, fontSize: '.625rem', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--warn)', marginBottom: 6 }}>{tr('optCaveat')}</p>
+              <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{caveat}</p>
+            </div>
+          )}
+        </>
+      )}
+    </Panel>
+  );
+}
+
+/* ── C · Promotion refusals (fail-closed) + tournament trust gate ── */
+function PromotionRefusalPanel({ promotion, lang, tr }) {
+  const offline = promotion === null;
+  const loading = promotion === undefined;
+  const live = !offline && !loading;
+  const sleeves = (promotion && Array.isArray(promotion.sleeves)) ? promotion.sleeves : [];
+  const rejected = sleeves.filter((s) => s && (s.stage === 'REJECT'));
+  const candidates = sleeves.filter((s) => s && s.stage === 'PAPER_CANDIDATE');
+  // tournament trust verdict travels on the mass-tournament meta; surfaced honestly fail-closed.
+  const trust = promotion && promotion.tournament_trustworthy;
+
+  return (
+    <Panel>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+        <h3 style={{ ...HEADING, fontSize: '1.15rem' }}>{tr('promoTitle')}</h3>
+        <SourceTag live={live} lang={lang} />
+      </div>
+      <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)', lineHeight: 1.55, marginBottom: 14, maxWidth: 720 }}>{tr('promoWhat')}</p>
+
+      {offline ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('promoOffline')}</p>
+      ) : loading ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('connecting')}</p>
+      ) : (
+        <>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
+            <Chip tone="teal">{tr('promoCandidates')}: {candidates.length}</Chip>
+            <Chip tone="danger">{tr('promoRejected')}: {rejected.length}</Chip>
+            {trust != null && (
+              <Chip tone={trust ? 'ok' : 'warn'}>{tr('promoTrustGate')}: {trust ? tr('promoTrust') : tr('promoNotTrust')}</Chip>
+            )}
+          </div>
+
+          {rejected.length === 0 ? (
+            <p style={{ fontSize: '.8125rem', color: 'var(--text-muted)' }}>{lang === 'ru' ? 'нет отклонённых sleeve’ов' : 'no rejected sleeves'}</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {rejected.map((s, i) => (
+                <div key={s.id || i} style={{ ...card, padding: '12px 14px', background: 'var(--bg-base)', borderLeft: '3px solid var(--danger)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                    <Chip tone="danger">{s.stage || 'REJECT'}</Chip>
+                    <span style={{ ...mono, fontSize: '.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>{s.id || '?'}</span>
+                  </div>
+                  {s.reason && <p style={{ fontSize: '.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{s.reason}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+            <DeepLink href="/strategies" label={lang === 'ru' ? 'Все стратегии →' : 'All strategies →'} />
+            <DeepLink href="/research" label={tr('deepResearch')} />
+          </div>
+        </>
+      )}
+    </Panel>
   );
 }
 
