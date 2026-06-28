@@ -1,0 +1,295 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+
+/*
+ * Fundability (Workstream D / D1) — the auto-generated one-pager (docs/FUNDABILITY.md) mirrored as a
+ * live first-class page. The case for $10M as a SCALE + TRUST play, made honestly: the refusal chain
+ * and the published NO-GO are the differentiator, the track is THIN, the capital is $0 real (paper).
+ *
+ * Live surfaces pull from api.earn-defi.com (chain status, capacity, go-live) with a localhost
+ * fallback + graceful offline. The honesty constraints are STATIC text (THIN track, capacity bound,
+ * paper) — those never improve when the API is offline, so they are rendered server-side.
+ *
+ * This page is a navigator: every claim links to where you can CHECK it —
+ *   /refusals (decision log) · /exit-nav (liquidation-NAV by size) · /track-record (accruing series)
+ *   · /proof-of-reserves (honest paper NAV) · the standalone verify_spa.py.
+ *
+ * Tailwind compiles only literal class strings — every palette here is a literal.
+ */
+---
+
+<Layout
+  title="Fundability — the honest case, every claim checkable | earn-defi.com"
+  description="SPA's fundability one-pager, live: the edge is honest measurement and refusal, not yield. Rates-carry GO, RWA measurement-GO, Liquidator NO-GO (published). Honest constraints stated up front — the track is THIN (accruing to 30), capacity is bounded, the capital is paper ($0 real). Every number is checkable with one zero-dependency verifier. Paper research, advisory, not investment advice."
+  canonical="https://earn-defi.com/fundability"
+>
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- ============================================================= a. THE CASE -->
+    <section class="pt-20 pb-10">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full text-xs font-mono"
+           style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">
+        <span class="w-1.5 h-1.5 rounded-full" style="background:var(--accent)" aria-hidden="true"></span>
+        <span data-ru="Paper-исследование · advisory · $0 реального капитала">Paper research · advisory · $0 real capital</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold mb-4 leading-tight" style="color:var(--text-primary)"
+          data-ru="Fundability — честный кейс, каждое утверждение проверяемо">
+        Fundability — the honest case, every claim checkable
+      </h1>
+      <p class="text-xl leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Грань — не доходность, а честное ИЗМЕРЕНИЕ и ОТКАЗ: быть тем, кто верно оценивает и отклоняет риск, которого не видят другие, и ДОКАЗЫВАЕТ это. Ниже — кейс целиком, с честными ограничениями впереди, и ссылкой на проверку каждого числа.">
+        The edge is not yield. The edge is honest <strong style="color:var(--text-primary)">measurement
+        and refusal</strong> — being the party that correctly prices and declines the risk others
+        don't see, and <em>proves</em> it. Below is the whole case, with the honest constraints stated
+        up front, and a link to check every number yourself.
+      </p>
+
+      <!-- the three verdicts -->
+      <div class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-mono mb-2 bg-emerald-500/10 border-emerald-500/30 text-emerald-300">GO</span>
+          <p class="text-sm font-semibold mb-1" style="color:var(--text-primary)" data-ru="Rates Desk — carry с отказом-первым">Rates Desk — refusal-first carry</p>
+          <p class="text-xs leading-relaxed" style="color:var(--text-muted)" data-ru="Валидирован, live-paper. Carry-нога реальна → fundable. Ограничен по ёмкости.">Validated, live-paper. Carry leg real -> fundable. Capacity-bound.</p>
+        </div>
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-mono mb-2 bg-amber-500/10 border-amber-500/30 text-amber-300">MEASURE-GO</span>
+          <p class="text-sm font-semibold mb-1" style="color:var(--text-primary)" data-ru="RWA Backstop — книга NO-GO">RWA Backstop — book NO-GO</p>
+          <p class="text-xs leading-relaxed" style="color:var(--text-muted)" data-ru="Измерение GO; андеррайтинг требует кастоди + права + капитал (вне кода).">Measurement GO; underwriting needs custody + legal + capital (off-code).</p>
+        </div>
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-mono mb-2 bg-red-500/10 border-red-500/30 text-red-300">NO-GO</span>
+          <p class="text-sm font-semibold mb-1" style="color:var(--text-primary)" data-ru="Liquidator — опубликованный отказ">Liquidator — published kill</p>
+          <p class="text-xs leading-relaxed" style="color:var(--text-muted)" data-ru="Адресуемый рынок в ~5–10x ниже планки fundability. Мы публикуем то, что закрыли.">Addressable market ~5-10x below the bar. We publish what we kill.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= b. HONEST CONSTRAINTS (up front) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-4" style="color:var(--text-muted)"
+         data-ru="Честные ограничения — впереди, не спрятаны">Honest constraints — up front, not buried</p>
+      <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
+        <ul class="space-y-3 text-sm leading-relaxed" style="color:var(--text-secondary)">
+          <li data-ru="Трек ТОНКИЙ. Засчитываются только дни, подтверждённые реальным логом цикла; ранний бэкфилл сброшен. Сейчас трек накапливается к 30 дням — честные доверительные метрики приходят ближе к 30-му дню, до этого они помечены THIN, а не выдуманы.">
+            <strong style="color:var(--text-primary)">The track is THIN.</strong> Only days with a real
+            daily-cycle log count; the earlier backfill was reset out. The track is accruing to 30 —
+            trustworthy risk-adjusted ratios land near day 30; until then they read
+            <span class="font-mono">THIN</span>, never a fabricated number.
+          </li>
+          <li data-ru="Ёмкость ограничена. Standalone rates-desk над флором — порядка десятков тысяч в год при сегодняшней глубине рынка; combined по слив-стратегиям после хейрката на корреляцию — ещё меньше. $10M = масштаб + декорреляция + AUM, НЕ достижимо сегодня.">
+            <strong style="color:var(--text-primary)">Capacity is bounded.</strong> The standalone
+            rates desk clears tens of thousands per year above the floor at today's market depth;
+            combined across sleeves, after a correlation haircut, the honest figure is lower still.
+            <span class="font-mono">$10M = scale + decorrelation + AUM</span> — NOT reachable today.
+          </li>
+          <li data-ru="Капитал бумажный. $0 реального капитала. Это исследовательский/бумажный трек на виртуальном портфеле $100k. Не инвестиционный совет, не прогноз.">
+            <strong style="color:var(--text-primary)">The capital is paper.</strong> $0 real capital.
+            This is a research / paper track on a virtual $100k book. Not investment advice, not a forecast.
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============================================================= c. LIVE PROOF STRIP -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-4">
+        <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
+           data-ru="Живые доказательства">Live proof</p>
+        <span class="text-[11px] font-mono" style="color:var(--text-faint)">
+          <span data-ru="источник">source</span>: <span id="fb-src" data-ru="статика / офлайн">static / offline</span>
+        </span>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)" data-ru="Решений в цепочке">Chain decisions</p>
+          <p class="text-2xl font-mono font-bold" style="color:var(--text-primary)" id="fb-chain-len">—</p>
+          <p class="text-xs mt-1" style="color:var(--text-faint)" data-ru="хешированы, проверяемы">hashed, verifiable</p>
+        </div>
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)" data-ru="Отказов">Refusals</p>
+          <p class="text-2xl font-mono font-bold text-red-300" id="fb-refusals">—</p>
+          <p class="text-xs mt-1" style="color:var(--text-faint)" data-ru="опубликованы с причиной">published with reason</p>
+        </div>
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)" data-ru="Подтверждённых дней">Evidenced days</p>
+          <p class="text-2xl font-mono font-bold text-amber-300"><span id="fb-days">—</span><span class="text-sm" style="color:var(--text-faint)"> / 30</span></p>
+          <p class="text-xs mt-1" style="color:var(--text-faint)" data-ru="THIN · накапливается">THIN · accruing</p>
+        </div>
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)" data-ru="Цепочка проверена">Chain verified</p>
+          <p class="text-2xl font-mono font-bold" id="fb-verified" style="color:var(--text-muted)">—</p>
+          <p class="text-xs mt-1" style="color:var(--text-faint)" data-ru="3-state · никогда не зелёный при отсутствии">3-state · never green on absent</p>
+        </div>
+      </div>
+      <p class="text-[11px] leading-relaxed mt-3" style="color:var(--text-faint)">
+        <span data-ru="Хеш головы (отпечаток всей истории решений)">Head hash (fingerprint of the entire decision history)</span>:
+        <span id="fb-head" class="font-mono break-all" style="color:var(--text-secondary)">—</span>
+      </p>
+    </section>
+
+    <!-- ============================================================= d. THE VALIDATED EDGE (worked example pointer) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-4" style="color:var(--text-muted)"
+         data-ru="Валидированная грань">The validated edge</p>
+      <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--border)">
+        <p class="text-sm leading-relaxed mb-4" style="color:var(--text-secondary)"
+           data-ru="Один и тот же движок, один день: токсичная LRT-книга ОТКЛОНЕНА по структуре, чистая stable-carry книга ОДОБРЕНА. Отказ срабатывает ДО экономики — отличная котировка не выкупает проход через токсичную книгу. Оба решения хешированы и публичны. Полностью разобранный пример (реальные хеши отказа ezETH и входа sUSDe) — в DD-паке.">
+          Same engine, same day: a toxic LRT book is <strong style="color:var(--text-primary)">refused
+          on structure</strong>, a clean stable-carry book is <strong style="color:var(--text-primary)">approved</strong>.
+          Refusal fires <em>before</em> economics — a great quote cannot buy its way past a toxic book.
+          Both decisions are hashed and public. The fully worked example (real ezETH-refusal +
+          sUSDe-entry hashes) lives in the DD pack.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="rounded-lg p-4" style="background:var(--bg-base);border:1px solid var(--border)">
+            <p class="text-xs uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)" data-ru="Rates Desk">Rates Desk</p>
+            <p class="text-sm font-mono" style="color:var(--text-secondary)" data-ru="harvest carry · отказ от tail-comp">harvest carry · refuse tail-comp</p>
+          </div>
+          <div class="rounded-lg p-4" style="background:var(--bg-base);border:1px solid var(--border)">
+            <p class="text-xs uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)" data-ru="RWA Backstop">RWA Backstop</p>
+            <p class="text-sm font-mono" style="color:var(--text-secondary)" data-ru="ликвидационный NAV, не маркетинговый">liquidation NAV, not marketing NAV</p>
+          </div>
+          <div class="rounded-lg p-4" style="background:var(--bg-base);border:1px solid var(--border)">
+            <p class="text-xs uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)" data-ru="Liquidator">Liquidator</p>
+            <p class="text-sm font-mono" style="color:var(--text-secondary)" data-ru="измерен → опубликован NO-GO">measured -> published NO-GO</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= e. OFF-CODE GATES -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-4" style="color:var(--text-muted)"
+         data-ru="Что стоит между «здесь» и $10M — вне кода">Between here and $10M — off-code</p>
+      <p class="text-sm leading-relaxed mb-5 max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Код довёл каждый тезис до честного вердикта. Но граница одна: код может ИЗМЕРЯТЬ и ОТКАЗЫВАТЬ; $10M — вне кода. Названо прямо, не спрятано.">
+        The code took each thesis to an honest verdict for free. But the boundary is the same across
+        all three — <strong style="color:var(--text-primary)">the code can measure and refuse; the
+        $10M is off-code.</strong> Named plainly, not hidden:
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="rounded-lg p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-sm font-semibold mb-1" style="color:var(--text-primary)" data-ru="Кастоди / MPC">Custody / MPC</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="институциональное управление ключами для реального капитала">institutional key management for real capital</p>
+        </div>
+        <div class="rounded-lg p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-sm font-semibold mb-1" style="color:var(--text-primary)" data-ru="Внешний аудит">External audit</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="независимый аудит кода и контролей пути исполнения">independent code + controls audit of the execution path</p>
+        </div>
+        <div class="rounded-lg p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-sm font-semibold mb-1" style="color:var(--text-primary)" data-ru="Юридическая часть">Legal</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="структура фонда, обеспечение, права на принудительный выкуп">fund structure, collateral perfection, force-redemption rights</p>
+        </div>
+        <div class="rounded-lg p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-sm font-semibold mb-1" style="color:var(--text-primary)" data-ru="Капитал + отношения">Real capital + relationships</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="whitelisting, доступ к очередям выкупа; carry-грань требует масштаба → AUM">whitelisting, redemption-queue access; the carry edge needs scale -> AUM</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= f. VERIFY -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+         data-ru="Проверьте каждое число сами">Check every number yourself</p>
+      <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
+        <p class="text-sm leading-relaxed mb-4" style="color:var(--text-secondary)"
+           data-ru="Не верьте нам — проверьте нас. Один автономный верификатор без зависимостей + публичный JSON SPA, на чистой машине БЕЗ нашего кода: он пересчитает каждый хеш решений, каждый proof_hash exit-NAV и якоря — и сообщит точный broken_at, если хоть один байт истории изменён задним числом.">
+          Don't trust us — check us. One zero-dependency verifier + SPA's public JSON, on a clean
+          machine with <strong style="color:var(--text-primary)">none of our code</strong>: it
+          re-derives every decision hash, every exit-NAV <span class="font-mono">proof_hash</span>, and
+          the anchors — reporting the exact <span class="font-mono">broken_at</span> if a single byte of
+          history was altered.
+        </p>
+        <div class="rounded-lg p-4 mb-4 overflow-x-auto" style="background:var(--bg-base);border:1px solid var(--border)">
+          <p class="text-[11px] uppercase tracking-wider font-mono mb-2" style="color:var(--text-faint)" data-ru="Команда">Command</p>
+          <code class="text-xs sm:text-sm font-mono break-all" style="color:var(--data-teal)">python3 verify_spa.py data/rates_desk/</code>
+        </div>
+        <p class="text-[11px] leading-relaxed" style="color:var(--text-faint)"
+           data-ru="Верификатор: scripts/verify_spa.py · рецепт: docs/PROOF_CHAIN_SPEC.md · DD-пак: docs/DD_PACK.md (полностью разобранный пример отказ-против-входа с реальными proof_hash, каждое число привязано к источнику).">
+          Verifier: <span class="font-mono">scripts/verify_spa.py</span> · recipe:
+          <span class="font-mono">docs/PROOF_CHAIN_SPEC.md</span> · DD pack:
+          <span class="font-mono">docs/DD_PACK.md</span> (the fully worked refused-vs-approved example
+          with real proof_hashes; every number traced to its source).
+        </p>
+      </div>
+    </section>
+
+    <!-- ============================================================= g. CROSS-LINKS -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-4" style="color:var(--text-muted)" data-ru="Проверить каждое утверждение">Check each claim</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <a href="/refusals" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Лог отказов">Refusal log</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="что мы отклонили и почему">what we declined, and why</p>
+        </a>
+        <a href="/exit-nav" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Ликвидационный NAV по размеру">Liquidation-NAV by size</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="что реально получишь на выходе">what you actually realize on exit</p>
+        </a>
+        <a href="/track-record" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Трек-рекорд">Track record</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="накапливающийся, THIN, привязан к хешам">accruing, THIN, hash-anchored</p>
+        </a>
+        <a href="/proof-of-reserves" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Доказательство резервов">Proof of Reserves</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="честный NAV — бумага, $0 реального капитала">honest NAV — paper, $0 real</p>
+        </a>
+      </div>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+
+  <!-- ===================================================================== LIVE FETCH -->
+  <script is:inline>
+    /* Fundability live proof strip — api.earn-defi.com, localhost fallback, graceful offline.
+       Mirrors the api-base + fail-quiet convention in refusals.astro / rates-desk.astro. */
+    (function () {
+      var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+        ? 'http://localhost:8765'
+        : 'https://api.earn-defi.com';
+      function isRu() { try { return (localStorage.getItem('spa_lang') || 'en') === 'ru'; } catch (e) { return false; } }
+      function setText(id, t) { var el = document.getElementById(id); if (el) el.textContent = t; }
+
+      var sawLive = false;
+
+      /* chain status + counts from the refusal feed (verified is the 3-state honesty flag) */
+      function loadChain() {
+        fetch(API + '/api/rates-desk/refusals?limit=1').then(function (r) { return r.json(); }).then(function (d) {
+          if (!d) return;
+          var chain = d.chain || {};
+          var counts = d.counts || {};
+          if (chain.chain_length != null) setText('fb-chain-len', String(chain.chain_length));
+          if (counts.REFUSAL != null) setText('fb-refusals', String(counts.REFUSAL));
+          if (chain.head_hash) setText('fb-head', chain.head_hash);
+          // 3-state verified badge (never green/yes on absent)
+          var v = (typeof chain.verified === 'boolean') ? chain.verified : null;
+          var el = document.getElementById('fb-verified');
+          if (el) {
+            if (v === true) { el.textContent = isRu() ? 'ДА' : 'YES'; el.className = 'text-2xl font-mono font-bold text-emerald-300'; }
+            else if (v === false) { el.textContent = isRu() ? 'НЕТ' : 'NO'; el.className = 'text-2xl font-mono font-bold text-red-300'; }
+            else { el.textContent = '—'; el.className = 'text-2xl font-mono font-bold'; el.style.color = 'var(--text-muted)'; }
+          }
+          sawLive = true; setText('fb-src', 'live');
+        }).catch(function () {});
+      }
+
+      /* honest evidenced days from the go-live gate (THIN labeling kept static) */
+      function loadGoLive() {
+        fetch(API + '/api/v1/golive').then(function (r) { return r.json(); }).then(function (d) {
+          if (d && d.real_track_days != null) { setText('fb-days', String(d.real_track_days)); sawLive = true; setText('fb-src', 'live'); }
+        }).catch(function () {});
+      }
+
+      function init() { loadChain(); loadGoLive(); }
+      if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
+      else { init(); }
+    })();
+  </script>
+</Layout>

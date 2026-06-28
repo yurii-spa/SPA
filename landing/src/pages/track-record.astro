@@ -308,10 +308,38 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
       </div>
     </section>
 
+    <!-- Verify this track yourself (the hash-anchored artifact) -->
+    <section class="py-10 border-t border-border">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Проверьте этот трек сами">Verify this track yourself</p>
+      <div class="rounded-xl border border-teal-500/25 bg-gradient-to-b from-teal-500/[0.05] to-transparent p-6 sm:p-8">
+        <p class="text-sm text-white/55 leading-relaxed max-w-2xl mb-4" data-ru="Трек — не просто график: это верифицируемый артефакт. Решения, на которых он строится, попадают в хешированную цепочку, привязанную к голове (anchors), а NAV каждого дня сверяется (см. Доказательство резервов выше). Не верьте нам — проверьте нас: один автономный верификатор без зависимостей пересчитает каждый хеш и сообщит точный broken_at, если хоть один байт истории изменён задним числом. Никакого бэкфилла: засчитываются только дни с реальным логом цикла.">
+          The track is not just a chart — it is a <strong class="text-white/85">verifiable artifact</strong>.
+          The decisions behind it are committed to a hash-anchored chain (head-checkpoint anchors), and
+          each day's NAV reconciles (see Proof of Reserves above). Don't trust us — check us: one
+          zero-dependency verifier re-derives every hash and reports the exact
+          <code class="text-teal-300/80">broken_at</code> if a single byte of history was altered. No
+          backfill claims: only days with a real cycle log count.
+        </p>
+        <div class="rounded-lg bg-black/30 border border-border px-4 py-3 mb-4 overflow-x-auto">
+          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Команда">Command</p>
+          <code class="text-xs sm:text-sm font-mono text-teal-300/90 break-all">python3 verify_spa.py data/rates_desk/</code>
+        </div>
+        <p class="text-xs text-white/30 leading-relaxed">
+          <span data-ru="Верификатор:">Verifier:</span> <span class="font-mono text-white/50">scripts/verify_spa.py</span>
+          · <span data-ru="рецепт:">recipe:</span> <span class="font-mono text-white/50">docs/PROOF_CHAIN_SPEC.md</span>
+          · <span data-ru="кейс с проверяемыми числами:">checkable case:</span> <span class="font-mono text-white/50">docs/DD_PACK.md</span>
+        </p>
+      </div>
+    </section>
+
     <!-- Cross-links -->
     <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Углубиться">Go deeper</p>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <a href="/fundability" class="group rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
+          <p class="text-white font-medium mb-1 group-hover:text-white/90" data-ru="Fundability">Fundability</p>
+          <p class="text-xs text-white/35" data-ru="Честный кейс, каждое число проверяемо">The honest case, every number checkable</p>
+        </a>
         <a href="/methodology" class="group rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
           <p class="text-white font-medium mb-1 group-hover:text-white/90" data-ru="Методология">Methodology</p>
           <p class="text-xs text-white/35" data-ru="Как движок принимает решения, детерминированно">How the engine decides, deterministically</p>

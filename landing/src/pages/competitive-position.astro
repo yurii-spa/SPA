@@ -1,0 +1,171 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+
+/*
+ * Competitive Position (Workstream D / D3) — the white-space positioning, PUBLIC version.
+ *
+ * OWNER-GATED NAMING: the doc docs/COMPETITIVE_POSITION.md names specific competitors (appropriate
+ * for an LP data-room). This PUBLIC page deliberately does NOT name competitors — it describes the
+ * white space and, for each of the four differentiators, links to the SHIPPED, verifiable surface
+ * that backs it. Owner sign-off is required before any competitor name appears on the public site.
+ *
+ * Every differentiator below is backed by a shipped surface (NOT aspiration). Forward-looking items
+ * are explicitly labeled.
+ *
+ * Tailwind compiles only literal class strings — every palette here is a literal.
+ */
+
+const diffs = [
+  {
+    id: 'D-1', tag: 'SHIPPED',
+    en: 'Public refusal log', ru: 'Публичный лог отказов',
+    en_sub: 'We publish what we refuse, not just what we trade — every decline hashed, with its reason.',
+    ru_sub: 'Мы публикуем то, от чего отказываемся, а не только то, чем торгуем — каждый отказ хеширован, с причиной.',
+    href: '/refusals', cta_en: 'See the refusal log', cta_ru: 'Открыть лог отказов',
+  },
+  {
+    id: 'D-2', tag: 'SHIPPED',
+    en: 'Liquidation-NAV by size', ru: 'Ликвидационный NAV по размеру',
+    en_sub: 'What you actually realize on exit at a given ticket — not marketing NAV. Per-row hashed.',
+    ru_sub: 'Что реально получишь на выходе на данном размере — не маркетинговый NAV. Хеш на каждую строку.',
+    href: '/exit-nav', cta_en: 'See exit-NAV by size', cta_ru: 'Открыть exit-NAV',
+  },
+  {
+    id: 'D-3', tag: 'SHIPPED',
+    en: 'Anti-AI risk discipline', ru: 'Anti-AI дисциплина риска',
+    en_sub: 'A deterministic RiskPolicy (v1.0). LLM-FORBIDDEN in risk / execution / kill — same inputs, same decision, byte-reproducible.',
+    ru_sub: 'Детерминированная RiskPolicy (v1.0). LLM ЗАПРЕЩЁН в risk / execution / kill — те же входы, то же решение, побитово воспроизводимо.',
+    href: '/methodology', cta_en: 'How the engine decides', cta_ru: 'Как движок решает',
+  },
+  {
+    id: 'D-4', tag: 'SHIPPED',
+    en: 'Personal-capital, capacity-honest desk', ru: 'Personal-capital, честная по ёмкости',
+    en_sub: 'A transparent personal-capital risk desk that publishes its OWN ceiling and an accruing, hash-anchored track.',
+    ru_sub: 'Прозрачный desk на личном капитале, который публикует СВОЙ потолок и накапливающийся, привязанный к хешам трек.',
+    href: '/track-record', cta_en: 'See the track record', cta_ru: 'Открыть трек-рекорд',
+  },
+];
+---
+
+<Layout
+  title="Competitive Position — the white space, each claim shipped | earn-defi.com"
+  description="Four differentiators, each backed by a SHIPPED verifiable surface — a public refusal log, liquidation-NAV by size, deterministic LLM-forbidden risk, and a capacity-honest personal-capital desk. Honest constraints stated. Paper research, advisory, not investment advice."
+  canonical="https://earn-defi.com/competitive-position"
+>
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- a. THE WHITE SPACE -->
+    <section class="pt-20 pb-10">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full text-xs font-mono"
+           style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">
+        <span class="w-1.5 h-1.5 rounded-full" style="background:var(--accent)" aria-hidden="true"></span>
+        <span data-ru="Paper-исследование · advisory">Paper research · advisory</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold mb-4 leading-tight" style="color:var(--text-primary)"
+          data-ru="Конкурентная позиция — белое пятно, каждое утверждение отгружено">
+        Competitive position — the white space, each claim shipped
+      </h1>
+      <p class="text-xl leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Рынок yield-менеджмента поделён на два лагеря: розничные авто-компаундеры с одной стороны и институциональные curated-vaults с другой. Между ними — прозрачный risk-desk на личном капитале $100K–$5M, который ИЗМЕРЯЕТ и ОТКАЗЫВАЕТСЯ — и доказывает это. Ниже — четыре дифференциатора, каждый подкреплён отгруженной проверяемой поверхностью, не обещанием.">
+        The yield-management market splits in two: retail auto-compounders on one side, institutional
+        curated vaults on the other. In between sits a transparent
+        <strong style="color:var(--text-primary)">personal-capital risk desk</strong> for the
+        $100K–$5M band that <strong style="color:var(--text-primary)">measures and refuses</strong> —
+        and proves it. Below: four differentiators, each backed by a shipped, verifiable surface — not
+        a promise.
+      </p>
+    </section>
+
+    <!-- b. THE FOUR DIFFERENTIATORS -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-4" style="color:var(--text-muted)"
+         data-ru="Четыре дифференциатора → отгруженная поверхность">Four differentiators -> shipped surface</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {diffs.map((d) => (
+          <div class="rounded-xl p-5 flex flex-col" style="background:var(--bg-surface);border:1px solid var(--border)">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-xs font-mono px-2 py-0.5 rounded-md border" style="border-color:var(--border);color:var(--text-muted)">{d.id}</span>
+              <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-mono bg-emerald-500/10 border-emerald-500/30 text-emerald-300">{d.tag}</span>
+            </div>
+            <p class="text-base font-semibold mb-1.5" style="color:var(--text-primary)" data-ru={d.ru}>{d.en}</p>
+            <p class="text-sm leading-relaxed mb-4 flex-1" style="color:var(--text-secondary)" data-ru={d.ru_sub}>{d.en_sub}</p>
+            <a href={d.href} class="inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
+               style="color:var(--accent)"
+               onmouseover="this.style.color='var(--accent-hover)'" onmouseout="this.style.color='var(--accent)'">
+              <span data-ru={d.cta_ru}>{d.cta_en}</span>
+              <span aria-hidden="true">-></span>
+            </a>
+          </div>
+        ))}
+      </div>
+      <p class="text-sm leading-relaxed mt-5 max-w-2xl" style="color:var(--text-muted)"
+         data-ru="Связующая нить: дифференциатор — не более высокое число, а честное измерение, сделанное проверяемым. Три из четырёх публикуют то, что прячут другие (отказы, реальное проскальзывание на выходе, честный потолок); четвёртый убирает человеческое/LLM-усмотрение из управления риском.">
+        The through-line: the differentiator is not a higher number — it is honest measurement made
+        checkable. Three of the four publish what others hide (declines, real exit slippage, the honest
+        ceiling); the fourth removes human / LLM discretion from risk management.
+      </p>
+    </section>
+
+    <!-- c. HONEST CONSTRAINTS -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-4" style="color:var(--text-muted)"
+         data-ru="Честные ограничения">Honest constraints</p>
+      <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
+        <ul class="space-y-3 text-sm leading-relaxed" style="color:var(--text-secondary)">
+          <li data-ru="Трек ТОНКИЙ — накапливается к 30 подтверждённым дням; доверительные метрики приходят ближе к 30-му дню и до этого помечены THIN, а не выдуманы.">
+            <strong style="color:var(--text-primary)">The track is THIN</strong> — accruing to 30
+            evidenced days; risk-adjusted ratios land near day 30 and read <span class="font-mono">THIN</span>
+            until then, never fabricated.
+          </li>
+          <li data-ru="Ёмкость ограничена — carry над флором реален, но ограничен глубиной; $10M = масштаб + декорреляция + AUM, не достижимо сегодня.">
+            <strong style="color:var(--text-primary)">Capacity is bounded</strong> — carry above the
+            floor is real but depth-bounded; $10M = scale + decorrelation + AUM, not reachable today.
+          </li>
+          <li data-ru="Капитал бумажный — $0 реального капитала, виртуальный портфель $100k. Не инвестиционный совет.">
+            <strong style="color:var(--text-primary)">The capital is paper</strong> — $0 real,
+            a virtual $100k book. Not investment advice.
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- d. FORWARD-LOOKING (labeled) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-4" style="color:var(--text-muted)"
+         data-ru="Forward-looking (помечено) — ещё не отгружено">Forward-looking (labeled) — not yet shipped</p>
+      <p class="text-sm leading-relaxed max-w-2xl" style="color:var(--text-muted)"
+         data-ru="Названо честно как будущее, а не как нынешний дифференциатор: инвесторский портал с P&L-атрибуцией по участникам и юридическим онбордингом; 2+ независимых аудита + bug bounty до go-live; off-code-ноги масштаба (кастоди/MPC, право, реальный капитал + отношения), которые гейтят $10M.">
+        Named honestly as future, not as a present differentiator: an investor portal with
+        per-participant P&L attribution + legal onboarding; 2+ independent audits + a bug bounty before
+        go-live; and the off-code scale legs (custody/MPC, legal, real capital + relationships) that
+        gate $10M.
+      </p>
+    </section>
+
+    <!-- e. CROSS-LINKS -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-4" style="color:var(--text-muted)" data-ru="Дальше">Go deeper</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <a href="/fundability" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Fundability">Fundability</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="честный кейс, каждое число проверяемо">the honest case, every number checkable</p>
+        </a>
+        <a href="/structural-desk" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Исследование">Research</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="три тезиса, вердикты">three theses, verdicts</p>
+        </a>
+        <a href="/refusals" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Лог отказов">Refusal log</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="differentiator #1, отгружен">differentiator #1, shipped</p>
+        </a>
+      </div>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+</Layout>
