@@ -140,7 +140,9 @@ def test_sweep_chosen_is_robust_center_not_loose_edge():
 def test_sweep_confirms_defaults_are_optimal():
     """Honest 'defaults confirmed' outcome: the chosen point equals the current config defaults. After
     the red-team FAIL #1 fix the swept cliff is max_structural_haircut (the size-INDEPENDENT toxicity
-    cap); the sweep confirms the pinned 0.09 is the robust center of the toxic-vs-healthy band."""
+    cap); after the wstETH FAIL #2 fix (funding made shape-driven, zeroed for held-to-maturity carry)
+    the sweep's robust center re-settled at the pinned config value — the assertion reads it dynamically
+    from config so it tracks a re-calibration rather than a hardcoded number."""
     r = CAL.sweep()
     ch = r["chosen"]
     assert ch["params"]["max_structural_haircut"] == str(float(config.CALIBRATED_MAX_STRUCTURAL_HAIRCUT))

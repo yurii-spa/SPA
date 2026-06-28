@@ -209,13 +209,18 @@ class OpportunityEngine:
         return out
 
     # ── fair-yield reference (shared by every shape) ───────────────────────────────────────────────
-    def _fair_yield(self, pt: RateQuote, risk: UnderlyingRisk, size: Decimal, as_of: str) -> Decimal:
+    def _fair_yield(self, pt: RateQuote, risk: UnderlyingRisk, size: Decimal, as_of: str,
+                    shape: Optional[TradeShape] = None) -> Decimal:
         """The fair-value yield for this underlying from the decomposition engine (baseline − 5
-        haircuts). The engine itself does not VETO on it — it only uses it as the spread reference."""
+        haircuts). The engine itself does not VETO on it — it only uses it as the spread reference.
+
+        `shape` drives the SHAPE-CORRECT funding haircut so a FIXED_CARRY (no perp leg) fair-yield
+        reference matches the gate's (no funding term), while the levered/basis/matrix shapes keep it.
+        Each shape builder passes its own TradeShape; None keeps funding (fail-CLOSED)."""
         dec = self.engine.fair(
             risk=risk, kind=pt.kind, tenor_seconds=pt.tenor_seconds,
             hedge_available=pt.hedge_available, position_size_usd=size,
-            exit_liquidity_usd=pt.exit_liquidity_usd, as_of=as_of,
+            exit_liquidity_usd=pt.exit_liquidity_usd, as_of=as_of, shape=shape,
         )
         return dec.fair_yield
 
@@ -244,7 +249,8 @@ class OpportunityEngine:
         if quoted is None:
             return None  # fail-CLOSED: no fabricated edge
         raw_max = self._raw_max_size(pt.exit_liquidity_usd)
-        fair = self._fair_yield(pt, risk, raw_max if raw_max > 0 else Decimal("1"), as_of)
+        fair = self._fair_yield(pt, risk, raw_max if raw_max > 0 else Decimal("1"), as_of,
+                                shape=TradeShape.FIXED_CARRY)
         gross = quoted - fair
         if gross <= D0:
             return None  # economics: no carry above fair → not a candidate (NOT a risk veto)
@@ -279,7 +285,8 @@ class OpportunityEngine:
         # the thinner book lets you. The gate caps the actual LEVERAGE/maturity later.
         binding_exit = min(self._raw_max_size(pt.exit_liquidity_usd),
                            self._raw_max_size(borrow.exit_liquidity_usd))
-        fair = self._fair_yield(pt, risk, binding_exit if binding_exit > 0 else Decimal("1"), as_of)
+        fair = self._fair_yield(pt, risk, binding_exit if binding_exit > 0 else Decimal("1"), as_of,
+                                shape=TradeShape.LEVERED_CARRY)
         slip = (self.costs.expected_slippage(binding_exit, pt.exit_liquidity_usd)
                 + self.costs.expected_slippage(binding_exit, borrow.exit_liquidity_usd))
         cost = self.costs.pendle_fee + self.costs.lending_fee + self.costs.gas_cost + slip
@@ -315,7 +322,8 @@ class OpportunityEngine:
             return None  # the basis is against us → not a candidate
         binding_exit = min(self._raw_max_size(pt.exit_liquidity_usd),
                            self._raw_max_size(boros.exit_liquidity_usd))
-        fair = self._fair_yield(pt, risk, binding_exit if binding_exit > 0 else Decimal("1"), as_of)
+        fair = self._fair_yield(pt, risk, binding_exit if binding_exit > 0 else Decimal("1"), as_of,
+                                shape=TradeShape.BASIS_HEDGE)
         slip = (self.costs.expected_slippage(binding_exit, pt.exit_liquidity_usd)
                 + self.costs.expected_slippage(binding_exit, boros.exit_liquidity_usd))
         cost = self.costs.pendle_fee + self.costs.hedge_cost + self.costs.gas_cost + slip
@@ -387,7 +395,8 @@ class OpportunityEngine:
         if best_nr <= D0:
             return None  # even the best venue nets <=0 → not a candidate
         raw_max = self._raw_max_size(best_quote.exit_liquidity_usd)
-        fair = self._fair_yield(best_quote, risk, raw_max if raw_max > 0 else Decimal("1"), as_of)
+        fair = self._fair_yield(best_quote, risk, raw_max if raw_max > 0 else Decimal("1"), as_of,
+                                shape=TradeShape.RATE_MATRIX)
         edge = OppEdge(
             underlying=u, shape=TradeShape.RATE_MATRIX, as_of=as_of, fair_yield=fair,
             reference_rate=best_nr, gross_edge=best_nr, cost_total=D0, net_edge=best_nr,

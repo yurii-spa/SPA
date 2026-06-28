@@ -147,6 +147,7 @@ def evaluate_entry(
         as_of=as_of,
         trailing_yield=trailing_yield,
         boros_forward=boros_forward,
+        shape=opp.shape,  # SHAPE-CORRECT funding: FIXED_CARRY has no perp leg → funding_flip = 0
     )
 
     # (1) TAIL_VETO — the fair-value REFUSE. Vetoes EVERYTHING regardless of how good the quote is, OR
@@ -320,6 +321,7 @@ def evaluate_hold(
     decomp = eng.fair(
         risk=risk, kind=q.kind, tenor_seconds=q.tenor_seconds, hedge_available=q.hedge_available,
         position_size_usd=opp.requested_size_usd, exit_liquidity_usd=exit_liquidity, as_of=as_of,
+        shape=opp.shape,  # SHAPE-CORRECT funding (hold side mirrors entry)
     )
 
     def _kill(reason: KillReason, detail: dict) -> Tuple[GateResult, KillState]:

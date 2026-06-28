@@ -139,17 +139,61 @@ _Isolated-basis simulation: PT receive-fixed minus the 5-venue median perp fundi
 
 <!-- END rates-desk 4-sleeve validation (backtest_rates) -->
 
+## wstETH calibration fix — shape-correct funding haircut (FAIL #2)
+
+**Diagnosis (model-input error, not real risk).** The desk refused wstETH on 100% of days
+(`tail_veto`) — a PLAIN LST (a wrapped-stETH value-accruing token) that should be clean held-to-
+maturity carry. Reading the stored decomposition (decision_log wstETH rows): its structural haircut
+was `peg ≈ 0.040 + funding 0.06 + oracle ≈ 0.003 + protocol ≈ 0.013 ≈ 0.116`, over the old 0.09 cap.
+The sole cause was the **`funding_flip_haircut` (saturated at its 0.06 cap)** being applied to a
+**FIXED_CARRY held-to-maturity PT, which has NO perp/forward-funding leg**. funding-flip risk is a
+property of *holding a perp/forward position*; a fixed rate locked at PT purchase and realized at
+redemption cannot bleed when perp funding flips. wstETH's GENUINE structural tail (peg + oracle +
+protocol, EXCLUDING the misapplied funding) is `≈ 0.046` — comfortably clean. So wstETH is genuinely
+investable once the model is shape-correct; it was a model-input error.
+
+**Fix (principled + shape-consistent, NOT cherry-picked).** The `funding_flip_haircut` is now
+**SHAPE-DRIVEN** via the single source of truth `TradeShape.has_funding_leg`:
+- `FIXED_CARRY` (held-to-maturity PT, no perp/forward leg) → `funding_flip_haircut = 0`, applied to
+  **ALL** FIXED_CARRY underlyings consistently (sUSDe, wstETH, AND the toxic LRTs alike — nothing is
+  cherry-picked for wstETH).
+- `LEVERED_CARRY` / `BASIS_HEDGE` / `RATE_MATRIX` (carry a funding/borrow/perp leg) → keep the FULL
+  funding haircut.
+- fail-CLOSED: an undeclared shape (`None`) keeps the funding haircut (never drops a real risk).
+
+**The toxic-LRT hole stays CLOSED (hard guardrail).** Toxic restaking books (ezETH/rsETH/eeth/weeth/
+pufETH) are refused on their **peg + oracle + protocol** structural tail, which `≈ 0.0967` — above the
+cap on its own, with **NO funding contribution needed**. Zeroing FIXED_CARRY funding does not move
+their verdict: verified refused at every size ($1k / $4,062.50 / $100k — the size-down exploit stays
+closed). Expressed as LEVERED_CARRY they additionally carry the funding term (`structural ≈ 0.157`) —
+shape drives funding, and the toxic books fail under every shape.
+
+**Re-calibration (the cap moved 0.09 → 0.06 — a TIGHTER, safer center).** With funding correctly
+removed from held-to-maturity carry, the healthy sUSDe/USDe structural haircut collapses to a FLAT
+`≈ 0.0153` (the old 0.078–0.09 healthy "ceiling" was ENTIRELY the misapplied funding term), and clean
+plain-LST PTs sit at `≈ 0.046`. The deterministic calibration sweep (below) measures max SAFE
+threshold **0.09**, min LEAKING threshold **0.10** (toxic leaks at/above 0.10), and its robust-center
+objective (max min-distance to BOTH cliffs) now picks **0.06** — toxic-leak margin **0.04** (vs only
+0.01 at the old 0.09, which sat one grid-step from the leak cliff) while healthy + clean-LST carry
+fires at **100%**. 0.06 is strictly tighter than 0.09 ⇒ strictly safer; 0.09 was loose only because
+the funding term inflated healthy carry. Pinned in `config.py` `CALIBRATED_MAX_STRUCTURAL_HAIRCUT`.
+
+> **Adversarial verification (all PASS):** toxic LRTs (ezETH/eeth/weeth/rsETH/pufETH) still refused at
+> every size; wstETH approves at full size (struct 0.036 < 0.06, funding 0); no other underlying
+> wrongly flips to approved (regenerated-log scan: 0 toxic approvals); shape drives funding
+> (LEVERED/BASIS keep it, FIXED_CARRY drops it); `verify_spa.py` clean-room exit 0.
+
 <!-- BEGIN rates-desk calibration sweep (calibrate) -->
 
 ## Calibration sweep — refusal threshold + haircut coefficients
 
 _Brief §9 + red-team FAIL #1 fix: the toxicity cliff is now `max_structural_haircut` (the size-INDEPENDENT peg+funding+oracle+protocol cap, so toxicity can't be sized around). This is an exhaustive, deterministic grid sweep over `max_structural_haircut` + `k_peg` + `k_protocol` on the DEEP 2024→2026 data, measuring (toxic-veto coverage) vs (healthy-carry fire-rate / survivor APY). Re-runnable via `python3 -m spa_core.strategy_lab.rates_desk.calibrate`._
 
-**Chosen (calibrated):** `max_structural_haircut=0.09`, `k_peg=4.0`, `k_protocol=0.02` → toxic coverage **100.0%** (all stress events refused: `True`), healthy fire-rate **100.0%**, survivor APY **23.82%** vs floor `3.4%` (beats: `True`).
+**Chosen (calibrated):** `max_structural_haircut=0.06`, `k_peg=4.0`, `k_protocol=0.02` → toxic coverage **100.0%** (all stress events refused: `True`), healthy fire-rate **100.0%**, survivor APY **22.33%** vs floor `3.4%` (beats: `True`).
 
 > _Note: this calibration's `survivor APY` is computed WITHOUT the downstream global APY ceiling (30%) and at full-book sizing — deliberately, because this sweep tunes the STRUCTURAL tail-haircut cutoff (peg/liquidity/protocol separation of toxic-LRT vs healthy carry), and that cutoff must not move with a downstream composition layer. It is an OPTIMIZATION objective, NOT the published carry number. The HONEST published, capacity-bound, ceiling-composed book APY is in the Assertion-2 and 4-sleeve sections above (FixedCarry ≈ 6% on the total-capital basis, idle cash at the floor)._
 
-> The current defaults (`max_structural_haircut=0.09`, `k_peg=4.0`, `k_protocol=0.02`) **are confirmed optimal by the sweep** (the chosen point equals them). Calibration is pinned in `config.py` (`CALIBRATED_*`), not hardcoded in the engine.
+> The current defaults (`max_structural_haircut=0.06`, `k_peg=4.0`, `k_protocol=0.02`) **are confirmed optimal by the sweep** (the chosen point equals them). Calibration is pinned in `config.py` (`CALIBRATED_*`), not hardcoded in the engine.
 
 Trade-off — the boundary (cliff) per coefficient pair (the threshold at/above which a toxic day would leak through):
 
@@ -161,14 +205,14 @@ Top sweep rows (admissible first, then survivor APY desc):
 
 | max_structural_haircut | k_peg | k_protocol | admissible | toxic cov % | fire-rate % | survivor APY % | beats floor |
 |---:|---:|---:|:--:|---:|---:|---:|:--:|
-| 0.08 | 4.0 | 0.02 | yes | 100.0 | 100.0 | 23.82 | yes |
-| 0.09 | 4.0 | 0.02 | yes | 100.0 | 100.0 | 23.82 | yes |
-| 0.06 | 4.0 | 0.02 | yes | 100.0 | 49.8 | 21.71 | yes |
-| 0.07 | 4.0 | 0.02 | yes | 100.0 | 49.8 | 21.71 | yes |
-| 0.10 | 4.0 | 0.02 | no | 100.0 | 100.0 | 23.82 | yes |
-| 0.11 | 4.0 | 0.02 | no | 100.0 | 100.0 | 23.82 | yes |
-| 0.12 | 4.0 | 0.02 | no | 100.0 | 100.0 | 23.82 | yes |
-| 0.14 | 4.0 | 0.02 | no | 100.0 | 100.0 | 23.82 | yes |
+| 0.06 | 4.0 | 0.02 | yes | 100.0 | 100.0 | 22.33 | yes |
+| 0.07 | 4.0 | 0.02 | yes | 100.0 | 100.0 | 22.33 | yes |
+| 0.08 | 4.0 | 0.02 | yes | 100.0 | 100.0 | 22.33 | yes |
+| 0.09 | 4.0 | 0.02 | yes | 100.0 | 100.0 | 22.33 | yes |
+| 0.10 | 4.0 | 0.02 | no | 100.0 | 100.0 | 22.33 | yes |
+| 0.11 | 4.0 | 0.02 | no | 100.0 | 100.0 | 22.33 | yes |
+| 0.12 | 4.0 | 0.02 | no | 100.0 | 100.0 | 22.33 | yes |
+| 0.14 | 4.0 | 0.02 | no | 100.0 | 100.0 | 22.33 | yes |
 
 > Reading the curve: loosening `max_structural_haircut` raises the survivor fire-rate/APY (less real carry strangled) but eventually lets a toxic restaking book clear the veto — the `min LEAKING threshold` column is exactly where that happens. The calibrated point sits at the richest admissible carry that is still strictly below every leak. On THIS data the toxic LRT books carry a depeg+nesting tail so far above any healthy sUSDe PT that the safe band is wide — the chosen threshold both vetoes 100% of toxic days and leaves healthy carry intact.
 
@@ -228,3 +272,23 @@ The catastrophic backstop (a position mis-sized against a stale proxy that the l
 > **Net verdict.** The proxy WAS miscalibrated (stale constant) and is now FIXED to contemporaneous depth. With the fix, the proxy shrinks with the real Oct-2025 drain, the 0.25× sizing cap + `CONCENTRATION` derisk kept every test position out of an illiquid bag, and the new `EXIT_CAPACITY` kill is the hard backstop for a true collapse below position size. Two layers of defense, both validated on the real stress.
 
 <!-- END rates-desk exit-liquidity validation (exit_liquidity_validation) -->
+
+<!-- BEGIN rates-desk exit-NAV-by-size schedule (exit_nav) -->
+
+## Liquidation-NAV-by-size — the per-ticket EXIT schedule (the flagship surface)
+
+_The investor-facing per-ticket exit schedule for the desk's OWN open carry book — what a forced unwind realises at $100k / $250k / $1M / $5M / $10M, and how long it takes. PUBLISHED AS A CONSERVATIVE LOWER BOUND (constant-product `L/(L+S)`), not a precise execution model: concentrated-liquidity Pendle PT pools are deeper near peg but FAR thinner in a forced unwind, so a defensible floor beats a precise-looking number we cannot defend. Depth is the SINGLE-market contemporaneous Pendle PT exit liquidity (never aggregated). Tied to the validated §9 Oct-2025 exit-liquidity stress (docs/RATES_DESK_VALIDATION.md#exit-liquidity (Oct-2025 stress)). PURE / fail-CLOSED / advisory. Re-runnable via `python3 -m spa_core.strategy_lab.rates_desk.exit_nav`._
+
+Book: **live** · market `0x177768caf9d0e036725a51d3f60d7e20f2d4d194` (susde) · gross $7,635 · depth $30,524 · as_of `2026-06-26` · source `rate_surface.exit_liquidity_usd`
+
+| ticket | gross $ | price impact % | net proceeds $ | haircut % | time-to-exit (days) | within 1 tick | flag |
+|---:|---:|---:|---:|---:|---:|:--:|---|
+| $100,000 | $100,000 | — | — | — | — | no | insufficient_contemporaneous_depth |
+| $250,000 | $250,000 | — | — | — | — | no | insufficient_contemporaneous_depth |
+| $1,000,000 | $1,000,000 | — | — | — | — | no | insufficient_contemporaneous_depth |
+| $5,000,000 | $5,000,000 | — | — | — | — | no | insufficient_contemporaneous_depth |
+| $10,000,000 | $10,000,000 | — | — | — | — | no | insufficient_contemporaneous_depth |
+
+> **Honest framing.** Conservative LOWER BOUND on forced-unwind proceeds, NOT a precise execution estimate or a realized exit. The constant-product L/(L+S) model under-states deliverable proceeds near peg and is published only as a defensible floor; concentrated-liquidity Pendle pools can be far thinner in a forced unwind. Single-market depth, never aggregated. Advisory — moves no capital.
+
+<!-- END rates-desk exit-NAV-by-size schedule (exit_nav) -->

@@ -163,23 +163,33 @@ def test_clean_stable_carry_still_approves():
 
 
 def test_clean_carry_survives_hostile_funding_regime():
-    """Even a clean stable book whose 90d-neg-funding fraction is high (funding haircut at its cap, the
-    common real regime — 57.6% of days) still APPROVES: its structural haircut (~0.078) stays below the
-    0.09 cap, and sustained funding is governed by the FUNDING_FLIP hysteresis streak, not this veto."""
+    """Even a clean stable book whose 90d-neg-funding fraction is high still APPROVES as a FIXED_CARRY
+    (held-to-maturity) book. SHAPE-CORRECT (the wstETH fix): a FIXED_CARRY PT has NO perp/forward-funding
+    leg → its funding_flip_haircut is exactly 0, so a hostile funding regime cannot inflate its structural
+    haircut at all (the held-to-maturity rate is locked at purchase). Its structural ≈ 0.0153 sits far
+    below the cap. (Sustained hostile funding on a funding-BEARING shape is governed by the FUNDING_FLIP
+    hysteresis streak, not this veto.)"""
     risk = UnderlyingRisk(
         underlying="susde", as_of="2025-06-01", nav_redemption_value=D("1"), market_price=D("1"),
         peg_distance=D("0"), peg_vol_30d=D("0"), redemption_sla_seconds=86400,
         reserve_fund_ratio=D("0.05"), funding_neg_frac_90d=D("0.30"),  # hostile but sub-streak
         oracle_kind="chainlink", oracle_staleness_seconds=300, nested_protocol_count=1,
         top_borrower_share=D("0.1"))
+    # SHAPE-CORRECT: FIXED_CARRY has no funding leg → funding_flip_haircut == 0 regardless of the regime.
     dec = ENG.fair(risk=risk, kind=UnderlyingKind.STABLE_SYNTH, tenor_seconds=86400 * 60,
                    hedge_available=True, position_size_usd=D("100000"),
-                   exit_liquidity_usd=D("2e6"), as_of="2025-06-01")
-    assert dec.funding_flip_haircut == P.cap_funding, "fixture should saturate the funding haircut"
+                   exit_liquidity_usd=D("2e6"), as_of="2025-06-01", shape=TradeShape.FIXED_CARRY)
+    assert dec.funding_flip_haircut == D("0"), "FIXED_CARRY (no perp leg) must zero the funding haircut"
     assert dec.structural_haircut < P.max_structural_haircut
     res, _ = _entry(risk, "100000", exit_liq=D("2e6"), kind=UnderlyingKind.STABLE_SYNTH,
                     trailing_yield=D("0.10"), boros_forward=D("0.12"))
-    assert res.approved is True, "hostile-but-clean carry must not be over-refused"
+    assert res.approved is True, "hostile-but-clean FIXED_CARRY carry must not be over-refused"
+    # And fail-CLOSED: WITHOUT a declared shape the funding haircut is KEPT (saturates here) — an
+    # undeclared shape never silently drops a real risk.
+    dec_no_shape = ENG.fair(risk=risk, kind=UnderlyingKind.STABLE_SYNTH, tenor_seconds=86400 * 60,
+                            hedge_available=True, position_size_usd=D("100000"),
+                            exit_liquidity_usd=D("2e6"), as_of="2025-06-01")
+    assert dec_no_shape.funding_flip_haircut == P.cap_funding, "undeclared shape must KEEP funding (fail-closed)"
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════

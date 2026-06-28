@@ -258,16 +258,37 @@ _TAIL_VETO_REASON = "tail_veto"
 
 
 def row_structural_haircut(row: dict):
-    """Decimal structural_haircut (peg+funding+oracle+protocol) for ONE mirror row, read from its OWN
-    stored decomposition. Returns None if the decomposition is malformed (fail-CLOSED: caller treats a
-    None as 'cannot confirm safe' → refuse). PURE."""
+    """SHAPE-CORRECT Decimal structural_haircut (peg + [funding] + oracle + protocol) for ONE mirror row,
+    read from its OWN stored decomposition. Returns None if the decomposition is malformed (fail-CLOSED:
+    caller treats a None as 'cannot confirm safe' → refuse). PURE.
+
+    SHAPE-CORRECT FUNDING (the wstETH fix, applied to regeneration too): the funding_flip_haircut is a
+    PERP/FORWARD-FUNDING-leg risk. A no-funding-leg shape (FIXED_CARRY held-to-maturity PT) bears NO
+    funding-flip risk, so its funding term is EXCLUDED here — exactly as the live gate now computes it.
+    This keeps regeneration CONSISTENT with the corrected gate: a healthy FIXED_CARRY carry whose STORED
+    decomposition carries the pre-fix (wrongly-applied) funding term is NOT spuriously flipped to refused
+    (its shape-correct structural is under the cap), while a toxic LRT — refused on peg+oracle+protocol
+    ALONE, with NO funding needed — stays refused. Shapes WITH a funding leg keep the stored funding term.
+    fail-CLOSED on an unknown/missing shape: the funding term is KEPT (never drop a real risk)."""
     from decimal import Decimal, InvalidOperation
+    from spa_core.strategy_lab.rates_desk.contracts import TradeShape
     dec = row.get("decomposition")
     if not isinstance(dec, dict):
         return None
+    # Resolve the shape's funding-leg presence from the row (fail-CLOSED: unknown shape keeps funding).
+    funding_leg_present = True
+    shape_val = row.get("shape")
     try:
-        return (Decimal(str(dec["peg_haircut"])) + Decimal(str(dec["funding_flip_haircut"]))
-                + Decimal(str(dec["oracle_haircut"])) + Decimal(str(dec["protocol_haircut"])))
+        funding_leg_present = TradeShape(shape_val).has_funding_leg
+    except (ValueError, KeyError):
+        funding_leg_present = True  # fail-CLOSED: undeclared/unknown shape → keep the funding term
+    try:
+        struct = (Decimal(str(dec["peg_haircut"]))
+                  + Decimal(str(dec["oracle_haircut"]))
+                  + Decimal(str(dec["protocol_haircut"])))
+        if funding_leg_present:
+            struct += Decimal(str(dec["funding_flip_haircut"]))
+        return struct
     except (KeyError, InvalidOperation, TypeError):
         return None
 

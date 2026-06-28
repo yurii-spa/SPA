@@ -55,6 +55,32 @@ class TradeShape(enum.Enum):
     BASIS_HEDGE = "basis_hedge"      # PT long vs forward-funding short — isolate the basis (NEXT)
     RATE_MATRIX = "rate_matrix"      # cross-venue rate arbitrage matrix (NEXT)
 
+    @property
+    def has_funding_leg(self) -> bool:
+        """True iff this shape carries a PERP / FORWARD-FUNDING leg whose negative-funding (carry-
+        unwind) regime is a real, held risk — so the funding_flip_haircut applies.
+
+        This is the SINGLE source of truth that makes the funding_flip_haircut SHAPE-DRIVEN (the
+        wstETH calibration fix). funding-flip risk is a property of HOLDING a perp/forward-funding
+        position; it is NOT borne by a leg that does not exist:
+
+          • FIXED_CARRY    — buy a Pendle PT and HOLD TO MATURITY. There is NO perp/forward-funding
+                             leg: the fixed rate is locked at purchase and realized at redemption
+                             regardless of how perp funding moves. → NO funding leg → funding_flip = 0.
+                             (This is why a clean PLAIN LST PT like wstETH was wrongly refused: the
+                             systemic ETH-perp funding haircut was applied to a position that has no
+                             perp exposure, pushing its structural haircut over the cap.)
+          • BASIS_HEDGE    — PT long vs a FORWARD-FUNDING SHORT: the short leg IS a funding position,
+                             so a funding flip directly bleeds the hedge. → funding leg → haircut kept.
+          • LEVERED_CARRY  — borrow + PT: the levered carry is exposed to the funding/borrow-rate
+                             regime that unwinds the spread. → funding leg → haircut kept.
+          • RATE_MATRIX    — cross-venue rate book with funding/borrow legs. → funding leg → kept.
+
+        Toxic LRT books are REFUSED on their PEG + ORACLE + PROTOCOL structural tail (which alone
+        exceeds the cap), NOT on funding — so zeroing the funding term for the no-leg shape does NOT
+        re-open the toxic-LRT hole (the wstETH fix's hard guardrail). PURE / deterministic."""
+        return self is not TradeShape.FIXED_CARRY
+
 
 class KillReason(enum.Enum):
     """Why an entry was REFUSED or a held position was unwound. REFUSAL-FIRST ordering: the tail/
@@ -267,11 +293,13 @@ class RatePolicyParams:
     # EXCLUDING the size-dependent liquidity term). A book whose structural tail alone exceeds this is
     # REFUSED at ANY size: sizing down only shrinks the liquidity term, so a structural-cap breach can
     # never be sized around (red-team FAIL #1 fix). Pinned in config.py (CALIBRATED_MAX_STRUCTURAL_HAIRCUT
-    # = 0.09 — measured to sit above every healthy-carry day and below every toxic-LRT day on the deep
-    # 2024→2026 data); read via _cal so a re-calibration updates config, not this default. fail-CLOSED
-    # literal mirrors the committed calibrated value.
+    # = 0.06 — the calibration sweep's robust-center after the wstETH shape-correct-funding fix: with
+    # funding zeroed for held-to-maturity PTs, healthy carry structural ≈ 0.0153 and clean LST ≈ 0.046
+    # sit far below 0.06, while toxic restaking ≈ 0.097 stays above; max toxic-leak margin vs the old
+    # one-grid-step-from-cliff 0.09). Read via _cal so a re-calibration updates config, not this default.
+    # fail-CLOSED literal mirrors the committed calibrated value.
     max_structural_haircut: Decimal = field(
-        default_factory=lambda: _cal("CALIBRATED_MAX_STRUCTURAL_HAIRCUT", "0.09"))
+        default_factory=lambda: _cal("CALIBRATED_MAX_STRUCTURAL_HAIRCUT", "0.06"))
     max_peg_distance: Decimal = Decimal("0.01")       # |market-nav|/nav above this → UNDERLYING_DEPEG (1%)
     max_oracle_staleness_s: int = 3600                # oracle older than this → ORACLE_STALE (1h)
     max_stable_depeg: Decimal = Decimal("0.005")      # debt/quote stable depeg above this → STABLE_DEPEG (0.5%)

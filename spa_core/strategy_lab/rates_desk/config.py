@@ -85,17 +85,33 @@ CALIBRATED_MAX_TOTAL_HAIRCUT = 0.12   # total_haircut above this → TAIL_VETO (
 # EXCLUDING the size-dependent liquidity term). A book whose STRUCTURAL tail alone exceeds this is
 # REFUSED at ANY size: sizing down only shrinks the liquidity term, so a structural breach can never be
 # "sized around" (red-team FAIL #1 fix — ezETH was approved at $4,062 by sizing down its liquidity
-# haircut while the structural tail sat at ~0.097). Measured separation on the DEEP 2024→2026 data:
-#   • healthy sUSDe/USDe carry structural_haircut ∈ [0.015, 0.0753] (max in hostile-funding regimes)
-#   • toxic restaking (ezETH/rsETH) structural_haircut ≈ 0.097–0.180 (peg+nesting tail)
-#   → the toxicity band starts ~0.097; a cap of 0.09 sits ABOVE every healthy day (0/2927 strangled)
-#     and BELOW every toxic day (0/1101 leaked) — clean both-sided separation. The funding-flip term
-#     SATURATES to its cap (0.06) for any funding-neg > 10% (a step function), and 57.6% of real days
-#     carry that — so the cap MUST sit above (capped-funding 0.06 + benign oracle+protocol ~0.018) ≈
-#     0.078 or it would strangle healthy carry; 0.09 clears that with ~0.012 margin. Sustained hostile
-#     funding is instead governed by the dedicated FUNDING_FLIP hysteresis streak (gate step 5).
+# haircut while the structural tail sat at ~0.097).
+#
+# wstETH CALIBRATION FIX (shape-correct funding): the funding_flip_haircut is a PERP/FORWARD-FUNDING-leg
+# risk and is now ZEROED for the no-funding-leg shape (FIXED_CARRY held-to-maturity PT — it has no perp
+# position to bleed on a funding flip); funding-bearing shapes (LEVERED_CARRY / BASIS_HEDGE / RATE_MATRIX)
+# keep the full term. This is driven by TradeShape.has_funding_leg, applied consistently to ALL
+# underlyings of a shape — NOT cherry-picked per token. Before the fix, the systemic ETH-perp funding
+# haircut (which SATURATES to its 0.06 cap for any funding-neg > 10%, i.e. 57.6% of real days) was wrongly
+# stacked onto held-to-maturity PTs, pushing a PLAIN clean LST like wstETH (peg+oracle+protocol ≈ 0.046)
+# over the old 0.09 cap — a model-input error, not real risk.
+#
+# Measured separation on the DEEP 2024→2026 data, NOW shape-correct (FIXED_CARRY, funding=0):
+#   • healthy sUSDe/USDe carry structural_haircut ≈ 0.0153 (FLAT — funding no longer enters a held PT;
+#     the old 0.078–0.09 healthy ceiling was ENTIRELY the misapplied funding term)
+#   • clean PLAIN-LST PT (wstETH/stETH/rETH) structural_haircut ≈ 0.046 (peg+oracle+protocol only)
+#   • toxic restaking (ezETH/rsETH) structural_haircut ≈ 0.0967–0.180 (peg+nesting tail — NO funding
+#     needed to be toxic; the size-down exploit stays closed on peg+oracle+protocol alone)
+#   → calibration sweep (calibrate.py) on this surface: max SAFE threshold 0.09, min LEAKING 0.10 (a
+#     toxic book leaks at/above 0.10). The admissible band is [≤0.06 … 0.09]; the deterministic robust-
+#     center objective (max min-distance to BOTH the toxic-leak cliff and the healthy-strangle cliff)
+#     picks 0.06 — toxic-leak margin 0.04 (vs only 0.01 at the old 0.09, one grid-step from the cliff)
+#     while healthy/clean-LST carry fires at 100% (their structural ≤ 0.046 << 0.06). Strictly TIGHTER
+#     than 0.09 = strictly safer; the old 0.09 was loose because the funding term inflated healthy carry.
+#     Sustained hostile funding on a funding-BEARING shape is still governed by the FUNDING_FLIP
+#     hysteresis streak (gate step 5).
 # Pinned / auditable; changing it is a research-config / ADR event. RatePolicyParams reads it via _cal.
-CALIBRATED_MAX_STRUCTURAL_HAIRCUT = 0.09  # structural_haircut above this → TAIL_VETO at ANY size
+CALIBRATED_MAX_STRUCTURAL_HAIRCUT = 0.06  # structural_haircut above this → TAIL_VETO at ANY size
 CALIBRATED_K_PEG = 4.0                 # peg-distance → APY haircut coefficient (the LRT depeg tail)
 CALIBRATED_CAP_PEG = 0.10
 CALIBRATED_K_FUNDING = 0.10            # funding-flip systemic overlay coefficient

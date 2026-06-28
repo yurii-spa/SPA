@@ -197,7 +197,9 @@ def replay_event(
         risk=entry_risk, kind=entry_kind, tenor_seconds=86400 * 60, hedge_available=(not is_lrt),
         position_size_usd=exposure, exit_liquidity_usd=Decimal("2e6"), as_of=as_of0,
         trailing_yield=Decimal(ev["entry_carry"]) if not is_lrt else None,
-        boros_forward=Decimal(ev["entry_carry"]) if not is_lrt else None)
+        boros_forward=Decimal(ev["entry_carry"]) if not is_lrt else None,
+        # LEVERED_CARRY carries a funding/borrow leg → funding-flip haircut applies (shape-correct).
+        shape=TradeShape.LEVERED_CARRY)
     entry_vetoed = entry_decomp.total_haircut > params.max_total_haircut
 
     if entry_vetoed:

@@ -28,6 +28,7 @@ from typing import Optional
 from spa_core.strategy_lab.rates_desk.contracts import (
     D0,
     RatePolicyParams,
+    TradeShape,
     UnderlyingKind,
     UnderlyingRisk,
     YieldDecomposition,
@@ -120,14 +121,29 @@ class FairValueEngine:
         kind: UnderlyingKind,
         position_size_usd: Decimal,
         exit_liquidity_usd: Decimal,
+        shape: Optional[TradeShape] = None,
     ) -> dict:
         """The brief's FIVE structural haircuts, each `k_* * normalized_risk` clamped to [0, cap].
         Returns a dict of the five Decimals. fail-CLOSED: a malformed risk field is treated as MAX
         for that haircut (clamped to its cap), never zero.
 
         REUSES the validated risk_score signals: peg_distance == the depeg-drawdown signal,
-        peg_vol_30d == the downside-drift signal, funding_neg_frac_90d == the funding-flip signal."""
+        peg_vol_30d == the downside-drift signal, funding_neg_frac_90d == the funding-flip signal.
+
+        SHAPE-CORRECT funding (the wstETH calibration fix): `funding_flip_haircut` is a PERP/FORWARD-
+        FUNDING-leg risk. A shape with NO funding leg (FIXED_CARRY held-to-maturity PT) cannot bleed
+        on a funding flip — it has no perp/forward position — so its funding haircut is ZERO. Shapes
+        that DO carry a funding/perp leg (LEVERED_CARRY / BASIS_HEDGE / RATE_MATRIX) keep the full
+        funding haircut. The TradeShape DRIVES the term (single source of truth: TradeShape.
+        has_funding_leg), applied consistently to ALL underlyings of that shape — never cherry-picked
+        per token. fail-CLOSED: when `shape` is None (caller did not declare the shape) the funding
+        leg is ASSUMED PRESENT (the haircut is kept), so an unknown shape never silently drops a real
+        risk. Toxic LRT books are vetoed on peg+oracle+protocol (over the cap on their own), NOT on
+        funding, so zeroing funding for FIXED_CARRY does not re-open the toxic-LRT hole."""
         p = self.params
+        # A shape with no funding/perp leg bears no funding-flip risk; an UNDECLARED shape (None) is
+        # treated as funding-bearing (fail-CLOSED — never drop a real risk on a missing input).
+        funding_leg_present = (shape is None) or shape.has_funding_leg
 
         # 1. PEG haircut — depeg distance + downside drift (the ezETH/rsETH peg-breakdown tail).
         peg = _safe_decimal(risk.peg_distance)
@@ -140,13 +156,19 @@ class FairValueEngine:
             peg_hc = _clamp(p.k_peg * peg_signal, D0, p.cap_peg)
 
         # 2. FUNDING-FLIP haircut — fraction of last 90d with negative funding (carry-unwind comp).
-        fneg = _safe_decimal(risk.funding_neg_frac_90d)
-        if fneg is None or fneg < 0:
-            fund_hc = p.cap_funding  # fail-CLOSED
+        #    SHAPE-CORRECT: a FIXED_CARRY held-to-maturity PT has NO perp/forward-funding leg, so it
+        #    cannot bleed on a funding flip → the haircut is exactly 0 for that shape (the wstETH fix).
+        #    Shapes WITH a funding leg keep the full term. fail-CLOSED on a malformed funding field.
+        if not funding_leg_present:
+            fund_hc = D0  # no perp/forward leg → no funding-flip risk for this shape (size-independent)
         else:
-            # k_funding scaled by how far funding-neg-frac exceeds a benign 10% baseline, /full-band
-            excess = fneg if fneg > Decimal("0.10") else D0
-            fund_hc = _clamp(p.k_funding * (excess / Decimal("0.40")) * Decimal("12"), D0, p.cap_funding)
+            fneg = _safe_decimal(risk.funding_neg_frac_90d)
+            if fneg is None or fneg < 0:
+                fund_hc = p.cap_funding  # fail-CLOSED
+            else:
+                # k_funding scaled by how far funding-neg-frac exceeds a benign 10% baseline, /full-band
+                excess = fneg if fneg > Decimal("0.10") else D0
+                fund_hc = _clamp(p.k_funding * (excess / Decimal("0.40")) * Decimal("12"), D0, p.cap_funding)
 
         # 3. ORACLE haircut — staleness as a fraction of tolerance.
         stale = risk.oracle_staleness_seconds
@@ -196,8 +218,14 @@ class FairValueEngine:
         trailing_yield: Optional[Decimal] = None,
         boros_forward: Optional[Decimal] = None,
         staking_yield: Optional[Decimal] = None,
+        shape: Optional[TradeShape] = None,
     ) -> YieldDecomposition:
         """Full decomposition for one market at `as_of`: baseline minus the five haircuts.
+
+        `shape` (the TradeShape the desk would express this as) drives the SHAPE-CORRECT funding
+        haircut: a no-funding-leg shape (FIXED_CARRY held-to-maturity) gets funding_flip_haircut = 0;
+        funding-bearing shapes keep it. fail-CLOSED: an undeclared shape (None) keeps the funding
+        haircut (never drops a real risk). See haircuts() / TradeShape.has_funding_leg.
 
         PURE (f(inputs, as_of)). The returned YieldDecomposition is frozen + hashable for the proof
         chain. fail-CLOSED throughout (max haircuts on malformed inputs)."""
@@ -205,7 +233,7 @@ class FairValueEngine:
             risk, kind, tenor_seconds, hedge_available,
             trailing_yield=trailing_yield, boros_forward=boros_forward, staking_yield=staking_yield,
         )
-        hc = self.haircuts(risk, baseline, kind, position_size_usd, exit_liquidity_usd)
+        hc = self.haircuts(risk, baseline, kind, position_size_usd, exit_liquidity_usd, shape=shape)
         return YieldDecomposition(
             underlying=risk.underlying,
             as_of=as_of,
