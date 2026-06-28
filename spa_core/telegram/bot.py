@@ -49,6 +49,11 @@ import sys
 import time
 import urllib.error
 import urllib.request
+
+try:
+    import fcntl  # POSIX advisory file lock — single-instance guard (macOS/Linux)
+except ImportError:  # pragma: no cover — non-POSIX; lock degrades to a no-op
+    fcntl = None
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -149,12 +154,27 @@ class TelegramBot:
     _MAX_BACKOFF_STEP = 6     # 2**6 = 64
     _MAX_BACKOFF_S = 60
 
+    # Single-instance advisory lock: a restarting poller can transiently overlap
+    # the prior instance's getUpdates long-poll → Telegram 409 Conflict streak.
+    # The lock file holds an exclusive flock for the poller's lifetime so a second
+    # poller refuses to start (rather than dueling for getUpdates). Advisory only:
+    # a missing flock (e.g. unusual FS) never blocks a legitimate single bot.
+    _LOCK_FILENAME = "tg_bot_v2.lock"
+
+    def _lock_path(self) -> Path:
+        """Lock-file path resolved from the LIVE module DATA_DIR at call time
+        (so tests redirecting DATA_DIR are honored, not the import-time value)."""
+        return DATA_DIR / self._LOCK_FILENAME
+
     def __init__(self, token: Optional[str] = None, chat_id: Optional[str] = None) -> None:
         self.token = token if token is not None else get_token()
         self.chat_id = chat_id if chat_id is not None else get_chat_id()
         self.api_base = "https://api.telegram.org/bot{}".format(self.token)
         self._offset = self._read_offset()
         self._fail_streak = 0
+        self._conflict_streak = 0      # consecutive getUpdates 409 Conflicts
+        self._last_status = None       # HTTP status of the last _api_call (or None)
+        self._lock_fh = None           # held flock file handle (single-instance)
         self._router = None  # lazily built (interactive menu router)
 
     # ── Interactive menu router (drill-down via editMessageText) ────────────
@@ -196,11 +216,18 @@ class TelegramBot:
         req = urllib.request.Request(
             url, data=data, headers={"Content-Type": "application/json"}, method="POST",
         )
+        self._last_status = None
         try:
             with urllib.request.urlopen(req, timeout=timeout or HTTP_TIMEOUT_S) as resp:
+                self._last_status = getattr(resp, "status", None) or resp.getcode()
                 return json.loads(resp.read().decode("utf-8"))
-        except (urllib.error.HTTPError, urllib.error.URLError,
-                TimeoutError, OSError, ValueError) as exc:
+        except urllib.error.HTTPError as exc:
+            # Record the HTTP status so callers can distinguish 409 Conflict (a
+            # second getUpdates poller is overlapping) from a generic outage.
+            self._last_status = getattr(exc, "code", None)
+            log.warning("API call %s failed: HTTP %s %s", method, self._last_status, exc)
+            return None
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
             log.warning("API call %s failed: %s", method, exc)
             return None
 
@@ -285,6 +312,18 @@ class TelegramBot:
         """Long-poll getUpdates with the persisted offset. Advances offset."""
         result = self._api_call("getUpdates", {"offset": self._offset, "timeout": 30})
         if not result or not result.get("ok"):
+            # 409 Conflict = another getUpdates poller is (transiently) overlapping
+            # — typically a restart while the prior instance is still draining its
+            # long-poll. Back off (capped) so we do NOT hammer a tight 409 streak;
+            # the overlap is self-clearing once the old poll's 30s timeout lapses.
+            if self._last_status == 409:
+                self._conflict_streak += 1
+                backoff = min(2 ** min(self._conflict_streak, self._MAX_BACKOFF_STEP),
+                              self._MAX_BACKOFF_S)
+                log.warning("getUpdates 409 Conflict (streak=%d) — another poller "
+                            "overlapping; backoff %ds", self._conflict_streak, backoff)
+                time.sleep(backoff)
+                return []
             # Transient Telegram outage (502 / SSL / read timeout). Apply capped
             # exponential backoff so a multi-second outage does not become a
             # tight retry storm against the Bot API.
@@ -295,6 +334,7 @@ class TelegramBot:
             time.sleep(backoff)
             return []
         self._fail_streak = 0  # success → reset
+        self._conflict_streak = 0
         updates = result.get("result") or []
         if updates:
             try:
@@ -907,6 +947,92 @@ class TelegramBot:
         except Exception as exc:  # noqa: BLE001 — never let one update crash the loop
             log.warning("handle_update failed: %s", exc)
 
+    # ── Single-instance lock + startup settle (409-on-restart fix) ─────────
+
+    def acquire_single_instance_lock(self) -> bool:
+        """Take an exclusive advisory flock so only ONE poller runs at a time.
+
+        A restarting poller can transiently overlap the prior instance's
+        getUpdates long-poll → Telegram 409 Conflict streak. Holding this lock
+        for the poller's lifetime means a second poller refuses to start instead
+        of dueling for getUpdates. Returns True if the lock was acquired (or if
+        flock is unavailable — advisory, never blocks a legitimate single bot),
+        False if another live poller already holds it.
+        """
+        if fcntl is None:
+            return True  # no POSIX flock → advisory no-op (still single in practice)
+        lock_path = self._lock_path()
+        try:
+            lock_path.parent.mkdir(parents=True, exist_ok=True)
+            fh = open(lock_path, "w")
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except (OSError, ValueError) as exc:
+            log.warning("single-instance lock busy/failed (%s) — another poller "
+                        "may be running; refusing to start a duplicate", exc)
+            try:
+                fh.close()  # type: ignore[has-type]
+            except Exception:
+                pass
+            return False
+        self._lock_fh = fh
+        try:
+            fh.write(str(os.getpid()))
+            fh.flush()
+        except Exception:
+            pass
+        return True
+
+    def release_single_instance_lock(self) -> None:
+        """Release the advisory flock (best-effort, fail-safe)."""
+        fh = self._lock_fh
+        self._lock_fh = None
+        if fh is None:
+            return
+        try:
+            if fcntl is not None:
+                fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+        except Exception:
+            pass
+        try:
+            fh.close()
+        except Exception:
+            pass
+
+    def settle_startup(self) -> None:
+        """Quiesce the poll channel on startup so a restart doesn't 409-streak.
+
+        1. deleteWebhook — if a webhook was ever set, getUpdates 409s forever;
+           clearing it is idempotent and harmless for a long-poll bot.
+        2. A short-timeout getUpdates "settle" drain: if the PRIOR instance is
+           still mid long-poll, this returns 409 (or empty); we back off briefly
+           and retry a few times until the old poll's timeout lapses and we own
+           the channel — turning a noisy 409 streak into a clean, bounded settle.
+        Fail-safe: never raises.
+        """
+        try:
+            # disable_webhook is a no-op if none is set; keep pending updates so a
+            # legitimate queued command isn't dropped on restart.
+            self._api_call("deleteWebhook", {"drop_pending_updates": False}, timeout=10)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("deleteWebhook on startup failed: %s", exc)
+        # Settle drain: short timeout so we don't block; bounded retries.
+        for attempt in range(self._MAX_BACKOFF_STEP):
+            result = self._api_call("getUpdates",
+                                    {"offset": self._offset, "timeout": 0},
+                                    timeout=10)
+            if result is not None and result.get("ok"):
+                self._conflict_streak = 0
+                return  # we own the channel
+            if self._last_status == 409:
+                backoff = min(2 ** (attempt + 1), self._MAX_BACKOFF_S)
+                log.warning("startup settle: prior poller still active (409) — "
+                            "wait %ds (attempt %d)", backoff, attempt + 1)
+                time.sleep(backoff)
+                continue
+            # non-409 failure (outage) — stop settling; the main loop's backoff
+            # handles it. Don't burn the whole settle budget on a dead network.
+            return
+
     # ── Polling loops ─────────────────────────────────────────────────────
 
     def run_once(self) -> int:
@@ -918,16 +1044,26 @@ class TelegramBot:
 
     def run_polling(self) -> None:
         """Continuous long-polling loop. Fail-safe; never returns normally."""
+        # Single-instance guard: refuse to start a second poller (would 409 the
+        # incumbent). Then settle the channel so a restart doesn't 409-streak.
+        if not self.acquire_single_instance_lock():
+            log.error("another SPA bot poller already holds the lock — exiting to "
+                      "avoid a getUpdates 409 conflict.")
+            return
         log.warning("SPA Bot v2.1 started (offset=%d)", self._offset)
+        self.settle_startup()
         # Register commands in Telegram ☰ menu once at startup.
         self.register_commands()
-        while True:
-            try:
-                for upd in self.get_updates():
-                    self.handle_update(upd)
-            except Exception as exc:  # noqa: BLE001
-                log.warning("polling error: %s — retry in 5s", exc)
-                time.sleep(5)
+        try:
+            while True:
+                try:
+                    for upd in self.get_updates():
+                        self.handle_update(upd)
+                except Exception as exc:  # noqa: BLE001
+                    log.warning("polling error: %s — retry in 5s", exc)
+                    time.sleep(5)
+        finally:
+            self.release_single_instance_lock()
 
 
 def main(argv: Optional[List[str]] = None) -> int:

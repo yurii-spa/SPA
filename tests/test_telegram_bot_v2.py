@@ -271,3 +271,102 @@ def test_all_commands_respond_without_crash(bot):
         bot.sent = []
         bot._dispatch(cmd, "999")
         assert any(s["method"] == "sendMessage" for s in bot.sent), cmd
+
+
+# ---------------------------------------------------------------------------
+# CRY-WOLF FIX (WS 3.3): a restarting poller transiently overlapping the prior
+# instance must NOT produce a tight getUpdates 409 Conflict streak. We inject a
+# 409-then-recover sequence and assert: (a) each 409 backs off (no spin), (b) the
+# conflict streak resets on the first successful poll, (c) startup settle clears
+# the channel, (d) the single-instance lock refuses a duplicate poller.
+# ---------------------------------------------------------------------------
+def test_get_updates_409_backs_off_not_spin(data_dir, monkeypatch):
+    b = TelegramBot(token="T", chat_id="999")
+    sleeps = []
+    monkeypatch.setattr(bot_mod.time, "sleep", lambda s: sleeps.append(s))
+
+    def conflict(method, params=None, timeout=None):
+        b._last_status = 409   # simulate Telegram 409 Conflict
+        return None
+
+    b._api_call = conflict  # type: ignore[assignment]
+    # Three overlapping polls in a row → three backoffs, escalating, all capped.
+    for _ in range(3):
+        assert b.get_updates() == []
+    assert b._conflict_streak == 3
+    assert len(sleeps) == 3
+    assert all(s <= b._MAX_BACKOFF_S for s in sleeps)
+    # Backoff escalates (2,4,8...) rather than a 0s tight loop.
+    assert sleeps[0] >= 2 and sleeps[-1] >= sleeps[0]
+
+
+def test_409_streak_resets_on_recovery(data_dir, monkeypatch):
+    # Once the prior poller's long-poll lapses, our next getUpdates succeeds and
+    # the conflict streak resets to 0 — the streak is bounded, never permanent.
+    b = TelegramBot(token="T", chat_id="999")
+    monkeypatch.setattr(bot_mod.time, "sleep", lambda s: None)
+    seq = ["conflict", "conflict", "ok"]
+
+    def stepper(method, params=None, timeout=None):
+        phase = seq.pop(0) if seq else "ok"
+        if phase == "conflict":
+            b._last_status = 409
+            return None
+        b._last_status = 200
+        return {"ok": True, "result": []}
+
+    b._api_call = stepper  # type: ignore[assignment]
+    b.get_updates(); b.get_updates()
+    assert b._conflict_streak == 2
+    b.get_updates()  # recovery
+    assert b._conflict_streak == 0
+
+
+def test_settle_startup_clears_channel(data_dir, monkeypatch):
+    # settle_startup deletes any webhook and drains until it owns the channel,
+    # turning a startup 409 into a bounded settle (no infinite streak).
+    b = TelegramBot(token="T", chat_id="999")
+    monkeypatch.setattr(bot_mod.time, "sleep", lambda s: None)
+    calls = []
+    seq = ["conflict", "ok"]  # prior poller active once, then clears
+
+    def fake(method, params=None, timeout=None):
+        calls.append(method)
+        if method == "deleteWebhook":
+            b._last_status = 200
+            return {"ok": True, "result": True}
+        # getUpdates settle
+        phase = seq.pop(0) if seq else "ok"
+        if phase == "conflict":
+            b._last_status = 409
+            return None
+        b._last_status = 200
+        return {"ok": True, "result": []}
+
+    b._api_call = fake  # type: ignore[assignment]
+    b.settle_startup()
+    assert "deleteWebhook" in calls            # webhook cleared idempotently
+    assert calls.count("getUpdates") >= 2       # retried past the 409 to success
+    assert b._conflict_streak == 0              # channel owned, streak clear
+
+
+def test_single_instance_lock_refuses_duplicate(data_dir):
+    # Two bots sharing the same lock file: the first owns it, the second is
+    # refused (so it won't open a duelling getUpdates → 409 streak).
+    b1 = TelegramBot(token="T", chat_id="999")
+    b2 = TelegramBot(token="T", chat_id="999")
+    import spa_core.telegram.bot as _bm
+    if _bm.fcntl is None:
+        import pytest as _pt
+        _pt.skip("no POSIX flock in this environment")
+    try:
+        assert b1.acquire_single_instance_lock() is True
+        assert b2.acquire_single_instance_lock() is False   # duplicate refused
+    finally:
+        b1.release_single_instance_lock()
+    # After release, a fresh poller can acquire it again.
+    b3 = TelegramBot(token="T", chat_id="999")
+    try:
+        assert b3.acquire_single_instance_lock() is True
+    finally:
+        b3.release_single_instance_lock()

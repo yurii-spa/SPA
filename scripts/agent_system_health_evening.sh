@@ -4,4 +4,11 @@
 # launchd CANNOT exec miniconda-python directly (exit 78 EX_CONFIG); this
 # bash wrapper runs it correctly. Log: /tmp/spa_system_health_evening.log
 # Plist must call: ProgramArguments = [/bin/bash, <abs path to this file>]
-exec /bin/bash /Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_template.sh system_health_evening scripts/system_health_check.py
+#
+# Runs the WRITER that refreshes data/system_health.json on every run. The old
+# target scripts/system_health_check.py only PRINTED PASS/WARN/FAIL and never
+# wrote data/system_health.json → the file went days stale while this agent kept
+# exiting 0 (the cry-wolf staleness bug). The monitor module --run computes the
+# 7-domain report, atomic-writes data/system_health.json, and sends the
+# edge-triggered telegram, exactly as intended for the twice-daily run.
+exec /bin/bash /Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_template.sh system_health_evening spa_core.monitoring.system_health_monitor --run

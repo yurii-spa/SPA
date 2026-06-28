@@ -1123,3 +1123,63 @@ def test_collect_handles_unparseable_json(good_dir, monkeypatch):
     report = mon.collect()                      # must not raise
     statuses = {c["id"]: c["status"] for c in report["checks"]}
     assert statuses["d1.adapter.present"] == WARNING
+
+
+# ---------------------------------------------------------------------------
+# CRY-WOLF FIX (WS 3.2): the data/system_health.json refresh must NOT be blocked
+# by any dedup/fingerprint logic. The fingerprint + _new_critical edge-trigger
+# gate ONLY the Telegram push; run() must atomic-write a FRESH report (new
+# generated_at) on EVERY run, even when the fingerprint is unchanged AND when
+# real state changed. The original staleness (file days old while the agent
+# exited 0) came from the launchd agent invoking a different non-writing script;
+# these tests pin that run() itself never withholds the write.
+# ---------------------------------------------------------------------------
+def test_run_always_writes_even_when_fingerprint_unchanged(good_dir, monkeypatch):
+    _patch_all_io(shm, monkeypatch)
+    monkeypatch.setattr(shm, "_push_system_critical", lambda m: True)
+    monkeypatch.setattr(shm, "_resolve_system_critical", lambda: None)
+    monkeypatch.setattr(shm, "_digest_summary", lambda m: None)
+    out = good_dir / "data" / "system_health.json"
+
+    mon1 = make_mon(good_dir)
+    r1 = mon1.run(send=False)
+    assert out.exists()
+    first = json.loads(out.read_text())
+    # Second run with IDENTICAL inputs → identical fingerprint, but the file must
+    # still be re-written with a fresh generated_at (no dedup short-circuit).
+    mon2 = make_mon(good_dir)
+    r2 = mon2.run(send=False)
+    second = json.loads(out.read_text())
+    assert r1["fingerprint"] == r2["fingerprint"], "precondition: same state → same fp"
+    assert second["generated_at"] >= first["generated_at"]
+    # The on-disk doc reflects the latest run, not a stale earlier snapshot.
+    assert second["generated_by"] == "system_health_monitor"
+
+
+def test_run_refresh_reflects_changed_state(good_dir, monkeypatch):
+    # When REAL state changes between runs, the refreshed file reflects it — the
+    # writer is never blocked by the previous run's fingerprint/dedup.
+    _patch_all_io(shm, monkeypatch)
+    monkeypatch.setattr(shm, "_push_system_critical", lambda m: True)
+    monkeypatch.setattr(shm, "_resolve_system_critical", lambda: None)
+    monkeypatch.setattr(shm, "_digest_summary", lambda m: None)
+    out = good_dir / "data" / "system_health.json"
+
+    # First run: clean.
+    make_mon(good_dir).run(send=False)
+    fp_before = json.loads(out.read_text())["fingerprint"]
+
+    # Inject a genuinely new CRITICAL condition (T2 cap breach via a held T2 pos).
+    _write(good_dir / "data", "red_flags.json",
+           {"red_flags": [{"severity": "CRITICAL", "protocol": "aave_v3",
+                           "message": "exploit"}],
+            "fallback_used": False})
+    _write(good_dir / "data", "current_positions.json",
+           {"positions": {"aave_v3": 50000.0}})
+
+    make_mon(good_dir).run(send=False)
+    after = json.loads(out.read_text())
+    assert after["fingerprint"] != fp_before, "changed state must change fingerprint"
+    # The refreshed file is the NEW state, proving the write was not suppressed.
+    crit_ids = {c["id"] for c in after["checks"] if c["status"] == "CRITICAL"}
+    assert crit_ids, "new CRITICAL state must surface in the refreshed file"

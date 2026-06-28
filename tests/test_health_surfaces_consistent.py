@@ -199,3 +199,79 @@ def test_live_snapshot_roundtrip_if_fresh():
         live["healthy_count"], live["warning_count"],
         live["critical_count"], live["total_agents"],
     ), "rendered briefing counts drifted from live agent_health.json"
+
+
+# ---------------------------------------------------------------------------
+# 6. CRY-WOLF FIX (WS 3.1): a RETIRED agent (httpserver, morning_digest, …) must
+#    NOT be reported as a fault by the briefing's launchd section. A healthy
+#    fleet that has correctly NOT loaded a retired agent reads HEALTHY.
+# ---------------------------------------------------------------------------
+import subprocess as _subprocess
+
+from spa_core.monitoring.agent_health_monitor import RETIRED_LABELS
+
+
+def _fake_launchctl(monkeypatch, stdout: str):
+    """Force update_system_briefing's subprocess.run(['launchctl','list']) output."""
+    class _R:
+        def __init__(self, out):
+            self.stdout = out
+    monkeypatch.setattr(usb.subprocess, "run",
+                        lambda *a, **k: _R(stdout))
+
+
+def test_retired_agent_not_flagged_missing(monkeypatch):
+    # A fleet where every NON-retired expected agent is loaded, and NO retired
+    # agent (httpserver / morning_digest / daily-paper-report) is present.
+    expected_non_retired = [
+        "com.spa.cloudflared", "com.spa.familyfund", "com.spa.uptime_monitor",
+        "com.spa.cycle_health", "com.spa.cycle_gap_monitor", "com.spa.portfolio_monitor",
+        "com.spa.peg_monitor", "com.spa.red_flag_monitor", "com.spa.governance_watcher",
+        "com.spa.autopush", "com.spa.daily_cycle", "com.spa.base_gas_monitor",
+        "com.spa.sky_monitor", "com.spa.checkpoint-7day", "com.spa.weekly_backup",
+        "com.spa.analytics_tier_c", "com.spa.analytics_tier_b", "com.spa.bts-feed",
+        "com.spa.bts-monitor",
+    ]
+    lines = "\n".join(f"123\t0\t{lbl}" for lbl in expected_non_retired)
+    _fake_launchctl(monkeypatch, lines)
+
+    section = usb.build_launchd_section()
+    # No retired agent is named as Missing.
+    for retired in RETIRED_LABELS:
+        assert retired not in section, (
+            f"briefing cried wolf: retired agent {retired} flagged in:\n{section}"
+        )
+    # Healthy fleet reads healthy — no "Missing (not loaded)" block at all.
+    assert "Missing (not loaded)" not in section
+    assert "Missing from expected list: **0**" in section
+
+
+def test_retired_agent_with_nonzero_exit_not_error_flagged(monkeypatch):
+    # A retired agent's .plist lingers and launchd retains a non-zero exit for it.
+    # It must NOT appear in the "Non-zero exit codes" block (it's out of fleet).
+    lines = "\n".join([
+        "-\t1\tcom.spa.httpserver",          # retired, exit 1 — must be IGNORED
+        "-\t1\tcom.spa.morning_digest",      # retired, exit 1 — must be IGNORED
+        "555\t0\tcom.spa.autopush",
+        "556\t0\tcom.spa.daily_cycle",
+    ])
+    _fake_launchctl(monkeypatch, lines)
+    section = usb.build_launchd_section()
+    assert "Non-zero exit" not in section, (
+        f"retired agent's stale exit cried wolf:\n{section}"
+    )
+    assert "com.spa.httpserver" not in section
+    assert "com.spa.morning_digest" not in section
+
+
+def test_live_agent_nonzero_exit_still_flagged(monkeypatch):
+    # Honesty must NOT over-suppress: a NON-retired agent with a real non-zero
+    # exit (and no live PID) is STILL flagged. Retired-skip ≠ blanket silence.
+    lines = "\n".join([
+        "-\t1\tcom.spa.autopush",            # live agent, genuine failure
+        "557\t0\tcom.spa.daily_cycle",
+    ])
+    _fake_launchctl(monkeypatch, lines)
+    section = usb.build_launchd_section()
+    assert "Non-zero exit" in section
+    assert "com.spa.autopush" in section

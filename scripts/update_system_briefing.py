@@ -19,6 +19,10 @@ from datetime import datetime, timezone
 # ── Paths ──────────────────────────────────────────────────────────────────────
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+# Make spa_core importable when run as a standalone script (launchd invokes this
+# file directly) so the canonical RETIRED_LABELS source of truth is reachable.
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 DOCS_DIR = os.path.join(PROJECT_ROOT, "docs")
 OUTPUT = os.path.join(DOCS_DIR, "SYSTEM_BRIEFING.md")
@@ -32,6 +36,34 @@ OUTPUT = os.path.join(DOCS_DIR, "SYSTEM_BRIEFING.md")
 # possibly-contradictory number. 35 min = the hourly writer's cadence is 60 min;
 # anything materially past one extra 30-min briefing tick is suspect.
 AGENT_SNAPSHOT_STALE_MIN = 35
+
+# Hard fallback list mirroring agent_health_monitor.RETIRED_LABELS, used ONLY if
+# that module cannot be imported (e.g. a stripped sandbox). The live import below
+# is the source of truth; this keeps the briefing honest about retired agents
+# even when spa_core is unavailable.
+_RETIRED_FALLBACK = frozenset({
+    "com.spa.bot_commands",
+    "com.spa.httpserver",
+    "com.spa.telegram_daily",
+    "com.spa.telegram_weekly",
+    "com.spa.morning_digest",
+    "com.spa.daily-paper-report",
+})
+
+
+def _retired_labels() -> frozenset:
+    """Single source of truth for retired agents = agent_health_monitor.RETIRED_LABELS.
+
+    The briefing must NOT flag a retired agent (httpserver, morning_digest, …) as
+    "Missing" / "Non-zero exit" — they were retired by owner decision, so a
+    healthy fleet that correctly does NOT load them must read healthy. Falls back
+    to a literal mirror only if the canonical module can't be imported.
+    """
+    try:
+        from spa_core.monitoring.agent_health_monitor import RETIRED_LABELS
+        return frozenset(RETIRED_LABELS)
+    except Exception:
+        return _RETIRED_FALLBACK
 
 
 # ── JSON helpers ───────────────────────────────────────────────────────────────
@@ -202,7 +234,17 @@ def build_agents_section() -> str:
 
 
 def build_launchd_section() -> str:
-    """Check launchctl directly — only works on real macOS host."""
+    """Check launchctl directly — only works on real macOS host.
+
+    Honesty contract (cry-wolf fix): RETIRED agents (the single source of truth
+    is ``agent_health_monitor.RETIRED_LABELS`` — e.g. com.spa.httpserver,
+    com.spa.morning_digest, com.spa.daily-paper-report) are NEVER counted as
+    expected and NEVER flagged "Missing" or "Non-zero exit". They were retired by
+    owner decision; a healthy fleet that has correctly NOT loaded them must read
+    healthy here, not cry wolf. A retired agent still resident in launchctl is
+    likewise not error-flagged.
+    """
+    retired = _retired_labels()
     try:
         result = subprocess.run(
             ["launchctl", "list"],
@@ -219,6 +261,10 @@ def build_launchd_section() -> str:
         if len(parts) >= 3:
             pid, exit_code, label = parts[0], parts[1], parts[2]
             loaded_labels.add(label)
+            # Retired agents are out of the fleet — never error-flag them even if
+            # a stale .plist lingers and launchd retains a non-zero exit for them.
+            if label in retired:
+                continue
             # Skip non-zero exit for currently-RUNNING agents (numeric PID):
             # launchctl retains the previous run's exit code, so a live server that
             # was cleanly restarted shows e.g. -15 (SIGTERM) — a false alarm.
@@ -226,7 +272,8 @@ def build_launchd_section() -> str:
             if exit_code not in ("0", "-") and not _running:
                 errored.append(f"`{label}` (exit {exit_code})")
 
-    # Expected agents from agent_status.sh
+    # Expected agents from agent_status.sh, MINUS any that have been retired
+    # (RETIRED_LABELS). Retired agents being absent is correct, not a fault.
     expected = [
         "com.spa.httpserver", "com.spa.cloudflared", "com.spa.familyfund",
         "com.spa.uptime_monitor", "com.spa.cycle_health", "com.spa.cycle_gap_monitor",
@@ -236,6 +283,7 @@ def build_launchd_section() -> str:
         "com.spa.checkpoint-7day", "com.spa.weekly_backup", "com.spa.analytics_tier_c",
         "com.spa.analytics_tier_b", "com.spa.bts-feed", "com.spa.bts-monitor",
     ]
+    expected = [e for e in expected if e not in retired]
     missing = [e for e in expected if e not in loaded_labels]
 
     lines = [
@@ -251,7 +299,7 @@ def build_launchd_section() -> str:
         for e in errored:
             lines.append(f"- ⚠️ {e}")
     if not missing and not errored:
-        lines.append("_All expected agents loaded and healthy_")
+        lines.append("_All expected agents loaded and healthy (retired agents excluded)_")
     return "\n".join(lines) + "\n"
 
 

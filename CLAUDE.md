@@ -71,7 +71,7 @@ duplicate-flood регрессия). `agent_health` и `verify_fleet_after_reboo
 | `com.spa.autopush` | каждые 90 мин | ✅ |
 | `com.spa.rules_watchdog` | каждые 5 мин | ✅ |
 | `com.spa.cycle_gap_monitor` | ежедневно | ✅ |
-| `com.spa.daily_cycle` | 08:00 UTC | ✅ (log missing — проверить) |
+| `com.spa.daily_cycle` | 08:00 UTC | ✅ (логи в `/tmp/spa_daily_cycle.log` после миграции) |
 | `com.spa.system_health_morning` | 08:30 UTC | ✅ |
 | `com.spa.system_health_evening` | 20:30 UTC | ✅ |
 | `com.spa.agent_health` | каждый час | ✅ |
@@ -79,7 +79,6 @@ duplicate-flood регрессия). `agent_health` и `verify_fleet_after_reboo
 | `com.spa.cycle_health` | каждые 15 мин | ✅ |
 | `com.spa.uptime_monitor` | каждые 5 мин | ✅ |
 | `com.spa.cloudflared` | KeepAlive | ✅ |
-| `com.spa.morning_digest` | 08:05 UTC | ⚠️ exit=1 (Telegram issue) |
 | `com.spa.system_briefing` | каждые 30 мин | ✅ NEW |
 | `com.spa.strategy_lab_paper` | каждый час | ✅ |
 | `com.spa.refusal` | 05:45 local (advisory) | ✅ |
@@ -148,7 +147,9 @@ Mac Mini (production host) — earn-defi.com
 > `spa_frontend/` React-исходник) **удалён 2026-06-28**. Единственный дашборд теперь —
 > `earn-defi.com/dashboard` (Astro). Единственный frontend-деплой — `deploy-landing.yml`.
 
-**Стек:** Python 3, **только stdlib** в runtime. Атомарные записи: `shutil.move` (не `os.replace` — cross-device в sandbox).
+**Стек:** Python 3, **только stdlib** в runtime. Атомарные записи: канонический
+`spa_core.utils.atomic.atomic_save` → tmp-файл в **той же директории** + `os.replace(tmp, dst)`
+(same-dir tmp ⇒ никакого cross-device EXDEV; не прямой `open(..., "w")`).
 
 ---
 
@@ -480,7 +481,7 @@ python3 push_to_github.py --files /abs/path/file.py --message "vX.XX: desc"
 1. **SYSTEM_BRIEFING.md** — читать первым в каждой сессии, прежде чем говорить о состоянии системы.
 2. **Не импортировать** `execution/` из read-only / paper-кода.
 3. **Только stdlib** Python в runtime-коде — без внешних зависимостей.
-4. **Атомарные записи** — `shutil.move(tmp, dst)`, никогда прямой `open(..., "w")` на state-файлы.
+4. **Атомарные записи** — `atomic_save` (same-dir tmp + `os.replace(tmp, dst)`), никогда прямой `open(..., "w")` на state-файлы.
 5. **LLM запрещён** в risk / execution / monitoring компонентах.
 6. **Не встраивать PAT** в файлы, не создавать `push_*.html`.
 7. **RiskPolicy version = "v1.0"** весь paper-период; изменение → новый ADR.
