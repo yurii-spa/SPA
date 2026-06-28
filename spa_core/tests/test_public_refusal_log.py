@@ -241,6 +241,168 @@ def test_chain_tamper_detected(tmp_path):
     assert res["broken_at"] == 1
 
 
+# ── 4b. single-coherent-chain / multi-genesis / forgery / API==spec / regen / interlock ──────────
+# These tests target the EXACT adversarial findings: the published file must verify as ONE chain
+# (spec §5), a multi-genesis concatenation must FAIL, a forged unlinked row must be REJECTED, the API
+# verdict must EQUAL the spec recipe byte-for-byte, the regenerated canonical file must verify, and a
+# sandbox run must NOT write the canonical mirror. They FAIL on the old behavior, PASS on the fix.
+
+ENVELOPE = ("seq", "ts", "entry_hash", "prev_hash")
+
+
+def _spec_verify_chain(rows: list) -> dict:
+    """INDEPENDENT re-implementation of docs/PROOF_CHAIN_SPEC.md §5 — uses ONLY the published recipe,
+    not our code: seq==idx, prev_hash linkage (genesis '0'*64), self-recompute; head=last entry_hash."""
+    expected_prev = "0" * 64
+    for idx, row in enumerate(rows):
+        if not isinstance(row, dict) or row.get("seq") != idx:
+            return {"valid": False, "broken_at": idx, "head_hash": None}
+        if row.get("prev_hash") != expected_prev:
+            return {"valid": False, "broken_at": idx, "head_hash": None}
+        if _recompute_entry_hash_per_spec(row) != row.get("entry_hash"):
+            return {"valid": False, "broken_at": idx, "head_hash": None}
+        expected_prev = row["entry_hash"]
+    return {"valid": True, "broken_at": None,
+            "head_hash": rows[-1]["entry_hash"] if rows else None}
+
+
+def _multi_genesis_rows() -> list:
+    """A REAL-SHAPED corrupt mirror: two independent runs' chains concatenated (two genesis rows,
+    seq restarts at 0, broken prev-linkage at the boundary) — the exact historical decision_log shape."""
+    # run A: seq 0,1 linked from genesis
+    runA = _write_chain_rows([_payload(0, reason="tail_veto", underlying="eeth"),
+                              _payload(1, reason="tail_veto", underlying="susde")])
+    # run B: its OWN genesis seq 0,1 (independent chain) — concatenated after run A
+    runB = _write_chain_rows([_payload(0, reason="tail_veto", underlying="usde"),
+                              _payload(1, reason="none", underlying="ptusdc", approved=True)])
+    return runA + runB
+
+
+def _write_chain_rows(payloads: list) -> list:
+    """Build genuine internally-linked rows (single genesis) WITHOUT touching disk; return mirror rows."""
+    rows = []
+    prev = hash_chain.GENESIS_PREV
+    for seq, pl in enumerate(payloads):
+        ts = "2026-06-25T00:00:00+00:00"
+        eh = hash_chain.compute_entry_hash(seq, ts, EVENT_TYPE, pl, prev)
+        rows.append({"seq": seq, "ts": ts, "entry_hash": eh, "prev_hash": prev, **pl})
+        prev = eh
+    return rows
+
+
+def test_multi_genesis_concatenation_rejected():
+    """The real-shaped corrupt file (many runs' genesis chains concatenated) must FAIL verification:
+    verified:false at the SECOND genesis boundary. The old intrinsic-only verifier passed this."""
+    from spa_core.api.routers.rates_desk import _verify_decision_log
+    rows = _multi_genesis_rows()
+    res = _verify_decision_log(rows)
+    assert res["valid"] is False
+    # break is at the first row of run B (index 2): its seq==0 != idx==2 (and prev != prior entry_hash)
+    assert res["broken_at"] == 2
+    assert res["head_hash"] is None
+    # spec §5 (independent) reaches the IDENTICAL verdict
+    spec = _spec_verify_chain(rows)
+    assert spec["valid"] is False and spec["broken_at"] == 2
+
+
+def test_forged_unlinked_row_rejected():
+    """A fabricated unlinked row (seq:999, bogus prev_hash) must be REJECTED (verified:false) and must
+    NOT become the published head_hash. The old max-seq head logic would have crowned it."""
+    from spa_core.api.routers.rates_desk import _verify_decision_log
+    rows = _write_chain_rows([_payload(0, reason="tail_veto", underlying="eeth"),
+                              _payload(1, reason="tail_veto", underlying="susde")])
+    # The DANGEROUS forgery the old verifier accepted: a fabricated row whose OWN entry_hash
+    # recomputes (intrinsically valid) but is UNLINKED — seq:999, bogus prev_hash. The old
+    # intrinsic-only check returned valid:true AND crowned it head_hash. A real chain verifier rejects.
+    fp = {k: v for k, v in rows[-1].items() if k not in ENVELOPE}
+    forged_eh = hash_chain.compute_entry_hash(999, rows[-1]["ts"], EVENT_TYPE, fp, "ff" * 32)
+    forged = {"seq": 999, "ts": rows[-1]["ts"], "prev_hash": "ff" * 32, "entry_hash": forged_eh, **fp}
+    rows_forged = rows + [forged]
+    res = _verify_decision_log(rows_forged)
+    assert res["valid"] is False
+    assert res["broken_at"] == 2  # seq 999 != idx 2 → rejected at the forged row
+    assert res["head_hash"] != forged_eh  # the forged (self-consistent) hash never becomes head
+    # spec §5 agrees and also refuses to crown the forgery
+    spec = _spec_verify_chain(rows_forged)
+    assert spec["valid"] is False and spec["head_hash"] != forged_eh
+
+
+@pytest.mark.parametrize("broken", [False, True])
+def test_api_verdict_equals_spec_recipe(tmp_path, broken):
+    """The API verifier and the published spec §5 recipe MUST compute the IDENTICAL verdict on the
+    SAME file: clean → both true (+ identical head_hash); broken → both false (+ identical broken_at)."""
+    from spa_core.api.routers.rates_desk import _verify_decision_log
+    rows = _write_chain_rows([_payload(0, reason="tail_veto", underlying="eeth"),
+                              _payload(1, reason="size_floor", underlying="susde"),
+                              _payload(2, reason="none", underlying="ptusdc", approved=True)])
+    if broken:
+        rows[1]["decomposition"]["peg_haircut"] = "0.999999999"  # tamper, keep stored hash
+    api = _verify_decision_log(rows)
+    spec = _spec_verify_chain(rows)
+    assert api["valid"] == spec["valid"]
+    assert api["broken_at"] == spec["broken_at"]
+    assert api["head_hash"] == spec["head_hash"]
+    if not broken:
+        assert api["valid"] is True
+        assert api["head_hash"] == rows[-1]["entry_hash"]
+
+
+def test_regenerated_canonical_log_verifies_as_one_chain():
+    """The live committed data/rates_desk/decision_log.jsonl must verify as ONE coherent chain per the
+    API verifier AND the independent spec §5 recipe (the published artifact is correct NOW)."""
+    if not _REAL_LOG.exists():
+        pytest.skip("canonical decision_log.jsonl absent")
+    from spa_core.api.routers.rates_desk import _verify_decision_log
+    rows = [json.loads(ln) for ln in _REAL_LOG.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    assert rows, "canonical log is empty"
+    api = _verify_decision_log(rows)
+    spec = _spec_verify_chain(rows)
+    assert api["valid"] is True, f"canonical log not a single chain: broken_at={api['broken_at']}"
+    assert spec["valid"] is True
+    assert api["head_hash"] == spec["head_hash"] == rows[-1]["entry_hash"]
+    # single genesis, contiguous seq
+    assert rows[0]["prev_hash"] == "0" * 64
+    assert [r["seq"] for r in rows] == list(range(len(rows)))
+
+
+def test_rebase_preserves_decision_body():
+    """Re-basing the mirror normalizes ONLY the envelope (seq/prev_hash/entry_hash) — the signed
+    decision body (kind/reason/decomposition/proof_hash/…) is preserved verbatim."""
+    from spa_core.strategy_lab.rates_desk import proof_chain
+    src = _write_chain_rows([_payload(0, reason="tail_veto", underlying="eeth"),
+                             _payload(1, reason="none", underlying="ptusdc", approved=True)])
+    rebased = proof_chain._rebase_rows(src)
+    for s, r in zip(src, rebased):
+        assert proof_chain._payload_of(s) == proof_chain._payload_of(r)
+    assert proof_chain.verify_mirror(rebased)["valid"] is True
+
+
+def test_sandbox_run_does_not_write_canonical_mirror(monkeypatch, tmp_path):
+    """A sandbox/hermetic run (no explicit log_path) must NOT write the canonical decision_log.jsonl
+    (the write-interlock that stops transient runs from re-polluting the published chain). An explicit
+    log_path is still honored."""
+    from spa_core.strategy_lab.rates_desk import proof_chain
+    # point the canonical _LOG at a tmp sentinel and the chain at tmp so we never touch real data
+    canonical = tmp_path / "canonical_decision_log.jsonl"
+    monkeypatch.setattr(proof_chain, "_LOG", canonical)
+    monkeypatch.setattr(hash_chain, "_CHAIN", tmp_path / "audit_chain.jsonl")
+    monkeypatch.setattr(proof_chain, "_is_sandbox", lambda: True)
+
+    from spa_core.tests.test_rates_desk_integration import _toxic_and_carry_verdicts  # reuse verdicts
+    verdicts = _toxic_and_carry_verdicts()
+
+    # no log_path + sandbox → canonical mirror REFUSED
+    proof_chain.record_decisions(verdicts, ts="2026-01-01T00:00:00+00:00")
+    assert not canonical.exists(), "sandbox run polluted the canonical decision_log.jsonl"
+
+    # explicit log_path under sandbox → allowed (its own file), and verifies as one chain
+    own = tmp_path / "own_log.jsonl"
+    proof_chain.record_decisions(verdicts, ts="2026-01-01T00:00:00+00:00", log_path=own)
+    assert own.exists()
+    rows = [json.loads(ln) for ln in own.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    assert proof_chain.verify_mirror(rows)["valid"] is True
+
+
 # ── 5/6. API: shape, graceful, chain badge, redaction, advisory size ─────────────
 pytest.importorskip("fastapi", reason="fastapi optional dep not installed — API suite skipped")
 from fastapi.testclient import TestClient  # noqa: E402

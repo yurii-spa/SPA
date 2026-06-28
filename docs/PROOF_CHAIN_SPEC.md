@@ -16,7 +16,19 @@ single byte of any historical decision were changed, your recompute would diverg
 
 `data/rates_desk/decision_log.jsonl` — JSON Lines (one JSON object per line, UTF-8). It is also
 served live at `GET /api/rates-desk/proof` (machine) and `GET /api/rates-desk/refusals`
-(human-readable). Each line is **one decision** (an `ENTRY` or a `REFUSAL`) and has this shape:
+(human-readable).
+
+> **The public file is ONE coherent chain (re-based, single genesis).** The published mirror is a
+> faithful projection of the desk's decisions: the **decision body** of every row (`kind`, `reason`,
+> `decomposition`, `proof_hash`, … — everything in the *payload* group below) is verbatim what the
+> gate produced, but the **chain-linkage envelope** (`seq`, `prev_hash`, `entry_hash`) is *re-based*
+> into a single contiguous chain on every write — `seq` runs `0..N` with no gaps, `prev_hash` links
+> each row to the previous row's `entry_hash`, and the genesis row's `prev_hash` is `"0"*64`. This is
+> why §5 below verifies the file **standalone**, with a single genesis and `head_hash` = the **last**
+> row's `entry_hash`. (The authoritative append-only producer ledger lives separately at
+> `data/audit_chain.jsonl`; the public file is the re-based, ring-buffered human-readable mirror of it.)
+
+Each line is **one decision** (an `ENTRY` or a `REFUSAL`) and has this shape:
 
 ```json
 {
@@ -182,7 +194,35 @@ verdict independently.
 
 ---
 
-## 6. Determinism & test anchor
+## 6. The `exit-nav` `proof_hash` (a separate published proof_hash)
+
+`GET /api/rates-desk/exit-nav` publishes a per-ticket liquidation schedule, and **every schedule row
+carries its own `proof_hash`** (the adversarial note: every published `proof_hash` should be spec'd).
+It is *not* part of the decision chain above — it is a standalone, reproducible digest over the row's
+published inputs, computed with the **same canonical-JSON + SHA-256 rule** (§2):
+
+```python
+import json, hashlib
+
+def exit_nav_proof_hash(row_inputs: dict) -> str:
+    blob = json.dumps(row_inputs, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+```
+
+`row_inputs` is exactly the published, reproducible-from-the-row set:
+
+```
+{ "ticket_usd", "gross_usd", "depth_usd", "as_of", "model", "model_params", "data_source" }
+```
+
+where `model_params = { dex_routing_cost_bps, operational_haircut_bps, max_size_frac_of_exit,
+min_dex_pool_tvl_usd }`. All of these fields are present verbatim in the published schedule row, so a
+third party reconstructs `row_inputs` from the row and recomputes `proof_hash` — confirming the
+conservative lower-bound exit NAV was derived from the stated inputs and model, not back-fitted.
+
+---
+
+## 7. Determinism & test anchor
 
 The recipe is deterministic: same file → same hashes on any machine, any language, any year. The repo
 proves the recipe is correct in `spa_core/tests/test_public_refusal_log.py`

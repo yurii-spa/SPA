@@ -106,46 +106,23 @@ def get_rates_desk_decisions(limit: int = Query(default=50, ge=1, le=500)):
     }
 
 
-# Payload keys carried by every decision_log mirror row that are NOT part of the
-# hash-covered decision payload (they are the chain-linkage envelope).
-_PROOF_ENVELOPE_KEYS = ("seq", "ts", "entry_hash", "prev_hash")
-_PROOF_EVENT_TYPE = "rates_desk_decision"
-
-
 def _verify_decision_log(rows: list) -> dict:
-    """Re-derive the hash over every public decision_log mirror row, fail-CLOSED — tamper-evidence.
+    """Verify the public decision_log mirror as ONE chain, EXACTLY per docs/PROOF_CHAIN_SPEC.md §5.
 
-    Each mirror row is ``{seq, ts, entry_hash, prev_hash, **decision_payload}``. We verify each
-    row's INTRINSIC authenticity: every entry_hash must recompute via hash_chain.compute_entry_hash
-    over the row's own payload + seq/ts/prev_hash. Returns
-    {"valid", "length", "broken_at", "head_hash"}; an empty log is valid.
+    Delegates to the single shared verifier ``proof_chain.verify_mirror`` so that the API verdict,
+    the published spec recipe, and the smoke test compute the IDENTICAL result on the same file: walk
+    in seq order requiring ``seq == idx``, ``prev_hash == previous.entry_hash`` (genesis ``"0"*64``),
+    and ``recompute_entry_hash(row) == entry_hash``; ``head_hash`` = the LAST row's entry_hash. This
+    REJECTS a forged/unlinked row (e.g. a fabricated seq:999 with a bogus prev_hash) → verified:false
+    with the correct broken_at, and never lets it become the published head_hash. fail-CLOSED if the
+    verifier is unavailable. An empty log is vacuously valid.
     """
     try:
-        from spa_core.audit import hash_chain
+        from spa_core.strategy_lab.rates_desk import proof_chain
     except Exception as e:  # noqa: BLE001 — fail-CLOSED if the integrity module is unavailable
-        log.warning(f"rates-desk proof: hash_chain import failed: {e}")
+        log.warning(f"rates-desk proof: proof_chain import failed: {e}")
         return {"valid": False, "length": len(rows), "broken_at": None, "head_hash": None}
-
-    head_seq = None
-    head_hash = None
-    for idx, row in enumerate(rows):
-        if not isinstance(row, dict):
-            return {"valid": False, "length": len(rows), "broken_at": idx, "head_hash": head_hash}
-        seq = row.get("seq")
-        ts = row.get("ts")
-        prev_hash = row.get("prev_hash")
-        entry_hash = row.get("entry_hash")
-        payload = {k: v for k, v in row.items() if k not in _PROOF_ENVELOPE_KEYS}
-        try:
-            recomputed = hash_chain.compute_entry_hash(seq, ts, _PROOF_EVENT_TYPE, payload, prev_hash)
-        except Exception:  # noqa: BLE001 — malformed row → fail-CLOSED at this row
-            return {"valid": False, "length": len(rows), "broken_at": idx, "head_hash": head_hash}
-        if recomputed != entry_hash:
-            return {"valid": False, "length": len(rows), "broken_at": idx, "head_hash": head_hash}
-        if isinstance(seq, int) and (head_seq is None or seq > head_seq):
-            head_seq = seq
-            head_hash = entry_hash
-    return {"valid": True, "length": len(rows), "broken_at": None, "head_hash": head_hash}
+    return proof_chain.verify_mirror(rows)
 
 
 @router.get("/api/rates-desk/proof")
