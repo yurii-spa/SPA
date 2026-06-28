@@ -73,6 +73,9 @@ GOLDEN_ROUTES = {
     ("/api/live/status", ("GET",)),
     ("/api/live/system", ("GET",)),
     ("/api/optimization", ("GET",)),
+    ("/api/optimizer-ab", ("GET",)),
+    ("/api/captured-book", ("GET",)),
+    ("/api/redteam", ("GET",)),
     ("/api/pools", ("GET",)),
     ("/api/portfolio", ("GET",)),
     ("/api/positions", ("GET",)),
@@ -165,22 +168,23 @@ def test_route_table_identical_to_golden():
 def test_route_count_stable():
     """The flat handler surface (expanded across included routers) is the invariant.
 
-    65 HTTP handlers + 1 websocket (/ws/agents) = 66 entries in GOLDEN_ROUTES. This
+    68 HTTP handlers + 1 websocket (/ws/agents) = 69 entries in GOLDEN_ROUTES. This
     is structure-independent (monolith routes vs lazily-included routers) because
     _walk_routes expands `_IncludedRouter` proxies. The launch target
     `spa_core.api.server:app` is unaffected — `app` is still defined in server.py.
-    (Most recent HTTP handler: /api/competitive-watch — WS-E Section-7 watch radar;
+    (Most recent HTTP handlers: /api/optimizer-ab + /api/captured-book — WS-1.4
+    optimizer A/B + captured-book surfaces; /api/redteam; /api/competitive-watch;
     also /api/rates-desk/anchors + /api/rates-desk/refusals.)
     """
-    assert len(_app_route_table()) == 66
+    assert len(_app_route_table()) == 69
 
 
 def test_openapi_path_count_stable():
-    """The OpenAPI schema (the canonical served HTTP surface) lists all 65 HTTP paths."""
+    """The OpenAPI schema (the canonical served HTTP surface) lists all 68 HTTP paths."""
     from fastapi.testclient import TestClient
     with TestClient(server.app) as c:
         paths = c.get("/openapi.json").json()["paths"]
-    assert len(paths) == 65  # 65 HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
+    assert len(paths) == 68  # 68 HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
 
 
 # ── Representative response-shape snapshot (one endpoint per tag group) ──────────

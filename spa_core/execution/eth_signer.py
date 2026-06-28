@@ -129,7 +129,9 @@ def get_address_from_private_key(private_key_hex: str) -> str:
     """
     pk_hex = private_key_hex[2:] if private_key_hex[:2].lower() == "0x" else private_key_hex
     if len(pk_hex) != 64:
-        raise ValidationError("private_key", pk_hex, f"must be 64 hex chars (0x prefix optional); got {len(pk_hex)}")
+        # SECURITY: never echo the raw key material into the error (it propagates
+        # into logs / tracebacks). Report only the length, redacted value.
+        raise ValidationError("private_key", "<redacted>", f"must be 64 hex chars (0x prefix optional); got {len(pk_hex)}")
     Account = _get_account()
     normalised = "0x" + pk_hex
     return Account.from_key(normalised).address
@@ -164,7 +166,8 @@ def sign_transaction(private_key_hex: str, tx_dict: dict) -> bytes:
     """
     pk_hex = private_key_hex[2:] if private_key_hex[:2].lower() == "0x" else private_key_hex
     if len(pk_hex) != 64:
-        raise ValidationError("private_key", pk_hex, f"must be 64 hex chars; got {len(pk_hex)}")
+        # SECURITY: redact the key material — never surface it in errors/logs.
+        raise ValidationError("private_key", "<redacted>", f"must be 64 hex chars; got {len(pk_hex)}")
     normalised_pk = "0x" + pk_hex
 
     # Normalise data field
@@ -224,7 +227,8 @@ def sign_message(message: str | bytes, private_key_hex: str) -> str:
     """
     pk_hex = private_key_hex[2:] if private_key_hex[:2].lower() == "0x" else private_key_hex
     if len(pk_hex) != 64:
-        raise ValidationError("private_key", pk_hex, f"must be 64 hex chars; got {len(pk_hex)}")
+        # SECURITY: redact the key material — never surface it in errors/logs.
+        raise ValidationError("private_key", "<redacted>", f"must be 64 hex chars; got {len(pk_hex)}")
     normalised_pk = "0x" + pk_hex
 
     from eth_account.messages import encode_defunct  # type: ignore

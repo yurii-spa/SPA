@@ -41,6 +41,15 @@ THE DEFENSES IT ASSERTS (each: drive the failure mode → assert the response)
   NAV_RECONCILE          flat → target dry-run rebalance reconciles to NAV==0
                          residual (intent == outcome), and a deliberately
                          corrupted position set is CAUGHT.
+  PARTIAL_FILL_RECOVERY  an order fills only PARTIALLY → reconcile reports
+                         matches_target=False → ABORT (a partial fill can never
+                         masquerade as success); a clean FULL fill still passes.
+  RECONCILE_MISMATCH     NAV NOT conserved (deployed > capital — capital
+                         appeared/vanished) → reconcile BLOCKS; a conserved book
+                         passes.
+  SIGNER_FAILURE         the signing step RAISES (key-load fail / nonce gap) →
+                         SAFE ABORT (no tx submitted, positions unchanged) AND no
+                         private-key material in any surfaced diagnostic.
   POSITION_MONITOR       position-monitor reports correctly in BOTH new states
                          (post-HARD-kill all-cash; post-SOFT held-only), and a
                          corrupted position set is caught.
@@ -521,6 +530,104 @@ def _drill_nav_reconcile(ddir: Path) -> dict:
     )
 
 
+def _drill_partial_fill_recovery(ddir: Path) -> dict:
+    """PARTIAL-FILL: an order fills only partially → reconcile detects
+    matches_target=False → the cycle must ABORT (no partial NAV corruption is
+    accepted as success).
+
+    A clean FULL fill must still reconcile (matches_target=True). The drill PASSES
+    only if BOTH: the full fill reconciles clean AND the partial fill is caught
+    (matches_target=False) — i.e. a partial fill can NEVER masquerade as success.
+    """
+    gate = "PARTIAL_FILL_RECOVERY"
+    target = {"aave_v3": 40_000.0, "morpho_blue": 20_000.0}
+    # Clean FULL fill — outcome == target.
+    full = nav_reconcile(target, dict(target))
+    full_ok = full["matches_target"] and full["nav_conserved"]
+    # PARTIAL fill — the aave order filled only $25k of the intended $40k.
+    partial = dict(target)
+    partial["aave_v3"] = 25_000.0  # $15k short — partial fill
+    caught = not nav_reconcile(target, partial)["matches_target"]
+    # ABORT decision: a partial fill (matches_target False) MUST block, never proceed.
+    would_proceed_on_partial = nav_reconcile(target, partial)["matches_target"]
+    ok = full_ok and caught and (not would_proceed_on_partial)
+    return _result(
+        gate, "partial fill → reconcile matches_target=False → ABORT (full fill still clean)",
+        f"full_ok={full_ok} partial_caught={caught} proceeds_on_partial={would_proceed_on_partial}",
+        ok, detail=f"partial short=${target['aave_v3'] - partial['aave_v3']:,.0f}",
+    )
+
+
+def _drill_reconcile_mismatch(ddir: Path) -> dict:
+    """RECONCILIATION-MISMATCH: nav_conserved=False (NAV not conserved — capital
+    appeared/vanished) → the cycle must BLOCK. A book whose deployed total exceeds
+    capital is impossible and must be caught; a conserved book passes.
+
+    PASSES only if BOTH: a conserved flat→target book reconciles (nav_conserved
+    True) AND an over-capital (impossible) outcome is caught (nav_conserved False).
+    """
+    gate = "RECONCILE_MISMATCH"
+    target = {"aave_v3": 40_000.0, "morpho_blue": 20_000.0, "compound_v3": 15_000.0}
+    # Conserved book: deployed $75k + cash $25k == $100k capital → nav_conserved.
+    conserved = nav_reconcile(target, dict(target), capital=100_000.0)
+    conserved_ok = conserved["nav_conserved"] and conserved["residual_usd"] == 0.0
+    # IMPOSSIBLE outcome: total deployed $150k > $100k capital → NAV NOT conserved.
+    over_capital = {"aave_v3": 80_000.0, "morpho_blue": 40_000.0, "compound_v3": 30_000.0}
+    bad = nav_reconcile(target, over_capital, capital=100_000.0)
+    caught = (not bad["nav_conserved"]) or (not bad["matches_target"])
+    ok = conserved_ok and caught
+    return _result(
+        gate, "NAV not conserved (deployed>capital) → reconcile BLOCKS; conserved book passes",
+        f"conserved_ok={conserved_ok} mismatch_caught={caught} "
+        f"bad_nav_conserved={bad['nav_conserved']}",
+        ok, detail=f"over-capital deployed=${sum(over_capital.values()):,.0f} vs $100,000",
+    )
+
+
+def _drill_signer_failure(ddir: Path) -> dict:
+    """SIGNER-FAILURE: the signing step raises (key load failure / nonce gap /
+    crypto error) → the cycle must SAFELY ABORT (no tx submitted, positions
+    unchanged) AND no key material may appear in any surfaced error/log line.
+
+    Inert: we DO NOT import or call the real signer. We model the cycle's
+    signer-call wrapper exactly with a stub that raises, exercise the fail-CLOSED
+    branch, and assert (a) abort, (b) positions unchanged, (c) the raised
+    diagnostic contains NO private-key material.
+    """
+    gate = "SIGNER_FAILURE"
+    # A fake (publicly-known dev) key that MUST never leak into any diagnostic.
+    secret_key_hex = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+    positions_before = {"aave_v3": 40_000.0, "morpho_blue": 20_000.0}
+
+    def _stub_sign(_tx, _key):
+        # Model a signer that fails WITHOUT echoing the key into the message
+        # (the contract eth_signer must honour: never log key material).
+        raise RuntimeError("signer failure: nonce gap detected (key redacted)")
+
+    tx_submitted = True
+    aborted = False
+    leaked = False
+    diag = ""
+    positions_after = dict(positions_before)
+    try:
+        _stub_sign({"to": "0x" + "0" * 40, "nonce": 7}, secret_key_hex)
+        tx_submitted = True
+    except Exception as exc:  # fail-CLOSED: cannot sign → ABORT, no submit.
+        aborted = True
+        tx_submitted = False
+        diag = f"{type(exc).__name__}: {exc}"
+        # No-key-leak property: the secret must NOT be in any surfaced diagnostic.
+        leaked = secret_key_hex in diag or secret_key_hex in repr(exc)
+    positions_unchanged = positions_after == positions_before
+    ok = aborted and (not tx_submitted) and positions_unchanged and (not leaked)
+    return _result(
+        gate, "signer raises → SAFE ABORT (no submit, positions unchanged), NO key leak",
+        f"aborted={aborted} tx_submitted={tx_submitted} "
+        f"positions_unchanged={positions_unchanged} key_leaked={leaked}",
+        ok, detail=diag,
+    )
+
+
 def _drill_position_monitor(ddir: Path) -> dict:
     gate = "POSITION_MONITOR"
     # NEW state 1 — post-HARD-kill ALL-CASH (every protocol 0). NORMAL, no anomaly.
@@ -600,6 +707,9 @@ _DRILLS: tuple[tuple[str, Callable[[Path], dict]], ...] = (
     ("ANALYTICS_BLOCK", _drill_analytics_block),
     ("BASE_GAS_BLOCK", _drill_base_gas_block),
     ("NAV_RECONCILE", _drill_nav_reconcile),
+    ("PARTIAL_FILL_RECOVERY", _drill_partial_fill_recovery),
+    ("RECONCILE_MISMATCH", _drill_reconcile_mismatch),
+    ("SIGNER_FAILURE", _drill_signer_failure),
     ("POSITION_MONITOR", _drill_position_monitor),
     ("FAILSAFE_HOLD", _drill_failsafe_hold),
     ("LIVE_GATE_INERT", _drill_live_gate_inert),

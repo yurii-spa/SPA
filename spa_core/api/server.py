@@ -130,7 +130,9 @@ from spa_core.api.routers import (  # noqa: E402
     competitive_watch,
     live,
     misc,
+    optimizer,
     rates_desk,
+    redteam,
     strategy_lab,
     tier1,
     tournament,
@@ -141,10 +143,12 @@ app.include_router(misc.router)
 app.include_router(tier1.router)
 app.include_router(strategy_lab.router)
 app.include_router(rates_desk.router)
+app.include_router(optimizer.router)
 app.include_router(v1.router)
 app.include_router(live.router)
 app.include_router(tournament.router)
 app.include_router(competitive_watch.router)
+app.include_router(redteam.router)
 
 
 # ─── Backward-compatible handler re-exports ───────────────────────────────────
@@ -184,6 +188,9 @@ get_rates_desk_proof = rates_desk.get_rates_desk_proof
 get_rates_desk_track = rates_desk.get_rates_desk_track
 get_rates_desk_exit_nav = rates_desk.get_rates_desk_exit_nav
 get_rates_desk_anchors = rates_desk.get_rates_desk_anchors
+
+get_optimizer_ab = optimizer.get_optimizer_ab
+get_captured_book = optimizer.get_captured_book
 
 v1_status = v1.v1_status
 v1_golive = v1.v1_golive
