@@ -210,8 +210,14 @@ const T = {
   },
   refChainOk: { en: 'chain verified', ru: 'цепочка проверена' },
   refChainBroken: { en: 'INTEGRITY BROKEN', ru: 'ЦЕЛОСТНОСТЬ НАРУШЕНА' },
+  refChainUnknown: { en: 'verifying…', ru: 'проверка…' },
+  refChainUnavailable: { en: 'verification unavailable', ru: 'проверка недоступна' },
   refEntries: { en: 'entries', ru: 'входов' },
   refRefusals: { en: 'refusals', ru: 'отказов' },
+  refHeadAnchorNote: {
+    en: 'Head is a re-based sliding-window mirror (last 2000 decisions): stable across appends, re-bases when old rows are evicted. The immutable all-time ledger is audit_chain.jsonl.',
+    ru: 'Голова — это пересчитываемое зеркало скользящего окна (последние 2000 решений): стабильна при дозаписи, пересчитывается при вытеснении старых строк. Неизменяемый журнал за всё время — audit_chain.jsonl.',
+  },
   refProof: { en: 'proof', ru: 'доказательство' },
   refProofSpec: { en: 'chain spec →', ru: 'спецификация цепочки →' },
   refLogOffline: { en: 'Refusal log unavailable — /api/rates-desk/refusals offline.', ru: 'Журнал отказов недоступен — /api/rates-desk/refusals офлайн.' },
@@ -1368,16 +1374,23 @@ function RefusalLogPanel({ refusalLog, lang, tr }) {
         <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('connecting')}</p>
       ) : (
         <>
-          {/* integrity badge — the trust signal */}
+          {/* integrity badge — the trust signal (3-state: true→green, false→red, null/absent→neutral, never implies verified) */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
-            {verified === false ? (
+            {verified === true ? (
+              <Chip tone="ok"><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ok)' }} aria-hidden="true" />{tr('refChainOk')} · head {shortHash(chain && chain.head_hash)}</Chip>
+            ) : verified === false ? (
               <Chip tone="danger">{tr('refChainBroken')}{chain && chain.broken_at != null ? ` @ seq ${chain.broken_at}` : ''}</Chip>
             ) : (
-              <Chip tone="ok"><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ok)' }} aria-hidden="true" />{tr('refChainOk')} · head {shortHash(chain && chain.head_hash)}</Chip>
+              <Chip tone="muted"><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-muted)' }} aria-hidden="true" />{chain ? tr('refChainUnknown') : tr('refChainUnavailable')}</Chip>
             )}
             <span style={{ ...mono, fontSize: '.6875rem', color: 'var(--ok)' }}>{counts.ENTRY ?? 0} {tr('refEntries')}</span>
             <span style={{ ...mono, fontSize: '.6875rem', color: 'var(--danger)' }}>{counts.REFUSAL ?? 0} {tr('refRefusals')}</span>
           </div>
+
+          {/* anchoring honesty — the published head is a sliding-window mirror, not an immutable all-time commitment */}
+          {verified === true && (
+            <p style={{ ...mono, fontSize: '.625rem', color: 'var(--text-faint)', lineHeight: 1.5, marginBottom: 14, maxWidth: 720 }}>{tr('refHeadAnchorNote')}</p>
+          )}
 
           {/* vertical feed, newest first (API already returns most-recent-first) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 540, overflowY: 'auto' }}>

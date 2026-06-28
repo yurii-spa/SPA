@@ -174,6 +174,19 @@ Walk the file in `seq` order from the genesis row and check three things at each
 The first row that fails any check is `broken_at`. If all rows pass, the chain is intact and the
 `head_hash` is the last row's `entry_hash`. An empty file is vacuously valid.
 
+> **Anchoring caveat — `head_hash` is a *sliding-window* head, not an immutable all-time commitment.**
+> Because the public file is a re-based, **ring-buffered** mirror (`LOG_CAP = 2000` rows), `head_hash`
+> is stable *across normal appends* (each append extends the same single-genesis chain), but it
+> **re-bases — and so shifts — when the ring-buffer evicts the oldest rows** (past 2000 decisions, the
+> genesis moves forward and every `seq`/`prev_hash`/`entry_hash` is recomputed). Therefore the
+> "anchor the head now and re-check it later" recipe is a valid immutability proof **only within the
+> current window**: it proves nobody rewrote in-window history between your two checks. **Cross-eviction**
+> immutability — the all-time guarantee that no decision was ever silently dropped or altered, even
+> after it falls out of the window — is provided by the separate authoritative **append-only** producer
+> ledger `data/audit_chain.jsonl`, which is never re-based or truncated. The public file remains, at
+> *any* point in time, one coherent, single-genesis, forge-rejecting chain (§5 verifies it standalone);
+> the only nuance is that its head is a window head, so do not read it as a permanent all-time anchor.
+
 ```python
 def verify_chain(rows: list) -> dict:
     expected_prev = "0" * 64

@@ -331,8 +331,14 @@ const STAGE_META = {
         </div>
         <div>
           <p class="text-[11px] uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)"
-             data-ru="Хеш головы (отпечаток всей истории)">Head hash (fingerprint of the whole history)</p>
+             data-ru="Хеш головы (отпечаток истории в окне)">Head hash (fingerprint of the in-window history)</p>
           <p id="proof-head" class="text-xs font-mono break-all" style="color:var(--text-secondary)">—</p>
+          <p class="text-[11px] leading-relaxed mt-2" style="color:var(--text-faint)"
+             data-ru="Голова — пересчитываемое зеркало скользящего окна (последние 2000 решений): стабильна при дозаписи, пересчитывается при вытеснении старых строк. Неизменяемый журнал за всё время — audit_chain.jsonl.">
+            Head is a re-based sliding-window mirror (last 2000 decisions): stable across appends, re-bases
+            when old rows are evicted. The immutable all-time ledger is
+            <span class="font-mono">audit_chain.jsonl</span>.
+          </p>
         </div>
       </div>
 
@@ -617,6 +623,7 @@ const STAGE_META = {
         var txt = document.getElementById('proof-badge-text');
         if (!badge || !dot || !txt) return;
         // Reset to literal Tailwind palettes (Tailwind only compiles classes it can see literally).
+        // 3-state: true→green, false→red, null/absent→NEUTRAL (never implies verified).
         badge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-mono';
         if (verified === true) {
           badge.className += ' bg-emerald-500/10 border-emerald-500/30 text-emerald-300';
@@ -626,6 +633,12 @@ const STAGE_META = {
           badge.className += ' bg-red-500/10 border-red-500/30 text-red-300';
           dot.className = 'w-2 h-2 rounded-full bg-red-400';
           txt.textContent = ru ? 'НЕ ПОДТВЕРЖДЕНО · цепочка нарушена' : 'NOT VERIFIED · chain broken';
+        } else {
+          badge.className += ' border-[var(--border)] text-[var(--text-muted)]';
+          badge.style.background = 'var(--bg-surface)';
+          dot.className = 'w-2 h-2 rounded-full';
+          dot.style.background = 'var(--text-muted)';
+          txt.textContent = ru ? 'проверка недоступна' : 'verification unavailable';
         }
       }
 
