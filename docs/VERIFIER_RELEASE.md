@@ -18,7 +18,7 @@ for the reviewer-facing walkthrough.
 |---|---|
 | **Version tag** | `verifier-v1.0` |
 | **File** | `scripts/verify_spa.py` |
-| **SHA-256** | `4106b9932691869866f7056d66b108bd7532b02731e5d395297fad7ed7c0db1e` |
+| **SHA-256** | `0f8c270c8c1f0c59ffc7236b1e43c1cb2aa58329faf7839c1961ce83209f81da` |
 | **Size** | 51817 bytes · 915 lines |
 | **Spec version** | PROOF_CHAIN_SPEC `1.0` |
 | **Scope** | decision chain (A) · exit-NAV proofs (B) · anchors (C) · equity track (D) |
@@ -30,14 +30,14 @@ On macOS / Linux, after downloading `verify_spa.py`:
 ```bash
 shasum -a 256 verify_spa.py
 # must print:
-# 4106b9932691869866f7056d66b108bd7532b02731e5d395297fad7ed7c0db1e  verify_spa.py
+# 0f8c270c8c1f0c59ffc7236b1e43c1cb2aa58329faf7839c1961ce83209f81da  verify_spa.py
 ```
 
 or with the GNU coreutils tool:
 
 ```bash
 sha256sum verify_spa.py
-# 4106b9932691869866f7056d66b108bd7532b02731e5d395297fad7ed7c0db1e  verify_spa.py
+# 0f8c270c8c1f0c59ffc7236b1e43c1cb2aa58329faf7839c1961ce83209f81da  verify_spa.py
 ```
 
 If the digest does not match this manifest **byte-for-byte**, you do not have the
@@ -95,7 +95,7 @@ distinct verifier byte-image gets its own version.
 
 | Version | SHA-256 | Date | Note |
 |---|---|---|---|
-| `verifier-v1.0` | `4106b9932691869866f7056d66b108bd7532b02731e5d395297fad7ed7c0db1e` | 2026-06-28 | Initial pinned release. Verifies decision chain + exit-NAV + anchors + equity track per PROOF_CHAIN_SPEC v1.0. |
+| `verifier-v1.0` | `0f8c270c8c1f0c59ffc7236b1e43c1cb2aa58329faf7839c1961ce83209f81da` | 2026-06-28 | Initial pinned release. Verifies decision chain + exit-NAV + anchors + equity track per PROOF_CHAIN_SPEC v1.0. |
 
 ---
 

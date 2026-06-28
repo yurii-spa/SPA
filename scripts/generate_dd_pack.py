@@ -13,7 +13,7 @@ What makes it world-class / hostile-LP-proof:
     "no-unsourced-number" guard.
   - A FULLY WORKED refused-vs-approved example cites two REAL adjacent hashed rows
     (a real ezeth REFUSAL with its structural-haircut breakdown + proof_hash, then the very
-    next susde ENTRY), both reproducible by `python3 scripts/verify_spa.py data/rates_desk/`.
+    next susde ENTRY), both reproducible by `python3 scripts/verify_spa.py data/`.
   - The published verdicts: rates carry GO, RWA measurement-GO/book-NO-GO, Liquidator NO-GO.
   - The honest off-code gates (custody / audit / legal / capital) + the honest capacity +
     the honest THIN track status.
@@ -50,6 +50,26 @@ LIQUIDATOR_BAR_M = 20.0         # $20M/yr fundability bar (docs/LIQUIDATOR_DERIS
 
 def _repo_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+# --------------------------------------------------------------------------- #
+# TWO clearly-distinct 64-hex fields that must NEVER be conflated (FAIL#4):
+#   • the DECISION-CHAIN HEAD  (the --expect-head value; advances hourly), and
+#   • the VERIFIER SCRIPT SHA-256 (verify_spa.py's own checksum; "verifier-v1.0").
+# A prior bad sed pasted the verifier SHA into --expect-head → the flagship command FAILED.
+# These are computed from DIFFERENT inputs and labeled unmistakably so they can never swap again.
+# --------------------------------------------------------------------------- #
+
+def verifier_script_sha256(root: str) -> str:
+    """SHA-256 of scripts/verify_spa.py itself — the 'verifier-v1.0' fingerprint a reviewer pins so
+    they trust the VERIFIER, not just the data. This is NOT the decision-chain head; it is a constant
+    of the script file. Returns '' if the verifier is absent (reported honestly downstream)."""
+    path = os.path.join(root, "scripts", "verify_spa.py")
+    try:
+        with open(path, "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+    except OSError:
+        return ""
 
 
 # --------------------------------------------------------------------------- #
@@ -93,6 +113,8 @@ def load_sources(root: str) -> dict:
         "rwa": load_json(os.path.join(d, "rwa_safety_board.json")),
         "forward": load_json(os.path.join(d, "forward_track_integrity.json")),
         "dry_run": load_json(os.path.join(d, "golive_dry_run.json")),
+        # the verifier's OWN SHA-256 (a DISTINCT field from the chain head — FAIL#4).
+        "verifier_sha": verifier_script_sha256(root),
     }
 
 
@@ -302,10 +324,11 @@ def _sec_header(doc: SourcedDoc, now_iso: str):
         "none of our code:",
         ">",
         "> ```",
-        "> python3 scripts/verify_spa.py data/rates_desk/",
+        "> python3 scripts/verify_spa.py data/",
         "> ```",
         ">",
-        "> Recipe: `docs/PROOF_CHAIN_SPEC.md`. Public surfaces: `/refusals` (the decision log), "
+        "> The WHOLE-DIR form covers ALL 7 surfaces (rates-desk decision/exit-NAV/anchors/equity plus "
+        "tournament, RWA-NAV, sleeve). Recipe: `docs/PROOF_CHAIN_SPEC.md`. Public surfaces: `/refusals` (the decision log), "
         "`/exit-nav` (liquidation-NAV by size), `/proof-of-reserves` (honest paper NAV), "
         "`/track-record` (the accruing series), `/fundability` (this case, live).",
         "",
@@ -316,6 +339,7 @@ def _sec_header(doc: SourcedDoc, now_iso: str):
 
 def _sec_summary(doc: SourcedDoc, s: dict):
     chain = _chain_state(s.get("decisions"))
+    verifier_sha = s.get("verifier_sha") or ""
     doc.lines("## 1. Executive verdicts (at a glance)", "")
     doc.lines(
         "| thesis | module | verdict | the honest boundary |",
@@ -328,24 +352,48 @@ def _sec_summary(doc: SourcedDoc, s: dict):
         "**NO-GO** (published) | addressable market ~5-10x below the fundability bar |",
         "",
     )
-    # the one-line proof-chain status, sourced live
+    # the one-line proof-chain status, sourced live.
+    #
+    # TWO clearly-distinct 64-hex fields (FAIL#4) — they must NEVER be conflated:
+    #   • DECISION-CHAIN HEAD  → the --expect-head value (advances as the chain grows), and
+    #   • VERIFIER SCRIPT SHA-256 → the checksum of verify_spa.py ("verifier-v1.0").
+    # Labeled unmistakably below so a stray sed can never paste one into the other again.
     if chain.get("valid") is True:
         doc.lines(
-            "**Proof-chain head (re-derived live, the fingerprint of the entire decision history):**",
+            "**DECISION-CHAIN HEAD (re-derived live, the fingerprint of the entire decision "
+            "history — this is the `--expect-head` value):**",
             "",
             f"- chain valid: **yes** · length: **{doc.n(chain['length'], 'decision_log.jsonl (re-derived)')}** decisions",
-            f"- head_hash: `{doc.hash_short(chain['head_hash'], 'decision_log.jsonl (re-derived per PROOF_CHAIN_SPEC)')}`",
+            f"- decision-chain head: `{doc.hash_short(chain['head_hash'], 'decision_log.jsonl (re-derived per PROOF_CHAIN_SPEC)')}`",
             "",
-            "Reproduce + assert this exact head yourself:",
+            "Reproduce + assert this exact head yourself (WHOLE data dir → covers ALL 7 surfaces):",
             "",
             "```",
-            f"python3 scripts/verify_spa.py --expect-head {chain['head_hash']} data/rates_desk/",
+            f"python3 scripts/verify_spa.py --expect-head {chain['head_hash']} data/",
             "```",
             "",
         )
+        if verifier_sha:
+            doc.lines(
+                "**VERIFIER SCRIPT SHA-256 (a DIFFERENT 64-hex value — the checksum of "
+                "`scripts/verify_spa.py` itself, NOT the chain head; pin it so you trust the "
+                "verifier too):**",
+                "",
+                f"- verifier-v1.0 · `verify_spa.py` SHA-256: "
+                f"`{doc.hash_short(verifier_sha, 'sha256(scripts/verify_spa.py)')}`",
+                "",
+                "```",
+                "shasum -a 256 verify_spa.py   # must equal the verifier SHA-256 above",
+                "```",
+                "",
+                "> These two hashes answer different questions: the **decision-chain head** "
+                "(`--expect-head`) proves the *history* is intact; the **verifier SHA-256** proves "
+                "the *tool* checking it is authentic. They are never interchangeable.",
+                "",
+            )
     else:
         doc.lines(
-            f"**Proof-chain head:** {UNAVAILABLE} (decision_log.jsonl missing or chain not re-derivable).",
+            f"**DECISION-CHAIN HEAD:** {UNAVAILABLE} (decision_log.jsonl missing or chain not re-derivable).",
             "",
         )
     doc.line("---")
@@ -637,7 +685,7 @@ def _sec_track(doc: SourcedDoc, s: dict):
         )
     doc.lines(
         "Live, regenerating view: `/track-record` (hash-anchored series + per-bar source labels). "
-        "Verify the underlying chain: `python3 scripts/verify_spa.py data/rates_desk/`.",
+        "Verify the underlying chain (whole dir → all 7 surfaces): `python3 scripts/verify_spa.py data/`.",
         "",
         "---",
         "",
@@ -650,17 +698,23 @@ def _sec_how_to_verify(doc: SourcedDoc, s: dict):
         "## 8. How a hostile LP checks every claim here",
         "",
         "1. Download `scripts/verify_spa.py` (zero dependencies, no `spa_core` import, no network) and "
-        "SPA's public artifacts: `data/rates_desk/decision_log.jsonl`, `data/rates_desk/exit_nav.json`, "
-        "`data/rates_desk/anchors.jsonl`.",
-        "2. Run it on a clean machine:",
+        "SPA's public `data/` artifacts (the decision log, exit-NAV, anchors, equity track, the "
+        "tournament ranking chain, the RWA-NAV proof, and the sleeve forward-series proofs).",
+        "2. Run it on a clean machine — point it at the WHOLE `data/` dir so it covers ALL 7 surfaces:",
         "",
         "```",
-        "python3 verify_spa.py data/rates_desk/",
+        "python3 verify_spa.py data/",
         "```",
         "",
-        "3. It re-derives EVERY decision `entry_hash`, every exit-NAV `proof_hash`, and the anchor "
-        "head-checkpoints — and reports the precise `broken_at` if a single byte of history was altered "
-        "after the fact. Exit 0 = everything reproduces.",
+        "(The narrower `data/rates_desk/` form only sees the 4 rates-desk surfaces; "
+        "`--expect-surfaces A,D,E,F,G` fails CLOSED if a surface you require is absent, and a present "
+        "producer with a missing/empty proof is a FAIL, never a silent pass.)",
+        "",
+        "3. It re-derives EVERY decision `entry_hash`, every exit-NAV `proof_hash`, the tournament / "
+        "RWA-NAV / sleeve chains, and the anchor head-checkpoints — and reports the precise `broken_at` "
+        "if a single byte of history was altered after the fact. Exit 0 = everything reproduces. "
+        "(Note: the verifier ALSO labels degenerate Sharpe / par-NAV points as ADVISORY — the proof "
+        "proves a value was PUBLISHED, not that it is real.)",
         "4. Cross-check the worked example in §2: its `proof_hash` values are emitted by the same recipe "
         "(`docs/PROOF_CHAIN_SPEC.md`).",
         "",
@@ -743,12 +797,54 @@ def build_document(sources: dict, now_iso: str) -> SourcedDoc:
     return doc
 
 
-def generate(root: str = None, now_iso: str = None) -> str:
+class HeadNotSelfVerifying(RuntimeError):
+    """Raised when the head the generator would pin does NOT self-verify against the live chain.
+    A standalone ``generate_dd_pack.py`` run must DERIVE the head from the live chain AND self-verify
+    it (FAIL#4) — it can never pin an orphan head that a reviewer's verify_spa.py would reject."""
+
+
+def _assert_head_self_verifies(root: str, rendered: str) -> None:
+    """FAIL#4 self-verify-or-refuse: the --expect-head literal embedded in the freshly rendered doc
+    MUST be the CURRENT live decision-chain head (re-derived here the SAME way verify_spa.py does), and
+    it must NOT be the verifier-script SHA-256. A standalone generate that cannot produce a
+    self-verifying head REFUSES (raises) rather than writing an orphan-head artifact that fails the
+    flagship command. If no chain is present (head unavailable), there is no head to pin → no-op."""
+    import re as _re
+    m = _re.search(r"--expect-head\s+([0-9a-f]{64})", rendered)
+    if not m:
+        return  # no head embedded (chain unavailable) — nothing to self-verify
+    embedded = m.group(1)
+    live = _chain_state(load_jsonl(os.path.join(root, "data", "rates_desk", "decision_log.jsonl")))
+    live_head = live.get("head_hash")
+    if not (live.get("valid") and live_head):
+        raise HeadNotSelfVerifying(
+            "DD_PACK embeds an --expect-head but the live decision chain is not re-derivable — "
+            "refusing to pin a head that cannot self-verify.")
+    if embedded != live_head:
+        raise HeadNotSelfVerifying(
+            f"DD_PACK --expect-head {embedded} != live decision-chain head {live_head} — refusing to "
+            "pin an orphan head (this is the FAIL#4 condition: the pinned head would fail the "
+            "flagship `verify_spa.py --expect-head` command).")
+    vsha = verifier_script_sha256(root)
+    if vsha and embedded == vsha:
+        raise HeadNotSelfVerifying(
+            "DD_PACK --expect-head equals the VERIFIER SCRIPT SHA-256 — these are two distinct fields "
+            "and must never be conflated (FAIL#4). Refusing to publish.")
+
+
+def generate(root: str = None, now_iso: str = None, self_verify: bool = True) -> str:
     root = root or _repo_root()
     if now_iso is None:
         now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     sources = load_sources(root)
-    return build_document(sources, now_iso).render()
+    rendered = build_document(sources, now_iso).render()
+    if self_verify:
+        # FAIL#4: a standalone run derives the head from the LIVE chain and self-verifies it (or
+        # refuses). refresh_published_proof.py calls generate(self_verify=False) only because it does
+        # its OWN, stronger full-verifier self-check immediately after (it builds against a possibly
+        # hermetic/sandbox data dir whose root differs from the verifier's view).
+        _assert_head_self_verifies(root, rendered)
+    return rendered
 
 
 def generate_doc(root: str = None, now_iso: str = None) -> SourcedDoc:

@@ -205,7 +205,10 @@ def refresh(data_dir: Optional[Path] = None, dd_pack_path: Optional[Path] = None
 
     # ── 4. DD_PACK.md — regenerate so its embedded --expect-head == the current head (atomic) ──
     gen = _load_script("dd_pack_gen", "generate_dd_pack.py")
-    doc_text = gen.generate(root=str(gen_root))  # generator reads <gen_root>/data
+    # self_verify=False: the refresh runs its OWN, stronger full-verifier self-check below (step 5),
+    # against the (possibly hermetic) gen_root — the generator's built-in self-verify reads the live
+    # repo path, which differs from a sandbox root. The head is still derived live from gen_root/data.
+    doc_text = gen.generate(root=str(gen_root), self_verify=False)  # generator reads <gen_root>/data
     gen.atomic_write(str(dd_pack_path), doc_text)
     summary["dd_pack_head"] = head_in_dd_pack(doc_text)
 

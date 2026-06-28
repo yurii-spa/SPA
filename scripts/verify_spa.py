@@ -56,14 +56,26 @@ It verifies these independent published proofs:
       literally true: the equity track is now independently re-derivable, not just the decisions.
 
 USAGE
-    python3 verify_spa.py data/rates_desk/                # a directory: auto-discovers the files
+    python3 verify_spa.py data/                           # WHOLE data dir: covers ALL 7 surfaces
+    python3 verify_spa.py data/rates_desk/                # a subtree: auto-discovers what is there
     python3 verify_spa.py decision_log.jsonl exit_nav.json anchors.jsonl   # explicit files
-    python3 verify_spa.py --expect-head <hex> data/rates_desk/  # also assert the published head
-    python3 verify_spa.py --json data/rates_desk/          # machine-readable verdict to stdout
+    python3 verify_spa.py --expect-head <hex> data/       # also assert the published chain head
+    python3 verify_spa.py --expect-surfaces A,D,E,F,G data/   # FAIL CLOSED if a surface is absent
+    python3 verify_spa.py --json data/                    # machine-readable verdict to stdout
+
+NOTE: the WHOLE-DIR form ``verify_spa.py data/`` is the documented reviewer command — it covers
+ALL seven surfaces (rates-desk A/B/C/D plus tournament E, RWA-NAV F, sleeve G). Running the
+narrower ``data/rates_desk/`` form only ever sees A–D and SILENTLY never checks E/F/G; use
+``--expect-surfaces`` (or the whole-dir form) to fail closed when a surface you require is absent.
+
+COVERAGE ENFORCEMENT (FAIL#5): a PRODUCER present without its matching verified PROOF is a FAIL,
+never a silent pass — e.g. a ``data/rates_desk/paper/<sleeve>_series.json`` with no matching
+``<sleeve>_series_proof.jsonl``, or a truncated/empty proof for a present producer.
 
 EXIT CODES
-    0  all supplied proofs reproduce exactly (and any --expect-head matched)
-    1  any mismatch, malformed row, missing required field, or unreadable required file
+    0  all supplied proofs reproduce exactly (and any --expect-head / --expect-surfaces satisfied)
+    1  any mismatch, malformed row, missing required field, unreadable required file, a present
+       producer with a missing/empty proof, or a required surface absent
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
@@ -591,49 +603,151 @@ def _read_json(path: Path) -> Tuple[Optional[dict], Optional[str]]:
         return None, f"corrupt JSON: {e}"
 
 
-def _classify_file(p: Path, found: dict) -> None:
-    """Sort ONE file into the surface buckets by its filename. The tournament ranking chain and the
-    rates-desk decision chain are BOTH named decision_log.jsonl — they are told apart by their parent
-    dir (a tournament/ parent → tournament bucket). Sleeve proofs (*_series_proof.jsonl) are a LIST
-    (many files)."""
+# ── content-based classification (FAIL#8) ──────────────────────────────────────────────────────────
+# A file is classified as WHAT IT ACTUALLY IS — by the shape of its first data row — not by its
+# filename or parent dir. So a stray/misnamed ``decision_log.jsonl`` (e.g. a sleeve proof dropped at a
+# tournament path, or vice-versa) can NEVER displace the real surface: it classifies to its true
+# bucket from its content. Filename/parent-dir are only a LAST-RESORT hint for an empty file (no rows
+# to read), where content cannot speak.
+
+def _sniff_jsonl_kind(p: Path) -> Optional[str]:
+    """Read the FIRST non-empty JSON row and return a surface key inferred from its CONTENT, or None
+    if the file is empty/unreadable/unrecognized. Recognizes:
+      'tournament'  — kind == TOURNAMENT_EVENT_TYPE                       (E)
+      'nav_proof'   — has proof_hash + tvl_weighted_nav/liq_nav_gap_pct   (F)
+      'sleeve'      — has entry_hash + sleeve_id (+ equity/apy/book cols)  (G)
+      'equity_track'— has entry_hash + date + (open/close)_equity-ish     (D)
+      'decision_log'— has entry_hash + a decision body (kind/underlying)   (A)
+      'anchors'     — has head_hash + chain_length (no entry/proof body)   (C)
+    Content beats filename: the row carries the surface's signature fields regardless of where it
+    lives or what it is named."""
+    try:
+        with p.open("r", encoding="utf-8") as fh:
+            row = None
+            for ln in fh:
+                ln = ln.strip()
+                if not ln:
+                    continue
+                row = json.loads(ln)
+                break
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(row, dict):
+        return None
+    keys = set(row.keys())
+    # (C) anchors — head-checkpoint envelope, no per-row entry/proof body.
+    if {"head_hash", "chain_length"} <= keys and "entry_hash" not in keys and "proof_hash" not in keys:
+        return "anchors"
+    # (F) RWA-NAV proof — exit-NAV §6 proof_hash row carrying the NAV outputs.
+    if "proof_hash" in keys and ("tvl_weighted_nav" in keys or "liq_nav_gap_pct" in keys):
+        return "nav_proof"
+    # (E) tournament ranking — fixed kind constant in the row body.
+    if row.get("kind") == TOURNAMENT_EVENT_TYPE or "rank" in keys and "strategy_id" in keys and "entry_hash" in keys:
+        return "tournament"
+    # (G) sleeve forward series — entry_hash chain carrying a sleeve_id.
+    if "entry_hash" in keys and "sleeve_id" in keys:
+        return "sleeve"
+    # (D) equity track — entry_hash chain carrying an evidenced equity bar (date + equity field).
+    if "entry_hash" in keys and "date" in keys and (
+            "open_equity" in keys or "close_equity" in keys or "equity" in keys
+            or "daily_yield" in keys or "apy" in keys):
+        return "equity_track"
+    # (A) rates-desk decision chain — entry_hash chain carrying a decision body.
+    if "entry_hash" in keys and ("underlying" in keys or "shape" in keys
+                                 or "approved" in keys or row.get("kind") in ("ENTRY", "REFUSAL")):
+        return "decision_log"
+    # generic entry_hash chain with no stronger signal → treat as the rates-desk decision chain.
+    if "entry_hash" in keys:
+        return "decision_log"
+    return None
+
+
+def _classify_by_name(p: Path) -> Optional[str]:
+    """Last-resort filename hint (ONLY used when content cannot speak — an empty file). Mirrors the
+    surface-key vocabulary of _sniff_jsonl_kind."""
     name = p.name
     parent = p.parent.name
     if name.endswith("_series_proof.jsonl"):
+        return "sleeve"
+    if name.endswith("nav_proof.jsonl"):
+        return "nav_proof"
+    if name.endswith("decision_log.jsonl"):
+        return "tournament" if parent == "tournament" else "decision_log"
+    if name.endswith("equity_track.jsonl"):
+        return "equity_track"
+    if name.endswith("anchors.jsonl"):
+        return "anchors"
+    return None
+
+
+def _place(kind: Optional[str], p: Path, found: dict) -> None:
+    """Place a file at the resolved surface key. ``sleeve`` is a LIST (many files); others are single
+    (first wins — a real surface already bound is not displaced by a later/stray file)."""
+    if kind is None:
+        return
+    if kind == "sleeve":
         if p not in found["sleeve_proofs"]:
             found["sleeve_proofs"].append(p)
-    elif name == "nav_proof.jsonl" or name.endswith("nav_proof.jsonl"):
-        if found["nav_proof"] is None:
-            found["nav_proof"] = p
-    elif name == "decision_log.jsonl" or name.endswith("decision_log.jsonl"):
-        # tournament/decision_log.jsonl vs rates-desk decision_log.jsonl — disambiguate by parent dir
-        if parent == "tournament":
-            if found["tournament"] is None:
-                found["tournament"] = p
-        elif found["decision_log"] is None:
-            found["decision_log"] = p
-        elif found["tournament"] is None:
-            found["tournament"] = p
-    elif name == "equity_track.jsonl" or name.endswith("equity_track.jsonl"):
-        if found["equity_track"] is None:
-            found["equity_track"] = p
-    elif name == "anchors.jsonl" or name.endswith("anchors.jsonl"):
-        if found["anchors"] is None:
-            found["anchors"] = p
-    elif name == "exit_nav.json" or name.endswith("exit_nav.json"):
-        if found["exit_nav"] is None:
+        return
+    bucket = {"tournament": "tournament", "nav_proof": "nav_proof", "decision_log": "decision_log",
+              "equity_track": "equity_track", "anchors": "anchors", "exit_nav": "exit_nav"}.get(kind)
+    if bucket and found.get(bucket) is None:
+        found[bucket] = p
+
+
+def _classify_file(p: Path, found: dict) -> None:
+    """Sort ONE file into the surface buckets by its CONTENT (FAIL#8). exit_nav.json is the lone JSON
+    document (not JSONL) and is identified by its .json shape; every JSONL surface is told apart by the
+    signature fields of its first row, NEVER by filename/parent-dir. A stray/misnamed file therefore
+    classifies as what it ACTUALLY is and cannot displace a real surface. Filename is a fallback ONLY
+    for an empty file that has no row to read."""
+    name = p.name
+    # exit_nav is a single JSON object (a schedule document), not a JSONL chain.
+    if name.endswith(".json") and not name.endswith(".jsonl"):
+        # content sniff: an exit-NAV doc has a `schedule`/`illustrative`/`portfolio` section.
+        try:
+            doc = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            doc = None
+        if isinstance(doc, dict) and ("schedule" in doc or "illustrative" in doc
+                                      or "portfolio" in doc):
+            if found["exit_nav"] is None:
+                found["exit_nav"] = p
+        elif name.endswith("exit_nav.json") and found["exit_nav"] is None:
             found["exit_nav"] = p
+        return
+    # JSONL surfaces — classify by content, falling back to filename only for an empty file.
+    kind = _sniff_jsonl_kind(p)
+    if kind is None:
+        kind = _classify_by_name(p)
+    _place(kind, p, found)
+
+
+def _is_sleeve_producer_dir(d: Path) -> bool:
+    """True if a directory is the sleeve-proof surface's canonical producer location — a
+    ``rates_desk/paper/`` dir (the only place ``sleeve_proof.write_all`` reads/writes). Used to scope
+    FAIL#5 coverage so unrelated ``*_series.json`` families (strategy_lab_paper/) are not required to
+    carry a sleeve proof."""
+    return d.name == "paper" and d.parent.name == "rates_desk"
 
 
 def _resolve_inputs(args_paths: List[str]) -> dict:
-    """Map the CLI paths to EVERY anchored surface. A directory is walked RECURSIVELY (rglob) so a
-    single ``verify_spa.py data/`` auto-discovers all surfaces wherever they live (rates_desk/,
-    tournament/, rwa_backstop/, rates_desk/paper/). Explicit files are matched by name. ``sleeve_proofs``
-    is a LIST (one chain per sleeve); every other surface is a single file."""
+    """Map the CLI paths to EVERY anchored surface AND every producer that MUST have a proof. A
+    directory is walked RECURSIVELY (rglob) so a single ``verify_spa.py data/`` auto-discovers all
+    surfaces wherever they live (rates_desk/, tournament/, rwa_backstop/, rates_desk/paper/). Files
+    are classified by CONTENT (FAIL#8). ``sleeve_proofs`` is a LIST (one chain per sleeve); every
+    other surface is a single file. ``sleeve_producers`` is the LIST of ``*_series.json`` producers we
+    discovered — used to REQUIRE a matching proof (FAIL#5 coverage enforcement)."""
     found: dict = {
         "decision_log": None, "exit_nav": None, "anchors": None, "equity_track": None,
         "tournament": None, "nav_proof": None, "sleeve_proofs": [],
+        # producers that MUST carry a proof (FAIL#5). Recorded for coverage enforcement in run().
+        "sleeve_producers": [],
     }
-    # The filenames the recursive walk picks up (so we don't scan unrelated JSON).
+    # The CANONICAL surface filenames a directory walk picks up. We discover by name (so we don't
+    # adopt unrelated entry_hash chains elsewhere under data/) but CLASSIFY each by CONTENT (FAIL#8),
+    # so a stray/misnamed file sitting at one of these names still lands in its TRUE bucket and cannot
+    # displace the real surface. Sleeve proofs (*_series_proof.jsonl) are MANY files.
     _DISCOVER = ("decision_log.jsonl", "exit_nav.json", "anchors.jsonl", "equity_track.jsonl",
                  "nav_proof.jsonl")
     for raw in args_paths:
@@ -646,30 +760,97 @@ def _resolve_inputs(args_paths: List[str]) -> dict:
                         seen.add(fp)
                         _classify_file(fp, found)
             for fp in sorted(p.rglob("*_series_proof.jsonl")):
-                if fp.is_file():
+                if fp.is_file() and fp not in seen:
+                    seen.add(fp)
                     _classify_file(fp, found)
+            # sleeve PRODUCERS that REQUIRE a matching proof (FAIL#5 coverage). Scoped to the
+            # sleeve-proof surface's CANONICAL producer location — a ``rates_desk/paper/`` directory.
+            # The requirement holds even if the proof was DELETED (an empty proof_dirs set must still
+            # require coverage — that is precisely the silent-pass we fail closed on). Other
+            # *_series.json families (e.g. strategy_lab_paper/, a different surface) are NOT in a
+            # rates_desk/paper/ dir, so they are correctly excluded — no false coverage failure.
+            for fp in sorted(p.rglob("*_series.json")):
+                if (fp.is_file() and _is_sleeve_producer_dir(fp.parent)
+                        and fp not in found["sleeve_producers"]):
+                    found["sleeve_producers"].append(fp)
         else:
             _classify_file(p, found)
-            # an explicit non-canonical .jsonl/.json falls back to the rates-desk default buckets.
             name = p.name
-            if (name.endswith(".jsonl") and not any(
-                    name.endswith(s) for s in ("decision_log.jsonl", "anchors.jsonl",
-                                               "equity_track.jsonl", "nav_proof.jsonl",
-                                               "_series_proof.jsonl"))):
-                if found["decision_log"] is None:
-                    found["decision_log"] = p
-            elif name.endswith(".json") and not name.endswith("exit_nav.json"):
-                if found["exit_nav"] is None:
-                    found["exit_nav"] = p
+            # an explicit forward-series producer → record it for coverage enforcement.
+            if name.endswith("_series.json") and p not in found["sleeve_producers"]:
+                found["sleeve_producers"].append(p)
+            # an explicit non-canonical .jsonl that content-sniff could not place → default to the
+            # rates-desk decision chain bucket (back-compat with the explicit-file usage).
+            elif (name.endswith(".jsonl")
+                  and _sniff_jsonl_kind(p) is None and _classify_by_name(p) is None
+                  and found["decision_log"] is None):
+                found["decision_log"] = p
+            elif (name.endswith(".json") and not name.endswith(".jsonl")
+                  and found["exit_nav"] is None and not name.endswith("_series.json")):
+                found["exit_nav"] = p
     return found
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 # main
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
-def run(paths: List[str], expect_head: Optional[str] = None) -> dict:
+# Surface-letter vocabulary for --expect-surfaces (FAIL#5). A reviewer asserts which surfaces MUST
+# be present, and a missing one FAILS CLOSED (a renamed/hidden surface can no longer silently pass).
+_SURFACE_LETTERS = {
+    "A": "decision_log", "B": "exit_nav", "C": "anchors", "D": "equity_track",
+    "E": "tournament", "F": "nav_proof", "G": "sleeve_proofs",
+}
+
+
+def _sleeve_proof_for(producer: Path) -> Path:
+    """The proof path a forward-series producer MUST have: ``<x>_series.json`` → ``<x>_series_proof.jsonl``
+    co-located beside it."""
+    stem = producer.name
+    if stem.endswith("_series.json"):
+        proof_name = stem[: -len(".json")] + "_proof.jsonl"
+    else:  # defensive — any *.json producer maps to *_proof.jsonl
+        proof_name = stem[: -len(".json")] + "_proof.jsonl"
+    return producer.with_name(proof_name)
+
+
+def _enforce_coverage(inputs: dict, report: dict) -> None:
+    """FAIL#5 — a PRODUCER present without its matching, NON-EMPTY proof is a FAIL, never a silent
+    pass. For every discovered ``*_series.json`` sleeve producer, REQUIRE a matching
+    ``*_series_proof.jsonl`` that was discovered AND verifies non-empty. A truncated (0-row) proof for
+    a present producer also fails (an empty proof must not certify a populated producer)."""
+    sleeve_proof_paths = {Path(s["file"]) for s in (report.get("sleeves") or {}).get("per_sleeve", [])}
+    # map proof path → its verified row count (0 = empty/truncated)
+    proof_len = {Path(s["file"]): (s.get("length") or 0)
+                 for s in (report.get("sleeves") or {}).get("per_sleeve", [])}
+    for producer in inputs.get("sleeve_producers", []):
+        # does the producer carry any forward points? (an empty producer needs no proof)
+        try:
+            doc = json.loads(producer.read_text(encoding="utf-8"))
+            series = doc.get("series") if isinstance(doc, dict) else None
+            n_points = len(series) if isinstance(series, list) else 0
+        except (OSError, json.JSONDecodeError):
+            n_points = 0
+        if n_points == 0:
+            continue
+        expected = _sleeve_proof_for(producer)
+        if expected not in sleeve_proof_paths:
+            report["errors"].append(
+                f"coverage: producer {producer.name} has {n_points} forward point(s) but NO matching "
+                f"proof {expected.name} (missing/hidden proof → fail-CLOSED, not silent pass)")
+        elif proof_len.get(expected, 0) == 0:
+            report["errors"].append(
+                f"coverage: producer {producer.name} has {n_points} forward point(s) but its proof "
+                f"{expected.name} is EMPTY/truncated (0 verified rows → fail-CLOSED)")
+
+
+def run(paths: List[str], expect_head: Optional[str] = None,
+        expect_surfaces: Optional[List[str]] = None) -> dict:
     """Run all available verifications over the resolved inputs. Returns a verdict dict. A proof is
-    only checked if its file is present; at least ONE file must be present (else nothing to verify)."""
+    only checked if its file is present; at least ONE file must be present (else nothing to verify).
+
+    Coverage (FAIL#5): a present producer (a ``*_series.json``) without its matching, non-empty proof
+    FAILS. ``expect_surfaces`` (letters A–G) asserts those surfaces are present, failing closed when
+    one is absent — so a renamed/hidden surface can no longer slip through as a silent exit 0."""
     inputs = _resolve_inputs(paths)
 
     def _file_repr(v):
@@ -809,6 +990,14 @@ def run(paths: List[str], expect_head: Optional[str] = None) -> dict:
         report["sleeves"] = {"valid": all_valid, "n_sleeves": len(per_sleeve),
                              "per_sleeve": per_sleeve}
 
+    # FAIL#5 — coverage enforcement: a present producer must carry a verified, non-empty proof.
+    _enforce_coverage(inputs, report)
+
+    # FAIL#6 — honest advisory labeling of degenerate / placeholder anchored numbers. The proof
+    # proves "we PUBLISHED X", not "X is real" — surface that caveat where it applies (NOT a failure,
+    # but a loud advisory flag in the verdict so gravitas is never mistaken for substance).
+    report["advisories"] = _collect_advisories(inputs)
+
     # --expect-head assertion (the published head a reviewer was told to expect)
     if expect_head is not None:
         if decision_head != expect_head:
@@ -816,8 +1005,91 @@ def run(paths: List[str], expect_head: Optional[str] = None) -> dict:
                 f"head mismatch: expected {expect_head}, reproduced {decision_head}")
         report["expected_head"] = expect_head
 
+    # --expect-surfaces assertion (FAIL#5): named surfaces MUST be present, else fail-CLOSED.
+    if expect_surfaces:
+        present = {
+            "A": bool(inputs["decision_log"]), "B": bool(inputs["exit_nav"]),
+            "C": bool(inputs["anchors"]), "D": bool(inputs["equity_track"]),
+            "E": bool(inputs["tournament"]), "F": bool(inputs["nav_proof"]),
+            "G": bool(inputs["sleeve_proofs"]),
+        }
+        report["expected_surfaces"] = list(expect_surfaces)
+        for letter in expect_surfaces:
+            key = _SURFACE_LETTERS.get(letter)
+            if key is None:
+                report["errors"].append(f"--expect-surfaces: unknown surface letter {letter!r} "
+                                        f"(valid: {','.join(sorted(_SURFACE_LETTERS))})")
+            elif not present.get(letter):
+                report["errors"].append(
+                    f"--expect-surfaces: required surface [{letter}] ({key}) is ABSENT — fail-CLOSED "
+                    "(a missing/renamed/hidden surface must not pass silently)")
+
     report["ok"] = (len(report["errors"]) == 0)
     return report
+
+
+# ── FAIL#6 advisory labeling — degenerate Sharpe / placeholder par-NAV are flagged, not hidden ──────
+SHARPE_SANE_CEILING = 10.0   # |Sharpe| above this is locked-vol / mock degenerate, not a real RAR.
+
+
+def _collect_advisories(inputs: dict) -> List[dict]:
+    """Scan the tournament + RWA-NAV surfaces for anchored numbers that are degenerate or placeholder,
+    and emit honest advisory labels. The hash proves these values were PUBLISHED; it does NOT prove
+    they are real. We surface that explicitly so a reviewer never mistakes an anchored placeholder for
+    a measured result. Returns a list of {surface, level, label, detail}. fail-soft (never raises)."""
+    out: List[dict] = []
+
+    # (E) tournament — any |Sharpe| above the sane ceiling is degenerate / locked-vol, NOT a real RAR.
+    if inputs.get("tournament"):
+        rows, err = _read_jsonl(inputs["tournament"])
+        if err is None and rows:
+            worst = None
+            n_deg = 0
+            for r in rows:
+                if not isinstance(r, dict):
+                    continue
+                s = r.get("sharpe")
+                if isinstance(s, (int, float)) and not isinstance(s, bool) and abs(s) > SHARPE_SANE_CEILING:
+                    n_deg += 1
+                    if worst is None or abs(s) > abs(worst):
+                        worst = s
+            if n_deg:
+                out.append({
+                    "surface": "tournament",
+                    "level": "ADVISORY / MOCK-DATA",
+                    "label": "degenerate Sharpe (locked-vol, NOT a real risk-adjusted return)",
+                    "detail": f"{n_deg} ranking row(s) carry |Sharpe| > {SHARPE_SANE_CEILING:g} "
+                              f"(worst {worst:.2f}). These are mock/locked-vol artifacts. The chain "
+                              "proves the ranking was PUBLISHED, not that the Sharpe is investable.",
+                })
+
+    # (F) RWA-NAV — any forward point with onchain_4626_count == 0 is a MARKETING PAR estimate, not a
+    # measured liquidation NAV; the liq_nav_gap_pct=100 sentinel means "no on-chain NAV measured".
+    if inputs.get("nav_proof"):
+        rows, err = _read_jsonl(inputs["nav_proof"])
+        if err is None and rows:
+            n_par = sum(1 for r in rows if isinstance(r, dict)
+                        and _int_or_none(r.get("onchain_4626_count")) == 0)
+            if n_par:
+                out.append({
+                    "surface": "nav_proof",
+                    "level": "MEASUREMENT-ONLY / MARKETING-PAR",
+                    "label": "par-NAV estimate (NOT a measured liquidation NAV)",
+                    "detail": f"{n_par} forward point(s) have onchain_4626_count == 0 → "
+                              "tvl_weighted_nav is the $1.00 MARKETING par, and liq_nav_gap_pct=100 is "
+                              "a sentinel (no on-chain ERC-4626 NAV measured). Advisory/measurement-only: "
+                              "the chain proves the point was PUBLISHED, not that par equals executable NAV.",
+                })
+    return out
+
+
+def _int_or_none(v):
+    try:
+        if isinstance(v, bool):
+            return None
+        return int(v)
+    except (TypeError, ValueError):
+        return None
 
 
 def _print_human(report: dict) -> None:
@@ -884,6 +1156,17 @@ def _print_human(report: dict) -> None:
         ok = report["decision_chain"] and report["decision_chain"].get("head_hash") == report["expected_head"]
         print(f"[--expect-head]    : {'MATCH' if ok else 'MISMATCH'}  ({report['expected_head']})")
 
+    if "expected_surfaces" in report:
+        print(f"[--expect-surfaces]: required {','.join(report['expected_surfaces'])}")
+
+    adv = report.get("advisories") or []
+    if adv:
+        print("-" * 78)
+        print("ADVISORIES (the proof proves we PUBLISHED these — NOT that they are real):")
+        for a in adv:
+            print(f"  ⚠ [{a['surface']}] {a['level']}: {a['label']}")
+            print(f"      {a['detail']}")
+
     print("-" * 78)
     if report["errors"]:
         print("ERRORS:")
@@ -899,11 +1182,20 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("paths", nargs="+",
                     help="a directory (auto-discovers the 3 files) or explicit file paths")
     ap.add_argument("--expect-head", default=None,
-                    help="assert the reproduced decision-chain head_hash equals this hex digest")
+                    help="assert the reproduced DECISION-CHAIN head_hash (surface A) equals this hex "
+                         "digest. NOTE: this is the chain HEAD, NOT the verifier script's own SHA-256.")
+    ap.add_argument("--expect-surfaces", default=None,
+                    help="comma-separated surface letters (A=decision_log B=exit_nav C=anchors "
+                         "D=equity_track E=tournament F=nav_proof G=sleeve) that MUST be present; a "
+                         "missing one fails CLOSED (so a renamed/hidden surface can't pass silently)")
     ap.add_argument("--json", action="store_true", help="emit the machine-readable verdict as JSON")
     args = ap.parse_args(argv)
 
-    report = run(args.paths, expect_head=args.expect_head)
+    expect_surfaces = None
+    if args.expect_surfaces:
+        expect_surfaces = [s.strip().upper() for s in args.expect_surfaces.split(",") if s.strip()]
+
+    report = run(args.paths, expect_head=args.expect_head, expect_surfaces=expect_surfaces)
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

@@ -8,7 +8,7 @@
  *
  * It is the single front door for an external, skeptical reviewer (a Gauntlet /
  * Credora / Chaos-Labs analyst). It does FOUR things:
- *   1. The ONE command:  python3 verify_spa.py data/rates_desk/
+ *   1. The ONE command:  python3 verify_spa.py data/   (whole dir → all 7 surfaces)
  *   2. Pin an AUTHENTIC verifier — the SHA-256 + version tag from
  *      docs/VERIFIER_RELEASE.md (so a reviewer can confirm the *checker* too).
  *   3. Link the recipe (PROOF_CHAIN_SPEC) + the public files it consumes.
@@ -28,7 +28,7 @@ import Disclaimer from '../components/Disclaimer.astro';
 
 // Pinned verifier release (mirror of docs/VERIFIER_RELEASE.md · verifier-v1.0).
 const VERIFIER_VERSION = 'verifier-v1.0';
-const VERIFIER_SHA256 = '4106b9932691869866f7056d66b108bd7532b02731e5d395297fad7ed7c0db1e';
+const VERIFIER_SHA256 = '0f8c270c8c1f0c59ffc7236b1e43c1cb2aa58329faf7839c1961ce83209f81da';
 const VERIFIER_FILE = 'scripts/verify_spa.py';
 
 // The four independent proofs the verifier reproduces (PROOF_CHAIN_SPEC §3/§5/§6/§6a/§8).
@@ -93,11 +93,15 @@ const proofs = [
       </p>
       <div class="rounded-xl p-5 overflow-x-auto" style="background:var(--bg-base);border:1px solid var(--accent-dim)">
         <p class="text-[11px] uppercase tracking-wider font-mono mb-2" style="color:var(--text-faint)" data-ru="Команда">Command</p>
-        <code class="text-sm sm:text-base font-mono break-all" style="color:var(--data-teal)">python3 verify_spa.py data/rates_desk/</code>
+        <code class="text-sm sm:text-base font-mono break-all" style="color:var(--data-teal)">python3 verify_spa.py data/</code>
         <p class="text-[11px] leading-relaxed mt-3" style="color:var(--text-muted)"
-           data-ru="Точку входа, голову которую вы должны увидеть, тоже можно зафиксировать: добавьте --expect-head <hex>, и верификатор подтвердит, что воспроизведённая голова цепочки совпадает с опубликованной.">
-          You can also pin the head you should see: pass <span class="font-mono">--expect-head &lt;hex&gt;</span>
-          and the verifier asserts the reproduced chain head equals the published one.
+           data-ru="Указывайте весь каталог data/ — он покрывает все 7 поверхностей (rates-desk A–D плюс tournament E, RWA-NAV F, sleeve G). Узкая форма data/rates_desk/ видит только A–D. Голову тоже можно зафиксировать: добавьте --expect-head <hex> (это голова цепочки решений, НЕ SHA-256 самого скрипта), и верификатор подтвердит совпадение. А --expect-surfaces A,D,E,F,G падает закрыто, если поверхность отсутствует.">
+          Point it at the WHOLE <span class="font-mono">data/</span> dir — it covers all 7 surfaces
+          (rates-desk A–D plus tournament E, RWA-NAV F, sleeve G); the narrower
+          <span class="font-mono">data/rates_desk/</span> form only sees A–D. You can also pin the head:
+          <span class="font-mono">--expect-head &lt;hex&gt;</span> (the decision-chain head, NOT the
+          verifier script's own SHA-256), and <span class="font-mono">--expect-surfaces A,D,E,F,G</span>
+          fails closed if a surface is absent.
         </p>
       </div>
     </section>
