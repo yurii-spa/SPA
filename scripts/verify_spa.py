@@ -23,9 +23,13 @@ It verifies three independent published proofs:
       re-derive every entry_hash, check single-genesis + contiguous seq + prev-linkage; print
       valid / broken_at / head_hash.
   (B) exit_nav.json      — every per-row proof_hash (PROOF_CHAIN_SPEC §6), live + illustrative +
-      the portfolio section, recomputed from each row's published inputs.
-  (C) anchors.jsonl      — the cross-eviction immutability anchors (append-only, monotonic seq, and
-      each anchor's head_hash must match the producer ledger / decision-chain head it checkpoints).
+      the portfolio section, recomputed from each row's published INPUTS *and* OUTPUTS *and* prev_hash
+      (a forged output or a reordered/dropped row diverges the recompute / breaks the prev_hash chain).
+  (C) anchors.jsonl      — the head-checkpoint anchors (append-only, monotonic seq). Each in-window
+      anchor's head_hash is re-derived from the public chain (the head at length K == rows[K-1].
+      entry_hash), so a FABRICATED in-window historical anchor is REJECTED; anchors whose prefix has
+      been evicted (or which claim more rows than the public chain) are reported as UNCHECKABLE from
+      public files (cross-eviction proof needs the producer ledger — PROOF_CHAIN_SPEC §6a). No over-claim.
 
 USAGE
     python3 verify_spa.py data/rates_desk/                # a directory: auto-discovers the 3 files
@@ -54,10 +58,18 @@ GENESIS_PREV = "0" * 64                      # §5: genesis prev_hash
 ENVELOPE_KEYS = ("seq", "ts", "entry_hash", "prev_hash")  # §1/§3: the chain-linkage envelope
 CANONICAL_JSON_RULE = "json.dumps(obj, sort_keys=True, separators=(',', ':'), ensure_ascii=False)"
 
-# exit-nav §6: the exact set of fields the per-row proof_hash is taken over.
+# exit-nav §6: the per-row proof_hash now covers INPUTS + OUTPUTS + prev_hash (tamper-evidence fix).
+# A forged user-facing output (net_proceeds_usd / haircut_pct / flagged / …) breaks the recompute;
+# the prev_hash links each schedule into a verifiable chain (genesis '0'*64) so a reordered/dropped
+# row is caught too.
 EXIT_NAV_ROW_INPUT_KEYS = (
     "ticket_usd", "gross_usd", "depth_usd", "as_of", "model", "model_params", "data_source",
 )
+EXIT_NAV_ROW_OUTPUT_KEYS = (
+    "net_proceeds_usd", "haircut_pct", "price_impact_frac", "flagged", "flag_reason",
+    "time_to_exit_days",
+)
+EXIT_NAV_GENESIS_PREV = "0" * 64
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -82,13 +94,15 @@ def recompute_entry_hash(row: dict) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def exit_nav_proof_hash(row_inputs: dict) -> str:
-    """PROOF_CHAIN_SPEC §6 — SHA-256 over the canonical JSON of the published row inputs.
+def exit_nav_proof_hash(proof_obj: dict) -> str:
+    """PROOF_CHAIN_SPEC §6 — SHA-256 over the canonical JSON of {inputs, outputs, prev_hash}.
 
-    NOTE: the spec recipe uses ``default=str`` (Decimals/None rendered with str()); for the published
-    file every value is already a JSON-native scalar, so the result is byte-identical either way. We
-    pass default=str to match the spec exactly."""
-    blob = json.dumps(row_inputs, sort_keys=True, separators=(",", ":"), default=str)
+    The hashed object covers the published INPUTS (ticket/gross/depth/as_of/model/params/source), the
+    published OUTPUTS (net_proceeds_usd/haircut_pct/price_impact_frac/flagged/flag_reason/
+    time_to_exit_days), and the row's prev_hash (linking it into the per-schedule chain). So forging
+    any user-facing number, or reordering/dropping a row, diverges the recompute. The spec recipe uses
+    ``default=str``; published values are JSON-native, so it is byte-identical either way."""
+    blob = json.dumps(proof_obj, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
@@ -123,58 +137,89 @@ def verify_decision_chain(rows: List[dict]) -> dict:
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 # (B) exit-NAV per-row proof hashes — PROOF_CHAIN_SPEC §6 (live + illustrative + portfolio)
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
-def _row_inputs_from(row: dict) -> Tuple[Optional[dict], Optional[str]]:
-    """Reconstruct §6 row_inputs from a published schedule row. Returns (row_inputs, error_or_None).
-    fail-CLOSED: any required field absent → error (a hole we cannot reproduce is a FAILURE here, not
-    a pass — the published row claims a proof_hash, so all its inputs must be present)."""
-    missing = [k for k in EXIT_NAV_ROW_INPUT_KEYS if k not in row]
-    if missing:
-        return None, f"missing input field(s): {','.join(missing)}"
-    return {k: row[k] for k in EXIT_NAV_ROW_INPUT_KEYS}, None
+def _proof_obj_from(row: dict) -> Tuple[Optional[dict], Optional[str]]:
+    """Reconstruct the §6 hashed object {inputs, outputs, prev_hash} from a published schedule row.
+    Returns (proof_obj, error_or_None). fail-CLOSED: any required field absent → error (the published
+    row claims a proof_hash, so all its hashed inputs AND outputs AND prev_hash must be present)."""
+    missing_in = [k for k in EXIT_NAV_ROW_INPUT_KEYS if k not in row]
+    missing_out = [k for k in EXIT_NAV_ROW_OUTPUT_KEYS if k not in row]
+    if "prev_hash" not in row:
+        missing_in = missing_in + ["prev_hash"]
+    if missing_in or missing_out:
+        return None, f"missing field(s): {','.join(missing_in + missing_out)}"
+    return {
+        "inputs": {k: row[k] for k in EXIT_NAV_ROW_INPUT_KEYS},
+        "outputs": {k: row[k] for k in EXIT_NAV_ROW_OUTPUT_KEYS},
+        "prev_hash": row["prev_hash"],
+    }, None
 
 
-def _iter_schedule_rows(exit_nav: dict):
-    """Yield (label, row) for EVERY schedule row that carries a proof_hash, across all sections:
-    the live `schedule`, the `illustrative.schedule`, and the `portfolio.markets[*].schedule`."""
+def _iter_schedules(exit_nav: dict):
+    """Yield (section_label, [rows]) for EVERY schedule that carries proof_hash rows: the live
+    `schedule`, the `illustrative.schedule`, and each `portfolio.markets[*].schedule`. Yielding whole
+    schedules (not flat rows) lets the verifier check the per-schedule prev_hash chain (each schedule
+    is its own chain, genesis '0'*64)."""
     if not isinstance(exit_nav, dict):
         return
-    for i, r in enumerate(exit_nav.get("schedule") or []):
-        if isinstance(r, dict) and "proof_hash" in r:
-            yield (f"live[{i}]", r)
+    live = exit_nav.get("schedule")
+    if isinstance(live, list):
+        yield ("live", live)
     illus = exit_nav.get("illustrative")
-    if isinstance(illus, dict):
-        for i, r in enumerate(illus.get("schedule") or []):
-            if isinstance(r, dict) and "proof_hash" in r:
-                yield (f"illustrative[{i}]", r)
+    if isinstance(illus, dict) and isinstance(illus.get("schedule"), list):
+        yield ("illustrative", illus["schedule"])
     portfolio = exit_nav.get("portfolio")
     if isinstance(portfolio, dict):
         for mi, mkt in enumerate(portfolio.get("markets") or []):
             if not isinstance(mkt, dict):
                 continue
             mid = mkt.get("market_id", mi)
-            for i, r in enumerate(mkt.get("schedule") or []):
-                if isinstance(r, dict) and "proof_hash" in r:
-                    yield (f"portfolio[{mid}][{i}]", r)
+            sched = mkt.get("schedule")
+            if isinstance(sched, list):
+                yield (f"portfolio[{mid}]", sched)
+
+
+def _iter_schedule_rows(exit_nav: dict):
+    """Yield (label, row) for EVERY schedule row that carries a proof_hash (compat helper for callers
+    that want flat rows; the chain check lives in verify_exit_nav over whole schedules)."""
+    for section, rows in _iter_schedules(exit_nav):
+        for i, r in enumerate(rows):
+            if isinstance(r, dict) and "proof_hash" in r:
+                yield (f"{section}[{i}]", r)
 
 
 def verify_exit_nav(exit_nav: dict) -> dict:
-    """Recompute every published exit-NAV proof_hash (§6). Returns
-    {valid, n_rows, n_verified, first_bad}. fail-CLOSED: any row missing its inputs or mismatching
-    its stored proof_hash → valid=False with first_bad set to the section label."""
+    """Recompute every published exit-NAV proof_hash (§6) AND verify each schedule's prev_hash chain.
+    Returns {valid, n_rows, n_verified, first_bad}. fail-CLOSED: any row missing inputs/outputs,
+    mismatching its stored proof_hash, OR a broken prev_hash linkage → valid=False with first_bad set
+    to the precise section label. The chain check makes a reordered/dropped/inserted row detectable:
+    each schedule is its own chain (genesis '0'*64); row i's prev_hash must equal row i-1's proof_hash."""
     n_rows = 0
     n_ok = 0
     first_bad: Optional[str] = None
-    for label, row in _iter_schedule_rows(exit_nav):
-        n_rows += 1
-        inputs, err = _row_inputs_from(row)
-        if err is not None:
-            first_bad = first_bad or f"{label}: {err}"
-            continue
-        recomputed = exit_nav_proof_hash(inputs)
-        if recomputed == row.get("proof_hash"):
-            n_ok += 1
-        else:
-            first_bad = first_bad or f"{label}: proof_hash mismatch"
+    for section, rows in _iter_schedules(exit_nav):
+        expected_prev = EXIT_NAV_GENESIS_PREV
+        for i, row in enumerate(rows):
+            if not (isinstance(row, dict) and "proof_hash" in row):
+                continue
+            label = f"{section}[{i}]"
+            n_rows += 1
+            # (1) prev_hash chain linkage (genesis '0'*64; else previous row's proof_hash)
+            if row.get("prev_hash") != expected_prev:
+                first_bad = first_bad or f"{label}: prev_hash chain broken"
+                expected_prev = row.get("proof_hash")  # advance so later labels stay meaningful
+                continue
+            # (2) recompute proof_hash over inputs + outputs + prev_hash
+            proof_obj, err = _proof_obj_from(row)
+            if err is not None:
+                first_bad = first_bad or f"{label}: {err}"
+                expected_prev = row.get("proof_hash")
+                continue
+            recomputed = exit_nav_proof_hash(proof_obj)
+            if recomputed == row.get("proof_hash"):
+                n_ok += 1
+            else:
+                first_bad = first_bad or f"{label}: proof_hash mismatch"
+            expected_prev = row.get("proof_hash")
     valid = (first_bad is None)
     return {"valid": valid, "n_rows": n_rows, "n_verified": n_ok, "first_bad": first_bad}
 
@@ -183,48 +228,98 @@ def verify_exit_nav(exit_nav: dict) -> dict:
 # (C) cross-eviction anchors — verified against the producer head they checkpoint
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 def verify_anchors(anchors: List[dict], decision_head: Optional[str],
-                   decision_length: Optional[int]) -> dict:
-    """Verify the append-only anchor ledger (anchors.jsonl).
+                   decision_length: Optional[int],
+                   decision_rows: Optional[List[dict]] = None) -> dict:
+    """Verify the append-only anchor ledger (anchors.jsonl) — PROOF_CHAIN_SPEC §6a.
 
-    Each anchor = {ts, seq, head_hash, chain_length}. Checks:
-      1. append-only monotonic seq: anchor seq runs 0..N contiguous.
-      2. monotonic chain_length: an anchor never checkpoints a SHORTER all-time chain than an earlier
-         one (the producer ledger is append-only → length never decreases).
-      3. consistency with the CURRENT decision head: the anchor whose chain_length == the supplied
-         decision_length must carry head_hash == decision_head (the latest checkpoint reproduces the
-         live chain head). Anchors for OLDER lengths (pre-eviction windows) are accepted as historical
-         checkpoints — their head_hash cannot be re-derived from a ring-buffered file alone, which is
-         exactly WHY the append-only anchor ledger exists.
+    Each anchor = {ts, seq, head_hash, chain_length}. `head_hash` is the PUBLIC decision mirror's
+    §5 head (its LAST row's entry_hash) at the checkpointed `chain_length`. Because the mirror is a
+    single-genesis, re-based chain, the head at ANY in-window length K equals `rows[K-1].entry_hash` —
+    so a historical anchor whose checkpointed rows are STILL in the published window IS independently
+    checkable (this is the honesty fix: a fabricated historical anchor no longer silently passes).
 
-    fail-CLOSED. Returns {valid, length, broken_at, latest_matches_head}. Empty is vacuously valid."""
+    Checks:
+      1. append-only monotonic seq: anchor.seq runs 0..N contiguous (strictly increasing).
+      2. monotonic chain_length: never checkpoints a SHORTER chain than an earlier anchor.
+      3. head consistency, as far as the PUBLIC files allow:
+         (a) clen == decision_length  → head MUST == decision_head (the current window head);
+         (b) clen <  decision_length and the checkpointed prefix is still in-window (i.e. row
+             [clen-1] is present in decision_rows) → head MUST == decision_rows[clen-1].entry_hash
+             (historical in-window anchor — NOW verified, not skipped);
+         (c) the prefix has been EVICTED (clen-1 no longer in the window, e.g. genesis moved past it),
+             or no decision file was supplied → the anchor's head CANNOT be re-derived from the public
+             files alone. We mark it UNCHECKABLE rather than silently pass. Cross-eviction proof of
+             such an anchor requires the authoritative append-only producer ledger (see §6a) — the
+             public ring-buffer alone cannot deliver it, and we do not claim it can.
+
+    fail-CLOSED. Returns {valid, length, broken_at, latest_matches_head, n_historical_verified,
+    n_uncheckable}. Empty is vacuously valid. NOTE: an `uncheckable` historical anchor does NOT fail
+    the ledger (we cannot prove it wrong from public files), but it is COUNTED + reported so the claim
+    stays honest — `n_uncheckable > 0` means some anchors rest on the producer ledger, not these files."""
     n = len(anchors)
     if n == 0:
-        return {"valid": True, "length": 0, "broken_at": None, "latest_matches_head": None}
+        return {"valid": True, "length": 0, "broken_at": None, "latest_matches_head": None,
+                "n_historical_verified": 0, "n_uncheckable": 0}
+    # entry_hash by chain_length: the re-based mirror's head at length K is row[K-1].entry_hash.
+    head_at_length = {}
+    if decision_rows:
+        for i, r in enumerate(decision_rows):
+            if isinstance(r, dict) and isinstance(r.get("entry_hash"), str):
+                head_at_length[i + 1] = r["entry_hash"]
+    in_window_min_length = (min(head_at_length) if head_at_length else None)
     prev_seq = -1
     prev_len = -1
     latest_matches_head: Optional[bool] = None
+    n_hist_ok = 0
+    n_uncheckable = 0
     for idx, a in enumerate(anchors):
         if not isinstance(a, dict):
-            return {"valid": False, "length": n, "broken_at": idx, "latest_matches_head": None}
+            return _anchor_fail(n, idx)
         seq = a.get("seq")
         clen = a.get("chain_length")
         head = a.get("head_hash")
         if not isinstance(seq, int) or seq != idx:
-            return {"valid": False, "length": n, "broken_at": idx, "latest_matches_head": None}
+            return _anchor_fail(n, idx)
         if seq <= prev_seq:  # strictly monotonic (defensive; seq==idx already implies it)
-            return {"valid": False, "length": n, "broken_at": idx, "latest_matches_head": None}
+            return _anchor_fail(n, idx)
         if not isinstance(clen, int) or clen < prev_len:
-            return {"valid": False, "length": n, "broken_at": idx, "latest_matches_head": None}
+            return _anchor_fail(n, idx)
         if not isinstance(head, str) or len(head) != 64:
-            return {"valid": False, "length": n, "broken_at": idx, "latest_matches_head": None}
-        # consistency with the live decision chain, when this anchor checkpoints the current length.
+            return _anchor_fail(n, idx)
+        # (3a) current-window head.
         if decision_head is not None and decision_length is not None and clen == decision_length:
             if head != decision_head:
-                return {"valid": False, "length": n, "broken_at": idx, "latest_matches_head": False}
+                return {"valid": False, "length": n, "broken_at": idx, "latest_matches_head": False,
+                        "n_historical_verified": n_hist_ok, "n_uncheckable": n_uncheckable}
             latest_matches_head = True
+        # (3b) historical anchor whose checkpointed prefix is STILL in-window → re-derivable + checked.
+        elif clen in head_at_length:
+            if head != head_at_length[clen]:
+                # a FABRICATED historical anchor: claims a head the public chain does not reproduce.
+                return {"valid": False, "length": n, "broken_at": idx, "latest_matches_head": None,
+                        "n_historical_verified": n_hist_ok, "n_uncheckable": n_uncheckable}
+            n_hist_ok += 1
+        # (3c) anchor longer than the current chain, or prefix evicted, or no decision file supplied.
+        else:
+            if (decision_length is not None and clen > decision_length):
+                # an anchor claiming MORE rows than the published chain has → unreproducible forward
+                # claim. Not fabricated-detectable as wrong-head, but it cannot be checked → uncheckable.
+                n_uncheckable += 1
+            elif (in_window_min_length is not None and clen < in_window_min_length):
+                # the checkpointed prefix has been evicted from the window → uncheckable from public
+                # files (needs the producer ledger). Honest: counted, not silently passed.
+                n_uncheckable += 1
+            else:
+                n_uncheckable += 1
         prev_seq = seq
         prev_len = clen
-    return {"valid": True, "length": n, "broken_at": None, "latest_matches_head": latest_matches_head}
+    return {"valid": True, "length": n, "broken_at": None, "latest_matches_head": latest_matches_head,
+            "n_historical_verified": n_hist_ok, "n_uncheckable": n_uncheckable}
+
+
+def _anchor_fail(n: int, idx: int) -> dict:
+    return {"valid": False, "length": n, "broken_at": idx, "latest_matches_head": None,
+            "n_historical_verified": 0, "n_uncheckable": 0}
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -314,6 +409,7 @@ def run(paths: List[str], expect_head: Optional[str] = None) -> dict:
 
     decision_head: Optional[str] = None
     decision_length: Optional[int] = None
+    decision_rows: Optional[List[dict]] = None
 
     # (A) decision chain
     if inputs["decision_log"]:
@@ -328,6 +424,7 @@ def run(paths: List[str], expect_head: Optional[str] = None) -> dict:
             if res["valid"]:
                 decision_head = res["head_hash"]
                 decision_length = res["length"]
+                decision_rows = rows  # carried so historical in-window anchors are checkable (§6a)
             else:
                 report["errors"].append(f"decision_log: chain broken at row {res['broken_at']}")
 
@@ -351,7 +448,7 @@ def run(paths: List[str], expect_head: Optional[str] = None) -> dict:
             report["anchors"] = {"valid": False, "broken_at": None, "length": None,
                                  "latest_matches_head": None}
         else:
-            res = verify_anchors(anchors, decision_head, decision_length)
+            res = verify_anchors(anchors, decision_head, decision_length, decision_rows)
             report["anchors"] = res
             if not res["valid"]:
                 report["errors"].append(f"anchors: broken at index {res['broken_at']}")
@@ -393,6 +490,9 @@ def _print_human(report: dict) -> None:
     if an is not None:
         print(f"[C] anchors        : valid={an.get('valid')}  length={an.get('length')}  "
               f"broken_at={an.get('broken_at')}  latest_matches_head={an.get('latest_matches_head')}")
+        print(f"    historical     : verified_in_window={an.get('n_historical_verified')}  "
+              f"uncheckable_from_public_files={an.get('n_uncheckable')}  "
+              f"(uncheckable anchors require the producer ledger — see PROOF_CHAIN_SPEC §6a)")
 
     if "expected_head" in report:
         ok = report["decision_chain"] and report["decision_chain"].get("head_hash") == report["expected_head"]

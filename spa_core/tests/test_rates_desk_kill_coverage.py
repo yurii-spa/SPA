@@ -452,8 +452,13 @@ def test_ordering_entry_veto_chain_peels_in_documented_order():
     res, _ = _entry(r, debt=D("0.90"), opp=great, state=KillState(neg_funding_streak=99))
     assert res.reason == KillReason.TAIL_VETO
 
-    # (2) heal the haircut (benign tail) but keep peg broken → UNDERLYING_DEPEG
-    r = _risk(peg_distance=D("0.02"))  # peg over 1% but everything else benign so haircut < max
+    # (2) heal the haircut (benign tail) but keep peg JUST over the 1% gate → UNDERLYING_DEPEG.
+    #     NOTE (structural-veto fix): the peg must be only just over 1% so the STRUCTURAL haircut
+    #     (peg+funding+oracle+protocol) stays <= max_structural_haircut — otherwise the size-proof
+    #     TAIL_VETO (which now precedes UNDERLYING_DEPEG and catches a large depeg as toxicity at any
+    #     size) fires first. A 2% peg is now correctly a structural tail breach; a ~1.05% peg trips
+    #     only the hard UNDERLYING_DEPEG gate while the structural haircut stays under the toxicity cap.
+    r = _risk(peg_distance=D("0.0105"))  # over the 1% peg gate, structural haircut still < toxicity cap
     res, _ = _entry(r, opp=great)
     assert res.reason == KillReason.UNDERLYING_DEPEG
 
@@ -495,10 +500,14 @@ def test_ordering_hold_exit_capacity_beats_funding_and_compression():
 # UNDERLYING_DEPEG fail-closed (both paths) — explicit None / negative coverage
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 def test_underlying_depeg_entry_fail_closed_on_malformed_peg():
+    # fail-CLOSED: a malformed peg makes the engine clamp peg_haircut to its cap (0.10), so the
+    # SIZE-INDEPENDENT structural haircut breaches max_structural_haircut and the size-proof TAIL_VETO
+    # fires FIRST (a malformed peg IS a max-toxicity signal). Still REFUSED (the safety outcome is
+    # preserved and strengthened) — the structural veto now precedes the UNDERLYING_DEPEG gate.
     res, _ = _entry(_risk(peg_distance="bad"))
     assert res.approved is False
-    assert res.reason == KillReason.UNDERLYING_DEPEG
-    assert res.detail["peg_distance"] == "malformed"
+    assert res.reason == KillReason.TAIL_VETO
+    assert res.detail["max_structural_haircut"] == str(P.max_structural_haircut)
 
 
 def test_underlying_depeg_hold_fail_closed_on_negative_peg():

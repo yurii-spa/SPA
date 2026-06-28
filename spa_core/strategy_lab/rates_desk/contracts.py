@@ -137,6 +137,17 @@ class YieldDecomposition:
                 + self.liquidity_haircut + self.protocol_haircut)
 
     @property
+    def structural_haircut(self) -> Decimal:
+        """The SIZE-INDEPENDENT tail haircut = peg + funding + oracle + protocol — i.e. total_haircut
+        MINUS the size-dependent liquidity term. This is the TOXICITY signal: it is a pure property of
+        the underlying's structural tail (depeg / hostile funding / stale oracle / nesting+concentration)
+        and does NOT shrink when the position is sized down. The TAIL_VETO is computed on THIS so a
+        tail-toxic book can never be sized under the cap (the liquidity term lowers the POSITION's exit
+        impact, never the toxicity verdict). See contracts.RatePolicyParams.max_structural_haircut."""
+        return (self.peg_haircut + self.funding_flip_haircut + self.oracle_haircut
+                + self.protocol_haircut)
+
+    @property
     def fair_yield(self) -> Decimal:
         """baseline - total_haircut (may go negative → the asset is uninvestable at any rate)."""
         return self.baseline - self.total_haircut
@@ -152,6 +163,7 @@ class YieldDecomposition:
             "oracle_haircut": str(self.oracle_haircut),
             "liquidity_haircut": str(self.liquidity_haircut),
             "protocol_haircut": str(self.protocol_haircut),
+            "structural_haircut": str(self.structural_haircut),
             "total_haircut": str(self.total_haircut),
             "fair_yield": str(self.fair_yield),
         }
@@ -251,6 +263,15 @@ class RatePolicyParams:
     # — refusal-first vetoes —
     max_total_haircut: Decimal = field(  # total_haircut above this → TAIL_VETO (the REFUSE) — CALIBRATED
         default_factory=lambda: _cal("CALIBRATED_MAX_TOTAL_HAIRCUT", "0.12"))
+    # The TOXICITY cap — applied to the SIZE-INDEPENDENT structural_haircut (peg+funding+oracle+protocol,
+    # EXCLUDING the size-dependent liquidity term). A book whose structural tail alone exceeds this is
+    # REFUSED at ANY size: sizing down only shrinks the liquidity term, so a structural-cap breach can
+    # never be sized around (red-team FAIL #1 fix). Pinned in config.py (CALIBRATED_MAX_STRUCTURAL_HAIRCUT
+    # = 0.09 — measured to sit above every healthy-carry day and below every toxic-LRT day on the deep
+    # 2024→2026 data); read via _cal so a re-calibration updates config, not this default. fail-CLOSED
+    # literal mirrors the committed calibrated value.
+    max_structural_haircut: Decimal = field(
+        default_factory=lambda: _cal("CALIBRATED_MAX_STRUCTURAL_HAIRCUT", "0.09"))
     max_peg_distance: Decimal = Decimal("0.01")       # |market-nav|/nav above this → UNDERLYING_DEPEG (1%)
     max_oracle_staleness_s: int = 3600                # oracle older than this → ORACLE_STALE (1h)
     max_stable_depeg: Decimal = Decimal("0.005")      # debt/quote stable depeg above this → STABLE_DEPEG (0.5%)

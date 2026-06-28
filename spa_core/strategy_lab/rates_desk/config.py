@@ -80,7 +80,22 @@ RWA_FLOOR_APY = 0.034        # ~3.4%/yr
 # The sweep CONFIRMS the prior defaults are at the robust optimum (it would not churn a risk cutoff for
 # a cosmetic APY tick — repo rule #7). Changing any value here is a research-config / ADR event.
 # Source-of-truth verdict + the full trade-off curve: docs/RATES_DESK_VALIDATION.md (calibration sweep).
-CALIBRATED_MAX_TOTAL_HAIRCUT = 0.12   # total_haircut above this → TAIL_VETO (the REFUSE)
+CALIBRATED_MAX_TOTAL_HAIRCUT = 0.12   # total_haircut above this → TAIL_VETO (the REFUSE, incl. liquidity)
+# The TOXICITY cap — applied to the SIZE-INDEPENDENT structural_haircut (peg+funding+oracle+protocol,
+# EXCLUDING the size-dependent liquidity term). A book whose STRUCTURAL tail alone exceeds this is
+# REFUSED at ANY size: sizing down only shrinks the liquidity term, so a structural breach can never be
+# "sized around" (red-team FAIL #1 fix — ezETH was approved at $4,062 by sizing down its liquidity
+# haircut while the structural tail sat at ~0.097). Measured separation on the DEEP 2024→2026 data:
+#   • healthy sUSDe/USDe carry structural_haircut ∈ [0.015, 0.0753] (max in hostile-funding regimes)
+#   • toxic restaking (ezETH/rsETH) structural_haircut ≈ 0.097–0.180 (peg+nesting tail)
+#   → the toxicity band starts ~0.097; a cap of 0.09 sits ABOVE every healthy day (0/2927 strangled)
+#     and BELOW every toxic day (0/1101 leaked) — clean both-sided separation. The funding-flip term
+#     SATURATES to its cap (0.06) for any funding-neg > 10% (a step function), and 57.6% of real days
+#     carry that — so the cap MUST sit above (capped-funding 0.06 + benign oracle+protocol ~0.018) ≈
+#     0.078 or it would strangle healthy carry; 0.09 clears that with ~0.012 margin. Sustained hostile
+#     funding is instead governed by the dedicated FUNDING_FLIP hysteresis streak (gate step 5).
+# Pinned / auditable; changing it is a research-config / ADR event. RatePolicyParams reads it via _cal.
+CALIBRATED_MAX_STRUCTURAL_HAIRCUT = 0.09  # structural_haircut above this → TAIL_VETO at ANY size
 CALIBRATED_K_PEG = 4.0                 # peg-distance → APY haircut coefficient (the LRT depeg tail)
 CALIBRATED_CAP_PEG = 0.10
 CALIBRATED_K_FUNDING = 0.10            # funding-flip systemic overlay coefficient

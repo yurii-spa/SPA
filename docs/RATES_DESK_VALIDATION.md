@@ -143,51 +143,34 @@ _Isolated-basis simulation: PT receive-fixed minus the 5-venue median perp fundi
 
 ## Calibration sweep — refusal threshold + haircut coefficients
 
-_Brief §9: `max_total_haircut` is the most consequential single parameter. This is an exhaustive, deterministic grid sweep over `max_total_haircut` + `k_peg` + `k_protocol` on the DEEP 2024→2026 data, measuring (toxic-veto coverage) vs (healthy-carry fire-rate / survivor APY). Re-runnable via `python3 -m spa_core.strategy_lab.rates_desk.calibrate`._
+_Brief §9 + red-team FAIL #1 fix: the toxicity cliff is now `max_structural_haircut` (the size-INDEPENDENT peg+funding+oracle+protocol cap, so toxicity can't be sized around). This is an exhaustive, deterministic grid sweep over `max_structural_haircut` + `k_peg` + `k_protocol` on the DEEP 2024→2026 data, measuring (toxic-veto coverage) vs (healthy-carry fire-rate / survivor APY). Re-runnable via `python3 -m spa_core.strategy_lab.rates_desk.calibrate`._
 
-**Chosen (calibrated):** `max_total_haircut=0.12`, `k_peg=4.0`, `k_protocol=0.02` → toxic coverage **100.0%** (all stress events refused: `True`), healthy fire-rate **100.0%**, survivor APY **23.82%** vs floor `3.4%` (beats: `True`).
+**Chosen (calibrated):** `max_structural_haircut=0.09`, `k_peg=4.0`, `k_protocol=0.02` → toxic coverage **100.0%** (all stress events refused: `True`), healthy fire-rate **100.0%**, survivor APY **23.82%** vs floor `3.4%` (beats: `True`).
 
 > _Note: this calibration's `survivor APY` is computed WITHOUT the downstream global APY ceiling (30%) and at full-book sizing — deliberately, because this sweep tunes the STRUCTURAL tail-haircut cutoff (peg/liquidity/protocol separation of toxic-LRT vs healthy carry), and that cutoff must not move with a downstream composition layer. It is an OPTIMIZATION objective, NOT the published carry number. The HONEST published, capacity-bound, ceiling-composed book APY is in the Assertion-2 and 4-sleeve sections above (FixedCarry ≈ 6% on the total-capital basis, idle cash at the floor)._
 
-> The current defaults (`max_total_haircut=0.12`, `k_peg=4.0`, `k_protocol=0.02`) **are confirmed optimal by the sweep** (the chosen point equals them). Calibration is pinned in `config.py` (`CALIBRATED_*`), not hardcoded in the engine.
+> The current defaults (`max_structural_haircut=0.09`, `k_peg=4.0`, `k_protocol=0.02`) **are confirmed optimal by the sweep** (the chosen point equals them). Calibration is pinned in `config.py` (`CALIBRATED_*`), not hardcoded in the engine.
 
 Trade-off — the boundary (cliff) per coefficient pair (the threshold at/above which a toxic day would leak through):
 
 | k_peg | k_protocol | max SAFE threshold | min LEAKING threshold |
 |---:|---:|---:|---:|
-| 2.0 | 0.01 | 0.12 | 0.14 |
-| 2.0 | 0.02 | 0.14 | 0.16 |
-| 2.0 | 0.03 | 0.14 | 0.16 |
-| 3.0 | 0.01 | 0.14 | 0.16 |
-| 3.0 | 0.02 | 0.14 | 0.16 |
-| 3.0 | 0.03 | 0.16 | 0.18 |
-| 4.0 | 0.01 | 0.14 | 0.16 |
-| 4.0 | 0.02 | 0.16 | 0.18 |
-| 4.0 | 0.03 | 0.18 | 0.20 |
-| 5.0 | 0.01 | 0.16 | 0.18 |
-| 5.0 | 0.02 | 0.18 | 0.20 |
-| 5.0 | 0.03 | 0.18 | 0.20 |
+| 4.0 | 0.02 | 0.09 | 0.10 |
 
 Top sweep rows (admissible first, then survivor APY desc):
 
-| max_total_haircut | k_peg | k_protocol | admissible | toxic cov % | fire-rate % | survivor APY % | beats floor |
+| max_structural_haircut | k_peg | k_protocol | admissible | toxic cov % | fire-rate % | survivor APY % | beats floor |
 |---:|---:|---:|:--:|---:|---:|---:|:--:|
-| 0.10 | 2.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
-| 0.12 | 2.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
-| 0.14 | 2.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
-| 0.10 | 3.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
-| 0.12 | 3.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
-| 0.14 | 3.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
-| 0.16 | 3.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
-| 0.10 | 4.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
-| 0.12 | 4.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
-| 0.14 | 4.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
-| 0.16 | 4.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
-| 0.18 | 4.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
-| 0.10 | 5.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
-| 0.12 | 5.0 | 0.03 | yes | 100.0 | 100.0 | 24.42 | yes |
+| 0.08 | 4.0 | 0.02 | yes | 100.0 | 100.0 | 23.82 | yes |
+| 0.09 | 4.0 | 0.02 | yes | 100.0 | 100.0 | 23.82 | yes |
+| 0.06 | 4.0 | 0.02 | yes | 100.0 | 49.8 | 21.71 | yes |
+| 0.07 | 4.0 | 0.02 | yes | 100.0 | 49.8 | 21.71 | yes |
+| 0.10 | 4.0 | 0.02 | no | 100.0 | 100.0 | 23.82 | yes |
+| 0.11 | 4.0 | 0.02 | no | 100.0 | 100.0 | 23.82 | yes |
+| 0.12 | 4.0 | 0.02 | no | 100.0 | 100.0 | 23.82 | yes |
+| 0.14 | 4.0 | 0.02 | no | 100.0 | 100.0 | 23.82 | yes |
 
-> Reading the curve: loosening `max_total_haircut` raises the survivor fire-rate/APY (less real carry strangled) but eventually lets a toxic restaking book clear the veto — the `min LEAKING threshold` column is exactly where that happens. The calibrated point sits at the richest admissible carry that is still strictly below every leak. On THIS data the toxic LRT books carry a depeg+nesting tail so far above any healthy sUSDe PT that the safe band is wide — the chosen threshold both vetoes 100% of toxic days and leaves healthy carry intact.
+> Reading the curve: loosening `max_structural_haircut` raises the survivor fire-rate/APY (less real carry strangled) but eventually lets a toxic restaking book clear the veto — the `min LEAKING threshold` column is exactly where that happens. The calibrated point sits at the richest admissible carry that is still strictly below every leak. On THIS data the toxic LRT books carry a depeg+nesting tail so far above any healthy sUSDe PT that the safe band is wide — the chosen threshold both vetoes 100% of toxic days and leaves healthy carry intact.
 
 <!-- END rates-desk calibration sweep (calibrate) -->
 
@@ -245,94 +228,3 @@ The catastrophic backstop (a position mis-sized against a stale proxy that the l
 > **Net verdict.** The proxy WAS miscalibrated (stale constant) and is now FIXED to contemporaneous depth. With the fix, the proxy shrinks with the real Oct-2025 drain, the 0.25× sizing cap + `CONCENTRATION` derisk kept every test position out of an illiquid bag, and the new `EXIT_CAPACITY` kill is the hard backstop for a true collapse below position size. Two layers of defense, both validated on the real stress.
 
 <!-- END rates-desk exit-liquidity validation (exit_liquidity_validation) -->
-
-<!-- BEGIN rates-desk capacity analysis (capacity) -->
-
-## Capacity — does the edge survive size?  (the fundability ceiling)
-
-_Deterministic capacity curve for the validated FixedCarry SURVIVOR book over the DEEP historical RateSurface (2024-01-09→2026-06-25, 899 days). For each deployed-AUM level the book is replayed under the SAME honest accounting as the backtest (§9 exit-capacity sizing, idle cash @ the RWA floor, maturity-retire, 30% global ceiling). PURE / fail-CLOSED / advisory. Re-runnable via `python3 -m spa_core.strategy_lab.rates_desk.capacity`._
-
-RWA floor: **3.4%/yr**. Unconstrained (zero-size) carry: **~10.6533%/yr** — the edge the book clips with infinite depth. The model: as AUM grows, exit-capacity sizing forces the marginal dollar IDLE @ the floor (diluting the book) or into DEEPER impact (slippage on the carry) — `book_net_apy(AUM) = deployed·carry_after_slippage + idle·floor`.
-
-| deployed AUM | deployed | deployed % | gross carry %/yr | slippage drag %/yr | idle@floor %/yr | book net APY %/yr | beats floor |
-|---|---:|---:|---:|---:|---:|---:|:--:|
-| $100,000 | $18,113 | 18.11 | 3.3060 | 0.0000 | 2.7841 | 6.0901 | yes |
-| $250,000 | $29,426 | 11.77 | 2.6499 | 0.0000 | 2.9998 | 5.6497 | yes |
-| $500,000 | $29,426 | 5.89 | 1.3250 | 0.0000 | 3.1999 | 4.5249 | yes |
-| $1,000,000 | $29,426 | 2.94 | 0.6624 | 0.0000 | 3.3000 | 3.9624 | yes |
-| $10,000,000 | $29,430 | 0.29 | 0.0662 | 0.0000 | 3.3900 | 3.4562 | yes |
-| $50,000,000 | $29,450 | 0.06 | 0.0132 | 0.0000 | 3.3980 | 3.4112 | yes |
-| $100,000,000 | $29,400 | 0.03 | 0.0066 | 0.0000 | 3.3990 | 3.4056 | yes |
-| $250,000,000 | $29,500 | 0.01 | 0.0026 | 0.0000 | 3.3996 | 3.4022 | yes |
-| $500,000,000 | $29,500 | 0.01 | 0.0013 | 0.0000 | 3.3998 | 3.4011 | yes |
-| $1,000,000,000 | $29,000 | 0.00 | 0.0007 | 0.0000 | 3.3999 | 3.4006 | yes |
-
-- **Fundable ceiling (book APY >= floor+200bps = 5.4%):** **$250,000** deployed AUM.
-- **Saturation (book APY → the floor, edge gone):** reached by **$10,000,000** AUM.
-
-> **Honest verdict — CAPACITY-LIMITED.** CAPACITY-LIMITED (honest). The FixedCarry survivor carry is real but lives in THIN Pendle PT pools: the §9 exit-capacity rule caps per-market deployment at max_size_frac_of_exit of one-tick exit liquidity, so the desk REFUSES to push past the impact band (it sizes DOWN rather than eat slippage). The depth cost therefore shows up not as carry slippage but as IDLE capital — the un-deployable remainder sits @ the RWA floor and the book APY compresses toward the floor as AUM grows. The unconstrained (zero-size) carry is ~10.65%/yr; it does NOT survive size — the fundable ceiling (book APY >= floor+200bps) is ~$250,000 deployed AUM, and the edge saturates to ~the floor by $10,000,000. This is exactly why a $10M/yr target needs SCALE across MANY such gated books, not one — a single rates book caps out well below institutional size before the edge erodes to the floor.
-
-<!-- END rates-desk capacity analysis (capacity) -->
-
-<!-- BEGIN rates-desk portfolio-of-desks (portfolio) -->
-
-## Portfolio of desks — does the edge SCALE?  (the $10M/yr business case)
-
-_Deterministic portfolio-of-desks capacity model: each harvestable (underlying, maturity) Pendle PT market is its OWN capacity-limited book (its own pool depth → its own §9 exit cap), replayed over the DEEP historical RateSurface (2024-01-09→2026-06-25) under the SAME honest accounting as the single-book capacity curve (REUSING capacity.py's replay: §9 exit-capacity sizing, idle cash @ the RWA floor, maturity-retire, 30% global ceiling). The aggregate is the SUM of per-book deployables — bounded by real per-market depth, NOT infinite. PURE / fail-CLOSED / advisory. Re-runnable via `python3 -m spa_core.strategy_lab.rates_desk.portfolio`._
-
-RWA floor: **3.4%/yr**. Target: **$10,000,000/yr of carry ABOVE the floor**. Harvestable markets: **25**; fundable independent books (actually deploy capacity): **22** (aggregate refusal 12.0%).
-
-| underlying | maturity | deployable AUM | net carry %/yr | above floor $/yr | held days |
-|---|---|---:|---:|---:|---:|
-| USDe | 2024-07-25 | $86,193 | 26.6000 | $19,997 | 76 |
-| USDe | 2024-10-24 | $6,489 | 10.1900 | $441 | 96 |
-| USDe | 2024-12-26 | $1,522 | 8.7200 | $81 | 158 |
-| USDe | 2025-03-27 | $1,065 | 11.8900 | $90 | 161 |
-| USDe | 2025-07-31 | $4,250 | 12.4500 | $385 | 152 |
-| USDe | 2025-09-25 | $2,561 | 8.6600 | $135 | 124 |
-| USDe | 2025-11-27 | $5,984 | 12.6400 | $553 | 104 |
-| USDe | 2026-02-05 | $2,164 | 5.7300 | $50 | 93 |
-| USDe | 2026-05-07 | $3,030 | 3.7500 | $11 | 97 |
-| sUSDe | 2024-07-25 | $39,962 | 26.7900 | $9,347 | 32 |
-| sUSDe | 2024-09-26 | $116,848 | 28.5200 | $29,352 | 98 |
-| sUSDe | 2024-10-24 | $14,683 | 15.0000 | $1,703 | 96 |
-| sUSDe | 2024-12-26 | $2,119 | 12.9000 | $201 | 159 |
-| sUSDe | 2025-02-27 | $3,919 | 26.9700 | $924 | 75 |
-| sUSDe | 2025-03-27 | $4,730 | 11.6600 | $391 | 183 |
-| sUSDe | 2025-05-29 | $2,014 | 16.9500 | $273 | 194 |
-| sUSDe | 2025-07-31 | $1,165 | 7.1400 | $44 | 126 |
-| sUSDe | 2025-09-25 | $1,044 | 8.2200 | $50 | 122 |
-| sUSDe | 2025-11-27 | $10,098 | 9.6600 | $632 | 118 |
-| sUSDe | 2026-02-05 | $4,458 | 5.9000 | $111 | 96 |
-| sUSDe | 2026-05-07 | $10,620 | 0.8333 | $0 | 110 |
-| sUSDe | 2026-08-13 | $5,397 | 3.5609 | $9 | 56 |
-
-- **Total deployable AUM (Σ per-book depth):** **$330,315**
-- **Aggregate net APY (deployable-weighted):** **22.9289%/yr**
-- **Carry ABOVE the floor:** **$64,779/yr** (0.6478% of the $10M/yr target)
-- **Books needed for $10M/yr above floor:** **3397** (at $2,945/yr above floor per current book)
-- **Gap to $10M/yr:** $9,935,221/yr
-
-> **Honest fundability verdict.** The CURRENT real harvestable universe is 22 fundable independent books (of 25 harvestable markets), summing to $330,315 of depth-bound deployable AUM at an aggregate 22.93%/yr (RWA floor 3.40%/yr) → $64,779/yr of carry ABOVE the floor. That is only 0.65% of the $10M/yr target — a gap of $9,935,221/yr. Honest verdict: the CURRENT real Pendle PT carry market is TOO THIN to fund $10M/yr above the floor on its own. At the current per-book average of $2,945/yr above floor, clearing $10M/yr would need ~3397 current-average books — far more than the real universe offers today. The §9 exit-capacity cap binds each book to a small depth-bound size, and even SUMMED across every harvestable maturity the real depth is limited. Closing the gap requires the market to GROW (deeper PT pools per maturity → higher per-book deployable), MORE venues/books (lending-carry on PT collateral, more maturities, other chains, additional protocols), AND/OR the OTHER theses (the RWA cash-floor sleeve and directional/neutral ETH sleeves) carrying the balance of the $10M target. This is the honest scale truth: the rates-desk carry edge is REAL and SURVIVES across many gated books, but the current market depth alone does not get to $10M/yr — it is one diversifying sleeve of a larger book, not a standalone $10M business at today's depth.
-
-<!-- END rates-desk portfolio-of-desks (portfolio) -->
-
-<!-- BEGIN rates-desk exit-NAV-by-size schedule (exit_nav) -->
-
-## Liquidation-NAV-by-size — the per-ticket EXIT schedule (the flagship surface)
-
-_The investor-facing per-ticket exit schedule for the desk's OWN open carry book — what a forced unwind realises at $100k / $250k / $1M / $5M / $10M, and how long it takes. PUBLISHED AS A CONSERVATIVE LOWER BOUND (constant-product `L/(L+S)`), not a precise execution model: concentrated-liquidity Pendle PT pools are deeper near peg but FAR thinner in a forced unwind, so a defensible floor beats a precise-looking number we cannot defend. Depth is the SINGLE-market contemporaneous Pendle PT exit liquidity (never aggregated). Tied to the validated §9 Oct-2025 exit-liquidity stress (docs/RATES_DESK_VALIDATION.md#exit-liquidity (Oct-2025 stress)). PURE / fail-CLOSED / advisory. Re-runnable via `python3 -m spa_core.strategy_lab.rates_desk.exit_nav`._
-
-Book: **live** · market `0x177768caf9d0e036725a51d3f60d7e20f2d4d194` (susde) · gross $7,635 · depth $30,524 · as_of `2026-06-26` · source `rate_surface.exit_liquidity_usd`
-
-| ticket | gross $ | price impact % | net proceeds $ | haircut % | time-to-exit (days) | within 1 tick | flag |
-|---:|---:|---:|---:|---:|---:|:--:|---|
-| $100,000 | $100,000 | — | — | — | — | no | insufficient_contemporaneous_depth |
-| $250,000 | $250,000 | — | — | — | — | no | insufficient_contemporaneous_depth |
-| $1,000,000 | $1,000,000 | — | — | — | — | no | insufficient_contemporaneous_depth |
-| $5,000,000 | $5,000,000 | — | — | — | — | no | insufficient_contemporaneous_depth |
-| $10,000,000 | $10,000,000 | — | — | — | — | no | insufficient_contemporaneous_depth |
-
-> **Honest framing.** Conservative LOWER BOUND on forced-unwind proceeds, NOT a precise execution estimate or a realized exit. The constant-product L/(L+S) model under-states deliverable proceeds near peg and is published only as a defensible floor; concentrated-liquidity Pendle pools can be far thinner in a forced unwind. Single-market depth, never aggregated. Advisory — moves no capital.
-
-<!-- END rates-desk exit-NAV-by-size schedule (exit_nav) -->

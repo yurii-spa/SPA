@@ -142,6 +142,58 @@ def test_exit_nav_mutated_input_breaks_proof():
     assert "proof_hash mismatch" in (res["first_bad"] or "")
 
 
+def test_exit_nav_forged_output_detected():
+    """RED-TEAM FAIL #2: forging a published OUTPUT (net_proceeds/haircut/flagged) on a real row,
+    keeping the stored proof_hash → the verifier (now hashing outputs too) detects it. OLD behavior
+    (inputs-only hash) PASSED this forgery; the fix MUST reject it."""
+    doc = json.loads(_EXIT_NAV.read_text(encoding="utf-8"))
+    # forge a flagged hole into a fat fill (the exact red-team attack: 9,999,999 net, haircut 0.0001)
+    forged = None
+    for _, row in V._iter_schedule_rows(doc):
+        if row.get("flagged") and row.get("net_proceeds_usd") is None:
+            row["net_proceeds_usd"] = 9_999_999.0
+            row["haircut_pct"] = 0.0001
+            row["flagged"] = False
+            row["flag_reason"] = None
+            forged = row
+            break
+    assert forged is not None, "expected at least one flagged hole row to forge"
+    res = V.verify_exit_nav(doc)
+    assert res["valid"] is False
+    assert "proof_hash mismatch" in (res["first_bad"] or "")
+
+
+def test_exit_nav_input_only_recompute_no_longer_passes():
+    """Editing an input AND recomputing the OLD inputs-only hash must NOT pass — outputs + prev_hash
+    are now in the hashed object, so the inputs-only digest is wrong."""
+    import hashlib
+    doc = json.loads(_EXIT_NAV.read_text(encoding="utf-8"))
+    target = None
+    for _, row in V._iter_schedule_rows(doc):
+        if row.get("depth_usd") is not None and not row.get("flagged"):
+            target = row
+            break
+    assert target is not None
+    target["depth_usd"] = target["depth_usd"] * 1.5
+    # attacker recomputes the OLD inputs-only recipe
+    ri = {k: target[k] for k in V.EXIT_NAV_ROW_INPUT_KEYS}
+    blob = json.dumps(ri, sort_keys=True, separators=(",", ":"), default=str)
+    target["proof_hash"] = hashlib.sha256(blob.encode("utf-8")).hexdigest()
+    res = V.verify_exit_nav(doc)
+    assert res["valid"] is False  # inputs-only hash no longer satisfies the verifier
+
+
+def test_exit_nav_reordered_row_caught_by_chain():
+    """A reordered (or dropped) schedule row breaks the per-schedule prev_hash chain → caught."""
+    doc = json.loads(_EXIT_NAV.read_text(encoding="utf-8"))
+    sched = doc.get("schedule") or []
+    assert len(sched) >= 2
+    sched[0], sched[1] = sched[1], sched[0]
+    res = V.verify_exit_nav(doc)
+    assert res["valid"] is False
+    assert "chain broken" in (res["first_bad"] or "")
+
+
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 # (C) anchors — append-only, monotonic, head-consistent
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -162,9 +214,56 @@ def test_anchor_wrong_head_rejected():
     chain = V.verify_decision_chain(rows)
     forged = [{"event_type": "rates_desk_anchor", "seq": 0, "ts": "2026-06-28T00:00:00+00:00",
                "head_hash": "a" * 64, "chain_length": chain["length"]}]
-    res = V.verify_anchors(forged, chain["head_hash"], chain["length"])
+    res = V.verify_anchors(forged, chain["head_hash"], chain["length"], rows)
     assert res["valid"] is False
     assert res["latest_matches_head"] is False
+
+
+def test_fabricated_historical_anchor_rejected():
+    """WEAKNESS #3: a fabricated HISTORICAL anchor (wrong head at an OLDER in-window length) must be
+    REJECTED — not silently passed with latest_matches_head=None. Because the public mirror is a
+    single-genesis re-based chain, the head at length K == rows[K-1].entry_hash, so an in-window
+    historical anchor IS independently checkable."""
+    rows = _read_jsonl(_DECISION_LOG)
+    chain = V.verify_decision_chain(rows)
+    assert chain["length"] >= 110
+    fab = {"event_type": "rates_desk_anchor", "seq": 0, "ts": "2026-06-27T00:00:00+00:00",
+           "head_hash": "a" * 64, "chain_length": 100}  # WRONG head at length 100
+    real = {"event_type": "rates_desk_anchor", "seq": 1, "ts": "2026-06-28T00:00:00+00:00",
+            "head_hash": chain["head_hash"], "chain_length": chain["length"]}
+    res = V.verify_anchors([fab, real], chain["head_hash"], chain["length"], rows)
+    assert res["valid"] is False, "fabricated historical anchor must be rejected, not silently passed"
+    assert res["broken_at"] == 0
+
+
+def test_genuine_historical_anchor_verified_in_window():
+    """A GENUINE historical anchor (true head at an older in-window length) passes AND is counted as
+    verified_in_window (the honesty fix verifies it, not just the current head)."""
+    rows = _read_jsonl(_DECISION_LOG)
+    chain = V.verify_decision_chain(rows)
+    assert chain["length"] >= 110
+    true_head_100 = rows[99]["entry_hash"]
+    good = {"event_type": "rates_desk_anchor", "seq": 0, "ts": "2026-06-27T00:00:00+00:00",
+            "head_hash": true_head_100, "chain_length": 100}
+    real = {"event_type": "rates_desk_anchor", "seq": 1, "ts": "2026-06-28T00:00:00+00:00",
+            "head_hash": chain["head_hash"], "chain_length": chain["length"]}
+    res = V.verify_anchors([good, real], chain["head_hash"], chain["length"], rows)
+    assert res["valid"] is True
+    assert res["n_historical_verified"] == 1
+    assert res["latest_matches_head"] is True
+
+
+def test_evicted_or_forward_anchor_marked_uncheckable_not_passed():
+    """An anchor claiming MORE rows than the public chain (or a prefix not in-window) cannot be
+    re-derived from public files → counted UNCHECKABLE (honest), the ledger still valid but the count
+    flags it rests on the producer ledger."""
+    rows = _read_jsonl(_DECISION_LOG)
+    chain = V.verify_decision_chain(rows)
+    fwd = {"event_type": "rates_desk_anchor", "seq": 0, "ts": "2026-06-28T00:00:00+00:00",
+           "head_hash": "b" * 64, "chain_length": chain["length"] + 5_000}  # claims more rows
+    res = V.verify_anchors([fwd], chain["head_hash"], chain["length"], rows)
+    assert res["valid"] is True
+    assert res["n_uncheckable"] == 1
 
 
 def test_anchor_non_monotonic_chain_length_rejected():

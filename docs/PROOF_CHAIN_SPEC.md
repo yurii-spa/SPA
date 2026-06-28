@@ -211,30 +211,54 @@ verdict independently.
 
 `GET /api/rates-desk/exit-nav` publishes a per-ticket liquidation schedule, and **every schedule row
 carries its own `proof_hash`** (the adversarial note: every published `proof_hash` should be spec'd).
-It is *not* part of the decision chain above — it is a standalone, reproducible digest over the row's
-published inputs, computed with the **same canonical-JSON + SHA-256 rule** (§2):
+It is *not* part of the decision chain above — it is a standalone, reproducible digest computed with
+the **same canonical-JSON + SHA-256 rule** (§2).
+
+> **TAMPER-EVIDENCE (spec v1.0 hardening).** The `proof_hash` is taken over the row's published
+> **INPUTS *and* OUTPUTS *and* its `prev_hash`** — not the inputs alone. This closes two attacks a
+> skeptic demonstrated against an inputs-only hash:
+> 1. **Forged output:** publishing a fabricated `net_proceeds_usd` / `haircut_pct` /
+>    `price_impact_frac` / `flagged` / `flag_reason` / `time_to_exit_days` on a real row. With the
+>    outputs INSIDE the hashed object, any such forgery diverges the recompute.
+> 2. **Unchained row:** reordering, dropping, or inserting a row. Every row carries a `prev_hash`
+>    linking it to the previous row's `proof_hash` (the first row in each schedule uses the genesis
+>    `prev_hash = "0"*64`), so the schedule is a **verifiable chain** — a reordered/dropped/inserted
+>    row breaks the linkage.
+
+The hashed object is `{ "inputs", "outputs", "prev_hash" }`:
 
 ```python
 import json, hashlib
 
-def exit_nav_proof_hash(row_inputs: dict) -> str:
-    blob = json.dumps(row_inputs, sort_keys=True, separators=(",", ":"), default=str)
+def exit_nav_proof_hash(proof_obj: dict) -> str:
+    # proof_obj = { "inputs": {...}, "outputs": {...}, "prev_hash": "<hex64>" }
+    blob = json.dumps(proof_obj, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 ```
 
-`row_inputs` is exactly the published, reproducible-from-the-row set:
+where the three groups are reconstructed verbatim from the published row:
 
 ```
-{ "ticket_usd", "gross_usd", "depth_usd", "as_of", "model", "model_params", "data_source" }
+inputs   = { "ticket_usd", "gross_usd", "depth_usd", "as_of", "model", "model_params", "data_source" }
+outputs  = { "net_proceeds_usd", "haircut_pct", "price_impact_frac", "flagged", "flag_reason",
+             "time_to_exit_days" }
+prev_hash = the row's "prev_hash" field   ("0"*64 for the first row of each schedule)
 ```
 
-where `model_params = { dex_routing_cost_bps, operational_haircut_bps, max_size_frac_of_exit,
+and `model_params = { dex_routing_cost_bps, operational_haircut_bps, max_size_frac_of_exit,
 min_dex_pool_tvl_usd }`. All of these fields are present verbatim in the published schedule row, so a
-third party reconstructs `row_inputs` from the row and recomputes `proof_hash` — confirming the
-conservative lower-bound exit NAV was derived from the stated inputs and model, not back-fitted.
+third party reconstructs `{inputs, outputs, prev_hash}` from the row and recomputes `proof_hash` —
+confirming both that the published number was derived from the stated inputs/model **and** that no
+output was forged after the fact, and (via the chain) that no row was reordered or dropped.
 
-> **The proof_hash rule applies to EVERY schedule section.** `exit_nav.json` carries three schedule
-> groups, and **every row in all three** carries its own §6 `proof_hash` computed the same way:
+**Verify the chain** (per schedule section): walk rows in order; row 0's `prev_hash` must be `"0"*64`;
+each subsequent row's `prev_hash` must equal the previous row's `proof_hash`; and every row's
+`proof_hash` must recompute from its `{inputs, outputs, prev_hash}`. The first row that fails either
+check is the break.
+
+> **The rule applies to EVERY schedule section, each its own chain.** `exit_nav.json` carries three
+> schedule groups; **every row in all three** carries its own §6 `proof_hash` + `prev_hash`, and each
+> group is an independent chain (its own genesis):
 > 1. `schedule[]` — the desk's OWN open book (single live market);
 > 2. `illustrative.schedule[]` — a labeled hypothetical on the deepest real market (demonstration);
 > 3. `portfolio.markets[*].schedule[]` — the **portfolio-wide** schedule: EVERY open position **and**
@@ -242,7 +266,7 @@ conservative lower-bound exit NAV was derived from the stated inputs and model, 
 >    `depth_usd` in any portfolio row is the market's resolved single-market contemporaneous depth —
 >    **NEVER** the `portfolio.aggregate_depth_usd` (which is disclosure-only; depths are never summed,
 >    since a forced unwind cannot route one market's exit through another's pool). The verifier
->    recomputes the `proof_hash` of all rows across all three groups.
+>    recomputes the `proof_hash` AND the `prev_hash` chain of all rows across all three groups.
 
 ---
 
@@ -252,9 +276,22 @@ conservative lower-bound exit NAV was derived from the stated inputs and model, 
 monotonic** ledger that closes the §5 *sliding-window* caveat. Each line is one anchor:
 
 ```json
-{ "event_type": "rates_desk_anchor", "seq": 0, "ts": "2026-06-28T01:46:41+00:00",
-  "head_hash": "91af3076…2744c", "chain_length": 386 }
+{ "event_type": "rates_desk_anchor", "seq": 0, "ts": "2026-06-28T02:51:06+00:00",
+  "head_hash": "0bbfe1fd…3984c", "chain_length": 394,
+  "note": "GENESIS RESET 2026-06-28: pre-correction anchors invalidated by the structural tail-veto security correction (see below)" }
 ```
+
+> **One-time documented GENESIS RESET (2026-06-28).** The public `decision_log.jsonl` was legitimately
+> REGENERATED for a SECURITY fix — the structural tail-comp veto was corrected, removing a toxic-LRT
+> (ezETH) approval — which produced a NEW chain head. Every PRE-correction anchor (the old genesis
+> `head_hash 91af3076… @ chain_length 386`) checkpointed a head that the *corrected* chain no longer
+> reproduces, so it became **structurally invalid** (case (b) below would reject it). The ledger was
+> therefore RESET to a fresh `seq:0` genesis anchor over the corrected head, carrying a mandatory `note`
+> that records the invalidation reason. This is NOT a silent rewrite: the reset is recorded on the
+> anchor itself and in this spec, and the ledger is **append-only from this new genesis** going forward.
+> A genesis reset is sanctioned ONLY when the underlying decision log is itself legitimately regenerated
+> for a correctness/security fix — never to paper over a tamper. The `note` field is purely informational
+> (the verifier ignores it; it participates in no hash).
 
 - `head_hash` is the **public decision chain's `head_hash`** (§5 — the last row's `entry_hash`) at the
   moment the anchor was minted; a value a third party RE-DERIVES with the §5 recipe.
@@ -264,14 +301,34 @@ monotonic** ledger that closes the §5 *sliding-window* caveat. Each line is one
 **Verify the anchor ledger** (what `scripts/verify_spa.py` and `GET /api/rates-desk/anchors` both do):
 1. **Append-only / monotonic** — `anchor.seq == index` (0-based, contiguous), and `chain_length` is
    non-decreasing across anchors (the chain only grows).
-2. **Head consistency** — the anchor whose `chain_length` equals the **re-derived current decision-chain
-   length** must carry that exact re-derived `head_hash`. (Anchors for *older* lengths are accepted as
-   historical checkpoints — that older window may have since evicted rows, which is precisely why an
-   external append-only anchor exists.)
+2. **Head consistency, as far as the PUBLIC files allow.** Because the public mirror is a single-genesis,
+   re-based chain, the head at **any in-window length K** equals `rows[K-1].entry_hash` (§5). So:
+   - **(a) Current head** — the anchor whose `chain_length` equals the re-derived current chain length
+     must carry that exact re-derived `head_hash`.
+   - **(b) Historical, still in-window** — an anchor whose `chain_length = K < current_length` and whose
+     checkpointed prefix is **still present** in the published file (row `K-1` exists) must carry
+     `head_hash == rows[K-1].entry_hash`. This IS independently checkable, so a **fabricated historical
+     anchor** (a wrong head at an older in-window length) is **REJECTED** — it does *not* silently pass.
+   - **(c) Uncheckable from public files** — an anchor whose prefix has been **evicted** from the ring
+     buffer (`K-1` no longer present, e.g. the genesis moved past it), or that claims **more** rows than
+     the published chain, **cannot** be re-derived from the public files alone. The verifier marks it
+     `uncheckable` and **reports the count** (`n_uncheckable`) rather than passing it off as proven.
+
+> **HONEST SCOPE — what one anchor proves TODAY.** With a single in-window anchor, the verifier proves
+> exactly an **in-window head checkpoint**: that the published chain at the checkpointed length still
+> hashes to the recorded head. It does **NOT**, by itself, deliver **cross-eviction immutability** —
+> the all-time guarantee that no decision was ever silently dropped or altered after it fell out of the
+> ring-buffer window. Case (c) anchors are precisely the ones that *would* require that stronger proof,
+> and the public ring-buffered files cannot supply it. **Cross-eviction proof requires the authoritative
+> append-only producer ledger** (`data/audit_chain.jsonl`, never re-based or truncated). Until that
+> producer ledger (or a verifiable tail of it that re-derives the public mirror) is published, the
+> marketing/spec claim is limited to: *each in-window anchor is a re-derivable head checkpoint; a
+> fabricated in-window anchor is rejected; cross-eviction immutability is backed by the (not-yet-public)
+> producer ledger, not by these files.* No over-claim.
 
 Because the anchor file is append-only and never truncated, recording an anchor now and re-running the
-verifier later proves no in-window history was rewritten between the two checks — extending the §5
-immutability guarantee **across ring-buffer evictions**.
+verifier later proves no in-window history was rewritten between the two checks. Extending that to a
+full **cross-eviction** guarantee requires the producer ledger above.
 
 ---
 

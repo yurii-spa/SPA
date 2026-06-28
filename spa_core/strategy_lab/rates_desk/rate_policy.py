@@ -8,7 +8,10 @@ haircut says the rate is just risk premium you'll pay back.
 HARD INVARIANT — refusal before economics. evaluate_entry runs the checks in this exact order and
 SHORT-CIRCUITS on the first failure:
 
-  (1) TAIL_VETO        total_haircut > max_total_haircut          (the fair-value REFUSE)
+  (1) TAIL_VETO        structural_haircut > max_structural_haircut (the toxicity REFUSE — size-proof:
+                       peg+funding+oracle+protocol, EXCLUDING the size-dependent liquidity term, so a
+                       tail-toxic book is refused at ANY size) — THEN additionally
+                       total_haircut > max_total_haircut (the economics-incl-liquidity REFUSE)
   (2) UNDERLYING_DEPEG peg_distance  > max_peg_distance
   (3) ORACLE_STALE     oracle_staleness > tolerance
   (4) STABLE_DEPEG     debt/quote stable depeg > tolerance
@@ -146,12 +149,39 @@ def evaluate_entry(
         boros_forward=boros_forward,
     )
 
-    # (1) TAIL_VETO — the fair-value REFUSE. Vetoes EVERYTHING regardless of how good the quote is.
+    # (1) TAIL_VETO — the fair-value REFUSE. Vetoes EVERYTHING regardless of how good the quote is, OR
+    #     of how SMALL the requested size is. Computed in TWO parts (refusal-first):
+    #
+    #     (1a) STRUCTURAL toxicity veto — the toxicity verdict is on the SIZE-INDEPENDENT structural
+    #          haircut (peg + funding + oracle + protocol), EXCLUDING the size-dependent liquidity term.
+    #          A tail-toxic book (ezETH/eeth/LRT with a structural tail over the cap) is REFUSED at ANY
+    #          size. This closes red-team FAIL #1: previously a toxic book could be sized DOWN until its
+    #          liquidity_haircut shrank enough to drop total_haircut under the total cap, "sizing around"
+    #          the toxicity. Sizing down must shrink the POSITION, never the TOXICITY verdict — so the
+    #          veto that decides toxicity ignores the liquidity term entirely.
+    if decomp.structural_haircut > params.max_structural_haircut:
+        return _refused(KillReason.TAIL_VETO, opp, decomp, decomp.fair_yield - q.quoted_rate, {
+            "structural_haircut": decomp.structural_haircut,
+            "max_structural_haircut": params.max_structural_haircut,
+            "total_haircut": decomp.total_haircut,
+            "max_total_haircut": params.max_total_haircut,
+            "note": ("structural tail-comp veto: peg+funding+oracle+protocol haircut exceeds the "
+                     "size-independent toxicity cap — REFUSED at any size (cannot be sized around)"),
+        }), next_state
+
+    #     (1b) TOTAL-haircut economics veto — KEPT ADDITIONALLY. Even a structurally-clean book can be
+    #          tail-comp once its OWN exit impact (the size-dependent liquidity haircut) is added: if the
+    #          full decomposition still does not clear the total cap the quote is risk premium, not carry.
+    #          A book can therefore fail EITHER on structural toxicity (1a, size-proof) OR on total
+    #          economics-incl-liquidity (1b). Toxicity can never be sized around; economics can be (that
+    #          is correct — a smaller, exit-feasible ticket is genuinely less risk).
     if decomp.total_haircut > params.max_total_haircut:
         return _refused(KillReason.TAIL_VETO, opp, decomp, decomp.fair_yield - q.quoted_rate, {
             "total_haircut": decomp.total_haircut,
             "max_total_haircut": params.max_total_haircut,
-            "note": "tail-comp veto: quoted rate is risk premium, not carry",
+            "structural_haircut": decomp.structural_haircut,
+            "max_structural_haircut": params.max_structural_haircut,
+            "note": "tail-comp veto: quoted rate is risk premium, not carry (total incl. liquidity)",
         }), next_state
 
     # (2) UNDERLYING_DEPEG (a negative peg distance is malformed → fail-CLOSED)

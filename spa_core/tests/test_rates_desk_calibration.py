@@ -138,11 +138,12 @@ def test_sweep_chosen_is_robust_center_not_loose_edge():
 
 
 def test_sweep_confirms_defaults_are_optimal():
-    """Honest 'defaults confirmed' outcome: the chosen point equals the current config defaults (the
-    sweep does not churn a risk cutoff for a cosmetic APY tick)."""
+    """Honest 'defaults confirmed' outcome: the chosen point equals the current config defaults. After
+    the red-team FAIL #1 fix the swept cliff is max_structural_haircut (the size-INDEPENDENT toxicity
+    cap); the sweep confirms the pinned 0.09 is the robust center of the toxic-vs-healthy band."""
     r = CAL.sweep()
     ch = r["chosen"]
-    assert ch["params"]["max_total_haircut"] == str(float(config.CALIBRATED_MAX_TOTAL_HAIRCUT))
+    assert ch["params"]["max_structural_haircut"] == str(float(config.CALIBRATED_MAX_STRUCTURAL_HAIRCUT))
     assert ch["params"]["k_peg"] == str(float(config.CALIBRATED_K_PEG))
     assert ch["params"]["k_protocol"] == str(float(config.CALIBRATED_K_PROTOCOL))
 
@@ -159,14 +160,29 @@ def test_overtight_threshold_strangles_healthy_carry():
     assert healthy.approved is False  # strangled — proves the lower cliff is real
 
 
-def test_overloose_threshold_leaks_toxic():
-    """An over-LOOSE max_total_haircut (above the toxic haircut) lets a toxic book clear the veto on
-    economics — the upper cliff. (The deep rsETH surface haircut ≈ 0.18-0.20; 0.30 leaks it.)"""
+def test_overloose_total_cap_cannot_leak_toxic_structural_veto_holds():
+    """RED-TEAM FAIL #1 FIX: a loose max_TOTAL_haircut can no longer leak a toxic book, because the
+    TOXICITY verdict now lives on the size-INDEPENDENT max_STRUCTURAL_haircut. Even with the total cap
+    blown wide open (0.30) the toxic rsETH book is STILL TAIL_VETO'd on its structural haircut. (Before
+    the fix this exact loosening let the toxic book clear the veto — the upper cliff the size-down
+    exploit also rode.)"""
+    from spa_core.strategy_lab.rates_desk.contracts import KillReason
     p = dataclasses.replace(RatePolicyParams(), max_total_haircut=D("0.30"))
     tox = _gate(_toxic_rseth_risk(), UnderlyingKind.LRT, "0.45", "2026-04-01", False, p)
-    # at a 30% threshold the tail veto no longer fires; SOME other structural veto (depeg) may still
-    # catch rsETH (peg_distance 0.025 > max_peg_distance). The point: it is NOT a TAIL_VETO anymore.
+    assert tox.approved is False
+    assert tox.reason == KillReason.TAIL_VETO  # structural veto holds regardless of the total cap
+
+
+def test_overloose_structural_cap_leaks_toxic():
+    """The structural cap IS the toxicity cliff: loosen BOTH caps wide open and the TAIL_VETO no longer
+    fires (some other structural veto — depeg — still catches rsETH on its 2.5% peg, but it is no longer
+    the tail veto). This is the cliff the calibration keeps the chosen 0.09 strictly below. (We loosen
+    max_total_haircut too so this isolates the STRUCTURAL cap as the cause — with only the structural cap
+    loose, the total-haircut economics check still tail-vetoes a 19%-haircut toxic book, as it should.)"""
     from spa_core.strategy_lab.rates_desk.contracts import KillReason
+    p = dataclasses.replace(RatePolicyParams(), max_structural_haircut=D("0.30"),
+                            max_total_haircut=D("0.40"))
+    tox = _gate(_toxic_rseth_risk(), UnderlyingKind.LRT, "0.45", "2026-04-01", False, p)
     assert tox.reason != KillReason.TAIL_VETO
 
 

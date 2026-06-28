@@ -25,14 +25,24 @@ chain's current re-based head:
 opposite of the ring-buffered mirror). Each anchor is a time-stamped external checkpoint: a reviewer
 who recorded an anchor at window-length L (with its head_hash) can later re-run verify_spa.py and
 confirm the published chain at that length STILL hashes to the same head — proving no in-window
-decision was silently rewritten between the two checks, across as many checkpoints as they have
-collected. Combined with the authoritative append-only producer ledger `data/audit_chain.jsonl`
-(which hash_chain owns and which is never re-based), this gives cross-eviction immutability that
-extends BEYOND the 2000-row public window.
+decision was silently rewritten between the two checks.
+
+HONEST SCOPE (do NOT over-claim — see PROOF_CHAIN_SPEC §6a). What an in-window anchor proves TODAY is
+an IN-WINDOW HEAD CHECKPOINT. Because the public mirror is a single-genesis re-based chain, the head at
+any in-window length K equals rows[K-1].entry_hash, so an anchor whose checkpointed prefix is still in
+the published window IS independently re-derivable — a FABRICATED in-window historical anchor is
+REJECTED (not silently passed). But an anchor whose prefix has been EVICTED from the ring buffer (or
+which claims more rows than the public chain) is NOT re-derivable from the public files alone; the
+verifier marks it UNCHECKABLE and reports the count. CROSS-EVICTION immutability (the all-time guarantee
+beyond the 2000-row window) is provided by the authoritative append-only producer ledger
+`data/audit_chain.jsonl` (never re-based or truncated) — NOT by these public files until that producer
+ledger (or a verifiable tail of it) is itself published. We do not claim what one anchor cannot deliver.
 
 verify_spa.py (the standalone verifier) confirms each anchor against the decision-chain head it
-checkpoints (the anchor whose chain_length == the re-derived chain length must carry that exact head),
-so the whole mechanism is third-party-reproducible WITHOUT our code.
+checkpoints: the anchor whose chain_length == the re-derived current length must carry that head, and
+every historical anchor whose prefix is still in-window must carry that prefix's re-derived head;
+uncheckable (evicted/forward) anchors are counted, not passed off as proven — so the whole mechanism is
+third-party-reproducible WITHOUT our code, and the claim stays exactly as strong as the public files.
 
 PURE serialization (no pricing/policy); stdlib only; LLM-FORBIDDEN; APPEND-ONLY atomic write
 (append a single line via tmp-rewrite + os.replace so a crash mid-write never tears a line).
@@ -76,12 +86,8 @@ def _read_anchors(path: Path) -> List[dict]:
     return rows
 
 
-def _decision_log_head(log_path: Optional[Path] = None) -> tuple[Optional[str], int]:
-    """The PUBLIC decision chain's current (head_hash, chain_length) — re-derived EXACTLY as a third
-    party would per PROOF_CHAIN_SPEC §5 (delegating to the single shared verifier proof_chain.
-    verify_mirror so the anchored head is byte-identical to what /api/rates-desk/proof and
-    verify_spa.py report). A broken/absent chain → (None, length); anchors are never minted over an
-    unverified head (fail-CLOSED). This is the value verify_spa.py can re-derive from public files."""
+def _read_decision_rows(log_path: Optional[Path] = None) -> List[dict]:
+    """Read the public decision mirror rows (corrupt lines flagged so verify_mirror fail-CLOSES)."""
     path = log_path or _DECISION_LOG
     rows: List[dict] = []
     if path.exists():
@@ -95,7 +101,17 @@ def _decision_log_head(log_path: Optional[Path] = None) -> tuple[Optional[str], 
                 except json.JSONDecodeError:
                     rows.append({"__corrupt__": True})
         except OSError:
-            return None, 0
+            return []
+    return rows
+
+
+def _decision_log_head(log_path: Optional[Path] = None) -> tuple[Optional[str], int]:
+    """The PUBLIC decision chain's current (head_hash, chain_length) — re-derived EXACTLY as a third
+    party would per PROOF_CHAIN_SPEC §5 (delegating to the single shared verifier proof_chain.
+    verify_mirror so the anchored head is byte-identical to what /api/rates-desk/proof and
+    verify_spa.py report). A broken/absent chain → (None, length); anchors are never minted over an
+    unverified head (fail-CLOSED). This is the value verify_spa.py can re-derive from public files."""
+    rows = _read_decision_rows(log_path)
     res = proof_chain.verify_mirror(rows)
     if not res.get("valid"):
         return None, res.get("length", len(rows))  # fail-CLOSED: never anchor an unverified head
@@ -126,6 +142,7 @@ def append_anchor(
     log_path: Optional[Path] = None,
     head_hash: Optional[str] = None,
     chain_length: Optional[int] = None,
+    note: Optional[str] = None,
 ) -> Optional[dict]:
     """Append ONE cross-eviction anchor checkpointing the producer ledger's all-time head.
 
@@ -140,6 +157,9 @@ def append_anchor(
         log_path:      override the decision_log path to anchor (tests/hermetic).
         head_hash:     override the head to anchor (tests); else re-derive from the public chain.
         chain_length:  override the chain length (tests); else re-derive from the public chain.
+        note:          optional human-readable audit note carried ON the anchor (e.g. recording WHY a
+                       genesis anchor was reset). PURELY informational — the verifier ignores it; it
+                       never participates in any hash. Used to make a one-time reset auditable.
 
     Returns the appended anchor dict, or None on a no-op."""
     path = anchors_path or _ANCHORS
@@ -173,42 +193,131 @@ def append_anchor(
         "head_hash": head_hash,
         "chain_length": int(chain_length),
     }
+    if note:
+        anchor["note"] = note
     line = json.dumps(anchor, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     _atomic_append_line(path, line)
+    return anchor
+
+
+def reset_anchors(
+    *,
+    reason: str,
+    ts: Optional[str] = None,
+    anchors_path: Optional[Path] = None,
+    log_path: Optional[Path] = None,
+    head_hash: Optional[str] = None,
+    chain_length: Optional[int] = None,
+) -> Optional[dict]:
+    """ONE-TIME, DOCUMENTED genesis reset of the anchor ledger over the CURRENT decision-chain head.
+
+    Use ONLY when the public decision_log was legitimately REGENERATED with a NEW head (e.g. a security
+    correction that removed a row), which makes every PRE-correction anchor structurally INVALID
+    (its checkpointed in-window prefix no longer reproduces from the corrected chain). A reset is NOT a
+    silent rewrite: the old ledger is replaced by a fresh seq:0 GENESIS anchor that carries a mandatory
+    ``note`` recording the invalidation reason — so the reset is auditable, not hidden. After the reset
+    the ledger is append-only going forward from this new genesis.
+
+    fail-CLOSED: refuses to reset over an empty/broken chain (returns None). The new anchor checkpoints
+    the corrected chain's current (head_hash, chain_length), re-derived exactly as a third party would.
+
+    Args:
+        reason:        REQUIRED human-readable audit note (what invalidated the prior anchors).
+        ts/anchors_path/log_path/head_hash/chain_length: as in append_anchor (overrides for tests).
+
+    Returns the fresh genesis anchor dict, or None if there is nothing valid to checkpoint."""
+    if not reason:
+        raise ValueError("reset_anchors requires a non-empty `reason` (the reset must be auditable)")
+    path = anchors_path or _ANCHORS
+    if ts is None:
+        ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    if head_hash is None or chain_length is None:
+        ph, pl = _decision_log_head(log_path)
+        head_hash = head_hash if head_hash is not None else ph
+        chain_length = chain_length if chain_length is not None else pl
+
+    if head_hash is None or chain_length is None or chain_length <= 0:
+        return None  # nothing verified to checkpoint — fail-CLOSED, leave the ledger untouched
+
+    anchor = {
+        "event_type": ANCHOR_EVENT_TYPE,
+        "seq": 0,
+        "ts": ts,
+        "head_hash": head_hash,
+        "chain_length": int(chain_length),
+        "note": reason,
+    }
+    line = json.dumps(anchor, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    # Atomic WHOLE-FILE replace (this is the one sanctioned non-append op — a documented genesis reset).
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".jsonl.tmp")
+    tmp.write_text(line + "\n", encoding="utf-8")
+    os.replace(str(tmp), str(path))
     return anchor
 
 
 def verify_anchors(anchors: Optional[List[dict]] = None,
                    anchors_path: Optional[Path] = None,
                    log_path: Optional[Path] = None) -> dict:
-    """Verify the anchor ledger is append-only + monotonic, and the anchor that checkpoints the CURRENT
-    chain length carries the current head_hash. Mirrors the standalone verify_spa.py logic so the
-    server verdict == the verifier's. Returns {valid, length, broken_at, latest_matches_head}. Empty
-    is vacuously valid."""
+    """Verify the anchor ledger is append-only + monotonic, the anchor that checkpoints the CURRENT
+    chain length carries the current head_hash, AND every historical anchor whose checkpointed prefix
+    is STILL in the published window matches that prefix's re-derived head (the §6a honesty fix — a
+    fabricated historical anchor is rejected, not silently passed). Anchors whose prefix has been
+    evicted, or that claim more rows than the published chain, are counted as UNCHECKABLE from public
+    files (they rest on the producer ledger) rather than silently accepted. Mirrors the standalone
+    verify_spa.py logic so the server verdict == the verifier's. Returns {valid, length, broken_at,
+    latest_matches_head, n_historical_verified, n_uncheckable}. Empty is vacuously valid."""
     rows = anchors if anchors is not None else _read_anchors(anchors_path or _ANCHORS)
     n = len(rows)
     if n == 0:
-        return {"valid": True, "length": 0, "broken_at": None, "latest_matches_head": None}
-    prod_head, prod_len = _decision_log_head(log_path)
+        return {"valid": True, "length": 0, "broken_at": None, "latest_matches_head": None,
+                "n_historical_verified": 0, "n_uncheckable": 0}
+    decision_rows = _read_decision_rows(log_path)
+    chain = proof_chain.verify_mirror(decision_rows)
+    prod_head = chain.get("head_hash") if chain.get("valid") else None
+    prod_len = chain.get("length") if chain.get("valid") else None
+    # head at length K = re-based mirror row[K-1].entry_hash (single-genesis chain).
+    head_at_length = {}
+    if chain.get("valid"):
+        for i, r in enumerate(decision_rows):
+            if isinstance(r, dict) and isinstance(r.get("entry_hash"), str):
+                head_at_length[i + 1] = r["entry_hash"]
+    in_window_min = (min(head_at_length) if head_at_length else None)
+
+    def _fail(idx, lm=None):
+        return {"valid": False, "length": n, "broken_at": idx, "latest_matches_head": lm,
+                "n_historical_verified": 0, "n_uncheckable": 0}
+
     prev_seq = -1
     prev_len = -1
     latest_matches: Optional[bool] = None
+    n_hist_ok = 0
+    n_uncheckable = 0
     for idx, a in enumerate(rows):
         if not isinstance(a, dict):
-            return {"valid": False, "length": n, "broken_at": idx, "latest_matches_head": None}
+            return _fail(idx)
         seq, clen, head = a.get("seq"), a.get("chain_length"), a.get("head_hash")
         if not isinstance(seq, int) or seq != idx or seq <= prev_seq:
-            return {"valid": False, "length": n, "broken_at": idx, "latest_matches_head": None}
+            return _fail(idx)
         if not isinstance(clen, int) or clen < prev_len:
-            return {"valid": False, "length": n, "broken_at": idx, "latest_matches_head": None}
+            return _fail(idx)
         if not isinstance(head, str) or len(head) != 64:
-            return {"valid": False, "length": n, "broken_at": idx, "latest_matches_head": None}
-        if prod_head is not None and clen == prod_len:
+            return _fail(idx)
+        if prod_head is not None and prod_len is not None and clen == prod_len:
             if head != prod_head:
-                return {"valid": False, "length": n, "broken_at": idx, "latest_matches_head": False}
+                return _fail(idx, lm=False)
             latest_matches = True
+        elif clen in head_at_length:
+            if head != head_at_length[clen]:
+                return {"valid": False, "length": n, "broken_at": idx, "latest_matches_head": None,
+                        "n_historical_verified": n_hist_ok, "n_uncheckable": n_uncheckable}
+            n_hist_ok += 1
+        else:
+            n_uncheckable += 1
         prev_seq, prev_len = seq, clen
-    return {"valid": True, "length": n, "broken_at": None, "latest_matches_head": latest_matches}
+    return {"valid": True, "length": n, "broken_at": None, "latest_matches_head": latest_matches,
+            "n_historical_verified": n_hist_ok, "n_uncheckable": n_uncheckable}
 
 
 def recent_anchors(n: int = 20, anchors_path: Optional[Path] = None) -> List[dict]:

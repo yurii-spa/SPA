@@ -207,10 +207,23 @@ def _resolve_depth(surface: dict, deep: dict, market_id: str, underlying: str, a
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 # per-ticket exit math (deterministic, conservative LOWER BOUND, fail-CLOSED)
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
-def _proof_hash(row_inputs: dict) -> str:
-    """sha256 over the canonical sorted-JSON of the row's PUBLISHED inputs — reproducible by anyone
-    from the published row (the inputs we expose), so the proof is independently verifiable."""
-    blob = json.dumps(row_inputs, sort_keys=True, separators=(",", ":"), default=str)
+# Genesis prev_hash for the per-schedule exit-NAV row chain (mirrors the §5 decision-chain genesis).
+EXIT_NAV_GENESIS_PREV = "0" * 64
+
+# The OUTPUT fields the proof_hash MUST cover (the user-facing numbers). Pinned + spec'd in §6 so a
+# third party reconstructs the hashed object exactly. Forging any of these now breaks the proof_hash.
+EXIT_NAV_OUTPUT_KEYS = (
+    "net_proceeds_usd", "haircut_pct", "price_impact_frac", "flagged", "flag_reason",
+    "time_to_exit_days",
+)
+
+
+def _proof_hash(proof_obj: dict) -> str:
+    """sha256 over the canonical sorted-JSON of the row's PUBLISHED inputs AND outputs AND prev_hash —
+    reproducible by anyone from the published row, so the proof is independently verifiable. Covering
+    the OUTPUTS (net_proceeds/haircut/flagged/…) makes a forged user-facing number detectable; the
+    prev_hash links the row into a per-schedule chain so a reordered/dropped row is detectable too."""
+    blob = json.dumps(proof_obj, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
@@ -225,17 +238,23 @@ def compute_ticket_row(
     as_of: Optional[str],
     data_source: str,
     params: RatePolicyParams,
+    prev_hash: str = EXIT_NAV_GENESIS_PREV,
 ) -> dict:
     """The per-ticket exit row — the conservative lower bound. fail-CLOSED on thin/absent depth.
 
     `gross_usd` is the notional being exited at this ticket (= min(ticket, book size) is the caller's
     choice; we exit the TICKET notional, capped at nothing here — the ticket IS the size the investor
     asks to pull). `depth_usd` is the SINGLE-market contemporaneous exit liquidity. Everything is the
-    constant-product LOWER BOUND, never a precise fill."""
+    constant-product LOWER BOUND, never a precise fill.
+
+    `prev_hash` chains this row to the previous row in the same schedule (genesis = '0'*64), so the
+    schedule forms a verifiable chain: a reordered/dropped/inserted row breaks the linkage. The
+    per-row `proof_hash` is computed over inputs + OUTPUTS + prev_hash (PROOF_CHAIN_SPEC §6) — so
+    forging any published output (net_proceeds/haircut/flagged/…) is detected on recompute."""
     op_haircut_frac = OPERATIONAL_HAIRCUT_BPS / 10_000.0
     max_frac = float(params.max_size_frac_of_exit)
 
-    # canonical published inputs the proof_hash is taken over (reproducible from the row).
+    # canonical published inputs (reproducible from the row).
     row_inputs = {
         "ticket_usd": int(ticket_usd),
         "gross_usd": round(float(gross_usd), 6),
@@ -250,7 +269,6 @@ def compute_ticket_row(
         },
         "data_source": data_source,
     }
-    proof_hash = _proof_hash(row_inputs)
 
     base = {
         "ticket_usd": int(ticket_usd),
@@ -260,12 +278,13 @@ def compute_ticket_row(
         "model": MODEL_NAME,
         "model_params": row_inputs["model_params"],
         "data_source": data_source,
-        "proof_hash": proof_hash,
+        "prev_hash": prev_hash,
     }
 
-    # ── FAIL-CLOSED: no defensible contemporaneous depth → publish the HOLE, not a number ──
+    # ── compute the OUTPUTS first (the proof_hash now covers them) ──
+    # FAIL-CLOSED: no defensible contemporaneous depth → publish the HOLE, not a number.
     if depth_usd is None or depth_usd <= 0.0 or depth_usd < MIN_DEX_POOL_TVL_USD:
-        base.update({
+        outputs = {
             "exit_frac": None,
             "price_impact_frac": None,
             "net_proceeds_usd": None,
@@ -274,45 +293,53 @@ def compute_ticket_row(
             "within_one_tick": False,
             "flagged": True,
             "flag_reason": FLAG_REASON_THIN,
-        })
-        return base
-
-    # ── conservative constant-product bound (the repo's ONE slippage primitive) ──
-    frac = dex_exit_frac(depth_usd, float(ticket_usd))
-    if frac is None:  # defensive: dex_exit_frac fail-closed (non-finite) — treat as a hole
-        base.update({
-            "exit_frac": None, "price_impact_frac": None, "net_proceeds_usd": None,
-            "haircut_pct": None, "time_to_exit_days": None, "within_one_tick": False,
-            "flagged": True, "flag_reason": FLAG_REASON_THIN,
-        })
-        return base
-
-    price_impact_frac = max(0.0, 1.0 - frac)
-    gross = float(gross_usd)
-    op_haircut_usd = gross * op_haircut_frac
-    net_proceeds = gross * frac - op_haircut_usd
-    net_proceeds = max(0.0, net_proceeds)               # never negative
-    net_proceeds = min(net_proceeds, gross)             # CONSERVATIVE BOUND: net ≤ gross, always
-    haircut_pct = ((gross - net_proceeds) / gross * 100.0) if gross > 0 else None
-
-    # §9 one-tick sizing cap → time-to-exit in one-tick days.
-    daily_exit_liquidity = max_frac * depth_usd
-    if daily_exit_liquidity > 0:
-        time_to_exit_days = int(math.ceil(float(ticket_usd) / daily_exit_liquidity))
+        }
     else:
-        time_to_exit_days = None
-    within_one_tick = bool(time_to_exit_days == 1)
+        # ── conservative constant-product bound (the repo's ONE slippage primitive) ──
+        frac = dex_exit_frac(depth_usd, float(ticket_usd))
+        if frac is None:  # defensive: dex_exit_frac fail-closed (non-finite) — treat as a hole
+            outputs = {
+                "exit_frac": None, "price_impact_frac": None, "net_proceeds_usd": None,
+                "haircut_pct": None, "time_to_exit_days": None, "within_one_tick": False,
+                "flagged": True, "flag_reason": FLAG_REASON_THIN,
+            }
+        else:
+            price_impact_frac = max(0.0, 1.0 - frac)
+            gross = float(gross_usd)
+            op_haircut_usd = gross * op_haircut_frac
+            net_proceeds = gross * frac - op_haircut_usd
+            net_proceeds = max(0.0, net_proceeds)               # never negative
+            net_proceeds = min(net_proceeds, gross)             # CONSERVATIVE BOUND: net ≤ gross
+            haircut_pct = ((gross - net_proceeds) / gross * 100.0) if gross > 0 else None
 
-    base.update({
-        "exit_frac": round(frac, 6),
-        "price_impact_frac": round(price_impact_frac, 6),
-        "net_proceeds_usd": round(net_proceeds, 6),
-        "haircut_pct": round(haircut_pct, 6) if haircut_pct is not None else None,
-        "time_to_exit_days": time_to_exit_days,
-        "within_one_tick": within_one_tick,
-        "flagged": False,
-        "flag_reason": None,
-    })
+            # §9 one-tick sizing cap → time-to-exit in one-tick days.
+            daily_exit_liquidity = max_frac * depth_usd
+            if daily_exit_liquidity > 0:
+                time_to_exit_days = int(math.ceil(float(ticket_usd) / daily_exit_liquidity))
+            else:
+                time_to_exit_days = None
+            within_one_tick = bool(time_to_exit_days == 1)
+
+            outputs = {
+                "exit_frac": round(frac, 6),
+                "price_impact_frac": round(price_impact_frac, 6),
+                "net_proceeds_usd": round(net_proceeds, 6),
+                "haircut_pct": round(haircut_pct, 6) if haircut_pct is not None else None,
+                "time_to_exit_days": time_to_exit_days,
+                "within_one_tick": within_one_tick,
+                "flagged": False,
+                "flag_reason": None,
+            }
+
+    base.update(outputs)
+
+    # ── proof_hash over inputs + the PUBLISHED outputs + prev_hash (PROOF_CHAIN_SPEC §6) ──
+    proof_obj = {
+        "inputs": row_inputs,
+        "outputs": {k: outputs[k] for k in EXIT_NAV_OUTPUT_KEYS},
+        "prev_hash": prev_hash,
+    }
+    base["proof_hash"] = _proof_hash(proof_obj)
     return base
 
 
@@ -478,14 +505,16 @@ def build_illustrative_schedule(
 
     schedule: List[dict] = []
     any_flagged = False
+    prev_hash = EXIT_NAV_GENESIS_PREV
     for t in tickets:
         row = compute_ticket_row(
             ticket_usd=int(t), gross_usd=float(t), depth_usd=depth_usd,
-            as_of=row_as_of, data_source=data_source, params=params,
+            as_of=row_as_of, data_source=data_source, params=params, prev_hash=prev_hash,
         )
         if row["flagged"]:
             any_flagged = True
         schedule.append(row)
+        prev_hash = row["proof_hash"]
 
     return {
         "kind": "illustrative",
@@ -588,14 +617,16 @@ def _market_schedule(
     contemporaneous depth — NEVER aggregated across markets (asserted at the caller)."""
     schedule: List[dict] = []
     any_flagged = False
+    prev_hash = EXIT_NAV_GENESIS_PREV
     for t in tickets:
         row = compute_ticket_row(
             ticket_usd=int(t), gross_usd=float(t), depth_usd=depth_usd,
-            as_of=as_of, data_source=data_source, params=params,
+            as_of=as_of, data_source=data_source, params=params, prev_hash=prev_hash,
         )
         if row["flagged"]:
             any_flagged = True
         schedule.append(row)
+        prev_hash = row["proof_hash"]
     return {
         "market_id": market_id,
         "underlying": underlying,
@@ -743,14 +774,16 @@ def build_exit_nav_schedule(
     row_as_of = book_as_of or as_of
     schedule: List[dict] = []
     any_flagged = False
+    prev_hash = EXIT_NAV_GENESIS_PREV
     for t in tickets:
         row = compute_ticket_row(
             ticket_usd=int(t), gross_usd=float(t), depth_usd=depth_usd,
-            as_of=row_as_of, data_source=data_source, params=params,
+            as_of=row_as_of, data_source=data_source, params=params, prev_hash=prev_hash,
         )
         if row["flagged"]:
             any_flagged = True
         schedule.append(row)
+        prev_hash = row["proof_hash"]
 
     # ── ILLUSTRATIVE schedule: SAME engine on the DEEPEST REAL market, so the model is visible even
     #    when the live book is honestly too thin to model. Clearly labeled hypothetical — NEVER blended

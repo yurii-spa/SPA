@@ -147,26 +147,80 @@ def test_non_finite_size_safe():
 
 # ── proof hash reproducible from published inputs ─────────────────────────────────────────────────
 def test_proof_hash_reproducible():
-    """Recompute each row's proof_hash INDEPENDENTLY from the row's published inputs ⇒ matches.
+    """Recompute each row's proof_hash INDEPENDENTLY from the row's published inputs + OUTPUTS +
+    prev_hash ⇒ matches (PROOF_CHAIN_SPEC §6 tamper-evidence fix).
 
     A reviewer (or investor) can verify every published number was derived from the published depth +
-    model, not retro-fitted."""
+    model AND that no user-facing OUTPUT was forged after the fact, AND that the row is correctly
+    chained to the previous one."""
+    from spa_core.strategy_lab.rates_desk.exit_nav import (
+        EXIT_NAV_GENESIS_PREV,
+        EXIT_NAV_OUTPUT_KEYS,
+    )
     surface, book = _deep_book()
     r = build_exit_nav_schedule(write=False, surface=surface, deep={}, book=book)
+    expected_prev = EXIT_NAV_GENESIS_PREV
     for row in r["schedule"]:
-        # reconstruct EXACTLY the canonical input dict the engine hashes (from published fields)
-        row_inputs = {
+        assert row["prev_hash"] == expected_prev  # the per-schedule chain links genesis→…
+        proof_obj = {
+            "inputs": {
+                "ticket_usd": int(row["ticket_usd"]),
+                "gross_usd": round(float(row["gross_usd"]), 6),
+                "depth_usd": (None if row["depth_usd"] is None else round(float(row["depth_usd"]), 6)),
+                "as_of": row["as_of"],
+                "model": row["model"],
+                "model_params": row["model_params"],
+                "data_source": row["data_source"],
+            },
+            "outputs": {k: row[k] for k in EXIT_NAV_OUTPUT_KEYS},
+            "prev_hash": row["prev_hash"],
+        }
+        blob = json.dumps(proof_obj, sort_keys=True, separators=(",", ":"), default=str)
+        recomputed = hashlib.sha256(blob.encode("utf-8")).hexdigest()
+        assert recomputed == row["proof_hash"], row["ticket_usd"]
+        expected_prev = row["proof_hash"]
+
+
+def test_proof_hash_covers_outputs_forged_output_detected():
+    """Forging a published OUTPUT (net_proceeds/haircut/flagged) on a real row WITHOUT recomputing the
+    proof_hash ⇒ recompute over inputs+outputs+prev_hash diverges. (Old inputs-only hash missed this.)"""
+    from spa_core.strategy_lab.rates_desk.exit_nav import (
+        EXIT_NAV_GENESIS_PREV,
+        EXIT_NAV_OUTPUT_KEYS,
+    )
+    surface, book = _deep_book(depth_usd=80_000_000.0)
+    r = build_exit_nav_schedule(write=False, surface=surface, deep={}, book=book)
+    row = dict(r["schedule"][0])
+    # forge a fat fill
+    row["net_proceeds_usd"] = 9_999_999.0
+    row["haircut_pct"] = 0.0001
+    row["flagged"] = False
+    proof_obj = {
+        "inputs": {
             "ticket_usd": int(row["ticket_usd"]),
             "gross_usd": round(float(row["gross_usd"]), 6),
             "depth_usd": (None if row["depth_usd"] is None else round(float(row["depth_usd"]), 6)),
-            "as_of": row["as_of"],
-            "model": row["model"],
-            "model_params": row["model_params"],
-            "data_source": row["data_source"],
-        }
-        blob = json.dumps(row_inputs, sort_keys=True, separators=(",", ":"), default=str)
-        recomputed = hashlib.sha256(blob.encode("utf-8")).hexdigest()
-        assert recomputed == row["proof_hash"], row["ticket_usd"]
+            "as_of": row["as_of"], "model": row["model"],
+            "model_params": row["model_params"], "data_source": row["data_source"],
+        },
+        "outputs": {k: row[k] for k in EXIT_NAV_OUTPUT_KEYS},
+        "prev_hash": row["prev_hash"],
+    }
+    blob = json.dumps(proof_obj, sort_keys=True, separators=(",", ":"), default=str)
+    recomputed = hashlib.sha256(blob.encode("utf-8")).hexdigest()
+    assert recomputed != row["proof_hash"], "forged output must diverge the proof_hash recompute"
+
+
+def test_schedule_rows_form_a_chain():
+    """Each schedule is a verifiable chain: row 0 prev_hash == genesis, row i prev_hash == row i-1
+    proof_hash."""
+    from spa_core.strategy_lab.rates_desk.exit_nav import EXIT_NAV_GENESIS_PREV
+    surface, book = _deep_book(depth_usd=80_000_000.0)
+    r = build_exit_nav_schedule(write=False, surface=surface, deep={}, book=book)
+    rows = r["schedule"]
+    assert rows[0]["prev_hash"] == EXIT_NAV_GENESIS_PREV
+    for i in range(1, len(rows)):
+        assert rows[i]["prev_hash"] == rows[i - 1]["proof_hash"]
 
 
 # ── conservative bound: net ≤ gross always ────────────────────────────────────────────────────────

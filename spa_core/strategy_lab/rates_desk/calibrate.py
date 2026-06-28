@@ -54,16 +54,32 @@ _DOC_END = "<!-- END rates-desk calibration sweep (calibrate) -->"
 # book on EACH (this is the "before the event" guarantee the brief demands).
 _STRESS_AS_OF = ["2024-08-01", "2025-10-01", "2026-04-01"]
 
+# The swept THRESHOLD parameter. After the red-team FAIL #1 fix the toxic-vs-healthy cliff is the
+# size-INDEPENDENT structural-haircut cap (max_structural_haircut), NOT max_total_haircut (which is the
+# additional economics-incl-liquidity cap). All boundary / strangle / margin / rank logic keys on this.
+SWEEP_THRESHOLD_KEY = "max_structural_haircut"
+
 
 # ── the sweep grid (Decimal-exact) ─────────────────────────────────────────────────────────────────
-# We sweep `max_total_haircut` (the headline parameter) plus the two coefficients that actually move
-# the toxic/healthy boundary on this data — k_peg (the depeg tail that discriminates LRT) and
-# k_protocol (the nesting/concentration tail). k_funding / k_liquidity are swept on a coarser axis (a
-# systemic overlay + a size term — neither discriminates toxic-vs-healthy on the per-day deep surface).
+# We sweep `max_structural_haircut` (the TOXICITY cliff — the size-INDEPENDENT peg+funding+oracle+protocol
+# cutoff that now governs the toxic-vs-healthy boundary; the red-team FAIL #1 fix moved the toxicity
+# verdict onto this size-proof term so it can't be sized around) plus the two coefficients that move that
+# boundary on this data — k_peg (the depeg tail that discriminates LRT) and k_protocol (the nesting/
+# concentration tail). `max_total_haircut` is the ADDITIONAL economics-incl-liquidity cap (a book can also
+# fail on size/liquidity); it is pinned at its config default here because the toxicity cliff is the
+# structural cap. k_funding / k_liquidity are a systemic overlay + a size term — neither discriminates
+# toxic-vs-healthy on the per-day deep surface, so they are not swept.
+# NOTE (red-team FAIL #1 fix): this sweep now tunes the TOXICITY CAP (max_structural_haircut), holding
+# k_peg / k_protocol at their ALREADY-VALIDATED config defaults. The haircut COEFFICIENTS were calibrated
+# and validated in a prior sweep; re-opening them here would churn a validated risk param (repo rule #7)
+# AND would let the objective "cheat" the band by scaling the toxic structural haircut up to admit a
+# looser cap. Pinning the coefficients makes this an HONEST confirmation that 0.09 is the robust center of
+# the toxic-vs-healthy structural band at the live calibration. (A full coefficient re-sweep is a separate
+# ADR-level event; widen the k_* lists deliberately if/when that is the intent.)
 DEFAULT_GRID = {
-    "max_total_haircut": ["0.06", "0.08", "0.10", "0.12", "0.14", "0.16", "0.18", "0.20"],
-    "k_peg":             ["2.0", "3.0", "4.0", "5.0"],
-    "k_protocol":        ["0.01", "0.02", "0.03"],
+    "max_structural_haircut": ["0.06", "0.07", "0.08", "0.09", "0.10", "0.11", "0.12", "0.14"],
+    "k_peg":                  ["4.0"],   # pinned to the validated config default
+    "k_protocol":             ["0.02"],  # pinned to the validated config default
 }
 
 
@@ -108,6 +124,47 @@ def measure(params: RatePolicyParams, deep: dict, funding: Dict[str, float]) -> 
         if not res.approved:
             stress_refused += 1
     stress_all_refused = (stress_refused == len(V.STRESS_EVENTS))
+
+    # LIVE-STYLE toxic LRT guarantee (red-team FAIL #1 anchor): the synthetic STRESS_EVENTS above model
+    # a SEVERE toxic surface (structural haircut ~0.18). The book that ACTUALLY leaked in the public
+    # decision log (seq=63 ezETH) was a MILDER, real-feed-style LRT surface — the documented config LRT
+    # constants (nested=2, top_borrower=0.30, redstone 600s oracle) with a realistic ratio-drawdown peg —
+    # whose STRUCTURAL haircut is ~0.097 at the calibrated coeffs. The calibration MUST place the toxic-
+    # leak cliff against THAT real surface, or it would credit a falsely-wide band and pick a cap above
+    # the surface that actually leaked. We REFUSE it at any size; a candidate that approves it is NOT
+    # admissible. This is what anchors the chosen structural cap below the real toxic surface.
+    # The exploit surface: a MODERATE peg distance UNDER the 1% hard UNDERLYING_DEPEG gate (so that gate
+    # does NOT catch it) plus peg VOLATILITY driving the peg haircut up — exactly the seq=63 ezETH shape
+    # (peg_distance 0.008 < 0.01, peg_vol 0.016 → peg_haircut ~0.064, structural ~0.097). Before the fix
+    # this was sized down to ~$4k to drop its liquidity haircut and clear the TOTAL cap. The toxicity cap
+    # MUST sit below this structural haircut, or the size-down exploit reopens. peg/vol chosen to stay
+    # under the peg gate so this probes the STRUCTURAL veto (not the peg gate) specifically.
+    from spa_core.strategy_lab.rates_desk import config as _rd_config
+    live_toxic_refused = True
+    for _u in ("ezeth", "rseth"):
+        risk = V.UnderlyingRisk(
+            underlying=_u, as_of="2024-09-01", nav_redemption_value=Decimal("1"),
+            market_price=Decimal("0.992"), peg_distance=Decimal("0.008"),
+            peg_vol_30d=Decimal("0.016"), redemption_sla_seconds=_rd_config.redemption_sla_seconds(_u),
+            reserve_fund_ratio=Decimal(str(_rd_config.reserve_fund_ratio(_u))),
+            funding_neg_frac_90d=Decimal("0.05"), oracle_kind=_rd_config.oracle_kind(_u),
+            oracle_staleness_seconds=_rd_config.oracle_staleness_seconds(_u),
+            nested_protocol_count=_rd_config.nested_protocol_count(_u),
+            top_borrower_share=Decimal(str(_rd_config.top_borrower_share(_u))))
+        from spa_core.strategy_lab.rates_desk.contracts import (
+            KillState as _KS, Opportunity as _Opp, RateQuote as _RQ, RateVenue as _RV,
+            TradeShape as _TS, UnderlyingKind as _UK)
+        q = _RQ(underlying=_u, kind=_UK.LRT, venue=_RV.PENDLE_PT, protocol="pendle",
+                market_id=f"PT-{_u}", tenor_seconds=86400 * 60, as_of="2024-09-01",
+                quoted_rate=Decimal("0.35"), tvl_usd=Decimal("5e7"),
+                exit_liquidity_usd=Decimal("65000"), hedge_available=False)
+        # probe at a TINY ticket — the size-down exploit the structural veto must close (any size).
+        opp = _Opp(quote=q, shape=_TS.FIXED_CARRY, requested_size_usd=Decimal("1000"))
+        res, _ = V.evaluate_entry(opp, risk, Decimal("1"), q.exit_liquidity_usd, params, _KS(),
+                                  engine=eng)
+        if res.approved:
+            live_toxic_refused = False
+    stress_all_refused = stress_all_refused and live_toxic_refused
 
     # (b) HEALTHY: the survivor carry book over the deep window — fire-rate + realized APY vs floor.
     # apply_global_ceiling=False: this STRUCTURAL-haircut calibration optimizes the peg/liquidity/protocol
@@ -199,7 +256,7 @@ def sweep(
     for r in admissible_rows:
         kp = r["params"].get("k_peg", "-")
         kpr = r["params"].get("k_protocol", "-")
-        thr = float(r["params"]["max_total_haircut"])
+        thr = float(r["params"][SWEEP_THRESHOLD_KEY])
         leak = next((b["min_leaking_threshold"] for b in boundary
                      if b["k_peg"] == kp and b["k_protocol"] == kpr), None)
         # toxic margin: if no leak observed in-grid, credit the grid's own ceiling step as headroom.
@@ -219,8 +276,8 @@ def sweep(
         # stability; changing a risk cutoff is an ADR-level event, justified only by a real safety gain),
         # (2) higher survivor APY, (3) higher fire-rate, (4) deterministic key.
         dflt = RatePolicyParams()
-        dflt_key = {"max_total_haircut": str(dflt.max_total_haircut), "k_peg": str(dflt.k_peg),
-                    "k_protocol": str(dflt.k_protocol)}
+        dflt_key = {SWEEP_THRESHOLD_KEY: str(getattr(dflt, SWEEP_THRESHOLD_KEY)),
+                    "k_peg": str(dflt.k_peg), "k_protocol": str(dflt.k_protocol)}
 
         def _matches_default(r) -> int:
             return 0 if all(r["params"].get(k) == v for k, v in dflt_key.items()) else 1
@@ -244,18 +301,18 @@ def sweep(
         "chosen": chosen,
         "defaults": {f.name: str(getattr(RatePolicyParams(), f.name))
                      for f in dataclasses.fields(RatePolicyParams())
-                     if f.name in ("max_total_haircut", "k_peg", "k_protocol", "k_funding",
-                                   "k_liquidity")},
+                     if f.name in ("max_structural_haircut", "max_total_haircut", "k_peg",
+                                   "k_protocol", "k_funding", "k_liquidity")},
     }
 
 
 def _max_grid_threshold(grid: Dict[str, List[str]]) -> float:
-    """The loosest max_total_haircut in the grid (for crediting unbounded-toxic-headroom honestly)."""
-    return max(float(x) for x in grid.get("max_total_haircut", ["0.12"]))
+    """The loosest swept threshold in the grid (for crediting unbounded-toxic-headroom honestly)."""
+    return max(float(x) for x in grid.get(SWEEP_THRESHOLD_KEY, ["0.09"]))
 
 
 def _strangle_edges(rows: List[dict]) -> Dict[Tuple[str, str], Optional[float]]:
-    """For each (k_peg, k_protocol), the HIGHEST max_total_haircut that still STRANGLES healthy carry
+    """For each (k_peg, k_protocol), the HIGHEST swept threshold that still STRANGLES healthy carry
     (fire-rate < 1.0) — the over-veto cliff. None ⇒ healthy never strangled in-grid (fires at every
     swept threshold). Deterministic."""
     by_coef: Dict[Tuple[str, str], List[dict]] = {}
@@ -264,14 +321,14 @@ def _strangle_edges(rows: List[dict]) -> Dict[Tuple[str, str], Optional[float]]:
         by_coef.setdefault(key, []).append(r)
     out: Dict[Tuple[str, str], Optional[float]] = {}
     for key, rs in by_coef.items():
-        strangled = [float(r["params"]["max_total_haircut"]) for r in rs
+        strangled = [float(r["params"][SWEEP_THRESHOLD_KEY]) for r in rs
                      if r["healthy_fire_rate"] < 1.0]
         out[key] = max(strangled) if strangled else None
     return out
 
 
 def _boundary(rows: List[dict]) -> List[dict]:
-    """For each (k_peg, k_protocol) pair, the LOWEST max_total_haircut that is still admissible and the
+    """For each (k_peg, k_protocol) pair, the LOWEST swept threshold that is still admissible and the
     HIGHEST that leaks a toxic day — the cliff. Deterministic."""
     by_coef: Dict[Tuple[str, str], List[dict]] = {}
     for r in rows:
@@ -279,14 +336,14 @@ def _boundary(rows: List[dict]) -> List[dict]:
         by_coef.setdefault(key, []).append(r)
     out: List[dict] = []
     for (kp, kpr), rs in sorted(by_coef.items()):
-        rs_sorted = sorted(rs, key=lambda r: float(r["params"]["max_total_haircut"]))
+        rs_sorted = sorted(rs, key=lambda r: float(r["params"][SWEEP_THRESHOLD_KEY]))
         leaks = [r for r in rs_sorted if not r["admissible"]]
         safe = [r for r in rs_sorted if r["admissible"]]
         out.append({
             "k_peg": kp, "k_protocol": kpr,
-            "max_safe_threshold": (max(float(r["params"]["max_total_haircut"]) for r in safe)
+            "max_safe_threshold": (max(float(r["params"][SWEEP_THRESHOLD_KEY]) for r in safe)
                                    if safe else None),
-            "min_leaking_threshold": (min(float(r["params"]["max_total_haircut"]) for r in leaks)
+            "min_leaking_threshold": (min(float(r["params"][SWEEP_THRESHOLD_KEY]) for r in leaks)
                                       if leaks else None),
         })
     return out
@@ -304,15 +361,16 @@ def _atomic_write_json(path: Path, obj) -> None:
 def _render_doc(result: dict) -> str:
     lines: List[str] = [_DOC_BEGIN, "", "## Calibration sweep — refusal threshold + haircut coefficients\n"]
     lines.append(
-        "_Brief §9: `max_total_haircut` is the most consequential single parameter. This is an "
-        "exhaustive, deterministic grid sweep over `max_total_haircut` + `k_peg` + `k_protocol` on the "
-        "DEEP 2024→2026 data, measuring (toxic-veto coverage) vs (healthy-carry fire-rate / survivor "
+        "_Brief §9 + red-team FAIL #1 fix: the toxicity cliff is now `max_structural_haircut` (the "
+        "size-INDEPENDENT peg+funding+oracle+protocol cap, so toxicity can't be sized around). This is an "
+        "exhaustive, deterministic grid sweep over `max_structural_haircut` + `k_peg` + `k_protocol` on "
+        "the DEEP 2024→2026 data, measuring (toxic-veto coverage) vs (healthy-carry fire-rate / survivor "
         "APY). Re-runnable via `python3 -m spa_core.strategy_lab.rates_desk.calibrate`._\n")
     ch = result.get("chosen")
     df = result.get("defaults", {})
     if ch:
         lines.append(
-            f"**Chosen (calibrated):** `max_total_haircut={ch['params']['max_total_haircut']}`, "
+            f"**Chosen (calibrated):** `max_structural_haircut={ch['params']['max_structural_haircut']}`, "
             f"`k_peg={ch['params']['k_peg']}`, `k_protocol={ch['params']['k_protocol']}` → toxic "
             f"coverage **{ch['toxic_coverage']*100:.1f}%** (all stress events refused: "
             f"`{ch['toxic_stress_all_refused']}`), healthy fire-rate **{ch['healthy_fire_rate']*100:.1f}%**, "
@@ -326,11 +384,11 @@ def _render_doc(result: dict) -> str:
             "OPTIMIZATION objective, NOT the published carry number. The HONEST published, "
             "capacity-bound, ceiling-composed book APY is in the Assertion-2 and 4-sleeve sections "
             "above (FixedCarry ≈ 6% on the total-capital basis, idle cash at the floor)._\n")
-        same = (ch["params"]["max_total_haircut"] == df.get("max_total_haircut")
+        same = (ch["params"]["max_structural_haircut"] == df.get("max_structural_haircut")
                 and ch["params"]["k_peg"] == df.get("k_peg")
                 and ch["params"]["k_protocol"] == df.get("k_protocol"))
         lines.append(
-            f"> The current defaults (`max_total_haircut={df.get('max_total_haircut')}`, "
+            f"> The current defaults (`max_structural_haircut={df.get('max_structural_haircut')}`, "
             f"`k_peg={df.get('k_peg')}`, `k_protocol={df.get('k_protocol')}`) "
             + ("**are confirmed optimal by the sweep** (the chosen point equals them)."
                if same else
@@ -352,19 +410,19 @@ def _render_doc(result: dict) -> str:
                      f"{('%.2f' % ml) if ml is not None else 'none (all safe)'} |")
     lines.append("")
     lines.append("Top sweep rows (admissible first, then survivor APY desc):\n")
-    lines.append("| max_total_haircut | k_peg | k_protocol | admissible | toxic cov % | fire-rate % | "
+    lines.append("| max_structural_haircut | k_peg | k_protocol | admissible | toxic cov % | fire-rate % | "
                  "survivor APY % | beats floor |")
     lines.append("|---:|---:|---:|:--:|---:|---:|---:|:--:|")
     for r in result.get("rows", [])[:14]:
         p = r["params"]
         lines.append(
-            f"| {p['max_total_haircut']} | {p['k_peg']} | {p['k_protocol']} | "
+            f"| {p['max_structural_haircut']} | {p['k_peg']} | {p['k_protocol']} | "
             f"{'yes' if r['admissible'] else 'no'} | {r['toxic_coverage']*100:.1f} | "
             f"{r['healthy_fire_rate']*100:.1f} | {r['survivor_mean_apy']*100:.2f} | "
             f"{'yes' if r['survivor_beats_floor'] else 'no'} |")
     lines.append("")
     lines.append(
-        "> Reading the curve: loosening `max_total_haircut` raises the survivor fire-rate/APY (less "
+        "> Reading the curve: loosening `max_structural_haircut` raises the survivor fire-rate/APY (less "
         "real carry strangled) but eventually lets a toxic restaking book clear the veto — the "
         "`min LEAKING threshold` column is exactly where that happens. The calibrated point sits at "
         "the richest admissible carry that is still strictly below every leak. On THIS data the toxic "
@@ -396,7 +454,7 @@ def main() -> int:
     print("Rates Desk — Calibration Sweep")
     print(f"candidates: {result['n_candidates']}  admissible: {result['n_admissible']}")
     if ch:
-        print(f"CHOSEN: max_total_haircut={ch['params']['max_total_haircut']} "
+        print(f"CHOSEN: max_structural_haircut={ch['params']['max_structural_haircut']} "
               f"k_peg={ch['params']['k_peg']} k_protocol={ch['params']['k_protocol']}")
         print(f"  toxic coverage={ch['toxic_coverage']*100:.1f}%  fire-rate={ch['healthy_fire_rate']*100:.1f}%  "
               f"survivor APY={ch['survivor_mean_apy']*100:.2f}%")

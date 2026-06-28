@@ -139,9 +139,16 @@ def _fmt_usd(x) -> str:
 # per-family capacity rows
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 def _family_row(name: str, deployable_usd: Decimal, net_apy_pct: Decimal, floor_pct: Decimal,
-                shares_venue: bool, books_or_venues, note: str) -> dict:
-    """One family capacity row. above_floor_usd_per_yr = deployable · max(0, net_apy − floor)/100."""
-    above = deployable_usd * max(Decimal("0"), net_apy_pct - floor_pct) / Decimal("100")
+                shares_venue: bool, books_or_venues, note: str,
+                above_floor_override: Optional[Decimal] = None) -> dict:
+    """One family capacity row. above_floor_usd_per_yr = deployable · max(0, net_apy − floor)/100, UNLESS
+    `above_floor_override` is given (a family that publishes its OWN exact above-floor $/yr — e.g. the
+    rates desk's Σ per-book carry — passes it through verbatim so the combined report is byte-consistent
+    with the family's own report, not a re-derivation off rounded deployable/APY)."""
+    if above_floor_override is not None:
+        above = above_floor_override
+    else:
+        above = deployable_usd * max(Decimal("0"), net_apy_pct - floor_pct) / Decimal("100")
     return {
         "family": name,
         "deployable_usd": round(float(deployable_usd), 2),
@@ -158,10 +165,17 @@ def _rates_desk_family(floor_pct: Decimal, rates_report: dict) -> dict:
     deployable = Decimal(str(rates_report["total_deployable_usd"]))
     net_apy = Decimal(str(rates_report["aggregate_net_apy_pct"]))
     n_books = int(rates_report.get("n_fundable_books", 0))
+    # use the rates-desk report's OWN exact Σ-per-book above-floor $/yr (the source of truth) so the
+    # combined report's rates-desk row is consistent with the standalone rates-desk number, not a
+    # re-derivation off the rounded deployable × (net_apy − floor) that drifts by a few dollars.
+    above_override = None
+    if rates_report.get("dollars_above_floor_per_yr") is not None:
+        above_override = Decimal(str(rates_report["dollars_above_floor_per_yr"]))
     note = (f"PT-carry portfolio of {n_books} gated books (reused rates_desk.portfolio verbatim). "
             "Above-floor but capacity-limited: the §9 exit cap binds each book to a thin depth-bound size.")
     return _family_row("rates_desk", deployable, net_apy, floor_pct,
-                       shares_venue=True, books_or_venues=n_books, note=note)
+                       shares_venue=True, books_or_venues=n_books, note=note,
+                       above_floor_override=above_override)
 
 
 def _rwa_floor_family(floor_pct: Decimal) -> dict:
