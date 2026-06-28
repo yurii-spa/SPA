@@ -13,11 +13,25 @@ import logging
 
 from fastapi import APIRouter, Query
 
-from spa_core.api._shared import backtest_meta, data_dir, now, read_state
+from spa_core.api._shared import (
+    backtest_meta,
+    data_dir,
+    now,
+    parse_log_line,
+    read_state,
+    scrub_nonfinite,
+)
 
 log = logging.getLogger("spa.api")
 
 router = APIRouter(tags=["strategy_lab"])
+
+# Sentinel for a decision-log line that is not valid JSON OR carries a non-finite (NaN/inf)
+# number. In the machine /decisions view such a line is simply dropped; in the tamper-evident
+# /proof and /refusals views it is mapped to the corrupt-row surrogate so it FAILS chain
+# re-derivation (and is never echoed as a serializer-crashing non-finite float).
+_CORRUPT = object()
+_CORRUPT_ROW = {"__corrupt__": True}
 
 # ── The API reproducibility contract (A4) ────────────────────────────────────────────────────────
 # Every proof-bearing response embeds this `reproduce` block so the MACHINE RESPONSE TEACHES ITS OWN
@@ -61,7 +75,8 @@ def get_rates_desk_surface():
             "meta": _surface_meta,
         }
     raw.setdefault("meta", _surface_meta)
-    return raw
+    # fail-CLOSED: a corrupt surface carrying a NaN/inf number must not crash the serializer.
+    return scrub_nonfinite(raw)
 
 
 @router.get("/api/rates-desk/opportunities")
@@ -87,7 +102,7 @@ def get_rates_desk_opportunities():
         scan = scan_cached_surface(raw)
         if isinstance(scan, dict):
             scan.setdefault("meta", _opp_meta)
-        return scan
+        return scrub_nonfinite(scan)
     except Exception as e:  # noqa: BLE001 — graceful, never 500 the dashboard
         log.warning(f"rates-desk opportunities scan failed: {e}")
         return empty
@@ -107,10 +122,12 @@ def get_rates_desk_decisions(limit: int = Query(default=50, ge=1, le=500)):
                 ln = ln.strip()
                 if not ln:
                     continue
-                try:
-                    rows.append(json.loads(ln))
-                except json.JSONDecodeError:
+                parsed = parse_log_line(ln, corrupt_marker=_CORRUPT)
+                # fail-CLOSED: drop non-JSON / non-finite / non-dict lines — a decision row is a
+                # JSON object; a bare scalar/list is not a decision and must not crash the counts.
+                if parsed is _CORRUPT or not isinstance(parsed, dict):
                     continue
+                rows.append(parsed)
         except OSError as e:
             log.warning(f"rates-desk decision log read failed: {e}")
     rows = rows[-limit:]
@@ -162,10 +179,8 @@ def get_rates_desk_proof(last_n: int = Query(default=12, ge=1, le=200)):
                 ln = ln.strip()
                 if not ln:
                     continue
-                try:
-                    rows.append(json.loads(ln))
-                except json.JSONDecodeError:
-                    rows.append({"__corrupt__": True})
+                parsed = parse_log_line(ln, corrupt_marker=_CORRUPT)
+                rows.append(_CORRUPT_ROW if parsed is _CORRUPT else parsed)
         except OSError as e:
             log.warning(f"rates-desk proof: decision log read failed: {e}")
 
@@ -275,10 +290,8 @@ def get_rates_desk_refusals(limit: int = Query(default=50, ge=1, le=500)):
                 ln = ln.strip()
                 if not ln:
                     continue
-                try:
-                    rows.append(json.loads(ln))
-                except json.JSONDecodeError:
-                    rows.append({"__corrupt__": True})
+                parsed = parse_log_line(ln, corrupt_marker=_CORRUPT)
+                rows.append(_CORRUPT_ROW if parsed is _CORRUPT else parsed)
             read_ok = True
         except OSError as e:
             log.warning(f"rates-desk refusals: decision log read failed: {e}")
@@ -399,7 +412,8 @@ def get_rates_desk_exit_nav():
         ["exit_nav.json"],
         "Each schedule row's proof_hash is reproducible per PROOF_CHAIN_SPEC.md §6 over the row's "
         "published inputs (live + illustrative + portfolio sections)."))
-    return raw
+    # fail-CLOSED: a corrupt exit-nav file carrying a NaN/inf must not crash the serializer.
+    return scrub_nonfinite(raw)
 
 
 @router.get("/api/rates-desk/anchors")
@@ -421,10 +435,8 @@ def get_rates_desk_anchors(limit: int = Query(default=50, ge=1, le=500)):
                 ln = ln.strip()
                 if not ln:
                     continue
-                try:
-                    rows.append(json.loads(ln))
-                except json.JSONDecodeError:
-                    rows.append({"__corrupt__": True})
+                parsed = parse_log_line(ln, corrupt_marker=_CORRUPT)
+                rows.append(_CORRUPT_ROW if parsed is _CORRUPT else parsed)
         except OSError as e:
             log.warning(f"rates-desk anchors read failed: {e}")
 
@@ -492,7 +504,8 @@ def get_rates_desk_track():
     else:
         current_equity = sleeve.get("equity_usd")
 
-    return {
+    # fail-CLOSED: derived fields read from a possibly-corrupt series file → scrub NaN/inf.
+    return scrub_nonfinite({
         "generated_at": now(),
         "model": "rates_desk_paper_track",
         "sleeve_id": sleeve_id,
@@ -513,4 +526,4 @@ def get_rates_desk_track():
                   "capacity-constrained; advisory paper forward-track, NOT real capital",
             period="rates-desk paper forward-track (see started_at/days)",
         ),
-    }
+    })

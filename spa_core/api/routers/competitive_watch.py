@@ -17,7 +17,7 @@ import logging
 
 from fastapi import APIRouter
 
-from spa_core.api._shared import now, read_state
+from spa_core.api._shared import now, read_state, scrub_nonfinite
 
 log = logging.getLogger("spa.api")
 
@@ -92,10 +92,14 @@ def get_competitive_watch():
     SAFE (sourced clear) / WATCH (unknown or manual-pending) / BREACHED (sourced).
     """
     raw = read_state("competitive_watch.json", {})
-    if not raw or not isinstance(raw, dict) or not raw.get("signals"):
+    # fail-CLOSED: require a dict with a LIST of signals; anything else (missing, corrupt,
+    # wrong-typed signals) degrades to the all-WATCH fallback, never a fabricated state.
+    if not raw or not isinstance(raw, dict) or not isinstance(raw.get("signals"), list) \
+            or not raw.get("signals"):
         return _empty_payload()
     # Served VERBATIM; ensure the owner-gate flags are present even on older files.
     raw.setdefault("public_naming_owner_gated", True)
     raw.setdefault("is_internal_surface", True)
     raw.setdefault("served_at", now())
-    return raw
+    # fail-CLOSED: a corrupt file carrying a NaN/inf must not crash the serializer.
+    return scrub_nonfinite(raw)

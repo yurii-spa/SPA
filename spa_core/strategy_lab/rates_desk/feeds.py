@@ -92,12 +92,25 @@ def _http_fetch(url: str, timeout: int = 30) -> object:
 
 def _D(x) -> Decimal:
     """Parse anything numeric to a Decimal via str (NEVER float(x) → Decimal: that imports the
-    float's binary noise). fail-CLOSED: a None / unparseable value raises."""
+    float's binary noise). fail-CLOSED: a None / unparseable value raises.
+
+    Also REJECTS a non-finite result: ``Decimal("NaN")`` / ``Decimal("Infinity")`` are valid
+    Decimals, and ``float("nan")``/``"NaN"``/``"Infinity"`` all parse into them — but a non-finite
+    quoted_rate / tvl / exit-liquidity is a fabricated value that would silently poison the
+    RateSurface and the cached rate_surface.json the proof API serves. The desk's contract is
+    "malformed data RAISES, never fabricated into a benign value" — so a non-finite RAISES."""
     if x is None:
         raise FeedError("expected a numeric value, got None")
     if isinstance(x, Decimal):
-        return x
-    return Decimal(str(x))
+        d = x
+    else:
+        try:
+            d = Decimal(str(x))
+        except (ValueError, ArithmeticError) as exc:
+            raise FeedError(f"unparseable numeric value {x!r}") from exc
+    if not d.is_finite():
+        raise FeedError(f"non-finite numeric value {x!r} (NaN/inf)")
+    return d
 
 
 def _iso_date(as_of: str) -> str:

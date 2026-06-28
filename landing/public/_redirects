@@ -12,5 +12,20 @@
 # Old status shortcut → the dashboard go-live section.
 /status /dashboard#golive 302
 
+# ─── Retired standalone HTML blobs → cohesive Astro equivalents (WS5.1) ───
+# The old self-contained public/{agents,control,packages,tournament}.html (and
+# docs/tournament.html) PRE-DATED the unified site — separate-entity blobs outside
+# the cohesive design system. They are removed; the live surfaces they showed now
+# live as first-class tabs/pages of the Astro site. Redirect (don't 404) so any
+# bookmark or external link lands on the cohesive equivalent.
+/tournament      /dashboard#tournament 301
+/tournament.html /dashboard#tournament 301
+/agents          /dashboard#system 301
+/agents.html     /dashboard#system 301
+/control         /dashboard#system 301
+/control.html    /dashboard#system 301
+/packages        /strategies 301
+/packages.html   /strategies 301
+
 # Redirect www to apex
 # (configure in Cloudflare DNS — this file handles app-level redirects only)

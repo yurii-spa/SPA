@@ -58,6 +58,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import math
 import os
 import shutil
 import statistics
@@ -265,6 +266,26 @@ class FundingCache:
 Fetcher = Callable[[str], object]
 
 
+def _finite_rate(raw, venue: str) -> float:
+    """Parse a funding-rate field to a FINITE float, fail-CLOSED.
+
+    ``float()`` happily accepts the strings ``"NaN"``/``"Infinity"`` and the JSON ``NaN``/
+    ``Infinity`` tokens (``json.loads`` admits them by default). A NaN/inf funding rate is a
+    fabricated value: it poisons the per-day cross-venue ``statistics.median`` (NaN makes the
+    median order-dependent garbage) and ``NaN < 0`` is always False so it silently dilutes
+    ``funding_neg_frac_90d`` instead of being dropped. The module contract is "no fabricated
+    value" — so a non-finite rate RAISES exactly like an unparseable one (the per-venue
+    ``_try_venue`` then contributes nothing, and the overall call still fail-CLOSES if the merged
+    series ends up empty). Behavior-preserving for every real finite rate."""
+    try:
+        rate = float(raw)
+    except (TypeError, ValueError) as exc:
+        raise InvalidDataError(f"{venue} funding: unparseable rate {raw!r}") from exc
+    if not math.isfinite(rate):
+        raise InvalidDataError(f"{venue} funding: non-finite rate {raw!r} (NaN/inf)")
+    return rate
+
+
 def _date_from_ms(ms: int) -> str:
     return datetime.datetime.fromtimestamp(
         ms / 1000.0, tz=datetime.timezone.utc
@@ -287,12 +308,9 @@ def _rows_binance(payload: object) -> List[Tuple[int, float]]:
         if "fundingRate" not in row or row.get("fundingRate") in (None, ""):
             raise InvalidDataError("binance funding: missing/empty 'fundingRate'")
         ts = row.get("fundingTime")
-        if not isinstance(ts, (int, float)):
+        if not isinstance(ts, (int, float)) or isinstance(ts, bool) or not math.isfinite(ts):
             raise InvalidDataError("binance funding: missing/invalid 'fundingTime'")
-        try:
-            rate = float(row["fundingRate"])
-        except (TypeError, ValueError) as exc:
-            raise InvalidDataError(f"binance funding: unparseable rate {row.get('fundingRate')!r}") from exc
+        rate = _finite_rate(row["fundingRate"], "binance")
         rows.append((int(ts), rate))
     if not rows:
         raise InvalidDataError("binance funding: produced no datapoints")
@@ -322,10 +340,7 @@ def _rows_bybit(payload: object) -> List[Tuple[int, float]]:
             ts_ms = int(ts)
         except (TypeError, ValueError) as exc:
             raise InvalidDataError(f"bybit funding: invalid timestamp {ts!r}") from exc
-        try:
-            rate = float(row["fundingRate"])
-        except (TypeError, ValueError) as exc:
-            raise InvalidDataError(f"bybit funding: unparseable rate {row.get('fundingRate')!r}") from exc
+        rate = _finite_rate(row["fundingRate"], "bybit")
         rows.append((ts_ms, rate))
     if not rows:
         raise InvalidDataError("bybit funding: produced no datapoints")
@@ -355,10 +370,7 @@ def _rows_okx(payload: object) -> List[Tuple[int, float]]:
             ts_ms = int(ts)
         except (TypeError, ValueError) as exc:
             raise InvalidDataError(f"okx funding: invalid 'fundingTime' {ts!r}") from exc
-        try:
-            rate = float(row["fundingRate"])
-        except (TypeError, ValueError) as exc:
-            raise InvalidDataError(f"okx funding: unparseable rate {row.get('fundingRate')!r}") from exc
+        rate = _finite_rate(row["fundingRate"], "okx")
         rows.append((ts_ms, rate))
     if not rows:
         raise InvalidDataError("okx funding: produced no datapoints")
@@ -384,12 +396,9 @@ def _rows_kucoin(payload: object) -> List[Tuple[int, float]]:
         if "fundingRate" not in row or row.get("fundingRate") in (None, ""):
             raise InvalidDataError("kucoin funding: missing/empty 'fundingRate'")
         ts = row.get("timepoint")
-        if not isinstance(ts, (int, float)):
+        if not isinstance(ts, (int, float)) or isinstance(ts, bool) or not math.isfinite(ts):
             raise InvalidDataError(f"kucoin funding: missing/invalid 'timepoint' {ts!r}")
-        try:
-            rate = float(row["fundingRate"])
-        except (TypeError, ValueError) as exc:
-            raise InvalidDataError(f"kucoin funding: unparseable rate {row.get('fundingRate')!r}") from exc
+        rate = _finite_rate(row["fundingRate"], "kucoin")
         rows.append((int(ts), rate))
     if not rows:
         raise InvalidDataError("kucoin funding: produced no datapoints")
@@ -410,12 +419,9 @@ def _rows_hyperliquid(payload: object) -> List[Tuple[int, float]]:
         if "fundingRate" not in row or row.get("fundingRate") in (None, ""):
             raise InvalidDataError("hyperliquid funding: missing/empty 'fundingRate'")
         ts = row.get("time")
-        if not isinstance(ts, (int, float)):
+        if not isinstance(ts, (int, float)) or isinstance(ts, bool) or not math.isfinite(ts):
             raise InvalidDataError(f"hyperliquid funding: missing/invalid 'time' {ts!r}")
-        try:
-            rate = float(row["fundingRate"])
-        except (TypeError, ValueError) as exc:
-            raise InvalidDataError(f"hyperliquid funding: unparseable rate {row.get('fundingRate')!r}") from exc
+        rate = _finite_rate(row["fundingRate"], "hyperliquid")
         rows.append((int(ts), rate))
     if not rows:
         raise InvalidDataError("hyperliquid funding: produced no datapoints")

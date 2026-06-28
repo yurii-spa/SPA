@@ -78,6 +78,22 @@ echo "  telegram_bot: ${bot_st:-NOT LOADED}"
 cf_st="$(launchctl list | grep -c cloudflared)"
 echo "  cloudflared tunnel: $([ "$cf_st" -gt 0 ] && echo loaded || echo 'NOT LOADED')"
 
+# Public proof artifacts re-derive (the "verify us" surface — DISASTER_RECOVERY §9b).
+# Read-only + advisory: it never mutates the track and never fails the fleet check; it
+# just flags if data/rates_desk/ no longer reproduces so you can restore the golden copy.
+echo "── proof artifacts (read-only) ──"
+PY="/Users/yuriikulieshov/miniconda3/bin/python3"
+[ -x "$PY" ] || PY="python3"
+if [ -d "$REPO/data/rates_desk" ] && [ -f "$REPO/scripts/verify_spa.py" ]; then
+  if "$PY" "$REPO/scripts/verify_spa.py" "$REPO/data/rates_desk/" >/dev/null 2>&1; then
+    echo "  verify_spa.py data/rates_desk/: ✅ reproduces"
+  else
+    echo "  verify_spa.py data/rates_desk/: ⚠️ does NOT reproduce — restore golden copy (DR §5/§9b)"
+  fi
+else
+  echo "  verify_spa.py data/rates_desk/: (skipped — files absent)"
+fi
+
 if [ "$still_down" -eq 0 ] && [ "$exit78" -eq 0 ] && [ "$ping_code" = "200" ]; then
   echo "✅ FLEET HEALTHY — all agents loaded, no exit-78, API up."
   exit 0

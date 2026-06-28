@@ -1,5 +1,27 @@
 """spa_core.audit.audit_trail — Decision Audit Trail (MP-310).
 
+================================================================================
+NOT THE TAMPER-EVIDENCE LEDGER — read this before relying on this file for proof.
+--------------------------------------------------------------------------------
+There are TWO append-only ``audit_*`` ledgers in ``data/`` and they do different
+jobs. Do not confuse them (see docs/PROOF_CHAIN_SPEC.md §0):
+
+  • ``data/audit_chain.jsonl``  (spa_core/audit/hash_chain.py)
+        THE TAMPER-EVIDENT SHA-256 HASH CHAIN. Each entry carries
+        ``prev_hash``/``entry_hash`` so altering any past row breaks the chain.
+        This is what ``scripts/verify_spa.py`` re-derives. ← the proof.
+
+  • ``data/audit_trail.jsonl``  (THIS FILE)
+        THE UUID-LINKED OPERATIONAL TRAIL. Events are threaded by
+        ``correlation_id`` (UUID4) + ``prev_event_id`` for per-cycle
+        traceability / debugging — NOT hash-chained. A forged historical row is
+        NOT detectable from this file alone. This is NOT tamper-evidence and is
+        out of scope for the proof verifier.
+
+Mnemonic: audit_chain = the CHAIN (hashes, tamper-evident);
+          audit_trail = the TRAIL (UUIDs, operational).
+================================================================================
+
 Implements a correlation-id–linked append-only JSONL chain of events covering
 the full paper-trading decision cycle:
 

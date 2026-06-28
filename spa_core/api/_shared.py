@@ -88,6 +88,63 @@ def read_state(filename: str, default: Any = None) -> Any:
 _load_json = read_state
 
 
+# ─── JSON-safety guards (fail-CLOSED against NaN/inf in corrupt state) ──────────
+#
+# json.loads() ACCEPTS the bare tokens NaN/Infinity/-Infinity by default, but the FastAPI/
+# Starlette response serializer rejects non-finite floats ("Out of range float values are not
+# JSON compliant") → an uncaught 500. A corrupt log line / state file carrying such a token would
+# therefore crash any endpoint that echoes the parsed payload. These two helpers keep the public
+# proof surface fail-CLOSED: a non-finite number is never emitted, and finite payloads are
+# byte-identical (the helpers are a no-op on clean data).
+
+def _has_nonfinite(obj: Any) -> bool:
+    """True if any float anywhere in `obj` is NaN/inf (recursive, stdlib-only)."""
+    import math
+    stack = [obj]
+    while stack:
+        cur = stack.pop()
+        if isinstance(cur, float):
+            if not math.isfinite(cur):
+                return True
+        elif isinstance(cur, dict):
+            stack.extend(cur.values())
+        elif isinstance(cur, (list, tuple)):
+            stack.extend(cur)
+    return False
+
+
+def scrub_nonfinite(obj: Any) -> Any:
+    """Recursively replace every NaN/inf float with None; finite data passes through unchanged.
+
+    Used where a state payload is echoed VERBATIM into a response (e.g. the decision log rows):
+    a non-finite number is honestly nulled rather than crashing the serializer. PURE; a no-op on
+    any payload that has no non-finite floats."""
+    import math
+    if isinstance(obj, float):
+        return obj if math.isfinite(obj) else None
+    if isinstance(obj, dict):
+        return {k: scrub_nonfinite(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [scrub_nonfinite(v) for v in obj]
+    return obj
+
+
+def parse_log_line(line: str, corrupt_marker: Any = None) -> Any:
+    """Parse one JSONL line, fail-CLOSED. Returns the parsed object, or `corrupt_marker` when the
+    line is not valid JSON OR contains a non-finite (NaN/inf) number.
+
+    Treating a NaN/inf-bearing row as CORRUPT is the honest outcome for a tamper-evident chain:
+    the row could never have been hashed from finite inputs, so it must fail verification AND must
+    never be echoed as a serializer-crashing non-finite. Behaviour-preserving for clean lines."""
+    try:
+        obj = json.loads(line)
+    except json.JSONDecodeError:
+        return corrupt_marker
+    if _has_nonfinite(obj):
+        return corrupt_marker
+    return obj
+
+
 def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 

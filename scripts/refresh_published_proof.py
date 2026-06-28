@@ -89,6 +89,49 @@ def head_in_dd_pack(dd_pack_text: str) -> Optional[str]:
     return m.group(1) if m else None
 
 
+def _refresh_breadth_surfaces(base_data: Path, summary: dict) -> None:
+    """Regenerate the WORKSTREAM 2 proof-breadth artifacts (tournament ranking chain, RWA-backstop
+    NAV proof, sleeve forward-series proofs) from their producers' latest data — TOGETHER with the
+    rates-desk bundle so they never rot (F1). PURE re-derivation; atomic per file. Every read AND
+    write is pinned under ``base_data`` so a hermetic run (sandbox data dir) never touches LIVE
+    artifacts. fail-soft per surface: a missing/empty producer input is recorded, never raised."""
+    summary.setdefault("breadth", {})
+    rd = base_data / "rates_desk"
+    paper_dir = rd / "paper"
+
+    # (E) tournament ranking chain — read strategy_tournament.json, write tournament/decision_log.jsonl
+    try:
+        from spa_core.tournament import tournament_proof_chain as tpc
+        rep = tpc.append_ranking(
+            ranking_path=base_data / "strategy_tournament.json",
+            out_path=base_data / "tournament" / "decision_log.jsonl")
+        summary["breadth"]["tournament"] = {"rows": rep["rows"], "head": rep["head_hash"],
+                                            "valid": rep["valid"]}
+    except Exception as exc:  # noqa: BLE001 — never abort the head-bearing refresh
+        summary["errors"].append(f"tournament proof refresh failed: {exc}")
+
+    # (F) RWA-backstop NAV proof — read rwa_nav_curve.json, write rwa_backstop/nav_proof.jsonl
+    try:
+        from spa_core.strategy_lab.rwa_backstop import nav_proof
+        rep = nav_proof.write_proof(
+            curve_path=base_data / "rwa_nav_curve.json",
+            out_path=base_data / "rwa_backstop" / "nav_proof.jsonl")
+        summary["breadth"]["nav_proof"] = {"rows": rep["rows"], "head": rep["head_hash"],
+                                          "valid": rep["valid"]}
+    except Exception as exc:  # noqa: BLE001
+        summary["errors"].append(f"nav_proof refresh failed: {exc}")
+
+    # (G) sleeve forward-series proofs — read every paper/*_series.json, write *_series_proof.jsonl
+    try:
+        from spa_core.strategy_lab.rates_desk import sleeve_proof
+        reps = sleeve_proof.write_all(paper_dir=paper_dir)
+        summary["breadth"]["sleeves"] = [
+            {"sleeve_id": r["sleeve_id"], "rows": r["rows"], "head": r["head_hash"],
+             "valid": r["valid"]} for r in reps]
+    except Exception as exc:  # noqa: BLE001
+        summary["errors"].append(f"sleeve proof refresh failed: {exc}")
+
+
 def refresh(data_dir: Optional[Path] = None, dd_pack_path: Optional[Path] = None) -> dict:
     """Refresh the published bundle over the CURRENT decision-chain head and return a summary.
 
@@ -166,6 +209,14 @@ def refresh(data_dir: Optional[Path] = None, dd_pack_path: Optional[Path] = None
     gen.atomic_write(str(dd_pack_path), doc_text)
     summary["dd_pack_head"] = head_in_dd_pack(doc_text)
 
+    # ── 4b. WORKSTREAM 2 proof-breadth surfaces — regenerate the tournament / RWA-NAV / sleeve
+    #        proof artifacts TOGETHER with the rates-desk bundle so they never rot (F1). Each is a
+    #        PURE re-derivation from its producer's latest data artifact (atomic write per file).
+    #        In a hermetic run (data_dir set) every read AND write is redirected under the sandbox,
+    #        so the LIVE artifacts are never touched. fail-soft: a missing producer input is a no-op
+    #        (empty/absent chain), never an abort — the head-bearing rates-desk bundle still refreshes.
+    _refresh_breadth_surfaces(base_data, summary)
+
     # ── 5. SELF-VERIFY (fail-CLOSED): the head now in DD_PACK must reproduce against live files ──
     ver = _load_script("verify_spa", "verify_spa.py")
     dd_head = summary["dd_pack_head"]
@@ -182,6 +233,18 @@ def refresh(data_dir: Optional[Path] = None, dd_pack_path: Optional[Path] = None
         summary["errors"].append(
             "post-refresh self-verify FAILED — DD_PACK --expect-head does not reproduce against "
             f"live files: {report.get('errors')}")
+        return summary
+
+    # ── 5b. SELF-VERIFY the WHOLE data dir (fail-CLOSED): every WORKSTREAM 2 breadth surface
+    #        (tournament / RWA-NAV / sleeve) just regenerated must ALSO reproduce, so the published
+    #        breadth bundle is never left rotted/inconsistent after a refresh. The combined verdict
+    #        gates `ok`. (No --expect-head here: the head-pin lives in the rates-desk bundle above.)
+    breadth_report = ver.run([str(base_data)])
+    summary["breadth_verify_ok"] = bool(breadth_report.get("ok"))
+    if not breadth_report.get("ok"):
+        summary["errors"].append(
+            "post-refresh breadth self-verify FAILED — a WORKSTREAM 2 proof surface (tournament / "
+            f"RWA-NAV / sleeve) does not reproduce after refresh: {breadth_report.get('errors')}")
         return summary
 
     summary["ok"] = True

@@ -18,4 +18,11 @@ export MODULE="spa_core.strategy_lab.rates_desk.paper_rates"
 # DD_PACK.md + self-verifies (verify_spa --expect-head <DD_PACK head> → exit 0). It SUBSUMES
 # the old standalone exit_nav rebuild (refresh regenerates exit_nav itself). Advisory,
 # read-only, never moves capital.
+#
+# WORKSTREAM 2 proof-breadth (never-rot F1): refresh_published_proof.py ALSO regenerates the
+# tournament ranking chain, the RWA-backstop NAV proof, AND the sleeve forward-series proofs from
+# their producers' latest data, then self-verifies the WHOLE data dir (every surface must reproduce).
+# So this hourly tick keeps ALL anchored surfaces fresh + mutually consistent, not just the
+# rates-desk bundle. (The tournament/rwa agents ALSO regenerate their own surface immediately after
+# producing — belt-and-suspenders.)
 /bin/bash /Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_template.sh rates_desk_proof_refresh /Users/yuriikulieshov/Documents/SPA_Claude/scripts/refresh_published_proof.py

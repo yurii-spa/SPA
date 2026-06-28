@@ -387,6 +387,42 @@ shown but must be re-confirmed by running the cycle / `gap_monitor --recover`.
 
 ---
 
+## 9b. Proof-artifact refresh (keep "verify us" honest after recovery)
+
+The public proof surface — `data/rates_desk/{decision_log.jsonl, exit_nav.json,
+anchors.jsonl, equity_track.jsonl}` — is what an external reviewer downloads and
+re-derives with `scripts/verify_spa.py` (the `/verify` page is the front door).
+After ANY recovery that restored or advanced `data/`, confirm the published chains
+still re-derive, so the "don't trust us, check us" claim stays literally true.
+
+```bash
+cd ~/Documents/SPA_Claude
+
+# 1. Re-derive every published hash locally (the SAME command the public runs).
+#    Exit 0 = decision chain + exit-NAV + anchors + equity track all reproduce.
+/Users/yuriikulieshov/miniconda3/bin/python3 scripts/verify_spa.py data/rates_desk/
+#    → "VERDICT: OK — everything reproduces"  (else it prints the precise broken_at)
+
+# 2. Confirm the verifier itself is the authentic, pinned release (verifier-v1.0).
+shasum -a 256 scripts/verify_spa.py
+#    → must equal the SHA-256 in docs/VERIFIER_RELEASE.md
+#      (4106b9932691869866f7056d66b108bd7532b02731e5d395297fad7ed7c0db1e);
+#    or:  ( cd scripts && shasum -a 256 -c verify_spa.SHA256 )  → "verify_spa.py: OK"
+
+# 3. The live API re-runs the SAME verification; confirm it reports verified:true:
+curl -s http://127.0.0.1:8765/api/rates-desk/proof | python3 -m json.tool | grep -E 'verified|head_hash|chain_length'
+```
+
+If step 1 reports a `broken_at`, the restored `data/rates_desk/` is stale or torn —
+restore the canonical copy from the GitHub golden copy (§5,
+`git checkout origin/main -- data/rates_desk/`) and re-run. **Never** hand-edit a
+proof file to "fix" a hash; the whole point is that it cannot be silently rewritten.
+If `verify_spa.py` was legitimately changed, re-pin it (new `verifier-vN.M`) in
+`docs/VERIFIER_RELEASE.md` + `scripts/verify_spa.SHA256` — never a new digest under
+the same version tag.
+
+---
+
 ## 10. Universal diagnostics
 
 ```bash
@@ -413,6 +449,9 @@ curl -s http://127.0.0.1:8765/api/live/safety | python3 -m json.tool          # 
 
 # Force a push:
 bash ~/Documents/SPA_Claude/scripts/auto_push.sh
+
+# Proof artifacts re-derive (the public "verify us" check — §9b):
+/Users/yuriikulieshov/miniconda3/bin/python3 scripts/verify_spa.py data/rates_desk/   # → VERDICT: OK
 ```
 
 ---

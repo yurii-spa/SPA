@@ -14,13 +14,16 @@ const planes = [
   { en: 'Anomaly detection', ru: 'Детекция аномалий', desc_en: 'APY-spike, threat-reactor, kill-switch on critical threats', desc_ru: 'Всплески APY, threat-reactor, kill-switch при критич. угрозах' },
 ];
 
-// Live operational surfaces (standalone apps in public/, plus /app).
+// Live operational surfaces — ALL fold into the cohesive Astro site now. The old
+// standalone public/{agents,control,packages,tournament}.html blobs are RETIRED
+// (folded into /dashboard tabs + /strategies); these deep-link to the cohesive
+// equivalent instead of a separate-entity HTML page.
 const surfaces = [
-  { href: '/app', en: 'Live dashboard', ru: 'Живой дашборд', desc_en: 'Canonical dashboard — equity, positions, go-live', desc_ru: 'Канонический дашборд — капитал, позиции, go-live' },
-  { href: '/agents', en: 'Agent fleet', ru: 'Парк агентов', desc_en: 'The autonomous launchd agents that run the machine', desc_ru: 'Автономные launchd-агенты, управляющие системой' },
-  { href: '/tournament', en: 'Strategy tournament', ru: 'Турнир стратегий', desc_en: 'Backtest → paper → live promotion pipeline', desc_ru: 'Конвейер промоушена backtest → paper → live' },
-  { href: '/control', en: 'Control plane', ru: 'Плоскость управления', desc_en: 'Tier-1 control surface — the 8 planes in one view', desc_ru: 'Tier-1 управление — 8 плоскостей в одном виде' },
-  { href: '/packages', en: 'Risk-tier packages', ru: 'Пакеты по риск-уровням', desc_en: 'Unified Preserve / Core / Max-Yield taxonomy', desc_ru: 'Единая таксономия Preserve / Core / Max-Yield' },
+  { href: '/dashboard', en: 'Live dashboard', ru: 'Живой дашборд', desc_en: 'Canonical command center — equity, positions, go-live', desc_ru: 'Канонический командный центр — капитал, позиции, go-live' },
+  { href: '/dashboard#system', en: 'Agent fleet', ru: 'Парк агентов', desc_en: 'The autonomous launchd agents that run the machine (dashboard · System tab)', desc_ru: 'Автономные launchd-агенты, управляющие системой (дашборд · вкладка System)' },
+  { href: '/dashboard#tournament', en: 'Strategy tournament', ru: 'Турнир стратегий', desc_en: 'Backtest → paper → live promotion pipeline (dashboard · Tournament tab)', desc_ru: 'Конвейер промоушена backtest → paper → live (дашборд · вкладка Tournament)' },
+  { href: '/strategies', en: 'Risk-tier packages', ru: 'Пакеты по риск-уровням', desc_en: 'Unified Preserve / Core / Max-Yield taxonomy', desc_ru: 'Единая таксономия Preserve / Core / Max-Yield' },
+  { href: '/verify', en: 'Verify us', ru: 'Проверить нас', desc_en: 'Don\'t trust us — re-derive every published hash yourself', desc_ru: 'Не верьте на слово — пересчитайте каждый опубликованный хеш сами' },
 ];
 ---
 

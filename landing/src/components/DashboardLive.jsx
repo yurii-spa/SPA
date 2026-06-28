@@ -136,7 +136,7 @@ const T = {
     en: 'Leaderboard unavailable — /api/tournament offline.',
     ru: 'Лидерборд недоступен — /api/tournament офлайн.',
   },
-  fullTournament: { en: 'Full tournament →', ru: 'Полный турнир →' },
+  fullTournament: { en: 'Browse all strategies →', ru: 'Все стратегии →' },
 
   /* desks */
   desksEyebrow: { en: 'Structural desk · advisory research', ru: 'Структурный desk · advisory-исследование' },
@@ -909,7 +909,7 @@ function TournamentSection({ tournament, lang, tr }) {
               </table>
             </div>
           </div>
-          <DeepLink href="/tournament" label={tr('fullTournament')} />
+          <DeepLink href="/strategies" label={tr('fullTournament')} />
         </>
       )}
     </div>

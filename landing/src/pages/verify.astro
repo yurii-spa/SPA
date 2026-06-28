@@ -1,0 +1,397 @@
+---
+/*
+ * /verify — the "don't trust us, check us" reviewer page.
+ *
+ * First-class page of the cohesive Astro site (renders in <Layout>: canonical
+ * SiteHeader + PaperStrip + SiteFooter + Console design tokens), bilingual EN|RU
+ * via the same data-ru / spa_lang mechanism as every other page.
+ *
+ * It is the single front door for an external, skeptical reviewer (a Gauntlet /
+ * Credora / Chaos-Labs analyst). It does FOUR things:
+ *   1. The ONE command:  python3 verify_spa.py data/rates_desk/
+ *   2. Pin an AUTHENTIC verifier — the SHA-256 + version tag from
+ *      docs/VERIFIER_RELEASE.md (so a reviewer can confirm the *checker* too).
+ *   3. Link the recipe (PROOF_CHAIN_SPEC) + the public files it consumes.
+ *   4. An IN-BROWSER re-hash demo: it fetches the public decision log live and
+ *      recomputes one entry_hash with Web Crypto SHA-256, following the exact
+ *      §3 canonical-JSON recipe — proving the head is re-derivable, right here.
+ *
+ * HONEST SCOPE (stated on the page, not just in code): the verifier reproduces
+ * the rates-desk decision chain, the exit-NAV per-row proofs, the anchor ledger,
+ * AND the evidenced equity / go-live track. It is paper / research, $0 real.
+ *
+ * The SHA-256 + version below are pinned literals mirroring docs/VERIFIER_RELEASE.md.
+ * If verify_spa.py changes, bump BOTH (a build is the moment to re-pin).
+ */
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+
+// Pinned verifier release (mirror of docs/VERIFIER_RELEASE.md · verifier-v1.0).
+const VERIFIER_VERSION = 'verifier-v1.0';
+const VERIFIER_SHA256 = '4106b9932691869866f7056d66b108bd7532b02731e5d395297fad7ed7c0db1e';
+const VERIFIER_FILE = 'scripts/verify_spa.py';
+
+// The four independent proofs the verifier reproduces (PROOF_CHAIN_SPEC §3/§5/§6/§6a/§8).
+const proofs = [
+  {
+    tag: 'A', file: 'decision_log.jsonl',
+    en: 'The tamper-evident decision chain — every ENTRY and every REFUSAL, SHA-256-linked. Flip one past byte and the recompute diverges at that exact row.',
+    ru: 'Защищённая от подмены цепочка решений — каждый ВХОД и каждый ОТКАЗ, связаны SHA-256. Измените один прошлый байт — пересчёт разойдётся ровно на той строке.',
+  },
+  {
+    tag: 'B', file: 'exit_nav.json',
+    en: 'The liquidation-NAV schedules — every per-row proof_hash covers its inputs AND outputs AND prev_hash, so a forged net-proceeds number or a reordered row is caught.',
+    ru: 'Графики ликвидационного NAV — каждый построчный proof_hash покрывает входы И выходы И prev_hash, поэтому подделанное число или переставленная строка обнаруживаются.',
+  },
+  {
+    tag: 'C', file: 'anchors.jsonl',
+    en: 'The append-only head-checkpoint anchors — each in-window anchor head is re-derived from the public chain, so a fabricated historical anchor is rejected.',
+    ru: 'Дописываемые якоря-чекпойнты головы — голова каждого якоря в окне пересчитывается из публичной цепочки, поэтому сфабрикованный исторический якорь отвергается.',
+  },
+  {
+    tag: 'D', file: 'equity_track.jsonl',
+    en: 'The evidenced equity / go-live track — hash-chained like the decision chain. A forged equity number or a back-dated day diverges the recompute. This is what makes "verify the track yourself" literally true.',
+    ru: 'Подтверждённый трек equity / go-live — хеш-цепочка как у цепочки решений. Подделанное число equity или задним числом вставленный день ломают пересчёт. Именно это делает «проверьте трек сами» буквально правдой.',
+  },
+];
+---
+
+<Layout
+  title="Verify us — don't trust us, check us | earn-defi.com"
+  description="The reviewer front door: re-derive every published SPA hash yourself with one zero-dependency command (python3 verify_spa.py data/), pinned to an authentic SHA-256-checksummed verifier release. Recipe in PROOF_CHAIN_SPEC. Includes a live in-browser re-hash demo. Paper / research, $0 real."
+  canonical="https://earn-defi.com/verify"
+>
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- ============================================================= a. HERO -->
+    <section class="pt-20 pb-10">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full text-xs font-mono"
+           style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">
+        <span class="w-1.5 h-1.5 rounded-full" style="background:var(--accent)" aria-hidden="true"></span>
+        <span data-ru="Воспроизводимо · zero-dependency · никакого нашего кода">Reproducible · zero-dependency · none of our code</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold mb-4 leading-tight" style="color:var(--text-primary)"
+          data-ru="Не верьте нам — проверьте нас">
+        Don't trust us — check us
+      </h1>
+      <p class="text-xl leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Каждый опубликованный нами хеш вы можете пересчитать сами — одной командой, на чистой машине, без единой строки нашего кода. Если хоть один байт истории был изменён задним числом, пересчёт разойдётся и укажет точную сломанную строку.">
+        Every hash we publish, you can re-derive yourself — with one command, on a clean machine,
+        without a single line of our code. If a single byte of history was altered after the fact,
+        the recompute diverges and points to the exact broken row.
+      </p>
+    </section>
+
+    <!-- ============================================================= b. THE ONE COMMAND -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+         data-ru="Одна команда">The one command</p>
+      <p class="text-sm mb-5 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Скачайте верификатор и публичные файлы, затем запустите. Код выхода 0 = всё воспроизводится байт-в-байт; 1 = любое расхождение, и инструмент печатает точный broken_at.">
+        Download the verifier and the public files, then run it. Exit code 0 = everything reproduces
+        byte-for-byte; 1 = any mismatch, and the tool prints the precise <span class="font-mono">broken_at</span>.
+      </p>
+      <div class="rounded-xl p-5 overflow-x-auto" style="background:var(--bg-base);border:1px solid var(--accent-dim)">
+        <p class="text-[11px] uppercase tracking-wider font-mono mb-2" style="color:var(--text-faint)" data-ru="Команда">Command</p>
+        <code class="text-sm sm:text-base font-mono break-all" style="color:var(--data-teal)">python3 verify_spa.py data/rates_desk/</code>
+        <p class="text-[11px] leading-relaxed mt-3" style="color:var(--text-muted)"
+           data-ru="Точку входа, голову которую вы должны увидеть, тоже можно зафиксировать: добавьте --expect-head <hex>, и верификатор подтвердит, что воспроизведённая голова цепочки совпадает с опубликованной.">
+          You can also pin the head you should see: pass <span class="font-mono">--expect-head &lt;hex&gt;</span>
+          and the verifier asserts the reproduced chain head equals the published one.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============================================================= c. PIN AN AUTHENTIC VERIFIER -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+         data-ru="Сначала проверьте сам верификатор">First, check the checker</p>
+      <p class="text-sm mb-5 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="«Проверьте нас» работает, только если вы можете проверить и проверяющего. Перед запуском подтвердите, что скачанный verify_spa.py байт-в-байт совпадает с этим закреплённым релизом.">
+        "Check us" only works if you can also check the <em>checker</em>. Before you run it, confirm the
+        <span class="font-mono">verify_spa.py</span> you downloaded matches this pinned release byte-for-byte.
+      </p>
+      <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--border)">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+          <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+            <p class="text-[11px] uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)" data-ru="Версия">Version</p>
+            <p class="text-sm font-mono font-semibold" style="color:var(--text-primary)">{VERIFIER_VERSION}</p>
+          </div>
+          <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+            <p class="text-[11px] uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)" data-ru="Файл">File</p>
+            <p class="text-sm font-mono break-all" style="color:var(--text-primary)">{VERIFIER_FILE}</p>
+          </div>
+          <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+            <p class="text-[11px] uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)" data-ru="Спецификация">Spec</p>
+            <p class="text-sm font-mono" style="color:var(--text-primary)">PROOF_CHAIN_SPEC v1.0</p>
+          </div>
+        </div>
+        <p class="text-[11px] uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)" data-ru="SHA-256 верификатора">Verifier SHA-256</p>
+        <p class="text-xs font-mono break-all mb-4" style="color:var(--data-teal)">{VERIFIER_SHA256}</p>
+        <div class="rounded-lg p-4 overflow-x-auto" style="background:var(--bg-base);border:1px solid var(--border)">
+          <p class="text-[11px] uppercase tracking-wider font-mono mb-2" style="color:var(--text-faint)" data-ru="Подтвердите подлинность">Confirm authenticity</p>
+          <code class="text-xs sm:text-sm font-mono break-all" style="color:var(--text-secondary)">shasum -a 256 verify_spa.py</code>
+          <p class="text-[11px] mt-2" style="color:var(--text-muted)"
+             data-ru="Должно совпасть с SHA-256 выше. Если нет — у вас не подлинный верификатор; перекачайте по закреплённому тегу.">
+            Must match the SHA-256 above. If it doesn't, you don't have the authentic verifier —
+            re-download from the pinned tag.
+          </p>
+        </div>
+        <p class="text-[11px] leading-relaxed mt-4" style="color:var(--text-faint)"
+           data-ru="Полный манифест: docs/VERIFIER_RELEASE.md. Тег + SHA-256 — это owner-независимая проверка целостности (любой пересчитывает digest сам). Подписанный GPG git-тег (provenance) — следующий шаг владельца; здесь он намеренно не выполняется.">
+          Full manifest: <span class="font-mono">docs/VERIFIER_RELEASE.md</span>. A tag + SHA-256 is
+          owner-independent integrity (anyone recomputes the digest themselves). A GPG-signed git tag
+          (provenance) is the owner's next step — intentionally not done here.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============================================================= d. IN-BROWSER RE-HASH DEMO -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
+        <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
+           data-ru="Пересчёт прямо в браузере">We re-derive a hash, right here</p>
+        <span class="text-[11px] font-mono" style="color:var(--text-faint)">
+          <span data-ru="источник">source</span>: <span id="vd-src" data-ru="офлайн">offline</span>
+        </span>
+      </div>
+      <p class="text-sm mb-5 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Чтобы показать, что рецепт реален, эта страница вживую тянет публичный лог решений и САМА пересчитывает entry_hash одной строки браузерным SHA-256 — по тому же каноническому JSON, что в спецификации §3. Никакого доверия к серверу: ваш браузер выводит хеш из опубликованных байтов и сверяет его с тем, что мы напечатали.">
+        To prove the recipe is real, this page fetches the public decision log live and recomputes one
+        row's <span class="font-mono">entry_hash</span> itself, with the browser's SHA-256, over the same
+        canonical JSON the spec defines (§3). No trust in the server: your browser derives the hash from
+        the published bytes and compares it to the one we printed.
+      </p>
+
+      <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--border)">
+        <!-- Verdict badge -->
+        <div class="flex items-center justify-between gap-3 flex-wrap mb-5">
+          <span id="vd-badge"
+                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-mono"
+                style="background:var(--bg-surface);border-color:var(--border);color:var(--text-muted)">
+            <span id="vd-badge-dot" class="w-2 h-2 rounded-full" style="background:var(--text-muted)" aria-hidden="true"></span>
+            <span id="vd-badge-text" data-ru="ожидание данных…">awaiting data…</span>
+          </span>
+          <span class="text-[11px] font-mono" style="color:var(--text-faint)">
+            <span data-ru="строка">row</span> <span id="vd-seq" style="color:var(--text-secondary)">—</span>
+            · <span id="vd-underlying" style="color:var(--text-secondary)">—</span>
+          </span>
+        </div>
+
+        <!-- Canonical preimage we hashed -->
+        <p class="text-[11px] uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)"
+           data-ru="Канонический JSON, который мы хешировали (§3)">Canonical JSON we hashed (§3)</p>
+        <pre id="vd-canon" class="text-[11px] font-mono break-all whitespace-pre-wrap rounded-lg p-3 mb-4"
+             style="background:var(--bg-base);border:1px solid var(--border);color:var(--text-secondary);max-height:9rem;overflow:auto">—</pre>
+
+        <div class="grid grid-cols-1 gap-3">
+          <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+            <p class="text-[11px] uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)"
+               data-ru="Пересчитано в вашем браузере (SHA-256)">Recomputed in your browser (SHA-256)</p>
+            <p id="vd-computed" class="text-xs font-mono break-all" style="color:var(--data-teal)">—</p>
+          </div>
+          <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+            <p class="text-[11px] uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)"
+               data-ru="Опубликованный entry_hash">Published entry_hash</p>
+            <p id="vd-published" class="text-xs font-mono break-all" style="color:var(--text-secondary)">—</p>
+          </div>
+        </div>
+
+        <p class="text-[11px] leading-relaxed mt-4" style="color:var(--text-faint)"
+           data-ru="Каноническое правило: sort_keys рекурсивно · разделители (',',':') без пробелов · ensure_ascii=False · UTF-8 → SHA-256 hex. Денежные/ставочные значения публикуются как строки, поэтому округление float не может их исказить. Это ровно то, что делает verify_spa.py для всей цепочки.">
+          Canonical rule: recursive key sort · separators <span class="font-mono">(',',':')</span> no spaces ·
+          <span class="font-mono">ensure_ascii=False</span> · UTF-8 → SHA-256 hex. Money/rate values are
+          published as strings, so float rounding can't corrupt them. This is exactly what
+          <span class="font-mono">verify_spa.py</span> does for the whole chain.
+        </p>
+      </div>
+      <p class="text-[11px] mt-3" style="color:var(--text-muted)"
+         data-ru="Если демо офлайн (API недоступен), команда выше всё равно воспроизводит ту же голову из скачанных файлов — браузерное демо лишь удобство, а не зависимость.">
+        If the demo is offline (API unreachable), the command above still reproduces the same head from
+        the downloaded files — the browser demo is a convenience, not a dependency.
+      </p>
+    </section>
+
+    <!-- ============================================================= e. WHAT IT VERIFIES (scope) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+         data-ru="Что именно проверяется">What it verifies — precise scope</p>
+      <p class="text-sm mb-6 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Четыре независимых опубликованных доказательства. Честно: это бумажный исследовательский трек, реального капитала $0 — верификатор доказывает целостность записей, а не результаты инвестирования.">
+        Four independent published proofs. Honestly: this is a paper research track, $0 real capital —
+        the verifier proves the integrity of the records, not investment outcomes.
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {proofs.map((p) => (
+          <div class="rounded-xl p-5 bg-white/[0.02]" style="border:1px solid var(--border)">
+            <div class="flex items-center gap-3 mb-3">
+              <span class="inline-flex items-center justify-center w-7 h-7 rounded-md font-mono text-sm font-bold"
+                    style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">{p.tag}</span>
+              <span class="text-sm font-semibold font-mono" style="color:var(--text-primary)">{p.file}</span>
+            </div>
+            <p class="text-xs leading-relaxed" style="color:var(--text-secondary)" data-ru={p.ru}>{p.en}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- ============================================================= f. THE PUBLIC FILES + RECIPE -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+         data-ru="Файлы и рецепт">The files & the recipe</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-3" style="color:var(--text-muted)" data-ru="Публичные артефакты">Public artifacts</p>
+          <ul class="space-y-1.5 text-xs font-mono" style="color:var(--text-secondary)">
+            <li>data/rates_desk/decision_log.jsonl</li>
+            <li>data/rates_desk/exit_nav.json</li>
+            <li>data/rates_desk/anchors.jsonl</li>
+            <li>data/rates_desk/equity_track.jsonl</li>
+          </ul>
+          <p class="text-[11px] leading-relaxed mt-3" style="color:var(--text-muted)"
+             data-ru="Также вживую: /api/rates-desk/proof (машинно) и /refusals (для человека).">
+            Also live: <span class="font-mono">/api/rates-desk/proof</span> (machine) and
+            <a href="/refusals" class="hover:underline" style="color:var(--accent)">/refusals</a> (human).
+          </p>
+        </div>
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-3" style="color:var(--text-muted)" data-ru="Документы">Documents</p>
+          <ul class="space-y-2 text-sm">
+            <li><a href="/refusals" class="hover:underline" style="color:var(--accent)" data-ru="Лог отказов (человеко-читаемый) →">Refusal log (human-readable) →</a></li>
+            <li><a href="/track-record" class="hover:underline" style="color:var(--accent)" data-ru="Трек-рекорд (хеш-привязанный) →">Track record (hash-anchored) →</a></li>
+            <li><a href="/exit-nav" class="hover:underline" style="color:var(--accent)" data-ru="Ликвидационный NAV →">Liquidation-NAV →</a></li>
+            <li><a href="/proof-of-reserves" class="hover:underline" style="color:var(--accent)" data-ru="Доказательство резервов →">Proof of Reserves →</a></li>
+          </ul>
+          <p class="text-[11px] leading-relaxed mt-3" style="color:var(--text-muted)"
+             data-ru="Рецепт хеша: docs/PROOF_CHAIN_SPEC.md · релиз верификатора: docs/VERIFIER_RELEASE.md · DD-пак: docs/DD_PACK.md.">
+            Hash recipe: <span class="font-mono">docs/PROOF_CHAIN_SPEC.md</span> · verifier release:
+            <span class="font-mono">docs/VERIFIER_RELEASE.md</span> · DD pack:
+            <span class="font-mono">docs/DD_PACK.md</span>.
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+
+  <!-- ===================================================================== IN-BROWSER RE-HASH -->
+  <script is:inline>
+    /* Live re-hash demo. Fetches the PUBLIC decision log (raw rows, verbatim) and recomputes one
+       row's entry_hash with Web Crypto SHA-256 over the §3 canonical JSON — reproducing the exact
+       recipe scripts/verify_spa.py and docs/PROOF_CHAIN_SPEC.md publish. Graceful offline. */
+    (function () {
+      var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+        ? 'http://localhost:8765'
+        : 'https://api.earn-defi.com';
+      // §3 invariants (verbatim from the spec — NOT fetched from the server).
+      var ENVELOPE = ['seq', 'ts', 'entry_hash', 'prev_hash'];
+      var EVENT_TYPE = 'rates_desk_decision';
+
+      function isRu() { try { return (localStorage.getItem('spa_lang') || 'en') === 'ru'; } catch (e) { return false; } }
+      function setText(id, t) { var el = document.getElementById(id); if (el) el.textContent = t; }
+
+      /* Canonical JSON matching Python json.dumps(sort_keys=True, separators=(',',':'),
+         ensure_ascii=False). Recursive key sort; compact separators; JSON.stringify of a
+         string already matches Python's ensure_ascii=False escaping for the published fields. */
+      function canon(v) {
+        if (v === null) return 'null';
+        if (Array.isArray(v)) return '[' + v.map(canon).join(',') + ']';
+        if (typeof v === 'object') {
+          var keys = Object.keys(v).sort();
+          var parts = [];
+          for (var i = 0; i < keys.length; i++) {
+            parts.push(JSON.stringify(keys[i]) + ':' + canon(v[keys[i]]));
+          }
+          return '{' + parts.join(',') + '}';
+        }
+        if (typeof v === 'string') return JSON.stringify(v);
+        if (typeof v === 'boolean') return v ? 'true' : 'false';
+        // Numbers: the published money/rate values are STRINGS, so a bare number here is a
+        // structural int (e.g. seq). Render with the JSON default (no reformatting risk).
+        return JSON.stringify(v);
+      }
+
+      function sha256Hex(str) {
+        var bytes = new TextEncoder().encode(str);
+        return crypto.subtle.digest('SHA-256', bytes).then(function (buf) {
+          var arr = new Uint8Array(buf), hex = '';
+          for (var i = 0; i < arr.length; i++) { hex += arr[i].toString(16).padStart(2, '0'); }
+          return hex;
+        });
+      }
+
+      function setBadge(state) {
+        var ru = isRu();
+        var badge = document.getElementById('vd-badge');
+        var dot = document.getElementById('vd-badge-dot');
+        var txt = document.getElementById('vd-badge-text');
+        if (!badge || !dot || !txt) return;
+        // Literal Tailwind palettes (Tailwind only compiles classes it can see literally).
+        badge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-mono';
+        if (state === 'match') {
+          badge.className += ' bg-emerald-500/10 border-emerald-500/30 text-emerald-300';
+          dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+          txt.textContent = ru ? 'СОВПАЛО · хеш пересчитан здесь' : 'MATCH · re-derived right here';
+        } else if (state === 'mismatch') {
+          badge.className += ' bg-red-500/10 border-red-500/30 text-red-300';
+          dot.className = 'w-2 h-2 rounded-full bg-red-400';
+          txt.textContent = ru ? 'НЕ СОВПАЛО' : 'MISMATCH';
+        } else {
+          badge.className += ' border-[var(--border)] text-[var(--text-muted)]';
+          badge.style.background = 'var(--bg-surface)';
+          dot.className = 'w-2 h-2 rounded-full';
+          dot.style.background = 'var(--text-muted)';
+          txt.textContent = ru ? 'демо недоступно (API офлайн)' : 'demo unavailable (API offline)';
+        }
+      }
+
+      function recompute(row) {
+        // Build the §3 hashed object: payload = row minus the 4 envelope keys.
+        var payload = {};
+        for (var k in row) {
+          if (Object.prototype.hasOwnProperty.call(row, k) && ENVELOPE.indexOf(k) === -1) {
+            payload[k] = row[k];
+          }
+        }
+        var obj = {
+          seq: row.seq, ts: row.ts, event_type: EVENT_TYPE, payload: payload, prev_hash: row.prev_hash,
+        };
+        var preimage = canon(obj);
+        var canonEl = document.getElementById('vd-canon');
+        if (canonEl) {
+          // show a head + tail so the box stays readable but is clearly the real bytes
+          canonEl.textContent = preimage.length > 1400
+            ? preimage.slice(0, 700) + '\n  … (' + preimage.length + ' bytes total) …\n' + preimage.slice(-700)
+            : preimage;
+        }
+        setText('vd-seq', String(row.seq));
+        setText('vd-underlying', String((row.decomposition && row.decomposition.underlying) || row.underlying || '?'));
+        setText('vd-published', String(row.entry_hash || '—'));
+        sha256Hex(preimage).then(function (hex) {
+          setText('vd-computed', hex);
+          setBadge(hex === row.entry_hash ? 'match' : 'mismatch');
+        });
+      }
+
+      function init() {
+        if (!crypto || !crypto.subtle) { setBadge('offline'); return; }
+        fetch(API + '/api/rates-desk/decisions?limit=12').then(function (r) { return r.json(); }).then(function (d) {
+          var rows = (d && Array.isArray(d.decisions)) ? d.decisions : [];
+          // pick the latest row that carries a full envelope (seq + entry_hash + prev_hash + ts).
+          var pick = null;
+          for (var i = rows.length - 1; i >= 0; i--) {
+            var r = rows[i];
+            if (r && typeof r.seq === 'number' && r.entry_hash && r.prev_hash && r.ts) { pick = r; break; }
+          }
+          if (!pick) { setBadge('offline'); return; }
+          setText('vd-src', 'live');
+          recompute(pick);
+        }).catch(function () { setBadge('offline'); });
+      }
+      if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
+      else { init(); }
+    })();
+  </script>
+</Layout>

@@ -12,6 +12,24 @@ single byte of any historical decision were changed, your recompute would diverg
 
 ---
 
+## 0. Two files named `audit_*` — which is the tamper-evidence? (read this first)
+
+A reviewer grepping `data/` will find **two** append-only `.jsonl` ledgers with similar
+names. They do **different** jobs; only one is the tamper-evident hash chain this spec
+verifies. Do not confuse them:
+
+| File | What it is | Tamper-evident? | Verified by `verify_spa.py`? |
+|---|---|---|---|
+| **`data/audit_chain.jsonl`** | The **SHA-256 hash chain** — each entry carries `prev_hash`/`entry_hash`, so altering any past row breaks the chain (`spa_core/audit/hash_chain.py`). The authoritative append-only producer ledger the public `decision_log.jsonl` mirror is re-based from (§5, §6a). | **YES** — this is *the* tamper-evidence. | Yes — the public mirror (`decision_log.jsonl`) is a re-based projection of this chain; the chain recipe is §3/§5. |
+| **`data/audit_trail.jsonl`** | The **UUID-/correlation-id-linked operational trail** (`spa_core/audit/audit_trail.py`, MP-310). Threads one paper-cycle's events (`cycle_start → allocation_proposal → risk_verdict → trade_*`) via `correlation_id` + `prev_event_id`. It is for **operational traceability / debugging a cycle**, *not* hash-chained tamper-evidence. | **No** — linked by UUIDs, **not** by `prev_hash`/`entry_hash`. A forged historical row is **not** detectable from the file alone. | No. It is out of scope for the proof verifier. |
+
+**Mnemonic:** *`audit_chain` = the **chain** (hashes, tamper-evident).
+`audit_trail` = the **trail** (UUIDs, operational).* Everything in §1–§7 below is about the
+hash chain and its public mirror. `audit_trail.jsonl` is mentioned here only so it is never
+mistaken for the tamper-evidence.
+
+---
+
 ## 1. The public file
 
 `data/rates_desk/decision_log.jsonl` — JSON Lines (one JSON object per line, UTF-8). It is also
@@ -329,6 +347,49 @@ monotonic** ledger that closes the §5 *sliding-window* caveat. Each line is one
 Because the anchor file is append-only and never truncated, recording an anchor now and re-running the
 verifier later proves no in-window history was rewritten between the two checks. Extending that to a
 full **cross-eviction** guarantee requires the producer ledger above.
+
+---
+
+## 6b. Proof-breadth surfaces — the SAME recipe on the other desks (WORKSTREAM 2)
+
+The verifiable hash-chain pattern is extended from the rates desk to the OTHER desks, so a third
+party verifies EVERY published surface with ONE command (`python3 scripts/verify_spa.py data/` — it
+recursively auto-discovers all of them, one exit code). Each learns from the two flaws the rates-desk
+red-team caught: the proof covers the **OUTPUTS** (the user-facing numbers), not just the inputs,
+**and** the rows are **chained** (per-row `prev_hash`); and every published artifact is regenerated
+together with its producer so it never rots.
+
+### (E) Tournament ranking chain — `data/tournament/decision_log.jsonl`
+
+One row per ranked strategy per daily ranking, in a single-genesis chain. `entry_hash` uses the §3
+recipe with `event_type = "tournament_ranking_row"` and `payload` = the row minus the four envelope
+keys `{seq, ts, entry_hash, prev_hash}`. The payload carries the OUTPUTS — `rank`, `strategy_id`,
+`sharpe`, `net_annual_return_pct` (+ `strategy_key`/`name`/`sharpe_display`/`max_dd_pct`/
+`is_shadow_active`/`ranking_generated_at`) — so forging a published rank/strategy/sharpe/net-return,
+or reordering a ranking, diverges the recompute (precise `broken_at`). Verify exactly as §5.
+
+### (F) RWA-backstop NAV forward-record proof — `data/rwa_backstop/nav_proof.jsonl`
+
+One row per daily forward NAV point, using the §6 exit-NAV recipe (`proof_hash` over
+`{inputs, outputs, prev_hash}`, `default=str`), chained. `inputs = {date, ts, n_assets,
+onchain_4626_count, off_chain_estimate_count}`; `outputs = {tvl_weighted_nav, liq_nav_gap_pct}`;
+`prev_hash` links each point to the previous row's `proof_hash` (genesis `"0"*64`). Forging
+`tvl_weighted_nav` / `liq_nav_gap_pct`, or reordering/dropping a forward point, diverges the
+recompute / breaks the chain. Verify exactly as §6 (the chain walk).
+
+### (G) Sleeve forward-series proofs — `data/rates_desk/paper/<sleeve>_series_proof.jsonl`
+
+One chain PER sleeve (auto-discovered — there may be many). `entry_hash` uses the §3 recipe with
+`event_type = "sleeve_forward_point"`, keyed by `date`, `payload` = the row minus `{seq, date,
+entry_hash, prev_hash}`. The payload carries the OUTPUT forward numbers the promotion ladder reads —
+`equity_usd`, `net_apy_pct`, `open_books`, `closed_books`, `approvals`, `refusals` (+ `sleeve_id`/
+`ts`) — so forging a forward equity/apy/book-count, or reordering/back-dating a day, diverges the
+recompute. Verify exactly as §5.
+
+> **Never-rot (F1):** each producer regenerates its own proof artifact immediately after producing
+> (folded into `agent_tournament_engine.sh` / `agent_rwa_safety_board.sh`), and the hourly
+> `scripts/refresh_published_proof.py` regenerates ALL of them from their producers' latest data and
+> self-verifies the whole `data/` dir — so the published proofs never go stale relative to the data.
 
 ---
 

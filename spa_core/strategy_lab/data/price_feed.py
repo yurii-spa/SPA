@@ -28,8 +28,9 @@ FAIL-CLOSED: missing/empty/unparseable price → InvalidDataError. No silent def
 from __future__ import annotations
 
 import datetime
+import math
 import time
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, Optional
 
 from spa_core.strategy_lab.base import InvalidDataError
 from spa_core.strategy_lab.data._http import http_fetch
@@ -97,7 +98,10 @@ def _extract_price(coins: dict, addr: str, symbol: str) -> float:
     if not isinstance(entry, dict):
         raise InvalidDataError(f"coins price: no entry for {symbol} ({addr})")
     price = entry.get("price")
-    if not isinstance(price, (int, float)) or price <= 0:
+    # fail-CLOSED: reject non-finite (NaN/inf) too — `price <= 0` is always False for NaN, so a
+    # bare JSON NaN/Infinity token (json.loads admits them) would otherwise leak in as a "price".
+    if not isinstance(price, (int, float)) or isinstance(price, bool) \
+            or not math.isfinite(price) or price <= 0:
         raise InvalidDataError(f"coins price: missing/invalid price for {symbol}: {price!r}")
     return float(price)
 
@@ -282,7 +286,11 @@ def _parse_chart(payload: object, addr: str, symbol: str) -> Dict[str, float]:
             continue
         ts = pt.get("timestamp")
         price = pt.get("price")
-        if not isinstance(ts, (int, float)) or not isinstance(price, (int, float)) or price <= 0:
+        # fail-CLOSED: skip non-finite ts/price (NaN/inf) — a bare NaN price would otherwise pass
+        # `price <= 0` (always False for NaN) and poison the history series.
+        if not isinstance(ts, (int, float)) or isinstance(ts, bool) or not math.isfinite(ts) \
+                or not isinstance(price, (int, float)) or isinstance(price, bool) \
+                or not math.isfinite(price) or price <= 0:
             continue
         d = datetime.datetime.fromtimestamp(
             ts, tz=datetime.timezone.utc

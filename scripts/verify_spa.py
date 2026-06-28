@@ -18,7 +18,24 @@ follows ONLY the public docs/PROOF_CHAIN_SPEC.md recipe (canonical-JSON + SHA-25
 stdlib-only · deterministic · fail-CLOSED · NO `spa_core` import · NO network. Exit 0 = everything
 reproduces byte-for-byte; exit 1 = ANY mismatch / missing-required / malformed input.
 
-It verifies FOUR independent published proofs:
+It AUTO-DISCOVERS and verifies EVERY anchored surface under the supplied path (recursively when a
+directory is given), each with its own zero-dependency recipe, and reports a COMBINED manifest with
+ONE exit code. The surfaces:
+  (A) rates-desk decision chain   — decision_log.jsonl
+  (B) rates-desk exit-NAV proofs  — exit_nav.json
+  (C) rates-desk anchors          — anchors.jsonl
+  (D) evidenced equity track      — equity_track.jsonl
+  (E) tournament ranking chain    — tournament/decision_log.jsonl  (WORKSTREAM 2 proof-breadth)
+  (F) RWA-backstop NAV proof      — rwa_backstop/nav_proof.jsonl   (WORKSTREAM 2 proof-breadth)
+  (G) sleeve forward-series proofs — rates_desk/paper/*_series_proof.jsonl (WORKSTREAM 2, many files)
+
+(E)/(F)/(G) learn from the two flaws the rates-desk red-team caught: each proof covers the published
+OUTPUTS (rank/strategy/net_return/sharpe · tvl_weighted_nav/liq_nav_gap · equity/apy/book-counts),
+NOT just the inputs, AND chains the rows (per-row prev_hash) — so forging a published value or
+reordering/dropping a row is caught, never silently passed (FAIL#2); and they are regenerated together
+with their producer so they never rot (F1).
+
+It verifies these independent published proofs:
   (A) decision_log.jsonl — the tamper-evident decision chain (PROOF_CHAIN_SPEC §2-§5):
       re-derive every entry_hash, check single-genesis + contiguous seq + prev-linkage; print
       valid / broken_at / head_hash.
@@ -85,6 +102,31 @@ EQUITY_TRACK_EVENT_TYPE = "equity_track_bar"
 EQUITY_TRACK_GENESIS_PREV = "0" * 64
 EQUITY_TRACK_ENVELOPE_KEYS = ("seq", "date", "prev_hash", "entry_hash")
 
+# ── WORKSTREAM 2 proof-breadth surfaces (the SAME canonical-JSON + SHA-256 rule; output-covering) ──
+
+# (E) tournament ranking chain — each daily ranking row covers rank/strategy/net_return/sharpe and is
+# chained (single-genesis, contiguous seq). entry_hash = sha256(canonical({seq, ts, kind, payload,
+# prev_hash})) with kind fixed, payload = the row minus the four envelope keys. Forging a published
+# rank/strategy/sharpe/net_return, or reordering a ranking, DIVERGES the recompute.
+TOURNAMENT_EVENT_TYPE = "tournament_ranking_row"
+TOURNAMENT_GENESIS_PREV = "0" * 64
+TOURNAMENT_ENVELOPE_KEYS = ("seq", "ts", "prev_hash", "entry_hash")
+
+# (F) RWA-backstop NAV proof — exit-NAV §6 pattern over each forward point: per-row proof_hash over
+# {inputs, outputs, prev_hash}, chained (genesis '0'*64). Forging tvl_weighted_nav / liq_nav_gap_pct,
+# or reordering/dropping a forward point, DIVERGES the recompute / breaks the chain.
+NAV_PROOF_GENESIS_PREV = "0" * 64
+NAV_PROOF_INPUT_KEYS = ("date", "ts", "n_assets", "onchain_4626_count", "off_chain_estimate_count")
+NAV_PROOF_OUTPUT_KEYS = ("tvl_weighted_nav", "liq_nav_gap_pct")
+
+# (G) sleeve forward-series proofs — each sleeve series chained like the equity track. entry_hash =
+# sha256(canonical({seq, date, kind, payload, prev_hash})) with kind fixed, payload = the row minus
+# the four envelope keys. Forging a forward equity/apy/book-count, or reordering/back-dating a day,
+# DIVERGES the recompute. MANY such files (one per sleeve) are auto-discovered + verified.
+SLEEVE_EVENT_TYPE = "sleeve_forward_point"
+SLEEVE_GENESIS_PREV = "0" * 64
+SLEEVE_ENVELOPE_KEYS = ("seq", "date", "prev_hash", "entry_hash")
+
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 # canonical JSON + the two published hash recipes (inlined per the spec — no shared lib)
@@ -133,6 +175,50 @@ def recompute_equity_entry_hash(row: dict) -> str:
         "prev_hash": row.get("prev_hash"),
     })
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def recompute_tournament_entry_hash(row: dict) -> str:
+    """(E) tournament — SHA-256 over canonical({seq, ts, kind, payload, prev_hash}) where payload =
+    the row minus the four envelope keys and kind = TOURNAMENT_EVENT_TYPE. The payload carries the
+    OUTPUTS (rank/strategy/sharpe/net_return), so forging any of them diverges the recompute."""
+    payload = {k: v for k, v in row.items() if k not in TOURNAMENT_ENVELOPE_KEYS}
+    canonical = _canonical({
+        "seq": row.get("seq"),
+        "ts": row.get("ts"),
+        "kind": TOURNAMENT_EVENT_TYPE,
+        "payload": payload,
+        "prev_hash": row.get("prev_hash"),
+    })
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def recompute_sleeve_entry_hash(row: dict) -> str:
+    """(G) sleeve — SHA-256 over canonical({seq, date, kind, payload, prev_hash}) where payload =
+    the row minus the four envelope keys and kind = SLEEVE_EVENT_TYPE. The payload carries the
+    forward OUTPUTS (equity/apy/book-counts), so forging any of them diverges the recompute."""
+    payload = {k: v for k, v in row.items() if k not in SLEEVE_ENVELOPE_KEYS}
+    canonical = _canonical({
+        "seq": row.get("seq"),
+        "date": row.get("date"),
+        "kind": SLEEVE_EVENT_TYPE,
+        "payload": payload,
+        "prev_hash": row.get("prev_hash"),
+    })
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def nav_proof_hash(row: dict) -> str:
+    """(F) RWA-backstop NAV — SHA-256 over the canonical JSON of {inputs, outputs, prev_hash}
+    reconstructed from a published forward-point row (exit-NAV §6 recipe; default=str). Covering the
+    OUTPUTS (tvl_weighted_nav / liq_nav_gap_pct) makes a forged NAV number detectable; the prev_hash
+    chains the points so a reordered/dropped/inserted forward point is caught."""
+    proof_obj = {
+        "inputs": {k: row.get(k) for k in NAV_PROOF_INPUT_KEYS},
+        "outputs": {k: row.get(k) for k in NAV_PROOF_OUTPUT_KEYS},
+        "prev_hash": row.get("prev_hash"),
+    }
+    blob = json.dumps(proof_obj, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -201,6 +287,91 @@ def verify_equity_track(rows: List[dict]) -> dict:
         head_hash = row["entry_hash"]
     return {"valid": True, "length": n, "broken_at": None, "head_hash": head_hash,
             "n_days": n, "first_date": first_date, "last_date": last_date}
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# (E) tournament ranking chain — output-covering, chained (WORKSTREAM 2 proof-breadth)
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+def verify_tournament_chain(rows: List[dict]) -> dict:
+    """Walk ranking rows in seq order; at each row require (1) seq == idx, (2) prev_hash == previous
+    entry_hash (genesis '0'*64), (3) recompute_tournament_entry_hash(row) == entry_hash. fail-CLOSED
+    on any malformed row. Returns {valid, length, broken_at, head_hash}. Empty is vacuously valid.
+    A forged published rank/strategy/sharpe/net_return, or a reordered ranking, → precise broken_at."""
+    expected_prev = TOURNAMENT_GENESIS_PREV
+    head_hash: Optional[str] = None
+    n = len(rows)
+    for idx, row in enumerate(rows):
+        if not isinstance(row, dict):
+            return {"valid": False, "length": n, "broken_at": idx, "head_hash": None}
+        if row.get("seq") != idx:
+            return {"valid": False, "length": n, "broken_at": idx, "head_hash": None}
+        if row.get("prev_hash") != expected_prev:
+            return {"valid": False, "length": n, "broken_at": idx, "head_hash": None}
+        try:
+            recomputed = recompute_tournament_entry_hash(row)
+        except Exception:  # noqa: BLE001 — malformed row → fail-CLOSED
+            return {"valid": False, "length": n, "broken_at": idx, "head_hash": None}
+        if recomputed != row.get("entry_hash"):
+            return {"valid": False, "length": n, "broken_at": idx, "head_hash": None}
+        expected_prev = row["entry_hash"]
+        head_hash = row["entry_hash"]
+    return {"valid": True, "length": n, "broken_at": None, "head_hash": head_hash}
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# (F) RWA-backstop NAV forward-record proof — exit-NAV §6 pattern, chained (WORKSTREAM 2)
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+def verify_nav_proof(rows: List[dict]) -> dict:
+    """Walk forward-point rows; at each require (1) prev_hash == previous proof_hash (genesis
+    '0'*64), (2) nav_proof_hash(row) == proof_hash (recomputed from inputs+outputs+prev_hash).
+    fail-CLOSED on any malformed row. Returns {valid, length, broken_at, head_hash}. Empty is
+    vacuously valid. A forged tvl_weighted_nav/liq_nav_gap, or a reordered/dropped point, → broken_at."""
+    expected_prev = NAV_PROOF_GENESIS_PREV
+    head_hash: Optional[str] = None
+    n = len(rows)
+    for idx, row in enumerate(rows):
+        if not isinstance(row, dict):
+            return {"valid": False, "length": n, "broken_at": idx, "head_hash": None}
+        if row.get("prev_hash") != expected_prev:
+            return {"valid": False, "length": n, "broken_at": idx, "head_hash": None}
+        try:
+            recomputed = nav_proof_hash(row)
+        except Exception:  # noqa: BLE001 — malformed row → fail-CLOSED
+            return {"valid": False, "length": n, "broken_at": idx, "head_hash": None}
+        if recomputed != row.get("proof_hash"):
+            return {"valid": False, "length": n, "broken_at": idx, "head_hash": None}
+        expected_prev = row["proof_hash"]
+        head_hash = row["proof_hash"]
+    return {"valid": True, "length": n, "broken_at": None, "head_hash": head_hash}
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# (G) sleeve forward-series proof — chained like the equity track (WORKSTREAM 2; MANY files)
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+def verify_sleeve_chain(rows: List[dict]) -> dict:
+    """Walk forward-point rows in seq order; at each require (1) seq == idx, (2) prev_hash ==
+    previous entry_hash (genesis '0'*64), (3) recompute_sleeve_entry_hash(row) == entry_hash.
+    fail-CLOSED. Returns {valid, length, broken_at, head_hash}. Empty is vacuously valid. A forged
+    forward equity/apy/book-count, or a reordered/back-dated day, → precise broken_at."""
+    expected_prev = SLEEVE_GENESIS_PREV
+    head_hash: Optional[str] = None
+    n = len(rows)
+    for idx, row in enumerate(rows):
+        if not isinstance(row, dict):
+            return {"valid": False, "length": n, "broken_at": idx, "head_hash": None}
+        if row.get("seq") != idx:
+            return {"valid": False, "length": n, "broken_at": idx, "head_hash": None}
+        if row.get("prev_hash") != expected_prev:
+            return {"valid": False, "length": n, "broken_at": idx, "head_hash": None}
+        try:
+            recomputed = recompute_sleeve_entry_hash(row)
+        except Exception:  # noqa: BLE001 — malformed row → fail-CLOSED
+            return {"valid": False, "length": n, "broken_at": idx, "head_hash": None}
+        if recomputed != row.get("entry_hash"):
+            return {"valid": False, "length": n, "broken_at": idx, "head_hash": None}
+        expected_prev = row["entry_hash"]
+        head_hash = row["entry_hash"]
+    return {"valid": True, "length": n, "broken_at": None, "head_hash": head_hash}
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -420,37 +591,74 @@ def _read_json(path: Path) -> Tuple[Optional[dict], Optional[str]]:
         return None, f"corrupt JSON: {e}"
 
 
+def _classify_file(p: Path, found: dict) -> None:
+    """Sort ONE file into the surface buckets by its filename. The tournament ranking chain and the
+    rates-desk decision chain are BOTH named decision_log.jsonl — they are told apart by their parent
+    dir (a tournament/ parent → tournament bucket). Sleeve proofs (*_series_proof.jsonl) are a LIST
+    (many files)."""
+    name = p.name
+    parent = p.parent.name
+    if name.endswith("_series_proof.jsonl"):
+        if p not in found["sleeve_proofs"]:
+            found["sleeve_proofs"].append(p)
+    elif name == "nav_proof.jsonl" or name.endswith("nav_proof.jsonl"):
+        if found["nav_proof"] is None:
+            found["nav_proof"] = p
+    elif name == "decision_log.jsonl" or name.endswith("decision_log.jsonl"):
+        # tournament/decision_log.jsonl vs rates-desk decision_log.jsonl — disambiguate by parent dir
+        if parent == "tournament":
+            if found["tournament"] is None:
+                found["tournament"] = p
+        elif found["decision_log"] is None:
+            found["decision_log"] = p
+        elif found["tournament"] is None:
+            found["tournament"] = p
+    elif name == "equity_track.jsonl" or name.endswith("equity_track.jsonl"):
+        if found["equity_track"] is None:
+            found["equity_track"] = p
+    elif name == "anchors.jsonl" or name.endswith("anchors.jsonl"):
+        if found["anchors"] is None:
+            found["anchors"] = p
+    elif name == "exit_nav.json" or name.endswith("exit_nav.json"):
+        if found["exit_nav"] is None:
+            found["exit_nav"] = p
+
+
 def _resolve_inputs(args_paths: List[str]) -> dict:
-    """Map the CLI paths to {decision_log, exit_nav, anchors}. A single directory auto-discovers the
-    canonical filenames; explicit files are matched by suffix/name."""
-    found = {"decision_log": None, "exit_nav": None, "anchors": None, "equity_track": None}
+    """Map the CLI paths to EVERY anchored surface. A directory is walked RECURSIVELY (rglob) so a
+    single ``verify_spa.py data/`` auto-discovers all surfaces wherever they live (rates_desk/,
+    tournament/, rwa_backstop/, rates_desk/paper/). Explicit files are matched by name. ``sleeve_proofs``
+    is a LIST (one chain per sleeve); every other surface is a single file."""
+    found: dict = {
+        "decision_log": None, "exit_nav": None, "anchors": None, "equity_track": None,
+        "tournament": None, "nav_proof": None, "sleeve_proofs": [],
+    }
+    # The filenames the recursive walk picks up (so we don't scan unrelated JSON).
+    _DISCOVER = ("decision_log.jsonl", "exit_nav.json", "anchors.jsonl", "equity_track.jsonl",
+                 "nav_proof.jsonl")
     for raw in args_paths:
         p = Path(raw)
         if p.is_dir():
-            cand = {
-                "decision_log": p / "decision_log.jsonl",
-                "exit_nav": p / "exit_nav.json",
-                "anchors": p / "anchors.jsonl",
-                "equity_track": p / "equity_track.jsonl",
-            }
-            for k, fp in cand.items():
-                if fp.exists() and found[k] is None:
-                    found[k] = fp
+            seen: set = set()
+            for fname in _DISCOVER:
+                for fp in sorted(p.rglob(fname)):
+                    if fp.is_file() and fp not in seen:
+                        seen.add(fp)
+                        _classify_file(fp, found)
+            for fp in sorted(p.rglob("*_series_proof.jsonl")):
+                if fp.is_file():
+                    _classify_file(fp, found)
         else:
+            _classify_file(p, found)
+            # an explicit non-canonical .jsonl/.json falls back to the rates-desk default buckets.
             name = p.name
-            if name.endswith("equity_track.jsonl") or name == "equity_track.jsonl":
-                found["equity_track"] = p
-            elif name.endswith("decision_log.jsonl") or name == "decision_log.jsonl":
-                found["decision_log"] = p
-            elif name.endswith("anchors.jsonl") or name == "anchors.jsonl":
-                found["anchors"] = p
-            elif name.endswith("exit_nav.json") or name == "exit_nav.json":
-                found["exit_nav"] = p
-            elif name.endswith(".jsonl"):
-                # unknown jsonl: treat as decision_log only if not already set
+            if (name.endswith(".jsonl") and not any(
+                    name.endswith(s) for s in ("decision_log.jsonl", "anchors.jsonl",
+                                               "equity_track.jsonl", "nav_proof.jsonl",
+                                               "_series_proof.jsonl"))):
                 if found["decision_log"] is None:
                     found["decision_log"] = p
-            elif name.endswith(".json"):
+            elif name.endswith(".json") and not name.endswith("exit_nav.json"):
                 if found["exit_nav"] is None:
                     found["exit_nav"] = p
     return found
@@ -463,21 +671,35 @@ def run(paths: List[str], expect_head: Optional[str] = None) -> dict:
     """Run all available verifications over the resolved inputs. Returns a verdict dict. A proof is
     only checked if its file is present; at least ONE file must be present (else nothing to verify)."""
     inputs = _resolve_inputs(paths)
+
+    def _file_repr(v):
+        if isinstance(v, list):
+            return [str(x) for x in v]
+        return str(v) if v else None
+
     report: dict = {
         "spec_version": SPEC_VERSION,
         "canonical_json_rule": CANONICAL_JSON_RULE,
-        "files": {k: (str(v) if v else None) for k, v in inputs.items()},
+        "files": {k: _file_repr(v) for k, v in inputs.items()},
         "decision_chain": None,
         "exit_nav": None,
         "anchors": None,
         "equity_track": None,
+        "tournament": None,
+        "nav_proof": None,
+        "sleeves": None,
         "errors": [],
         "ok": False,
     }
 
-    if not any(inputs.values()):
-        report["errors"].append("no recognizable public files supplied (decision_log.jsonl / "
-                                "exit_nav.json / anchors.jsonl / equity_track.jsonl)")
+    def _has_any(v) -> bool:
+        return bool(v) if not isinstance(v, list) else len(v) > 0
+
+    if not any(_has_any(v) for v in inputs.values()):
+        report["errors"].append(
+            "no recognizable public files supplied (decision_log.jsonl / exit_nav.json / "
+            "anchors.jsonl / equity_track.jsonl / tournament/decision_log.jsonl / "
+            "rwa_backstop/nav_proof.jsonl / *_series_proof.jsonl)")
         return report
 
     decision_head: Optional[str] = None
@@ -540,6 +762,53 @@ def run(paths: List[str], expect_head: Optional[str] = None) -> dict:
                 report["errors"].append(
                     f"equity_track: chain broken at row {res['broken_at']}")
 
+    # (E) tournament ranking chain — output-covering + chained (WORKSTREAM 2)
+    if inputs["tournament"]:
+        rows, err = _read_jsonl(inputs["tournament"])
+        if err is not None:
+            report["errors"].append(f"tournament: {err}")
+            report["tournament"] = {"valid": False, "broken_at": None, "head_hash": None,
+                                    "length": None}
+        else:
+            res = verify_tournament_chain(rows)
+            report["tournament"] = res
+            if not res["valid"]:
+                report["errors"].append(f"tournament: chain broken at row {res['broken_at']}")
+
+    # (F) RWA-backstop NAV forward-record proof — exit-NAV §6 pattern, chained (WORKSTREAM 2)
+    if inputs["nav_proof"]:
+        rows, err = _read_jsonl(inputs["nav_proof"])
+        if err is not None:
+            report["errors"].append(f"nav_proof: {err}")
+            report["nav_proof"] = {"valid": False, "broken_at": None, "head_hash": None,
+                                   "length": None}
+        else:
+            res = verify_nav_proof(rows)
+            report["nav_proof"] = res
+            if not res["valid"]:
+                report["errors"].append(f"nav_proof: chain broken at row {res['broken_at']}")
+
+    # (G) sleeve forward-series proofs — MANY files, each its own chain (WORKSTREAM 2)
+    if inputs["sleeve_proofs"]:
+        per_sleeve: List[dict] = []
+        all_valid = True
+        for sp in inputs["sleeve_proofs"]:
+            rows, err = _read_jsonl(sp)
+            if err is not None:
+                report["errors"].append(f"sleeve {sp.name}: {err}")
+                per_sleeve.append({"file": str(sp), "valid": False, "broken_at": None,
+                                   "head_hash": None, "length": None})
+                all_valid = False
+                continue
+            res = verify_sleeve_chain(rows)
+            res = {"file": str(sp), **res}
+            per_sleeve.append(res)
+            if not res["valid"]:
+                report["errors"].append(f"sleeve {sp.name}: chain broken at row {res['broken_at']}")
+                all_valid = False
+        report["sleeves"] = {"valid": all_valid, "n_sleeves": len(per_sleeve),
+                             "per_sleeve": per_sleeve}
+
     # --expect-head assertion (the published head a reviewer was told to expect)
     if expect_head is not None:
         if decision_head != expect_head:
@@ -558,7 +827,11 @@ def _print_human(report: dict) -> None:
     print(f"spec_version       : {report['spec_version']}")
     print(f"canonical_json_rule: {report['canonical_json_rule']}")
     for k, v in report["files"].items():
-        print(f"  {k:14s}: {v or '(not supplied)'}")
+        if isinstance(v, list):
+            disp = (", ".join(v) if v else "(not supplied)")
+        else:
+            disp = (v or "(not supplied)")
+        print(f"  {k:14s}: {disp}")
     print("-" * 78)
 
     dc = report["decision_chain"]
@@ -587,6 +860,25 @@ def _print_human(report: dict) -> None:
               f"broken_at={et.get('broken_at')}  "
               f"window={et.get('first_date')}..{et.get('last_date')}")
         print(f"    head_hash      : {et.get('head_hash')}")
+
+    tn = report["tournament"]
+    if tn is not None:
+        print(f"[E] tournament     : valid={tn.get('valid')}  rows={tn.get('length')}  "
+              f"broken_at={tn.get('broken_at')}")
+        print(f"    head_hash      : {tn.get('head_hash')}")
+
+    nv = report["nav_proof"]
+    if nv is not None:
+        print(f"[F] rwa nav proof  : valid={nv.get('valid')}  forward_points={nv.get('length')}  "
+              f"broken_at={nv.get('broken_at')}")
+        print(f"    head_hash      : {nv.get('head_hash')}")
+
+    sl = report["sleeves"]
+    if sl is not None:
+        print(f"[G] sleeve proofs  : valid={sl.get('valid')}  n_sleeves={sl.get('n_sleeves')}")
+        for s in sl.get("per_sleeve", []):
+            print(f"    {Path(s['file']).name:42s}: valid={s.get('valid')}  "
+                  f"rows={s.get('length')}  broken_at={s.get('broken_at')}  head={s.get('head_hash')}")
 
     if "expected_head" in report:
         ok = report["decision_chain"] and report["decision_chain"].get("head_hash") == report["expected_head"]
