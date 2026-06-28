@@ -63,6 +63,25 @@ PROMOTION_CRITERIA: Dict[str, Any] = {
 
 PHASES = ["backtest", "paper_30d", "live"]
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Data-credibility gate (WS1.4 "Yield Capture" — stop promotion theater)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# A promotion to 'live' requires CREDIBLE data. The tournament backtest can run on
+# near-constant (mock OR stablecoin) returns, where Sharpe is mathematically
+# DEGENERATE (explodes to tens/hundreds/billions). The mass tournament already
+# stamps trustworthy=False + per-strategy sharpe_degenerate for such data. The
+# promotion gate MUST refuse to promote on it — otherwise a degenerate Sharpe could
+# reach 'live' (theater). FAIL-CLOSED: any ambiguity → refuse, never promote.
+#
+# |Sharpe| above this ceiling is treated as degenerate (locked-vol artifact). It is
+# strictly looser than the producer's display threshold (100) so the gate agrees with
+# or is stricter than the leaderboard's own sharpe_degenerate flag.
+DEGENERATE_SHARPE_CEILING: float = 10.0
+
+# Minimum paper days for a credible Sharpe (too few samples → not credible).
+MIN_CREDIBLE_PAPER_DAYS: int = PROMOTION_CRITERIA["min_days_paper"]
+
 
 def _tier1_gate_eligible(strategy_id: str) -> bool:
     """Advisory consult of the parallel Tier-1 gate. Fail-open (True) if the gate or its
@@ -114,6 +133,47 @@ def _keychain_secret(service: str) -> str:
         return ""
 
 
+def _is_degenerate_sharpe(sharpe: Any) -> bool:
+    """Return True if *sharpe* is degenerate (non-finite or |Sharpe| above the ceiling).
+
+    A degenerate Sharpe (locked-vol / near-constant returns) is NOT a credible signal
+    and must never gate a promotion. Fail-CLOSED: an unparseable / non-finite Sharpe is
+    treated as degenerate.
+    """
+    try:
+        import math
+        s = float(sharpe)
+    except (TypeError, ValueError):
+        return True
+    if not math.isfinite(s):
+        return True
+    return abs(s) > DEGENERATE_SHARPE_CEILING
+
+
+def _dataset_trustworthy(tournament: Dict[str, Any]) -> Tuple[bool, str]:
+    """Assess whether the tournament dataset is credible enough to promote on.
+
+    FAIL-CLOSED: a missing/false ``trustworthy`` flag or a DEGENERATE/LOW_VOL regime
+    → (False, reason). Only an explicit ``trustworthy=True`` with a non-degenerate
+    regime is credible.
+
+    Returns (is_trustworthy, reason).
+    """
+    if not isinstance(tournament, dict) or not tournament:
+        return False, "untrustworthy: tournament dataset missing"
+    # Explicit honesty stamp (propagated from the mass tournament). Missing → fail-closed.
+    if "trustworthy" not in tournament:
+        return False, "untrustworthy: no trustworthy stamp on dataset (fail-closed)"
+    if not bool(tournament.get("trustworthy")):
+        regime = tournament.get("data_source_regime", "UNKNOWN")
+        reason = tournament.get("trust_reason") or ""
+        return False, f"untrustworthy: dataset flagged trustworthy=false ({regime}) {reason}".strip()
+    regime = tournament.get("data_source_regime", "")
+    if regime in ("DEGENERATE_MOCK", "LOW_VOL_YIELD"):
+        return False, f"untrustworthy: degenerate data regime {regime}"
+    return True, "trustworthy"
+
+
 def _today_utc() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
@@ -151,6 +211,8 @@ class TournamentEngine:
         self._tournament_path = self._data_dir / "strategy_tournament.json"
         self._shadow_path = self._data_dir / "shadow_paper_trading.json"
         self._engine_state_path = self._data_dir / "tournament_engine_state.json"
+        # Refusals from the most recent check_promotions() call (fail-closed gate).
+        self.last_refusals: List[Dict[str, Any]] = []
 
     # ─────────────────────────────────────────────────────────────────────────
     # Public API
@@ -248,6 +310,8 @@ class TournamentEngine:
             "date":               date_str,
             "strategies_updated": strategies_updated,
             "promotions":         promotions,
+            # Explicit, reasoned refusals from the fail-closed data-credibility gate.
+            "refusals":           list(self.last_refusals),
             "rank_changes":       rank_changes,
             "telegram_sent":      telegram_sent,
             "shadow_best":        shadow_result.get("best_strategy"),
@@ -318,12 +382,28 @@ class TournamentEngine:
 
     def check_promotions(self) -> List[Dict[str, Any]]:
         """
-        Examine all paper-phase shadow strategies and return those that meet
-        the PROMOTION_CRITERIA (paper → live advisory).
+        Examine all paper-phase shadow strategies and return those that meet the
+        PROMOTION_CRITERIA *on CREDIBLE data* (paper → live advisory).
+
+        FAIL-CLOSED data-credibility gate (WS1.4): a strategy is REFUSED — never
+        promoted — when
+
+          • the dataset is flagged ``trustworthy=False`` (or carries no trustworthy
+            stamp, or sits in a DEGENERATE_MOCK / LOW_VOL_YIELD regime), OR
+          • its Sharpe is degenerate (non-finite or |Sharpe| > DEGENERATE_SHARPE_CEILING,
+            i.e. locked-vol artifact), OR
+          • it is explicitly flagged ``sharpe_degenerate`` / ``rank_unknown`` by the
+            producer, OR
+          • there are too few paper days for a credible Sharpe (insufficient-N).
+
+        A degenerate-Sharpe or untrustworthy strategy can therefore NEVER reach 'live'.
+        Refusals are recorded (with reasons) on ``self.last_refusals`` and persisted by
+        the daily run so the honest "we refused, here's why" outcome is surfaced rather
+        than hidden behind an empty promotion list.
 
         Returns
         -------
-        List of dicts describing each strategy ready for promotion:
+        List of dicts describing each strategy CREDIBLY ready for promotion:
           {strategy_id, rank, sharpe, paper_apy_pct, max_drawdown_pct,
            days_paper, criteria_met, is_advisory}
         """
@@ -336,12 +416,35 @@ class TournamentEngine:
 
         criteria = PROMOTION_CRITERIA
         promotions: List[Dict[str, Any]] = []
+        refusals: List[Dict[str, Any]] = []
+
+        # ── FAIL-CLOSED dataset-level gate ────────────────────────────────────
+        # If the underlying tournament data is not credible, refuse EVERY promotion
+        # up front — no per-strategy numeric criteria can override untrustworthy data.
+        dataset_ok, dataset_reason = _dataset_trustworthy(tournament)
+        if not dataset_ok:
+            for strategy in active:
+                sid = strategy.get("id", "unknown")
+                refusals.append({
+                    "strategy_id": sid,
+                    "refused":     True,
+                    "reason":      "untrustworthy",
+                    "detail":      dataset_reason,
+                    "phase_from":  "paper_30d",
+                    "phase_to":    "live",
+                })
+            self.last_refusals = refusals
+            _log.warning(
+                "check_promotions: REFUSED all %d strategies — %s",
+                len(refusals), dataset_reason,
+            )
+            return []
 
         for strategy in active:
             sid = strategy.get("id", "unknown")
             rank = strategy.get("rank", 999)
 
-            # Find matching ranked entry for Sharpe
+            # Find matching ranked entry for Sharpe + producer degeneracy flags.
             ranked_entry = next(
                 (r for r in ranked if r.get("strategy_key") == sid or r.get("id") == sid),
                 {}
@@ -364,11 +467,49 @@ class TournamentEngine:
             # Compute max drawdown from daily yields
             max_dd = self._compute_max_drawdown(sid, daily_results)
 
-            # Check each criterion
+            # ── Per-strategy DATA-CREDIBILITY gate (fail-CLOSED) ──────────────
+            # A degenerate Sharpe can NEVER reach 'live'. Check the producer flag
+            # AND independently re-derive degeneracy from the Sharpe value, so a
+            # missing/false producer flag cannot smuggle a degenerate Sharpe through.
+            producer_degenerate = bool(
+                ranked_entry.get("sharpe_degenerate") or ranked_entry.get("rank_unknown")
+            )
+            degenerate = producer_degenerate or _is_degenerate_sharpe(sharpe)
+            insufficient_n = days_paper < MIN_CREDIBLE_PAPER_DAYS
+
+            if degenerate:
+                refusals.append({
+                    "strategy_id": sid, "rank": rank, "refused": True,
+                    "reason": "degenerate_data",
+                    "detail": (
+                        f"Sharpe={sharpe} is degenerate (locked-vol / |Sharpe|>"
+                        f"{DEGENERATE_SHARPE_CEILING} or producer-flagged); not a "
+                        f"credible signal — cannot promote to live"
+                    ),
+                    "sharpe": sharpe,
+                    "phase_from": "paper_30d", "phase_to": "live",
+                })
+                _log.warning("check_promotions: REFUSED %s — degenerate Sharpe %s", sid, sharpe)
+                continue
+
+            # Check each numeric criterion (only reached on CREDIBLE Sharpe).
             sharpe_ok  = sharpe >= criteria["min_sharpe"]
             days_ok    = days_paper >= criteria["min_days_paper"]
             apy_ok     = paper_apy_pct >= criteria["min_apy_pct"]
             dd_ok      = max_dd >= criteria["max_drawdown"]  # max_drawdown is negative e.g. -0.15
+
+            if insufficient_n:
+                refusals.append({
+                    "strategy_id": sid, "rank": rank, "refused": True,
+                    "reason": "insufficient_data",
+                    "detail": (
+                        f"only {days_paper} paper day(s) (< {MIN_CREDIBLE_PAPER_DAYS} "
+                        f"required) — Sharpe not yet credible"
+                    ),
+                    "days_paper": days_paper,
+                    "phase_from": "paper_30d", "phase_to": "live",
+                })
+                continue
 
             all_ok = sharpe_ok and days_ok and apy_ok and dd_ok
 
@@ -377,6 +518,12 @@ class TournamentEngine:
             tier1_ok = _tier1_gate_eligible(sid)
             if all_ok and os.environ.get("TIER1_ENFORCE_GATE") == "1" and not tier1_ok:
                 _log.info("Tier-1 gate ENFORCED: skipping promotion of %s (not eligible)", sid)
+                refusals.append({
+                    "strategy_id": sid, "rank": rank, "refused": True,
+                    "reason": "tier1_ineligible",
+                    "detail": "Tier-1 gate enforced and strategy not eligible",
+                    "phase_from": "paper_30d", "phase_to": "live",
+                })
                 continue
 
             if all_ok:
@@ -396,17 +543,32 @@ class TournamentEngine:
                     "phase_from": "paper_30d",
                     "phase_to":   "live",
                     "is_advisory": IS_ADVISORY,
+                    # Data-credibility provenance: this promotion passed the fail-closed gate.
+                    "data_trustworthy": True,
                     # Advisory annotation from the parallel Tier-1 gate (real-data backtest +
                     # net-of-cost + OOS + capacity). Surfaces whether Tier-1 validates this
                     # promotion; never blocks (promotions are already advisory). Fail-open.
                     "tier1_eligible": tier1_ok,
                 })
+            else:
+                refusals.append({
+                    "strategy_id": sid, "rank": rank, "refused": True,
+                    "reason": "criteria_not_met",
+                    "detail": {
+                        "min_sharpe": sharpe_ok, "min_days_paper": days_ok,
+                        "min_apy_pct": apy_ok, "max_drawdown": dd_ok,
+                    },
+                    "phase_from": "paper_30d", "phase_to": "live",
+                })
 
+        self.last_refusals = refusals
         if promotions:
             _log.info(
-                "check_promotions: %d strategies ready for advisory promotion",
+                "check_promotions: %d strategies CREDIBLY ready for advisory promotion",
                 len(promotions),
             )
+        if refusals:
+            _log.info("check_promotions: %d strategies refused", len(refusals))
         return promotions
 
     def update_shadow_day(
@@ -535,10 +697,14 @@ class TournamentEngine:
         )
 
         promotions_pending: List[Dict] = []
+        promotion_refusals: List[Dict] = []
         try:
             promotions_pending = self.check_promotions()
+            promotion_refusals = list(self.last_refusals)
         except Exception as exc:
             _log.warning("get_tournament_status: check_promotions error: %s", exc)
+
+        dataset_trustworthy, dataset_trust_reason = _dataset_trustworthy(tournament)
 
         return {
             "schema_version":      "1.0",
@@ -549,6 +715,10 @@ class TournamentEngine:
             "promotion_criteria":  PROMOTION_CRITERIA,
             "top_5":               top_5,
             "promotions_pending":  promotions_pending,
+            # Fail-closed gate visibility: refusals + dataset trust verdict.
+            "promotion_refusals":  promotion_refusals,
+            "data_trustworthy":    dataset_trustworthy,
+            "data_trust_reason":   dataset_trust_reason,
             "shadow_days_tracked": len(daily_results),
             "last_shadow_date":    last_shadow_date,
             "total_strategies":    tournament.get("total_strategies", 0),
@@ -735,6 +905,10 @@ class TournamentEngine:
             "last_top3":      top3,
             "run_history":    run_history,
             "total_promotions": existing.get("total_promotions", 0) + len(promotions),
+            # Honest fail-closed record: why nothing (or what) was promoted this run.
+            "last_refusals":  list(self.last_refusals),
+            "last_refusals_count": len(self.last_refusals),
+            "total_refusals": existing.get("total_refusals", 0) + len(self.last_refusals),
             "updated_at":     _now_iso(),
         }
         _atomic_write_json(self._engine_state_path, state)

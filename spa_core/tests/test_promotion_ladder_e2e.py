@@ -76,6 +76,13 @@ def _write_tournament_files(
     data_dir.mkdir(parents=True, exist_ok=True)
     tournament = {
         "total_strategies": 1,
+        # This fixture exercises the NUMERIC criteria ladder on CREDIBLE synthetic data
+        # (Sharpe values are small/credible, well below the degenerate ceiling). Declare
+        # the dataset trustworthy so the fail-closed data-credibility gate (WS1.4) does
+        # not pre-empt the ladder. (Untrustworthy/degenerate refusal has its own tests in
+        # test_tournament_promotion_integrity.py.)
+        "trustworthy": True,
+        "data_source_regime": "NORMAL",
         "shadow_active_strategies": [
             {
                 "strategy_key": sleeve_id,

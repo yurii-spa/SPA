@@ -40,6 +40,25 @@ from spa_core.utils import clock
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _DATA_DIR = _PROJECT_ROOT / "data"
 _DATA_BEE_DIR = _DATA_DIR / "bee"
+_DATA_PIT_DIR = _DATA_DIR / "historical_apy"
+
+# Real point-in-time (PIT) historical APY store (WS1.4 "Yield Capture").
+# data/historical_apy/<file>.json holds a real, dated daily APY series
+# [{"date": "YYYY-MM-DD", "apy": <percent>}, ...] per protocol. These are the
+# highest-priority REAL series for the tournament backtest: they are aligned by
+# DATE (never row index — see _interp / _build_apy_points) so a protocol whose
+# series starts on a different calendar day (e.g. compound_v3 starts 2 days
+# earlier than aave_v3) does NOT silently shift another protocol's returns.
+# NOTE: PIT files store APY in PERCENT (3.68 = 3.68 %); the backtest engine
+# works in DECIMAL, so _pit_apy_points divides by 100.
+_PIT_FILE_MAP = {
+    # backtest protocol key → data/historical_apy/<file>.json
+    "aave_v3":           "aave_v3_usdc.json",
+    "compound_v3":       "compound_v3_usdc.json",
+    "morpho_steakhouse": "morpho_blue_usdc.json",
+    "yearn_v3":          "yearn_v3_usdc.json",
+    "spark_susds":       "sky_susds.json",
+}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Simulation constants
@@ -415,6 +434,41 @@ def _build_apy_points(series: List[Dict]) -> List[Tuple[date, float]]:
     return pts
 
 
+def _pit_apy_points(protocol: str) -> List[Tuple[date, float]]:
+    """Return DATE-aligned (date, decimal_apy) points from the real PIT store.
+
+    Reads data/historical_apy/<file>.json for *protocol* if a mapping exists.
+    The series is a real point-in-time daily APY series stored in PERCENT; it is
+    parsed by DATE (via _build_apy_points → sorted (date, value) tuples) so the
+    backtest aligns protocols by calendar date, never by row index — this is the
+    fix for the known axis-misalignment bug (compound_v3 starts 2 days before
+    aave_v3, so row-index alignment would shift its returns).
+
+    Returns [] (NOT a fabricated series) when no real PIT file exists for the
+    protocol, so the caller can fall back honestly to the next real source.
+    """
+    fname = _PIT_FILE_MAP.get(protocol)
+    if not fname:
+        return []
+    fpath = _DATA_PIT_DIR / fname
+    if not fpath.exists():
+        return []
+    try:
+        with open(fpath, encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except Exception:
+        return []
+    if not isinstance(raw, list) or not raw:
+        return []
+    # PIT files store APY in PERCENT → convert to DECIMAL for the engine.
+    pct_series = [
+        {"date": e.get("date"), "apy": float(e["apy"]) / 100.0}
+        for e in raw
+        if isinstance(e, dict) and e.get("date") is not None and e.get("apy") is not None
+    ]
+    return _build_apy_points(pct_series)
+
+
 def _protocol_apy_series(
     protocol: str,
     bee_data: Dict,
@@ -447,6 +501,12 @@ def _protocol_apy_series(
         "euler_v2": _EULER_V2_PROXY,
         "yearn_v3": _YEARN_V3_PROXY,
     }
+
+    # Highest priority: REAL point-in-time historical series (data/historical_apy/),
+    # aligned by DATE. Preferred over the BEE cache and proxies when available.
+    pit_pts = _pit_apy_points(protocol)
+    if pit_pts:
+        return pit_pts
 
     # Try BEE cache first. Fall back to the protocol name itself as the cache key so
     # any protocol with real DeFiLlama history (data/bee/defillama_apy_history.json,
@@ -492,6 +552,10 @@ def _resolve_protocol_source(
         "morpho_steakhouse": "morpho_steakhouse_usdc",
     }
     BUILT_IN_PROXY_KEYS = {"spark_susds", "maple", "euler_v2", "yearn_v3"}
+
+    # Mirror _protocol_apy_series: real PIT store wins when present.
+    if _pit_apy_points(protocol):
+        return "defillama_pit_real"
 
     bee_key = BEE_KEY_MAP.get(protocol, protocol)
     if bee_key:

@@ -185,6 +185,21 @@ class StrategyTournamentRunner:
                 "method_used":       s.get("method_used", "unknown"),
             })
 
+        # ── Carry the mass-level honesty stamp through (fail-CLOSED default) ───
+        # The promotion gate (TournamentEngine.check_promotions) MUST be able to
+        # refuse on untrustworthy/degenerate data without re-reading the mass file.
+        # Default to UNTRUSTWORTHY when the mass result lacks the flag → a missing
+        # stamp can never silently enable a promotion (theater).
+        mass_meta = mass.get("meta", {}) if isinstance(mass.get("meta"), dict) else {}
+        trustworthy = bool(mass.get("trustworthy", mass_meta.get("trustworthy", False)))
+        data_source_regime = (
+            mass.get("data_source_regime")
+            or mass_meta.get("data_source_regime")
+            or "DEGENERATE_MOCK"
+        )
+        trust_reason = mass_meta.get("trust_reason", mass.get("trust_reason", ""))
+        data_quality = mass_meta.get("data_quality", {})
+
         # Top-N shadow strategies
         shadow_active = [s for s in ranked_strategies if s["is_shadow_active"]]
 
@@ -197,6 +212,12 @@ class StrategyTournamentRunner:
             # Sharpe demoted to a secondary/displayed-and-flagged metric.
             "metric":            "net_annual_return_pct",
             "secondary_metric":  "sharpe_ratio",
+            # Honesty stamp propagated from the mass tournament (WS1.4). The promotion
+            # gate refuses to promote when trustworthy=False (fail-CLOSED).
+            "trustworthy":         trustworthy,
+            "data_source_regime":  data_source_regime,
+            "trust_reason":        trust_reason,
+            "data_quality":        data_quality,
             "simulation_period": mass.get("simulation_period", "2022-01-01 to 2025-12-31"),
             "initial_capital_usd": mass.get("initial_capital_usd", 100_000.0),
             "total_strategies":  mass.get("strategies_tested", len(leaderboard)),

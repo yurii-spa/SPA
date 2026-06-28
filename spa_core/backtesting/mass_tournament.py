@@ -635,7 +635,10 @@ class MassTournament:
             for proto in sorted(used_protocols)
         }
         _served = set(protocol_data_sources.values())
-        if "defillama_real" in _served:
+        if "defillama_pit_real" in _served:
+            # Real point-in-time historical series (data/historical_apy/), date-aligned.
+            data_source_label = "defillama_pit_real"
+        elif "defillama_real" in _served:
             data_source_label = "defillama_real"
         elif "defillama_fallback" in _served:
             data_source_label = "defillama_fallback"
