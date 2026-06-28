@@ -102,6 +102,7 @@ def _allocate(tmpdir: Path, adapters: list[dict], model: str) -> AllocationResul
         status_path=status,
         registry_path=tmpdir / "_no_registry.json",  # isolate from real registry
         strategy_loop_enabled=False,                  # isolate from shadow loop
+        live_apy_provider={},                         # WS1.1: isolate from network feed
     )
     return allocator.allocate(model=model)
 

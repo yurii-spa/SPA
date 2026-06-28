@@ -73,6 +73,92 @@ _PROTOCOL_ALIASES = {
     "morpho_blue": "morpho",
 }
 
+# WS1.1: APY sanity band for a LIVE point-in-time reading (decimal). A live APY
+# outside this band is treated as a malformed/anomalous feed and is NOT used to
+# rank — the adapter fails CLOSED to its labeled stale fallback (never a
+# fabricated number, never a live-feed spike silently winning). The lower bound
+# is >0 (a 0% / negative live reading is not actionable yield). The upper bound
+# mirrors the DeFiLlama feed's own APY_SANITY_MAX (200% == 2.0 decimal).
+_LIVE_APY_MIN_DECIMAL = 0.0   # exclusive: apy must be > 0
+_LIVE_APY_MAX_DECIMAL = 2.0   # 200% — anything above is an anomaly, fail-closed
+
+
+# Process-level cache for the default live-APY fetch. allocate() may be called
+# several times per process (cycle + analytics); without this each call would
+# re-poll every adapter (~30 network round-trips). TTL keeps it point-in-time
+# fresh within a cycle while collapsing duplicate fetches. Injected providers
+# (tests) bypass this entirely.
+_LIVE_APY_CACHE_TTL = 300.0  # seconds (mirrors DeFiLlama feed TTL)
+_live_apy_cache: dict[str, float] | None = None
+_live_apy_cache_ts: float = 0.0
+
+
+def _default_live_apy_provider() -> dict[str, float]:
+    """Live point-in-time APY (decimal) per registry adapter, via DeFiLlama.
+
+    WS1.1 money-path fix. Instantiates every adapter class in
+    ``ADAPTER_REGISTRY`` and reads its CANONICAL ``get_yield_info().apy`` (always
+    a decimal fraction, or ``None`` when the live feed is unavailable — see
+    base_adapter P3-5). This is the SAME live feed the orchestrator uses, but
+    extended to ALL registered adapters (not just the ~7 the orchestrator polls),
+    so the allocator can rank on live APY instead of the stale registry literal.
+
+    Strictly read-only. Never raises: any per-adapter error → that adapter is
+    simply absent from the result (→ caller falls to its labeled stale
+    fallback, fail-CLOSED). A non-finite / out-of-band / non-positive live
+    reading is EXCLUDED here so it can never silently win over the literal.
+    """
+    global _live_apy_cache, _live_apy_cache_ts
+    import os as _os
+    import time as _time
+
+    # Offline / deterministic guard: under pytest (or when DeFiLlama is disabled)
+    # the default provider performs NO network I/O — it returns {} so the
+    # allocator falls to its labeled stale fallbacks. This keeps the whole test
+    # suite offline + bit-reproducible; tests that exercise the LIVE money-path
+    # inject an explicit ``live_apy_provider`` instead (never the real network).
+    if _os.environ.get("PYTEST_CURRENT_TEST"):
+        return {}
+    try:
+        from . import config as _cfg
+        if not getattr(_cfg, "DEFILLAMA_ENABLED", True):
+            return {}
+    except Exception:  # noqa: BLE001
+        pass
+
+    now = _time.monotonic()
+    if _live_apy_cache is not None and (now - _live_apy_cache_ts) < _LIVE_APY_CACHE_TTL:
+        return dict(_live_apy_cache)
+
+    out: dict[str, float] = {}
+    try:
+        from spa_core.adapters import ADAPTER_REGISTRY  # lazy — avoid import cost on tests
+    except Exception as exc:  # pragma: no cover — import guard
+        log.warning("WS1.1 live provider: ADAPTER_REGISTRY import failed (%s)", exc)
+        return out
+    for entry in ADAPTER_REGISTRY:
+        try:
+            key, _tier, cls = entry[0], entry[1], entry[2]
+        except Exception:  # noqa: BLE001 — malformed registry row
+            continue
+        try:
+            info = cls().get_yield_info()
+            apy = getattr(info, "apy", None)
+        except Exception as exc:  # noqa: BLE001 — one bad adapter never breaks the feed
+            log.debug("WS1.1 live provider: %s get_yield_info failed (%s)", key, exc)
+            continue
+        # decimal apy; fail-CLOSED on non-numeric/non-finite/out-of-band.
+        if (
+            isinstance(apy, (int, float))
+            and not isinstance(apy, bool)
+            and math.isfinite(apy)
+            and _LIVE_APY_MIN_DECIMAL < float(apy) <= _LIVE_APY_MAX_DECIMAL
+        ):
+            out[str(key)] = float(apy)
+    _live_apy_cache = dict(out)
+    _live_apy_cache_ts = now
+    return out
+
 
 @dataclass
 class AllocationResult:
@@ -107,6 +193,14 @@ class AllocationResult:
     # MP-209: capacity limits enforcement (позиция ≤ 1% TVL пула, ADR-009).
     capacity_capped: bool = False
     capacity_check: dict = field(default_factory=dict)
+    # WS1.1 (money-path data-integrity): per-adapter provenance of the APY that
+    # drove ranking/allocation. ``apy_sources`` maps protocol → "live" |
+    # "fallback_stale"; ``feed_coverage`` summarises live-vs-fallback counts so a
+    # reviewer SEES which adapters ranked on live DeFiLlama data vs the stale
+    # registry literal. ``apy_used`` records the (pct) value actually ranked on.
+    apy_sources: dict[str, str] = field(default_factory=dict)
+    apy_used: dict[str, float] = field(default_factory=dict)
+    feed_coverage: dict = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -162,6 +256,7 @@ class StrategyAllocator:
         comparison_path: str | os.PathLike | None = None,
         strategies_dir: str | os.PathLike | None = None,
         registry_path: str | os.PathLike | None = None,
+        live_apy_provider=None,
     ):
         self.status_path = Path(status_path) if status_path else _STATUS_PATH
         self.risk_scores_path = (
@@ -176,6 +271,56 @@ class StrategyAllocator:
             Path(comparison_path) if comparison_path else _SHADOW_COMPARISON_PATH
         )
         self.strategies_dir = Path(strategies_dir) if strategies_dir else None
+        # WS1.1: injectable live-APY provider → {protocol: live_apy_decimal}.
+        # Default = real DeFiLlama feed via the adapter registry. Tests inject a
+        # deterministic provider (a dict or a zero-arg callable returning one) so
+        # the suite is offline + bit-reproducible. ``False`` disables live lookup
+        # entirely (forces the legacy stale-literal path — used to PIN the bug).
+        self._live_apy_provider = live_apy_provider
+        # WS1.1: per-protocol provenance, populated during _load_adapters and
+        # surfaced on AllocationResult. protocol → "live" | "fallback_stale".
+        self._apy_sources: dict[str, str] = {}
+        self._apy_used: dict[str, float] = {}  # protocol → apy_pct actually ranked on
+        self._as_of: dict[str, str] = {}       # protocol → ISO ts of the value used
+
+    # ── WS1.1: live point-in-time APY lookup ──────────────────────────────
+    def _get_live_apy_map(self) -> dict[str, float]:
+        """Return {protocol: live_apy_decimal} from the injected/default provider.
+
+        Fail-CLOSED: any error (or a provider that returns a non-mapping) → ``{}``
+        (every adapter then ranks on its labeled stale fallback, never a
+        fabricated number). ``self._live_apy_provider is False`` → live lookup
+        disabled entirely (legacy literal path).
+        """
+        if self._live_apy_provider is False:
+            return {}
+        provider = self._live_apy_provider
+        try:
+            if provider is None:
+                raw = _default_live_apy_provider()
+            elif callable(provider):
+                raw = provider()
+            elif isinstance(provider, dict):
+                raw = provider
+            else:
+                return {}
+            if not isinstance(raw, dict):
+                return {}
+            out: dict[str, float] = {}
+            for k, v in raw.items():
+                # Provider contract: decimal APY. Re-validate fail-CLOSED so a
+                # test/real provider can never inject NaN/Inf/out-of-band/<=0.
+                if (
+                    isinstance(v, (int, float))
+                    and not isinstance(v, bool)
+                    and math.isfinite(v)
+                    and _LIVE_APY_MIN_DECIMAL < float(v) <= _LIVE_APY_MAX_DECIMAL
+                ):
+                    out[str(k)] = float(v)
+            return out
+        except Exception as exc:  # noqa: BLE001 — fail-closed, never break allocation
+            log.warning("WS1.1 live_apy_provider failed (%s) — stale-literal fallback", exc)
+            return {}
 
     # ── выбор лучшей shadow-стратегии (SPA-V408) ──────────────────────────
     def _select_shadow_strategy(self) -> dict | None:
@@ -256,6 +401,14 @@ class StrategyAllocator:
         adapters: list[dict] = []
         seen_protocols: set[str] = set()
 
+        # WS1.1: reset per-call provenance, then fetch the live point-in-time APY
+        # map ONCE (decimal per protocol). live[name] WINS over the stale literal.
+        self._apy_sources = {}
+        self._apy_used = {}
+        self._as_of = {}
+        live_apy = self._get_live_apy_map()
+        now_iso = datetime.now(timezone.utc).isoformat()
+
         if self.status_path.exists():
             with open(self.status_path, encoding="utf-8") as fh:
                 raw = json.load(fh)
@@ -265,55 +418,118 @@ class StrategyAllocator:
                     continue
                 protocol = str(a["protocol"])
                 seen_protocols.add(protocol)
+                # Orchestrator-snapshot adapters already came from the live
+                # get_yield_info() feed → their apy_pct is live by construction.
+                # Prefer the freshly-fetched live reading when present (same feed,
+                # one consistent timestamp); else trust the snapshot value.
+                snap_apy = float(a.get("apy_pct", 0.0))
+                if protocol in live_apy:
+                    apy_pct = round(live_apy[protocol] * 100.0, 4)
+                else:
+                    apy_pct = snap_apy
                 adapters.append(
                     {
                         "protocol": protocol,
-                        "apy_pct": float(a.get("apy_pct", 0.0)),
+                        "apy_pct": apy_pct,
                         "tvl_usd": float(a.get("tvl_usd", 0.0)),
                         "tier": a.get("tier", "T2"),
+                        "apy_source": "live",
+                        "as_of": a.get("last_updated", now_iso),
                     }
                 )
+                self._apy_sources[protocol] = "live"
+                self._apy_used[protocol] = apy_pct
+                self._as_of[protocol] = a.get("last_updated", now_iso)
 
         # MP-REGISTRY: merge active adapters from adapter_registry.json that are
-        # absent from the orchestrator snapshot (live data always takes precedence).
+        # absent from the orchestrator snapshot.
+        #
+        # WS1.1 MONEY-PATH FIX: when a LIVE DeFiLlama reading exists for this
+        # adapter, it WINS over the hardcoded ``fallback_apy`` literal (the desk
+        # ranks on live APY, e.g. aave 6.9% live, not the 3.5% stale literal).
+        # The literal becomes a LABELED, staleness-stamped LAST RESORT only —
+        # used (and flagged ``apy_source="fallback_stale"``) solely when the live
+        # feed has no usable value for that adapter. A live reading is never
+        # fabricated and a stale literal is never silently presented as live.
         if self._registry_path.exists():
             try:
                 reg = json.loads(self._registry_path.read_text(encoding="utf-8"))
                 for name, entry in reg.get("adapters", {}).items():
                     if name in seen_protocols:
-                        continue  # live orchestrator value takes precedence
+                        continue  # already handled (orchestrator snapshot, live)
                     if not isinstance(entry, dict):
                         continue
                     if entry.get("research_only"):
                         continue
                     if entry.get("status") not in ("active",):
                         continue
-                    fallback_apy = entry.get("fallback_apy")
-                    if not isinstance(fallback_apy, (int, float)) or fallback_apy <= 0:
-                        continue
                     # Registry stores tier as integer (1/2/3); treat tier≥3 as T2.
                     tier_int = entry.get("tier", 2)
                     tier_str = "T1" if tier_int == 1 else "T2"
                     tvl = float(entry.get("fallback_tvl_usd", _REGISTRY_FALLBACK_TVL_USD))
+
+                    if name in live_apy:
+                        # LIVE WINS. Normalised decimal → pct.
+                        apy_pct = round(live_apy[name] * 100.0, 4)
+                        apy_source = "live"
+                        as_of = now_iso
+                    else:
+                        # Fail-CLOSED: no usable live value → labeled stale literal.
+                        fallback_apy = entry.get("fallback_apy")
+                        if not isinstance(fallback_apy, (int, float)) or isinstance(
+                            fallback_apy, bool
+                        ) or not math.isfinite(fallback_apy) or fallback_apy <= 0:
+                            # No live AND no usable literal → exclude entirely
+                            # (never a fabricated number).
+                            continue
+                        apy_pct = round(float(fallback_apy) * 100.0, 4)
+                        apy_source = "fallback_stale"
+                        as_of = entry.get("updated") or reg.get("updated") or "unknown"
+
                     adapters.append(
                         {
                             "protocol": name,
-                            "apy_pct": float(fallback_apy) * 100.0,  # decimal → pct
+                            "apy_pct": apy_pct,
                             "tvl_usd": tvl,
                             "tier": tier_str,
+                            "apy_source": apy_source,
+                            "as_of": as_of,
                         }
                     )
+                    self._apy_sources[name] = apy_source
+                    self._apy_used[name] = apy_pct
+                    self._as_of[name] = as_of
                     log.info(
-                        "MP-REGISTRY: fallback adapter %s apy=%.2f%% tier=%s tvl=$%.0fM",
-                        name,
-                        float(fallback_apy) * 100.0,
-                        tier_str,
-                        tvl / 1_000_000,
+                        "WS1.1: adapter %s apy=%.2f%% source=%s tier=%s tvl=$%.0fM",
+                        name, apy_pct, apy_source, tier_str, tvl / 1_000_000,
                     )
             except Exception as _reg_exc:
                 log.warning("MP-REGISTRY: registry merge failed (%s) — using orchestrator only", _reg_exc)
 
         return adapters
+
+    # ── WS1.1: feed coverage metric ───────────────────────────────────────
+    def _build_feed_coverage(self) -> dict:
+        """Summarise live-vs-fallback APY provenance across loaded adapters.
+
+        Reads the per-protocol ``self._apy_sources`` populated by
+        ``_load_adapters``. Returns a dict a reviewer can audit at a glance:
+        live/fallback counts, the lists, and a ``ranked_on`` provenance map.
+        """
+        live = sorted(p for p, s in self._apy_sources.items() if s == "live")
+        stale = sorted(p for p, s in self._apy_sources.items() if s == "fallback_stale")
+        total = len(self._apy_sources)
+        return {
+            "total": total,
+            "live": len(live),
+            "fallback_stale": len(stale),
+            "live_pct": round(100.0 * len(live) / total, 1) if total else 0.0,
+            "live_adapters": live,
+            "fallback_stale_adapters": stale,
+            "apy_sources": dict(self._apy_sources),
+            "apy_used_pct": {p: round(v, 4) for p, v in self._apy_used.items()},
+            "as_of": dict(self._as_of),
+        }
 
     # ── кап'ы по тирам (water-filling) ────────────────────────────────────
     def _cap_for(self, tier: str) -> float:
@@ -587,11 +803,22 @@ class StrategyAllocator:
                 strategy_confidence=None,
                 tvl_filtered_protocols=tvl_filtered,
                 t2_cap_enforced=False,
+                apy_sources=dict(self._apy_sources),
+                apy_used=dict(self._apy_used),
+                feed_coverage=self._build_feed_coverage(),
                 notes=notes,
             )
 
         tier_map = {a["protocol"]: a["tier"] for a in adapters}
         apy_map = {a["protocol"]: a["apy_pct"] for a in adapters}
+        # WS1.1: coverage note so the live-vs-stale split is visible in cycle logs.
+        _cov = self._build_feed_coverage()
+        notes.append(
+            "WS1.1 feed_coverage: {live}/{total} adapters on LIVE APY, "
+            "{stale} on labeled stale fallback.".format(
+                live=_cov["live"], total=_cov["total"], stale=_cov["fallback_stale"]
+            )
+        )
 
         risk_model_applied = False
         risk_breakdown: dict[str, dict] = {}
@@ -821,6 +1048,9 @@ class StrategyAllocator:
             t2_cap_enforced=t2_cap_enforced,
             capacity_capped=capacity_capped,
             capacity_check=capacity_check_result,
+            apy_sources=dict(self._apy_sources),
+            apy_used=dict(self._apy_used),
+            feed_coverage=_cov,
             notes=notes,
         )
 

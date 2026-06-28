@@ -1,18 +1,22 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import snap from '../data/track_snapshot.json';
 
 // Shows current system status: GoLive score, paper trading progress.
-// Values from golive_status.json + equity_curve_daily.json. The day count is the
-// HONEST evidenced count (we reset the track — only cycle-logged days count;
-// earlier days were flat-rate backfill). Anchor 2026-06-22. See /track-record.
-const goLiveChecks = 27;
-const goLiveTotal = 29;
+// SSR values are the last committed evidenced SNAPSHOT (data/golive_status.json +
+// data/equity_curve_daily.json, derived into src/data/track_snapshot.json — NOT
+// hand-typed literals that silently drift). The page then fetches LIVE values from
+// api.earn-defi.com client-side and overrides the snapshot; if the API is offline,
+// the honest snapshot stands and the page says so. The day count is the HONEST
+// evidenced count (we reset the track — only cycle-logged days count; earlier days
+// were flat-rate backfill). Anchor 2026-06-22. See /track-record.
+const goLiveChecks = snap.gates_passed ?? 27;
+const goLiveTotal = snap.gates_total ?? 29;
 const goLiveReadinessPct = Math.round((goLiveChecks / goLiveTotal) * 100);
-const evidenceDays = 5;       // evidenced (cycle-logged) days, anchor 2026-06-22
-const evidenceTarget = 30;    // 30 honest days required (ADR-002)
-const goLiveTarget = "2026-07-21";
-const trackStart = "2026-06-22";  // evidence anchor (NOT the backfilled 06-10)
-const lastUpdated = "2026-06-26";
+const evidenceDays = snap.real_track_days ?? 5;   // evidenced (cycle-logged) days
+const evidenceTarget = snap.days_needed ?? 30;    // 30 honest days required (ADR-002)
+const goLiveTarget = snap.go_live_target ?? "2026-07-21";
+const trackStart = snap.evidenced_anchor ?? "2026-06-22";  // evidence anchor (NOT backfilled 06-10)
 
 // Canonical blockers from data/golive_status.json (2 time-gated: same 30-day track wait).
 const blockers = [
@@ -53,7 +57,7 @@ const statusBg: Record<CheckStatus, string> = {
 
 <Layout
   title="System Status — SPA earn-defi.com"
-  description="Live operational status of the SPA autonomous DeFi yield optimizer. GoLive criteria, paper track record progress, infrastructure health. Updated daily."
+  description="Live operational status of the SPA autonomous DeFi yield optimizer. GoLive criteria, paper track record progress, infrastructure health. Live from api.earn-defi.com, with an honest snapshot fallback when offline."
 >
   <main class="min-h-screen bg-[#0a0a0a] text-white font-sans">
 
@@ -81,29 +85,31 @@ const statusBg: Record<CheckStatus, string> = {
         <div class="rounded-xl border border-white/10 bg-white/5 p-6">
           <div class="text-sm text-white/40 uppercase tracking-wider mb-3" data-ru="Готовность к GoLive">GoLive Readiness</div>
           <div class="flex items-end gap-2 mb-3">
-            <span class="text-5xl font-bold text-amber-400">{goLiveChecks}</span>
-            <span class="text-2xl text-white/30 mb-1">/ {goLiveTotal}</span>
+            <span class="text-5xl font-bold text-amber-400" id="st-gates-pass">{goLiveChecks}</span>
+            <span class="text-2xl text-white/30 mb-1">/ <span id="st-gates-total">{goLiveTotal}</span></span>
           </div>
           <!-- Progress bar -->
           <div class="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
             <div
+              id="st-gates-bar"
               class="h-full bg-amber-400 rounded-full transition-all"
               style={`width: ${goLiveReadinessPct}%`}
             ></div>
           </div>
-          <p class="text-white/50 text-sm">{goLiveReadinessPct}<span data-ru={`% критериев пройдено — осталось ${blockerCount} блокера`}>% criteria pass — {blockerCount} blockers remaining</span></p>
+          <p class="text-white/50 text-sm"><span id="st-gates-pct">{goLiveReadinessPct}</span><span data-ru={`% критериев пройдено — осталось ${blockerCount} блокера`}>% criteria pass — {blockerCount} blockers remaining</span></p>
         </div>
 
         <!-- Paper Track Record -->
         <div class="rounded-xl border border-white/10 bg-white/5 p-6">
           <div class="text-sm text-white/40 uppercase tracking-wider mb-3" data-ru="Честный track record">Honest Track Record</div>
           <div class="flex items-end gap-2 mb-3">
-            <span class="text-5xl font-bold text-blue-400">{evidenceDays}</span>
+            <span class="text-5xl font-bold text-blue-400" id="st-days">{evidenceDays}</span>
             <span class="text-2xl text-white/30 mb-1">/ {evidenceTarget} <span data-ru="дней">days</span></span>
           </div>
           <!-- Progress bar -->
           <div class="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
             <div
+              id="st-days-bar"
               class="h-full bg-blue-400 rounded-full transition-all"
               style={`width: ${Math.round(evidenceDays / evidenceTarget * 100)}%`}
             ></div>
@@ -179,9 +185,14 @@ const statusBg: Record<CheckStatus, string> = {
         </div>
       </div>
 
-      <!-- Footer note -->
+      <!-- Footer note — honest source label (live-or-snapshot, never a false "updated daily" claim) -->
       <div class="text-center text-white/30 text-sm pb-4">
-        <p data-ru="Статус обновляется ежедневно автономным cycle runner.">Status is updated daily by the autonomous cycle runner.</p>
+        <p>
+          <span data-ru="Источник:">Source:</span>
+          <span id="st-src" class="font-mono text-white/40" data-ru="последний подтверждённый снимок">last evidenced snapshot</span>
+          <span class="text-white/25">·</span>
+          <span data-ru="Живые значения загружаются из api.earn-defi.com; при офлайне показывается последний подтверждённый снимок.">Live values load from api.earn-defi.com; the last evidenced snapshot is shown when the API is offline.</span>
+        </p>
         <p class="mt-1">
           <a href="/due-diligence" class="text-white/50 hover:text-white transition-colors underline underline-offset-2" data-ru="Центр Due Diligence">Due Diligence Center</a>
           &nbsp;·&nbsp;
@@ -193,4 +204,50 @@ const statusBg: Record<CheckStatus, string> = {
 
     </div>
   </main>
+
+  <script is:inline>
+    /* Live status — api.earn-defi.com (localhost fallback), graceful offline.
+     * On success the SSR snapshot numbers are overridden with live values and the
+     * source label flips to "live". On failure the honest snapshot stands and the
+     * label keeps saying "last evidenced snapshot" — never a false "updated daily" claim. */
+    (function(){
+      var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+        ? 'http://localhost:8765'
+        : 'https://api.earn-defi.com';
+      var DAYS_NEEDED = 30;
+      function setText(id, txt){ var el = document.getElementById(id); if(el){ el.textContent = txt; } }
+      function setWidth(id, pct){ var el = document.getElementById(id); if(el){ el.style.width = Math.max(0, Math.min(100, pct)) + '%'; } }
+      function isRu(){ try{ return (localStorage.getItem('spa_lang') || 'en') === 'ru'; }catch(e){ return false; } }
+
+      function loadGoLive(){
+        fetch(API + '/api/v1/golive').then(function(r){ return r.json(); }).then(function(d){
+          if(!d) return;
+          var days = d.real_track_days != null ? d.real_track_days : null;
+          var pass = d.passed != null ? d.passed : d.risk_gates_passed;
+          var total = d.total != null ? d.total : d.risk_gates_total;
+          if(days != null){
+            setText('st-days', days);
+            setWidth('st-days-bar', (days / DAYS_NEEDED) * 100);
+          }
+          if(pass != null){ setText('st-gates-pass', pass); }
+          if(total != null){ setText('st-gates-total', total); }
+          if(pass != null && total != null){
+            var pct = Math.round((pass / total) * 100);
+            setText('st-gates-pct', pct);
+            setWidth('st-gates-bar', pct);
+          }
+          // Flip the source label to "live" only once we actually have live data.
+          var src = document.getElementById('st-src');
+          if(src){
+            src.textContent = isRu() ? 'api.earn-defi.com (вживую)' : 'api.earn-defi.com (live)';
+            src.removeAttribute('data-ru');
+          }
+        }).catch(function(){ /* offline → SSR snapshot + honest label stand */ });
+      }
+
+      function init(){ loadGoLive(); }
+      if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
+      else { init(); }
+    })();
+  </script>
 </Layout>

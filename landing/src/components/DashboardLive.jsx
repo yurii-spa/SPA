@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Component } from 'react';
 
 /*
  * DashboardLive — the COMMAND CENTER for earn-defi.com.
@@ -421,6 +421,48 @@ function SourceTag({ live, lang }) {
     : <Chip tone="muted">{tr('offline')}</Chip>;
 }
 
+/* ───────────────────────────────────────── per-panel error boundary ─────────────── */
+/* A render-time exception inside one tab/section must NOT blank the whole command
+ * center. Each tab's content is wrapped in this boundary, so a crash degrades to a
+ * single honest error card for THAT panel and the rest of the page + chrome render fine.
+ * (React error boundaries must be class components — there is no hook equivalent.) */
+class PanelBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    // Surface to the console for debugging; never rethrow (that would re-blank the page).
+    if (typeof console !== 'undefined' && console.error) {
+      console.error('[DashboardLive] panel render error:', error, info);
+    }
+  }
+  render() {
+    if (this.state.error) {
+      const ru = this.props.lang === 'ru';
+      return (
+        <div style={{ ...card, padding: '20px', borderLeft: '3px solid var(--danger)', background: 'rgba(242,109,109,.06)' }}>
+          <p style={{ ...mono, fontSize: '.6875rem', textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--danger)', marginBottom: 8 }}>
+            {ru ? 'Эта панель не отрисовалась' : 'This panel failed to render'}
+          </p>
+          <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+            {ru
+              ? 'Произошла ошибка отображения в этой секции. Остальная часть дашборда работает. Обновите страницу, чтобы попробовать снова.'
+              : 'A display error occurred in this section. The rest of the dashboard is unaffected. Reload the page to try again.'}
+          </p>
+          <p style={{ ...mono, fontSize: '.625rem', color: 'var(--text-faint)', marginTop: 8, wordBreak: 'break-word' }}>
+            {String(this.state.error && this.state.error.message || this.state.error)}
+          </p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 /* ─────────────────────────────────────────────────── sleeve metadata ────────────── */
 /* One-line "what is this" per sleeve id (matches CLAUDE.md Strategy Lab section). */
 const SLEEVE_DESC = {
@@ -604,6 +646,7 @@ export default function DashboardLive() {
 
       {/* ───────────────────────────────────── OVERVIEW ───────────────────────── */}
       {tab === 'overview' && (
+        <PanelBoundary lang={lang}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <Panel style={{ background: 'linear-gradient(180deg, rgba(54,194,180,.06), transparent)', border: '1px solid rgba(54,194,180,.22)', padding: '28px' }}>
             <Eyebrow>{tr('heroEyebrow')}</Eyebrow>
@@ -714,34 +757,47 @@ export default function DashboardLive() {
             </div>
           </Panel>
         </div>
+        </PanelBoundary>
       )}
 
       {/* ───────────────────────────────── PARALLEL STRATEGIES ────────────────── */}
       {tab === 'strategies' && (
-        <StrategiesSection lab={lab} promotion={promotion} lang={lang} tr={tr} />
+        <PanelBoundary lang={lang}>
+          <StrategiesSection lab={lab} promotion={promotion} lang={lang} tr={tr} />
+        </PanelBoundary>
       )}
 
       {/* ───────────────────────────────── TOURNAMENT ─────────────────────────── */}
       {tab === 'tournament' && (
-        <TournamentSection tournament={tournament} lang={lang} tr={tr} />
+        <PanelBoundary lang={lang}>
+          <TournamentSection tournament={tournament} lang={lang} tr={tr} />
+        </PanelBoundary>
       )}
 
       {/* ───────────────────────────────── RESEARCH DESKS ─────────────────────── */}
       {tab === 'desks' && (
-        <DesksSection
-          surface={ratesSurface} opps={ratesOpps} decisions={ratesDecisions} track={ratesTrack}
-          refusal={refusal} rwaBoard={rwaBoard} exitNav={exitNav} refusalLog={refusalLog}
-          lang={lang} tr={tr}
-        />
+        <PanelBoundary lang={lang}>
+          <DesksSection
+            surface={ratesSurface} opps={ratesOpps} decisions={ratesDecisions} track={ratesTrack}
+            refusal={refusal} rwaBoard={rwaBoard} exitNav={exitNav} refusalLog={refusalLog}
+            lang={lang} tr={tr}
+          />
+        </PanelBoundary>
       )}
 
       {/* ───────────────────────────────── SYSTEM ─────────────────────────────── */}
       {tab === 'system' && (
-        <SystemSection fl={fl} safe={safe} safeState={safeState} safeTone={safeTone} lang={lang} tr={tr} />
+        <PanelBoundary lang={lang}>
+          <SystemSection fl={fl} safe={safe} safeState={safeState} safeTone={safeTone} lang={lang} tr={tr} />
+        </PanelBoundary>
       )}
 
       {/* ───────────────────────────────── HELP ───────────────────────────────── */}
-      {tab === 'help' && <HelpSection lang={lang} tr={tr} />}
+      {tab === 'help' && (
+        <PanelBoundary lang={lang}>
+          <HelpSection lang={lang} tr={tr} />
+        </PanelBoundary>
+      )}
     </div>
   );
 }

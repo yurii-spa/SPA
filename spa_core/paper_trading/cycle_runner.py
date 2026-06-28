@@ -1090,6 +1090,22 @@ def run_cycle(
     }
     model_used = getattr(alloc, "model_used", None)
     strategy_loop_active = bool(getattr(alloc, "strategy_loop_active", False))
+    # WS1.1 (money-path data-integrity): provenance of the APY that drove the
+    # allocator's ranking, surfaced per-position in current_positions.json so a
+    # reviewer SEES which adapters were on live DeFiLlama data vs the stale
+    # registry literal. Fail-safe: missing fields default to empty maps.
+    _apy_sources_map: dict = dict(getattr(alloc, "apy_sources", {}) or {})
+    _feed_coverage: dict = dict(getattr(alloc, "feed_coverage", {}) or {})
+    _apy_as_of_map: dict = dict(_feed_coverage.get("as_of", {}) or {})
+    _apy_used_map: dict = dict(getattr(alloc, "apy_used", {}) or {})
+    if _feed_coverage:
+        notes.append(
+            "WS1.1 feed_coverage: {live}/{total} live, {stale} stale-fallback".format(
+                live=_feed_coverage.get("live", 0),
+                total=_feed_coverage.get("total", 0),
+                stale=_feed_coverage.get("fallback_stale", 0),
+            )
+        )
 
     # ── ADR-033: strategy-loop activation mode (advisory, fail-safe) ──────────
     # Reads data/strategy_config.json and records the configured mode in the
@@ -1695,6 +1711,27 @@ def run_cycle(
         #   deployed + cash + accrued_yield == current_equity  (proof-of-reserves reconciles).
         _equity = float(getattr(result, "current_equity", 0.0) or 0.0) or capital_usd
         _accrued_yield = round(_equity - capital_usd, 2)
+        # WS1.1: per-position APY provenance. Each deployed position carries
+        # ``apy_source`` ("live" | "fallback_stale"), the apy_pct actually used,
+        # and ``as_of`` — so a reviewer SEES which book lines ranked on live
+        # DeFiLlama data vs the stale registry literal. A position that was
+        # accrued from a registry fallback (P0-B1 path) but for which the
+        # allocator has no provenance is conservatively stamped "fallback_stale".
+        def _pos_apy_source(p: str) -> str:
+            src = _apy_sources_map.get(p)
+            if src in ("live", "fallback_stale"):
+                return src
+            return "fallback_stale" if p in _fallback_apy_pools else "unknown"
+
+        _positions_detail = {
+            p: {
+                "usd": round(v, 2),
+                "apy_source": _pos_apy_source(p),
+                "apy_pct": round(float(_apy_used_map.get(p, apy_map.get(p, 0.0))), 4),
+                "as_of": _apy_as_of_map.get(p, run_ts),
+            }
+            for p, v in effective_positions.items()
+        }
         _atomic_write_json(
             ddir / POSITIONS_FILENAME,
             {
@@ -1711,6 +1748,10 @@ def run_cycle(
                 "policy_compliant": bool(result.policy_approved),
                 "policy_version": "v1.0",
                 "tuner_expected_apy": _deployed_apy,
+                # WS1.1: cycle-level feed coverage (live vs stale-fallback counts).
+                "feed_coverage": _feed_coverage,
+                # WS1.1: per-position provenance (apy_source / apy_pct / as_of).
+                "positions_detail": _positions_detail,
                 "positions": {p: round(v, 2) for p, v in effective_positions.items()},
                 "validation_summary": {
                     "capital_usd": capital_usd,
@@ -1914,6 +1955,15 @@ def main(argv: list[str] | None = None) -> int:
     if not args.dry_run:
         _run_analytics_pipeline(data_dir=_eff_data_dir)
 
+    # WS2.1 + WS2.2: refresh the day-30 fundability pack (forward-analytics
+    # scorecard → docs/FUNDABILITY.md) after each cycle. Advisory / read-only.
+    # GUARDRAIL: skipped on a sandbox-redirected run (no --live) — docs/FUNDABILITY.md
+    # is a canonical artifact and must never be regenerated from sandbox data.
+    if not args.dry_run and not _redirected:
+        _run_fundability_pack(data_dir=_eff_data_dir)
+    elif not args.dry_run and _redirected:
+        print("  fundability : skipped (sandbox run — canonical doc not regenerated)")
+
     # MP-1576..1580: smart / autonomous advisory modules after each cycle.
     # All STRICTLY read-only / advisory; each is independently fail-safe and
     # never modifies allocator / risk / execution state or touches capital.
@@ -2019,6 +2069,62 @@ def _run_analytics_pipeline(data_dir: "str | os.PathLike | None" = None) -> None
         )
     except Exception as _ap_exc:  # noqa: BLE001 — never crash the cycle
         log.warning("MP-663 Analytics pipeline failed (non-critical): %s", _ap_exc)
+
+
+def _run_fundability_pack(data_dir: "str | os.PathLike | None" = None) -> None:
+    """Day-30 fundability artifacts — refreshed every (live) cycle.
+
+    WS2.1 + WS2.2 (Yield Capture run). Two ordered steps, both advisory /
+    read-only and INDEPENDENTLY fail-safe (a failure is logged and never aborts
+    the cycle):
+
+      2.1  ``forward_analytics.build_scorecard(write=True)`` — recompute the
+           risk-adjusted scorecard ON the accruing forward series (computed
+           STRICTLY on each track's evidenced bars via track_integrity, honest
+           THIN/UNKNOWN until ~day 20) → ``<data_dir>/forward_analytics.json``.
+      2.2  ``generate_fundability_onepager`` (--md equivalent) — regenerate
+           ``docs/FUNDABILITY.md`` AFTER 2.1 so the pack sources the fresh
+           scorecard. The one-pager is the no-unsourced-number guard: every
+           figure is sourced live from ``data/`` or printed as data-unavailable.
+
+    GUARDRAIL (write-interlock): this runs only against the CANONICAL data dir.
+    ``docs/FUNDABILITY.md`` is a canonical artifact that reads ``<root>/data``,
+    so the caller MUST skip this step on a sandbox-redirected run (no --live) —
+    otherwise the canonical doc would be regenerated from sandbox data. The
+    caller gates this on ``not _redirected``; the scorecard is still scoped to
+    ``data_dir`` for defence in depth.
+    """
+    from pathlib import Path as _Path
+    ddir = _Path(data_dir) if data_dir else None
+
+    # 2.1 — forward-analytics scorecard (risk-adjusted, evidenced-bars only).
+    try:
+        from spa_core.strategy_lab import forward_analytics as _fa
+        card = _fa.build_scorecard(data_dir=ddir, write=True)
+        print(
+            f"  forward_an  : {card.get('n_tracks')} tracks "
+            f"(beats {card.get('n_beats_floor')} · thin {card.get('n_thin_track')} · "
+            f"unknown {card.get('n_unknown')} · dsr_active {card.get('n_dsr_active')})"
+        )
+    except Exception as _fa_exc:  # noqa: BLE001 — never crash the cycle
+        log.warning("WS2.1 forward_analytics scorecard failed (non-critical): %s", _fa_exc)
+
+    # 2.2 — fundability one-pager (regenerates docs/FUNDABILITY.md from fresh data).
+    try:
+        import importlib.util as _ilu
+        _root = _Path(__file__).resolve().parents[2]
+        _spec = _ilu.spec_from_file_location(
+            "spa_generate_fundability_onepager",
+            str(_root / "scripts" / "generate_fundability_onepager.py"),
+        )
+        _mod = _ilu.module_from_spec(_spec)
+        _spec.loader.exec_module(_mod)
+        _doc = _mod.generate(root=str(_root))
+        _out = _root / "docs" / "FUNDABILITY.md"
+        _mod.atomic_write(str(_out), _doc)
+        print(f"  fundability : wrote {_out}")
+    except Exception as _fp_exc:  # noqa: BLE001 — never crash the cycle
+        log.warning("WS2.2 fundability one-pager failed (non-critical): %s", _fp_exc)
 
 
 if __name__ == "__main__":

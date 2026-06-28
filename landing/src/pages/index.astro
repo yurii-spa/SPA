@@ -2,6 +2,21 @@
 // Homepage — Direction C "Console" (spec §7-C). Canonical chrome (header, paper
 // strip, footer) comes from Layout; this page is just the Console body + sections.
 import Layout from '../layouts/Layout.astro';
+import snap from '../data/track_snapshot.json';
+
+// Build-time honest static fallback (last evidenced snapshot) — mirrors the pattern
+// track-record.astro uses. Live values from api.earn-defi.com override these client-side;
+// this keeps the hero + track glance readable (real last-evidenced numbers, not bare "—")
+// when the API is offline. Numbers are NOT hardcoded — they come from the committed
+// snapshot derived from data/golive_status.json + data/equity_curve_daily.json.
+const snapDays = snap.real_track_days ?? 5;
+const snapGates = `${snap.gates_passed ?? 27}/${snap.gates_total ?? 29}`;
+const snapBars = Array.isArray(snap.bars) ? snap.bars : [];
+const lastBar = snapBars.length ? snapBars[snapBars.length - 1] : null;
+const snapApy = lastBar && lastBar.apy_today != null ? Number(lastBar.apy_today).toFixed(1) + '%' : '—';
+const snapDd = snap.max_drawdown_pct != null ? Number(snap.max_drawdown_pct).toFixed(2) + '%' : '—';
+// Equity series for the offline spark fallback (build-time, last snapshot).
+const snapEquity = snapBars.map((b) => Number(b.equity)).filter((v) => isFinite(v));
 ---
 
 <Layout
@@ -25,9 +40,9 @@ import Layout from '../layouts/Layout.astro';
       <div class="status-line" id="statusLine" aria-live="polite">
         <span class="dot" aria-hidden="true"></span>
         <span class="seg" data-ru="режим бумаги">paper mode</span>
-        <span class="div">·</span><span class="num" id="sl-day">—</span>&nbsp;<span data-ru="подтв. дней">evidenced days</span>
-        <span class="div">·</span><span class="num" id="sl-apy">~—%</span>&nbsp;<span data-ru="бумажный APY">paper APY</span>
-        <span class="div">·</span><span class="num" id="sl-gates">—/—</span>&nbsp;<span data-ru="критериев">criteria</span>
+        <span class="div">·</span><span class="num" id="sl-day">{snapDays}</span>&nbsp;<span data-ru="подтв. дней">evidenced days</span>
+        <span class="div">·</span><span class="num" id="sl-apy">~{snapApy}</span>&nbsp;<span data-ru="бумажный APY">paper APY</span>
+        <span class="div">·</span><span class="num" id="sl-gates">{snapGates}</span>&nbsp;<span data-ru="критериев">criteria</span>
       </div>
       <a class="por-chip" id="porChip" href="/track-record" title="Proof of Reserves">
         <span class="por-dot" aria-hidden="true"></span>
@@ -105,17 +120,17 @@ import Layout from '../layouts/Layout.astro';
       </div>
       <div class="track-band">
         <div class="track-metrics">
-          <div class="metric-card"><div class="lbl" data-ru="Подтверждённых дней">Evidenced days</div><div class="val" id="m-days">—</div></div>
-          <div class="metric-card"><div class="lbl" data-ru="Бумажный APY">Paper APY</div><div class="val teal" id="m-apy">—</div></div>
-          <div class="metric-card"><div class="lbl" data-ru="Макс. просадка">Max drawdown</div><div class="val" id="m-dd">—</div></div>
-          <div class="metric-card"><div class="lbl" data-ru="Прогресс Go-Live">Go-live progress</div><div class="val" id="m-gates">—</div></div>
+          <div class="metric-card"><div class="lbl" data-ru="Подтверждённых дней">Evidenced days</div><div class="val" id="m-days">{snapDays}</div></div>
+          <div class="metric-card"><div class="lbl" data-ru="Бумажный APY">Paper APY</div><div class="val teal" id="m-apy">{snapApy}</div></div>
+          <div class="metric-card"><div class="lbl" data-ru="Макс. просадка">Max drawdown</div><div class="val" id="m-dd">{snapDd}</div></div>
+          <div class="metric-card"><div class="lbl" data-ru="Прогресс Go-Live">Go-live progress</div><div class="val" id="m-gates">{snapGates}</div></div>
         </div>
         <div class="spark-wrap">
           <div class="sh">
             <span class="eyebrow" data-ru="Кривая капитала">Equity curve</span>
-            <span class="src" id="spark-src" data-ru="статичная">static</span>
+            <span class="src" id="spark-src" data-ru="снимок">snapshot</span>
           </div>
-          <svg id="spark" viewBox="0 0 400 120" preserveAspectRatio="none" role="img" aria-label="Paper equity curve"></svg>
+          <svg id="spark" viewBox="0 0 400 120" preserveAspectRatio="none" role="img" aria-label="Paper equity curve" data-points={JSON.stringify(snapEquity)}></svg>
           <div class="spark-foot" data-ru="Виртуальный портфель $100,000 USDC · считаются только дни с логом цикла (мы сбросили трек) · реестр на /track-record">Virtual $100,000 USDC portfolio · only cycle-logged days count (we reset the track) · ledger at /track-record</div>
         </div>
       </div>
@@ -411,7 +426,17 @@ import Layout from '../layouts/Layout.astro';
       }).catch(function(){});
     }
 
-    function init(){ loadHealth(); loadGoLive(); loadPackages(); loadEvidence(); loadNav(); }
+    // Build-time snapshot fallback: draw the last evidenced equity curve immediately so
+    // the spark is never blank when the API is offline. loadEvidence() overrides on success.
+    function drawSnapshot(){
+      var svg = document.getElementById('spark'); if(!svg) return;
+      try{
+        var pts = JSON.parse(svg.getAttribute('data-points') || '[]');
+        if(pts && pts.length >= 2){ drawSpark(pts); }
+      }catch(e){}
+    }
+
+    function init(){ drawSnapshot(); loadHealth(); loadGoLive(); loadPackages(); loadEvidence(); loadNav(); }
     if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
     else { init(); }
   })();
