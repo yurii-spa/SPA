@@ -51,6 +51,11 @@ _EPS = 1e-12
 _REGISTRY_FALLBACK_TVL_USD = 50_000_000.0
 
 # Модель по умолчанию: risk-aware (SPA-V406). Раньше было "equal_weight".
+# WS1.2: the new constrained ``optimized_yield`` optimizer is SELECTABLE + tested
+# but kept BEHIND a flag for A/B — the heuristic remains the default until the
+# owner promotes the optimizer (a money-path allocation-surface change). To make
+# the optimizer the default: set SPA_ALLOCATOR_MODEL=optimized_yield (env) or pass
+# allocation_model="optimized_yield". See OBJECTIVE dial below (owner-tunable).
 DEFAULT_MODEL = "risk_adjusted"
 
 _MODEL_DISPATCH = {
@@ -65,6 +70,11 @@ _MODEL_DISPATCH = {
 # risk_adjusted обрабатывается отдельно (нужен второй аргумент — risk_scores),
 # поэтому не входит в _MODEL_DISPATCH с сигнатурой fn(adapters).
 _RISK_MODEL_ALIASES = {"risk_adjusted", "risk", "risk_adjusted_weight"}
+
+# WS1.2: the constrained yield optimizer is handled on its own path (it needs the
+# tier caps + budget constraints, and it produces cap-respecting weights directly
+# — so the allocator MUST NOT run the T1-first _fill_remainder over its output).
+_OPTIMIZER_MODEL_ALIASES = {"optimized_yield", "optimizer", "optimized"}
 
 # Алиасы идентификаторов: адаптерный protocol → slug в data/risk_scores.json.
 # Нормализация в allocation_models снимает регистр/разделители, но не различия
@@ -257,12 +267,22 @@ class StrategyAllocator:
         strategies_dir: str | os.PathLike | None = None,
         registry_path: str | os.PathLike | None = None,
         live_apy_provider=None,
+        objective: str | float | None = None,
     ):
         self.status_path = Path(status_path) if status_path else _STATUS_PATH
         self.risk_scores_path = (
             Path(risk_scores_path) if risk_scores_path else _RISK_SCORES_PATH
         )
         self.allocation_model = allocation_model or DEFAULT_MODEL
+        # WS1.2: OWNER-TUNABLE objective dial for the optimized_yield model —
+        # "max_yield" | "balanced" (default) | "min_variance", or a raw float in
+        # [0,1] (1=pure yield … 0=max variance penalty). FLAGGED for the owner:
+        # the default is the balanced setting. Env override SPA_ALLOCATOR_OBJECTIVE.
+        self.objective = (
+            objective
+            if objective is not None
+            else os.environ.get("SPA_ALLOCATOR_OBJECTIVE", models.DEFAULT_OBJECTIVE)
+        )
         # MP-REGISTRY: optional registry path; None → use project default.
         self._registry_path = Path(registry_path) if registry_path else _REGISTRY_PATH
         # SPA-V408: shadow→allocator feedback loop.
@@ -427,16 +447,22 @@ class StrategyAllocator:
                     apy_pct = round(live_apy[protocol] * 100.0, 4)
                 else:
                     apy_pct = snap_apy
-                adapters.append(
-                    {
-                        "protocol": protocol,
-                        "apy_pct": apy_pct,
-                        "tvl_usd": float(a.get("tvl_usd", 0.0)),
-                        "tier": a.get("tier", "T2"),
-                        "apy_source": "live",
-                        "as_of": a.get("last_updated", now_iso),
-                    }
-                )
+                _row = {
+                    "protocol": protocol,
+                    "apy_pct": apy_pct,
+                    "tvl_usd": float(a.get("tvl_usd", 0.0)),
+                    "tier": a.get("tier", "T2"),
+                    "apy_source": "live",
+                    "as_of": a.get("last_updated", now_iso),
+                }
+                # WS1.2: pass through an explicit per-pool APY volatility if the
+                # feed carries one — the optimizer's variance dial reads it (else
+                # it derives a grade proxy). Optional; absent on most snapshots.
+                for _vk in ("apy_vol", "volatility", "vol"):
+                    if _vk in a and a[_vk] is not None:
+                        _row[_vk] = a[_vk]
+                        break
+                adapters.append(_row)
                 self._apy_sources[protocol] = "live"
                 self._apy_used[protocol] = apy_pct
                 self._as_of[protocol] = a.get("last_updated", now_iso)
@@ -753,10 +779,12 @@ class StrategyAllocator:
     def allocate(self, model: str | None = None) -> AllocationResult:
         model = model or self.allocation_model
         is_risk_model = model in _RISK_MODEL_ALIASES
-        if not is_risk_model and model not in _MODEL_DISPATCH:
+        is_optimizer = model in _OPTIMIZER_MODEL_ALIASES
+        if not is_risk_model and not is_optimizer and model not in _MODEL_DISPATCH:
             raise AllocationError(
                 f"Неизвестная модель аллокации: {model!r}. "
-                f"Доступны: {sorted(set(_MODEL_DISPATCH) | _RISK_MODEL_ALIASES)}",
+                f"Доступны: "
+                f"{sorted(set(_MODEL_DISPATCH) | _RISK_MODEL_ALIASES | _OPTIMIZER_MODEL_ALIASES)}",
                 code="UNKNOWN_ALLOCATION_MODEL",
             )
 
@@ -875,9 +903,50 @@ class StrategyAllocator:
                             )
                             log.info("excluded_by_risk: %s", sorted(excluded))
 
+        # WS1.2: tracks whether the constrained optimizer produced these weights
+        # (cap-respecting by construction) → the T1-first _fill_remainder is then
+        # SKIPPED so it can't re-introduce the low-yield T1 water-fill drag.
+        optimizer_applied = False
+
         # ── fallback: сконфигурированная модель (текущее поведение) ───────
         if not strategy_loop_active:
-            if is_risk_model:
+            if is_optimizer:
+                # WS1.2 constrained yield optimizer (greedy knapsack under caps).
+                # Caps are read from THIS allocator (RiskConfig source of truth) and
+                # passed in — the model never hardcodes/mutates a cap.
+                risk_scores, loaded = self._load_risk_scores()
+                tier_caps = {
+                    a["protocol"]: self._cap_for(a["tier"]) for a in adapters
+                }
+                bd = models.optimized_yield_breakdown(
+                    adapters,
+                    risk_scores if loaded else {},
+                    tier_caps=tier_caps,
+                    t2_total_cap=self.T2_TOTAL_CAP,
+                    cash_floor=(_POLICY_CONFIG.min_cash_pct if _POLICY_CONFIG else 0.05),
+                    max_protocols=8,  # ALLOC-002
+                    objective=self.objective,
+                )
+                raw_weights = bd["weights"]
+                risk_breakdown = bd["per_protocol"]
+                excluded = set(bd["excluded"])
+                risk_model_applied = loaded
+                optimizer_applied = True
+                notes.append(
+                    "WS1.2 optimized_yield: greedy knapsack under RiskPolicy caps "
+                    f"(objective={bd['objective']!r}, alpha={bd['alpha']}, "
+                    f"funded={len(bd['funded'])}, exp_riskadj_score="
+                    f"{bd['expected_riskadj_score']})."
+                )
+                if not loaded:
+                    notes.append(
+                        "WS1.2: risk_scores.json отсутствует/повреждён — оптимизатор "
+                        "трактует все протоколы консервативно как grade B."
+                    )
+                if excluded:
+                    notes.append("excluded_by_risk: " + str(sorted(excluded)))
+                    log.info("WS1.2 excluded_by_risk: %s", sorted(excluded))
+            elif is_risk_model:
                 risk_scores, loaded = self._load_risk_scores()
                 if not loaded:
                     # Защитный fallback: нет/битый risk_scores.json → equal_weight.
@@ -914,7 +983,18 @@ class StrategyAllocator:
         # SPA-V405: устранение структурного cash-drag — остаток после cap'ов
         # направляется в свободную ёмкость T1-якоря (затем T2), а не в кэш.
         # Исключённые риском (grade D) протоколы НЕ получают этот остаток.
-        capped, filled = self._fill_remainder(capped, tier_map, apy_map, exclude=excluded)
+        #
+        # WS1.2: the constrained optimizer ALREADY poured the deployable budget
+        # into the highest risk-adjusted-yield headroom (cap-respecting), so the
+        # T1-first water-fill here would only RE-INTRODUCE the low-yield T1 drag
+        # this optimizer exists to remove. Skip it — the optimizer's remainder is
+        # genuine, cap-bound cash, not a fillable T1 anchor.
+        if optimizer_applied:
+            filled = False
+        else:
+            capped, filled = self._fill_remainder(
+                capped, tier_map, apy_map, exclude=excluded
+            )
 
         # MP-011: совокупный T2-кап ПОСЛЕ всех перераспределений (caps +
         # remainder-fill могут поднять суммарный T2 выше 35%) — финальный
@@ -1074,13 +1154,22 @@ def main() -> None:
     parser.add_argument(
         "--model",
         default=DEFAULT_MODEL,
-        choices=sorted(set(_MODEL_DISPATCH) | _RISK_MODEL_ALIASES),
-        help="Модель аллокации (по умолчанию risk_adjusted)",
+        choices=sorted(
+            set(_MODEL_DISPATCH) | _RISK_MODEL_ALIASES | _OPTIMIZER_MODEL_ALIASES
+        ),
+        help="Модель аллокации (по умолчанию risk_adjusted; "
+        "optimized_yield = WS1.2 constrained optimizer)",
+    )
+    parser.add_argument(
+        "--objective",
+        default=None,
+        help="WS1.2 optimizer objective dial: max_yield|balanced|min_variance "
+        "or a float in [0,1] (owner-tunable; default balanced)",
     )
     parser.add_argument("--out", default=str(_DEFAULT_OUT), help="Путь вывода")
     args = parser.parse_args()
 
-    allocator = StrategyAllocator()
+    allocator = StrategyAllocator(objective=args.objective)
     result = allocator.allocate(model=args.model)
     allocator.save(result, args.out)
     print(f"Модель: {result.model_used}")

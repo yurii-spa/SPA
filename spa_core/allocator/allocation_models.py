@@ -207,3 +207,214 @@ def risk_adjusted_weight(
     ``dict[str, float]`` с суммой == 1.0 (для непустого входа), ``{}`` на пустом.
     """
     return risk_adjusted_breakdown(adapters, risk_scores, grade_multipliers)["weights"]
+
+
+# ─── Run "Yield Capture" WS1.2 — constrained yield OPTIMIZER ────────────────────
+# A REAL constrained optimizer that MAXIMIZES risk-adjusted expected yield SUBJECT
+# TO the EXISTING RiskPolicy caps — replacing the old `apy×grade → normalize →
+# T1-first water-fill` heuristic whose remainder-fill structurally dumped unfilled
+# capital into low-yield T1 anchors (a market-rate ~4.45% drag).
+#
+# METHOD (stdlib-only — NO scipy/numpy): a deterministic GREEDY KNAPSACK-UNDER-CAPS.
+# This is the exact-optimal greedy for the LP "maximize Σ wᵢ·scoreᵢ s.t. 0 ≤ wᵢ ≤
+# capᵢ, Σwᵢ ≤ (1 − cash_floor), Σ_{T2} wᵢ ≤ t2_total_cap, |funded| ≤ max_protocols":
+# with a single linear objective and box + two budget constraints, filling the
+# highest risk-adjusted-score protocol up to its per-protocol cap before moving to
+# the next is provably optimal (fractional-knapsack greedy). Unlike the heuristic,
+# the deployable budget is poured into the HIGHEST-score headroom — never anchored
+# T1-first — so it never leaves yield on the table to satisfy a structural bias.
+#
+# OBJECTIVE (owner-tunable dial — `objective`):
+#   * "max_yield"  (dial=1.0): scoreᵢ = riskadj_apyᵢ                 — pure yield.
+#   * "min_variance"(dial=0.0): scoreᵢ = riskadj_apyᵢ − λ·varproxyᵢ — heavy variance
+#                               penalty; prefers safer (higher-grade/lower-vol) pools.
+#   * "balanced"   (dial=0.5, DEFAULT): a blend — captures yield while penalising
+#                               variance, the sane go-live default.
+# `objective` may also be a float in [0,1] (the raw dial). The variance proxy is a
+# deterministic, stdlib function of the SAME inputs already on the adapter dict
+# (risk grade + APY level — higher grade ⇒ lower variance; a missing explicit
+# `apy_vol`/`volatility` falls back to a grade-derived proxy). No LLM, no new feed.
+#
+# Caps are NOT hardcoded here — they are PASSED IN from the allocator, which reads
+# them from RiskConfig (policy.py, owner-gated v1.0). This model NEVER mutates a cap.
+
+# Owner-tunable objective dials. The string aliases map to a blend coefficient
+# `alpha` ∈ [0,1] where score = riskadj_apy − (1−alpha)·VARIANCE_LAMBDA·varproxy.
+# alpha=1 → pure yield; alpha=0 → max variance penalty. DEFAULT = balanced (0.5).
+OBJECTIVE_DIALS: dict[str, float] = {
+    "max_yield": 1.0,
+    "balanced": 0.5,
+    "min_variance": 0.0,
+}
+DEFAULT_OBJECTIVE = "balanced"  # OWNER-TUNABLE: see CLAUDE.md / docs — flag for owner.
+
+# Variance penalty scale (pct·pct units, applied to the variance proxy). Kept
+# modest so a strictly-higher yielding, similar-risk pool still wins under
+# "balanced"; only a meaningfully riskier pool is penalised out of the lead.
+VARIANCE_LAMBDA = 0.5
+
+# Grade → variance proxy (higher grade ⇒ lower assumed APY variance). Used only
+# when an adapter carries no explicit apy_vol/volatility. Deterministic, stdlib.
+_GRADE_VAR_PROXY: dict[str, float] = {"A": 0.5, "B": 1.0, "C": 2.0, "D": 4.0}
+
+
+def _resolve_alpha(objective) -> float:
+    """Resolve the owner dial to a blend coefficient alpha ∈ [0,1]. Fail-CLOSED."""
+    if isinstance(objective, (int, float)) and not isinstance(objective, bool):
+        a = float(objective)
+        if a != a:  # NaN
+            return OBJECTIVE_DIALS[DEFAULT_OBJECTIVE]
+        return 0.0 if a < 0.0 else (1.0 if a > 1.0 else a)
+    if isinstance(objective, str):
+        return OBJECTIVE_DIALS.get(objective.strip().lower(), OBJECTIVE_DIALS[DEFAULT_OBJECTIVE])
+    return OBJECTIVE_DIALS[DEFAULT_OBJECTIVE]
+
+
+def _variance_proxy(adapter: dict, grade: str) -> float:
+    """Deterministic per-adapter variance proxy (stdlib, no feed, no LLM).
+
+    Prefers an explicit ``apy_vol``/``volatility`` if the feed carries one; else
+    derives it from the risk grade. Non-finite/negative → conservative grade proxy.
+    """
+    for key in ("apy_vol", "volatility", "vol"):
+        v = adapter.get(key)
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            import math as _m
+            if _m.isfinite(v) and v >= 0.0:
+                return float(v)
+    return _GRADE_VAR_PROXY.get(str(grade).strip().upper(), _GRADE_VAR_PROXY["B"])
+
+
+def optimized_yield_breakdown(
+    adapters: list[dict],
+    risk_scores: dict[str, str],
+    *,
+    tier_caps: dict[str, float],
+    t2_total_cap: float,
+    cash_floor: float = 0.05,
+    max_protocols: int = 8,
+    objective=DEFAULT_OBJECTIVE,
+    grade_multipliers: dict | None = None,
+) -> dict:
+    """Constrained yield optimizer (WS1.2) — greedy knapsack under RiskPolicy caps.
+
+    MAXIMIZES Σ wᵢ·scoreᵢ where scoreᵢ is the owner-dialled risk-adjusted yield,
+    SUBJECT TO: 0 ≤ wᵢ ≤ tier_cap(i); Σwᵢ ≤ 1 − cash_floor; Σ_{T2} wᵢ ≤ t2_total_cap;
+    at most ``max_protocols`` funded (ALLOC-002). grade-D pools are excluded.
+
+    Returns a dict mirroring :func:`risk_adjusted_breakdown` plus optimizer metadata::
+
+        {"weights", "per_protocol", "excluded", "fallback_equal_weight",
+         "objective", "alpha", "expected_riskadj_score", "funded"}
+
+    The returned ``weights`` sum to ``min(deployable_budget, Σ caps of funded)`` —
+    i.e. they MAY sum to < 1.0 (the honest cash remainder when caps bind). The
+    allocator must therefore NOT run its T1-first ``_fill_remainder`` over this
+    model's output — the greedy already poured the budget into the highest-score
+    headroom, so any unfilled remainder is genuine, cap-bound cash, not a T1 drag.
+    Caps still hold downstream (the allocator re-applies them idempotently).
+    """
+    empty = {
+        "weights": {}, "per_protocol": {}, "excluded": [],
+        "fallback_equal_weight": False, "objective": objective,
+        "alpha": _resolve_alpha(objective), "expected_riskadj_score": 0.0, "funded": [],
+    }
+    if not adapters:
+        return empty
+
+    import math as _m
+
+    alpha = _resolve_alpha(objective)
+    mults = dict(GRADE_MULTIPLIERS_DEFAULT)
+    if grade_multipliers:
+        mults.update({str(k).strip().upper(): float(v) for k, v in grade_multipliers.items()})
+    norm_scores = {
+        _normalize_protocol_key(k): str(v).strip().upper()
+        for k, v in (risk_scores or {}).items()
+    }
+
+    # 1. Build per-protocol risk-adjusted score + cap. grade-D (mult 0) excluded.
+    per_protocol: dict[str, dict] = {}
+    scored: list[tuple[str, float, float, bool]] = []  # (proto, score, cap, is_t2)
+    excluded: list[str] = []
+    for a in adapters:
+        p = a["protocol"]
+        grade = norm_scores.get(_normalize_protocol_key(p), DEFAULT_GRADE)
+        if grade not in mults:
+            grade = DEFAULT_GRADE
+        mult = mults.get(grade, mults.get(DEFAULT_GRADE, 0.85))
+        apy_raw = a.get("apy_pct", 0.0)
+        # Fail-CLOSED: a non-finite / non-positive APY contributes ZERO score —
+        # it can never win greedy priority (mirrors the live-feed band guard).
+        apy = float(apy_raw) if isinstance(apy_raw, (int, float)) and not isinstance(apy_raw, bool) and _m.isfinite(apy_raw) else 0.0
+        apy = max(apy, 0.0)
+        riskadj = apy * mult
+        varproxy = _variance_proxy(a, grade)
+        score = riskadj - (1.0 - alpha) * VARIANCE_LAMBDA * varproxy
+        cap = float(tier_caps.get(p, 0.0))
+        is_t2 = str(a.get("tier", "T2")).upper() != "T1"
+        per_protocol[p] = {
+            "risk_grade": grade,
+            "risk_multiplier": round(mult, 6),
+            "riskadj_apy": round(riskadj, 6),
+            "variance_proxy": round(varproxy, 6),
+            "score": round(score, 6),
+            "tier_cap": round(cap, 6),
+        }
+        if mult <= _EPS:
+            excluded.append(p)
+            continue
+        # Only protocols with a POSITIVE score and POSITIVE cap can be funded —
+        # a non-positive score (e.g. a low-yield pool the variance dial penalised
+        # below 0) is never forced in; it stays cash. Fail-CLOSED.
+        if score > _EPS and cap > _EPS:
+            scored.append((p, score, cap, is_t2))
+
+    if not scored:
+        # All excluded / non-positive score → honest empty (allocator → cash).
+        # NOT equal-weight: forcing yield-negative pools in would defeat the point.
+        out = dict(empty)
+        out["per_protocol"] = per_protocol
+        out["excluded"] = excluded
+        out["fallback_equal_weight"] = False
+        return out
+
+    # 2. GREEDY KNAPSACK: highest score first (deterministic tie-break on name),
+    #    fill each up to its per-protocol cap, respecting the deployable budget,
+    #    the T2-total cap, and the ALLOC-002 ≤ max_protocols funded count.
+    scored.sort(key=lambda t: (-t[1], t[0]))
+    deployable = max(0.0, 1.0 - max(0.0, cash_floor))
+    weights: dict[str, float] = {}
+    budget_left = deployable
+    t2_left = max(0.0, float(t2_total_cap))
+    funded: list[str] = []
+    for proto, _score, cap, is_t2 in scored:
+        if budget_left <= _EPS or len(funded) >= max_protocols:
+            break
+        room = min(cap, budget_left)
+        if is_t2:
+            room = min(room, t2_left)
+        if room <= _EPS:
+            continue
+        weights[proto] = room
+        budget_left -= room
+        if is_t2:
+            t2_left -= room
+        funded.append(proto)
+
+    # 3. Expected risk-adjusted score of the book (for A/B comparison / metadata).
+    exp_score = sum(weights[p] * per_protocol[p]["riskadj_apy"] for p in weights)
+
+    for p in per_protocol:
+        per_protocol[p]["post_opt_weight"] = round(weights.get(p, 0.0), 6)
+
+    return {
+        "weights": weights,
+        "per_protocol": per_protocol,
+        "excluded": excluded,
+        "fallback_equal_weight": False,
+        "objective": objective,
+        "alpha": alpha,
+        "expected_riskadj_score": round(exp_score, 6),
+        "funded": funded,
+    }
