@@ -6,7 +6,7 @@
 const path = Astro.url.pathname;
 // The Research hub (/structural-desk) is canonical for the whole research surface — keep it
 // highlighted across its sub-desks (/rates-desk, /rwa-backstop, /research).
-const RESEARCH_PATHS = ['/structural-desk', '/rates-desk', '/rwa-backstop', '/research'];
+const RESEARCH_PATHS = ['/structural-desk', '/rates-desk', '/rwa-backstop', '/research', '/refusals', '/exit-nav', '/proof-of-reserves'];
 const isActive = (href) => {
   if (href === '/structural-desk') return RESEARCH_PATHS.some((p) => path === p || path.startsWith(p + '/'));
   return href === '/' ? path === '/' : path === href || path.startsWith(href + '/');

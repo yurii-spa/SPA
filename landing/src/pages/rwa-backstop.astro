@@ -147,6 +147,41 @@ const FALLBACK_JSON = JSON.stringify(FALLBACK);
         <span class="font-mono text-xs">/api/rwa-safety-board</span>.
       </p>
 
+      <!-- LIVE verdict counts (measurement-GO provenance): LIQUID/THIN/REDEMPTION/UNSAFE + as-of -->
+      <div class="rounded-xl p-5 mb-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+        <div class="flex items-baseline justify-between gap-3 flex-wrap mb-3">
+          <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
+             data-ru="Живые вердикты доски (MEASUREMENT-GO)">Live board verdicts (measurement-GO)</p>
+          <span class="text-[11px] font-mono" style="color:var(--text-faint)">
+            <span id="rsb-vc-src" data-ru="статика / офлайн">static / offline</span> · <span id="rsb-vc-n">—</span> <span data-ru="активов">assets</span>
+          </span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+            <p class="text-2xl font-bold font-mono mb-1" style="color:var(--data-teal)" id="rsb-vc-liquid">—</p>
+            <p class="text-xs leading-snug" style="color:var(--text-secondary)" data-ru="LIQUID — ликвиден до $10M на DEX">LIQUID — liquid to $10M on a DEX</p>
+          </div>
+          <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+            <p class="text-2xl font-bold font-mono mb-1" style="color:var(--warn)" id="rsb-vc-thin">—</p>
+            <p class="text-xs leading-snug" style="color:var(--text-secondary)" data-ru="THIN — тонкий выход при размере">THIN — thin exit at size</p>
+          </div>
+          <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+            <p class="text-2xl font-bold font-mono mb-1" style="color:var(--text-secondary)" id="rsb-vc-redemption">—</p>
+            <p class="text-xs leading-snug" style="color:var(--text-secondary)" data-ru="REDEMPTION-ONLY — кэш только через эмитента">REDEMPTION-ONLY — cash via issuer only</p>
+          </div>
+          <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+            <p class="text-2xl font-bold font-mono mb-1" style="color:var(--danger)" id="rsb-vc-unsafe">—</p>
+            <p class="text-xs leading-snug" style="color:var(--text-secondary)" data-ru="UNSAFE — depeg / разрыв при размере">UNSAFE — depeg / gap at size</p>
+          </div>
+        </div>
+        <p class="text-[11px] leading-relaxed mt-3" style="color:var(--text-faint)"
+           data-ru="Вердикты считаются live по доске (verdict_counts из /api/rwa-safety-board) — не хардкод. MEASUREMENT-GO: мы поставляем измерительный слой; андеррайтинг-книга ограничена капиталом/юрисдикцией (off-code).">
+          Verdicts are counted live from the board (<span class="font-mono">verdict_counts</span> in
+          <span class="font-mono">/api/rwa-safety-board</span>) — not hardcoded. MEASUREMENT-GO: we ship
+          the measurement layer; the underwriting book is capital/legal-gated (off-code).
+        </p>
+      </div>
+
       <!-- on-chain NAV coverage transparency (T6): N real ERC-4626 / M off-chain estimate -->
       <div id="rsb-coverage" class="rounded-xl p-5 mb-5" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
         <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
@@ -321,6 +356,20 @@ const FALLBACK_JSON = JSON.stringify(FALLBACK);
         setText('finding-notcash', notCash + ' / ' + total);
         setText('finding-noexit', noExit + ' / ' + total);
         setText('finding-liquid', liquid10m + ' / ' + total);
+
+        // LIVE verdict counts (measurement-GO provenance). Prefer the board's own verdict_counts;
+        // fall back to deriving from the assets array so the strip is honest either way.
+        var vc = (board && board.verdict_counts && typeof board.verdict_counts === 'object') ? board.verdict_counts : null;
+        if (!vc) {
+          vc = { LIQUID: 0, THIN: 0, REDEMPTION_ONLY: 0, UNSAFE: 0 };
+          assets.forEach(function (a) { if (a && vc[a.verdict] != null) vc[a.verdict]++; });
+        }
+        setText('rsb-vc-liquid', vc.LIQUID != null ? String(vc.LIQUID) : '—');
+        setText('rsb-vc-thin', vc.THIN != null ? String(vc.THIN) : '—');
+        setText('rsb-vc-redemption', vc.REDEMPTION_ONLY != null ? String(vc.REDEMPTION_ONLY) : '—');
+        setText('rsb-vc-unsafe', vc.UNSAFE != null ? String(vc.UNSAFE) : '—');
+        setText('rsb-vc-n', String(board && board.n_assets != null ? board.n_assets : total));
+        setText('rsb-vc-src', isLive ? 'live' : (isRu() ? 'статика / офлайн' : 'static / offline'));
 
         // On-chain NAV coverage transparency (T6): N real ERC-4626 / M total.
         var cov = board && board.onchain_nav_coverage;

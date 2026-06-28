@@ -1,0 +1,359 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+
+/*
+ * Liquidation-NAV by size (Workstream B / B2) — the per-ticket forced-unwind schedule for the
+ * desk's book. "We price what we'd actually realize on exit at size, not the marketing $1.00."
+ *
+ * Data source (fetched client-side, api-base detection + localhost fallback + graceful offline):
+ *   GET /api/rates-desk/exit-nav →
+ *     { as_of, model, model_label, depth_usd, tickets_usd:[…],
+ *       disclaimer, flagged, is_advisory, validation_ref,
+ *       book:{ underlying, gross_usd, market_id, source },
+ *       schedule:[{ ticket_usd, gross_usd, depth_usd, net_proceeds_usd, haircut_pct,
+ *                   price_impact_frac, time_to_exit_days, exit_frac, flagged, flag_reason,
+ *                   proof_hash, model, model_params }],            ← LIVE book
+ *       illustrative:{ book:{…}, schedule:[…], disclaimer },        ← hypothetical on a REAL deep market
+ *       portfolio:{ n_markets, n_open_positions, aggregate_depth_usd, depth_aggregation,
+ *                   disclaimer, markets:[{ underlying, market_id, depth_usd, gross_usd, flagged,
+ *                                          schedule:[…] }] },        ← portfolio-wide market × ticket
+ *       reproduce:{ verify_with, spec, … } }
+ *
+ * Honesty contract (all STATED, never hidden):
+ *   - Every number is a CONSERVATIVE LOWER BOUND (constant-product L/(L+S)), NOT a realized exit.
+ *   - Depths are single-market, NEVER aggregated; aggregate_depth_usd is disclosure-only.
+ *   - Holes are shown AS holes (flag_reason: insufficient_contemporaneous_depth → "no clearing exit").
+ *   - The live book is honestly thin; the illustrative book is clearly a hypothetical on a deep market.
+ *   - Advisory only — moves no capital. Per-row proof_hash links to the verifier.
+ *
+ * Tailwind only compiles class strings it can see literally — every palette below is literal.
+ */
+---
+
+<Layout
+  title="Liquidation-NAV by size — what we'd realize on exit | earn-defi.com"
+  description="The portfolio-wide forced-unwind schedule: for each market and each ticket size ($100k → $10M), the conservative LOWER-BOUND net proceeds, haircut and time-to-exit against that market's own single-market on-chain depth. Depths are never aggregated. Holes are shown as holes. Every row carries a hash you can re-derive. Paper research, advisory, not live."
+  canonical="https://earn-defi.com/exit-nav"
+>
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- ============================================================= a. WHAT IT IS -->
+    <section class="pt-20 pb-10">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full text-xs font-mono"
+           style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">
+        <span class="w-1.5 h-1.5 rounded-full" style="background:var(--accent)" aria-hidden="true"></span>
+        <span data-ru="Paper-исследование · advisory · не live">Paper research · advisory · not live</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold mb-4 leading-tight" style="color:var(--text-primary)"
+          data-ru="Ликвидационный NAV по размеру">
+        Liquidation-NAV by size
+      </h1>
+      <p class="text-xl leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Сколько мы реально получим на выходе при размере — а не маркетинговый $1.00. Для каждого рынка и каждого размера тикета: консервативная НИЖНЯЯ ГРАНИЦА чистых поступлений, хейркат и время на выход против собственной on-chain глубины этого рынка.">
+        What we'd actually realize on exit, at size — not the marketing $1.00. For each market and each
+        ticket size: the conservative <strong style="color:var(--text-primary)">lower-bound</strong> net
+        proceeds, haircut and time-to-exit, against that market's own on-chain depth.
+      </p>
+    </section>
+
+    <!-- ============================================================= b. THE CONSERVATIVE-BOUND CAVEAT (stated, not hidden) -->
+    <section class="pb-10">
+      <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
+        <p class="text-xs uppercase tracking-wider font-mono mb-3" style="color:var(--accent-hover)"
+           data-ru="Что это число значит (и чего НЕ значит)">What this number is (and is not)</p>
+        <ul class="space-y-2.5 text-sm leading-relaxed" style="color:var(--text-secondary)">
+          <li class="flex gap-2.5">
+            <span class="shrink-0 mt-0.5" style="color:var(--accent)" aria-hidden="true">▸</span>
+            <span data-ru="Это КОНСЕРВАТИВНАЯ НИЖНЯЯ ГРАНИЦА на поступления при принудительном закрытии (constant-product L/(L+S)) — а НЕ реализованный выход и НЕ точная модель исполнения. Около пега модель занижает реальные поступления; публикуется как защитимый пол.">
+              It is a <strong style="color:var(--text-primary)">conservative lower bound</strong> on
+              forced-unwind proceeds (constant-product L/(L+S)) — <strong style="color:var(--text-primary)">not</strong>
+              a realized exit and not a precise execution model. Near peg it understates real proceeds; it
+              is published only as a defensible floor.</span>
+          </li>
+          <li class="flex gap-2.5">
+            <span class="shrink-0 mt-0.5" style="color:var(--accent)" aria-hidden="true">▸</span>
+            <span data-ru="Глубина — ПО ОДНОМУ РЫНКУ, НИКОГДА не суммируется. Принудительный выход не может маршрутизировать продажу одного рынка через пул другого. Совокупная глубина показана только для раскрытия.">
+              Depth is <strong style="color:var(--text-primary)">single-market, never aggregated</strong>.
+              A forced unwind cannot route one market's exit through another's pool. The aggregate depth is
+              disclosure-only.</span>
+          </li>
+          <li class="flex gap-2.5">
+            <span class="shrink-0 mt-0.5" style="color:var(--accent)" aria-hidden="true">▸</span>
+            <span data-ru="Дыры показаны как дыры. Если на рынке нет достаточной одновременной глубины, чтобы расчистить тикет, строка помечается «нет расчищающего выхода» — не заполняется выдуманной цифрой.">
+              Holes are shown as holes. If a market lacks enough contemporaneous depth to clear a ticket,
+              the row is flagged <span class="font-mono">no clearing exit</span> — never backfilled with a
+              fabricated figure.</span>
+          </li>
+          <li class="flex gap-2.5">
+            <span class="shrink-0 mt-0.5" style="color:var(--accent)" aria-hidden="true">▸</span>
+            <span data-ru="Advisory — не двигает капитал. Каждая строка несёт proof_hash, пересчитываемый автономным верификатором.">
+              Advisory — moves no capital. Every row carries a <span class="font-mono">proof_hash</span>
+              reproducible with the standalone verifier.</span>
+          </li>
+        </ul>
+        <p class="text-[11px] font-mono mt-4" style="color:var(--text-faint)">
+          <span data-ru="модель">model</span>: <span id="en-model-label">constant-product AMM, conservative LOWER BOUND</span>
+          · <span data-ru="валидация">validation</span>: <span id="en-validation">docs/RATES_DESK_VALIDATION.md#exit-liquidity</span>
+        </p>
+      </div>
+    </section>
+
+    <!-- ============================================================= c. PORTFOLIO-WIDE SCHEDULE (the headline) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
+        <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
+           data-ru="Портфельный график выхода — рынок × тикет">Portfolio-wide exit schedule — market × ticket</p>
+        <span class="text-[11px] font-mono" style="color:var(--text-faint)">
+          <span data-ru="источник">source</span>: <span id="en-src" data-ru="статика / офлайн">static / offline</span>
+          · <span id="en-asof">—</span>
+        </span>
+      </div>
+      <p class="text-sm mb-5 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Каждая открытая позиция и каждый оценённый рынок прогоняются против СОБСТВЕННОЙ одновременной глубины. Тонкие рынки честно показывают дыры. Из portfolio-секции /api/rates-desk/exit-nav.">
+        Every open position and every priced market is run against its <strong style="color:var(--text-primary)">own</strong>
+        contemporaneous depth. Thin markets honestly show holes. From the
+        <span class="font-mono text-xs">portfolio</span> section of <span class="font-mono text-xs">/api/rates-desk/exit-nav</span>.
+      </p>
+
+      <!-- portfolio summary tiles -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+          <p class="text-[11px] font-mono uppercase tracking-wider mb-1" style="color:var(--text-muted)" data-ru="Рынков">Markets</p>
+          <p id="en-pf-markets" class="text-xl font-bold font-mono" style="color:var(--text-primary)">—</p>
+        </div>
+        <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+          <p class="text-[11px] font-mono uppercase tracking-wider mb-1" style="color:var(--text-muted)" data-ru="Открытых позиций">Open positions</p>
+          <p id="en-pf-positions" class="text-xl font-bold font-mono" style="color:var(--text-primary)">—</p>
+        </div>
+        <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+          <p class="text-[11px] font-mono uppercase tracking-wider mb-1" style="color:var(--text-muted)" data-ru="Совокупная глубина (раскрытие)">Aggregate depth (disclosure)</p>
+          <p id="en-pf-depth" class="text-xl font-bold font-mono" style="color:var(--text-secondary)">—</p>
+        </div>
+        <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+          <p class="text-[11px] font-mono uppercase tracking-wider mb-1" style="color:var(--text-muted)" data-ru="Тикеты">Tickets</p>
+          <p id="en-pf-tickets" class="text-xl font-bold font-mono" style="color:var(--text-secondary)">—</p>
+        </div>
+      </div>
+
+      <div id="en-portfolio" class="space-y-5">
+        <p class="text-sm" style="color:var(--text-muted)" data-ru="Загрузка портфельного графика выхода…">Loading the portfolio exit schedule…</p>
+      </div>
+
+      <p class="text-[11px] leading-relaxed mt-4" style="color:var(--text-faint)" id="en-pf-disclaimer"
+         data-ru="График каждого рынка — консервативная нижняя граница против его одновременной одно-рыночной глубины; глубины НИКОГДА не суммируются. Дыры публикуются, не заполняются.">
+        Each market's schedule is a conservative lower bound against its single-market contemporaneous
+        depth; depths are never aggregated. Holes are published, never filled.
+      </p>
+    </section>
+
+    <!-- ============================================================= d. LIVE BOOK (honestly thin) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
+        <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
+           data-ru="Наша живая книга (честно тонкая)">Our live book (honestly thin)</p>
+        <span id="en-live-meta" class="text-[11px] font-mono" style="color:var(--text-faint)">—</span>
+      </div>
+      <p class="text-sm mb-5 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Реальная открытая paper-книга Rates Desk — она маленькая, и мы не прячем это: тикеты больше её глубины честно помечаются «нет расчищающего выхода».">
+        The desk's actual open paper book — it is small, and we don't hide it: tickets larger than its
+        depth are honestly flagged <span class="font-mono">no clearing exit</span>.
+      </p>
+      <div id="en-live" class="overflow-x-auto rounded-xl" style="border:1px solid var(--border)">
+        <p class="text-sm px-4 py-6 text-center" style="color:var(--text-muted)" data-ru="Загрузка живой книги…">Loading the live book…</p>
+      </div>
+    </section>
+
+    <!-- ============================================================= e. ILLUSTRATIVE (deep market demo) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
+        <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
+           data-ru="Иллюстрация — гипотетическая книга на реальном глубоком рынке">Illustrative — a hypothetical book on a real deep market</p>
+        <span id="en-illu-meta" class="text-[11px] font-mono" style="color:var(--text-faint)">—</span>
+      </div>
+      <div class="rounded-lg p-4 mb-5" style="background:var(--accent-bg);border:1px solid var(--accent-dim)">
+        <p class="text-xs leading-relaxed" style="color:var(--text-secondary)"
+           data-ru="ТОЛЬКО ИЛЛЮСТРАЦИЯ — гипотетическая книга на РЕАЛЬНОЙ одновременной глубине глубокого рынка, чтобы показать, как ведёт себя консервативная модель при размере. Это НЕ наша live-позиция.">
+          <strong style="color:var(--text-primary)">Illustrative only</strong> — a hypothetical book on a
+          <strong style="color:var(--text-primary)">real</strong> deep market's contemporaneous depth, to
+          demonstrate how the conservative model behaves at size. This is <strong style="color:var(--text-primary)">not</strong>
+          our live position.
+        </p>
+      </div>
+      <div id="en-illu" class="overflow-x-auto rounded-xl" style="border:1px solid var(--border)">
+        <p class="text-sm px-4 py-6 text-center" style="color:var(--text-muted)" data-ru="Загрузка иллюстрации…">Loading the illustrative schedule…</p>
+      </div>
+    </section>
+
+    <!-- ============================================================= f. VERIFY -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+         data-ru="Проверьте сами">Verify it yourself</p>
+      <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
+        <p class="text-sm leading-relaxed mb-4" style="color:var(--text-secondary)"
+           data-ru="Каждый proof_hash в строке (live + иллюстрация + portfolio) пересчитывается из опубликованных входов строки автономным верификатором без зависимостей — без нашего кода.">
+          Every row's <span class="font-mono">proof_hash</span> (live + illustrative + portfolio) is
+          recomputable from that row's published inputs by the zero-dependency standalone verifier —
+          with none of our code.
+        </p>
+        <div class="rounded-lg p-4 overflow-x-auto" style="background:var(--bg-base);border:1px solid var(--border)">
+          <code id="en-verify-cmd" class="text-xs sm:text-sm font-mono break-all" style="color:var(--data-teal)">python3 verify_spa.py exit_nav.json</code>
+        </div>
+        <p class="text-[11px] font-mono mt-3" style="color:var(--text-faint)">
+          <span data-ru="спецификация">spec</span>: <span id="en-spec">docs/PROOF_CHAIN_SPEC.md §6</span>
+          · <span id="en-verifier">scripts/verify_spa.py</span>
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+
+  <!-- ===================================================================== LIVE FETCH -->
+  <script is:inline>
+    /* Exit-NAV by size — api.earn-defi.com, localhost fallback, graceful offline. */
+    (function () {
+      var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+        ? 'http://localhost:8765'
+        : 'https://api.earn-defi.com';
+      function isRu() { try { return (localStorage.getItem('spa_lang') || 'en') === 'ru'; } catch (e) { return false; } }
+      function esc(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+      function setText(id, t) { var el = document.getElementById(id); if (el) el.textContent = t; }
+      function num(x) { var n = Number(x); return isFinite(n) ? n : null; }
+      function usd(x) {
+        var n = num(x); if (n == null) return '—';
+        if (Math.abs(n) >= 1e9) return '$' + (n / 1e9).toFixed(2) + 'B';
+        if (Math.abs(n) >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
+        if (Math.abs(n) >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'k';
+        return '$' + n.toFixed(0);
+      }
+      function pctOf(x) { var n = num(x); return n == null ? '—' : (n).toFixed(2) + '%'; }
+      function fracPct(x) { var n = num(x); return n == null ? '—' : (n * 100).toFixed(2) + '%'; }
+
+      var LAST = null;
+
+      /* One ticket row. A hole (flagged + null proceeds) is shown AS a hole. */
+      function ticketRow(r) {
+        var ru = isRu();
+        var hole = (r.net_proceeds_usd == null) || (r.flagged === true && r.haircut_pct == null);
+        var proceeds = hole ? (ru ? 'нет расчищающего выхода' : 'no clearing exit') : usd(r.net_proceeds_usd);
+        var hc = hole ? '—' : pctOf(r.haircut_pct);
+        var ttx = (r.time_to_exit_days == null) ? '—' : (r.time_to_exit_days + (ru ? ' дн.' : 'd'));
+        var ph = r.proof_hash ? String(r.proof_hash) : '';
+        var phShort = ph ? '#' + ph.slice(0, 10) : '—';
+        var rowCls = hole ? 'bg-red-500/[0.04]' : '';
+        return '<tr style="border-top:1px solid var(--border)" class="' + rowCls + '">' +
+          '<td class="px-3 py-2.5 font-mono text-xs" style="color:var(--text-primary)">' + usd(r.ticket_usd != null ? r.ticket_usd : r.gross_usd) + '</td>' +
+          '<td class="px-3 py-2.5 font-mono text-xs text-right ' + (hole ? 'text-red-300' : '') + '" ' + (hole ? '' : 'style="color:var(--text-primary)"') + '>' + esc(proceeds) + '</td>' +
+          '<td class="px-3 py-2.5 font-mono text-xs text-right ' + (hole ? 'text-red-300' : '') + '" ' + (hole ? '' : 'style="color:var(--text-secondary)"') + '>' + hc + '</td>' +
+          '<td class="px-3 py-2.5 font-mono text-xs text-right" style="color:var(--text-secondary)">' + fracPct(r.price_impact_frac) + '</td>' +
+          '<td class="px-3 py-2.5 font-mono text-xs text-right" style="color:var(--text-secondary)">' + ttx + '</td>' +
+          '<td class="px-3 py-2.5 font-mono text-[11px] text-right" style="color:var(--text-faint)" title="' + esc(ph) + '">' + esc(phShort) + '</td>' +
+        '</tr>';
+      }
+
+      function scheduleTable(schedule) {
+        var ru = isRu();
+        var head = '<thead><tr class="text-[11px] font-mono uppercase tracking-wider text-left" style="color:var(--text-muted);background:var(--bg-surface)">' +
+          '<th class="px-3 py-2.5" data-ru="Тикет">Ticket</th>' +
+          '<th class="px-3 py-2.5 text-right" data-ru="Чистые поступления">Net proceeds</th>' +
+          '<th class="px-3 py-2.5 text-right" data-ru="Хейркат">Haircut</th>' +
+          '<th class="px-3 py-2.5 text-right" data-ru="Влияние на цену">Price impact</th>' +
+          '<th class="px-3 py-2.5 text-right" data-ru="Время выхода">Time-to-exit</th>' +
+          '<th class="px-3 py-2.5 text-right" data-ru="Хеш">proof_hash</th>' +
+        '</tr></thead>';
+        var rows = (Array.isArray(schedule) ? schedule : []).map(ticketRow).join('');
+        return '<table class="w-full text-sm">' + head + '<tbody>' + rows + '</tbody></table>';
+      }
+
+      function marketBlock(m) {
+        var ru = isRu();
+        var flagged = m.flagged === true;
+        var header = '<div class="flex items-baseline justify-between gap-3 flex-wrap px-4 py-3" style="background:var(--bg-surface);border-bottom:1px solid var(--border)">' +
+          '<div class="flex items-baseline gap-2 flex-wrap min-w-0">' +
+            '<span class="text-sm font-semibold font-mono" style="color:var(--text-primary)">' + esc(m.underlying || '?') + '</span>' +
+            (m.market_id ? '<span class="text-[11px] font-mono" style="color:var(--text-faint)" title="' + esc(m.market_id) + '">' + esc(String(m.market_id).slice(0, 10)) + '…</span>' : '') +
+            (flagged ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-mono bg-red-500/10 border-red-500/30 text-red-300">' +
+              (ru ? 'тонкий рынок' : 'thin market') + '</span>' : '') +
+          '</div>' +
+          '<span class="text-[11px] font-mono" style="color:var(--text-muted)">' +
+            (ru ? 'глубина ' : 'depth ') + esc(usd(m.depth_usd)) + ' · ' + (ru ? 'книга ' : 'book ') + esc(usd(m.gross_usd)) +
+          '</span>' +
+        '</div>';
+        return '<div class="rounded-xl overflow-hidden" style="border:1px solid var(--border)">' + header +
+          '<div class="overflow-x-auto">' + scheduleTable(m.schedule) + '</div></div>';
+      }
+
+      function render(d, isLive) {
+        var ru = isRu();
+        LAST = d;
+        if (d.as_of) setText('en-asof', d.as_of);
+        if (d.model_label) setText('en-model-label', d.model_label);
+        if (d.validation_ref) setText('en-validation', d.validation_ref);
+
+        // ---- portfolio (headline) ----
+        var pf = d.portfolio;
+        var pfEl = document.getElementById('en-portfolio');
+        if (pf && Array.isArray(pf.markets) && pf.markets.length) {
+          if (pfEl) pfEl.innerHTML = pf.markets.map(marketBlock).join('');
+          setText('en-pf-markets', pf.n_markets != null ? String(pf.n_markets) : String(pf.markets.length));
+          setText('en-pf-positions', pf.n_open_positions != null ? String(pf.n_open_positions) : '—');
+          setText('en-pf-depth', usd(pf.aggregate_depth_usd));
+          var tk = Array.isArray(pf.tickets_usd) ? pf.tickets_usd : (Array.isArray(d.tickets_usd) ? d.tickets_usd : []);
+          setText('en-pf-tickets', tk.length ? tk.map(usd).join(' · ') : '—');
+          if (pf.disclaimer) { var pd = document.getElementById('en-pf-disclaimer'); if (pd) { pd.textContent = (ru && pf.disclaimer_ru) ? pf.disclaimer_ru : pf.disclaimer; pd.removeAttribute('data-ru'); } }
+        } else if (pfEl) {
+          pfEl.innerHTML = '<p class="text-sm" style="color:var(--text-muted)">' +
+            esc(ru ? 'Портфельный график недоступен.' : 'Portfolio schedule unavailable.') + '</p>';
+        }
+
+        // ---- live book ----
+        var liveEl = document.getElementById('en-live');
+        if (Array.isArray(d.schedule) && d.schedule.length) {
+          if (liveEl) liveEl.innerHTML = scheduleTable(d.schedule);
+          var b = d.book || {};
+          setText('en-live-meta', (b.underlying ? esc(b.underlying) + ' · ' : '') + (ru ? 'книга ' : 'book ') + usd(b.gross_usd) + ' · ' + (ru ? 'глубина ' : 'depth ') + usd(d.depth_usd));
+        } else if (liveEl) {
+          liveEl.innerHTML = '<p class="text-sm px-4 py-6 text-center" style="color:var(--text-muted)">' +
+            esc(ru ? 'Живая книга пуста.' : 'Live book is empty.') + '</p>';
+        }
+
+        // ---- illustrative ----
+        var illuEl = document.getElementById('en-illu');
+        var illu = d.illustrative;
+        if (illu && Array.isArray(illu.schedule) && illu.schedule.length) {
+          if (illuEl) illuEl.innerHTML = scheduleTable(illu.schedule);
+          var ib = illu.book || {};
+          setText('en-illu-meta', (ib.underlying ? esc(ib.underlying) + ' · ' : '') + (ru ? 'книга ' : 'book ') + usd(ib.gross_usd) + ' · ' + (ru ? 'глубина ' : 'depth ') + usd(illu.depth_usd));
+        } else if (illuEl) {
+          illuEl.innerHTML = '<p class="text-sm px-4 py-6 text-center" style="color:var(--text-muted)">' +
+            esc(ru ? 'Иллюстрация недоступна.' : 'Illustrative schedule unavailable.') + '</p>';
+        }
+
+        // ---- reproduce ----
+        var rep = d.reproduce;
+        if (rep) {
+          if (rep.verify_with) setText('en-verify-cmd', rep.verify_with);
+          if (rep.spec) setText('en-spec', rep.spec);
+          if (rep.verifier) setText('en-verifier', rep.verifier);
+        }
+
+        setText('en-src', isLive ? 'live' : (ru ? 'статика / офлайн' : 'static / offline'));
+      }
+
+      function load() {
+        fetch(API + '/api/rates-desk/exit-nav').then(function (r) { return r.json(); }).then(function (d) {
+          if (!d) return;
+          render(d, true);
+        }).catch(function () { /* graceful offline — placeholders stay */ });
+      }
+
+      window.__renderLive = function () { try { if (LAST) render(LAST, true); } catch (e) {} };
+
+      function init() { load(); }
+      if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
+      else { init(); }
+    })();
+  </script>
+</Layout>

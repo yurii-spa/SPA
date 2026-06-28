@@ -1,0 +1,385 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+
+/*
+ * Public Refusal Log (Workstream B / B1) — the declined-trades-with-reasons surface no competitor
+ * publishes. "We publish what we refuse, not just what we trade."
+ *
+ * This is the human-readable companion to the machine /api/rates-desk/decisions: it composes the
+ * hashed decision log with the STATIC audited refusal_explain map AND the live chain verification.
+ *
+ * Data source (fetched client-side, api-base detection + localhost fallback + graceful offline):
+ *   GET /api/rates-desk/refusals?limit=80 →
+ *     { generated_at, chain:{ verified, head_hash, chain_length, broken_at, spec },
+ *       counts:{ ENTRY, REFUSAL },
+ *       decisions:[{ seq, as_of, underlying, shape, kind(REFUSAL|ENTRY), headline,
+ *                    plain_en, plain_ru, structural_reason, drivers:[{field,label,decimal,pct}],
+ *                    net_edge, advisory_size_usd, proof_hash, entry_hash, prev_hash }],
+ *       reproduce:{ spec, canonical_json_rule, verify_with, verifier, ... } }
+ *
+ * Honesty contract:
+ *   - Chain integrity badge is 3-STATE: verified→green / broken→red / absent→NEUTRAL.
+ *     It is NEVER green on absent (a missing/unreachable chain reports "verification unavailable").
+ *   - Every cited number lives inside the row's hashed payload → re-derivable via verify_spa.py.
+ *   - Advisory only — moves no capital, never the go-live track.
+ *
+ * Tailwind only compiles class strings it can see literally — every badge palette below is a
+ * literal string (NOT runtime-built), matching the convention in rates-desk.astro / system.astro.
+ */
+---
+
+<Layout
+  title="Refusal Log — what we declined, and why | earn-defi.com"
+  description="The public refusal log: every trade the SPA Rates Desk DECLINED, with a plain-language reason, the structural haircut breakdown, and a hashed, tamper-evident proof you can re-derive yourself. We publish what we refuse, not just what we trade. Paper research, advisory, not live."
+  canonical="https://earn-defi.com/refusals"
+>
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- ============================================================= a. WHAT IT IS -->
+    <section class="pt-20 pb-10">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full text-xs font-mono"
+           style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">
+        <span class="w-1.5 h-1.5 rounded-full" style="background:var(--accent)" aria-hidden="true"></span>
+        <span data-ru="Paper-исследование · advisory · не live">Paper research · advisory · not live</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold mb-4 leading-tight" style="color:var(--text-primary)"
+          data-ru="Лог отказов · что мы отклонили и почему">
+        Refusal log · what we declined, and why
+      </h1>
+      <p class="text-xl leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Каждая сделка, от которой Rates Desk ОТКАЗАЛСЯ — с понятной причиной, разложением структурного хейрката и хешированным доказательством, которое вы можете пересчитать сами. Мы публикуем то, от чего отказываемся, а не только то, чем торгуем.">
+        Every trade the desk <strong style="color:var(--text-primary)">declined</strong> — with a
+        plain-language reason, the structural-haircut breakdown, and a hashed proof you can re-derive
+        yourself. We publish what we refuse, not just what we trade.
+      </p>
+
+      <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+             data-ru="Почему это редкость">Why this is rare</p>
+          <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Все публикуют свои победы. Почти никто не публикует, от чего отказался. Отказ срабатывает ДО экономики: отличная котировка не может «выкупить» себе проход через токсичную книгу. Лог отказов — это и есть артефакт доверия.">
+            Everyone publishes their wins. Almost nobody publishes what they declined. Refusal comes
+            <strong style="color:var(--text-primary)">before</strong> economics — a great quote cannot
+            buy its way past a toxic book. The refusal log is the credibility artifact.
+          </p>
+        </div>
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+             data-ru="Как читать">How to read it</p>
+          <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Каждая строка — хешированный вердикт гейта (ОТКАЗ или ВХОД) с разложением доходности на хейркаты. Раскройте «доказательство», чтобы увидеть структурную причину, по-драйверные хейркаты и хеши строки. Зелёный значок цепочки = пересчёт всех хешей с нуля сошёлся.">
+            Each row is a hashed gate verdict (REFUSE or ENTRY) with its yield-decomposition haircuts.
+            Expand "proof" to see the structural reason, per-driver haircuts and the row's hashes. A
+            green chain badge means a from-scratch recompute of every hash agreed.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= b. CHAIN INTEGRITY + COUNTS -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-4">
+        <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
+           data-ru="Целостность цепочки">Chain integrity</p>
+        <span class="text-[11px] font-mono" style="color:var(--text-faint)">
+          <span data-ru="источник">source</span>: <span id="rf-src" data-ru="статика / офлайн">static / offline</span>
+        </span>
+      </div>
+
+      <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+        <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
+          <!-- 3-state chain badge: verified→green / broken→red / absent→NEUTRAL (never green on absent) -->
+          <span id="rf-badge"
+                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-mono"
+                style="background:var(--bg-surface);border-color:var(--border);color:var(--text-muted)">
+            <span id="rf-badge-dot" class="w-2 h-2 rounded-full" style="background:var(--text-muted)" aria-hidden="true"></span>
+            <span id="rf-badge-text" data-ru="проверка цепочки…">verifying chain…</span>
+          </span>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[11px] font-mono bg-red-500/10 border-red-500/30 text-red-300">
+              <span class="w-1.5 h-1.5 rounded-full bg-red-400" aria-hidden="true"></span>
+              <span id="rf-count-refusal">—</span>&nbsp;<span data-ru="отказов">refused</span>
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[11px] font-mono bg-emerald-500/10 border-emerald-500/30 text-emerald-300">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400" aria-hidden="true"></span>
+              <span id="rf-count-entry">—</span>&nbsp;<span data-ru="входов">entered</span>
+            </span>
+          </div>
+        </div>
+        <div>
+          <p class="text-[11px] uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)"
+             data-ru="Хеш головы (отпечаток истории решений)">Head hash (fingerprint of the decision history)</p>
+          <p id="rf-head" class="text-xs font-mono break-all" style="color:var(--text-secondary)">—</p>
+          <p class="text-[11px] leading-relaxed mt-2" style="color:var(--text-faint)">
+            <span data-ru="длина цепочки">chain length</span>: <span id="rf-len" style="color:var(--text-secondary)">—</span>
+            · <span data-ru="спецификация">spec</span> <span class="font-mono">docs/PROOF_CHAIN_SPEC.md</span>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= c. THE LOG (rows) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
+        <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
+           data-ru="Поток решений (последние первыми)">The decision feed (most recent first)</p>
+      </div>
+      <p class="text-sm mb-6 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Живой поток из /api/rates-desk/refusals. Отказы выделены — это и есть ров. Каждая строка раскрывается в структурную причину, дрейверные хейркаты и хеши, которые можно пересчитать.">
+        A live feed from <span class="font-mono text-xs">/api/rates-desk/refusals</span>. REFUSALS are
+        surfaced prominently — they are the moat. Each row expands into its structural reason, per-driver
+        haircuts, and the hashes you can recompute.
+      </p>
+      <div id="rf-rows" class="space-y-3">
+        <p class="text-sm" style="color:var(--text-muted)" data-ru="Загрузка лога отказов…">Loading the refusal log…</p>
+      </div>
+    </section>
+
+    <!-- ============================================================= d. VERIFY IT YOURSELF (reproduce block) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+         data-ru="Проверьте сами">Verify it yourself</p>
+      <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
+        <p class="text-sm leading-relaxed mb-4" style="color:var(--text-secondary)"
+           data-ru="Не верьте нам — проверьте нас. Скачайте один автономный верификатор без зависимостей и публичный лог решений, запустите на чистой машине БЕЗ нашего кода — он пересчитает каждый хеш и сообщит точный broken_at, если хоть один байт истории был изменён задним числом.">
+          Don't trust us — check us. Download one zero-dependency standalone verifier and the public
+          decision log, run it on a clean machine with <strong style="color:var(--text-primary)">none of
+          our code</strong> — it re-derives every hash and reports the exact <span class="font-mono">broken_at</span>
+          if a single byte of history was altered after the fact.
+        </p>
+        <div class="rounded-lg p-4 mb-4 overflow-x-auto" style="background:var(--bg-base);border:1px solid var(--border)">
+          <p class="text-[11px] uppercase tracking-wider font-mono mb-2" style="color:var(--text-faint)"
+             data-ru="Команда">Command</p>
+          <code id="rf-verify-cmd" class="text-xs sm:text-sm font-mono break-all" style="color:var(--data-teal)">python3 verify_spa.py decision_log.jsonl</code>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+            <p class="text-[11px] uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)"
+               data-ru="Спецификация">Spec</p>
+            <p class="text-xs font-mono break-all" style="color:var(--text-secondary)">
+              <span id="rf-spec">docs/PROOF_CHAIN_SPEC.md</span>
+            </p>
+          </div>
+          <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+            <p class="text-[11px] uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)"
+               data-ru="Верификатор">Verifier</p>
+            <p class="text-xs font-mono break-all" style="color:var(--text-secondary)">
+              <span id="rf-verifier">scripts/verify_spa.py</span>
+            </p>
+          </div>
+        </div>
+        <p class="text-[11px] leading-relaxed mt-4" style="color:var(--text-faint)"
+           data-ru="Каноническое правило JSON: json.dumps(obj, sort_keys=True, separators=(',',':'), ensure_ascii=False); хеш = sha256(canonical_json).hexdigest(). Цепочка только дописывается — каждая запись хеширует предыдущую голову, поэтому подмена любого прошлого решения ломает связь.">
+          Canonical-JSON rule: <span class="font-mono" id="rf-canon">json.dumps(obj, sort_keys=True, separators=(',',':'), ensure_ascii=False)</span>;
+          hash = <span class="font-mono">sha256(canonical_json).hexdigest()</span>. The chain is append-only —
+          each entry hashes the prior head, so flipping any past decision breaks the link.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============================================================= e. CROSS-LINKS -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-4" style="color:var(--text-muted)" data-ru="Дальше">Go deeper</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <a href="/rates-desk" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Rates Desk">Rates Desk</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="Движок, который их генерирует">The engine that generates them</p>
+        </a>
+        <a href="/exit-nav" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Ликвидационный NAV по размеру">Liquidation-NAV by size</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="Что реально получишь на выходе">What you actually realize on exit</p>
+        </a>
+        <a href="/proof-of-reserves" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Доказательство резервов">Proof of Reserves</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="Честный NAV — это бумага, $0 реального капитала">Honest NAV — paper, $0 real capital</p>
+        </a>
+      </div>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+
+  <!-- ===================================================================== LIVE FETCH -->
+  <script is:inline>
+    /* Public refusal log — api.earn-defi.com, localhost fallback, graceful offline.
+       Mirrors the api-base + fail-quiet convention in rates-desk.astro. */
+    (function () {
+      var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+        ? 'http://localhost:8765'
+        : 'https://api.earn-defi.com';
+      function isRu() { try { return (localStorage.getItem('spa_lang') || 'en') === 'ru'; } catch (e) { return false; } }
+      function esc(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+      function setText(id, t) { var el = document.getElementById(id); if (el) el.textContent = t; }
+      function num(x) { var n = Number(x); return isFinite(n) ? n : null; }
+
+      var LAST = null; // cache for re-render on language toggle
+
+      /* ---- 3-state chain badge (verified→green / broken→red / absent→NEUTRAL) ---- */
+      function setBadge(verified) {
+        var ru = isRu();
+        var badge = document.getElementById('rf-badge');
+        var dot = document.getElementById('rf-badge-dot');
+        var txt = document.getElementById('rf-badge-text');
+        if (!badge || !dot || !txt) return;
+        // Reset to literal Tailwind palettes (Tailwind only compiles classes it sees literally).
+        badge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-mono';
+        badge.style.background = '';
+        if (verified === true) {
+          badge.className += ' bg-emerald-500/10 border-emerald-500/30 text-emerald-300';
+          dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+          dot.style.background = '';
+          txt.textContent = ru ? 'ПОДТВЕРЖДЕНО · цепочка цела' : 'VERIFIED · chain intact';
+        } else if (verified === false) {
+          badge.className += ' bg-red-500/10 border-red-500/30 text-red-300';
+          dot.className = 'w-2 h-2 rounded-full bg-red-400';
+          dot.style.background = '';
+          txt.textContent = ru ? 'НЕ ПОДТВЕРЖДЕНО · цепочка нарушена' : 'NOT VERIFIED · chain broken';
+        } else {
+          // ABSENT / unreachable — NEUTRAL, never green.
+          badge.className += ' border-[var(--border)] text-[var(--text-muted)]';
+          badge.style.background = 'var(--bg-surface)';
+          dot.className = 'w-2 h-2 rounded-full';
+          dot.style.background = 'var(--text-muted)';
+          txt.textContent = ru ? 'проверка недоступна' : 'verification unavailable';
+        }
+      }
+
+      /* ---- One refusal/entry card with a collapsible <details> proof block ---- */
+      function driverChips(drivers) {
+        if (!Array.isArray(drivers) || !drivers.length) return '';
+        var ru = isRu();
+        var chips = drivers.map(function (d) {
+          var label = esc(d.label || d.field || '?');
+          var pct = d.pct != null ? esc(d.pct) : (d.decimal != null ? esc(d.decimal) : '—');
+          return '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-mono bg-white/[0.03]" ' +
+            'style="border-color:var(--border);color:var(--text-secondary)">' + label + ' ' + pct + '</span>';
+        }).join('');
+        return '<div class="mb-3"><p class="text-[11px] uppercase tracking-wider font-mono mb-1.5" style="color:var(--text-muted)">' +
+          (ru ? 'Хейркаты-драйверы' : 'Driver haircuts') + '</p><div class="flex flex-wrap gap-1.5">' + chips + '</div></div>';
+      }
+
+      function hashRow(label, val) {
+        if (!val) return '';
+        return '<div class="flex items-baseline gap-2 flex-wrap"><span class="text-[11px] font-mono shrink-0" style="color:var(--text-muted)">' +
+          esc(label) + '</span><span class="text-[11px] font-mono break-all" style="color:var(--data-teal)">' + esc(val) + '</span></div>';
+      }
+
+      function refusalCard(x) {
+        var ru = isRu();
+        var refused = x.kind === 'REFUSAL';
+        var meta = refused
+          ? { card: 'border-red-700/40', badge: 'bg-red-500/10 border-red-500/30 text-red-300', dot: 'bg-red-400', en: 'REFUSE', ru: 'ОТКАЗ' }
+          : { card: 'border-emerald-700/35', badge: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300', dot: 'bg-emerald-400', en: 'ENTRY', ru: 'ВХОД' };
+        var verdictLbl = ru ? meta.ru : meta.en;
+        var under = esc(x.underlying || '?');
+        var headline = esc(x.headline || '');
+        var plain = esc(ru ? (x.plain_ru || x.plain_en || '') : (x.plain_en || ''));
+        var sr = x.structural_reason ? esc(x.structural_reason) : '';
+        var netEdge = num(x.net_edge);
+        var size = x.advisory_size_usd;
+
+        // collapsible proof: structural reason + driver haircuts + hashes
+        var proof = '<details class="mt-3 group/proof"><summary class="cursor-pointer select-none text-[11px] font-mono inline-flex items-center gap-1.5" style="color:var(--accent-hover)">' +
+          '<span aria-hidden="true" class="transition-transform group-open/proof:rotate-90">▸</span>' +
+          (ru ? 'доказательство' : 'proof') + '</summary>' +
+          '<div class="mt-3 rounded-lg p-4" style="background:var(--bg-base);border:1px solid var(--border)">' +
+            (sr ? '<div class="mb-3"><p class="text-[11px] uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)">' +
+              (ru ? 'Структурная причина' : 'Structural reason') + '</p>' +
+              '<p class="text-xs font-mono" style="color:var(--text-secondary)">' + sr + '</p></div>' : '') +
+            driverChips(x.drivers) +
+            '<div class="space-y-1.5">' +
+              hashRow('entry_hash', x.entry_hash) +
+              hashRow('prev_hash', x.prev_hash) +
+              hashRow('proof_hash', x.proof_hash) +
+            '</div>' +
+          '</div></details>';
+
+        var metaBits = [];
+        if (netEdge != null) metaBits.push((ru ? 'net edge ' : 'net edge ') + (netEdge * 100).toFixed(2) + '%');
+        metaBits.push((ru ? 'advisory-размер ' : 'advisory size ') + (size != null ? '$' + esc(size) : '$0'));
+        if (x.shape) metaBits.push(esc(x.shape));
+
+        return '<div class="rounded-xl p-4 bg-white/[0.02] border ' + meta.card + '">' +
+          '<div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">' +
+            '<div class="flex items-baseline gap-2 flex-wrap min-w-0">' +
+              '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-mono shrink-0 ' + meta.badge + '">' +
+                '<span class="w-1.5 h-1.5 rounded-full ' + meta.dot + '" aria-hidden="true"></span>' + esc(verdictLbl) +
+              '</span>' +
+              '<span class="text-sm font-semibold font-mono" style="color:var(--text-primary)">' + under + '</span>' +
+              (x.as_of ? '<span class="text-[11px] font-mono" style="color:var(--text-faint)">' + esc(x.as_of) + '</span>' : '') +
+            '</div>' +
+            (x.seq != null ? '<span class="text-[11px] font-mono" style="color:var(--text-faint)">#' + esc(x.seq) + '</span>' : '') +
+          '</div>' +
+          (headline ? '<p class="text-sm font-medium mb-1.5" style="color:var(--text-primary)">' + headline + '</p>' : '') +
+          (plain ? '<p class="text-xs leading-relaxed mb-2" style="color:var(--text-secondary)">' + plain + '</p>' : '') +
+          '<p class="text-[11px] font-mono" style="color:var(--text-muted)">' + metaBits.join(' · ') + '</p>' +
+          proof +
+        '</div>';
+      }
+
+      function render(d, isLive) {
+        var ru = isRu();
+        // chain badge: explicit boolean from API → green/red; missing → neutral.
+        var chain = d && d.chain;
+        var verified = (chain && typeof chain.verified === 'boolean') ? chain.verified : null;
+        setBadge(verified);
+        setText('rf-head', (chain && chain.head_hash) ? chain.head_hash : (ru ? '— (нет цепочки)' : '— (no chain)'));
+        setText('rf-len', (chain && chain.chain_length != null) ? String(chain.chain_length) : '—');
+
+        var c = (d && d.counts) || {};
+        setText('rf-count-refusal', c.REFUSAL != null ? String(c.REFUSAL) : '—');
+        setText('rf-count-entry', c.ENTRY != null ? String(c.ENTRY) : '—');
+
+        var rowsEl = document.getElementById('rf-rows');
+        if (rowsEl) {
+          var rows = (d && Array.isArray(d.decisions)) ? d.decisions : [];
+          if (rows.length) {
+            rowsEl.innerHTML = rows.map(refusalCard).join('');
+          } else {
+            rowsEl.innerHTML = '<p class="text-sm" style="color:var(--text-muted)">' +
+              esc(ru ? 'Решений ещё не записано (или фид недоступен).' : 'No decisions recorded yet (or the feed is offline).') + '</p>';
+          }
+        }
+
+        // reproduce block
+        var rep = d && d.reproduce;
+        if (rep) {
+          if (rep.verify_with) setText('rf-verify-cmd', rep.verify_with);
+          if (rep.spec) setText('rf-spec', rep.spec);
+          if (rep.verifier) setText('rf-verifier', rep.verifier);
+          if (rep.canonical_json_rule) setText('rf-canon', rep.canonical_json_rule);
+        }
+
+        setText('rf-src', isLive ? 'live' : (ru ? 'статика / офлайн' : 'static / offline'));
+      }
+
+      function load() {
+        fetch(API + '/api/rates-desk/refusals?limit=80').then(function (r) { return r.json(); }).then(function (d) {
+          if (!d) return;
+          LAST = d;
+          render(d, true);
+        }).catch(function () {
+          // graceful offline: leave neutral chain badge (never green on absent).
+          setBadge(null);
+          var rowsEl = document.getElementById('rf-rows');
+          if (rowsEl) rowsEl.innerHTML = '<p class="text-sm" style="color:var(--text-muted)">' +
+            (isRu() ? 'Лог недоступен — фид офлайн. Значок цепочки нейтрален (никогда не зелёный при отсутствии).'
+                    : 'Log unavailable — the feed is offline. The chain badge stays neutral (never green on absent).') + '</p>';
+        });
+      }
+
+      // Re-render on language toggle (Layout i18n runtime calls window.__renderLive).
+      window.__renderLive = function () { try { if (LAST) render(LAST, true); else setBadge(null); } catch (e) {} };
+
+      function init() { load(); }
+      if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
+      else { init(); }
+    })();
+  </script>
+</Layout>

@@ -1,0 +1,310 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+
+/*
+ * Proof of Reserves (Workstream B / B3) — honest PoR. Honesty-as-credibility.
+ *
+ * The UNAMBIGUOUS framing, stated first and loud: this is PAPER. There is $0 real capital and no
+ * custody. The book is a SIMULATED $100,000 USDC portfolio. This page proves the methodology — that
+ * NAV reconciles from its components and is hashed tamper-evidently — NOT that real reserves exist.
+ * It must NEVER imply real custody / reserves (owner-gated).
+ *
+ * Data sources (fetched client-side, api-base detection + localhost fallback + graceful offline):
+ *   GET /api/tier1/nav  → { computed_nav_usd, deployed_usd, cash_usd, accrued_yield_usd,
+ *                           reconciliation_ok, reconciliation_delta_usd, reconciliation_delta_pct,
+ *                           positions:[…], nav_hash, components_hash, ts|generated_at, meta }
+ *   GET /api/ssot/facts → canonical headline facts (current_equity etc.) for the simulated book.
+ *
+ * Fail-closed: when the API is unreachable, the page renders the honest static paper framing and the
+ * reconciliation chip stays neutral ("loading / offline") — it is NEVER shown as reconciled-green
+ * without a live verdict.
+ *
+ * Tailwind only compiles class strings it can see literally — every palette below is literal.
+ */
+---
+
+<Layout
+  title="Proof of Reserves — honest, paper, $0 real capital | earn-defi.com"
+  description="Honest proof of reserves: this is a PAPER research project — $0 real capital, no custody, a simulated $100,000 USDC book. This page proves the methodology — that NAV reconciles from its components (deployed + cash + accrued) and is hashed tamper-evidently — not that real reserves exist. Honesty as credibility."
+  canonical="https://earn-defi.com/proof-of-reserves"
+>
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- ============================================================= a. THE UNAMBIGUOUS STATEMENT (first, loud) -->
+    <section class="pt-20 pb-8">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full text-xs font-mono"
+           style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">
+        <span class="w-1.5 h-1.5 rounded-full" style="background:var(--accent)" aria-hidden="true"></span>
+        <span data-ru="Paper-исследование · advisory · не live">Paper research · advisory · not live</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold mb-4 leading-tight" style="color:var(--text-primary)"
+          data-ru="Доказательство резервов — честно">
+        Proof of Reserves — honestly
+      </h1>
+      <p class="text-xl leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Доказательство методологии, а не реальных резервов. Мы показываем, что NAV сходится из своих частей и криптографически защищён от подмены — на симулированной книге.">
+        A proof of the <strong style="color:var(--text-primary)">methodology</strong>, not of real
+        reserves. We show that NAV reconciles from its parts and is cryptographically tamper-evident — on
+        a simulated book.
+      </p>
+    </section>
+
+    <!-- The hard, unambiguous PAPER statement — cannot be misread. -->
+    <section class="pb-10">
+      <div class="rounded-2xl p-6 sm:p-8" style="background:rgba(242,181,60,.06);border:1px solid var(--warn)">
+        <p class="text-xs uppercase tracking-wider font-mono mb-3" style="color:var(--warn)"
+           data-ru="Прочтите это первым">Read this first</p>
+        <p class="text-lg leading-relaxed mb-4" style="color:var(--text-primary)"
+           data-ru="Это PAPER. $0 реального капитала. Нет кастоди, нет реальных резервов, нет средств клиентов. Книга — это СИМУЛИРОВАННЫЙ портфель на $100,000 USDC. Цифры ниже доказывают, что NAV корректно сходится из своих компонентов и защищён от подмены — а НЕ что существуют реальные резервы.">
+          <strong>This is PAPER. $0 real capital.</strong> There is no custody, no real reserves, and no
+          client funds. The book is a <strong>simulated $100,000 USDC portfolio</strong>. The figures below
+          prove that NAV reconciles correctly from its components and is tamper-evident —
+          <strong>not</strong> that real reserves exist.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="rounded-lg p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+            <p class="text-2xl font-bold font-mono mb-1" style="color:var(--text-primary)">$0</p>
+            <p class="text-xs leading-snug" style="color:var(--text-secondary)" data-ru="реального капитала / кастоди">real capital / custody</p>
+          </div>
+          <div class="rounded-lg p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+            <p class="text-2xl font-bold font-mono mb-1" style="color:var(--text-primary)">$100k</p>
+            <p class="text-xs leading-snug" style="color:var(--text-secondary)" data-ru="симулированная книга (USDC)">simulated book (USDC)</p>
+          </div>
+          <div class="rounded-lg p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+            <p class="text-2xl font-bold font-mono mb-1" style="color:var(--text-primary)" data-ru="методология">methodology</p>
+            <p class="text-xs leading-snug" style="color:var(--text-secondary)" data-ru="это то, что доказывается — не резервы">is what's proven — not reserves</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= b. NAV RECONCILIATION -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-4">
+        <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
+           data-ru="Сверка NAV (бумажная книга)">NAV reconciliation (paper book)</p>
+        <span class="text-[11px] font-mono" style="color:var(--text-faint)">
+          <span data-ru="источник">source</span>: <span id="por-src" data-ru="статика / офлайн">static / offline</span>
+        </span>
+      </div>
+
+      <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--border)">
+        <div class="flex items-start justify-between gap-4 flex-wrap mb-6">
+          <div class="min-w-0">
+            <p class="text-lg font-semibold mb-1" style="color:var(--text-primary)"
+               data-ru="Каждый (симулированный) доллар учтён — криптографически проверяемо">Every (simulated) dollar accounted for, cryptographically verifiable</p>
+            <p class="text-sm max-w-xl leading-relaxed" style="color:var(--text-secondary)"
+               data-ru="NAV пересчитывается из частей (вложено + кэш + начислено) и сверяется с заявленным капиталом. Это бумажное доказательство резервов: проверяемая методология на виртуальном портфеле $100k, НЕ реальное кастоди.">
+              The NAV is recomputed from its parts (deployed + cash + accrued) and reconciled against the
+              reported equity. This is a paper proof-of-reserves: the verifiable methodology on the virtual
+              $100k book, <strong style="color:var(--text-primary)">not</strong> real custody.
+            </p>
+          </div>
+          <!-- reconciliation chip: neutral until a live verdict arrives (never green on absent) -->
+          <div id="por-recon" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono shrink-0"
+               style="background:var(--bg-surface-2);border:1px solid var(--border-strong);color:var(--text-muted)">
+            <span class="w-1.5 h-1.5 rounded-full" style="background:var(--text-muted)" aria-hidden="true"></span>
+            <span data-ru="загрузка…">loading…</span>
+          </div>
+        </div>
+
+        <!-- deployed + cash + accrued = NAV -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          <div class="rounded-lg p-4" style="background:var(--bg-base);border:1px solid var(--border)">
+            <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)" data-ru="Вложено">Deployed</p>
+            <p class="text-xl font-mono font-bold" style="color:var(--text-primary)" id="por-deployed">—</p>
+          </div>
+          <div class="rounded-lg p-4" style="background:var(--bg-base);border:1px solid var(--border)">
+            <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)" data-ru="Кэш">Cash</p>
+            <p class="text-xl font-mono font-bold" style="color:var(--text-primary)" id="por-cash">—</p>
+          </div>
+          <div class="rounded-lg p-4" style="background:var(--bg-base);border:1px solid var(--border)">
+            <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)" data-ru="Начислено">Accrued</p>
+            <p class="text-xl font-mono font-bold" style="color:var(--text-primary)" id="por-accrued">—</p>
+          </div>
+          <div class="rounded-lg p-4" style="background:var(--accent-bg);border:1px solid var(--accent-dim)">
+            <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--accent-hover)" data-ru="NAV (= капитал)">NAV (= equity)</p>
+            <p class="text-xl font-mono font-bold" style="color:var(--data-teal)" id="por-nav">—</p>
+          </div>
+        </div>
+
+        <!-- reconciliation + meta row -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+          <div class="rounded-lg px-4 py-3" style="background:var(--bg-base);border:1px solid var(--border)">
+            <p class="text-xs uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)" data-ru="Расхождение сверки">Reconciliation delta</p>
+            <p class="text-sm font-mono" style="color:var(--text-secondary)" id="por-delta">—</p>
+          </div>
+          <div class="rounded-lg px-4 py-3" style="background:var(--bg-base);border:1px solid var(--border)">
+            <p class="text-xs uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)" data-ru="Позиций">Positions</p>
+            <p class="text-sm font-mono" style="color:var(--text-secondary)" id="por-positions">—</p>
+          </div>
+          <div class="rounded-lg px-4 py-3" style="background:var(--bg-base);border:1px solid var(--border)">
+            <p class="text-xs uppercase tracking-wider font-mono mb-1" style="color:var(--text-muted)" data-ru="Последняя проверка">Last verified</p>
+            <p class="text-sm font-mono" style="color:var(--text-secondary)" id="por-ts">—</p>
+          </div>
+        </div>
+
+        <!-- verification hash -->
+        <div class="rounded-lg px-4 py-3" style="background:var(--bg-base);border:1px solid var(--border)">
+          <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
+            <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)" data-ru="Хэш проверки (NAV)">Verification hash (NAV)</p>
+            <span class="text-xs font-mono" style="color:var(--data-teal)" data-ru="проверяемо · защищено от подмены">verifiable · tamper-evident</span>
+          </div>
+          <p class="text-xs sm:text-sm font-mono break-all" style="color:var(--data-teal)" id="por-hash">—</p>
+          <p class="text-xs font-mono mt-1" style="color:var(--text-faint)">
+            <span data-ru="компоненты:">components:</span> <span id="por-comphash" class="break-all">—</span>
+          </p>
+        </div>
+
+        <p class="text-xs mt-4 leading-relaxed" style="color:var(--text-muted)"
+           data-ru="NAV = Σ(позиции по протоколам) + кэш + начисленный доход. components_hash = sha256 канонического JSON отсортированных позиций; nav_hash связывает NAV с его компонентами и временем. Любой может пересчитать опубликованный NAV из компонентов. Все суммы симулированы (бумага).">
+          NAV = Σ(per-protocol positions) + cash + accrued yield. components_hash = sha256 of the canonical
+          JSON of the sorted positions; nav_hash binds the NAV to its components and timestamp. Anyone can
+          recompute the published NAV from its components. All amounts are simulated (paper).
+        </p>
+      </div>
+    </section>
+
+    <!-- ============================================================= c. WHAT THIS IS NOT (honesty as credibility) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+         data-ru="Чем это НЕ является">What this is NOT</p>
+      <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--border)">
+        <ul class="space-y-2.5 text-sm leading-relaxed" style="color:var(--text-secondary)">
+          <li class="flex gap-2.5">
+            <span class="shrink-0 mt-0.5" style="color:var(--danger)" aria-hidden="true">✕</span>
+            <span data-ru="НЕ доказательство реальных on-chain резервов или кастодиального баланса.">
+              <strong style="color:var(--text-primary)">Not</strong> proof of real on-chain reserves or a custodial balance.</span>
+          </li>
+          <li class="flex gap-2.5">
+            <span class="shrink-0 mt-0.5" style="color:var(--danger)" aria-hidden="true">✕</span>
+            <span data-ru="НЕ заявление, что под управлением находятся средства клиентов или внешний капитал.">
+              <strong style="color:var(--text-primary)">Not</strong> a claim that client funds or external capital are under management.</span>
+          </li>
+          <li class="flex gap-2.5">
+            <span class="shrink-0 mt-0.5" style="color:var(--danger)" aria-hidden="true">✕</span>
+            <span data-ru="НЕ аттестация Merkle-proof о депозитах пользователей (нет пользователей и нет депозитов).">
+              <strong style="color:var(--text-primary)">Not</strong> a Merkle-proof attestation over user deposits (there are no users and no deposits).</span>
+          </li>
+          <li class="flex gap-2.5">
+            <span class="shrink-0 mt-0.5" style="color:var(--data-teal)" aria-hidden="true">✓</span>
+            <span data-ru="ЭТО доказательство того, что наш собственный учёт сходится и защищён от подмены — та же дисциплина, что понадобится в live, отрепетированная на бумаге.">
+              It <strong style="color:var(--text-primary)">is</strong> proof that our own accounting reconciles and is
+              tamper-evident — the same discipline a live book would need, rehearsed on paper.</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============================================================= d. VERIFY + CROSS-LINKS -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+         data-ru="Проверьте сами">Verify it yourself</p>
+      <div class="rounded-xl p-6 mb-6" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
+        <p class="text-sm leading-relaxed mb-4" style="color:var(--text-secondary)"
+           data-ru="Доказуемые цепочки решений и графики выхода Rates Desk проверяются автономным верификатором без зависимостей — без нашего кода. Та же дисциплина «не верьте — проверьте» применима ко всем публичным артефактам.">
+          The desk's proof-bearing decision chains and exit schedules verify under the zero-dependency
+          standalone verifier — with none of our code. The same "don't trust, check" discipline applies
+          across every public artifact.
+        </p>
+        <div class="rounded-lg p-4 overflow-x-auto" style="background:var(--bg-base);border:1px solid var(--border)">
+          <code class="text-xs sm:text-sm font-mono break-all" style="color:var(--data-teal)">python3 verify_spa.py data/rates_desk/</code>
+        </div>
+        <p class="text-[11px] font-mono mt-3" style="color:var(--text-faint)" data-ru="верификатор: scripts/verify_spa.py · спецификация: docs/PROOF_CHAIN_SPEC.md">
+          verifier: scripts/verify_spa.py · spec: docs/PROOF_CHAIN_SPEC.md
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <a href="/track-record" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Трек-рекорд">Track Record</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="Подтверждённые дни, не надутые">Evidenced days, not padded</p>
+        </a>
+        <a href="/refusals" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Лог отказов">Refusal log</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="Что мы отклонили и почему">What we declined, and why</p>
+        </a>
+        <a href="/exit-nav" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Ликвидационный NAV">Liquidation-NAV</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="Что реально получишь на выходе">What you realize on exit</p>
+        </a>
+      </div>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+
+  <!-- ===================================================================== LIVE FETCH -->
+  <script is:inline>
+    /* Honest paper proof-of-reserves — api.earn-defi.com, localhost fallback, graceful offline. */
+    (function () {
+      var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+        ? 'http://localhost:8765'
+        : 'https://api.earn-defi.com';
+      function isRu() { try { return (localStorage.getItem('spa_lang') || 'en') === 'ru'; } catch (e) { return false; } }
+      function setText(id, t) { var el = document.getElementById(id); if (el) el.textContent = t; }
+      function num(x) { var n = Number(x); return isFinite(n) ? n : null; }
+      function fmtUsd(v) { var n = num(v); return n == null ? '—' : '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+      var LAST = null;
+
+      function setReconChip(ok) {
+        var chip = document.getElementById('por-recon');
+        if (!chip) return;
+        var ru = isRu();
+        // 3-state: true→teal / false→amber / null→neutral (never reconciled-green on absent).
+        if (ok === true) {
+          chip.style.background = 'rgba(54,194,180,.1)'; chip.style.borderColor = 'rgba(54,194,180,.3)';
+          chip.innerHTML = '<span class="w-1.5 h-1.5 rounded-full" style="background:var(--data-teal)" aria-hidden="true"></span>' +
+            '<span style="color:var(--data-teal)">' + (ru ? 'сверено ✓' : 'reconciled ✓') + '</span>';
+        } else if (ok === false) {
+          chip.style.background = 'rgba(242,181,60,.1)'; chip.style.borderColor = 'rgba(242,181,60,.3)';
+          chip.innerHTML = '<span class="w-1.5 h-1.5 rounded-full" style="background:var(--warn)" aria-hidden="true"></span>' +
+            '<span style="color:var(--warn)">' + (ru ? 'расхождение ⚠' : 'delta ⚠') + '</span>';
+        } else {
+          chip.style.background = 'var(--bg-surface-2)'; chip.style.borderColor = 'var(--border-strong)';
+          chip.innerHTML = '<span class="w-1.5 h-1.5 rounded-full" style="background:var(--text-muted)" aria-hidden="true"></span>' +
+            '<span style="color:var(--text-muted)">' + (ru ? 'офлайн' : 'offline') + '</span>';
+        }
+      }
+
+      function renderNav(d) {
+        if (!d || d.computed_nav_usd == null) { setReconChip(null); return; }
+        LAST = d;
+        var ru = isRu();
+        if (d.deployed_usd != null) setText('por-deployed', fmtUsd(d.deployed_usd));
+        if (d.cash_usd != null) setText('por-cash', fmtUsd(d.cash_usd));
+        if (d.accrued_yield_usd != null) setText('por-accrued', fmtUsd(d.accrued_yield_usd));
+        setText('por-nav', fmtUsd(d.computed_nav_usd));
+
+        setReconChip(d.reconciliation_ok === true ? true : (d.reconciliation_ok === false ? false : null));
+
+        if (d.reconciliation_delta_usd != null) {
+          var dp = d.reconciliation_delta_pct != null ? ' (' + Number(d.reconciliation_delta_pct).toFixed(4) + '%)' : '';
+          setText('por-delta', fmtUsd(d.reconciliation_delta_usd) + dp);
+        }
+        if (Array.isArray(d.positions)) setText('por-positions', String(d.positions.length));
+        var ts = d.ts || d.generated_at;
+        if (ts) { try { setText('por-ts', new Date(ts).toISOString().replace('T', ' ').slice(0, 16) + 'Z'); } catch (e) { setText('por-ts', ts); } }
+        if (d.nav_hash) setText('por-hash', String(d.nav_hash).slice(0, 24) + '…' + String(d.nav_hash).slice(-8));
+        if (d.components_hash) setText('por-comphash', String(d.components_hash).slice(0, 16) + '…' + String(d.components_hash).slice(-8));
+        setText('por-src', 'live');
+      }
+
+      function loadNav() {
+        fetch(API + '/api/tier1/nav').then(function (r) { return r.json(); }).then(renderNav).catch(function () { setReconChip(null); });
+      }
+
+      window.__renderLive = function () { try { if (LAST) renderNav(LAST); else setReconChip(null); } catch (e) {} };
+
+      function init() { setReconChip(null); loadNav(); }
+      if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
+      else { init(); }
+    })();
+  </script>
+</Layout>

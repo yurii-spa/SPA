@@ -176,6 +176,7 @@ const T = {
   deepRates: { en: 'Open Rates Desk →', ru: 'Открыть Rates Desk →' },
   deepStructural: { en: 'Structural desk →', ru: 'Структурный desk →' },
   deepRwa: { en: 'RWA backstop →', ru: 'RWA backstop →' },
+  deepPor: { en: 'Proof of Reserves →', ru: 'Доказательство резервов →' },
   deepResearch: { en: 'Research journal →', ru: 'Журнал исследований →' },
 
   /* exit-NAV waterfall (Panel A) */
@@ -200,6 +201,7 @@ const T = {
   exitTime: { en: 'time-to-exit', ru: 'время выхода' },
   exitDepthLimited: { en: 'depth-limited', ru: 'ограничено глубиной' },
   exitMethodology: { en: 'Methodology →', ru: 'Методология →' },
+  deepExitNav: { en: 'Full exit-NAV page →', ru: 'Полная страница exit-NAV →' },
   exitOffline: { en: 'Exit-NAV unavailable — /api/rates-desk/exit-nav offline.', ru: 'Exit-NAV недоступен — /api/rates-desk/exit-nav офлайн.' },
 
   /* public refusal log (Panel B) */
@@ -220,6 +222,7 @@ const T = {
   },
   refProof: { en: 'proof', ru: 'доказательство' },
   refProofSpec: { en: 'chain spec →', ru: 'спецификация цепочки →' },
+  deepRefusals: { en: 'Full refusal log →', ru: 'Полный лог отказов →' },
   refLogOffline: { en: 'Refusal log unavailable — /api/rates-desk/refusals offline.', ru: 'Журнал отказов недоступен — /api/rates-desk/refusals офлайн.' },
 
   /* system */
@@ -1025,6 +1028,7 @@ function DesksSection({ surface, opps, decisions, track, refusal, rwaBoard, exit
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
         <DeepLink href="/structural-desk" label={tr('deepStructural')} />
         <DeepLink href="/rwa-backstop" label={tr('deepRwa')} />
+        <DeepLink href="/proof-of-reserves" label={tr('deepPor')} />
         <DeepLink href="/research" label={tr('deepResearch')} />
       </div>
     </div>
@@ -1288,7 +1292,10 @@ function ExitNavPanel({ exitNav, lang, tr }) {
             </p>
           </div>
 
-          <div style={{ marginTop: 14 }}><DeepLink href="/rates-desk" label={tr('exitMethodology')} inline /></div>
+          <div style={{ marginTop: 14, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <DeepLink href="/exit-nav" label={tr('deepExitNav')} inline />
+            <DeepLink href="/rates-desk" label={tr('exitMethodology')} inline />
+          </div>
         </>
       )}
     </Panel>
@@ -1402,6 +1409,7 @@ function RefusalLogPanel({ refusalLog, lang, tr }) {
           </div>
 
           <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+            <DeepLink href="/refusals" label={tr('deepRefusals')} />
             <DeepLink href="/rates-desk" label={tr('deepRates')} />
             <DeepLink href="/research" label={tr('deepResearch')} />
           </div>

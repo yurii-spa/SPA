@@ -135,6 +135,30 @@ const seats = [
         killed. All three test the same hypothesis: the edge is a role, not a yield.
       </p>
 
+      <!-- LIVE verdict provenance — each settled verdict shows its measured inputs + as-of (graceful offline) -->
+      <div class="rounded-xl p-5 mb-6" style="background:var(--bg-surface);border:1px solid var(--border)">
+        <p class="text-xs uppercase tracking-wider font-mono mb-3" style="color:var(--text-muted)"
+           data-ru="Живые входы вердиктов">Live verdict inputs</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+            <div class="flex items-baseline justify-between gap-2 mb-1.5 flex-wrap">
+              <span class="text-sm font-semibold" style="color:var(--text-primary)">Rates Desk · <span class="text-teal-300">GO</span></span>
+              <span class="text-[11px] font-mono" style="color:var(--text-faint)" id="sd-rd-asof">—</span>
+            </div>
+            <p class="text-xs font-mono" style="color:var(--text-secondary)" id="sd-rd-inputs"
+               data-ru="загрузка лога решений…">loading the decision log…</p>
+          </div>
+          <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+            <div class="flex items-baseline justify-between gap-2 mb-1.5 flex-wrap">
+              <span class="text-sm font-semibold" style="color:var(--text-primary)">RWA Backstop · <span class="text-indigo-300">MEASUREMENT-GO</span></span>
+              <span class="text-[11px] font-mono" style="color:var(--text-faint)" id="sd-rwa-asof">—</span>
+            </div>
+            <p class="text-xs font-mono" style="color:var(--text-secondary)" id="sd-rwa-inputs"
+               data-ru="загрузка доски безопасности…">loading the safety board…</p>
+          </div>
+        </div>
+      </div>
+
       <div class="space-y-4">
         {seats.map((s) => (
           <div class:list={["group rounded-xl p-6 border bg-white/[0.02] transition-all", s.card]}>
@@ -268,13 +292,28 @@ const seats = [
           </div>
         </div>
 
-        <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+        <p class="text-sm leading-relaxed mb-4" style="color:var(--text-secondary)"
            data-ru="Наивная оценка в $18M, которая сначала выглядела привлекательно, оказалась артефактом: она считала кураторские хранилища MetaMorpho адресуемыми, хотя они не ликвидируются. После очистки от этого артефакта реальная адресуемая возможность падает в 5–10× ниже планки, оправдывающей постройку. Мы убили тезис дёшево — на этапе оценки, до единой строчки execution-кода.">
           The naive $18M estimate that first looked attractive turned out to be an artifact: it counted
           MetaMorpho curator vaults as addressable, when those are not liquidatable. Strip that artifact
           out and the real addressable opportunity falls 5–10× below the bar that would justify the
           build. We killed it cheaply — at the estimation stage, before a single line of execution code.
         </p>
+        <!-- Publishing the kill IS the credibility signal — its measured inputs are explicit. -->
+        <div class="rounded-lg p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-[11px] uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+             data-ru="Измеренные входы вердикта">Measured inputs behind the verdict</p>
+          <ul class="space-y-1.5 text-xs font-mono" style="color:var(--text-secondary)">
+            <li data-ru="адресуемо: ~$2–4M/год брутто (топ-20 пулов ≈ $2.2M)">addressable: ~$2–4M/yr gross (top-20 pools ≈ $2.2M)</li>
+            <li data-ru="планка постройки: $20M/год, чтобы оправдать custody + CEX-исполнение">build bar: $20M/yr to justify custody + CEX execution</li>
+            <li data-ru="наивная $18M-оценка отброшена: артефакт кураторских хранилищ MetaMorpho (не ликвидируются)">naive $18M estimate rejected: MetaMorpho curator-vault artifact (not liquidatable)</li>
+            <li data-ru="вывод: 5–10× ниже планки → NO-GO, убито на этапе оценки">conclusion: 5–10× below bar → NO-GO, killed at estimation stage</li>
+          </ul>
+          <p class="text-[11px] font-mono mt-3" style="color:var(--text-faint)"
+             data-ru="разбор: docs/LIQUIDATOR_DERISK.md · опубликованный отказ — это и есть сигнал доверия">
+            reasoning: docs/LIQUIDATOR_DERISK.md · publishing the kill is the credibility signal
+          </p>
+        </div>
       </div>
     </section>
 
@@ -383,14 +422,36 @@ const seats = [
       // re-render on language toggle
       window.__renderLive = function () { try { render(); } catch (e) {} };
 
+      function setEl(id, txt) { var el = document.getElementById(id); if (el) { el.textContent = txt; el.removeAttribute('data-ru'); el.removeAttribute('data-en-orig'); } }
+
       fetch(API + '/api/rates-desk/decisions').then(function (r) { return r.json(); }).then(function (d) {
         if (d && Array.isArray(d.decisions)) ratesOk = d.decisions.length;
+        // Live verdict inputs for the GO seat: ENTRY/REFUSAL counts + as-of (provenance).
+        var ru = isRu();
+        var c = (d && d.counts) || {};
+        if (c.ENTRY != null || c.REFUSAL != null) {
+          setEl('sd-rd-inputs', (ru ? 'входов ' : 'entered ') + (c.ENTRY || 0) + ' · ' + (ru ? 'отказов ' : 'refused ') + (c.REFUSAL || 0) +
+            ' · ' + (ru ? 'обыгрывает RWA-пол ~3.4%' : 'beats ~3.4% RWA floor'));
+        }
+        var rows = (d && Array.isArray(d.decisions)) ? d.decisions : [];
+        var asof = rows.length ? (rows[rows.length - 1].as_of || (d && d.generated_at)) : (d && d.generated_at);
+        if (asof) setEl('sd-rd-asof', String(asof).slice(0, 10));
       }).catch(function () {}).finally(function () { done++; render(); });
 
       fetch(API + '/api/rwa-safety-board').then(function (r) { return r.json(); }).then(function (d) {
         if (d && Array.isArray(d.assets)) {
           rwaUnsafe = d.assets.filter(function (a) { return a && a.verdict && a.verdict !== 'LIQUID'; }).length;
         }
+        // Live verdict inputs for the MEASUREMENT-GO seat: verdict_counts + as-of (provenance).
+        var ru = isRu();
+        var vc = (d && d.verdict_counts) || null;
+        var n = (d && d.n_assets != null) ? d.n_assets : (d && Array.isArray(d.assets) ? d.assets.length : null);
+        if (vc) {
+          setEl('sd-rwa-inputs', (ru ? 'из ' : 'of ') + (n != null ? n : '?') + ': ' +
+            'LIQUID ' + (vc.LIQUID || 0) + ' · THIN ' + (vc.THIN || 0) + ' · ' +
+            (ru ? 'РЕДЕМПШН ' : 'REDEMPTION ') + (vc.REDEMPTION_ONLY || 0) + ' · UNSAFE ' + (vc.UNSAFE || 0));
+        }
+        if (d && d.generated_at) setEl('sd-rwa-asof', String(d.generated_at).slice(0, 10));
       }).catch(function () {}).finally(function () { done++; render(); });
 
       // safety: if both fetches hang, settle to offline copy after 4s
