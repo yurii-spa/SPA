@@ -66,6 +66,11 @@ PT_STATUS_FILENAME = "paper_trading_status.json"
 CYCLE_RUNNER_REL = Path("spa_core") / "paper_trading" / "cycle_runner.py"
 
 FRESHNESS_WINDOW_HOURS = 48
+# The daily digest (com.spa.digest_daily) fires ~08:10 UTC. Before that hour the
+# telegram_alert_today criterion grants a grace pass IF yesterday's digest sent
+# (the most recent DUE digest went out, today's just hasn't fired yet) — stops a
+# recurring pre-08:10 false-dip without ever fabricating a send (WS-2.4).
+DIGEST_GRACE_UNTIL_HOUR = 9   # UTC hour; grace applies while now.hour < this
 MIN_TRACK_DAYS = 30           # required honest paper-trading days
 APY_FLOOR_PCT = 1.0           # minimum acceptable APY for go-live
 DRAWDOWN_KILL_PCT = 5.0       # kill-switch threshold (matches RiskPolicy)
@@ -111,8 +116,16 @@ class GoLiveResult:
     def to_dict(self) -> dict:
         passed = sum(self.checks.values())
         total = len(self.checks)
+        # FAIL-CLOSED INVARIANT (WS-2.4, architect-flagged): the serialized
+        # ``ready`` can NEVER be True unless EVERY criterion passes. We re-derive
+        # it here from ``checks`` rather than trusting the stored ``self.ready``
+        # field, so a corrupted/partial result object or an out-of-band mutation
+        # that flipped ``ready`` true while a check is still False can never leak
+        # a fabricated "ready_for_live" to any consumer. ``ready`` is the AND of
+        # all checks AND requires the full criteria set to be present.
+        ready = bool(self.ready) and total > 0 and all(self.checks.values())
         d: dict[str, Any] = {
-            "ready": self.ready,
+            "ready": ready,
             "passed": passed,
             "total": total,
             "checks": dict(self.checks),
@@ -286,8 +299,15 @@ class GoLiveChecker:
         explicit honesty label are still counted (backward-compat), so only the
         flat-rate backfill and reconstructed days are dropped from the real
         track.
+
+        MONOTONE day-count (WS-2.4): counting is via ``sorted(set(...))`` so
+        duplicate / out-of-order dates can never over-count, and ``today`` is
+        pinned to the checker's UTC ``now`` so a FUTURE-dated bar (which cannot
+        evidence a cycle that has not run yet) is excluded.
         """
-        return _evidenced_dates(daily, paper_start=self.paper_start)
+        return _evidenced_dates(
+            daily, paper_start=self.paper_start, today=self.now.date()
+        )
 
     def _evidenced_anchor(self, daily: Any):
         """First evidenced track date (the honest anchor), or None.
@@ -608,18 +628,23 @@ class GoLiveChecker:
         return True
 
     def _check_telegram_alert_today(self, blockers: list[str]) -> bool:
-        """Telegram daily summary must have been sent today (UTC).
+        """Telegram daily summary sent today (UTC), with a pre-digest grace.
 
-        Gate (UNCHANGED): data/telegram_alert_state.json must carry
-        ``daily_summary == today`` (UTC). That key is written ONLY on a
-        SUCCESSFUL send, by the SOLE daily-alert owner com.spa.digest_daily
-        (~08:10 UTC → spa_core.telegram.reports.daily). So a same-UTC-day pass
-        means the daily digest genuinely went out today — never force-passed.
+        Gate: data/telegram_alert_state.json must carry ``daily_summary`` written
+        ONLY on a SUCCESSFUL send by the SOLE daily-alert owner com.spa.digest_daily
+        (~08:10 UTC → spa_core.telegram.reports.daily). A same-UTC-day value means
+        the digest genuinely went out today — never force-passed.
 
-        This is the only non-time-gated near-blocker, so the blocker MESSAGE is
-        worded to say plainly what is (not) yet true — "the daily digest has not
-        run yet today" — rather than implying Telegram is broken: pre-08:10 UTC
-        this is simply the expected idle state and clears once the digest fires.
+        WS-2.4 PRE-DIGEST GRACE (stop the daily false-dip): the digest only fires
+        ~08:10 UTC, so before that the criterion would FAIL every single morning
+        even though nothing is wrong — a recurring transient dip the owner kept
+        seeing. We now also PASS when YESTERDAY's digest sent AND we are still
+        inside the pre-fire window (UTC hour < DIGEST_GRACE_UNTIL_HOUR): the
+        most-recent expected digest (yesterday's) DID go out and today's simply
+        has not fired yet. This is honest — it requires a real successful send on
+        the most recent due day; it never fabricates a send. It does NOT mask a
+        genuine miss: once past the grace hour, or if yesterday ALSO did not
+        send, the criterion fails (visibly) until today's digest fires.
         """
         doc = _read_json(self.data_dir / "telegram_alert_state.json")
         if not isinstance(doc, dict):
@@ -632,15 +657,21 @@ class GoLiveChecker:
             return False
         today = self.now.strftime("%Y-%m-%d")
         last_sent = str(doc.get("daily_summary", ""))[:10]
-        if last_sent != today:
-            blockers.append(
-                f"telegram_alert_today: daily digest has not run yet today "
-                f"(last sent {last_sent or 'never'}, today is {today}) — "
-                f"com.spa.digest_daily fires ~08:10 UTC; this clears once today's "
-                f"digest sends (not a Telegram outage)"
-            )
-            return False
-        return True
+        if last_sent == today:
+            return True
+
+        # Pre-digest grace: yesterday's digest sent + still before today's fire.
+        yesterday = (self.now.date() - timedelta(days=1)).isoformat()
+        if last_sent == yesterday and self.now.hour < DIGEST_GRACE_UNTIL_HOUR:
+            return True
+
+        blockers.append(
+            f"telegram_alert_today: daily digest has not run yet today "
+            f"(last sent {last_sent or 'never'}, today is {today}) — "
+            f"com.spa.digest_daily fires ~08:10 UTC; this clears once today's "
+            f"digest sends (not a Telegram outage)"
+        )
+        return False
 
     # ══════════════════════════════════════════════════════════════════════════
     # Group 7: Performance (3 checks — MP-417)

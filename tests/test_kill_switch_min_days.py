@@ -48,21 +48,52 @@ class TestKillSwitchMinDays(unittest.TestCase):
         self._tmp.cleanup()
 
     def _write_analytics(self, sharpe, num_days) -> None:
-        """Write analytics_summary.json with the real schema (sharpe under metrics)."""
-        doc = {
-            "num_days": num_days,
-            "metrics": {"sharpe": sharpe},
-        }
-        (self.data_dir / "analytics_summary.json").write_text(
-            json.dumps(doc, indent=2), encoding="utf-8"
+        """Build an EVIDENCED equity curve whose Sharpe ≈ ``sharpe`` (WS-2.3).
+
+        The kill-switch Sharpe trigger now reads the evidenced equity series
+        (rf=0) via ``track_evidence.real_sharpe_ratio`` — not
+        analytics_summary.json. ``sharpe=None`` writes an EMPTY curve (no
+        evidenced returns → THIN → None → fail-closed).
+        """
+        from datetime import timedelta
+        from spa_core.paper_trading.track_evidence import PAPER_REAL_START
+        if sharpe is None:
+            (self.data_dir / "equity_curve_daily.json").write_text(
+                json.dumps({"daily": [], "is_demo": False}, indent=2),
+                encoding="utf-8",
+            )
+            return
+        n_returns = max(2, num_days - 1)
+        ann = 365.0 ** 0.5
+        if abs(sharpe) < 1e-9:
+            r, d = 0.0, 0.0005
+        else:
+            r = -0.0001 if sharpe < 0 else 0.0001
+            perturbed = 2 * (n_returns // 2)
+            d = abs(r) / abs(sharpe) * ann / (perturbed / (n_returns - 1)) ** 0.5
+        equity = 100_000.0
+        daily = [{"date": PAPER_REAL_START.isoformat(), "equity": round(equity, 6)}]
+        for i in range(n_returns):
+            p = (d if i % 2 == 0 else -d) if i < 2 * (n_returns // 2) else 0.0
+            equity *= (1.0 + r + p)
+            daily.append({
+                "date": (PAPER_REAL_START + timedelta(days=i + 1)).isoformat(),
+                "equity": round(equity, 6),
+            })
+        (self.data_dir / "equity_curve_daily.json").write_text(
+            json.dumps({"daily": daily, "is_demo": False}, indent=2),
+            encoding="utf-8",
         )
 
     def test_sharpe_kill_switch_skipped_with_few_days(self) -> None:
-        """5 days + sharpe -61 must NOT trigger (small-sample artefact)."""
+        """5 evidenced days must NOT trigger (small-sample THIN artefact)."""
         self._write_analytics(sharpe=-61.3545, num_days=5)
         triggered, reason = self.checker.check_sharpe_trigger()
         self.assertFalse(triggered, f"Should skip Sharpe with 5 days: {reason}")
-        self.assertIn("insufficient data", reason)
+        self.assertTrue(
+            "thin" in reason.lower() or "insufficient" in reason.lower(),
+            f"Expected THIN/insufficient reason, got: {reason}",
+        )
 
     def test_sharpe_kill_switch_triggers_with_enough_days(self) -> None:
         """30 days + sharpe -2.1 must trigger the kill-switch (strictly below early threshold -2.0)."""
@@ -72,11 +103,14 @@ class TestKillSwitchMinDays(unittest.TestCase):
         self.assertLess(-2.1, SHARPE_THRESHOLD + 0.0001)  # sanity: -2.1 < -1.0
 
     def test_sharpe_kill_switch_skips_on_none_sharpe(self) -> None:
-        """sharpe=None must NOT trigger regardless of day count."""
+        """No evidenced returns (empty curve) → THIN → NOT triggered."""
         self._write_analytics(sharpe=None, num_days=60)
         triggered, reason = self.checker.check_sharpe_trigger()
         self.assertFalse(triggered, f"Should skip when sharpe is None: {reason}")
-        self.assertIn("sharpe not in analytics_summary", reason)
+        self.assertTrue(
+            "no equity data" in reason.lower() or "thin" in reason.lower(),
+            f"Expected no-data/THIN reason, got: {reason}",
+        )
 
     # ── Boundary coverage ─────────────────────────────────────────────────────
 
@@ -91,7 +125,10 @@ class TestKillSwitchMinDays(unittest.TestCase):
         self._write_analytics(sharpe=-61.0, num_days=MIN_DAYS_FOR_SHARPE - 1)
         triggered, reason = self.checker.check_sharpe_trigger()
         self.assertFalse(triggered, f"Should skip just below threshold: {reason}")
-        self.assertIn("insufficient data", reason)
+        self.assertTrue(
+            "thin" in reason.lower() or "insufficient" in reason.lower(),
+            f"Expected THIN/insufficient reason, got: {reason}",
+        )
 
     def test_min_days_constant_is_30(self) -> None:
         """Lock the documented threshold so it can't silently drift."""

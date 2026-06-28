@@ -53,6 +53,7 @@ Scope / safety
 """
 from __future__ import annotations
 
+import math
 import re
 from datetime import date as _date
 from datetime import datetime
@@ -63,6 +64,17 @@ from spa_core.utils.atomic import atomic_save
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_LOGS_DIR = _REPO_ROOT / "logs"
+
+# Minimum evidenced daily *returns* (one fewer than bars) required before a
+# risk-adjusted metric (Sharpe/Sortino) is considered statistically meaningful.
+# Below this the metric is THIN/UNKNOWN (returns None) — a 5-bar Sharpe on a
+# near-zero-vol stablecoin book degenerates to a huge/meaningless number, so we
+# refuse to report it rather than fabricate a degenerate value (fail-CLOSED).
+MIN_EVIDENCED_RETURNS_FOR_SHARPE = 20
+
+# Trading-day annualization factor for a daily-cadence yield book (matches
+# analytics.sharpe.calculate_sharpe, which uses sqrt(365)).
+_ANNUALIZATION_DAYS = 365.0
 
 # Post-teardown anchor — must agree with cycle_runner.PAPER_START_DATE and
 # golive_checker.PAPER_REAL_START.
@@ -166,23 +178,35 @@ def classify_bar(
     return SOURCE_BACKFILL, False
 
 
-def is_evidenced_bar(bar: Any, *, paper_start: _date = PAPER_REAL_START) -> bool:
+def is_evidenced_bar(
+    bar: Any,
+    *,
+    paper_start: _date = PAPER_REAL_START,
+    today: _date | None = None,
+) -> bool:
     """Counting predicate (reads the bar's OWN labels — no filesystem access).
 
     A bar counts toward the honest track iff:
       * dated >= ``paper_start``; AND
+      * dated <= ``today`` when ``today`` is given (FUTURE-DATED bars never
+        count — a bar dated after the current UTC day cannot evidence a cycle
+        that has not run yet; this keeps the day-count monotone and prevents a
+        stray future date from over-counting the track); AND
       * not reconstructed / warmup / seed; AND
       * not explicitly ``evidenced: false`` (backfill) and not
         ``source`` in {backfill, reconstructed, warmup}.
 
-    Backward-compat: a bar with NO explicit honesty label (legacy/synthetic)
-    is treated as evidenced (so existing fixtures still count). Only an explicit
-    negative label excludes it.
+    Backward-compat: ``today`` defaults to None (no future guard), so existing
+    callers/fixtures are unaffected; a bar with NO explicit honesty label
+    (legacy/synthetic) is still treated as evidenced. Only an explicit negative
+    label (or a future date when guarded) excludes it.
     """
     if not isinstance(bar, dict):
         return False
     d = _bar_date(bar)
     if d is None or d < paper_start:
+        return False
+    if today is not None and d > today:
         return False
     if bar.get("is_warmup") is True or bar.get("is_seed") is True:
         return False
@@ -264,31 +288,179 @@ def real_total_return_pct(
     return round((end / start - 1.0) * 100.0, 4)
 
 
-def evidenced_dates(
+def _evidenced_closes(
     daily: Iterable[Any], *, paper_start: _date = PAPER_REAL_START
+) -> list[float]:
+    """Finite, positive close-equity series over the EVIDENCED bars, in order.
+
+    Non-finite / non-positive closes are dropped as no-data (never fabricate a
+    return). Used by the risk-adjusted metrics below.
+    """
+    closes: list[float] = []
+    for bar in evidenced_bars(daily, paper_start=paper_start):
+        try:
+            c = float(bar.get("close_equity", bar.get("equity", 0.0)))
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(c) and c > 0:
+            closes.append(c)
+    return closes
+
+
+def evidenced_daily_returns(
+    daily: Iterable[Any], *, paper_start: _date = PAPER_REAL_START
+) -> list[float]:
+    """Fractional day-over-day returns over the EVIDENCED series.
+
+    Deterministic, stdlib-only. Pairs with a non-positive base are skipped.
+    Warmup / backfill / reconstructed bars never enter the series, so the
+    returns can never be contaminated by the pre-anchor discontinuity.
+    """
+    closes = _evidenced_closes(daily, paper_start=paper_start)
+    out: list[float] = []
+    for prev, cur in zip(closes, closes[1:]):
+        if prev > 0:
+            out.append(cur / prev - 1.0)
+    return out
+
+
+def real_sharpe_ratio(
+    daily: Iterable[Any],
+    *,
+    paper_start: _date = PAPER_REAL_START,
+    risk_free_rate: float = 0.0,
+    min_returns: int = MIN_EVIDENCED_RETURNS_FOR_SHARPE,
+) -> float | None:
+    """Annualized Sharpe over the EVIDENCED daily returns, or ``None`` (THIN).
+
+    HONEST / fail-CLOSED: returns ``None`` when there are fewer than
+    ``min_returns`` evidenced daily returns (the metric stays THIN/UNKNOWN
+    rather than reporting a degenerate small-sample Sharpe), or when the return
+    dispersion is degenerate (std ≈ 0 → undefined). Mirrors the formula of
+    :func:`spa_core.analytics.sharpe.calculate_sharpe` but is segregated to the
+    evidenced series so warmup/backfill bars can never inflate it.
+    """
+    returns = evidenced_daily_returns(daily, paper_start=paper_start)
+    n = len(returns)
+    if n < max(2, int(min_returns)):
+        return None
+    rf_daily = risk_free_rate / _ANNUALIZATION_DAYS
+    excess = [r - rf_daily for r in returns]
+    mean = sum(excess) / n
+    variance = sum((x - mean) ** 2 for x in excess) / (n - 1)
+    std = math.sqrt(variance)
+    if std <= 1e-12 or not math.isfinite(std):
+        return None
+    sharpe = mean / std * math.sqrt(_ANNUALIZATION_DAYS)
+    return round(sharpe, 4) if math.isfinite(sharpe) else None
+
+
+def real_sortino_ratio(
+    daily: Iterable[Any],
+    *,
+    paper_start: _date = PAPER_REAL_START,
+    risk_free_rate: float = 0.0,
+    min_returns: int = MIN_EVIDENCED_RETURNS_FOR_SHARPE,
+) -> float | None:
+    """Annualized Sortino over the EVIDENCED daily returns, or ``None`` (THIN).
+
+    Like :func:`real_sharpe_ratio` but the denominator is downside deviation
+    (only sub-target returns penalized). Fail-CLOSED: ``None`` below
+    ``min_returns`` evidenced returns or when there is no downside dispersion
+    (a strictly non-decreasing book has undefined Sortino → ``None`` rather than
+    a fabricated +inf).
+    """
+    returns = evidenced_daily_returns(daily, paper_start=paper_start)
+    n = len(returns)
+    if n < max(2, int(min_returns)):
+        return None
+    rf_daily = risk_free_rate / _ANNUALIZATION_DAYS
+    excess = [r - rf_daily for r in returns]
+    mean = sum(excess) / n
+    downside = [min(0.0, x) for x in excess]
+    dd_var = sum(x * x for x in downside) / (n - 1)
+    dd = math.sqrt(dd_var)
+    if dd <= 1e-12 or not math.isfinite(dd):
+        return None
+    sortino = mean / dd * math.sqrt(_ANNUALIZATION_DAYS)
+    return round(sortino, 4) if math.isfinite(sortino) else None
+
+
+def evidenced_risk_metrics(
+    daily: Iterable[Any],
+    *,
+    paper_start: _date = PAPER_REAL_START,
+    risk_free_rate: float = 0.0,
+    min_returns: int = MIN_EVIDENCED_RETURNS_FOR_SHARPE,
+) -> dict[str, Any]:
+    """Bundle of evidenced risk-adjusted metrics for persistence on the track.
+
+    Returns a JSON-serialisable dict with ``sharpe`` / ``sortino`` (float or
+    ``None`` when THIN), the evidenced ``n_returns`` actually used, the
+    ``min_returns`` gate, and a ``status`` of ``"OK"`` (enough evidenced points)
+    or ``"THIN"`` (not yet enough — metrics are ``None``, honest UNKNOWN).
+    """
+    returns = evidenced_daily_returns(daily, paper_start=paper_start)
+    n = len(returns)
+    thin = n < max(2, int(min_returns))
+    return {
+        "sharpe": None if thin else real_sharpe_ratio(
+            daily, paper_start=paper_start, risk_free_rate=risk_free_rate,
+            min_returns=min_returns,
+        ),
+        "sortino": None if thin else real_sortino_ratio(
+            daily, paper_start=paper_start, risk_free_rate=risk_free_rate,
+            min_returns=min_returns,
+        ),
+        "n_returns": n,
+        "min_returns": int(min_returns),
+        "risk_free_rate": float(risk_free_rate),
+        "status": "THIN" if thin else "OK",
+    }
+
+
+def evidenced_dates(
+    daily: Iterable[Any],
+    *,
+    paper_start: _date = PAPER_REAL_START,
+    today: _date | None = None,
 ) -> list[str]:
-    """Unique evidenced ISO dates from a ``daily`` bar list, sorted ascending."""
+    """Unique evidenced ISO dates from a ``daily`` bar list, sorted ascending.
+
+    ``sorted(set(...))`` makes the count MONOTONE and order-independent: duplicate
+    dates collapse to one and out-of-order input yields the same set. When
+    ``today`` is given, future-dated bars are excluded (see :func:`is_evidenced_bar`)
+    so a stray future date can never over-count the track.
+    """
     if not isinstance(daily, (list, tuple)):
         return []
     out: set[str] = set()
     for bar in daily:
-        if is_evidenced_bar(bar, paper_start=paper_start):
+        if is_evidenced_bar(bar, paper_start=paper_start, today=today):
             d = _bar_date(bar)
             if d is not None:
                 out.add(d.isoformat())
     return sorted(out)
 
 
-def count_evidenced(daily: Iterable[Any], *, paper_start: _date = PAPER_REAL_START) -> int:
+def count_evidenced(
+    daily: Iterable[Any],
+    *,
+    paper_start: _date = PAPER_REAL_START,
+    today: _date | None = None,
+) -> int:
     """Honest track-day count = number of unique evidenced dates."""
-    return len(evidenced_dates(daily, paper_start=paper_start))
+    return len(evidenced_dates(daily, paper_start=paper_start, today=today))
 
 
 def first_evidenced_date(
-    daily: Iterable[Any], *, paper_start: _date = PAPER_REAL_START
+    daily: Iterable[Any],
+    *,
+    paper_start: _date = PAPER_REAL_START,
+    today: _date | None = None,
 ) -> str | None:
     """First (earliest) evidenced ISO date, or None when none are evidenced."""
-    dates = evidenced_dates(daily, paper_start=paper_start)
+    dates = evidenced_dates(daily, paper_start=paper_start, today=today)
     return dates[0] if dates else None
 
 
@@ -351,6 +523,10 @@ def label_equity_file(
     doc["daily"] = labelled
 
     ev_dates = evidenced_dates(labelled, paper_start=paper_start)
+    # Evidenced risk-adjusted metrics (Sharpe/Sortino) on the REAL series.
+    # Persisted so every consumer reads the ONE honest value; THIN (None) until
+    # MIN_EVIDENCED_RETURNS_FOR_SHARPE evidenced returns accrue (fail-CLOSED).
+    risk = evidenced_risk_metrics(labelled, paper_start=paper_start)
     summary = doc.get("summary")
     if isinstance(summary, dict):
         summary["real_days"] = len(ev_dates)
@@ -361,6 +537,10 @@ def label_equity_file(
         summary["evidenced_anchor"] = (
             ev_dates[0] if ev_dates else paper_start.isoformat()
         )
+        summary["evidenced_sharpe"] = risk["sharpe"]
+        summary["evidenced_sortino"] = risk["sortino"]
+        summary["evidenced_risk_status"] = risk["status"]
+        summary["evidenced_risk_n_returns"] = risk["n_returns"]
 
     atomic_save(doc, str(path))
     return {
@@ -368,6 +548,9 @@ def label_equity_file(
         "evidenced": len(ev_dates),
         "first_evidenced": ev_dates[0] if ev_dates else None,
         "evidenced_dates": ev_dates,
+        "evidenced_sharpe": risk["sharpe"],
+        "evidenced_sortino": risk["sortino"],
+        "evidenced_risk_status": risk["status"],
     }
 
 
@@ -386,6 +569,11 @@ __all__ = [
     "real_series",
     "real_max_drawdown_pct",
     "real_total_return_pct",
+    "evidenced_daily_returns",
+    "real_sharpe_ratio",
+    "real_sortino_ratio",
+    "evidenced_risk_metrics",
+    "MIN_EVIDENCED_RETURNS_FOR_SHARPE",
     "evidenced_dates",
     "count_evidenced",
     "first_evidenced_date",

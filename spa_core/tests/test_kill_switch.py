@@ -293,13 +293,37 @@ class TestSharpeTrigger(unittest.TestCase):
         self._tmp.cleanup()
 
     def _write_analytics(self, sharpe: float, num_days: int = 30) -> None:
+        """Build an EVIDENCED equity curve whose Sharpe ≈ ``sharpe`` (WS-2.3).
+
+        The kill-switch Sharpe trigger now reads the evidenced equity series via
+        ``track_evidence.real_sharpe_ratio`` (rf=0), not analytics_summary.json,
+        so we synthesize ``num_days`` evidenced bars (``num_days-1`` returns)
+        producing the requested Sharpe. Bars are dated forward from the
+        post-teardown anchor (>= PAPER_REAL_START) and carry no honesty label so
+        they count as evidenced.
+        """
+        from datetime import timedelta
+        from spa_core.paper_trading.track_evidence import PAPER_REAL_START
+        n_returns = max(2, num_days - 1)
+        ann = 365.0 ** 0.5
+        if abs(sharpe) < 1e-9:
+            r, d = 0.0, 0.0005
+        else:
+            r = -0.0001 if sharpe < 0 else 0.0001
+            perturbed = 2 * (n_returns // 2)
+            d = abs(r) / abs(sharpe) * ann / (perturbed / (n_returns - 1)) ** 0.5
+        equity = 100_000.0
+        daily = [{"date": PAPER_REAL_START.isoformat(), "equity": round(equity, 6)}]
+        for i in range(n_returns):
+            p = (d if i % 2 == 0 else -d) if i < 2 * (n_returns // 2) else 0.0
+            equity *= (1.0 + r + p)
+            daily.append({
+                "date": (PAPER_REAL_START + timedelta(days=i + 1)).isoformat(),
+                "equity": round(equity, 6),
+            })
         _write_json(
-            self.data_dir / "analytics_summary.json",
-            {
-                "num_days": num_days,
-                "metrics": {"sharpe": sharpe},
-                "source": "analytics_runner",
-            },
+            self.data_dir / "equity_curve_daily.json",
+            {"daily": daily, "is_demo": False},
         )
 
     def test_sharpe_trigger_fires(self) -> None:
@@ -310,26 +334,29 @@ class TestSharpeTrigger(unittest.TestCase):
         self._write_analytics(-1.5, num_days=61)
         triggered, reason = self.checker.check_sharpe_trigger()
         self.assertTrue(triggered, f"Expected trigger at sharpe=-1.5 (normal_period): {reason}")
-        self.assertIn("-1.5", reason)
+        self.assertIn("sharpe", reason.lower())
 
     def test_sharpe_trigger_no_fire(self) -> None:
         """Sharpe = 0.5 > -1.0 — НЕ должна сработать."""
-        self._write_analytics(0.5, num_days=30)
+        self._write_analytics(0.5, num_days=61)
         triggered, reason = self.checker.check_sharpe_trigger()
         self.assertFalse(triggered, f"Expected no trigger at sharpe=0.5: {reason}")
 
     def test_sharpe_trigger_exact_threshold(self) -> None:
         """Sharpe ровно -1.0 — НЕ должна сработать (строгое <)."""
-        self._write_analytics(SHARPE_THRESHOLD, num_days=30)
+        self._write_analytics(SHARPE_THRESHOLD, num_days=61)
         triggered, reason = self.checker.check_sharpe_trigger()
         self.assertFalse(triggered, f"Expected no trigger at exact threshold: {reason}")
 
     def test_sharpe_trigger_insufficient_data(self) -> None:
-        """Sharpe = -2.0, но только 3 дня данных — не срабатывает."""
+        """Только 3 evidenced дня (THIN series) — не срабатывает (fail-closed)."""
         self._write_analytics(-2.0, num_days=3)
         triggered, reason = self.checker.check_sharpe_trigger()
         self.assertFalse(triggered, f"Expected no trigger with 3 days: {reason}")
-        self.assertIn("insufficient", reason.lower())
+        self.assertTrue(
+            "thin" in reason.lower() or "insufficient" in reason.lower(),
+            f"Expected THIN/insufficient reason, got: {reason}",
+        )
 
     def test_sharpe_trigger_no_file(self) -> None:
         """Нет файла — не сработать."""

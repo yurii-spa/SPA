@@ -127,12 +127,72 @@ def _mark_sent_today(ddir: Path, today: str, now_iso: str) -> None:
         log.warning("daily digest: guard write failed", exc_info=True)
 
 
+def _days_between(prev_iso: str, today_iso: str) -> int | None:
+    """Whole UTC days from ``prev_iso`` (YYYY-MM-DD) to ``today_iso``, or None."""
+    try:
+        d0 = datetime.strptime(prev_iso[:10], "%Y-%m-%d").date()
+        d1 = datetime.strptime(today_iso[:10], "%Y-%m-%d").date()
+        return (d1 - d0).days
+    except (ValueError, TypeError):
+        return None
+
+
+def _detect_and_record_miss(ddir: Path, today: str, now_iso: str) -> dict:
+    """Make a SILENTLY missed digest day VISIBLE (logged + flagged in state).
+
+    WS-2.4 digest-miss guard: on each run we compare the last successfully-sent
+    ``daily_summary`` date against today. If more than one calendar day elapsed
+    (e.g. state jumped 06-26 → 06-28, so 06-27 was never sent), at least one day
+    was silently missed. We DO NOT fabricate a sent-state for the missed day
+    (honesty); instead we record the gap under ``daily_summary_misses`` (an
+    append-only, capped list of {detected_at, last_sent, today, days_missed})
+    and emit a WARNING so the miss is observable, never silent.
+
+    Returns a dict ``{"days_missed": int, "last_sent": str|None}`` describing the
+    detected gap (``days_missed == 0`` when there is no miss). Fail-safe.
+    """
+    info = {"days_missed": 0, "last_sent": None}
+    try:
+        path = ddir / ALERT_STATE_FILENAME
+        doc = atomic_load(str(path), default={})
+        if not isinstance(doc, dict):
+            doc = {}
+        last_sent = str(doc.get("daily_summary", "") or "")[:10]
+        info["last_sent"] = last_sent or None
+        if not last_sent:
+            return info  # never sent → no "miss" to record (first-run, not a gap)
+        gap = _days_between(last_sent, today)
+        if gap is None or gap <= 1:
+            return info  # 0 = already today, 1 = consecutive day — no miss
+        days_missed = gap - 1
+        info["days_missed"] = days_missed
+        log.warning(
+            "daily digest: %d day(s) silently MISSED — last successful daily "
+            "summary %s, today %s (no send recorded for the gap)",
+            days_missed, last_sent, today,
+        )
+        misses = doc.get("daily_summary_misses")
+        if not isinstance(misses, list):
+            misses = []
+        misses.append({
+            "detected_at": now_iso,
+            "last_sent": last_sent,
+            "today": today,
+            "days_missed": days_missed,
+        })
+        doc["daily_summary_misses"] = misses[-50:]  # cap the audit list
+        atomic_save(doc, str(path))
+    except Exception:  # noqa: BLE001
+        log.warning("daily digest: miss-guard write failed", exc_info=True)
+    return info
+
+
 def _mark_daily_summary_sent(ddir: Path, today: str) -> None:
     """Record that today's daily Telegram summary went out.
 
     Updates ``data/telegram_alert_state.json`` setting ``daily_summary`` to the
     UTC date, atomically, PRESERVING the other state keys (red_flag, gap_alert,
-    weekly_report). This is the state the go-live gate
+    weekly_report, daily_summary_misses). This is the state the go-live gate
     (``GoLiveChecker._check_telegram_alert_today``) reads — the RETIRED legacy
     daily-report agents used to write it, so the new digest must take that over
     or ``telegram_alert_today`` could never pass again. Honest: only called on a
@@ -145,6 +205,7 @@ def _mark_daily_summary_sent(ddir: Path, today: str) -> None:
         if not isinstance(doc, dict):
             doc = {}
         doc["daily_summary"] = today
+        doc["daily_summary_sent_at"] = datetime.now(timezone.utc).isoformat()
         atomic_save(doc, str(path))
     except Exception:  # noqa: BLE001
         log.warning("daily digest: alert-state write failed", exc_info=True)
@@ -191,6 +252,12 @@ def run_daily_digest(
         msg, data = build_digest_message(date_str, data_dir=ddir, now=now_dt, drain=bool(send))
         result["message"], result["data"] = msg, data
         if send:
+            # WS-2.4 miss-guard: BEFORE today's send overwrites the state, detect
+            # whether the previous successful day was >1 day ago (a silently
+            # missed digest day) and make it visible (log + flagged state). We do
+            # NOT fabricate a sent-state for the missed day.
+            miss = _detect_and_record_miss(ddir, today, now_dt.isoformat())
+            result["days_missed"] = miss["days_missed"]
             ok = _send_html(msg)
             result["sent"] = ok
             if ok:

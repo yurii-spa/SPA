@@ -723,7 +723,10 @@ def run_post_cycle_advisory(
     # ── MP-144: Cycle Gap Monitor ──────────────────────────────────────
     try:
         from spa_core.paper_trading.cycle_gap_monitor import run_cycle_gap_monitor as _run_cgm
-        _run_cgm(data_dir=ddir)
+        # Pass the cycle clock so the folded golive recompute (WS-2.4) stamps the
+        # cycle's UTC day, not wall-clock — keeps the once-per-day golive dedup
+        # and any injected-now test deterministic.
+        _run_cgm(data_dir=ddir, now=now_dt)
     except Exception as _cgm_exc:
         log.warning("cycle_gap_monitor failed (%s) — cycle continues", _cgm_exc)
 

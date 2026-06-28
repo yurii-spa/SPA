@@ -13,8 +13,11 @@
                        в data/red_flags.json (advisory/WARN/bootstrap/внешние —
                        не в счёт; N1 safety fix).
 3. manual_trigger    — файл data/kill_switch_active.json существует (создаётся вручную)
-4. sharpe_trigger    — Sharpe < -1.0 (из data/analytics_summary.json), но только
-                       при наличии ≥30 дней данных (малая выборка → артефакт)
+4. sharpe_trigger    — Sharpe < -1.0, считается СТРОГО по EVIDENCED (real) барам
+                       equity_curve_daily.json (WS-2.3 parity с drawdown-триггером;
+                       больше НЕ читает non-evidenced analytics_summary.json), но
+                       только при ≥30 evidenced днях (малая выборка → THIN/None →
+                       fail-closed, без kill)
 
 Правила:
 * LLM FORBIDDEN — детерминированная логика, никаких внешних вызовов.
@@ -41,6 +44,8 @@ from spa_core.utils.atomic import atomic_save
 from spa_core.paper_trading.track_evidence import (
     PAPER_REAL_START,
     evidenced_bars,
+    evidenced_daily_returns,
+    real_sharpe_ratio,
 )
 
 log = logging.getLogger("spa.kill_switch")
@@ -516,50 +521,67 @@ class KillSwitchChecker:
     # ── Trigger 4: Sharpe ────────────────────────────────────────────────────
 
     def check_sharpe_trigger(self) -> tuple[bool, str]:
-        """Sharpe < threshold за 30+ дней из data/analytics_summary.json.
+        """Sharpe < threshold computed STRICTLY over the EVIDENCED equity series.
+
+        HONESTY PARITY (WS-2.3, 2026-06-28): the Sharpe trigger now reads the
+        SAME evidenced real series as the drawdown trigger — it no longer reads
+        the NON-evidenced ``analytics_summary.json`` (which spans warmup /
+        backfill / pre-anchor bars and would let a fabricated pre-teardown wobble
+        drive the kill). Sharpe is recomputed from ``equity_curve_daily.json``'s
+        evidenced bars via :func:`track_evidence.real_sharpe_ratio`, fail-CLOSED
+        exactly like ``check_drawdown_trigger``.
 
         Логика порогов (Variant A + B, ADR-ref risk_policy.json):
-        - rf=0% (стейблкоин портфель): Sharpe рассчитывается в analytics_runner
-          с RISK_FREE_RATE=0.0 — benchmark «держать USDC», не Treasury bills.
-        - Early-period grace: если num_days < SHARPE_EARLY_PERIOD_DAYS (60),
-          используется мягкий порог SHARPE_EARLY_THRESHOLD (-2.0) вместо
+        - rf=0% (стейблкоин портфель): Sharpe считается с RISK_FREE_RATE=0.0 —
+          benchmark «держать USDC», не Treasury bills.
+        - Early-period grace: если evidenced num_days < SHARPE_EARLY_PERIOD_DAYS
+          (60), используется мягкий порог SHARPE_EARLY_THRESHOLD (-2.0) вместо
           нормального SHARPE_THRESHOLD (-1.0).
+
+        Малая выборка → THIN/UNKNOWN: real_sharpe_ratio returns ``None`` below
+        MIN_EVIDENCED_RETURNS_FOR_SHARPE evidenced returns (no degenerate
+        small-sample Sharpe) → fail-CLOSED to "no kill".
 
         Returns
         -------
         (triggered, reason)
         """
-        doc = _read_json(self.data_dir / ANALYTICS_FILENAME, {})
-        if not isinstance(doc, dict):
-            return False, f"{ANALYTICS_FILENAME} missing or invalid"
+        # Read the EVIDENCED equity series (single source of truth) — never the
+        # non-evidenced analytics_summary.json roll-up.
+        equity_doc = _read_json(self.data_dir / "equity_curve_daily.json", {})
+        daily = equity_doc.get("daily") if isinstance(equity_doc, dict) else None
+        if not isinstance(daily, list) or not daily:
+            return False, "no equity data for evidenced sharpe — fail-closed"
 
-        metrics = doc.get("metrics")
-        if not isinstance(metrics, dict):
-            return False, "no metrics in analytics_summary"
+        # Honest evidenced count drives the early-period / min-days gating.
+        ev_returns = evidenced_daily_returns(daily, paper_start=PAPER_REAL_START)
+        num_days = float(len(ev_returns) + 1)  # bars = returns + 1
 
-        sharpe = metrics.get("sharpe")
+        # rf from risk_policy.json (default 0.0 for the stablecoin book).
+        policy = _read_json(self.data_dir / "risk_policy.json", {})
+        if not isinstance(policy, dict):
+            policy = {}
+        try:
+            rf_rate = float(policy.get("SHARPE_RISK_FREE_RATE", 0.0))
+        except (TypeError, ValueError):
+            rf_rate = 0.0
+
+        sharpe = real_sharpe_ratio(
+            daily, paper_start=PAPER_REAL_START, risk_free_rate=rf_rate
+        )
+        # THIN/UNKNOWN (None) → not enough evidenced returns, or degenerate
+        # dispersion. Fail-CLOSED: never kill on an undefined Sharpe.
         if sharpe is None:
-            return False, "sharpe not in analytics_summary"
+            return False, (
+                f"evidenced sharpe THIN/UNKNOWN — {len(ev_returns)} evidenced "
+                f"return(s) < min required (fail-closed, no kill)"
+            )
+        sharpe_val = float(sharpe)
 
-        try:
-            sharpe_val = float(sharpe)
-        except (TypeError, ValueError):
-            return False, f"invalid sharpe value: {sharpe}"
-
-        # Малая выборка → волатильность ≈ 0 → Sharpe artefactно зашкаливает
-        # (наблюдали sharpe -61 на 5 днях). Требуем минимум MIN_DAYS_FOR_SHARPE
-        # дней данных, иначе Sharpe не считается надёжным сигналом для kill-switch.
-        num_days = doc.get("num_days")
-        if num_days is None:
-            num_days = metrics.get("num_days", 0)
-        try:
-            num_days = float(num_days) if num_days is not None else 0
-        except (TypeError, ValueError):
-            num_days = 0
         if num_days < MIN_DAYS_FOR_SHARPE:
             return False, (
-                f"sharpe {sharpe_val:.4f} — insufficient data "
-                f"({num_days:.0f} days < {MIN_DAYS_FOR_SHARPE} required)"
+                f"evidenced sharpe {sharpe_val:.4f} — insufficient data "
+                f"({num_days:.0f} evidenced days < {MIN_DAYS_FOR_SHARPE} required)"
             )
 
         # Читаем Sharpe-параметры из risk_policy.json (Variant A+B).
@@ -584,14 +606,15 @@ class KillSwitchChecker:
 
         if sharpe_val < effective_threshold:
             reason = (
-                f"sharpe {sharpe_val:.4f} < {effective_threshold} "
-                f"[{period_label}] (from {ANALYTICS_FILENAME})"
+                f"evidenced sharpe {sharpe_val:.4f} < {effective_threshold} "
+                f"[{period_label}] (computed over evidenced equity series)"
             )
             log.warning("KILL SWITCH sharpe trigger: %s", reason)
             return True, reason
 
         return False, (
-            f"sharpe {sharpe_val:.4f} >= {effective_threshold} [{period_label}]"
+            f"evidenced sharpe {sharpe_val:.4f} >= {effective_threshold} "
+            f"[{period_label}]"
         )
 
     # ── Main check ────────────────────────────────────────────────────────────

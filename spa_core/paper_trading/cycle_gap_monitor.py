@@ -289,6 +289,46 @@ def _send_telegram_alert(message: str) -> bool:
         return False
 
 
+def rederive_golive_status(
+    data_dir: Path, *, now: datetime | None = None
+) -> dict | None:
+    """Re-run the go-live gate so golive_status.json reflects LIVE state.
+
+    WS-2.4 (2026-06-28): ``golive_status.json`` was previously (re)written ONLY
+    by the once-a-day daily_cycle, so the moment the cycle filled today's equity
+    bar (taking the gate from a transient pre-cycle 25/29 back up to the live
+    27/29) the snapshot stayed STALE for ~20h until the next cycle — the
+    dashboard / SYSTEM_BRIEFING / consumers all read the stale false-dip count.
+
+    Folding a cheap recompute into this 5-minute monitor (no new launchd agent)
+    re-derives the verdict on a SHORT cadence, so ``gap_monitor_ok`` /
+    ``telegram_alert_today`` / the track-day criteria reflect the LIVE count
+    within minutes of the input changing, not next-day.
+
+    STRICTLY READ-ONLY over the track (the checker only writes its own status
+    file). Fail-SAFE: any error is swallowed — re-deriving the gate must never
+    crash the gap monitor or block its heartbeat. Returns the result dict (for
+    observability/tests) or ``None`` on failure / when unavailable.
+    """
+    try:
+        from spa_core.paper_trading.golive_checker import GoLiveChecker
+    except Exception as exc:  # noqa: BLE001 — checker optional/unavailable
+        log.warning("cycle_gap_monitor: golive recompute import failed: %s", exc)
+        return None
+    try:
+        result = GoLiveChecker(data_dir=str(data_dir), now=now).check(write=True)
+        log.debug(
+            "cycle_gap_monitor: re-derived golive_status (%d/%d, ready=%s)",
+            sum(result.checks.values()),
+            len(result.checks),
+            result.ready,
+        )
+        return result.to_dict()
+    except Exception as exc:  # noqa: BLE001 — recompute must never crash monitor
+        log.warning("cycle_gap_monitor: golive recompute failed: %s", exc)
+        return None
+
+
 def _resolve_cycle_gap() -> None:
     """Emit the single edge-triggered RESOLVED when the cycle is healthy again.
 
@@ -365,6 +405,18 @@ def run_cycle_gap_monitor(
         gap_state = _read_json(ddir / GAP_STATE_FILENAME, {})
         if not isinstance(gap_state, dict):
             gap_state = {}
+
+        # ── WS-2.4: re-derive golive_status on this short (5-min) cadence ──
+        # so the gate reflects the LIVE count within minutes of an input change
+        # (the cycle filling today's bar) instead of staying stale ~20h until the
+        # next daily_cycle. READ-ONLY over the track; fail-safe (never raises).
+        golive = None
+        if not dry_run:
+            golive = rederive_golive_status(ddir, now=now_dt)
+            if isinstance(golive, dict):
+                result["golive_passed"] = golive.get("passed")
+                result["golive_total"] = golive.get("total")
+                result["golive_ready"] = golive.get("ready")
 
         if not gap_detected:
             log.debug(
