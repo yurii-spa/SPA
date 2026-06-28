@@ -76,7 +76,7 @@ from __future__ import annotations
 import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from spa_core.strategy_lab import config as lab_config
 from spa_core.strategy_lab.rates_desk import _io
@@ -221,6 +221,40 @@ def _stable_engines_family(floor_pct: Decimal) -> dict:
                        shares_venue=False, books_or_venues="engine_a,engine_b,engine_c", note=note)
 
 
+def _surface_provenance() -> dict:
+    """Deterministic provenance of the EXPANDED rate-surface coverage (C1) the desk follows: the count
+    of lending-venue selectors, the distinct lending protocols/chains/quote-stables, and the PT
+    underlying universe. Pure (reads pinned config + the static target set; no network). This is an
+    audit trail for the honesty pass — it never feeds the above-floor arithmetic."""
+    from spa_core.strategy_lab.rates_desk import config as rd_config
+    from spa_core.strategy_lab.rates_desk import pendle_pt_history as pph
+
+    lending = rd_config.LENDING_TARGETS
+    protocols = sorted({str(s["project"]) for s in lending})
+    chains = sorted({str(s["chain"]) for s in lending})
+    quote_stables = sorted({str(s["underlying"]).lower() for s in lending})
+    # PT underlyings the LIVE surface can match = the validated history TARGETS ∪ the config-extended
+    # clean stable/LST underlyings (feeds._match_pendle_underlying_extended), EXCLUDING the toxic LRTs
+    # (which are matched but never harvested — they exist to confirm refusal).
+    pt_targets = {k.lower() for k in pph.TARGETS}
+    config_underlyings = {u for u, kind in rd_config.UNDERLYING_KINDS.items() if kind != "lrt"}
+    pt_underlyings = sorted(pt_targets | config_underlyings)
+    toxic_lrts = sorted({u for u, kind in rd_config.UNDERLYING_KINDS.items() if kind == "lrt"})
+    return {
+        "lending_venue_selectors": len(lending),
+        "lending_protocols": protocols,
+        "lending_chains": chains,
+        "lending_quote_stables": quote_stables,
+        "pt_underlyings_matchable": pt_underlyings,
+        "n_pt_underlyings_matchable": len(pt_underlyings),
+        "toxic_lrts_refusal_only": toxic_lrts,
+        "note": ("Expanded live surface coverage (C1). Widening venues/underlyings adds DECORRELATION "
+                 "POTENTIAL (more independent exit rails → a smaller correlation haircut at scale), NOT "
+                 "above-floor edge today: the above-floor number is bound by deep PT-carry depth + the "
+                 "at-floor RWA family. Audit trail only — never an input to the above-floor arithmetic."),
+    }
+
+
 def _qualifying_rwa_tvl_usd() -> tuple:
     """The qualifying tokenized-T-bill issuer-pool TVL (USD) + a short source label. Prefers the LIVE
     rwa_feed cache (total_tvl_usd across the qualifying issuer pools above the $5M floor); fail-CLOSED
@@ -306,6 +340,14 @@ def build_report(
     ]
     families.sort(key=lambda f: f["family"])
 
+    # SURFACE PROVENANCE (C4 honesty pass): record the EXPANDED rate-surface coverage the desk now
+    # follows (more lending venues + more PT underlyings, from feeds/config). This is an AUDIT trail,
+    # NOT an inflation lever: the above-floor number is driven by the deep PT-carry depth + the at-floor
+    # RWA family, so widening the live surface adds DECORRELATION POTENTIAL (more independent exit rails)
+    # without lifting today's above-floor edge. The honest reading stays "$10M is scale + decorrelation,
+    # not reachable today" — the provenance shows exactly how many venues/underlyings were considered.
+    surface_provenance = _surface_provenance()
+
     naive_deployable = sum((Decimal(str(f["deployable_usd"])) for f in families), Decimal("0"))
     haircut = _correlation_haircut_usd(families)
     combined_deployable = naive_deployable - haircut
@@ -348,6 +390,7 @@ def build_report(
         "target_above_floor_per_yr_usd": float(target),
         "correlation_haircut_frac": float(CORRELATION_HAIRCUT_FRAC),
         "rwa_depth_frac_of_tvl": float(RWA_DEPTH_FRAC_OF_TVL),
+        "surface_provenance": surface_provenance,
         "families": families,
         "combined": {
             "naive_sum_deployable_usd": round(float(naive_deployable), 2),

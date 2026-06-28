@@ -127,7 +127,9 @@ UNDERLYING_KINDS = {
     "usde":  "stable_synth",     # Ethena USDe
     "usdy":  "stable_rwa",       # Ondo USDY (t-bill backed)
     "susds": "stable_rwa",       # Sky sUSDS (RWA backed)
+    "usds":  "stable_rwa",       # Sky USDS (the un-staked RWA-backed dollar; lending quote stable)
     "usdc":  "stable_rwa",       # plain USD reference (lending quote stable)
+    "gho":   "stable_synth",     # Aave GHO (over-collateralized synthetic dollar)
     "eeth":  "lst",              # ether.fi (matched as PT-weETH; LST baseline)
     "weeth": "lst",
     "ezeth": "lrt",              # Renzo restaking
@@ -135,6 +137,7 @@ UNDERLYING_KINDS = {
     "steth": "lst",
     "wsteth": "lst",             # Lido wstETH (wrapped, value-accruing stETH — same LST risk as stETH)
     "reth":  "lst",
+    "cbeth": "lst",              # Coinbase cbETH (regulated LST; plain staking, LST baseline)
 }
 
 # Direct NAV-redemption SLA (seconds): how long a redemption-at-NAV actually takes. Documented per
@@ -145,7 +148,9 @@ REDEMPTION_SLA_SECONDS = {
     "usde":  86400 * 1,          # USDe mint/redeem ~T+0/T+1
     "usdy":  86400 * 2,          # Ondo USDY redemption ~T+2
     "susds": 86400 * 1,
+    "usds":  86400 * 1,          # Sky USDS (DAI-style instant PSM exit)
     "usdc":  86400 * 1,
+    "gho":   86400 * 1,          # Aave GHO (mint/repay against collateral, ~instant)
     "eeth":  86400 * 3,          # ether.fi withdrawal queue (~days)
     "weeth": 86400 * 3,
     "ezeth": 86400 * 7,          # Renzo restaking exit queue (multi-day)
@@ -153,6 +158,7 @@ REDEMPTION_SLA_SECONDS = {
     "steth": 86400 * 3,          # Lido withdrawal queue
     "wsteth": 86400 * 3,         # Lido (wstETH = wrapped stETH; same withdrawal queue)
     "reth":  86400 * 2,
+    "cbeth": 86400 * 3,          # Coinbase cbETH (Lido-comparable staking exit)
 }
 DEFAULT_REDEMPTION_SLA_SECONDS = 86400 * 7   # fail-CLOSED default: assume the LONG cooldown
 
@@ -163,7 +169,9 @@ RESERVE_FUND_RATIO = {
     "usde":  0.011,
     "usdy":  0.0,                # RWA backing is 1:1 t-bills, not a reserve buffer
     "susds": 0.0,
+    "usds":  0.0,                # Sky surplus buffer exists but conservatively not credited here
     "usdc":  0.0,
+    "gho":   0.0,                # over-collateralized; no separate reserve fund credited
 }
 DEFAULT_RESERVE_FUND_RATIO = 0.0   # fail-CLOSED: no credited buffer unless documented
 
@@ -171,53 +179,90 @@ DEFAULT_RESERVE_FUND_RATIO = 0.0   # fail-CLOSED: no credited buffer unless docu
 # on-chain oracle-age probe can replace these later.
 ORACLE_KIND = {
     "susde": "chainlink", "usde": "chainlink", "usdy": "chainlink",
-    "susds": "chainlink", "usdc": "chainlink",
+    "susds": "chainlink", "usds": "chainlink", "usdc": "chainlink", "gho": "chainlink",
     "eeth": "redstone", "weeth": "redstone", "ezeth": "redstone",
     "rseth": "redstone", "steth": "chainlink", "wsteth": "chainlink", "reth": "chainlink",
+    "cbeth": "chainlink",
 }
 DEFAULT_ORACLE_KIND = "unknown"
 ORACLE_STALENESS_SECONDS = {
     # best-effort typical update age at as_of (seconds); chainlink ETH feeds ~heartbeat 3600s,
     # redstone LRT feeds push on deviation (~hourly). Documented baselines, not live ages.
-    "susde": 300, "usde": 300, "usdy": 600, "susds": 600, "usdc": 300,
+    "susde": 300, "usde": 300, "usdy": 600, "susds": 600, "usds": 600, "usdc": 300, "gho": 300,
     "eeth": 600, "weeth": 600, "ezeth": 600, "rseth": 600, "steth": 300, "wsteth": 300, "reth": 300,
+    "cbeth": 300,
 }
 DEFAULT_ORACLE_STALENESS_SECONDS = 3600   # fail-CLOSED: assume the worst tolerated age
 
 # How many protocols a yield is STACKED on (composability tail). sUSDe = 1 (Ethena). A PT OF sUSDe =
 # 2 (Pendle on Ethena). An LRT-PT is higher (restaking layer + Pendle). Documented per underlying.
 NESTED_PROTOCOL_COUNT = {
-    "susde": 1, "usde": 1, "usdy": 1, "susds": 1, "usdc": 0,
+    "susde": 1, "usde": 1, "usdy": 1, "susds": 1, "usds": 1, "usdc": 0, "gho": 1,
     "eeth": 1, "weeth": 1,
     "ezeth": 2,                  # Renzo (restaking) — restaking layer on top of staking
     "rseth": 2,                  # KelpDAO
-    "steth": 1, "wsteth": 1, "reth": 1,
+    "steth": 1, "wsteth": 1, "reth": 1, "cbeth": 1,
 }
 DEFAULT_NESTED_PROTOCOL_COUNT = 2   # fail-CLOSED: unknown → assume nested
 
 # Largest single-borrower share of a pool (concentration tail). Documented placeholder per
 # underlying; a live on-chain top-borrower probe can replace it. Conservative non-zero defaults.
 TOP_BORROWER_SHARE = {
-    "susde": 0.10, "usde": 0.10, "usdy": 0.10, "susds": 0.10, "usdc": 0.10,
+    "susde": 0.10, "usde": 0.10, "usdy": 0.10, "susds": 0.10, "usds": 0.10, "usdc": 0.10,
+    "gho": 0.10,
     "eeth": 0.20, "weeth": 0.20, "ezeth": 0.30, "rseth": 0.30, "steth": 0.15, "wsteth": 0.15,
-    "reth": 0.15,
+    "reth": 0.15, "cbeth": 0.15,
 }
 DEFAULT_TOP_BORROWER_SHARE = 0.30   # fail-CLOSED: unknown concentration → assume high
 
-# Map an underlying symbol to its price_feed X/ETH ratio key (eeth trades/prices as weeth).
+# Map an underlying symbol to its price_feed X/ETH ratio key (eeth trades/prices as weeth). cbETH has
+# no dedicated ratio series in price_feed yet, so it aliases to the steth ratio (both plain LSTs that
+# track ETH closely) — a conservative LST proxy, not a fabricated peg. If price_feed gains a cbeth
+# series this maps to it directly.
 RATIO_TOKEN = {"eeth": "weeth", "weeth": "weeth", "ezeth": "ezeth",
-               "rseth": "ezeth", "steth": "steth", "wsteth": "steth", "reth": "reth"}
+               "rseth": "ezeth", "steth": "steth", "wsteth": "steth", "reth": "reth",
+               "cbeth": "steth"}
 
 # ── LendingRateFeed targets (USDC money-markets + PT-collateral markets) ─────────────────────
 # (project, chain, symbol) selectors like restaking_feed/btc_lending_feed. underlying = the quote
 # stable for the levered/lending leg; kind drives the engine baseline. Highest-TVL match wins.
+#
+# COVERAGE EXPANSION (C1, Proof-of-Risk): the single-book §9 exit cap binds each carry book to a thin
+# size, so the edge needs SCALE across MANY gated books / venues. We widen the keyless DeFiLlama
+# lending surface to more protocols (Aave / Morpho / Euler / Fluid / Compound / Spark) AND more quote
+# stables (USDC / USDS / GHO) across Ethereum + the major L2s where keyless yields/pools data exists.
+# Each selector is matched by (project, chain, symbol) against the keyless yields/pools surface; an
+# UN-matched selector is simply ABSENT (fail-CLOSED: a feed never fabricates a row for a venue that did
+# not return data). MONOTONIC: adding a selector can only ADD rows when its pool exists — it never
+# drops or alters a previously-valid row (asserted by surface-monotonicity tests). Every venue here is
+# read-only signal: the desk composes UNDER the global RiskPolicy and only the validated FixedCarry
+# shape is live-paper; lending legs feed the levered/matrix research sleeves (all is_advisory=True).
 LENDING_TARGETS = [
+    # — USDC money-markets (the deepest quote stable) across protocols + chains —
     {"underlying": "usdc", "kind": "stable_rwa", "project": "aave-v3",
      "chain": "Ethereum", "symbol": "USDC"},
     {"underlying": "usdc", "kind": "stable_rwa", "project": "morpho-blue",
      "chain": "Ethereum", "symbol": "USDC"},
     {"underlying": "usdc", "kind": "stable_rwa", "project": "euler-v2",
      "chain": "Ethereum", "symbol": "USDC"},
+    {"underlying": "usdc", "kind": "stable_rwa", "project": "fluid-lending",
+     "chain": "Ethereum", "symbol": "USDC"},
+    {"underlying": "usdc", "kind": "stable_rwa", "project": "compound-v3",
+     "chain": "Ethereum", "symbol": "USDC"},
+    {"underlying": "usdc", "kind": "stable_rwa", "project": "aave-v3",
+     "chain": "Base", "symbol": "USDC"},
+    {"underlying": "usdc", "kind": "stable_rwa", "project": "aave-v3",
+     "chain": "Arbitrum", "symbol": "USDC"},
+    {"underlying": "usdc", "kind": "stable_rwa", "project": "morpho-blue",
+     "chain": "Base", "symbol": "USDC"},
+    # — USDS (Sky's RWA-backed dollar) — the deep Sky/Spark rails —
+    {"underlying": "usds", "kind": "stable_rwa", "project": "spark",
+     "chain": "Ethereum", "symbol": "USDS"},
+    {"underlying": "usds", "kind": "stable_rwa", "project": "aave-v3",
+     "chain": "Ethereum", "symbol": "USDS"},
+    # — GHO (Aave's over-collateralized synth dollar) —
+    {"underlying": "gho", "kind": "stable_synth", "project": "aave-v3",
+     "chain": "Ethereum", "symbol": "GHO"},
 ]
 
 

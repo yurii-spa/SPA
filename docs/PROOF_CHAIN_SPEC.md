@@ -233,6 +233,46 @@ min_dex_pool_tvl_usd }`. All of these fields are present verbatim in the publish
 third party reconstructs `row_inputs` from the row and recomputes `proof_hash` — confirming the
 conservative lower-bound exit NAV was derived from the stated inputs and model, not back-fitted.
 
+> **The proof_hash rule applies to EVERY schedule section.** `exit_nav.json` carries three schedule
+> groups, and **every row in all three** carries its own §6 `proof_hash` computed the same way:
+> 1. `schedule[]` — the desk's OWN open book (single live market);
+> 2. `illustrative.schedule[]` — a labeled hypothetical on the deepest real market (demonstration);
+> 3. `portfolio.markets[*].schedule[]` — the **portfolio-wide** schedule: EVERY open position **and**
+>    EVERY priced market on the surface, each row against **that market's own single-market depth**.
+>    `depth_usd` in any portfolio row is the market's resolved single-market contemporaneous depth —
+>    **NEVER** the `portfolio.aggregate_depth_usd` (which is disclosure-only; depths are never summed,
+>    since a forced unwind cannot route one market's exit through another's pool). The verifier
+>    recomputes the `proof_hash` of all rows across all three groups.
+
+---
+
+## 6a. Cross-eviction immutability anchors (`anchors.jsonl`)
+
+`data/rates_desk/anchors.jsonl` (served at `GET /api/rates-desk/anchors`) is the **append-only,
+monotonic** ledger that closes the §5 *sliding-window* caveat. Each line is one anchor:
+
+```json
+{ "event_type": "rates_desk_anchor", "seq": 0, "ts": "2026-06-28T01:46:41+00:00",
+  "head_hash": "91af3076…2744c", "chain_length": 386 }
+```
+
+- `head_hash` is the **public decision chain's `head_hash`** (§5 — the last row's `entry_hash`) at the
+  moment the anchor was minted; a value a third party RE-DERIVES with the §5 recipe.
+- `chain_length` is the public mirror's row count at that checkpoint.
+- `seq` is the anchor's own monotonic `0..N` index in **this** ledger (append-only, never re-based).
+
+**Verify the anchor ledger** (what `scripts/verify_spa.py` and `GET /api/rates-desk/anchors` both do):
+1. **Append-only / monotonic** — `anchor.seq == index` (0-based, contiguous), and `chain_length` is
+   non-decreasing across anchors (the chain only grows).
+2. **Head consistency** — the anchor whose `chain_length` equals the **re-derived current decision-chain
+   length** must carry that exact re-derived `head_hash`. (Anchors for *older* lengths are accepted as
+   historical checkpoints — that older window may have since evicted rows, which is precisely why an
+   external append-only anchor exists.)
+
+Because the anchor file is append-only and never truncated, recording an anchor now and re-running the
+verifier later proves no in-window history was rewritten between the two checks — extending the §5
+immutability guarantee **across ring-buffer evictions**.
+
 ---
 
 ## 7. Determinism & test anchor

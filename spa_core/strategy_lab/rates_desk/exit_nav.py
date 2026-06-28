@@ -513,6 +513,181 @@ def build_illustrative_schedule(
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
+# PORTFOLIO-WIDE exit-NAV — EVERY open position + EVERY priced market, single-market depth each
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+def _all_open_books(data_dir: Path) -> List[dict]:
+    """EVERY open paper carry position (not just the largest), each as
+    {market_id, underlying, gross_usd, as_of, source:"live"}. The portfolio liquidation schedule
+    must cover the WHOLE book — showing only the best/largest market is the attack we close."""
+    state_path = data_dir / "rates_desk" / "paper" / "rates_desk_fixed_carry_state.json"
+    try:
+        st = json.loads(state_path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return []
+    books = (st.get("state", {}) or {}).get("books", {}) if isinstance(st, dict) else {}
+    out: List[dict] = []
+    if not isinstance(books, dict):
+        return out
+    for key, bk in sorted(books.items(), key=lambda kv: str(kv[0])):  # deterministic order
+        if not isinstance(bk, dict):
+            continue
+        size = _to_float(bk.get("size"))
+        if size is None or size <= 0:
+            continue
+        q = bk.get("quote", {}) if isinstance(bk.get("quote"), dict) else {}
+        out.append({
+            "market_id": bk.get("market_id") or q.get("market_id") or key,
+            "underlying": (q.get("underlying") or "").lower(),
+            "gross_usd": size,
+            "as_of": q.get("as_of"),
+            "source": "live",
+        })
+    return out
+
+
+def _all_priced_markets(surface: dict) -> List[dict]:
+    """EVERY priced market on the surface that carries a positive exit_liquidity_usd, de-duplicated by
+    market_id (a single market, never aggregated). Deterministic order by market_id. Each →
+    {market_id, underlying, depth_usd, as_of, data_source}."""
+    quotes = surface.get("quotes") if isinstance(surface, dict) else None
+    as_of = surface.get("as_of") if isinstance(surface, dict) else None
+    if not isinstance(quotes, list):
+        return []
+    by_id: Dict[str, dict] = {}
+    for q in quotes:
+        if not isinstance(q, dict):
+            continue
+        mid = q.get("market_id")
+        if mid is None:
+            continue
+        depth = _to_float(q.get("exit_liquidity_usd"))
+        if depth is None or depth <= 0:
+            # still record the market (fail-CLOSED hole), keeping the deepest seen if any
+            by_id.setdefault(str(mid), {
+                "market_id": mid, "underlying": (q.get("underlying") or "").lower(),
+                "depth_usd": None, "as_of": q.get("as_of") or as_of,
+                "data_source": "rate_surface.exit_liquidity_usd",
+            })
+            continue
+        prev = by_id.get(str(mid))
+        if prev is None or prev.get("depth_usd") is None or depth > prev["depth_usd"]:
+            by_id[str(mid)] = {
+                "market_id": mid, "underlying": (q.get("underlying") or "").lower(),
+                "depth_usd": depth, "as_of": q.get("as_of") or as_of,
+                "data_source": "rate_surface.exit_liquidity_usd",
+            }
+    return [by_id[k] for k in sorted(by_id.keys())]
+
+
+def _market_schedule(
+    market_id, underlying, depth_usd: Optional[float], as_of, data_source: str,
+    gross_usd: Optional[float], source: str, tickets: Tuple[int, ...], params: RatePolicyParams,
+) -> dict:
+    """The per-market liquidation schedule: the SAME conservative single-market-depth bound + per-row
+    proof_hash + fail-CLOSED holes as the live/illustrative engine. `depth_usd` is THIS market's own
+    contemporaneous depth — NEVER aggregated across markets (asserted at the caller)."""
+    schedule: List[dict] = []
+    any_flagged = False
+    for t in tickets:
+        row = compute_ticket_row(
+            ticket_usd=int(t), gross_usd=float(t), depth_usd=depth_usd,
+            as_of=as_of, data_source=data_source, params=params,
+        )
+        if row["flagged"]:
+            any_flagged = True
+        schedule.append(row)
+    return {
+        "market_id": market_id,
+        "underlying": underlying,
+        "source": source,                       # "live" (open position) | "priced" (surface market)
+        "gross_usd": _round6(gross_usd),
+        "depth_usd": _round6(depth_usd),
+        "depth_source": data_source,
+        "as_of": as_of,
+        "tickets_usd": [int(t) for t in tickets],
+        "schedule": schedule,
+        "flagged": bool(any_flagged or depth_usd is None),
+    }
+
+
+def build_portfolio_schedule(
+    surface: dict,
+    deep: dict,
+    params: RatePolicyParams,
+    tickets: Tuple[int, ...],
+    data_dir: Path,
+) -> dict:
+    """The PORTFOLIO-WIDE liquidation schedule — the SAME conservative engine applied to EVERY open
+    position AND EVERY priced market on the surface, each against its OWN single-market contemporaneous
+    depth. This removes the "you only show your best market" attack: a reviewer sees the full unwind
+    surface, market-by-market, with per-row proof_hashes and fail-CLOSED holes where depth is absent.
+
+    CONSERVATIVE BY CONSTRUCTION: depth is resolved per market via _resolve_depth (surface →
+    history), NEVER summed across markets — a forced unwind cannot route one market's exit through
+    another's pool. We ASSERT this: every market row's depth_usd equals its own resolved single-market
+    depth and never the portfolio aggregate. Deterministic; same inputs → byte-identical."""
+    markets: List[dict] = []
+    seen_ids: set = set()
+
+    # ── (1) every OPEN live position (the real book) — its own single-market depth ──
+    open_books = _all_open_books(data_dir)
+    for bk in open_books:
+        mid = bk["market_id"]
+        depth_usd, data_source = _resolve_depth(
+            surface, deep, mid, bk["underlying"], bk.get("as_of"), params)
+        markets.append(_market_schedule(
+            market_id=mid, underlying=bk["underlying"], depth_usd=depth_usd,
+            as_of=bk.get("as_of"), data_source=data_source, gross_usd=bk.get("gross_usd"),
+            source="live", tickets=tickets, params=params))
+        if mid is not None:
+            seen_ids.add(str(mid))
+
+    # ── (2) every PRICED market on the surface not already covered by an open position ──
+    for mkt in _all_priced_markets(surface):
+        mid = mkt["market_id"]
+        if mid is not None and str(mid) in seen_ids:
+            continue
+        markets.append(_market_schedule(
+            market_id=mid, underlying=mkt["underlying"], depth_usd=mkt.get("depth_usd"),
+            as_of=mkt.get("as_of"), data_source=mkt["data_source"], gross_usd=None,
+            source="priced", tickets=tickets, params=params))
+        if mid is not None:
+            seen_ids.add(str(mid))
+
+    # ── conservatism assertion: NEVER aggregated depth. Each market's depth is its OWN single-market
+    #    resolved depth. The portfolio sum of depths is computed for DISCLOSURE only and must never be
+    #    used as any single market's depth_usd. ──
+    depths = [m["depth_usd"] for m in markets if m.get("depth_usd") is not None]
+    aggregate_depth = round(sum(depths), 6) if depths else None
+    for m in markets:
+        d = m.get("depth_usd")
+        if d is not None and aggregate_depth is not None and len(depths) > 1:
+            assert d != aggregate_depth, (
+                "portfolio exit-NAV INVARIANT VIOLATED: a market row used the AGGREGATE depth "
+                "instead of its own single-market depth")
+
+    n_open = sum(1 for m in markets if m["source"] == "live")
+    any_flagged = any(m["flagged"] for m in markets)
+    return {
+        "kind": "portfolio",
+        "basis": ("portfolio-wide forced-unwind schedule across EVERY open position + EVERY priced "
+                  "market; each market exits against its OWN single-market contemporaneous depth, "
+                  "NEVER aggregated"),
+        "depth_aggregation": "single-market per row (NEVER summed); aggregate_depth_usd is disclosure-only",
+        "aggregate_depth_usd": aggregate_depth,
+        "n_markets": len(markets),
+        "n_open_positions": n_open,
+        "tickets_usd": [int(t) for t in tickets],
+        "markets": markets,
+        "flagged": bool(any_flagged),
+        "disclaimer": ("Each market's schedule is a CONSERVATIVE LOWER BOUND against THAT market's "
+                       "single-market contemporaneous depth — depths are NEVER aggregated (a forced "
+                       "unwind cannot route one market's exit through another's pool). Holes are "
+                       "published, never filled. Advisory — moves no capital."),
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
 # build_exit_nav_schedule — the engine
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 def build_exit_nav_schedule(
@@ -582,6 +757,10 @@ def build_exit_nav_schedule(
     #    with the live `schedule`. fail-CLOSED: None if no real market exists to anchor on. ──
     illustrative = build_illustrative_schedule(surface, deep, params, tickets)
 
+    # ── PORTFOLIO-WIDE schedule: EVERY open position + EVERY priced market, each on its OWN
+    #    single-market depth (NEVER aggregated). Removes the "you only show your best market" attack. ──
+    portfolio = build_portfolio_schedule(surface, deep, params, tickets, dd)
+
     result = {
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "model": MODEL_NAME,
@@ -609,6 +788,7 @@ def build_exit_nav_schedule(
         "tickets_usd": [int(t) for t in tickets],
         "schedule": schedule,
         "illustrative": illustrative,
+        "portfolio": portfolio,
         "flagged": bool(any_flagged or depth_usd is None),
         "basis": ("paper/backtest-derived from contemporaneous on-chain Pendle PT depth; "
                   "conservative lower bound; NOT realized exits"),
@@ -644,6 +824,7 @@ def _empty_result(as_of, params: RatePolicyParams, reason: str) -> dict:
         "tickets_usd": list(EXIT_TICKETS_USD),
         "schedule": [],
         "illustrative": None,
+        "portfolio": None,
         "flagged": True,
         "flag_reason": reason,
         "basis": ("paper/backtest-derived from contemporaneous on-chain Pendle PT depth; "

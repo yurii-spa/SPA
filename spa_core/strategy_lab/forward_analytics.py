@@ -69,6 +69,19 @@ RATES_STATE_FILE = RATES_PAPER_DIR / "rates_desk_fixed_carry_state.json"
 # Honest at the current ~3–6-day track depth: the ratios SHOULD read UNKNOWN today, by design.
 MIN_POINTS_FOR_RATIO = 7      # ≥ 7 equity points → ≥ 6 daily returns before a ratio is trusted
 
+# Deflated-Sharpe / PSR is a STRONGER claim than a raw Sharpe (it is the overfitting-robust,
+# multiple-testing-aware probability the edge is real), so it needs MORE evidence before it means
+# anything. Below this depth the DSR/PSR block stays UNKNOWN — never a fabricated probability. This is
+# the day-30 target depth: the forward tracks are ~3–6 days today, so DSR SHOULD read UNKNOWN now, by
+# design, and only ACTIVATE once ~a month of real daily returns has accrued. (≥ 20 equity points → ≥ 19
+# daily returns: a credible minimum for a probabilistic-Sharpe statement on a daily series.)
+MIN_POINTS_FOR_DSR = 20
+
+# The number of "trials" the forward DSR deflates against (the multiple-testing penalty). The Strategy
+# Lab compares this many sleeve/baseline tracks side-by-side for the same fundability question, so a
+# single track's Sharpe must beat the LUCKIEST of N candidates with no real edge. Pinned + documented.
+DSR_N_TRIALS = 8
+
 # The promotion drawdown band — a forward track whose stressed DD exceeds this does NOT survive.
 # MIRRORS levered_stress.MAX_DD_BAND_PCT (15%) so the stress overlay is NO looser than the gate.
 MAX_DD_BAND_PCT = 15.0
@@ -123,6 +136,111 @@ def _daily_returns(equity: Sequence[float]) -> List[float]:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# T6 (C3) — Deflated-Sharpe / PSR block that ACTIVATES only at the right N
+# ──────────────────────────────────────────────────────────────────────────────
+def deflated_sharpe_block(rets: Sequence[float], *, floor_apy_pct: float,
+                          n_trials: int = DSR_N_TRIALS) -> dict:
+    """Overfitting-robust risk-adjusted block on a forward return series, HONEST about depth.
+
+    Reuses spa_core.backtesting.tier1.deflated_sharpe (the SAME PSR / DSR / minTRL the promotion gate
+    uses — never reinvented). The discriminating honesty rule:
+
+      • fewer than MIN_POINTS_FOR_DSR returns  → status THIN, every ratio UNKNOWN (a DSR on a handful
+        of days is a fabricated probability — we refuse to emit one). This is the expected reading at
+        the current ~3–6-day track depth, BY DESIGN.
+      • a locked-volatility / zero-dispersion series (std == 0 — the documented degenerate-Sharpe
+        hazard for fixed-rate accrual) → status LOCKED_VOL, ratios UNKNOWN (never a ~4.5e8 Sharpe).
+      • only with ≥ MIN_POINTS_FOR_DSR real, dispersed returns does the block ACTIVATE with a trusted
+        PSR-vs-floor + deflated-Sharpe-vs-luckiest-of-N + minTRL.
+
+    PURE / deterministic / fail-CLOSED. All Sharpe values per-period internally; reported annualized.
+    """
+    from spa_core.backtesting.tier1 import deflated_sharpe as ds
+
+    n = len(rets)
+    floor_daily = (float(floor_apy_pct) / 100.0) / 365.0
+    base = {
+        "n_returns": n,
+        "min_points_for_dsr": MIN_POINTS_FOR_DSR,
+        "n_trials": n_trials,
+        "status": "THIN",
+        "psr_vs_floor": "UNKNOWN",
+        "deflated_sharpe": "UNKNOWN",
+        "deflated_sharpe_passes_0_95": "UNKNOWN",
+        "sharpe_annual_vs_floor": "UNKNOWN",
+        "min_track_record_length_obs": "UNKNOWN",
+        "mintrl_satisfied": "UNKNOWN",
+    }
+    if n < MIN_POINTS_FOR_DSR:
+        return base  # honest: not enough evidence for a probabilistic-Sharpe statement
+
+    mom = ds.moments(rets)
+    if mom["std"] == 0:
+        # locked-volatility / zero-dispersion → the degenerate-Sharpe hazard. Report LOCKED_VOL, never
+        # a fabricated ratio (a held-to-maturity fixed-rate book has near-zero variance by construction).
+        base["status"] = "LOCKED_VOL"
+        return base
+
+    sr_pp = ds.sharpe_per_period(rets, rf_per_period=floor_daily)
+    sr_annual = ds.annualize_sharpe(sr_pp)
+    dsr = ds.deflated_sharpe_ratio(
+        sr_pp, n, sr_variance_across_trials=(sr_pp ** 2) / max(2, n_trials),
+        n_trials=max(2, n_trials), skew=mom["skew"], kurt=mom["kurt"])
+    psr = ds.probabilistic_sharpe_ratio(
+        sr_pp, n, skew=mom["skew"], kurt=mom["kurt"], sr_benchmark_per_period=floor_daily)
+    mintrl = ds.min_track_record_length(
+        sr_pp, skew=mom["skew"], kurt=mom["kurt"], sr_benchmark_per_period=floor_daily)
+    mintrl_obs = None if mintrl == float("inf") else round(mintrl, 1)
+    base.update({
+        "status": "ACTIVE",
+        "psr_vs_floor": round(psr, 4),
+        "deflated_sharpe": round(dsr["dsr"], 4),
+        "deflated_sharpe_passes_0_95": bool(dsr["passes"]),
+        "sharpe_annual_vs_floor": round(sr_annual, 3),
+        "min_track_record_length_obs": mintrl_obs,
+        "mintrl_satisfied": bool(mintrl_obs is not None and n >= mintrl_obs),
+    })
+    return base
+
+
+def drawdown_attribution(equity: Sequence[float]) -> dict:
+    """Attribute the REALIZED max drawdown to its peak / trough on the forward equity curve.
+
+    Returns {max_dd_pct, peak_idx, trough_idx, peak_equity, trough_equity, peak_to_trough_usd,
+    n_drawdown_points}. Honest at any depth ≥ 2 (max-DD is well-defined from 2 points); on a single
+    point or a monotone-up curve the DD is 0 with no peak/trough span. PURE / deterministic."""
+    eq = [float(x) for x in equity]
+    if len(eq) < 2:
+        return {"max_dd_pct": 0.0, "peak_idx": None, "trough_idx": None,
+                "peak_equity": (eq[0] if eq else None), "trough_equity": (eq[0] if eq else None),
+                "peak_to_trough_usd": 0.0, "n_drawdown_points": len(eq)}
+    peak = eq[0]
+    peak_i = 0
+    worst_dd = 0.0
+    worst_peak_i = 0
+    worst_trough_i = 0
+    for i, v in enumerate(eq):
+        if v > peak:
+            peak = v
+            peak_i = i
+        if peak > 0:
+            dd = (peak - v) / peak * 100.0
+            if dd > worst_dd:
+                worst_dd = dd
+                worst_peak_i = peak_i
+                worst_trough_i = i
+    return {
+        "max_dd_pct": round(worst_dd, 4),
+        "peak_idx": worst_peak_i,
+        "trough_idx": worst_trough_i,
+        "peak_equity": round(eq[worst_peak_i], 2),
+        "trough_equity": round(eq[worst_trough_i], 2),
+        "peak_to_trough_usd": round(eq[worst_peak_i] - eq[worst_trough_i], 2),
+        "n_drawdown_points": len(eq),
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # T4 — risk-adjusted scorecard for ONE forward track
 # ──────────────────────────────────────────────────────────────────────────────
 def analyze_track(
@@ -162,6 +280,8 @@ def analyze_track(
         "floor_apy_pct": round(floor, 4),
         "excess_vs_floor_pct": None,
         "attribution": None,
+        "drawdown_attribution": None,
+        "deflated_sharpe_block": None,
         "verdict": "UNKNOWN",
     }
 
@@ -234,6 +354,15 @@ def analyze_track(
         "excess_carry_pct": excess,                  # the return attributable to the strategy's edge
         "beats_floor": bool(excess > 0.0),
     }
+
+    # ── 4b. drawdown attribution (peak→trough of the realized forward equity) ──────────────────
+    base["drawdown_attribution"] = drawdown_attribution(equity)
+
+    # ── 4c. deflated-Sharpe / PSR block — THIN until MIN_POINTS_FOR_DSR, then ACTIVE (C3) ───────
+    # A stronger, overfitting-robust claim than the raw Sharpe above — it deflates against the
+    # luckiest-of-N-trials benchmark. Stays UNKNOWN/THIN at today's depth (by design) and the
+    # degenerate-Sharpe guard (std==0 → LOCKED_VOL) holds inside the block.
+    base["deflated_sharpe_block"] = deflated_sharpe_block(rets, floor_apy_pct=floor)
 
     # ── 5. verdict ───────────────────────────────────────────────────────────────────────────
     # HONEST: a thin/locked-vol track gets THIN_TRACK (we have an honest return + attribution but
@@ -444,6 +573,13 @@ def build_scorecard(
     n_unknown = sum(1 for t in tracks if t["verdict"] == "UNKNOWN")
     n_thin = sum(1 for t in tracks if t["verdict"] == "THIN_TRACK")
     n_beats = sum(1 for t in tracks if t["verdict"] == "BEATS_FLOOR")
+    # C3 rollup: how many tracks have ENOUGH depth for the deflated-Sharpe block to ACTIVATE (vs the
+    # honest THIN/LOCKED_VOL state). At today's ~3–6-day depth this SHOULD be 0 — the artifact lands
+    # real only once the forward records reach ~MIN_POINTS_FOR_DSR daily returns (the day-30 target).
+    n_dsr_active = sum(
+        1 for t in tracks
+        if isinstance(t.get("deflated_sharpe_block"), dict)
+        and t["deflated_sharpe_block"].get("status") == "ACTIVE")
 
     out = {
         "generated_at": now_iso if now_iso is not None else _utc_now_iso(),
@@ -452,11 +588,14 @@ def build_scorecard(
         "deterministic": True,
         "rwa_floor_apy_pct": round(floor, 4),
         "min_points_for_ratio": MIN_POINTS_FOR_RATIO,
+        "min_points_for_dsr": MIN_POINTS_FOR_DSR,
+        "dsr_n_trials": DSR_N_TRIALS,
         "max_dd_band_pct": MAX_DD_BAND_PCT,
         "n_tracks": len(tracks),
         "n_unknown": n_unknown,
         "n_thin_track": n_thin,
         "n_beats_floor": n_beats,
+        "n_dsr_active": n_dsr_active,
         "tracks": tracks,
         "carry_book_stress_overlay": overlay,
     }

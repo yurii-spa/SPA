@@ -127,6 +127,7 @@ app.add_middleware(
 # ─── Routers ─────────────────────────────────────────────────────────────────
 # Order preserved from the monolith's definition order so OpenAPI listing is stable.
 from spa_core.api.routers import (  # noqa: E402
+    competitive_watch,
     live,
     misc,
     rates_desk,
@@ -143,6 +144,7 @@ app.include_router(rates_desk.router)
 app.include_router(v1.router)
 app.include_router(live.router)
 app.include_router(tournament.router)
+app.include_router(competitive_watch.router)
 
 
 # ─── Backward-compatible handler re-exports ───────────────────────────────────
@@ -181,6 +183,7 @@ get_rates_desk_decisions = rates_desk.get_rates_desk_decisions
 get_rates_desk_proof = rates_desk.get_rates_desk_proof
 get_rates_desk_track = rates_desk.get_rates_desk_track
 get_rates_desk_exit_nav = rates_desk.get_rates_desk_exit_nav
+get_rates_desk_anchors = rates_desk.get_rates_desk_anchors
 
 v1_status = v1.v1_status
 v1_golive = v1.v1_golive

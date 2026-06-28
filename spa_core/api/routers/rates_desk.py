@@ -19,6 +19,28 @@ log = logging.getLogger("spa.api")
 
 router = APIRouter(tags=["strategy_lab"])
 
+# ── The API reproducibility contract (A4) ────────────────────────────────────────────────────────
+# Every proof-bearing response embeds this `reproduce` block so the MACHINE RESPONSE TEACHES ITS OWN
+# VERIFICATION: a consumer learns the spec version, the exact canonical-JSON rule, and the single
+# command to re-derive every hash WITHOUT our code. The server verdict (verified / head_hash /
+# proof_hash) MUST match scripts/verify_spa.py byte-for-byte on the same public files.
+_SPEC_VERSION = "1.0"
+_CANONICAL_JSON_RULE = "json.dumps(obj, sort_keys=True, separators=(',', ':'), ensure_ascii=False)"
+
+
+def _reproduce_block(files: list, note: str) -> dict:
+    """The self-describing 'don't trust us, check us' block embedded in every proof response."""
+    return {
+        "spec_version": _SPEC_VERSION,
+        "spec": "docs/PROOF_CHAIN_SPEC.md",
+        "canonical_json_rule": _CANONICAL_JSON_RULE,
+        "hash": "sha256(canonical_json).hexdigest()",
+        "public_files": files,
+        "verify_with": "python3 verify_spa.py " + " ".join(files),
+        "verifier": "scripts/verify_spa.py (zero-dependency, no spa_core import)",
+        "note": note,
+    }
+
 
 @router.get("/api/rates-desk/surface")
 def get_rates_desk_surface():
@@ -175,6 +197,21 @@ def get_rates_desk_proof(last_n: int = Query(default=12, ge=1, le=200)):
             "entry_hash": r.get("entry_hash"),
         })
 
+    # ── cross-eviction anchor badge (A3): the append-only checkpoint ledger over the public head ──
+    anchor_badge = {"verified": True, "length": 0, "broken_at": None, "latest_matches_head": None}
+    try:
+        from spa_core.strategy_lab.rates_desk import anchors as _anchors
+        av = _anchors.verify_anchors()
+        anchor_badge = {
+            "verified": bool(av["valid"]),
+            "length": av["length"],
+            "broken_at": av["broken_at"],
+            "latest_matches_head": av["latest_matches_head"],
+        }
+    except Exception as e:  # noqa: BLE001 — graceful, never 500 the dashboard
+        log.warning(f"rates-desk proof: anchor verify failed: {e}")
+        anchor_badge["verified"] = False
+
     return {
         "generated_at": now(),
         "model": "rates_desk_proof_chain",
@@ -183,7 +220,13 @@ def get_rates_desk_proof(last_n: int = Query(default=12, ge=1, le=200)):
         "verified": result["valid"],
         "broken_at": result["broken_at"],
         "counts": counts,
+        "anchors": anchor_badge,
         "last_n_decisions": last,
+        "reproduce": _reproduce_block(
+            ["decision_log.jsonl", "anchors.jsonl"],
+            "Re-derive every entry_hash + head_hash per PROOF_CHAIN_SPEC.md §3-§5 and confirm each "
+            "anchor matches the head it checkpoints (§A3). The server's verified/head_hash above "
+            "reproduce byte-for-byte under the verifier."),
     }
 
 
@@ -305,6 +348,10 @@ def get_rates_desk_refusals(limit: int = Query(default=50, ge=1, le=500)):
         "chain": chain_badge,
         "counts": counts,
         "decisions": decisions,
+        "reproduce": _reproduce_block(
+            ["decision_log.jsonl"],
+            "Every refusal's cited numbers live inside the hashed payload; re-derive entry_hash per "
+            "PROOF_CHAIN_SPEC.md §3 to confirm no explanation number was back-fitted."),
     }
     # Defense-in-depth redaction over the entire public projection.
     return _redact_public(payload)
@@ -341,10 +388,67 @@ def get_rates_desk_exit_nav():
             "is_advisory": True,
             "validation_ref": "docs/RATES_DESK_VALIDATION.md#exit-liquidity (Oct-2025 stress)",
             "meta": _meta,
+            "reproduce": _reproduce_block(
+                ["exit_nav.json"],
+                "Each schedule row's proof_hash is reproducible per PROOF_CHAIN_SPEC.md §6 over the "
+                "row's published inputs (live + illustrative + portfolio sections)."),
         }
     raw.setdefault("is_advisory", True)
     raw.setdefault("meta", _meta)
+    raw.setdefault("reproduce", _reproduce_block(
+        ["exit_nav.json"],
+        "Each schedule row's proof_hash is reproducible per PROOF_CHAIN_SPEC.md §6 over the row's "
+        "published inputs (live + illustrative + portfolio sections)."))
     return raw
+
+
+@router.get("/api/rates-desk/anchors")
+def get_rates_desk_anchors(limit: int = Query(default=50, ge=1, le=500)):
+    """Rates-Desk CROSS-EVICTION immutability anchors — data/rates_desk/anchors.jsonl.
+
+    The append-only, monotonic ledger of {ts, seq, head_hash, chain_length} checkpoints over the
+    public decision chain's head (PROOF_CHAIN_SPEC.md §5 anchoring caveat / A3). Each anchor is a
+    time-stamped external commitment that the chain at that length hashed to that head — so even after
+    the 2000-row public window evicts old rows, a third party can prove no in-window history was
+    rewritten between two checkpoints. Read-only, graceful, fail-CLOSED: an absent ledger yields an
+    empty, vacuously-valid result, NEVER a 500. Verifiable WITHOUT our code via scripts/verify_spa.py.
+    """
+    path = (data_dir() / "rates_desk" / "anchors.jsonl")
+    rows: list = []
+    if path.exists():
+        try:
+            for ln in path.read_text(encoding="utf-8").splitlines():
+                ln = ln.strip()
+                if not ln:
+                    continue
+                try:
+                    rows.append(json.loads(ln))
+                except json.JSONDecodeError:
+                    rows.append({"__corrupt__": True})
+        except OSError as e:
+            log.warning(f"rates-desk anchors read failed: {e}")
+
+    badge = {"valid": True, "length": len(rows), "broken_at": None, "latest_matches_head": None}
+    try:
+        from spa_core.strategy_lab.rates_desk import anchors as _anchors
+        badge = _anchors.verify_anchors()
+    except Exception as e:  # noqa: BLE001 — fail-CLOSED, never 500
+        log.warning(f"rates-desk anchors verify failed: {e}")
+        badge = {"valid": False, "length": len(rows), "broken_at": None, "latest_matches_head": None}
+
+    return {
+        "generated_at": now(),
+        "model": "rates_desk_anchor_ledger",
+        "n_anchors": len(rows),
+        "verified": bool(badge["valid"]),
+        "broken_at": badge["broken_at"],
+        "latest_matches_head": badge["latest_matches_head"],
+        "anchors": rows[-limit:],
+        "reproduce": _reproduce_block(
+            ["decision_log.jsonl", "anchors.jsonl"],
+            "Append-only + monotonic; the anchor whose chain_length == the re-derived decision-chain "
+            "length must carry that exact head_hash (PROOF_CHAIN_SPEC.md §5 anchoring caveat)."),
+    }
 
 
 @router.get("/api/rates-desk/track")

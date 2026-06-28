@@ -201,6 +201,60 @@ PENDLE_ACTIVE_URL = pph.PENDLE_API_BASE + "/{chain}/markets/active"
 PENDLE_MARKETS_PAGED_URL = pph.PENDLE_API_BASE + "/{chain}/markets?limit={limit}&skip={skip}"
 
 
+# ── config-EXTENDED Pendle target set (C1 coverage expansion) ──────────────────────────────────────
+# The deep/backtest path uses pph.TARGETS (the cached-history target set). The LIVE /active path can
+# surface MORE current underlyings than the cached deep file has — every clean stable/LST underlying
+# the desk follows in config.UNDERLYING_KINDS that ALSO has a live PT. We therefore match the live
+# snapshot against pph.TARGETS UNION the config underlyings (kind resolved via config.underlying_kind).
+# This is purely ADDITIVE: a config-only underlying can only ADD a live PT row when one exists; it
+# never drops or alters a pph.TARGETS row. fail-CLOSED throughout (an unmatched name → skip; a config
+# underlying with no live PT → simply absent). We DO NOT widen the TOXIC LRT set here — ezETH/rsETH
+# stay matched exactly as before so the refusal gate sees them unchanged (no refusal regression).
+def _extended_pendle_kind(underlying: str) -> Optional[UnderlyingKind]:
+    """Resolve the UnderlyingKind for a matched live-PT underlying, fail-CLOSED. Prefers pph.TARGETS
+    (the validated history kinds), then config.UNDERLYING_KINDS. None if neither knows the symbol (the
+    caller then SKIPS the market — never fabricates a kind)."""
+    u = (underlying or "").lower()
+    for k, v in pph.TARGETS.items():
+        if k.lower() == u:
+            return v
+    if u in config.UNDERLYING_KINDS:
+        try:
+            return config.underlying_kind(u)
+        except ValueError:
+            return None
+    return None
+
+
+def _match_pendle_underlying_extended(name: str, symbol: str) -> Optional[str]:
+    """Match a live market to a canonical underlying using pph's strict matchers FIRST (so the existing
+    TARGETS behavior is byte-identical), then a strict fallback against the config underlyings for the
+    ADDITIONAL stable/LST symbols (sUSDS, USDS, GHO, cbETH, …). Returns the lowercase underlying or None.
+
+    The config fallback uses the SAME strictness as pph: an EXACT name match (the /active clean
+    underlying name) or a leading-segment `<token>-` PT-symbol match — so a nested/wrapper variant
+    (jrUSDe, PT-Karak-sUSDS, …) is never mistaken for a clean target."""
+    # 1) the validated pph matchers (unchanged) — these win, preserving TARGETS behavior exactly
+    u = pph._match_underlying_by_name(name or "")
+    if u is None:
+        u = pph._match_underlying(symbol or "")
+    if u is not None:
+        return u.lower()
+    # 2) config fallback (additional clean stable/LST underlyings the deep file may not carry)
+    n = (name or "").strip().lower()
+    s = (symbol or "").strip().lower()
+    for cand in sorted(config.UNDERLYING_KINDS, key=lambda x: -len(x)):
+        # skip the toxic LRTs in the config fallback — they are owned exactly by pph.TARGETS so the
+        # refusal gate's view of ezETH/rsETH never changes through this widening.
+        if config.UNDERLYING_KINDS[cand] == "lrt":
+            continue
+        if n == cand:
+            return cand
+        if s.startswith("pt-") and s[3:].startswith(cand + "-"):
+            return cand
+    return None
+
+
 class PendleMarketFeed:
     """PT markets → RateQuote rows. Historical days REUSE the deep pendle_pt_history dataset (the
     expired-markets implied-yield pull); the live snapshot uses the keyless /active endpoint.
@@ -308,7 +362,9 @@ class PendleMarketFeed:
             tenor = _maturity_ts(expiry) - as_of_ts
             if tenor < 0:
                 continue  # an /active market past its expiry edge — skip
-            kind = pph.TARGETS[underlying]
+            kind = _extended_pendle_kind(underlying)
+            if kind is None:
+                continue  # fail-CLOSED: no resolvable kind → never fabricate one
             ul = underlying.lower()
             sla = int(sla_by_underlying.get(ul, config.redemption_sla_seconds(ul)))
             rows.append(
@@ -427,11 +483,12 @@ def _parse_live_market(m: dict):
     pt_dict = pt if isinstance(pt, dict) else {}
     details = m.get("details") if isinstance(m.get("details"), dict) else {}
 
-    # underlying: prefer the active-endpoint `name` (clean underlying symbol), then the legacy PT symbol
-    underlying = pph._match_underlying_by_name(m.get("name") or "")
-    if underlying is None:
-        symbol = pt_dict.get("symbol") or m.get("symbol") or ""
-        underlying = pph._match_underlying(symbol)
+    # underlying: prefer the active-endpoint `name` (clean underlying symbol), then the legacy PT symbol.
+    # _match_pendle_underlying_extended tries the validated pph matchers FIRST (TARGETS behavior is
+    # unchanged) and only then the config-extended stable/LST set (sUSDS/USDS/GHO/cbETH) — purely
+    # additive, never widening the toxic-LRT set.
+    symbol = pt_dict.get("symbol") or m.get("symbol") or ""
+    underlying = _match_pendle_underlying_extended(m.get("name") or "", symbol)
     if underlying is None:
         return None
 
@@ -857,6 +914,45 @@ def build_surface(
     if cache:
         _cache_surface(out_path or _SURFACE_OUT, d, live, quotes, risks, hedge_map)
     return quotes, risks
+
+
+# ── surface coverage / monotonicity helpers (C1 verification surface) ──────────────────────────────
+def surface_market_keys(quotes: List[RateQuote]) -> set:
+    """The set of (venue, underlying, market_id) keys present in a surface's quotes. The unit of the
+    MONOTONICITY property: adding a feed/venue/underlying to the config must NEVER DROP a key that was
+    valid before (it may only ADD keys). Pure; deterministic."""
+    return {(q.venue.value, q.underlying, q.market_id) for q in quotes}
+
+
+def surface_coverage_summary(quotes: List[RateQuote]) -> dict:
+    """A deterministic coverage summary of a surface: total quote rows, distinct markets, and a
+    per-venue + per-underlying breakdown. Used by the C1 smoke + the monotonicity tests to report the
+    market/venue count (before→after expansion). Pure."""
+    by_venue: Dict[str, int] = {}
+    by_underlying: Dict[str, int] = {}
+    for q in quotes:
+        by_venue[q.venue.value] = by_venue.get(q.venue.value, 0) + 1
+        by_underlying[q.underlying] = by_underlying.get(q.underlying, 0) + 1
+    return {
+        "n_quotes": len(quotes),
+        "n_distinct_markets": len(surface_market_keys(quotes)),
+        "by_venue": dict(sorted(by_venue.items())),
+        "by_underlying": dict(sorted(by_underlying.items())),
+        "n_venues": len(by_venue),
+        "n_underlyings": len(by_underlying),
+    }
+
+
+def assert_surface_monotonic(before: List[RateQuote], after: List[RateQuote]) -> bool:
+    """METAMORPHIC property: expanding the surface (more venues/underlyings) is purely ADDITIVE — every
+    market key valid in `before` MUST still be present in `after`. Returns True if monotone; raises
+    FeedError naming the dropped keys otherwise (fail-CLOSED: a silent drop is a regression). The
+    quoted RATES may legitimately differ (live data moves); only the KEY SET monotonicity is asserted."""
+    lost = surface_market_keys(before) - surface_market_keys(after)
+    if lost:
+        raise FeedError(f"surface monotonicity violated — dropped {len(lost)} market(s): "
+                        f"{sorted(lost)[:5]}{'…' if len(lost) > 5 else ''}")
+    return True
 
 
 # ── caching (atomic; PURE serialization of the contract dataclasses) ───────────────────────────────
