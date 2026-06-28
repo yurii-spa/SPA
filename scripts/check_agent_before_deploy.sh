@@ -107,6 +107,25 @@ done
 [ -n "$PLIST" ] || fail "plist not found (scripts/${LABEL}.plist or launchd/${LABEL}.plist)"
 info "plist: $PLIST"
 
+# Early plist-string extractor (the full plist_path_for is defined later for the
+# log-assertion; this lightweight twin is needed by the exit-78 antipattern gate
+# below, which runs before that definition).
+plist_path_for_early() {
+    awk -v key="$1" '
+        # same-line form: <key>K</key><string>V</string>
+        $0 ~ "<key>"key"</key>.*<string>" {
+          line=$0; sub(".*<key>"key"</key>[^<]*<string>", "", line)
+          sub(/<\/string>.*/, "", line); print line; exit
+        }
+        # multi-line form: <key>K</key> on one line, <string>V</string> on a later line
+        $0 ~ "<key>"key"</key>" {grab=1; next}
+        grab && /<string>/ {
+          line=$0; sub(/.*<string>/, "", line); sub(/<\/string>.*/, "", line)
+          print line; exit
+        }
+    ' "$PLIST"
+}
+
 # ── 2. Extract ProgramArguments into a bash array ───────────────────────────
 # /bin/bash on macOS is 3.2 — no `mapfile`. Use a read loop.
 PROGARGS=()
@@ -127,13 +146,29 @@ done < <(
 [ "${#PROGARGS[@]}" -ge 1 ] || fail "could not parse ProgramArguments from $PLIST"
 info "ProgramArguments: ${PROGARGS[*]}"
 
-# Antipattern guard: warn loudly if the plist execs miniconda-python directly.
+# ── EXIT-78 ANTIPATTERN GATE (fail-CLOSED) ──────────────────────────────────
+# launchd cannot exec miniconda-python directly, and cannot write logs under
+# ~/Documents (TCC) — either is a guaranteed exit-78 (EX_CONFIG) at load time.
+# These are STATIC, deterministic faults: a plist with them WILL exit-78 the
+# moment launchd loads it, before any code runs. So we REFUSE here (fail-CLOSED)
+# rather than merely warn — even in CHECK_ONLY mode, where the real load (and its
+# exit!=78 assertion in step 7) never happens. This makes "a new agent that would
+# exit-78 → the gate catches it" true at validation time, not only at load time.
 case "${PROGARGS[0]}" in
-    *miniconda3/bin/python3*)
-        echo "⚠️  WARNING: plist execs miniconda-python DIRECTLY (launchd cannot — exit 78)."
-        echo "    Convert to a /bin/bash wrapper (scripts/agent_template.sh) before deploying."
+    /bin/bash|/usr/bin/env|*/bash)
+        : ;;  # correct: a /bin/bash wrapper is the canonical, exit-78-proof launcher
+    *miniconda3/bin/python3*|*/python3|*/python)
+        fail "plist execs python DIRECTLY in ProgramArguments[0]='${PROGARGS[0]}' — launchd cannot exec miniconda-python → exit 78 (EX_CONFIG). Convert to a /bin/bash wrapper (scripts/agent_template.sh) before deploying."
         ;;
 esac
+# Any log path under ~/Documents → TCC blocks the launchd write → exit 78.
+for _lp in "$(plist_path_for_early StandardOutPath)" "$(plist_path_for_early StandardErrorPath)"; do
+    case "$_lp" in
+        */Documents/*)
+            fail "log path '$_lp' is under ~/Documents — launchd (no Full Disk Access) cannot write there → exit 78. Point StandardOutPath/StandardErrorPath at /tmp/ (the wrapper logs to /tmp/spa_<name>.log)."
+            ;;
+    esac
+done
 
 # KeepAlive agents are long-lived servers (apiserver/uvicorn, cloudflared, …):
 # the run-once never returns on its own and may collide with the already-running

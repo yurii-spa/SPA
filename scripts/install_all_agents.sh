@@ -296,6 +296,16 @@ install_agent \
     "com.spa.rates_desk_paper" \
     "1"
 
+# 22d. Red-team rotation (WS-8 Cutover-Bulletproof) — daily 09:30 UTC; probes a DIFFERENT attack
+#      surface each UTC day, hash-anchors the verdict, writes data/redteam_status.json. Read-only
+#      against live data/ (scenarios use tmp sandboxes; the runner snapshots live files before/after
+#      and FAILS CLOSED if any changed). On-standard (bash-wrapper + /tmp logs), passed the deploy
+#      gate (CHECK_ONLY: exit 0, log written, canonical track untouched). ADVISORY.
+install_agent \
+    "$REPO/scripts/com.spa.redteam_rotation.plist" \
+    "com.spa.redteam_rotation" \
+    "1"
+
 echo ""
 echo "--- LIVE SERVICES (KeepAlive — API / tunnels / dashboards) ---"
 

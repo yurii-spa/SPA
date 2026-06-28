@@ -30,14 +30,19 @@ def get_redteam_status():
     honest "no red-team run yet" state rather than mistaking silence for safety.
     """
     raw = read_state("redteam_status.json", {})
-    if not raw or not isinstance(raw, dict) or "verdict" not in raw:
+    # WS-6.2 fail-CLOSED: ``verdict`` must be a DICT to be a real verdict. A
+    # corrupt status can carry a truthy NON-dict ``verdict`` (e.g. an int/list);
+    # that is NOT a published verdict → unavailable (never a fabricated pass, and
+    # never a ``verdict.get`` AttributeError → 500).
+    if (not raw or not isinstance(raw, dict)
+            or not isinstance(raw.get("verdict"), dict)):
         return {
             "available": False,
             "ok": None,
             "note": ("no red-team status published yet — run "
                      "`python3 -m spa_core.redteam.rotation` (or the rotation agent)"),
         }
-    verdict = raw.get("verdict") or {}
+    verdict = raw["verdict"]
     # surface the load-bearing fields at the top level for an easy dashboard read, then the full
     # verdict + the anchor (so the claim is independently verifiable).
     out = {

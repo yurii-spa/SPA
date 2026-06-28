@@ -113,8 +113,16 @@ def get_captured_book():
             ),
         }
 
+    # WS-6.2 fail-CLOSED: a corrupt status.json can parse to a dict whose
+    # ``sleeve`` / ``scan_diag`` VALUE is a non-dict (e.g. an int) — guard the
+    # value type, not just the container, before any ``.get`` (a non-dict value
+    # would raise AttributeError → an uncaught 500).
     sleeve = status.get("sleeve", {}) if isinstance(status, dict) else {}
+    if not isinstance(sleeve, dict):
+        sleeve = {}
     scan = status.get("scan_diag", {}) if isinstance(status, dict) else {}
+    if not isinstance(scan, dict):
+        scan = {}
     sleeve_id = sleeve.get("id") or (
         series_doc.get("id") if isinstance(series_doc, dict) else None
     ) or "rates_desk_fixed_carry"
@@ -124,7 +132,13 @@ def get_captured_book():
     # the per-book detail lives in the sleeve state file, but the PUBLIC surface
     # intentionally exposes only the non-sensitive summary the owner needs. We
     # surface the count + the latest scan diagnostics + the accruing series.
+    # WS-6.2 fail-CLOSED: ``series`` may be present but a non-list (None / str /
+    # int) in a corrupt doc — ``.get("series", [])`` returns that non-list and the
+    # loop below would crash (TypeError) or iterate a string char-by-char. Coerce
+    # to a list before iterating.
     raw_series = series_doc.get("series", []) if isinstance(series_doc, dict) else []
+    if not isinstance(raw_series, list):
+        raw_series = []
     daily_series = []
     for pt in raw_series:
         if not isinstance(pt, dict):

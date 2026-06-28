@@ -63,6 +63,20 @@ CRITICAL_FILES = [
     "tier1_packages.json",
     "bee/defillama_apy_history.json",
     "track.db",
+    # ── WS-8: the published PROOF CHAINS, the CAPTURED BOOK, and the DAY-30 artifact ──
+    # A DR backup that cannot restore these is backup theater: the proof chains ARE the
+    # "don't trust us, verify us" surface, the captured book IS the fundability track, and
+    # the day-30 artifact IS the go-live readiness proof. All are hash-anchored, so a
+    # restored copy is byte-verifiable with verify_spa.py / day30_artifact --verify.
+    "day30_artifact.json",                                  # hash-anchored day-30 readiness
+    "rates_desk/decision_log.jsonl",                        # (A) rates-desk decision chain
+    "rates_desk/exit_nav.json",                             # (B) exit-NAV per-row proofs
+    "rates_desk/anchors.jsonl",                             # (C) head-checkpoint anchors
+    "rates_desk/equity_track.jsonl",                        # (D) evidenced equity track chain
+    "rates_desk/paper/rates_desk_fixed_carry_series.json",  # the CAPTURED BOOK (FixedCarry)
+    "rates_desk/paper/rates_desk_fixed_carry_series_proof.jsonl",  # its hash-anchored proof
+    "tournament/decision_log.jsonl",                        # (E) tournament ranking chain
+    "rwa_backstop/nav_proof.jsonl",                         # (F) RWA-backstop NAV proof
 ]
 
 # The MUST-HAVE recovery set. A backup that omits any of these is INCOMPLETE and the

@@ -52,6 +52,10 @@ import tarfile
 import tempfile
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Make `import spa_core` resolvable when run directly (the WS-8 extended validators load
+# spa_core.audit.day30_artifact); launchd hands a minimal PYTHONPATH so be explicit.
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
 _DATA = os.path.realpath(os.path.join(_REPO_ROOT, "data"))
 _BACKUPS = os.path.join(_DATA, "backups")
 _STATUS_PATH = os.path.join(_DATA, "restore_drill_status.json")
@@ -67,6 +71,23 @@ CRITICAL_JSON = (
     "current_positions.json",
 )
 CRITICAL_DB = "track.db"
+
+# ── WS-8: the EXTENDED critical state a restore must also byte-verifiably recover ──
+# These are the published PROOF CHAINS, the CAPTURED BOOK, and the DAY-30 artifact. They
+# are HASH-ANCHORED, so "byte-verifiable recovery" means more than "the JSON parses": the
+# restored copy must REPRODUCE its published hashes (verify_spa.py for the chains, the
+# embedded proof_hash for the day-30 artifact). A backup that restored a TORN/edited proof
+# chain would be caught here, never silently passed.
+#
+# Each entry is validated ONLY IF it is present in the archive (a legacy archive produced
+# before WS-8 has none of these → reported as not-in-archive, which is a soft note, not a
+# hard fail — the core CRITICAL_JSON + track.db set is what gates the drill). For a CURRENT
+# archive (post-WS-8 daily_backup / dr_backup) they ARE present and MUST verify.
+PROOF_CHAIN_DIR = "rates_desk"            # verify_spa.py covers A/B/C/D + paper/ (captured book)
+PROOF_BREADTH_DIRS = ("tournament", "rwa_backstop")  # E / F — also covered by verify_spa.py
+CAPTURED_BOOK = "rates_desk/paper/rates_desk_fixed_carry_series.json"
+CAPTURED_BOOK_PROOF = "rates_desk/paper/rates_desk_fixed_carry_series_proof.jsonl"
+DAY30_ARTIFACT = "day30_artifact.json"
 
 
 # --------------------------------------------------------------------------- #
@@ -234,6 +255,113 @@ def _validate_sqlite(path: str) -> tuple:
 
 
 # --------------------------------------------------------------------------- #
+# WS-8 extended validators — the proof chains / captured book / day-30 artifact
+# must be recovered BYTE-VERIFIABLY (reproduce their published hashes), not merely
+# parse. These run against the restored copies in the sandbox.
+# --------------------------------------------------------------------------- #
+_REPO_ROOT_FOR_VERIFY = _REPO_ROOT  # the live repo (for loading verify_spa.py / day30 module)
+
+
+def _load_verify_spa():
+    """Import scripts/verify_spa.py as a module (it is a script, not a package)."""
+    import importlib.util
+    path = os.path.join(_REPO_ROOT_FOR_VERIFY, "scripts", "verify_spa.py")
+    spec = importlib.util.spec_from_file_location("verify_spa_for_drill", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _validate_proof_chains(sandbox: str, archive_members: set) -> tuple:
+    """BYTE-VERIFIABLE recovery of every published proof chain present in the archive.
+
+    Runs the STANDALONE verify_spa.py (the same zero-dependency tool a third party uses) over
+    the restored proof tree in the sandbox. verify_spa re-derives EVERY published hash (decision
+    chain, exit-NAV, anchors, equity track, tournament, RWA-NAV, sleeve/captured-book proofs); a
+    single restored byte that differs from what produced the published hash → exit non-zero here.
+
+    Returns (ok, detail). If NO proof surface is present in the archive (legacy pre-WS-8 backup),
+    returns (True, 'no proof chains in archive (legacy)') — a soft pass for the core drill.
+    """
+    has_any = any(
+        m.startswith(PROOF_CHAIN_DIR + "/") or any(m.startswith(d + "/") for d in PROOF_BREADTH_DIRS)
+        for m in archive_members
+    )
+    if not has_any:
+        return True, "no proof chains in archive (legacy pre-WS-8 backup)"
+    try:
+        ver = _load_verify_spa()
+    except Exception as exc:  # noqa: BLE001
+        return False, f"could not load verify_spa.py: {exc}"
+    # Point verify_spa at the restored sandbox copy of data/ (it auto-discovers all surfaces).
+    targets = []
+    for d in (PROOF_CHAIN_DIR, *PROOF_BREADTH_DIRS):
+        p = os.path.join(sandbox, d)
+        if os.path.isdir(p):
+            targets.append(p)
+    if not targets:
+        return False, "proof members present in archive but no proof dir restored"
+    try:
+        report = ver.run(targets)
+    except Exception as exc:  # noqa: BLE001
+        return False, f"verify_spa raised: {exc}"
+    if report.get("ok"):
+        surfaces = [k for k in ("decision_chain", "exit_nav", "anchors", "equity_track",
+                                "tournament", "nav_proof", "sleeves")
+                    if report.get(k)]
+        return True, f"verify_spa OK — reproduced surfaces: {','.join(surfaces) or 'none'}"
+    return False, f"verify_spa FAILED: {report.get('errors')}"
+
+
+def _validate_captured_book(sandbox: str, archive_members: set) -> tuple:
+    """The CAPTURED BOOK (rates-desk FixedCarry forward series) + its hash-anchored proof must be
+    recovered and the proof must re-derive (covered by verify_spa over rates_desk/paper/). Here we
+    additionally assert both the series AND its proof are physically present + parse, so a dropped
+    captured book is caught explicitly (not only via the aggregate proof run)."""
+    if CAPTURED_BOOK not in archive_members:
+        return True, "captured book not in archive (legacy pre-WS-8 backup)"
+    series_p = os.path.join(sandbox, CAPTURED_BOOK)
+    proof_p = os.path.join(sandbox, CAPTURED_BOOK_PROOF)
+    if not os.path.isfile(series_p):
+        return False, "captured book series in manifest but not restored"
+    try:
+        with open(series_p, "r", encoding="utf-8") as f:
+            doc = json.load(f)
+        n = len(doc.get("series", [])) if isinstance(doc, dict) else 0
+    except Exception as exc:  # noqa: BLE001
+        return False, f"captured book series unparseable: {exc}"
+    if CAPTURED_BOOK_PROOF not in archive_members or not os.path.isfile(proof_p):
+        return False, f"captured book series restored ({n} pts) but its hash-anchored proof is MISSING"
+    return True, f"captured book restored: {n} forward point(s) + proof present"
+
+
+def _validate_day30(sandbox: str, archive_members: set) -> tuple:
+    """The DAY-30 readiness artifact must be recovered and its embedded proof_hash must re-derive
+    (byte-verifiable: any edited content field breaks the hash). Uses the SAME compute_proof_hash
+    the producer uses."""
+    if DAY30_ARTIFACT not in archive_members:
+        return True, "day30 artifact not in archive (not yet produced / legacy backup)"
+    p = os.path.join(sandbox, DAY30_ARTIFACT)
+    if not os.path.isfile(p):
+        return False, "day30 artifact in manifest but not restored"
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            art = json.load(f)
+    except Exception as exc:  # noqa: BLE001
+        return False, f"day30 artifact unparseable: {exc}"
+    try:
+        import importlib
+        d30 = importlib.import_module("spa_core.audit.day30_artifact")
+        res = d30.verify_artifact(art)
+    except Exception as exc:  # noqa: BLE001
+        return False, f"day30 verify raised: {exc}"
+    if res.get("valid"):
+        return True, f"day30 proof_hash re-derives (verdict={art.get('verdict')})"
+    return False, ("day30 proof_hash MISMATCH — restored artifact does not reproduce its hash "
+                   f"(stored={str(res.get('stored_hash'))[:16]}…)")
+
+
+# --------------------------------------------------------------------------- #
 # atomic status write
 # --------------------------------------------------------------------------- #
 def _atomic_write_json(path: str, obj: dict) -> None:
@@ -308,6 +436,19 @@ def run_drill(archive: str = "", keep: bool = False, quiet: bool = False) -> dic
             "source": db_source_label,
         })
         all_ok = all_ok and ok
+
+        # 3) WS-8 EXTENDED critical state — byte-verifiable recovery of the proof chains,
+        #    the captured book, and the day-30 artifact (each reproduces its published hash).
+        #    Present-and-valid → PASS; present-and-torn → FAIL; absent (legacy archive) → soft PASS.
+        for label, fn in (("proof_chains", _validate_proof_chains),
+                          ("captured_book", _validate_captured_book),
+                          ("day30_artifact", _validate_day30)):
+            try:
+                ok2, detail2 = fn(sandbox, member_set)
+            except Exception as exc:  # noqa: BLE001 — a validator crash is a fail-closed FAIL
+                ok2, detail2 = False, f"validator error: {exc}"
+            files_validated.append({"file": label, "ok": ok2, "detail": detail2})
+            all_ok = all_ok and ok2
     finally:
         if keep:
             sandbox_note = sandbox

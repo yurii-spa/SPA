@@ -103,13 +103,35 @@ def _sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+# ── WS-8: the published PROOF-CHAIN subtrees + the CAPTURED BOOK must be in EVERY
+#    daily archive, not just top-level data/*.json. The top-level glob never reached
+#    these (they live in data/rates_desk/, data/tournament/, data/rwa_backstop/), so a
+#    restore could NOT recover the proof chains / captured book / day-30 anchors — backup
+#    theater. We additionally capture every *.json / *.jsonl under these proof subtrees.
+_PROOF_SUBTREES = (
+    "rates_desk",        # (A) decision chain, (B) exit_nav, (C) anchors, (D) equity_track,
+                          #     + paper/ = the CAPTURED BOOK series + its hash-anchored proof
+    "tournament",        # (E) tournament ranking chain
+    "rwa_backstop",      # (F) RWA-backstop NAV proof
+)
+
+
 def _collect_sources() -> list:
-    """All top-level data/*.json and data/*.jsonl, sorted for determinism."""
+    """All top-level data/*.json + *.jsonl AND every *.json/*.jsonl under the proof-chain
+    subtrees (rates_desk/, tournament/, rwa_backstop/) — so the captured book + every proof
+    chain land in the archive. Sorted, deduped, for determinism."""
     files = []
     for pattern in ("*.json", "*.jsonl"):
         files.extend(glob.glob(os.path.join(_DATA, pattern)))
-    files = [f for f in files if os.path.isfile(f)]
-    return sorted(files)
+    # Recurse the proof subtrees (the captured book + the hash-anchored chains live here).
+    for sub in _PROOF_SUBTREES:
+        base = os.path.join(_DATA, sub)
+        if not os.path.isdir(base):
+            continue
+        for pattern in ("*.json", "*.jsonl"):
+            files.extend(glob.glob(os.path.join(base, "**", pattern), recursive=True))
+    files = sorted(set(f for f in files if os.path.isfile(f)))
+    return files
 
 
 def snapshot(date_str: str = "", dry_run: bool = False) -> dict:

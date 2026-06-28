@@ -24,6 +24,7 @@ from spa_core.api._shared import (
     event_queue,
     now,
     read_state,
+    scrub_nonfinite,
 )
 from spa_core.api.agent_broadcaster import broadcaster
 
@@ -239,7 +240,10 @@ def get_execution_readiness():
     so a missing artifact can NEVER read as 'ready to go live'. The is_live flip is
     owner-gated — this endpoint only reports.
     """
-    return read_state("execution_readiness.json", {
+    # WS-6.2 fail-CLOSED: a corrupt scorecard carrying NaN/inf must not crash the
+    # serializer (→ 500); non-finite numbers are nulled, never emitted. A missing
+    # / unparsable file falls to the SAFEST default (never reads as ready-to-live).
+    return scrub_nonfinite(read_state("execution_readiness.json", {
         "generated_at": now(),
         "posture": "unknown",
         "ready_for_live": False,        # fail-closed default
@@ -252,7 +256,7 @@ def get_execution_readiness():
             "external audit pending", "track_record <30d", "is_live flip (owner-gated)",
         ],
         "live_blockers": ["execution_readiness.json absent — fail-closed"],
-    })
+    }))
 
 
 # ─── Backtest replay / summary / compare ──────────────────────────────────────

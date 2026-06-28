@@ -59,6 +59,8 @@ const T = {
   tabStrategies: { en: 'Parallel strategies', ru: 'Параллельные стратегии' },
   tabTournament: { en: 'Tournament', ru: 'Турнир' },
   tabDesks: { en: 'Research desks', ru: 'Исследования' },
+  tabProof: { en: 'Refusals & proof', ru: 'Отказы и доказательства' },
+  tabRisk: { en: 'Risk', ru: 'Риск' },
   tabSystem: { en: 'System', ru: 'Система' },
   tabHelp: { en: 'How to use', ru: 'Как пользоваться' },
 
@@ -315,6 +317,86 @@ const T = {
   deepStatus: { en: 'System status →', ru: 'Статус системы →' },
   problemAgents: { en: 'Agents needing attention', ru: 'Агенты, требующие внимания' },
   allHealthy: { en: 'All agents healthy.', ru: 'Все агенты здоровы.' },
+
+  /* day-30 readiness (overview) */
+  day30Title: { en: 'Day-30 readiness', ru: 'Готовность к 30 дням' },
+  day30Sub: {
+    en: 'The deterministic 30-day artifact: evidenced days, realized return / drawdown, and the honest verdict. Risk-adjusted metrics stay THIN until ~20 returns exist.',
+    ru: 'Детерминированный 30-дневный артефакт: подтверждённые дни, реализованная доходность / просадка и честный вердикт. Risk-adjusted метрики остаются THIN, пока нет ~20 доходностей.',
+  },
+  day30Verdict: { en: 'Verdict', ru: 'Вердикт' },
+  day30Ready: { en: 'Day-30 readiness', ru: 'Готовность к 30д' },
+  day30Realized: { en: 'Realized return', ru: 'Реализ. доходность' },
+  day30Dd: { en: 'Realized max DD', ru: 'Реализ. макс. DD' },
+  day30Sharpe: { en: 'Sharpe (THIN)', ru: 'Sharpe (THIN)' },
+  day30Offline: { en: 'Day-30 artifact unavailable — /api/v1/day30 offline.', ru: 'Артефакт 30 дней недоступен — /api/v1/day30 офлайн.' },
+
+  /* risk section */
+  riskEyebrow: { en: 'Deterministic safety · LLM-free', ru: 'Детерминированная защита · без LLM' },
+  riskTitle: { en: 'Risk & cutover readiness', ru: 'Риск и готовность к cutover' },
+  riskIntro: {
+    en: 'The deterministic two-tier safety ladder that governs the book (RiskPolicy v1.0, no LLM), the live drawdown position on it, plus the honest cutover scorecard and our own adversarial red-team verdict. Each panel polls its own API; a dead API shows offline / —, never a fabricated PASS.',
+    ru: 'Детерминированная двухуровневая лестница защиты, управляющая портфелем (RiskPolicy v1.0, без LLM), живая позиция просадки на ней, плюс честный scorecard cutover и наш собственный adversarial red-team вердикт. Каждая панель опрашивает свой API; мёртвый API → офлайн / —, никогда выдуманный PASS.',
+  },
+  ladderVizTitle: { en: 'Kill-switch ladder (two-tier)', ru: 'Лестница kill-switch (два уровня)' },
+  ladderVizSub: {
+    en: 'Four deterministic rungs from drawdown. DL-01 (daily-loss 2%) and DL-02 (peak-to-trough 10%) HALT allocation; SOFT de-risk (5%) halts new allocations; HARD kill (10%) moves all to cash. The marker shows the live drawdown — approved=False cannot be overridden by anyone.',
+    ru: 'Четыре детерминированных ступени по просадке. DL-01 (дневной убыток 2%) и DL-02 (peak-to-trough 10%) HALT аллокации; SOFT de-risk (5%) стоп новых аллокаций; HARD kill (10%) всё в кэш. Маркер показывает живую просадку — approved=False никто не может переопределить.',
+  },
+  ladderCurrentDd: { en: 'Live drawdown', ru: 'Живая просадка' },
+  ladderRungDl1: { en: 'DL-01 · daily loss', ru: 'DL-01 · дневной убыток' },
+  ladderRungSoft: { en: 'SOFT de-risk', ru: 'SOFT de-risk' },
+  ladderRungHard: { en: 'HARD kill', ru: 'HARD kill' },
+  ladderRungDl2: { en: 'DL-02 · peak DD', ru: 'DL-02 · peak DD' },
+  ladderDl1Action: { en: 'HALT allocation (daily loss)', ru: 'HALT аллокации (дневной убыток)' },
+  ladderSoftAction: { en: 'halt NEW allocations, hold book', ru: 'стоп НОВЫХ аллокаций, держим книгу' },
+  ladderHardAction: { en: 'all to cash', ru: 'всё в кэш' },
+  ladderDl2Action: { en: 'HALT allocation (peak drawdown)', ru: 'HALT аллокации (peak просадка)' },
+  ladderGovOffline: { en: 'Governance policy unavailable — /api/governance offline; ladder thresholds shown from the canonical RiskPolicy literals.', ru: 'Политика governance недоступна — /api/governance офлайн; пороги лестницы показаны из канонических литералов RiskPolicy.' },
+  ladderSafetyOffline: { en: 'Live safety state unavailable — /api/live/safety offline; the marker is hidden (no fabricated position).', ru: 'Живое состояние защиты недоступно — /api/live/safety офлайн; маркер скрыт (без выдуманной позиции).' },
+  govPosture: { en: 'Dual-control posture', ru: 'Состояние dual-control' },
+  govEnforced: { en: 'enforced', ru: 'включено' },
+  govAdvisory: { en: 'advisory (paper)', ru: 'advisory (paper)' },
+
+  /* execution readiness */
+  execTitle: { en: 'Cutover readiness scorecard', ru: 'Scorecard готовности к cutover' },
+  execWhat: {
+    en: 'The honest CODE-readiness scorecard. Code-readiness is NOT go-live: the owner-only blockers (custody, real capital, audit, 30-day track, the owner-gated is_live flip) are named plainly and gate everything. This endpoint only reports — it cannot flip live.',
+    ru: 'Честный scorecard CODE-готовности. CODE-готовность — НЕ go-live: owner-only блокеры (custody, реальный капитал, аудит, 30-дневный трек, owner-gated is_live флип) названы прямо и гейтят всё. Этот endpoint только сообщает — он не может включить live.',
+  },
+  execCodeReady: { en: 'Code-readiness', ru: 'CODE-готовность' },
+  execPosture: { en: 'Posture', ru: 'Состояние' },
+  execReadyForLive: { en: 'Ready for live', ru: 'Готово к live' },
+  execChecks: { en: 'Code defenses', ru: 'Code-защиты' },
+  execOwnerBlockers: { en: 'Owner-only blockers (off-code — gate go-live)', ru: 'Owner-only блокеры (вне кода — гейтят go-live)' },
+  execNotGoLive: { en: 'CODE-readiness ≠ go-live (owner-gated)', ru: 'CODE-готовность ≠ go-live (owner-gated)' },
+  execOffline: { en: 'Cutover scorecard unavailable — /api/execution/readiness offline.', ru: 'Scorecard cutover недоступен — /api/execution/readiness офлайн.' },
+
+  /* red-team */
+  redTitle: { en: 'We red-team ourselves', ru: 'Мы red-team’им сами себя' },
+  redWhat: {
+    en: 'A standing adversarial harness tries to break our own integrity / safety surfaces. The verdict carries an anchored report hash so the claim is itself verifiable — you can re-derive it. Fail-closed: no published run reads as "no red-team yet", never as a silent PASS.',
+    ru: 'Постоянный adversarial harness пытается сломать наши собственные поверхности целостности / защиты. Вердикт несёт привязанный хеш отчёта, поэтому само заявление проверяемо — его можно пересчитать. Fail-closed: отсутствие прогона читается как «red-team ещё не было», а не как молчаливый PASS.',
+  },
+  redVerdict: { en: 'Verdict', ru: 'Вердикт' },
+  redPass: { en: 'ALL CAUGHT', ru: 'ВСЁ ПОЙМАНО' },
+  redFail: { en: 'ESCAPED', ru: 'ПРОРВАЛОСЬ' },
+  redScenarios: { en: 'Scenarios', ru: 'Сценарии' },
+  redCaught: { en: 'Caught', ru: 'Поймано' },
+  redEscaped: { en: 'Escaped', ru: 'Прорвалось' },
+  redLiveUntouched: { en: 'Live data untouched', ru: 'Live-данные не тронуты' },
+  redReportHash: { en: 'Anchored report hash', ru: 'Привязанный хеш отчёта' },
+  redNone: { en: 'No red-team run published yet — fail-closed (we never imply a pass we did not run).', ru: 'Прогон red-team ещё не опубликован — fail-closed (мы не подразумеваем pass, которого не было).' },
+  redOffline: { en: 'Red-team verdict unavailable — /api/redteam offline.', ru: 'Red-team вердикт недоступен — /api/redteam офлайн.' },
+
+  /* proof section */
+  proofEyebrow: { en: 'Don’t trust us · check us', ru: 'Не верьте нам · проверьте нас' },
+  proofTitle: { en: 'Refusals & proof', ru: 'Отказы и доказательства' },
+  proofIntro: {
+    en: 'The credibility surface: every declined trade with a tamper-evident proof, the rates-desk proof chain, the per-underlying refusal verdicts, the fail-closed promotion refusals, and our own red-team verdict. We publish what we refuse, not only what we trade — and you can re-derive every hash yourself.',
+    ru: 'Поверхность доверия: каждая отклонённая сделка с защищённым от подмены доказательством, proof-цепочка rates-desk, вердикты отказа по активам, fail-closed отказы промоушена и наш собственный red-team вердикт. Мы публикуем отказы, а не только сделки — и каждый хеш можно пересчитать самому.',
+  },
+  proofVerifyCta: { en: 'Verify it yourself → /verify (one command, <5 min)', ru: 'Проверьте сами → /verify (одна команда, <5 мин)' },
 
   /* help */
   helpEyebrow: { en: 'Legend', ru: 'Легенда' },
@@ -586,6 +668,11 @@ export default function DashboardLive() {
   /* WS-1.5 — the real-edge surfaces (each polls its OWN endpoint, honest LIVE/offline per-panel) */
   const [capturedBook, setCapturedBook] = useState(undefined);
   const [optimizerAb, setOptimizerAb] = useState(undefined);
+  /* WS-7 — risk / cutover / proof surfaces (each polls its OWN endpoint, honest LIVE/offline) */
+  const [governance, setGovernance] = useState(undefined);
+  const [execRead, setExecRead] = useState(undefined);
+  const [redteam, setRedteam] = useState(undefined);
+  const [day30, setDay30] = useState(undefined);
 
   const [phase, setPhase] = useState('connecting'); // connecting | live | offline
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -627,6 +714,10 @@ export default function DashboardLive() {
       ['/api/rates-desk/refusals?limit=40', setRefusalLog],
       ['/api/captured-book', setCapturedBook],
       ['/api/optimizer-ab', setOptimizerAb],
+      ['/api/governance', setGovernance],
+      ['/api/execution/readiness', setExecRead],
+      ['/api/redteam', setRedteam],
+      ['/api/v1/day30', setDay30],
     ];
     indep.forEach(([path, setter]) => {
       getJson(path).then((d) => setter(d)).catch(() => setter(null));
@@ -663,11 +754,25 @@ export default function DashboardLive() {
     : safeState === 'CLEAR' ? 'ok'
     : 'muted';
 
+  /* SLO: how many of the polled public surfaces are reachable right now (live=non-null & not loading).
+     Honest uptime read — never claims a surface is live when its fetch failed. */
+  const surfaceStates = [
+    facts, fleet, status, golive, safety, lab, promotion, tournament, refusal, rwaBoard,
+    ratesSurface, ratesOpps, ratesDecisions, ratesTrack, exitNav, refusalLog,
+    capturedBook, optimizerAb, governance, execRead, redteam, day30,
+  ];
+  const surfacesTotal = surfaceStates.length;
+  const surfacesLive = surfaceStates.filter((s) => s != null).length;
+
+  /* Unified desk console — five coherent sections + research desks + legend.
+     The Edge folds in the parallel-strategy sleeves and the tournament leaderboard so
+     "what is the edge" lives in one place; Refusals & proof is the dedicated trust surface;
+     Risk carries the kill-switch ladder + cutover scorecard + red-team. */
   const TABS = [
     ['overview', tr('tabOverview')],
     ['edge', tr('tabEdge')],
-    ['strategies', tr('tabStrategies')],
-    ['tournament', tr('tabTournament')],
+    ['proof', tr('tabProof')],
+    ['risk', tr('tabRisk')],
     ['desks', tr('tabDesks')],
     ['system', tr('tabSystem')],
     ['help', tr('tabHelp')],
@@ -682,9 +787,11 @@ export default function DashboardLive() {
         <span style={{ fontSize: '.8125rem', color: 'rgba(242,181,60,.75)' }}>{tr('paperSub')}</span>
       </div>
 
-      {/* Freshness bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      {/* Freshness / SLO bar — global live state + how many of the public surfaces are reachable.
+          aria-live=polite so a screen reader announces a live↔offline flip; aria-atomic keeps it whole. */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}
+        role="status" aria-live="polite" aria-atomic="true">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           {phase === 'live' ? (
             <Chip tone="ok"><span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--ok)', animation: 'pulse 3s ease-in-out infinite' }} aria-hidden="true" />{tr('live')}</Chip>
           ) : phase === 'offline' ? (
@@ -692,23 +799,47 @@ export default function DashboardLive() {
           ) : (
             <Chip tone="muted">{tr('connecting')}</Chip>
           )}
+          {/* SLO: reachable surfaces / total polled — honest per-surface uptime read */}
+          {surfacesTotal > 0 && (
+            <Chip tone={surfacesLive === surfacesTotal ? 'ok' : surfacesLive === 0 ? 'danger' : 'warn'}
+              title={lang === 'ru' ? 'Сколько публичных API-поверхностей сейчас отвечают' : 'How many public API surfaces are currently responding'}>
+              {surfacesLive}/{surfacesTotal} {lang === 'ru' ? 'поверхностей' : 'surfaces'}
+            </Chip>
+          )}
           {lastUpdated && (
             <span style={{ ...mono, fontSize: '.6875rem', color: 'var(--text-muted)' }}>
               {tr('updated')} {lastUpdated.toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
           )}
         </div>
-        <button onClick={poll} style={{ ...mono, fontSize: '.6875rem', color: 'var(--text-secondary)', background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '6px 12px', cursor: 'pointer' }}>
+        <button onClick={poll} aria-label={tr('refresh')} style={{ ...mono, fontSize: '.6875rem', color: 'var(--text-secondary)', background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '6px 12px', cursor: 'pointer' }}>
           ↻ {tr('refresh')}
         </button>
       </div>
 
-      {/* Tab bar — horizontally scrollable on mobile */}
-      <div role="tablist" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, borderBottom: '1px solid var(--border)' }}>
+      {/* Tab bar — horizontally scrollable on mobile. a11y: roving tabindex + arrow-key nav,
+          aria-controls binds each tab to its panel; the active panel has role=tabpanel below. */}
+      <div role="tablist" aria-label={lang === 'ru' ? 'Разделы консоли' : 'Console sections'}
+        style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, borderBottom: '1px solid var(--border)' }}
+        onKeyDown={(e) => {
+          if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft' && e.key !== 'Home' && e.key !== 'End') return;
+          e.preventDefault();
+          const idx = TABS.findIndex(([id]) => id === tab);
+          let next = idx;
+          if (e.key === 'ArrowRight') next = (idx + 1) % TABS.length;
+          else if (e.key === 'ArrowLeft') next = (idx - 1 + TABS.length) % TABS.length;
+          else if (e.key === 'Home') next = 0;
+          else if (e.key === 'End') next = TABS.length - 1;
+          const nextId = TABS[next][0];
+          setTab(nextId);
+          const el = document.getElementById('tab-' + nextId);
+          if (el) el.focus();
+        }}>
         {TABS.map(([id, label]) => {
           const active = tab === id;
           return (
-            <button key={id} role="tab" aria-selected={active} onClick={() => setTab(id)}
+            <button key={id} id={'tab-' + id} role="tab" aria-selected={active}
+              aria-controls={'panel-' + id} tabIndex={active ? 0 : -1} onClick={() => setTab(id)}
               style={{
                 ...mono, fontSize: '.8125rem', fontWeight: active ? 600 : 500, whiteSpace: 'nowrap',
                 color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
@@ -727,7 +858,7 @@ export default function DashboardLive() {
       {/* ───────────────────────────────────── OVERVIEW ───────────────────────── */}
       {tab === 'overview' && (
         <PanelBoundary lang={lang}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" tabIndex={0} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <Panel style={{ background: 'linear-gradient(180deg, rgba(54,194,180,.06), transparent)', border: '1px solid rgba(54,194,180,.22)', padding: '28px' }}>
             <Eyebrow>{tr('heroEyebrow')}</Eyebrow>
             <div style={{ display: 'flex', gap: 28, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -816,6 +947,9 @@ export default function DashboardLive() {
             </Panel>
           </div>
 
+          {/* day-30 readiness */}
+          <Day30Panel day30={day30} lang={lang} tr={tr} />
+
           {/* fleet */}
           <Panel>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
@@ -840,52 +974,73 @@ export default function DashboardLive() {
         </PanelBoundary>
       )}
 
-      {/* ───────────────────────────────── EDGE (WS-1.5) ──────────────────────── */}
+      {/* ─────────────────────── THE EDGE (WS-1.5 + sleeves + tournament) ──────── */}
       {tab === 'edge' && (
         <PanelBoundary lang={lang}>
-          <EdgeSection
-            capturedBook={capturedBook} optimizerAb={optimizerAb} promotion={promotion}
-            lang={lang} tr={tr}
-          />
+          <div id="panel-edge" role="tabpanel" aria-labelledby="tab-edge" tabIndex={0} style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+            <EdgeSection
+              capturedBook={capturedBook} optimizerAb={optimizerAb} promotion={promotion}
+              lang={lang} tr={tr}
+            />
+            <StrategiesSection lab={lab} promotion={promotion} lang={lang} tr={tr} />
+            <TournamentSection tournament={tournament} lang={lang} tr={tr} />
+          </div>
         </PanelBoundary>
       )}
 
-      {/* ───────────────────────────────── PARALLEL STRATEGIES ────────────────── */}
-      {tab === 'strategies' && (
+      {/* ─────────────────────── REFUSALS & PROOF (trust surface) ──────────────── */}
+      {tab === 'proof' && (
         <PanelBoundary lang={lang}>
-          <StrategiesSection lab={lab} promotion={promotion} lang={lang} tr={tr} />
+          <div id="panel-proof" role="tabpanel" aria-labelledby="tab-proof" tabIndex={0}>
+            <ProofSection
+              decisions={ratesDecisions} track={ratesTrack} refusal={refusal}
+              refusalLog={refusalLog} promotion={promotion} redteam={redteam}
+              lang={lang} tr={tr}
+            />
+          </div>
         </PanelBoundary>
       )}
 
-      {/* ───────────────────────────────── TOURNAMENT ─────────────────────────── */}
-      {tab === 'tournament' && (
+      {/* ─────────────────────── RISK (kill-switch ladder + cutover + red-team) ── */}
+      {tab === 'risk' && (
         <PanelBoundary lang={lang}>
-          <TournamentSection tournament={tournament} lang={lang} tr={tr} />
+          <div id="panel-risk" role="tabpanel" aria-labelledby="tab-risk" tabIndex={0}>
+            <RiskSection
+              governance={governance} safety={safe} safeState={safeState} safeTone={safeTone}
+              execRead={execRead} redteam={redteam} lang={lang} tr={tr}
+            />
+          </div>
         </PanelBoundary>
       )}
 
       {/* ───────────────────────────────── RESEARCH DESKS ─────────────────────── */}
       {tab === 'desks' && (
         <PanelBoundary lang={lang}>
-          <DesksSection
-            surface={ratesSurface} opps={ratesOpps} decisions={ratesDecisions} track={ratesTrack}
-            refusal={refusal} rwaBoard={rwaBoard} exitNav={exitNav} refusalLog={refusalLog}
-            lang={lang} tr={tr}
-          />
+          <div id="panel-desks" role="tabpanel" aria-labelledby="tab-desks" tabIndex={0}>
+            <DesksSection
+              surface={ratesSurface} opps={ratesOpps} decisions={ratesDecisions} track={ratesTrack}
+              refusal={refusal} rwaBoard={rwaBoard} exitNav={exitNav} refusalLog={refusalLog}
+              lang={lang} tr={tr}
+            />
+          </div>
         </PanelBoundary>
       )}
 
       {/* ───────────────────────────────── SYSTEM ─────────────────────────────── */}
       {tab === 'system' && (
         <PanelBoundary lang={lang}>
-          <SystemSection fl={fl} safe={safe} safeState={safeState} safeTone={safeTone} lang={lang} tr={tr} />
+          <div id="panel-system" role="tabpanel" aria-labelledby="tab-system" tabIndex={0}>
+            <SystemSection fl={fl} safe={safe} safeState={safeState} safeTone={safeTone} lang={lang} tr={tr} />
+          </div>
         </PanelBoundary>
       )}
 
       {/* ───────────────────────────────── HELP ───────────────────────────────── */}
       {tab === 'help' && (
         <PanelBoundary lang={lang}>
-          <HelpSection lang={lang} tr={tr} />
+          <div id="panel-help" role="tabpanel" aria-labelledby="tab-help" tabIndex={0}>
+            <HelpSection lang={lang} tr={tr} />
+          </div>
         </PanelBoundary>
       )}
     </div>
@@ -1334,41 +1489,17 @@ function DesksSection({ surface, opps, decisions, track, refusal, rwaBoard, exit
         <div style={{ marginTop: 14 }}><DeepLink href="/rates-desk" label={tr('deepRates')} inline /></div>
       </Panel>
 
-      {/* Refusal verdicts */}
-      <Panel>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-          <h3 style={{ ...HEADING, fontSize: '1.05rem' }}>{tr('refusalTitle')}</h3>
-          <SourceTag live={refusalLive} lang={lang} />
-        </div>
-        <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)', lineHeight: 1.55, marginBottom: 14 }}>{tr('refusalWhat')}</p>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-          <Chip tone="ok">SAFE {refCounts.SAFE ?? 0}</Chip>
-          <Chip tone="warn">WATCH {refCounts.WATCH ?? 0}</Chip>
-          <Chip tone="danger">REFUSE {refCounts.REFUSE ?? 0}</Chip>
-          <Chip tone="muted">UNKNOWN {refCounts.UNKNOWN ?? 0}</Chip>
-        </div>
-        {refUnderlyings.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {refUnderlyings.slice(0, 8).map((u, i) => {
-              const v = (u.verdict || '').toUpperCase();
-              const tone = v === 'SAFE' ? 'ok' : v === 'WATCH' ? 'warn' : v === 'REFUSE' ? 'danger' : 'muted';
-              return (
-                <div key={u.symbol || i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '.8125rem', padding: '6px 0', borderTop: i ? '1px solid var(--border)' : 'none' }}>
-                  <span style={{ width: 78, flexShrink: 0 }}><Chip tone={tone}>{v || NA}</Chip></span>
-                  <span style={{ ...mono, color: 'var(--text-primary)', width: 90, flexShrink: 0 }}>{u.symbol || '?'}</span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '.75rem' }}>{u.group || ''}</span>
-                  {u.tail_score != null && <span style={{ ...mono, marginLeft: 'auto', fontSize: '.75rem', color: 'var(--text-muted)' }}>tail {Number(u.tail_score).toFixed(3)}</span>}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p style={{ fontSize: '.8125rem', color: 'var(--text-muted)' }}>{refusalLive ? (lang === 'ru' ? 'нет активов' : 'no underlyings') : tr('deskOffline')}</p>
-        )}
-      </Panel>
-
-      {/* ★ FLAGSHIP Panel B — Public refusal log (the trust signal) */}
-      <RefusalLogPanel refusalLog={refusalLog} lang={lang} tr={tr} />
+      {/* Per-underlying refusal verdicts + the public refusal log now live in the dedicated
+          "Refusals & proof" tab (the trust surface) — kept out of here to avoid duplication.
+          A pointer keeps them discoverable from the desks. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <Chip tone="ok">SAFE {refCounts.SAFE ?? 0}</Chip>
+        <Chip tone="warn">WATCH {refCounts.WATCH ?? 0}</Chip>
+        <Chip tone="danger">REFUSE {refCounts.REFUSE ?? 0}</Chip>
+        <span style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>
+          {lang === 'ru' ? '→ полные вердикты отказа и tamper-evident лог в разделе «Отказы и доказательства»' : '→ full refusal verdicts + the tamper-evident log are in the "Refusals & proof" tab'}
+        </span>
+      </div>
 
       {/* BTC / ETH + RWA — two-up */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
@@ -1452,6 +1583,7 @@ function SystemSection({ fl, safe, safeState, safeTone, lang, tr }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 14px' }}>
             <span style={{ fontSize: '.8125rem', color: 'var(--text-secondary)' }}>{tr('ladderState')}:</span>
             {safe ? <Chip tone={safeTone}>{safeState}</Chip> : <Chip tone="muted">{NA}</Chip>}
+            {safe && safe.stale && <Chip tone="warn">stale</Chip>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <SafetyRung active={false} label={tr('ladderDl')} color="var(--text-faint)" />
@@ -1459,7 +1591,7 @@ function SystemSection({ fl, safe, safeState, safeTone, lang, tr }) {
             <SafetyRung active={safeState === 'HARD_KILL'} label={tr('ladderHard')} color="var(--danger)" />
           </div>
           <p style={{ ...SUBTEXT, marginTop: 14 }}>
-            {lang === 'ru' ? 'Детерминированная RiskPolicy v1.0 — без LLM. approved=False не переопределить.' : 'Deterministic RiskPolicy v1.0 — LLM-free. approved=False can be overridden by no one.'}
+            {lang === 'ru' ? 'Детерминированная RiskPolicy v1.0 — без LLM. approved=False не переопределить. Полная лестница с маркером живой просадки + scorecard cutover — во вкладке «Риск».' : 'Deterministic RiskPolicy v1.0 — LLM-free. approved=False can be overridden by no one. The full ladder with the live-drawdown marker + the cutover scorecard live in the "Risk" tab.'}
           </p>
         </Panel>
       </div>
@@ -1467,6 +1599,7 @@ function SystemSection({ fl, safe, safeState, safeTone, lang, tr }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
         <DeepLink href="/system" label={tr('deepSystem')} />
         <DeepLink href="/status" label={tr('deepStatus')} />
+        <DeepLink href="/verify" label={tr('proofVerifyCta')} />
       </div>
     </div>
   );
@@ -1501,6 +1634,20 @@ function HelpSection({ lang, tr }) {
       b: {
         en: 'The edge is honest measurement: harvest genuine carry, REFUSE tail-risk dressed as yield. We publish what we refuse, not only what we trade. Rates Desk is a validated GO (live in paper); RWA is measurement-GO; BTC is honestly ~0%.',
         ru: 'Edge — честное измерение: харвестить реальный carry, ОТКАЗЫВАТЬСЯ от хвостового риска под видом доходности. Публикуем отказы, не только сделки. Rates Desk — валидированный GO (live в paper); RWA — measurement-GO; BTC — честно ~0%.',
+      },
+    },
+    {
+      t: { en: 'Refusals & proof = the trust surface', ru: 'Отказы и доказательства = поверхность доверия' },
+      b: {
+        en: 'We publish what we refuse, not only what we trade. Every decision is in a tamper-evident hash chain you can re-derive yourself in <5 min (see /verify). The integrity badge flips red the instant a past byte is altered — that honesty IS the trust signal. The red-team verdict is our own adversarial harness trying to break us.',
+        ru: 'Мы публикуем отказы, а не только сделки. Каждое решение — в защищённой от подмены хеш-цепочке, которую вы можете пересчитать сами за <5 мин (см. /verify). Бейдж целостности краснеет в момент изменения прошлого байта — эта честность И ЕСТЬ сигнал доверия. Red-team вердикт — наш собственный adversarial harness, пытающийся нас сломать.',
+      },
+    },
+    {
+      t: { en: 'Risk = the kill-switch ladder', ru: 'Риск = лестница kill-switch' },
+      b: {
+        en: 'The deterministic two-tier safety ladder: DL-01 daily-loss 2% and DL-02 peak-drawdown 10% HALT allocation; SOFT de-risk at 5% halts new allocations; HARD kill at 10% moves all to cash. The marker is the live drawdown. The cutover scorecard shows honest CODE-readiness — which is NOT go-live: custody, real capital, audit and the 30-day track are owner-only blockers.',
+        ru: 'Детерминированная двухуровневая лестница защиты: DL-01 дневной убыток 2% и DL-02 peak-просадка 10% HALT аллокации; SOFT de-risk при 5% стоп новых аллокаций; HARD kill при 10% всё в кэш. Маркер — живая просадка. Scorecard cutover показывает честную CODE-готовность — что НЕ есть go-live: custody, реальный капитал, аудит и 30-дневный трек — owner-only блокеры.',
       },
     },
     {
@@ -1791,6 +1938,395 @@ function RefusalLogPanel({ refusalLog, lang, tr }) {
         </>
       )}
     </Panel>
+  );
+}
+
+/* ═══════════════════════════════════ DAY-30 READINESS (overview) ═════════════════════════════════
+ * The deterministic /api/v1/day30 artifact: evidenced days, realized return/drawdown, honest verdict.
+ * Risk-adjusted metrics (Sharpe) read THIN until ~20 returns exist — shown honestly, never faked.
+ * ─────────────────────────────────────────────────────────────────────────────────────────────── */
+function Day30Panel({ day30, lang, tr }) {
+  const offline = day30 === null;
+  const loading = day30 === undefined;
+  const live = !offline && !loading;
+  const ev = (day30 && day30.evidenced) || {};
+  const rm = ev.risk_metrics || {};
+  const verdict = day30 && day30.verdict;
+  const verdictTone = verdict === 'READY' ? 'ok' : verdict === 'NOT_READY' ? 'warn' : 'muted';
+
+  return (
+    <Panel>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+        <div>
+          <Eyebrow>{tr('day30Title')}</Eyebrow>
+          <p style={{ ...SUBTEXT, marginTop: 0, maxWidth: 720 }}>{tr('day30Sub')}</p>
+        </div>
+        <SourceTag live={live} lang={lang} />
+      </div>
+      {offline ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('day30Offline')}</p>
+      ) : loading ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('connecting')}</p>
+      ) : (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+            <span style={{ fontSize: '.8125rem', color: 'var(--text-secondary)' }}>{tr('day30Verdict')}:</span>
+            <Chip tone={verdictTone}>{verdict || NA}</Chip>
+            {day30.verdict_reason && <span style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>{day30.verdict_reason}</span>}
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <Bar value={day30.readiness_pct || 0} max={100} color="var(--data-teal)" />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
+            <Metric label={tr('day30Ready')} value={day30.readiness_pct == null ? NA : day30.readiness_pct.toFixed(1) + '%'} accent="var(--data-teal)" />
+            <Metric label={lang === 'ru' ? 'Дней (evidenced)' : 'Days (evidenced)'} value={ev.evidenced_days == null ? NA : `${ev.evidenced_days} / ${ev.min_track_days ?? DAYS_NEEDED}`} />
+            <Metric label={tr('day30Realized')} value={fmtSigned(ev.realized_total_return_pct, 3)} accent={(ev.realized_total_return_pct ?? 0) >= 0 ? 'var(--ok)' : 'var(--danger)'} />
+            <Metric label={tr('day30Dd')} value={fmtPct(ev.realized_max_drawdown_pct, 2)} />
+            <Metric
+              label={tr('day30Sharpe')}
+              value={rm.sharpe == null ? tr('unknown') : Number(rm.sharpe).toFixed(2)}
+              accent={rm.sharpe == null ? 'var(--text-muted)' : undefined}
+              sub={rm.status === 'THIN' ? (lang === 'ru' ? `THIN · ${rm.n_returns ?? 0}/${rm.min_returns ?? 20} доходностей` : `THIN · ${rm.n_returns ?? 0}/${rm.min_returns ?? 20} returns`) : undefined}
+            />
+          </div>
+        </>
+      )}
+    </Panel>
+  );
+}
+
+/* ═══════════════════════════════════ RISK SECTION (WS-7.2 / 7.3) ═════════════════════════════════
+ * Three panels: the two-tier kill-switch ladder (live drawdown marker), the cutover readiness
+ * scorecard (honest CODE-readiness ≠ go-live), and the red-team verdict. Each polls its own API.
+ * ─────────────────────────────────────────────────────────────────────────────────────────────── */
+function RiskSection({ governance, safety, safeState, safeTone, execRead, redteam, lang, tr }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <SectionHead eyebrow={tr('riskEyebrow')} title={tr('riskTitle')} intro={tr('riskIntro')} />
+      <KillSwitchLadder governance={governance} safety={safety} safeState={safeState} safeTone={safeTone} lang={lang} tr={tr} />
+      <ExecutionReadinessPanel execRead={execRead} lang={lang} tr={tr} />
+      <RedTeamPanel redteam={redteam} lang={lang} tr={tr} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+        <DeepLink href="/system" label={tr('deepSystem')} />
+        <DeepLink href="/verify" label={tr('proofVerifyCta')} />
+      </div>
+    </div>
+  );
+}
+
+/* ── kill-switch two-tier ladder viz (DL-01 2% / SOFT 5% / HARD 10% / DL-02 10%) ──
+ * Canonical thresholds are RiskPolicy literals (daily_limits.py MAX_DAILY_LOSS_PCT=2, MAX_DRAWDOWN_PCT=10;
+ * derisk SOFT=5, HARD kill=10). The live drawdown comes from /api/live/safety; if absent we hide the
+ * marker rather than fabricate a position. The active rung is driven by the live safety STATE. */
+function KillSwitchLadder({ governance, safety, safeState, safeTone, lang, tr }) {
+  const govOffline = governance === null;
+  const safetyOffline = safety == null; // null=offline OR undefined=loading → no marker
+  // Live drawdown is parsed from the safety reason string ("drawdown 0.00% < 5.0%") when present.
+  let liveDdPct = null;
+  if (safety && typeof safety.drawdown_pct === 'number') liveDdPct = safety.drawdown_pct;
+  else if (safety && typeof safety.reason === 'string') {
+    const m = safety.reason.match(/drawdown\s+([\d.]+)\s*%/i);
+    if (m) liveDdPct = parseFloat(m[1]);
+  }
+  const posture = governance && governance.dual_control_posture;
+  const enforced = posture && posture.enforced === true;
+
+  // Ladder rungs, ascending drawdown. SCALE is 0..10% for the marker position.
+  const SCALE_MAX = 10;
+  const rungs = [
+    { key: 'dl1', pct: 2, label: tr('ladderRungDl1'), action: tr('ladderDl1Action'), color: 'var(--warn)', active: false },
+    { key: 'soft', pct: 5, label: tr('ladderRungSoft'), action: tr('ladderSoftAction'), color: 'var(--warn)', active: safeState === 'SOFT_DERISK' },
+    { key: 'hard', pct: 10, label: tr('ladderRungHard'), action: tr('ladderHardAction'), color: 'var(--danger)', active: safeState === 'HARD_KILL' },
+    { key: 'dl2', pct: 10, label: tr('ladderRungDl2'), action: tr('ladderDl2Action'), color: 'var(--danger)', active: safeState === 'HARD_KILL' },
+  ];
+  const markerFrac = liveDdPct == null ? null : Math.max(0, Math.min(1, liveDdPct / SCALE_MAX));
+
+  return (
+    <Panel>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+        <h3 style={{ ...HEADING, fontSize: '1.15rem' }}>{tr('ladderVizTitle')}</h3>
+        <SourceTag live={!safetyOffline} lang={lang} />
+      </div>
+      <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)', lineHeight: 1.55, marginBottom: 16, maxWidth: 720 }}>{tr('ladderVizSub')}</p>
+
+      {/* current state row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+        <span style={{ fontSize: '.8125rem', color: 'var(--text-secondary)' }}>{tr('ladderState')}:</span>
+        {safety ? <Chip tone={safeTone}>{safeState}</Chip> : <Chip tone="muted">{NA}</Chip>}
+        {safety && safety.stale && <Chip tone="warn">stale</Chip>}
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ ...mono, fontSize: '.625rem', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-faint)' }}>{tr('ladderCurrentDd')}</span>
+          <span style={{ ...mono, fontSize: '.95rem', fontWeight: 700, color: liveDdPct == null ? 'var(--text-muted)' : liveDdPct >= 5 ? 'var(--danger)' : 'var(--data-teal)' }}>
+            {liveDdPct == null ? NA : liveDdPct.toFixed(2) + '%'}
+          </span>
+        </span>
+      </div>
+
+      {/* horizontal scale with marker */}
+      <div style={{ position: 'relative', height: 40, marginBottom: 8 }}>
+        {/* gradient track: clear → soft (amber) → hard (red) */}
+        <div style={{ position: 'absolute', top: 16, left: 0, right: 0, height: 8, borderRadius: 'var(--r-full)', background: 'linear-gradient(90deg, rgba(52,211,153,.35) 0%, rgba(242,181,60,.4) 50%, rgba(242,109,109,.55) 100%)' }} />
+        {/* rung ticks */}
+        {rungs.filter((r) => r.key !== 'dl2').map((r) => (
+          <div key={r.key} style={{ position: 'absolute', top: 8, left: `${(r.pct / SCALE_MAX) * 100}%`, transform: 'translateX(-50%)', textAlign: 'center' }}>
+            <div style={{ width: 2, height: 24, background: r.active ? r.color : 'var(--border-strong)', margin: '0 auto' }} />
+          </div>
+        ))}
+        {/* live drawdown marker */}
+        {markerFrac != null && (
+          <div title={tr('ladderCurrentDd') + ': ' + (liveDdPct != null ? liveDdPct.toFixed(2) + '%' : NA)}
+            style={{ position: 'absolute', top: 4, left: `${markerFrac * 100}%`, transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <span style={{ ...mono, fontSize: '.625rem', color: 'var(--text-primary)', fontWeight: 700, whiteSpace: 'nowrap' }}>▼</span>
+            <div style={{ width: 3, height: 18, background: 'var(--text-primary)', borderRadius: 2 }} />
+          </div>
+        )}
+      </div>
+      {/* x-axis labels */}
+      <div style={{ position: 'relative', height: 14, marginBottom: 16 }}>
+        {[0, 2, 5, 10].map((p) => (
+          <span key={p} style={{ ...mono, position: 'absolute', left: `${(p / SCALE_MAX) * 100}%`, transform: 'translateX(-50%)', fontSize: '.5625rem', color: 'var(--text-faint)' }}>{p}%</span>
+        ))}
+      </div>
+
+      {/* rung detail rows */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {rungs.map((r) => (
+          <div key={r.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 'var(--r-sm)', background: r.active ? 'rgba(242,109,109,.06)' : 'var(--bg-base)', border: `1px solid ${r.active ? r.color : 'var(--border)'}` }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: r.active ? r.color : 'var(--text-faint)', flexShrink: 0, animation: r.active ? 'pulse 3s ease-in-out infinite' : 'none' }} aria-hidden="true" />
+            <span style={{ ...mono, fontSize: '.75rem', fontWeight: 600, color: r.active ? 'var(--text-primary)' : 'var(--text-secondary)', width: 132, flexShrink: 0 }}>{r.label}</span>
+            <span style={{ ...mono, fontSize: '.75rem', color: r.color, width: 44, flexShrink: 0 }}>{r.pct}%</span>
+            <span style={{ fontSize: '.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>{r.action}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* governance dual-control posture */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
+        <span style={{ ...mono, fontSize: '.625rem', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-faint)' }}>{tr('govPosture')}:</span>
+        {govOffline
+          ? <Chip tone="muted">{NA}</Chip>
+          : <Chip tone={enforced ? 'ok' : 'muted'}>{enforced ? tr('govEnforced') : tr('govAdvisory')}</Chip>}
+      </div>
+
+      {govOffline && <p style={{ fontSize: '.6875rem', color: 'var(--text-faint)', lineHeight: 1.5, marginTop: 10 }}>{tr('ladderGovOffline')}</p>}
+      {safetyOffline && <p style={{ fontSize: '.6875rem', color: 'var(--text-faint)', lineHeight: 1.5, marginTop: 6 }}>{tr('ladderSafetyOffline')}</p>}
+    </Panel>
+  );
+}
+
+/* ── cutover readiness scorecard (honest CODE-readiness ≠ go-live) ── */
+function ExecutionReadinessPanel({ execRead, lang, tr }) {
+  const offline = execRead === null;
+  const loading = execRead === undefined;
+  const live = !offline && !loading;
+  const checks = (execRead && execRead.checks) || {};
+  const checkEntries = Object.entries(checks);
+  // CODE-readiness = non-blocker checks passing / non-blocker checks total (the part code controls).
+  const codeChecks = checkEntries.filter(([, c]) => c && c.blocker !== true);
+  const codePass = codeChecks.filter(([, c]) => c && c.ok === true).length;
+  const codeReadyPct = execRead && execRead.code_readiness_pct != null
+    ? execRead.code_readiness_pct
+    : (codeChecks.length ? (codePass / codeChecks.length) * 100 : null);
+  const blockers = (execRead && (execRead.owner_only_blockers || execRead.live_blockers)) || [];
+  const readyForLive = execRead && execRead.ready_for_live === true;
+
+  return (
+    <Panel>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <h3 style={{ ...HEADING, fontSize: '1.15rem' }}>{tr('execTitle')}</h3>
+          <Chip tone="warn">{tr('execNotGoLive')}</Chip>
+        </div>
+        <SourceTag live={live} lang={lang} />
+      </div>
+      <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)', lineHeight: 1.55, marginBottom: 14, maxWidth: 720 }}>{tr('execWhat')}</p>
+
+      {offline ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('execOffline')}</p>
+      ) : loading ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('connecting')}</p>
+      ) : (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+            <Metric label={tr('execCodeReady')} value={codeReadyPct == null ? NA : codeReadyPct.toFixed(0) + '%'} accent="var(--data-teal)" />
+            <Metric label={tr('execPosture')} value={execRead.posture || NA} />
+            <Metric label={tr('execReadyForLive')} value={readyForLive ? (lang === 'ru' ? 'ДА' : 'YES') : (lang === 'ru' ? 'НЕТ' : 'NO')} accent={readyForLive ? 'var(--ok)' : 'var(--warn)'} sub={lang === 'ru' ? 'owner-gated' : 'owner-gated'} />
+          </div>
+
+          {/* code defenses */}
+          {checkEntries.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <p style={{ ...mono, fontSize: '.625rem', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-faint)', marginBottom: 8 }}>{tr('execChecks')}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {checkEntries.map(([name, c]) => {
+                  const tone = c.ok === true ? 'ok' : c.blocker ? 'danger' : 'warn';
+                  const lbl = c.ok === true ? tr('pass') : c.blocker ? tr('fail') : tr('pending');
+                  return (
+                    <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '.8125rem' }}>
+                      <span style={{ width: 78, flexShrink: 0 }}><Chip tone={tone}>{lbl}</Chip></span>
+                      <span style={{ ...mono, color: 'var(--text-primary)', width: 200, flexShrink: 0, fontSize: '.75rem' }}>{name.replace(/_/g, ' ')}</span>
+                      {c.blocker && <Chip tone="muted">owner</Chip>}
+                      {c.detail && <span style={{ color: 'var(--text-muted)', fontSize: '.6875rem' }}>{c.detail}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* owner-only blockers */}
+          {blockers.length > 0 && (
+            <div style={{ ...card, padding: '14px 16px', background: 'var(--bg-base)', borderLeft: '3px solid var(--warn)', marginTop: 16 }}>
+              <p style={{ ...mono, fontSize: '.625rem', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--warn)', marginBottom: 8 }}>{tr('execOwnerBlockers')}</p>
+              <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {blockers.map((b, i) => (
+                  <li key={i} style={{ fontSize: '.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{b}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
+      )}
+    </Panel>
+  );
+}
+
+/* ── red-team verdict ("we red-team ourselves") ── */
+function RedTeamPanel({ redteam, lang, tr }) {
+  const offline = redteam === null;
+  const loading = redteam === undefined;
+  const unavailable = redteam && redteam.available === false;
+  const live = !offline && !loading && !unavailable;
+  const ok = redteam && redteam.ok === true;
+  const verdictTone = ok ? 'ok' : redteam && redteam.ok === false ? 'danger' : 'muted';
+
+  return (
+    <Panel>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+        <h3 style={{ ...HEADING, fontSize: '1.15rem' }}>{tr('redTitle')}</h3>
+        <SourceTag live={live} lang={lang} />
+      </div>
+      <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)', lineHeight: 1.55, marginBottom: 14, maxWidth: 720 }}>{tr('redWhat')}</p>
+
+      {offline ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('redOffline')}</p>
+      ) : loading ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('connecting')}</p>
+      ) : unavailable ? (
+        <p style={{ fontSize: '.875rem', color: 'var(--warn)' }}>{tr('redNone')}</p>
+      ) : (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+            <span style={{ fontSize: '.8125rem', color: 'var(--text-secondary)' }}>{tr('redVerdict')}:</span>
+            <Chip tone={verdictTone}>{ok ? tr('redPass') : redteam.ok === false ? tr('redFail') : NA}</Chip>
+            {redteam.surface && <Chip tone="muted">{redteam.surface}</Chip>}
+            {redteam.live_data_untouched === true && <Chip tone="ok">{tr('redLiveUntouched')} ✓</Chip>}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10 }}>
+            <Metric label={tr('redScenarios')} value={redteam.n == null ? NA : redteam.n} />
+            <Metric label={tr('redCaught')} value={redteam.n_caught == null ? NA : redteam.n_caught} accent="var(--ok)" />
+            <Metric label={tr('redEscaped')} value={redteam.n_failed == null ? NA : redteam.n_failed} accent={redteam.n_failed ? 'var(--danger)' : undefined} />
+          </div>
+          {redteam.report_hash && (
+            <div style={{ ...card, padding: '12px 14px', background: 'var(--bg-base)', marginTop: 14 }}>
+              <p style={{ ...mono, fontSize: '.625rem', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-faint)', marginBottom: 4 }}>{tr('redReportHash')}</p>
+              <p style={{ ...mono, fontSize: '.6875rem', color: 'var(--data-teal)', wordBreak: 'break-all' }}>{redteam.report_hash}</p>
+            </div>
+          )}
+        </>
+      )}
+    </Panel>
+  );
+}
+
+/* ═══════════════════════════════════ PROOF SECTION (WS-7.1 trust surface) ═════════════════════════
+ * The credibility surface: the public refusal log (tamper-evident chain), the rates proof summary,
+ * per-underlying refusal verdicts, the fail-closed promotion refusals, and the red-team verdict.
+ * Each child polls its own API; offline degrades that one panel only. Anchored by the /verify CTA.
+ * ─────────────────────────────────────────────────────────────────────────────────────────────── */
+function ProofSection({ decisions, track, refusal, refusalLog, promotion, redteam, lang, tr }) {
+  const decCounts = (decisions && decisions.counts) || {};
+  const trackDays = track && track.days != null ? track.days : null;
+  const ratesLive = decisions != null;
+  const refusalLive = refusal != null;
+  const refUnderlyings = (refusal && Array.isArray(refusal.underlyings)) ? refusal.underlyings : [];
+  const refCounts = (refusal && refusal.verdict_counts) || {};
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <SectionHead eyebrow={tr('proofEyebrow')} title={tr('proofTitle')} intro={tr('proofIntro')} />
+
+      {/* prominent verify CTA — the "<5 min reproduce" front door */}
+      <a href="/verify" style={{ ...card, padding: '16px 18px', background: 'var(--accent-bg)', border: '1px solid var(--accent-dim)', color: 'var(--accent-hover)', fontSize: '.875rem', fontWeight: 600, display: 'block' }}>
+        {tr('proofVerifyCta')}
+      </a>
+
+      {/* the tamper-evident public refusal log (flagship) */}
+      <RefusalLogPanel refusalLog={refusalLog} lang={lang} tr={tr} />
+
+      {/* rates-desk proof summary */}
+      <Panel>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <h3 style={{ ...HEADING, fontSize: '1.05rem' }}>{tr('ratesTitle')}</h3>
+            <Chip tone="ok">{tr('ratesVerdict')}</Chip>
+          </div>
+          <SourceTag live={ratesLive} lang={lang} />
+        </div>
+        <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)', lineHeight: 1.55, marginBottom: 14 }}>{tr('ratesWhat')}</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
+          <Metric label={tr('ratesEntries')} value={decCounts.ENTRY == null ? NA : decCounts.ENTRY} accent="var(--ok)" />
+          <Metric label={tr('ratesRefusals')} value={decCounts.REFUSAL == null ? NA : decCounts.REFUSAL} accent={decCounts.REFUSAL ? 'var(--danger)' : undefined} />
+          <Metric label={tr('ratesTrackDays')} value={trackDays == null ? NA : `${trackDays}d`} />
+        </div>
+        <div style={{ marginTop: 14 }}><DeepLink href="/rates-desk" label={tr('deepRates')} inline /></div>
+      </Panel>
+
+      {/* per-underlying refusal verdicts */}
+      <Panel>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+          <h3 style={{ ...HEADING, fontSize: '1.05rem' }}>{tr('refusalTitle')}</h3>
+          <SourceTag live={refusalLive} lang={lang} />
+        </div>
+        <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)', lineHeight: 1.55, marginBottom: 14 }}>{tr('refusalWhat')}</p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+          <Chip tone="ok">SAFE {refCounts.SAFE ?? 0}</Chip>
+          <Chip tone="warn">WATCH {refCounts.WATCH ?? 0}</Chip>
+          <Chip tone="danger">REFUSE {refCounts.REFUSE ?? 0}</Chip>
+          <Chip tone="muted">UNKNOWN {refCounts.UNKNOWN ?? 0}</Chip>
+        </div>
+        {refUnderlyings.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {refUnderlyings.slice(0, 8).map((u, i) => {
+              const v = (u.verdict || '').toUpperCase();
+              const tone = v === 'SAFE' ? 'ok' : v === 'WATCH' ? 'warn' : v === 'REFUSE' ? 'danger' : 'muted';
+              return (
+                <div key={u.symbol || i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '.8125rem', padding: '6px 0', borderTop: i ? '1px solid var(--border)' : 'none' }}>
+                  <span style={{ width: 78, flexShrink: 0 }}><Chip tone={tone}>{v || NA}</Chip></span>
+                  <span style={{ ...mono, color: 'var(--text-primary)', width: 90, flexShrink: 0 }}>{u.symbol || '?'}</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '.75rem' }}>{u.group || ''}</span>
+                  {u.tail_score != null && <span style={{ ...mono, marginLeft: 'auto', fontSize: '.75rem', color: 'var(--text-muted)' }}>tail {Number(u.tail_score).toFixed(3)}</span>}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p style={{ fontSize: '.8125rem', color: 'var(--text-muted)' }}>{refusalLive ? (lang === 'ru' ? 'нет активов' : 'no underlyings') : tr('deskOffline')}</p>
+        )}
+      </Panel>
+
+      {/* fail-closed promotion refusals + tournament trust gate */}
+      <PromotionRefusalPanel promotion={promotion} lang={lang} tr={tr} />
+
+      {/* our own red-team verdict — published in the trust surface too */}
+      <RedTeamPanel redteam={redteam} lang={lang} tr={tr} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+        <DeepLink href="/verify" label={tr('proofVerifyCta')} />
+        <DeepLink href="/refusals" label={tr('deepRefusals')} />
+        <DeepLink href="/proof-of-reserves" label={tr('deepPor')} />
+      </div>
+    </div>
   );
 }
 

@@ -82,6 +82,51 @@ const proofs = [
       </p>
     </section>
 
+    <!-- ============================================================= a2. THE 5-MINUTE PATH -->
+    <section class="py-8 border-t" style="border-color:var(--border)">
+      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-4">
+        <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
+           data-ru="Путь за 5 минут">The 5-minute path</p>
+        <span class="text-[11px] font-mono px-2 py-1 rounded-full"
+              style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)"
+              data-ru="новичок → воспроизведено за &lt;5 мин">stranger → reproduced in &lt;5 min</span>
+      </div>
+      <ol class="grid grid-cols-1 sm:grid-cols-4 gap-3 list-none m-0 p-0">
+        <li class="rounded-xl p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <span class="inline-flex items-center justify-center w-6 h-6 rounded-md font-mono text-xs font-bold mb-2"
+                style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">1</span>
+          <p class="text-xs leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Скачайте verify_spa.py и публичный каталог data/ (или дёрните /api/rates-desk/proof).">
+            Download <span class="font-mono">verify_spa.py</span> and the public <span class="font-mono">data/</span> dir (or pull <span class="font-mono">/api/rates-desk/proof</span>).
+          </p>
+        </li>
+        <li class="rounded-xl p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <span class="inline-flex items-center justify-center w-6 h-6 rounded-md font-mono text-xs font-bold mb-2"
+                style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">2</span>
+          <p class="text-xs leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Сверьте сам верификатор: shasum -a 256 verify_spa.py = закреплённый SHA-256 ниже.">
+            Check the checker: <span class="font-mono">shasum -a 256 verify_spa.py</span> = the pinned SHA-256 below.
+          </p>
+        </li>
+        <li class="rounded-xl p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <span class="inline-flex items-center justify-center w-6 h-6 rounded-md font-mono text-xs font-bold mb-2"
+                style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">3</span>
+          <p class="text-xs leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Запустите python3 verify_spa.py data/ — zero-dependency, ни строки нашего кода во время проверки.">
+            Run <span class="font-mono">python3 verify_spa.py data/</span> — zero-dependency, none of our code at check time.
+          </p>
+        </li>
+        <li class="rounded-xl p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <span class="inline-flex items-center justify-center w-6 h-6 rounded-md font-mono text-xs font-bold mb-2"
+                style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">4</span>
+          <p class="text-xs leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Код выхода 0 = всё воспроизводится; 1 = расхождение с точным broken_at. Или просто посмотрите live-демо ниже.">
+            Exit 0 = reproduces; 1 = mismatch with the exact <span class="font-mono">broken_at</span>. Or just watch the live demo below.
+          </p>
+        </li>
+      </ol>
+    </section>
+
     <!-- ============================================================= b. THE ONE COMMAND -->
     <section class="py-10 border-t" style="border-color:var(--border)">
       <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"

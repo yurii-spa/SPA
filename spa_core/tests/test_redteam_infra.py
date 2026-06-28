@@ -23,6 +23,16 @@ from spa_core.redteam import rotation, runner
 from spa_core.redteam.registry import by_name, covered_surfaces, scenarios_for_surface
 
 
+# Hermetic guard (WS-6): a rotation run appends to the tamper-evident audit chain;
+# redirect it to a throwaway tmp file so this suite never writes the LIVE
+# data/audit_chain.jsonl (tests must not touch live data/).
+@pytest.fixture(autouse=True)
+def _hermetic_audit_chain(tmp_path, monkeypatch):
+    from spa_core.audit import hash_chain
+    monkeypatch.setattr(hash_chain, "_CHAIN", tmp_path / "audit_chain.jsonl")
+    yield
+
+
 # ════════════════════════════════════════════════════════════════════════════════════════════════
 # the ABC + Finding contract
 # ════════════════════════════════════════════════════════════════════════════════════════════════

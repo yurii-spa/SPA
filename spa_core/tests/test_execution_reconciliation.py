@@ -14,6 +14,18 @@ import pytest
 from spa_core.execution import reconciliation as rc
 
 
+# Hermetic guard (WS-6): ``round_trip`` does a best-effort ``hash_chain.append``
+# even with ``write=False``; the write=False tests above did not redirect it, so
+# they leaked rows into the LIVE data/audit_chain.jsonl. Redirect the chain to a
+# throwaway tmp file for EVERY test here so the suite honours its "no chain"
+# docstring contract and never touches live data/.
+@pytest.fixture(autouse=True)
+def _hermetic_audit_chain(tmp_path, monkeypatch):
+    from spa_core.audit import hash_chain
+    monkeypatch.setattr(hash_chain, "_CHAIN", tmp_path / "audit_chain.jsonl")
+    yield
+
+
 # --------------------------------------------------------------------------- #
 # plan_trades
 # --------------------------------------------------------------------------- #

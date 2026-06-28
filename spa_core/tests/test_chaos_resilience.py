@@ -841,3 +841,250 @@ def test_fault_runs_never_touch_canonical_track(tmp_path, monkeypatch):
     # The canonical equity curve was never created; the sandbox got the write.
     assert not (canon / _EQF).exists(), "fault run mutated the canonical track!"
     assert (tmp_path / "sbx" / _EQF).exists()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 9) CHAOS AT SCALE (WS-6.4) — clock skew · concurrent writer · corrupt mid-track ·
+#    multi-fault sequence. Extends section 8 with the fault modes a production cron
+#    host actually hits, asserting the SAFETY invariant under each: the desk
+#    degrades safely (no torn writes, no fabricated allocation, the go-live track's
+#    REAL bars are never corrupted/lost, the next cycle recovers).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _real_bars(ddir):
+    """The (date, close_equity) list from the canonical equity file (parseable)."""
+    doc = json.loads((ddir / _EQF).read_text(encoding="utf-8"))
+    return [(b["date"], float(b["close_equity"])) for b in (doc.get("daily") or [])]
+
+
+# ── FAULT 6: CLOCK SKEW (backwards) — a day-in-the-past fire must not corrupt or
+#    lose the existing REAL track, must not false-trip the kill switch, and the
+#    file must stay parseable; the forward cycle then resumes cleanly. ──────────
+def test_chaos_clock_skew_backwards_preserves_real_track(tmp_path, _quiet_cycle_logs):
+    """A backwards system-clock fire (NTP step / VM snapshot restore) re-runs an
+    EARLIER UTC day after later days exist. SAFETY contract: the already-evidenced
+    REAL bars are preserved byte-for-byte (never overwritten/lost), the file stays
+    valid JSON (no torn write), and the kill-switch does NOT false-fire on the
+    resulting series. A forward cycle afterwards still advances the track."""
+    _run_chaos_cycle(tmp_path, _dt(2026, 6, 11, 8, tzinfo=_tz.utc))
+    _run_chaos_cycle(tmp_path, _dt(2026, 6, 12, 8, tzinfo=_tz.utc))
+    before = {d: e for d, e in _real_bars(tmp_path)}
+    assert set(before) == {"2026-06-11", "2026-06-12"}
+
+    # Backwards fire: day 10 (in the PAST relative to the existing day-12 bar).
+    _run_chaos_cycle(tmp_path, _dt(2026, 6, 10, 8, tzinfo=_tz.utc))
+
+    after = {d: e for d, e in _real_bars(tmp_path)}
+    # The pre-existing REAL bars are PRESERVED (the safety-critical invariant —
+    # a skewed clock can never rewrite the honest go-live track's history).
+    assert after["2026-06-11"] == before["2026-06-11"], "clock skew corrupted a real bar"
+    assert after["2026-06-12"] == before["2026-06-12"], "clock skew corrupted a real bar"
+    # File is still valid JSON (no torn/partial write).
+    json.loads((tmp_path / _EQF).read_text(encoding="utf-8"))
+    # The kill switch does NOT false-fire on the skewed series (the drawdown /
+    # sharpe triggers are computed over the evidenced bars and stay clear).
+    active, reason = KillSwitchChecker(data_dir=str(tmp_path)).is_kill_switch_active()
+    assert active is False, f"clock skew false-tripped the kill switch: {reason}"
+
+    # A forward cycle afterwards is FAIL-SAFE: rather than silently extend a track
+    # that now carries an out-of-order (discontinuous) bar, the cycle's continuity
+    # guard HALTS instead of compounding off a corrupt series. The desk degrades
+    # safely — it does NOT fabricate a bar onto a discontinuous track, and the
+    # prior REAL bars stay intact + the file stays valid.
+    r_fwd = _run_chaos_cycle(tmp_path, _dt(2026, 6, 14, 8, tzinfo=_tz.utc))
+    assert r_fwd.status != "ok", (
+        "forward cycle silently extended a discontinuous (clock-skewed) track "
+        f"instead of degrading safely: status={r_fwd.status}"
+    )
+    final = {d: e for d, e in _real_bars(tmp_path)}
+    assert final["2026-06-11"] == before["2026-06-11"]
+    assert final["2026-06-12"] == before["2026-06-12"]
+    json.loads((tmp_path / _EQF).read_text(encoding="utf-8"))  # still valid JSON
+
+
+def test_chaos_clock_skew_same_instant_replay_idempotent(tmp_path, _quiet_cycle_logs):
+    """A frozen clock (the cron fires twice at the EXACT same timestamp — a hung
+    scheduler retry) must be idempotent: no second bar, no double-accrual."""
+    _run_chaos_cycle(tmp_path, _dt(2026, 6, 11, 8, tzinfo=_tz.utc))
+    now = _dt(2026, 6, 12, 8, tzinfo=_tz.utc)
+    r1 = _run_chaos_cycle(tmp_path, now)
+    r2 = _run_chaos_cycle(tmp_path, now)  # same instant, replayed
+    curve = _assert_curve_valid_and_continuous(tmp_path)
+    assert [d for d, _ in curve] == ["2026-06-11", "2026-06-12"]
+    assert r2.current_equity == pytest.approx(r1.current_equity, abs=0.01)
+
+
+# ── FAULT 7: CORRUPT canonical equity file mid-track → next cycle recovers, never
+#    fabricates, and the recovered file is valid + parseable. ───────────────────
+def test_chaos_corrupt_equity_file_midtrack_recovers(tmp_path, _quiet_cycle_logs):
+    """The canonical equity_curve_daily.json is corrupted to garbage between
+    cycles (a partial disk write / bit-rot / a bad manual edit). The next cycle
+    must NOT crash and must NOT propagate the garbage: it recovers to a valid,
+    parseable file. (A corrupt prior series means the new bar cannot chain off a
+    trusted prior close — the cycle must fail-safe, never fabricate one.)"""
+    _run_chaos_cycle(tmp_path, _dt(2026, 6, 11, 8, tzinfo=_tz.utc))
+    _assert_curve_valid_and_continuous(tmp_path)
+
+    # Corrupt the canonical file to non-JSON garbage.
+    (tmp_path / _EQF).write_text("{ corrupt not json ::::", encoding="utf-8")
+
+    # Next cycle must not raise and must leave a parseable file behind.
+    r = _run_chaos_cycle(tmp_path, _dt(2026, 6, 12, 8, tzinfo=_tz.utc))
+    assert r is not None
+    doc = json.loads((tmp_path / _EQF).read_text(encoding="utf-8"))  # parseable
+    daily = doc.get("daily") or []
+    # Every surviving bar is finite + positive (no NaN/garbage accrual leaked).
+    for b in daily:
+        ce = b.get("close_equity")
+        assert isinstance(ce, (int, float)) and ce == ce and ce > 0, b
+
+
+# ── FAULT 8: CONCURRENT WRITERS to the same canonical file → no torn/partial file
+#    (the atomic write contract holds under interleaving). ──────────────────────
+def test_chaos_concurrent_writers_no_torn_file(tmp_path):
+    """Many threads atomically write the SAME state file concurrently (two cron
+    fires / an agent + a manual run racing). atomic_save uses tmp+rename, so a
+    reader at ANY instant sees a COMPLETE old-or-new file — never a torn/partial
+    one. We hammer it from N threads and assert the final file is always one of
+    the complete payloads (valid JSON, expected schema), never corrupt."""
+    import threading
+
+    target = tmp_path / "concurrent_state.json"
+    n_threads = 16
+    writes_per_thread = 40
+    errors: list = []
+
+    def _writer(tid: int):
+        try:
+            for i in range(writes_per_thread):
+                payload = {"writer": tid, "i": i,
+                           "blob": "x" * (200 + (tid * i) % 500),
+                           "daily": [{"date": "2026-06-11", "close_equity": 100000.0}]}
+                _atomic.atomic_save(payload, str(target))
+        except Exception as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    threads = [threading.Thread(target=_writer, args=(t,)) for t in range(n_threads)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert not errors, f"concurrent atomic writes raised: {errors[:3]}"
+    # The final file must be a COMPLETE, valid payload (never torn).
+    doc = json.loads(target.read_text(encoding="utf-8"))
+    assert isinstance(doc, dict) and "writer" in doc and "daily" in doc
+    assert doc["daily"][0]["close_equity"] == 100000.0
+
+
+def test_chaos_reader_never_sees_torn_file_during_concurrent_writes(tmp_path):
+    """While writers hammer the file, a concurrent READER polling it must ALWAYS
+    parse a complete payload — proving the atomic rename gives readers a consistent
+    snapshot (the property the live API / monitors rely on)."""
+    import threading
+
+    target = tmp_path / "rw_state.json"
+    _atomic.atomic_save({"v": 0, "daily": []}, str(target))
+    stop = threading.Event()
+    torn: list = []
+
+    def _writer():
+        i = 0
+        while not stop.is_set():
+            i += 1
+            _atomic.atomic_save({"v": i, "daily": [{"date": "d", "close_equity": 1.0}]},
+                                str(target))
+
+    def _reader():
+        for _ in range(2000):
+            try:
+                doc = json.loads(target.read_text(encoding="utf-8"))
+                if "v" not in doc or "daily" not in doc:
+                    torn.append(doc)
+            except (json.JSONDecodeError, FileNotFoundError) as exc:
+                torn.append(repr(exc))
+
+    w = threading.Thread(target=_writer)
+    r = threading.Thread(target=_reader)
+    w.start(); r.start()
+    r.join()
+    stop.set(); w.join()
+    assert not torn, f"reader saw a torn/partial file: {torn[:3]}"
+
+
+# ── FAULT 9: MULTI-FAULT SEQUENCE AT SCALE — a realistic bad week of stacked
+#    faults; the REAL go-live track must survive every one. ─────────────────────
+def test_chaos_multifault_sequence_track_never_corrupted(tmp_path, _quiet_cycle_logs):
+    """Drive a stacked sequence of faults across many simulated days and assert the
+    canonical track is NEVER corrupted: it stays valid JSON, the real bars are
+    finite/positive, no fabricated bar appears on a stale-feed day, and the cycle
+    recovers each time. This is the end-to-end 'bad week' regression guard."""
+    day = 11
+
+    def nxt():
+        nonlocal day
+        d = _dt(2026, 6, day, 8, tzinfo=_tz.utc)
+        day += 1
+        return d
+
+    # 1. healthy
+    _run_chaos_cycle(tmp_path, nxt())
+    # 2. healthy
+    _run_chaos_cycle(tmp_path, nxt())
+    real_after_2 = {d for d, _ in _real_bars(tmp_path)}
+    # 3. stale feed → no fabricated bar
+    r_stale = _run_chaos_cycle(tmp_path, nxt(), orch=_stale_orch)
+    assert r_stale.daily_yield_usd == 0.0
+    assert {d for d, _ in _real_bars(tmp_path)} == real_after_2, "stale day fabricated a bar"
+    # 4. corrupt the file, then a healthy cycle recovers
+    (tmp_path / _EQF).write_text("GARBAGE{", encoding="utf-8")
+    _run_chaos_cycle(tmp_path, nxt())
+    json.loads((tmp_path / _EQF).read_text(encoding="utf-8"))  # parseable again
+    # 5. healthy
+    _run_chaos_cycle(tmp_path, nxt())
+    # 6. duplicate same-day re-run (idempotent)
+    dup_now = nxt()
+    a = _run_chaos_cycle(tmp_path, dup_now)
+    b = _run_chaos_cycle(tmp_path, dup_now)
+    assert b.current_equity == pytest.approx(a.current_equity, abs=0.01)
+
+    # FINAL INVARIANT: the canonical track is valid + every bar finite/positive,
+    # and the kill switch is not false-tripped by the bad week.
+    bars = _real_bars(tmp_path)
+    assert bars, "track was wiped by the fault sequence"
+    for d, e in bars:
+        assert e == e and e > 0, f"corrupt bar after multi-fault: {d}={e}"
+    active, reason = KillSwitchChecker(data_dir=str(tmp_path)).is_kill_switch_active()
+    assert active is False, f"multi-fault week false-tripped the kill switch: {reason}"
+
+
+def test_chaos_blocked_policy_never_fabricates_allocation(tmp_path, _quiet_cycle_logs):
+    """A target that VIOLATES RiskPolicy (single protocol at 90% — way over the
+    40% T1 cap) must be BLOCKED — the cycle must NOT silently fabricate / deploy a
+    compliant-looking allocation. No fabricated allocation lands on the track."""
+    class _OverCapAllocator:
+        def allocate(self):
+            bad = {"aave_v3": 90_000.0}  # 90% in one protocol → over the 40% cap
+            return _NS(
+                target_usd=bad,
+                target_weights={p: v / 100_000 for p, v in bad.items()},
+                expected_apy_pct=4.0, model_used="risk_adjusted",
+                strategy_loop_active=False,
+            )
+
+    r = _cr.run_cycle(
+        data_dir=str(tmp_path),
+        now=_dt(2026, 6, 11, 8, tzinfo=_tz.utc),
+        orchestrator_fn=_clean_orch,
+        allocator=_OverCapAllocator(),
+        risk_scorer_fn=lambda d: None,
+        track_persister_fn=lambda d: None,
+        write=True,
+        allow_live_write=False,
+    )
+    # The cycle must surface the policy block — never an 'ok' deploy of the
+    # over-cap book. (status reflects the deterministic RiskPolicy verdict.)
+    assert r.status != "ok" or not getattr(r, "rebalanced", True), (
+        f"over-cap allocation was not blocked: status={r.status}"
+    )

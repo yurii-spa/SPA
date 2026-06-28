@@ -51,6 +51,17 @@ from spa_core.execution import eth_signer
 from spa_core.execution.position_monitor import PositionMonitor
 
 
+# WS-6 hermetic guard: ``reconciliation.round_trip`` does a best-effort
+# ``hash_chain.append`` even with ``write=False``; redirect the tamper-evident
+# audit chain to a throwaway tmp file so this suite NEVER appends to the LIVE
+# data/audit_chain.jsonl (a guardrail: tests must not touch live data/).
+@pytest.fixture(autouse=True)
+def _hermetic_audit_chain(tmp_path, monkeypatch):
+    from spa_core.audit import hash_chain
+    monkeypatch.setattr(hash_chain, "_CHAIN", tmp_path / "audit_chain.jsonl")
+    yield
+
+
 # A publicly-known dev test private key (Hardhat/Foundry account #0). It carries
 # NO real funds; it is used ONLY to prove it never leaks into a diagnostic.
 _PUBLIC_DEV_KEY = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
