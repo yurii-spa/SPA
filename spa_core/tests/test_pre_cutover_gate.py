@@ -135,9 +135,12 @@ def test_no_execution_import(tmp_path: Path):
 
 # ── 7. refuses live data/ ─────────────────────────────────────────────────────
 def test_refuses_live_data_dir():
+    from spa_core.utils.errors import SPAError
+
     live = pcg._ROOT / "data"
-    with pytest.raises(RuntimeError, match="live data"):
+    with pytest.raises(SPAError, match="live data") as exc_info:
         pcg.run_gate(data_dir=str(live), write=False)
+    assert exc_info.value.code == "PRE_CUTOVER_GATE_LIVE_DATA_REFUSED"
 
 
 # ── 8. inert invariants ───────────────────────────────────────────────────────

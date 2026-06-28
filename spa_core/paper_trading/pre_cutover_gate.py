@@ -79,6 +79,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.errors import SPAError
 
 # Composed, execution-FREE defenses (verified: none of these import execution/).
 from spa_core.governance.kill_switch import (
@@ -548,7 +549,9 @@ def _drill_failsafe_hold(ddir: Path) -> dict:
     held = True  # default state: positions held
 
     def _raising_safety_eval():
-        raise RuntimeError("injected safety-eval failure (drill)")
+        # drill: intentional fault injection — model an UNEXPECTED safety-eval
+        # failure (arbitrary exception) to prove the cycle fail-safe HOLDS.
+        raise RuntimeError("injected safety-eval failure (drill)")  # drill: intentional fault injection
 
     safety_failed = False
     new_trades_allowed = True
@@ -675,9 +678,10 @@ def run_gate(data_dir: Optional[str | os.PathLike] = None, *, write: bool = True
     # HARD GUARD: refuse to ever run against the live data/ directory.
     live_data = (_ROOT / "data").resolve()
     if ddir.resolve() == live_data:
-        raise RuntimeError(
+        raise SPAError(
             "pre_cutover_gate REFUSED to run against live data/ — pass a sandbox "
-            "data_dir (the gate is inert and sandbox-only)."
+            "data_dir (the gate is inert and sandbox-only).",
+            code="PRE_CUTOVER_GATE_LIVE_DATA_REFUSED",
         )
 
     try:

@@ -249,6 +249,13 @@ def test_20_zero_bare_exceptions_in_spa_core():
                 continue
             if "# stdlib-only" in line:
                 continue
+            # Deliberate fault-injection drills (inert sandbox harnesses that
+            # RAISE on purpose to prove a downstream defense fires) are not
+            # production error-handling. They must carry the precise marker
+            # below on the same line; only that exact marker is honored, so a
+            # genuine bare raise in a production path is still caught.
+            if "# drill: intentional fault injection" in line:
+                continue
             violations.append(line)
 
     assert violations == [], (

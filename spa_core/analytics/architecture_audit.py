@@ -436,7 +436,15 @@ class ArchitectureAudit:
         tests (no import of unittest OR pytest) are flagged as they may not
         be discovered reliably by standard test runners.
 
-        A test file is considered compliant if it imports unittest or pytest.
+        A test file is considered compliant if it:
+          * imports unittest or pytest, OR
+          * defines pytest-style ``def test_*`` functions or a ``class Test*``, OR
+          * is a RE-EXPORT SHIM that re-exports ``test_*`` functions from another
+            test module (a thin file whose tests are the canonical ones it
+            imports — pytest still collects them at the shim's path).
+
+        Genuinely empty/broken test files (no framework, no tests, no re-export)
+        are still flagged.
 
         Returns:
             List of AuditViolation with severity="WARNING".
@@ -458,6 +466,9 @@ class ArchitectureAudit:
             # Also accept pure pytest-style function tests (def test_...)
             has_test_func = bool(re.search(r"^def test_", content, re.MULTILINE))
             has_test_class = bool(re.search(r"class Test", content))
+            # Accept re-export shims: a file that imports test_* functions from
+            # another module re-exports collectable tests at its own path.
+            is_reexport_shim = self._is_test_reexport_shim(content)
 
             # Skip stub/empty files (e.g. "MOVED" placeholders with only comments)
             non_comment_lines = [
@@ -467,7 +478,8 @@ class ArchitectureAudit:
             is_stub = len(non_comment_lines) < 5
 
             if not is_stub and not has_unittest and not has_pytest \
-                    and not has_test_func and not has_test_class:
+                    and not has_test_func and not has_test_class \
+                    and not is_reexport_shim:
                 violations.append(AuditViolation(
                     rule="tests_use_unittest",
                     file=self._rel(fpath),
@@ -477,6 +489,35 @@ class ArchitectureAudit:
                 ))
 
         return violations
+
+    @staticmethod
+    def _is_test_reexport_shim(content: str) -> bool:
+        """True iff ``content`` is a re-export shim for tests from another module.
+
+        A re-export shim re-exports one or more ``test_*`` callables via a
+        ``from <module> import (...)`` statement (or ``import *``) where the
+        source module is itself a test module (its dotted path ends in a
+        ``test_*`` component). pytest collects the re-exported ``test_*`` names
+        at the shim's own path, so the shim runs real tests — it is NOT an empty
+        file. Parsed via AST so it cannot be fooled by tests merely mentioned in
+        comments/strings.
+        """
+        try:
+            tree = ast.parse(content)
+        except SyntaxError:
+            return False
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom) or not node.module:
+                continue
+            # Source must be a test module (last dotted component is a test_*).
+            if not node.module.split(".")[-1].startswith("test_"):
+                continue
+            for alias in node.names:
+                # `from test_mod import *` OR an explicit `test_*` name.
+                if alias.name == "*" or alias.name.startswith("test_"):
+                    return True
+        return False
 
     # ── Aggregate API ─────────────────────────────────────────────────────────
 
