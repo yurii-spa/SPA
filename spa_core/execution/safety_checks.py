@@ -31,6 +31,19 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+# CONVERGENCE (WS-B1/B2, ADR-049): the execution kill-switch consults the ONE
+# canonical governance source — the owner-approved two-tier ladder constants and
+# the shared boundary classifier — instead of a private flat-5% hard-block. We
+# import the SAME constants / classifier; we never re-define the threshold values.
+from spa_core.governance.kill_switch import (
+    DRAWDOWN_THRESHOLD_PCT as _GOV_HARD_PCT,
+    SOFT_DERISK_THRESHOLD_PCT as _GOV_SOFT_PCT,
+    TIER_HARD_KILL as _GOV_TIER_HARD,
+    TIER_NONE as _GOV_TIER_NONE,
+    TIER_SOFT_DERISK as _GOV_TIER_SOFT,
+    classify_drawdown_pct as _gov_classify_drawdown_pct,
+)
+
 
 # ── Data types ────────────────────────────────────────────────────────────────
 
@@ -88,11 +101,69 @@ _tx_timestamps: list[float] = []   # Unix timestamps of recent transactions
 _RATE_LIMIT_WINDOW_SECONDS = 3600  # 1 hour
 _RATE_LIMIT_MAX_TX         = 3     # max transactions per hour
 
-# Kill switch state (set externally by monitoring loop)
+# ── Kill-switch state (PERSISTED — WS-B2, ADR-049) ───────────────────────────
+# The manual kill is NO LONGER a process-local boolean (a crash silently reset
+# it). The authoritative state is the atomic ``data/kill_switch_active.json``
+# governed by ``spa_core.governance.kill_switch`` — read on every check, so it
+# survives a process restart and is consistent with governance's file lifecycle
+# (file ABSENT = OFF; file with ``active=False`` = explicitly OFF).
+#
+# ``_kill_switch_active`` is kept ONLY as a DEPRECATED advisory shim: it no
+# longer drives the verdict (the persisted file does). It exists so legacy
+# callers / tests that still poke the module attribute do not break. activate /
+# deactivate now write / clear the persisted file (the source of truth).
 _kill_switch_active: bool = False
 
 MULTISIG_THRESHOLD_USD = 500.0     # amounts above this require Safe multisig approval
 GAS_MAX_PCT_OF_TRADE   = 2.0       # gas cost must be < 2% of transaction value
+
+
+# Module-level data-dir override — lets tests / sandbox / a dry-run point the
+# persisted kill-switch state at a throwaway dir so the LIVE ``data/`` is NEVER
+# touched. ``None`` → the real repo ``data/``. Set via ``set_data_dir_override``.
+_DATA_DIR_OVERRIDE: "Any" = None
+
+
+def set_data_dir_override(data_dir: "Any") -> None:
+    """Point the persisted kill-switch state at ``data_dir`` (or reset with None).
+
+    Test / sandbox hook ONLY — production leaves this None so the real repo
+    ``data/`` is used. Keeps live data untouched while still exercising the
+    persisted (B2) path end-to-end.
+    """
+    global _DATA_DIR_OVERRIDE
+    _DATA_DIR_OVERRIDE = data_dir
+
+
+def _resolve_data_dir() -> "Any":
+    """Repo ``data/`` dir (two levels up from this file), or the test override."""
+    if _DATA_DIR_OVERRIDE is not None:
+        from pathlib import Path
+        return Path(_DATA_DIR_OVERRIDE)
+    from pathlib import Path
+    return Path(__file__).resolve().parents[2] / "data"
+
+
+def _read_persisted_manual_kill() -> tuple[bool, str]:
+    """Read the PERSISTED manual kill via the canonical governance lifecycle.
+
+    Delegates to ``KillSwitchChecker.check_manual_trigger`` so the execution
+    layer honours EXACTLY governance's ``data/kill_switch_active.json`` contract
+    (file absent = OFF; ``active=False`` = explicitly OFF; otherwise ON with its
+    recorded reason). Fail-CLOSED: any error reading the governance state is
+    treated as an ACTIVE kill (you cannot move capital if you cannot confirm the
+    kill is off).
+
+    Returns ``(active, reason)``.
+    """
+    try:
+        from spa_core.governance.kill_switch import KillSwitchChecker
+        return KillSwitchChecker(data_dir=_resolve_data_dir()).check_manual_trigger()
+    except Exception as exc:  # noqa: BLE001 — unreadable state → fail CLOSED
+        return True, (
+            f"FAIL-CLOSED: cannot read persisted kill-switch state "
+            f"({type(exc).__name__}: {exc})"
+        )
 
 
 # ── RiskPolicy wiring helpers (read-only registry + live feed) ───────────────
@@ -592,59 +663,139 @@ class PreExecutionSafety:
         self,
         portfolio_state:       dict,
         max_drawdown_stop:     float = 0.05,
+        action:                str   = "supply",
     ) -> SafetyCheckResult:
         """
-        Verify the portfolio is not in kill-switch territory.
+        Verify the portfolio is not in kill-switch territory — CONVERGED onto the
+        ONE canonical governance source of truth (WS-B1/B2, ADR-049).
 
-        Two conditions trigger a hard block:
-          1. Module-level _kill_switch_active flag is set (manual trigger)
-          2. Portfolio drawdown >= max_drawdown_stop (5% by default)
+        This NO LONGER applies a private flat ``max_drawdown_stop`` hard-block nor
+        a process-local ``_kill_switch_active`` boolean. Instead it consults:
+
+          1. **Persisted manual kill** — ``data/kill_switch_active.json`` via the
+             governance lifecycle (survives a process restart; file absent = OFF;
+             ``active=False`` = explicitly OFF). Active → BLOCK all.
+          2. **Governance TWO-TIER drawdown ladder** (ADR-034 + ADR-048) — the
+             SAME constants and the SAME shared classifier
+             ``governance.kill_switch.classify_drawdown_pct``:
+               • ``TIER_NONE``      (drawdown < 5%)        → PASS
+               • ``TIER_SOFT_DERISK`` ([5%, 10%))          → block NEW / INCREASING
+                 exposure ONLY (``supply``); HOLD / REDUCE (``withdraw``) is
+                 ALLOWED — this is a de-risk, not an all-cash kill.
+               • ``TIER_HARD_KILL`` (drawdown ≥ 10%)        → block ALL.
+
+        The execution verdict on a given drawdown therefore EQUALS the governance
+        ``drawdown_tier()`` verdict on the same equity (no divergence) — both go
+        through ``classify_drawdown_pct``.
+
+        ``max_drawdown_stop`` is RETAINED in the signature for call-site
+        compatibility but is **no longer the threshold** (the owner-set 5%/10%
+        governance constants are). It is ignored for the verdict; passing it has
+        no effect on which tier fires.
 
         Args:
-            portfolio_state:   Portfolio state dict (must contain 'total_drawdown_pct')
-            max_drawdown_stop: Drawdown fraction that triggers kill switch (default 0.05)
+            portfolio_state:   Portfolio state dict (reads ``total_drawdown_pct``,
+                               a FRACTION e.g. 0.06 == 6%).
+            max_drawdown_stop: DEPRECATED / ignored for the verdict (kept for
+                               signature compatibility).
+            action:            ``"supply"`` (increases exposure — blocked by SOFT)
+                               or ``"withdraw"`` (reduces exposure — allowed by
+                               SOFT). Anything not recognised as a reduction is
+                               treated as increasing exposure (fail-CLOSED).
 
         Returns:
             SafetyCheckResult (blocking=True)
         """
-        if _kill_switch_active:
+        # ── 1. Persisted manual kill (survives restart) ──────────────────────
+        manual_active, manual_reason = _read_persisted_manual_kill()
+        if manual_active:
             return SafetyCheckResult(
                 passed=False,
                 check_name="Kill Switch",
-                details="Manual kill switch is active. No new transactions permitted.",
+                details=(
+                    f"Manual kill switch is ACTIVE (persisted governance state): "
+                    f"{manual_reason}. No new transactions permitted."
+                ),
                 blocking=True,
                 severity="ERROR",
                 value="manual",
                 threshold="kill switch inactive",
             )
 
-        drawdown = float(portfolio_state.get("total_drawdown_pct", 0.0) or 0.0)
-        if drawdown >= max_drawdown_stop:
+        # ── 2. Governance TWO-TIER drawdown ladder (same constants) ──────────
+        try:
+            drawdown_frac = float(portfolio_state.get("total_drawdown_pct", 0.0) or 0.0)
+        except (TypeError, ValueError) as exc:
+            # Non-numeric drawdown must NOT silently pass — propagate (fail-CLOSED).
+            raise ValueError(
+                f"total_drawdown_pct is not numeric: "
+                f"{portfolio_state.get('total_drawdown_pct')!r}"
+            ) from exc
+
+        # Drawdown is stored as a FRACTION; governance classifies a PERCENTAGE.
+        drawdown_pct = drawdown_frac * 100.0
+        tier, tier_reason = _gov_classify_drawdown_pct(drawdown_pct)
+
+        # A reduction (withdraw / close) reduces exposure → allowed under SOFT.
+        is_reduction = str(action).strip().lower() in ("withdraw", "redeem", "close", "reduce", "exit")
+
+        if tier == _GOV_TIER_HARD:
             return SafetyCheckResult(
                 passed=False,
                 check_name="Kill Switch",
                 details=(
-                    f"Portfolio drawdown {drawdown:.1%} ≥ stop threshold "
-                    f"{max_drawdown_stop:.1%}. All new transactions blocked. "
-                    f"See docs/emergency.md for recovery steps."
+                    f"HARD kill (governance ADR-048): {tier_reason}. ALL "
+                    f"transactions blocked → all-cash. See docs/emergency.md."
                 ),
                 blocking=True,
                 severity="ERROR",
-                value=drawdown,
-                threshold=max_drawdown_stop,
+                value=drawdown_frac,
+                threshold=_GOV_HARD_PCT / 100.0,
             )
 
+        if tier == _GOV_TIER_SOFT:
+            if is_reduction:
+                # SOFT de-risk permits REDUCING exposure (hold / withdraw).
+                return SafetyCheckResult(
+                    passed=True,
+                    check_name="Kill Switch",
+                    details=(
+                        f"SOFT de-risk (governance ADR-034): {tier_reason}. "
+                        f"Reducing/closing action '{action}' ALLOWED (de-risk, "
+                        f"not all-cash)."
+                    ),
+                    blocking=True,
+                    severity="WARN",
+                    value=drawdown_frac,
+                    threshold=_GOV_SOFT_PCT / 100.0,
+                )
+            return SafetyCheckResult(
+                passed=False,
+                check_name="Kill Switch",
+                details=(
+                    f"SOFT de-risk (governance ADR-034): {tier_reason}. New / "
+                    f"increasing-exposure action '{action}' BLOCKED (hold / "
+                    f"reduce only)."
+                ),
+                blocking=True,
+                severity="ERROR",
+                value=drawdown_frac,
+                threshold=_GOV_SOFT_PCT / 100.0,
+            )
+
+        # TIER_NONE → no action.
         return SafetyCheckResult(
             passed=True,
             check_name="Kill Switch",
             details=(
-                f"Drawdown {drawdown:.1%} < stop threshold {max_drawdown_stop:.1%}. "
-                f"No kill switch active."
+                f"No kill switch active. {tier_reason} "
+                f"(governance two-tier ladder: SOFT={_GOV_SOFT_PCT}%, "
+                f"HARD={_GOV_HARD_PCT}%)."
             ),
             blocking=True,
             severity="INFO",
-            value=drawdown,
-            threshold=max_drawdown_stop,
+            value=drawdown_frac,
+            threshold=_GOV_SOFT_PCT / 100.0,
         )
 
     def check_rate_limit(self) -> SafetyCheckResult:
@@ -707,33 +858,50 @@ class PreExecutionSafety:
     @staticmethod
     def activate_kill_switch(reason: str = "Manual activation") -> None:
         """
-        Manually activate the software kill switch.
-        All subsequent transactions will be blocked until deactivate_kill_switch() is called.
+        Manually activate the kill switch — PERSISTED (WS-B2, ADR-049).
+
+        Writes the canonical ``data/kill_switch_active.json`` via the governance
+        lifecycle so the activation SURVIVES a process restart (a crash must NOT
+        silently reset the kill). All subsequent transactions are blocked until
+        :meth:`deactivate_kill_switch` is called.
 
         Args:
-            reason: Human-readable reason for activation (logged)
+            reason: Human-readable reason for activation (recorded + logged)
         """
         global _kill_switch_active
-        _kill_switch_active = True
+        _kill_switch_active = True  # deprecated advisory shim (not authoritative)
+        from spa_core.governance.kill_switch import KillSwitchChecker
+        KillSwitchChecker(data_dir=_resolve_data_dir()).activate_kill_switch(reason)
         print(f"[KILL SWITCH ACTIVATED] {datetime.now(timezone.utc).isoformat()} — {reason}")
 
     @staticmethod
     def deactivate_kill_switch(reason: str = "Manual deactivation by owner") -> None:
         """
-        Deactivate the software kill switch.
+        Deactivate the kill switch — clears the PERSISTED state (WS-B2, ADR-049).
+
+        Removes ``data/kill_switch_active.json`` via the governance lifecycle.
         CAUTION: Only call after reviewing positions and resolving the root cause.
 
         Args:
             reason: Human-readable reason for deactivation (must be owner-initiated)
         """
         global _kill_switch_active
-        _kill_switch_active = False
+        _kill_switch_active = False  # deprecated advisory shim (not authoritative)
+        from spa_core.governance.kill_switch import KillSwitchChecker
+        KillSwitchChecker(data_dir=_resolve_data_dir()).deactivate_kill_switch()
         print(f"[KILL SWITCH DEACTIVATED] {datetime.now(timezone.utc).isoformat()} — {reason}")
 
     @staticmethod
     def is_kill_switch_active() -> bool:
-        """Returns True if the software kill switch is currently active."""
-        return _kill_switch_active
+        """Returns True iff the PERSISTED manual kill switch is active.
+
+        Reads the canonical ``data/kill_switch_active.json`` (governance
+        lifecycle) — NOT the deprecated process-local flag — so the answer is
+        consistent across restarts. Fail-CLOSED: an unreadable persisted state is
+        reported as ACTIVE.
+        """
+        active, _reason = _read_persisted_manual_kill()
+        return active
 
     # ── Full pipeline ─────────────────────────────────────────────────────────
 
@@ -781,9 +949,11 @@ class PreExecutionSafety:
         """
         checks: list[SafetyCheckResult] = []
 
-        # 1. Kill switch — checked first, highest priority
+        # 1. Kill switch — checked first, highest priority. The action is passed
+        # so the SOFT de-risk tier blocks only NEW/increasing exposure (supply),
+        # while a reducing action (withdraw) is permitted under SOFT.
         checks.append(
-            self.check_not_in_kill_switch(portfolio_state, max_drawdown_stop)
+            self.check_not_in_kill_switch(portfolio_state, max_drawdown_stop, action=action)
         )
 
         # 2. Rate limit

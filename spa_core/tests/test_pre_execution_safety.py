@@ -41,17 +41,22 @@ from spa_core.execution.safety_checks import (
 
 
 @pytest.fixture(autouse=True)
-def _reset_module_state():
-    """Reset module-level rate-limit + kill-switch state before AND after each test.
+def _reset_module_state(tmp_path):
+    """Reset module-level rate-limit state + point the PERSISTED kill-switch at a
+    throwaway dir before AND after each test.
 
-    safety_checks keeps these at module scope so they survive across calls within
-    a process; for deterministic tests we wipe them around every test.
+    WS-B2: the manual kill is now PERSISTED to ``data/kill_switch_active.json``
+    via the governance lifecycle. We redirect that state to a per-test tmp dir
+    (``set_data_dir_override``) so tests NEVER touch live ``data/`` and stay
+    isolated; the deprecated process-local flag is also cleared for legacy pokes.
     """
     sc._tx_timestamps.clear()
     sc._kill_switch_active = False
+    sc.set_data_dir_override(tmp_path)
     yield
     sc._tx_timestamps.clear()
     sc._kill_switch_active = False
+    sc.set_data_dir_override(None)
 
 
 @pytest.fixture()
@@ -97,12 +102,14 @@ class TestKillSwitch:
         assert "kill switch" in r.details.lower()
 
     def test_block_on_drawdown_breach(self, safety):
+        # 6% drawdown → governance SOFT tier → blocks a NEW/increasing (default
+        # "supply") exposure (converged onto governance, WS-B1).
         r = safety.check_not_in_kill_switch({"total_drawdown_pct": 0.06})
         assert r.passed is False
         assert r.is_hard_block is True
 
     def test_block_at_exact_threshold(self, safety):
-        # drawdown == stop threshold must block (>=, fail-closed at the boundary)
+        # Exactly 5% → governance SOFT boundary (inclusive >=) → blocks supply.
         r = safety.check_not_in_kill_switch({"total_drawdown_pct": 0.05})
         assert r.passed is False
         assert r.is_hard_block is True
@@ -492,6 +499,119 @@ class TestRunAll:
 # ═══════════════════════════════════════════════════════════════════════════
 # Result helpers
 # ═══════════════════════════════════════════════════════════════════════════
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# WS-B1/B2 — Execution kill-switch CONVERGED onto governance (ADR-049)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestKillSwitchGovernanceConvergence:
+    """Red-team + property tests for the convergence onto the ONE governance
+    source of truth (WS-B1 two-tier, WS-B2 persistence).
+
+    Proves:
+      * the execution two-tier verdict == governance ``drawdown_tier`` on the
+        same equity (no divergence) at every band + both boundaries (5/10%);
+      * SOFT blocks NEW/increase only (supply blocked, withdraw allowed);
+        HARD blocks ALL (both supply and withdraw);
+      * NO flat-5% hard-block remains (5–10% does NOT all-cash a withdraw);
+      * the kill is PERSISTED — survives a simulated process restart; absence=OFF.
+    """
+
+    import pytest as _pytest  # local alias for parametrize
+
+    def _portfolio(self, frac):
+        return {"total_drawdown_pct": frac, "cash_usd": 0.0, "total_capital_usd": 100_000.0}
+
+    # ── B1: two-tier verdict matches governance, no divergence ───────────────
+
+    @_pytest.mark.parametrize(
+        "frac, exp_tier",
+        [
+            (0.0, "TIER_NONE"),
+            (0.0499, "TIER_NONE"),
+            (0.05, "TIER_SOFT_DERISK"),   # inclusive lower boundary
+            (0.075, "TIER_SOFT_DERISK"),
+            (0.0999, "TIER_SOFT_DERISK"),
+            (0.10, "TIER_HARD_KILL"),     # inclusive boundary — exactly 10% kills
+            (0.15, "TIER_HARD_KILL"),
+        ],
+    )
+    def test_execution_tier_matches_governance(self, safety, frac, exp_tier):
+        from spa_core.governance import kill_switch as gov
+        # Governance classifies a PERCENTAGE; execution stores a fraction.
+        gov_tier, _ = gov.classify_drawdown_pct(frac * 100.0)
+        assert gov_tier == getattr(gov, exp_tier)
+
+        # Execution SUPPLY (increasing exposure) verdict must agree with the tier:
+        r_sup = safety.check_not_in_kill_switch(self._portfolio(frac), action="supply")
+        if gov_tier == gov.TIER_NONE:
+            assert r_sup.passed is True
+        else:  # SOFT or HARD both block an increase
+            assert r_sup.is_hard_block is True
+
+    def test_soft_blocks_increase_allows_reduce_no_flat_5pct(self, safety):
+        # 7% drawdown = SOFT. RED-TEAM: the OLD flat-5% hard-block would block a
+        # withdraw too. The converged gate must ALLOW a reduction under SOFT.
+        p = self._portfolio(0.07)
+        assert safety.check_not_in_kill_switch(p, action="supply").is_hard_block is True
+        r_wd = safety.check_not_in_kill_switch(p, action="withdraw")
+        assert r_wd.passed is True
+        assert r_wd.is_hard_block is False
+        assert "soft de-risk" in r_wd.details.lower()
+
+    def test_hard_blocks_all_including_withdraw(self, safety):
+        # 12% drawdown = HARD → ALL blocked, even a reducing withdraw (all-cash).
+        p = self._portfolio(0.12)
+        assert safety.check_not_in_kill_switch(p, action="supply").is_hard_block is True
+        assert safety.check_not_in_kill_switch(p, action="withdraw").is_hard_block is True
+
+    def test_max_drawdown_stop_arg_is_ignored_governance_owns_threshold(self, safety):
+        # Passing a different max_drawdown_stop must NOT change the verdict — the
+        # owner-set governance constants own the threshold now (no private value).
+        p = self._portfolio(0.07)  # SOFT under governance
+        r = safety.check_not_in_kill_switch(p, max_drawdown_stop=0.50, action="supply")
+        assert r.is_hard_block is True  # still SOFT-blocked despite a 50% arg
+
+    # ── B2: persistence across a simulated process restart ───────────────────
+
+    def test_manual_kill_persists_across_restart(self, safety, tmp_path, healthy_portfolio):
+        # Activate (writes data/kill_switch_active.json under the tmp override),
+        # then SIMULATE a restart by clearing the deprecated in-process flag.
+        PreExecutionSafety.activate_kill_switch("persist test")
+        sc._kill_switch_active = False  # crash/restart wipes the in-memory flag
+        # A "new process" reads the persisted file → still ACTIVE.
+        assert PreExecutionSafety.is_kill_switch_active() is True
+        r = safety.check_not_in_kill_switch(healthy_portfolio)
+        assert r.is_hard_block is True
+        assert "persisted" in r.details.lower()
+        # File actually exists on disk (proof of persistence).
+        assert (tmp_path / "kill_switch_active.json").exists()
+
+    def test_absence_is_off(self, safety, tmp_path, healthy_portfolio):
+        # No kill_switch_active.json in the tmp dir → OFF (file-absent contract).
+        assert not (tmp_path / "kill_switch_active.json").exists()
+        assert PreExecutionSafety.is_kill_switch_active() is False
+        r = safety.check_not_in_kill_switch(healthy_portfolio)
+        assert r.passed is True
+
+    def test_deactivate_clears_persisted_state(self, safety, tmp_path, healthy_portfolio):
+        PreExecutionSafety.activate_kill_switch("trip")
+        assert (tmp_path / "kill_switch_active.json").exists()
+        PreExecutionSafety.deactivate_kill_switch("owner cleared")
+        assert not (tmp_path / "kill_switch_active.json").exists()
+        assert PreExecutionSafety.is_kill_switch_active() is False
+        assert safety.check_not_in_kill_switch(healthy_portfolio).passed is True
+
+    def test_explicit_active_false_file_is_off(self, safety, tmp_path, healthy_portfolio):
+        # Governance contract: a file with active=False == explicitly OFF.
+        import json
+        (tmp_path / "kill_switch_active.json").write_text(
+            json.dumps({"active": False, "reason": "deactivated"}), encoding="utf-8"
+        )
+        assert PreExecutionSafety.is_kill_switch_active() is False
+        assert safety.check_not_in_kill_switch(healthy_portfolio).passed is True
 
 
 class TestResultTypes:

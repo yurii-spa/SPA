@@ -4,6 +4,79 @@
 
 ---
 
+## 2026-06-28 (ADR-049 — EXECUTION kill-switch CONVERGED onto the ONE governance source of truth)
+
+**Decision (Money-Path Trust sprint, WS-B1/B2): the EXECUTION pre-trade
+kill-switch (`spa_core/execution/safety_checks.py` →
+`PreExecutionSafety.check_not_in_kill_switch`) now consults the SAME canonical
+governance two-tier ladder + the SAME persisted state as the rest of the system.
+The threshold VALUES are UNCHANGED (owner-set 5% / 10%); only the SOURCE converges.**
+
+**The divergence the architect found (now FIXED).** The execution gate had its own
+*private* kill logic, divergent from governance on BOTH axes:
+- it hard-blocked at a flat hardcoded `max_drawdown_stop = 0.05` — i.e. a single 5%
+  rung that ALL-CASH-blocked every trade, ignoring the owner-approved two-tier
+  ladder (SOFT de-risk `[5%,10%)` blocks only NEW/increasing exposure; HARD `≥10%`
+  blocks ALL). It also pre-dated ADR-048 and referenced governance as "15%".
+- it gated on a process-local module boolean `_kill_switch_active` that did NOT
+  survive a process restart — **a crash silently reset the manual kill.**
+
+**B1 — converge the drawdown gate onto governance.** Extracted the pure boundary
+classifier `governance.kill_switch.classify_drawdown_pct(dd_pct)` — now the SINGLE
+place the tier constants (`SOFT_DERISK_THRESHOLD_PCT=5.0`,
+`DRAWDOWN_THRESHOLD_PCT=10.0`) and half-open band semantics are applied. Both
+`governance.drawdown_tier()` (equity-curve path) AND the execution gate classify
+through it, so they CANNOT diverge. The execution gate now:
+SOFT → blocks only NEW/increasing exposure (`supply`), ALLOWS reduce/`withdraw`;
+HARD → blocks ALL (incl. withdraw, i.e. all-cash). `max_drawdown_stop` retained in
+the signature for call-site compatibility but **ignored for the verdict** (governance
+owns the threshold — verified by a test that a 50% arg does not change a SOFT verdict).
+
+**B2 — persist the manual kill.** `_kill_switch_active` is demoted to a deprecated
+advisory shim (no longer authoritative). `activate/deactivate/is_kill_switch_active`
+and `check_not_in_kill_switch` now read/write the canonical atomic
+`data/kill_switch_active.json` via the governance `KillSwitchChecker` lifecycle
+(file ABSENT = OFF; `active=False` = explicitly OFF). The kill SURVIVES a process
+restart; unreadable state fails CLOSED (treated as ACTIVE). A `set_data_dir_override`
+test/sandbox hook points the persisted state at a throwaway dir so live `data/` is
+NEVER touched (the golive_dry_run manual-kill injection was migrated onto it — it no
+longer writes/clears the LIVE kill file).
+
+**Verdict parity (proven, sandbox-only — live `data/` untouched).** Across
+{0, 4.99, 5.0, 7.5, 9.99, 10.0, 15}% the execution verdict == governance
+`drawdown_tier()` on the SAME equity; both boundaries inclusive (exactly 5.0% →
+SOFT, exactly 10.0% → HARD). Red-team: a 7% drawdown does NOT all-cash a `withdraw`
+(proves no divergent flat-5% hard-block remains); the kill survives a simulated
+restart (write → new process reads it active); absence = OFF.
+
+**Files changed (deterministic, stdlib-only, LLM-FORBIDDEN, fail-CLOSED, atomic):**
+- `spa_core/governance/kill_switch.py` — extracted `classify_drawdown_pct` (shared
+  boundary classifier / single source of the tier constants); `drawdown_tier` now
+  composes it. No value change.
+- `spa_core/execution/safety_checks.py` — `check_not_in_kill_switch` converged onto
+  `classify_drawdown_pct` + persisted `kill_switch_active.json` (two-tier, action-aware);
+  `activate/deactivate/is_kill_switch_active` persist via governance lifecycle;
+  `set_data_dir_override` test hook; `run_all` threads `action` into the kill check.
+- `spa_core/execution/golive_dry_run.py` — stale 5%-vs-15% divergence comment
+  rewritten; manual-kill injection routed through a throwaway data dir (no live write).
+- Tests: `spa_core/tests/test_pre_execution_safety.py` — fixture redirects persisted
+  state to tmp + new `TestKillSwitchGovernanceConvergence` (tier-parity parametrize,
+  SOFT-allows-reduce red-team, HARD-blocks-all, ignored-`max_drawdown_stop`,
+  persist-across-restart, absence=OFF, active=False=OFF).
+
+**GUARDRAIL honoured:** execution stays INERT (`is_live` OFF) — this builds cutover
+READINESS, it does NOT flip live. WS-A (optimizer) and WS-C (sleeve_capture) untouched.
+
+**RiskPolicy version:** stays **v1.0** — kill/two-tier logic lives in the governance
+layer, not in `RiskConfig`.
+
+**Verified:** `pytest spa_core/tests/ tests/ -k "safety_check or kill_switch or
+execution or pre_cutover or drawdown"` → **1568 passed, 15 skipped, 0 failed**;
+`python3 -m spa_core.paper_trading.pre_cutover_gate` → all defenses fired, exit 0,
+inert. NOT pushed.
+
+---
+
 ## 2026-06-27 (ADR-048 — HARD kill 15→10 + DL-02 reconciliation + boundary fix, owner-approved)
 
 **Decision (owner-approved 2026-06-27): lower the HARD kill-switch drawdown

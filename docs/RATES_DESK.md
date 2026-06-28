@@ -97,6 +97,14 @@ until they clear the gate (`BasisHedge` is BLOCKED-NO-HEDGE).
 `spa_core/strategy_lab/rates_desk/paper_rates.py` paper-trades the validated `FixedCarry` sleeve on the LIVE
 rate surface, one tick at a time, into a growing forward carry track.
 
+> **THE captured FixedCarry book.** `data/rates_desk/paper/` is the **single, canonical** captured-paper
+> book for the FixedCarry edge — there is exactly **one** capture abstraction (this service). A second,
+> derivative reader (`spa_core/paper_trading/sleeve_capture.py`, which re-accrued a parallel bounded book
+> off this state) was **deleted 2026-06-28** as a redundant ghost: it was never wired (no agent, no
+> `data/captured_sleeves/`, never run) and would have created a divergent second equity number for the same
+> edge. Per-sleeve capture lives in each paper service (`paper_rates.py`, `strategy_lab/paper.py`, hy/lp
+> cycles); do **not** reintroduce a parallel capture layer on top of them.
+
 - **CLI (one tick):** `python3 -m spa_core.strategy_lab.rates_desk.paper_rates`
 - **Restart-survival:** the sleeve book + cash + accrued state is snapshotted to disk after each tick and
   restored on the next start — a relaunch CONTINUES the book rather than zeroing it (frozen Decimal book is

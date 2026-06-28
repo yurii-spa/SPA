@@ -20,6 +20,15 @@ from typing import Dict, List, Optional
 
 log = logging.getLogger("spa.risk.policy_enforcer")
 
+# A4 (single source of truth): the ALLOC-002 diversity floor now lives in
+# RiskConfig.max_protocols. Read it here so RULES never drifts from policy.py.
+# Import-guarded so this module stays usable in isolated unit tests.
+try:
+    from spa_core.risk.policy import RiskConfig as _RiskConfig
+    _MAX_PROTOCOLS = int(_RiskConfig().max_protocols)
+except Exception:  # pragma: no cover — import guard for test isolation
+    _MAX_PROTOCOLS = 8
+
 # ── T1 adapter set (single source of truth; matches ADAPTER_REGISTRY T1 entries) ──
 T1_ADAPTERS: frozenset = frozenset({
     "aave_v3",
@@ -44,7 +53,7 @@ T3_ADAPTERS: frozenset = frozenset({
 
 # ── Policy rules (deterministic, matches RiskConfig v1.0) ──────────────────
 RULES: Dict[str, object] = {
-    "max_protocols": 8,             # не более 8 позиций в портфеле
+    "max_protocols": _MAX_PROTOCOLS,  # ALLOC-002 (A4: single-source from RiskConfig)
     "per_protocol_max_pct": 25.0,   # не более 25% в одном протоколе
     "t1_min_pct": 55.0,             # минимум 55% в T1 адаптерах
     "t2_max_pct": 50.0,             # максимум 50% в T2 (ADR-019)

@@ -68,6 +68,12 @@ class RiskConfig:
     max_concentration_t2: float = 0.20   # T2: макс 20%
     max_single_protocol:  float = 0.40   # абсолютный макс на любой протокол
 
+    # Диверсификационный пол (ALLOC-002): максимум funded-протоколов в книге.
+    # SINGLE SOURCE OF TRUTH — раньше был хардкод `8` в allocator.py (WS1.2
+    # greedy-knapsack) и в policy_enforcer.RULES. Оба теперь читают отсюда, чтобы
+    # лимит не дрейфовал. Owner-gated как и прочие cap'ы (ADR + approval).
+    max_protocols: int = 8               # ALLOC-002: не более 8 funded позиций
+
     # Circuit breakers — автостоп
     max_apy_for_new_position: float = 30.0   # % — не входим если APY > 30% (слишком высокий риск)
     min_apy_for_new_position: float = 1.0    # % — не входим если APY < 1% (неинтересно)

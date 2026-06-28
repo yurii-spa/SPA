@@ -251,11 +251,53 @@ def evidenced_drawdown_pct(equity_curve: list[dict]) -> float | None:
     return drawdown_pct
 
 
+def classify_drawdown_pct(drawdown_pct: float | None) -> tuple[str, str]:
+    """Pure tier classifier over a raw drawdown PERCENTAGE — the SINGLE source of
+    truth for the TWO-TIER ladder boundaries (ADR-034 + ADR-048).
+
+    This is the one place the tier *boundaries* and *constants*
+    (``SOFT_DERISK_THRESHOLD_PCT`` / ``DRAWDOWN_THRESHOLD_PCT``) are applied.
+    Both the governance equity-curve path (:func:`drawdown_tier`) and the
+    EXECUTION pre-trade gate (``PreExecutionSafety.check_not_in_kill_switch``)
+    classify through THIS function, so they can never diverge on either the
+    threshold VALUES or the half-open band semantics.
+
+    Tier boundaries (monotone, half-open intervals — exhaustive, non-overlapping,
+    both boundaries INCLUSIVE on the upper tier so the ladder AGREES at exactly
+    5.0% / 10.0%):
+        drawdown < SOFT (5%)              → TIER_NONE
+        SOFT (5%) ≤ drawdown < HARD (10%) → TIER_SOFT_DERISK
+        drawdown ≥ HARD (10%)             → TIER_HARD_KILL
+
+    Parameters
+    ----------
+    drawdown_pct : float | None
+        The drawdown as a PERCENTAGE (e.g. ``7.5`` for 7.5%), already ≥ 0.
+        ``None`` (cannot be computed) → ``TIER_NONE`` (the per-tier gates are the
+        fail-closed authority; never fabricate a more severe tier from no data).
+    """
+    dd = drawdown_pct
+    if dd is None or not math.isfinite(dd):
+        return TIER_NONE, "no/insufficient evidenced drawdown data"
+    if dd >= DRAWDOWN_THRESHOLD_PCT:
+        return TIER_HARD_KILL, (
+            f"drawdown {dd:.2f}% ≥ {DRAWDOWN_THRESHOLD_PCT}% (HARD kill → all-cash)"
+        )
+    if dd >= SOFT_DERISK_THRESHOLD_PCT:
+        return TIER_SOFT_DERISK, (
+            f"drawdown {dd:.2f}% ≥ {SOFT_DERISK_THRESHOLD_PCT}% soft de-risk "
+            f"(< {DRAWDOWN_THRESHOLD_PCT}% hard) — halt new/increase, hold/reduce only"
+        )
+    return TIER_NONE, f"drawdown {dd:.2f}% < {SOFT_DERISK_THRESHOLD_PCT}% (no action)"
+
+
 def drawdown_tier(equity_curve: list[dict]) -> tuple[str, str]:
     """Classify the evidenced drawdown into the TWO-TIER ladder (ADR-034).
 
     Deterministic, fail-CLOSED, evidenced-bars-only, non-finite-safe — it is a
-    thin classifier over :func:`evidenced_drawdown_pct`.
+    thin classifier composing :func:`evidenced_drawdown_pct` with the shared
+    boundary classifier :func:`classify_drawdown_pct` (the single source of the
+    threshold constants).
 
     Tier boundaries (monotone, half-open intervals so the ladder is exhaustive
     and non-overlapping):
@@ -273,19 +315,7 @@ def drawdown_tier(equity_curve: list[dict]) -> tuple[str, str]:
     (tier, reason) : (str, str)
         ``tier`` ∈ {TIER_NONE, TIER_SOFT_DERISK, TIER_HARD_KILL}.
     """
-    dd = evidenced_drawdown_pct(equity_curve)
-    if dd is None:
-        return TIER_NONE, "no/insufficient evidenced drawdown data"
-    if dd >= DRAWDOWN_THRESHOLD_PCT:
-        return TIER_HARD_KILL, (
-            f"drawdown {dd:.2f}% ≥ {DRAWDOWN_THRESHOLD_PCT}% (HARD kill → all-cash)"
-        )
-    if dd >= SOFT_DERISK_THRESHOLD_PCT:
-        return TIER_SOFT_DERISK, (
-            f"drawdown {dd:.2f}% ≥ {SOFT_DERISK_THRESHOLD_PCT}% soft de-risk "
-            f"(< {DRAWDOWN_THRESHOLD_PCT}% hard) — halt new/increase, hold/reduce only"
-        )
-    return TIER_NONE, f"drawdown {dd:.2f}% < {SOFT_DERISK_THRESHOLD_PCT}% (no action)"
+    return classify_drawdown_pct(evidenced_drawdown_pct(equity_curve))
 
 
 # ─── KillSwitchChecker ────────────────────────────────────────────────────────

@@ -243,11 +243,14 @@ def dry_run(cycle_output: Optional[dict] = None, *, inject: Optional[dict] = Non
     fail_closed_on_bad_input = False
 
     # ── GATE 1: kill-switch active? ───────────────────────────────────────────
-    # Uses the EXECUTION kill-switch semantics (the 5% max_drawdown_stop that
-    # gates real capital), so an injected 6% drawdown trips it. This mirrors
-    # PreExecutionSafety.check_not_in_kill_switch — the threshold that actually
-    # blocks a live trade. (The governance KillSwitchChecker's 15% drawdown
-    # trigger is a separate, slower book-closing signal.)
+    # CONVERGED (WS-B1/B2, ADR-049): the execution kill-switch is no longer a
+    # divergent flat-5% hard-block. PreExecutionSafety.check_not_in_kill_switch
+    # now consults the ONE canonical governance two-tier ladder (SOFT ≥5% blocks
+    # NEW/increase, HARD ≥10% blocks ALL) via classify_drawdown_pct + the
+    # PERSISTED data/kill_switch_active.json — identical constants/semantics to
+    # governance.drawdown_tier(). A "supply" dry-run trade increases exposure, so
+    # an injected ≥5% drawdown trips this gate. max_drawdown_stop is retained for
+    # call-site compatibility but is ignored (governance owns the threshold).
     _EXEC_KILL_DRAWDOWN_STOP = 0.05
     ks_triggered = False
     ks_reason = "all triggers clear"
@@ -282,11 +285,18 @@ def dry_run(cycle_output: Optional[dict] = None, *, inject: Optional[dict] = Non
         fail_closed_on_bad_input = True
     else:
         try:
-            from spa_core.execution.safety_checks import PreExecutionSafety, _kill_switch_active  # noqa: F401
+            import tempfile
+            from spa_core.execution import safety_checks as _sc
+            from spa_core.execution.safety_checks import PreExecutionSafety
             safety = PreExecutionSafety()
-            # Inject a manual kill into the safety module state if requested, then
-            # always restore it (the harness must not leave global state dirty).
+            # Inject a manual kill into a THROWAWAY data dir if requested (WS-B2:
+            # the kill is now PERSISTED — we must NOT write/clear the LIVE
+            # data/kill_switch_active.json from a dry-run). The override is always
+            # restored in the finally so the harness leaves no global state dirty.
+            _ks_tmpdir = None
             if manual_kill:
+                _ks_tmpdir = tempfile.mkdtemp(prefix="spa_dryrun_ks_")
+                _sc.set_data_dir_override(_ks_tmpdir)
                 PreExecutionSafety.activate_kill_switch("dry-run manual kill injection")
             try:
                 # A dry-run "would-the-tx-simulate-ok" result. This is NOT a real
@@ -309,6 +319,10 @@ def dry_run(cycle_output: Optional[dict] = None, *, inject: Optional[dict] = Non
             finally:
                 if manual_kill:
                     PreExecutionSafety.deactivate_kill_switch("dry-run cleanup")
+                    _sc.set_data_dir_override(None)
+                    if _ks_tmpdir:
+                        import shutil
+                        shutil.rmtree(_ks_tmpdir, ignore_errors=True)
             safety_blocked = bool(pipeline.blocked)
             for c in pipeline.checks:
                 safety_stages.append({

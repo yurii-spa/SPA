@@ -245,6 +245,13 @@ class StrategyAllocator:
     T2_TOTAL_CAP: float = (
         _POLICY_CONFIG.max_total_t2_allocation if _POLICY_CONFIG is not None else 0.50
     )
+    # A4 (de-hardcode ALLOC-002): the diversity floor (≤ N funded protocols) is
+    # read from RiskConfig (single source of truth) instead of a hardcoded `8`
+    # inside allocate(). Owner-gated like every other cap; the WS1.2 optimizer
+    # receives THIS value so the limit can never drift between policy and model.
+    MAX_PROTOCOLS: int = (
+        _POLICY_CONFIG.max_protocols if _POLICY_CONFIG is not None else 8
+    )
 
     # Assert: fallback значения должны совпадать с policy (нет silent drift)
     if _POLICY_CONFIG is not None:
@@ -924,7 +931,7 @@ class StrategyAllocator:
                     tier_caps=tier_caps,
                     t2_total_cap=self.T2_TOTAL_CAP,
                     cash_floor=(_POLICY_CONFIG.min_cash_pct if _POLICY_CONFIG else 0.05),
-                    max_protocols=8,  # ALLOC-002
+                    max_protocols=self.MAX_PROTOCOLS,  # ALLOC-002 (A4: from RiskConfig)
                     objective=self.objective,
                 )
                 raw_weights = bd["weights"]
