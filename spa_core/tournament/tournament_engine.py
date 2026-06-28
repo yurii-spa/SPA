@@ -410,9 +410,16 @@ class TournamentEngine:
         shadow = _read_json(self._shadow_path, {})
         tournament = _read_json(self._tournament_path, {})
 
-        daily_results: List[Dict] = shadow.get("daily_results", [])
-        active: List[Dict] = shadow.get("active_strategies", [])
-        ranked: List[Dict] = tournament.get("shadow_active_strategies", [])
+        # TOTAL / fail-CLOSED (WS5.3): the gate must NEVER raise on a malformed state file. Coerce
+        # each collection to a list of dict members; a non-list (e.g. the string "x") or a non-dict
+        # member is treated as no usable evidence, not a crash. A degenerate shape can therefore
+        # never smuggle a promotion through — it simply yields an empty / refused result.
+        def _dict_list(v: Any) -> List[Dict]:
+            return [x for x in v if isinstance(x, dict)] if isinstance(v, list) else []
+
+        daily_results: List[Dict] = _dict_list(shadow.get("daily_results"))
+        active: List[Dict] = _dict_list(shadow.get("active_strategies"))
+        ranked: List[Dict] = _dict_list(tournament.get("shadow_active_strategies"))
 
         criteria = PROMOTION_CRITERIA
         promotions: List[Dict[str, Any]] = []

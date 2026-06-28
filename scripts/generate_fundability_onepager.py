@@ -129,6 +129,10 @@ def load_sources(root: str) -> dict:
         # Sourced from the on-disk artifact the forward_analytics module writes;
         # missing -> UNAVAILABLE, never recomputed/fabricated here.
         "forward_analytics": load_json(os.path.join(d, "forward_analytics.json")),
+        # Day-30 readiness artifact (WS5) — auto/verifiable/hash-anchored. Surfaced
+        # so the one-pager shows the SAME live readiness % + verdict + proof_hash the
+        # /fundability page reads. Missing -> UNAVAILABLE, never fabricated.
+        "day30": load_json(os.path.join(d, "day30_artifact.json")),
     }
 
 
@@ -311,7 +315,29 @@ def _section_validated_edge(promotion, decisions, rwa) -> str:
     return "\n".join(lines)
 
 
-def _section_forward_track(golive, forward) -> str:
+def _day30_readiness_line(day30) -> str:
+    """A single honest readiness line from the day-30 artifact (WS5), with its proof_hash.
+
+    Fail-CLOSED: a missing/invalid artifact reads UNAVAILABLE, never a fabricated readiness."""
+    if not isinstance(day30, dict) or "proof_hash" not in day30:
+        return (f"\n**Day-30 readiness artifact:** {UNAVAILABLE} (day30_artifact.json not generated "
+                "yet — the auto/verifiable/hash-anchored readiness report lands once the watchdog "
+                "runs).\n")
+    verdict = day30.get("verdict", "UNKNOWN")
+    pct = day30.get("readiness_pct")
+    ev = _get(day30, "evidenced", "evidenced_days")
+    proof = day30.get("proof_hash") or ""
+    return (
+        f"\n**Day-30 readiness (auto, verifiable, hash-anchored):** verdict **{verdict}**, "
+        f"readiness **{_fmt_pct(pct, 2) if pct is not None else UNAVAILABLE}** "
+        f"({ev if ev is not None else UNAVAILABLE}/30 evidenced days). The artifact's content is "
+        f"fingerprinted: `proof_hash={proof[:16] + '…' if proof else UNAVAILABLE}` — re-running the "
+        "generator over the same evidenced track reproduces it, and any tampered/backfilled bar "
+        "breaks it. The readiness % is the honest evidenced fraction, never an inflated snapshot.\n"
+    )
+
+
+def _section_forward_track(golive, forward, day30=None) -> str:
     lines = ["## 3. The forward track-to-date (accruing, not yet 30)\n"]
     if golive is None:
         lines.append(f"Go-live track: {UNAVAILABLE} (golive_status.json missing).\n")
@@ -350,6 +376,8 @@ def _section_forward_track(golive, forward) -> str:
             f"{n_failing if n_failing is not None else UNAVAILABLE} failing "
             "(no duplicates / gaps / out-of-order / future-dated points).\n"
         )
+    # Day-30 readiness artifact (WS5) — the auto/verifiable/hash-anchored verdict + readiness %.
+    lines.append(_day30_readiness_line(day30))
     return "\n".join(lines)
 
 
@@ -591,6 +619,7 @@ def build_document(sources: dict, now_iso: str) -> str:
     forward = sources.get("forward")
     dry_run = sources.get("dry_run")
     forward_analytics = sources.get("forward_analytics")
+    day30 = sources.get("day30")
 
     parts = [
         "# SPA — Fundability one-pager\n",
@@ -603,7 +632,7 @@ def build_document(sources: dict, now_iso: str) -> str:
         "\n---\n",
         _section_validated_edge(promotion, decisions, rwa),
         "\n---\n",
-        _section_forward_track(golive, forward),
+        _section_forward_track(golive, forward, day30),
         "\n---\n",
         _section_forward_analytics(forward_analytics),
         "\n---\n",

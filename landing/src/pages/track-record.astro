@@ -390,6 +390,24 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
       }
 
       // Honest source of truth for evidenced days + gates + go-live target.
+      // LIVE day-30 readiness (WS5) — the auto/verifiable/hash-anchored artifact drives the
+      // evidenced day-count + the readiness bar so the page is never a stale snapshot. The gate
+      // (loadGoLive) still fills the 29-criteria pass/total + target. Fail-safe: a missing/empty
+      // /day30 leaves loadGoLive's values in place.
+      function loadReadiness(){
+        fetch(API + '/api/v1/day30').then(function(r){ return r.json(); }).then(function(d){
+          if(!d || d.error) return;
+          var ev = (d.evidenced && d.evidenced.evidenced_days != null) ? d.evidenced.evidenced_days : null;
+          if(ev != null){
+            setText('tr-days', ev + ' / ' + DAYS_NEEDED);
+            setText('tr-days-2', ev);
+            setText('tr-reset-days', ev);
+          }
+          if(d.readiness_pct != null){ setWidth('tr-days-bar', d.readiness_pct); }
+          if(d.evidenced && d.evidenced.evidenced_anchor){ setText('tr-reset-anchor', d.evidenced.evidenced_anchor); }
+        }).catch(function(){});
+      }
+
       function loadGoLive(){
         fetch(API + '/api/v1/golive').then(function(r){ return r.json(); }).then(function(d){
           if(!d) return;
@@ -543,7 +561,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         }).catch(function(){});
       }
 
-      function init(){ loadHealth(); loadGoLive(); loadFacts(); loadEvidence(); loadNav(); }
+      function init(){ loadHealth(); loadGoLive(); loadReadiness(); loadFacts(); loadEvidence(); loadNav(); }
       if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
       else { init(); }
     })();

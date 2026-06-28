@@ -536,6 +536,175 @@ def captured_book_attribution(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# WS-4.2 — COMBINED multi-sleeve captured-book attribution (every captured book vs the floor)
+# ──────────────────────────────────────────────────────────────────────────────
+def combined_book_attribution(
+    book_series: Dict[str, Any],
+    *,
+    floor_apy_pct: Optional[float] = None,
+) -> dict:
+    """Attribute the COMBINED captured book (FixedCarry + the promoted Strategy-Lab sleeves) into a
+    floor-leg + a carry-leg, in DOLLARS, reconciling EXACTLY to the COMBINED captured-book NAV.
+
+    WHY (WS-4.2): WS-1.6's ``captured_book_attribution`` decomposes ONE captured book (FixedCarry).
+    WS-4.1 promotes more validated sleeves (rwa_sleeve …) to bounded captured books. The allocator's
+    real fundability question is the COMBINED book: across EVERY captured book, how much realized PnL
+    is genuine carry ABOVE the ~3.4% RWA floor vs. just banking the floor — reconciling to the summed
+    NAV, honest about the THIN tracks and the at-floor books.
+
+    MODEL (the honest, audit-able identity):
+      • each book is run through the SAME per-book ``captured_book_attribution`` (its own integrity
+        gate + floor-leg/carry-leg split). A book that FAILS integrity (gap / dup / out-of-order /
+        FUTURE / malformed) is REFUSED — it contributes NOTHING to the combined totals and is listed
+        with status UNKNOWN (a tampered / look-ahead sleeve can never inflate the combined carry).
+      • COMBINED realized PnL  = Σ (each clean book's realized_pnl_usd)
+        COMBINED floor leg      = Σ (each clean book's floor_leg_usd)
+        COMBINED carry leg      = Σ (each clean book's carry_leg_usd)
+        → floor_leg + carry_leg == realized_pnl EXACTLY (each book reconciles, so the sum does too).
+      • COMBINED NAV            = Σ nav_usd ;  COMBINED initial = Σ initial_capital_usd ;
+        realized_pnl == NAV − initial (reconciles to the combined NAV move).
+
+    HONESTY / fail-CLOSED:
+      • a book that fails integrity is EXCLUDED from the totals (never a fabricated carry leg) and
+        flagged refused — the combined number is built ONLY from clean, reconciling books.
+      • ``thin`` is True while ANY contributing book is thin (< MIN_POINTS_FOR_RATIO) — the combined
+        $ split is exact, but the risk-adjusted combined carry quality is not yet trustworthy.
+      • the carry leg can be HONESTLY NEGATIVE (at-floor / underperforming books drag it down) — never
+        floored at 0.
+      • no books / all-refused → status UNKNOWN, reconciles trivially (0 == 0 + 0), zero totals.
+
+    Args:
+        book_series: {book_name: series_doc} — the captured forward series per book (FixedCarry +
+                     each captured sleeve). A bare list is accepted per book (track_integrity coerces).
+        floor_apy_pct: the RWA floor % (None → live).
+
+    Returns a dict reconciling to the combined NAV; deterministic / PURE / stdlib-only.
+    """
+    floor = metrics.rwa_floor_apy_pct() if floor_apy_pct is None else float(floor_apy_pct)
+
+    per_book: List[dict] = []
+    tot_initial = 0.0
+    tot_nav = 0.0
+    tot_realized = 0.0
+    tot_floor = 0.0
+    tot_carry = 0.0
+    n_clean = 0
+    n_refused = 0
+    any_thin = False
+
+    for name in sorted(book_series.keys()):
+        attr = captured_book_attribution(book_series[name], floor_apy_pct=floor, name=name)
+        # a book contributes to the combined totals ONLY when it reconciles on a clean series with a
+        # numeric $ split (status OK/THIN). A refused (UNKNOWN) book is excluded — never inflates carry.
+        contributes = (
+            attr.get("reconciles") is True
+            and attr.get("realized_pnl_usd") is not None
+            and attr.get("floor_leg_usd") is not None
+            and attr.get("carry_leg_usd") is not None
+        )
+        entry = {
+            "name": name,
+            "status": attr["status"],
+            "reconciles": attr["reconciles"],
+            "contributes": bool(contributes),
+            "integrity_reason": attr.get("integrity_reason"),
+            "n_points": attr.get("n_points"),
+            "initial_capital_usd": attr.get("initial_capital_usd"),
+            "nav_usd": attr.get("nav_usd"),
+            "realized_pnl_usd": attr.get("realized_pnl_usd"),
+            "floor_leg_usd": attr.get("floor_leg_usd"),
+            "carry_leg_usd": attr.get("carry_leg_usd"),
+            "thin": attr.get("thin"),
+            "carry_beats_floor": attr.get("carry_beats_floor"),
+        }
+        per_book.append(entry)
+        if contributes:
+            n_clean += 1
+            tot_initial += float(attr["initial_capital_usd"] or 0.0)
+            tot_nav += float(attr["nav_usd"] or 0.0)
+            tot_realized += float(attr["realized_pnl_usd"] or 0.0)
+            tot_floor += float(attr["floor_leg_usd"] or 0.0)
+            tot_carry += float(attr["carry_leg_usd"] or 0.0)
+            if attr.get("thin"):
+                any_thin = True
+        else:
+            n_refused += 1
+
+    residual = round((tot_floor + tot_carry) - tot_realized, 6)
+    # The floor+carry==realized identity is EXACT (residual==0 by construction: carry is the residual
+    # of each book). The NAV identity (Σnav − Σinitial == Σrealized) is checked to the CENT because
+    # each book stores nav_usd/initial_capital_usd ROUNDED to 2 dp while realized_pnl is rounded to 4 —
+    # summing the rounded cents accumulates at most ~0.5¢ per book of honest rounding drift, NOT a
+    # reconciliation failure. A real break (a fabricated leg, a non-summing book) is orders of magnitude
+    # larger and still fails. Tolerance = 1¢ per contributing book (conservative, bounded, auditable).
+    nav_residual = round((tot_nav - tot_initial) - tot_realized, 6)
+    nav_tol = 0.01 * max(1, n_clean)
+    reconciles = bool(abs(residual) < 1e-6 and abs(nav_residual) <= nav_tol)
+    if n_clean == 0:
+        status = "UNKNOWN"
+    elif any_thin:
+        status = "THIN"
+    else:
+        status = "OK"
+
+    return {
+        "name": "combined_captured_book",
+        "model": "combined_book_attribution",
+        "status": status,
+        "reconciles": reconciles,
+        "rwa_floor_pct": round(floor, 4),
+        "n_books_total": len(per_book),
+        "n_books_contributing": n_clean,
+        "n_books_refused": n_refused,
+        "combined_initial_capital_usd": round(tot_initial, 2),
+        "combined_nav_usd": round(tot_nav, 2),
+        "combined_realized_pnl_usd": round(tot_realized, 4),
+        "combined_floor_leg_usd": round(tot_floor, 4),
+        "combined_carry_leg_usd": round(tot_carry, 4),
+        "residual_usd": residual,
+        "nav_residual_usd": nav_residual,
+        "thin": any_thin or n_clean == 0,
+        "carry_beats_floor": bool(tot_carry > 0.0),
+        "books": per_book,
+        "note": (
+            "WS-4.2 COMBINED captured-book attribution across every captured book (FixedCarry + the "
+            "promoted sleeves). Realized PnL split into the RWA floor-leg (what tokenized T-bills "
+            "would have earned) + the carry-leg (residual edge above the floor); both reconcile to "
+            "the COMBINED captured-book NAV exactly. A book that fails integrity is REFUSED and "
+            "EXCLUDED from the totals (never an inflated carry). Advisory paper — NOT live capital; "
+            "the go-live track is byte-untouched."
+            + (" THIN: a contributing book is < MIN_POINTS_FOR_RATIO days — the $ split is honest "
+               "but the risk-adjusted combined carry quality is not yet trustworthy." if any_thin
+               else "")
+        ),
+    }
+
+
+def _discover_captured_book_series(root: Path) -> Dict[str, Any]:
+    """Collect {book_name: series_doc} for the COMBINED attribution: the FixedCarry captured book +
+    the Strategy-Lab sleeves the WS-4.1 gate captured (read from the captured index, fail-safe).
+    Reuses captured_sleeves.captured_series_paths so the combined attribution sees EXACTLY the books
+    the gate promoted — never an un-captured / un-validated series."""
+    out: Dict[str, Any] = {}
+    # FixedCarry — the canonical captured book.
+    fc = root / "rates_desk" / "paper" / "rates_desk_fixed_carry_series.json"
+    if fc.exists():
+        doc = atomic_load(str(fc), default=None)
+        if doc is not None:
+            out["rates_desk/rates_desk_fixed_carry"] = doc
+    # the captured Strategy-Lab sleeves (from the WS-4.1 captured index).
+    try:
+        from spa_core.strategy_lab import captured_sleeves as cs
+        for p in cs.captured_series_paths(data_dir=root):
+            doc = atomic_load(str(p), default=None)
+            if doc is not None:
+                out[f"strategy_lab_paper/{p.name[:-len('_series.json')]}"] = doc
+    except Exception:  # noqa: BLE001 — a captured-index read failure → just FixedCarry (fail-safe)
+        pass
+    return out
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # T5 — drawdown + stress overlay on the realized forward record
 # ──────────────────────────────────────────────────────────────────────────────
 def _held_pt_notional(state_doc: Any) -> Tuple[float, float, int]:
@@ -737,6 +906,10 @@ def build_scorecard(
         else captured_book_attribution({"series": []}, floor_apy_pct=floor)
     )
 
+    # ── WS-4.2 COMBINED captured-book attribution (FixedCarry + the promoted sleeves vs the floor) ─
+    combined_attr = combined_book_attribution(
+        _discover_captured_book_series(root), floor_apy_pct=floor)
+
     n_unknown = sum(1 for t in tracks if t["verdict"] == "UNKNOWN")
     n_thin = sum(1 for t in tracks if t["verdict"] == "THIN_TRACK")
     n_beats = sum(1 for t in tracks if t["verdict"] == "BEATS_FLOOR")
@@ -766,6 +939,7 @@ def build_scorecard(
         "tracks": tracks,
         "carry_book_stress_overlay": overlay,
         "captured_book_attribution": captured_attr,
+        "combined_book_attribution": combined_attr,
     }
     if write:
         atomic_save(out, str(root / SCORECARD_FILE.name))

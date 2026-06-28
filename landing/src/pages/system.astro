@@ -2,6 +2,16 @@
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 
+// WS-3.6 NOTE (for the WS-7 dashboard panel — do NOT build the panel here):
+// The cutover readiness scorecard is served fail-CLOSED at GET /api/execution/readiness
+// (data/execution_readiness.json, written by spa_core.execution.cutover_scorecard).
+// It exposes an HONEST code_readiness_pct (share of proven WS-3.x inert defenses:
+// gate-chain ordered/total/fail-closed, reconciliation, signer-nonce, multisig-signable,
+// MEV-guard abort, the e2e inert full-chain walk, the pre-cutover defense gate) PLUS the
+// NAMED owner_only_blockers (custody/MPC, real capital, external audit, ≥30d track, and
+// the human is_live flip). ready_for_live / would_cutover / is_live stay False — the flip
+// is owner-gated. WS-7 should render this object as a panel; WS-3 only produces it.
+
 // The 8 architectural planes (spec: Tier-1 8-plane build).
 const planes = [
   { en: 'Validation', ru: 'Валидация', desc_en: 'Deflated Sharpe, PSR, min track length on every result', desc_ru: 'Deflated Sharpe, PSR, мин. длина трека на каждом результате' },

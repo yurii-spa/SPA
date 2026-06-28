@@ -232,9 +232,26 @@ def get_governance():
 
 @router.get("/api/execution/readiness", tags=["execution"])
 def get_execution_readiness():
-    """Execution go/no-go posture (PAPER_SAFE) + honest live-blockers."""
+    """Cutover readiness scorecard (WS-3.6): honest CODE-readiness % + owner blockers.
+
+    Fail-CLOSED: when the scorecard file is absent/unreadable the default is the
+    SAFEST verdict (ready_for_live=False, would_cutover=False, 0% code readiness),
+    so a missing artifact can NEVER read as 'ready to go live'. The is_live flip is
+    owner-gated — this endpoint only reports.
+    """
     return read_state("execution_readiness.json", {
-        "generated_at": now(), "posture": "unknown", "ready_for_live": False,
+        "generated_at": now(),
+        "posture": "unknown",
+        "ready_for_live": False,        # fail-closed default
+        "would_cutover": False,
+        "is_live": False,
+        "code_readiness_pct": 0.0,
+        "code_defenses": [],
+        "owner_only_blockers": [
+            "custody/MPC not connected", "real capital not funded",
+            "external audit pending", "track_record <30d", "is_live flip (owner-gated)",
+        ],
+        "live_blockers": ["execution_readiness.json absent — fail-closed"],
     })
 
 

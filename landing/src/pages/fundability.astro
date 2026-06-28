@@ -114,7 +114,7 @@ import Disclaimer from '../components/Disclaimer.astro';
         <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
           <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)" data-ru="Подтверждённых дней">Evidenced days</p>
           <p class="text-2xl font-mono font-bold text-amber-300"><span id="fb-days">—</span><span class="text-sm" style="color:var(--text-faint)"> / 30</span></p>
-          <p class="text-xs mt-1" style="color:var(--text-faint)" data-ru="THIN · накапливается">THIN · accruing</p>
+          <p class="text-xs mt-1" style="color:var(--text-faint)"><span id="fb-readiness">—</span> <span data-ru="готовности · THIN · накапливается">ready · THIN · accruing</span></p>
         </div>
         <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
           <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)" data-ru="Цепочка проверена">Chain verified</p>
@@ -280,14 +280,31 @@ import Disclaimer from '../components/Disclaimer.astro';
         }).catch(function () {});
       }
 
-      /* honest evidenced days from the go-live gate (THIN labeling kept static) */
+      /* LIVE day-30 readiness (WS5) — evidenced days + readiness % + verdict, from the
+         auto/verifiable/hash-anchored artifact. Falls back to /api/v1/golive on any error so the
+         page is never stale. The readiness % is the honest 7→30 evidenced fraction, not a snapshot. */
+      function loadReadiness() {
+        fetch(API + '/api/v1/day30').then(function (r) { return r.json(); }).then(function (d) {
+          if (!d || d.error) { return loadGoLive(); }
+          var ev = (d.evidenced && d.evidenced.evidenced_days != null) ? d.evidenced.evidenced_days : d.real_track_days;
+          if (ev != null) setText('fb-days', String(ev));
+          if (d.readiness_pct != null) setText('fb-readiness', String(d.readiness_pct) + '%');
+          sawLive = true; setText('fb-src', 'live');
+        }).catch(function () { loadGoLive(); });
+      }
+
+      /* honest evidenced days from the go-live gate (fallback when /day30 is unavailable) */
       function loadGoLive() {
         fetch(API + '/api/v1/golive').then(function (r) { return r.json(); }).then(function (d) {
-          if (d && d.real_track_days != null) { setText('fb-days', String(d.real_track_days)); sawLive = true; setText('fb-src', 'live'); }
+          if (d && d.real_track_days != null) {
+            setText('fb-days', String(d.real_track_days));
+            setText('fb-readiness', String(Math.round(d.real_track_days / 30 * 1000) / 10) + '%');
+            sawLive = true; setText('fb-src', 'live');
+          }
         }).catch(function () {});
       }
 
-      function init() { loadChain(); loadGoLive(); }
+      function init() { loadChain(); loadReadiness(); }
       if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
       else { init(); }
     })();

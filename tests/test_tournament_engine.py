@@ -276,11 +276,19 @@ class TestCheckPromotions:
         from spa_core.tournament.tournament_engine import TournamentEngine
 
         tournament = json.loads(json.dumps(SAMPLE_TOURNAMENT))
-        if sharpe_override is not None:
-            for s in tournament["shadow_active_strategies"]:
-                s["sharpe"] = sharpe_override
-            for s in tournament["ranked_strategies"]:
-                s["sharpe"] = sharpe_override
+        # Make the fixture honest w.r.t. the WS1.4 fail-closed data-credibility gate: stamp the
+        # dataset trustworthy and clamp the Sharpe to a CREDIBLE (sub-degenerate-ceiling) value so
+        # these tests exercise the NUMERIC promotion ladder rather than tripping the degenerate /
+        # untrustworthy refusal (the sample's raw Sharpe-196 is a locked-vol artifact that the gate
+        # correctly refuses; degenerate-refusal has its own dedicated tests). A sharpe_override
+        # still wins so the low-Sharpe refusal test keeps working.
+        tournament["trustworthy"] = True
+        tournament.setdefault("data_source_regime", "NORMAL")
+        credible_sharpe = sharpe_override if sharpe_override is not None else 2.0
+        for s in tournament["shadow_active_strategies"]:
+            s["sharpe"] = credible_sharpe
+        for s in tournament["ranked_strategies"]:
+            s["sharpe"] = credible_sharpe
 
         shadow = json.loads(json.dumps(SAMPLE_SHADOW))
         daily = []

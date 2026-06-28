@@ -147,3 +147,33 @@ def v1_evidence():
     if equity is not None:
         return {"data": equity, "timestamp": now(), "source": "equity_curve"}
     return {"error": "evidence file not found", "data": [], "timestamp": now()}
+
+
+@router.get("/api/v1/day30")
+def v1_day30():
+    """Day-30 go-live readiness artifact (WS5) — the AUTO, VERIFIABLE, hash-anchored report.
+
+    Serves data/day30_artifact.json VERBATIM when present (the artifact the watchdog wrote, with
+    its stamped proof_hash). If it is absent, BUILD it live read-only from the current evidenced
+    track (no write — the live track is never mutated) so the page always reflects the honest
+    live readiness % (7→30 evidenced) rather than a stale snapshot.
+
+    Fail-CLOSED: any error degrades to an explicit error payload, never a fabricated readiness.
+    """
+    from spa_core.api._shared import data_dir
+    art = read_state("day30_artifact.json", None)
+    if isinstance(art, dict) and "proof_hash" in art:
+        art = dict(art)
+        art["timestamp"] = now()
+        art["source"] = "file"
+        return art
+    # Build live (read-only) so readiness is never stale even before the watchdog runs.
+    try:
+        from spa_core.audit import day30_artifact as d30
+        built = d30.build_artifact(data_dir=data_dir())   # no write — read-only
+        built["timestamp"] = now()
+        built["source"] = "live"
+        return built
+    except Exception as e:  # noqa: BLE001 — honest error, never a fabricated pass
+        log.warning(f"/api/v1/day30 build error: {e}")
+        return {"error": str(e), "verdict": "UNKNOWN", "timestamp": now()}

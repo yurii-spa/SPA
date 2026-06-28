@@ -113,6 +113,7 @@ GOLDEN_ROUTES = {
     ("/api/tournament", ("GET",)),
     ("/api/tournament/status", ("GET",)),
     ("/api/v1/adapters", ("GET",)),
+    ("/api/v1/day30", ("GET",)),  # WS5 — day-30 readiness artifact (auto/verifiable/hash-anchored)
     ("/api/v1/evidence", ("GET",)),
     ("/api/v1/golive", ("GET",)),
     ("/api/v1/status", ("GET",)),
@@ -168,23 +169,23 @@ def test_route_table_identical_to_golden():
 def test_route_count_stable():
     """The flat handler surface (expanded across included routers) is the invariant.
 
-    68 HTTP handlers + 1 websocket (/ws/agents) = 69 entries in GOLDEN_ROUTES. This
+    69 HTTP handlers + 1 websocket (/ws/agents) = 70 entries in GOLDEN_ROUTES. This
     is structure-independent (monolith routes vs lazily-included routers) because
     _walk_routes expands `_IncludedRouter` proxies. The launch target
     `spa_core.api.server:app` is unaffected — `app` is still defined in server.py.
-    (Most recent HTTP handlers: /api/optimizer-ab + /api/captured-book — WS-1.4
-    optimizer A/B + captured-book surfaces; /api/redteam; /api/competitive-watch;
-    also /api/rates-desk/anchors + /api/rates-desk/refusals.)
+    (Most recent HTTP handler: /api/v1/day30 — WS5 day-30 readiness artifact; before
+    it /api/optimizer-ab + /api/captured-book — WS-1.4 optimizer A/B + captured-book
+    surfaces; /api/redteam; /api/competitive-watch.)
     """
-    assert len(_app_route_table()) == 69
+    assert len(_app_route_table()) == 70
 
 
 def test_openapi_path_count_stable():
-    """The OpenAPI schema (the canonical served HTTP surface) lists all 68 HTTP paths."""
+    """The OpenAPI schema (the canonical served HTTP surface) lists all 69 HTTP paths."""
     from fastapi.testclient import TestClient
     with TestClient(server.app) as c:
         paths = c.get("/openapi.json").json()["paths"]
-    assert len(paths) == 68  # 68 HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
+    assert len(paths) == 69  # 69 HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
 
 
 # ── Representative response-shape snapshot (one endpoint per tag group) ──────────

@@ -2109,6 +2109,27 @@ def _run_fundability_pack(data_dir: "str | os.PathLike | None" = None) -> None:
     except Exception as _fa_exc:  # noqa: BLE001 — never crash the cycle
         log.warning("WS2.1 forward_analytics scorecard failed (non-critical): %s", _fa_exc)
 
+    # 2.1b — day-30 readiness artifact (WS5): refresh the equity-proof-chain anchor over the
+    # EVIDENCED bars, then write the AUTO/verifiable/hash-anchored day-30 readiness report. Both
+    # are advisory / read-only over the live track (they never mutate it) and INDEPENDENTLY
+    # fail-safe. Ordered AFTER 2.1 so the artifact embeds the fresh scorecard rollup, and BEFORE
+    # 2.2 so the one-pager sources the fresh artifact. Honest at 7/30 today (verdict NOT_READY).
+    try:
+        from spa_core.audit import equity_proof_chain as _epc
+        _epc.write_chain()   # refresh data/rates_desk/equity_track.jsonl (the artifact's anchor)
+    except Exception as _epc_exc:  # noqa: BLE001 — never crash the cycle
+        log.warning("WS5 equity_proof_chain refresh failed (non-critical): %s", _epc_exc)
+    try:
+        from spa_core.audit import day30_artifact as _d30
+        _art = _d30.write_artifact(data_dir=ddir)
+        print(
+            f"  day30       : verdict={_art.get('verdict')} "
+            f"readiness={_art.get('readiness_pct')}% "
+            f"proof={(_art.get('proof_hash') or '')[:12]}…"
+        )
+    except Exception as _d30_exc:  # noqa: BLE001 — never crash the cycle
+        log.warning("WS5 day30_artifact write failed (non-critical): %s", _d30_exc)
+
     # 2.2 — fundability one-pager (regenerates docs/FUNDABILITY.md from fresh data).
     try:
         import importlib.util as _ilu
