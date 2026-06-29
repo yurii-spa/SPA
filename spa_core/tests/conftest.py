@@ -32,6 +32,24 @@ for _p in [str(_ROOT), str(_SCRIPTS), str(_SPA_CORE)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+# ---------------------------------------------------------------------------
+# WS2: disable the public-API per-IP rate limiter in the test suite by default.
+# All TestClient requests share the IP "testclient", so the production bucket
+# would trip 429 after a few hundred requests and poison unrelated API tests.
+# Tests that specifically exercise the limiter re-enable it locally (monkeypatch
+# SPA_RATE_LIMIT_ENABLED=1). Production leaves the env unset → limiter ON.
+# ---------------------------------------------------------------------------
+os.environ.setdefault("SPA_RATE_LIMIT_ENABLED", "0")
+
+# ---------------------------------------------------------------------------
+# WS2: the public-API write/LLM auth gate defaults ON in production
+# (SPA_API_REQUIRE_AUTH unset → enforced). Legacy API tests post to
+# /api/chat & /api/agent/thought without a key and expect 200, so the suite
+# runs with the gate OFF by default. The dedicated security tests
+# (test_api_security_ws2.py) flip it ON explicitly to verify enforcement.
+# ---------------------------------------------------------------------------
+os.environ.setdefault("SPA_API_REQUIRE_AUTH", "0")
+
 
 @pytest.fixture
 def sample_portfolio():

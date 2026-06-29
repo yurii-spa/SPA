@@ -99,11 +99,12 @@ class TestRunLintOnFixtures(unittest.TestCase):
                 "spa_core/risk/policy.py": "import json\nX = 1\n",
                 "spa_core/execution/router.py": "import os\n",
                 "spa_core/allocator/allocator.py": "from pathlib import Path\n",
+                "spa_core/monitoring/health.py": "import logging\n",
             })
             report = run_lint(tmp)
             self.assertEqual(report["status"], "ok")
             self.assertEqual(report["violations"], [])
-            self.assertEqual(report["files_scanned"], 3)
+            self.assertEqual(report["files_scanned"], 4)
             self.assertEqual(sorted(report["scanned_dirs"]),
                              sorted(FORBIDDEN_DIRS))
 
@@ -185,6 +186,31 @@ class TestRunLintOnFixtures(unittest.TestCase):
                 self.assertIn(key, report)
             self.assertEqual(report["forbidden_imports"],
                              sorted(FORBIDDEN_IMPORTS))
+
+
+class TestMonitoringFenced(unittest.TestCase):
+    """WS2: spa_core/monitoring must be inside the LLM fence (CLAUDE.md rule#5)."""
+
+    def test_monitoring_in_forbidden_dirs(self):
+        self.assertIn("spa_core/monitoring", FORBIDDEN_DIRS,
+                      "monitoring must be LLM-forbidden (CLAUDE.md rule#5)")
+
+    def test_monitoring_violation_detected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _make_repo(Path(tmp), {
+                "spa_core/monitoring/evil.py": "import anthropic\n",
+            })
+            report = run_lint(tmp)
+            self.assertEqual(report["status"], "violations")
+            self.assertEqual(report["violations"][0]["file"],
+                             "spa_core/monitoring/evil.py")
+            self.assertEqual(report["violations"][0]["module"], "anthropic")
+
+    def test_real_monitoring_dir_is_scanned_and_clean(self):
+        report = run_lint(_REPO_ROOT)
+        self.assertIn("spa_core/monitoring", report["scanned_dirs"],
+                      "monitoring dir must actually be scanned")
+        self.assertEqual(report["status"], "ok", report["violations"])
 
 
 class TestAtomicWrite(unittest.TestCase):

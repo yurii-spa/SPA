@@ -21,6 +21,17 @@ for _p in [str(_ROOT), str(_SCRIPTS), str(_SPA_CORE)]:
 os.environ.setdefault("DEFILLAMA_TIMEOUT", "1")
 
 # ---------------------------------------------------------------------------
+# WS2: disable the public-API per-IP rate limiter in the test suite by default
+# (see spa_core/tests/conftest.py for rationale — shared "testclient" IP would
+# trip 429 across unrelated API tests). Production leaves it unset → ON.
+# ---------------------------------------------------------------------------
+os.environ.setdefault("SPA_RATE_LIMIT_ENABLED", "0")
+
+# WS2: write/LLM auth gate OFF by default in the suite (legacy API tests post
+# without a key). Production leaves it unset → ON. The security tests flip ON.
+os.environ.setdefault("SPA_API_REQUIRE_AUTH", "0")
+
+# ---------------------------------------------------------------------------
 # Offline autouse fixture: prevent any live network call in the full test
 # suite. We patch urllib.request.urlopen at the stdlib level so that ALL
 # HTTP/HTTPS attempts fail immediately with OSError (no TCP wait).

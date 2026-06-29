@@ -11,4 +11,4 @@
 # {"status": "FAILED", "reason": "eth_account not installed ..."} so the
 # paper-trading engine never crashes. Pin >=0.10 because we rely on the
 # sign_transaction(...) EIP-1559 (type=2) support that landed in 0.10.0.
-eth-account>=0.10.0
+eth-account>=0.10.0,<1.0.0

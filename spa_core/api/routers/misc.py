@@ -14,9 +14,17 @@ import json
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from spa_core.api._shared import (
     aio_read_json,
@@ -27,6 +35,15 @@ from spa_core.api._shared import (
     scrub_nonfinite,
 )
 from spa_core.api.agent_broadcaster import broadcaster
+from spa_core.api.api_security import require_api_key, ws_authorized
+
+# ─── Body-size caps (anti-oversized-payload, DoS) ─────────────────────────────
+# The LLM chat question and agent-thought message are the only attacker-supplied
+# free-text fields. Cap them defensively so an oversized body cannot burn LLM
+# budget or bloat the in-memory event ring.
+_MAX_CHAT_QUESTION_CHARS = 4000
+_MAX_THOUGHT_MESSAGE_CHARS = 8000
+_MAX_THOUGHT_AGENT_CHARS = 200
 
 log = logging.getLogger("spa.api")
 
@@ -365,7 +382,7 @@ def get_status():
 # ─── Chat (LLM agent reasoning) ───────────────────────────────────────────────
 
 class _ChatRequest(BaseModel):
-    question: str
+    question: str = Field(max_length=_MAX_CHAT_QUESTION_CHARS)
 
 
 _chat_handler_instance = None
@@ -400,9 +417,13 @@ class _FallbackChatHandler:
         }
 
 
-@router.post("/api/chat", tags=["chat"])
+@router.post("/api/chat", tags=["chat"], dependencies=[Depends(require_api_key)])
 def post_chat(body: _ChatRequest):
-    """Ask an LLM agent a question about the portfolio (canned fallback w/o API key)."""
+    """Ask an LLM agent a question about the portfolio (canned fallback w/o API key).
+
+    AUTH-GATED (WS2): requires a valid API key when SPA_API_REQUIRE_AUTH is on
+    (default). This is the LLM budget-burn / prompt-injection surface.
+    """
     question = (body.question or "").strip()
     if not question:
         raise HTTPException(status_code=400, detail={"error": "question must not be empty"})
@@ -417,7 +438,16 @@ def post_chat(body: _ChatRequest):
 
 @router.websocket("/ws/agents")
 async def ws_agents(websocket: WebSocket):
-    """Real-time agent activity stream."""
+    """Real-time agent activity stream.
+
+    AUTH-GATED (WS2): when SPA_API_REQUIRE_AUTH is on (default), an
+    unauthenticated upgrade is rejected with policy-violation close 1008 BEFORE
+    the connection is accepted (credential via Authorization/X-API-Key header or
+    ?token=/?api_key= query param).
+    """
+    if not await ws_authorized(websocket):
+        await websocket.close(code=1008)  # policy violation
+        return
     await broadcaster.connect(websocket)
     try:
         live = get_live_portfolio()
@@ -457,15 +487,22 @@ async def ws_agents(websocket: WebSocket):
 
 class _ThoughtRequest(BaseModel):
     """Payload for POST /api/agent/thought."""
-    agent:   str
-    message: str
-    type:    str = "agent_thought"
+    agent:   str = Field(max_length=_MAX_THOUGHT_AGENT_CHARS)
+    message: str = Field(max_length=_MAX_THOUGHT_MESSAGE_CHARS)
+    type:    str = Field(default="agent_thought", max_length=_MAX_THOUGHT_AGENT_CHARS)
     data:    dict | None = None
 
 
-@router.post("/api/agent/thought", tags=["events"])
+@router.post(
+    "/api/agent/thought", tags=["events"],
+    dependencies=[Depends(require_api_key)],
+)
 async def post_agent_thought(body: _ThoughtRequest):
-    """Push a structured agent event into the SSE stream and ring buffer."""
+    """Push a structured agent event into the SSE stream and ring buffer.
+
+    AUTH-GATED (WS2): requires a valid API key when SPA_API_REQUIRE_AUTH is on
+    (default). This is the content-injection surface (events fan out to SSE/WS).
+    """
     if not body.message.strip():
         raise HTTPException(status_code=400, detail={"error": "message must not be empty"})
 

@@ -94,6 +94,8 @@ FORBIDDEN_DIRS: Tuple[str, ...] = (
     "spa_core/risk",        # L2 deterministic risk scoring / policy gate
     "spa_core/execution",   # L3 execution: adapters, router, wallet, safety
     "spa_core/allocator",   # L2 deterministic capital allocator
+    "spa_core/monitoring",  # deterministic health/agent monitors — CLAUDE.md
+                            # rule#5 LLM-FORBIDDEN; was a silent gap (WS2).
 )
 
 # Directory names never descended into.

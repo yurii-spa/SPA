@@ -100,28 +100,59 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# ─── CORS (WS2 — tightened 2026-06-29) ────────────────────────────────────────
+# SECURITY FIX: the former policy allowed `https://[a-z0-9-]+\.pages\.dev` — i.e.
+# ANY third-party Cloudflare Pages site (incl. a rogue `evil.pages.dev`) could
+# call this API cross-origin. Replaced with an explicit allow-list of SPA's OWN
+# origins only: earn-defi.com (+ www/app/api), the CANONICAL SPA pages.dev deploy,
+# and localhost (dev). A rogue *.pages.dev is now blocked. The canonical SPA
+# pages.dev project slug is env-overridable for deploy-name changes.
+_SPA_PAGES_PROJECT = os.environ.get("SPA_PAGES_PROJECT", "spa-landing").strip()
+
+_ALLOWED_ORIGINS = [
+    # Local development
+    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:4321",  # Astro dev
+    "http://localhost:5173",  # Vite dev
+    "http://localhost:8765",
+    "http://127.0.0.1:8765",
+    # Production (live API via api.earn-defi.com tunnel)
+    "https://earn-defi.com",
+    "https://www.earn-defi.com",
+    "https://app.earn-defi.com",
+    "https://api.earn-defi.com",
+    # Canonical SPA Cloudflare Pages deploy ONLY (not third-party *.pages.dev)
+    f"https://{_SPA_PAGES_PROJECT}.pages.dev",
+]
+
+# Regex: localhost any port + *.earn-defi.com + SPA's OWN pages.dev preview
+# branches (<branch>.<project>.pages.dev). NO bare *.pages.dev wildcard, so a
+# rogue evil.pages.dev cannot match.
+_ALLOWED_ORIGIN_REGEX = (
+    r"https?://localhost(:\d+)?"
+    r"|https?://127\.0\.0\.1(:\d+)?"
+    r"|https://([a-z0-9-]+\.)?earn-defi\.com"
+    rf"|https://([a-z0-9-]+\.)?{_SPA_PAGES_PROJECT}\.pages\.dev"
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost",
-        "http://localhost:8765",
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:8765",
-        # (legacy github.io dashboard origin removed 2026-06-28 — github.io dashboard deleted)
-        # Public dashboard origins (live API via api.earn-defi.com tunnel)
-        "https://earn-defi.com",
-        "https://www.earn-defi.com",
-        "https://app.earn-defi.com",
-        # Wildcard for any localhost port (development)
-        "http://localhost:*",
-    ],
-    # Allow localhost (any port) and *.earn-defi.com / *.pages.dev preview deploys
-    allow_origin_regex=r"https?://localhost(:\d+)?|https://([a-z0-9-]+\.)?earn-defi\.com|https://[a-z0-9-]+\.pages\.dev",
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_origin_regex=_ALLOWED_ORIGIN_REGEX,
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# ─── Rate limiting (WS2 — per-IP token bucket, 2026-06-29) ─────────────────────
+# A flood (esp. the LLM POST /api/chat budget-burn vector) → 429. GET proof/data
+# /live endpoints + the dashboard's ~15s polling stay well under the default
+# bucket. Added AFTER CORS so it sits OUTSIDE it (runs first on each request);
+# the strict bucket targets the LLM/write POSTs.
+from spa_core.api.rate_limit import RateLimitMiddleware  # noqa: E402
+
+app.add_middleware(RateLimitMiddleware)
 
 
 # ─── Routers ─────────────────────────────────────────────────────────────────
