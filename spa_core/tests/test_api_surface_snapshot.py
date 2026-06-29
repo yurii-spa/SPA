@@ -114,6 +114,11 @@ GOLDEN_ROUTES = {
     ("/api/tier1/walk-forward", ("GET",)),
     ("/api/tournament", ("GET",)),
     ("/api/tournament/status", ("GET",)),
+    # Lane C (Layer-3 moat) — the underwriting report surface is FLAG-GATED (SPA_UNDERWRITING_PUBLISH);
+    # the ROUTES always exist (registered at import) but 404 until the owner flips the flag.
+    ("/api/underwriting/report", ("GET",)),
+    ("/api/underwriting/proof", ("GET",)),
+    ("/api/underwriting/full-chain", ("GET",)),
     ("/api/v1/adapters", ("GET",)),
     ("/api/v1/day30", ("GET",)),  # WS5 — day-30 readiness artifact (auto/verifiable/hash-anchored)
     ("/api/v1/evidence", ("GET",)),
@@ -171,23 +176,24 @@ def test_route_table_identical_to_golden():
 def test_route_count_stable():
     """The flat handler surface (expanded across included routers) is the invariant.
 
-    71 HTTP handlers + 1 websocket (/ws/agents) = 72 entries in GOLDEN_ROUTES. This
+    74 HTTP handlers + 1 websocket (/ws/agents) = 75 entries in GOLDEN_ROUTES. This
     is structure-independent (monolith routes vs lazily-included routers) because
     _walk_routes expands `_IncludedRouter` proxies. The launch target
     `spa_core.api.server:app` is unaffected — `app` is still defined in server.py.
-    (Most recent HTTP handlers: /api/rates-desk/full-chain + /api/rates-desk/full-chain/{surface}
-    — the uncapped FULL-CHAIN download surface so an outsider reproduces every head end-to-end;
-    before them /api/v1/day30 — WS5 day-30 readiness artifact; /api/optimizer-ab + /api/captured-book.)
+    (Most recent HTTP handlers: /api/underwriting/report + /proof + /full-chain — the Lane C
+    underwriting-report surface, FLAG-GATED OFF by default (SPA_UNDERWRITING_PUBLISH); the routes
+    always exist but 404 until the owner flips the flag. Before them /api/rates-desk/full-chain
+    + /api/rates-desk/full-chain/{surface} — the uncapped FULL-CHAIN download surface.)
     """
-    assert len(_app_route_table()) == 72
+    assert len(_app_route_table()) == 75
 
 
 def test_openapi_path_count_stable():
-    """The OpenAPI schema (the canonical served HTTP surface) lists all 71 HTTP paths."""
+    """The OpenAPI schema (the canonical served HTTP surface) lists all 74 HTTP paths."""
     from fastapi.testclient import TestClient
     with TestClient(server.app) as c:
         paths = c.get("/openapi.json").json()["paths"]
-    assert len(paths) == 71  # 71 HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
+    assert len(paths) == 74  # 74 HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
 
 
 # ── Representative response-shape snapshot (one endpoint per tag group) ──────────

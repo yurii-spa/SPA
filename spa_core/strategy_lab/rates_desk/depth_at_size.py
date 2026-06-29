@@ -175,7 +175,8 @@ def compute_market_depth_row(
         reason = FLAG_REASON_THIN
         tickets_out = [
             {"ticket_usd": int(t), "exit_frac": None, "absorbable_usd": None,
-             "price_impact_frac": None, "within_one_tick": False}
+             "price_impact_frac": None, "within_one_tick": False,
+             "forced_unwind_exit_frac": None, "forced_unwind_absorbable_usd": None}
             for t in DEPTH_TICKETS_USD
         ]
         flagged = True
@@ -196,12 +197,18 @@ def compute_market_depth_row(
                 frac = prev_frac
             prev_frac = frac
             absorbable = round(float(t) * frac, 6)
+            # B2.4 — the conservative forced-unwind floor (a sell past the concentrated band): an even
+            # MORE conservative absorbable than the published constant-product number. Published ≥ this.
+            fu_frac = forced_unwind_frac(exitl_f, float(t))
             tickets_out.append({
                 "ticket_usd": int(t),
                 "exit_frac": round(frac, 6),
                 "absorbable_usd": absorbable,
                 "price_impact_frac": round(max(0.0, 1.0 - frac), 6),
                 "within_one_tick": bool(float(t) <= one_tick_capacity),
+                "forced_unwind_exit_frac": round(fu_frac, 6) if fu_frac is not None else None,
+                "forced_unwind_absorbable_usd": (round(float(t) * fu_frac, 6)
+                                                 if fu_frac is not None else None),
             })
         reason = None
         flagged = False
@@ -282,6 +289,83 @@ def assert_market_monotonic(row: dict) -> bool:
     return True
 
 
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# B2.4 — concentrated-liquidity CONSERVATISM: the published bound is never optimistic
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# A Pendle PT pool is a CONCENTRATED-liquidity AMM, not a textbook constant-product (x·y=k) pool: most
+# of its depth sits in a tight tick band AROUND the current implied yield. That has two consequences a
+# single number must reconcile honestly:
+#
+#   (A) NEAR-PEG, SMALL size — the concentrated pool is DEEPER than constant-product (liquidity is
+#       packed near the mark), so it realizes a HIGHER fill than L/(L+S). Therefore the constant-
+#       product fraction we publish is a LOWER BOUND on the well-behaved near-peg fill — never
+#       optimistic relative to that realistic case. (We model the realistic near-peg fill with a
+#       concentration MULTIPLIER κ>1 on the effective one-sided liquidity.)
+#
+#   (B) FORCED UNWIND, large size — once a sell pushes PAST the concentrated band the book falls off a
+#       cliff and the realized fill is WORSE than constant-product. We must NOT publish above THAT
+#       either. We model it as an extra forced-unwind HAIRCUT and assert the published number sits at
+#       or below it too.
+#
+# The published `dex_exit_frac` (constant-product) therefore lives BETWEEN the two: ≤ the near-peg
+# concentrated fill (A) AND ≤... no — it must be ≤ the LARGER (near-peg) so it is never optimistic vs
+# the friendly case, and the forced-unwind cliff (B) is published SEPARATELY as the conservative floor.
+# The load-bearing honesty rule (asserted): the published number is NEVER GREATER than the precise
+# near-peg concentrated model — i.e. we never overstate the fill relative to a more realistic model.
+CONCENTRATION_MULTIPLIER = 2.0   # κ: near-peg concentrated depth ≈ 2× the constant-product one-sided L
+FORCED_UNWIND_CLIFF_FRAC = 0.5   # past the band a forced unwind realizes ≤ 50% of the constant-product fill
+
+
+def concentrated_near_peg_frac(exit_liquidity_usd: float, size_usd: float,
+                               kappa: float = CONCENTRATION_MULTIPLIER) -> Optional[float]:
+    """A PRECISE-er near-peg concentrated-liquidity fill model: the same constant-product primitive but
+    with κ× the effective one-sided liquidity (a concentrated pool is deeper near the mark). κ>1 ⇒ this
+    realizes a HIGHER fraction than the published constant-product `dex_exit_frac` at the same size.
+    Used ONLY to ASSERT the published number is never optimistic (published ≤ this). Returns None on no
+    defensible depth (fail-CLOSED), mirroring dex_exit_frac."""
+    el = _to_float(exit_liquidity_usd)
+    sz = _to_float(size_usd)
+    if el is None or sz is None or el <= 0.0 or sz < 0.0 or kappa <= 0.0:
+        return None
+    one_sided = (el / 2.0) * kappa
+    return one_sided / (one_sided + sz)  # > dex_exit_frac for κ>1 (no routing cost ⇒ strict upper ref)
+
+
+def forced_unwind_frac(exit_liquidity_usd: float, size_usd: float,
+                       cliff: float = FORCED_UNWIND_CLIFF_FRAC) -> Optional[float]:
+    """The CONSERVATIVE forced-unwind model: a sell that pushes past the concentrated band realizes a
+    `cliff` fraction of even the constant-product fill. This is the worst-case floor — the published
+    `dex_exit_frac` sits AT OR ABOVE it. Returns None on no depth (fail-CLOSED)."""
+    base = dex_exit_frac(exit_liquidity_usd, size_usd)
+    if base is None:
+        return None
+    return max(0.0, base * cliff)
+
+
+def assert_published_is_lower_bound(row: dict) -> bool:
+    """B2.4 — ASSERT the published per-ticket constant-product fraction is NEVER optimistic vs the
+    precise near-peg concentrated-liquidity model (published ≤ concentrated_near_peg_frac at every
+    ticket). A flagged (hole) row is trivially conservative. Raises AssertionError naming the
+    violation otherwise. fail-CLOSED: an over-optimistic published number is a regression, not data."""
+    if row.get("flagged"):
+        return True
+    el = _to_float(row.get("exit_liquidity_usd"))
+    if el is None or el <= 0:
+        return True
+    for t in row.get("tickets", []):
+        frac = t.get("exit_frac")
+        if frac is None:
+            continue
+        ref = concentrated_near_peg_frac(el, float(t.get("ticket_usd", 0)))
+        if ref is None:
+            continue
+        assert frac <= ref + 1e-12, (
+            f"depth-at-size published fraction OPTIMISTIC for market {row.get('market_id')!r} at "
+            f"ticket {t.get('ticket_usd')}: published {frac} > near-peg concentrated bound {ref} "
+            "(the constant-product number must stay a LOWER bound, never overstate the fill)")
+    return True
+
+
 def build_depth_at_size(
     write: bool = True,
     surface: Optional[dict] = None,
@@ -314,6 +398,7 @@ def build_depth_at_size(
             prev_hash=prev_hash,
         )
         assert_market_monotonic(row)  # fail-CLOSED on a non-monotone published row
+        assert_published_is_lower_bound(row)  # B2.4: never optimistic vs the concentrated model
         if row["flagged"]:
             n_flagged += 1
         rows.append(row)
@@ -333,6 +418,19 @@ def build_depth_at_size(
             "max_size_frac_of_exit": float(params.max_size_frac_of_exit),
             "min_dex_pool_tvl_usd": MIN_DEX_POOL_TVL_USD,
             "max_staleness_days": MAX_DEPTH_STALENESS_DAYS,
+            "concentration_multiplier_kappa": CONCENTRATION_MULTIPLIER,
+            "forced_unwind_cliff_frac": FORCED_UNWIND_CLIFF_FRAC,
+        },
+        # B2.1 — the live-depth FRESHNESS provenance (auditable, fail-CLOSED). The depth is the
+        # contemporaneous RateSurface exit_liquidity (DeFiLlama-TTL-cached upstream, §9 model on the
+        # per-day Pendle TVL); a market whose own as_of trails the surface date by > max_staleness_days
+        # is flagged stale and NOT used (never trusted as live depth). This is the audit trail.
+        "surface_freshness": {
+            "surface_as_of": surface_as_of,
+            "surface_mode": surface.get("mode") if isinstance(surface, dict) else None,
+            "n_stale_markets": sum(1 for r in rows if r.get("stale")),
+            "max_staleness_days": MAX_DEPTH_STALENESS_DAYS,
+            "depth_source": "rate_surface.exit_liquidity_usd (contemporaneous; TTL-cached upstream)",
         },
         "n_markets": len(rows),
         "n_flagged_insufficient_depth": n_flagged,

@@ -330,6 +330,72 @@ def build_report(
     return result
 
 
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# Venue-independence overlay (Lane A W2: A2.4) — the CRUX the naive Σ-of-deployables hides
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+def venue_independence_report(
+    *,
+    params: Optional[RatePolicyParams] = None,
+    deep: Optional[dict] = None,
+    funding: Optional[Dict[str, float]] = None,
+) -> dict:
+    """The honest VENUE-INDEPENDENCE view of the portfolio-of-desks (A2.4).
+
+    build_report() sums the per-book deployables as if every book were an independent exit. That is the
+    FLATTERING assumption the count-thesis rests on. THIS function exposes the truth: it classifies each
+    fundable book into its EXIT CLUSTER (venues.venue_of) and runs the combined-capacity curve that
+    HAIRCUTS shared-venue books, so the combined deployable CLIMBS only for genuinely-independent books and
+    PLATEAUS for the shared crowd.
+
+    Returns {window, n_fundable_books, naive_sum_deployable_usd, honest_combined_deployable_usd,
+    n_venues, n_independent_books, plateau_frac, per_book_independence:[...], curve:[...], note}. The
+    naive_sum_deployable_usd EQUALS build_report()'s total_deployable_usd (same per-book sizing) — the
+    delta to honest_combined is exactly the shared-venue non-additivity. Deterministic / PURE / advisory."""
+    from spa_core.strategy_lab.rates_desk import books as rd_books
+    from spa_core.strategy_lab.rates_desk import venues as V
+
+    report = build_report(write=False, params=params, deep=deep, funding=funding)
+    if deep is None:
+        deep = pph.load()
+    book_by_market = {b.market_key: b for b in rd_books.enumerate_books(deep)}
+
+    rows: List[dict] = []
+    for b in report.get("books", []):
+        bk = book_by_market.get(b["market_key"])
+        if bk is None:
+            continue
+        rows.append({
+            "book_id": bk.book_id,
+            "market_key": bk.market_key,
+            "venue": V.venue_of(bk).as_str(),
+            "deployable_usd": b["deployable_usd"],
+        })
+
+    annotated = V.annotate_independence(rows)
+    curve = V.combined_capacity_curve(rows)
+    return {
+        "model": "rates_desk_venue_independence",
+        "llm_forbidden": True,
+        "deterministic": True,
+        "is_advisory": True,
+        "window": report.get("window"),
+        "n_fundable_books": len(rows),
+        "naive_sum_deployable_usd": curve["naive_sum_usd"],
+        "honest_combined_deployable_usd": curve["honest_combined_usd"],
+        "n_venues": curve["n_venues"],
+        "n_independent_books": curve["n_independent_books"],
+        "plateau_frac": curve["plateau_frac"],
+        "haircut_frac": curve.get("haircut_frac"),
+        "per_book_independence": [
+            {"book_id": r["book_id"], "market_key": r.get("market_key"), "venue": r["venue"],
+             "deployable_usd": r["deployable_usd"], "shares_exit_venue": r["shares_exit_venue"],
+             "venue_cluster_size": r["venue_cluster_size"], "venue_rank": r["venue_rank"]}
+            for r in annotated],
+        "curve": curve["curve"],
+        "note": curve["note"],
+    }
+
+
 def _build_note(*, n_books, n_harvestable, total_deployable, agg_net_apy, floor_pct,
                 dollars_above_floor, pct_of_target, gap_to_10m, books_needed,
                 avg_above_floor_per_book) -> str:

@@ -82,6 +82,17 @@ _DEFAULT_REFUSAL = _REPO_ROOT / "data" / "refusal_status.json"
 _DEFAULT_OUT = _REPO_ROOT / "data" / "underwriting" / "underwriting_report.json"
 _DEFAULT_PROOF = _REPO_ROOT / "data" / "underwriting" / "report_proof.jsonl"
 
+# ── honest fundability framing (C2.4) — the THESIS number, stated as the truth, not marketing ─────
+# The honest scale thesis (docs/FUNDABLE_HONEST.md): at the $5M fundable target the realized carry
+# clears the RWA floor by a THIN, capacity-compressed margin — "floor + 50-150 bps", emphatically
+# NOT "floor + 1000 bps". The report embeds this band AND Lane B's realized verdict VERBATIM so a
+# funder reads the truth (incl. INSUFFICIENT_DATA at a thin track), never a back-fitted number.
+FUNDABILITY_TARGET_AUM_USD = 5_000_000.0
+FUNDABILITY_FLOOR_PLUS_BPS_LOW = 50.0
+FUNDABILITY_FLOOR_PLUS_BPS_HIGH = 150.0
+# the marketing number the desk REFUSES to claim (named explicitly so the contrast is auditable).
+FUNDABILITY_NOT_CLAIMED_BPS = 1000.0
+
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 # canonical JSON + the section hash recipe (inlined per PROOF_CHAIN_SPEC §2/§3 — no shared lib so the
@@ -233,6 +244,115 @@ def _capacity_markets(realized: dict, refused: set) -> Tuple[List[dict], List[st
     return capacity, sorted(x for x in excluded if x is not None)
 
 
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# C2.1 — per-market underwriting verdict rows (THE PRODUCT: every market with its refusal verdict +
+# depth-at-size + why-refused/why-underwritten). NO recompute of any Lane-B number — every field is
+# COPIED VERBATIM from the verbatim readers above. The ONLY synthesis is a deterministic JOIN by
+# symbol and a labelled status string; no arithmetic touches B's numbers.
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+def _market_symbol(m: dict) -> Optional[str]:
+    """The join key for a per-market row. Honours the realized/depth/refusal key variants observed in
+    Lane-A/B fixtures (``symbol`` preferred; ``underlying``/``market_id`` fall back). PURE."""
+    if not isinstance(m, dict):
+        return None
+    return m.get("symbol") or m.get("underlying") or m.get("market_id")
+
+
+def _index_by_symbol(rows: List[dict]) -> Dict[str, dict]:
+    """Index a verbatim row list by its join symbol (first row wins on a dup; values untouched)."""
+    out: Dict[str, dict] = {}
+    for r in rows:
+        sym = _market_symbol(r)
+        if sym is not None and sym not in out:
+            out[sym] = r
+    return out
+
+
+def _depth_market_rows(depth: dict) -> List[dict]:
+    """Lane B's depth-at-size per-market rows (``depth.markets[]``), verbatim. [] if absent."""
+    if isinstance(depth, dict) and isinstance(depth.get("markets"), list):
+        return [m for m in depth["markets"] if isinstance(m, dict)]
+    return []
+
+
+def _per_market_rows(
+    realized: dict, refusals: List[dict], depth: dict, refused: set
+) -> List[dict]:
+    """Build the per-market verdict rows: EVERY market the desk has a verdict on appears ONCE, with:
+
+      • ``refusal_verdict`` + ``refusal_reason`` + ``tail_score``  — VERBATIM from refusal_status.json
+      • ``depth``  — VERBATIM the depth-at-size row (or ``{"available": false}`` if none / flagged)
+      • ``realized``  — VERBATIM Lane B's realized per-market row (above_floor_bps, survives, …)
+      • ``status`` — a deterministic LABEL ∈ {REFUSED, UNDERWRITTEN, WATCH, NO_REALIZED_TRACK} derived
+        from the verbatim verdicts (NO recompute): a REFUSE market is REFUSED (never underwritten); a
+        market with realized data + a non-refuse verdict is UNDERWRITTEN; WATCH passes through; a
+        market with no realized row is NO_REALIZED_TRACK.
+      • ``why`` — a plain string composed ONLY from the verbatim reason/verdict (no new numbers).
+
+    The UNIVERSE of symbols is the UNION of realized ∪ refusals ∪ depth — so a market that was
+    REFUSED before it ever produced a realized track STILL appears (the refusal IS the product).
+    Rows are sorted by symbol for determinism. fail-CLOSED: a REFUSE market can never carry a
+    non-null realized capacity claim here — its ``status`` is pinned REFUSED and depth is shown but
+    the row is flagged ``underwritten: false``."""
+    realized_idx = _index_by_symbol(_verbatim_market_list(realized.get("markets")))
+    refusal_idx = _index_by_symbol(refusals)
+    depth_idx = _index_by_symbol(_depth_market_rows(depth))
+
+    universe = sorted(set(realized_idx) | set(refusal_idx) | set(depth_idx))
+    rows: List[dict] = []
+    for sym in universe:
+        ref = refusal_idx.get(sym, {})
+        rverdict = ref.get("verdict")
+        rmkt = realized_idx.get(sym)
+        dmkt = depth_idx.get(sym)
+
+        is_refused = (sym in refused) or (rverdict == _REFUSE_VERDICT)
+        has_realized = isinstance(rmkt, dict)
+
+        # status label — derived ONLY from verbatim verdicts; no number is computed.
+        if is_refused:
+            status = "REFUSED"
+        elif rverdict == "WATCH":
+            status = "WATCH"
+        elif has_realized:
+            status = "UNDERWRITTEN"
+        else:
+            status = "NO_REALIZED_TRACK"
+
+        underwritten = (status == "UNDERWRITTEN")
+
+        # why-refused / why-underwritten — plain text, composed from verbatim fields ONLY.
+        if is_refused:
+            why = ("REFUSED — the refusal layer vetoed this market (structural tail). "
+                   f"reason: {ref.get('reason')!r}. A refused market is NEVER sold as capacity.")
+        elif status == "WATCH":
+            why = (f"WATCH — elevated but within band. reason: {ref.get('reason')!r}. "
+                   "Not refused, not yet underwritten capacity.")
+        elif underwritten:
+            why = ("UNDERWRITTEN — passed the refusal gate AND carries a realized forward track; "
+                   "depth-at-size + realized-above-floor are shown VERBATIM (no recompute).")
+        else:
+            why = ("NO_REALIZED_TRACK — has a refusal verdict but no realized forward row yet; "
+                   "cannot be claimed as capacity until a realized track exists.")
+
+        rows.append({
+            "symbol": sym,
+            "group": ref.get("group"),
+            "status": status,
+            "underwritten": underwritten,
+            # ── refusal verdict, VERBATIM ──
+            "refusal_verdict": rverdict,
+            "refusal_reason": ref.get("reason"),
+            "tail_score": ref.get("tail_score"),
+            # ── depth-at-size, VERBATIM (or an explicit unavailable marker — never a fabricated #) ──
+            "depth": (dict(dmkt) if isinstance(dmkt, dict) else {"available": False}),
+            # ── realized per-market row, VERBATIM (None if the market has no realized track yet) ──
+            "realized": (dict(rmkt) if has_realized else None),
+            "why": why,
+        })
+    return rows
+
+
 def build_report(
     *,
     realized_path: Optional[Path] = None,
@@ -247,11 +367,13 @@ def build_report(
     so the same content is verifiable two ways: per-section AND as a contiguous chain (surface H).
 
     Sections (in chain order):
-      0. ``meta``      — schema/version/advisory flags/publish gate
-      1. ``refusals``  — the per-market refusal verdicts (the discipline)  [VERBATIM]
-      2. ``depth``     — depth-at-size                                     [VERBATIM, Lane B]
-      3. ``realized``  — the killer verdict + survives_at_aum_usd          [VERBATIM, Lane B]
-      4. ``capacity``  — underwritten-capacity markets, REFUSE markets EXCLUDED (refusal-consistency)
+      0. ``meta``        — schema/version/advisory flags/publish gate
+      1. ``refusals``    — the per-market refusal verdicts (the discipline)  [VERBATIM]
+      2. ``depth``       — depth-at-size                                     [VERBATIM, Lane B]
+      3. ``realized``    — the killer verdict + survives_at_aum_usd          [VERBATIM, Lane B]
+      4. ``capacity``    — underwritten-capacity markets, REFUSE markets EXCLUDED (refusal-consistency)
+      5. ``per_market``  — C2.1: EVERY market w/ refusal verdict + depth + why-refused/why-underwritten
+      6. ``fundability`` — C2.4: the honest thesis (floor+50-150 bps, NOT +1000) + Lane B verdict VERBATIM
 
     fail-CLOSED: a missing/corrupt/unknown-verdict realized file → (None, error). The depth/refusal
     sections degrade to ``available: false`` rather than failing the whole report (the realized
@@ -270,6 +392,7 @@ def build_report(
 
     refused = _refused_symbols(refusals)
     capacity_markets, excluded = _capacity_markets(realized, refused)
+    per_market = _per_market_rows(realized, refusals, depth, refused)
 
     published = is_publish_enabled()
 
@@ -325,6 +448,42 @@ def build_report(
         "excluded_refused_markets": excluded,          # auditable refusal-consistency record
         "refusal_consistency": ("a market REFUSED by the refusal layer is EXCLUDED from "
                                 "underwritten capacity — fail-CLOSED"),
+    }))
+
+    # ── C2.1: per-market underwriting verdict rows — THE PRODUCT (every market, why refused/underwritten) ──
+    section_bodies.append(("per_market", {
+        "section_id": "per_market",
+        "n_markets": len(per_market),
+        "n_refused": sum(1 for r in per_market if r["status"] == "REFUSED"),
+        "n_underwritten": sum(1 for r in per_market if r["status"] == "UNDERWRITTEN"),
+        "rows": per_market,                            # every market: verdict + depth + realized + why
+        "product_statement": ("we get paid for being the party that can PROVE what it refuses — "
+                              "every market appears with its refusal verdict, depth-at-size, and "
+                              "why-refused/why-underwritten, all copied VERBATIM (no recompute)"),
+        "data_sources": ["data/refusal_status.json", "data/rates_desk/depth_at_size.json",
+                         "data/rates_desk/realized_at_size.json"],
+    }))
+
+    # ── C2.4: honest fundability framing — the THESIS number + Lane B's realized verdict VERBATIM ──
+    section_bodies.append(("fundability", {
+        "section_id": "fundability",
+        "target_aum_usd": FUNDABILITY_TARGET_AUM_USD,
+        "thesis_floor_plus_bps_band": [FUNDABILITY_FLOOR_PLUS_BPS_LOW, FUNDABILITY_FLOOR_PLUS_BPS_HIGH],
+        # the honest thesis stated as the TRUTH, not marketing.
+        "thesis": (f"at the ${int(FUNDABILITY_TARGET_AUM_USD):,} fundable target the realized edge is "
+                   f"floor + {FUNDABILITY_FLOOR_PLUS_BPS_LOW:.0f}-{FUNDABILITY_FLOOR_PLUS_BPS_HIGH:.0f} "
+                   f"bps — emphatically NOT floor + {FUNDABILITY_NOT_CLAIMED_BPS:.0f} bps. The edge is "
+                   "thin and capacity-compressed; the desk does not claim a marketing number."),
+        "not_claimed_floor_plus_bps": FUNDABILITY_NOT_CLAIMED_BPS,
+        # ── Lane B's realized verdict, copied VERBATIM (never recomputed) — the funder reads the truth ──
+        "lane_b_verdict": realized["verdict"],
+        "lane_b_survives_at_aum_usd": realized["survives_at_aum_usd"],
+        "lane_b_floor_plus_bps_at_5M": realized["floor_plus_bps_at_5M"],
+        "verdict_passthrough": "VERBATIM_FROM_LANE_B",
+        "honesty_note": ("if Lane B's realized verdict is INSUFFICIENT_DATA or DOES_NOT_SURVIVE_PAST, "
+                         "this report says so plainly — a thin/at-or-below-floor track is reported as "
+                         "the true answer, never laundered into a green number"),
+        "spec": "docs/FUNDABLE_HONEST.md",
     }))
 
     # ── seal each section: its own proof_hash, then chain them (single genesis) ──

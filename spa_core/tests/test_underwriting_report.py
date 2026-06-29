@@ -82,7 +82,7 @@ def test_report_builds_thin_today(tmp_path):
     assert err is None and rep is not None
     assert rep["schema_version"] == R.REPORT_SCHEMA_VERSION
     ids = [s["section_id"] for s in rep["sections"]]
-    assert ids == ["meta", "refusals", "depth", "realized", "capacity"]
+    assert ids == ["meta", "refusals", "depth", "realized", "capacity", "per_market", "fundability"]
     # every section carries its own proof_hash + chain envelope
     for s in rep["sections"]:
         assert isinstance(s["proof_hash"], str) and len(s["proof_hash"]) == 64

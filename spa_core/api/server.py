@@ -167,6 +167,7 @@ from spa_core.api.routers import (  # noqa: E402
     strategy_lab,
     tier1,
     tournament,
+    underwriting,
     v1,
 )
 
@@ -180,6 +181,9 @@ app.include_router(live.router)
 app.include_router(tournament.router)
 app.include_router(competitive_watch.router)
 app.include_router(redteam.router)
+# Lane C (Layer-3 moat) — the underwriting report surface is FLAG-GATED OFF by default
+# (SPA_UNDERWRITING_PUBLISH); every route 404s until the owner flips the flag.
+app.include_router(underwriting.router)
 
 
 # ─── Backward-compatible handler re-exports ───────────────────────────────────

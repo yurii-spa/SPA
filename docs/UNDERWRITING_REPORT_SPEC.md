@@ -76,6 +76,10 @@ than failing the report (it is supporting, not load-bearing).
 | 2 | `depth` | depth-at-size (VERBATIM, Lane B) |
 | 3 | `realized` | the killer verdict + `survives_at_aum_usd` + `floor_plus_bps_at_5M` (**VERBATIM, Lane B**) |
 | 4 | `capacity` | the underwritten-capacity markets, with **every REFUSED market EXCLUDED** + an auditable `excluded_refused_markets` list |
+| 5 | `per_market` | **W2 (C2.1)** — THE PRODUCT: EVERY market in the universe (realized ∪ refusals ∪ depth) appears ONCE with its `refusal_verdict`/`refusal_reason`/`tail_score`, its `depth` row, its `realized` row, a `status` ∈ {`REFUSED`,`UNDERWRITTEN`,`WATCH`,`NO_REALIZED_TRACK`}, and a plain `why`. Every field is **VERBATIM** — the only synthesis is a deterministic join + a labelled status; **no arithmetic** touches a Lane-B number. A `REFUSE` market is pinned `status: REFUSED`, `underwritten: false` (never sold as capacity). A flagged-insufficient depth row keeps its NULL bounds (no fabricated number). |
+| 6 | `fundability` | **W2 (C2.4)** — the honest thesis number: `thesis_floor_plus_bps_band: [50, 150]` at `target_aum_usd: 5,000,000` — emphatically **NOT** `not_claimed_floor_plus_bps: 1000`. Embeds Lane B's realized verdict **VERBATIM** (`lane_b_verdict` / `lane_b_survives_at_aum_usd` / `lane_b_floor_plus_bps_at_5M`) so a funder reads the truth, including `INSUFFICIENT_DATA` / a null at a thin track. |
+
+> **W2 honest-framing rule:** the report states a THESIS band (floor + 50-150 bps) as a thesis, and Lane B's REALIZED verdict as the realized fact — never blends them. The realized number is never "upgraded" (a `DOES_NOT_SURVIVE_PAST` / a sub-floor `floor_plus_bps_at_5M` flows through unchanged). See `docs/FUNDABLE_HONEST.md`.
 
 ---
 
@@ -135,8 +139,21 @@ The report is **always generated and written to `data/`** (the proof chain must 
 but it is **NOT surfaced publicly** (no API/landing exposure) until the owner flips
 `SPA_UNDERWRITING_PUBLISH` to a truthy value (`1`/`true`/`yes`/`on`). When OFF (the default, and any
 non-truthy/unset value), the report carries `"published": false` and `"publish_gate": "owner"`.
-**Commercial sale of the underwriting report is owner-gated.** This week the report lives in `data/`
-only; the API/landing wiring stays behind the flag (off-code).
+**Commercial sale of the underwriting report is owner-gated.**
+
+**W2 (C2.3) — the flag-gated API surface.** Three GET endpoints (registered in `server.py` via
+`routers/underwriting.py`) surface the report — but ONLY when the flag is ON; otherwise every route
+returns **404** (`{"error": "underwriting_surface_disabled"}`):
+
+| endpoint | content |
+|---|---|
+| `GET /api/underwriting/report` | the full `underwriting_report.json` served **VERBATIM** (the honesty rule reaches the wire — the API never laundters a happier number than the file) |
+| `GET /api/underwriting/proof` | the `report_proof.jsonl` section chain + a LIVE verification (per-section proof_hash + entry_hash chain + refusal-consistency) whose verdict matches `verify_spa.py` byte-for-byte |
+| `GET /api/underwriting/full-chain` | the COMPLETE `report_proof.jsonl` bytes (uncapped, `text/plain`) for clean-machine reproduction |
+
+Posture (WS2): GET-only, read-only, graceful, fail-CLOSED (never a 500), defense-in-depth key
+redaction. The CORS/rate-limit middleware is inherited from the app factory. A missing report (flag
+ON) is an honest `available: false`, never a fabricated payload.
 
 ---
 
@@ -151,6 +168,29 @@ python3 scripts/verify_spa.py data/                              # surface H dis
 A tampered value (without re-seal) → precise `broken_at`. A smuggled REFUSED market (even fully
 re-sealed) → `refusal_consistent: False` with the smuggled market named. No `spa_core` import, no
 network.
+
+### 6a. The public-verifiability dry run (W2 / C2.2)
+
+`scripts/underwriting_verify_dryrun.py` simulates a **third party** who has none of our code: it copies
+**ONLY** `scripts/verify_spa.py` + `data/underwriting/report_proof.jsonl` into a fresh `/tmp` dir and
+runs the verifier there with `PYTHONPATH` cleared and cwd = the clean dir (so `spa_core` is
+unimportable), asserting (1) exit 0 on the clean chain, (2) a tamper is caught (negative control),
+(3) the verifier file contains no `import spa_core`.
+
+```bash
+python3 scripts/underwriting_verify_dryrun.py            # run the dry run → "PASS"
+python3 scripts/underwriting_verify_dryrun.py --recipe   # print the reviewer recipe only
+```
+
+**Reviewer recipe** (what a skeptic actually does):
+
+```bash
+mkdir /tmp/clean && cd /tmp/clean
+cp <spa>/scripts/verify_spa.py .
+cp <spa>/data/underwriting/report_proof.jsonl .
+python3 verify_spa.py report_proof.jsonl                       # exit 0 ⇒ verified
+python3 verify_spa.py report_proof.jsonl --expect-surfaces H   # fail-CLOSED if H absent
+```
 
 ---
 
