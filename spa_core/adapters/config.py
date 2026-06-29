@@ -12,8 +12,12 @@ import os
 # frontrunning / sandwich attacks. See spa_core/execution/eth_signer.py.
 MEV_PROTECTION_ENABLED = os.getenv("MEV_PROTECTION_ENABLED", "true").lower() == "true"
 FLASHBOTS_PROTECT_RPC = os.getenv("FLASHBOTS_PROTECT_RPC", "https://rpc.flashbots.net/fast")
-# Fall back to the public RPC if the Protect RPC call fails (default: on).
-MEV_PROTECT_FALLBACK = os.getenv("MEV_PROTECT_FALLBACK", "true").lower() == "true"
+# Fall back to the public RPC if the Protect RPC call fails.
+# WS-5.3 fail-CLOSED: default is now OFF — a Protect-RPC failure ABORTS rather
+# than silently leaking the tx into the public mempool (which would defeat MEV
+# protection). The owner must EXPLICITLY set MEV_PROTECT_FALLBACK=true to opt in.
+# This matches the adapter path's fail-CLOSED MEV posture (consistent everywhere).
+MEV_PROTECT_FALLBACK = os.getenv("MEV_PROTECT_FALLBACK", "false").lower() == "true"
 
 # --- Rebalancer ---
 REBALANCE_INTERVAL_SEC = int(os.getenv("REBALANCE_INTERVAL_SEC", "3600"))

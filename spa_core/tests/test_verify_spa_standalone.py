@@ -72,7 +72,8 @@ def test_verifier_only_uses_stdlib():
     """Every top-level import in verify_spa.py must be stdlib (zero-dependency contract)."""
     import ast
     tree = ast.parse(_VERIFY.read_text(encoding="utf-8"))
-    stdlib_ok = {"argparse", "hashlib", "json", "sys", "pathlib", "typing", "__future__"}
+    stdlib_ok = {"argparse", "hashlib", "json", "sys", "pathlib", "typing", "__future__",
+                 "datetime"}  # datetime: stdlib, used by the WS6 --check-fundability date math
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for n in node.names:

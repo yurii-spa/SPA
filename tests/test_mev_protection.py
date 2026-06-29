@@ -45,6 +45,10 @@ def mev_settings(monkeypatch):
         monkeypatch.setattr(config, "MEV_PROTECTION_ENABLED", enabled, raising=False)
         monkeypatch.setattr(config, "MEV_PROTECT_FALLBACK", fallback, raising=False)
         monkeypatch.setattr(config, "FLASHBOTS_PROTECT_RPC", rpc, raising=False)
+        # WS-5.1: eth_signer.send_raw_transaction now self-checks SPA_EXEC_ARMED
+        # (structural guard). These tests exercise the ARMED broadcast-routing
+        # behaviour, so arm here (reset by monkeypatch after each test).
+        monkeypatch.setenv("SPA_EXEC_ARMED", "1")
     return _apply
 
 

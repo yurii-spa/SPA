@@ -133,6 +133,13 @@ def load_sources(root: str) -> dict:
         # so the one-pager shows the SAME live readiness % + verdict + proof_hash the
         # /fundability page reads. Missing -> UNAVAILABLE, never fabricated.
         "day30": load_json(os.path.join(d, "day30_artifact.json")),
+        # ── WS6 REALIZED-ONLY sources (ROUND-2 WS1 truth artifacts) ──────────────
+        # The headline edge claim now traces to these REALIZED forward outputs, NOT
+        # to the BACKTEST promotion table. Missing -> UNAVAILABLE, never fabricated.
+        "carry_truth": load_json(os.path.join(d, "carry_truth_table.json")),
+        "edge_at_scale": load_json(os.path.join(d, "edge_at_scale.json")),
+        "realized_ab": load_json(os.path.join(d, "realized_ab", "realized_ab.json")),
+        "refusal_cost": load_json(os.path.join(d, "refusal_cost.json")),
     }
 
 
@@ -199,28 +206,230 @@ def rates_desk_sleeves(promotion):
 def _section_thesis() -> str:
     return (
         "## 1. The thesis — measurement, not yield\n\n"
-        "SPA's deep backtest (2024-06 -> 2026-06, real data including the Aug-2024 crash) "
-        "already killed the obvious answer: **plain crypto-yield is a diversifier, not an edge**. "
-        "Neutral books don't beat the ~3.4% tokenized-T-bill floor risk-adjusted, directional "
-        "books eat the full drawdown, and LRT restaking dies in crashes (ezETH depeg). "
-        '"More APY" is a dead end.\n\n'
+        "**Honesty contract for this sheet (WS6):** every performance claim below traces to a "
+        "**REALIZED** data point (the live forward `*_series.json` tracks, decomposed by the "
+        "WS1 carry truth-table + realized A/B) **or** is labeled **INSUFFICIENT_DATA**. A "
+        "backtest figure is NEVER presented as realized; where a backtest is shown it is "
+        "explicitly fenced as **BACKTEST (not realized)**.\n\n"
+        "SPA's research arc already killed the obvious answer: **plain crypto-yield is a "
+        "diversifier, not an edge**. Neutral books don't beat the tokenized-T-bill floor "
+        "risk-adjusted, directional books eat the full drawdown, and LRT restaking dies in "
+        'crashes (ezETH depeg). "More APY" is a dead end.\n\n'
         "> **The edge is not yield. The edge is the structural role of honest measurement / "
         "underwriting** — being the party that can correctly price and refuse risk others "
         "don't see, and *prove* it.\n\n"
-        "The convergent, honest conclusion across the research arc: **the moat is real, but it "
-        "is a scale / trust / relationships play, not a single-strategy alpha play.** "
+        "The convergent, honest conclusion: **the moat is real, but it is a scale / trust / "
+        "relationships play, not a single-strategy alpha play** — AND, on the REALIZED forward "
+        "track to date, **the desk does not yet demonstrably beat the RWA floor at fundable "
+        "scale.** That is the honest WS1 verdict and this sheet does not contradict it. "
         "$10M/year is reachable through scale across many capacity-bound books plus the trust "
         "earned by a transparent, fail-closed measurement-and-refusal engine — over multiple "
-        "years — not by chasing a higher headline rate. The code builds the proof; the proof "
-        "earns the trust; the trust + capital + relationships are what turn it into $10M.\n"
+        "years — not by chasing a higher headline rate, and not today. The code builds the "
+        "proof; the proof earns the trust; the trust + capital + relationships are what turn "
+        "it into $10M.\n"
     )
 
 
+def _fmt_bps(v):
+    """Render carry-above-floor bps; honest INSUFFICIENT_DATA sentinel when null/non-finite.
+
+    CRITICAL (red-team): a null bps must NEVER render as a rounded '0.0' — that would mask
+    INSUFFICIENT_DATA as a real at-floor verdict. None -> the explicit INSUFFICIENT_DATA token."""
+    if v is None:
+        return "INSUFFICIENT_DATA"
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return "INSUFFICIENT_DATA"
+    if not math.isfinite(f):
+        return "INSUFFICIENT_DATA"
+    return f"{f:+.2f} bps"
+
+
+def _section_realized_edge(carry_truth, realized_ab, edge_at_scale, decisions, refusal_cost) -> str:
+    """## 2 — the REALIZED edge to date. Every number here is read from a WS1 realized artifact
+    (carry_truth_table / realized_ab / edge_at_scale / refusal_cost) or is INSUFFICIENT_DATA.
+    NO backtest figure appears in this section."""
+    lines = ["## 2. The realized edge — to date (realized-only, never backtest)\n"]
+    lines.append(
+        "This is the genuinely-fundable section: it is built **only** on REALIZED forward "
+        "numbers. Every cell traces to a live `*_series.json` track decomposed by the WS1 "
+        "machinery, or reads **INSUFFICIENT_DATA**. The honest one-line answer first:\n"
+    )
+
+    # --- 2a. Carry truth-table (realized carry-above-floor per sleeve) ----------------------
+    lines.append("\n### 2a. Carry truth-table — realized carry above the RWA floor\n")
+    if carry_truth is None or not isinstance(carry_truth, dict) or not carry_truth.get("rows"):
+        lines.append(
+            f"Carry truth-table: {UNAVAILABLE} (carry_truth_table.json missing — the realized "
+            "carry decomposition has not been generated yet).\n"
+        )
+    else:
+        floor = carry_truth.get("rwa_floor_apy_pct")
+        n_above = carry_truth.get("n_above_floor")
+        n_at = carry_truth.get("n_at_floor")
+        n_below = carry_truth.get("n_below_floor")
+        n_insuff = carry_truth.get("n_insufficient_data")
+        min_days = carry_truth.get("min_days_for_bps")
+        lines.append(
+            f"Realized carry-above-the-floor (bps/yr) per forward sleeve, ranked. RWA floor: "
+            f"**{_fmt_pct(floor, 2)}/yr** (live tokenized-T-bills). A verdict is only trusted at "
+            f"**>= {min_days if min_days is not None else UNAVAILABLE} distinct forward days**; "
+            "below that the sleeve reads **INSUFFICIENT_DATA** with a **null** bps — never a "
+            "fabricated 0.0. Carry is the NAV-reconciling residual (carry + floor == realized "
+            "PnL exactly), so no leg can be inflated independently.\n\n"
+            f"**Tally:** above floor **{n_above if n_above is not None else UNAVAILABLE}** · "
+            f"at floor **{n_at if n_at is not None else UNAVAILABLE}** · "
+            f"below floor **{n_below if n_below is not None else UNAVAILABLE}** · "
+            f"**INSUFFICIENT_DATA {n_insuff if n_insuff is not None else UNAVAILABLE}**.\n"
+        )
+        lines.append(
+            "\n| sleeve | realized carry vs floor | realized carry $ | track depth | verdict |")
+        lines.append("|---|---:|---:|---:|:--|")
+        for r in carry_truth.get("rows") or []:
+            if not isinstance(r, dict):
+                continue
+            bps = r.get("carry_above_floor_bps")
+            carry_usd = r.get("realized_carry_usd")
+            n_pts = r.get("n_points")
+            verdict = r.get("verdict", "INSUFFICIENT_DATA")
+            lines.append(
+                f"| {r.get('sleeve', '?')} | {_fmt_bps(bps)} | "
+                f"{_fmt_usd(carry_usd) if carry_usd is not None else UNAVAILABLE} | "
+                f"{n_pts if n_pts is not None else UNAVAILABLE} pts | {verdict} |"
+            )
+        lines.append("")
+        lines.append(
+            "**The honest reading:** at today's track depth **every** realized sleeve is "
+            "INSUFFICIENT_DATA, and the two longest tracks (the FixedCarry carry book and the "
+            "RWA sleeve) are **at-or-below** the floor on realized carry so far. The desk does "
+            "**not** yet demonstrably beat the floor on realized data. This is the correct "
+            "reading of a few-day track — not a failure, and not hidden.\n"
+        )
+
+    # --- 2b. Realized forward A/B (the optimizer uplift, realized not replayed) -------------
+    lines.append("\n### 2b. Realized forward A/B — the optimizer uplift (realized, not a replay)\n")
+    if realized_ab is None or not isinstance(realized_ab, dict):
+        lines.append(
+            f"Realized A/B: {UNAVAILABLE} (realized_ab.json missing — the realized forward A/B "
+            "has not been generated yet).\n"
+        )
+    else:
+        is_realized = realized_ab.get("is_realized")
+        n_days = realized_ab.get("n_days")
+        min_days = realized_ab.get("min_days_for_verdict")
+        verdict = realized_ab.get("verdict", "INSUFFICIENT_DATA")
+        decomp = realized_ab.get("decomposition") or {}
+        raw = decomp.get("raw_uplift_bps")
+        sel = decomp.get("selection_alpha_bps")
+        drag = decomp.get("cash_drag_bps")
+        lines.append(
+            f"`is_realized`: **{_yn(is_realized)}** — each UTC day the live held-universe is "
+            "scored ONCE through the legacy heuristic AND the optimizer and banked into parallel "
+            "paper books (one distinct row per day). This is **not** a replayed backtest. Current "
+            f"depth: **{n_days if n_days is not None else UNAVAILABLE} day(s)** "
+            f"(verdict trusted at >= {min_days if min_days is not None else UNAVAILABLE}); "
+            f"verdict **{verdict}**.\n\n"
+            "Honest apples-to-apples decomposition (the raw gap mixes selection skill with a "
+            "cash-drag advantage the legacy book gets for free by skipping the 5% cash floor):\n\n"
+            f"- raw uplift (NOT apples-to-apples): **{_fmt_bps(raw)}**\n"
+            f"- **selection alpha** (apples-to-apples, both reserve 5%): **{_fmt_bps(sel)}**\n"
+            f"- cash-drag leg (the floor-skip advantage, NOT skill): **{_fmt_bps(drag)}**\n\n"
+            "Even where the realized selection alpha reads positive on day 1, the verdict stays "
+            "INSUFFICIENT_DATA until the track matures — a 1-day uplift is not an edge.\n"
+        )
+
+    # --- 2c. Edge-at-scale curve (the load-bearing honest finding) --------------------------
+    lines.append("\n### 2c. Edge at scale — the optimizer's uplift is a $100k artifact\n")
+    if edge_at_scale is None or not isinstance(edge_at_scale, dict) or not edge_at_scale.get("curve"):
+        lines.append(
+            f"Edge-at-scale curve: {UNAVAILABLE} (edge_at_scale.json missing).\n"
+        )
+    else:
+        mat = edge_at_scale.get("materiality_pp")
+        below_at = edge_at_scale.get("edge_below_materiality_at_aum_usd")
+        survives = edge_at_scale.get("edge_survives_at_max_aum")
+        lines.append(
+            "The optimizer uplift recomputed at each AUM AFTER the real MP-209/ADR-009 "
+            "pool-capacity caps bind (capacity-capped capital becomes idle cash, earns 0 — the "
+            f"conservative drag). Materiality bar: **{_fmt_pct(mat, 2)}**.\n\n"
+            "| AUM | legacy yield | optimizer yield | uplift | material? |\n"
+            "|---|---:|---:|---:|:--:|"
+        )
+        for c in edge_at_scale.get("curve") or []:
+            if not isinstance(c, dict):
+                continue
+            aum = c.get("aum_usd")
+            leg = c.get("legacy_yield_on_capital_pct")
+            opt = c.get("optimized_yield_on_capital_pct")
+            up = c.get("uplift_pp")
+            material = c.get("uplift_material")
+            up_str = (f"{up:+.2f}pp" if isinstance(up, (int, float)) and math.isfinite(up)
+                      else UNAVAILABLE)
+            lines.append(
+                f"| {_fmt_usd(aum)} | {_fmt_pct(leg, 2)} | {_fmt_pct(opt, 2)} | "
+                f"{up_str} | {_yn(material)} |"
+            )
+        lines.append("")
+        lines.append(
+            "**The load-bearing honest finding (WS1):** the optimizer's **+1.08pp is a "
+            "$100k-scale artifact**. It falls below the materiality bar and goes **NEGATIVE past "
+            f"~$1M AUM** (edge survives at max AUM tested: **{_yn(survives)}**"
+            + (f"; first AUM below materiality: **{_fmt_usd(below_at)}**" if below_at is not None
+               else "")
+            + "). The optimizer concentrates into high-yield small-TVL pools; at $1M+ the "
+            "1%-of-TVL cap forces most of that book into idle cash. **At the fundable size that "
+            "underlies the $100M thesis, today's universe cannot support the edge.** We do not "
+            "claim otherwise.\n"
+        )
+
+    # --- 2d. Refusal cost (why in cash — is the conservatism defensible?) -------------------
+    lines.append("\n### 2d. Cost of refusal — is sitting in cash defensible?\n")
+    if refusal_cost is None or not isinstance(refusal_cost, dict):
+        lines.append(f"Refusal-cost ledger: {UNAVAILABLE} (refusal_cost.json missing).\n")
+    else:
+        cost = refusal_cost.get("cost_of_caution_bps_per_yr_if_real")
+        n_days = refusal_cost.get("n_days")
+        min_days = refusal_cost.get("min_days_for_agg")
+        defensible = _get(refusal_cost, "interpretation", "defensible")
+        lines.append(
+            f"From the FixedCarry forward series' per-day scan diagnostics (read-only "
+            f"re-derivation, {n_days if n_days is not None else UNAVAILABLE} diagnostic day(s), "
+            f"aggregated at >= {min_days if min_days is not None else UNAVAILABLE}): "
+            f"cost-of-caution **{_fmt_bps_yr(cost)}** **IF** the refused edge were real carry. "
+            "But the gate's thesis is that the refused yield is **tail-compensation** (the "
+            "2025-10 USDe-leverage-unwind / ezETH pattern), not carry — so this 'cost' is an "
+            "insurance premium, not forgone alpha. Since even the approved FixedCarry book is "
+            "below the floor on realized data so far (§2a), the conservatism is "
+            f"**{defensible or UNAVAILABLE}**\n"
+        )
+    return "\n".join(lines)
+
+
+def _fmt_bps_yr(v):
+    """bps/yr value, honest UNAVAILABLE if absent/non-finite."""
+    if v is None:
+        return UNAVAILABLE
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return UNAVAILABLE
+    if not math.isfinite(f):
+        return UNAVAILABLE
+    return f"{f:.2f} bps/yr"
+
+
 def _section_validated_edge(promotion, decisions, rwa) -> str:
-    lines = ["## 2. The validated edge\n"]
+    lines = ["## 3. The engine + proof — refusal-first carry (BACKTEST + measurement)\n"]
+    lines.append(
+        "> **The sleeve APY/DD figures in the table below are BACKTEST numbers (not realized).** "
+        "They describe the engine's behaviour over the 2024-2026 replay window, NOT money earned "
+        "on the live forward track. The REALIZED edge to date is §2; this section documents the "
+        "engine that produced the refusals and the live proof chain.\n"
+    )
 
     # --- Rates Desk: GO -------------------------------------------------- #
-    lines.append("### Rates Desk — **GO** (refusal-first carry)\n")
+    lines.append("### Rates Desk engine — **BACKTEST-validated** (refusal-first carry)\n")
     sleeves = rates_desk_sleeves(promotion)
     floor = _get(promotion or {}, "rwa_floor_pct")
     lines.append(
@@ -232,7 +441,8 @@ def _section_validated_edge(promotion, decisions, rwa) -> str:
     if sleeves is None:
         lines.append(f"\nSleeve verdicts: {UNAVAILABLE} (rates_desk_promotion.json missing).\n")
     else:
-        lines.append("\n| sleeve | stage | net APY %/yr | beats floor | max DD % | refusals | kills |")
+        lines.append("\n**BACKTEST (not realized)** — engine behaviour over the 2024-2026 replay:\n")
+        lines.append("\n| sleeve | stage | net APY %/yr (BACKTEST) | beats floor (BACKTEST) | max DD % | refusals | kills |")
         lines.append("|---|---|---:|:--:|---:|---:|---:|")
         for s in sleeves:
             beats = (
@@ -270,9 +480,11 @@ def _section_validated_edge(promotion, decisions, rwa) -> str:
         "~100% of days on *structural* grounds, never held into the Aug-2024 / Oct-2025 / "
         "Apr-2026 depegs; a huge quoted rate never rescued a tail-vetoed book.\n"
         "- Deflated Sharpe is **structurally degenerate** for locked held-to-maturity carry "
-        "(near-zero downside variance by construction) — reported as a not-noise check only; "
-        "the verdict rests on the realized book APY beating the floor in-sample, "
-        "out-of-sample, and through every stress window.\n"
+        "(near-zero downside variance by construction) — reported as a not-noise check only.\n"
+        "- **The backtest APY above is NOT the realized edge.** On the REALIZED forward track "
+        "(§2) the FixedCarry book is **below the floor so far** and every sleeve is "
+        "INSUFFICIENT_DATA. The backtest validates the engine's behaviour through stress "
+        "windows; it does not assert money was earned live. We do not present it as realized.\n"
         "- The carry edge is **capacity-bound** (~$250k fundable ceiling per book; the §9 "
         "exit-capacity rule sizes DOWN rather than eat slippage). A single rates book does "
         "**not** clear $10M — this needs **scale across many gated books**.\n"
@@ -338,7 +550,7 @@ def _day30_readiness_line(day30) -> str:
 
 
 def _section_forward_track(golive, forward, day30=None) -> str:
-    lines = ["## 3. The forward track-to-date (accruing, not yet 30)\n"]
+    lines = ["## 4. The forward track-to-date (accruing, not yet 30)\n"]
     if golive is None:
         lines.append(f"Go-live track: {UNAVAILABLE} (golive_status.json missing).\n")
     else:
@@ -404,7 +616,7 @@ def _section_forward_analytics(fa) -> str:
     sourced from data/forward_analytics.json. Fail-CLOSED: missing module/data ->
     UNAVAILABLE; thin tracks render "THIN (N/30 days, metrics pending)" NOT a
     fabricated Sharpe; UNKNOWN stays UNKNOWN."""
-    lines = ["## 4. Live forward-record analytics (risk-adjusted, accruing)\n"]
+    lines = ["## 5. Live forward-record analytics (risk-adjusted, accruing)\n"]
     lines.append(
         "The verdict above is static; THIS is the live risk-adjusted picture computed "
         "ON the accruing forward series themselves (per-day equity for the rates-desk "
@@ -538,7 +750,7 @@ def _section_forward_analytics(fa) -> str:
 
 
 def _section_safety(dry_run, golive) -> str:
-    lines = ["## 5. The safety architecture\n"]
+    lines = ["## 6. The safety architecture\n"]
     lines.append(
         "- **Refusal-first gate** — a deterministic policy composed *under* the global "
         "RiskPolicy, only ever stricter; LLM-forbidden in risk/kill; fail-CLOSED "
@@ -581,7 +793,7 @@ def _section_safety(dry_run, golive) -> str:
 
 def _section_offcode_gates() -> str:
     return (
-        "## 6. The off-code gates — honestly, what stands between here and $10M\n\n"
+        "## 7. The off-code gates — honestly, what stands between here and $10M\n\n"
         "The code did its job: it took each thesis to an honest verdict for free. But across "
         "all three, the same boundary appears — **the code can measure and refuse; the $10M is "
         "off-code.** Stated plainly, not hidden:\n\n"
@@ -620,15 +832,22 @@ def build_document(sources: dict, now_iso: str) -> str:
     dry_run = sources.get("dry_run")
     forward_analytics = sources.get("forward_analytics")
     day30 = sources.get("day30")
+    carry_truth = sources.get("carry_truth")
+    edge_at_scale = sources.get("edge_at_scale")
+    realized_ab = sources.get("realized_ab")
+    refusal_cost = sources.get("refusal_cost")
 
     parts = [
         "# SPA — Fundability one-pager\n",
-        "_Auto-generated, real-data, HONEST. Every performance number is sourced live from "
-        "`data/`; a missing source is reported as data unavailable, never fabricated. "
-        "stdlib-only, deterministic, fail-CLOSED. NOT marketing — the refusal-chain and the "
-        "published NO-GO are the differentiator._\n",
+        "_Auto-generated, REALIZED-ONLY, HONEST. Every performance number traces to a realized "
+        "`data/` source or is labeled INSUFFICIENT_DATA; a missing source is reported as data "
+        "unavailable, never fabricated. NO backtest figure is presented as realized (backtest "
+        "rows are explicitly fenced). stdlib-only, deterministic, fail-CLOSED. NOT marketing — "
+        "the refusal-chain and the published NO-GO are the differentiator._\n",
         "---\n",
         _section_thesis(),
+        "\n---\n",
+        _section_realized_edge(carry_truth, realized_ab, edge_at_scale, decisions, refusal_cost),
         "\n---\n",
         _section_validated_edge(promotion, decisions, rwa),
         "\n---\n",
@@ -640,12 +859,15 @@ def build_document(sources: dict, now_iso: str) -> str:
         "\n---\n",
         _section_offcode_gates(),
         "\n---\n",
-        f"_Regenerated {now_iso}. All numbers live from `data/` "
-        "(golive_status.json · rates_desk/rates_desk_promotion.json · "
+        f"_Regenerated {now_iso}. All numbers live from `data/` — REALIZED-ONLY sources "
+        "(carry_truth_table.json · realized_ab/realized_ab.json · edge_at_scale.json · "
+        "refusal_cost.json) for the §2 edge claims, plus golive_status.json · "
+        "rates_desk/rates_desk_promotion.json (BACKTEST, fenced) · "
         "rates_desk/decision_log.jsonl · rwa_safety_board.json · "
-        "forward_track_integrity.json · forward_analytics.json · golive_dry_run.json). "
+        "forward_track_integrity.json · forward_analytics.json · golive_dry_run.json. "
         "Regenerable via "
-        "`python3 scripts/generate_fundability_onepager.py --md`. "
+        "`python3 scripts/generate_fundability_onepager.py --md`. Reproduce the realized "
+        "numbers from raw series: `python3 scripts/verify_spa.py --check-fundability data/`. "
         "Follow-up: a public `/fundability` site page mirroring this doc._\n",
     ]
     return "\n".join(parts)

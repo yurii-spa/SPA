@@ -122,6 +122,16 @@ _FAKE_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
+# Publicly-documented, well-known local-dev test keys that are NOT real secrets.
+# These ship in Anvil/Hardhat/Ganache by default and are intentionally used by
+# inert fault-injection drills (e.g. the signer-leak drill). Whitelisting is
+# tightly scoped to these exact literals so a genuine hardcoded key is still
+# flagged — we match the literal, not a broad pattern.
+_KNOWN_TEST_KEYS: frozenset[str] = frozenset({
+    # Anvil/Hardhat deterministic dev account #0 private key (public, in docs).
+    "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+})
+
 # Patterns that look like hardcoded secret VALUES (not variable names).
 # Matches: db_password = "value123!!", api_key = "secretValue99"
 # Requires the secret keyword to appear in the variable name (not just a word)
@@ -369,6 +379,11 @@ class ArchitectureAudit:
                         continue
                     # Skip lines that look like test/fake placeholders
                     if _FAKE_PATTERNS.search(line):
+                        continue
+                    # Skip publicly-documented local-dev test keys (Anvil/Hardhat
+                    # default accounts) used by inert fault-injection drills. The
+                    # match is on the exact literal — a real key is still flagged.
+                    if any(k in line for k in _KNOWN_TEST_KEYS):
                         continue
                     # Skip lines that reference environment variables
                     if "os.environ" in line or "os.getenv" in line:

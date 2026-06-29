@@ -53,6 +53,7 @@ import urllib.error
 import urllib.request
 from typing import Any, Optional
 
+from spa_core.execution.arming import assert_live_armed
 from spa_core.utils.errors import SourceError
 
 log = logging.getLogger("spa.mev_protection")
@@ -282,7 +283,18 @@ def send_protected(
         Receipt-like dict with keys: ``tx_hash``, ``status``, ``endpoint``,
         ``protection``, ``block_number``.
         On failure: ``status = "FAILED"`` with ``reason`` key.
+
+    Raises
+    ------
+    LiveTradingForbiddenError
+        unless SPA_EXEC_ARMED is explicitly armed (WS-5.1 structural guard —
+        OFF the whole paper period).
     """
+    # WS-5.1 STRUCTURAL guard: this broadcast primitive self-checks the global
+    # arming flag BEFORE any network submit. A direct call bypassing an adapter's
+    # @live_trading_forbidden wrapper is still blocked here.
+    assert_live_armed("mev_protection.send_protected")
+
     if not signed_tx_hex.startswith("0x"):
         signed_tx_hex = "0x" + signed_tx_hex
 

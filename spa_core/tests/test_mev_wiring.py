@@ -136,6 +136,9 @@ class TestAutoReturnContract:
     def test_flashbots_path_returns_dict_when_live(self, monkeypatch):
         monkeypatch.setenv("SPA_MEV_PROTECTION", "true")
         monkeypatch.setenv("SPA_EXECUTION_MODE", "live")
+        # WS-5.1: send_protected self-checks SPA_EXEC_ARMED — arm to exercise the
+        # armed flashbots routing (reset by monkeypatch after the test).
+        monkeypatch.setenv("SPA_EXEC_ARMED", "1")
         with mock.patch("spa_core.execution.mev_protection._send_to_endpoint",
                         return_value={"result": "0x" + "ee" * 32}):
             result = send_raw_transaction_auto(self.FAKE_TX, self.FAKE_RPC)
@@ -146,6 +149,12 @@ class TestAutoReturnContract:
 # ─── broadcast_protected_hash: hash-returning helper for T1 ───────────────────
 
 class TestBroadcastProtectedHash:
+    @pytest.fixture(autouse=True)
+    def _arm_exec(self, monkeypatch):
+        # WS-5.1: broadcast_protected_hash → send_protected self-checks
+        # SPA_EXEC_ARMED. Arm to exercise the routing (reset per test).
+        monkeypatch.setenv("SPA_EXEC_ARMED", "1")
+
     def test_returns_hash_on_success(self):
         tx_hash = "0x" + "12" * 32
         with mock.patch("spa_core.execution.mev_protection._send_to_endpoint",
@@ -184,6 +193,14 @@ def _t1_adapters():
 
 class TestT1SendRawTxRouting:
     SIGNED = "0x" + "fa" * 50
+
+    @pytest.fixture(autouse=True)
+    def _arm_exec(self, monkeypatch):
+        # WS-5.2 STRUCTURAL guard: _send_raw_tx now self-checks SPA_EXEC_ARMED.
+        # These tests exercise the ARMED broadcast-routing logic, so arm here.
+        # The guard-coverage test (test_execution_guard_coverage.py) proves the
+        # NON-armed block. SPA_EXEC_ARMED is reset by monkeypatch after each test.
+        monkeypatch.setenv("SPA_EXEC_ARMED", "1")
 
     @pytest.mark.parametrize("Adapter", _t1_adapters())
     def test_public_when_mev_off(self, Adapter, monkeypatch):

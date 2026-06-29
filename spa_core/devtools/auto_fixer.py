@@ -34,6 +34,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from spa_core.utils.atomic import atomic_save_text
+
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
@@ -144,8 +146,7 @@ def _rate_limit_record() -> None:
         path = RATE_LIMIT_PREFIX + str(i)
         if not os.path.exists(path):
             try:
-                with open(path, "w") as f:
-                    f.write(str(now))
+                atomic_save_text(str(now), path, fsync=False)
             except OSError:
                 pass
             return
@@ -153,8 +154,7 @@ def _rate_limit_record() -> None:
         if age >= 3600:
             # Reuse expired slot
             try:
-                with open(path, "w") as f:
-                    f.write(str(now))
+                atomic_save_text(str(now), path, fsync=False)
             except OSError:
                 pass
             return
@@ -466,19 +466,22 @@ def _extract_sha(output: str) -> Optional[str]:
 
 def _tg_request(token: str, method: str, payload: Optional[Dict] = None,
                 timeout: int = 10) -> Optional[Dict]:
-    # FLOOD-GUARD: outbound sendMessage is routed through the canonical
-    # rate-limited client so auto-fix notifications share the cross-process
-    # flood guard. Other methods (none used today) fall through to direct HTTP.
+    # RETIRED as a Telegram push (Phase-1 Telegram rebuild): auto-fix dev
+    # notifications are noise — they no longer push. Outbound sendMessage is
+    # demoted to the digest queue (log-only effectively). Non-send methods
+    # (getUpdates etc.) fall through to direct HTTP, which is not an unsolicited
+    # push and is out of the single-authority scope.
     if method == "sendMessage" and payload:
         try:
-            from spa_core.alerts.telegram_client import send_message
-            ok = send_message(
+            from spa_core.telegram import push_policy
+            push_policy.enqueue_digest(
+                "auto_fixer", "Auto-fix notification",
                 payload.get("text", ""),
-                parse_mode=payload.get("parse_mode", "HTML"),
+                severity="INFO", reason="auto_fixer_retired_push",
             )
-            return {"ok": bool(ok)}
+            return {"ok": False}
         except Exception as exc:
-            log.warning("Telegram API %s failed: %s", method, exc)
+            log.warning("auto_fixer: digest route failed: %s", exc)
             return None
     url = f"https://api.telegram.org/bot{token}/{method}"
     data = json.dumps(payload or {}).encode() if payload else None

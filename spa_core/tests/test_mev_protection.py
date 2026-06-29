@@ -104,6 +104,13 @@ class TestSendRawTransactionAuto:
     FAKE_TX = "0x" + "cc" * 100
     FAKE_RPC = "https://ethereum.publicnode.com"
 
+    @pytest.fixture(autouse=True)
+    def _arm_exec(self, monkeypatch):
+        # WS-5.1: the live flashbots path → send_protected self-checks
+        # SPA_EXEC_ARMED. Arm to exercise the armed routing (reset per test).
+        # Harmless on the OFF/not-live cases (they mock the public primitive).
+        monkeypatch.setenv("SPA_EXEC_ARMED", "1")
+
     def test_uses_public_rpc_when_protection_off(self, monkeypatch):
         monkeypatch.delenv("SPA_MEV_PROTECTION", raising=False)
         monkeypatch.delenv("SPA_EXECUTION_MODE", raising=False)
@@ -217,6 +224,13 @@ class TestWaitForReceipt:
 
 class TestMevProtectionIntegration:
     """Verify the full routing decision tree."""
+
+    @pytest.fixture(autouse=True)
+    def _arm_exec(self, monkeypatch):
+        # WS-5.1: the live flashbots route → send_protected self-checks
+        # SPA_EXEC_ARMED. Arm to exercise routing (reset per test); harmless on
+        # the dry-run / OFF cases (they mock or never reach the primitive).
+        monkeypatch.setenv("SPA_EXEC_ARMED", "1")
 
     def test_dry_run_never_hits_network(self):
         """send_protected_dry_run must never make HTTP calls."""

@@ -192,6 +192,6 @@ def test_fundability_renders_no_nonfinite_from_corrupt_scorecard(populated_repo)
         json.dump(doc, fh)  # CPython writes literal NaN/Infinity; the generator reads via stdlib
     md = GEN.generate(root=populated_repo, now_iso="FIXED")
     # the section still renders; the corrupt fields format as the honest sentinel, never 'nan%'
-    assert "## 4. Live forward-record analytics" in md
+    assert "## 5. Live forward-record analytics" in md
     assert "nan%" not in md.lower()
     assert "inf%" not in md.lower()

@@ -603,6 +603,181 @@ def _read_json(path: Path) -> Tuple[Optional[dict], Optional[str]]:
         return None, f"corrupt JSON: {e}"
 
 
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# (H) FUNDABILITY reproduction — recompute every realized carry-above-floor bps from the RAW series
+#     and assert it equals the PUBLISHED carry_truth_table.json (WORKSTREAM 6 "Prove the Edge")
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# This is the WS6 "don't trust us, check us" surface for the FUNDABILITY sheet: a reviewer must be
+# able to reproduce EVERY realized fundability number from the raw forward series alone, with no
+# spa_core. We re-derive each sleeve's carry-above-floor (bps/yr) directly from its raw
+# *_series.json equity path — using the floor-leg/carry-leg residual split inlined verbatim from
+# spa_core.strategy_lab.forward_analytics.captured_book_attribution + carry_truth_table — and assert
+# it matches the published carry_truth_table.json to the published precision.
+#
+# TAMPER-EVIDENCE (the red-team): if someone forges a published bps in carry_truth_table.json (e.g.
+# flips a below-floor sleeve to "+50 bps beats floor"), the recompute from the RAW series DIVERGES
+# and this check FAILS with the precise sleeve. And — the INSUFFICIENT_DATA-hidden-behind-0.0 path —
+# a published `null` bps recomputed to a real number, OR a real bps published as null, is a MISMATCH.
+# A null published bps is honest ONLY when the raw series genuinely has < 2 dated points / zero
+# elapsed (no realized carry move to measure); we re-derive that condition from the raw series too.
+
+# the carry-bps precision the producer publishes (carry_truth_table rounds pp→bps to 2 dp).
+_FUNDABILITY_BPS_DP = 2
+# the producer's depth bar for a NUMERIC bps (carry_truth_table: < 2 dated points / zero elapsed →
+# null bps). We reproduce the SAME null-vs-number decision from the raw series, never the published flag.
+_FUNDABILITY_MIN_POINTS = 2
+
+
+def _raw_series_points(doc) -> Optional[List[dict]]:
+    """Coerce a raw *_series.json doc to its list of forward points (or None if unusable). Accepts
+    {"series":[...]} or a bare list (mirrors track_integrity._coerce_series, inlined)."""
+    if isinstance(doc, dict):
+        s = doc.get("series")
+        return s if isinstance(s, list) else None
+    if isinstance(doc, list):
+        return doc
+    return None
+
+
+def _recompute_carry_bps(points: List[dict], floor_apy_pct: float) -> Tuple[Optional[float], str]:
+    """Re-derive carry-above-floor (bps/yr) from a raw forward equity path — the EXACT recipe the
+    producer uses (captured_book_attribution floor-leg/carry-leg residual split + carry_truth_table
+    annualization), inlined with zero spa_core import. Returns (bps_or_None, reason).
+
+    fail-CLOSED: a non-numeric/non-finite equity, a < 2-point / zero-elapsed track, or a zero initial
+    capital → (None, reason) — the honest INSUFFICIENT_DATA condition (null bps), re-derived from the
+    RAW series, NEVER read from the published flag. carry is the residual (carry+floor==realized PnL),
+    so no leg can be inflated independently."""
+    eq: List[float] = []
+    for p in points:
+        if not isinstance(p, dict):
+            return None, "malformed point"
+        v = p.get("equity_usd")
+        if not isinstance(v, (int, float)) or isinstance(v, bool):
+            return None, "non-numeric equity_usd"
+        fv = float(v)
+        if fv != fv or fv in (float("inf"), float("-inf")):  # NaN/inf without importing math
+            return None, "non-finite equity_usd"
+        eq.append(fv)
+    if len(eq) < _FUNDABILITY_MIN_POINTS:
+        return None, "< 2 dated points (no realized carry move)"
+    initial = eq[0]
+    if initial == 0:
+        return None, "zero initial capital"
+    nav = eq[-1]
+    realized_pnl = nav - initial
+    floor_daily = (float(floor_apy_pct) / 100.0) / 365.0
+    floor_leg = 0.0
+    elapsed = 0
+    import datetime as _dt
+    for i in range(1, len(eq)):
+        d_prev = points[i - 1].get("date")
+        d_cur = points[i].get("date")
+        step = 1
+        try:
+            if d_prev and d_cur:
+                step = max(1, (_dt.date.fromisoformat(str(d_cur))
+                               - _dt.date.fromisoformat(str(d_prev))).days)
+        except ValueError:
+            step = 1
+        floor_leg += eq[i - 1] * floor_daily * step
+        elapsed += step
+    if not elapsed:
+        return None, "zero elapsed days"
+    # carry is the residual; the producer (captured_book_attribution) ROUNDS carry_leg_usd to 4 dp
+    # before carry_truth_table annualizes it — we round identically so the bps reproduces exactly
+    # (this is honest rounding parity, not a fudge: the published bps is derived from the 4-dp carry).
+    carry_usd = round(realized_pnl - floor_leg, 4)
+    carry_return_period = carry_usd / float(initial)
+    carry_apy_pct = carry_return_period * (365.0 / float(elapsed)) * 100.0
+    bps = round(carry_apy_pct * 100.0, _FUNDABILITY_BPS_DP)
+    return bps, "ok"
+
+
+def verify_fundability(data_dir: Path) -> dict:
+    """Reproduce every realized carry-above-floor bps in the published carry_truth_table.json from the
+    RAW *_series.json forward tracks, and assert they match. Returns a verdict dict.
+
+    fail-CLOSED: a missing published table, a published sleeve with no discoverable raw series, OR any
+    recomputed bps that diverges from the published value (including a null-vs-number disagreement) →
+    valid=False with the precise mismatches. This is the tamper-evidence: a forged fundability number
+    cannot survive recomputation from the raw series."""
+    table_path = data_dir / "carry_truth_table.json"
+    doc, err = _read_json(table_path)
+    if err is not None or not isinstance(doc, dict):
+        return {"valid": False, "available": False,
+                "error": f"carry_truth_table.json: {err or 'not an object'}",
+                "n_checked": 0, "n_matched": 0, "mismatches": []}
+    # prefer the FULL-PRECISION floor (rwa_floor_apy_pct_full) so the bps reproduces BYTE-EXACTLY;
+    # fall back to the 4-dp display floor (older artifacts) where the full-precision field is absent.
+    floor = doc.get("rwa_floor_apy_pct_full")
+    if not isinstance(floor, (int, float)) or isinstance(floor, bool):
+        floor = doc.get("rwa_floor_apy_pct")
+    rows = doc.get("rows")
+    if not isinstance(floor, (int, float)) or isinstance(floor, bool) or not isinstance(rows, list):
+        return {"valid": False, "available": True,
+                "error": "carry_truth_table.json missing rwa_floor_apy_pct/rows",
+                "n_checked": 0, "n_matched": 0, "mismatches": []}
+
+    # discover the raw series by sleeve name — the SAME dirs carry_truth_table reads from.
+    raw_by_name: dict = {}
+    for sub in ("rates_desk/paper", "strategy_lab_paper", "realized_ab"):
+        d = data_dir / sub
+        if not d.is_dir():
+            continue
+        for f in sorted(d.glob("*_series.json")):
+            name = f.name[: -len("_series.json")]
+            sdoc, serr = _read_json(f)
+            if serr is None:
+                raw_by_name[name] = sdoc
+
+    mismatches: List[dict] = []
+    n_checked = 0
+    n_matched = 0
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        name = row.get("sleeve")
+        published = row.get("carry_above_floor_bps")
+        n_checked += 1
+        raw = raw_by_name.get(name)
+        if raw is None:
+            mismatches.append({"sleeve": name, "reason": "published row has NO raw series to reproduce from"})
+            continue
+        pts = _raw_series_points(raw)
+        if pts is None:
+            mismatches.append({"sleeve": name, "reason": "raw series unusable (no point list)"})
+            continue
+        recomputed, reason = _recompute_carry_bps(pts, float(floor))
+        # null-vs-number tamper check: published null must reproduce as null; a number as that number.
+        if published is None:
+            if recomputed is not None:
+                mismatches.append({"sleeve": name, "published": None, "recomputed": recomputed,
+                                   "reason": "published null but raw series yields a real bps "
+                                             "(INSUFFICIENT_DATA masked)"})
+            else:
+                n_matched += 1
+            continue
+        if recomputed is None:
+            mismatches.append({"sleeve": name, "published": published, "recomputed": None,
+                               "reason": f"published a bps but raw series is unmeasurable ({reason})"})
+            continue
+        # numeric compare at the published precision (both rounded to the same dp → exact equality).
+        if round(float(published), _FUNDABILITY_BPS_DP) != recomputed:
+            mismatches.append({"sleeve": name, "published": published, "recomputed": recomputed,
+                               "reason": "bps mismatch — published value not reproducible from raw series"})
+        else:
+            n_matched += 1
+    return {
+        "valid": len(mismatches) == 0 and n_checked > 0,
+        "available": True,
+        "rwa_floor_apy_pct": floor,
+        "n_checked": n_checked,
+        "n_matched": n_matched,
+        "mismatches": mismatches,
+    }
+
+
 # ── content-based classification (FAIL#8) ──────────────────────────────────────────────────────────
 # A file is classified as WHAT IT ACTUALLY IS — by the shape of its first data row — not by its
 # filename or parent dir. So a stray/misnamed ``decision_log.jsonl`` (e.g. a sleeve proof dropped at a
@@ -731,6 +906,30 @@ def _is_sleeve_producer_dir(d: Path) -> bool:
     return d.name == "paper" and d.parent.name == "rates_desk"
 
 
+def _resolve_data_dir(args_paths: List[str]) -> Optional[Path]:
+    """Resolve the data dir that holds carry_truth_table.json (for --check-fundability). A supplied
+    directory containing it (or whose ``data/`` subdir does) wins; a supplied file → its parent chain
+    is searched. Returns the dir holding carry_truth_table.json, or None if none is found."""
+    candidates: List[Path] = []
+    for raw in args_paths:
+        p = Path(raw)
+        base = p if p.is_dir() else p.parent
+        candidates.append(base)
+        candidates.append(base / "data")
+        # walk up a few levels so ``verify_spa.py data/rates_desk/`` still finds data/.
+        for anc in list(base.parents)[:4]:
+            candidates.append(anc)
+            candidates.append(anc / "data")
+    seen: set = set()
+    for c in candidates:
+        if c in seen:
+            continue
+        seen.add(c)
+        if (c / "carry_truth_table.json").is_file():
+            return c
+    return None
+
+
 def _resolve_inputs(args_paths: List[str]) -> dict:
     """Map the CLI paths to EVERY anchored surface AND every producer that MUST have a proof. A
     directory is walked RECURSIVELY (rglob) so a single ``verify_spa.py data/`` auto-discovers all
@@ -844,13 +1043,19 @@ def _enforce_coverage(inputs: dict, report: dict) -> None:
 
 
 def run(paths: List[str], expect_head: Optional[str] = None,
-        expect_surfaces: Optional[List[str]] = None) -> dict:
+        expect_surfaces: Optional[List[str]] = None,
+        check_fundability: bool = False) -> dict:
     """Run all available verifications over the resolved inputs. Returns a verdict dict. A proof is
     only checked if its file is present; at least ONE file must be present (else nothing to verify).
 
     Coverage (FAIL#5): a present producer (a ``*_series.json``) without its matching, non-empty proof
     FAILS. ``expect_surfaces`` (letters A–G) asserts those surfaces are present, failing closed when
-    one is absent — so a renamed/hidden surface can no longer slip through as a silent exit 0."""
+    one is absent — so a renamed/hidden surface can no longer slip through as a silent exit 0.
+
+    ``check_fundability`` (WS6): additionally reproduce every realized carry-above-floor bps in the
+    published carry_truth_table.json from the RAW *_series.json tracks and assert they match — the
+    "don't trust us, check us" surface for the FUNDABILITY sheet. A forged fundability number, or an
+    INSUFFICIENT_DATA masked as a real bps, FAILS CLOSED."""
     inputs = _resolve_inputs(paths)
 
     def _file_repr(v):
@@ -869,6 +1074,7 @@ def run(paths: List[str], expect_head: Optional[str] = None,
         "tournament": None,
         "nav_proof": None,
         "sleeves": None,
+        "fundability": None,
         "errors": [],
         "ok": False,
     }
@@ -876,11 +1082,38 @@ def run(paths: List[str], expect_head: Optional[str] = None,
     def _has_any(v) -> bool:
         return bool(v) if not isinstance(v, list) else len(v) > 0
 
+    # (H) WS6 FUNDABILITY reproduction runs FIRST and independently of the proof-chain surfaces, so
+    # ``--check-fundability`` works even when pointed at a dir with only the realized artifacts.
+    if check_fundability:
+        fdir = _resolve_data_dir(paths)
+        if fdir is None:
+            report["fundability"] = {"valid": False, "available": False,
+                                     "error": "could not resolve a data dir from the supplied paths",
+                                     "n_checked": 0, "n_matched": 0, "mismatches": []}
+            report["errors"].append("fundability: could not resolve a data dir to reproduce from")
+        else:
+            res = verify_fundability(fdir)
+            report["fundability"] = res
+            if not res.get("valid"):
+                if not res.get("available"):
+                    report["errors"].append(f"fundability: {res.get('error')}")
+                else:
+                    for m in res.get("mismatches", []):
+                        report["errors"].append(
+                            f"fundability: sleeve {m.get('sleeve')} — {m.get('reason')}")
+                    if not res.get("mismatches"):
+                        report["errors"].append(
+                            f"fundability: {res.get('error') or 'no checkable rows'}")
+
     if not any(_has_any(v) for v in inputs.values()):
-        report["errors"].append(
-            "no recognizable public files supplied (decision_log.jsonl / exit_nav.json / "
-            "anchors.jsonl / equity_track.jsonl / tournament/decision_log.jsonl / "
-            "rwa_backstop/nav_proof.jsonl / *_series_proof.jsonl)")
+        # the proof-chain surfaces are absent. If --check-fundability was requested AND succeeded,
+        # that is still a valid run (the fundability reproduction is itself a complete check); else fail.
+        if not check_fundability:
+            report["errors"].append(
+                "no recognizable public files supplied (decision_log.jsonl / exit_nav.json / "
+                "anchors.jsonl / equity_track.jsonl / tournament/decision_log.jsonl / "
+                "rwa_backstop/nav_proof.jsonl / *_series_proof.jsonl)")
+        report["ok"] = (len(report["errors"]) == 0)
         return report
 
     decision_head: Optional[str] = None
@@ -1152,6 +1385,18 @@ def _print_human(report: dict) -> None:
             print(f"    {Path(s['file']).name:42s}: valid={s.get('valid')}  "
                   f"rows={s.get('length')}  broken_at={s.get('broken_at')}  head={s.get('head_hash')}")
 
+    fd = report.get("fundability")
+    if fd is not None:
+        print("-" * 78)
+        print(f"[H] fundability    : valid={fd.get('valid')}  reproduced="
+              f"{fd.get('n_matched')}/{fd.get('n_checked')} sleeve carry-bps from RAW series"
+              + (f"  floor={fd.get('rwa_floor_apy_pct')}%" if fd.get("rwa_floor_apy_pct") is not None else ""))
+        if fd.get("error"):
+            print(f"    error          : {fd['error']}")
+        for m in fd.get("mismatches", []):
+            print(f"    ✗ {m.get('sleeve')}: published={m.get('published')} "
+                  f"recomputed={m.get('recomputed')} — {m.get('reason')}")
+
     if "expected_head" in report:
         ok = report["decision_chain"] and report["decision_chain"].get("head_hash") == report["expected_head"]
         print(f"[--expect-head]    : {'MATCH' if ok else 'MISMATCH'}  ({report['expected_head']})")
@@ -1189,13 +1434,19 @@ def main(argv: Optional[List[str]] = None) -> int:
                          "D=equity_track E=tournament F=nav_proof G=sleeve) that MUST be present; a "
                          "missing one fails CLOSED (so a renamed/hidden surface can't pass silently)")
     ap.add_argument("--json", action="store_true", help="emit the machine-readable verdict as JSON")
+    ap.add_argument("--check-fundability", action="store_true",
+                    help="ALSO reproduce every realized carry-above-floor bps in carry_truth_table.json "
+                         "from the RAW *_series.json tracks and assert they match (the WS6 FUNDABILITY "
+                         "'don't trust us, check us' surface). A forged fundability number, or an "
+                         "INSUFFICIENT_DATA masked as a real bps, fails CLOSED.")
     args = ap.parse_args(argv)
 
     expect_surfaces = None
     if args.expect_surfaces:
         expect_surfaces = [s.strip().upper() for s in args.expect_surfaces.split(",") if s.strip()]
 
-    report = run(args.paths, expect_head=args.expect_head, expect_surfaces=expect_surfaces)
+    report = run(args.paths, expect_head=args.expect_head, expect_surfaces=expect_surfaces,
+                 check_fundability=args.check_fundability)
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

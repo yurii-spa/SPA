@@ -294,6 +294,13 @@ class TestReconciliationMismatch:
 # These mock eth_signer._get_account so they run without eth_account installed.
 # =========================================================================== #
 class TestSignerFailure:
+    @pytest.fixture(autouse=True)
+    def _arm_exec(self, monkeypatch):
+        # WS-5.1: sign_transaction now self-checks SPA_EXEC_ARMED (outermost,
+        # fail-CLOSED gate). These tests exercise the ARMED signer's key-handling
+        # / scrubbing / abort logic, so arm here (reset by monkeypatch per test).
+        monkeypatch.setenv("SPA_EXEC_ARMED", "1")
+
     def test_malformed_key_raises_before_any_signing(self):
         """A wrong-length key fails CLOSED with ValidationError — the cycle never
         reaches a chain call."""
@@ -539,6 +546,12 @@ class TestSignerNoKeyLeakExhaustive:
     # A realistic, secret-shaped (but public, fund-less) key used as the canary.
     KEY = _PUBLIC_DEV_KEY
 
+    @pytest.fixture(autouse=True)
+    def _arm_exec(self, monkeypatch):
+        # WS-5.1: sign_transaction self-checks SPA_EXEC_ARMED first. These tests
+        # verify the ARMED signer scrubs key material on every failure mode.
+        monkeypatch.setenv("SPA_EXEC_ARMED", "1")
+
     def _tx(self) -> dict:
         return {
             "to": "0x" + "0" * 40, "value": 0, "gas": 21000,
@@ -738,6 +751,15 @@ def _t1_adapter_classes():
 class TestAdapterLiveGuardsWired:
     SIGNED = "0x" + "fa" * 50
 
+    @pytest.fixture(autouse=True)
+    def _arm_exec(self, monkeypatch):
+        # WS-5.2: _send_raw_tx now self-checks SPA_EXEC_ARMED (structural guard).
+        # These tests exercise the ARMED broadcast-routing behaviour, so arm here
+        # (reset by monkeypatch after each test). The @live_trading_forbidden
+        # entry point (_sign_and_send) is UNCONDITIONAL — arming does NOT unblock
+        # it, so the LiveTradingForbiddenError assertions below still hold.
+        monkeypatch.setenv("SPA_EXEC_ARMED", "1")
+
     @pytest.mark.parametrize("Adapter", _t1_adapter_classes())
     def test_send_raw_tx_routes_through_guard_broadcast(self, Adapter, monkeypatch):
         """#4: the live _send_raw_tx path actually CALLS guard_broadcast."""
@@ -897,6 +919,10 @@ class TestNonceSafety:
         """A negative nonce in tx_dict fails CLOSED in sign_transaction — the
         backend is never reached (so no tx could be built/submitted)."""
         from spa_core.utils.errors import ValidationError
+
+        # WS-5.1: arm so we reach the armed signer's nonce validation (the
+        # outermost SPA_EXEC_ARMED gate would otherwise raise first).
+        monkeypatch.setenv("SPA_EXEC_ARMED", "1")
 
         class _ShouldNotRun:
             @staticmethod
@@ -1121,6 +1147,9 @@ class TestSignerMevInertSmoke:
     def test_signer_path_makes_no_network_call(self, monkeypatch):
         """Signing is pure-crypto — it must never touch the network."""
         import urllib.request
+        # WS-5.1: arm so the structural SPA_EXEC_ARMED gate lets the (stubbed)
+        # signing path run; we then assert it makes no network call.
+        monkeypatch.setenv("SPA_EXEC_ARMED", "1")
         monkeypatch.setattr(eth_signer, "_get_account", lambda: _StubAccount())
 
         def _no_net(*a, **k):

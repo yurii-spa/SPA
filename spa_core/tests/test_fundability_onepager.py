@@ -153,11 +153,12 @@ def test_deterministic(full_repo):
 def test_all_sections_present(full_repo):
     doc = GEN.generate(root=full_repo, now_iso="FIXED")
     assert "## 1. The thesis" in doc
-    assert "## 2. The validated edge" in doc
-    assert "## 3. The forward track-to-date" in doc
-    assert "## 4. Live forward-record analytics" in doc
-    assert "## 5. The safety architecture" in doc
-    assert "## 6. The off-code gates" in doc
+    assert "## 2. The realized edge" in doc          # WS6 realized-only section
+    assert "## 3. The engine + proof" in doc          # the (BACKTEST-fenced) engine + proof chain
+    assert "## 4. The forward track-to-date" in doc
+    assert "## 5. Live forward-record analytics" in doc
+    assert "## 6. The safety architecture" in doc
+    assert "## 7. The off-code gates" in doc
     # footer
     assert "Regenerated FIXED" in doc
     assert "All numbers live from" in doc
@@ -240,7 +241,7 @@ def test_forward_analytics_section_sourced_not_hardcoded(full_repo):
     """The Live forward-record analytics section renders numbers FROM the mocked
     forward_analytics scorecard — proving nothing is hardcoded."""
     doc = GEN.generate(root=full_repo, now_iso="FIXED")
-    assert "## 4. Live forward-record analytics" in doc
+    assert "## 5. Live forward-record analytics" in doc
     # the section summary counts come from the mock (2 tracks, 1 beats, 1 thin)
     assert "**2 forward tracks**" in doc
     # per-track realized + excess numbers sourced from the mock
@@ -277,13 +278,13 @@ def test_forward_analytics_missing_reports_unavailable_not_crash(full_repo):
     os.remove(os.path.join(full_repo, "data", "forward_analytics.json"))
     doc = GEN.generate(root=full_repo, now_iso="FIXED")
     # section still present
-    assert "## 4. Live forward-record analytics" in doc
+    assert "## 5. Live forward-record analytics" in doc
     # honest unavailability surfaced
     assert "forward_analytics.json missing" in doc
     assert "data unavailable" in doc
     # other sections untouched
-    assert "## 5. The safety architecture" in doc
-    assert "## 6. The off-code gates" in doc
+    assert "## 6. The safety architecture" in doc
+    assert "## 7. The off-code gates" in doc
 
 
 def test_forward_analytics_integrity_broken_track_unknown(tmp_path):

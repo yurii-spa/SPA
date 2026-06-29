@@ -41,6 +41,7 @@ from paper_trading.engine import PaperTrader
 from message_bus.bus import MessageBus
 from agents.decision_logger import DecisionLogger
 from spa_core.utils.errors import SourceError
+from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.export")
 
@@ -407,12 +408,11 @@ def export_drift_report(ctx: ExportContext) -> None:
     ]
     drift = trader.calculate_drift(_drift_positions, _drift_state.total_capital_usd)
     needs_rebalance = trader.should_rebalance(_drift_positions, _drift_state.total_capital_usd)
-    with open(str(OUTPUT_DIR / "drift_report.json"), "w") as f:
-        json.dump({
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "needs_rebalance": needs_rebalance,
-            "positions": drift,
-        }, f, indent=2)
+    atomic_save({
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "needs_rebalance": needs_rebalance,
+        "positions": drift,
+    }, str(OUTPUT_DIR / "drift_report.json"))
     log.info(f"drift_report.json: {len(drift)} positions, needs_rebalance={needs_rebalance}")
 
 
@@ -450,12 +450,11 @@ def export_apy_trends(ctx: ExportContext) -> None:
     if _pools_for_tracker:
         tracker.record_snapshot(_pools_for_tracker)
     trends = tracker.all_trends(days=7)
-    with open(str(OUTPUT_DIR / "apy_trends.json"), "w") as f:
-        json.dump({
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "trends": trends,
-            "protocols_tracked": len(trends),
-        }, f, indent=2)
+    atomic_save({
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "trends": trends,
+        "protocols_tracked": len(trends),
+    }, str(OUTPUT_DIR / "apy_trends.json"))
 
 
 def _fallback_pools_by_chain(ctx: ExportContext, e: Exception) -> None:

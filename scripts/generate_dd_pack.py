@@ -113,6 +113,9 @@ def load_sources(root: str) -> dict:
         "rwa": load_json(os.path.join(d, "rwa_safety_board.json")),
         "forward": load_json(os.path.join(d, "forward_track_integrity.json")),
         "dry_run": load_json(os.path.join(d, "golive_dry_run.json")),
+        # WS6 — the REALIZED carry truth-table (the honest realized-edge verdict the DD-pack now
+        # cites; reproducible from raw series via `verify_spa.py --check-fundability`).
+        "carry_truth": load_json(os.path.join(d, "carry_truth_table.json")),
         # the verifier's OWN SHA-256 (a DISTINCT field from the chain head — FAIL#4).
         "verifier_sha": verifier_script_sha256(root),
     }
@@ -683,6 +686,23 @@ def _sec_track(doc: SourcedDoc, s: dict):
             "moving any capital.",
             "",
         )
+    # WS6 — the REALIZED edge verdict, sourced from the carry truth-table. NO backtest figure here:
+    # this is the honest realized reading (every sleeve INSUFFICIENT_DATA at this depth), and it is
+    # reproducible from the raw forward series by the verifier (--check-fundability).
+    ct = s.get("carry_truth")
+    if ct is not None:
+        CSRC = "data/carry_truth_table.json"
+        doc.lines(
+            f"- realized edge (REALIZED, not backtest): of **{doc.n(ct.get('n_sleeves'), CSRC)}** "
+            f"forward sleeves, **{doc.n(ct.get('n_above_floor'), CSRC)}** beat the RWA floor "
+            f"(**{doc.pct(ct.get('rwa_floor_apy_pct'), 2, CSRC)}**/yr — sourced) and "
+            f"**{doc.n(ct.get('n_insufficient_data'), CSRC)}** are **INSUFFICIENT_DATA** at this "
+            "track depth. The flagship FixedCarry book is **at-or-below the floor so far**. We do "
+            "NOT claim the desk beats the floor on realized data yet — and a thin track yields "
+            "INSUFFICIENT_DATA with a null bps, never a fabricated zero. Reproduce every realized "
+            "bps from the raw series: `python3 scripts/verify_spa.py --check-fundability data/`.",
+            "",
+        )
     doc.lines(
         "Live, regenerating view: `/track-record` (hash-anchored series + per-bar source labels). "
         "Verify the underlying chain (whole dir → all 7 surfaces): `python3 scripts/verify_spa.py data/`.",
@@ -731,6 +751,19 @@ def _sec_how_to_verify(doc: SourcedDoc, s: dict):
         "proves a value was PUBLISHED, not that it is real.)",
         "4. Cross-check the worked example in §2: its `proof_hash` values are emitted by the same recipe "
         "(`docs/PROOF_CHAIN_SPEC.md`).",
+        "5. **Reproduce every FUNDABILITY number from raw data** — run the verifier with "
+        "`--check-fundability` and it re-derives every realized carry-above-floor bps in "
+        "`carry_truth_table.json` directly from the raw `*_series.json` forward tracks (the same "
+        "floor-leg/carry-leg residual split, inlined, no `spa_core`), and asserts they match:",
+        "",
+        "```",
+        "python3 verify_spa.py --check-fundability data/",
+        "```",
+        "",
+        "   A forged fundability number — or an INSUFFICIENT_DATA masked behind a rounded zero — does "
+        "NOT survive: the recompute from the raw series diverges and the verifier FAILS CLOSED with "
+        "the precise sleeve. This is what makes the realized FUNDABILITY sheet (`docs/FUNDABILITY.md` "
+        "§2, `docs/FUNDABLE_HONEST.md`) literally checkable, not just asserted.",
         "",
     )
     if anchors:

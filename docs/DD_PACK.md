@@ -22,18 +22,18 @@ _A structured, auto-generated, REAL-DATA data-room for an LP / investor due-dili
 
 **DECISION-CHAIN HEAD (re-derived live, the fingerprint of the entire decision history — this is the `--expect-head` value):**
 
-- chain valid: **yes** · length: **590** decisions
-- decision-chain head: `ef7a1f75ead02d2a68ec09a27ebe0e3f09c6befd1419ed600f75d52ecde45132`
+- chain valid: **yes** · length: **718** decisions
+- decision-chain head: `3b0d34f39a881c28d54a94885d1f6a2998f0fab4e1fe10aeecd5785d65e9058f`
 
 Reproduce + assert this exact head yourself (WHOLE data dir → covers ALL 7 surfaces):
 
 ```
-python3 scripts/verify_spa.py --expect-head ef7a1f75ead02d2a68ec09a27ebe0e3f09c6befd1419ed600f75d52ecde45132 data/
+python3 scripts/verify_spa.py --expect-head 3b0d34f39a881c28d54a94885d1f6a2998f0fab4e1fe10aeecd5785d65e9058f data/
 ```
 
 **VERIFIER SCRIPT SHA-256 (a DIFFERENT 64-hex value — the checksum of `scripts/verify_spa.py` itself, NOT the chain head; pin it so you trust the verifier too):**
 
-- verifier-v1.0 · `verify_spa.py` SHA-256: `0f8c270c8c1f0c59ffc7236b1e43c1cb2aa58329faf7839c1961ce83209f81da`
+- verifier-v1.0 · `verify_spa.py` SHA-256: `c43c7241dfa5ae56d91fae26fa714fc3b8d61483bc477c1c896793d9bbb62e1b`
 
 ```
 shasum -a 256 verify_spa.py   # must equal the verifier SHA-256 above
@@ -96,10 +96,10 @@ The very next decision in the chain (its `prev_hash` == the refusal's `entry_has
 
 ## 3. The decision record (refusals AND entries, all hashed)
 
-The public, hash-linked `data/rates_desk/decision_log.jsonl` carries **590** logged decisions:
+The public, hash-linked `data/rates_desk/decision_log.jsonl` carries **718** logged decisions:
 
-- **264 refusals** — of which **162** structural tail-vetoes (toxic carry refused before economics) and **102** size-floor declines (real carry, but below the fundable depth floor).
-- **326 entries** — approved, depth-bounded carry books.
+- **296 refusals** — of which **162** structural tail-vetoes (toxic carry refused before economics) and **134** size-floor declines (real carry, but below the fundable depth floor).
+- **422 entries** — approved, depth-bounded carry books.
 
 Every row — entry AND refusal — is hashed. This is the surface no competitor publishes: **what we refused, and why.** Live human-readable view: `/refusals`. Machine: `/api/rates-desk/refusals`.
 
@@ -155,13 +155,15 @@ SPA contributes the cheapest, most defensible first layer: the transparent, fail
 
 ## 7. The track status — THIN, honestly labeled
 
-- evidenced track days: **7/30** — **accruing, not yet 30**. Only days backed by a real daily-cycle log count; the earlier backfill bars were reset OUT. The low number IS the credibility.
+- evidenced track days: **8/30** — **accruing, not yet 30**. Only days backed by a real daily-cycle log count; the earlier backfill bars were reset OUT. The low number IS the credibility.
 - honest anchor: **2026-06-22** · go-live target: **2026-07-21**.
 - go-live criteria: **27/29 pass** — NOT READY. The remaining blockers are **time-gated** (track days to accrue) — nothing to fix in code.
 
 - forward-track integrity: **all_ok** — **8** forward tracks, **0** failing (no duplicates / gaps / out-of-order / future-dated points).
 
 - go-live dry-run harness: gates verified **inert** — NAV reconciliation **PASS**, live-trading gate active **no**, moves_capital **no**. The fail-closed chain fires WITHOUT moving any capital.
+
+- realized edge (REALIZED, not backtest): of **11** forward sleeves, **0** beat the RWA floor (**3.18%**/yr — sourced) and **11** are **INSUFFICIENT_DATA** at this track depth. The flagship FixedCarry book is **at-or-below the floor so far**. We do NOT claim the desk beats the floor on realized data yet — and a thin track yields INSUFFICIENT_DATA with a null bps, never a fabricated zero. Reproduce every realized bps from the raw series: `python3 scripts/verify_spa.py --check-fundability data/`.
 
 Live, regenerating view: `/track-record` (hash-anchored series + per-bar source labels). Verify the underlying chain (whole dir → all 7 surfaces): `python3 scripts/verify_spa.py data/`.
 
@@ -193,11 +195,18 @@ python3 verify_spa.py data/
 
 3. It re-derives EVERY decision `entry_hash`, every exit-NAV `proof_hash`, the tournament / RWA-NAV / sleeve chains, and the anchor head-checkpoints — and reports the precise `broken_at` if a single byte of history was altered after the fact. Exit 0 = everything reproduces. (Note: the verifier ALSO labels degenerate Sharpe / par-NAV points as ADVISORY — the proof proves a value was PUBLISHED, not that it is real.)
 4. Cross-check the worked example in §2: its `proof_hash` values are emitted by the same recipe (`docs/PROOF_CHAIN_SPEC.md`).
+5. **Reproduce every FUNDABILITY number from raw data** — run the verifier with `--check-fundability` and it re-derives every realized carry-above-floor bps in `carry_truth_table.json` directly from the raw `*_series.json` forward tracks (the same floor-leg/carry-leg residual split, inlined, no `spa_core`), and asserts they match:
 
-The append-only anchor ledger currently holds **12** head-checkpoint(s) (a genesis reset over the security-corrected chain head is auditable in the ledger note).
+```
+python3 verify_spa.py --check-fundability data/
+```
+
+   A forged fundability number — or an INSUFFICIENT_DATA masked behind a rounded zero — does NOT survive: the recompute from the raw series diverges and the verifier FAILS CLOSED with the precise sleeve. This is what makes the realized FUNDABILITY sheet (`docs/FUNDABILITY.md` §2, `docs/FUNDABLE_HONEST.md`) literally checkable, not just asserted.
+
+The append-only anchor ledger currently holds **13** head-checkpoint(s) (a genesis reset over the security-corrected chain head is auditable in the ledger note).
 
 **Honesty contract for this doc:** every numeric token in DD_PACK.md is asserted (by `test_dd_pack.py`) to be present in the set of numbers sourced from `data/` files or hashed decision rows. A number that drifts from its source fails the build. There are no un-sourced claims.
 
 ---
 
-_Regenerated 2026-06-29 01:57 UTC. All numbers live from `data/` (golive_status.json · rates_desk/{rates_desk_promotion,portfolio_capacity}.json · rates_desk/decision_log.jsonl · rates_desk/anchors.jsonl · rwa_safety_board.json · forward_track_integrity.json · golive_dry_run.json) and the hashed decision rows; Liquidator NO-GO figures from `docs/LIQUIDATOR_DERISK.md`. Regenerable via `python3 scripts/generate_dd_pack.py`. Mirror page: `/fundability`._
+_Regenerated 2026-06-29 18:06 UTC. All numbers live from `data/` (golive_status.json · rates_desk/{rates_desk_promotion,portfolio_capacity}.json · rates_desk/decision_log.jsonl · rates_desk/anchors.jsonl · rwa_safety_board.json · forward_track_integrity.json · golive_dry_run.json) and the hashed decision rows; Liquidator NO-GO figures from `docs/LIQUIDATOR_DERISK.md`. Regenerable via `python3 scripts/generate_dd_pack.py`. Mirror page: `/fundability`._

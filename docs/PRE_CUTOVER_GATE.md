@@ -150,9 +150,64 @@ that no code can satisfy — they are listed in every report under
 - **custody** — Gnosis Safe 2-of-3 deployed + keys provisioned (ADR-010).
 - **audit** — external security audit of the execution path signed off.
 - **track_days** — ≥ 30 evidenced honest paper-track days (the go-live gate).
+- **hot_key_hardware** — the signing hot key must be moved off a raw env-var
+  into an **HSM / MPC / hardware signer** before cutover (see WS-5.4 below).
 
 The pre-cutover gate proves the *software* defenses are sound; the cutover itself
-remains an owner decision gated on custody, audit, and track record.
+remains an owner decision gated on custody, audit, track record, **and hardware
+key custody**.
+
+---
+
+## WS-5 — structural execution arming + hot-key custody (owner-gated)
+
+The capital primitives are guarded **structurally** (WS-5.1/5.2): every
+sign/broadcast/send primitive (`eth_signer.sign_transaction`,
+`eth_signer.send_raw_transaction`, `mev_protection.send_protected`) and every
+adapter broadcast chokepoint **self-checks** the global arming flag and
+HARD-RAISES unless it is explicitly armed. The defense no longer depends on a
+decorator sitting on one wrapper method — a direct call to a primitive (the
+classic bypass) is still blocked.
+
+### `SPA_EXEC_ARMED` — THE owner-gated go-live arming flag
+
+| | |
+|---|---|
+| Env var | `SPA_EXEC_ARMED` |
+| Default | **OFF** (any non-affirmative value — unset / `""` / `0` / `false` — is OFF; fail-CLOSED) |
+| Affirmative tokens | `1` / `true` / `yes` / `on` (case-insensitive, trimmed) |
+| Module | `spa_core/execution/arming.py` (`is_exec_armed`, `assert_live_armed`) |
+| Status during paper period | **STAYS OFF the entire paper period** |
+
+Flipping `SPA_EXEC_ARMED` ON **is** the owner-gated go-live cutover for the
+capital primitives. It is deliberately **separate** from `LiveTradingGate`
+(`data/live_trading_gate.json`) and from each adapter's `is_live` flag — none of
+those are touched by the arming layer; the `@live_trading_forbidden` decorator
+stays as defense-in-depth on top. No automated process, test, agent, or sprint
+flips it. The owner flips it as an explicit, deliberate cutover act, in
+conjunction with the custody / audit / track-day blockers above.
+
+### WS-5.4 — hot-key storage is OWNER-GATED (HSM / MPC)
+
+`spa_core/execution/wallet.py` documents that the live signing key is sourced
+from a raw environment variable (`SPA_PRIVATE_KEY`) and explicitly **recommends a
+hardware wallet (Ledger/Trezor) or a KMS** instead. A raw hot key in an env var
+is acceptable for an *inert, never-armed* paper system, but is **NOT acceptable
+for a real cutover**:
+
+- **Requirement (owner-provisioned, off-code):** before `SPA_EXEC_ARMED` is ever
+  flipped ON, the signing key MUST be migrated to an **HSM, MPC signer, or
+  hardware wallet** — the raw-env-var hot key path must not be the live signer.
+- **This is surfaced, not papered over.** The code does **not** silently change
+  key storage — that is the owner's provisioning decision (hardware procurement,
+  KMS/MPC setup, key ceremony). WS-5.4 only makes the requirement explicit and
+  records it as a pre-cutover OWNER-GATED blocker (`hot_key_hardware`).
+- **Consistent MEV posture (WS-5.3):** the raw broadcast path
+  (`eth_signer.send_raw_transaction`) is now fail-CLOSED by default — a
+  Protect-RPC failure ABORTS rather than silently falling through to the public
+  mempool. Public fallback re-enables **only** when the owner explicitly sets
+  `MEV_PROTECT_FALLBACK=true` (default flipped `true → false`), matching the
+  adapter path's fail-CLOSED posture.
 
 ---
 

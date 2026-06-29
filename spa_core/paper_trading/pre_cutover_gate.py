@@ -602,7 +602,7 @@ def _drill_signer_failure(ddir: Path) -> dict:
     def _stub_sign(_tx, _key):
         # Model a signer that fails WITHOUT echoing the key into the message
         # (the contract eth_signer must honour: never log key material).
-        raise RuntimeError("signer failure: nonce gap detected (key redacted)")
+        raise RuntimeError("signer failure: nonce gap detected (key redacted)")  # drill: intentional fault injection
 
     tx_submitted = True
     aborted = False

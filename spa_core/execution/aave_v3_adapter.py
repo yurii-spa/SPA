@@ -63,6 +63,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
+from spa_core.execution.arming import assert_live_armed
 from spa_core.safety.safeguard import live_trading_forbidden
 from spa_core.utils.errors import ConfigError, SourceError, ValidationError
 
@@ -601,7 +602,14 @@ class AaveV3Adapter:
 
         When MEV protection is OFF (or not live), behaviour is the legacy public
         ``eth_sendRawTransaction`` path, byte-for-byte unchanged.
+
+        WS-5.2 STRUCTURAL guard: this broadcast chokepoint self-checks the global
+        SPA_EXEC_ARMED flag BEFORE any submit, closing the asymmetry where T1
+        decorated only ``_sign_and_send`` (T2 decorate ``_send_raw_tx``). A direct
+        call to this method that bypasses the ``@live_trading_forbidden`` wrapper
+        on ``_sign_and_send`` is therefore STILL blocked unless explicitly armed.
         """
+        assert_live_armed("aave_v3._send_raw_tx")
         if (self._mev_enabled() and os.getenv("SPA_EXECUTION_MODE") == "live"):
             from spa_core.execution import mev_protection
             oracle_gwei = self._gas_oracle_gwei()

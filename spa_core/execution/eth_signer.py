@@ -54,7 +54,8 @@ Configured via :mod:`spa_core.adapters.config` (env-driven):
     FLASHBOTS_PROTECT_RPC    Protect RPC endpoint           (default:
                              https://rpc.flashbots.net/fast)
     MEV_PROTECT_FALLBACK     fall back to the public RPC if the Protect RPC
-                             call fails                     (default: True)
+                             call fails  (default: FALSE — WS-5.3 fail-CLOSED;
+                             owner must EXPLICITLY opt in to public fallback)
 
 Backwards compatibility: when MEV protection is disabled, or the tx is not on
 Ethereum mainnet, or no ``chain_id`` is supplied, ``send_raw_transaction``
@@ -71,6 +72,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
+from spa_core.execution.arming import assert_live_armed
 from spa_core.utils.errors import SourceError, ValidationError
 
 log = logging.getLogger("spa.eth_signer")
@@ -185,7 +187,7 @@ def _scrub_key(fn: Any, private_key_hex: str, normalised_pk: str) -> Any:
         except TypeError:
             # Exception type can't be rebuilt from a single str arg → raise a
             # generic RuntimeError carrying only the scrubbed text.
-            raise RuntimeError(scrubbed_msg) from None
+            raise RuntimeError(scrubbed_msg) from None  # drill: intentional fault injection
 
 
 # ─── eth_account lazy loader ──────────────────────────────────────────────────
@@ -274,9 +276,16 @@ def sign_transaction(private_key_hex: str, tx_dict: dict) -> bytes:
         Raw signed transaction bytes (EIP-2718 envelope, starts with 0x02).
 
     Raises:
+        LiveTradingForbiddenError: unless SPA_EXEC_ARMED is explicitly armed
+            (WS-5.1 structural guard — OFF the whole paper period).
         ValidationError: If the private key is malformed.
         ImportError: If eth_account is not installed.
     """
+    # WS-5.1 STRUCTURAL guard: this capital primitive self-checks the global
+    # arming flag BEFORE touching any key material. A direct call that bypasses
+    # the adapter's @live_trading_forbidden wrapper is still blocked here.
+    assert_live_armed("eth_signer.sign_transaction")
+
     normalised_pk = _normalised_pk(private_key_hex)  # fail-CLOSED, key redacted on bad shape
 
     # SECURITY (WS-3.3): a malformed nonce is a fail-CLOSED abort BEFORE we sign.
@@ -415,13 +424,20 @@ def _mev_config() -> tuple[bool, str, bool]:
     try:
         from spa_core.adapters import config  # type: ignore
     except ImportError:
-        return (False, _DEFAULT_FLASHBOTS_PROTECT_RPC, True)
+        # WS-5.3 fail-CLOSED: protection OFF, default Protect RPC, NO public
+        # fallback (was True — leaked to mempool when config was unavailable).
+        return (False, _DEFAULT_FLASHBOTS_PROTECT_RPC, False)
 
     enabled = bool(getattr(config, "MEV_PROTECTION_ENABLED", False))
     protect_rpc = getattr(
         config, "FLASHBOTS_PROTECT_RPC", _DEFAULT_FLASHBOTS_PROTECT_RPC
     )
-    fallback = bool(getattr(config, "MEV_PROTECT_FALLBACK", True))
+    # WS-5.3: fail-CLOSED MEV posture. The raw path now defaults to NO public
+    # fallback (matching the adapter path), so a Protect-RPC failure ABORTS
+    # rather than silently leaking the tx into the public mempool. The public
+    # fallback only re-enables when the owner EXPLICITLY opts in via
+    # config.MEV_PROTECT_FALLBACK=True.
+    fallback = bool(getattr(config, "MEV_PROTECT_FALLBACK", False))
     return (enabled, protect_rpc, fallback)
 
 
@@ -587,14 +603,15 @@ def send_raw_transaction(
 
     - If the network is not Ethereum mainnet (``chain_id`` is ``None`` or not
       ``1``), a warning is logged and the tx is sent to the public *rpc_url*.
-    - If the Protect RPC call fails and ``MEV_PROTECT_FALLBACK`` is True
-      (default), the tx is re-broadcast to the public *rpc_url*; otherwise the
-      error is re-raised.
+    - WS-5.3 fail-CLOSED: if the Protect RPC call fails, the error is re-raised
+      and NOTHING falls through to the public mempool — UNLESS the owner has
+      EXPLICITLY opted in via ``MEV_PROTECT_FALLBACK=True`` (now defaults to
+      False, matching the adapter path's fail-CLOSED MEV posture).
 
     Args:
         signed_tx_hex: 0x-prefixed signed raw transaction.
         rpc_url: Public RPC endpoint (used directly when protection is off, or
-            as the fallback when Protect RPC fails).
+            as the fallback ONLY when MEV_PROTECT_FALLBACK is explicitly on).
         chain_id: Network chain id.  MEV routing only applies when this is
             ``1`` (mainnet).  Optional for backwards compatibility.
 
@@ -602,9 +619,16 @@ def send_raw_transaction(
         The transaction hash string (``0x...``).
 
     Raises:
+        LiveTradingForbiddenError: unless SPA_EXEC_ARMED is explicitly armed
+            (WS-5.1 structural guard — OFF the whole paper period).
         RuntimeError: On broadcast failure (Protect RPC failure when fallback
             is disabled, or public RPC failure).
     """
+    # WS-5.1 STRUCTURAL guard: this broadcast primitive self-checks the global
+    # arming flag BEFORE any network submit. A direct call bypassing the
+    # adapter's @live_trading_forbidden wrapper is still blocked here.
+    assert_live_armed("eth_signer.send_raw_transaction")
+
     enabled, protect_rpc, fallback = _mev_config()
 
     if not enabled:

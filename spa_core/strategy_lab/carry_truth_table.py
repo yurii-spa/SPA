@@ -193,6 +193,10 @@ def build_carry_truth_table(
         "deterministic": True,
         "advisory": True,
         "rwa_floor_apy_pct": round(floor, 4),
+        # the FULL-PRECISION floor actually used in the bps math (round(floor,4) above is the
+        # display form). Published so a standalone verifier can reproduce every bps BYTE-EXACTLY
+        # from the raw series — without it, the 4-dp display floor introduces a 1-LSB bps drift.
+        "rwa_floor_apy_pct_full": float(floor),
         "min_days_for_bps": MIN_DAYS_FOR_BPS,
         "n_sleeves": len(rows),
         "n_above_floor": n_above,
