@@ -60,6 +60,7 @@ const T = {
   tabTournament: { en: 'Tournament', ru: 'Турнир' },
   tabDesks: { en: 'Research desks', ru: 'Исследования' },
   tabProof: { en: 'Refusals & proof', ru: 'Отказы и доказательства' },
+  tabAggressive: { en: 'Aggressive Lab', ru: 'Агрессивная лаб.' },
   tabRisk: { en: 'Risk', ru: 'Риск' },
   tabSystem: { en: 'System', ru: 'Система' },
   tabHelp: { en: 'How to use', ru: 'Как пользоваться' },
@@ -139,6 +140,51 @@ const T = {
     ru: 'Лидерборд недоступен — /api/tournament офлайн.',
   },
   fullTournament: { en: 'Browse all strategies →', ru: 'Все стратегии →' },
+
+  /* aggressive lab (Lane 3 SURFACE — the 10-15% strategies the desk REFUSES, shown WITH the tail) */
+  aggEyebrow: { en: 'Outside RiskPolicy · paper-only · advisory', ru: 'Вне RiskPolicy · только бумага · advisory' },
+  aggTitle: { en: 'Aggressive Lab (advisory)', ru: 'Агрессивная лаборатория (advisory)' },
+  aggBanner: {
+    en: 'OUTSIDE RiskPolicy · paper-only · these are the strategies the desk REFUSES — shown with the risk that comes with the yield, for owner selection. NEVER live-allocated, NEVER on the go-live track.',
+    ru: 'ВНЕ RiskPolicy · только бумага · это стратегии, которые деск ОТКЛОНЯЕТ — показаны с риском, который идёт вместе с доходностью, для выбора владельцем. НИКОГДА не аллоцируются в live, НИКОГДА не на go-live треке.',
+  },
+  aggIntro: {
+    en: 'The desk paper-tests the 10-15% strategies it normally refuses (sUSDe delta-neutral, LRT carry, leverage loops, points farms) so you can SEE them like the tournament — but the headline yield here is RISK-COMPENSATION, not free alpha. Every row shows the tail (max drawdown, the loss replayed through the 2024-26 stress windows, and the risk class) right next to the return. Promoting one to real capital is owner-gated AND custody-gated.',
+    ru: 'Деск тестирует на бумаге 10-15% стратегии, которые обычно отклоняет (sUSDe delta-neutral, LRT carry, leverage loops, points farms), чтобы вы видели их как турнир — но доходность здесь это КОМПЕНСАЦИЯ ЗА РИСК, а не бесплатная альфа. Каждая строка показывает хвост (макс. просадка, убыток в стресс-окнах 2024-26 и класс риска) рядом с доходностью. Перевод в реальный капитал гейтится владельцем И кастодиальным решением.',
+  },
+  aggStrategy: { en: 'Strategy', ru: 'Стратегия' },
+  aggReturn: { en: 'Net return', ru: 'Net доходность' },
+  aggSharpe: { en: 'Sharpe', ru: 'Sharpe' },
+  aggMaxDd: { en: 'Max drawdown', ru: 'Макс. просадка' },
+  aggTail: { en: 'Tail in stress', ru: 'Хвост в стрессе' },
+  aggClass: { en: 'Risk class', ru: 'Класс риска' },
+  aggVerdict: { en: 'Verdict', ru: 'Вердикт' },
+  aggSelected: { en: 'Selected', ru: 'Выбрано' },
+  aggTailNote: {
+    en: 'Tail in stress = the worst one-day mark-down when this strategy is replayed through the canonical 2024-08 ETH crash / 2025-10 USDe unwind / 2026-04 rsETH depeg windows. This is the loss that comes WITH the yield.',
+    ru: 'Хвост в стрессе = худшая однодневная просадка при прогоне стратегии через окна 2024-08 ETH crash / 2025-10 USDe unwind / 2026-04 rsETH depeg. Это убыток, который идёт ВМЕСТЕ с доходностью.',
+  },
+  aggNotTrust: {
+    en: 'Forward track is THIN — this is NOT a trustworthy ranking yet. Metrics shown INSUFFICIENT_DATA / n/a where there are too few realized points (we never show a fabricated Sharpe).',
+    ru: 'Форвард-трек ТОНКИЙ — это пока НЕ доверенный ранкинг. Метрики INSUFFICIENT_DATA / n/a там, где реализованных точек слишком мало (мы никогда не показываем выдуманный Sharpe).',
+  },
+  aggTrust: { en: 'Honest multi-metric scorecard', ru: 'Честный мульти-метрик scorecard' },
+  aggSelectOff: {
+    en: 'Owner selection is OFF (SPA_AGGRESSIVE_LAB_SELECT). Selection is a scaffold only — it does NOTHING to live allocation without an explicit owner + custody decision.',
+    ru: 'Выбор владельца ВЫКЛ (SPA_AGGRESSIVE_LAB_SELECT). Выбор это только заготовка — он НИЧЕГО не делает с live-аллокацией без явного решения владельца + кастоди.',
+  },
+  aggSelectOn: {
+    en: 'Owner selection is ON — strategies may be marked "for consideration". This still does NOTHING to live allocation without an explicit owner + custody decision.',
+    ru: 'Выбор владельца ВКЛ — стратегии можно пометить «на рассмотрение». Это всё равно НИЧЕГО не делает с live-аллокацией без явного решения владельца + кастоди.',
+  },
+  aggUnavailable: {
+    en: 'Scorecard not generated yet — shown honestly as unavailable. No fabricated leaderboard.',
+    ru: 'Scorecard ещё не сгенерирован — честно показан как недоступный. Без выдуманного лидерборда.',
+  },
+  aggOffline: {
+    en: 'Aggressive Lab unavailable — /api/aggressive-lab/scorecard offline.',
+    ru: 'Агрессивная лаборатория недоступна — /api/aggressive-lab/scorecard офлайн.',
+  },
 
   /* edge (WS-1.5 — the real edge surfaced) */
   tabEdge: { en: 'The edge', ru: 'Edge' },
@@ -673,6 +719,8 @@ export default function DashboardLive() {
   const [execRead, setExecRead] = useState(undefined);
   const [redteam, setRedteam] = useState(undefined);
   const [day30, setDay30] = useState(undefined);
+  /* Aggressive Lab (Lane 3 SURFACE) — advisory/paper-only ranking of the strategies the desk REFUSES */
+  const [aggressive, setAggressive] = useState(undefined);
 
   const [phase, setPhase] = useState('connecting'); // connecting | live | offline
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -718,6 +766,7 @@ export default function DashboardLive() {
       ['/api/execution/readiness', setExecRead],
       ['/api/redteam', setRedteam],
       ['/api/v1/day30', setDay30],
+      ['/api/aggressive-lab/scorecard', setAggressive],
     ];
     indep.forEach(([path, setter]) => {
       getJson(path).then((d) => setter(d)).catch(() => setter(null));
@@ -759,7 +808,7 @@ export default function DashboardLive() {
   const surfaceStates = [
     facts, fleet, status, golive, safety, lab, promotion, tournament, refusal, rwaBoard,
     ratesSurface, ratesOpps, ratesDecisions, ratesTrack, exitNav, refusalLog,
-    capturedBook, optimizerAb, governance, execRead, redteam, day30,
+    capturedBook, optimizerAb, governance, execRead, redteam, day30, aggressive,
   ];
   const surfacesTotal = surfaceStates.length;
   const surfacesLive = surfaceStates.filter((s) => s != null).length;
@@ -772,6 +821,7 @@ export default function DashboardLive() {
     ['overview', tr('tabOverview')],
     ['edge', tr('tabEdge')],
     ['proof', tr('tabProof')],
+    ['aggressive', tr('tabAggressive')],
     ['risk', tr('tabRisk')],
     ['desks', tr('tabDesks')],
     ['system', tr('tabSystem')],
@@ -997,6 +1047,15 @@ export default function DashboardLive() {
               refusalLog={refusalLog} promotion={promotion} redteam={redteam}
               lang={lang} tr={tr}
             />
+          </div>
+        </PanelBoundary>
+      )}
+
+      {/* ─────────────────────── AGGRESSIVE LAB (advisory · OUTSIDE RiskPolicy) ── */}
+      {tab === 'aggressive' && (
+        <PanelBoundary lang={lang}>
+          <div id="panel-aggressive" role="tabpanel" aria-labelledby="tab-aggressive" tabIndex={0}>
+            <AggressiveLabSection aggressive={aggressive} lang={lang} tr={tr} />
           </div>
         </PanelBoundary>
       )}
@@ -1440,6 +1499,108 @@ function TournamentSection({ tournament, lang, tr }) {
             </div>
           </div>
           <DeepLink href="/strategies" label={tr('fullTournament')} />
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ───────────────────────────────────── AGGRESSIVE LAB SECTION ─────────────────────
+   The 10-15% strategies the desk REFUSES, paper-tested in parallel and shown WITH the tail so the
+   owner can SEE them (like the tournament) and CHOOSE later. Rendered like the tournament BUT the
+   risk/tail columns (max-DD, tail-in-stress, risk-class) are PROMINENT, not optional — and a giant
+   OUTSIDE-RiskPolicy banner makes clear these are NEVER live-allocated. Offline/unavailable show
+   honest states, NEVER a blank or fabricated leaderboard. */
+function AggressiveLabSection({ aggressive, lang, tr }) {
+  const offline = aggressive === null;            // fetch failed → API offline
+  const loading = aggressive === undefined;       // still polling
+  const available = aggressive && aggressive.available === true;
+  const unavailable = aggressive && aggressive.available === false;  // 200 but no scorecard yet
+  const trustworthy = aggressive ? aggressive.trustworthy === true : false;
+  const selectOn = aggressive ? aggressive.owner_select_enabled === true : false;
+  const rows = (aggressive && Array.isArray(aggressive.strategies)) ? aggressive.strategies : [];
+
+  const classTone = (c) => (c === 'A' ? 'ok' : c === 'B' ? 'teal' : c === 'D' ? 'warn' : 'warn');
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* OUTSIDE-RiskPolicy banner — mandatory, unmissable. */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', padding: '14px 18px', borderRadius: 'var(--r-md)', background: 'rgba(242,109,109,.10)', border: '1px solid rgba(242,109,109,.30)' }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--danger)', flexShrink: 0, marginTop: 6 }} aria-hidden="true" />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ ...mono, fontSize: '.7rem', fontWeight: 700, color: 'var(--danger)', letterSpacing: '.06em' }}>
+            OUTSIDE RISKPOLICY · ADVISORY · PAPER-ONLY
+          </span>
+          <span style={{ fontSize: '.8125rem', color: 'rgba(242,109,109,.85)', lineHeight: 1.5, maxWidth: 820 }}>{tr('aggBanner')}</span>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+        <SectionHead eyebrow={tr('aggEyebrow')} title={tr('aggTitle')} intro={tr('aggIntro')} />
+        <SourceTag live={!offline && !loading} lang={lang} />
+      </div>
+
+      {offline ? (
+        <Panel><p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('aggOffline')}</p></Panel>
+      ) : loading ? (
+        <Panel><p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('connecting')}</p></Panel>
+      ) : unavailable || rows.length === 0 ? (
+        <Panel><p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{tr('aggUnavailable')}</p></Panel>
+      ) : (
+        <>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Chip tone={trustworthy ? 'ok' : 'warn'}>{trustworthy ? tr('aggTrust') : (lang === 'ru' ? 'тонкий трек — не доверенный' : 'thin track — not trustworthy yet')}</Chip>
+            <Chip tone="muted">{selectOn ? tr('aggSelected') + ': on' : (lang === 'ru' ? 'выбор: выкл' : 'selection: off')}</Chip>
+          </div>
+          {!trustworthy && (
+            <p style={{ fontSize: '.75rem', color: 'var(--warn)', lineHeight: 1.5 }}>{tr('aggNotTrust')}</p>
+          )}
+
+          {/* The scorecard — return AND risk AND tail, side by side. Tail/risk columns PROMINENT. */}
+          <div style={{ ...card, overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.8125rem' }}>
+                <thead>
+                  <tr style={{ ...mono, fontSize: '.625rem', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-muted)', background: 'var(--bg-surface-2)' }}>
+                    <th style={{ textAlign: 'left', padding: '10px 14px' }}>{tr('aggStrategy')}</th>
+                    <th style={{ textAlign: 'right', padding: '10px 14px' }}>{tr('aggReturn')}</th>
+                    <th style={{ textAlign: 'right', padding: '10px 14px' }}>{tr('aggSharpe')}</th>
+                    <th style={{ textAlign: 'right', padding: '10px 14px', color: 'var(--danger)' }}>{tr('aggMaxDd')}</th>
+                    <th style={{ textAlign: 'right', padding: '10px 14px', color: 'var(--danger)' }} title={tr('aggTailNote')}>{tr('aggTail')} ⓘ</th>
+                    <th style={{ textAlign: 'left', padding: '10px 14px' }}>{tr('aggClass')}</th>
+                    <th style={{ textAlign: 'left', padding: '10px 14px' }}>{tr('aggVerdict')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => {
+                    const sh = r.sharpe;
+                    const shTxt = (sh == null || Number.isNaN(Number(sh)) || Number(sh) > 10)
+                      ? (lang === 'ru' ? 'n/a' : 'n/a') : Number(sh).toFixed(2);
+                    return (
+                      <tr key={r.id || i} style={{ borderTop: '1px solid var(--border)' }}>
+                        <td style={{ ...mono, padding: '10px 14px', color: 'var(--text-primary)' }}>
+                          {(r.name || r.id || '?')}
+                          {r.mandate && <span style={{ display: 'block', fontSize: '.6875rem', color: 'var(--text-faint)' }}>{r.mandate}</span>}
+                        </td>
+                        <td style={{ ...mono, padding: '10px 14px', textAlign: 'right', color: 'var(--ok)', fontWeight: 600 }}>{fmtPct(r.net_return_pct, 1)}</td>
+                        <td style={{ ...mono, padding: '10px 14px', textAlign: 'right', color: 'var(--text-muted)' }} title={shTxt === 'n/a' ? (lang === 'ru' ? 'недостаточно данных' : 'INSUFFICIENT_DATA') : ''}>{shTxt}</td>
+                        <td style={{ ...mono, padding: '10px 14px', textAlign: 'right', color: 'var(--danger)', fontWeight: 600 }}>{fmtPct(r.max_drawdown_pct, 1)}</td>
+                        <td style={{ ...mono, padding: '10px 14px', textAlign: 'right', color: 'var(--danger)', fontWeight: 700 }}>{fmtPct(r.tail_loss_in_stress_pct, 1)}</td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <Chip tone={classTone(r.risk_class)} title={r.risk_class_label || ''}>{r.risk_class || '?'}{r.risk_shape ? ' · ' + r.risk_shape : ''}</Chip>
+                        </td>
+                        <td style={{ ...mono, padding: '10px 14px', color: 'var(--text-secondary)', fontSize: '.6875rem' }}>{r.verdict || '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <p style={{ fontSize: '.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+            {selectOn ? tr('aggSelectOn') : tr('aggSelectOff')}
+          </p>
         </>
       )}
     </div>

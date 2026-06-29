@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+    Aggressive-Lab standing DAILY runner (ADVISORY) — the parallel paper-test of the 10-15%
+    strategies the desk REFUSES, shown WITH the tail so the owner can SEE and CHOOSE later.
+    Module: spa_core.strategy_lab.aggressive_lab_runner
+    Service: accrues the forward paper track (Lane 1) + re-ranks the honest multi-metric scorecard
+             (Lane 2) → grows data/aggressive_lab/. Idempotent per UTC day; fail-CLOSED (a missing
+             producer is recorded, never fabricated).
+    ADVISORY ONLY: advisory=True / outside_riskpolicy=True throughout — moves NO live capital and
+                   NEVER touches the go-live track (data/equity_curve_daily.json).
+    Schedule: daily at 08:20 (StartCalendarInterval) + RunAtLoad. Runs after the daily cycle.
+    Writes:   data/aggressive_lab/{scorecard.json (Lane 2), <id>/realized_series.jsonl (Lane 1),
+              runner_status.json} (atomic writes).
+    Exit:     0 = success (a tick or a recorded gap is both success — fail-CLOSED).
+    CLI:      python3 -m spa_core.strategy_lab.aggressive_lab_runner  (one tick)
+    Install (ONLY via the gate — see CLAUDE.md FORBIDDEN rule #11):
+      bash scripts/check_agent_before_deploy.sh aggressive_lab
+    -->
+
+    <key>Label</key>
+    <string>com.spa.aggressive_lab</string>
+
+    <!-- launchd CANNOT exec miniconda-python directly (exit 78 EX_CONFIG);
+         runs via bash wrapper (scripts/agent_aggressive_lab.sh -> agent_template.sh). -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_aggressive_lab.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <!-- Daily at 08:20 local (after com.spa.daily_cycle 08:00 UTC window). -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>8</integer>
+        <key>Minute</key>
+        <integer>20</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Do not relaunch while a previous tick is still running -->
+    <key>ThrottleInterval</key>
+    <integer>300</integer>
+
+    <!-- /tmp logs ONLY — launchd (no Full Disk Access) cannot write under ~/Documents (exit 78).
+         The wrapper writes the timestamped log to /tmp/spa_aggressive_lab.log itself. -->
+    <key>StandardOutPath</key>
+    <string>/tmp/spa_aggressive_lab.launchd.out</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/spa_aggressive_lab.launchd.err</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/yuriikulieshov</string>
+    </dict>
+</dict>
+</plist>

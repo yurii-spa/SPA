@@ -158,6 +158,7 @@ app.add_middleware(RateLimitMiddleware)
 # ─── Routers ─────────────────────────────────────────────────────────────────
 # Order preserved from the monolith's definition order so OpenAPI listing is stable.
 from spa_core.api.routers import (  # noqa: E402
+    aggressive_lab,
     competitive_watch,
     live,
     misc,
@@ -174,6 +175,9 @@ from spa_core.api.routers import (  # noqa: E402
 app.include_router(misc.router)
 app.include_router(tier1.router)
 app.include_router(strategy_lab.router)
+# Aggressive Lab (Lane 3 SURFACE) — advisory/paper-only ranking of the 10-15% strategies the desk
+# REFUSES, shown WITH the tail. OUTSIDE_RiskPolicy; never live-allocated, never touches go-live.
+app.include_router(aggressive_lab.router)
 app.include_router(rates_desk.router)
 app.include_router(optimizer.router)
 app.include_router(v1.router)
@@ -209,6 +213,9 @@ sse_stream = misc.sse_stream
 ws_agents = misc.ws_agents
 get_apy_trends = misc.get_apy_trends
 get_protocol_history = misc.get_protocol_history
+
+get_aggressive_lab_scorecard = aggressive_lab.get_aggressive_lab_scorecard
+get_aggressive_lab_strategy = aggressive_lab.get_aggressive_lab_strategy
 
 get_strategy_lab = strategy_lab.get_strategy_lab
 get_strategy_lab_promotion = strategy_lab.get_strategy_lab_promotion
