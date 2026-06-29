@@ -191,16 +191,41 @@ def _history_exit_liquidity(deep: dict, market_id: str, underlying: str, as_of: 
     return _proxy_from_tvl(best) if best is not None else None
 
 
+def _depth_feed_exit_liquidity(depth_feed: Optional[dict], market_id: str,
+                               underlying: str) -> Optional[float]:
+    """Lane-B B1.6: priority (c) — the per-market DEPTH-AT-SIZE feed
+    (`depth_at_size.build_depth_at_size`). It surfaces the SAME §9 single-market exit liquidity, so a
+    $1M+ row that the surface/history could not source resolves to a REAL conservative bound WHERE the
+    depth feed HAS it (still fail-CLOSED where it doesn't — a flagged/absent feed row → None, never a
+    fabrication). SINGLE-market only (depth_for_market never aggregates)."""
+    if not isinstance(depth_feed, dict):
+        return None
+    from spa_core.strategy_lab.rates_desk import depth_at_size as das
+    row = das.depth_for_market(depth_feed, market_id, underlying)
+    if not isinstance(row, dict):
+        return None
+    v = _to_float(row.get("exit_liquidity_usd"))
+    return v if (v is not None and v > 0) else None
+
+
 def _resolve_depth(surface: dict, deep: dict, market_id: str, underlying: str, as_of: str,
-                   params: RatePolicyParams) -> Tuple[Optional[float], str]:
-    """Resolve the SINGLE-market contemporaneous exit depth, priority surface → history.
-    Returns (depth_usd_or_None, data_source). fail-CLOSED: None if neither source has it."""
+                   params: RatePolicyParams, depth_feed: Optional[dict] = None) -> Tuple[Optional[float], str]:
+    """Resolve the SINGLE-market contemporaneous exit depth, priority surface → history → depth-feed.
+    Returns (depth_usd_or_None, data_source). fail-CLOSED: None if no source has it.
+
+    B1.6 hole closure: when the surface AND the history both miss a market (the $1M+ rows that used to
+    publish a permanent `insufficient_contemporaneous_depth` hole), we consult the Lane-B depth-at-size
+    feed as a LAST resort. It carries the same §9 single-market exit liquidity, so the hole resolves to
+    a real conservative bound WHERE depth exists — and STAYS a hole where it doesn't (no fabrication)."""
     d = _surface_exit_liquidity(surface, market_id, underlying)
     if d is not None and d > 0:
         return d, "rate_surface.exit_liquidity_usd"
     d = _history_exit_liquidity(deep, market_id, underlying, as_of, params)
     if d is not None and d > 0:
         return d, "pendle_pt_history.tvl_usd×impact_band"
+    d = _depth_feed_exit_liquidity(depth_feed, market_id, underlying)
+    if d is not None and d > 0:
+        return d, "depth_at_size.exit_liquidity_usd"
     return None, "none"
 
 
@@ -647,6 +672,7 @@ def build_portfolio_schedule(
     params: RatePolicyParams,
     tickets: Tuple[int, ...],
     data_dir: Path,
+    depth_feed: Optional[dict] = None,
 ) -> dict:
     """The PORTFOLIO-WIDE liquidation schedule — the SAME conservative engine applied to EVERY open
     position AND EVERY priced market on the surface, each against its OWN single-market contemporaneous
@@ -665,7 +691,7 @@ def build_portfolio_schedule(
     for bk in open_books:
         mid = bk["market_id"]
         depth_usd, data_source = _resolve_depth(
-            surface, deep, mid, bk["underlying"], bk.get("as_of"), params)
+            surface, deep, mid, bk["underlying"], bk.get("as_of"), params, depth_feed)
         markets.append(_market_schedule(
             market_id=mid, underlying=bk["underlying"], depth_usd=depth_usd,
             as_of=bk.get("as_of"), data_source=data_source, gross_usd=bk.get("gross_usd"),
@@ -744,6 +770,9 @@ def build_exit_nav_schedule(
         surface = _read_json(dd / "rates_desk" / "rate_surface.json") or {}
     if deep is None:
         deep = _read_json(dd / "rates_desk" / "pendle_pt_history.json") or {}
+    # B1.6: the Lane-B depth-at-size feed (last-resort §9 depth for the $1M+ hole rows). Read-only,
+    # fail-CLOSED (a missing feed → None → the hole stays a hole, never a fabricated fill).
+    depth_feed = _read_json(dd / "rates_desk" / "depth_at_size.json")
 
     as_of = surface.get("as_of") if isinstance(surface, dict) else None
 
@@ -767,7 +796,7 @@ def build_exit_nav_schedule(
     gross_book = _to_float(book.get("gross_usd")) or 0.0
     book_source = book.get("source", book_source)
 
-    depth_usd, data_source = _resolve_depth(surface, deep, market_id, underlying, book_as_of, params)
+    depth_usd, data_source = _resolve_depth(surface, deep, market_id, underlying, book_as_of, params, depth_feed)
 
     # ── per-ticket rows. We exit the TICKET notional (the investor's requested pull). The `as_of`
     #    on every row is the SURFACE/position date — never the wall clock. ──
@@ -792,7 +821,7 @@ def build_exit_nav_schedule(
 
     # ── PORTFOLIO-WIDE schedule: EVERY open position + EVERY priced market, each on its OWN
     #    single-market depth (NEVER aggregated). Removes the "you only show your best market" attack. ──
-    portfolio = build_portfolio_schedule(surface, deep, params, tickets, dd)
+    portfolio = build_portfolio_schedule(surface, deep, params, tickets, dd, depth_feed)
 
     result = {
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),

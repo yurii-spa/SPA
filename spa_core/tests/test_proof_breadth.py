@@ -384,7 +384,9 @@ def test_generalized_verifier_is_zero_dependency():
     src = _VERIFY.read_text(encoding="utf-8")
     assert "import spa_core" not in src and "from spa_core" not in src
     tree = ast.parse(src)
-    stdlib_ok = {"argparse", "hashlib", "json", "sys", "pathlib", "typing", "__future__"}
+    # datetime: stdlib, used by the WS6 --check-fundability date math (kept in sync with the sibling
+    # test_verify_spa_standalone.py allowlist — the zero-dependency contract is "stdlib only").
+    stdlib_ok = {"argparse", "hashlib", "json", "sys", "pathlib", "typing", "__future__", "datetime"}
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for n in node.names:

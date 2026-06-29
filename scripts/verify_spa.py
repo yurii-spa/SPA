@@ -28,6 +28,8 @@ ONE exit code. The surfaces:
   (E) tournament ranking chain    — tournament/decision_log.jsonl  (WORKSTREAM 2 proof-breadth)
   (F) RWA-backstop NAV proof      — rwa_backstop/nav_proof.jsonl   (WORKSTREAM 2 proof-breadth)
   (G) sleeve forward-series proofs — rates_desk/paper/*_series_proof.jsonl (WORKSTREAM 2, many files)
+  (H) underwriting report chain   — underwriting/report_proof.jsonl (LANE C moat: the hash-anchored,
+      publicly-verifiable underwriting artifact; per-section proof_hash + chained + refusal-consistency)
 
 (E)/(F)/(G) learn from the two flaws the rates-desk red-team caught: each proof covers the published
 OUTPUTS (rank/strategy/net_return/sharpe · tvl_weighted_nav/liq_nav_gap · equity/apy/book-counts),
@@ -139,6 +141,21 @@ SLEEVE_EVENT_TYPE = "sleeve_forward_point"
 SLEEVE_GENESIS_PREV = "0" * 64
 SLEEVE_ENVELOPE_KEYS = ("seq", "date", "prev_hash", "entry_hash")
 
+# (H) underwriting report (LANE C — the productized, hash-anchored, publicly-verifiable underwriting
+# artifact, the moat sold as risk infrastructure). data/underwriting/report_proof.jsonl is the
+# section chain: one row per report SECTION (meta/refusals/depth/realized/capacity), single-genesis,
+# contiguous seq, prev-linked. EACH section carries TWO anchors verified here:
+#   • its own ``proof_hash``  = sha256(canonical(section_body − {proof_hash, seq, prev_hash, entry_hash}))
+#   • its chain ``entry_hash`` = sha256(canonical({seq, section_id, event_type, payload, prev_hash}))
+#     where payload = the section MINUS {seq, prev_hash, entry_hash} (it still carries its proof_hash),
+#     and event_type = the fixed UNDERWRITING_EVENT_TYPE.
+# Forging a published section value (e.g. laundering survives_at_aum_usd in the realized section, or
+# claiming a REFUSED market as underwritten capacity), or reordering/dropping a section, DIVERGES the
+# recompute. NO spa_core import — the recipe is inlined per docs/UNDERWRITING_REPORT_SPEC.md.
+UNDERWRITING_EVENT_TYPE = "underwriting_report_section"
+UNDERWRITING_GENESIS_PREV = "0" * 64
+UNDERWRITING_ENVELOPE_KEYS = ("seq", "prev_hash", "entry_hash")
+
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 # canonical JSON + the two published hash recipes (inlined per the spec — no shared lib)
@@ -215,6 +232,30 @@ def recompute_sleeve_entry_hash(row: dict) -> str:
         "kind": SLEEVE_EVENT_TYPE,
         "payload": payload,
         "prev_hash": row.get("prev_hash"),
+    })
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def recompute_underwriting_section_proof_hash(section: dict) -> str:
+    """(H) underwriting — the per-section proof_hash: SHA-256 over canonical(section_body) where the
+    body is the section MINUS {proof_hash, seq, prev_hash, entry_hash}. Independent of chain position;
+    a reviewer recomputes it from the published section content alone."""
+    body = {k: v for k, v in section.items()
+            if k not in ("proof_hash", "seq", "prev_hash", "entry_hash")}
+    return hashlib.sha256(_canonical(body).encode("utf-8")).hexdigest()
+
+
+def recompute_underwriting_entry_hash(section: dict) -> str:
+    """(H) underwriting — the chain entry_hash: SHA-256 over canonical({seq, section_id, event_type,
+    payload, prev_hash}) where payload = the section minus the three envelope keys (it still carries
+    its own proof_hash, so the chain binds the section proof) and event_type = the fixed constant."""
+    payload = {k: v for k, v in section.items() if k not in UNDERWRITING_ENVELOPE_KEYS}
+    canonical = _canonical({
+        "seq": section.get("seq"),
+        "section_id": section.get("section_id"),
+        "event_type": UNDERWRITING_EVENT_TYPE,
+        "payload": payload,
+        "prev_hash": section.get("prev_hash"),
     })
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
@@ -384,6 +425,76 @@ def verify_sleeve_chain(rows: List[dict]) -> dict:
         expected_prev = row["entry_hash"]
         head_hash = row["entry_hash"]
     return {"valid": True, "length": n, "broken_at": None, "head_hash": head_hash}
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# (H) underwriting report section chain — LANE C moat (per-section proof_hash + chained entry_hash)
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# refusal-consistency: the verdict the refusal section published as REFUSE for a market must NEVER
+# appear as an underwritten-capacity market. A reviewer checks this from the public sections alone.
+_UNDERWRITING_REFUSE = "REFUSE"
+
+
+def verify_underwriting_chain(rows: List[dict]) -> dict:
+    """Walk underwriting report SECTIONS in seq order; at each require (1) seq == idx, (2) prev_hash ==
+    previous entry_hash (genesis '0'*64), (3) the per-section proof_hash recomputes over the body,
+    (4) the chain entry_hash recomputes. THEN enforce the cross-section REFUSAL-CONSISTENCY property:
+    a market the ``refusals`` section marked REFUSE must NOT appear in the ``capacity`` section's
+    ``capacity_markets`` (a refused market cannot be sold as underwritten capacity). fail-CLOSED on
+    any malformed section or a broken property. Returns {valid, length, broken_at, head_hash,
+    published, refusal_consistent}. Empty is vacuously valid.
+
+    A forged published section value (e.g. a laundered survives_at_aum_usd, a section reorder/drop, or
+    a REFUSED market smuggled into capacity) → precise broken_at / refusal_consistent=False."""
+    expected_prev = UNDERWRITING_GENESIS_PREV
+    head_hash: Optional[str] = None
+    n = len(rows)
+    refused: set = set()
+    capacity_syms: set = set()
+    published: Optional[bool] = None
+
+    def _fail(idx: int) -> dict:
+        return {"valid": False, "length": n, "broken_at": idx, "head_hash": None,
+                "published": published, "refusal_consistent": None}
+
+    for idx, sec in enumerate(rows):
+        if not isinstance(sec, dict):
+            return _fail(idx)
+        if sec.get("seq") != idx:
+            return _fail(idx)
+        if sec.get("prev_hash") != expected_prev:
+            return _fail(idx)
+        if recompute_underwriting_section_proof_hash(sec) != sec.get("proof_hash"):
+            return _fail(idx)
+        try:
+            recomputed = recompute_underwriting_entry_hash(sec)
+        except Exception:  # noqa: BLE001 — malformed section → fail-CLOSED
+            return _fail(idx)
+        if recomputed != sec.get("entry_hash"):
+            return _fail(idx)
+        # gather the cross-section refusal-consistency facts from the verified (untampered) sections.
+        sid = sec.get("section_id")
+        if sid == "meta":
+            published = sec.get("published")
+        elif sid == "refusals":
+            for v in (sec.get("verdicts") or []):
+                if isinstance(v, dict) and v.get("verdict") == _UNDERWRITING_REFUSE:
+                    refused.add(v.get("symbol"))
+        elif sid == "capacity":
+            for m in (sec.get("capacity_markets") or []):
+                if isinstance(m, dict):
+                    capacity_syms.add(m.get("symbol") or m.get("market_id") or m.get("underlying"))
+        expected_prev = sec["entry_hash"]
+        head_hash = sec["entry_hash"]
+
+    # REFUSAL-CONSISTENCY (red-team #3): no REFUSED market may be sold as underwritten capacity.
+    smuggled = sorted(str(s) for s in (refused & capacity_syms) if s is not None)
+    refusal_consistent = (len(smuggled) == 0)
+    if not refusal_consistent:
+        return {"valid": False, "length": n, "broken_at": None, "head_hash": head_hash,
+                "published": published, "refusal_consistent": False, "smuggled_markets": smuggled}
+    return {"valid": True, "length": n, "broken_at": None, "head_hash": head_hash,
+            "published": published, "refusal_consistent": True}
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -604,8 +715,10 @@ def _read_json(path: Path) -> Tuple[Optional[dict], Optional[str]]:
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
-# (H) FUNDABILITY reproduction — recompute every realized carry-above-floor bps from the RAW series
-#     and assert it equals the PUBLISHED carry_truth_table.json (WORKSTREAM 6 "Prove the Edge")
+# FUNDABILITY reproduction (--check-fundability) — recompute every realized carry-above-floor bps from
+#     the RAW series and assert it equals the PUBLISHED carry_truth_table.json (WORKSTREAM 6
+#     "Prove the Edge"). NOTE: this is an opt-in reproduction check, NOT a lettered proof-chain surface
+#     (the lettered surfaces are A–H); it is gated behind --check-fundability.
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 # This is the WS6 "don't trust us, check us" surface for the FUNDABILITY sheet: a reviewer must be
 # able to reproduce EVERY realized fundability number from the raw forward series alone, with no
@@ -810,6 +923,12 @@ def _sniff_jsonl_kind(p: Path) -> Optional[str]:
     if not isinstance(row, dict):
         return None
     keys = set(row.keys())
+    # (H) underwriting report section — entry_hash chain carrying a section_id + its own proof_hash,
+    # whose chain kind constant is the underwriting event type. Recognized BEFORE the generic
+    # entry_hash buckets so a section row never mis-classifies as a decision/sleeve chain.
+    if (row.get("kind") == UNDERWRITING_EVENT_TYPE
+            or ("entry_hash" in keys and "section_id" in keys and "proof_hash" in keys)):
+        return "underwriting"
     # (C) anchors — head-checkpoint envelope, no per-row entry/proof body.
     if {"head_hash", "chain_length"} <= keys and "entry_hash" not in keys and "proof_hash" not in keys:
         return "anchors"
@@ -852,6 +971,8 @@ def _classify_by_name(p: Path) -> Optional[str]:
         return "equity_track"
     if name.endswith("anchors.jsonl"):
         return "anchors"
+    if name.endswith("report_proof.jsonl"):
+        return "underwriting"
     return None
 
 
@@ -865,7 +986,8 @@ def _place(kind: Optional[str], p: Path, found: dict) -> None:
             found["sleeve_proofs"].append(p)
         return
     bucket = {"tournament": "tournament", "nav_proof": "nav_proof", "decision_log": "decision_log",
-              "equity_track": "equity_track", "anchors": "anchors", "exit_nav": "exit_nav"}.get(kind)
+              "equity_track": "equity_track", "anchors": "anchors", "exit_nav": "exit_nav",
+              "underwriting": "underwriting"}.get(kind)
     if bucket and found.get(bucket) is None:
         found[bucket] = p
 
@@ -939,7 +1061,7 @@ def _resolve_inputs(args_paths: List[str]) -> dict:
     discovered — used to REQUIRE a matching proof (FAIL#5 coverage enforcement)."""
     found: dict = {
         "decision_log": None, "exit_nav": None, "anchors": None, "equity_track": None,
-        "tournament": None, "nav_proof": None, "sleeve_proofs": [],
+        "tournament": None, "nav_proof": None, "sleeve_proofs": [], "underwriting": None,
         # producers that MUST carry a proof (FAIL#5). Recorded for coverage enforcement in run().
         "sleeve_producers": [],
     }
@@ -948,7 +1070,7 @@ def _resolve_inputs(args_paths: List[str]) -> dict:
     # so a stray/misnamed file sitting at one of these names still lands in its TRUE bucket and cannot
     # displace the real surface. Sleeve proofs (*_series_proof.jsonl) are MANY files.
     _DISCOVER = ("decision_log.jsonl", "exit_nav.json", "anchors.jsonl", "equity_track.jsonl",
-                 "nav_proof.jsonl")
+                 "nav_proof.jsonl", "report_proof.jsonl")
     for raw in args_paths:
         p = Path(raw)
         if p.is_dir():
@@ -997,7 +1119,7 @@ def _resolve_inputs(args_paths: List[str]) -> dict:
 # be present, and a missing one FAILS CLOSED (a renamed/hidden surface can no longer silently pass).
 _SURFACE_LETTERS = {
     "A": "decision_log", "B": "exit_nav", "C": "anchors", "D": "equity_track",
-    "E": "tournament", "F": "nav_proof", "G": "sleeve_proofs",
+    "E": "tournament", "F": "nav_proof", "G": "sleeve_proofs", "H": "underwriting",
 }
 
 
@@ -1074,6 +1196,7 @@ def run(paths: List[str], expect_head: Optional[str] = None,
         "tournament": None,
         "nav_proof": None,
         "sleeves": None,
+        "underwriting": None,
         "fundability": None,
         "errors": [],
         "ok": False,
@@ -1112,7 +1235,7 @@ def run(paths: List[str], expect_head: Optional[str] = None,
             report["errors"].append(
                 "no recognizable public files supplied (decision_log.jsonl / exit_nav.json / "
                 "anchors.jsonl / equity_track.jsonl / tournament/decision_log.jsonl / "
-                "rwa_backstop/nav_proof.jsonl / *_series_proof.jsonl)")
+                "rwa_backstop/nav_proof.jsonl / *_series_proof.jsonl / underwriting/report_proof.jsonl)")
         report["ok"] = (len(report["errors"]) == 0)
         return report
 
@@ -1223,6 +1346,26 @@ def run(paths: List[str], expect_head: Optional[str] = None,
         report["sleeves"] = {"valid": all_valid, "n_sleeves": len(per_sleeve),
                              "per_sleeve": per_sleeve}
 
+    # (H) underwriting report section chain — LANE C moat (per-section proof_hash + chained + the
+    # cross-section refusal-consistency property: a REFUSED market may not be underwritten capacity).
+    if inputs["underwriting"]:
+        rows, err = _read_jsonl(inputs["underwriting"])
+        if err is not None:
+            report["errors"].append(f"underwriting: {err}")
+            report["underwriting"] = {"valid": False, "broken_at": None, "head_hash": None,
+                                      "length": None, "refusal_consistent": None}
+        else:
+            res = verify_underwriting_chain(rows)
+            report["underwriting"] = res
+            if not res["valid"]:
+                if res.get("refusal_consistent") is False:
+                    report["errors"].append(
+                        "underwriting: REFUSAL-CONSISTENCY broken — REFUSED market(s) "
+                        f"{res.get('smuggled_markets')} appear as underwritten capacity")
+                else:
+                    report["errors"].append(
+                        f"underwriting: chain broken at section {res['broken_at']}")
+
     # FAIL#5 — coverage enforcement: a present producer must carry a verified, non-empty proof.
     _enforce_coverage(inputs, report)
 
@@ -1244,7 +1387,7 @@ def run(paths: List[str], expect_head: Optional[str] = None,
             "A": bool(inputs["decision_log"]), "B": bool(inputs["exit_nav"]),
             "C": bool(inputs["anchors"]), "D": bool(inputs["equity_track"]),
             "E": bool(inputs["tournament"]), "F": bool(inputs["nav_proof"]),
-            "G": bool(inputs["sleeve_proofs"]),
+            "G": bool(inputs["sleeve_proofs"]), "H": bool(inputs["underwriting"]),
         }
         report["expected_surfaces"] = list(expect_surfaces)
         for letter in expect_surfaces:
@@ -1385,10 +1528,19 @@ def _print_human(report: dict) -> None:
             print(f"    {Path(s['file']).name:42s}: valid={s.get('valid')}  "
                   f"rows={s.get('length')}  broken_at={s.get('broken_at')}  head={s.get('head_hash')}")
 
+    uw = report["underwriting"]
+    if uw is not None:
+        print(f"[H] underwriting   : valid={uw.get('valid')}  sections={uw.get('length')}  "
+              f"broken_at={uw.get('broken_at')}  refusal_consistent={uw.get('refusal_consistent')}  "
+              f"published={uw.get('published')}")
+        print(f"    head_hash      : {uw.get('head_hash')}")
+        if uw.get("smuggled_markets"):
+            print(f"    ✗ refused markets smuggled into capacity: {uw['smuggled_markets']}")
+
     fd = report.get("fundability")
     if fd is not None:
         print("-" * 78)
-        print(f"[H] fundability    : valid={fd.get('valid')}  reproduced="
+        print(f"[fundability]      : valid={fd.get('valid')}  reproduced="
               f"{fd.get('n_matched')}/{fd.get('n_checked')} sleeve carry-bps from RAW series"
               + (f"  floor={fd.get('rwa_floor_apy_pct')}%" if fd.get("rwa_floor_apy_pct") is not None else ""))
         if fd.get("error"):
@@ -1431,8 +1583,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                          "digest. NOTE: this is the chain HEAD, NOT the verifier script's own SHA-256.")
     ap.add_argument("--expect-surfaces", default=None,
                     help="comma-separated surface letters (A=decision_log B=exit_nav C=anchors "
-                         "D=equity_track E=tournament F=nav_proof G=sleeve) that MUST be present; a "
-                         "missing one fails CLOSED (so a renamed/hidden surface can't pass silently)")
+                         "D=equity_track E=tournament F=nav_proof G=sleeve H=underwriting) that MUST "
+                         "be present; a missing one fails CLOSED (so a renamed/hidden surface can't "
+                         "pass silently)")
     ap.add_argument("--json", action="store_true", help="emit the machine-readable verdict as JSON")
     ap.add_argument("--check-fundability", action="store_true",
                     help="ALSO reproduce every realized carry-above-floor bps in carry_truth_table.json "

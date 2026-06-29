@@ -1,0 +1,17 @@
+{
+  "model": "rates_desk_realized_at_size",
+  "deterministic": true,
+  "llm_forbidden": true,
+  "is_advisory": true,
+  "as_of": "2026-06-29",
+  "data_source": "data/rates_desk/paper/*_series.json (Lane B realized forward track)",
+  "verdict": "SURVIVES_AT",
+  "survives_at_aum_usd": 5000000.0,
+  "floor_plus_bps_at_5M": 42.0,
+  "rwa_floor_apy_pct": 3.4,
+  "markets": [
+    {"symbol": "susds", "underlying": "susds", "realized_above_floor_bps": 91.0, "survives": true},
+    {"symbol": "ptUSDe", "underlying": "ptUSDe", "realized_above_floor_bps": 38.0, "survives": true},
+    {"symbol": "ezeth", "underlying": "ezeth", "realized_above_floor_bps": -120.0, "survives": false}
+  ]
+}

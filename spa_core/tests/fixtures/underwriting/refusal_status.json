@@ -1,0 +1,11 @@
+{
+  "model": "rates_desk_refusal_engine",
+  "advisory": true,
+  "llm_forbidden": true,
+  "latest_date": "2026-06-29",
+  "underlyings": [
+    {"symbol": "susds", "group": "stablecoin-yield", "verdict": "SAFE", "tail_score": 0.04, "reason": "SAFE - within band"},
+    {"symbol": "ptUSDe", "group": "PT-fixed", "verdict": "WATCH", "tail_score": 0.31, "reason": "WATCH - elevated funding"},
+    {"symbol": "ezeth", "group": "LRT(restaking)", "verdict": "REFUSE", "tail_score": 0.62, "reason": "REFUSE - structural tail above cap"}
+  ]
+}

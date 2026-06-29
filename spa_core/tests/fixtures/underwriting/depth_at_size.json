@@ -1,0 +1,10 @@
+{
+  "model": "rates_desk_depth_at_size",
+  "deterministic": true,
+  "as_of": "2026-06-29",
+  "markets": [
+    {"symbol": "susds", "depth_usd": 18000000.0, "max_safe_size_usd": 9000000.0},
+    {"symbol": "ptUSDe", "depth_usd": 6000000.0, "max_safe_size_usd": 3000000.0},
+    {"symbol": "ezeth", "depth_usd": 2000000.0, "max_safe_size_usd": 0.0}
+  ]
+}
