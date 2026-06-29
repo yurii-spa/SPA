@@ -41,7 +41,7 @@ const RWA_FLOOR_FALLBACK = 3.4; // structural benchmark, labeled
 const NA = '—';
 
 /* ─────────────────────────────────────────────────────────── i18n ───────────────── */
-const T = {
+export const T = {
   paperBanner: { en: 'PAPER TRADING', ru: 'БУМАЖНАЯ ТОРГОВЛЯ' },
   paperSub: {
     en: 'Virtual $100,000 USDC — no real capital at risk',
@@ -185,6 +185,41 @@ const T = {
     en: 'Aggressive Lab unavailable — /api/aggressive-lab/scorecard offline.',
     ru: 'Агрессивная лаборатория недоступна — /api/aggressive-lab/scorecard офлайн.',
   },
+
+  /* annual contrast (the owner's sales surface — 15% aggressive vs the desk's steady ~5%, dated) */
+  acTitle: { en: 'What chasing 15% actually costs — vs the desk’s steady ~5%', ru: 'Сколько на самом деле стоит погоня за 15% — против стабильных ~5% деска' },
+  acEyebrow: { en: 'A year, dated · advisory · paper-only', ru: 'Год, с датами · advisory · только бумага' },
+  acIntro: {
+    en: 'Same start date, same notional, same window for both sides. The aggressive curve is a 10–15% book the desk REFUSES (its real 2024–2026 backtest). The steady line compounds the desk’s REAL conservative-book rate — an honest baseline, not a lowballed strawman. Drawdowns are dated and labelled by event, and split into realized (real peak-to-trough in the equity) and dated stress overlay (modeled by risk shape) — never blended, never invented.',
+    ru: 'Одна дата старта, один notional, одно окно для обеих сторон. Агрессивная кривая — 10–15% книга, которую деск ОТКЛОНЯЕТ (реальный бэктест 2024–2026). Стабильная линия компаундит РЕАЛЬНУЮ ставку консервативной книги — честный baseline, не заниженный. Просадки датированы и подписаны событием, разделены на realized и modeled — никогда не смешиваются.',
+  },
+  acStableLegend: { en: 'Steady ~5% (the desk)', ru: 'Стабильные ~5% (деск)' },
+  acAggLegend: { en: 'Aggressive 15%', ru: 'Агрессивные 15%' },
+  acRealizedLegend: { en: 'Realized dip (in the equity)', ru: 'Realized просадка (в equity)' },
+  acModeledLegend: { en: 'Modeled stress (by risk shape)', ru: 'Modeled стресс (по shape)' },
+  acStableSrc: { en: 'Steady baseline source', ru: 'Источник baseline' },
+  acPickStrat: { en: 'Aggressive book', ru: 'Агрессивная книга' },
+  acColCagr: { en: 'CAGR', ru: 'CAGR' },
+  acColMaxDd: { en: 'Max drawdown', ru: 'Макс. просадка' },
+  acColUnderwater: { en: 'Days underwater', ru: 'Дней под водой' },
+  acColCost: { en: 'Cost of chasing', ru: 'Цена погони' },
+  acColSide: { en: '', ru: '' },
+  acAggSide: { en: 'Aggressive 15%', ru: 'Агрессивные 15%' },
+  acStableSide: { en: 'Steady ~5%', ru: 'Стабильные ~5%' },
+  acDdHead: { en: 'The drawdown timeline, dated', ru: 'Таймлайн просадок, с датами' },
+  acDdDate: { en: 'Date', ru: 'Дата' },
+  acDdEvent: { en: 'Event', ru: 'Событие' },
+  acDdDepth: { en: 'Hit', ru: 'Удар' },
+  acDdKind: { en: 'Kind', ru: 'Тип' },
+  acRealized: { en: 'realized', ru: 'realized' },
+  acModeled: { en: 'modeled', ru: 'modeled' },
+  acNoRealized: { en: 'No material realized drawdown in this book’s backtest equity (it accrued smoothly — the honest answer; its tail is the dated stress overlay).', ru: 'В backtest-equity этой книги нет существенной realized просадки (она начислялась ровно — честный ответ; хвост — в modeled-overlay).' },
+  acBottom: {
+    en: 'Across the year, the aggressive book ends higher — that is what the headline buys. But the path is paid for in dated drawdowns. The desk’s steady book walks the same year with max-drawdown ~0% — no dated cliff to explain to a client mid-quarter. That is the trade.',
+    ru: 'За год агрессивная книга заканчивает выше — это и покупает хедлайн. Но путь оплачен датированными просадками. Стабильная книга деска проходит тот же год с макс. просадкой ~0% — нечего объяснять клиенту среди квартала. Вот в чём размен.',
+  },
+  acProof: { en: 'proof', ru: 'proof' },
+  acShareLink: { en: 'Open the shareable one-pager →', ru: 'Открыть shareable одностраничник →' },
 
   /* edge (WS-1.5 — the real edge surfaced) */
   tabEdge: { en: 'The edge', ru: 'Edge' },
@@ -721,6 +756,8 @@ export default function DashboardLive() {
   const [day30, setDay30] = useState(undefined);
   /* Aggressive Lab (Lane 3 SURFACE) — advisory/paper-only ranking of the strategies the desk REFUSES */
   const [aggressive, setAggressive] = useState(undefined);
+  /* Annual Contrast (the owner's sales surface — 15% aggressive vs the steady ~5%, dated) */
+  const [contrast, setContrast] = useState(undefined);
 
   const [phase, setPhase] = useState('connecting'); // connecting | live | offline
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -767,6 +804,7 @@ export default function DashboardLive() {
       ['/api/redteam', setRedteam],
       ['/api/v1/day30', setDay30],
       ['/api/aggressive-lab/scorecard', setAggressive],
+      ['/api/aggressive-lab/annual-contrast', setContrast],
     ];
     indep.forEach(([path, setter]) => {
       getJson(path).then((d) => setter(d)).catch(() => setter(null));
@@ -808,7 +846,7 @@ export default function DashboardLive() {
   const surfaceStates = [
     facts, fleet, status, golive, safety, lab, promotion, tournament, refusal, rwaBoard,
     ratesSurface, ratesOpps, ratesDecisions, ratesTrack, exitNav, refusalLog,
-    capturedBook, optimizerAb, governance, execRead, redteam, day30, aggressive,
+    capturedBook, optimizerAb, governance, execRead, redteam, day30, aggressive, contrast,
   ];
   const surfacesTotal = surfaceStates.length;
   const surfacesLive = surfaceStates.filter((s) => s != null).length;
@@ -1055,7 +1093,7 @@ export default function DashboardLive() {
       {tab === 'aggressive' && (
         <PanelBoundary lang={lang}>
           <div id="panel-aggressive" role="tabpanel" aria-labelledby="tab-aggressive" tabIndex={0}>
-            <AggressiveLabSection aggressive={aggressive} lang={lang} tr={tr} />
+            <AggressiveLabSection aggressive={aggressive} contrast={contrast} lang={lang} tr={tr} />
           </div>
         </PanelBoundary>
       )}
@@ -1511,7 +1549,7 @@ function TournamentSection({ tournament, lang, tr }) {
    risk/tail columns (max-DD, tail-in-stress, risk-class) are PROMINENT, not optional — and a giant
    OUTSIDE-RiskPolicy banner makes clear these are NEVER live-allocated. Offline/unavailable show
    honest states, NEVER a blank or fabricated leaderboard. */
-function AggressiveLabSection({ aggressive, lang, tr }) {
+function AggressiveLabSection({ aggressive, contrast, lang, tr }) {
   const offline = aggressive === null;            // fetch failed → API offline
   const loading = aggressive === undefined;       // still polling
   const available = aggressive && aggressive.available === true;
@@ -1603,6 +1641,288 @@ function AggressiveLabSection({ aggressive, lang, tr }) {
           </p>
         </>
       )}
+
+      {/* ── THE ANNUAL CONTRAST — the owner's sales surface (15% aggressive vs the steady ~5%) ── */}
+      <AnnualContrastView contrast={contrast} lang={lang} tr={tr} />
+    </div>
+  );
+}
+
+/* ───────────────────────── ANNUAL CONTRAST (the owner's sales tool) ───────────────────
+   Two equity curves over a year — the 10-15% aggressive book vs the desk's REAL steady ~5%
+   book — with the aggressive book's drawdowns DATED + labelled by event. Two kinds of dip are
+   visually DISTINCT and never blended: a REALIZED dip (real peak-to-trough in the backtest
+   equity, solid danger marker) vs a MODELED stress marker (the tail a book of this shape would
+   take through a dated 2024-26 event, hollow/dashed). Everything renders from the producer file
+   served VERBATIM by /api/aggressive-lab/annual-contrast — NO fabricated curve, honest unavailable
+   when the file is absent. Reusable: the shareable page imports this same component. */
+export function AnnualContrastView({ contrast, lang, tr, embedded = false }) {
+  const offline = contrast === null;
+  const loading = contrast === undefined;
+  const available = contrast && contrast.available === true;
+  const strategies = (available && Array.isArray(contrast.strategies)) ? contrast.strategies : [];
+
+  // Pick the most illustrative aggressive book by default: the one with the deepest modeled tail.
+  const [pickId, setPickId] = useState(null);
+  const tailDepth = (s) => {
+    const ov = (s.dated_drawdown_timeline && s.dated_drawdown_timeline.dated_stress_overlay) || [];
+    return ov.reduce((m, o) => Math.min(m, Number(o.depth_pct) || 0), 0);
+  };
+  const sorted = [...strategies].sort((a, b) => tailDepth(a) - tailDepth(b));
+  const chosen = strategies.find((s) => s.strategy_id === pickId) || sorted[0] || null;
+
+  if (offline || loading) {
+    return (
+      <div style={{ ...card, padding: 24 }}>
+        <SectionHead eyebrow={tr('acEyebrow')} title={tr('acTitle')} />
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>{offline ? tr('aggOffline') : tr('connecting')}</p>
+      </div>
+    );
+  }
+  if (!available || !chosen) {
+    return (
+      <div style={{ ...card, padding: 24 }}>
+        <SectionHead eyebrow={tr('acEyebrow')} title={tr('acTitle')} />
+        <p style={{ fontSize: '.875rem', color: 'var(--text-muted)' }}>
+          {(contrast && contrast.unavailable_reason) || tr('aggUnavailable')}
+        </p>
+      </div>
+    );
+  }
+
+  // The trailing-12m window is the headline; fall back to the first window present.
+  const win = (chosen.windows || []).find((w) => w.window === 'trailing_12m') || (chosen.windows || [])[0];
+  const stableApy = Number(contrast.stable_apy_pct);
+  const notional = Number((win && win.notional_usd) || contrast.notional_usd || 100000);
+  const overlay = (chosen.dated_drawdown_timeline && chosen.dated_drawdown_timeline.dated_stress_overlay) || [];
+  const realized = (chosen.dated_drawdown_timeline && chosen.dated_drawdown_timeline.realized_drawdowns) || [];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: embedded ? 0 : 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+        <SectionHead eyebrow={tr('acEyebrow')} title={tr('acTitle')} intro={tr('acIntro')} />
+        {!embedded && <SourceTag live lang={lang} />}
+      </div>
+
+      {/* book picker + proof + steady-baseline source (proves the ~5% is REAL, not a strawman) */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <label style={{ ...mono, fontSize: '.6875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{tr('acPickStrat')}:</label>
+        <select
+          value={chosen.strategy_id}
+          onChange={(e) => setPickId(e.target.value)}
+          style={{ ...mono, fontSize: '.75rem', padding: '5px 10px', borderRadius: 'var(--r-md)', background: 'var(--bg-surface-2)', color: 'var(--text-primary)', border: '1px solid var(--border-strong)' }}
+        >
+          {sorted.map((s) => (
+            <option key={s.strategy_id} value={s.strategy_id}>
+              {s.strategy_id} · {s.risk_class} · ~{fmtPct(s.headline_apy_pct, 0)}
+            </option>
+          ))}
+        </select>
+        {contrast.proof_hash && <Chip tone="muted">{tr('acProof')} {String(contrast.proof_hash).slice(0, 12)}…</Chip>}
+        <Chip tone="muted">{tr('acStableSrc')}: {contrast.stable_apy_source || NA}</Chip>
+      </div>
+
+      {/* THE TWO CURVES + dated drawdown annotations */}
+      <ContrastChart
+        aggressive={win && win.aggressive}
+        stableApyPct={stableApy}
+        notional={notional}
+        overlay={overlay}
+        realized={realized}
+        dateFrom={win && win.date_from}
+        dateTo={win && win.date_to}
+        lang={lang}
+        tr={tr}
+      />
+
+      {/* CONTRAST TABLE — CAGR / max-DD / days-underwater / cost-of-chasing, side by side */}
+      <div style={{ ...card, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.8125rem' }}>
+            <thead>
+              <tr style={{ ...mono, fontSize: '.625rem', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-muted)', background: 'var(--bg-surface-2)' }}>
+                <th style={{ textAlign: 'left', padding: '10px 14px' }}>{tr('acColSide')}</th>
+                <th style={{ textAlign: 'right', padding: '10px 14px' }}>{tr('acColCagr')}</th>
+                <th style={{ textAlign: 'right', padding: '10px 14px', color: 'var(--danger)' }}>{tr('acColMaxDd')}</th>
+                <th style={{ textAlign: 'right', padding: '10px 14px' }}>{tr('acColUnderwater')}</th>
+                <th style={{ textAlign: 'right', padding: '10px 14px' }}>{tr('acColCost')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <ContrastRow side={tr('acAggSide')} tone="var(--danger)" m={win && win.aggressive} cost={win && win.cost_of_chasing_dd_pct} />
+              <ContrastRow side={tr('acStableSide')} tone="var(--ok)" m={win && win.stable} cost={0} />
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* THE DRAWDOWN TIMELINE, DATED — realized vs modeled, clearly labelled, real dates+events */}
+      <div style={{ ...card, padding: 20 }}>
+        <h3 style={{ ...HEADING, fontSize: '1.05rem', marginBottom: 12 }}>{tr('acDdHead')}</h3>
+        {realized.length === 0 && (
+          <p style={{ fontSize: '.75rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 12 }}>{tr('acNoRealized')}</p>
+        )}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.8125rem' }}>
+            <thead>
+              <tr style={{ ...mono, fontSize: '.625rem', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-muted)' }}>
+                <th style={{ textAlign: 'left', padding: '8px 12px' }}>{tr('acDdDate')}</th>
+                <th style={{ textAlign: 'left', padding: '8px 12px' }}>{tr('acDdEvent')}</th>
+                <th style={{ textAlign: 'right', padding: '8px 12px', color: 'var(--danger)' }}>{tr('acDdDepth')}</th>
+                <th style={{ textAlign: 'left', padding: '8px 12px' }}>{tr('acDdKind')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {realized.map((d, i) => (
+                <tr key={'r' + i} style={{ borderTop: '1px solid var(--border)' }}>
+                  <td style={{ ...mono, padding: '8px 12px' }}>{d.trough_date || d.peak_date || NA}</td>
+                  <td style={{ padding: '8px 12px', color: 'var(--text-secondary)' }}>{d.source || (lang === 'ru' ? 'realized просадка в equity' : 'realized dip in equity')}</td>
+                  <td style={{ ...mono, padding: '8px 12px', textAlign: 'right', color: 'var(--danger)', fontWeight: 700 }}>{fmtPct(d.depth_pct, 1)}</td>
+                  <td style={{ padding: '8px 12px' }}><Chip tone="danger">{tr('acRealized')}</Chip></td>
+                </tr>
+              ))}
+              {overlay.map((o, i) => (
+                <tr key={'m' + i} style={{ borderTop: '1px solid var(--border)' }}>
+                  <td style={{ ...mono, padding: '8px 12px' }}>{o.event_date || NA}</td>
+                  <td style={{ padding: '8px 12px', color: 'var(--text-secondary)' }}>{o.event || NA}</td>
+                  <td style={{ ...mono, padding: '8px 12px', textAlign: 'right', color: 'var(--warn)', fontWeight: 700 }}>{fmtPct(o.depth_pct, 1)}</td>
+                  <td style={{ padding: '8px 12px' }}><Chip tone="warn">{tr('acModeled')}</Chip></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p style={{ fontSize: '.8125rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 820 }}>{tr('acBottom')}</p>
+      {!embedded && <DeepLink href="/annual-contrast" label={tr('acShareLink')} inline />}
+    </div>
+  );
+}
+
+function ContrastRow({ side, tone, m, cost }) {
+  const mm = m || {};
+  return (
+    <tr style={{ borderTop: '1px solid var(--border)' }}>
+      <td style={{ ...mono, padding: '10px 14px', color: tone, fontWeight: 600 }}>
+        <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: tone, marginRight: 8, verticalAlign: 'middle' }} aria-hidden="true" />
+        {side}
+      </td>
+      <td style={{ ...mono, padding: '10px 14px', textAlign: 'right' }}>{fmtSigned(mm.cagr_pct, 1)}</td>
+      <td style={{ ...mono, padding: '10px 14px', textAlign: 'right', color: 'var(--danger)', fontWeight: 600 }}>{fmtPct(mm.max_drawdown_pct, 1)}</td>
+      <td style={{ ...mono, padding: '10px 14px', textAlign: 'right' }}>{mm.days_underwater == null ? NA : mm.days_underwater}</td>
+      <td style={{ ...mono, padding: '10px 14px', textAlign: 'right', color: 'var(--warn)' }}>{cost == null ? NA : fmtPct(cost, 1)}</td>
+    </tr>
+  );
+}
+
+/* The two equity curves + dated drawdown markers, as inline SVG (stdlib-only spirit — no chart lib).
+   The aggressive curve is its realized window path (start_equity → end_equity, compounded — an
+   honest representation of the window's total return, NOT invented points). The steady line
+   compounds the REAL stable rate. Dated markers sit at their real event_date on the time axis:
+   a REALIZED dip = solid filled danger dot; a MODELED stress marker = hollow dashed warn ring —
+   the two are visually distinct so a modeled overlay is NEVER passed off as a realized dip. */
+function ContrastChart({ aggressive, stableApyPct, notional, overlay, realized, dateFrom, dateTo, lang, tr }) {
+  const W = 720, H = 300, PADL = 64, PADR = 16, PADT = 24, PADB = 52;
+  const plotW = W - PADL - PADR, plotH = H - PADT - PADB;
+
+  const t0 = dateFrom ? new Date(dateFrom + 'T00:00:00Z').getTime() : null;
+  const t1 = dateTo ? new Date(dateTo + 'T00:00:00Z').getTime() : null;
+  const span = (t0 != null && t1 != null && t1 > t0) ? (t1 - t0) : null;
+  const fx = (dateStr) => {
+    if (span == null || !dateStr) return null;
+    const t = new Date(dateStr + 'T00:00:00Z').getTime();
+    const frac = Math.max(0, Math.min(1, (t - t0) / span));
+    return PADL + frac * plotW;
+  };
+
+  const aggStart = Number((aggressive && aggressive.start_equity_usd) || notional);
+  const aggEnd = Number((aggressive && aggressive.end_equity_usd) || aggStart);
+  const stableEnd = notional * (1 + (Number(stableApyPct) || 0) / 100);
+
+  // y-domain: from a little below notional to a little above the higher endpoint.
+  const yMax = Math.max(aggStart, aggEnd, stableEnd, notional) * 1.04;
+  const yMin = Math.min(aggStart, aggEnd, stableEnd, notional) * 0.97;
+  const fy = (usd) => {
+    const frac = (Number(usd) - yMin) / (yMax - yMin || 1);
+    return PADT + (1 - Math.max(0, Math.min(1, frac))) * plotH;
+  };
+
+  // N-step compounded path between endpoints (geometric — honest interpolation of the window CAGR).
+  const STEPS = 48;
+  const path = (start, end) => {
+    const g = end / (start || 1);
+    const pts = [];
+    for (let i = 0; i <= STEPS; i++) {
+      const f = i / STEPS;
+      const x = PADL + f * plotW;
+      const y = fy(start * Math.pow(g, f));
+      pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+    }
+    return pts.join(' ');
+  };
+
+  const yTicks = 4;
+  const ticks = Array.from({ length: yTicks + 1 }, (_, i) => yMin + (i / yTicks) * (yMax - yMin));
+
+  return (
+    <div style={{ ...card, padding: 16 }}>
+      {/* legend */}
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 8, fontSize: '.6875rem', color: 'var(--text-muted)' }}>
+        <span><span style={{ display: 'inline-block', width: 14, height: 3, background: 'var(--danger)', marginRight: 6, verticalAlign: 'middle' }} />{tr('acAggLegend')}</span>
+        <span><span style={{ display: 'inline-block', width: 14, height: 3, background: 'var(--ok)', marginRight: 6, verticalAlign: 'middle' }} />{tr('acStableLegend')}</span>
+        <span><span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: 'var(--danger)', marginRight: 6, verticalAlign: 'middle' }} />{tr('acRealizedLegend')}</span>
+        <span><span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: 'transparent', border: '2px dashed var(--warn)', marginRight: 6, verticalAlign: 'middle' }} />{tr('acModeledLegend')}</span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="aggressive vs steady equity curves with dated drawdowns" style={{ display: 'block' }}>
+        {/* y grid + labels */}
+        {ticks.map((v, i) => {
+          const y = fy(v);
+          return (
+            <g key={'y' + i}>
+              <line x1={PADL} y1={y} x2={W - PADR} y2={y} stroke="var(--border)" strokeWidth="1" />
+              <text x={PADL - 8} y={y + 3} textAnchor="end" fontSize="9" fill="var(--text-faint)" fontFamily="var(--font-mono)">{usdCompact(v)}</text>
+            </g>
+          );
+        })}
+        {/* x axis date labels */}
+        <text x={PADL} y={H - PADB + 18} textAnchor="start" fontSize="9" fill="var(--text-faint)" fontFamily="var(--font-mono)">{dateFrom || ''}</text>
+        <text x={W - PADR} y={H - PADB + 18} textAnchor="end" fontSize="9" fill="var(--text-faint)" fontFamily="var(--font-mono)">{dateTo || ''}</text>
+
+        {/* the two curves */}
+        <polyline points={path(notional, stableEnd)} fill="none" stroke="var(--ok)" strokeWidth="2.5" strokeLinejoin="round" />
+        <polyline points={path(aggStart, aggEnd)} fill="none" stroke="var(--danger)" strokeWidth="2.5" strokeLinejoin="round" />
+
+        {/* REALIZED drawdown markers — solid filled danger dots (real dips in the equity) */}
+        {realized.map((d, i) => {
+          const x = fx(d.trough_date || d.peak_date);
+          if (x == null) return null;
+          const y = fy(d.book_equity_at_event_usd != null ? d.book_equity_at_event_usd : aggStart);
+          return (
+            <g key={'rm' + i}>
+              <circle cx={x} cy={y} r="5" fill="var(--danger)" stroke="var(--bg-surface)" strokeWidth="1.5" />
+              <line x1={x} y1={PADT} x2={x} y2={H - PADB} stroke="var(--danger)" strokeWidth="1" strokeDasharray="2 3" opacity="0.35" />
+            </g>
+          );
+        })}
+
+        {/* MODELED stress markers — hollow dashed warn rings (the tail by shape, NOT a realized dip) */}
+        {overlay.map((o, i) => {
+          const x = fx(o.event_date);
+          if (x == null) return null;
+          const y = fy(o.book_equity_at_event_usd != null ? o.book_equity_at_event_usd : aggEnd);
+          const label = `${fmtPct(o.depth_pct, 0)} · ${o.event_date || ''}`;
+          const anchor = x > W * 0.66 ? 'end' : 'start';
+          const dx = anchor === 'end' ? -8 : 8;
+          return (
+            <g key={'om' + i}>
+              <line x1={x} y1={PADT} x2={x} y2={H - PADB} stroke="var(--warn)" strokeWidth="1" strokeDasharray="3 3" opacity="0.45" />
+              <circle cx={x} cy={y} r="5" fill="transparent" stroke="var(--warn)" strokeWidth="2" strokeDasharray="3 2" />
+              <text x={x + dx} y={Math.max(PADT + 10, y - 8)} textAnchor={anchor} fontSize="9.5" fill="var(--warn)" fontFamily="var(--font-mono)" fontWeight="700">{label}</text>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }

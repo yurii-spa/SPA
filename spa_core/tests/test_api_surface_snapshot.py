@@ -50,6 +50,7 @@ import spa_core.api.server as server  # noqa: E402
 # Captured from server.py PRIOR to the router split — the identical-surface oracle.
 GOLDEN_ROUTES = {
     ("/api/agent/thought", ("POST",)),
+    ("/api/aggressive-lab/annual-contrast", ("GET",)),
     ("/api/aggressive-lab/scorecard", ("GET",)),
     ("/api/aggressive-lab/strategy/{strategy_id}", ("GET",)),
     ("/api/apy/history/{protocol_key}", ("GET",)),
@@ -178,25 +179,26 @@ def test_route_table_identical_to_golden():
 def test_route_count_stable():
     """The flat handler surface (expanded across included routers) is the invariant.
 
-    76 HTTP handlers + 1 websocket (/ws/agents) = 77 entries in GOLDEN_ROUTES. This
+    77 HTTP handlers + 1 websocket (/ws/agents) = 78 entries in GOLDEN_ROUTES. This
     is structure-independent (monolith routes vs lazily-included routers) because
     _walk_routes expands `_IncludedRouter` proxies. The launch target
     `spa_core.api.server:app` is unaffected — `app` is still defined in server.py.
-    (Most recent HTTP handlers: /api/aggressive-lab/scorecard + /strategy/{id} — the Lane 3
-    Aggressive-Lab SURFACE (advisory/paper-only ranking of the 10-15% strategies the desk REFUSES,
-    shown WITH the tail; OUTSIDE_RiskPolicy, never live-allocated). Before them the Lane C
+    (Most recent HTTP handler: /api/aggressive-lab/annual-contrast — the owner's Annual-Contrast
+    SURFACE (advisory/paper-only: the 10-15% aggressive books' year-long equity vs the desk's REAL
+    steady ~5%, with dated drawdowns; OUTSIDE_RiskPolicy, never live-allocated). Before it the Lane 3
+    Aggressive-Lab SURFACE (/api/aggressive-lab/scorecard + /strategy/{id}) and the Lane C
     underwriting-report surface (/api/underwriting/report + /proof + /full-chain), FLAG-GATED OFF
     by default (SPA_UNDERWRITING_PUBLISH).)
     """
-    assert len(_app_route_table()) == 77
+    assert len(_app_route_table()) == 78
 
 
 def test_openapi_path_count_stable():
-    """The OpenAPI schema (the canonical served HTTP surface) lists all 74 HTTP paths."""
+    """The OpenAPI schema (the canonical served HTTP surface) lists all HTTP paths."""
     from fastapi.testclient import TestClient
     with TestClient(server.app) as c:
         paths = c.get("/openapi.json").json()["paths"]
-    assert len(paths) == 76  # 76 HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
+    assert len(paths) == 77  # 77 HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
 
 
 # ── Representative response-shape snapshot (one endpoint per tag group) ──────────
@@ -217,6 +219,13 @@ SHAPE_GOLDEN = {
         "advisory", "available", "generated_at", "live_eligible", "meta", "model",
         "n_strategies", "note", "outside_riskpolicy", "owner_select_enabled",
         "owner_selectable", "rwa_floor_pct", "strategies", "trustworthy",
+        "unavailable_reason",
+    ),
+    "/api/aggressive-lab/annual-contrast": (
+        "advisory", "as_of", "available", "generated_at", "live_eligible", "meta",
+        "model", "n_strategies", "note", "notional_usd", "outside_riskpolicy",
+        "owner_select_enabled", "owner_selectable", "proof_hash", "risk_class_legend",
+        "stable_apy_pct", "stable_apy_source", "strategies", "stress_windows",
         "unavailable_reason",
     ),
     "/api/rates-desk/surface": (

@@ -49,9 +49,27 @@ def _real_history_feeds() -> AggressiveFeeds:
     except Exception:  # noqa: BLE001
         restaking_series = None
 
+    # REAL ETH price + LST/LRT ratio paths — these drive the DEPEG / DIRECTIONAL / LIQUIDATION
+    # mark-to-market (the LRT depeg residual, the unhedged ETH crash, the levered stETH/ETH breach).
+    # Best-effort over the Pendle window; a feed that raises is omitted → those books fail-close on a
+    # missing mark path (honest gap), never a fabricated dip. The PT-driven marks (susde/PT/YT) need
+    # no price feed (they mark off the real implied-yield series already wired above).
+    eth_price_series = None
+    lrt_ratio_series = None
+    try:
+        from spa_core.strategy_lab.data.price_feed import PriceFeed
+        pf = PriceFeed()
+        hist = pf.history(start_date=start, end_date=end)        # {sym: {date: usd}}
+        eth_price_series = hist.get("eth") or None
+        lrt_ratio_series = pf.history_ratios(start_date=start, end_date=end) or None
+    except Exception:  # noqa: BLE001 — price feed unavailable → those books fail-close (no fake dip)
+        eth_price_series = None
+        lrt_ratio_series = None
+
     return AggressiveFeeds(
         pt_susde_series=pt_series, susde_apy_series=susde_series,
         funding_series=funding_series, restaking_series=restaking_series,
+        eth_price_series=eth_price_series, lrt_ratio_series=lrt_ratio_series,
     )
 
 

@@ -216,6 +216,7 @@ get_protocol_history = misc.get_protocol_history
 
 get_aggressive_lab_scorecard = aggressive_lab.get_aggressive_lab_scorecard
 get_aggressive_lab_strategy = aggressive_lab.get_aggressive_lab_strategy
+get_aggressive_lab_annual_contrast = aggressive_lab.get_aggressive_lab_annual_contrast
 
 get_strategy_lab = strategy_lab.get_strategy_lab
 get_strategy_lab_promotion = strategy_lab.get_strategy_lab_promotion

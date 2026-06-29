@@ -1,0 +1,109 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+import AnnualContrast from '../components/AnnualContrast.jsx';
+
+/*
+ * Annual Contrast — the owner's SHAREABLE sales one-pager.
+ *
+ * A clean page the owner can open in front of a prospect to SHOW "here is what chasing 15%
+ * really costs — and here is our steady ~5%, walked through the same year." The two equity
+ * curves, the aggressive book's drawdowns DATED + labelled by event, and the side-by-side
+ * contrast table all render from the <AnnualContrast /> React island, which fetches
+ * /api/aggressive-lab/annual-contrast (served VERBATIM, fail-CLOSED).
+ *
+ * HONESTY CONTRACT (mirrors the dashboard + the data contract):
+ *   - The steady ~5% line is the desk's REAL conservative book (stable_apy_pct/source from the
+ *     data) — an honest baseline, not a flattering fake. Its source is shown on the page.
+ *   - A missing/offline contrast file → honest "unavailable", NEVER a fabricated chart.
+ *   - Drawdown annotations carry their REAL dates+events; realized vs modeled are visually distinct.
+ *   - PAPER / ADVISORY / OUTSIDE-RiskPolicy — these are the strategies the desk REFUSES, shown with
+ *     their real risk. NEVER live-allocated, NEVER on the go-live track.
+ *
+ * The island is client:load so it mounts + starts polling (~15s) immediately. The static intro +
+ * disclaimer below render server-side so the page is presentable even before the island hydrates
+ * (and the island itself shows an honest "unavailable" if the API is offline — never blank, never
+ * a fake curve). EN|RU via the site's data-ru mechanism.
+ */
+---
+
+<Layout
+  title="The cost of chasing 15% — vs the desk's steady ~5% | earn-defi.com"
+  description="A full year, dated: the 10-15% aggressive strategies the desk REFUSES, shown with their real drawdowns labelled by event (the 2025-10 USDe unwind, the 2026-04 rsETH depeg), against the desk's REAL steady ~5% conservative book over the same window. Paper / advisory / outside RiskPolicy — the strategies we refuse, shown with their real risk. Never live-allocated."
+  canonical="https://earn-defi.com/annual-contrast"
+>
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- ===================================================== a. THE PITCH (static, SSR) -->
+    <section class="pt-20 pb-8">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full text-xs font-mono"
+           style="background:rgba(242,109,109,.10);border:1px solid rgba(242,109,109,.30);color:var(--danger)">
+        <span class="w-1.5 h-1.5 rounded-full" style="background:var(--danger)" aria-hidden="true"></span>
+        <span data-ru="Вне RiskPolicy · advisory · только бумага">Outside RiskPolicy · advisory · paper-only</span>
+      </div>
+
+      <h1 class="text-4xl sm:text-5xl font-bold mb-4 leading-tight" style="color:var(--text-primary)"
+          data-ru="Сколько на самом деле стоит погоня за 15% — против стабильных ~5% деска">
+        What chasing 15% actually costs — vs the desk's steady ~5%
+      </h1>
+
+      <p class="text-xl leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Полный год, с датами. Каждая 10-15% стратегия, о которой спрашивают, показана с датированным −X%, который она несёт. Стабильная книга деска за тот же год: макс. просадка ~0%. Этот разрыв — и есть весь продукт.">
+        A full year, dated. Every 10-15% strategy the desk gets asked about, shown with the dated
+        <strong style="color:var(--text-primary)">−X%</strong> it carries. The desk's steady book over
+        the same year: <strong style="color:var(--text-primary)">max-drawdown ~0%</strong>. That gap is
+        the whole product.
+      </p>
+
+      <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+             data-ru="Метод (чтобы вы могли нас проверить)">Method (so you can check us)</p>
+          <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Одна дата старта, один notional, одно окно для обеих сторон. Агрессивные кривые — реальный бэктест лаборатории 2024–2026. Стабильная кривая компаундит РЕАЛЬНУЮ ставку консервативной книги деска — честный baseline, не заниженный. Просадки показаны двумя способами и всегда подписаны: realized и modeled — мы их не смешиваем и не выдумываем.">
+            Same start date, same notional, same window for both sides. The aggressive curves are the
+            lab's real 2024–2026 backtest. The stable curve compounds the desk's <strong style="color:var(--text-primary)">REAL</strong>
+            conservative-book rate — an honest baseline, not a lowballed strawman. Drawdowns are shown
+            two ways, always labelled: <strong style="color:var(--text-primary)">realized</strong> and
+            <strong style="color:var(--text-primary)">modeled</strong> — never blended, never invented.
+          </p>
+        </div>
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+             data-ru="Что это, по-честному">What it is, plainly</p>
+          <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Это стратегии, которые деск ОТКЛОНЯЕТ, показанные с их реальным риском — чтобы выбор был информированным. Paper / advisory / вне RiskPolicy. Никогда не аллоцируются в live, никогда не на go-live треке. Каждая цифра прослеживается до data/aggressive_lab/annual_contrast.json — детерминированно, LLM запрещён.">
+            These are the strategies the desk <strong style="color:var(--text-primary)">refuses</strong>,
+            shown with their real risk so the choice is informed. Paper / advisory / outside RiskPolicy —
+            never live-allocated, never on the go-live track. Every figure traces to
+            <code style="color:var(--text-muted)">data/aggressive_lab/annual_contrast.json</code> —
+            deterministic, LLM-forbidden.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================== b. THE LIVE ISLAND (curves + dated DD + table) -->
+    <section class="py-8 border-t" style="border-color:var(--border)">
+      <!-- Renders from /api/aggressive-lab/annual-contrast; honest "unavailable" if offline, never a fake curve. -->
+      <AnnualContrast client:load />
+    </section>
+
+    <!-- ===================================================== c. THE BOTTOM LINE (static, SSR) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-3" style="color:var(--text-muted)"
+         data-ru="Честный итог">The honest bottom line</p>
+      <p class="text-base leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Каждая агрессивная книга заканчивает год выше — это и покупает хедлайн. Но путь оплачен датированными просадками: unwind USDe в 2025-10 и депег rsETH в 2026-04 проявляются на 15% стороне с реальными датами и реальной глубиной. Стабильная книга деска проходит тот же год с макс. просадкой ~0% — никакого датированного обрыва, нечего объяснять клиенту среди квартала. Вот в чём размен: можно гнаться за 15% и владеть его хвостом, или взять осознанные 5% и владеть своим сном. Мы запустим любой из них с открытыми глазами — эта страница для того, чтобы выбор был информированным.">
+        Across every aggressive book, the year ends higher — that is what the headline buys. But the
+        path is paid for in dated drawdowns: the 2025-10 USDe unwind and the 2026-04 rsETH depeg show
+        up on the 15% side with real dates and real depths. The desk's steady book walks the same year
+        with max-drawdown ~0% — no dated cliff, nothing to explain to a client mid-quarter. That is the
+        trade: you can chase 15% and own its tail, or take the deliberate 5% and own your sleep. We will
+        run either with eyes open — this page is so the choice is informed.
+      </p>
+    </section>
+
+    <Disclaimer />
+  </main>
+</Layout>

@@ -104,6 +104,12 @@ def _point(date: str, strat, phase: str) -> dict:
         "risk_class": strat.risk_class,
         "risk_shape": strat.risk_shape,
         "killed": bool(m.extra.get("killed")),
+        # MARK-TO-MARKET provenance — the day's price/ratio/funding mark and WHERE it came from. A
+        # point whose mark moved off a REAL per-day path carries mtm_source="realized_backtest_series"
+        # (the dip is real); a pure-accrual day carries mtm_source=null (no real mark path that tick).
+        # This is what lets a reader tell a REAL dated dip from smooth accrual on the realized track.
+        "mtm_today_pct": m.extra.get("mtm_today_pct"),
+        "mtm_source": m.extra.get("mtm_source"),
         "outside_riskpolicy": True,
         "is_advisory": True,
     }
@@ -158,17 +164,11 @@ class PaperService:
                 strat._kill_reason = str(b.get("kill_reason", strat._kill_reason))
                 strat._cum_cost = float(b.get("cum_cost", strat._cum_cost))
                 strat._cum_funding = float(b.get("cum_funding", strat._cum_funding))
+                _restore_mtm(strat, b)
         self._last_tick = doc.get("last_tick")
 
     def _persist(self, day: str, pre: Optional[dict] = None) -> None:
-        books = {
-            sid: {
-                "equity": s._equity, "days": s._days, "killed": s._killed,
-                "kill_reason": s._kill_reason, "cum_cost": s._cum_cost,
-                "cum_funding": s._cum_funding,
-            }
-            for sid, s in self._strats.items()
-        }
+        books = {sid: _book_state(s) for sid, s in self._strats.items()}
         doc = {"last_tick": day, "saved_at": _utc_now_iso(), "books": books}
         if pre is not None:
             doc["pretick"] = pre
@@ -176,14 +176,7 @@ class PaperService:
         self._last_tick = day
 
     def _snapshot_books(self) -> dict:
-        return {
-            sid: {
-                "equity": s._equity, "days": s._days, "killed": s._killed,
-                "kill_reason": s._kill_reason, "cum_cost": s._cum_cost,
-                "cum_funding": s._cum_funding,
-            }
-            for sid, s in self._strats.items()
-        }
+        return {sid: _book_state(s) for sid, s in self._strats.items()}
 
     def _restore_books(self, snap: dict) -> None:
         for sid, b in (snap or {}).items():
@@ -193,6 +186,7 @@ class PaperService:
             s._equity = float(b["equity"]); s._days = int(b["days"])
             s._killed = bool(b["killed"]); s._kill_reason = str(b["kill_reason"])
             s._cum_cost = float(b["cum_cost"]); s._cum_funding = float(b["cum_funding"])
+            _restore_mtm(s, b)
 
     # ── the tick ────────────────────────────────────────────────────────────────────────────────
     def tick(self, as_of: Optional[str] = None) -> dict:
@@ -309,6 +303,42 @@ def run_backtest(
     if before is not None:
         isolation.verify_unchanged(before)  # ISOLATION PROOF
     return out
+
+
+# ── restart-survival of a book's full state INCLUDING mark-to-market anchors ────────────────────────
+# The MTM anchors (_prev_pt_price / _prev_ratio / _prev_eth / _prev_iy / _liquidated / _cum_mtm) must
+# survive a restart, else a re-launched forward book would re-anchor and miss a day-over-day mark (or
+# resurrect a liquidated loop). We persist whichever of these a given strategy actually carries.
+_MTM_FLOAT_FIELDS = ("cum_mtm", "prev_pt_price", "prev_ratio", "prev_eth", "prev_iy")
+
+
+def _book_state(s) -> dict:
+    """The full persisted state for one book: equity/day-count/kill + every MTM anchor it carries."""
+    out = {
+        "equity": s._equity, "days": s._days, "killed": s._killed,
+        "kill_reason": s._kill_reason, "cum_cost": s._cum_cost,
+        "cum_funding": s._cum_funding, "cum_mtm": getattr(s, "_cum_mtm", 0.0),
+    }
+    # optional per-strategy MTM anchors (None-safe; only stored when present + set)
+    for attr in ("_prev_pt_price", "_prev_ratio", "_prev_eth", "_prev_iy"):
+        if hasattr(s, attr):
+            out[attr.lstrip("_")] = getattr(s, attr)
+    if hasattr(s, "_liquidated"):
+        out["liquidated"] = bool(getattr(s, "_liquidated"))
+    return out
+
+
+def _restore_mtm(s, b: dict) -> None:
+    """Restore the MTM anchors from a persisted book dict (None-safe; absent → leave default)."""
+    if "cum_mtm" in b:
+        s._cum_mtm = float(b.get("cum_mtm") or 0.0)
+    for attr in ("_prev_pt_price", "_prev_ratio", "_prev_eth", "_prev_iy"):
+        key = attr.lstrip("_")
+        if key in b and hasattr(s, attr):
+            v = b.get(key)
+            setattr(s, attr, float(v) if isinstance(v, (int, float)) else None)
+    if "liquidated" in b and hasattr(s, "_liquidated"):
+        s._liquidated = bool(b.get("liquidated"))
 
 
 def _safe_load_json(path: Path):

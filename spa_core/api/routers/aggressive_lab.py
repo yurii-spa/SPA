@@ -216,6 +216,66 @@ def get_aggressive_lab_strategy(strategy_id: str):
     })
 
 
+@router.get("/api/aggressive-lab/annual-contrast")
+def get_aggressive_lab_annual_contrast():
+    """The Annual Contrast — data/aggressive_lab/annual_contrast.json, served VERBATIM.
+
+    The owner's sales surface: a full year of the 10-15% aggressive books vs the desk's REAL
+    steady ~5% conservative book, with each aggressive book's drawdowns DATED + labelled by event
+    (realized peak-to-trough AND dated stress overlay, kept separate). This router SURFACES the
+    mark-to-market agent's output (data/aggressive_lab/annual_contrast.json); it computes NOTHING
+    and ranks NOTHING — the curves/dates/depths/baseline all come from the producer file.
+
+    Read-only, FAIL-CLOSED: a missing/corrupt/empty contrast file returns 200 with an honest
+    "unavailable" envelope (no strategies, advisory note, NO fabricated curve), NEVER a 500 and
+    NEVER an invented baseline or drawdown. The advisory/non-live stamps are forced authoritative
+    over whatever the file says (the surface can never present an aggressive book as live-eligible).
+    NaN/inf in a corrupt file are scrubbed to null. The stable curve's source (stable_apy_source)
+    passes through verbatim so the dashboard can prove the ~5% is the REAL conservative book, not a
+    lowballed strawman.
+    """
+    raw = read_state("aggressive_lab/annual_contrast.json", {})
+    meta = backtest_meta(
+        basis="dated year-long contrast: aggressive 10-15% books (lab 2024-2026 backtest realized "
+              "series) vs the desk's REAL conservative-book rate compounded over the same window "
+              "and notional; drawdowns dated + split into realized (peak-to-trough in the equity) "
+              "and dated stress overlay (modeled by risk shape) — NEVER blended, NEVER fabricated",
+        period="trailing 12 months + calendar years, anchored to the 2024-2026 backtest + forward "
+               "track",
+    )
+    env = _advisory_envelope()
+    if not raw or not isinstance(raw, dict) or not isinstance(raw.get("strategies"), list):
+        return {
+            "generated_at": None,
+            "as_of": None,
+            "model": "aggressive_lab_annual_contrast",
+            **env,
+            "available": False,
+            "unavailable_reason": "annual contrast not generated yet (the mark-to-market agent has "
+                                  "not produced data/aggressive_lab/annual_contrast.json)",
+            "stable_apy_pct": None,
+            "stable_apy_source": None,
+            "notional_usd": None,
+            "proof_hash": None,
+            "stress_windows": [],
+            "risk_class_legend": {},
+            "n_strategies": 0,
+            "strategies": [],
+            "meta": meta,
+        }
+
+    # Serve the producer payload VERBATIM, then force the advisory/non-live stamps authoritative
+    # (the surface can NEVER present an aggressive book as live-eligible, even on a producer bug).
+    out = dict(raw)
+    out["available"] = True
+    out.setdefault("model", "aggressive_lab_annual_contrast")
+    out.setdefault("strategies", [])
+    out["n_strategies"] = len(out.get("strategies") or [])
+    out.update(env)  # advisory / live_eligible / outside_riskpolicy / owner_select_enabled / note
+    out.setdefault("meta", meta)
+    return scrub_nonfinite(out)
+
+
 def _read_realized_series(strategy_id: str) -> list:
     """Read data/aggressive_lab/<id>/realized_series.jsonl VERBATIM, fail-CLOSED.
 

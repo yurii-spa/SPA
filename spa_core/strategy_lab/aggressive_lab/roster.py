@@ -50,6 +50,25 @@ from spa_core.strategy_lab.base import (
 # Risk-class values mirror aggressive_lab.RiskClass (A alpha / B beta / C risk-comp / D incentive).
 _DAYS_PER_YEAR = 365.0
 
+# ── PT mark-to-market convention ───────────────────────────────────────────────────────────────────
+# A Pendle PT redeems 1:1 for its underlying at maturity, so its PRICE (in face units) is the
+# discount factor implied by its market implied-yield: price = 1 / (1 + iy) ** τ, τ = years-to-mat.
+# We mark a PT/synth book to this REAL discount: when the real implied-yield series SPIKES (the
+# Oct-2025 USDe unwind, a depeg de-risk), the PT price DROPS → the book marks down on the real date.
+# The path is the deep Pendle implied-yield history (real), so the dip is realized_backtest_series,
+# never a stamped number. τ is a fixed modelling tenor (the discount's SENSITIVITY); the day-over-day
+# MOVE that drives the mark comes entirely from the real implied-yield change.
+_PT_MTM_TENOR_YEARS = 90.0 / 365.0
+
+
+def _pt_price_from_iy(implied_yield: float, tenor_years: float = _PT_MTM_TENOR_YEARS) -> float:
+    """PT discount price (face units) for a market implied yield. price = 1/(1+iy)^τ.
+    Higher implied yield (stress) → lower price (mark-down). fail-CLOSED on a degenerate input."""
+    base = 1.0 + float(implied_yield)
+    if base <= 0.0 or tenor_years <= 0.0:
+        raise InvalidDataError(f"PT mark: degenerate (1+iy)={base}, tau={tenor_years}")
+    return base ** (-float(tenor_years))
+
 
 # ──────────────────────────────────────────────────────────────────────────────────────────────────
 # Base: an aggressive paper-book entrant. Subclasses set identity + implement _daily_yield_pct() and
@@ -68,6 +87,13 @@ class _AggressiveBase(Strategy):
     risk_shape = "funding_flip"   # dominant tail mechanism
     yield_source = "unspecified"  # human-readable WHERE the return comes from
     headline_apy_pct = 0.0        # the advertised headline (for the scorecard; realized may differ)
+    # When True, a MISSING accrual feed is an honest per-tick GAP (safe-hold, no advance) instead of a
+    # permanent kill. Set True for books whose REAL feeds legitimately start later / are sparser than
+    # the global replay window (the price/ratio/restaking history is shorter than the deep PT history)
+    # — so the book simply waits for its data to start rather than dying day-1 in warmup. The
+    # strict-kill contract (a genuinely dead yield feed → killed) is preserved for the default-False
+    # books (susde_spot/susde_dn/pendle_*: their yield source is the always-present PT/sUSDe series).
+    accrual_gap_is_safe_hold = False
 
     def __init__(self) -> None:
         self._capital = 0.0
@@ -81,6 +107,19 @@ class _AggressiveBase(Strategy):
         # honest off-code flag: a basis/hedge leg whose CEX side is not buildable in-code.
         self.hedge_leg_buildable = True
         self._initialised = False
+        # ── MARK-TO-MARKET state ──────────────────────────────────────────────────────────────────
+        # `_mtm` is the day's mark-to-market fractional move (price/ratio/funding path), SEPARATE from
+        # yield accrual. `_mtm_source` is the HONEST provenance of TODAY's mark: "realized_backtest_
+        # series" when a real per-day price/ratio/funding path drove it, None when the day was pure
+        # accrual (no real mark path for this tick). The harness stamps these on each realized point so
+        # a reader can always tell a REAL dated dip from smooth accrual. Subclasses fill _mark_to_
+        # market_pct(); the base never fabricates a mark (a missing path → 0.0 mark, source None).
+        self._mtm = 0.0
+        self._mtm_source: Optional[str] = None
+        self._cum_mtm = 0.0       # cumulative realized mark-to-market P&L fraction (audit)
+        # previous-mark anchors for day-over-day MTM (set on first real datapoint seen)
+        self._prev_pt_price: Optional[float] = None
+        self._prev_ratio: Optional[float] = None
 
     # ── lifecycle ───────────────────────────────────────────────────────────────────────────────
     def init(self, capital: float, config: dict) -> None:
@@ -92,6 +131,11 @@ class _AggressiveBase(Strategy):
         self._kill_reason = ""
         self._cum_cost = 0.0
         self._cum_funding = 0.0
+        self._mtm = 0.0
+        self._mtm_source = None
+        self._cum_mtm = 0.0
+        self._prev_pt_price = None
+        self._prev_ratio = None
         self._initialised = True
 
     # ── the per-tick advance ──────────────────────────────────────────────────────────────────────
@@ -100,19 +144,75 @@ class _AggressiveBase(Strategy):
             raise InvalidDataError(f"{self.id}.step before init")
         if self._killed:
             return  # safe-hold: a killed book stops accruing
+        # reset today's mark provenance — set by _mark_to_market_pct ONLY when a real path drove it.
+        self._mtm = 0.0
+        self._mtm_source = None
         try:
-            daily_pct = self._daily_yield_pct(market)  # REAL-data net daily return fraction
+            daily_accrual = self._daily_yield_pct(market)   # REAL-data yield-accrual fraction
         except InvalidDataError as exc:
-            # fail-CLOSED: missing/stale required feed → no fabricated accrual; safe-hold this tick.
+            if self.accrual_gap_is_safe_hold:
+                # honest GAP: this book's real feed legitimately hasn't started / is sparse for this
+                # tick → safe-hold (no advance, no fabricated accrual), resume when the data returns.
+                return
+            # fail-CLOSED on the ACCRUAL feed: a book whose yield source is missing/stale cannot
+            # honestly mark a return → it is KILLED (the documented contract; no fabricated accrual).
             self._killed = True
             self._kill_reason = f"fail-closed: {exc}"
             return
-        self._equity = round(self._equity * (1.0 + daily_pct), 2)
+        try:
+            daily_mtm = self._mark_to_market_pct(market)    # REAL-path price/ratio mark-to-market
+        except InvalidDataError:
+            # fail-CLOSED on the MARK feed (a price/ratio path absent for THIS tick, e.g. before the
+            # series starts or a hole): we do NOT advance the equity on a day we cannot mark — an
+            # honest GAP (no fabricated accrual, no smooth-fake), NOT a permanent kill. The book
+            # resumes marking when its real path returns. This is what keeps the realized curve honest
+            # across the sparser price-feed days without either dying or faking a smooth carry.
+            return
+        # realized daily move = yield accrual + mark-to-market of the position through the real path.
+        # The MTM is what makes the equity curve DIP on the real event dates (it can be negative);
+        # accrual is the smooth carry. Both compound into the same equity (one honest realized track).
+        self._mtm = daily_mtm
+        self._cum_mtm += daily_mtm
+        self._equity = round(self._equity * (1.0 + daily_accrual + daily_mtm), 2)
         self._days += 1
 
-    # ── subclass hook: the REAL-data net daily return fraction for this tick ──────────────────────
+    # ── subclass hook: the REAL-data yield-accrual fraction for this tick (the smooth carry) ──────
     def _daily_yield_pct(self, market: MarketSnapshot) -> float:
         raise NotImplementedError
+
+    # ── subclass hook: the REAL-PATH mark-to-market fraction for this tick (the dip mechanism) ────
+    # Default: no mark (pure accrual book). A subclass overrides to mark its collateral/PT/LRT to its
+    # REAL per-day price/ratio/funding path; it MUST set self._mtm_source = "realized_backtest_series"
+    # on any day it returns a mark driven by a real path (and leave it None on a pure-accrual day).
+    # fail-CLOSED: a required mark feed missing → raise InvalidDataError (the book then safe-holds),
+    # never a fabricated mark.
+    def _mark_to_market_pct(self, market: MarketSnapshot) -> float:
+        return 0.0
+
+    # ── shared MTM helpers (day-over-day moves off REAL paths) ────────────────────────────────────
+    def _pt_mtm(self, implied_yield: float) -> float:
+        """Day-over-day fractional PT mark from the REAL implied-yield path. price = 1/(1+iy)^τ; the
+        return is (price_today − price_prev)/price_prev. First datapoint → 0 (anchors, no move yet).
+        Sets _mtm_source on a real (non-zero-anchor) day."""
+        price = _pt_price_from_iy(implied_yield)
+        if self._prev_pt_price is None:
+            self._prev_pt_price = price
+            return 0.0
+        move = (price - self._prev_pt_price) / self._prev_pt_price if self._prev_pt_price else 0.0
+        self._prev_pt_price = price
+        self._mtm_source = "realized_backtest_series"   # driven by the REAL implied-yield series
+        return move
+
+    def _ratio_mtm(self, ratio: float) -> float:
+        """Day-over-day fractional mark from a REAL collateral/ETH (or LRT/ETH) ratio path. This is
+        the depeg residual the perp hedge does NOT cover. First datapoint anchors (0 move)."""
+        if self._prev_ratio is None:
+            self._prev_ratio = float(ratio)
+            return 0.0
+        move = (float(ratio) - self._prev_ratio) / self._prev_ratio if self._prev_ratio else 0.0
+        self._prev_ratio = float(ratio)
+        self._mtm_source = "realized_backtest_series"   # driven by the REAL price/ratio series
+        return move
 
     # ── inspection ──────────────────────────────────────────────────────────────────────────────
     def positions(self) -> List[Position]:
@@ -132,6 +232,9 @@ class _AggressiveBase(Strategy):
                 "equity_usd": round(self._equity, 2),
                 "cum_cost_usd": round(self._cum_cost, 2),
                 "cum_funding_usd": round(self._cum_funding, 2),
+                "mtm_today_pct": round(self._mtm * 100.0, 6),
+                "mtm_source": self._mtm_source,
+                "cum_mtm_pct": round(self._cum_mtm * 100.0, 6),
                 "killed": self._killed,
                 "kill_reason": self._kill_reason,
                 "risk_class": self.risk_class,
@@ -195,12 +298,19 @@ class SusdeDeltaNeutral(_AggressiveBase):
 
     def _daily_yield_pct(self, market: MarketSnapshot) -> float:
         susde_apy = market.require("defi_apy", "susde")          # decimal annual — REAL feed
+        # carry-only accrual; the (signed) perp funding is the MARK (see _mark_to_market_pct).
+        return susde_apy / _DAYS_PER_YEAR
+
+    def _mark_to_market_pct(self, market: MarketSnapshot) -> float:
+        # FUNDING-FLIP mark: the short-perp leg RECEIVES funding when positive, PAYS when negative
+        # (3 settlements/day). When the REAL funding path inverts (the Oct-2025 USDe unwind: funding
+        # went deeply negative) the carry turns to BLEED → the equity DIPS on the real date. This is
+        # the real per-day funding series, so it is a realized mark, not a stamped shock.
         funding = market.require("funding")                       # 8h median — REAL feed
-        # The short-perp leg RECEIVES funding when positive, PAYS when negative. 3 settlements/day.
         funding_day = funding * 3.0
         self._cum_funding += self._equity * funding_day
-        # Net daily = sUSDe carry + the (signed) daily perp funding on the hedged notional.
-        return (susde_apy / _DAYS_PER_YEAR) + funding_day
+        self._mtm_source = "realized_backtest_series"
+        return funding_day
 
     def _kill(self, market: MarketSnapshot) -> tuple:
         funding = market.require("funding")
@@ -227,6 +337,18 @@ class SusdeSpot(_AggressiveBase):
         susde_apy = market.require("defi_apy", "susde")
         return susde_apy / _DAYS_PER_YEAR
 
+    def _mark_to_market_pct(self, market: MarketSnapshot) -> float:
+        # DEPEG mark: an unhedged sUSDe holder marks to the sUSDe market price. The REAL per-day
+        # signal we have is the PT-sUSDe implied-yield path (deep Pendle history): when sUSDe is
+        # stressed (the Oct-2025 USDe unwind), the implied yield spikes and the PT discount widens →
+        # a mark-DOWN on the real date. We mark off that real discount path day-over-day. If the PT
+        # series is absent for a tick → no real path → no mark (0.0), honest gap (not a fake dip).
+        try:
+            pt_iy = market.require("defi_apy", "pendle_pt_susde")   # REAL implied-yield path
+        except InvalidDataError:
+            return 0.0    # no real mark path this tick → pure-accrual day (source stays None)
+        return self._pt_mtm(pt_iy)
+
 
 # ──────────────────────────────────────────────────────────────────────────────────────────────────
 # 3. Pendle YT-sUSDe (~14%) — buy the YT (the leveraged yield token). Class C, shape funding_flip.
@@ -245,6 +367,23 @@ class PendleYtSusde(_AggressiveBase):
         yt_apy = market.require("defi_apy", "pendle_yt_susde")    # REAL Pendle YT implied yield
         return yt_apy / _DAYS_PER_YEAR
 
+    def _mark_to_market_pct(self, market: MarketSnapshot) -> float:
+        # FUNDING-FLIP mark: a YT is a LEVERAGED LONG on future sUSDe carry. When the REAL perp-funding
+        # path inverts (the Oct-2025 USDe unwind: funding went deeply negative as the carry trade
+        # unwound), the carry the YT is long BLEEDS, amplified by the YT's leverage → the YT marks DOWN
+        # on the real date. We mark off the real funding path × the YT leverage (a negative-funding day
+        # is a magnified loss; a positive-funding day a magnified gain). The dip + date come entirely
+        # from the real 5-venue funding series — not a stamped shock. Positive funding is NOT clipped to
+        # zero (that would hide the upside); the whole real path drives the mark, bounded per-day.
+        funding = market.require("funding")                       # REAL 5-venue median 8h funding
+        lev = float(self._cfg.get("yt_leverage", 8.0))            # YT ≈ high-leverage carry exposure
+        funding_day = funding * 3.0
+        self._cum_funding += self._equity * funding_day
+        self._mtm_source = "realized_backtest_series"
+        mark = lev * funding_day
+        # bound a single jagged daily print so no one day dominates (sign + real move still drive it).
+        return max(-0.25, min(0.25, mark))
+
 
 # ──────────────────────────────────────────────────────────────────────────────────────────────────
 # 4. Pendle PT LEVERED (~15%) — loop PT-sUSDe at L× via lending. Class C, shape liquidation.
@@ -259,6 +398,14 @@ class PendlePtLevered(_AggressiveBase):
     yield_source = "Pendle PT-sUSDe fixed implied yield × leverage − borrow cost"
     headline_apy_pct = 15.0
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._liquidated = False
+
+    def init(self, capital: float, config: dict) -> None:
+        super().init(capital, config)
+        self._liquidated = False
+
     def _daily_yield_pct(self, market: MarketSnapshot) -> float:
         pt_apy = market.require("defi_apy", "pendle_pt_susde")    # REAL PT fixed implied yield
         lev = float(self._cfg.get("leverage", 3.0))
@@ -267,6 +414,32 @@ class PendlePtLevered(_AggressiveBase):
         net_apy = pt_apy * lev - borrow_apy * (lev - 1.0)
         self._cum_cost += self._equity * (borrow_apy * (lev - 1.0) / _DAYS_PER_YEAR)
         return net_apy / _DAYS_PER_YEAR
+
+    def _mark_to_market_pct(self, market: MarketSnapshot) -> float:
+        # LIQUIDATION mark: the loop holds L× PT exposure financed by a borrow leg, so a PT price move
+        # marks the equity at L×. The PT price comes from the REAL implied-yield path (1/(1+iy)^τ):
+        # when the implied yield spikes on the real event (Oct-2025 over-levered cascade), the PT marks
+        # down and the LEVERED equity draws down hard. A levered loss exceeding the equity cushion is a
+        # LIQUIDATION cliff: once cumulative levered MTM wipes the buffer, the book liquidates (a one-
+        # way loss). The dip + its date are the real PT series, amplified by real leverage — not stamped.
+        try:
+            pt_iy = market.require("defi_apy", "pendle_pt_susde")
+        except InvalidDataError:
+            return 0.0
+        lev = float(self._cfg.get("leverage", 3.0))
+        pt_move = self._pt_mtm(pt_iy)        # real day-over-day PT price move (sets source)
+        levered_move = pt_move * lev         # amplified by the real leverage (the liquidation tail)
+        # liquidation cliff: a levered drawdown that breaches the maintenance buffer forces an exit at
+        # a loss; model it as the equity cannot recover the wiped leverage (kill fires next tick).
+        liq_buffer = float(self._cfg.get("liq_buffer_frac", -0.5 / lev))  # ~maintenance margin breach
+        if levered_move <= liq_buffer:
+            self._liquidated = True
+        return levered_move
+
+    def _kill(self, market: MarketSnapshot) -> tuple:
+        if self._liquidated:
+            return (True, "levered PT liquidated (maintenance-margin breach on real PT mark-down)")
+        return (False, "")
 
 
 # ──────────────────────────────────────────────────────────────────────────────────────────────────
@@ -281,6 +454,7 @@ class LrtNeutral(_AggressiveBase):
     risk_shape = "depeg"
     yield_source = "LRT restaking APY ± ETH-perp funding (β≈0; residual = LRT depeg)"
     headline_apy_pct = 6.0
+    accrual_gap_is_safe_hold = True   # LRT restaking/ratio history is sparser/later than the PT window
 
     def init(self, capital: float, config: dict) -> None:
         super().init(capital, config)
@@ -289,16 +463,33 @@ class LrtNeutral(_AggressiveBase):
 
     def _daily_yield_pct(self, market: MarketSnapshot) -> float:
         restaking = market.require("restaking_apy", self._lrt)   # REAL restaking APY
-        funding = market.require("funding")
         ratio = market.require("lrt_ratio", self._lrt)
         if self._entry_ratio is None:
             self._entry_ratio = ratio
+        # carry-only accrual; funding + the depeg residual are the MARK (see _mark_to_market_pct).
+        return restaking / _DAYS_PER_YEAR
+
+    def _mark_to_market_pct(self, market: MarketSnapshot) -> float:
+        # DEPEG mark (β≈0 residual): the short ETH-perp hedge removes ETH PRICE beta, but it does NOT
+        # hedge the LRT↔ETH ratio — so when the LRT depegs (rsETH/ezETH Aug-2024, Apr-2026), the
+        # ratio collapse marks the equity DOWN on the real date. We mark off the REAL lrt_eth_ratio
+        # path day-over-day. The (signed) perp funding is also realized P&L (a flip = carry bleed).
+        funding = market.require("funding")
         funding_day = funding * 3.0
         self._cum_funding += self._equity * funding_day
-        return (restaking / _DAYS_PER_YEAR) + funding_day
+        self._mtm_source = "realized_backtest_series"
+        ratio = market.require("lrt_ratio", self._lrt)            # REAL LRT/ETH ratio path
+        depeg_move = self._ratio_mtm(ratio)                       # residual the hedge can't cover
+        return funding_day + depeg_move
 
     def _kill(self, market: MarketSnapshot) -> tuple:
-        ratio = market.require("lrt_ratio", self._lrt)
+        # a missing ratio on this tick is a GAP, not a kill trigger — we cannot EVALUATE the depeg
+        # kill without the mark feed, and a book that hasn't started (no entry ratio yet) must never
+        # die in warmup. Skip the check this tick (the step() already safe-held the gap day).
+        try:
+            ratio = market.require("lrt_ratio", self._lrt)
+        except InvalidDataError:
+            return (False, "")
         if self._entry_ratio:
             drop = (self._entry_ratio - ratio) / self._entry_ratio * 100.0
             thr = float(self._cfg.get("depeg_kill_pct", 5.0))
@@ -319,23 +510,33 @@ class EthDirectional(_AggressiveBase):
     risk_shape = "depeg"
     yield_source = "LRT restaking APY + UNHEDGED ETH price exposure (directional beta)"
     headline_apy_pct = 4.0
+    accrual_gap_is_safe_hold = True   # LRT restaking + ETH price history sparser/later than PT window
 
     def init(self, capital: float, config: dict) -> None:
         super().init(capital, config)
         self._lrt = str((config or {}).get("lrt_symbol", "eeth"))
         self._entry_eth: Optional[float] = None
+        self._prev_eth: Optional[float] = None
 
     def _daily_yield_pct(self, market: MarketSnapshot) -> float:
         restaking = market.require("restaking_apy", self._lrt)
-        eth = market.require("eth_price")
+        # carry-only accrual; the UNHEDGED ETH price move is the MARK (see _mark_to_market_pct).
+        return restaking / _DAYS_PER_YEAR
+
+    def _mark_to_market_pct(self, market: MarketSnapshot) -> float:
+        # DIRECTIONAL (β≈1) mark: NO hedge, so the equity moves 1:1 with the REAL ETH price path. An
+        # ETH crash (Aug-2024) marks this book down hard on the real date — the honest tell that this
+        # is market BETA, not yield. Driven by the real ETH price series → realized, not stamped.
+        eth = market.require("eth_price")                        # REAL ETH price path
         if self._entry_eth is None:
             self._entry_eth = eth
-            return restaking / _DAYS_PER_YEAR
-        # directional: the daily equity move IS the ETH price move + the day's restaking accrual.
+            self._prev_eth = eth
+            return 0.0
         prev = getattr(self, "_prev_eth", self._entry_eth)
         price_ret = (eth - prev) / prev if prev else 0.0
         self._prev_eth = eth
-        return price_ret + (restaking / _DAYS_PER_YEAR)
+        self._mtm_source = "realized_backtest_series"
+        return price_ret
 
 
 # ──────────────────────────────────────────────────────────────────────────────────────────────────
@@ -350,6 +551,15 @@ class LeverageLoop(_AggressiveBase):
     risk_shape = "liquidation"
     yield_source = "wstETH staking APY × leverage − borrow cost (liquidation tail at 0.825 LTV)"
     headline_apy_pct = 7.5
+    accrual_gap_is_safe_hold = True   # stETH staking/ratio history sparser/later than the PT window
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._liquidated = False
+
+    def init(self, capital: float, config: dict) -> None:
+        super().init(capital, config)
+        self._liquidated = False
 
     def _daily_yield_pct(self, market: MarketSnapshot) -> float:
         # wstETH staking yield comes through restaking_apy["steth"] (plain-staking) or defi_apy.
@@ -362,6 +572,29 @@ class LeverageLoop(_AggressiveBase):
         net_apy = staking * lev - borrow_apy * (lev - 1.0)
         self._cum_cost += self._equity * (borrow_apy * (lev - 1.0) / _DAYS_PER_YEAR)
         return net_apy / _DAYS_PER_YEAR
+
+    def _mark_to_market_pct(self, market: MarketSnapshot) -> float:
+        # LIQUIDATION mark: the loop holds L× wstETH collateral against an ETH borrow. The position is
+        # exposed to the stETH↔ETH ratio (the depeg that breaches the 0.825-LTV liquidation threshold)
+        # marked at L×. We mark off the REAL stETH/ETH ratio path day-over-day × leverage: an stETH
+        # wobble at leverage near the threshold cascades. The dip + date are the real ratio series
+        # (amplified by real leverage), not a stamped shock. No real ratio for a tick → no mark.
+        try:
+            ratio = market.require("lrt_ratio", "steth")          # REAL stETH/ETH ratio path
+        except InvalidDataError:
+            return 0.0    # no real mark path this tick → pure-accrual day
+        lev = float(self._cfg.get("leverage", 2.0))
+        ratio_move = self._ratio_mtm(ratio)                       # real day-over-day (sets source)
+        levered_move = ratio_move * lev
+        liq_buffer = float(self._cfg.get("liq_buffer_frac", -0.5 / lev))
+        if levered_move <= liq_buffer:
+            self._liquidated = True
+        return levered_move
+
+    def _kill(self, market: MarketSnapshot) -> tuple:
+        if self._liquidated:
+            return (True, "leverage loop liquidated (stETH/ETH ratio breach at leverage)")
+        return (False, "")
 
 
 # ──────────────────────────────────────────────────────────────────────────────────────────────────
