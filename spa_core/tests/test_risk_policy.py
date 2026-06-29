@@ -409,9 +409,39 @@ class TestCheckPortfolioHealth:
         assert result.approved is True
 
     def test_kill_switch_triggered(self, policy, state_with_drawdown):
+        # ADR-050: 6% drawdown is the SOFT de-risk band (5–10%), NOT a HARD
+        # all-cash close. The portfolio is still un-healthy (approved=False) but
+        # the verdict converges onto the governance TWO-TIER ladder: SOFT means
+        # halt new/increase, allow withdraw/reduce — NOT "Close all positions".
         result = policy.check_portfolio_health(state_with_drawdown)
         assert result.approved is False
-        assert any("KILL SWITCH" in v for v in result.violations)
+        assert result.drawdown_tier == "SOFT_DERISK"
+        assert any("SOFT DE-RISK" in v for v in result.violations)
+        # SOFT must NOT issue the HARD all-cash close.
+        assert not any("Close all positions" in v for v in result.violations)
+
+    def test_hard_kill_switch_at_10pct(self, policy):
+        # ADR-050: at the HARD threshold (≥10%) RiskPolicy issues the full
+        # all-cash "Close all positions" kill, parity with governance HARD_KILL.
+        state = PortfolioState(
+            total_capital_usd=10_000.0,
+            positions=[
+                Position(
+                    protocol_key="aave-v3-usdc-ethereum",
+                    tier="T1",
+                    asset="USDC",
+                    amount_usd=8_000.0,
+                    apy_at_open=5.0,
+                    current_apy=1.0,
+                    unrealized_pnl_usd=-1_100.0,  # -11% → HARD
+                )
+            ],
+        )
+        result = policy.check_portfolio_health(state)
+        assert result.approved is False
+        assert result.drawdown_tier == "HARD_KILL"
+        assert any("KILL SWITCH TRIGGERED (HARD)" in v for v in result.violations)
+        assert any("Close all positions" in v for v in result.violations)
 
     def test_drawdown_warning_at_75_percent(self, policy):
         """Предупреждение при 75% от kill switch порога (3.75%).

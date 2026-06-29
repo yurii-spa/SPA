@@ -19,9 +19,9 @@ for the reviewer-facing walkthrough.
 | **Version tag** | `verifier-v1.0` |
 | **File** | `scripts/verify_spa.py` |
 | **SHA-256** | `0f8c270c8c1f0c59ffc7236b1e43c1cb2aa58329faf7839c1961ce83209f81da` |
-| **Size** | 51817 bytes · 915 lines |
+| **Size** | 68526 bytes · 1207 lines |
 | **Spec version** | PROOF_CHAIN_SPEC `1.0` |
-| **Scope** | decision chain (A) · exit-NAV proofs (B) · anchors (C) · equity track (D) |
+| **Scope** | decision chain (A) · exit-NAV proofs (B) · anchors (C) · equity track (D) · tournament ranking chain (E) · RWA-backstop NAV proof (F) · sleeve forward-series proofs (G) |
 
 ### Verify the verifier (one command)
 
@@ -45,10 +45,30 @@ authentic verifier — discard it and re-download from the pinned tag below.
 
 ### Then run it
 
+If you have a checkout of the public `data/` dir:
+
 ```bash
-python3 verify_spa.py data/rates_desk/
-# exit 0 = every published hash reproduces; exit 1 = any mismatch.
+python3 verify_spa.py data/
+# exit 0 = every published hash (surfaces A–G) reproduces; exit 1 = any mismatch.
 ```
+
+Or pull the COMPLETE public chains straight from the live API (no checkout needed) and verify those —
+the full-chain download endpoints serve every byte uncapped:
+
+```bash
+mkdir -p data/rates_desk/paper data/tournament data/rwa_backstop
+B=https://api.earn-defi.com/api/rates-desk/full-chain
+curl -s $B/decision_log > data/rates_desk/decision_log.jsonl
+curl -s $B/exit_nav     > data/rates_desk/exit_nav.json
+curl -s $B/anchors      > data/rates_desk/anchors.jsonl
+curl -s $B/equity_track > data/rates_desk/equity_track.jsonl
+curl -s $B/tournament   > data/tournament/decision_log.jsonl
+curl -s $B/nav_proof    > data/rwa_backstop/nav_proof.jsonl
+curl -s $B/sleeve       > data/rates_desk/paper/rates_desk_fixed_carry_series_proof.jsonl
+python3 verify_spa.py data/        # exit 0 = the live API's published heads reproduce end-to-end
+```
+
+`GET /api/rates-desk/full-chain` returns the index of every downloadable surface.
 
 ---
 
@@ -95,7 +115,7 @@ distinct verifier byte-image gets its own version.
 
 | Version | SHA-256 | Date | Note |
 |---|---|---|---|
-| `verifier-v1.0` | `0f8c270c8c1f0c59ffc7236b1e43c1cb2aa58329faf7839c1961ce83209f81da` | 2026-06-28 | Initial pinned release. Verifies decision chain + exit-NAV + anchors + equity track per PROOF_CHAIN_SPEC v1.0. |
+| `verifier-v1.0` | `0f8c270c8c1f0c59ffc7236b1e43c1cb2aa58329faf7839c1961ce83209f81da` | 2026-06-28 | Pinned release (68526 bytes · 1207 lines). Verifies surfaces A–G — decision chain + exit-NAV + anchors + equity track + tournament ranking chain + RWA-backstop NAV proof + sleeve forward-series proofs — per PROOF_CHAIN_SPEC v1.0. Reproducible end-to-end from the live `/api/rates-desk/full-chain/*` download endpoints. |
 
 ---
 

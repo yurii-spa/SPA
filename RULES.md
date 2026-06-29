@@ -239,7 +239,7 @@ RULE-8: Kill-switch на основе Sharpe требует минимум MIN_D
 |---------|----------|----------|
 | `last_cycle_ts` | не старше **26 часов** | data/paper_trading_status.json |
 | `last_cycle_status` | `"ok"` | data/paper_trading_status.json |
-| `kill_switch` | `CLEAR` (drawdown < 5%) | data/golive_status.json: drawdown_below_kill |
+| `kill_switch` | `CLEAR` (drawdown < **SOFT 5%**; **HARD all-cash kill при ≥10%**, ADR-048) | data/golive_status.json: drawdown_below_kill |
 | `equity` | не падает >5% за сутки | data/cycle_health.json: equity_anomaly |
 | `golive.passed` | не регрессирует (≥ предыдущего) | data/golive_status.json |
 | `agent_health.warning_count` | ≤ 2 | data/agent_health.json |
@@ -254,7 +254,8 @@ RULE-8: Kill-switch на основе Sharpe требует минимум MIN_D
 |---------|-----------|---------|
 | `last_cycle_ts` > 26ч | **P0** | Немедленно запустить вручную: `python3 -m spa_core.paper_trading.cycle_runner --verbose` |
 | `kill_switch` TRIGGERED | **P0** | НЕ трогать — это автоматическая защита. Прочитать DECISIONS.md, понять причину |
-| equity падает >5% | **P0** | kill_switch активируется сам. Проверить risk_policy_blocks.json |
+| drawdown ≥ **5%** (SOFT de-risk) | **P1** | **НЕ ликвидирует** (ADR-048): cycle halt'ит новые/увеличивающие аллокации (hold+reduce only), edge-triggered WARNING. Проверить `derisk_status.json` / risk_policy_blocks.json |
+| drawdown ≥ **10%** (HARD kill) | **P0** | kill_switch активируется сам → **all-cash** ({"cash":1.0}). НЕ трогать — автоматическая защита. Прочитать DECISIONS.md (ADR-048) |
 | Любой always-on агент NOT LOADED | **P1** | `launchctl load ~/Library/LaunchAgents/<label>.plist` |
 | `agent_health.critical_count` > 0 | **P1** | Прочитать data/agent_health.json, исправить конкретный агент |
 | `golive.passed` регрессировал | **P1** | Немедленно выяснить какой критерий упал, НЕ продолжать разработку |

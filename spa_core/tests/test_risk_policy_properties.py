@@ -257,23 +257,39 @@ def _state_with_drawdown(capital: float, dd: float) -> PortfolioState:
 
 
 def test_kill_switch_deterministic_at_config_threshold(policy):
+    # ADR-050: RiskPolicy's drawdown gate is converged onto the governance
+    # TWO-TIER ladder. At/above the SOFT threshold the portfolio is ALWAYS
+    # un-healthy (approved=False); the FULL "KILL SWITCH" all-cash text appears
+    # only in the HARD band (≥10%) — the SOFT band [5%,10%) is a DE-RISK
+    # violation (block new/increase, allow withdraw/reduce). VALUES unchanged.
     rng = _rng(5)
-    thr = _CFG.max_drawdown_stop  # READ FROM CONFIG — single source of truth
+    soft = _CFG.max_drawdown_stop  # 0.05 (SOFT) — single source of truth
+    hard = 0.10                    # HARD threshold (owner-set, governance-owned)
     for _ in range(N_CASES):
         capital = rng.uniform(10_000.0, 1_000_000.0)
-        # at/above threshold → kill; below → no kill (deterministic boundary)
-        dd_kill = thr + rng.uniform(0.0, 0.20)
-        dd_ok = rng.uniform(0.0, thr - 1e-6)
+        dd_hard = hard + rng.uniform(0.0, 0.20)
+        dd_soft = rng.uniform(soft, hard - 1e-6)
+        dd_ok = rng.uniform(0.0, soft - 1e-6)
 
-        r_kill = policy.check_portfolio_health(_state_with_drawdown(capital, dd_kill))
-        assert r_kill.approved is False, f"dd={dd_kill} ≥ thr={thr} did NOT kill"
-        assert any("KILL SWITCH" in v for v in r_kill.violations)
+        # HARD → full kill (approved=False + KILL SWITCH text + all-cash).
+        r_hard = policy.check_portfolio_health(_state_with_drawdown(capital, dd_hard))
+        assert r_hard.approved is False, f"dd={dd_hard} ≥ {hard} did NOT kill"
+        assert r_hard.drawdown_tier == "HARD_KILL"
+        assert any("KILL SWITCH" in v for v in r_hard.violations)
 
+        # SOFT → de-risk (approved=False, NOT a full all-cash kill).
+        r_soft = policy.check_portfolio_health(_state_with_drawdown(capital, dd_soft))
+        assert r_soft.approved is False, f"dd={dd_soft} in [{soft},{hard}) did NOT reject"
+        assert r_soft.drawdown_tier == "SOFT_DERISK"
+        assert any("SOFT DE-RISK" in v for v in r_soft.violations)
+        assert not any("Close all positions" in v for v in r_soft.violations)
+
+        # Below SOFT → no drawdown kill/de-risk violation.
         r_ok = policy.check_portfolio_health(_state_with_drawdown(capital, dd_ok))
-        # below threshold there is no KILL SWITCH violation (other warn-only checks
-        # may add warnings, but never a kill-switch violation here)
-        assert not any("KILL SWITCH" in v for v in r_ok.violations), (
-            f"dd={dd_ok} < thr={thr} spuriously killed: {r_ok.violations}")
+        assert r_ok.drawdown_tier == "NONE"
+        assert not any("KILL SWITCH" in v or "SOFT DE-RISK" in v
+                       for v in r_ok.violations), (
+            f"dd={dd_ok} < {soft} spuriously killed: {r_ok.violations}")
 
 
 def test_kill_switch_monotone(policy):

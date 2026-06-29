@@ -9,8 +9,15 @@ code in the real execution path. This sprint wires it in:
   * T2 adapters (yearn, maple, sky, euler) — consume the broadcast result as a
     dict; now call mev_protection.send_raw_transaction_auto.
   * T1 adapters (aave, compound) — consume a tx-hash string then poll; their
-    _send_raw_tx chokepoint now prefers Flashbots in live mode, falling back to
-    the public RPC path on any routing error.
+    _send_raw_tx chokepoint now routes through the fail-CLOSED
+    mev_protection.guard_broadcast in live mode.
+
+AUDIT #3/#4 HARDENING (execution-correctness sprint): _send_raw_tx no longer falls
+through to the public mempool on a protected-broadcast failure ("never block the
+public path" defeated MEV protection + broke the private-only contract). It now
+routes through guard_broadcast (gas/MEV-aware, fail-CLOSED) and ABORTS — raising,
+never broadcasting — on a guard ABORT or a FAILED protected broadcast. The public
+RPC path remains ONLY for the MEV-OFF / not-live case (byte-for-byte legacy).
 
 All tests are offline (no network).
 """
@@ -73,15 +80,25 @@ class TestT1Wiring:
     @pytest.mark.parametrize("modpath", T1_MODULES)
     def test_send_raw_tx_routes_through_mev(self, modpath):
         src = _source(modpath)
-        assert "mev_protection.send_protected" in src, (
-            f"{modpath}._send_raw_tx must prefer Flashbots in live mode"
+        # AUDIT #4: the REAL live path now routes through the fail-CLOSED guard
+        # (gas/MEV-aware), not a bare send_protected.
+        assert "mev_protection.guard_broadcast" in src, (
+            f"{modpath}._send_raw_tx must route through guard_broadcast in live mode"
         )
         assert "is_mev_protection_enabled" in src
 
     @pytest.mark.parametrize("modpath", T1_MODULES)
-    def test_send_raw_tx_keeps_public_fallback(self, modpath):
+    def test_send_raw_tx_no_public_fallback_on_protected_failure(self, modpath):
+        # AUDIT #3: the public-mempool fallback ("never block the public path")
+        # must be GONE — a failed protected broadcast ABORTS (fail-CLOSED).
         src = _source(modpath)
-        # Public path must remain so default behaviour is unchanged
+        assert "never block the public path" not in src
+        assert "no public-mempool fallback" in src
+
+    @pytest.mark.parametrize("modpath", T1_MODULES)
+    def test_send_raw_tx_keeps_public_path_for_mev_off(self, modpath):
+        src = _source(modpath)
+        # The legacy public path remains ONLY for the MEV-OFF / not-live case.
         assert '_rpc_first("eth_sendRawTransaction"' in src
 
 
@@ -182,32 +199,65 @@ class TestT1SendRawTxRouting:
             fb.assert_not_called()
 
     @pytest.mark.parametrize("Adapter", _t1_adapters())
-    def test_flashbots_when_on_and_live(self, Adapter, monkeypatch):
+    def test_protected_when_on_and_live(self, Adapter, monkeypatch):
+        # AUDIT #4: live + MEV-on routes through guard_broadcast; the public path
+        # must NEVER be touched.
         monkeypatch.setenv("SPA_MEV_PROTECTION", "true")
         monkeypatch.setenv("SPA_EXECUTION_MODE", "live")
         a = Adapter()
         fb_hash = "0x" + "22" * 32
+        monkeypatch.setattr(a, "_get_gas_price", lambda: 20_000_000_000)  # 20 gwei
         monkeypatch.setattr(a, "_rpc_first",
                             lambda m, p: pytest.fail("public path used"))
         with mock.patch(
-            "spa_core.execution.mev_protection.send_protected",
+            "spa_core.execution.mev_protection.guard_broadcast",
             return_value={"status": "PENDING", "tx_hash": fb_hash,
                           "endpoint": "flashbots"},
-        ):
+        ) as gb:
             assert a._send_raw_tx(self.SIGNED) == fb_hash
+            gb.assert_called_once()
+            # fail-CLOSED: private-only, no public fallback handed to the guard.
+            assert gb.call_args.kwargs["fallback_rpc"] is None
 
     @pytest.mark.parametrize("Adapter", _t1_adapters())
-    def test_falls_back_to_public_when_flashbots_fails(self, Adapter, monkeypatch):
+    def test_aborts_no_public_fallback_when_protected_fails(self, Adapter, monkeypatch):
+        # AUDIT #3: a FAILED protected broadcast must ABORT (raise) — it must NOT
+        # fall through to the public mempool.
+        from spa_core.utils.errors import ValidationError
         monkeypatch.setenv("SPA_MEV_PROTECTION", "true")
         monkeypatch.setenv("SPA_EXECUTION_MODE", "live")
         a = Adapter()
-        pub_hash = "0x" + "33" * 32
-        monkeypatch.setattr(a, "_rpc_first", lambda m, p: pub_hash)
+        monkeypatch.setattr(a, "_get_gas_price", lambda: 20_000_000_000)
+        monkeypatch.setattr(
+            a, "_rpc_first",
+            lambda m, p: pytest.fail("public mempool reached on protected failure"),
+        )
         with mock.patch(
-            "spa_core.execution.mev_protection.send_protected",
+            "spa_core.execution.mev_protection.guard_broadcast",
             return_value={"status": "FAILED", "reason": "all endpoints down"},
         ):
-            assert a._send_raw_tx(self.SIGNED) == pub_hash
+            with pytest.raises(ValidationError):
+                a._send_raw_tx(self.SIGNED)
+
+    @pytest.mark.parametrize("Adapter", _t1_adapters())
+    def test_aborts_no_public_fallback_on_guard_abort(self, Adapter, monkeypatch):
+        # AUDIT #3/#4: a guard ABORT (gas spike / stale oracle / sandwich) must
+        # raise and broadcast nothing — never the public path.
+        from spa_core.utils.errors import ValidationError
+        monkeypatch.setenv("SPA_MEV_PROTECTION", "true")
+        monkeypatch.setenv("SPA_EXECUTION_MODE", "live")
+        a = Adapter()
+        monkeypatch.setattr(a, "_get_gas_price", lambda: 20_000_000_000)
+        monkeypatch.setattr(
+            a, "_rpc_first",
+            lambda m, p: pytest.fail("public mempool reached on guard ABORT"),
+        )
+        with mock.patch(
+            "spa_core.execution.mev_protection.guard_broadcast",
+            return_value={"status": "ABORTED", "reason": "gas spike 5x → ABORT"},
+        ):
+            with pytest.raises(ValidationError):
+                a._send_raw_tx(self.SIGNED)
 
     @pytest.mark.parametrize("Adapter", _t1_adapters())
     def test_not_live_uses_public(self, Adapter, monkeypatch):

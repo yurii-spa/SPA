@@ -214,6 +214,7 @@ def _adapter_mev_routed(module: Any) -> bool:
                 "send_raw_transaction_auto",
                 "broadcast_protected_hash",
                 "send_protected",
+                "guard_broadcast",
             )
         )
     except Exception as exc:  # pragma: no cover - defensive

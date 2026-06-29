@@ -12,6 +12,7 @@ import json
 import logging
 
 from fastapi import APIRouter, Query
+from fastapi.responses import PlainTextResponse
 
 from spa_core.api._shared import (
     backtest_meta,
@@ -461,6 +462,94 @@ def get_rates_desk_anchors(limit: int = Query(default=50, ge=1, le=500)):
             "Append-only + monotonic; the anchor whose chain_length == the re-derived decision-chain "
             "length must carry that exact head_hash (PROOF_CHAIN_SPEC.md §5 anchoring caveat)."),
     }
+
+
+# ── FULL-CHAIN download surface (audit finding #1) ────────────────────────────────────────────────
+# The /proof and /decisions and /anchors views are CAPPED (last_n≤200, limit≤500) — fine for a human
+# glance, but a stranger who wants to RE-DERIVE the head with scripts/verify_spa.py needs EVERY byte of
+# the underlying file (the chain is 500+ rows). These endpoints serve the COMPLETE public proof
+# artifacts VERBATIM (raw bytes, NO cap, NO reformat) so an outsider can curl them onto a clean machine
+# and run the zero-dependency verifier end-to-end. Read-only, fail-CLOSED: an unknown surface or a
+# missing file is a 404 (never a fabricated/empty success). NO secret/state ever lives in these files.
+#
+# Each surface maps to the EXACT public file scripts/verify_spa.py consumes (and PROOF_CHAIN_SPEC.md
+# documents). Served as text/plain so the bytes are delivered unchanged (JSONL files are not single
+# JSON documents; a JSON response would reframe them).
+_FULL_CHAIN_FILES = {
+    "decision_log": "rates_desk/decision_log.jsonl",   # (A) the tamper-evident decision chain
+    "exit_nav": "rates_desk/exit_nav.json",            # (B) per-row exit-NAV proof_hash document
+    "anchors": "rates_desk/anchors.jsonl",             # (C) cross-eviction head anchors
+    "equity_track": "rates_desk/equity_track.jsonl",   # (D) evidenced equity / go-live track
+    "tournament": "tournament/decision_log.jsonl",     # (E) tournament ranking chain
+    "nav_proof": "rwa_backstop/nav_proof.jsonl",       # (F) RWA-backstop NAV forward proof
+    "sleeve": "rates_desk/paper/rates_desk_fixed_carry_series_proof.jsonl",  # (G) sleeve fwd-series
+}
+
+
+@router.get("/api/rates-desk/full-chain", response_class=PlainTextResponse)
+def list_full_chain_surfaces():
+    """List the COMPLETE public proof files a stranger can download to reproduce every head.
+
+    The download index for audit finding #1: each `surface` here has a `/api/rates-desk/full-chain/
+    {surface}` endpoint that serves its ENTIRE underlying file VERBATIM (no cap) — so an outsider curls
+    them, drops them under a clean `data/` tree, runs `python3 verify_spa.py data/`, and reproduces the
+    same head_hash this API reports. Read-only; never includes any secret/state file."""
+    import json as _json
+    base = data_dir()
+    surfaces = []
+    for key, rel in _FULL_CHAIN_FILES.items():
+        p = base / rel
+        surfaces.append({
+            "surface": key,
+            "file": rel,
+            "download": f"/api/rates-desk/full-chain/{key}",
+            "present": p.exists(),
+        })
+    return _json.dumps({
+        "generated_at": now(),
+        "model": "rates_desk_full_chain_index",
+        "note": "Each download endpoint serves the COMPLETE file verbatim (no last_n/limit cap) so a "
+                "third party can re-derive every head with scripts/verify_spa.py. "
+                "Recipe: curl each → save under data/<file> → python3 verify_spa.py data/",
+        "spec": "docs/PROOF_CHAIN_SPEC.md",
+        "verifier": "scripts/verify_spa.py (zero-dependency, no spa_core import)",
+        "surfaces": surfaces,
+    }, indent=2)
+
+
+@router.get("/api/rates-desk/full-chain/{surface}", response_class=PlainTextResponse)
+def get_full_chain(surface: str):
+    """Serve ONE complete public proof file VERBATIM — the full, uncapped chain for reproduction.
+
+    The owner-independent reproducibility path (audit finding #1): unlike /proof (last_n≤200) or
+    /decisions (limit≤500), this streams EVERY byte of the underlying artifact unmodified, so a
+    skeptic can pull the WHOLE chain and re-derive the head locally with scripts/verify_spa.py.
+
+    Read-only, fail-CLOSED:
+      • an UNKNOWN surface → 404 (never a fabricated body);
+      • a KNOWN surface whose file is ABSENT → 404 (we do not invent an empty success — absence is a
+        real, honest condition the verifier should see, not a silent pass).
+    Bytes are returned exactly as on disk (text/plain), so the verifier hashes the same bytes we do."""
+    from fastapi import HTTPException
+    rel = _FULL_CHAIN_FILES.get(surface)
+    if rel is None:
+        raise HTTPException(status_code=404, detail={
+            "error": "unknown_surface",
+            "surface": surface,
+            "known_surfaces": sorted(_FULL_CHAIN_FILES),
+            "index": "/api/rates-desk/full-chain",
+        })
+    path = data_dir() / rel
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except (FileNotFoundError, OSError):
+        raise HTTPException(status_code=404, detail={
+            "error": "surface_file_absent",
+            "surface": surface,
+            "file": rel,
+            "note": "fail-CLOSED: the file does not exist yet; no fabricated/empty body is served.",
+        })
+    return PlainTextResponse(content=raw, media_type="text/plain; charset=utf-8")
 
 
 @router.get("/api/rates-desk/track")

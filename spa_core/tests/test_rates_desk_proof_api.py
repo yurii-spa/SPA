@@ -201,3 +201,54 @@ def test_proof_corrupt_line_fails_closed(proof_client):
         f.write("{ this is not valid json\n")
     d = client.get("/api/rates-desk/proof").json()
     assert d["verified"] is False
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# FULL-CHAIN download surface (audit finding #1) — an outsider can pull the COMPLETE, UNCAPPED chain
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+def test_full_chain_serves_complete_decision_log_verbatim(proof_client):
+    """/api/rates-desk/full-chain/decision_log serves EVERY byte of the file (no last_n cap), so a
+    third party can re-derive the head with verify_spa.py — even past the /proof last_n≤200 ceiling."""
+    client, data_dir = proof_client
+    log = data_dir / "rates_desk" / "decision_log.jsonl"
+    # 250 rows > both the /proof last_n cap (200) and /decisions limit cap (500-but-default-50).
+    _write_chain(log, [
+        _payload(i, approved=(i % 3 == 0), underlying=f"u{i}", total_haircut="0.10")
+        for i in range(250)
+    ])
+    on_disk = log.read_text(encoding="utf-8")
+    r = client.get("/api/rates-desk/full-chain/decision_log")
+    assert r.status_code == 200
+    # byte-for-byte identical to the file — the whole chain, not a capped window.
+    assert r.text == on_disk
+    assert r.text.count("\n") == 250  # all 250 rows present
+
+
+def test_full_chain_index_lists_surfaces(proof_client):
+    """The /full-chain index advertises every downloadable surface + its present flag."""
+    client, data_dir = proof_client
+    log = data_dir / "rates_desk" / "decision_log.jsonl"
+    _write_chain(log, [_payload(0, approved=True, underlying="ptusdc", total_haircut="0.02")])
+    r = client.get("/api/rates-desk/full-chain")
+    assert r.status_code == 200
+    d = json.loads(r.text)
+    surfaces = {s["surface"]: s for s in d["surfaces"]}
+    assert {"decision_log", "exit_nav", "anchors", "equity_track",
+            "tournament", "nav_proof", "sleeve"} <= set(surfaces)
+    assert surfaces["decision_log"]["present"] is True          # we wrote it
+    assert surfaces["tournament"]["present"] is False           # absent in this tmp dir
+    assert surfaces["decision_log"]["download"] == "/api/rates-desk/full-chain/decision_log"
+
+
+def test_full_chain_unknown_surface_404(proof_client):
+    """fail-CLOSED: an unknown surface name is a 404 (never a fabricated body)."""
+    client, _ = proof_client
+    r = client.get("/api/rates-desk/full-chain/bogus")
+    assert r.status_code == 404
+
+
+def test_full_chain_absent_file_404(proof_client):
+    """fail-CLOSED: a known surface whose file does not exist is a 404 (no empty/invented success)."""
+    client, _ = proof_client  # tmp dir has no equity_track.jsonl
+    r = client.get("/api/rates-desk/full-chain/equity_track")
+    assert r.status_code == 404

@@ -582,35 +582,74 @@ class AaveV3Adapter:
         result = self._rpc_first("eth_gasPrice", [])
         return int(result, 16) if isinstance(result, str) else int(result)
 
-    def _send_raw_tx(self, signed_hex: str) -> str:
+    def _send_raw_tx(self, signed_hex: str, *, proposed_gas_gwei: float | None = None) -> str:
         """Broadcast a signed transaction; return its hash.
 
-        MEV protection (Sprint v3.52 / SPA-V352): when SPA_MEV_PROTECTION is
-        enabled AND SPA_EXECUTION_MODE == "live", prefer the Flashbots Protect
-        private mempool. Any routing error falls back to the public RPC path
-        below, so default behaviour is byte-for-byte unchanged.
+        MEV protection (Sprint v3.52 / SPA-V352; hardened audit #3/#4): when
+        SPA_MEV_PROTECTION is enabled AND SPA_EXECUTION_MODE == "live", the tx is
+        routed through :func:`mev_protection.guard_broadcast`, the fail-CLOSED
+        gas/MEV-aware entry point. This wires the REAL adapter path into the same
+        guard the inert harness exercises (audit #4) and removes the prior
+        public-mempool fallback (audit #3):
+
+          * gas spike / stale oracle / sandwich pattern → guard ABORTS, this
+            method raises and NOTHING is broadcast (fail-CLOSED).
+          * a PROTECT (private-required) decision routes private with NO public
+            fallback; if that protected broadcast FAILS we ABORT — we never fall
+            through to the public mempool (that would defeat the MEV protection
+            and break the private-only contract).
+
+        When MEV protection is OFF (or not live), behaviour is the legacy public
+        ``eth_sendRawTransaction`` path, byte-for-byte unchanged.
         """
-        try:
+        if (self._mev_enabled() and os.getenv("SPA_EXECUTION_MODE") == "live"):
             from spa_core.execution import mev_protection
-            if (mev_protection.is_mev_protection_enabled()
-                    and os.getenv("SPA_EXECUTION_MODE") == "live"):
-                res = mev_protection.send_protected(signed_hex, fallback_rpc=None)
-                tx_hash = res.get("tx_hash")
-                if res.get("status") != "FAILED" and tx_hash:
-                    log.info("MEV-protected broadcast via %s", res.get("endpoint"))
-                    return tx_hash
-                log.warning(
-                    "MEV-protected broadcast failed (%s) — falling back to public RPC",
-                    res.get("reason"),
+            oracle_gwei = self._gas_oracle_gwei()
+            proposed = (
+                proposed_gas_gwei if proposed_gas_gwei is not None else oracle_gwei
+            )
+            res = mev_protection.guard_broadcast(
+                signed_hex,
+                proposed_gas_gwei=proposed,
+                oracle_gas_gwei=oracle_gwei,
+                oracle_age_s=0.0,           # oracle read inline → fresh
+                sandwich_risk=0.0,
+                fallback_rpc=None,          # NEVER fall through to public mempool
+            )
+            status = res.get("status")
+            tx_hash = res.get("tx_hash")
+            if status == "ABORTED":
+                # Gas spike / stale oracle / sandwich → ABORT, broadcast nothing.
+                raise ValidationError(
+                    "guard_broadcast", status,
+                    f"MEV guard ABORT — {res.get('reason')} (no tx submitted)",
                 )
-        except Exception as exc:  # noqa: BLE001 — never block the public path
-            log.warning("MEV protection routing error, using public RPC: %s", exc)
+            if status == "FAILED" or not tx_hash:
+                # Protected/private-required broadcast failed → ABORT (fail-CLOSED).
+                # Do NOT fall through to the public mempool.
+                raise ValidationError(
+                    "guard_broadcast", status,
+                    f"protected broadcast failed — {res.get('reason')} "
+                    "(fail-CLOSED, no public-mempool fallback)",
+                )
+            log.info("MEV-protected broadcast via %s", res.get("endpoint"))
+            return tx_hash
         result = self._rpc_first("eth_sendRawTransaction", [signed_hex])
         if not isinstance(result, str) or not result.startswith("0x"):
             raise ValidationError(
                 "result", result, f"eth_sendRawTransaction bad result: {result!r}"
             )
         return result
+
+    @staticmethod
+    def _mev_enabled() -> bool:
+        """True when MEV protection is enabled (delegates to mev_protection)."""
+        from spa_core.execution import mev_protection
+        return mev_protection.is_mev_protection_enabled()
+
+    def _gas_oracle_gwei(self) -> float:
+        """Current gas-oracle baseline in gwei (from ``eth_gasPrice``)."""
+        return self._get_gas_price() / 1e9
 
     def _wait_for_receipt(self, tx_hash: str) -> dict:
         """Poll eth_getTransactionReceipt until mined or timeout.
@@ -659,16 +698,28 @@ class AaveV3Adapter:
 
     @staticmethod
     def _validate_private_key(pk: str) -> str:
-        """Normalise hex private key. Raises ConfigError/ValidationError if malformed."""
+        """Normalise hex private key. Raises ConfigError/ValidationError if malformed.
+
+        SECURITY (audit #2 — propagates the WS-3.3 eth_signer redaction): the raw
+        key body must NEVER appear in ANY surfaced diagnostic — not in a
+        ValidationError message/details, not in self.value, not in the repr() of
+        the raised exception. Every fail branch (wrong-LENGTH and non-hex) reports
+        only the redacted sentinel + the (non-secret) length, never ``cleaned``.
+        """
         if not pk:
             raise ConfigError("SPA_PRIVATE_KEY", "not found in environment")
         cleaned = pk[2:] if pk.lower().startswith("0x") else pk
         if len(cleaned) != 64:
-            raise ValidationError("SPA_PRIVATE_KEY", cleaned, f"must be 64 hex chars (0x-prefix optional); got {len(cleaned)}")
+            # NEVER echo ``cleaned`` (the raw key body) — only the redacted value
+            # + the length, mirroring eth_signer._pk_to_bytes.
+            raise ValidationError(
+                "SPA_PRIVATE_KEY", "<redacted>",
+                f"must be 64 hex chars (0x-prefix optional); got {len(cleaned)}",
+            )
         try:
             int(cleaned, 16)
         except ValueError as exc:
-            raise ValidationError("SPA_PRIVATE_KEY", "***", "not valid hex") from exc
+            raise ValidationError("SPA_PRIVATE_KEY", "<redacted>", "not valid hex") from exc
         return "0x" + cleaned
 
     def _check_live_preconditions(self) -> dict | None:
@@ -727,6 +778,15 @@ class AaveV3Adapter:
         ``maxPriorityFeePerGas = gasPrice // 10`` — conservative defaults
         that are widely accepted by mainnet/L2 mempools.
         """
+        # ── Nonce safety (audit #4): wire the REAL signing path into the same
+        # fail-CLOSED nonce-gap/reuse guard the inert harness exercises. The
+        # intended nonce must EXACTLY equal the on-chain ``pending`` nonce, else
+        # ABORT before signing (gap → tx stalls; reuse → replaces/dropped).
+        from spa_core.execution.eth_signer import assert_nonce_ok
+        signer_address = Account.from_key(private_key).address
+        pending_nonce = self._get_nonce(signer_address)
+        assert_nonce_ok(nonce, pending_nonce)
+
         max_priority = max(int(gas_price // 10), 1)
         max_fee = max(int(gas_price * 2), max_priority + 1)
         tx = {
@@ -755,7 +815,7 @@ class AaveV3Adapter:
             signed_hex = str(raw)
             if not signed_hex.startswith("0x"):
                 signed_hex = "0x" + signed_hex
-        return self._send_raw_tx(signed_hex)
+        return self._send_raw_tx(signed_hex, proposed_gas_gwei=gas_price / 1e9)
 
     # ─── Supply / withdraw ────────────────────────────────────────────────────
 

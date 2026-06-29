@@ -1,6 +1,28 @@
+############################################################
+#  ⚠️  STALE / SUPERSEDED — DO NOT USE AS EVIDENCE  ⚠️
+#
+#  This file is a 2026-06-12 DEMO-DATA snapshot, generated BEFORE the
+#  honest-track reset (anchor 2026-06-22). Its numbers are FABRICATED /
+#  pre-reset demo values and must NOT be presented as a real track record:
+#    - "Average APY 10.10%", "Sharpe 0.960", "Tournament winner S7",
+#      "Days completed 0/30", "Go-Live checklist 6/6 READY"
+#      → none reflect the live system.
+#
+#  LIVE SOURCE OF TRUTH (read these instead):
+#    - data/golive_status.json        (GoLive 27/29, 29-criteria v6.0)
+#    - data/gap_monitor.json          (7/30 evidenced track days)
+#    - docs/SYSTEM_BRIEFING.md        (auto-generated honest state)
+#    - data/paper_trading_status.json (live equity)
+#  Honest track: anchor 2026-06-22, target go-live ~2026-07-21 (30 honest days).
+#  Kill-switch: SOFT de-risk 5% / HARD all-cash 10% (ADR-048), NOT the -5% limit below.
+#
+#  Retained only as historical demo artifact. Regenerate from the live
+#  sources above before signing anything.
+############################################################
+
 ============================================================
 SPA FAMILY FUND — 30-DAY EVIDENCE REPORT
-Договір простого товариства | Prepared: 2026-06-12
+Договір простого товариства | Prepared: 2026-06-12  [STALE DEMO — see banner above]
 ============================================================
 
 SECTION 1: PAPER TRADING SUMMARY

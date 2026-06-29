@@ -697,9 +697,23 @@ def _sec_how_to_verify(doc: SourcedDoc, s: dict):
     doc.lines(
         "## 8. How a hostile LP checks every claim here",
         "",
-        "1. Download `scripts/verify_spa.py` (zero dependencies, no `spa_core` import, no network) and "
-        "SPA's public `data/` artifacts (the decision log, exit-NAV, anchors, equity track, the "
-        "tournament ranking chain, the RWA-NAV proof, and the sleeve forward-series proofs).",
+        "1. Download `scripts/verify_spa.py` (zero dependencies, no `spa_core` import, no network), then "
+        "pull SPA's public proof artifacts. NO repo checkout is needed — the live API serves every "
+        "COMPLETE chain VERBATIM (uncapped) at `/api/rates-desk/full-chain/{surface}` (index at "
+        "`/api/rates-desk/full-chain`), so an outsider reproduces every head end-to-end:",
+        "",
+        "```",
+        "B=https://api.earn-defi.com/api/rates-desk/full-chain",
+        "mkdir -p data/rates_desk/paper data/tournament data/rwa_backstop",
+        "curl -s $B/decision_log > data/rates_desk/decision_log.jsonl",
+        "curl -s $B/exit_nav     > data/rates_desk/exit_nav.json",
+        "curl -s $B/anchors      > data/rates_desk/anchors.jsonl",
+        "curl -s $B/equity_track > data/rates_desk/equity_track.jsonl",
+        "curl -s $B/tournament   > data/tournament/decision_log.jsonl",
+        "curl -s $B/nav_proof    > data/rwa_backstop/nav_proof.jsonl",
+        "curl -s $B/sleeve       > data/rates_desk/paper/rates_desk_fixed_carry_series_proof.jsonl",
+        "```",
+        "",
         "2. Run it on a clean machine — point it at the WHOLE `data/` dir so it covers ALL 7 surfaces:",
         "",
         "```",

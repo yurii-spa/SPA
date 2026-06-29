@@ -645,6 +645,235 @@ class TestSignerNoKeyLeakExhaustive:
 
 
 # =========================================================================== #
+# AUDIT #2 — ADAPTER _validate_private_key NO-KEY-LEAK (both aave + compound).
+# The WS-3.3 eth_signer redaction was NOT propagated to the two adapter copies:
+# the wrong-LENGTH branch passed the RAW key body (``cleaned``) into the
+# ValidationError. This sweep proves NO raw key reaches message / details /
+# self.value / repr on EITHER fail branch (wrong-length AND non-hex), in BOTH
+# adapters. Mirrors TestSignerNoKeyLeakExhaustive's signer-leak sweep.
+# =========================================================================== #
+def _t1_adapter_validators():
+    """(name, AdapterClass) for both T1 execution adapters that own a
+    _validate_private_key copy."""
+    from spa_core.execution.aave_v3_adapter import AaveV3Adapter
+    from spa_core.execution.compound_v3_adapter import CompoundV3Adapter
+    return [("aave_v3", AaveV3Adapter), ("compound_v3", CompoundV3Adapter)]
+
+
+class TestAdapterValidateKeyNoLeak:
+    KEY = _PUBLIC_DEV_KEY
+
+    def _assert_no_key(self, exc, raw_candidates):
+        """The raw key (every supplied candidate form) must NOT appear in the
+        message, the details dict, self.value, or the repr of the exception."""
+        surfaces = [
+            str(exc),
+            repr(exc),
+            str(getattr(exc, "details", "")),
+            str(getattr(exc, "value", "")),
+        ]
+        for blob in surfaces:
+            for cand in raw_candidates:
+                assert cand not in blob, (
+                    f"PRIVATE KEY LEAKED into an adapter diagnostic: {blob!r}"
+                )
+
+    @pytest.mark.parametrize("name,Adapter", _t1_adapter_validators())
+    def test_wrong_length_key_redacted(self, name, Adapter):
+        """Wrong-LENGTH key (the previously-vulnerable branch) → redacted."""
+        from spa_core.utils.errors import ValidationError
+        bad = self.KEY + "ff"                 # 66 chars, wrong length, secret-shaped
+        with pytest.raises(ValidationError) as ei:
+            Adapter._validate_private_key(bad)
+        self._assert_no_key(
+            ei.value, (bad, "0x" + bad, bad.upper(), self.KEY)
+        )
+        assert "<redacted>" in str(ei.value), f"{name}: not redacted"
+
+    @pytest.mark.parametrize("name,Adapter", _t1_adapter_validators())
+    def test_wrong_length_0x_prefixed_redacted(self, name, Adapter):
+        """The 0x-prefixed wrong-length form must also be redacted (the prefix is
+        stripped to a 66-char body that is still secret-shaped)."""
+        from spa_core.utils.errors import ValidationError
+        bad_body = self.KEY + "ff"
+        with pytest.raises(ValidationError) as ei:
+            Adapter._validate_private_key("0x" + bad_body)
+        self._assert_no_key(ei.value, (bad_body, "0x" + bad_body, self.KEY))
+        assert "<redacted>" in str(ei.value)
+
+    @pytest.mark.parametrize("name,Adapter", _t1_adapter_validators())
+    def test_non_hex_key_redacted(self, name, Adapter):
+        """Non-hex (but right-length) key → redacted on the hex branch too."""
+        from spa_core.utils.errors import ValidationError
+        bad = "zz" * 32                        # 64 chars, not hex
+        with pytest.raises(ValidationError) as ei:
+            Adapter._validate_private_key(bad)
+        self._assert_no_key(ei.value, (bad, "0x" + bad, bad.upper()))
+        assert "<redacted>" in str(ei.value), f"{name}: not redacted"
+
+    @pytest.mark.parametrize("name,Adapter", _t1_adapter_validators())
+    def test_valid_key_normalises(self, name, Adapter):
+        """A well-formed key still normalises to 0x+64hex (no false-positive)."""
+        assert Adapter._validate_private_key(self.KEY) == "0x" + self.KEY
+        assert Adapter._validate_private_key("0x" + self.KEY) == "0x" + self.KEY
+
+
+# =========================================================================== #
+# AUDIT #3/#4 — REAL adapter _send_raw_tx / _sign_and_send wire the live guards.
+#   #3: a failed/aborted protected broadcast ABORTS (never the public mempool).
+#   #4: _send_raw_tx → mev_protection.guard_broadcast (gas/MEV);
+#       _sign_and_send → eth_signer.assert_nonce_ok (nonce gap/reuse).
+# INERT — _sign_and_send is @live_trading_forbidden; we drive its guards via the
+# mocked-account / mocked-RPC path and assert ABORT (raise) with NO broadcast.
+# =========================================================================== #
+def _t1_adapter_classes():
+    from spa_core.execution.aave_v3_adapter import AaveV3Adapter
+    from spa_core.execution.compound_v3_adapter import CompoundV3Adapter
+    return [
+        pytest.param(AaveV3Adapter, id="AaveV3Adapter"),
+        pytest.param(CompoundV3Adapter, id="CompoundV3Adapter"),
+    ]
+
+
+class TestAdapterLiveGuardsWired:
+    SIGNED = "0x" + "fa" * 50
+
+    @pytest.mark.parametrize("Adapter", _t1_adapter_classes())
+    def test_send_raw_tx_routes_through_guard_broadcast(self, Adapter, monkeypatch):
+        """#4: the live _send_raw_tx path actually CALLS guard_broadcast."""
+        import unittest.mock as mock
+        from spa_core.execution import mev_protection
+        monkeypatch.setenv("SPA_MEV_PROTECTION", "true")
+        monkeypatch.setenv("SPA_EXECUTION_MODE", "live")
+        a = Adapter()
+        monkeypatch.setattr(a, "_get_gas_price", lambda: 20_000_000_000)
+        monkeypatch.setattr(a, "_rpc_first",
+                            lambda m, p: pytest.fail("public path used"))
+        tx_hash = "0x" + "ab" * 32
+        with mock.patch.object(
+            mev_protection, "guard_broadcast",
+            return_value={"status": "PENDING", "tx_hash": tx_hash,
+                          "endpoint": "flashbots"},
+        ) as gb:
+            assert a._send_raw_tx(self.SIGNED) == tx_hash
+            gb.assert_called_once()
+
+    @pytest.mark.parametrize("Adapter", _t1_adapter_classes())
+    def test_gas_spike_aborts_no_public(self, Adapter, monkeypatch):
+        """#3/#4: a guard ABORT (gas spike) raises and NEVER reaches the public
+        mempool."""
+        import unittest.mock as mock
+        from spa_core.execution import mev_protection
+        from spa_core.utils.errors import ValidationError
+        monkeypatch.setenv("SPA_MEV_PROTECTION", "true")
+        monkeypatch.setenv("SPA_EXECUTION_MODE", "live")
+        a = Adapter()
+        monkeypatch.setattr(a, "_get_gas_price", lambda: 20_000_000_000)
+        monkeypatch.setattr(
+            a, "_rpc_first",
+            lambda m, p: pytest.fail("eth_sendRawTransaction reached on ABORT"),
+        )
+        with mock.patch.object(
+            mev_protection, "guard_broadcast",
+            return_value={"status": "ABORTED", "reason": "gas spike 5x"},
+        ):
+            with pytest.raises(ValidationError):
+                a._send_raw_tx(self.SIGNED)
+
+    @pytest.mark.parametrize("Adapter", _t1_adapter_classes())
+    def test_protected_failure_aborts_no_public(self, Adapter, monkeypatch):
+        """#3: a FAILED protected broadcast ABORTS — no public-mempool fallback."""
+        import unittest.mock as mock
+        from spa_core.execution import mev_protection
+        from spa_core.utils.errors import ValidationError
+        monkeypatch.setenv("SPA_MEV_PROTECTION", "true")
+        monkeypatch.setenv("SPA_EXECUTION_MODE", "live")
+        a = Adapter()
+        monkeypatch.setattr(a, "_get_gas_price", lambda: 20_000_000_000)
+        monkeypatch.setattr(
+            a, "_rpc_first",
+            lambda m, p: pytest.fail("public mempool reached on protected failure"),
+        )
+        with mock.patch.object(
+            mev_protection, "guard_broadcast",
+            return_value={"status": "FAILED", "reason": "all endpoints down"},
+        ):
+            with pytest.raises(ValidationError):
+                a._send_raw_tx(self.SIGNED)
+
+    @pytest.mark.parametrize("Adapter", _t1_adapter_classes())
+    def test_sign_and_send_calls_assert_nonce_ok_and_aborts_on_gap(
+        self, Adapter, monkeypatch
+    ):
+        """#4: _sign_and_send routes through eth_signer.assert_nonce_ok — a nonce
+        GAP (intended > on-chain pending) ABORTS before signing/broadcast.
+
+        INERT: the decorated entry point is @live_trading_forbidden (hard-blocked,
+        asserted below). We exercise the wired guard inside the REAL body via
+        ``__wrapped__`` (the undecorated function) — no live call, no broadcast."""
+        from spa_core.utils.errors import LiveTradingForbiddenError, ValidationError
+        a = Adapter()
+
+        class _Acct:
+            address = "0x" + "00" * 20
+
+            @staticmethod
+            def from_key(_pk):
+                return _Acct
+
+            @staticmethod
+            def sign_transaction(_tx, private_key):
+                pytest.fail("signed despite a nonce gap — guard not wired")
+
+        # INERT guarantee: the live entry point is unconditionally forbidden.
+        with pytest.raises(LiveTradingForbiddenError):
+            a._sign_and_send(
+                _Acct, "0x" + _PUBLIC_DEV_KEY, to="0x" + "11" * 20, data="0x",
+                nonce=7, chain_id=1, gas_price=20_000_000_000,
+            )
+
+        # On-chain pending nonce is 5; we intend 7 → GAP → assert_nonce_ok ABORTs.
+        monkeypatch.setattr(a, "_get_nonce", lambda addr: 5)
+        monkeypatch.setattr(a, "_send_raw_tx",
+                            lambda *args, **kw: pytest.fail("broadcast on nonce gap"))
+        with pytest.raises(ValidationError):
+            type(a)._sign_and_send.__wrapped__(
+                a, _Acct, "0x" + _PUBLIC_DEV_KEY,
+                to="0x" + "11" * 20, data="0x", nonce=7,
+                chain_id=1, gas_price=20_000_000_000,
+            )
+
+    @pytest.mark.parametrize("Adapter", _t1_adapter_classes())
+    def test_sign_and_send_nonce_reuse_aborts(self, Adapter, monkeypatch):
+        """#4: a nonce REUSE (intended < on-chain pending) ABORTS too. INERT:
+        exercised via the undecorated ``__wrapped__`` body (entry point stays
+        hard-forbidden)."""
+        from spa_core.utils.errors import ValidationError
+        a = Adapter()
+
+        class _Acct:
+            address = "0x" + "00" * 20
+
+            @staticmethod
+            def from_key(_pk):
+                return _Acct
+
+            @staticmethod
+            def sign_transaction(_tx, private_key):
+                pytest.fail("signed despite a nonce reuse — guard not wired")
+
+        monkeypatch.setattr(a, "_get_nonce", lambda addr: 9)   # pending 9
+        monkeypatch.setattr(a, "_send_raw_tx",
+                            lambda *args, **kw: pytest.fail("broadcast on reuse"))
+        with pytest.raises(ValidationError):
+            type(a)._sign_and_send.__wrapped__(
+                a, _Acct, "0x" + _PUBLIC_DEV_KEY,
+                to="0x" + "11" * 20, data="0x", nonce=3,   # intended 3 < 9 → reuse
+                chain_id=1, gas_price=20_000_000_000,
+            )
+
+
+# =========================================================================== #
 # WS-3.3 — NONCE SAFETY: a gap or reuse is detected and aborts before signing.
 # =========================================================================== #
 class TestNonceSafety:

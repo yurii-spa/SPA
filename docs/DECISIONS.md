@@ -4,6 +4,53 @@
 
 ---
 
+## 2026-06-29 (ADR-050 — RiskPolicy drawdown kill CONVERGED onto the governance two-tier ladder)
+
+**Decision (audit findings 2–5, execution-correctness sprint): `RiskPolicy`'s
+portfolio-drawdown kill (`spa_core/risk/policy.py`) now classifies through the
+SAME governance source of truth (`governance.kill_switch.classify_drawdown_pct`)
+that ADR-049 wired into the EXECUTION gate. The threshold VALUES are UNCHANGED
+(owner-set SOFT 5% / HARD 10%); only the SOURCE + the two-tier semantics converge.
+This finishes the convergence ADR-049 started — RiskPolicy was the remaining
+divergent flat-5% full-kill.**
+
+**The divergence (now FIXED — audit #5).** `RiskConfig.max_drawdown_stop = 0.05`
+drove a FLAT 5% FULL "Close all positions" kill in `check_portfolio_health`, and a
+flat-5% block in `check_new_position`. This contradicted ADR-048's owner-approved
+ladder: in the `[5%,10%)` SOFT band governance permits a de-risk WITHDRAW/REDUCE
+(only NEW/increase is halted), but RiskPolicy's flat-5% all-cash close BLOCKED that
+withdraw. ADR-049 claimed "no divergent flat-5% remaining" yet RiskPolicy still had it.
+
+**The fix (deterministic, stdlib-only, LLM-FORBIDDEN, fail-CLOSED).**
+`RiskPolicy._classify_drawdown(frac)` delegates to `classify_drawdown_pct(frac*100)`
+(governance owns the constants + half-open band semantics). Both decision sites
+converge:
+- `check_new_position` — a NEW position is an INCREASE, so BOTH SOFT and HARD block
+  it (parity with the prior `≥5%` behaviour) but with the correct tier-aware reason.
+- `check_portfolio_health` — HARD (≥10%) → full "Close all positions" all-cash kill;
+  SOFT (≥5%,<10%) → DE-RISK violation (halt new/increase, ALLOW withdraw/reduce —
+  NOT all-cash). Result now carries `drawdown_tier` (`NONE`/`SOFT_DERISK`/`HARD_KILL`)
+  so callers distinguish de-risk from all-cash. The non-finite-drawdown fail-CLOSED
+  guard is unchanged (still trips a kill).
+
+**Verdict parity (proven).** At {4.9, 5.0, 9.9, 10.0}% RiskPolicy's tier ==
+`governance.classify_drawdown_pct` on the same drawdown; boundaries inclusive (5.0%
+→ SOFT, 10.0% → HARD). Errs the SAME direction governance does; owner already
+approved the ladder (ADR-048).
+
+**Files changed:** `spa_core/risk/policy.py` (`_classify_drawdown` helper; both
+drawdown sites converged; `RiskCheckResult.drawdown_tier` field). Tests:
+`spa_core/tests/test_risk_policy.py` (`test_kill_switch_triggered` → SOFT at 6%;
+new `test_hard_kill_switch_at_10pct`).
+
+**RiskPolicy version:** stays **v1.0** — the kill/two-tier logic lives in the
+governance layer; `RiskConfig` threshold values are UNCHANGED (no new ADR needed
+for a value change because there is none).
+
+**GUARDRAIL honoured:** stays INERT (`is_live` OFF). NOT pushed.
+
+---
+
 ## 2026-06-28 (ADR-049 — EXECUTION kill-switch CONVERGED onto the ONE governance source of truth)
 
 **Decision (Money-Path Trust sprint, WS-B1/B2): the EXECUTION pre-trade
@@ -294,6 +341,13 @@ they are owner-gated *threshold-reconciliation* decisions deferred to the owner.
 
 ## 2026-06-26 (P3-10 — Dual-drawdown design note + governance invariant test)
 
+> ⚠️ **SUPERSEDED (threshold value only) by ADR-048 (2026-06-27) → see above.** The kill-switch
+> HARD drawdown threshold below is written as **15%** — that was correct when this note was authored,
+> but ADR-048 LOWERED it to **`DRAWDOWN_THRESHOLD_PCT = 10.0`** (owner-approved 2026-06-27), and
+> ADR-034 added the SOFT de-risk tier at **5%** (de-risk only, does NOT liquidate). The *design intent*
+> of this note (two distinct, non-reconciled circuit-breakers) still holds; only the HARD number
+> changed **15 → 10**. **If you hit this note first, the live thresholds are SOFT 5% / HARD 10%, not 15%.**
+
 **ADR-style note: the two drawdown switches are INTENTIONALLY DISTINCT (do NOT conflate).**
 
 SPA has **two separate drawdown circuit-breakers** that live in different layers,
@@ -301,9 +355,9 @@ fire on different measurements, and have NO cross-reconciliation today. This is
 deliberate. The 5% and 15% thresholds are **owner-gated** — this note documents
 the design, it does NOT change any value.
 
-| | RiskPolicy 5% stop | Kill-switch 15% stop |
+| | RiskPolicy 5% stop | Kill-switch 15% stop _(NOW 10% — ADR-048)_ |
 |---|---|---|
-| File | `spa_core/risk/policy.py` (`RiskConfig.max_drawdown_stop = 0.05`) | `spa_core/governance/kill_switch.py` (`DRAWDOWN_THRESHOLD_PCT = 15.0`) |
+| File | `spa_core/risk/policy.py` (`RiskConfig.max_drawdown_stop = 0.05`) | `spa_core/governance/kill_switch.py` (`DRAWDOWN_THRESHOLD_PCT = 15.0` _→ **10.0** per ADR-048; SOFT de-risk tier `SOFT_DERISK_THRESHOLD_PCT = 5.0` added per ADR-034_) |
 | Measurement | **intra-cycle** unrealized P&L vs deployed capital (`PortfolioState.total_drawdown_pct`, computed fresh each cycle from current positions) | **peak-to-current** over the last 30 **evidenced** equity bars (`check_drawdown_trigger`, warmup/backfill excluded — N1 fix) |
 | Trigger window | the *current* cycle's snapshot | rolling 30-day real track |
 | Effect | **blocks NEW positions** (`check_new_position` → `approved=False`); held book is NOT force-liquidated by this rule | **liquidates ALL** → forces `{"cash": 1.0, …protocols: 0.0}` all-cash allocation |

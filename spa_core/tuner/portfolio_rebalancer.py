@@ -330,6 +330,66 @@ def rebalance_portfolio(
 
     # ── 5. Atomic write to current_positions.json ──────────────────────────
     deployed_usd = sum(positions_usd.values())
+
+    # #7 WS1.1 provenance: the rebalancer is a final writer of the CANONICAL
+    # current_positions.json (standalone agent, and the cycle_runner ALLOC-002
+    # adoption fallback). It MUST stamp the same money-path provenance surface as
+    # the primary allocator path — ``positions_detail`` (per-position apy_source /
+    # apy_pct / as_of) + ``feed_coverage`` — so the published file is NEVER missing
+    # the proof of which positions ranked on live vs stale APY. Provenance is read
+    # from the RAW orchestrator snapshot (``live_data`` / ``last_updated`` / apy_pct
+    # per protocol), not the normalized ``adapter_data`` which drops those fields.
+    _apy_by_id = {a.get("id"): a for a in adapter_data if isinstance(a, dict)}
+    _raw_by_protocol: Dict[str, dict] = {}
+    try:
+        _orch_raw = json.loads(
+            (ddir / "adapter_orchestrator_status.json").read_text(encoding="utf-8")
+        )
+        for _a in _orch_raw.get("adapters", []):
+            if isinstance(_a, dict) and _a.get("protocol"):
+                _raw_by_protocol[_a["protocol"]] = _a
+    except (json.JSONDecodeError, OSError):
+        _raw_by_protocol = {}
+
+    def _pos_provenance(p: str) -> dict:
+        raw = _raw_by_protocol.get(p)
+        if raw is not None:
+            # Honest live/stale from the snapshot: a position drew its APY from a
+            # live feed iff the orchestrator flagged it live_data; else stale.
+            live = bool(raw.get("live_data", False))
+            return {
+                "apy_source": "live" if live else "fallback_stale",
+                "apy_pct": round(float(raw.get("apy_pct", 0.0) or 0.0), 4),
+                "as_of": raw.get("last_updated") or ts,
+            }
+        norm = _apy_by_id.get(p)
+        if norm is not None:
+            # Present in normalized data but not the raw snapshot — apy is known,
+            # liveness/as_of are not → stamp conservatively as stale.
+            return {
+                "apy_source": "fallback_stale",
+                "apy_pct": round(float(norm.get("apy", 0.0) or 0.0), 4),
+                "as_of": ts,
+            }
+        # No feed at all (e.g. a hardcoded safe-fallback protocol) → honest fallback.
+        return {"apy_source": "fallback", "apy_pct": 0.0, "as_of": ts}
+
+    _positions_detail = {
+        p: {"usd": round(float(v), 2), **_pos_provenance(p)}
+        for p, v in positions_usd.items()
+    }
+    _live_n = sum(1 for d in _positions_detail.values() if d["apy_source"] == "live")
+    _stale_n = sum(
+        1 for d in _positions_detail.values() if d["apy_source"] == "fallback_stale"
+    )
+    _feed_coverage = {
+        "source": "portfolio_rebalancer_v1",
+        "total": len(_positions_detail),
+        "live": _live_n,
+        "fallback_stale": _stale_n,
+        "as_of": {p: d["as_of"] for p, d in _positions_detail.items()},
+    }
+
     doc = {
         "generated_at": ts,
         "source": "portfolio_rebalancer_v1",
@@ -344,6 +404,10 @@ def rebalance_portfolio(
         "tuner_expected_apy": round(result.expected_apy, 4),
         "tuner_expected_sharpe": round(result.expected_sharpe, 4),
         "tuner_objective_score": round(result.objective_score, 6),
+        # #7 WS1.1: per-position provenance + cycle-level feed coverage — always
+        # present so the published positions file proves its APY ranking source.
+        "feed_coverage": _feed_coverage,
+        "positions_detail": _positions_detail,
         "positions": positions_usd,
         "validation_summary": val.portfolio_summary,
     }

@@ -51,22 +51,25 @@ Each line is **one decision** (an `ENTRY` or a `REFUSAL`) and has this shape:
 ```json
 {
   "seq": 111,
-  "ts": "2026-06-26T00:00:00+00:00",
-  "prev_hash": "20cbeb9b…d2c9",
-  "entry_hash": "90d939fd…912e",
-  "kind": "REFUSAL",
-  "approved": false,
-  "reason": "tail_veto",
-  "as_of": "2026-06-25",
-  "underlying": "eeth",
+  "ts": "2026-06-26T06:27:28.571374+00:00",
+  "prev_hash": "38686a8a…a832",
+  "entry_hash": "ae498925…56e8",
+  "kind": "ENTRY",
+  "approved": true,
+  "reason": "none",
+  "as_of": "2026-06-26",
+  "underlying": "susds",
   "shape": "fixed_carry",
-  "net_edge": "-0.1357377866666666666666666667",
-  "approved_size_usd": "0",
+  "net_edge": "0.09474696329061730666666666667",
+  "approved_size_usd": "6924.1019958808305625",
   "decomposition": { … see §4 … },
   "detail": { … },
-  "proof_hash": "462e7ee4…1eaf"
+  "proof_hash": "6dc2b810…879d"
 }
 ```
+
+> The hashes/values above are the **real** row at `seq == 111` in the current published log (truncated
+> for readability); §3's worked example recomputes its full `entry_hash` from the raw line.
 
 Two groups of fields:
 
@@ -142,9 +145,31 @@ def recompute_entry_hash(row: dict) -> str:
 
 A row is authentic iff `recompute_entry_hash(row) == row["entry_hash"]`.
 
-> **Worked example (real row, seq=111).** Running the recipe above on the first line of the published
-> log yields `90d939fdfc4b233fe0eaca2c10e39a1bd3aa5236214a4a54ec76b8cfcde6912e`, which equals the
-> stored `entry_hash`. (Confirmed in the test suite — see §6.)
+> **Worked example (real row, seq=111).** Running the recipe above on the row whose `seq == 111` in the
+> *current* published log (`underlying: "susds"`, `kind: "ENTRY"`,
+> `prev_hash: 38686a8a97b80d7995de8c048a54fdd76e515f92f712f6309e29692fd0c5a832`) yields
+> `ae49892550006e0dff2252d7d84da61230451e2e2e7380ce0b818b7e766556e8`, which equals that row's stored
+> `entry_hash`. (Confirmed in the test suite — see §7.)
+>
+> **Derive-it-yourself (don't trust the literal above — recompute it):** the published log is a
+> ring-buffered mirror, so the row at any fixed `seq` changes as the chain grows; rather than trust a
+> pinned literal, recompute it from whatever the log holds *right now*:
+> ```bash
+> python3 - <<'PY'
+> import json, hashlib
+> ENVELOPE = ("seq", "ts", "entry_hash", "prev_hash"); EVENT_TYPE = "rates_desk_decision"
+> rows = [json.loads(l) for l in open("data/rates_desk/decision_log.jsonl") if l.strip()]
+> row = rows[111]                                    # the row at seq == 111
+> payload = {k: v for k, v in row.items() if k not in ENVELOPE}
+> canonical = json.dumps({"seq": row["seq"], "ts": row["ts"], "event_type": EVENT_TYPE,
+>                         "payload": payload, "prev_hash": row["prev_hash"]},
+>                        sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+> got = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+> print("recomputed:", got); print("stored    :", row["entry_hash"]); print("MATCH:", got == row["entry_hash"])
+> PY
+> ```
+> prints `MATCH: True` — the recompute equals the stored `entry_hash` of whatever row currently sits at
+> `seq == 111`. (The whole chain is verified the same way by `scripts/verify_spa.py`; see §5/§7.)
 
 ---
 

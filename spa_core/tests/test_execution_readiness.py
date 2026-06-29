@@ -189,6 +189,23 @@ def test_track_record_ok_when_met(clean_env, data_dir):
     assert c["blocker"] is False
 
 
+def test_track_record_reads_evidenced_count_not_raw_bars(clean_env, data_dir):
+    """Audit finding #4: the cutover scorecard must report the EVIDENCED track count
+    (golive_status.real_track_days), NOT the raw inflated days_running from
+    paper_trading_status.json. With real_track_days=7 (anchored) and golive 27/29, the
+    scorecard must read 7/30 · 27/29 — even though days_running says 19 raw bars."""
+    _write(data_dir, "paper_trading_status.json", {"days_running": 19})  # raw, inflated
+    _write(data_dir, "golive_status.json",
+           {"ready": False, "passed": 27, "total": 29, "real_track_days": 7,
+            "evidenced_anchor": "2026-06-22"})
+    c = ra.check_track_record(data_dir)
+    assert c["days_running"] == 7, "must report EVIDENCED 7, not the raw 19 bars"
+    assert c["golive_passed"] == 27
+    assert c["golive_total"] == 29
+    assert c["ok"] is False and c["blocker"] is True
+    assert "7/30" in c["detail"] and "27/29" in c["detail"]
+
+
 def test_track_blocker_listed_in_live_blockers(clean_env, data_dir):
     _write(data_dir, "paper_trading_status.json", {"days_running": 15})
     _write(data_dir, "golive_status.json",

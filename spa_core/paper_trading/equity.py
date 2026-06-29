@@ -129,30 +129,14 @@ def _rebuild_summary(daily: list[dict]) -> dict:
         mean = sum(vals) / len(vals)
         vol = (sum((v - mean) ** 2 for v in vals) / len(vals)) ** 0.5
 
-    # S0.1: a bar counts toward the REAL track record only when it is
-    # (a) dated ON OR AFTER PAPER_REAL_START_DATE (the post-teardown anchor) AND
-    # (b) not explicitly flagged is_warmup. The DATE anchor is authoritative and
-    # comes first: a legacy curve whose pre-teardown bars lack an is_warmup flag
-    # (the 2026-06-25 corruption: real_days jumped to 32, first_real drifted to
-    # 2026-05-21) can NEVER inflate real_days — first_real_date is clamped to
-    # PAPER_REAL_START_DATE and warmup bars are excluded by date regardless of flag.
-    def _bar_date(d: dict):
-        try:
-            return datetime.strptime(str(d.get("date"))[:10], "%Y-%m-%d").date()
-        except (ValueError, TypeError):
-            return None
-
-    real_daily = [
-        d
-        for d in daily
-        if not d.get("is_warmup", False)
-        and (_bar_date(d) is not None and _bar_date(d) >= PAPER_REAL_START_DATE)
-    ]
-    if real_daily:
-        first_real_date = real_daily[0].get("date")
-    else:
-        # No real bars yet — report the anchor, never an earlier (warmup) date.
-        first_real_date = PAPER_REAL_START_DATE.isoformat()
+    # S0.1 / #6: ``first_real_date`` and ``real_days`` are anchored to the
+    # EVIDENCED series (computed below), never to bars-by-date. The date anchor
+    # (PAPER_REAL_START_DATE) is the floor: a legacy curve whose pre-teardown bars
+    # lack an is_warmup flag (the 2026-06-25 corruption: real_days jumped to 32,
+    # first_real drifted to 2026-05-21) can NEVER inflate real_days, and neither
+    # can a post-anchor *backfill* placeholder — only days with real cycle-log
+    # evidence count. Default to the anchor; overridden by the first evidenced date.
+    first_real_date = PAPER_REAL_START_DATE.isoformat()
 
     # ── T10 segregation: honest roll-up over the EVIDENCED series ONLY ──────────
     # The fields above (start/end_equity, total_return_pct, max_drawdown_pct, …)
@@ -164,6 +148,7 @@ def _rebuild_summary(daily: list[dict]) -> dict:
     # are additive and never change ``real_days`` / the evidenced count.
     from spa_core.paper_trading.track_evidence import (
         evidenced_bars as _evidenced_bars,
+        evidenced_dates as _evidenced_dates,
         real_max_drawdown_pct as _real_max_drawdown_pct,
         real_total_return_pct as _real_total_return_pct,
     )
@@ -180,11 +165,30 @@ def _rebuild_summary(daily: list[dict]) -> dict:
     real_total_return = _real_total_return_pct(daily, paper_start=PAPER_REAL_START_DATE)
     real_max_dd = _real_max_drawdown_pct(daily, paper_start=PAPER_REAL_START_DATE)
 
+    # ── #6 HONEST track length: real_days = the EVIDENCED day count ─────────────
+    # Audit #6: ``real_daily`` above ("dated >= anchor and not is_warmup") counts
+    # backfill / reconstructed placeholder bars as if they were real — overstating
+    # the track (e.g. 19 raw vs 7 evidenced). The go-live GATE already uses the
+    # evidenced rule (track_evidence.evidenced_dates), so the PUBLISHED summary
+    # MUST agree with it: ``real_days`` is now the unique-evidenced-date count, and
+    # an explicit ``evidenced_days`` mirror is surfaced so no consumer ever reads
+    # an over-reported number. ``first_real_date`` is anchored to the first
+    # EVIDENCED date (or the anchor when none) — never an earlier backfill date.
+    ev_dates = _evidenced_dates(daily, paper_start=PAPER_REAL_START_DATE)
+    evidenced_days = len(ev_dates)
+    if ev_dates:
+        first_real_date = ev_dates[0]
+    # else: keep first_real_date as the PAPER_REAL_START anchor computed above.
+
     return {
         "num_days": len(daily),
-        # Honest track length = bars dated >= PAPER_REAL_START and not is_warmup.
-        # Pre-2026-06-10 warmup/demo bars excluded. Display real_days, not num_days.
-        "real_days": len(real_daily),
+        # Honest track length = the EVIDENCED day count (#6). Backfill /
+        # reconstructed placeholder bars are NOT counted — ``real_days`` agrees
+        # with the go-live gate (track_evidence.evidenced_dates) and with
+        # gap_monitor.days_count. ``evidenced_days`` is the explicit mirror every
+        # published surface should read.
+        "real_days": evidenced_days,
+        "evidenced_days": evidenced_days,
         "num_snapshots": len(daily),
         "start_equity": round(start_equity, 2),
         "end_equity": round(end_equity, 2),

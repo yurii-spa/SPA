@@ -188,6 +188,8 @@ get_rates_desk_proof = rates_desk.get_rates_desk_proof
 get_rates_desk_track = rates_desk.get_rates_desk_track
 get_rates_desk_exit_nav = rates_desk.get_rates_desk_exit_nav
 get_rates_desk_anchors = rates_desk.get_rates_desk_anchors
+list_full_chain_surfaces = rates_desk.list_full_chain_surfaces
+get_full_chain = rates_desk.get_full_chain
 
 get_optimizer_ab = optimizer.get_optimizer_ab
 get_captured_book = optimizer.get_captured_book

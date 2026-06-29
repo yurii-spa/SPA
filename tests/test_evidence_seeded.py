@@ -94,15 +94,22 @@ class TestRealCycleCount(unittest.TestCase):
         self.assertEqual(len(dates), len(set(dates)), "real days must be distinct")
 
     def test_effective_equals_real(self):
-        """Honest model: effective cycles == real days (no seed weighting)."""
-        pe = _load_pe()
-        real_days = len(pe.get("days", []))
+        """Honest model: cycle credit is driven by EVIDENCED days, not the raw
+        paper_evidence.json length (#6).
+
+        The evidence score counts only days with a real daily_cycle log on the
+        equity curve (the same rule the go-live gate uses). A backfill /
+        reconstructed placeholder in paper_evidence.json must NOT earn cycle
+        credit. We assert the floor that always holds — infrastructure (+10) plus
+        at least the ≥1/≥3/≥5 cycle tiers (+5) once ≥5 evidenced days exist —
+        without enshrining the OLD over-reported count.
+        """
         report = GoLiveReadinessReport(base_dir=_REPO)
         cat = report.assess_evidence()
-        # effective drives the cycle tiers; with >=13 real days all tiers up to
-        # ≥10 are achieved (>=10 pts of cycle credit on top of infra).
-        self.assertGreaterEqual(real_days, 10)
-        self.assertGreaterEqual(cat.score, 20.0)
+        # >=15: infra (10) + the lower cycle tiers (5) for the evidenced track.
+        self.assertGreaterEqual(cat.score, 15.0)
+        # Honest cap: never over-credit beyond the max.
+        self.assertLessEqual(cat.score, cat.max_score)
 
 
 # ---------------------------------------------------------------------------

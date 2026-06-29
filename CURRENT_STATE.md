@@ -6,8 +6,11 @@
 > него — **исторический changelog** (датированные снимки), и может противоречить текущему
 > состоянию (старые GoLive 25/26, «32 дня», «31 агент», seed-evidence, cyclerunner — всё
 > УСТАРЕЛО). Живые цифры — `docs/SYSTEM_BRIEFING.md` + `launchctl list | grep spa` + golive_checker.
-> Текущая правда (2026-06-24): GoLive **27/29**, трек **~15/30** (с 2026-06-10), агентов **~42**
-> (agent_health crit=0), портфель compliant, HY $20k + LP $10k sleeves активны.
+> Текущая правда (2026-06-29, синхронизировано с `data/golive_status.json`): GoLive **27/29**,
+> трек **7/30** evidenced (anchor **2026-06-22**; всё до — backfill/демо, недействительно;
+> target go-live **~2026-07-21**), агентов **~45** (launchctl после retirement'ов, agent_health
+> crit=0), портфель compliant, HY $20k + LP $10k sleeves активны. (Историч. changelog ниже всё ещё
+> ссылается на старый anchor 2026-06-10 / target 2026-07-09 — это PRE-RESET снимки, недействительны.)
 > ⚠️ Источник истины по done_count и sprint — всегда **KANBAN.json**, не этот файл.
 > Governance-документы: `docs/governance/` (DEVELOPMENT_RULES, AI_ASSISTANT_RULES, GIT_WORKFLOW, ANTI_PATTERNS)
 > 🏁 **100-спринтовая серия ЗАВЕРШЕНА** (v10.67–v11.70) — см. `docs/RETROSPECTIVE_100_SPRINTS.md`
@@ -19,7 +22,8 @@
 Восстановлены сломанные launchd-агенты и доведён `agent_health` до честного зелёного
 (**overall WARNING, critical_count 0, 42/42 healthy**, watchdog exit 0). GoLive **27/29**
 (autopush_installed теперь PASS; оба оставшихся блокера — просто ожидание 30 трек-дней,
-сейчас 15/30).
+сейчас **7/30** evidenced с честного anchor **2026-06-22**, target ~2026-07-21 — числа
+синхронизированы с `data/golive_status.json`; прежний «15/30 с 2026-06-10» был pre-reset).
 
 | Fix | Результат |
 |-----|-----------|
@@ -44,7 +48,7 @@
 
 | Критерий | Статус | Причина |
 |----------|--------|---------|
-| `gap_monitor_30d` | ⏳ PENDING | 15/30 honest track days (с 2026-06-10; +15 дней → target **2026-07-09**) |
+| `gap_monitor_30d` | ⏳ PENDING | **7/30** honest track days (anchor **2026-06-22**; +23 дня → target **~2026-07-21**) |
 | `min_track_days_30` | ⏳ PENDING | то же 30-дневное условие, с того же якоря |
 
 27 PASS: все адаптеры, компоненты (multi_strategy_runner, promotion_engine, safe_tx_builder,
@@ -88,7 +92,7 @@ GoLive-гейт пересчитан **честно**: 29-критериальн
 | Поле | Значение |
 |------|----------|
 | **GoLive Status** | **27/29 pass** (NOT READY — 2 PENDING) |
-| **Track Days** | **12 реальных дней** (с 2026-06-10) → target **30** = **2026-07-09** |
+| **Track Days** | **7/30** evidenced (anchor **2026-06-22** — honest-track reset; прежний «12 дней с 2026-06-10» был pre-reset) → target **~2026-07-21** |
 | **Paper APY** | **4.11%** (annualized, 12-day track) |
 | 2 PENDING | `gap_monitor_30d` + `min_track_days_30` (18 дней до target 2026-07-09) |
 | consecutive_ready_days | **0** |
@@ -635,7 +639,7 @@ bash ~/Documents/SPA_Claude/scripts/run_cpa_wave6_pushes.sh   # v10.51–v10.66
 | last_cycle_status | ok | ✅ |
 | equity | $100,136.10 (+0.015% от пред.) | ✅ растёт |
 | kill_switch | CLEAR (drawdown < 5%) | ✅ |
-| golive | 27/29 PASS — NOT READY | ⏳ 2 блокера (time-gated 12/30 дней, target 2026-07-09) |
+| golive | 27/29 PASS — NOT READY | ⏳ 2 блокера (time-gated **7/30** evidenced дней, anchor 2026-06-22, target ~2026-07-21) |
 | cycle_health overall | WARNING | ⚠️ market_regime.json stale 16h |
 | agent_health overall | CRITICAL | ⚠️ portfolio_health.score = null (структура); 1 WARNING агент |
 
@@ -739,4 +743,7 @@ See full detail: `docs/RETROSPECTIVE_100_SPRINTS.md`
 
 ---
 
-*Обновлено: 2026-06-21 (v12.26 — GoLive honest status **27/29** (29-criteria v6.0), 11 real track days (target 2026-07-09, 4.11% APY), ~45 strategies S0–S43, ~30 adapters, done ~1291)*
+*Обновлено: 2026-06-29 (v12.87 — doc-drift re-sync to `data/golive_status.json`: GoLive **27/29**
+(29-criteria v6.0), трек **7/30** evidenced с honest anchor **2026-06-22** (НЕ 2026-06-10 — pre-reset),
+target go-live **~2026-07-21**; авторитетный блок наверху файла обновлён, старый anchor 2026-06-10 /
+target 2026-07-09 в changelog ниже помечен как недействительный pre-reset снимок)*

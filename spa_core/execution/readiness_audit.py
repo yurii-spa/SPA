@@ -304,18 +304,33 @@ def check_custody_connected() -> dict:
 def check_track_record(data_dir: Path) -> dict:
     """Check 7 — track-record / go-live gate.
 
-    Reads ``data/paper_trading_status.json`` (``days_running``) and
-    ``data/golive_status.json`` (``passed`` / ``total`` / ``ready``). The
-    track-record gate is a BLOCKER until ``days_running >= MIN_TRACK_DAYS``
-    AND the golive checker reports ready.
+    Reads the CANONICAL evidenced track count from ``data/golive_status.json``
+    (``real_track_days`` — the honest evidenced-day count anchored to
+    ``evidenced_anchor``, NOT the raw bar count) plus its ``passed`` / ``total``
+    / ``ready``. The track-record gate is a BLOCKER until the EVIDENCED days
+    reach ``MIN_TRACK_DAYS`` AND the golive checker reports ready.
+
+    NOTE: ``paper_trading_status.json``'s ``days_running`` is the raw bar count
+    (inflated by backfill/demo bars) and must NOT be used as the track length —
+    the cutover scorecard must report the same EVIDENCED number the rest of the
+    system publishes (gap_monitor / golive_status / SYSTEM_BRIEFING). Falls back
+    to ``days_running`` only if ``real_track_days`` is absent (legacy file).
     """
     status = _read_json(data_dir / "paper_trading_status.json", {}) or {}
     golive = _read_json(data_dir / "golive_status.json", {}) or {}
 
-    try:
-        days = int(status.get("days_running", 0) or 0)
-    except (TypeError, ValueError):
-        days = 0
+    # Canonical EVIDENCED track length (anchored, honest) — NOT the raw bar count.
+    days = None
+    if "real_track_days" in golive:
+        try:
+            days = int(golive.get("real_track_days") or 0)
+        except (TypeError, ValueError):
+            days = None
+    if days is None:  # legacy fallback only — golive_status without real_track_days
+        try:
+            days = int(status.get("days_running", 0) or 0)
+        except (TypeError, ValueError):
+            days = 0
 
     try:
         passed = int(golive.get("passed", 0) or 0)

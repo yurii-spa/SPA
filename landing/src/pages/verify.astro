@@ -96,8 +96,9 @@ const proofs = [
           <span class="inline-flex items-center justify-center w-6 h-6 rounded-md font-mono text-xs font-bold mb-2"
                 style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">1</span>
           <p class="text-xs leading-relaxed" style="color:var(--text-secondary)"
-             data-ru="Скачайте verify_spa.py и публичный каталог data/ (или дёрните /api/rates-desk/proof).">
-            Download <span class="font-mono">verify_spa.py</span> and the public <span class="font-mono">data/</span> dir (or pull <span class="font-mono">/api/rates-desk/proof</span>).
+             data-ru="Скачайте verify_spa.py и дёрните полные цепочки с /api/rates-desk/full-chain/* (каждый эндпоинт отдаёт весь файл целиком, без обрезки).">
+            Download <span class="font-mono">verify_spa.py</span> and pull the full chains from
+            <span class="font-mono">/api/rates-desk/full-chain/*</span> (each serves the WHOLE file, uncapped).
           </p>
         </li>
         <li class="rounded-xl p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
@@ -132,13 +133,23 @@ const proofs = [
       <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
          data-ru="Одна команда">The one command</p>
       <p class="text-sm mb-5 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
-         data-ru="Скачайте верификатор и публичные файлы, затем запустите. Код выхода 0 = всё воспроизводится байт-в-байт; 1 = любое расхождение, и инструмент печатает точный broken_at.">
-        Download the verifier and the public files, then run it. Exit code 0 = everything reproduces
-        byte-for-byte; 1 = any mismatch, and the tool prints the precise <span class="font-mono">broken_at</span>.
+         data-ru="Скачайте верификатор, дёрните полные цепочки прямо с live API (без чекаута репозитория), затем запустите. Код выхода 0 = всё воспроизводится байт-в-байт; 1 = любое расхождение, и инструмент печатает точный broken_at.">
+        Download the verifier, pull the COMPLETE chains straight from the live API (no repo checkout
+        needed), then run it. Exit code 0 = everything reproduces byte-for-byte; 1 = any mismatch, and
+        the tool prints the precise <span class="font-mono">broken_at</span>.
       </p>
       <div class="rounded-xl p-5 overflow-x-auto" style="background:var(--bg-base);border:1px solid var(--accent-dim)">
-        <p class="text-[11px] uppercase tracking-wider font-mono mb-2" style="color:var(--text-faint)" data-ru="Команда">Command</p>
-        <code class="text-sm sm:text-base font-mono break-all" style="color:var(--data-teal)">python3 verify_spa.py data/</code>
+        <p class="text-[11px] uppercase tracking-wider font-mono mb-2" style="color:var(--text-faint)" data-ru="Дёрните полные цепочки, затем проверьте">Pull the full chains, then verify</p>
+        <pre class="text-xs sm:text-sm font-mono break-all whitespace-pre-wrap" style="color:var(--data-teal);margin:0"><code>B=https://api.earn-defi.com/api/rates-desk/full-chain
+mkdir -p data/rates_desk/paper data/tournament data/rwa_backstop
+curl -s $B/decision_log &gt; data/rates_desk/decision_log.jsonl
+curl -s $B/exit_nav     &gt; data/rates_desk/exit_nav.json
+curl -s $B/anchors      &gt; data/rates_desk/anchors.jsonl
+curl -s $B/equity_track &gt; data/rates_desk/equity_track.jsonl
+curl -s $B/tournament   &gt; data/tournament/decision_log.jsonl
+curl -s $B/nav_proof    &gt; data/rwa_backstop/nav_proof.jsonl
+curl -s $B/sleeve       &gt; data/rates_desk/paper/rates_desk_fixed_carry_series_proof.jsonl
+python3 verify_spa.py data/</code></pre>
         <p class="text-[11px] leading-relaxed mt-3" style="color:var(--text-muted)"
            data-ru="Указывайте весь каталог data/ — он покрывает все 7 поверхностей (rates-desk A–D плюс tournament E, RWA-NAV F, sleeve G). Узкая форма data/rates_desk/ видит только A–D. Голову тоже можно зафиксировать: добавьте --expect-head <hex> (это голова цепочки решений, НЕ SHA-256 самого скрипта), и верификатор подтвердит совпадение. А --expect-surfaces A,D,E,F,G падает закрыто, если поверхность отсутствует.">
           Point it at the WHOLE <span class="font-mono">data/</span> dir — it covers all 7 surfaces
@@ -298,8 +309,10 @@ const proofs = [
             <li>data/rates_desk/equity_track.jsonl</li>
           </ul>
           <p class="text-[11px] leading-relaxed mt-3" style="color:var(--text-muted)"
-             data-ru="Также вживую: /api/rates-desk/proof (машинно) и /refusals (для человека).">
-            Also live: <span class="font-mono">/api/rates-desk/proof</span> (machine) and
+             data-ru="Полные цепочки целиком (без обрезки): /api/rates-desk/full-chain/{surface} — индекс на /api/rates-desk/full-chain. Также вживую: /api/rates-desk/proof (машинно) и /refusals (для человека).">
+            Full uncapped chains: <span class="font-mono">/api/rates-desk/full-chain/{'{surface}'}</span>
+            (index at <span class="font-mono">/api/rates-desk/full-chain</span>). Also live:
+            <span class="font-mono">/api/rates-desk/proof</span> (machine) and
             <a href="/refusals" class="hover:underline" style="color:var(--accent)">/refusals</a> (human).
           </p>
         </div>

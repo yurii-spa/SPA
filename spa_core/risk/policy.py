@@ -224,6 +224,11 @@ class RiskCheckResult:
     # MP-209: результаты capacity limits check (warn-only первые 2 недели)
     # Заполняется при check_capacity=True в check_new_position / check_portfolio_health
     capacity_check: dict = field(default_factory=dict)
+    # ADR-050: portfolio drawdown TIER on the governance TWO-TIER ladder
+    # ("NONE" | "SOFT_DERISK" | "HARD_KILL"). Lets callers distinguish a SOFT
+    # de-risk (allow withdraw/reduce) from a HARD all-cash close. Filled by
+    # check_portfolio_health; default "NONE".
+    drawdown_tier: str = "NONE"
 
     def __str__(self) -> str:
         status = "APPROVED" if self.approved else "REJECTED"
@@ -248,6 +253,37 @@ class RiskPolicy:
 
     def __init__(self, config: Optional[RiskConfig] = None) -> None:
         self.config = config or RiskConfig()
+
+    # ── Drawdown tier (ADR-048 / ADR-050 convergence) ─────────────────────────
+    def _classify_drawdown(self, drawdown_frac: float) -> tuple[str, str]:
+        """Classify a portfolio drawdown FRACTION onto the owner-approved TWO-TIER
+        ladder, delegating to the SINGLE governance source of truth
+        (``governance.kill_switch.classify_drawdown_pct``).
+
+        ADR-050 (RiskPolicy convergence onto ADR-048): historically RiskPolicy
+        fired a FLAT 5% FULL "Close all positions" kill (``max_drawdown_stop``),
+        which BLOCKED the SOFT-tier de-risk WITHDRAW/REDUCE that governance permits
+        in the 5–10% band. RiskPolicy now classifies through the SAME function the
+        execution gate uses, so verdicts can never diverge. The threshold VALUES
+        are unchanged (SOFT 5% / HARD 10%, owner-set) — only the SOURCE and the
+        two-tier semantics converge.
+
+        Returns ``(tier, reason)`` where ``tier`` ∈
+        ``{TIER_NONE, TIER_SOFT_DERISK, TIER_HARD_KILL}``:
+          * SOFT (≥5%, <10%) → de-risk: block new/increase, ALLOW withdraw/reduce.
+          * HARD (≥10%)      → all-cash: close everything.
+
+        ``drawdown_frac`` is a FRACTION (0.05 == 5%); the governance classifier
+        takes a PERCENTAGE, so we convert here.
+        """
+        from spa_core.governance.kill_switch import classify_drawdown_pct
+        if not isinstance(drawdown_frac, (int, float)) or not math.isfinite(drawdown_frac):
+            # Fail-CLOSED: a non-finite drawdown cannot be verified → caller treats
+            # this as the unsafe state (HARD) at its own site; here we return the
+            # raw governance verdict for None (TIER_NONE), and the call-sites keep
+            # their own explicit non-finite kill guards.
+            return classify_drawdown_pct(None)
+        return classify_drawdown_pct(drawdown_frac * 100.0)
 
     # ── Основные проверки ─────────────────────────────────────────────────────
 
@@ -321,11 +357,17 @@ class RiskPolicy:
             self._log_result(result)
             return result
 
-        # 1. Circuit breaker: портфельный drawdown
-        if state.total_drawdown_pct >= self.config.max_drawdown_stop:
+        # 1. Circuit breaker: портфельный drawdown (ADR-050 — converged onto the
+        #    governance TWO-TIER ladder, same source the execution gate uses).
+        #    A NEW position is an INCREASE in exposure, so BOTH SOFT (≥5% de-risk:
+        #    halt new/increase) AND HARD (≥10% all-cash) block it — but with the
+        #    correct tier-aware reason (SOFT is NOT a full all-cash close).
+        from spa_core.governance.kill_switch import TIER_NONE
+        _dd_tier, _dd_reason = self._classify_drawdown(state.total_drawdown_pct)
+        if _dd_tier != TIER_NONE:
             violations.append(
-                f"Portfolio drawdown {state.total_drawdown_pct:.1%} ≥ "
-                f"kill switch threshold {self.config.max_drawdown_stop:.1%}"
+                f"Portfolio drawdown gate ({_dd_tier}): {_dd_reason} — "
+                f"new/increase blocked"
             )
 
         # 2. APY в допустимом диапазоне
@@ -503,19 +545,37 @@ class RiskPolicy:
                 f"({_dd!r}) — cannot verify safety, close all positions."
             )
 
-        # Kill switch — полный drawdown
-        if math.isfinite(_dd) and state.total_drawdown_pct >= self.config.max_drawdown_stop:
-            violations.append(
-                f"KILL SWITCH TRIGGERED: portfolio drawdown {state.total_drawdown_pct:.1%} "
-                f"≥ {self.config.max_drawdown_stop:.1%}. Close all positions."
-            )
-
-        # Предупреждение при приближении к лимиту
-        elif math.isfinite(_dd) and state.total_drawdown_pct >= self.config.max_drawdown_stop * 0.75:
-            warnings.append(
-                f"Drawdown {state.total_drawdown_pct:.1%} approaching kill switch "
-                f"{self.config.max_drawdown_stop:.1%}"
-            )
+        # Kill switch — drawdown (ADR-050 — converged onto the governance TWO-TIER
+        # ladder, the SAME classifier the execution gate uses).
+        #   * HARD (≥10%) → full "Close all positions" all-cash kill.
+        #   * SOFT (≥5%, <10%) → DE-RISK: halt new/increase, ALLOW withdraw/reduce
+        #     — NOT a full close (the prior flat-5% full-kill BLOCKED the SOFT-tier
+        #     withdraw governance permits; that divergence is what ADR-050 removes).
+        # Still a violation (portfolio is not "healthy" → approved=False) but with
+        # the correct de-risk semantics surfaced via ``drawdown_tier``.
+        from spa_core.governance.kill_switch import (
+            TIER_HARD_KILL,
+            TIER_NONE,
+            TIER_SOFT_DERISK,
+        )
+        drawdown_tier = TIER_NONE
+        if math.isfinite(_dd):
+            drawdown_tier, _dd_reason = self._classify_drawdown(state.total_drawdown_pct)
+            if drawdown_tier == TIER_HARD_KILL:
+                violations.append(
+                    f"KILL SWITCH TRIGGERED (HARD): {_dd_reason}. Close all positions."
+                )
+            elif drawdown_tier == TIER_SOFT_DERISK:
+                violations.append(
+                    f"SOFT DE-RISK ({_dd_reason}) — halt new/increase, "
+                    f"hold/reduce/withdraw only (NOT all-cash)."
+                )
+            elif state.total_drawdown_pct >= self.config.max_drawdown_stop * 0.75:
+                # Approaching the SOFT boundary — warn only.
+                warnings.append(
+                    f"Drawdown {state.total_drawdown_pct:.1%} approaching SOFT de-risk "
+                    f"threshold {self.config.max_drawdown_stop:.1%}"
+                )
 
         # ── Stablecoin depeg kill-switch (FEAT-006 Phase 3) ──────────────────
         # Run only when caller supplied stablecoin_prices — backwards-compatible.
@@ -637,6 +697,7 @@ class RiskPolicy:
             check_name="portfolio_health",
             axis_checks=axis_checks,
             capacity_check=capacity_check,
+            drawdown_tier=drawdown_tier,
         )
         self._log_result(result)
         return result
