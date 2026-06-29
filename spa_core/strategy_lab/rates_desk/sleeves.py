@@ -48,6 +48,8 @@ from spa_core.strategy_lab.rates_desk.opportunity_engine import (
     ScannedOpportunity,
 )
 from spa_core.strategy_lab.rates_desk.rate_policy import evaluate_entry, evaluate_hold
+from spa_core.strategy_lab.rates_desk import rate_floor_recal
+from spa_core.strategy_lab.rates_desk.capacity_sizing import graded_size
 
 
 class FixedCarrySleeve(Strategy):
@@ -158,6 +160,18 @@ class FixedCarrySleeve(Strategy):
         trailing_yields = trailing_yields or {}
         boros_forwards = boros_forwards or {}
         verdicts: List[GateResult] = []
+        # WS-3.1: when SPA_RATE_FLOOR_RECAL is ON, recalibrate ONLY min_tradeable_size_usd from the
+        # realized exit depth on this scan's quotes (a depth-anchored floor lets a genuinely-fundable
+        # thin-pool carry book — e.g. the live USDe 661bps book — pass the SIZE gate instead of an
+        # arbitrary $1k floor refusing it). The recalibration is GUARDRAILED in rate_floor_recal: it can
+        # ONLY move the size floor; every toxicity veto stays byte-identical, so it cannot re-admit a
+        # toxic book (which is TAIL_VETO'd at step 1, before sizing). Flag OFF → params unchanged.
+        eff_params, eff_engine = self.params, self.engine
+        if rate_floor_recal.flag_enabled():
+            scan_surface = {"quotes": [{"underlying": q.underlying, "market_id": q.market_id,
+                                        "exit_liquidity_usd": q.exit_liquidity_usd} for q in quotes]}
+            eff_params = rate_floor_recal.recalibrated_params(self.params, scan_surface)
+            eff_engine = FairValueEngine(eff_params)
         for q in quotes:
             risk = risks.get(q.underlying)
             if risk is None:
@@ -171,7 +185,7 @@ class FixedCarrySleeve(Strategy):
             # (max_size_frac_of_exit * exit_liquidity, still capped at available cash) makes the
             # tail-veto reflect REAL structural risk, not an unrealistic over-size. The gate re-applies
             # the exact same exit cap on the SIZE leg, so this never lets us take more than it allows.
-            exit_cap = self.params.max_size_frac_of_exit * q.exit_liquidity_usd
+            exit_cap = eff_params.max_size_frac_of_exit * q.exit_liquidity_usd
             requested = min(self._cash, exit_cap) if exit_cap > D0 else self._cash
             if requested <= D0:
                 requested = self._cash
@@ -179,19 +193,30 @@ class FixedCarrySleeve(Strategy):
                               requested_size_usd=requested)
             result, new_state = evaluate_entry(
                 opp=opp, risk=risk, debt_asset_price=debt_asset_price,
-                exit_liquidity=q.exit_liquidity_usd, params=self.params, state=KillState(),
-                engine=self.engine,
+                exit_liquidity=q.exit_liquidity_usd, params=eff_params, state=KillState(),
+                engine=eff_engine,
                 trailing_yield=trailing_yields.get(q.underlying),
                 boros_forward=boros_forwards.get(q.underlying),
             )
             verdicts.append(result)
             # composition under the global policy: approve ONLY if both say yes.
             if result.approved and global_approved and result.approved_size_usd <= self._cash:
+                # WS-3.2: CAPACITY-AWARE GRADED sizing. The gate APPROVED a structurally-clean book at
+                # its capacity-bounded size; graded_size now shapes HOW MUCH of that we take = f(realized
+                # depth, net_edge), capped at the §9 one-tick capacity AND cash. This turns binary all-in
+                # into graded participation (a fat edge ramps toward the cap; a thin edge takes a small
+                # slice) WITHOUT ever exceeding realized depth. Bounded by the gate's approved size so we
+                # can never take MORE than the gate allowed (sizing only ever shrinks an approved ticket).
+                gs = graded_size(realized_depth_usd=q.exit_liquidity_usd, net_edge=result.net_edge,
+                                 cash_available_usd=self._cash, params=eff_params)
+                book_size = min(result.approved_size_usd, gs.size_usd) if gs.size_usd > D0 \
+                    else result.approved_size_usd
                 self._books[q.market_id] = {
-                    "opp": opp, "size": result.approved_size_usd, "state": new_state,
+                    "opp": opp, "size": book_size, "state": new_state,
                     "entry_rate": q.quoted_rate, "carry": result.net_edge,
+                    "graded": gs.proof(),
                 }
-                self._cash -= result.approved_size_usd
+                self._cash -= book_size
         self._last_verdicts = verdicts
         return verdicts
 

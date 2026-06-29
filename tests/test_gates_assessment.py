@@ -142,6 +142,13 @@ def _make_base_env(base: Path) -> None:
 # GROUP 1 — gate_status.json structure (tests 1–5)
 # ══════════════════════════════════════════════════════════════════════════════
 
+# WS4 hermeticity: these classes assert against the LIVE committed gate
+# artifacts. On a clean checkout with an empty data/ they are absent → skip the
+# class (live-presence/consistency guard, not a hermetic unit test).
+@unittest.skipUnless(
+    (_REPO_ROOT / "data" / "gate_status.json").exists(),
+    "live data/gate_status.json absent (clean checkout)",
+)
 class TestGateStatusJson(unittest.TestCase):
 
     def setUp(self):
@@ -184,6 +191,10 @@ class TestGateStatusJson(unittest.TestCase):
 # GROUP 2 — pre_launch_validation.json structure (tests 6–10)
 # ══════════════════════════════════════════════════════════════════════════════
 
+@unittest.skipUnless(
+    (_REPO_ROOT / "data" / "pre_launch_validation.json").exists(),
+    "live data/pre_launch_validation.json absent (clean checkout)",
+)
 class TestPreLaunchValidationJson(unittest.TestCase):
 
     def setUp(self):
@@ -419,6 +430,10 @@ class TestGenerateReportAndRegression(unittest.TestCase):
         for key in ("total_score", "overall_status", "categories", "blocking_items"):
             self.assertIn(key, report, f"Missing key: {key}")
 
+    @unittest.skipUnless(
+        (_REPO_ROOT / "data" / "gate_status.json").exists(),
+        "live data/gate_status.json absent (clean checkout)",
+    )
     def test_30_production_gates_score_gte_16(self):
         """Live repo gates score must be ≥ 16/20 (regression guard)."""
         live_r = GoLiveReadinessReport(base_dir=str(_REPO_ROOT))

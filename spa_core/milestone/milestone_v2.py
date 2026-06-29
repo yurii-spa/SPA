@@ -211,7 +211,7 @@ def check_milestone_phase4() -> dict:
     if not stress_passed:
         notes_parts.append("Stress test not completed (run spa_core/stress engine)")
     if not backtest_done:
-        notes_parts.append("Historical backtest not run (run spa_core.backtest.historical_backtest)")
+        notes_parts.append("Historical backtest not run (run spa_core.backtesting.historical_backtest)")
     notes = "; ".join(notes_parts) if notes_parts else "All criteria met — ready for Phase 4"
 
     return {

@@ -1,5 +1,5 @@
 """
-Тесты для spa_core/backtest/historical_backtest.py (MP-212).
+Тесты для spa_core/backtesting/historical_backtest.py (MP-212).
 Без сети, без внешних зависимостей.
 """
 import json
@@ -8,7 +8,7 @@ import os
 import unittest
 import tempfile
 
-from spa_core.backtest.historical_backtest import (
+from spa_core.backtesting.historical_backtest import (
     HistoricalScenario,
     BacktestResult,
     run_scenario,

@@ -221,6 +221,9 @@ def test_server_and_standalone_agree_on_random_valid_chains(tmp_path, n):
 def test_server_and_standalone_agree_on_real_file():
     """On the REAL published file, server and standalone reproduce the same head byte-for-byte."""
     real = _ROOT / "data" / "rates_desk" / "decision_log.jsonl"
+    # WS4 hermeticity: live-data reproduction guard — skip on empty data/.
+    if not real.exists():
+        pytest.skip(f"live-data artifact absent (clean checkout): {real}")
     rows = [json.loads(ln) for ln in real.read_text().splitlines() if ln.strip()]
     server = proof_chain.verify_mirror(rows)
     standalone = V.verify_decision_chain(rows)
@@ -242,6 +245,9 @@ def test_api_proof_reproduce_block_matches_verifier():
     assert rep["verify_with"].startswith("python3 verify_spa.py")
     # server verdict == standalone verifier on the real file
     real = _ROOT / "data" / "rates_desk" / "decision_log.jsonl"
+    # WS4 hermeticity: live-data reproduction guard — skip on empty data/.
+    if not real.exists():
+        pytest.skip(f"live-data artifact absent (clean checkout): {real}")
     rows = [json.loads(ln) for ln in real.read_text().splitlines() if ln.strip()]
     standalone = V.verify_decision_chain(rows)
     assert proof["verified"] == standalone["valid"]

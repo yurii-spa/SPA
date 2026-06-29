@@ -521,8 +521,17 @@ class TestDrillScript(unittest.TestCase):
 
     def test_drill_script_passes(self) -> None:
         """scripts/kill_switch_drill.py должен завершиться с кодом 0."""
-        drill_path = Path(__file__).resolve().parents[2] / "scripts" / "kill_switch_drill.py"
+        repo_root = Path(__file__).resolve().parents[2]
+        drill_path = repo_root / "scripts" / "kill_switch_drill.py"
         self.assertTrue(drill_path.exists(), f"Drill script not found: {drill_path}")
+
+        # WS4 hermeticity: the drill's check_current_drawdown step reads the LIVE
+        # data/paper_trading_status.json. On a clean checkout with an empty data/
+        # that artifact is absent → the live-state step fails. Skip then (the
+        # drill verifies the gate against real state; the gate LOGIC is covered
+        # deterministically by the unit tests above). When data exists it runs.
+        if not (repo_root / "data" / "paper_trading_status.json").exists():
+            self.skipTest("empty data/ (clean checkout) — live paper_trading_status absent")
 
         import subprocess
         result = subprocess.run(

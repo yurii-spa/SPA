@@ -28,6 +28,8 @@ import json
 import re
 from pathlib import Path
 
+import pytest
+
 from spa_core.monitoring.agent_health_monitor import RETIRED_LABELS
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -205,6 +207,14 @@ def test_superseded_docs_point_at_canonical():
 # ===========================================================================
 
 
+def _require_golive_status():
+    """WS4 hermeticity: these doc-drift pins read the LIVE go-live snapshot.
+    On a clean checkout with an empty data/ the snapshot is absent — skip
+    (this is an SSOT-consistency guard, not a hermetic unit test)."""
+    if not _GOLIVE_STATUS.is_file():
+        pytest.skip(f"live-data artifact absent (clean checkout): {_GOLIVE_STATUS}")
+
+
 def _authoritative_golive() -> dict:
     """Read the live go-live snapshot — the single source of truth for the
     passed/total counts, evidenced track days, and the evidenced anchor date."""
@@ -230,6 +240,7 @@ def _pct(value: float) -> str:
 # 7. The authoritative source files we pin against actually exist and are sane.
 # ---------------------------------------------------------------------------
 def test_authoritative_sources_present():
+    _require_golive_status()
     assert _GOLIVE_STATUS.is_file(), f"missing authoritative {_GOLIVE_STATUS}"
     assert _KILL_SWITCH_PY.is_file(), f"missing authoritative {_KILL_SWITCH_PY}"
     g = _authoritative_golive()
@@ -272,6 +283,7 @@ def _doc_fraction(text: str, denom: int, *, lo: int, hi: int) -> int | None:
 
 
 def test_narrative_docs_match_golive_state():
+    _require_golive_status()
     g = _authoritative_golive()
     passed, total = g["passed"], g["total"]
     track, anchor = g["real_track_days"], g["evidenced_anchor"]
@@ -319,6 +331,7 @@ def test_narrative_docs_match_golive_state():
 #    authoritative count, and must NOT reference a non-existent '/app' page.
 # ---------------------------------------------------------------------------
 def test_claude_md_no_stale_golive_or_app_ref():
+    _require_golive_status()
     g = _authoritative_golive()
     text = _read(_CLAUDE_MD)
     # The transient dip value (total-1)/total must not appear as a bare state

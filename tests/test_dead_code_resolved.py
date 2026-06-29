@@ -106,8 +106,8 @@ class TestRouterTodoClosed:
 class TestUnusedImportsRemoved:
 
     def test_07_alerts_no_json_import(self):
-        """spa_core/monitor/alerts.py — import json был неиспользуемым, удалён."""
-        imports = _imports_of(REPO / "spa_core" / "monitor" / "alerts.py")
+        """spa_core/monitoring/alerts.py — import json был неиспользуемым, удалён."""
+        imports = _imports_of(REPO / "spa_core" / "monitoring" / "alerts.py")
         assert "json" not in imports, \
             "alerts.py: `import json` должен быть удалён (не использовался)"
 
@@ -233,7 +233,7 @@ class TestNoNewTodosInChangedFiles:
 
     CHANGED = [
         REPO / "spa_core" / "execution" / "router.py",
-        REPO / "spa_core" / "monitor" / "alerts.py",
+        REPO / "spa_core" / "monitoring" / "alerts.py",
         REPO / "spa_core" / "tuner" / "allocation_tuner.py",
         REPO / "spa_core" / "backtesting" / "source_pipeline.py",
         REPO / "spa_core" / "data_pipeline" / "pendle_fetcher.py",
@@ -242,7 +242,7 @@ class TestNoNewTodosInChangedFiles:
     ]
 
     def test_18_no_bare_todo_in_alerts(self):
-        assert not _has_bare_todo(REPO / "spa_core" / "monitor" / "alerts.py"), \
+        assert not _has_bare_todo(REPO / "spa_core" / "monitoring" / "alerts.py"), \
             "alerts.py: обнаружен голый TODO/FIXME"
 
     def test_19_no_bare_todo_in_allocation_tuner(self):

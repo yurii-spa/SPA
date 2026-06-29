@@ -543,7 +543,11 @@ class TestDataFiles(unittest.TestCase):
             self.fail(f"data/{filename} содержит невалидный JSON: {exc}")
 
     def test_adapter_status_exists(self):
-        """data/adapter_status.json существует."""
+        """data/adapter_status.json существует (live-data presence guard)."""
+        # WS4 hermeticity: presence guard for the LIVE artifact. On a clean
+        # checkout with an empty data/ the file is absent → skip, not fail.
+        if not _DATA_DIR.exists() or not any(_DATA_DIR.iterdir()):
+            self.skipTest("empty data/ (clean checkout) — live artifact absent")
         self.assertTrue(
             (_DATA_DIR / "adapter_status.json").exists(),
             "data/adapter_status.json не найден"
@@ -608,7 +612,11 @@ class TestDataFiles(unittest.TestCase):
         self.assertIsNotNone(data)
 
     def test_golive_status_exists(self):
-        """data/golive_status.json существует."""
+        """data/golive_status.json существует (live-data presence guard)."""
+        # WS4 hermeticity: presence guard for the LIVE artifact. On a clean
+        # checkout with an empty data/ the file is absent → skip, not fail.
+        if not _DATA_DIR.exists() or not any(_DATA_DIR.iterdir()):
+            self.skipTest("empty data/ (clean checkout) — live artifact absent")
         self.assertTrue(
             (_DATA_DIR / "golive_status.json").exists(),
             "data/golive_status.json не найден"

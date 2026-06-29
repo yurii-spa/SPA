@@ -23,14 +23,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from spa_core.reports.pnl_attribution import (
+from spa_core.reporting.pnl_attribution import (
     compute_pnl_attribution,
     _as_float,
     _extract_positions,
     _position_apy,
     _period_days,
 )
-from spa_core.reports import investor_report as ir
+from spa_core.reporting import investor_report as ir
 from spa_core.utils.atomic import atomic_save
 
 

@@ -1,7 +1,7 @@
 """
 spa_core/tests/test_monitor_alerts.py
 
-Tests for Alert dataclass and AlertEngine (spa_core/monitor/alerts.py).
+Tests for Alert dataclass and AlertEngine (spa_core/monitoring/alerts.py).
 
 MP-1460 (v10.76) — Sprint 2: monitor/ coverage + BaseAnalytics migration.
 
@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from spa_core.monitor.alerts import Alert, AlertEngine
+from spa_core.monitoring.alerts import Alert, AlertEngine
 
 
 # ─── helpers ──────────────────────────────────────────────────────────────────

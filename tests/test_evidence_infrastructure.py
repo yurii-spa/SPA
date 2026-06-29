@@ -24,6 +24,18 @@ REPO_ROOT = Path(__file__).parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+
+def _needs_live(*relpaths):
+    """WS4 hermeticity: skipif decorator — skip when a LIVE data/ artifact is
+    absent (clean checkout) so the suite is green on an empty data/. These are
+    live-presence / score-against-real-repo guards, not hermetic unit tests."""
+    missing = [r for r in relpaths if not (REPO_ROOT / "data" / r).exists()]
+    return pytest.mark.skipif(
+        bool(missing),
+        reason=f"live-data artifact(s) absent (clean checkout): {missing}",
+    )
+
+
 from spa_core.analytics.golive_readiness_report import GoLiveReadinessReport, CategoryScore
 
 
@@ -101,6 +113,7 @@ def scaffold_minimal(tmp_dir: Path, completed_days: int = 0) -> None:
 
 # ── Tests: paper_evidence_history.json ────────────────────────────────────────
 
+@_needs_live("paper_evidence_history.json")
 class TestPaperEvidenceHistoryFile:
     """paper_evidence_history.json infrastructure."""
 
@@ -234,6 +247,7 @@ class TestAssessEvidence:
                 scores.append(r.assess_evidence().score)
         assert scores == sorted(scores), f"Scores should be non-decreasing: {scores}"
 
+    @_needs_live("paper_evidence_history.json")
     def test_real_repo_evidence_score(self):
         """Real repo: evidence should be >= 10 (history initialized)."""
         r = GoLiveReadinessReport(base_dir=str(REPO_ROOT))
@@ -261,6 +275,7 @@ class TestAssessDataSources:
         s = r.assess_data_sources()
         assert s.name == "data_sources"
 
+    @_needs_live("source_pipeline.json")
     def test_assess_data_sources_ge_8(self):
         """After MP-1426 verification: score >= 8/10."""
         r = GoLiveReadinessReport(base_dir=str(REPO_ROOT))
@@ -338,6 +353,7 @@ class TestAssessDataSources:
 class TestTotalScoreAfterBothMPs:
     """After MP-1425 + MP-1426: total score >= 65."""
 
+    @_needs_live("paper_evidence_history.json", "source_pipeline.json", "capital_config.json")
     def test_total_score_ge_65(self):
         r = GoLiveReadinessReport(base_dir=str(REPO_ROOT))
         score = r.total_score()

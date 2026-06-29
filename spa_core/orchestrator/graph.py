@@ -183,7 +183,7 @@ class SPAOrchestrator:
             state["published_ids"] = state.get("published_ids", []) + msg_ids
 
             # Читаем результат из health check напрямую
-            from monitor.health_check import HealthCheck
+            from monitoring.health_check import HealthCheck
             checker = HealthCheck(db_path=self.db_path)
             result  = checker.run()
             state["health"]     = result

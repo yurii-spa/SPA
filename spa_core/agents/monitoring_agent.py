@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from agents.base import BaseAgent
 from message_bus.bus import MessageBus
 from message_bus.topics import Priority, Topic, health_alert_payload
-from monitor.health_check import HealthCheck
+from monitoring.health_check import HealthCheck
 
 
 class MonitoringAgent(BaseAgent):

@@ -25,6 +25,18 @@ REPO_ROOT = Path(__file__).parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+
+def _needs_live(*relpaths):
+    """WS4 hermeticity: skipif decorator — skip when a LIVE data/ artifact is
+    absent (clean checkout) so the suite is green on an empty data/. These are
+    live-presence / score-against-real-repo guards, not hermetic unit tests."""
+    missing = [r for r in relpaths if not (REPO_ROOT / "data" / r).exists()]
+    return pytest.mark.skipif(
+        bool(missing),
+        reason=f"live-data artifact(s) absent (clean checkout): {missing}",
+    )
+
+
 from spa_core.analytics.golive_readiness_report import GoLiveReadinessReport, CategoryScore
 
 
@@ -76,6 +88,7 @@ def scaffold_minimal(tmp_dir: Path) -> None:
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
+@_needs_live("capital_config.json")
 class TestCapitalConfigJson:
     """capital_config.json exists and is valid."""
 
@@ -191,6 +204,7 @@ class TestAssessFinancial:
         score = r.assess_financial()
         assert 0.0 <= score.score <= 15.0
 
+    @_needs_live("capital_config.json")
     def test_assess_financial_after_fixes_ge_12(self):
         """After creating capital_config.json + fee_structure.py: score >= 12/15."""
         r = GoLiveReadinessReport(base_dir=str(REPO_ROOT))
@@ -291,6 +305,7 @@ class TestAssessFinancial:
 class TestFinancialInNewSystem:
     """Financial in the full 6-category system."""
 
+    @_needs_live("capital_config.json", "source_pipeline.json", "paper_evidence_history.json")
     def test_total_score_with_fixes_ge_65(self):
         """After all MP-1425+MP-1426 fixes, total score >= 65."""
         # paper_evidence_history.json may or may not exist; even without it

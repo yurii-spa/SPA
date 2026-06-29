@@ -31,7 +31,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from spa_core.monitor.unified_gas_monitor import (
+from spa_core.monitoring.unified_gas_monitor import (
     ETH_PRICE_USD,
     GAS_LIMITS,
     OUTPUT_PATH,

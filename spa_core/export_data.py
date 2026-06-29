@@ -889,7 +889,7 @@ def _fallback_alerts(ctx: ExportContext, e: Exception) -> None:
 @export_step("alerts", fallback=_fallback_alerts)
 def export_alerts(ctx: ExportContext) -> None:
     # 9. alerts.json — AlertEngine: аномалии APY/TVL + pipeline health
-    from monitor.alerts import AlertEngine
+    from monitoring.alerts import AlertEngine
     with get_connection(ctx.db_path) as conn:
         rows_ranked = conn.execute("""
             WITH ranked AS (
@@ -1224,7 +1224,7 @@ def export_covariance_summary(ctx: ExportContext) -> None:
 @export_step("pdf_report", fail_label="PDF report generation", exc_info=True)
 def export_pdf_report(ctx: ExportContext) -> None:
     # 14. PDF Report
-    from reports.report_scheduler import generate_latest_report
+    from reporting.report_scheduler import generate_latest_report
     pdf_path = generate_latest_report(str(OUTPUT_DIR), str(OUTPUT_DIR))
     log.info(f"PDF report: {pdf_path}")
     print(f"PDF report: {pdf_path}")

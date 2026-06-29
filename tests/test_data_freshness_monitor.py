@@ -20,7 +20,7 @@ import unittest
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from spa_core.monitor.data_freshness_monitor import (
+from spa_core.monitoring.data_freshness_monitor import (
     DataFreshnessMonitor,
     FRESHNESS_THRESHOLDS,
     STATUS_FRESH,

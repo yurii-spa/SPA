@@ -102,11 +102,9 @@ PUSH_MANIFEST = [
      "feat: 9-criteria go-live checker"),
     ("spa_core/golive/report_card.py", "spa_core/golive/report_card.py",
      "feat: ASCII report card"),
-    ("spa_core/reports/__init__.py", "spa_core/reports/__init__.py",
-     "feat: reports package"),
-    ("spa_core/reports/pdf_generator.py", "spa_core/reports/pdf_generator.py",
+    ("spa_core/reporting/pdf_generator.py", "spa_core/reporting/pdf_generator.py",
      "feat: reportlab PDF"),
-    ("spa_core/reports/report_scheduler.py", "spa_core/reports/report_scheduler.py",
+    ("spa_core/reporting/report_scheduler.py", "spa_core/reporting/report_scheduler.py",
      "feat: report scheduler"),
     ("spa_core/execution/__init__.py", "spa_core/execution/__init__.py",
      "feat: execution scaffold"),
@@ -239,12 +237,10 @@ PUSH_MANIFEST = [
     ("spa_core/message_bus/topics.py", "spa_core/message_bus/topics.py",
      "feat: bus topic constants"),
 
-    # Monitor
-    ("spa_core/monitor/__init__.py", "spa_core/monitor/__init__.py",
-     "feat: monitor package init"),
-    ("spa_core/monitor/alerts.py", "spa_core/monitor/alerts.py",
+    # Monitor (folded into monitoring/ — WS4 split-brain resolution)
+    ("spa_core/monitoring/alerts.py", "spa_core/monitoring/alerts.py",
      "feat: monitor alert dispatcher"),
-    ("spa_core/monitor/health_check.py", "spa_core/monitor/health_check.py",
+    ("spa_core/monitoring/health_check.py", "spa_core/monitoring/health_check.py",
      "feat: system health checks"),
 
     # Orchestrator

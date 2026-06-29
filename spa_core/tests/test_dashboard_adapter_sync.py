@@ -29,8 +29,22 @@ import math
 import unittest
 from pathlib import Path
 
+import pytest
+
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _JSON_PATH = _REPO_ROOT / "data" / "adapter_status.json"
+
+# WS4 hermeticity: this module asserts the LIVE adapter_status.json artifact
+# against the dashboard contract.  On a clean checkout with an empty data/ the
+# artifact is absent — skip the whole module at collection time rather than
+# crashing collection (the audit's --collect-only failure).  It is a live-data
+# SSOT-consistency guard, not a hermetic unit test.
+pytestmark = pytest.mark.live_data
+if not _JSON_PATH.exists():
+    pytest.skip(
+        f"live-data artifact absent (clean checkout): {_JSON_PATH}",
+        allow_module_level=True,
+    )
 _INDEX_HTML = _REPO_ROOT / "index.html"
 _REGISTRY_PY = _REPO_ROOT / "spa_core" / "execution" / "adapter_status.py"
 
