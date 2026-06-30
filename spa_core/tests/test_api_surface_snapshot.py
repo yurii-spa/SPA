@@ -67,6 +67,18 @@ GOLDEN_ROUTES = {
     ("/api/dfb/pool/{pool_id}/history", ("GET",)),
     ("/api/dfb/pool/{pool_id}/proof", ("GET",)),
     ("/api/dfb/summary", ("GET",)),
+    # DFB Month-2: trends (Lane A), alerts (Lane B), read-only portfolio lens (Lane C, flag-gated)
+    ("/api/dfb/pool/{pool_id}/trend", ("GET",)),
+    ("/api/dfb/alerts", ("GET",)),
+    ("/api/dfb/pool/{pool_id}/alerts", ("GET",)),
+    ("/api/dfb/portfolio/{address}", ("GET",)),
+    # DFB Month-3: the risk-graded Data API v1 surface (SPA_DFB_DATA_API flag-gated)
+    ("/api/dfb/v1", ("GET",)),
+    ("/api/dfb/v1/pools", ("GET",)),
+    ("/api/dfb/v1/pool/{pool_id}", ("GET",)),
+    ("/api/dfb/v1/pool/{pool_id}/history", ("GET",)),
+    ("/api/dfb/v1/refusals", ("GET",)),
+    ("/api/dfb/v1/screener", ("GET",)),
     ("/api/events", ("GET",)),
     ("/api/events/history", ("GET",)),
     ("/api/execution/readiness", ("GET",)),
@@ -200,7 +212,7 @@ def test_route_count_stable():
     surface (/api/underwriting/report + /proof + /full-chain), FLAG-GATED OFF by default
     (SPA_UNDERWRITING_PUBLISH).)
     """
-    assert len(_app_route_table()) == 83
+    assert len(_app_route_table()) == 93
 
 
 def test_openapi_path_count_stable():
@@ -208,7 +220,7 @@ def test_openapi_path_count_stable():
     from fastapi.testclient import TestClient
     with TestClient(server.app) as c:
         paths = c.get("/openapi.json").json()["paths"]
-    assert len(paths) == 82  # 82 HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
+    assert len(paths) == 92  # 92 HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
 
 
 # ── Representative response-shape snapshot (one endpoint per tag group) ──────────
