@@ -2147,6 +2147,24 @@ def _run_fundability_pack(data_dir: "str | os.PathLike | None" = None) -> None:
     except Exception as _fp_exc:  # noqa: BLE001 — never crash the cycle
         log.warning("WS2.2 fundability one-pager failed (non-critical): %s", _fp_exc)
 
+    # 2.3 — track_snapshot.json (the /track-record + /due-diligence offline fallback).
+    # Auto-regenerated from the fresh golive_status + equity_curve so the site's build-time
+    # fallback never drifts stale (it was hand-maintained and froze at 5 evidenced days while
+    # the real track advanced — fixed by deriving it every live cycle). Advisory artifact.
+    try:
+        import importlib.util as _ilu2
+        _root2 = _Path(__file__).resolve().parents[2]
+        _spec2 = _ilu2.spec_from_file_location(
+            "spa_generate_track_snapshot",
+            str(_root2 / "scripts" / "generate_track_snapshot.py"),
+        )
+        _mod2 = _ilu2.module_from_spec(_spec2)
+        _spec2.loader.exec_module(_mod2)
+        _mod2.main()  # reads canonical data/, writes landing/src/data/track_snapshot.json (atomic)
+        print("  track_snap  : regenerated landing/src/data/track_snapshot.json")
+    except Exception as _ts_exc:  # noqa: BLE001 — never crash the cycle
+        log.warning("track_snapshot regeneration failed (non-critical): %s", _ts_exc)
+
 
 if __name__ == "__main__":
     raise SystemExit(main())
