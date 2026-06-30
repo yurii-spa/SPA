@@ -1,0 +1,124 @@
+---
+/*
+ * Academy · Track 2 · Module 16 — Three-layer scalable architecture.
+ */
+import LessonLayout from '../../components/academy/LessonLayout.astro';
+import Callout from '../../components/academy/Callout.astro';
+import Quiz from '../../components/academy/Quiz.astro';
+
+const sources = [
+  { label: 'docs/STRUCTURAL_DESK.md (combined portfolio capacity)', path: 'docs/STRUCTURAL_DESK.md' },
+  { label: 'spa_core/strategy_lab/portfolio_capacity.py', path: 'spa_core/strategy_lab/portfolio_capacity.py' },
+  { label: 'docs/FUNDABILITY.md', path: 'docs/FUNDABILITY.md' },
+  { label: 'data/edge_at_scale.json', path: 'data/edge_at_scale.json' },
+];
+
+const quiz = [
+  {
+    q: 'Из каких трёх слоёв состоит масштабируемая архитектура деска?',
+    options: [
+      'L1 chassis (RWA+lending beta у floor) + L2 carry-alpha (capped) + L3 measurement-moat (без потолка)',
+      'Backtest + Paper + Live',
+      'Bitcoin + Ethereum + Stablecoins',
+      'Три разных LLM голосуют',
+    ],
+    correct: 0,
+    explanation: 'Вывод вытекает из edge_at_scale (M15) + combined capacity (STRUCTURAL_DESK): yield-edge не масштабируется, поэтому масштаб строится слоями: L1 chassis = глубокий RWA/lending у floor (~$592M deployable, но ~$0 above floor), L2 carry = тонкая alpha с потолком, L3 measurement = доказуемый отказ/измерение без потолка ёмкости.',
+  },
+  {
+    q: 'Как масштабируется L2 carry-alpha, если carry сам по себе venue-capped?',
+    options: [
+      'Увеличением плеча',
+      'НЕ размером одной книги, а КОЛИЧЕСТВОМ независимых, gated, decorrelated книг (больше venue/chains → меньше correlation-haircut)',
+      'Повышением целевого APY',
+      'Никак — L2 не масштабируется',
+    ],
+    correct: 1,
+    explanation: 'STRUCTURAL_DESK combined-capacity: «MORE venues/chains — decorrelating the exit rails shrinks the correlation haircut so the deep + carry books become additive». L2 растёт количеством gated книг, не размером одной.',
+  },
+  {
+    q: 'Почему именно L3 (measurement-moat) не имеет потолка ёмкости?',
+    options: [
+      'Потому что это yield-стратегия',
+      'Потому что доказуемое измерение/андеррайтинг риска — это услуга/роль, а не позиция в конечном пуле; её ценность не упирается в exit-ликвидность',
+      'Потому что L3 использует плечо',
+      'Потому что L3 — это кэш',
+    ],
+    correct: 1,
+    explanation: 'STRUCTURAL_DESK: edge — это структурная роль честного измерения. Позиция в пуле упирается в TVL/exit (M15); роль «того, кто доказуемо меряет и отказывает» — нет. Это и делает L3 единственным слоем без потолка.',
+  },
+  {
+    q: 'Какой реалистичный target по spread над floor закладывает деск на $5M?',
+    options: [
+      'floor + 1000bps',
+      'floor + 50–150bps — честный, достижимый spread, НЕ floor+1000bps маркетинг',
+      'floor × 3',
+      '0bps — только floor',
+    ],
+    correct: 1,
+    explanation: 'Из combined-capacity вывода: above-floor edge тонкий ($64,779/yr на rates-книге). Честный target — скромный spread (floor+50–150bps), масштабируемый количеством книг и реальным AUM, а не headline floor+1000bps.',
+  },
+];
+---
+
+<LessonLayout id="16-three-layer-stack">
+  <p>
+    Модуль 15 оставил нас с неудобным фактом: <strong>yield-edge не масштабируется</strong>. Тогда
+    как вообще строить что-то на $100M? Ответ деска — не «найти ставку получше», а
+    <strong>разделить задачу на три слоя</strong>, у каждого из которых своя роль и свой характер
+    масштабирования.
+  </p>
+
+  <h2>L1 — Chassis (шасси): глубокий beta у floor</h2>
+  <p>
+    Базовый слой — глубокий, ёмкий beta: tokenized T-bills (RWA) + крупное lending. В combined-capacity
+    модели (<code>docs/STRUCTURAL_DESK.md</code>) RWA-семья имеет <strong>~$592M deployable</strong> —
+    но при этом приносит <strong>~$0 над floor</strong> (она <em>и есть</em> floor). Это не баг: задача
+    L1 — <strong>безопасно держать огромный капитал у floor</strong> (~3.4%/yr), а не генерировать
+    alpha. Ёмкость почти безгранична; spread над floor — нулевой.
+  </p>
+
+  <h2>L2 — Carry-alpha: тонкая, но реальная, с потолком</h2>
+  <p>
+    Над шасси — тонкий слой carry-alpha (Rates Desk). В модели он даёт единственный
+    <strong>above-floor edge</strong>: ~$64,779/yr при APY ~22.9% на ~$330k deployable. Но он
+    venue-capped (модуль 15). Ключевая идея масштабирования L2:
+  </p>
+  <Callout type="key" titleRu="Ключевое">
+    L2 масштабируется <strong>не размером одной книги</strong>, а <strong>количеством независимых,
+    gated, decorrelated книг</strong>. Из вывода STRUCTURAL_DESK: <em>«MORE venues/chains —
+    decorrelating the exit rails shrinks the correlation haircut so the deep + carry books become
+    additive»</em>. Больше venue/цепочек → меньше correlation-haircut → книги становятся аддитивными.
+  </Callout>
+
+  <h2>L3 — Measurement-moat: единственный слой без потолка</h2>
+  <p>
+    Третий слой — это сам refusal-first/measurement-движок (модули 11–14, 17). Его особенность:
+    <strong>у роли «того, кто доказуемо меряет и отказывает от риска» нет потолка ёмкости</strong>.
+    Позиция в пуле упирается в TVL и exit-ликвидность; <em>роль</em> честного андеррайтера — нет. Это
+    и делает L3 настоящим moat'ом (модуль 20 разовьёт мысль).
+  </p>
+
+  <Callout type="trap" titleRu="Ловушка">
+    Не путай L1-ёмкость с L1-доходностью. L1 может держать сотни миллионов — но <strong>у floor</strong>.
+    Combined-capacity модель честно показывает: даже весь book (~$592M deployable) даёт лишь
+    <strong>$33,956/yr над floor</strong> — 0.34% от цели $10M, gap ~$9.97M. Binding constraint:
+    <code>RWA_YIELD_TOO_LOW</code>. Глубина — не проблема; проблема в том, что глубокий слой у floor.
+  </Callout>
+
+  <h2>Честный target</h2>
+  <p>
+    Поэтому деск ставит <strong>скромную, достижимую</strong> цель: <strong>floor + 50–150bps</strong>
+    на масштабе порядка $5M — а НЕ floor + 1000bps из маркетинга. $10M/yr над floor — это игра в
+    <strong>масштаб + decorrelation + реальный AUM на годы</strong> (что закрывает gap: глубже PT-рынки,
+    больше venue/цепочек, реальный капитал у floor со spread'ом), а не в более высокую headline-ставку.
+  </p>
+
+  <Callout type="example" titleRu="Пример">
+    $5M под управлением: L1 держит ~$4.5M в RWA/lending у floor (~3.4%); L2 раскладывает ~$0.5M по
+    нескольким gated carry-книгам на разных venue (decorrelated) → скромный spread; L3 продаёт
+    доказуемое измерение/отказ (без потолка). Итог — floor + ~50–150bps, честно и устойчиво.
+  </Callout>
+
+  <Quiz questions={quiz} />
+</LessonLayout>

@@ -1,0 +1,154 @@
+---
+/*
+ * Academy · Track 2 «Что придумали в SPA» · Module 11 — Refusal-first.
+ * RU-FIRST. Каждый тезис заземлён в реальный код/доки (источники в тексте урока).
+ * Contract: <LessonLayout id> (title/summary из academy_modules.json) · <Callout type titleRu>
+ *           · <Quiz questions={[{q,options,correct,explanation}]}> · widget LiveAcademyData feed="refusals".
+ */
+import LessonLayout from '../../components/academy/LessonLayout.astro';
+import Callout from '../../components/academy/Callout.astro';
+import Quiz from '../../components/academy/Quiz.astro';
+import LiveAcademyData from '../../components/academy/LiveAcademyData.jsx';
+
+const questions = [
+  {
+    q: 'В чём, по тезису деска, состоит реальный edge?',
+    options: [
+      'Найти пул со ставкой повыше остальных',
+      'Уметь доказуемо ОТКАЗАТЬ от доходности, которая является лишь компенсацией хвостового риска',
+      'Использовать кредитное плечо, чтобы усилить carry',
+      'Чаще ребалансировать портфель',
+    ],
+    correct: 1,
+    explanation: 'Тезис деска (docs/STRUCTURAL_DESK.md): «The edge is not yield. The edge is the structural role of honest measurement / underwriting». Большинство ставок 10–15% — это risk-compensation. Edge — корректно классифицировать и ОТКАЗАТЬ.',
+  },
+  {
+    q: 'Сколько раз refusal-first гейт отказал стратегии fixed_carry на истории 2024–2026?',
+    options: ['8 раз', '1070 раз', '2211 раз', '3098 раз'],
+    correct: 1,
+    explanation: 'docs/FUNDABILITY.md и docs/RATES_DESK_VALIDATION.md: fixed_carry → 1070 отказов (и лишь 8 входов), levered_carry → 2211, rate_matrix → 3098. Отказ — основной выход гейта, а не вход.',
+  },
+  {
+    q: 'Что означает инвариант «refusal-first» в evaluate_entry (rate_policy.py)?',
+    options: [
+      'Сначала считаем доходность, потом проверяем риск',
+      'Вето по структурному/хвостовому риску проверяется ДО того, как гейт вообще посмотрит на экономику; первый провал — short-circuit',
+      'Гейт отказывает всем по умолчанию навсегда',
+      'Отказ можно отменить, если ставка достаточно высока',
+    ],
+    correct: 1,
+    explanation: 'rate_policy.py, HARD INVARIANT «refusal before economics»: evaluate_entry проверяет (1) TAIL_VETO → (2) DEPEG → … → и только (6) ECONOMICS. На первом провале вето — short-circuit; экономика на токсичной книге НИКОГДА не вычисляется.',
+  },
+  {
+    q: 'Почему «edge = отказ» — это честный, а не циничный вывод?',
+    options: [
+      'Потому что отказ ничего не стоит',
+      'Потому что доказуемый отказ от tail-comp защищает капитал ровно тогда, когда наивный охотник за yield его теряет (см. mark-to-market агрессивных книг, модуль 19)',
+      'Потому что деск не умеет торговать',
+      'Потому что этого требует регулятор',
+    ],
+    correct: 1,
+    explanation: 'Aggressive Lab (модуль 19) на РЕАЛЬНЫХ датах: eth_directional −66.3%, leverage_loop −29.7% (ликвидация). Отказ от этих книг — измеримая защита капитала, а не отговорка.',
+  },
+];
+---
+
+<LessonLayout id="11-refusal-first">
+  <p>
+    Track 1 учил тебя читать рынок: APY, TVL, peg, funding, oracle. Track 2 — про то, что
+    <strong> придумал именно этот деск</strong>. И начинается он с одной неудобной мысли, которая
+    переворачивает интуицию новичка.
+  </p>
+
+  <h2>Тезис: yield ≠ edge</h2>
+  <p>
+    Наивная логика: «нашёл ставку 12% вместо 4% — значит, нашёл преимущество». Деск утверждает
+    обратное. В <code>docs/STRUCTURAL_DESK.md</code> вывод research-арки сформулирован дословно:
+  </p>
+  <blockquote>
+    «The edge is not yield. The edge is the structural role of honest measurement / underwriting —
+    being the party that can correctly price and refuse risk others don't see, and prove it.»
+  </blockquote>
+  <p>
+    По смыслу: <strong>edge — не доходность, а структурная роль честного измерения и
+    андеррайтинга</strong>. Большинство «лишних» 8–11 процентных пунктов сверх безрискового floor —
+    это не подарок рынка, а <strong>премия за хвостовой риск</strong> (risk-compensation), который ты
+    берёшь на себя и рано или поздно возвращаешь с процентами.
+  </p>
+
+  <Callout type="key" titleRu="Ключевое">
+    Реальный edge деска — способность <strong>классифицировать</strong> источник доходности (alpha /
+    beta / risk-comp / incentive — классы A/B/C/D, модуль 10) и <strong>отказать</strong> от того, что
+    является лишь компенсацией хвоста. Отказ — это продукт, а не побочный эффект.
+  </Callout>
+
+  <h2>Где это живёт в коде</h2>
+  <p>
+    Тезис закодирован в детерминированном гейте
+    <code>spa_core/strategy_lab/rates_desk/rate_policy.py</code>. Его шапка-докстринг говорит прямо:
+  </p>
+  <blockquote>
+    «This is where the whole edge lives: a deterministic gate that REFUSES tail-comp BEFORE it ever
+    looks at the economics. A book can have a spectacular quoted rate and still be vetoed because its
+    tail haircut says the rate is just risk premium you'll pay back.»
+  </blockquote>
+  <p>
+    Функция <code>evaluate_entry</code> прогоняет проверки в строгом порядке и
+    <strong>short-circuit'ит на первом провале</strong> (HARD INVARIANT — «refusal before economics»):
+  </p>
+  <ol>
+    <li><strong>(1) TAIL_VETO</strong> — структурный и полный хейркат превышают cap;</li>
+    <li>(2) UNDERLYING_DEPEG — базовый актив сошёл с пега;</li>
+    <li>(3) ORACLE_STALE — оракул устарел;</li>
+    <li>(4) STABLE_DEPEG — долговой/котировочный стейбл сошёл с пега;</li>
+    <li>(5) FUNDING_FLIP — устойчивая отрицательная funding-серия;</li>
+    <li><strong>(6) ECONOMICS</strong> — и только ТЕПЕРЬ смотрим, бьёт ли ставка fair value + cost;</li>
+    <li>(7) SIZE — ограничение размера по exit-ликвидности.</li>
+  </ol>
+
+  <Callout type="trap" titleRu="Ловушка">
+    Естественное желание новичка — «сначала посчитаем, сколько заработаем, а потом решим, стоит ли
+    риск». Refusal-first запрещает это <em>архитектурно</em>: на книге, провалившей tail-вето,
+    экономика <strong>никогда</strong> не вычисляется. Иначе высокая ставка психологически «оправдает»
+    токсичный риск — ровно та ошибка, на которой сгорают охотники за yield.
+  </Callout>
+
+  <h2>Цифры, которые доказывают, что это работает</h2>
+  <p>
+    На реальной истории 2024–2026 (см. <code>docs/RATES_DESK_VALIDATION.md</code> и
+    <code>docs/FUNDABILITY.md</code>) гейт чаще ОТКАЗЫВАЛ, чем входил:
+  </p>
+  <table>
+    <thead><tr><th>Trade-shape</th><th>Входов</th><th>Отказов</th></tr></thead>
+    <tbody>
+      <tr><td><code>fixed_carry</code></td><td>8</td><td><strong>1070</strong></td></tr>
+      <tr><td><code>levered_carry</code></td><td>1</td><td><strong>2211</strong></td></tr>
+      <tr><td><code>rate_matrix</code></td><td>328</td><td><strong>3098</strong></td></tr>
+    </tbody>
+  </table>
+
+  <Callout type="example" titleRu="Пример">
+    Из ~1078 возможностей по <code>fixed_carry</code> деск вошёл лишь в 8, отказав 1070 раз. Это не
+    «деск ничего не делает» — это <strong>измеренный, доказанный отбор</strong>: каждый отказ записан
+    в hash-chain refusal-log с причиной (модуль 17), так что любой проверяющий может переиграть
+    решение байт-в-байт.
+  </Callout>
+
+  <h2>Живой лог отказов</h2>
+  <p>
+    Ниже — реальный refusal-log с боевого API (<code>/api/rates-desk/refusals</code>): каждая строка
+    — отказ с причиной, прямо из tamper-evident цепочки.
+  </p>
+
+  <LiveAcademyData feed="refusals" client:load />
+
+  <h2>Почему это честно</h2>
+  <p>
+    Деск не говорит «мы делаем 15%». Он говорит честнее: <strong>«мы держим доходность около floor
+    (~3–4.5%) и доказуемо отказываемся от 15%-ного risk-comp»</strong>. На реализованном треке
+    (<code>docs/FUNDABILITY.md</code>) ни один sleeve пока не превзошёл RWA-floor risk-adjusted — и
+    деск говорит об этом прямо, а не прячет. Именно отказ, а не headline-ставка, выживает при стрессе.
+  </p>
+
+  <Quiz questions={questions} />
+</LessonLayout>

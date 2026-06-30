@@ -1,0 +1,145 @@
+---
+/*
+ * Academy · Track 3 capstone — final exam: a real opportunity through the refusal-first lens.
+ * Embeds the interactive A/B/C/D drill <RiskClassifier moduleId="capstone" client:load />.
+ * Contract: LessonLayout id · Callout type/titleRu · Quiz [{q,options,correct,explanation}].
+ * Связывает все 20 модулей: классифицировать риск (A/B/C/D) → structural haircut → SAFE/WATCH/REFUSE.
+ */
+import LessonLayout from '../../components/academy/LessonLayout.astro';
+import Callout from '../../components/academy/Callout.astro';
+import Quiz from '../../components/academy/Quiz.astro';
+import RiskClassifier from '../../components/academy/RiskClassifier.jsx';
+
+const questions = [
+  {
+    q: 'СЦЕНАРИЙ 1. Тебе предлагают «sUSDe 12% delta-neutral». Какой первый шаг по refusal-first?',
+    options: [
+      'Посчитать, сколько заработаю за год',
+      'Классифицировать источник: это класс C (risk-compensation) — APY = плата за funding-flip/depeg хвост. Экономику смотрим ТОЛЬКО если прошли вето',
+      'Сразу войти, ставка хорошая',
+      'Спросить LLM',
+    ],
+    correct: 1,
+    explanation: 'refusal-first (M11): сначала классификация и вето, потом экономика. sUSDe 12% — класс C: доходность является компенсацией за funding-flip/depeg. evaluate_entry проверит structural haircut и FUNDING_FLIP ДО того, как посмотрит на 12%.',
+  },
+  {
+    q: 'СЦЕНАРИЙ 2. «Новый LRT PT 18%». Считаем structural haircut (peg+funding+oracle+protocol) = 0.09. Вердикт?',
+    options: [
+      'SAFE — 18% это много',
+      'REFUSE — structural haircut 0.09 > cap 0.06; токсичность нельзя обойти размером (M12), вердикт от размера тикета НЕ зависит',
+      'WATCH — войти маленьким тикетом',
+      'SAFE если уменьшить размер до $1000',
+    ],
+    correct: 1,
+    explanation: 'M12: structural veto (1a) срабатывает при structural_haircut > max_structural_haircut=0.06. 0.09 > 0.06 → REFUSE на ЛЮБОМ размере. Уменьшение тикета двигает только liquidity-член, но не структурный вердикт. Это паттерн ezETH/rsETH.',
+  },
+  {
+    q: 'СЦЕНАРИЙ 3. «Pendle PT, рынок неверно оценил fixed rate, fair-value движок ловит спред». Класс и вердикт?',
+    options: [
+      'Класс C, REFUSE',
+      'Класс A (alpha) — реальный structural mispricing; если structural haircut под cap И net_edge ≥ hurdle И size под exit-cap → может быть SAFE (единственный валидированный live-paper edge)',
+      'Класс D, incentive',
+      'Класс B, beta',
+    ],
+    correct: 1,
+    explanation: 'Это FixedCarry — единственный валидированный live-paper edge (M16/STRUCTURAL_DESK GO). Класс A: рынок mispriced fixed rate, fair-value движок харвестит спред. Проходит вето → проверяется экономика (net_edge ≥ edge_hurdle) → SIZE-cap (≤ 25% exit-ликвидности).',
+  },
+  {
+    q: 'СЦЕНАРИЙ 4. Книга прошла вето и вошла. Через неделю exit-ликвидность упала НИЖЕ размера позиции. Что делает hold-гейт?',
+    options: [
+      'Держит — мы же уже вошли',
+      'UNWIND (EXIT_CAPACITY kill): безопасный carry стал illiquid bag; деск выходит ДО того, как basis сожмётся',
+      'Увеличивает позицию',
+      'Ничего',
+    ],
+    correct: 1,
+    explanation: 'evaluate_hold §(f) EXIT_CAPACITY: если current one-tick exit capacity < open position size — kill. «a safe carry book that can no longer be exited at size is an illiquid bag, so the desk derisks BEFORE the basis even compresses».',
+  },
+  {
+    q: 'ИТОГ. Если все 4 возможности дают net positive yield, но три — risk-comp/liquidation. Как деск зарабатывает?',
+    options: [
+      'Берёт все четыре ради максимального APY',
+      'Берёт только реальный alpha (Pendle PT), доказуемо ОТКАЗЫВАЕТ от трёх остальных и записывает отказы в hash-chain — measurement/refusal и есть продукт (M20)',
+      'Берёт самую высокую ставку (18%)',
+      'Берёт плечо на всё',
+    ],
+    correct: 1,
+    explanation: 'Синтез всех 20 модулей: edge — не yield, а доказуемый отказ и измерение (M20). Деск берёт валидированный carry, отказывает от risk-comp/liquidation, пишет каждый отказ в проверяемый hash-chain (M17). $10M — это масштаб+доверие+off-code, не headline-ставка.',
+  },
+];
+---
+
+<LessonLayout id="capstone">
+  <p>
+    Финальный экзамен. Тебе дают <strong>реальную возможность</strong> — и ты прогоняешь её через всё,
+    что прошёл: refusal-first линза (M11), классификация A/B/C/D (M10), structural haircut вето (M12),
+    RiskPolicy (M13), kill-switch (M14), edge-at-scale (M15). Ты выносишь вердикт <strong>SAFE / WATCH /
+    REFUSE</strong> с обоснованием — ровно как <code>evaluate_entry</code> в
+    <code>rate_policy.py</code>.
+  </p>
+
+  <Callout type="key" titleRu="Алгоритм, которым ты сейчас думаешь">
+    <strong>1.</strong> Классифицируй источник: A=alpha / B=beta / C=risk-comp / D=incentive.
+    <strong>2.</strong> Посчитай structural haircut (peg+funding+oracle+protocol). Если &gt; 0.06 →
+    <strong>REFUSE</strong> на любом размере (вето ДО экономики). <strong>3.</strong> Только если вето
+    пройдено — смотри экономику: net_edge ≥ hurdle? <strong>4.</strong> SIZE-cap: ≤ 25% exit-ликвидности.
+    <strong>5.</strong> На холде следи за EXIT_CAPACITY / carry-compression.
+  </Callout>
+
+  <h2>Разбор четырёх сценариев</h2>
+
+  <h3>① «sUSDe 12% delta-neutral»</h3>
+  <p>
+    Заманчиво. Но <strong>класс C</strong>: 12% — это компенсация за funding-flip и depeg-хвост. По
+    refusal-first сначала вето: проверяем structural haircut и устойчивую отрицательную funding-серию
+    (FUNDING_FLIP, hysteresis). Если funding исторически уходит в минус — APY исчезнет, а хвост
+    останется. Вердикт зависит от чисел, но <strong>дефолт — скепсис</strong>, а не «12% это много».
+  </p>
+
+  <h3>② «Новый LRT PT 18%», structural haircut = 0.09</h3>
+  <p>
+    18% — самая высокая ставка из четырёх. И именно поэтому опаснее всего. Structural haircut 0.09
+    <strong>&gt; cap 0.06</strong> → <strong>REFUSE</strong>. Ключевой урок M12: токсичность нельзя
+    обойти размером — будь то $1000 или $10M, вердикт один. Это паттерн ezETH/rsETH, отказанных 100%
+    дней на истории.
+  </p>
+
+  <h3>③ «Pendle PT, mispriced fixed rate, fair-value ловит спред»</h3>
+  <p>
+    Это <strong>класс A — реальный alpha</strong>: рынок неверно оценил fixed rate, fair-value движок
+    харвестит спред. Единственный валидированный live-paper edge деска (FixedCarry, GO). Если structural
+    haircut под cap, net_edge ≥ hurdle и размер ≤ 25% exit-ликвидности → может быть <strong>SAFE</strong>.
+  </p>
+
+  <h3>④ Вошли — а exit-ликвидность упала ниже размера позиции</h3>
+  <p>
+    Hold-гейт срабатывает <strong>EXIT_CAPACITY kill</strong>: безопасный carry стал illiquid bag. Деск
+    выходит <em>до</em> того, как сожмётся basis — потому что книгу, из которой нельзя выйти по размеру,
+    уже нельзя считать безопасной.
+  </p>
+
+  <Callout type="trap" titleRu="Ловушка финала">
+    Все четыре возможности могут показывать положительный net yield. Наивный аналитик возьмёт все ради
+    максимального APY. Деск берёт <strong>только реальный alpha (③)</strong>, доказуемо отказывает от
+    остальных трёх и записывает каждый отказ в hash-chain (M17). Помни честную рамку: деск НЕ «делает
+    18%» — он держит ~floor и <strong>отказывается</strong> от 18% risk-comp.
+  </Callout>
+
+  <h2>Сдай экзамен сам</h2>
+  <p>
+    Ниже — интерактивный классификатор. Отнеси каждый реальный источник доходности к A/B/C/D. Это
+    ровно тот первый шаг refusal-first, без которого экономику смотреть нельзя. Классифицируй все
+    источники верно — и модуль (а с ним и весь курс) засчитается.
+  </p>
+
+  <RiskClassifier moduleId="capstone" client:load />
+
+  <Callout type="example" titleRu="Что ты теперь умеешь">
+    Ты прошёл путь от «APY 12% — это хорошо» до «12% класса C — это плата за funding-хвост, и я считаю
+    structural haircut ДО экономики». Это и есть мышление деска: <strong>edge — не yield, а доказуемый
+    отказ и измерение</strong> (M20). Связали все 20 модулей: рынок (Track 1) → изобретения SPA
+    (Track 2) → реальный разбор (этот капстоун).
+  </Callout>
+
+  <Quiz questions={questions} />
+</LessonLayout>

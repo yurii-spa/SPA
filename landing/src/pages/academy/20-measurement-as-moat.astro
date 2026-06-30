@@ -1,0 +1,143 @@
+---
+/*
+ * Academy · Track 2 · Module 20 — Measurement as moat (final synthesis).
+ * Contract: LessonLayout id · Callout type/titleRu · Quiz [{q,options,correct,explanation}].
+ */
+import LessonLayout from '../../components/academy/LessonLayout.astro';
+import Callout from '../../components/academy/Callout.astro';
+import Quiz from '../../components/academy/Quiz.astro';
+
+const questions = [
+  {
+    q: 'Чем, по финальному синтезу research-арки, деск зарабатывает?',
+    options: [
+      'Тем, что нашёл ставку повыше',
+      'Тем, что ДОКАЗУЕМО отказывает и МЕРЯЕТ риск — measurement/underwriting как продукт, а не yield',
+      'Кредитным плечом',
+      'Частыми ребалансами',
+    ],
+    correct: 1,
+    explanation: 'STRUCTURAL_DESK.md / FUNDABILITY.md: «The edge is not yield. The edge is the structural role of honest measurement / underwriting — being the party that can correctly price and refuse risk others don\'t see, and prove it».',
+  },
+  {
+    q: 'Почему measurement/underwriting не имеет потолка ёмкости, в отличие от yield?',
+    options: [
+      'Потому что использует плечо',
+      'Потому что это структурная РОЛЬ (честно мерить/андеррайтить риск), а не позиция в конечном пуле — её ценность не упирается в TVL/exit-ликвидность',
+      'Потому что это кэш',
+      'У неё тоже есть потолок',
+    ],
+    correct: 1,
+    explanation: 'Связка M15 (yield-edge упирается в capacity) + M16 (L3 без потолка): позиция в пуле ограничена exit-ликвидностью; роль measurement/underwriting — нет. Поэтому это единственный по-настоящему масштабируемый слой.',
+  },
+  {
+    q: 'Что в честной рамке деска означает «$10M = scale + trust + off-code»?',
+    options: [
+      '$10M достигается высокой ставкой в коде',
+      '$10M/yr — это масштаб + доверие + вещи ВНЕ кода (custody/MPC, аудит, legal, реальный капитал и отношения), а НЕ более высокий yield',
+      '$10M уже заработаны',
+      '$10M — это маркетинг',
+    ],
+    correct: 1,
+    explanation: 'FUNDABILITY.md §7: «the code can measure and refuse; the $10M is off-code». Четыре gate вне кода: Custody/MPC, External audit, Legal, Real capital + relationships. Код строит proof; proof зарабатывает доверие; доверие + капитал + отношения дают $10M.',
+  },
+  {
+    q: 'Что деск говорит о своём РЕАЛИЗОВАННОМ результате на сегодня?',
+    options: [
+      'Что он уже бьёт floor',
+      'Что на реализованном forward-треке ни один sleeve пока НЕ превзошёл RWA-floor risk-adjusted — и деск говорит это прямо',
+      'Что он делает 22% гарантированно',
+      'Что результата нет',
+    ],
+    correct: 1,
+    explanation: 'FUNDABILITY.md: на реализованном треке тали above-floor 0 / at-floor 0 / below-floor 0 / INSUFFICIENT_DATA по всем sleeve\'ам. «The desk does not yet demonstrably beat the floor on realized data». Честность — это и есть продукт.',
+  },
+  {
+    q: 'Почему именно ЧЕСТНОСТЬ — это identity (и moat) деска?',
+    options: [
+      'Потому что так положено',
+      'Потому что доказуемое измерение/отказ — то, чему можно доверять (verify_spa.py, refusal-log, published NO-GO); доверие — то, что масштабируется и привлекает капитал, в отличие от headline-ставки',
+      'Потому что честность дешевле',
+      'Потому что регулятор требует',
+    ],
+    correct: 1,
+    explanation: 'FUNDABILITY.md: «NOT marketing — the refusal-chain and the published NO-GO are the differentiator». Деск зарабатывает тем, что доказуемо меряет/отказывает — и это можно проверить (M17). Доверие — масштабируемый актив; ставка — нет.',
+  },
+];
+---
+
+<LessonLayout id="20-measurement-as-moat">
+  <p>
+    Это — финал Track 2. Девятнадцать модулей вели к одному выводу, и теперь мы его собираем. Деск
+    прошёл всю research-арку — от «найдём ставку повыше» до неудобной, но честной истины.
+  </p>
+
+  <h2>Вывод: edge — не yield, а роль измерителя</h2>
+  <p>
+    В <code>docs/STRUCTURAL_DESK.md</code> и <code>docs/FUNDABILITY.md</code> вывод сформулирован
+    дословно:
+  </p>
+  <blockquote>
+    «The edge is not yield. The edge is the structural role of honest measurement / underwriting —
+    being the party that can correctly price and refuse risk others don't see, and prove it.»
+  </blockquote>
+  <p>
+    Соединим всё, что ты прошёл: refusal-first гейт (M11) и size-proof вето (M12) <em>отказывают</em>
+    от tail-comp; RiskPolicy (M13) и two-tier kill (M14) <em>ограничивают</em> риск детерминированно;
+    edge-at-scale (M15) доказал, что <em>yield не масштабируется</em>; three-layer stack (M16) показал,
+    что масштабируется только <em>measurement-moat (L3)</em>; proof-of-risk (M17) делает всё это
+    <em>проверяемым</em>; go-live honesty (M18) и Aggressive Lab (M19) показывают, что деск
+    <em>не врёт</em> ни о хорошем, ни о плохом.
+  </p>
+
+  <Callout type="key" titleRu="Ключевое">
+    Деск зарабатывает тем, что <strong>доказуемо ОТКАЗЫВАЕТ и МЕРЯЕТ</strong> риск, а не тем, что нашёл
+    ставку повыше. Measurement/underwriting — это продукт <strong>без потолка ёмкости</strong>: роль
+    «того, кто честно меряет риск, который другие не видят» не упирается в TVL или exit-ликвидность,
+    в отличие от любой yield-позиции.
+  </Callout>
+
+  <h2>Честная рамка: $10M — вне кода</h2>
+  <p>
+    И сразу — самая важная честная оговорка, чтобы ты не ушёл с завышенными ожиданиями.
+    <code>docs/FUNDABILITY.md</code> §7 говорит прямо: <strong>«the code can measure and refuse; the
+    $10M is off-code»</strong>. Четыре gate, которые код НЕ закрывает:
+  </p>
+  <ul>
+    <li><strong>Custody / MPC</strong> — безопасное хранение реального капитала;</li>
+    <li><strong>External audit</strong> — внешний аудит;</li>
+    <li><strong>Legal</strong> — структура фонда, perfection обеспечения, redemption-соглашения;</li>
+    <li><strong>Real capital + relationships</strong> — реальный AUM, whitelisting, доступ к redemption-очередям.</li>
+  </ul>
+  <p>
+    То есть $10M/yr — это игра в <strong>масштаб + доверие + отношения на годы</strong>, а НЕ в более
+    высокую headline-ставку. Код — это «самый дешёвый, самый защищённый первый слой».
+  </p>
+
+  <Callout type="trap" titleRu="Ловушка — не переоценивай сегодняшний результат">
+    На реализованном forward-треке деск пока <strong>НЕ</strong> превосходит RWA-floor risk-adjusted —
+    по всем sleeve'ам verdict INSUFFICIENT_DATA. <code>FUNDABILITY.md</code>: <em>«The desk does not
+    yet demonstrably beat the floor on realized data»</em>. Кто учит «SPA делает 15%» — врёт. Честный
+    тезис: <strong>деск держит ~floor и доказуемо отказывается от 15% risk-comp</strong>.
+  </Callout>
+
+  <h2>Почему честность — это moat</h2>
+  <p>
+    Маркетинг можно скопировать; высокую ставку — переплюнуть. А вот <strong>доказуемое измерение и
+    публичный отказ</strong> (verify_spa.py, hash-chain refusal-log, опубликованный NO-GO по Liquidator
+    и RWA-backstop) — это то, чему можно <em>доверять и проверить</em>. <code>FUNDABILITY.md</code>:
+    <em>«NOT marketing — the refusal-chain and the published NO-GO are the differentiator»</em>. Доверие
+    масштабируется и привлекает капитал; ставка — нет. Поэтому честность здесь — не добродетель, а
+    <strong>бизнес-актив и identity деска</strong>.
+  </p>
+
+  <Callout type="example" titleRu="Пример">
+    Деск опубликовал <strong>три вердикта</strong> своей research-арки честно: Rates Desk —
+    <strong>GO</strong> (carry реален), RWA Backstop — <strong>measurement-GO / book NO-GO</strong>
+    (андеррайтинг = relationships+legal вне кода), Liquidator — <strong>NO-GO</strong> (addressable
+    ~$2–4M/yr &lt;&lt; $20M bar). Публичный NO-GO — то, чего почти никто в DeFi не делает. Это и есть
+    moat.
+  </Callout>
+
+  <Quiz questions={questions} />
+</LessonLayout>

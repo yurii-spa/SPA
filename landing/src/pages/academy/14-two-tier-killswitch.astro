@@ -1,0 +1,124 @@
+---
+/*
+ * Academy · Track 2 · Module 14 — Two-tier kill-switch (ADR-048).
+ * Embeds <KillSwitchLadder client:load />. Contract: LessonLayout id · Callout · Quiz.
+ */
+import LessonLayout from '../../components/academy/LessonLayout.astro';
+import Callout from '../../components/academy/Callout.astro';
+import Quiz from '../../components/academy/Quiz.astro';
+import KillSwitchLadder from '../../components/academy/KillSwitchLadder.jsx';
+
+const questions = [
+  {
+    q: 'Что делает SOFT_DERISK tier при просадке в диапазоне [5%, 10%)?',
+    options: [
+      'Ликвидирует всё в кэш',
+      'De-risk: запрещает новые входы и любое УВЕЛИЧЕНИЕ позиций (hold + reduce разрешены), шлёт WARNING. НЕ ликвидирует.',
+      'Удваивает позиции, чтобы отыграться',
+      'Ничего',
+    ],
+    correct: 1,
+    explanation: 'kill_switch.py: SOFT_DERISK_THRESHOLD_PCT=5.0. Гейт apply_soft_derisk_gate ограничивает target_usd → min(target, held), новый протокол → 0. Не ликвидирует: просадка 5% чаще всего — восстановимая волатильность/depeg-wobble.',
+  },
+  {
+    q: 'При какой просадке срабатывает HARD_KILL и что он делает?',
+    options: [
+      'При −5%, переводит в 50% кэш',
+      'При просадке ≥ 10% (граница inclusive), переводит ВСЁ в кэш {"cash": 1.0}',
+      'При −20%, шлёт alert',
+      'Никогда',
+    ],
+    correct: 1,
+    explanation: 'kill_switch.py: DRAWDOWN_THRESHOLD_PCT=10.0; check_drawdown_trigger использует >= (inclusive), get_kill_switch_allocation возвращает {"cash":1.0, все протоколы:0.0}. ADR-048 снизил порог 15→10.',
+  },
+  {
+    q: 'Почему 5% — это de-risk, а не полная ликвидация?',
+    options: [
+      'Чтобы сэкономить на комиссиях',
+      'Потому что 5%-просадка на стейбл-книге чаще всего — восстановимый wobble; паническая ликвидация кристаллизует убыток, который иначе откатился бы',
+      'Это ошибка в коде',
+      'Чтобы пройти go-live',
+    ],
+    correct: 1,
+    explanation: 'kill_switch.py комментарий: «a 5% drawdown is most often a recoverable depeg/vol wobble; panic-liquidating it crystallises a loss that would otherwise mean-revert». Два уровня = соразмерный ответ.',
+  },
+  {
+    q: 'Как считается просадка для kill-switch?',
+    options: [
+      'По всем барам, включая warmup и backfill',
+      'СТРОГО по evidenced (реальным) барам — warmup/seed/pre-anchor/backfill исключены; fail-CLOSED при недостатке данных',
+      'По биржевой цене ETH',
+      'По headline APY',
+    ],
+    correct: 1,
+    explanation: 'evidenced_drawdown_pct (kill_switch.py, N1 safety fix): peak/current считаются только по evidenced real-серии. Инфлированный warmup-пик не должен фабриковать просадку, закрывающую честный трек. None → fail-CLOSED (no kill).',
+  },
+];
+---
+
+<LessonLayout id="14-two-tier-killswitch">
+  <p>
+    RiskPolicy (модуль 13) решает, что можно <em>открыть</em>. Kill-switch решает, что делать, когда
+    книга уже <em>проседает</em>. Деск не использует один грубый «выключатель» — он применяет
+    <strong>лестницу из двух уровней</strong> (ADR-034 + ADR-048), потому что просадка 5% и просадка
+    15% требуют разного ответа.
+  </p>
+
+  <h2>Лестница (kill_switch.py)</h2>
+  <table>
+    <thead><tr><th>Tier</th><th>Порог просадки</th><th>Эффект</th></tr></thead>
+    <tbody>
+      <tr><td><strong>NONE</strong></td><td>&lt; 5%</td><td>Никаких действий</td></tr>
+      <tr>
+        <td><strong>SOFT_DERISK</strong></td>
+        <td>[5%, 10%)</td>
+        <td>De-risk: <strong>halt new / no INCREASE</strong> (hold + reduce OK), edge-triggered WARNING. <strong>НЕ ликвидирует.</strong></td>
+      </tr>
+      <tr>
+        <td><strong>HARD_KILL</strong></td>
+        <td>≥ 10% (inclusive)</td>
+        <td>Полный kill → <strong>всё в кэш</strong> <code>{`{ cash: 1.0 }`}</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <Callout type="key" titleRu="Ключевое">
+    Границы <strong>монотонные и полуоткрытые</strong>, верхняя — inclusive: ровно 5.0% → SOFT, ровно
+    10.0% → HARD. Это закрывает 0-ширину «дыры» между классификатором (<code>&gt;=</code>) и триггером
+    (раньше был <code>&gt;</code>) — ADR-048 сделал <code>check_drawdown_trigger</code> тоже
+    <code>&gt;=</code>.
+  </Callout>
+
+  <h2>Почему 5% не ликвидирует</h2>
+  <p>
+    Комментарий прямо в коде объясняет логику SOFT-уровня: <em>«a 5% drawdown is most often a
+    recoverable depeg/vol wobble; panic-liquidating it crystallises a loss that would otherwise
+    mean-revert»</em>. На стейбл-книге просадка 5% — обычно временная (depeg-wobble, волатильность), и
+    <strong>паническая распродажа превратила бы временный минус в окончательный убыток</strong>.
+    Поэтому SOFT останавливает рост экспозиции, но держит. А 10% на стейблах — это уже сигнал реального
+    коллапса протокола, и полный выход в кэш корректен.
+  </p>
+
+  <Callout type="trap" titleRu="Ловушка">
+    Просадка считается <strong>только по evidenced real-барам</strong>
+    (<code>evidenced_drawdown_pct</code>, N1 safety fix). Инфлированный warmup/backfill-пик НЕ должен
+    фабриковать просадку, закрывающую честный трек. Если данных мало — функция вернёт <code>None</code>
+    → <strong>fail-CLOSED</strong> (никакого kill из ничего).
+  </Callout>
+
+  <h2>Поиграй: KillSwitchLadder</h2>
+  <p>
+    Двигай просадку и смотри, в какой tier попадаешь и какой эффект сработает. Обрати внимание на
+    точные границы 5.0% и 10.0%.
+  </p>
+
+  <KillSwitchLadder client:load />
+
+  <Callout type="example" titleRu="Пример">
+    Книга на пике $100,000 просела до $94,000 → drawdown 6% → <strong>SOFT_DERISK</strong>: новые входы
+    заблокированы, увеличивать нельзя, но позиции держим. Просела до $89,500 → drawdown 10.5% ≥ 10% →
+    <strong>HARD_KILL</strong>: аллокация становится <code>{`{ cash: 1.0, ...protocols: 0.0 }`}</code>.
+  </Callout>
+
+  <Quiz questions={questions} />
+</LessonLayout>

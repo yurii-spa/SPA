@@ -1,0 +1,113 @@
+---
+/*
+ * Academy · Track 2 · Module 13 — RiskPolicy (deterministic, LLM-forbidden, fail-closed).
+ * Contract: LessonLayout id · Callout type/titleRu · Quiz [{q,options,correct,explanation}].
+ */
+import LessonLayout from '../../components/academy/LessonLayout.astro';
+import Callout from '../../components/academy/Callout.astro';
+import Quiz from '../../components/academy/Quiz.astro';
+
+const questions = [
+  {
+    q: 'Какие лимиты концентрации задаёт RiskPolicy?',
+    options: [
+      '40% на любой T1, 20% на любой T2, T2 суммарно ≤ 50%',
+      '100% в один протокол разрешено',
+      '10% на всё',
+      'Нет лимитов — решает LLM',
+    ],
+    correct: 0,
+    explanation: 'spa_core/risk/policy.py: max_concentration_t1=0.40, max_concentration_t2=0.20, max_single_protocol=0.40, max_total_t2_allocation=0.50 (ADR-019: было 0.35).',
+  },
+  {
+    q: 'Какой минимальный TVL и кэш-буфер требует политика?',
+    options: ['TVL ≥ $5M, кэш ≥ 5%', 'TVL ≥ $100K, кэш 0%', 'TVL ≥ $1B, кэш 50%', 'Нет требований'],
+    correct: 0,
+    explanation: 'policy.py: min_tvl_usd = 5_000_000 ($5M floor на пул), min_cash_pct = 0.05 (5% всегда в кэше).',
+  },
+  {
+    q: 'Какой диапазон APY допускается для НОВОЙ позиции?',
+    options: ['1% … 30%', '0% … 100%', '5% … 15%', 'Любой'],
+    correct: 0,
+    explanation: 'policy.py: min_apy_for_new_position=1.0 (ниже — неинтересно), max_apy_for_new_position=30.0 (выше — слишком рискованно). APY > 30% сам по себе — стоп-сигнал.',
+  },
+  {
+    q: 'Может ли агент (или LLM) переопределить approved=False от RiskPolicy?',
+    options: [
+      'Да, если очень нужно',
+      'Нет — approved=False неоспорим; LLM в risk-слое ЗАПРЕЩЁН, политика детерминированная',
+      'Только владелец через Telegram',
+      'Да, после ребаланса',
+    ],
+    correct: 1,
+    explanation: 'policy.py docstring: «approved=False from RiskPolicy CANNOT be overridden by any agent». LLM запрещён в risk/execution/monitoring (CLAUDE.md FORBIDDEN #5). Политика — чистая детерминированная функция, fail-CLOSED.',
+  },
+  {
+    q: 'Почему версия RiskPolicy зафиксирована как v1.0 на весь paper-период?',
+    options: [
+      'Чтобы лимиты не дрейфовали незаметно; любое изменение требует нового ADR + approval владельца',
+      'Потому что код нельзя менять',
+      'Это случайность',
+      'Чтобы пройти go-live быстрее',
+    ],
+    correct: 0,
+    explanation: 'CLAUDE.md FORBIDDEN #7: RiskPolicy version = "v1.0" весь paper-период; изменение → новый ADR. Это защита от тихого дрейфа лимитов под давлением «хочется больше доходности».',
+  },
+];
+---
+
+<LessonLayout id="13-riskpolicy">
+  <p>
+    Refusal-first гейт (модули 11–12) живёт в Rates Desk. Но <strong>под ним</strong> стоит ещё один,
+    более общий слой — <code>spa_core/risk/policy.py</code>. Это глобальный RiskPolicy, через который
+    обязана пройти любая позиция всего портфеля. Композиция: RatePolicy approve — необходимое, но
+    <strong>не достаточное</strong> условие; глобальная RiskPolicy всё ещё должна одобрить (логика AND,
+    никогда OR — см. <code>compose_under_global_policy</code>).
+  </p>
+
+  <h2>Жёсткие лимиты (policy.py)</h2>
+  <table>
+    <thead><tr><th>Параметр</th><th>Значение</th><th>Поле в коде</th></tr></thead>
+    <tbody>
+      <tr><td>Concentration T1</td><td>≤ 40%</td><td><code>max_concentration_t1 = 0.40</code></td></tr>
+      <tr><td>Concentration T2</td><td>≤ 20%</td><td><code>max_concentration_t2 = 0.20</code></td></tr>
+      <tr><td>Single protocol</td><td>≤ 40%</td><td><code>max_single_protocol = 0.40</code></td></tr>
+      <tr><td>T2 суммарно</td><td>≤ 50%</td><td><code>max_total_t2_allocation = 0.50</code> (ADR-019)</td></tr>
+      <tr><td>Min cash buffer</td><td>≥ 5%</td><td><code>min_cash_pct = 0.05</code></td></tr>
+      <tr><td>Min TVL на пул</td><td>≥ $5M</td><td><code>min_tvl_usd = 5_000_000</code></td></tr>
+      <tr><td>APY-band (новый вход)</td><td>1% … 30%</td><td><code>min/max_apy_for_new_position</code></td></tr>
+      <tr><td>Base chain суммарно</td><td>≤ 20%</td><td><code>BASE_CHAIN_CAP = 0.20</code> (ADR-025)</td></tr>
+    </tbody>
+  </table>
+
+  <Callout type="key" titleRu="Ключевое">
+    Эти cap'ы — не «рекомендации». Это чистая детерминированная функция: один и тот же вход даёт один
+    и тот же вердикт, всегда, без участия нейросети. <code>approved=False</code> от RiskPolicy
+    <strong>не может переопределить никто</strong> (docstring policy.py).
+  </Callout>
+
+  <h2>Почему LLM запрещён в risk-слое</h2>
+  <p>
+    Одно из FORBIDDEN-правил деска (<code>CLAUDE.md</code> #5): <strong>LLM запрещён в
+    risk / execution / monitoring</strong>. Причина честная: нейросеть недетерминирована, не
+    воспроизводима байт-в-байт и может быть «уговорена» красивым нарративом. Гейт, решающий судьбу
+    капитала, обязан быть <strong>проверяемым</strong> — чтобы любой скептик мог переиграть решение и
+    получить тот же результат (это связывает RiskPolicy с proof-of-risk, модуль 17).
+  </p>
+
+  <Callout type="trap" titleRu="Ловушка">
+    Соблазн: «давайте дадим модели чуть-чуть подвинуть лимит, когда уверенность высокая». Это убивает
+    воспроизводимость и открывает дверь дрейфу. Поэтому версия политики <strong>зафиксирована как
+    v1.0</strong> на весь paper-период (FORBIDDEN #7) — любое изменение проходит через ADR и approval
+    владельца, а не через «модель так решила».
+  </Callout>
+
+  <h2>fail-CLOSED</h2>
+  <p>
+    Политика отказывает по умолчанию: при любом сомнении, нехватке данных или малформ-входе вердикт —
+    <strong>не входить</strong>, а не «наверное, ок». Это та же философия, что в kill-switch
+    (модуль 14) и в refusal-гейте: <em>безопасный отказ всегда дешевле небезопасного входа</em>.
+  </p>
+
+  <Quiz questions={questions} />
+</LessonLayout>

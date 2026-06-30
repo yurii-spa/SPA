@@ -1,0 +1,62 @@
+---
+/*
+ * Callout.astro — RU-first emphasis box for academy lessons.
+ *
+ * Accepts BOTH prop conventions (kept tolerant so every module page compiles):
+ *   <Callout type="key|trap|example" titleRu="Ключевое" />   (canonical)
+ *   <Callout variant="ключевое|ловушка|пример" />            (RU-word shorthand)
+ *
+ * PROPS:
+ *   type     "key" | "trap" | "example"
+ *   variant  RU word: "ключевое" | "ловушка" | "пример" (alt to type)
+ *   titleRu  optional RU label override
+ *   title    optional label override (alias of titleRu)
+ *
+ * SLOT: the callout body (RU-first).
+ */
+interface Props {
+  type?: 'key' | 'trap' | 'example';
+  variant?: string;
+  titleRu?: string;
+  title?: string;
+}
+const { type, variant, titleRu, title } = Astro.props;
+
+const VARIANT_MAP: Record<string, 'key' | 'trap' | 'example'> = {
+  'ключевое': 'key', 'key': 'key',
+  'ловушка': 'trap', 'trap': 'trap',
+  'пример': 'example', 'example': 'example',
+};
+const resolved = type ?? (variant ? VARIANT_MAP[variant.trim().toLowerCase()] : undefined) ?? 'key';
+
+const PRESET = {
+  key:     { label: 'Ключевое', color: 'var(--accent)',    bg: 'rgba(91,141,239,0.08)',  icon: '◆' },
+  trap:    { label: 'Ловушка',  color: 'var(--danger)',    bg: 'rgba(242,109,109,0.08)', icon: '▲' },
+  example: { label: 'Пример',   color: 'var(--data-teal)', bg: 'rgba(54,194,180,0.08)',  icon: '›' },
+};
+const p = PRESET[resolved] ?? PRESET.key;
+const label = titleRu ?? title ?? p.label;
+---
+<aside class="ac-callout" style={`background:${p.bg};border-left:3px solid ${p.color};`}>
+  <div class="ac-callout-label" style={`color:${p.color};`}>
+    <span aria-hidden="true">{p.icon}</span>
+    <span>{label}</span>
+  </div>
+  <div class="ac-callout-body"><slot /></div>
+</aside>
+
+<style>
+  .ac-callout { border-radius: var(--r-md); padding: 16px 18px; margin: 24px 0; }
+  .ac-callout-label {
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.10em;
+    text-transform: uppercase; font-weight: 600; display: flex; align-items: center;
+    gap: 8px; margin-bottom: 8px;
+  }
+  .ac-callout-body { color: var(--text-secondary); font-size: 15px; line-height: 1.65; }
+  .ac-callout-body :global(p) { margin: 0 0 8px; }
+  .ac-callout-body :global(p:last-child) { margin-bottom: 0; }
+  .ac-callout-body :global(code) {
+    font-family: var(--font-mono); font-size: 0.9em; background: var(--bg-surface-2);
+    padding: 1px 5px; border-radius: 4px; color: var(--text-primary);
+  }
+</style>

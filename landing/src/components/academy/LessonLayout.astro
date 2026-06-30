@@ -1,0 +1,210 @@
+---
+/*
+ * LessonLayout.astro — the consistent chrome for EVERY academy module page.
+ *
+ * Agents 1+2 wrap their lesson body in this. It provides: the canonical site
+ * Layout (header/footer/paper-strip), the track badge, the module title, a
+ * back-to-academy link, prev/next navigation (auto-derived from the manifest by
+ * `id`), the per-module completion badge, and a slot for the lesson body. The
+ * <Quiz> goes inside the lesson body (at the end), not in a separate slot — that
+ * keeps the page a single readable column.
+ *
+ * RU-FIRST: the visible title/summary come from the manifest's *_ru fields.
+ *
+ * PROPS (the API Agents 1+2 use):
+ *   id    string  REQUIRED — the module slug; must match a manifest module id.
+ *                 Everything else (track, title, order, prev/next) is derived.
+ *   description?  string  optional <head> meta description (RU ok).
+ */
+import Layout from '../../layouts/Layout.astro';
+import ModuleProgress from './ModuleProgress.jsx';
+import manifest from '../../data/academy_modules.json';
+
+interface Props {
+  id: string;
+  description?: string;
+}
+const { id, description } = Astro.props;
+
+const modules = manifest.modules;
+const tracks = manifest._meta.tracks;
+
+const idx = modules.findIndex((m) => m.id === id);
+const mod = idx >= 0 ? modules[idx] : null;
+const prev = idx > 0 ? modules[idx - 1] : null;
+const next = idx >= 0 && idx < modules.length - 1 ? modules[idx + 1] : null;
+
+const trackInfo = mod ? tracks[String(mod.track)] : null;
+const trackColor =
+  mod?.track === 1 ? 'var(--data-teal)' :
+  mod?.track === 2 ? 'var(--accent)' :
+  'var(--warn)';
+
+const title = mod ? mod.title_ru : id;
+const summary = mod ? mod.summary_ru : '';
+const order = mod ? mod.order : '';
+const totalInTrack = mod ? modules.filter((m) => m.track === mod.track).length : 0;
+const posInTrack = mod ? modules.filter((m) => m.track === mod.track && m.order <= mod.order).length : 0;
+---
+<Layout title={`${title} · SPA Академия`} description={description ?? summary}>
+  <main class="ac-lesson">
+    <!-- breadcrumb / track badge -->
+    <div class="ac-lesson-top">
+      <a class="ac-breadcrumb" href="/academy" data-ru="← Академия">← Academy</a>
+      {trackInfo && (
+        <span class="ac-track-badge" style={`color:${trackColor};border-color:${trackColor};`}>
+          {trackInfo.title_ru} · {posInTrack}/{totalInTrack}
+        </span>
+      )}
+    </div>
+
+    <header class="ac-lesson-head">
+      <div class="ac-lesson-eyebrow">МОДУЛЬ {order}</div>
+      <h1 class="ac-lesson-title">{title}</h1>
+      {summary && <p class="ac-lesson-summary">{summary}</p>}
+      <div class="ac-lesson-status">
+        <ModuleProgress moduleId={id} client:load />
+      </div>
+    </header>
+
+    <article class="ac-lesson-body">
+      <slot />
+    </article>
+
+    <!-- prev / next -->
+    <nav class="ac-lesson-nav" aria-label="module navigation">
+      {prev ? (
+        <a class="ac-navlink ac-prev" href={`/academy/${prev.id}`}>
+          <span class="ac-navdir" data-ru="← Назад">← Prev</span>
+          <span class="ac-navtitle">{prev.title_ru}</span>
+        </a>
+      ) : <span />}
+      {next ? (
+        <a class="ac-navlink ac-next" href={`/academy/${next.id}`}>
+          <span class="ac-navdir" data-ru="Далее →">Next →</span>
+          <span class="ac-navtitle">{next.title_ru}</span>
+        </a>
+      ) : (
+        <a class="ac-navlink ac-next" href="/academy">
+          <span class="ac-navdir" data-ru="К индексу →">To index →</span>
+          <span class="ac-navtitle" data-ru="Все модули">All modules</span>
+        </a>
+      )}
+    </nav>
+  </main>
+</Layout>
+
+<style>
+  .ac-lesson {
+    max-width: 768px;
+    margin: 0 auto;
+    padding: 48px 20px 96px;
+    color: var(--text-secondary);
+  }
+  .ac-lesson-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 28px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .ac-breadcrumb {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-muted);
+    text-decoration: none;
+  }
+  .ac-breadcrumb:hover { color: var(--accent); }
+  .ac-track-badge {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border: 1px solid;
+    border-radius: var(--r-full);
+  }
+  .ac-lesson-head { margin-bottom: 32px; }
+  .ac-lesson-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+  }
+  .ac-lesson-title {
+    font-size: 2.25rem;
+    line-height: 1.15;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 12px;
+  }
+  .ac-lesson-summary {
+    font-size: 1.125rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    margin: 0 0 18px;
+  }
+  .ac-lesson-status { margin-top: 14px; }
+
+  /* lesson prose styles — what Agents 1+2's markup inherits */
+  .ac-lesson-body { font-size: 16px; line-height: 1.7; }
+  .ac-lesson-body :global(h2) {
+    font-size: 1.5rem; font-weight: 600; color: var(--text-primary);
+    margin: 40px 0 14px; line-height: 1.25;
+  }
+  .ac-lesson-body :global(h3) {
+    font-size: 1.25rem; font-weight: 600; color: var(--text-primary);
+    margin: 28px 0 10px;
+  }
+  .ac-lesson-body :global(p) { margin: 0 0 16px; color: var(--text-secondary); }
+  .ac-lesson-body :global(ul), .ac-lesson-body :global(ol) {
+    margin: 0 0 16px; padding-left: 22px; color: var(--text-secondary);
+  }
+  .ac-lesson-body :global(li) { margin: 6px 0; line-height: 1.6; }
+  .ac-lesson-body :global(strong) { color: var(--text-primary); font-weight: 600; }
+  .ac-lesson-body :global(a) { color: var(--accent); }
+  .ac-lesson-body :global(code) {
+    font-family: var(--font-mono); font-size: 0.9em;
+    background: var(--bg-surface-2); padding: 1px 5px; border-radius: 4px;
+    color: var(--text-primary);
+  }
+  .ac-lesson-body :global(table) {
+    width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;
+  }
+  .ac-lesson-body :global(th), .ac-lesson-body :global(td) {
+    border: 1px solid var(--border); padding: 8px 12px; text-align: left;
+  }
+  .ac-lesson-body :global(th) {
+    background: var(--bg-surface-2); color: var(--text-primary); font-weight: 600;
+  }
+
+  .ac-lesson-nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 56px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+  }
+  .ac-navlink {
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--bg-surface);
+    text-decoration: none;
+    transition: border-color 120ms;
+  }
+  .ac-navlink:hover { border-color: var(--border-strong); }
+  .ac-next { text-align: right; align-items: flex-end; }
+  .ac-navdir { font-family: var(--font-mono); font-size: 11px; color: var(--accent); }
+  .ac-navtitle { font-size: 14px; color: var(--text-secondary); font-weight: 500; }
+
+  @media (max-width: 640px) {
+    .ac-lesson-title { font-size: 1.75rem; }
+    .ac-lesson-nav { grid-template-columns: 1fr; }
+    .ac-next { text-align: left; align-items: flex-start; }
+  }
+</style>

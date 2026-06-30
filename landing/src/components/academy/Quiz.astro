@@ -1,0 +1,36 @@
+---
+/*
+ * Quiz.astro — the PUBLIC quiz component Agents 1+2 import in module pages.
+ *
+ * It is a thin Astro wrapper around the interactive <QuizIsland> (Quiz.jsx). It:
+ *   - auto-derives `moduleId` from the page slug (Astro.url.pathname → /academy/<id>)
+ *     so module pages do NOT need to pass it (one less thing to get wrong), and
+ *   - renders the island with client:load so the quiz is interactive and marks the
+ *     module complete in localStorage.
+ *
+ * USAGE (the contract Agents 1+2 follow):
+ *   import Quiz from '../../components/academy/Quiz.astro';
+ *   <Quiz questions={questions} />            // moduleId auto-derived from the URL
+ *   <Quiz questions={questions} passAll={false} moduleId="capstone" />   // overrides optional
+ *
+ * QUESTION SCHEMA (RU-first plain strings — the schema the lessons use):
+ *   { q: string,                  // question text (RU)
+ *     options: string[],          // answer options (RU)
+ *     correct: number,            // index into options of the correct answer
+ *     explanation: string }       // shown after answering (RU)
+ */
+import QuizIsland from './Quiz.jsx';
+
+interface Props {
+  questions: any[];
+  moduleId?: string;
+  passAll?: boolean;
+}
+const { questions, moduleId, passAll = true } = Astro.props;
+
+// Derive the module id from the route: /academy/<id> → <id>
+const path = Astro.url.pathname.replace(/\/+$/, '');
+const derived = path.split('/').filter(Boolean).pop() || '';
+const mid = moduleId ?? (derived && derived !== 'academy' ? derived : 'unknown');
+---
+<QuizIsland questions={questions} moduleId={mid} passAll={passAll} client:load />

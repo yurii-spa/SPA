@@ -1,0 +1,20 @@
+---
+/*
+ * RiskClassifier.astro — Astro wrapper for the A/B/C/D taxonomy card-sort island.
+ *
+ * Lets module pages drop the widget in with no client:load boilerplate:
+ *   import RiskClassifier from '../../components/academy/RiskClassifier.astro';
+ *   <RiskClassifier />                       // pure drill (module 10)
+ *   <RiskClassifier moduleId="capstone" />   // marks module done on full pass
+ *
+ * If `moduleId` is omitted it auto-derives from the page slug.
+ */
+import RiskClassifierIsland from './RiskClassifier.jsx';
+
+interface Props { moduleId?: string }
+const { moduleId } = Astro.props;
+const path = Astro.url.pathname.replace(/\/+$/, '');
+const derived = path.split('/').filter(Boolean).pop() || '';
+const mid = moduleId ?? (derived && derived !== 'academy' ? derived : undefined);
+---
+<RiskClassifierIsland moduleId={mid} client:load />

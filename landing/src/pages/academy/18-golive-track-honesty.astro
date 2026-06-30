@@ -1,0 +1,120 @@
+---
+/*
+ * Academy · Track 2 · Module 18 — Go-live track honesty (evidenced days only).
+ * Embeds <LiveAcademyData feed="golive" /> (live go-live track). Contract: LessonLayout id · Callout · Quiz.
+ */
+import LessonLayout from '../../components/academy/LessonLayout.astro';
+import Callout from '../../components/academy/Callout.astro';
+import Quiz from '../../components/academy/Quiz.astro';
+import LiveAcademyData from '../../components/academy/LiveAcademyData.jsx';
+
+const questions = [
+  {
+    q: 'Какие дни засчитываются в 30-дневный go-live трек?',
+    options: [
+      'Все бары equity-кривой, включая backfill и demo',
+      'ТОЛЬКО дни с реальным daily-cycle логом (evidenced); backfill/demo/pre-anchor НЕ считаются',
+      'Любые дни, когда рынок был открыт',
+      'Дни, отмеченные владельцем вручную',
+    ],
+    correct: 1,
+    explanation: 'golive_checker.py: min_track_days_30 и gap_monitor_30d считают ТОЛЬКО equity-бары, датированные днём реального daily-cycle (evidenced). Anchor 2026-06-22; всё до — backfill/демо, не считается.',
+  },
+  {
+    q: 'Что такое evidenced anchor и почему трек был честно сброшен?',
+    options: [
+      'Дата запуска сайта',
+      'Первый день, когда реально отработал daily_cycle (2026-06-22); трек сброшен, потому что прежние бары были инфлированы pre-teardown demo/warmup',
+      'Дата покупки домена',
+      'Случайная дата',
+    ],
+    correct: 1,
+    explanation: 'golive_checker.py: evidenced_anchor = первый EVIDENCED день (2026-06-22). Честный reset: прежний «трек» включал backfill/warmup, которые инфлировали цифры. Считать их = обманывать себя.',
+  },
+  {
+    q: 'Какой порог drawdown использует go-live gate и почему именно он?',
+    options: [
+      'HARD-kill 10%',
+      'SOFT-derisk tier 5% (GOLIVE_MAX_DRAWDOWN_PCT=5.0): трек обязан держаться под 5%, чтобы считаться go-live-ready',
+      '0% — любая просадка дисквалифицирует',
+      '50%',
+    ],
+    correct: 1,
+    explanation: 'golive_checker.py: GOLIVE_MAX_DRAWDOWN_PCT = 5.0 — это SOFT-derisk tier, НЕ kill (10%). Go-live строже kill\'а: трек должен оставаться под 5% drawdown.',
+  },
+  {
+    q: 'Почему два критерия go-live помечены как time-gated, и что это значит?',
+    options: [
+      'Они сломаны',
+      'min_track_days_30 и gap_monitor_30d проваливаются ТОЛЬКО потому, что ещё не накопилось 30 честных дней — чинить кодом нечего, нужно просто ждать',
+      'Их отключил владелец',
+      'Они требуют оплаты',
+    ],
+    correct: 1,
+    explanation: 'golive_checker.py: TIME_GATED_CRITERIA = {min_track_days_30, gap_monitor_30d}. Они fail не из-за бага, а из-за нехватки evidenced-дней. Цикл должен просто продолжать работать.',
+  },
+];
+---
+
+<LessonLayout id="18-golive-track-honesty">
+  <p>
+    Деск идёт к go-live — переходу от paper к реальному капиталу — через <strong>30-дневный честный
+    трек</strong>. «Честный» здесь — не маркетинговое слово, а закодированное правило. Этот модуль —
+    про то, как именно деск отказывается врать самому себе о собственном результате.
+  </p>
+
+  <h2>Считаются только evidenced-дни</h2>
+  <p>
+    Gate <code>spa_core/paper_trading/golive_checker.py</code> — это 29 критериев (v6.0). Два из них —
+    <code>min_track_days_30</code> и <code>gap_monitor_30d</code> — считают
+    <strong>ТОЛЬКО equity-бары, датированные днём реального daily-cycle</strong> (evidenced). Бары из
+    backfill, demo, warmup или до anchor'а — <strong>не считаются вообще</strong>.
+  </p>
+
+  <Callout type="key" titleRu="Ключевое">
+    <strong>Evidenced anchor = 2026-06-22</strong> — первый день, когда реально отработал
+    <code>daily_cycle</code> и оставил лог. Всё до этой даты — backfill/демо, недействительно для
+    трека. Трек был честно <strong>сброшен</strong> к этому anchor'у, потому что прежние бары были
+    инфлированы pre-teardown demo/warmup-данными.
+  </Callout>
+
+  <h2>Почему backfill не считается</h2>
+  <p>
+    Соблазн очевиден: «у нас же есть исторические данные за месяцы — давайте покажем длинный красивый
+    трек». Но backfill-бар — это не <em>прожитый</em> день: система не принимала по нему реальных
+    решений в реальном времени, kill-switch по нему не срабатывал, цикл его не порождал. Засчитать его
+    в track record — значит <strong>сфабриковать опыт, которого не было</strong>.
+  </p>
+
+  <Callout type="trap" titleRu="Ловушка">
+    Та же логика защищает kill-switch (модуль 14): инфлированный warmup-пик НЕ должен фабриковать
+    просадку, закрывающую честный трек (<code>evidenced_drawdown_pct</code>). Честность работает в обе
+    стороны: backfill не добавляет фальшивых хороших дней И не создаёт фальшивых плохих.
+  </Callout>
+
+  <h2>Go-live строже kill'а</h2>
+  <p>
+    Порог просадки для go-live — <code>GOLIVE_MAX_DRAWDOWN_PCT = 5.0</code>, и это намеренно
+    <strong>SOFT-derisk tier (5%)</strong>, а НЕ HARD-kill (10%). То есть трек обязан держаться
+    <strong>под 5%</strong> drawdown, чтобы считаться готовым к реальному капиталу — планка строже, чем
+    та, что просто останавливает торговлю.
+  </p>
+
+  <h2>Time-gated: нечего чинить, нужно ждать</h2>
+  <p>
+    Когда <code>min_track_days_30</code> / <code>gap_monitor_30d</code> показывают «не пройдено» — это
+    <strong>не баг</strong>. Они помечены <code>TIME_GATED_CRITERIA</code>: проваливаются исключительно
+    потому, что ещё не накопилось 30 evidenced-дней. Кодом тут чинить нечего — цикл должен просто
+    продолжать работать день за днём.
+  </p>
+
+  <h2>Живой трек</h2>
+  <p>
+    Ниже — живой go-live трек с боевого API (<code>/api/v1/golive</code>): сколько evidenced-дней
+    набрано, сколько критериев пройдено, и что ещё time-gated.
+  </p>
+
+  <LiveAcademyData feed="golive" client:load />
+
+  <Quiz questions={questions} />
+</LessonLayout>

@@ -1,0 +1,122 @@
+---
+/*
+ * Academy · Track 2 · Module 12 — Structural haircut veto (size-independent toxicity).
+ * Embeds <HaircutVetoSim client:load />. Contract: LessonLayout id · Callout type/titleRu ·
+ * Quiz questions=[{q,options,correct,explanation}].
+ */
+import LessonLayout from '../../components/academy/LessonLayout.astro';
+import Callout from '../../components/academy/Callout.astro';
+import Quiz from '../../components/academy/Quiz.astro';
+import HaircutVetoSim from '../../components/academy/HaircutVetoSim.jsx';
+
+const questions = [
+  {
+    q: 'Что такое structural haircut и чем он отличается от total haircut?',
+    options: [
+      'Это одно и то же',
+      'Structural = peg + funding + oracle + protocol (БЕЗ size-зависимого liquidity-члена); total добавляет liquidity-хейркат',
+      'Structural — это комиссия протокола',
+      'Total считается только для T1-протоколов',
+    ],
+    correct: 1,
+    explanation: 'rate_policy.py, вето (1a): structural_haircut = peg + funding + oracle + protocol, СПЕЦИАЛЬНО исключая size-зависимый liquidity-член. Это и делает вердикт о токсичности size-independent.',
+  },
+  {
+    q: 'Можно ли «обойти» токсичность, уменьшив размер позиции?',
+    options: [
+      'Да — если взять достаточно маленький тикет, total haircut упадёт под cap',
+      'Нет — вето на структурном хейркате игнорирует liquidity-член, поэтому токсичная книга отказана на ЛЮБОМ размере',
+      'Да, но только для классов A и B',
+      'Только если повысить плечо',
+    ],
+    correct: 1,
+    explanation: 'Это закрытый red-team FAIL #1. Раньше можно было уменьшать size, пока liquidity_haircut не сжимался достаточно для прохождения total-cap. Теперь вердикт о токсичности — на структурном хейркате (без liquidity), size-independent. Sizing down уменьшает ПОЗИЦИЮ, но не ВЕРДИКТ.',
+  },
+  {
+    q: 'Какое значение порога max_structural_haircut в RatePolicyParams?',
+    options: ['0.12', '0.06', '0.40', '0.005'],
+    correct: 1,
+    explanation: 'RatePolicyParams: max_structural_haircut = 0.06 (≈6%). Для сравнения max_total_haircut = 0.12. Структурный cap строже, потому что он про токсичность, которую нельзя обойти размером.',
+  },
+  {
+    q: 'Почему ezETH / rsETH отказаны на любом размере?',
+    options: [
+      'Их APY слишком низкий',
+      'Их структурный хейркат (peg+funding+oracle+protocol) превышает 0.06 cap — это хвостовая токсичность LRT, не функция тикета',
+      'У них нет TVL',
+      'Они не торгуются на Pendle',
+    ],
+    correct: 1,
+    explanation: 'docs/RATES_DESK_VALIDATION.md: токсичные LRT PT-книги (ezETH/rsETH) отказаны 100% дней по структурным причинам. Их хвост (depeg в кризис, как rsETH-2026-04) не уменьшается, если взять меньший тикет.',
+  },
+];
+---
+
+<LessonLayout id="12-structural-haircut-veto">
+  <p>
+    Модуль 11 сказал: edge — это отказ. Этот модуль — про самую тонкую ошибку, которую refusal-first
+    гейт обязан не допустить: <strong>попытку «обойти» токсичный риск, уменьшив размер позиции</strong>.
+  </p>
+
+  <h2>Хейркат раскладывается на части</h2>
+  <p>
+    Fair-value движок раскладывает котируемую ставку на <strong>baseline минус пять структурных
+    хейркатов</strong>: peg, funding, oracle, liquidity, protocol. Сумма этих хейркатов говорит,
+    сколько из ставки — плата за риск, а не настоящий carry. Ключ в том, что один из пяти —
+    <strong>liquidity</strong> — зависит от размера позиции (большой тикет тяжелее выйти, выше
+    impact), а остальные четыре — <strong>нет</strong>.
+  </p>
+
+  <Callout type="key" titleRu="Ключевое">
+    <strong>Structural haircut</strong> = peg + funding + oracle + protocol — <em>без</em>
+    size-зависимого liquidity-члена. <strong>Total haircut</strong> = structural + liquidity. Деск
+    судит о <strong>токсичности</strong> по структурному хейркату (size-independent), а об
+    <strong>экономике под свой размер</strong> — по total.
+  </Callout>
+
+  <h2>Два вето, не одно (rate_policy.py)</h2>
+  <p>В <code>evaluate_entry</code> TAIL_VETO состоит из двух частей:</p>
+  <ul>
+    <li>
+      <strong>(1a) Структурное вето токсичности</strong>:
+      <code>if decomp.structural_haircut &gt; params.max_structural_haircut</code> → REFUSE. Этот cap =
+      <strong>0.06</strong>. Поскольку он не включает liquidity, книга с токсичным хвостом отказана
+      <strong>на любом размере</strong>.
+    </li>
+    <li>
+      <strong>(1b) Экономическое вето по total</strong>:
+      <code>if decomp.total_haircut &gt; params.max_total_haircut</code> → REFUSE. Этот cap =
+      <strong>0.12</strong>. Даже структурно чистая книга может стать tail-comp, когда добавлен её
+      собственный exit-impact.
+    </li>
+  </ul>
+  <p>
+    Книга может провалиться <strong>либо</strong> на (1a) структурной токсичности (нельзя обойти
+    размером), <strong>либо</strong> на (1b) экономике с учётом ликвидности (это обойти можно — и это
+    правильно: меньший, реально выходимый тикет — это <em>действительно</em> меньше риска).
+  </p>
+
+  <Callout type="trap" titleRu="Ловушка — закрытый red-team FAIL #1">
+    Раньше токсичную книгу можно было «уменьшать», пока <code>liquidity_haircut</code> не сжимался
+    настолько, что <code>total_haircut</code> проскакивал под cap. Комментарий в коде называет это
+    прямо: <em>«Sizing down must shrink the POSITION, never the TOXICITY verdict»</em>. Поэтому вето,
+    решающее токсичность, полностью игнорирует liquidity-член.
+  </Callout>
+
+  <h2>Поиграй: HaircutVetoSim</h2>
+  <p>
+    Покрути хейркаты и размер позиции. Заметь главное: уменьшение размера двигает только
+    <em>liquidity</em>-член (и total) — но структурное вето либо уже сработало, либо нет, и размер на
+    него не влияет.
+  </p>
+
+  <HaircutVetoSim client:load />
+
+  <Callout type="example" titleRu="Пример">
+    ezETH в апреле 2026 (окно rsETH-depeg): его peg + protocol хейркаты дают structural &gt; 0.06 →
+    REFUSE. Ставь размер $1000 или $10M — вердикт один: отказ. Деск отказал таким LRT PT-книгам 100%
+    дней на истории (<code>docs/RATES_DESK_VALIDATION.md</code>).
+  </Callout>
+
+  <Quiz questions={questions} />
+</LessonLayout>

@@ -1,0 +1,124 @@
+---
+/*
+ * Academy · Track 2 · Module 15 — Edge at scale (THE central honest conclusion).
+ * Embeds <EdgeAtScaleSlider client:load />. Contract: LessonLayout id · Callout · Quiz.
+ */
+import LessonLayout from '../../components/academy/LessonLayout.astro';
+import Callout from '../../components/academy/Callout.astro';
+import Quiz from '../../components/academy/Quiz.astro';
+import EdgeAtScaleSlider from '../../components/academy/EdgeAtScaleSlider.jsx';
+
+const questions = [
+  {
+    q: 'Что показывает кривая edge_at_scale на $100k / $1M / $10M?',
+    options: [
+      'Uplift растёт с капиталом',
+      '+1.08pp на $100k → −2.00pp на $1M → −0.99pp на $10M: edge становится ОТРИЦАТЕЛЬНЫМ при росте капитала',
+      'Uplift постоянный +1.08pp везде',
+      'Edge удваивается на каждом уровне',
+    ],
+    correct: 1,
+    explanation: 'data/edge_at_scale.json: uplift_pp = +1.08 ($100k), −2.00 ($1M), −0.99 ($10M). edge_survives_at_max_aum=false, edge_below_materiality_at_aum_usd=1000000.',
+  },
+  {
+    q: 'ПОЧЕМУ edge не масштабируется через yield?',
+    options: [
+      'Растут комиссии',
+      'Оптимизатор концентрируется в высокодоходных МЕЛКИХ пулах; на $1M+ доля превышает cap 1% TVL, и большая часть капитала «выпадает» в кэш (earns 0)',
+      'APY падает с инфляцией',
+      'Нейросеть ошибается',
+    ],
+    correct: 1,
+    explanation: 'CARRY_TRUTH.md WS-1.3: оптимизатор концентрируется в small-TVL пулах (euler_v2 ~$14M, pendle ~$7M). На $1M слуг 20% превышает 1%-of-TVL cap (MP-209/ADR-009) → capacity-capped капитал = idle cash, earns 0. В данных: на $1M optimized capped-out $700k.',
+  },
+  {
+    q: 'До какого размера ограничен carry (FixedCarry venue-cap)?',
+    options: [
+      'Неограничен',
+      '~$1.5–1.7M суммарно: все книги делят один Pendle/USDe exit-rail, поэтому ёмкость общая, а не на книгу',
+      '$100M на книгу',
+      '$50 на книгу',
+    ],
+    correct: 1,
+    explanation: 'CARRY_TRUTH.md / FUNDABILITY.md: carry venue-capped — exit-ликвидность Pendle/USDe конечна и общая для всех книг. Нельзя «развести» ёмкость по нескольким книгам, если они выходят через один и тот же rail.',
+  },
+  {
+    q: 'Как честно интерпретировать +1.08pp на $100k?',
+    options: [
+      'Как доказанный масштабируемый edge',
+      'Как артефакт малого масштаба: реален на $100k, но НЕ переносится на fundable-размер ($100M-тезис) — сегодняшняя вселенная его не выдерживает',
+      'Как гарантию 1.08% сверх floor навсегда',
+      'Как ошибку измерения',
+    ],
+    correct: 1,
+    explanation: 'CARRY_TRUTH.md: «The optimizer\'s +1.08pp is a $100k-scale artifact; at the fundable size that underlies the $100M thesis, today\'s universe cannot support it». Это и есть ценный честный вывод.',
+  },
+];
+---
+
+<LessonLayout id="15-edge-at-scale">
+  <p>
+    Это — самый важный модуль Track 2. Он содержит вывод, который деск получил честным измерением и
+    который противоречит всему маркетингу DeFi: <strong>преимущество, основанное на выборе пула с
+    лучшей ставкой, НЕ масштабируется</strong>. Оно работает на маленьком капитале и исчезает (даже
+    становится отрицательным) на размере, нужном для $100M-тезиса.
+  </p>
+
+  <h2>Кривая (data/edge_at_scale.json)</h2>
+  <p>
+    Модель <code>edge_at_scale.py</code> пересчитывает uplift оптимизатора на трёх уровнях капитала,
+    <strong>после</strong> того как срабатывают реальные pool-capacity caps (1% от TVL пула, 3% для
+    T1 &gt; $1B — MP-209/ADR-009), на живом TVL пулов. Capacity-capped капитал становится idle cash
+    (earns 0 — честная, консервативная просадка):
+  </p>
+  <table>
+    <thead><tr><th>AUM</th><th>Legacy yield</th><th>Optimizer yield</th><th>Uplift</th><th>Capped-out в кэш</th></tr></thead>
+    <tbody>
+      <tr><td>$100k</td><td>4.50%</td><td>5.58%</td><td><strong>+1.08pp</strong></td><td>$0</td></tr>
+      <tr><td>$1M</td><td>3.38%</td><td>1.38%</td><td><strong>−2.00pp</strong></td><td>$700k</td></tr>
+      <tr><td>$10M</td><td>1.83%</td><td>0.84%</td><td><strong>−0.99pp</strong></td><td>$7.9M</td></tr>
+    </tbody>
+  </table>
+  <p>
+    В файле: <code>edge_below_materiality_at_aum_usd: 1000000</code>,
+    <code>edge_survives_at_max_aum: false</code>. То есть edge падает ниже порога материальности
+    (0.25pp) уже на ~$1M и уходит в минус.
+  </p>
+
+  <Callout type="key" titleRu="Ключевое — ПОЧЕМУ так">
+    Оптимизатор концентрируется в высокодоходных <strong>мелких</strong> пулах (euler_v2 ~$14M,
+    pendle ~$7M…). На $1M слуг весом 20% уже превышает cap 1%-of-TVL → большая часть концентрированной
+    книги <strong>выпадает в кэш и зарабатывает 0</strong>, пока более широкий спред legacy-эвристики
+    выживает под caps лучше. <em>Чем больше денег — тем меньше edge.</em>
+  </Callout>
+
+  <h2>Carry тоже упирается в venue</h2>
+  <p>
+    Можно подумать: «ну хорошо, не оптимизатор — возьмём чистый carry». Но carry (FixedCarry) тоже
+    имеет потолок ёмкости <strong>~$1.5–1.7M</strong>, и причина структурная: <strong>все книги делят
+    один и тот же Pendle/USDe exit-rail</strong>. Exit-ликвидность конечна; нельзя «размножить» ёмкость
+    по нескольким книгам, если все они выходят через один и тот же канал (CARRY_TRUTH.md / FUNDABILITY.md).
+  </p>
+
+  <Callout type="trap" titleRu="Ловушка">
+    Маркетинговая ловушка: показать +1.08pp на $100k и сказать «вот наш edge, умножьте на AUM». Честный
+    вывод деска противоположный: <em>«The optimizer's +1.08pp is a $100k-scale artifact; at the
+    fundable size that underlies the $100M thesis, today's universe cannot support it»</em>. Edge на
+    бэктесте на малом капитале — НЕ доказательство fundable-edge.
+  </Callout>
+
+  <h2>Поиграй: EdgeAtScaleSlider</h2>
+  <p>
+    Двигай AUM от $100k к $10M и смотри, как uplift из плюса уходит в минус, а доля capped-out-в-кэш
+    капитала растёт. Это та же кривая, что в <code>data/edge_at_scale.json</code>.
+  </p>
+
+  <EdgeAtScaleSlider client:load />
+
+  <p>
+    Этот вывод ведёт прямо к следующему модулю: если yield-edge не масштабируется, <strong>как тогда
+    вообще строить что-то на $100M?</strong> Ответ — трёхслойная архитектура (модуль 16).
+  </p>
+
+  <Quiz questions={questions} />
+</LessonLayout>

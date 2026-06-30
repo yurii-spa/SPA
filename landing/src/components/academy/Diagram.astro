@@ -1,0 +1,64 @@
+---
+/*
+ * Diagram.astro — RU-first labelled figure/diagram frame for academy lessons.
+ *
+ * A simple, design-system-consistent frame around a flow/diagram. The diagram
+ * content itself goes in the default slot (inline SVG, an ASCII/mono flow,
+ * a step row — whatever the lesson needs). Keeps a consistent caption + frame
+ * so Agents 1+2 don't hand-roll figure chrome.
+ *
+ * PROPS:
+ *   title    optional RU title above the figure
+ *   caption  optional RU caption below the figure
+ *   mono     bool — if true, render the slot in a monospace pre-style box
+ *            (handy for stack/flow ASCII diagrams).
+ */
+interface Props {
+  title?: string;
+  caption?: string;
+  mono?: boolean;
+}
+const { title, caption, mono = false } = Astro.props;
+---
+<figure class="ac-diagram">
+  {title && <figcaption class="ac-diagram-title">{title}</figcaption>}
+  <div class={`ac-diagram-body${mono ? ' ac-diagram-mono' : ''}`}><slot /></div>
+  {caption && <figcaption class="ac-diagram-caption">{caption}</figcaption>}
+</figure>
+
+<style>
+  .ac-diagram {
+    margin: 28px 0;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--bg-surface);
+    padding: 20px 22px;
+  }
+  .ac-diagram-title {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 14px;
+  }
+  .ac-diagram-body { color: var(--text-secondary); }
+  .ac-diagram-mono {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 16px;
+    color: var(--text-primary);
+    overflow-x: auto;
+  }
+  .ac-diagram-caption {
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+</style>

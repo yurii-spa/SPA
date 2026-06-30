@@ -1,0 +1,182 @@
+{
+  "_meta": {
+    "title_ru": "SPA Академия — от нуля до структурного андеррайтинга",
+    "version": "1.0",
+    "note_ru": "Источник истины для индекса и навигации /academy. Каждый id = slug страницы landing/src/pages/academy/<id>.astro. Поле widget указывает встраиваемый интерактивный виджет (опционально).",
+    "tracks": {
+      "1": { "title_ru": "DeFi с нуля", "subtitle_ru": "База: как устроены доходность и риск в DeFi" },
+      "2": { "title_ru": "Что придумали в SPA", "subtitle_ru": "Изобретения SPA: refusal-first, вето хейркатом, kill-switch, edge-at-scale" },
+      "3": { "title_ru": "Практика", "subtitle_ru": "Финальный разбор реальной возможности через refusal-first" }
+    }
+  },
+  "modules": [
+    {
+      "id": "01-defi-blockchain-wallets",
+      "track": 1,
+      "order": 1,
+      "title_ru": "DeFi, блокчейн и кошельки",
+      "summary_ru": "Что такое блокчейн, смарт-контракт, кошелёк и почему DeFi — это финансы без посредника. Базовый словарь.",
+      "widget": null
+    },
+    {
+      "id": "02-stablecoins-pegs",
+      "track": 1,
+      "order": 2,
+      "title_ru": "Стейблкоины и пеги",
+      "summary_ru": "USDC, USDT, DAI: как держится привязка к $1, что такое депег и почему пег — первый источник хвостового риска.",
+      "widget": null
+    },
+    {
+      "id": "03-lending-aave-compound",
+      "track": 1,
+      "order": 3,
+      "title_ru": "Кредитование: Aave и Compound",
+      "summary_ru": "Пулы заёма/займа, утилизация, переменная ставка. Откуда берётся supply APY и где он ломается.",
+      "widget": null
+    },
+    {
+      "id": "04-yield-apy-tvl",
+      "track": 1,
+      "order": 4,
+      "title_ru": "Доходность: APY, TVL и утилизация",
+      "summary_ru": "Как читать APY/TVL, чем номинальный APY отличается от реализованного, и почему высокий APY часто = компенсация риска.",
+      "widget": null
+    },
+    {
+      "id": "05-rwa-tbills-floor",
+      "track": 1,
+      "order": 5,
+      "title_ru": "RWA: токенизированные T-bills и floor ~3.4%",
+      "summary_ru": "Tokenized T-bills (BUIDL/USYC/USDY), почему ~3.4% — это honest risk-free floor, который обязан побить любой sleeve.",
+      "widget": null
+    },
+    {
+      "id": "06-lst-lrt-restaking",
+      "track": 1,
+      "order": 6,
+      "title_ru": "LST, LRT и рестейкинг",
+      "summary_ru": "stETH vs eETH, чем LRT опаснее LST, depeg-residual и почему рестейкинг — частый кандидат на отказ.",
+      "widget": null
+    },
+    {
+      "id": "07-pendle-pt-yt",
+      "track": 1,
+      "order": 7,
+      "title_ru": "Pendle: PT и YT, фиксированная ставка",
+      "summary_ru": "Разделение на Principal Token и Yield Token, fixed carry до погашения, exit-ликвидность и почему PT может быть безопасным carry.",
+      "widget": null
+    },
+    {
+      "id": "08-funding-basis-deltaneutral",
+      "track": 1,
+      "order": 8,
+      "title_ru": "Funding, basis и дельта-нейтраль",
+      "summary_ru": "Perp-funding, basis-trade, hedged β≈0. Откуда берётся carry и как funding-flip убивает позицию.",
+      "widget": null
+    },
+    {
+      "id": "09-leverage-liquidations-points",
+      "track": 1,
+      "order": 9,
+      "title_ru": "Плечо, ликвидации и points-фарм",
+      "summary_ru": "Leverage looping, каскад ликвидаций, points/airdrop-фарм как замаскированный incentive-риск.",
+      "widget": null
+    },
+    {
+      "id": "10-risk-taxonomy-abcd",
+      "track": 1,
+      "order": 10,
+      "title_ru": "Таксономия риска A/B/C/D",
+      "summary_ru": "Раскладываем любой источник доходности: A=alpha, B=beta, C=risk-compensation, D=incentive. Ядро всей рамки SPA.",
+      "widget": "RiskClassifier"
+    },
+    {
+      "id": "11-refusal-first",
+      "track": 2,
+      "order": 11,
+      "title_ru": "Refusal-first: отказ ДО экономики",
+      "summary_ru": "Главное изобретение SPA: гейт сначала отказывается от tail-comp, и только потом смотрит на доходность. Живой лог отказов.",
+      "widget": "LiveAcademyData"
+    },
+    {
+      "id": "12-structural-haircut-veto",
+      "track": 2,
+      "order": 12,
+      "title_ru": "Вето структурным хейркатом",
+      "summary_ru": "Токсичность нельзя обойти размером: структурный хейркат (peg+funding+oracle+protocol) > cap → отказ при ЛЮБОМ size.",
+      "widget": "HaircutVetoSim"
+    },
+    {
+      "id": "13-riskpolicy",
+      "track": 2,
+      "order": 13,
+      "title_ru": "RiskPolicy: детерминированный гейт",
+      "summary_ru": "TVL floor $5M, cap'ы 40%/20%, T2≤50%, APY 1–30%, cash≥5%. Без LLM. approved=False нельзя переопределить.",
+      "widget": null
+    },
+    {
+      "id": "14-two-tier-killswitch",
+      "track": 2,
+      "order": 14,
+      "title_ru": "Двухуровневый kill-switch (ADR-048)",
+      "summary_ru": "SOFT de-risk при просадке ≥5%, HARD all-cash при ≥10%. Лестница реакции на drawdown.",
+      "widget": "KillSwitchLadder"
+    },
+    {
+      "id": "15-edge-at-scale",
+      "track": 2,
+      "order": 15,
+      "title_ru": "Edge на масштабе и обрыв $1M",
+      "summary_ru": "Оптимизаторный uplift +1.08pp на $100k схлопывается в минус после ~$1M из-за pool-capacity cap'ов. Честная кривая.",
+      "widget": "EdgeAtScaleSlider"
+    },
+    {
+      "id": "16-three-layer-stack",
+      "track": 2,
+      "order": 16,
+      "title_ru": "Трёхслойный стек: как масштабировать без yield-edge",
+      "summary_ru": "L1 chassis (RWA+lending beta у floor) + L2 carry-alpha (capped, масштаб количеством gated-книг) + L3 measurement-moat (без потолка). Честный target floor+50–150bps@$5M.",
+      "widget": null
+    },
+    {
+      "id": "17-proof-of-risk-verify",
+      "track": 2,
+      "order": 17,
+      "title_ru": "Proof-of-Risk: проверь нас сам",
+      "summary_ru": "Hash-chain отказов, exit-NAV proof, standalone verifier. «Не верь — пересчитай». Tamper-evident.",
+      "widget": null
+    },
+    {
+      "id": "18-golive-track-honesty",
+      "track": 2,
+      "order": 18,
+      "title_ru": "Go-live трек и честность данных",
+      "summary_ru": "29 критериев, evidenced дни (anchor 2026-06-22), почему backfill/demo бары не считаются. Живой трек.",
+      "widget": "LiveAcademyData"
+    },
+    {
+      "id": "19-aggressive-lab-annual-contrast",
+      "track": 2,
+      "order": 19,
+      "title_ru": "Aggressive Lab: 15% против 5%",
+      "summary_ru": "Контраст агрессивной книги (10–15% с датированными drawdown'ами) против реальной устойчивой ~5%. Что покупает доходность.",
+      "widget": "LiveAcademyData"
+    },
+    {
+      "id": "20-measurement-as-moat",
+      "track": 2,
+      "order": 20,
+      "title_ru": "Measurement как ров",
+      "summary_ru": "Вывод research-арки: edge — не yield, а роль честного измерителя/андеррайтера риска. $10M — это trust/relationships вне кода.",
+      "widget": null
+    },
+    {
+      "id": "capstone",
+      "track": 3,
+      "order": 21,
+      "title_ru": "Капстоун: финальный разбор",
+      "summary_ru": "Финальный экзамен: разбери реальную возможность через refusal-first линзу — классифицируй риск, прогони хейркат-вето, прими вердикт.",
+      "widget": "RiskClassifier"
+    }
+  ]
+}

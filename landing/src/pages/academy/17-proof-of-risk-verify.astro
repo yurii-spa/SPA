@@ -1,0 +1,124 @@
+---
+/*
+ * Academy · Track 2 · Module 17 — Proof-of-Risk: "don't trust us, check us".
+ * Contract: LessonLayout id · Callout type/titleRu · Quiz [{q,options,correct,explanation}].
+ */
+import LessonLayout from '../../components/academy/LessonLayout.astro';
+import Callout from '../../components/academy/Callout.astro';
+import Quiz from '../../components/academy/Quiz.astro';
+
+const questions = [
+  {
+    q: 'Что должен сделать скептик, чтобы проверить деск, по принципу verify_spa.py?',
+    options: [
+      'Поверить отчёту PDF',
+      'Скачать ОДИН файл verify_spa.py + публичные JSON, запустить на чистой машине БЕЗ spa_core и независимо переиграть все хеши',
+      'Спросить владельца в Telegram',
+      'Запустить весь репозиторий',
+    ],
+    correct: 1,
+    explanation: 'verify_spa.py docstring: zero-dependency, stdlib-only, NO spa_core import, NO network. Exit 0 = всё воспроизводится байт-в-байт; exit 1 = любое расхождение/missing/malformed. Это и есть «don\'t trust us, check us».',
+  },
+  {
+    q: 'Как устроена tamper-evidence у refusal-log / decision-chain?',
+    options: [
+      'Пароль на файл',
+      'Hash-chain: каждая строка хеширует {seq, ts, event_type, payload, prev_hash}; изменение одного байта расходит recompute и даёт broken_at',
+      'Файл подписан владельцем',
+      'Никак — это просто лог',
+    ],
+    correct: 1,
+    explanation: 'PROOF_CHAIN_SPEC.md §3/§5: entry_hash = SHA-256 канонического JSON {seq,ts,event_type,payload,prev_hash}; genesis prev_hash=0×64; обход в seq-порядке проверяет монотонность, prev-linkage и self-recompute. Первая ошибочная строка = broken_at.',
+  },
+  {
+    q: 'Что закрывает red-team FAIL «хеш покрывает только входы, можно подделать выход»?',
+    options: [
+      'Ничего, это известная дыра',
+      'Каждый proof покрывает опубликованные ВЫХОДЫ (не только входы) И цепляет строки (prev_hash), поэтому подделка значения или перестановка строк ловятся',
+      'Выходы не публикуются',
+      'Только владелец видит выходы',
+    ],
+    correct: 1,
+    explanation: 'verify_spa.py docstring (FAIL #2): proof покрывает OUTPUTS и chain-ит строки. Это закрытая red-team-находка: exit-NAV proof не был tamper-evident → исправлено хешированием выходов + цепочкой.',
+  },
+  {
+    q: 'Что измеряет liquidation-NAV-by-size (exit_nav.json)?',
+    options: [
+      'Текущий APY',
+      'Per-ticket exit-расписание: сколько реально получишь, выходя позицией такого размера, при консервативной оценке реальной глубины (напр. Pendle)',
+      'Цену газа',
+      'Количество агентов',
+    ],
+    correct: 1,
+    explanation: 'PROOF_CHAIN_SPEC §6: exit-NAV proof_hash над {inputs, outputs, prev_hash}; три независимые цепочки (own book / illustrative / portfolio), каждая строка против глубины СВОЕГО рынка, не агрегата. Публичный, проверяемый «сколько ты реально выйдешь по размеру».',
+  },
+  {
+    q: 'Сколько публичных proof-поверхностей описывает спецификация / проверяет verifier?',
+    options: [
+      '1',
+      '7+ (decision-chain, exit-NAV, anchors, equity-track, tournament, RWA-NAV, sleeve-series, underwriting)',
+      '3',
+      'ни одной',
+    ],
+    correct: 1,
+    explanation: 'verify_spa.py авто-обнаруживает 8 поверхностей A–H; PROOF_CHAIN_SPEC именует 7+ (decision-chain, decomposition+proof_hash, exit-NAV, anchors, tournament, RWA-backstop NAV, sleeve forward-series), verifier добавляет 8-ю (underwriting).',
+  },
+];
+---
+
+<LessonLayout id="17-proof-of-risk-verify">
+  <p>
+    Модули 11–14 показали, что деск отказывает и измеряет детерминированно. Но как доказать это
+    <strong>скептику</strong>, который вам не верит? Деск отвечает не словами, а инструментом:
+    <strong>«don't trust us, check us»</strong>.
+  </p>
+
+  <h2>verify_spa.py — standalone-верификатор</h2>
+  <p>
+    <code>scripts/verify_spa.py</code> — <strong>zero-dependency</strong> файл (только stdlib, без
+    импорта <code>spa_core</code>, без сети). Его докстринг описывает сценарий дословно: скептик
+    (рецензент уровня Gauntlet / Credora / Chaos-Labs) скачивает ТОЛЬКО этот файл + публичные JSON
+    деска (<code>decision_log.jsonl</code>, <code>exit_nav.json</code>, <code>anchors.jsonl</code>),
+    кладёт на чистую машину и запускает <code>python3 verify_spa.py &lt;files&gt;</code>.
+  </p>
+  <Callout type="key" titleRu="Ключевое">
+    <code>Exit 0</code> = всё воспроизводится <strong>байт-в-байт</strong>; <code>Exit 1</code> = любое
+    расхождение / missing-required / malformed. Если хоть один байт исторического решения, exit-NAV
+    строки или anchor'а изменён задним числом — recompute разойдётся и инструмент покажет точный
+    <code>broken_at</code>.
+  </Callout>
+
+  <h2>Как устроена tamper-evidence (PROOF_CHAIN_SPEC.md)</h2>
+  <p>Механизм один на все поверхности — <strong>hash-chain поверх канонического JSON</strong>:</p>
+  <ol>
+    <li>Каноническая сериализация: <code>json.dumps(obj, sort_keys=True, separators=(',',':'), ensure_ascii=False)</code> → UTF-8 → SHA-256 hex. Денежные значения — точные Decimal-строки (никогда не float).</li>
+    <li><code>entry_hash</code> = SHA-256 от <code>{`{seq, ts, event_type, payload, prev_hash}`}</code>.</li>
+    <li>Цепочка: <code>row.prev_hash == previous.entry_hash</code>, genesis <code>prev_hash = "0"×64</code>. Первая ошибочная строка = <code>broken_at</code>.</li>
+  </ol>
+
+  <Callout type="trap" titleRu="Ловушка — закрытые red-team находки">
+    Два честных провала, которые деск нашёл сам и закрыл: <strong>(FAIL #2)</strong> proof должен
+    покрывать опубликованные <em>ВЫХОДЫ</em>, не только входы, И цеплять строки — иначе можно подделать
+    значение или переставить строки. <strong>(F1)</strong> proof'ы регенерируются вместе со своим
+    producer'ом, чтобы не «протухали». Без этих фиксов «проверяемость» была бы иллюзией.
+  </Callout>
+
+  <h2>Liquidation-NAV-by-size</h2>
+  <p>
+    Отдельная гордость деска — публичный <code>exit_nav.json</code>: <strong>per-ticket
+    exit-расписание</strong>. Оно отвечает на вопрос, который скрывает любой headline-APY: <em>сколько
+    ты реально получишь, выходя позицией ИМЕННО такого размера?</em> Каждая строка хешируется над
+    <code>{`{inputs, outputs, prev_hash}`}</code>; три независимые цепочки (own book / illustrative /
+    portfolio), и каждая строка считается против глубины <strong>своего</strong> рынка (консервативная
+    оценка реальной Pendle-глубины), никогда не против агрегата.
+  </p>
+
+  <Callout type="example" titleRu="Пример">
+    Семь+ публичных поверхностей, которые verify_spa.py авто-обнаруживает и переигрывает:
+    A decision-chain (вход/отказ + причина), B exit-NAV, C anchors, D equity-track (go-live трек),
+    E tournament-ranking, F RWA-backstop NAV, G sleeve forward-series, H underwriting. Каждая — со
+    своей hash-chain. Скептик переигрывает любую и получает те же вердикты.
+  </Callout>
+
+  <Quiz questions={questions} />
+</LessonLayout>
