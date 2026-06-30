@@ -1,0 +1,79 @@
+---
+/*
+ * Glossary.astro — once-per-page glue for <Term> tooltips.
+ *
+ * <Term> handles its own hover/focus tooltip in pure CSS. This component adds the
+ * behaviours that need JS and must exist ONCE per page (not per term):
+ *   - touch / tap: on touch devices hover doesn't exist, so a tap toggles the tooltip
+ *     open (and tapping elsewhere / Escape closes it),
+ *   - viewport clamp: if a tooltip would overflow the top of the viewport, flip it below
+ *     the word; if it would overflow left/right, nudge it back in.
+ *
+ * LessonLayout renders this once. It is inert if there are no <Term> triggers on the page.
+ * Reduced-motion is already handled by the global Layout rule + Term CSS.
+ */
+---
+<script is:inline>
+  (function () {
+    'use strict';
+    function init() {
+      var triggers = document.querySelectorAll('[data-term-trigger]');
+      if (!triggers.length) return;
+
+      var isTouch = (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
+      var openTip = null;
+
+      function closeOpen() {
+        if (openTip) { openTip.classList.remove('ac-tip-open'); openTip = null; }
+      }
+
+      // clamp/flip a tooltip inside the viewport when it becomes visible
+      function place(tip) {
+        // reset to default (above), then measure
+        tip.classList.remove('ac-tip-below');
+        tip.style.marginLeft = '';
+        var r = tip.getBoundingClientRect();
+        if (r.top < 8) tip.classList.add('ac-tip-below');
+        var pad = 8;
+        if (r.left < pad) tip.style.marginLeft = (pad - r.left) + 'px';
+        else if (r.right > window.innerWidth - pad) {
+          tip.style.marginLeft = (window.innerWidth - pad - r.right) + 'px';
+        }
+      }
+
+      triggers.forEach(function (btn) {
+        var tip = btn.querySelector('.ac-term-tip');
+        if (!tip) return;
+
+        // place on hover/focus so flip math runs against real geometry
+        btn.addEventListener('mouseenter', function () { requestAnimationFrame(function () { place(tip); }); });
+        btn.addEventListener('focus', function () { requestAnimationFrame(function () { place(tip); }); });
+
+        if (isTouch) {
+          btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            var wasOpen = tip.classList.contains('ac-tip-open');
+            closeOpen();
+            if (!wasOpen) {
+              tip.classList.add('ac-tip-open');
+              openTip = tip;
+              requestAnimationFrame(function () { place(tip); });
+            }
+          });
+        }
+      });
+
+      if (isTouch) {
+        document.addEventListener('click', function (e) {
+          if (openTip && !e.target.closest('[data-term-trigger]')) closeOpen();
+        });
+      }
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeOpen();
+      });
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+  })();
+</script>

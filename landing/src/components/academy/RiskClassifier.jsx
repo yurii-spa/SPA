@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getLang, markDone } from './progress.js';
+import { getLang, markDone, recordPlaygroundTried } from './progress.js';
 
 /*
  * RiskClassifier.jsx — the A/B/C/D yield-taxonomy card-sort quiz.
@@ -94,6 +94,7 @@ export default function RiskClassifier({ moduleId }) {
 
   function pick(srcId, cat) {
     if (answers[srcId]) return; // locked after first pick
+    recordPlaygroundTried('RiskClassifier'); // engagement XP + "all tried" badge (idempotent, SSR-safe)
     const next = { ...answers, [srcId]: cat };
     setAnswers(next);
     const allDone = SOURCES.every((s) => next[s.id]);
@@ -109,6 +110,15 @@ export default function RiskClassifier({ moduleId }) {
 
   return (
     <div style={wrap}>
+      <style>{`
+        .ac-rc-card { transition: border-color 160ms var(--ease), transform 160ms var(--ease); }
+        .ac-rc-card:hover { border-color: var(--border-strong); }
+        .ac-rc-btn { transition: border-color 140ms var(--ease), color 140ms var(--ease), background 140ms var(--ease), transform 120ms var(--ease); }
+        .ac-rc-btn:not(:disabled):hover { background: var(--bg-elevated); transform: translateY(-1px); }
+        @keyframes acRcFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+        .ac-rc-feedback { animation: acRcFade 260ms var(--ease) both; }
+        @media (prefers-reduced-motion: reduce) { .ac-rc-feedback { animation: none; } }
+      `}</style>
       <div style={head}>{tr('title')}</div>
       <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, marginTop: 0 }}>{tr('intro')}</p>
 
@@ -117,7 +127,7 @@ export default function RiskClassifier({ moduleId }) {
           const picked = answers[s.id];
           const isCorrect = picked === s.answer;
           return (
-            <div key={s.id} style={{ background: 'var(--bg-surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: 14 }}>
+            <div key={s.id} className="ac-rc-card" style={{ background: 'var(--bg-surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: 14 }}>
               <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 10, fontSize: 15 }}>{L(s, 'label')}</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {Object.keys(CATS).map((c) => {
@@ -128,7 +138,7 @@ export default function RiskClassifier({ moduleId }) {
                     else if (sel) { bd = 'var(--danger)'; col = 'var(--danger)'; }
                   } else { col = CATS[c].color; bd = 'var(--border)'; }
                   return (
-                    <button key={c} disabled={!!picked} onClick={() => pick(s.id, c)}
+                    <button key={c} className="ac-rc-btn" disabled={!!picked} onClick={() => pick(s.id, c)}
                       style={{
                         padding: '6px 12px', borderRadius: 'var(--r-full)', border: `1px solid ${bd}`,
                         background: 'transparent', color: col, fontSize: 13, fontWeight: 600,
@@ -140,7 +150,7 @@ export default function RiskClassifier({ moduleId }) {
                 })}
               </div>
               {picked && (
-                <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.55 }}>
+                <div className="ac-rc-feedback" style={{ marginTop: 10, fontSize: 13, lineHeight: 1.55 }}>
                   <span style={{ fontWeight: 700, color: isCorrect ? 'var(--ok)' : 'var(--danger)' }}>
                     {isCorrect ? tr('correct') : `${tr('wrong')} ${CATS[s.answer][lang] ?? CATS[s.answer].ru}`}
                   </span>

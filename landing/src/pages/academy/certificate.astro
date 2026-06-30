@@ -1,0 +1,40 @@
+---
+/*
+ * /academy/certificate — the printable Analyst Certificate.
+ *
+ * Honesty gate lives in the island: the certificate is only "issued" when the
+ * capstone is genuinely passed (progress['capstone'] === true). Before that it
+ * shows a locked preview pointing at the capstone. RU-first.
+ */
+import Layout from '../../layouts/Layout.astro';
+import AnalystCertificate from '../../components/academy/AnalystCertificate.jsx';
+import manifest from '../../data/academy_modules.json';
+
+const modules = manifest.modules;
+const allIds = modules.map((m) => m.id);
+const trackIds = {
+  1: modules.filter((m) => m.track === 1).map((m) => m.id),
+  2: modules.filter((m) => m.track === 2).map((m) => m.id),
+  3: modules.filter((m) => m.track === 3).map((m) => m.id),
+};
+---
+<Layout title="Сертификат — SPA Академия" description="Именной сертификат о прохождении SPA Analyst Academy. Открывается после капстоуна.">
+  <main class="ac-cert-page">
+    <header class="ac-cert-head">
+      <a class="ac-back" href="/academy">← к академии</a>
+      <h1>Сертификат аналитика</h1>
+      <p>Выдаётся после сдачи капстоуна. Введи имя, распечатай или сохрани в PDF — владелец может сверить отпечаток прогресса.</p>
+    </header>
+    <AnalystCertificate allIds={allIds} modules={modules} tracks={trackIds} client:load />
+  </main>
+</Layout>
+
+<style>
+  .ac-cert-page { max-width: 920px; margin: 0 auto; padding: 48px 20px 96px; }
+  .ac-cert-head { max-width: 640px; margin: 0 auto 36px; text-align: center; }
+  .ac-back { display: inline-block; font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); text-decoration: none; margin-bottom: 18px; }
+  .ac-back:hover { color: var(--accent); }
+  .ac-cert-head h1 { font-size: 2.2rem; font-weight: 700; color: var(--text-primary); margin: 0 0 12px; }
+  .ac-cert-head p { font-size: 15px; line-height: 1.6; color: var(--text-secondary); margin: 0; }
+  @media print { .ac-cert-head, .ac-back { display: none !important; } }
+</style>

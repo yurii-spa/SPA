@@ -1,0 +1,121 @@
+---
+/*
+ * Term.astro — inline glossary term with a RU hover/focus tooltip.
+ *
+ * Makes lessons self-explaining: wrap any DeFi/SPA term and a definition appears on
+ * hover (mouse) or focus (keyboard / touch via tap). Definitions come from the shared
+ * RU dictionary `src/data/academy_glossary.json` so wording stays consistent everywhere.
+ *
+ * USAGE (Agents B+C reuse this verbatim):
+ *   <Term>APY</Term>                          ← auto-looks-up "apy" in the dictionary
+ *   <Term def="structural haircut">вето</Term> ← explicit dictionary key, custom label
+ *   <Term text="Своё определение прямо тут.">слово</Term>  ← inline def, no dictionary
+ *
+ * Resolution order for the definition: `text` prop → dictionary[def] → dictionary[slug(slot)].
+ * If nothing resolves, the word renders as plain text (no dotted underline) so a missing
+ * term never breaks the page or shows an empty tooltip.
+ *
+ * Accessibility: the trigger is a <button> (focusable, keyboard-openable); the tooltip is
+ * aria-described. Honors prefers-reduced-motion via the global Layout rule + Glossary CSS.
+ * Tooltip POSITIONING is handled once-per-page by <Glossary /> (flip/clamp to viewport).
+ */
+import glossary from '../../data/academy_glossary.json';
+
+interface Props {
+  def?: string;   // explicit dictionary key
+  text?: string;  // inline definition (overrides dictionary)
+}
+const { def, text } = Astro.props;
+
+const terms: Record<string, string> = glossary.terms as Record<string, string>;
+
+// the visible label is the slot; we also use it as a fallback dictionary key
+const slotHtml = await Astro.slots.render('default');
+const labelText = slotHtml.replace(/<[^>]*>/g, '').trim();
+const slug = labelText.toLowerCase();
+
+const definition =
+  text ??
+  (def != null ? terms[def] ?? terms[def.toLowerCase()] : undefined) ??
+  terms[slug] ??
+  null;
+
+// stable id for aria-describedby
+const tipId = 'tip-' + Math.random().toString(36).slice(2, 9);
+---
+{definition ? (
+  <button
+    type="button"
+    class="ac-term"
+    aria-describedby={tipId}
+    data-term-trigger
+  >
+    <slot />
+    <span class="ac-term-tip" id={tipId} role="tooltip"><slot />{' — '}{definition}</span>
+  </button>
+) : (
+  <slot />
+)}
+
+<style>
+  .ac-term {
+    position: relative;
+    display: inline;
+    font: inherit;
+    color: var(--text-primary);
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: help;
+    border-bottom: 1px dotted var(--accent);
+    text-underline-offset: 2px;
+  }
+  .ac-term:hover,
+  .ac-term:focus-visible {
+    color: var(--accent);
+    outline: none;
+  }
+  .ac-term-tip {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    transform: translateX(-50%) translateY(4px);
+    width: max-content;
+    max-width: 320px;
+    padding: 10px 14px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-md);
+    color: var(--text-secondary);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.5;
+    text-align: left;
+    white-space: normal;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 120ms var(--ease, ease), transform 120ms var(--ease, ease);
+    z-index: 50;
+  }
+  /* the leading "<term> — " inside the tip reads as a tiny heading */
+  .ac-term-tip { text-indent: 0; }
+  .ac-term:hover .ac-term-tip,
+  .ac-term:focus-visible .ac-term-tip,
+  .ac-term-tip.ac-tip-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+  }
+  /* when JS flips it below the word */
+  .ac-term-tip.ac-tip-below {
+    bottom: auto;
+    top: calc(100% + 8px);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ac-term-tip { transition: none; }
+  }
+</style>

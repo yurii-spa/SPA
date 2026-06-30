@@ -3,6 +3,8 @@ import LessonLayout from '../../components/academy/LessonLayout.astro';
 import Quiz from '../../components/academy/Quiz.astro';
 import Callout from '../../components/academy/Callout.astro';
 import Diagram from '../../components/academy/Diagram.astro';
+import Term from '../../components/academy/Term.astro';
+import KeyStat from '../../components/academy/KeyStat.astro';
 
 const questions = [
   {
@@ -61,13 +63,17 @@ const questions = [
     Этот модуль намеренно «скучный» — и в этом его сила. Прежде чем гнаться за высокой
     доходностью, нужно знать <strong>безрисковую альтернативу</strong>. В DeFi это
     токенизированные краткосрочные гособлигации США (T-bills), дающие порядка
-    <strong>3.2–3.4%</strong>. Деск называет это <strong>floor</strong> — пол, который любая
+    <strong>3.2–3.4%</strong>. Деск называет это <strong><Term def="floor">floor</Term></strong> — пол, который любая
     рискованная стратегия обязана бить с поправкой на риск.
   </p>
 
+  <KeyStat value="3.4" suffix="%" tone="ok"
+    labelRu="honest RWA-floor (TVL-weighted, токенизированные T-bills) — порог, который sleeve обязан побить"
+    labelEn="honest RWA floor (TVL-weighted tokenized T-bills) — the bar every sleeve must beat" />
+
   <h2>Что такое RWA</h2>
   <p>
-    <strong>RWA</strong> (Real-World Assets) — токенизация реальных активов. Самый зрелый и
+    <strong><Term def="rwa">RWA</Term></strong> (Real-World Assets) — токенизация реальных активов. Самый зрелый и
     крупный сегмент — токенизированные фонды <strong>T-bills</strong> (краткосрочных
     гособлигаций США). Вы держите токен (например BUIDL от BlackRock, USYC, USDY), а под ним
     стоят настоящие гособлигации. Доходность приходит из процентов по этим облигациям, а не из

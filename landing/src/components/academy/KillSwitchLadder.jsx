@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getLang } from './progress.js';
+import { getLang, recordPlaygroundTried } from './progress.js';
 
 /*
  * KillSwitchLadder.jsx — the two-tier drawdown ladder (ADR-048).
@@ -68,10 +68,10 @@ export default function KillSwitchLadder() {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
         <span style={{ color: 'var(--text-secondary)' }}>{tr('drawdown')}</span>
-        <span style={{ fontFamily: 'var(--font-mono)', color: tierColor, fontSize: 18, fontWeight: 700 }}>−{dd.toFixed(1)}%</span>
+        <span style={{ fontFamily: 'var(--font-mono)', color: tierColor, fontSize: 18, fontWeight: 700, transition: 'color 220ms var(--ease)' }}>−{dd.toFixed(1)}%</span>
       </div>
       <input type="range" min={0} max={15} step={0.1} value={dd}
-        onChange={(e) => setDd(parseFloat(e.target.value))}
+        onChange={(e) => { recordPlaygroundTried('KillSwitchLadder'); setDd(parseFloat(e.target.value)); }}
         style={{ width: '100%', accentColor: tierColor }} />
 
       {/* ladder rungs */}
@@ -84,17 +84,20 @@ export default function KillSwitchLadder() {
               padding: '10px 8px', borderRadius: 'var(--r-sm)', textAlign: 'center',
               border: `1px solid ${active ? r.color : 'var(--border)'}`,
               background: active ? r.bg : 'var(--bg-surface-2)',
-              opacity: active ? 1 : 0.55,
+              opacity: active ? 1 : 0.5,
+              transform: active ? 'translateY(-2px)' : 'none',
+              boxShadow: active ? `0 0 0 1px ${r.color}, 0 4px 12px rgba(0,0,0,.35)` : 'none',
+              transition: 'opacity 220ms var(--ease), border-color 220ms var(--ease), background 220ms var(--ease), transform 220ms var(--ease), box-shadow 220ms var(--ease)',
             }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: active ? r.color : 'var(--text-muted)', fontWeight: 700 }}>{r.label}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: active ? r.color : 'var(--text-muted)', fontWeight: 700, transition: 'color 220ms var(--ease)' }}>{r.label}</div>
             </div>
           );
         })}
       </div>
 
-      <div style={{ marginTop: 16, padding: '16px 18px', borderRadius: 'var(--r-md)', border: `1px solid ${tierColor}`, background: 'var(--bg-surface-2)' }}>
+      <div style={{ marginTop: 16, padding: '16px 18px', borderRadius: 'var(--r-md)', border: `1px solid ${tierColor}`, background: 'var(--bg-surface-2)', transition: 'border-color 220ms var(--ease)' }}>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--text-faint)', marginBottom: 6 }}>{tr('tier')}</div>
-        <div style={{ fontWeight: 700, color: tierColor, fontSize: 16, marginBottom: 10 }}>{tierLabel}</div>
+        <div style={{ fontWeight: 700, color: tierColor, fontSize: 16, marginBottom: 10, transition: 'color 220ms var(--ease)' }}>{tierLabel}</div>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--text-faint)', marginBottom: 6 }}>{tr('effect')}</div>
         <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{effectText}</div>
       </div>

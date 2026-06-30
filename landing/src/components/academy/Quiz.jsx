@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { markDone, isDone, getLang } from './progress.js';
+import { markDone, isDone, getLang, recordQuizPass } from './progress.js';
+import { fireCelebration } from './celebrate.js';
 
 /*
  * Quiz.jsx — the interactive island behind Quiz.astro. Multiple-choice, instant
@@ -56,6 +57,7 @@ export default function Quiz({ moduleId, questions = [], passAll = true }) {
   const [picked, setPicked] = useState(null);
   const [checked, setChecked] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
+  const [wrongCount, setWrongCount] = useState(0);
   const [finished, setFinished] = useState(false);
   const [alreadyDone, setAlreadyDone] = useState(false);
 
@@ -80,6 +82,7 @@ export default function Quiz({ moduleId, questions = [], passAll = true }) {
     if (picked === null || checked) return;
     setChecked(true);
     if (cur.options[picked]?.correct) setCorrectCount((c) => c + 1);
+    else setWrongCount((w) => w + 1);
   }
 
   function onNext() {
@@ -87,10 +90,26 @@ export default function Quiz({ moduleId, questions = [], passAll = true }) {
     if (!last) { setIdx((i) => i + 1); setPicked(null); setChecked(false); return; }
     setFinished(true);
     const pass = passAll ? correctCount === total : true;
-    if (pass) { markDone(moduleId); setAlreadyDone(true); }
+    if (pass) {
+      const wasDone = isDone(moduleId);
+      markDone(moduleId);
+      setAlreadyDone(true);
+      // First-try = passed AND never picked a wrong answer this run.
+      recordQuizPass(moduleId, wrongCount === 0);
+      // Celebrate a genuinely new completion (capstone gets the big burst).
+      if (!wasDone) {
+        const isCapstone = moduleId === 'capstone';
+        fireCelebration({
+          big: isCapstone,
+          message: isCapstone
+            ? (lang === 'en' ? 'Capstone passed! 🎓' : 'Капстоун сдан! 🎓')
+            : (lang === 'en' ? 'Module complete!' : 'Модуль пройден!'),
+        });
+      }
+    }
   }
 
-  function onRetry() { setIdx(0); setPicked(null); setChecked(false); setCorrectCount(0); setFinished(false); }
+  function onRetry() { setIdx(0); setPicked(null); setChecked(false); setCorrectCount(0); setWrongCount(0); setFinished(false); }
 
   const ok = 'var(--ok)', danger = 'var(--danger)', accent = 'var(--accent)';
 

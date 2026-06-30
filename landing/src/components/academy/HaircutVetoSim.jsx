@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getLang } from './progress.js';
+import { getLang, recordPlaygroundTried } from './progress.js';
 
 /*
  * HaircutVetoSim.jsx — the «токсичность нельзя обойти размером» simulator.
@@ -100,7 +100,10 @@ export default function HaircutVetoSim() {
   }, []);
   const tr = (k) => (T[k] ? (T[k][lang] ?? T[k].ru) : k);
 
+  // engagement XP + "all tried" badge on first interaction (idempotent, SSR-safe)
+  const tried = () => recordPlaygroundTried('HaircutVetoSim');
   function applyPreset(p) {
+    tried();
     setPeg(p.peg); setFunding(p.funding); setOracle(p.oracle); setProtocol(p.protocol); setSizePct(p.size);
   }
 
@@ -126,20 +129,25 @@ export default function HaircutVetoSim() {
 
   return (
     <div style={wrap}>
+      <style>{`
+        .ac-preset-btn { transition: border-color 140ms var(--ease), color 140ms var(--ease), background 140ms var(--ease); }
+        .ac-preset-btn:hover { border-color: var(--accent); color: var(--text-primary); background: var(--bg-surface-2); }
+        .ac-preset-btn.ac-preset-toxic:hover { border-color: var(--danger); color: var(--danger); }
+      `}</style>
       <div style={head}>{tr('title')}</div>
       <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, marginTop: 0 }}>{tr('intro')}</p>
 
       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
         {tr('preset')}{' '}
-        <button style={presetBtn} onClick={() => applyPreset(PRESETS.clean)}>{tr('presetClean')}</button>
-        <button style={presetBtn} onClick={() => applyPreset(PRESETS.lst)}>{tr('presetLst')}</button>
-        <button style={{ ...presetBtn, borderColor: 'var(--danger)', color: 'var(--danger)' }} onClick={() => applyPreset(PRESETS.toxic)}>{tr('presetToxic')}</button>
+        <button className="ac-preset-btn" style={presetBtn} onClick={() => applyPreset(PRESETS.clean)}>{tr('presetClean')}</button>
+        <button className="ac-preset-btn" style={presetBtn} onClick={() => applyPreset(PRESETS.lst)}>{tr('presetLst')}</button>
+        <button className="ac-preset-btn ac-preset-toxic" style={{ ...presetBtn, borderColor: 'var(--danger)', color: 'var(--danger)' }} onClick={() => applyPreset(PRESETS.toxic)}>{tr('presetToxic')}</button>
       </div>
 
-      <Slider label={tr('peg')} value={peg} max={CAP.peg} onChange={setPeg} color="var(--accent)" />
-      <Slider label={tr('funding')} value={funding} max={CAP.funding} onChange={setFunding} color="var(--accent)" />
-      <Slider label={tr('oracle')} value={oracle} max={CAP.oracle} onChange={setOracle} color="var(--accent)" />
-      <Slider label={tr('protocol')} value={protocol} max={CAP.protocol} onChange={setProtocol} color="var(--accent)" />
+      <Slider label={tr('peg')} value={peg} max={CAP.peg} onChange={(v) => { tried(); setPeg(v); }} color="var(--accent)" />
+      <Slider label={tr('funding')} value={funding} max={CAP.funding} onChange={(v) => { tried(); setFunding(v); }} color="var(--accent)" />
+      <Slider label={tr('oracle')} value={oracle} max={CAP.oracle} onChange={(v) => { tried(); setOracle(v); }} color="var(--accent)" />
+      <Slider label={tr('protocol')} value={protocol} max={CAP.protocol} onChange={(v) => { tried(); setProtocol(v); }} color="var(--accent)" />
 
       <div style={{ borderTop: '1px solid var(--border)', margin: '18px 0', paddingTop: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
@@ -147,7 +155,7 @@ export default function HaircutVetoSim() {
           <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--data-teal)' }}>{sizePct.toFixed(0)}%</span>
         </div>
         <input type="range" min={1} max={100} step={1} value={sizePct}
-          onChange={(e) => setSizePct(parseFloat(e.target.value))}
+          onChange={(e) => { tried(); setSizePct(parseFloat(e.target.value)); }}
           style={{ width: '100%', accentColor: 'var(--data-teal)' }} />
       </div>
 
@@ -184,11 +192,12 @@ export default function HaircutVetoSim() {
       <div style={{
         marginTop: 18, padding: '16px 18px', borderRadius: 'var(--r-md)',
         border: `1px solid ${verdictColor}`, background: refused ? 'rgba(242,109,109,0.08)' : 'rgba(52,211,153,0.08)',
+        transition: 'border-color 220ms var(--ease), background 220ms var(--ease)',
       }}>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--text-faint)', marginBottom: 6 }}>
           {tr('verdict')}
         </div>
-        <div style={{ fontWeight: 700, color: verdictColor, fontSize: 16 }}>{verdictText}</div>
+        <div style={{ fontWeight: 700, color: verdictColor, fontSize: 16, transition: 'color 220ms var(--ease)' }}>{verdictText}</div>
         <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8, lineHeight: 1.55 }}>
           {refused ? tr('lessonRefused') : tr('lessonApproved')}
         </div>

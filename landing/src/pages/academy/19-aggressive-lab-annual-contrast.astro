@@ -8,6 +8,34 @@ import LessonLayout from '../../components/academy/LessonLayout.astro';
 import Callout from '../../components/academy/Callout.astro';
 import Quiz from '../../components/academy/Quiz.astro';
 import LiveAcademyData from '../../components/academy/LiveAcademyData.jsx';
+import AnimatedChart from '../../components/academy/AnimatedChart.jsx';
+import Term from '../../components/academy/Term.astro';
+import KeyStat from '../../components/academy/KeyStat.astro';
+
+/*
+ * Honest illustrative equity curves for the draw-in chart. The DEPTHS and DATES are the
+ * documented realized episodes from data/aggressive_lab/annual_contrast.json
+ * (realized_backtest_series), NOT invented:
+ *   eth_directional: peak $129,392 (2025-08-24) → trough $43,545 (2026-06-06) = −66.3% realized.
+ *   leverage_loop:   −29.7% in one day (2024-08-08 → 09).
+ * The steady ~5% book compounds smoothly (zero dated collapse by construction).
+ * x is a month index over ~Jan-2025..Jun-2026; the chart animates presentation only —
+ * it draws to these REAL depths, never deeper. Start both books at $100,000 notional.
+ */
+const M = (i) => i; // month index
+// steady ~5% book: smooth ~+5%/yr compounding from $100k
+const steadyPts = Array.from({ length: 19 }, (_, i) => ({ x: M(i), y: 100000 * Math.pow(1 + 0.05 / 12, i) }));
+// aggressive book: climbs to the documented peak, then takes the real −66.3% drawdown to trough
+const aggrPts = [
+  { x: 0, y: 100000 }, { x: 3, y: 110000 }, { x: 6, y: 122000 },
+  { x: 8, y: 129392 },                                  // peak 2025-08-24 (real $)
+  { x: 11, y: 96000 }, { x: 14, y: 70000 }, { x: 17, y: 43545 }, // trough 2026-06-06 (real $)
+  { x: 18, y: 45000 },
+];
+const ddMarkers = [
+  { x: 8, y: 129392, label: 'пик', color: 'var(--warn)' },
+  { x: 17, y: 43545, label: '−66.3%', color: 'var(--danger)' },
+];
 
 const questions = [
   {
@@ -91,7 +119,7 @@ const questions = [
       <tr><td><code>points_farm</code></td><td><strong>D</strong></td><td>incentive_decay</td><td>14%</td></tr>
     </tbody>
   </table>
-  <p>Обрати внимание: <strong>ни одной книги класса A (alpha)</strong>. Весь «yield» — это beta, risk-comp или incentive.</p>
+  <p>Обрати внимание: <strong>ни одной книги класса <Term def="alpha">A (alpha)</Term></strong>. Весь «yield» — это <Term def="beta">beta</Term>, risk-comp или <Term def="incentive">incentive</Term>.</p>
 
   <Callout type="example" titleRu="Пример — что реально стоят 15%">
     <code>eth_directional</code> (класс B, β≈1, без хеджа): realized drawdown <strong>−66.3%</strong>
@@ -108,6 +136,30 @@ const questions = [
     Контракт прямо запрещает выдавать модель за реализацию: <em>«We NEVER inflate a realized 0 into a
     fake −30%»</em>.
   </Callout>
+
+  <KeyStat value="66.3" prefix="−" suffix="%" tone="danger"
+    labelRu="реальная просадка eth_directional: пик $129 392 (24-авг-2025) → дно $43 545 (06-июн-2026)"
+    labelEn="real eth_directional drawdown: peak $129,392 → trough $43,545" />
+
+  <h2>Картинка датированного обвала</h2>
+  <p>
+    Ниже — иллюстративные кривые equity обеих книг от $100 000. <strong>Глубины и даты просадок —
+    реальные</strong> (из <code>realized_backtest_series</code>): кривая «рисуется» при прокрутке,
+    а обвал <strong>падает ровно на свою датированную глубину −66.3%</strong>, ни на пункт глубже.
+    Устойчивая ~5% книга компаундит гладко — датированных обвалов нет по построению.
+  </p>
+  <AnimatedChart
+    client:visible
+    height={240}
+    series={[
+      { points: steadyPts, color: 'var(--ok)', width: 2.5, label: 'устойчивая ~5% книга', fill: false },
+      { points: aggrPts, color: 'var(--warn)', width: 2.5, label: 'агрессивная книга (eth_directional)' },
+    ]}
+    markers={ddMarkers}
+    xLabels={['янв-2025', 'авг-2025', 'июн-2026']}
+    yFormat={(v) => '$' + (v / 1000).toFixed(0) + 'k'}
+    ariaLabel="Equity: устойчивая 5% против агрессивной книги с датированной просадкой −66.3%"
+  />
 
   <h2>Живой контраст: 15% против реальных 5%</h2>
   <p>

@@ -1,0 +1,138 @@
+---
+/*
+ * MotionStyles.astro — the global academy motion CSS + auto-wire script.
+ *
+ * Rendered ONCE per lesson page by LessonLayout (after the article). It:
+ *   1. defines the [data-reveal] reveal transition + pull-quote / key-stat styles,
+ *   2. styles the reading-progress bar,
+ *   3. boots motion.js: auto-wires reveals/counters and drives the reading-progress bar.
+ *
+ * Reduced-motion: the global Layout already disables all animation/transition under
+ * `prefers-reduced-motion`. On top of that, motion.js fires reveals/counters
+ * IMMEDIATELY (full content) in that mode, and we force [data-reveal] visible via CSS
+ * so nothing is ever hidden behind a transition that won't run.
+ */
+---
+<style is:global>
+  /* --- scroll reveal (powered by motion.js adding .in) --- */
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(var(--reveal-y, 14px));
+    transition:
+      opacity var(--reveal-dur, 400ms) var(--ease, cubic-bezier(.4,0,.2,1)),
+      transform var(--reveal-dur, 400ms) var(--ease, cubic-bezier(.4,0,.2,1));
+    will-change: opacity, transform;
+  }
+  [data-reveal].in {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* --- reading progress bar (top of viewport) --- */
+  .ac-readbar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 3px;
+    width: 0%;
+    z-index: 60;
+    background: linear-gradient(90deg, var(--accent), var(--data-teal));
+    box-shadow: 0 0 8px rgba(91,141,239,.5);
+    transition: width 80ms linear;
+    pointer-events: none;
+  }
+
+  /* --- pull-quote / key-stat callouts (animate in via [data-reveal]) --- */
+  .ac-pullquote {
+    margin: 32px 0;
+    padding: 18px 24px;
+    border-left: 3px solid var(--accent);
+    background: var(--accent-bg);
+    border-radius: 0 var(--r-md) var(--r-md) 0;
+    font-size: 1.15rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+  .ac-pullquote :global(strong) { color: var(--accent); }
+
+  .ac-keystat {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin: 28px 0;
+    padding: 20px 24px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--data-teal);
+    border-radius: 0 var(--r-lg) var(--r-lg) 0;
+    flex-wrap: wrap;
+  }
+  .ac-keystat-num {
+    font-family: var(--font-mono);
+    font-size: 2.5rem;
+    line-height: 1;
+    font-weight: 700;
+    color: var(--data-teal);
+  }
+  .ac-keystat-num.is-danger { color: var(--danger); }
+  .ac-keystat-num.is-ok { color: var(--ok); }
+  .ac-keystat-num.is-accent { color: var(--accent); }
+  .ac-keystat-label { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.5; }
+
+  @media (max-width: 640px) {
+    .ac-keystat-num { font-size: 2rem; }
+  }
+
+  /* belt-and-braces: never hide content from reduced-motion users even if JS is slow */
+  @media (prefers-reduced-motion: reduce) {
+    [data-reveal] { opacity: 1 !important; transform: none !important; }
+    .ac-readbar { display: none !important; }
+  }
+</style>
+
+<script>
+  import { initMotion, prefersReducedMotion } from './motion.js';
+
+  function bootReadingBar() {
+    if (prefersReducedMotion()) return;
+    const article = document.querySelector('.ac-lesson-body');
+    if (!article) return;
+    let bar = document.querySelector('.ac-readbar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.className = 'ac-readbar';
+      bar.setAttribute('role', 'progressbar');
+      bar.setAttribute('aria-label', 'Прогресс чтения урока');
+      document.body.appendChild(bar);
+    }
+    let ticking = false;
+    const update = () => {
+      ticking = false;
+      const rect = article.getBoundingClientRect();
+      const total = rect.height - window.innerHeight + 80;
+      const scrolled = -rect.top + 80;
+      const pct = total > 0 ? Math.max(0, Math.min(1, scrolled / total)) : 0;
+      bar.style.width = (pct * 100).toFixed(2) + '%';
+    };
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(update);
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    update();
+  }
+
+  function boot() {
+    initMotion();
+    bootReadingBar();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+</script>

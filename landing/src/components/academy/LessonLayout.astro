@@ -18,6 +18,8 @@
  */
 import Layout from '../../layouts/Layout.astro';
 import ModuleProgress from './ModuleProgress.jsx';
+import MotionStyles from './MotionStyles.astro';
+import Glossary from './Glossary.astro';
 import manifest from '../../data/academy_modules.json';
 
 interface Props {
@@ -47,7 +49,7 @@ const totalInTrack = mod ? modules.filter((m) => m.track === mod.track).length :
 const posInTrack = mod ? modules.filter((m) => m.track === mod.track && m.order <= mod.order).length : 0;
 ---
 <Layout title={`${title} · SPA Академия`} description={description ?? summary}>
-  <main class="ac-lesson">
+  <main class="ac-lesson" style={`--track-accent:${trackColor};`}>
     <!-- breadcrumb / track badge -->
     <div class="ac-lesson-top">
       <a class="ac-breadcrumb" href="/academy" data-ru="← Академия">← Academy</a>
@@ -58,7 +60,7 @@ const posInTrack = mod ? modules.filter((m) => m.track === mod.track && m.order 
       )}
     </div>
 
-    <header class="ac-lesson-head">
+    <header class="ac-lesson-head" data-reveal>
       <div class="ac-lesson-eyebrow">МОДУЛЬ {order}</div>
       <h1 class="ac-lesson-title">{title}</h1>
       {summary && <p class="ac-lesson-summary">{summary}</p>}
@@ -72,7 +74,7 @@ const posInTrack = mod ? modules.filter((m) => m.track === mod.track && m.order 
     </article>
 
     <!-- prev / next -->
-    <nav class="ac-lesson-nav" aria-label="module navigation">
+    <nav class="ac-lesson-nav" aria-label="module navigation" data-reveal>
       {prev ? (
         <a class="ac-navlink ac-prev" href={`/academy/${prev.id}`}>
           <span class="ac-navdir" data-ru="← Назад">← Prev</span>
@@ -92,6 +94,42 @@ const posInTrack = mod ? modules.filter((m) => m.track === mod.track && m.order 
       )}
     </nav>
   </main>
+
+  <!-- shared academy motion + glossary glue (rendered once per lesson) -->
+  <MotionStyles />
+  <Glossary />
+
+  <!-- break the wall-of-text: auto-stagger-reveal each top-level lesson section
+       (h2 + the block run after it). Pure progressive enhancement; reduced-motion users
+       get full content immediately (motion.js reveals synchronously, CSS forces visible). -->
+  <script>
+    import { revealOnScroll, prefersReducedMotion } from './motion.js';
+    function staggerSections() {
+      const body = document.querySelector('.ac-lesson-body');
+      if (!body) return;
+      // group the article's direct children into sections that start at each <h2>
+      const kids = Array.from(body.children);
+      let group = [];
+      const groups = [];
+      const flush = () => { if (group.length) { groups.push(group); group = []; } };
+      for (const el of kids) {
+        if (el.tagName === 'H2' && group.length) flush();
+        group.push(el);
+      }
+      flush();
+      groups.forEach((g) => {
+        // wrap each group in a reveal container so the whole section eases in together
+        const wrap = document.createElement('div');
+        wrap.className = 'ac-section';
+        wrap.setAttribute('data-reveal', '');
+        g[0].parentNode.insertBefore(wrap, g[0]);
+        g.forEach((el) => wrap.appendChild(el));
+        revealOnScroll(wrap);
+      });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', staggerSections);
+    else staggerSections();
+  </script>
 </Layout>
 
 <style>
@@ -150,10 +188,22 @@ const posInTrack = mod ? modules.filter((m) => m.track === mod.track && m.order 
 
   /* lesson prose styles — what Agents 1+2's markup inherits */
   .ac-lesson-body { font-size: 16px; line-height: 1.7; }
+  .ac-lesson-body :global(.lead) {
+    font-size: 1.125rem; color: var(--text-primary); line-height: 1.65;
+  }
+  /* per-track accent: a subtle colored marker on each section heading */
   .ac-lesson-body :global(h2) {
     font-size: 1.5rem; font-weight: 600; color: var(--text-primary);
     margin: 40px 0 14px; line-height: 1.25;
+    padding-left: 14px; position: relative;
   }
+  .ac-lesson-body :global(h2)::before {
+    content: ''; position: absolute; left: 0; top: 0.18em; bottom: 0.18em;
+    width: 3px; border-radius: 2px; background: var(--track-accent, var(--accent));
+    opacity: 0.7;
+  }
+  /* group wrapper created by the stagger script — neutral, just a reveal target */
+  .ac-section { display: block; }
   .ac-lesson-body :global(h3) {
     font-size: 1.25rem; font-weight: 600; color: var(--text-primary);
     margin: 28px 0 10px;
@@ -195,11 +245,19 @@ const posInTrack = mod ? modules.filter((m) => m.track === mod.track && m.order 
     border-radius: var(--r-md);
     background: var(--bg-surface);
     text-decoration: none;
-    transition: border-color 120ms;
+    transition: border-color 160ms var(--ease), transform 200ms var(--ease), background 160ms var(--ease);
   }
-  .ac-navlink:hover { border-color: var(--border-strong); }
+  .ac-navlink:hover {
+    border-color: var(--track-accent, var(--border-strong));
+    background: var(--bg-surface-2);
+  }
+  .ac-prev:hover { transform: translateX(-3px); }
+  .ac-next:hover { transform: translateX(3px); }
   .ac-next { text-align: right; align-items: flex-end; }
-  .ac-navdir { font-family: var(--font-mono); font-size: 11px; color: var(--accent); }
+  .ac-navdir {
+    font-family: var(--font-mono); font-size: 11px; color: var(--track-accent, var(--accent));
+    transition: color 160ms var(--ease);
+  }
   .ac-navtitle { font-size: 14px; color: var(--text-secondary); font-weight: 500; }
 
   @media (max-width: 640px) {

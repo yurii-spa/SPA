@@ -1,0 +1,46 @@
+---
+/*
+ * KeyStat.astro — an animated key-statistic callout for lessons.
+ *
+ * Renders a big mono number that COUNTS UP when scrolled into view (via motion.js
+ * data-countup auto-wiring) beside a RU label. Reduced-motion → final value shown
+ * immediately. The number is honest data passed in by the lesson author — animation is
+ * presentation only.
+ *
+ * USAGE (Agents B+C reuse verbatim):
+ *   <KeyStat value="12.85" suffix="%" tone="ok" labelRu="Variant N побил RWA-floor" />
+ *   <KeyStat value="66.3" prefix="−" suffix="%" tone="danger"
+ *            labelRu="реальная просадка eth_directional (2025→2026)" />
+ *
+ * PROPS:
+ *   value      number|string  REQUIRED — the final number to count up to.
+ *   prefix?    string  e.g. "$" or "−"           (default '')
+ *   suffix?    string  e.g. "%" or "pp"          (default '')
+ *   decimals?  number  decimal places            (default: inferred from value)
+ *   tone?      "teal" | "ok" | "danger" | "accent"  color of the number (default teal)
+ *   labelRu    string  REQUIRED — the RU label (data-ru aware via label/labelEn)
+ *   labelEn?   string  optional EN label (shown when site is EN)
+ */
+interface Props {
+  value: string | number;
+  prefix?: string;
+  suffix?: string;
+  decimals?: number;
+  tone?: 'teal' | 'ok' | 'danger' | 'accent';
+  labelRu: string;
+  labelEn?: string;
+}
+const { value, prefix = '', suffix = '', decimals, tone = 'teal', labelRu, labelEn } = Astro.props;
+const toneClass =
+  tone === 'danger' ? 'is-danger' : tone === 'ok' ? 'is-ok' : tone === 'accent' ? 'is-accent' : '';
+---
+<div class="ac-keystat" data-reveal>
+  <span
+    class={`ac-keystat-num ${toneClass}`}
+    data-countup={String(value)}
+    data-countup-prefix={prefix}
+    data-countup-suffix={suffix}
+    {...(decimals != null ? { 'data-countup-decimals': String(decimals) } : {})}
+  >{prefix}{value}{suffix}</span>
+  <span class="ac-keystat-label" data-ru={labelRu}>{labelEn ?? labelRu}</span>
+</div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getLang } from './progress.js';
+import { getLang, recordPlaygroundTried } from './progress.js';
+import AnimatedChart from './AnimatedChart.jsx';
 
 /*
  * EdgeAtScaleSlider.jsx — the «$1M cliff» visualizer.
@@ -120,6 +121,21 @@ export default function EdgeAtScaleSlider() {
   const negative = p.uplift_pp < 0;
   const upColor = negative ? 'var(--danger)' : 'var(--ok)';
 
+  // honest uplift-vs-AUM curve for the draw-in chart: sample the SAME interp() the slider
+  // uses, log-spaced across $100k..$10M. x = log10(aum) so the cliff sits where it really is.
+  const chartPoints = [];
+  for (let i = 0; i <= 40; i++) {
+    const a = Math.exp(minLog + (i / 40) * (maxLog - minLog));
+    chartPoints.push({ x: Math.log10(a), y: interp(curve, a).uplift_pp });
+  }
+  // zero-line reference so the sign flip (the cliff) is visually unambiguous
+  const zeroLine = [
+    { x: Math.log10(100000), y: 0 },
+    { x: Math.log10(10000000), y: 0 },
+  ];
+  // marker at the current slider AUM (real value, never exaggerated)
+  const cursor = [{ x: Math.log10(aum), y: p.uplift_pp, color: upColor, label: fmtAum(aum) }];
+
   return (
     <div style={wrap}>
       <div style={head}>
@@ -138,18 +154,33 @@ export default function EdgeAtScaleSlider() {
         <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--data-teal)', fontSize: 18, fontWeight: 700 }}>{fmtAum(aum)}</span>
       </div>
       <input type="range" min={0} max={1000} step={1} value={pos}
-        onChange={(e) => setPos(parseFloat(e.target.value))}
+        onChange={(e) => { recordPlaygroundTried('EdgeAtScaleSlider'); setPos(parseFloat(e.target.value)); }}
         style={{ width: '100%', accentColor: 'var(--data-teal)' }} />
       <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
         <span>$100k</span><span>$1M</span><span>$10M</span>
       </div>
 
-      <div style={{ marginTop: 18, textAlign: 'center', padding: '18px 0', border: `1px solid ${upColor}`, borderRadius: 'var(--r-md)', background: negative ? 'rgba(242,109,109,0.06)' : 'rgba(52,211,153,0.06)' }}>
+      {/* honest uplift curve that DRAWS IN on scroll — the $1M cliff is the sign flip */}
+      <div style={{ marginTop: 16, background: 'var(--bg-surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: '12px 8px 6px' }}>
+        <AnimatedChart
+          series={[
+            { points: zeroLine, color: 'var(--text-faint)', width: 1 },
+            { points: chartPoints, color: 'var(--accent)', width: 2.5, label: tr('uplift') + ' (pp)' },
+          ]}
+          markers={cursor}
+          height={180}
+          xLabels={['$100k', '$1M', '$10M']}
+          yFormat={(v) => (v >= 0 ? '+' : '') + v.toFixed(1)}
+          ariaLabel={tr('title')}
+        />
+      </div>
+
+      <div style={{ marginTop: 18, textAlign: 'center', padding: '18px 0', border: `1px solid ${upColor}`, borderRadius: 'var(--r-md)', background: negative ? 'rgba(242,109,109,0.06)' : 'rgba(52,211,153,0.06)', transition: 'border-color 200ms var(--ease), background 200ms var(--ease)' }}>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--text-faint)' }}>{tr('uplift')}</div>
-        <div style={{ fontSize: 34, fontWeight: 700, color: upColor, fontFamily: 'var(--font-mono)' }}>
+        <div style={{ fontSize: 34, fontWeight: 700, color: upColor, fontFamily: 'var(--font-mono)', transition: 'color 200ms var(--ease)' }}>
           {p.uplift_pp >= 0 ? '+' : ''}{p.uplift_pp.toFixed(2)}pp
         </div>
-        <div style={{ fontSize: 12, color: upColor }}>{p.uplift_material ? tr('material') : tr('notMaterial')}</div>
+        <div style={{ fontSize: 12, color: upColor, transition: 'color 200ms var(--ease)' }}>{p.uplift_material ? tr('material') : tr('notMaterial')}</div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14 }}>

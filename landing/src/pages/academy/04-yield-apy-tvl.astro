@@ -3,6 +3,9 @@ import LessonLayout from '../../components/academy/LessonLayout.astro';
 import Quiz from '../../components/academy/Quiz.astro';
 import Callout from '../../components/academy/Callout.astro';
 import Diagram from '../../components/academy/Diagram.astro';
+import Term from '../../components/academy/Term.astro';
+import PullQuote from '../../components/academy/PullQuote.astro';
+import KeyStat from '../../components/academy/KeyStat.astro';
 
 const questions = [
   {
@@ -65,8 +68,8 @@ const questions = [
 
   <h2>APR против APY: сила компаундинга</h2>
   <p>
-    <strong>APR</strong> (Annual Percentage Rate) — простая годовая ставка без учёта
-    реинвестирования. <strong>APY</strong> (Annual Percentage Yield) — фактическая годовая
+    <strong><Term def="apr">APR</Term></strong> (Annual Percentage Rate) — простая годовая ставка без учёта
+    реинвестирования. <strong><Term def="apy">APY</Term></strong> (Annual Percentage Yield) — фактическая годовая
     доходность <em>с учётом компаундинга</em>: проценты сами начинают приносить проценты.
   </p>
 
@@ -89,9 +92,13 @@ APY, капитализация ежедневно    → ~$1105 (≈ +10.52%)
     может продержаться лишь дни. Смотрите не только на число, но и на устойчивость источника.
   </Callout>
 
+  <KeyStat value="5" prefix="$" suffix="M" tone="teal" decimals={0}
+    labelRu="минимальный TVL пула в RiskPolicy — тоньше пул деск не трогает"
+    labelEn="minimum pool TVL in RiskPolicy — the desk won't touch thinner pools" />
+
   <h2>TVL и ликвидность</h2>
   <p>
-    <strong>TVL</strong> (Total Value Locked) — сколько всего средств размещено в протоколе или
+    <strong><Term def="tvl">TVL</Term></strong> (Total Value Locked) — сколько всего средств размещено в протоколе или
     конкретном пуле. Это грубый, но важный индикатор размера и ликвидности. Большой TVL обычно
     значит, что вы можете войти и выйти крупной суммой, не двигая рынок.
   </p>
@@ -112,11 +119,15 @@ APY, капитализация ежедневно    → ~$1105 (≈ +10.52%)
 `}</pre>
   </Diagram>
 
-  <Callout type="key">
+  <PullQuote>
     Высокий APY — это не приз, это <strong>вопрос</strong>: «за какой риск мне платят?».
+    Если вы не можете назвать источник доходности — вы и есть источник доходности для кого-то другого.
+  </PullQuote>
+
+  <Callout type="key">
     На эффективном рынке доходность сверх безопасной базы почти всегда компенсирует какой-то
-    риск или держится на временных стимулах. Если вы не можете назвать источник доходности —
-    вы и есть источник доходности для кого-то другого.
+    риск или держится на временных стимулах (<Term def="incentive">incentive</Term>, модуль 9).
+    Деск кодирует это как <Term def="refusal-first">refusal-first</Term> гейт.
   </Callout>
 
   <Callout type="example">

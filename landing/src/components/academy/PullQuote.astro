@@ -1,0 +1,14 @@
+---
+/*
+ * PullQuote.astro — an emphasised pull-quote that animates in on scroll.
+ *
+ * Breaks the wall-of-text with a large, accent-bordered line. Reveals via [data-reveal]
+ * (motion.js); reduced-motion users see it immediately. RU-first: put RU in the slot.
+ *
+ * USAGE:
+ *   <PullQuote>Высокий APY — это не приз, это <strong>вопрос</strong>: «за какой риск мне платят?».</PullQuote>
+ */
+---
+<blockquote class="ac-pullquote" data-reveal>
+  <slot />
+</blockquote>

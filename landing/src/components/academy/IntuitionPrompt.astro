@@ -1,0 +1,43 @@
+---
+/*
+ * IntuitionPrompt.astro — PUBLIC "guess before the reveal" component for lessons.
+ *
+ * Drop it ABOVE a number the lesson is about to state, so the analyst predicts
+ * first (prediction → stronger retention). Thin Astro wrapper around the
+ * <IntuitionPrompt> island (IntuitionPrompt.jsx), rendered client:visible so it
+ * only hydrates when scrolled into view.
+ *
+ * USAGE — numeric guess:
+ *   import IntuitionPrompt from '../../components/academy/IntuitionPrompt.astro';
+ *   <IntuitionPrompt
+ *     question_ru="Угадай honest risk-free floor токенизированных T-bills (% годовых):"
+ *     mode="numeric" answer={3.4} unit="%" min={0} max={10} step={0.1}
+ *     explain_ru="~3.4% — floor, который обязан побить любой sleeve." />
+ *
+ * USAGE — choice guess:
+ *   <IntuitionPrompt
+ *     question_ru="Был ли депег у UST в мае 2022?"
+ *     mode="choice"
+ *     options={[{ru:'Да, до нуля'},{ru:'Нет, держался'}]}
+ *     correctIndex={0}
+ *     explain_ru="UST потерял пег и схлопнулся — классический tail-риск алго-стейбла." />
+ */
+import IntuitionIsland from './IntuitionPrompt.jsx';
+
+interface Props {
+  question_ru: string;
+  question_en?: string;
+  mode?: 'numeric' | 'choice';
+  answer?: number;
+  unit?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: any[];
+  correctIndex?: number;
+  explain_ru?: string;
+  explain_en?: string;
+}
+const props = Astro.props as Props;
+---
+<IntuitionIsland {...props} client:visible />

@@ -1,0 +1,148 @@
+---
+/*
+ * /academy/playground — «Песочница» (RU-first).
+ *
+ * Выделенная hands-on зона Академии: все интерактивные симуляторы в одном месте.
+ * 4 новых глубоких playground-симулятора (client:load islands, live-data fail-closed)
+ * + ссылки на 4 уже встроенных виджета в их модулях. Цель — учить ДЕЛАЯ: собери книгу,
+ * проиграй реальный депег, прогони кандидата через refusal-гейт, посмотри отказы на таймлайне.
+ *
+ * Built on the canonical Layout (header/footer/paper-strip) + Console design tokens.
+ * Agent B линкует эту страницу из journey-map на /academy index.
+ */
+import Layout from '../../layouts/Layout.astro';
+import PortfolioBuilder from '../../components/academy/PortfolioBuilder.jsx';
+import DepegEventPlayer from '../../components/academy/DepegEventPlayer.jsx';
+import RefusalGateWalkthrough from '../../components/academy/RefusalGateWalkthrough.jsx';
+import RefusalTimeline from '../../components/academy/RefusalTimeline.jsx';
+
+const existing = [
+  { id: '10-risk-taxonomy-abcd', ru: 'Классификатор риска A/B/C/D', sum: 'Отнеси каждый источник доходности к alpha / beta / risk-comp / incentive — мгновенная обратная связь.' },
+  { id: '12-structural-haircut-veto', ru: 'Вето структурным хейркатом', sum: 'Двигай 4 риск-ползунка + размер — убедись, что токсичность нельзя обойти размером.' },
+  { id: '14-two-tier-killswitch', ru: 'Лестница kill-switch', sum: 'Двигай просадку: SOFT de-risk при ≥5%, HARD all-cash при ≥10% (ADR-048).' },
+  { id: '15-edge-at-scale', ru: 'Edge на масштабе: обрыв $1M', sum: 'Двигай AUM $100k→$10M — uplift схлопывается, когда capacity-cap\'ы бьют.' },
+];
+---
+<Layout title="SPA Академия — Песочница" description="Hands-on зона: интерактивные симуляторы — собери книгу под RiskPolicy, проиграй реальный депег, прогони кандидата через refusal-гейт. RU-first, живые данные, fail-closed.">
+  <main class="pg">
+    <header class="pg-hero">
+      <div class="pg-eyebrow">SPA АКАДЕМИЯ · ПЕСОЧНИЦА</div>
+      <h1 class="pg-h1">Попробуй сам</h1>
+      <p class="pg-lede">
+        Учиться DeFi и логике SPA лучше всего <strong>делая</strong>. Здесь собраны интерактивные
+        симуляторы, которые зеркалят <em>реальную</em> логику деска — те же cap'ы RiskPolicy, тот же
+        refusal-first гейт, те же датированные события. Ничего не выдумано: где есть живые данные —
+        они тянутся вживую и <strong>fail-closed</strong> при офлайне (честное «недоступно», не фейк).
+      </p>
+      <a class="pg-back" href="/academy">← ко всем модулям</a>
+    </header>
+
+    <!-- 4 NEW deep sims -->
+    <section class="pg-section">
+      <div class="pg-sec-head" style="border-left:3px solid var(--accent);">
+        <div class="pg-sec-eyebrow" style="color:var(--accent);">ГЛУБОКИЕ СИМУЛЯТОРЫ</div>
+        <h2 class="pg-sec-title">Четыре песочницы</h2>
+        <p class="pg-sec-sub">Каждая зеркалит конкретный кусок боевого кода — собери, проиграй, прогони.</p>
+      </div>
+
+      <div class="pg-sim">
+        <h3 class="pg-sim-title">1 · Собери книгу под RiskPolicy</h3>
+        <p class="pg-sim-intro">
+          Добавляй протоколы и задавай аллокацию — гейт <code>policy.py</code> проверяет КАЖДЫЙ cap
+          вживую (T1≤40%, T2≤20%, T2-сумма≤50%, кэш≥5%, TVL≥$5M, APY 1–30%). Попробуй 50% в Aave →
+          увидишь REJECT. Поймёшь, почему живая книга сидит на ~4.5% в простых T1-кредиторах.
+        </p>
+        <PortfolioBuilder client:load />
+      </div>
+
+      <div class="pg-sim">
+        <h3 class="pg-sim-title">2 · Проиграй реальный депег</h3>
+        <p class="pg-sim-intro">
+          Нажми ▶ — таймлайн проигрывает РЕАЛЬНЫЕ датированные события (крах ETH 2024-08, unwind
+          Ethena USDe $14B→$5.6B в 2025-10, депег rsETH 2026-04). Агрессивная «15%» книга проседает
+          на реальную глубину, устойчивая ~5% остаётся плоской. Вот что 15% реально стоит.
+        </p>
+        <DepegEventPlayer client:load />
+      </div>
+
+      <div class="pg-sim">
+        <h3 class="pg-sim-title">3 · Прогон через refusal-first гейт</h3>
+        <p class="pg-sim-intro">
+          Выбери кандидата (ezETH / sUSDe / Aave) и шагай по одному шагу: классификация A/B/C/D →
+          структурные хейркаты → TAIL-VETO → cap'ы RiskPolicy → вердикт. Видно, как гейт «думает».
+          ezETH отказывается при ЛЮБОМ размере — это паттерн, от которого деск отказывается.
+        </p>
+        <RefusalGateWalkthrough client:load />
+      </div>
+
+      <div class="pg-sim">
+        <h3 class="pg-sim-title">4 · Таймлайн отказов 2024–2026</h3>
+        <p class="pg-sim-intro">
+          Двигай ползунок по времени. Когда пересекаешь дату реального события, токсичные книги,
+          чей risk-shape совпадает, загораются ОТКАЗАНО — деск отказал ровно этому shape ДО события,
+          а не задним числом. Пара к симулятору №2: тот показывает цену, этот — что отказ был прав.
+        </p>
+        <RefusalTimeline client:load />
+      </div>
+    </section>
+
+    <!-- links to the 4 existing widgets -->
+    <section class="pg-section">
+      <div class="pg-sec-head" style="border-left:3px solid var(--data-teal);">
+        <div class="pg-sec-eyebrow" style="color:var(--data-teal);">ВИДЖЕТЫ В МОДУЛЯХ</div>
+        <h2 class="pg-sec-title">Ещё четыре интерактива</h2>
+        <p class="pg-sec-sub">Эти живут внутри своих уроков — открой модуль и поиграй там.</p>
+      </div>
+      <div class="pg-cards">
+        {existing.map((e) => (
+          <a class="pg-card" href={`/academy/${e.id}`}>
+            <span class="pg-card-tag">интерактив</span>
+            <h3 class="pg-card-title">{e.ru}</h3>
+            <p class="pg-card-sum">{e.sum}</p>
+            <span class="pg-card-cta">открыть модуль →</span>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <p class="pg-foot">
+      Учебные симуляторы. Не инвестиционная рекомендация. Цифры — paper / advisory, реальный
+      капитал не задействован. Где есть живой фид — он fail-closed: офлайн = честное «недоступно».
+    </p>
+  </main>
+</Layout>
+
+<style>
+  .pg { max-width: 880px; margin: 0 auto; padding: 48px 20px 96px; }
+  .pg-hero { margin-bottom: 48px; }
+  .pg-eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.14em; color: var(--text-faint); margin-bottom: 14px; }
+  .pg-h1 { font-size: 2.75rem; line-height: 1.1; font-weight: 700; color: var(--text-primary); margin: 0 0 18px; }
+  .pg-lede { font-size: 1.125rem; line-height: 1.65; color: var(--text-secondary); margin: 0 0 18px; }
+  .pg-lede strong { color: var(--text-primary); }
+  .pg-lede code { font-family: var(--font-mono); font-size: 0.92em; color: var(--accent); }
+  .pg-back { font-size: 14px; color: var(--text-muted); text-decoration: none; }
+  .pg-back:hover { color: var(--text-secondary); }
+
+  .pg-section { margin-bottom: 56px; }
+  .pg-sec-head { padding-left: 16px; margin-bottom: 20px; }
+  .pg-sec-eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.12em; margin-bottom: 6px; }
+  .pg-sec-title { font-size: 1.6rem; font-weight: 600; color: var(--text-primary); margin: 0 0 6px; }
+  .pg-sec-sub { font-size: 15px; color: var(--text-secondary); margin: 0; }
+
+  .pg-sim { margin-bottom: 8px; }
+  .pg-sim-title { font-size: 1.2rem; font-weight: 600; color: var(--text-primary); margin: 28px 0 8px; }
+  .pg-sim-intro { font-size: 15px; line-height: 1.6; color: var(--text-secondary); margin: 0; }
+  .pg-sim-intro code { font-family: var(--font-mono); font-size: 0.9em; color: var(--accent); }
+
+  .pg-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .pg-card { display: flex; flex-direction: column; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; text-decoration: none; transition: border-color 120ms, transform 200ms; }
+  .pg-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+  .pg-card-tag { align-self: flex-start; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 9px; border-radius: var(--r-full); border: 1px solid var(--data-teal); color: var(--data-teal); margin-bottom: 12px; }
+  .pg-card-title { font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin: 0 0 8px; line-height: 1.3; }
+  .pg-card-sum { font-size: 14px; line-height: 1.55; color: var(--text-secondary); margin: 0 0 14px; flex: 1; }
+  .pg-card-cta { font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
+
+  .pg-foot { font-size: 13px; color: var(--text-muted); text-align: center; margin-top: 24px; line-height: 1.6; }
+
+  @media (max-width: 640px) { .pg-h1 { font-size: 2rem; } }
+</style>

@@ -1,76 +1,98 @@
 ---
 /*
- * /academy — SPA Академия portal home (RU-first).
+ * /academy — SPA Академия portal home (RU-first), now a VISUAL LEARNING JOURNEY.
  *
- * 3 tracks, module cards (FREE navigation — no lock-until-prev; progress shown per
- * card via localStorage), the portal-wide progress bar, and a «начни здесь» CTA.
+ * Game-like dashboard: rank/level/XP/streak header + a connected node path across
+ * the 3 tracks (done-nodes lit, current node highlighted, «продолжить» CTA jumps
+ * to the next undone module), a badges shelf, an intuition-prompt taster, and a
+ * link to the interactive playground (Agent C) + the analyst certificate.
  *
- * Built on the canonical Layout (header/footer/paper-strip) + Console design tokens.
- * The manifest (src/data/academy_modules.json) is the single source for the module list.
+ * Built on the canonical Layout + Console design tokens. The manifest
+ * (src/data/academy_modules.json) is the single source for the module list.
+ * Free navigation — proceed in any order; the path is motivational, not a lock.
  */
 import Layout from '../../layouts/Layout.astro';
-import ModuleProgress from '../../components/academy/ModuleProgress.jsx';
+import JourneyMap from '../../components/academy/JourneyMap.jsx';
+import Badges from '../../components/academy/Badges.jsx';
+import IntuitionPrompt from '../../components/academy/IntuitionPrompt.astro';
 import manifest from '../../data/academy_modules.json';
 
 const modules = manifest.modules;
-const tracks = manifest._meta.tracks;
+const tracksMeta = manifest._meta.tracks;
 const allIds = modules.map((m) => m.id);
-const firstId = modules[0]?.id;
-
-const trackColor = (t) => (t === 1 ? 'var(--data-teal)' : t === 2 ? 'var(--accent)' : 'var(--warn)');
-const grouped = [1, 2, 3].map((t) => ({
-  t,
-  info: tracks[String(t)],
-  mods: modules.filter((m) => m.track === t).sort((a, b) => a.order - b.order),
-}));
+const trackIds = {
+  1: modules.filter((m) => m.track === 1).map((m) => m.id),
+  2: modules.filter((m) => m.track === 2).map((m) => m.id),
+  3: modules.filter((m) => m.track === 3).map((m) => m.id),
+};
 ---
-<Layout title="SPA Академия — обучение аналитика от нуля" description="Интерактивный курс: DeFi с нуля + всё, что изобрели в SPA. RU-first, с живыми данными и интерактивными виджетами.">
+<Layout title="SPA Академия — обучение аналитика от нуля" description="Интерактивный курс-путешествие: DeFi с нуля + всё, что изобрели в SPA. XP, ранги, награды, сертификат. RU-first, живые данные и тренажёры.">
   <main class="ac-index">
     <header class="ac-hero">
       <div class="ac-eyebrow">SPA АКАДЕМИЯ</div>
       <h1 class="ac-h1">От нуля до структурного андеррайтинга</h1>
       <p class="ac-lede">
-        Интерактивный курс для аналитика: сначала база DeFi (как устроены доходность и риск),
-        затем — всё, что изобрели в SPA: <strong>refusal-first</strong>, вето структурным
-        хейркатом, двухуровневый kill-switch, edge на масштабе. Живые данные, симуляторы,
-        квизы. Навигация свободная — проходи в любом порядке.
+        Это не чек-лист, а <strong>путешествие</strong>. Проходи модули — копи XP, повышай ранг
+        от <em>новичка</em> до <em>структурного андеррайтера</em>, держи серию занятий и собирай
+        награды. Сначала база DeFi, затем — изобретения SPA: <strong>refusal-first</strong>, вето
+        структурным хейркатом, двухуровневый kill-switch, edge на масштабе. Финал — капстоун и
+        сертификат. Навигация свободная.
       </p>
-
-      <div class="ac-hero-actions">
-        <a class="ac-cta-primary" href={`/academy/${firstId}`} data-ru="Начни здесь →">Start here →</a>
-        <span class="ac-hero-note" data-ru="Прогресс сохраняется в этом браузере (localStorage).">Progress is saved in this browser (localStorage).</span>
-      </div>
-
-      <div class="ac-progressbar">
-        <ModuleProgress moduleIds={allIds} label_ru="Общий прогресс" client:load />
-      </div>
+      <p class="ac-hero-note">Прогресс, XP, серия и награды хранятся в этом браузере (localStorage) — это твой личный трек, без рейтингов и сравнений.</p>
     </header>
 
-    {grouped.map((g) => (
-      <section class="ac-track">
-        <div class="ac-track-head" style={`border-left:3px solid ${trackColor(g.t)};`}>
-          <div class="ac-track-eyebrow" style={`color:${trackColor(g.t)};`}>ТРЕК {g.t}</div>
-          <h2 class="ac-track-title">{g.info.title_ru}</h2>
-          <p class="ac-track-sub">{g.info.subtitle_ru}</p>
-        </div>
+    {/* ── The journey dashboard (rank/XP/streak + path) ── */}
+    <JourneyMap modules={modules} tracksMeta={tracksMeta} client:load />
 
-        <div class="ac-cards">
-          {g.mods.map((m) => (
-            <a class="ac-card" href={`/academy/${m.id}`}>
-              <div class="ac-card-top">
-                <span class="ac-card-num" style={`color:${trackColor(g.t)};`}>{String(m.order).padStart(2, '0')}</span>
-                <ModuleProgress moduleId={m.id} client:load />
-              </div>
-              <h3 class="ac-card-title">{m.title_ru}</h3>
-              <p class="ac-card-summary">{m.summary_ru}</p>
-              {m.widget && (
-                <span class="ac-card-widget" data-ru="интерактив">interactive</span>
-              )}
-            </a>
-          ))}
-        </div>
-      </section>
-    ))}
+    {/* ── A taste of the «угадай → покажи» mechanic ── */}
+    <section class="ac-section">
+      <h2 class="ac-section-h">Учись предсказанием</h2>
+      <p class="ac-section-sub">
+        Перед тем как урок назовёт число — попробуй угадать. Прогноз закрепляет материал лучше пассивного чтения.
+        Такие вставки встречаются по всему курсу. Вот две на пробу:
+      </p>
+      <IntuitionPrompt
+        question_ru="Угадай honest risk-free floor токенизированных T-bills (RWA), % годовых — планку, которую обязан побить любой sleeve:"
+        question_en="Guess the honest risk-free floor of tokenized T-bills (RWA), % APR — the bar every sleeve must beat:"
+        mode="numeric" answer={3.4} unit="%" min={0} max={10} step={0.1}
+        explain_ru="≈3.4% — живой TVL-взвешенный floor по токенизированным T-bills (BUIDL/USYC/USDY). Доходность ниже floor при большем риске не имеет смысла."
+        explain_en="≈3.4% — the live TVL-weighted floor across tokenized T-bills. Yield below the floor at higher risk makes no sense."
+      />
+      <IntuitionPrompt
+        question_ru="Был ли депег у алго-стейбла UST (Terra) в мае 2022?"
+        question_en="Did the algo-stablecoin UST (Terra) depeg in May 2022?"
+        mode="choice"
+        options={[{ ru: 'Да — рухнул почти до нуля', en: 'Yes — collapsed near zero' }, { ru: 'Нет, пег устоял', en: 'No, peg held' }]}
+        correctIndex={0}
+        explain_ru="UST потерял привязку и схлопнулся — учебный пример хвостового риска необеспеченного алго-пега. Именно такой риск отказывает refusal-first гейт ДО экономики."
+        explain_en="UST lost its peg and collapsed — the textbook tail-risk of an undercollateralized algo-peg. Exactly what the refusal-first gate rejects BEFORE economics."
+      />
+    </section>
+
+    {/* ── Badges shelf ── */}
+    <section class="ac-section">
+      <h2 class="ac-section-h">Награды</h2>
+      <p class="ac-section-sub">Открываются за реальные вехи — пройденные треки, ключевые идеи, серию занятий, капстоун. Никаких накруток: значок зажигается только когда веха действительно достигнута.</p>
+      <Badges allIds={allIds} modules={modules} tracks={trackIds} client:load />
+    </section>
+
+    {/* ── Playground (Agent C) + Certificate links ── */}
+    <section class="ac-links">
+      <a class="ac-link-card" href="/academy/playground">
+        <span class="ac-link-glyph">🎛️</span>
+        <span class="ac-link-body">
+          <span class="ac-link-title">Тренажёры</span>
+          <span class="ac-link-desc">Интерактивная площадка: классификатор риска, хейркат-вето, kill-switch, edge-at-scale — крути ручки, ломай, изучай.</span>
+        </span>
+      </a>
+      <a class="ac-link-card" href="/academy/certificate">
+        <span class="ac-link-glyph">🎓</span>
+        <span class="ac-link-body">
+          <span class="ac-link-title">Сертификат</span>
+          <span class="ac-link-desc">Открывается после капстоуна: именной, печатаемый, с отпечатком прогресса. Покажи владельцу.</span>
+        </span>
+      </a>
+    </section>
 
     <p class="ac-foot-note">
       Учебный материал. Не инвестиционная рекомендация. Все цифры — paper / advisory,
@@ -81,47 +103,27 @@ const grouped = [1, 2, 3].map((t) => ({
 
 <style>
   .ac-index { max-width: 1152px; margin: 0 auto; padding: 48px 20px 96px; }
-  .ac-hero { max-width: 768px; margin-bottom: 56px; }
+  .ac-hero { max-width: 820px; margin-bottom: 32px; }
   .ac-eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.14em; color: var(--text-faint); margin-bottom: 14px; }
   .ac-h1 { font-size: 2.75rem; line-height: 1.1; font-weight: 700; color: var(--text-primary); margin: 0 0 18px; }
-  .ac-lede { font-size: 1.125rem; line-height: 1.65; color: var(--text-secondary); margin: 0 0 28px; }
+  .ac-lede { font-size: 1.125rem; line-height: 1.65; color: var(--text-secondary); margin: 0 0 14px; }
   .ac-lede strong { color: var(--text-primary); }
+  .ac-lede em { color: var(--accent); font-style: normal; font-weight: 600; }
+  .ac-hero-note { font-size: 13px; color: var(--text-muted); margin: 0; }
 
-  .ac-hero-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
-  .ac-cta-primary {
-    background: var(--accent); color: #fff; text-decoration: none;
-    border-radius: var(--r-sm); padding: 12px 26px; font-size: 15px; font-weight: 600;
-    box-shadow: var(--shadow-cta); transition: background 120ms;
-  }
-  .ac-cta-primary:hover { background: var(--accent-hover); }
-  .ac-hero-note { font-size: 13px; color: var(--text-muted); }
-  .ac-progressbar { max-width: 520px; }
+  .ac-section { margin-top: 48px; }
+  .ac-section-h { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0 0 8px; }
+  .ac-section-sub { font-size: 15px; line-height: 1.6; color: var(--text-secondary); margin: 0 0 20px; max-width: 760px; }
 
-  .ac-track { margin-bottom: 56px; }
-  .ac-track-head { padding-left: 16px; margin-bottom: 24px; }
-  .ac-track-eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.12em; margin-bottom: 6px; }
-  .ac-track-title { font-size: 1.6rem; font-weight: 600; color: var(--text-primary); margin: 0 0 6px; }
-  .ac-track-sub { font-size: 15px; color: var(--text-secondary); margin: 0; }
+  .ac-links { margin-top: 48px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .ac-link-card { display: flex; gap: 16px; align-items: flex-start; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; text-decoration: none; transition: border-color 120ms, transform 200ms; }
+  .ac-link-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+  .ac-link-glyph { font-size: 30px; line-height: 1; }
+  .ac-link-body { display: flex; flex-direction: column; gap: 6px; }
+  .ac-link-title { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+  .ac-link-desc { font-size: 14px; line-height: 1.5; color: var(--text-secondary); }
 
-  .ac-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-  .ac-card {
-    display: flex; flex-direction: column;
-    background: var(--bg-surface); border: 1px solid var(--border);
-    border-radius: var(--r-lg); padding: 20px; text-decoration: none;
-    transition: border-color 120ms, transform 200ms;
-  }
-  .ac-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
-  .ac-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-  .ac-card-num { font-family: var(--font-mono); font-size: 18px; font-weight: 700; }
-  .ac-card-title { font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin: 0 0 8px; line-height: 1.3; }
-  .ac-card-summary { font-size: 14px; line-height: 1.55; color: var(--text-secondary); margin: 0 0 12px; flex: 1; }
-  .ac-card-widget {
-    align-self: flex-start; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em;
-    text-transform: uppercase; padding: 3px 9px; border-radius: var(--r-full);
-    border: 1px solid var(--data-teal); color: var(--data-teal);
-  }
-
-  .ac-foot-note { font-size: 13px; color: var(--text-muted); text-align: center; margin-top: 24px; }
+  .ac-foot-note { font-size: 13px; color: var(--text-muted); text-align: center; margin-top: 48px; }
 
   @media (max-width: 640px) {
     .ac-h1 { font-size: 2rem; }
