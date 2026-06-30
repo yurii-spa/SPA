@@ -73,7 +73,12 @@ FRESHNESS_WINDOW_HOURS = 48
 DIGEST_GRACE_UNTIL_HOUR = 9   # UTC hour; grace applies while now.hour < this
 MIN_TRACK_DAYS = 30           # required honest paper-trading days
 APY_FLOOR_PCT = 1.0           # minimum acceptable APY for go-live
-DRAWDOWN_KILL_PCT = 5.0       # kill-switch threshold (matches RiskPolicy)
+# Go-live drawdown GATE = the SOFT-derisk tier (5%), NOT the kill switch.
+# Per ADR-048/049 the two-tier ladder is SOFT-derisk at 5% (halt new/increase, no
+# liquidation) and HARD kill (all-cash) at 10%. Go-live deliberately gates on the
+# stricter SOFT tier: the track must stay under 5% drawdown to be go-live-ready.
+# The 5.0 value + the FAIL behaviour are OWNER-GATED (do not change without an ADR).
+GOLIVE_MAX_DRAWDOWN_PCT = 5.0  # SOFT-derisk tier; HARD kill is 10% (kill_switch.py)
 ADAPTER_REGISTRY_MIN = 20     # minimum adapters registered for go-live (MP-1228)
 
 # Paper trading real start (post-teardown reset, per CLAUDE.md)
@@ -738,7 +743,11 @@ class GoLiveChecker:
         return True
 
     def _check_drawdown_below_kill(self, blockers: list[str]) -> bool:
-        """Portfolio max drawdown must be below DRAWDOWN_KILL_PCT (5%).
+        """Portfolio max drawdown must be below GOLIVE_MAX_DRAWDOWN_PCT (5%).
+
+        This is the go-live DRAWDOWN GATE = the SOFT-derisk tier (5%), NOT the
+        kill switch (the HARD all-cash kill is 10%, ADR-048). Go-live gates on the
+        stricter soft tier on purpose.
 
         HONEST TRACK RESET (T10, 2026-06-26): drawdown is a REAL go-live metric,
         so it is computed STRICTLY over the EVIDENCED series — never over the
@@ -757,10 +766,11 @@ class GoLiveChecker:
         # threshold is a magnitude, so compare against its absolute value.
         real_dd = _real_max_drawdown_pct(daily, paper_start=self.paper_start)
         drawdown = abs(real_dd)
-        if float(drawdown) >= DRAWDOWN_KILL_PCT:
+        if float(drawdown) >= GOLIVE_MAX_DRAWDOWN_PCT:
             blockers.append(
-                f"drawdown_below_kill: drawdown {drawdown:.2f}% ≥ kill-switch "
-                f"threshold {DRAWDOWN_KILL_PCT}% — RiskPolicy kill switch active"
+                f"drawdown_below_kill: drawdown {drawdown:.2f}% ≥ go-live drawdown "
+                f"gate {GOLIVE_MAX_DRAWDOWN_PCT}% (SOFT-derisk tier; HARD kill is "
+                f"10%, ADR-048)"
             )
             return False
         return True

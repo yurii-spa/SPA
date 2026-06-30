@@ -296,6 +296,17 @@ install_agent \
     "com.spa.rates_desk_paper" \
     "1"
 
+# 22c2. Realized-at-size standing measurement (Edge-at-Scale month-program, Lane B) — daily;
+#       re-runs the realized-at-size KILLER TEST on the freshest books and appends/refreshes ONE
+#       row in the growing verdict track (data/rates_desk/paper/realized_at_size_track.jsonl) so the
+#       "does the edge survive at scale" verdict can be watched maturing forward. ADVISORY ONLY:
+#       moves no capital, never touches the go-live track, never imports execution/. (Was loaded
+#       but had no persistent plist here → would be lost on reboot = zombie-class; now persistent.)
+install_agent \
+    "$REPO/scripts/com.spa.realized_at_size.plist" \
+    "com.spa.realized_at_size" \
+    "1"
+
 # 22d. Red-team rotation (WS-8 Cutover-Bulletproof) — daily 09:30 UTC; probes a DIFFERENT attack
 #      surface each UTC day, hash-anchors the verdict, writes data/redteam_status.json. Read-only
 #      against live data/ (scenarios use tmp sandboxes; the runner snapshots live files before/after

@@ -12,8 +12,8 @@ from datetime import datetime, timezone, timedelta
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from database.init_db import init_database
-from monitor.alerts import AlertEngine, Alert
-from monitor.health_check import HealthCheck
+from spa_core.monitoring.alerts import AlertEngine, Alert
+from spa_core.monitoring.health_check import HealthCheck
 
 # ─── Runner ───────────────────────────────────────────────────────────────────
 

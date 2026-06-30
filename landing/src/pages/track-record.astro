@@ -7,7 +7,7 @@ import snap from '../data/track_snapshot.json';
 // override these client-side from api.earn-defi.com; this keeps the page honest
 // and readable when the API is offline. Numbers are NOT hardcoded inline — they
 // are derived from data/golive_status.json + data/equity_curve_daily.json at build.
-const realDays = snap.real_track_days ?? 5;
+const realDays = snap.real_track_days ?? 6;
 const daysNeeded = snap.days_needed ?? 30;
 const goLiveTarget = snap.go_live_target ?? '2026-07-21';
 const anchor = snap.evidenced_anchor ?? '2026-06-22';
@@ -28,7 +28,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
 
 <Layout
   title="Track Record — We Reset Our Own Track, Honestly | earn-defi.com"
-  description="We audited our own paper track and reset it: only days backed by a real daily-cycle log count. 5 evidenced days (anchor 2026-06-22), not 15 padded ones. Live from api.earn-defi.com — paper/advisory, not investment advice."
+  description={`We audited our own paper track and reset it: only days backed by a real daily-cycle log count. ${realDays} evidenced days (anchor ${anchor}), not 15 padded ones. Live from api.earn-defi.com — paper/advisory, not investment advice.`}
   canonical="https://earn-defi.com/track-record"
 >
   <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
