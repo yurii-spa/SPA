@@ -61,6 +61,12 @@ GOLDEN_ROUTES = {
     ("/api/backtest/summary", ("GET",)),
     ("/api/chat", ("POST",)),
     ("/api/competitive-watch", ("GET",)),
+    # DFB — DeFi Board (LANE 2): public risk-first pool analytics, read-only/GET/fail-CLOSED.
+    ("/api/dfb/pools", ("GET",)),
+    ("/api/dfb/pool/{pool_id}", ("GET",)),
+    ("/api/dfb/pool/{pool_id}/history", ("GET",)),
+    ("/api/dfb/pool/{pool_id}/proof", ("GET",)),
+    ("/api/dfb/summary", ("GET",)),
     ("/api/events", ("GET",)),
     ("/api/events/history", ("GET",)),
     ("/api/execution/readiness", ("GET",)),
@@ -179,18 +185,22 @@ def test_route_table_identical_to_golden():
 def test_route_count_stable():
     """The flat handler surface (expanded across included routers) is the invariant.
 
-    77 HTTP handlers + 1 websocket (/ws/agents) = 78 entries in GOLDEN_ROUTES. This
+    82 HTTP handlers + 1 websocket (/ws/agents) = 83 entries in GOLDEN_ROUTES. This
     is structure-independent (monolith routes vs lazily-included routers) because
     _walk_routes expands `_IncludedRouter` proxies. The launch target
     `spa_core.api.server:app` is unaffected — `app` is still defined in server.py.
-    (Most recent HTTP handler: /api/aggressive-lab/annual-contrast — the owner's Annual-Contrast
-    SURFACE (advisory/paper-only: the 10-15% aggressive books' year-long equity vs the desk's REAL
-    steady ~5%, with dated drawdowns; OUTSIDE_RiskPolicy, never live-allocated). Before it the Lane 3
-    Aggressive-Lab SURFACE (/api/aggressive-lab/scorecard + /strategy/{id}) and the Lane C
-    underwriting-report surface (/api/underwriting/report + /proof + /full-chain), FLAG-GATED OFF
-    by default (SPA_UNDERWRITING_PUBLISH).)
+    (Most recent HTTP handlers: the DFB — DeFi Board LANE-2 surface — /api/dfb/pools,
+    /api/dfb/pool/{pool_id}, /api/dfb/pool/{pool_id}/history, /api/dfb/pool/{pool_id}/proof,
+    /api/dfb/summary — the public risk-first pool analytics (read-only/GET/fail-CLOSED:
+    every pool A/B/C/D + exit-liquidity-by-size + refusal verdict + a re-derivable proof
+    hash; missing data → honest "unavailable"; unknown pool_id → 404; serves Lane 1's
+    overlay verbatim, never forks the risk math). Before them the owner's Annual-Contrast
+    SURFACE (/api/aggressive-lab/annual-contrast), the Lane 3 Aggressive-Lab SURFACE
+    (/api/aggressive-lab/scorecard + /strategy/{id}), and the Lane C underwriting-report
+    surface (/api/underwriting/report + /proof + /full-chain), FLAG-GATED OFF by default
+    (SPA_UNDERWRITING_PUBLISH).)
     """
-    assert len(_app_route_table()) == 78
+    assert len(_app_route_table()) == 83
 
 
 def test_openapi_path_count_stable():
@@ -198,7 +208,7 @@ def test_openapi_path_count_stable():
     from fastapi.testclient import TestClient
     with TestClient(server.app) as c:
         paths = c.get("/openapi.json").json()["paths"]
-    assert len(paths) == 77  # 77 HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
+    assert len(paths) == 82  # 82 HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
 
 
 # ── Representative response-shape snapshot (one endpoint per tag group) ──────────
@@ -237,6 +247,11 @@ SHAPE_GOLDEN = {
         "thresholds", "underlyings", "verdict_counts",
     ),
     "/api/tournament": ("live", "mass_results", "meta", "server_time", "shadow_paper", "tournament", "trustworthy"),
+    # DFB (LANE 2): the screener fallback shape against an empty data dir (honest "unavailable").
+    "/api/dfb/pools": (
+        "available", "disclaimer", "generated_at", "is_advisory", "model",
+        "n_pools", "note", "pools", "reproduce",
+    ),
     "/api/v1/evidence": ("data", "source", "timestamp"),
     "/api/live/ping": ("ok", "ts", "version"),
 }

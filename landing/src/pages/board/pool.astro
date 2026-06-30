@@ -1,0 +1,40 @@
+---
+// /board/pool?id=<pool_id> — DFB pool detail (Lane-3 / WS-1.4).
+//
+// The site builds output:'static', so we CANNOT getStaticPaths the live pool universe
+// at build time (the API may be offline and the universe is dynamic). Instead this is a
+// single static page that is CLIENT-RENDERED: the <DfbPoolDetail /> island reads the
+// pool id from ?id=<pool_id> and consumes Lane-2's /api/dfb/pool/{id}(/history|/proof).
+// Fails CLOSED: unknown id → honest "not found", offline → "unavailable" (never fabricated).
+// The screener (/board) links each row to /board/pool?id=<pool_id>.
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import DfbPoolDetail from '../../components/DfbPoolDetail.jsx';
+---
+
+<Layout
+  title="Pool detail — DFB the DeFi Risk Board | earn-defi.com"
+  description="The full risk overlay for one pool: the exit-liquidity-by-size schedule, the refusal decomposition (structural / total haircut + tail-veto), the APY base/reward split, TVL, the captured history, and a reproducible proof hash. Don't trust us — check us. Paper research, advisory, not live."
+  canonical="https://earn-defi.com/board/pool"
+>
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <section class="pt-14 pb-2">
+      <p class="text-xs font-mono mb-4">
+        <a href="/board" style="color:var(--text-muted)" data-ru="← DFB риск-борд">← DFB risk board</a>
+      </p>
+      <div class="inline-flex items-center gap-2 mb-2 px-3 py-1.5 rounded-full text-xs font-mono"
+           style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">
+        <span class="w-1.5 h-1.5 rounded-full" style="background:var(--accent)" aria-hidden="true"></span>
+        <span data-ru="DFB · advisory · read-only · не live">DFB · advisory · read-only · not live</span>
+      </div>
+    </section>
+
+    <section class="pb-16">
+      <DfbPoolDetail client:load />
+    </section>
+
+  </main>
+
+  <Disclaimer />
+</Layout>

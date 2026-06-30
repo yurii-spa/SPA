@@ -1,0 +1,86 @@
+---
+// /board — DFB · the DeFi Risk Board (Lane-3 / WS-1.4 screener).
+//
+// "DeBank shows you the yield; DFB shows you the RISK behind the yield — provably."
+//
+// This is the public face of DFB: a sortable/filterable risk-first pool screener.
+// It renders inside <Layout> (canonical SiteHeader + PaperStrip + SiteFooter + Console
+// design tokens) so it is one site, not a separate app. The live surface is the
+// <DfbScreener /> React island (client:load), which CONSUMES Lane-2's read-only
+// /api/dfb/pools + /api/dfb/summary contract and fails CLOSED offline (honest
+// "unavailable", never a fabricated table). Advisory / read-only / paper-project.
+// Bilingual EN|RU via the site's data-ru / spa_lang mechanism.
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import DfbScreener from '../../components/DfbScreener.jsx';
+---
+
+<Layout
+  title="DFB — the DeFi Risk Board | earn-defi.com"
+  description="DeBank shows you the yield; DFB shows you the RISK behind the yield — provably. A risk-first pool screener: each pool with its A/B/C/D risk class, exit-liquidity-by-size at $1M / $5M / $10M, a deterministic refuse verdict (SAFE / WATCH / REFUSE), and a reproducible proof hash. Paper research, advisory, not live."
+  canonical="https://earn-defi.com/board"
+>
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- ====================== a. WHAT IT IS ====================== -->
+    <section class="pt-16 pb-8">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full text-xs font-mono"
+           style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">
+        <span class="w-1.5 h-1.5 rounded-full" style="background:var(--accent)" aria-hidden="true"></span>
+        <span data-ru="DFB · Paper-исследование · advisory · read-only · не live">DFB · Paper research · advisory · read-only · not live</span>
+      </div>
+
+      <p class="text-xs font-mono uppercase tracking-[0.12em] mb-3" style="color:var(--text-faint)"
+         data-ru="DFB — DeFi-риск-борд">DFB — the DeFi Risk Board</p>
+      <h1 class="text-4xl sm:text-5xl font-bold mb-5 leading-tight" style="color:var(--text-primary)"
+          data-ru="DeBank показывает доходность — DFB показывает РИСК за ней.">
+        DeBank shows you the yield. DFB shows you the <span style="color:var(--accent)">risk</span> behind it.
+      </h1>
+      <p class="text-lg leading-relaxed max-w-3xl" style="color:var(--text-secondary)"
+         data-ru="Каждый пул: класс риска A/B/C/D, ликвидность-на-выход-по-размеру ($1M / $5M / $10M), детерминированный вердикт отказа (SAFE / WATCH / REFUSE) и воспроизводимый proof. Не выдуманные оценки — детерминированный, LLM-free, fail-closed риск-движок, тот же, что у самого стола. Не верь — проверь.">
+        Every pool, risk-first: its <strong style="color:var(--text-primary)">A/B/C/D risk class</strong>,
+        its <strong style="color:var(--text-primary)">exit-liquidity-by-size</strong> ($1M / $5M / $10M OUT),
+        a deterministic <strong style="color:var(--text-primary)">refuse verdict</strong> (SAFE / WATCH / REFUSE),
+        and a <strong style="color:var(--text-primary)">reproducible proof hash</strong> on every row. Not an
+        opaque AI score — a deterministic, LLM-free, fail-closed risk engine, the same one the desk runs on
+        its own book. Don't trust us — check us.
+      </p>
+    </section>
+
+    <!-- ====================== b. THE HONESTY CONTRACT (stated, not hidden) ====================== -->
+    <section class="pb-8">
+      <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
+        <p class="text-xs uppercase tracking-wider font-mono mb-3" style="color:var(--accent-hover)"
+           data-ru="Что эта таблица показывает (и чего НЕ делает)">What this board shows (and never does)</p>
+        <ul class="space-y-2.5 text-sm leading-relaxed" style="color:var(--text-secondary)">
+          <li class="flex gap-2.5">
+            <span class="shrink-0 mt-0.5" style="color:var(--accent)" aria-hidden="true">▸</span>
+            <span data-ru="Класс риска и вердикт отказа берутся ПРЯМО из риск-движка — UI их не пересчитывает и не смягчает.">
+              The risk class and refuse verdict come <strong style="color:var(--text-primary)">straight from the engine</strong> —
+              the UI never recomputes or softens them.</span>
+          </li>
+          <li class="flex gap-2.5">
+            <span class="shrink-0 mt-0.5" style="color:var(--accent)" aria-hidden="true">▸</span>
+            <span data-ru="Если тикета не хватает ликвидности на выход, ячейка помечается «флаг» — НИКОГДА не заполняется выдуманным поглощаемым числом.">
+              If a ticket lacks exit liquidity, the cell is flagged <span class="font-mono">flagged</span> —
+              <strong style="color:var(--text-primary)">never</strong> backfilled with a fabricated absorbable number.</span>
+          </li>
+          <li class="flex gap-2.5">
+            <span class="shrink-0 mt-0.5" style="color:var(--accent)" aria-hidden="true">▸</span>
+            <span data-ru="Если API недоступно — честное «недоступно», а не устаревшая-как-живая или выдуманная таблица.">
+              If the API is offline, you get an honest <span class="font-mono">unavailable</span> — never a
+              stale-as-live or fabricated table.</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ====================== c. THE SCREENER (the differentiator) ====================== -->
+    <section class="pb-16">
+      <DfbScreener client:load />
+    </section>
+
+  </main>
+
+  <Disclaimer />
+</Layout>

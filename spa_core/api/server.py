@@ -160,6 +160,7 @@ app.add_middleware(RateLimitMiddleware)
 from spa_core.api.routers import (  # noqa: E402
     aggressive_lab,
     competitive_watch,
+    dfb,
     live,
     misc,
     optimizer,
@@ -188,6 +189,9 @@ app.include_router(redteam.router)
 # Lane C (Layer-3 moat) — the underwriting report surface is FLAG-GATED OFF by default
 # (SPA_UNDERWRITING_PUBLISH); every route 404s until the owner flips the flag.
 app.include_router(underwriting.router)
+# DFB — DeFi Board (LANE 2): the public risk-first pool-analytics surface (/api/dfb/*).
+# Read-only, GET-only, fail-CLOSED; serves Lane 1's risk overlay verbatim (never forks the math).
+app.include_router(dfb.router)
 
 
 # ─── Backward-compatible handler re-exports ───────────────────────────────────
@@ -244,6 +248,12 @@ v1_evidence = v1.v1_evidence
 
 get_tournament = tournament.get_tournament
 get_tournament_status = tournament.get_tournament_status
+
+get_dfb_pools = dfb.get_dfb_pools
+get_dfb_pool = dfb.get_dfb_pool
+get_dfb_pool_history = dfb.get_dfb_pool_history
+get_dfb_pool_proof = dfb.get_dfb_pool_proof
+get_dfb_summary = dfb.get_dfb_summary
 
 
 # ─── Dev entrypoint ──────────────────────────────────────────────────────────

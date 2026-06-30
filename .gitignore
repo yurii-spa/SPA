@@ -45,6 +45,7 @@ data/**/*.json
 data/*.db-journal
 data/backups/
 data/*.jsonl
+data/**/*.jsonl
 logs/*.log
 *.log
 /tmp/
