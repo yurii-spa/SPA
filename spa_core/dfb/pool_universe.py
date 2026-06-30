@@ -192,19 +192,38 @@ def _pools_from_surface(surface: Optional[dict]) -> List[Pool]:
     return [out[k] for k in sorted(out.keys())]
 
 
-def build_universe(surface: Optional[dict] = None, as_of: Optional[str] = None) -> List[Pool]:
-    """The full followed-pool universe: registry adapters + rates-desk PT markets, de-duplicated by
-    `pool_id` (deterministic, SORTED). Same inputs → byte-identical list.
+def breadth_enabled(override: Optional[bool] = None) -> bool:
+    """Whether breadth ingestion is ON (the SPA_DFB_BREADTH flag). Thin re-export of
+    breadth_feed.breadth_enabled so callers can resolve the flag without importing the feed."""
+    from spa_core.dfb import breadth_feed
+    return breadth_feed.breadth_enabled(override)
+
+
+def build_universe(
+    surface: Optional[dict] = None,
+    as_of: Optional[str] = None,
+    *,
+    include_breadth: Optional[bool] = None,
+    breadth_rows: Optional[List[dict]] = None,
+) -> List[Pool]:
+    """The full followed-pool universe: registry adapters + rates-desk PT markets (+ keyless breadth
+    pools when SPA_DFB_BREADTH is ON), de-duplicated by `pool_id` (deterministic, SORTED). Same inputs
+    → byte-identical list.
 
     `as_of` stamps the undated registry adapters (a "latest" live feed has no intrinsic date; the
     DATA date is the day it was read — passed explicitly for determinism, defaulting to the surface
     date, else UTC today). The rates-desk surface markets keep their OWN carried `as_of`.
+
+    `include_breadth` (None → the SPA_DFB_BREADTH flag) widens the universe to keyless DeFiLlama pools
+    BEYOND the curated whitelist. Every breadth pool is a plain identity row that the SAME overlay then
+    grades (0 bypass — never a watered-down grade). `breadth_rows` injects the raw /pools list (tests).
 
     fail-CLOSED: a pool with no live APY/TVL is KEPT (identity row with `None` cells) — a hole, never
     dropped and never 0-coerced. The surface is read from the cache unless injected (tests/hermetic)."""
     import datetime as _dt
 
     from spa_core.adapters import ADAPTER_REGISTRY  # read-only registry (lazy: keep import side-effect-free)
+    from spa_core.dfb import breadth_feed
 
     surf = surface if surface is not None else _read_surface()
     stamp = as_of or (surf.get("as_of") if isinstance(surf, dict) else None) or \
@@ -229,6 +248,13 @@ def build_universe(surface: Optional[dict] = None, as_of: Optional[str] = None) 
 
     for pool in _pools_from_surface(surf):
         if pool.pool_id not in by_id:   # never clobber a registry identity row
+            by_id[pool.pool_id] = pool
+
+    # breadth slice (flagged) — keyless DeFiLlama pools beyond the whitelist. NEVER clobbers a curated
+    # row; every breadth pool is a plain identity row the overlay grades the SAME way (0 bypass).
+    for pool in breadth_feed.build_breadth_pools(
+        enabled=include_breadth, rows=breadth_rows, as_of=stamp):
+        if pool.pool_id not in by_id:
             by_id[pool.pool_id] = pool
 
     return [by_id[k] for k in sorted(by_id.keys())]

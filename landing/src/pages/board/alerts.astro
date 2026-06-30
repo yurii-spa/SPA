@@ -1,0 +1,91 @@
+---
+// /board/alerts — DFB · the alert feed (Month-2 Lane-B / WS-2.3).
+//
+// "DeBank tells you what changed; DFB tells you when a pool you watch just became one the
+//  desk would REFUSE." The killer alert is REFUSAL_FLIP (SAFE/WATCH → REFUSE).
+//
+// Renders inside <Layout> (canonical SiteHeader + PaperStrip + SiteFooter + Console tokens)
+// so it is one site, not a separate app. The live surface is the <DfbAlerts /> React island
+// (client:load), which CONSUMES Lane-2's read-only /api/dfb/alerts contract, fails CLOSED
+// offline (honest "unavailable", never a fabricated alert), and keeps a single-user,
+// localStorage-only WATCHLIST (no accounts, like the academy progress). Advisory / read-only.
+// Bilingual EN|RU via the site's data-ru / spa_lang mechanism. Linked from /board.
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import DfbAlerts from '../../components/DfbAlerts.jsx';
+---
+
+<Layout
+  title="Alerts — DFB the DeFi Risk Board | earn-defi.com"
+  description="The DFB alert feed: the desk's own kill signals on every followed pool — REFUSAL_FLIP (a pool just flipped to a verdict the desk would refuse), exit-liquidity collapse, peg/structural spike, APY collapse, TVL drain. Severity-ranked, deterministic, reused from the same engine the desk runs on its own book. Build a localStorage watchlist to track specific pools. Paper research, advisory, not live."
+  canonical="https://earn-defi.com/board/alerts"
+>
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <section class="pt-14 pb-2">
+      <p class="text-xs font-mono mb-4">
+        <a href="/board" style="color:var(--text-muted)" data-ru="← DFB риск-борд">← DFB risk board</a>
+      </p>
+    </section>
+
+    <!-- ====================== a. WHAT IT IS ====================== -->
+    <section class="pb-8">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full text-xs font-mono"
+           style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">
+        <span class="w-1.5 h-1.5 rounded-full" style="background:var(--accent)" aria-hidden="true"></span>
+        <span data-ru="DFB · Алерты · advisory · read-only · не live">DFB · Alerts · advisory · read-only · not live</span>
+      </div>
+
+      <p class="text-xs font-mono uppercase tracking-[0.12em] mb-3" style="color:var(--text-faint)"
+         data-ru="DFB — лента алертов">DFB — the alert feed</p>
+      <h1 class="text-4xl sm:text-5xl font-bold mb-5 leading-tight" style="color:var(--text-primary)"
+          data-ru="Когда пул, который ты наблюдаешь, становится тем, от которого стол откажется.">
+        When a pool you watch becomes one the desk would <span style="color:var(--accent)">refuse</span>.
+      </h1>
+      <p class="text-lg leading-relaxed max-w-3xl" style="color:var(--text-secondary)"
+         data-ru="Каждый алерт — собственный kill-сигнал риск-движка (тот же evaluate_hold, что у стола на своей книге): REFUSAL_FLIP (флип SAFE/WATCH → ОТКАЗ — killer), обвал ликвидности выхода, скачок пега/структуры, обвал APY, отток TVL. Ранжировано по серьёзности, детерминированно, fail-closed. Собери watchlist (хранится только в браузере), чтобы следить за конкретными пулами. Не верь — проверь.">
+        Every alert is the risk engine's <strong style="color:var(--text-primary)">own kill signal</strong> (the same
+        <span class="font-mono">evaluate_hold</span> the desk runs on its own book): <strong style="color:var(--text-primary)">REFUSAL_FLIP</strong>
+        (a SAFE/WATCH → REFUSE crossing — the killer), exit-liquidity collapse, peg/structural spike, APY collapse,
+        TVL drain. Severity-ranked, deterministic, fail-closed. Build a <strong style="color:var(--text-primary)">watchlist</strong>
+        (stored only in your browser) to track specific pools. Don't trust us — check us.
+      </p>
+    </section>
+
+    <!-- ====================== b. THE HONESTY CONTRACT ====================== -->
+    <section class="pb-8">
+      <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
+        <p class="text-xs uppercase tracking-wider font-mono mb-3" style="color:var(--accent-hover)"
+           data-ru="Что эта лента делает (и чего НЕ делает)">What this feed does (and never does)</p>
+        <ul class="space-y-2.5 text-sm leading-relaxed" style="color:var(--text-secondary)">
+          <li class="flex gap-2.5">
+            <span class="shrink-0 mt-0.5" style="color:var(--accent)" aria-hidden="true">▸</span>
+            <span data-ru="REFUSAL_FLIP (флип в ОТКАЗ) — главный сигнал; он всегда наверху и никогда не скрывается.">
+              <strong style="color:var(--text-primary)">REFUSAL_FLIP</strong> — the killer signal — always renders at the top
+              and can never be hidden or softened.</span>
+          </li>
+          <li class="flex gap-2.5">
+            <span class="shrink-0 mt-0.5" style="color:var(--accent)" aria-hidden="true">▸</span>
+            <span data-ru="Пул без предыдущего снимка истории НЕ генерирует флип — нельзя утверждать переход, которого ты не наблюдал (fail-closed).">
+              A pool with no prior captured snapshot fires <strong style="color:var(--text-primary)">no flip</strong> — you
+              cannot assert a transition you never observed (fail-closed).</span>
+          </li>
+          <li class="flex gap-2.5">
+            <span class="shrink-0 mt-0.5" style="color:var(--accent)" aria-hidden="true">▸</span>
+            <span data-ru="Watchlist хранится ТОЛЬКО в твоём браузере (localStorage) — никаких аккаунтов, никакого серверного состояния.">
+              The watchlist lives <strong style="color:var(--text-primary)">only in your browser</strong> (localStorage) —
+              no accounts, no server-side state.</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ====================== c. THE FEED ====================== -->
+    <section class="pb-16">
+      <DfbAlerts client:load />
+    </section>
+
+  </main>
+
+  <Disclaimer />
+</Layout>

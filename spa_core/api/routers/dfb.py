@@ -45,6 +45,7 @@ stdlib-only (FastAPI is the documented exception); deterministic; LLM-FORBIDDEN;
 
 from __future__ import annotations
 
+import json as _json
 import logging
 import re
 
@@ -264,6 +265,46 @@ def get_dfb_pool_history(
 
 
 # ──────────────────────────────────────────────────────────────────────────────────────
+# GET /api/dfb/pool/{pool_id}/trend — APY/TVL/refusal-state TREND summary (THIN-aware)
+# ──────────────────────────────────────────────────────────────────────────────────────
+@router.get("/api/dfb/pool/{pool_id}/trend")
+def get_dfb_pool_trend(pool_id: str):
+    """ONE pool's TREND summary derived from its captured history (WS-2.1).
+
+    Returns the 7d/30d APY + TVL deltas, every refusal-state FLIP over time, and sparkline-ready
+    series — computed from OUR OWN captured `data/dfb/history/<pool_id>.jsonl` (NO risk math; pure
+    deltas on the engine's already-published verdicts). THIN-aware + fail-CLOSED: with < 2 captured
+    points, every delta is null and each window is labeled INSUFFICIENT_DATA (NEVER extrapolated).
+    An invalid pool_id → 404; a known pool with no history yet → 200 + a vacuously-thin summary
+    (absence is honest, not a guess). is_advisory ALWAYS true; NaN/inf scrubbed."""
+    if not _valid_pool_id(pool_id):
+        raise HTTPException(status_code=404, detail={
+            "error": "unknown_pool",
+            "pool_id": pool_id,
+            "note": "fail-CLOSED: invalid pool_id; no trend is fabricated.",
+        })
+    try:
+        from spa_core.dfb import trends as dfb_trends
+        summary = dfb_trends.compute_trend(pool_id, data_dir=data_dir())
+    except Exception as e:  # noqa: BLE001 — graceful, never 500
+        log.warning(f"dfb trend compute failed for {pool_id}: {e}")
+        summary = {"pool_id": pool_id, "n_points": 0, "thin": True, "deltas": {},
+                   "series": {"apy_total": [], "tvl_usd": []}, "refusal_state_changes": []}
+
+    return scrub_nonfinite({
+        "generated_at": now(),
+        "model": "dfb_pool_trend",
+        "is_advisory": True,
+        **summary,
+        "disclaimer": _DISCLAIMER,
+        "reproduce": _reproduce_block(
+            [f"dfb/history/{pool_id}.jsonl"],
+            "Trend deltas are pure arithmetic over the published, proof-chained history series; "
+            "re-derive the same deltas from the JSONL — thin history is labeled, never extrapolated."),
+    })
+
+
+# ──────────────────────────────────────────────────────────────────────────────────────
 # GET /api/dfb/pool/{pool_id}/proof — the per-pool proof chain VERBATIM (uncapped)
 # ──────────────────────────────────────────────────────────────────────────────────────
 @router.get("/api/dfb/pool/{pool_id}/proof", response_class=PlainTextResponse)
@@ -298,6 +339,141 @@ def get_dfb_pool_proof(pool_id: str):
                     "or empty body is served.",
         })
     return PlainTextResponse(content=raw, media_type="text/plain; charset=utf-8")
+
+
+# ──────────────────────────────────────────────────────────────────────────────────────
+# GET /api/dfb/alerts — recent alerts across the universe, severity-ranked (Lane-B / WS-2.3)
+# ──────────────────────────────────────────────────────────────────────────────────────
+def _read_alerts_payload() -> dict:
+    """Load data/dfb/alerts.json (the proof-chained current alert set), fail-CLOSED.
+
+    Returns an honest empty payload if missing/corrupt — NEVER a fabricated alert. The alert set is
+    the SPA engine's OWN kill signals (evaluate_hold) + presentation deltas over the published
+    overlay; a pool with no prior captured snapshot fires no transition alert (fail-CLOSED upstream).
+    """
+    raw = read_state("dfb/alerts.json", None)
+    if not isinstance(raw, dict):
+        return {"available": False, "alerts": [], "n_alerts": 0, "as_of": None}
+    alerts = raw.get("alerts")
+    if not isinstance(alerts, list):
+        alerts = []
+    raw["alerts"] = [a for a in alerts if isinstance(a, dict)]
+    raw.setdefault("available", bool(raw["alerts"]) or raw.get("n_alerts", 0) >= 0)
+    return raw
+
+
+@router.get("/api/dfb/alerts")
+def get_dfb_alerts(
+    limit: int = Query(default=200, ge=1, le=2000),
+    severity: str = Query(default="ALL"),
+    pool_id: str = Query(default=""),
+):
+    """RECENT ALERTS across the DFB universe, SEVERITY-RANKED (REFUSAL_FLIP — the killer — first).
+
+    Each alert is the SPA risk engine's OWN kill signal (evaluate_hold: REFUSAL_FLIP, EXIT_LIQUIDITY_
+    DROP, PEG_IL_SPIKE) or a presentation delta over the published overlay (APY_COLLAPSE, TVL_DRAIN).
+    Served VERBATIM from data/dfb/alerts.json (already severity-sorted + proof-chained upstream).
+
+    Optional filters: `severity` (critical|high|medium|ALL), `pool_id` (one pool's alerts — for a
+    client watchlist that requests its tracked set). Read-only, fail-CLOSED: a missing/corrupt
+    alerts.json → 200 with an honest empty list (NEVER a 500, NEVER a fabricated alert). is_advisory
+    ALWAYS true; NaN/inf scrubbed."""
+    payload = _read_alerts_payload()
+    alerts = payload.get("alerts", [])
+    sev = severity.strip().lower()
+    if sev and sev != "all":
+        alerts = [a for a in alerts if str(a.get("severity", "")).lower() == sev]
+    if pool_id:
+        if not _valid_pool_id(pool_id):
+            alerts = []
+        else:
+            alerts = [a for a in alerts if a.get("pool_id") == pool_id]
+    # already severity-ranked upstream; bound by limit (most-severe first → take the head).
+    alerts = alerts[:limit]
+    available = bool(payload.get("available")) and bool(payload.get("alerts"))
+    return scrub_nonfinite({
+        "generated_at": now(),
+        "model": "dfb_alerts",
+        "is_advisory": True,
+        "available": available,
+        "as_of": payload.get("as_of"),
+        "n_alerts": len(alerts),
+        "n_refusal_flips": payload.get("n_refusal_flips", 0),
+        "by_severity": payload.get("by_severity", {}),
+        "by_type": payload.get("by_type", {}),
+        "alerts": alerts,
+        "note": (
+            None if available
+            else "DFB alerts unavailable — data/dfb/alerts.json missing or corrupt, OR no alert "
+                 "has fired yet. No fabricated alert is served (fail-CLOSED)."
+        ),
+        "disclaimer": _DISCLAIMER,
+        "reproduce": _reproduce_block(
+            ["dfb/alerts.json"],
+            "Each alert carries its own row_hash over its canonical-JSON body; the killer signal "
+            "(REFUSAL_FLIP) is the engine's own SAFE/WATCH→REFUSE crossing — re-derive per "
+            "PROOF_CHAIN_SPEC.md to confirm no alert was fabricated or suppressed."),
+    })
+
+
+# ──────────────────────────────────────────────────────────────────────────────────────
+# GET /api/dfb/pool/{pool_id}/alerts — one pool's alert history (the append-only log)
+# ──────────────────────────────────────────────────────────────────────────────────────
+@router.get("/api/dfb/pool/{pool_id}/alerts")
+def get_dfb_pool_alerts(
+    pool_id: str,
+    limit: int = Query(default=200, ge=1, le=2000),
+):
+    """ONE pool's ALERT HISTORY — the append-only, proof-chained alert log filtered to this pool.
+
+    Reads data/dfb/alerts.jsonl (one alert per line, chained via prev_hash/row_hash) and returns the
+    records for `pool_id` (ascending). The whole-log chain is VERIFIED before returning. Read-only,
+    fail-CLOSED: an absent log → 200 with an empty, vacuously-valid chain (NEVER a 500); an invalid
+    pool_id → 404 (a guess is a lie). NaN/inf scrubbed."""
+    if not _valid_pool_id(pool_id):
+        raise HTTPException(status_code=404, detail={
+            "error": "unknown_pool",
+            "pool_id": pool_id,
+            "note": "fail-CLOSED: invalid pool_id; no alert history is fabricated.",
+        })
+    path = data_dir() / "dfb" / "alerts.jsonl"
+    rows: list = []
+    if path.exists():
+        try:
+            for ln in path.read_text(encoding="utf-8").splitlines():
+                ln = ln.strip()
+                if not ln:
+                    continue
+                parsed = parse_log_line(ln, corrupt_marker=_CORRUPT)
+                rows.append(_CORRUPT_ROW if parsed is _CORRUPT else parsed)
+        except OSError as e:
+            log.warning(f"dfb pool alerts read failed for {pool_id}: {e}")
+
+    chain = _verify_alert_log_chain(rows)
+    series = [r for r in rows if isinstance(r, dict) and not r.get("__corrupt__")
+              and r.get("pool_id") == pool_id]
+    series = series[-limit:]
+
+    return scrub_nonfinite({
+        "generated_at": now(),
+        "model": "dfb_pool_alerts",
+        "is_advisory": True,
+        "pool_id": pool_id,
+        "n_alerts": len(series),
+        "chain": {
+            "verified": bool(chain["valid"]),
+            "chain_length": chain["length"],
+            "head_hash": chain["head_hash"],
+            "broken_at": chain["broken_at"],
+            "spec": "docs/PROOF_CHAIN_SPEC.md",
+        },
+        "alerts": series,
+        "disclaimer": _DISCLAIMER,
+        "reproduce": _reproduce_block(
+            ["dfb/alerts.jsonl"],
+            "The full append-only alert log chains via prev_hash/row_hash; re-derive each row_hash "
+            "per PROOF_CHAIN_SPEC.md. A suppressed or back-dated alert breaks the chain."),
+    })
 
 
 # ──────────────────────────────────────────────────────────────────────────────────────
@@ -367,6 +543,86 @@ def get_dfb_summary():
 
 
 # ──────────────────────────────────────────────────────────────────────────────────────
+# GET /api/dfb/portfolio/{address} — the READ-ONLY portfolio risk lens (WS-2.4, LANE C)
+#   FLAG-GATED behind SPA_DFB_PORTFOLIO_LENS (default OFF → 404, no surface leak).
+# ──────────────────────────────────────────────────────────────────────────────────────
+# A read-only address as the LABEL only — bounded charset (EVM 0x40-hex / ENS / generic
+# account / path-safe). Defense-in-depth: a path-traversing string never flows downstream.
+_ADDRESS_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9:_.\-]{1,255}$")
+
+
+def _read_published_overlay_rows() -> dict:
+    """pool_id → published overlay row dict (data/dfb/pools.json), served VERBATIM. The lens grades
+    declared holdings against THESE already-proof-hashed rows — never a live engine run, byte-identical
+    to the screener. fail-CLOSED: missing/corrupt universe → {} (an honest empty universe)."""
+    return {p["pool_id"]: p for p in _read_pools_list()
+            if isinstance(p.get("pool_id"), str) and p.get("pool_id")}
+
+
+@router.get("/api/dfb/portfolio/{address}")
+def get_dfb_portfolio(
+    address: str,
+    holdings: str = Query(
+        default="",
+        description="URL-encoded JSON array of declared holdings "
+                    "[{\"pool_id\":\"...\",\"value_usd\":123}] — the caller DECLARES what they hold "
+                    "against the followed universe (SPA is keyless: no chain balance is read)."),
+):
+    """READ-ONLY PORTFOLIO RISK LENS — paste a read-only address + declared holdings → each position
+    risk-graded with the SAME overlay the screener uses (A/B/C/D + refusal verdict + exit-liquidity-
+    by-size) + a portfolio-level risk summary (% per class, total exit-liquidity-at-size, every
+    REFUSE-grade holding flagged).
+
+    FLAG-GATED: behind SPA_DFB_PORTFOLIO_LENS (owner-gated, default OFF). Flag OFF → 404 (total, no
+    surface leak — the endpoint does not exist).
+
+    HONEST DATA-SOURCE LIMIT (stamped on every response): SPA is keyless/read-only with NO multi-chain
+    balance-reading infra, so arbitrary-address keyless balance discovery is NOT wired and NOT
+    fabricated. Positions come from the caller-DECLARED holdings (the feasible-today source). The
+    address is a READ-ONLY label — no signing, no key, no custody, no wallet-connect.
+
+    Fail-CLOSED: an invalid/path-traversing address → 404; a holding in an unknown pool → flagged
+    `unresolved` (never a fabricated position); a malformed `holdings` param → honest empty book.
+    is_advisory ALWAYS true; NaN/inf scrubbed."""
+    # ── flag gate FIRST: OFF → total 404 (the endpoint must not exist; no leak) ──
+    from spa_core.dfb import portfolio as _portfolio
+    if not _portfolio.lens_enabled():
+        raise HTTPException(status_code=404, detail={
+            "error": "portfolio_lens_disabled",
+            "note": "The DFB portfolio lens is OWNER-GATED (SPA_DFB_PORTFOLIO_LENS) and is OFF. "
+                    "This endpoint is disabled (fail-CLOSED).",
+        })
+
+    if not isinstance(address, str) or not _ADDRESS_RE.match(address):
+        raise HTTPException(status_code=404, detail={
+            "error": "invalid_address",
+            "note": "fail-CLOSED: not a valid read-only address label; nothing is resolved.",
+        })
+
+    # parse the declared holdings, fail-CLOSED (a malformed param → empty book, never a 500).
+    raw_holdings = []
+    if holdings.strip():
+        try:
+            parsed = _json.loads(holdings)
+            if isinstance(parsed, list):
+                raw_holdings = parsed
+        except (ValueError, TypeError):
+            raw_holdings = []
+
+    source = _portfolio.DeclaredHoldingsSource.from_raw(raw_holdings)
+    overlay_rows = _read_published_overlay_rows()
+    view = _portfolio.portfolio_view_from_published(address, source, overlay_rows)
+
+    view["generated_at"] = now()
+    view["available"] = bool(overlay_rows)
+    view["reproduce"] = _reproduce_block(
+        ["dfb/pools.json"],
+        "Each graded position carries the published pool's row_hash; re-derive it with "
+        "scripts/verify_dfb_pool.py to confirm the risk grade was not back-fitted for this view.")
+    return scrub_nonfinite(view)
+
+
+# ──────────────────────────────────────────────────────────────────────────────────────
 # Chain verification (delegates to the shared proof_chain verifier — NEVER forks the math)
 # ──────────────────────────────────────────────────────────────────────────────────────
 def _verify_history_chain(rows: list) -> dict:
@@ -390,4 +646,21 @@ def _verify_history_chain(rows: list) -> dict:
         return books_series.verify_series(rows)
     except Exception as e:  # noqa: BLE001 — graceful, never 500
         log.warning(f"dfb history: chain verify failed: {e}")
+        return {"valid": False, "length": len(rows), "broken_at": None, "head_hash": None}
+
+
+def _verify_alert_log_chain(rows: list) -> dict:
+    """Verify the alert-log JSONL as ONE chain via the canonical alert-chain verifier
+    (`spa_core.dfb.alerts.verify_log_rows`). DFB defines no chain math here — the alert-log
+    prev_hash/row_hash scheme lives only in the alerts module (no-fork). fail-CLOSED if the module
+    is unavailable or any row is malformed."""
+    try:
+        from spa_core.dfb import alerts as dfb_alerts
+    except Exception as e:  # noqa: BLE001 — fail-CLOSED
+        log.warning(f"dfb alerts: verifier import failed: {e}")
+        return {"valid": False, "length": len(rows), "broken_at": None, "head_hash": None}
+    try:
+        return dfb_alerts.verify_log_rows(rows)
+    except Exception as e:  # noqa: BLE001 — graceful, never 500
+        log.warning(f"dfb alerts: chain verify failed: {e}")
         return {"valid": False, "length": len(rows), "broken_at": None, "head_hash": None}

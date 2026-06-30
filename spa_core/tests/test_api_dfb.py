@@ -189,7 +189,26 @@ def test_smoke_all_endpoints_public_get(populated_client):
     assert client.get("/api/dfb/pool/dfb_pool_a").status_code == 200
     assert client.get("/api/dfb/pool/dfb_pool_a/history").status_code == 200
     assert client.get("/api/dfb/pool/dfb_pool_a/proof").status_code == 200
+    assert client.get("/api/dfb/pool/dfb_pool_a/trend").status_code == 200
     assert client.get("/api/dfb/summary").status_code == 200
+
+
+def test_trend_endpoint_serves_shape_and_thin_aware(populated_client):
+    """SMOKE/PROPERTY: the trend endpoint serves a deterministic shape (deltas {7d,30d}, series,
+    refusal_state_changes) and is THIN-aware (an invalid id → 404; a no-history pool → thin 200)."""
+    client, _, _ = populated_client
+    body = client.get("/api/dfb/pool/dfb_pool_a/trend").json()
+    assert body["model"] == "dfb_pool_trend"
+    assert body["is_advisory"] is True
+    assert "7d" in body["deltas"] and "30d" in body["deltas"]
+    assert "apy_total" in body["series"] and "tvl_usd" in body["series"]
+    assert isinstance(body["refusal_state_changes"], list)
+    # a known pool with NO captured history → vacuously thin, never a fabricated trend
+    no_hist = client.get("/api/dfb/pool/dfb_pool_toxic/trend").json()
+    assert no_hist["thin"] is True
+    assert no_hist["deltas"]["7d"]["status"] == "INSUFFICIENT_DATA"
+    # invalid pool_id → 404 (no fabricated trend)
+    assert client.get("/api/dfb/pool/..%2f..%2fsecret/trend").status_code == 404
 
 
 def test_pools_serves_full_list_verbatim(populated_client):

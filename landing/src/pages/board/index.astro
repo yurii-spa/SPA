@@ -75,9 +75,41 @@ import DfbScreener from '../../components/DfbScreener.jsx';
       </div>
     </section>
 
+    <!-- ====================== b2. SECTION NAV (alerts) ====================== -->
+    <section class="pb-8">
+      <a href="/board/alerts"
+         class="flex items-center justify-between gap-4 rounded-xl p-5 transition-colors"
+         style="background:var(--bg-surface);border:1px solid var(--border)">
+        <div>
+          <p class="text-sm font-semibold mb-1" style="color:var(--text-primary)"
+             data-ru="Лента алертов → когда пул, который ты наблюдаешь, становится тем, от которого стол откажется">
+            Alert feed → when a pool you watch becomes one the desk would refuse</p>
+          <p class="text-xs" style="color:var(--text-muted)"
+             data-ru="REFUSAL_FLIP (killer), обвал ликвидности/пега/APY/TVL · watchlist в браузере · тот же движок, fail-closed">
+            REFUSAL_FLIP (the killer), exit/peg/APY/TVL collapses · browser-only watchlist · same engine, fail-closed</p>
+        </div>
+        <span class="font-mono text-sm shrink-0" style="color:var(--accent)" aria-hidden="true">→</span>
+      </a>
+    </section>
+
     <!-- ====================== c. THE SCREENER (the differentiator) ====================== -->
-    <section class="pb-16">
+    <section class="pb-8">
       <DfbScreener client:load />
+    </section>
+
+    <!-- ====================== d. THE PORTFOLIO LENS (read-only, owner-gated) ====================== -->
+    <section class="pb-16">
+      <a href="/board/portfolio" class="block rounded-xl p-6 transition-colors"
+         style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
+        <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--accent-hover)"
+           data-ru="Портфельная риск-линза (read-only) →">Portfolio risk lens (read-only) →</p>
+        <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+           data-ru="Вставьте read-only адрес и позиции — каждая получит класс A/B/C/D, ликвидность-на-выход и вердикт отказа, а сводка пометит всё, от чего стол бы отказался. Без кастодиана, без подписи.">
+          Paste a <strong style="color:var(--text-primary)">read-only address</strong> and your holdings —
+          each position graded A/B/C/D with its exit-liquidity and refuse verdict, plus a portfolio risk
+          summary that flags everything the desk would refuse. No custody, no signing.
+        </p>
+      </a>
     </section>
 
   </main>

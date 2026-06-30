@@ -109,42 +109,73 @@ def _resolve_kind(pool: Pool) -> Optional[UnderlyingKind]:
         return None
 
 
-def _build_risk(pool: Pool, kind: UnderlyingKind, as_of: str) -> Optional[UnderlyingRisk]:
-    """Build the engine's UnderlyingRisk for the pool — at-par for stables, fail-CLOSED for ETH kinds
-    whose live peg series we do not carry here (the overlay grades those UNKNOWN rather than fabricate
-    a benign peg=0). Uses ONLY documented rates-desk config constants (oracle / sla / nesting /
-    concentration) — the SAME ones the desk's UnderlyingRiskFeed uses, so the inputs match the desk."""
+def _build_risk(
+    pool: Pool, kind: UnderlyingKind, as_of: str, risk_feed=None,
+) -> Optional[UnderlyingRisk]:
+    """Build the engine's UnderlyingRisk for the pool — at-par for stables, and for ETH kinds (LST/LRT)
+    by INJECTING the desk's OWN live X/ETH peg series via `UnderlyingRiskFeed` (the SAME feed the desk
+    uses — NO new peg math here, just calling the engine's feed). fail-CLOSED: if the peg feed is
+    genuinely unavailable (no ratio history for the underlying), the ETH-kind pool stays UNKNOWN rather
+    than fabricate a benign peg=0 (which would HIDE LRT toxicity). Stables use ONLY documented rates-desk
+    config constants (oracle / sla / nesting / concentration) — the SAME ones the desk's
+    UnderlyingRiskFeed uses, so the inputs match the desk."""
     u = pool.asset.lower()
     if kind in (UnderlyingKind.STABLE_RWA, UnderlyingKind.STABLE_SYNTH):
         nav, mkt, peg, vol = Decimal("1"), Decimal("1"), D0, D0
-        # synthetic-dollar carry without a live per-underlying peg series uses the config funding
-        # signal only; a benign funding_neg_frac is documented per the desk's own default.
-        funding_neg = _d(rd_config.reserve_fund_ratio(u))  # placeholder share; replaced below
-    elif kind in (UnderlyingKind.LST, UnderlyingKind.LRT):
-        # We do NOT carry the live X/ETH peg series in the DFB overlay layer. fail-CLOSED: rather than
-        # fabricate peg=0 for an LRT (which would HIDE the toxicity), we require the caller to inject a
-        # peg surface (see overlay(risk_override=...)); without it the ETH-kind pool grades UNKNOWN.
-        return None
-    else:
-        return None
-    # funding_neg_frac_90d: the desk's systemic signal. We do not pull the 5-venue funding feed in the
-    # overlay layer (that is the desk's paper-tick job); a documented conservative default keeps the
-    # stable path honest (stables bear no perp leg under FIXED_CARRY → funding term is zeroed anyway).
-    return UnderlyingRisk(
-        underlying=u,
-        as_of=as_of,
-        nav_redemption_value=nav,
-        market_price=mkt,
-        peg_distance=peg,
-        peg_vol_30d=vol,
-        redemption_sla_seconds=rd_config.redemption_sla_seconds(u),
-        reserve_fund_ratio=_d(rd_config.reserve_fund_ratio(u)) or D0,
-        funding_neg_frac_90d=D0,
-        oracle_kind=rd_config.oracle_kind(u),
-        oracle_staleness_seconds=rd_config.oracle_staleness_seconds(u),
-        nested_protocol_count=rd_config.nested_protocol_count(u),
-        top_borrower_share=_d(rd_config.top_borrower_share(u)) or D0,
-    )
+        # funding_neg_frac_90d: the desk's systemic signal. We do not pull the 5-venue funding feed in
+        # the overlay layer for stables (that is the desk's paper-tick job); a documented conservative
+        # default keeps the stable path honest (stables bear no perp leg under FIXED_CARRY → the funding
+        # term is zeroed anyway). NO peg math invented — par is the documented stable reference.
+        return UnderlyingRisk(
+            underlying=u,
+            as_of=as_of,
+            nav_redemption_value=nav,
+            market_price=mkt,
+            peg_distance=peg,
+            peg_vol_30d=vol,
+            redemption_sla_seconds=rd_config.redemption_sla_seconds(u),
+            reserve_fund_ratio=_d(rd_config.reserve_fund_ratio(u)) or D0,
+            funding_neg_frac_90d=D0,
+            oracle_kind=rd_config.oracle_kind(u),
+            oracle_staleness_seconds=rd_config.oracle_staleness_seconds(u),
+            nested_protocol_count=rd_config.nested_protocol_count(u),
+            top_borrower_share=_d(rd_config.top_borrower_share(u)) or D0,
+        )
+    if kind in (UnderlyingKind.LST, UnderlyingKind.LRT):
+        # ── THE PEG-FEED WIRE (the UNKNOWN-grading fix) ──
+        # Call the desk's OWN UnderlyingRiskFeed to build the engine's UnderlyingRisk WITH the live
+        # X/ETH peg series (trailing-peak drawdown + downside-drift vol — the desk's peg logic, NOT
+        # re-implemented here). The feed is keyless (DeFiLlama price ratios) and the SAME object the
+        # rates-desk paper tick uses, so DFB and the desk see the byte-identical peg. fail-CLOSED: the
+        # feed RAISES when it has no ratio history for the underlying → we return None → UNKNOWN.
+        feed = risk_feed if risk_feed is not None else _default_risk_feed()
+        if feed is None:
+            return None
+        try:
+            risks = feed.risks(as_of, [u])
+        except Exception:  # noqa: BLE001 — fail-CLOSED: no live peg series → UNKNOWN (honest hole)
+            return None
+        return risks.get(u)
+    return None
+
+
+# A process-cached UnderlyingRiskFeed (keyless DeFiLlama price ratios). Created lazily so importing
+# the overlay never triggers a network feed; the desk's OWN feed object, imported not forked.
+_RISK_FEED_SINGLETON = None
+
+
+def _default_risk_feed():
+    """The default desk UnderlyingRiskFeed (keyless), process-cached. Returns None if the engine feed
+    cannot even be constructed (fail-CLOSED → ETH-kind pools stay UNKNOWN rather than crash)."""
+    global _RISK_FEED_SINGLETON
+    if _RISK_FEED_SINGLETON is not None:
+        return _RISK_FEED_SINGLETON
+    try:
+        from spa_core.strategy_lab.rates_desk.feeds import UnderlyingRiskFeed
+        _RISK_FEED_SINGLETON = UnderlyingRiskFeed()
+    except Exception:  # noqa: BLE001 — fail-CLOSED
+        _RISK_FEED_SINGLETON = None
+    return _RISK_FEED_SINGLETON
 
 
 def _exit_rows_from_depth(
@@ -304,12 +335,15 @@ def overlay(
     probe_size_usd: Decimal = DEFAULT_PROBE_SIZE_USD,
     risk_override: Optional[UnderlyingRisk] = None,
     exit_liquidity_usd: Optional[float] = None,
+    risk_feed=None,
 ) -> PoolOverlay:
     """Build the shared-contract PoolOverlay for ONE pool by CALLING the SPA engine. The seam.
 
-    `risk_override` lets a caller inject an engine UnderlyingRisk (e.g. a live LST/LRT peg surface, or
-    a red-team toxic surface) — without it, ETH-kind pools fail-CLOSED to UNKNOWN (we never fabricate
-    a peg). `exit_liquidity_usd` injects the §9 one-tick exit capacity (else derived from TVL × the
+    `risk_override` lets a caller inject an engine UnderlyingRisk directly (e.g. a red-team toxic
+    surface). `risk_feed` injects the desk's UnderlyingRiskFeed for the live LST/LRT X/ETH peg series
+    (default: the keyless desk feed); only if that feed has NO ratio history for the underlying does an
+    ETH-kind pool fail-CLOSED to UNKNOWN (we never fabricate a peg).
+    `exit_liquidity_usd` injects the §9 one-tick exit capacity (else derived from TVL × the
     impact band, the same conservative proxy the desk uses); thin → a flagged hole.
 
     Deterministic / fail-CLOSED. Same (pool, as_of, inputs) → byte-identical overlay (incl. hashes)."""
@@ -323,7 +357,7 @@ def overlay(
     if kind is None:
         return _flagged_overlay(pool, as_of, prev_hash, "unresolved_underlying_kind", p)
 
-    risk = risk_override if risk_override is not None else _build_risk(pool, kind, as_of)
+    risk = risk_override if risk_override is not None else _build_risk(pool, kind, as_of, risk_feed)
     if risk is None:
         return _flagged_overlay(pool, as_of, prev_hash, "insufficient_risk_surface", p)
 
@@ -369,14 +403,18 @@ def overlay(
     ))
 
 
-def build_overlays(pools, params: Optional[RatePolicyParams] = None) -> List[PoolOverlay]:
+def build_overlays(pools, params: Optional[RatePolicyParams] = None, risk_feed=None) -> List[PoolOverlay]:
     """Overlay EVERY pool, proof-CHAINED (each row's prev_hash = the previous row's row_hash; genesis
-    '0'*64). Deterministic order = the universe order. Same inputs → byte-identical chain."""
+    '0'*64). Deterministic order = the universe order. Same inputs → byte-identical chain.
+
+    `risk_feed` (the desk's UnderlyingRiskFeed) is built ONCE and shared across every pool so the live
+    X/ETH peg history is pulled a single time (LST/LRT pools all read the same cached ratios)."""
     p = params or RatePolicyParams()
+    feed = risk_feed if risk_feed is not None else _default_risk_feed()
     out: List[PoolOverlay] = []
     prev = DFB_GENESIS_PREV
     for pool in pools:
-        ov = overlay(pool, prev_hash=prev, params=p)
+        ov = overlay(pool, prev_hash=prev, params=p, risk_feed=feed)
         out.append(ov)
         prev = ov.row_hash
     return out
@@ -398,10 +436,15 @@ def verify_chain(overlays: List[PoolOverlay]) -> bool:
 # ── writer — data/dfb/pools.json (list) + data/dfb/pool/<pool_id>.json (detail) ─────────────────────
 def build_and_write(
     *, write: bool = True, data_dir=None, params: Optional[RatePolicyParams] = None, surface=None,
+    include_breadth: Optional[bool] = None, risk_feed=None,
 ) -> dict:
     """Build the universe, overlay every pool (proof-chained), and atomically write the shared-contract
     artifacts: data/dfb/pools.json (the screener list) + data/dfb/pool/<pool_id>.json (per-pool detail).
-    READ-ONLY everywhere except data/dfb/. Deterministic; same inputs → byte-identical files."""
+    READ-ONLY everywhere except data/dfb/. Deterministic; same inputs → byte-identical files.
+
+    `include_breadth` (None → resolve the SPA_DFB_BREADTH flag) widens the universe to keyless DeFiLlama
+    pools beyond the curated whitelist — EVERY one passing through the IDENTICAL overlay (0 bypass).
+    `risk_feed` injects the desk's UnderlyingRiskFeed (default keyless) for the live LST/LRT peg series."""
     import datetime
     from pathlib import Path
 
@@ -414,8 +457,8 @@ def build_and_write(
     dfb_dir = root / "dfb"
     pool_dir = dfb_dir / "pool"
 
-    pools = pool_universe.build_universe(surface=surface)
-    overlays = build_overlays(pools, p)
+    pools = pool_universe.build_universe(surface=surface, include_breadth=include_breadth)
+    overlays = build_overlays(pools, p, risk_feed=risk_feed)
     rows = [ov.to_dict() for ov in overlays]
     as_of = next((r["as_of"] for r in rows if r.get("as_of")), None)
 
@@ -431,6 +474,10 @@ def build_and_write(
         "n_pools": len(rows),
         "n_flagged": sum(1 for r in rows if r["flagged"]),
         "n_refused": sum(1 for r in rows if r["refusal"]["verdict"] == "REFUSE"),
+        "n_unknown": sum(1 for r in rows if r["risk_class"] == "UNKNOWN"),
+        "breadth": bool(pool_universe.breadth_enabled(include_breadth)),
+        "n_breadth": sum(1 for r in rows if r.get("data_source") == "breadth"
+                         or r["pool_id"].startswith("breadth-")),
         "chain_valid": verify_chain(overlays),
         "pools": rows,
         "disclaimer": ("Each pool's risk class / refusal / exit-liquidity-by-size is the SPA risk "

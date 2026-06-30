@@ -9,6 +9,7 @@ import { classStyle, verdictStyle } from './DfbScreener.jsx';
  * universe at build time). Reads the pool id from ?id=<pool_id> and CONSUMES:
  *   GET /api/dfb/pool/{id}          → the full overlay object (same shape as a screener row)
  *   GET /api/dfb/pool/{id}/history  → [{date|ts, apy_total, apy_base, apy_reward, tvl_usd, ...}]
+ *   GET /api/dfb/pool/{id}/trend    → { deltas:{7d,30d}, series:{apy_total,tvl_usd}, refusal_state_changes, thin }
  *   GET /api/dfb/pool/{id}/proof    → { proof_hash, prev_hash, inputs, outputs, verify_with, spec }
  *
  * HONESTY CONTRACT (fail-CLOSED, red-team hardened):
@@ -60,6 +61,7 @@ export default function DfbPoolDetail() {
   const [state, setState] = useState('loading'); // loading | live | offline | notfound
   const [pool, setPool] = useState(null);
   const [history, setHistory] = useState(null);
+  const [trend, setTrend] = useState(null);
   const [proof, setProof] = useState(null);
 
   useEffect(() => {
@@ -86,8 +88,18 @@ export default function DfbPoolDetail() {
     }).catch(() => setState('offline'));
 
     fetch(base + '/api/dfb/pool/' + enc + '/history').then((r) => r.json())
-      .then((d) => { setHistory(Array.isArray(d) ? d : (d && Array.isArray(d.history) ? d.history : null)); })
+      .then((d) => {
+        // the API serves { series:[…] }; also accept a bare array / { history:[…] } (older shapes)
+        const s = Array.isArray(d) ? d
+          : (d && Array.isArray(d.series) ? d.series
+            : (d && Array.isArray(d.history) ? d.history : null));
+        setHistory(s);
+      })
       .catch(() => setHistory(null));
+
+    fetch(base + '/api/dfb/pool/' + enc + '/trend').then((r) => r.json())
+      .then((d) => { if (d && d.deltas) setTrend(d); })
+      .catch(() => setTrend(null));
 
     fetch(base + '/api/dfb/pool/' + enc + '/proof').then((r) => r.json())
       .then((d) => { if (d && (d.proof_hash || d.verify_with)) setProof(d); })
@@ -121,24 +133,27 @@ export default function DfbPoolDetail() {
 
   // ---- history chart (REAL series only; thin → INSUFFICIENT_DATA) ----
   const hist = Array.isArray(history) ? history : [];
+  // APY in the captured series is a DECIMAL fraction (0.085 == 8.5%); chart in percent.
   const apySeries = useMemo(() => {
-    const pts = hist
-      .map((h, i) => ({ x: num(h.ts) ?? i, y: num(h.apy_total != null ? h.apy_total : (h.apy && h.apy.total)) }))
-      .filter((p) => p.y != null);
-    return pts;
+    return hist
+      .map((h, i) => ({ x: i, y: num(h.apy_total != null ? h.apy_total : (h.apy && h.apy.total)) }))
+      .filter((p) => p.y != null)
+      .map((p) => ({ x: p.x, y: p.y * 100 }));
   }, [history]);
   const tvlSeries = useMemo(() => {
-    const pts = hist
-      .map((h, i) => ({ x: num(h.ts) ?? i, y: num(h.tvl_usd) }))
+    return hist
+      .map((h, i) => ({ x: i, y: num(h.tvl_usd) }))
       .filter((p) => p.y != null);
-    return pts;
   }, [history]);
   const histLabels = useMemo(() => {
     if (!hist.length) return [];
     const first = hist[0], last = hist[hist.length - 1];
-    const lbl = (h) => String(h.date || h.day || (h.ts != null ? new Date(h.ts * 1000).toISOString().slice(0, 10) : ''));
+    const lbl = (h) => String(h.capture_date || h.date || h.day || (h.ts != null ? new Date(h.ts * 1000).toISOString().slice(0, 10) : ''));
     return [lbl(first), lbl(last)].filter(Boolean);
   }, [history]);
+
+  // ---- 7d/30d trend deltas (THIN-aware: INSUFFICIENT_DATA windows render as a label, not a number) ----
+  const deltas = (trend && trend.deltas) || {};
 
   return (
     <div>
@@ -242,6 +257,24 @@ export default function DfbPoolDetail() {
       <Section title={T('History', 'История')}
         sub={T('APY (total) and TVL over time, from our own captured series. Thin history is labeled, never extrapolated.',
                'APY (всего) и TVL во времени, из нашей собственной захваченной серии. Тонкая история помечается, не экстраполируется.')}>
+        {/* 7d / 30d trend deltas (THIN-aware) */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 12, marginBottom: 22 }}>
+          {['7d', '30d'].map((w) => (
+            <DeltaTile key={w} window={w} d={deltas[w]} ru={ru} />
+          ))}
+        </div>
+        {Array.isArray(trend && trend.refusal_state_changes) && trend.refusal_state_changes.length > 0 && (
+          <div style={{ marginBottom: 22, padding: '12px 16px', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)', marginBottom: 8 }}>
+              {T('Refusal-state changes', 'Смены состояния отказа')}
+            </div>
+            {trend.refusal_state_changes.slice(-5).map((c, i) => (
+              <div key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--text-secondary)', padding: '3px 0' }}>
+                {c.date}: {String(c.from_verdict || '?')}/{String(c.from_class || '?')} → <span style={{ color: String(c.to_verdict).toUpperCase() === 'REFUSE' ? '#F26D6D' : '#34D399' }}>{String(c.to_verdict || '?')}/{String(c.to_class || '?')}</span>
+              </div>
+            ))}
+          </div>
+        )}
         {apySeries.length >= 2 ? (
           <>
             <AnimatedChart
@@ -322,6 +355,36 @@ function Tile({ lbl, v, big, fg }) {
     <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)', marginBottom: 6 }}>{lbl}</div>
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: big ? 26 : 18, fontWeight: 700, color: fg || 'var(--text-primary)' }}>{v}</div>
+    </div>
+  );
+}
+function DeltaTile({ window, d, ru }) {
+  const T = (en, r) => (ru ? r : en);
+  const ok = d && d.status === 'ok';
+  // apy_delta is a decimal fraction (absolute APY change); show in percentage points.
+  const apyDelta = ok ? num(d.apy_delta) : null;
+  const tvlPct = ok ? num(d.tvl_pct_change) : null;
+  const sign = (n) => (n == null ? '' : (n > 0 ? '+' : ''));
+  const col = (n) => (n == null ? 'var(--text-muted)' : (n > 0 ? '#34D399' : (n < 0 ? '#F26D6D' : 'var(--text-primary)')));
+  return (
+    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)', marginBottom: 6 }}>
+        {window} {T('change', 'изменение')}
+      </div>
+      {ok ? (
+        <>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 700, color: col(apyDelta) }}>
+            {apyDelta == null ? '—' : sign(apyDelta) + (apyDelta * 100).toFixed(2) + ' pp APY'}
+          </div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: col(tvlPct), marginTop: 4 }}>
+            {tvlPct == null ? '—' : sign(tvlPct) + (tvlPct * 100).toFixed(1) + '% TVL'}
+          </div>
+        </>
+      ) : (
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--text-muted)' }}>
+          INSUFFICIENT_DATA
+        </div>
+      )}
     </div>
   );
 }

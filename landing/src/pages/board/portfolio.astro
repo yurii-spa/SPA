@@ -1,0 +1,61 @@
+---
+// /board/portfolio — DFB · the READ-ONLY portfolio risk lens (Lane-C / WS-2.4).
+//
+// "DeBank tells you WHAT you hold; DFB tells you HOW RISKY it is and whether the desk
+// would hold it." Paste a READ-ONLY address + declared holdings → each position
+// risk-graded with the same overlay the screener uses (A/B/C/D + refusal verdict +
+// exit-liquidity-by-size) + a portfolio-level risk summary.
+//
+// The site builds output:'static', so this is a single client-rendered page: the
+// <DfbPortfolio /> island consumes Lane-2's flag-gated /api/dfb/portfolio/{address}.
+// Behind SPA_DFB_PORTFOLIO_LENS (owner-gated, default OFF) → the island shows an honest
+// "owner-gated / coming soon" state when the API returns 404. READ-ONLY · no custody ·
+// no signing · advisory. Fails CLOSED (offline / bad address → honest, never fabricated).
+// Bilingual EN|RU. Linked from /board.
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import DfbPortfolio from '../../components/DfbPortfolio.jsx';
+---
+
+<Layout
+  title="Portfolio risk lens — DFB the DeFi Risk Board | earn-defi.com"
+  description="Paste a read-only address and your holdings: DFB grades each position A/B/C/D, shows its exit-liquidity-by-size and a deterministic refuse verdict, and rolls up a portfolio-level risk summary that flags every holding the desk would refuse. Read-only, no custody, no signing — and an honest data-source limit (SPA is keyless: it never auto-reads multi-chain balances). Paper research, advisory, not live."
+  canonical="https://earn-defi.com/board/portfolio"
+>
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <section class="pt-14 pb-2">
+      <p class="text-xs font-mono mb-4">
+        <a href="/board" style="color:var(--text-muted)" data-ru="← DFB риск-борд">← DFB risk board</a>
+      </p>
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full text-xs font-mono"
+           style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">
+        <span class="w-1.5 h-1.5 rounded-full" style="background:var(--accent)" aria-hidden="true"></span>
+        <span data-ru="DFB · read-only · без кастодиана · без подписи · advisory · не live">DFB · read-only · no custody · no signing · advisory · not live</span>
+      </div>
+
+      <p class="text-xs font-mono uppercase tracking-[0.12em] mb-3" style="color:var(--text-faint)"
+         data-ru="DFB — портфельная риск-линза">DFB — the portfolio risk lens</p>
+      <h1 class="text-3xl sm:text-4xl font-bold mb-5 leading-tight" style="color:var(--text-primary)"
+          data-ru="DeBank показывает, ЧТО вы держите — DFB показывает, насколько это рискованно.">
+        DeBank tells you what you hold. DFB tells you how <span style="color:var(--accent)">risky</span> it is.
+      </h1>
+      <p class="text-base leading-relaxed max-w-3xl" style="color:var(--text-secondary)"
+         data-ru="Вставьте read-only адрес и свои позиции — каждая получит класс риска A/B/C/D, ликвидность-на-выход-по-размеру и детерминированный вердикт отказа, а сводка пометит каждую позицию, от которой стол бы отказался. Только чтение, без кастодиана, без подписи — и честное ограничение: SPA работает без ключей и не читает мультичейн-балансы автоматически.">
+        Paste a <strong style="color:var(--text-primary)">read-only address</strong> and your holdings.
+        Each position gets its <strong style="color:var(--text-primary)">A/B/C/D risk class</strong>,
+        its <strong style="color:var(--text-primary)">exit-liquidity-by-size</strong>, and a deterministic
+        <strong style="color:var(--text-primary)">refuse verdict</strong> — and the summary flags every
+        holding the desk would refuse. Read-only, no custody, no signing — and an honest limit: SPA is
+        keyless and never auto-reads multi-chain balances.
+      </p>
+    </section>
+
+    <section class="pt-6 pb-16">
+      <DfbPortfolio client:load />
+    </section>
+
+  </main>
+
+  <Disclaimer />
+</Layout>
