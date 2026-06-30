@@ -317,6 +317,20 @@ install_agent \
     "com.spa.redteam_rotation" \
     "1"
 
+# 22e. DFB (DeFi Board, Lane 2) daily capture — daily 09:30 UTC; builds the pool universe,
+#      overlays every pool through the SPA risk engine (proof-chained), atomically refreshes the
+#      precomputed snapshot data/dfb/{pools.json,pool/*.json} the /api/dfb/* router serves, and
+#      appends ONE idempotent proof-chained history record per pool for the UTC day (the scarce
+#      refusal-state series, un-backfillable). On-standard (bash-wrapper + /tmp logs), gate-PASSED.
+#      Refreshes the DATA only — it does NOT kickstart the apiserver (the API reads the snapshot
+#      live). ADVISORY / READ-ONLY: moves no capital, never touches the go-live track, writes
+#      confined to data/dfb/. (Was gate-PASSED in Month-1 but NOT persisted → would be lost on
+#      reboot = zombie-class; now standing + reboot-survivable.)
+install_agent \
+    "$REPO/scripts/com.spa.dfb_capture.plist" \
+    "com.spa.dfb_capture" \
+    "1"
+
 echo ""
 echo "--- LIVE SERVICES (KeepAlive — API / tunnels / dashboards) ---"
 

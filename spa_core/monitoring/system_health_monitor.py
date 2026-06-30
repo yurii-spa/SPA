@@ -110,6 +110,15 @@ APY_RANGE_MAX = 25.0
 
 STATUS_FRESH_H = 26.0                     # paper_trading_status staleness
 DERISK_FRESH_H = 26.0                     # derisk_status.json staleness (cycle-written, daily)
+# DFB (DeFi Board, Lane 2) freshness + feed-outage canary thresholds.
+# The dfb_capture agent runs daily (09:30 UTC) — pools.json must refresh within ~26h
+# (one daily cadence + slack), mirroring the daily-cycle staleness window. Beyond that
+# the capture agent is presumed down → WARNING (fail-CLOSED), never silently OK.
+DFB_FRESH_H = 30.0                        # data/dfb/pools.json staleness (daily capture + slack)
+# UNKNOWN-ratio canary: a feed outage shows as a SPIKE in UNKNOWN-graded pools (the overlay
+# fails CLOSED to UNKNOWN when it cannot resolve a kind / build a risk surface). A modest
+# baseline is normal (unresolved kinds); a runaway ratio means the live feed is broken.
+DFB_UNKNOWN_RATIO_WARN = 0.60            # > 60% UNKNOWN → feed-outage canary (WARNING)
 ALLOC_CAP_PCT = 30.0                      # monitor tripwire (RiskPolicy T1 cap is 40%)
 T2_CAP_PCT = 50.0                         # ADR-019
 PORTFOLIO_HEALTH_FLOOR = 70.0
@@ -125,6 +134,7 @@ NET_TIMEOUT = 10
 SUBPROC_TIMEOUT = 20
 _DOMAIN_BUDGET = {
     "d1": 5, "d2": 20, "d3": 3, "d4": 25, "d5": 30, "d6": 15, "d7": 5,
+    "d_dfb": 5,
 }
 
 # Network endpoints
@@ -1205,6 +1215,151 @@ class SystemHealthMonitor:
         return CheckResult("d7.scripts.clutter", D, OK, f"{n} push_* scripts in repo root", value=n)
 
     # ======================================================================
+    # DOMAIN d_dfb — DFB (DeFi Board, Lane 2) standing-pipeline health
+    # ======================================================================
+    def check_d_dfb_defi_board(self) -> list[CheckResult]:
+        """Health of the STANDING DFB risk-overlay pipeline (Lane 2).
+
+        Four fail-CLOSED checks over the snapshot the dfb_capture agent maintains:
+
+          * d_dfb.snapshot.fresh   — data/dfb/pools.json present + refreshed within
+            DFB_FRESH_H (the daily-capture cadence + slack). A STALE / missing snapshot
+            means the capture agent is down → WARNING (NEVER silently OK).
+          * d_dfb.chain.valid      — the snapshot's own `chain_valid` flag is True
+            (the per-row proof chain re-derives). A broken/absent chain → WARNING.
+          * d_dfb.unknown.canary   — the UNKNOWN-graded ratio is below the feed-outage
+            canary. A runaway UNKNOWN ratio = the live feed broke (the overlay fails
+            CLOSED to UNKNOWN) → WARNING.
+          * d_dfb.capture.heartbeat — the dfb_capture agent wrapper log
+            (/tmp/spa_dfb_capture.log) was written within DFB_FRESH_H. A cold/absent
+            heartbeat → WARNING (the standing agent is not running).
+
+        Each sub-check is isolated (one error never blinds the rest). All read-only;
+        this domain writes / activates nothing. fail-CLOSED throughout: a missing
+        artifact is a WARNING, never a silent pass.
+        """
+        D = "d_dfb_defi_board"
+        checks = (
+            ("d_dfb.snapshot.fresh", self._check_dfb_snapshot),
+            ("d_dfb.chain.valid", self._check_dfb_chain),
+            ("d_dfb.unknown.canary", self._check_dfb_unknown_canary),
+            ("d_dfb.capture.heartbeat", self._check_dfb_capture_heartbeat),
+        )
+        out: list[CheckResult] = []
+        for cid, fn in checks:
+            try:
+                out.append(fn(D))
+            except Exception as exc:           # noqa: BLE001 — one bad check must not blind the rest
+                out.append(CheckResult(cid, D, WARNING, f"{cid} raised — cannot verify",
+                                       error=repr(exc)))
+        return out
+
+    def _load_dfb_pools(self) -> tuple[Optional[dict], Optional[str]]:
+        """Load data/dfb/pools.json (the overlay snapshot wrapper). Cached per-run."""
+        cache = getattr(self, "_dfb_cache", "unset")
+        if cache != "unset":
+            return cache
+        doc, err = self._load_json("dfb/pools.json")
+        self._dfb_cache = (doc, err)
+        return self._dfb_cache
+
+    def _check_dfb_snapshot(self, D: str) -> CheckResult:
+        """data/dfb/pools.json present + fresh (capture agent ran within its cadence)."""
+        cid = "d_dfb.snapshot.fresh"
+        doc, err = self._load_dfb_pools()
+        if doc is None:
+            # Missing OR unreadable → cannot verify the board is being maintained.
+            return CheckResult(cid, D, WARNING,
+                               "dfb/pools.json missing/unreadable — capture agent may be down",
+                               error=err)
+        if not isinstance(doc, dict):
+            return CheckResult(cid, D, WARNING, "dfb/pools.json malformed (not an object)")
+        age = _age_hours(doc.get("generated_at"))
+        n_pools = doc.get("n_pools")
+        ev = {"n_pools": n_pools,
+              "age_hours": round(age, 1) if age is not None else None,
+              "generated_at": doc.get("generated_at")}
+        if age is None:
+            return CheckResult(cid, D, WARNING,
+                               "dfb/pools.json has no parseable generated_at — cannot verify freshness",
+                               evidence=ev)
+        if age > DFB_FRESH_H:
+            return CheckResult(cid, D, WARNING,
+                               f"dfb/pools.json STALE ({age:.1f}h > {DFB_FRESH_H:.0f}h) — "
+                               "capture agent presumed down", value=round(age, 1), evidence=ev)
+        return CheckResult(cid, D, OK,
+                           f"dfb/pools.json fresh ({age:.1f}h, {n_pools} pools)",
+                           value=round(age, 1), evidence=ev)
+
+    def _check_dfb_chain(self, D: str) -> CheckResult:
+        """The snapshot's per-row proof chain re-derives (chain_valid == True)."""
+        cid = "d_dfb.chain.valid"
+        doc, err = self._load_dfb_pools()
+        if not isinstance(doc, dict):
+            return CheckResult(cid, D, WARNING,
+                               "dfb/pools.json absent/malformed — cannot verify proof chain",
+                               error=err)
+        chain_valid = doc.get("chain_valid")
+        if chain_valid is True:
+            return CheckResult(cid, D, OK, "dfb overlay proof chain valid (chain_valid=true)")
+        return CheckResult(cid, D, WARNING,
+                           "dfb overlay proof chain NOT valid (chain_valid != true) — "
+                           "a row may be forged/reordered/dropped", value=chain_valid)
+
+    def _check_dfb_unknown_canary(self, D: str) -> CheckResult:
+        """UNKNOWN-ratio feed-outage canary: a runaway UNKNOWN ratio = the live feed broke."""
+        cid = "d_dfb.unknown.canary"
+        doc, err = self._load_dfb_pools()
+        if not isinstance(doc, dict):
+            return CheckResult(cid, D, WARNING,
+                               "dfb/pools.json absent/malformed — cannot evaluate UNKNOWN canary",
+                               error=err)
+        n_pools = doc.get("n_pools")
+        n_unknown = doc.get("n_unknown")
+        if not isinstance(n_pools, int) or n_pools <= 0:
+            # No pools at all → the board is empty; the freshness check already WARNs,
+            # but an empty universe also cannot be graded → fail-CLOSED here too.
+            return CheckResult(cid, D, WARNING,
+                               "dfb universe empty/uncountable — cannot evaluate UNKNOWN canary",
+                               value=n_pools)
+        if not isinstance(n_unknown, int):
+            return CheckResult(cid, D, WARNING,
+                               "dfb n_unknown missing — cannot evaluate feed-outage canary")
+        ratio = n_unknown / n_pools
+        ev = {"n_unknown": n_unknown, "n_pools": n_pools, "ratio": round(ratio, 3)}
+        if ratio > DFB_UNKNOWN_RATIO_WARN:
+            return CheckResult(cid, D, WARNING,
+                               f"UNKNOWN ratio {ratio:.0%} > {DFB_UNKNOWN_RATIO_WARN:.0%} — "
+                               "feed-outage canary (live overlay feed may be down)",
+                               value=round(ratio, 3), evidence=ev)
+        return CheckResult(cid, D, OK,
+                           f"UNKNOWN ratio {ratio:.0%} within canary "
+                           f"({n_unknown}/{n_pools})", value=round(ratio, 3), evidence=ev)
+
+    def _check_dfb_capture_heartbeat(self, D: str) -> CheckResult:
+        """The dfb_capture agent wrapper log (/tmp/spa_dfb_capture.log) was written recently."""
+        cid = "d_dfb.capture.heartbeat"
+        log_path = "/tmp/spa_dfb_capture.log"
+        try:
+            if not os.path.exists(log_path):
+                return CheckResult(cid, D, WARNING,
+                                   "dfb_capture agent log absent — agent never ran on this host",
+                                   value=None)
+            mtime = os.path.getmtime(log_path)
+        except OSError as exc:
+            return CheckResult(cid, D, WARNING, "dfb_capture log unreadable — cannot verify heartbeat",
+                               error=repr(exc))
+        age_h = (_now().timestamp() - mtime) / 3600.0
+        ev = {"log": log_path, "age_hours": round(age_h, 1)}
+        if age_h > DFB_FRESH_H:
+            return CheckResult(cid, D, WARNING,
+                               f"dfb_capture heartbeat STALE ({age_h:.1f}h > {DFB_FRESH_H:.0f}h) — "
+                               "standing agent not running", value=round(age_h, 1), evidence=ev)
+        return CheckResult(cid, D, OK,
+                           f"dfb_capture heartbeat fresh ({age_h:.1f}h)",
+                           value=round(age_h, 1), evidence=ev)
+
+    # ======================================================================
     # registry helpers
     # ======================================================================
     def _registry(self):
@@ -1267,6 +1422,7 @@ class SystemHealthMonitor:
             ("d5", "d5_code_integrity", self.check_d5_code_integrity),
             ("d6", "d6_risk_gates", self.check_d6_risk_gates),
             ("d7", "d7_hygiene", self.check_d7_hygiene),
+            ("d_dfb", "d_dfb_defi_board", self.check_d_dfb_defi_board),
         ]
 
         checks: list[CheckResult] = []

@@ -75,21 +75,28 @@ import DfbScreener from '../../components/DfbScreener.jsx';
       </div>
     </section>
 
-    <!-- ====================== b2. SECTION NAV (alerts) ====================== -->
+    <!-- ====================== b2. DFB SECTION NAV (one coherent product hub) ====================== -->
     <section class="pb-8">
-      <a href="/board/alerts"
-         class="flex items-center justify-between gap-4 rounded-xl p-5 transition-colors"
-         style="background:var(--bg-surface);border:1px solid var(--border)">
-        <div>
-          <p class="text-sm font-semibold mb-1" style="color:var(--text-primary)"
-             data-ru="Лента алертов → когда пул, который ты наблюдаешь, становится тем, от которого стол откажется">
-            Alert feed → when a pool you watch becomes one the desk would refuse</p>
-          <p class="text-xs" style="color:var(--text-muted)"
-             data-ru="REFUSAL_FLIP (killer), обвал ликвидности/пега/APY/TVL · watchlist в браузере · тот же движок, fail-closed">
-            REFUSAL_FLIP (the killer), exit/peg/APY/TVL collapses · browser-only watchlist · same engine, fail-closed</p>
-        </div>
-        <span class="font-mono text-sm shrink-0" style="color:var(--accent)" aria-hidden="true">→</span>
-      </a>
+      <p class="text-xs uppercase tracking-wider font-mono mb-3" style="color:var(--text-faint)"
+         data-ru="Поверхности DFB">The DFB surfaces — one product</p>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+        <a href="/board/methodology" class="rounded-xl p-4 transition-colors" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
+          <p class="text-sm font-semibold mb-1" style="color:var(--text-primary)" data-ru="Методология →">Methodology →</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="Как DFB оценивает риск — доказуемо">How DFB grades risk — provably</p>
+        </a>
+        <a href="/board/portfolio" class="rounded-xl p-4 transition-colors" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-sm font-semibold mb-1" style="color:var(--text-primary)" data-ru="Портфель →">Portfolio →</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="Read-only адрес, риск-оценка">Read-only address, risk-graded</p>
+        </a>
+        <a href="/board/alerts" class="rounded-xl p-4 transition-colors" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-sm font-semibold mb-1" style="color:var(--text-primary)" data-ru="Алерты →">Alerts →</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="REFUSAL_FLIP — пул стал refused">REFUSAL_FLIP — a pool became refused</p>
+        </a>
+        <a href="/verify" class="rounded-xl p-4 transition-colors" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-sm font-semibold mb-1" style="color:var(--text-primary)" data-ru="Проверить →">Verify →</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="Перепроверь любой proof сам">Reproduce any proof yourself</p>
+        </a>
+      </div>
     </section>
 
     <!-- ====================== c. THE SCREENER (the differentiator) ====================== -->

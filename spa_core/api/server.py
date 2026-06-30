@@ -161,6 +161,7 @@ from spa_core.api.routers import (  # noqa: E402
     aggressive_lab,
     competitive_watch,
     dfb,
+    dfb_data_api,
     live,
     misc,
     optimizer,
@@ -192,6 +193,12 @@ app.include_router(underwriting.router)
 # DFB — DeFi Board (LANE 2): the public risk-first pool-analytics surface (/api/dfb/*).
 # Read-only, GET-only, fail-CLOSED; serves Lane 1's risk overlay verbatim (never forks the math).
 app.include_router(dfb.router)
+# DFB Data API (Month-3 Lane-1) — the risk-graded, KEY-GATED developer surface (/api/dfb/v1/*).
+# OWNER-GATED behind SPA_DFB_DATA_API (default OFF): every /v1 route 404s in-handler until the
+# owner flips the flag (defense-in-depth + always-mounted so a runtime flag flip takes effect).
+# Flag ON + no key configured → 401 (fail-CLOSED, never silently open). NO-FORK: serves /api/dfb/*'s
+# overlay byte-identical. Public launch (keys/billing/SLA) is OWNER-GATED — see docs/DFB_DATA_API.md.
+app.include_router(dfb_data_api.router)
 
 
 # ─── Backward-compatible handler re-exports ───────────────────────────────────
@@ -254,6 +261,14 @@ get_dfb_pool = dfb.get_dfb_pool
 get_dfb_pool_history = dfb.get_dfb_pool_history
 get_dfb_pool_proof = dfb.get_dfb_pool_proof
 get_dfb_summary = dfb.get_dfb_summary
+
+# DFB Data API (Month-3 Lane-1) — key-gated developer surface (flag SPA_DFB_DATA_API).
+dfb_v1_pools = dfb_data_api.v1_pools
+dfb_v1_pool = dfb_data_api.v1_pool
+dfb_v1_pool_history = dfb_data_api.v1_pool_history
+dfb_v1_refusals = dfb_data_api.v1_refusals
+dfb_v1_screener = dfb_data_api.v1_screener
+dfb_v1_index = dfb_data_api.v1_index
 
 
 # ─── Dev entrypoint ──────────────────────────────────────────────────────────
