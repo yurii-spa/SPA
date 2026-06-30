@@ -116,8 +116,12 @@ def _read_pools_list() -> list:
     (an overlay row is an object). NaN/inf is scrubbed by the caller before serialize.
     """
     raw = read_state("dfb/pools.json", [])
+    # The Lane-1 overlay writer wraps the rows: {generated_at, schema, n_pools, …, pools:[…]}.
+    # Accept BOTH that wrapped form AND a bare list (fixtures/older writers) — fail-CLOSED.
+    if isinstance(raw, dict):
+        raw = raw.get("pools", [])
     if not isinstance(raw, list):
-        # A corrupt pools.json that parsed to a dict/scalar is NOT a universe → honest empty.
+        # A corrupt pools.json that parsed to a scalar (or a dict w/o pools[]) → honest empty.
         return []
     return [p for p in raw if isinstance(p, dict)]
 
