@@ -32,7 +32,7 @@ const realDays = snap.real_track_days ?? 10;
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4 text-center">
           <p class="text-xs text-white/30 font-mono mb-1" data-ru="Режим">Mode</p>
-          <p class="text-sm text-amber-400/80 font-medium" data-ru="Paper trading">Paper Trading</p>
+          <p class="text-sm text-warn font-medium" data-ru="Paper trading">Paper Trading</p>
         </div>
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4 text-center">
           <p class="text-xs text-white/30 font-mono mb-1" data-ru="Капитал">Capital</p>
@@ -206,25 +206,25 @@ const realDays = snap.real_track_days ?? 10;
             </tr>
             <tr class="border-b border-border">
               <td class="p-3 text-white/70">Yearn V3</td>
-              <td class="p-3"><span class="text-xs font-mono text-amber-400/70">Tier 2</span></td>
+              <td class="p-3"><span class="text-xs font-mono text-warn">Tier 2</span></td>
               <td class="p-3">Ethereum</td>
               <td class="p-3">$500M+</td>
             </tr>
             <tr class="border-b border-border">
               <td class="p-3 text-white/70">Euler V2</td>
-              <td class="p-3"><span class="text-xs font-mono text-amber-400/70">Tier 2</span></td>
+              <td class="p-3"><span class="text-xs font-mono text-warn">Tier 2</span></td>
               <td class="p-3">Ethereum</td>
               <td class="p-3">$500M+</td>
             </tr>
             <tr class="border-b border-border">
               <td class="p-3 text-white/70">Aave V3</td>
-              <td class="p-3"><span class="text-xs font-mono text-amber-400/70">Tier 2</span></td>
+              <td class="p-3"><span class="text-xs font-mono text-warn">Tier 2</span></td>
               <td class="p-3">Base</td>
               <td class="p-3">$2B+</td>
             </tr>
             <tr>
               <td class="p-3 text-white/70">Morpho Blue</td>
-              <td class="p-3"><span class="text-xs font-mono text-amber-400/70">Tier 2</span></td>
+              <td class="p-3"><span class="text-xs font-mono text-warn">Tier 2</span></td>
               <td class="p-3">Base</td>
               <td class="p-3">$500M+</td>
             </tr>
@@ -252,14 +252,14 @@ const realDays = snap.real_track_days ?? 10;
           </div>
         </div>
         <div class="flex items-center gap-4 rounded-lg border border-border-strong bg-bg-surface p-4">
-          <span class="flex-shrink-0 w-2 h-2 rounded-full bg-amber-400/60"></span>
+          <span class="flex-shrink-0 w-2 h-2 rounded-full bg-warn"></span>
           <div>
             <p class="text-sm text-white/70" data-ru="Внешний аудит">External audit</p>
             <p class="text-xs text-white/40" data-ru="Запланирован перед go-live">Planned before go-live</p>
           </div>
         </div>
         <div class="flex items-center gap-4 rounded-lg border border-border-strong bg-bg-surface p-4">
-          <span class="flex-shrink-0 w-2 h-2 rounded-full bg-amber-400/60"></span>
+          <span class="flex-shrink-0 w-2 h-2 rounded-full bg-warn"></span>
           <div>
             <p class="text-sm text-white/70" data-ru="Bug bounty">Bug bounty</p>
             <p class="text-xs text-white/40" data-ru="Пока не активна — запланирована к go-live">Not yet active &mdash; planned for go-live</p>
@@ -324,7 +324,7 @@ const realDays = snap.real_track_days ?? 10;
                 <td class="p-3 font-mono text-white/40 text-xs">3</td>
                 <td class="p-3 text-white/70 font-medium">Paper Trading</td>
                 <td class="p-3 text-white/50 text-xs" data-ru="Живая симуляция на реальных ончейн-данных, без реального капитала">Live simulation with real on-chain data, no real capital</td>
-                <td class="p-3"><span class="text-xs font-mono text-amber-400/80 bg-amber-400/10 px-2 py-0.5 rounded" data-ru="⏳ В ПРОЦЕССЕ">⏳ IN PROGRESS</span></td>
+                <td class="p-3"><span class="text-xs font-mono text-warn bg-warn-bg px-2 py-0.5 rounded" data-ru="⏳ В ПРОЦЕССЕ">⏳ IN PROGRESS</span></td>
               </tr>
               <tr>
                 <td class="p-3 font-mono text-white/40 text-xs">4</td>
@@ -373,7 +373,7 @@ const realDays = snap.real_track_days ?? 10;
             <span class="text-ok text-xs mt-0.5 flex-shrink-0">→</span>
             <p class="text-xs text-white/55 leading-relaxed">
               <span data-ru="Исследовательские стратегии (RS-001, RS-002) чётко помечены">Research strategies (RS-001, RS-002) are clearly labelled</span>
-              <span class="font-mono text-amber-400/70">RESEARCH ONLY</span> <span data-ru="— не пригодны для живого капитала">— not live capital eligible</span>
+              <span class="font-mono text-warn">RESEARCH ONLY</span> <span data-ru="— не пригодны для живого капитала">— not live capital eligible</span>
             </p>
           </div>
           <div class="flex items-start gap-3 rounded-lg border border-border bg-bg-surface p-3">

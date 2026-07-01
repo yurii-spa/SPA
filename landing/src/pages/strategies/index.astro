@@ -42,6 +42,50 @@ import strategies from '../../data/strategy_config.json';
         ))}
       </div>
 
+      <!-- How candidates are vetted → Tournament -->
+      <div class="max-w-3xl mx-auto mb-12 rounded-xl p-5 flex items-start gap-4"
+           style="background:var(--bg-surface);border:1px solid var(--border)">
+        <div class="min-w-0">
+          <p class="text-sm font-semibold text-text-primary mb-1" data-ru="Как отбираются новые стратегии">How new strategies are vetted</p>
+          <p class="text-sm text-text-secondary leading-relaxed" data-ru="Кандидаты соревнуются в турнире backtest → paper → live. Промоушен получают только победители на достоверных данных — гейт fail-closed отказывает на вырожденных данных. Смотрите живую турнирную таблицу и лестницу промоушена.">
+            Candidates compete in a tournament backtest → paper → live. Only credible-data winners
+            promote — the fail-closed gate refuses on degenerate data. See the live leaderboard and
+            promotion ladder.
+          </p>
+        </div>
+        <a href="/tournament" class="shrink-0 inline-flex items-center gap-1.5 text-sm font-mono whitespace-nowrap px-3 py-1.5 rounded-md border"
+           style="border-color:var(--accent-border);color:var(--accent-hover);background:var(--accent-bg)"
+           data-ru="Открыть турнир →">Open the tournament →</a>
+      </div>
+
+      <!-- Beyond stablecoins — strategies we ASSESS / REFUSE (not what we hold) -->
+      <div class="max-w-3xl mx-auto mb-12">
+        <div class="mb-4">
+          <p class="text-text-faint text-eyebrow font-mono uppercase tracking-[0.12em] mb-1" data-ru="За пределами стейблов — оценено, не в портфеле">Beyond stablecoins — assessed, not held</p>
+          <p class="text-sm text-text-secondary leading-relaxed" data-ru="Наглядно и честно: стратегии, которые деск ОЦЕНИВАЕТ (BTC) или ОТКАЗЫВАЕТ для live (плечевые петли) — advisory, не то, что мы держим.">
+            Visual and honest: strategies the desk <strong class="text-text-primary">assesses</strong> (BTC)
+            or <strong class="text-text-primary">refuses</strong> for live (leverage loops) — advisory, not
+            what we hold.
+          </p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <a href="/strategies/btc" class="block rounded-xl p-5 transition-colors" style="background:var(--bg-surface);border:1px solid var(--border);border-left:3px solid var(--data-teal)">
+            <div class="flex items-center justify-between gap-3 mb-2">
+              <span class="text-sm font-semibold text-text-primary" data-ru="BTC-кредитование, наглядно">BTC lending, visualized</span>
+              <span class="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full" style="background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-border)" data-ru="advisory">advisory</span>
+            </div>
+            <p class="text-xs text-text-secondary leading-relaxed" data-ru="Честные ~0% on-chain — почему BTC почти не занимают и почему мы не притворяемся иначе.">The honest ~0% on-chain — why BTC is barely borrowed, and why we don't pretend otherwise.</p>
+          </a>
+          <a href="/strategies/leverage-loops" class="block rounded-xl p-5 transition-colors" style="background:var(--bg-surface);border:1px solid var(--border);border-left:3px solid var(--warn)">
+            <div class="flex items-center justify-between gap-3 mb-2">
+              <span class="text-sm font-semibold text-text-primary" data-ru="Плечевые петли, наглядно">Leverage loops, visualized</span>
+              <span class="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full" style="background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-border)" data-ru="класс C · отказ">class C · refused</span>
+            </div>
+            <p class="text-xs text-text-secondary leading-relaxed" data-ru="N× доход, N× ликвидация — и настоящий датированный хвост -35%, который петля стоила в advisory-лаборатории.">N× yield, N× liquidation — and the real dated -35% tail looping cost in the advisory lab.</p>
+          </a>
+        </div>
+      </div>
+
       <!-- Disclaimer -->
       <p class="text-center text-xs text-white/20 max-w-2xl mx-auto mb-12">
         {strategies.global.apy_disclaimer}

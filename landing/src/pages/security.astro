@@ -114,11 +114,11 @@ import Layout from '../layouts/Layout.astro';
             </tr>
             <tr class="border-b border-border">
               <td class="p-3 text-white/70">RegistryLock</td>
-              <td class="p-3"><span class="text-amber-400/70" data-ru="Уточняется">TBD</span> <span data-ru="&mdash; уточнить у регистратора до go-live">&mdash; check with registrar before go-live</span></td>
+              <td class="p-3"><span class="text-warn" data-ru="Уточняется">TBD</span> <span data-ru="&mdash; уточнить у регистратора до go-live">&mdash; check with registrar before go-live</span></td>
             </tr>
             <tr>
               <td class="p-3 text-white/70" data-ru="Записи CAA">CAA Records</td>
-              <td class="p-3"><span class="text-amber-400/70" data-ru="Уточняется">TBD</span> <span data-ru="&mdash; запланировано до go-live">&mdash; planned before go-live</span></td>
+              <td class="p-3"><span class="text-warn" data-ru="Уточняется">TBD</span> <span data-ru="&mdash; запланировано до go-live">&mdash; planned before go-live</span></td>
             </tr>
           </tbody>
         </table>
@@ -197,27 +197,27 @@ import Layout from '../layouts/Layout.astro';
     <!-- User Wallet Safety -->
     <section class="mb-14">
       <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Безопасность кошелька пользователя">User Wallet Safety</h2>
-      <div class="rounded-xl border border-amber-500/25 bg-amber-500/5 p-6 mb-6">
+      <div class="rounded-xl border border-warn-border bg-warn-bg p-6 mb-6">
         <p class="text-sm text-white/70 font-medium mb-3" data-ru="Для распределителей капитала, взаимодействующих с SPA:">For allocators interacting with SPA:</p>
         <div class="space-y-4 text-sm text-white/55 leading-relaxed">
           <div class="flex gap-3">
-            <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400/60 mt-2"></span>
+            <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-warn mt-2"></span>
             <p data-ru="SPA (в режиме бумажной торговли) никогда не запрашивает подключение кошелька.">SPA (in paper trading) never requests wallet connection.</p>
           </div>
           <div class="flex gap-3">
-            <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400/60 mt-2"></span>
+            <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-warn mt-2"></span>
             <p><strong class="text-white/80" data-ru="Боевая фаза:">Live phase:</strong> <span data-ru="подключайтесь только для проверки ончейн-позиций — никогда для подписи произвольных транзакций.">connect only to verify on-chain positions &mdash; never to sign arbitrary transactions.</span></p>
           </div>
           <div class="flex gap-3">
-            <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400/60 mt-2"></span>
+            <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-warn mt-2"></span>
             <p><span data-ru="Всегда проверяйте адреса контрактов перед взаимодействием (см.">Always verify contract addresses before interacting (see</span> <a href="/emergency-withdrawal" class="text-ok hover:text-ok underline underline-offset-2">/emergency-withdrawal</a><span data-ru=").">).</span></p>
           </div>
           <div class="flex gap-3">
-            <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400/60 mt-2"></span>
+            <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-warn mt-2"></span>
             <p data-ru="Используйте аппаратный кошелёк для любого значительного размещения средств.">Use a hardware wallet for any significant allocation.</p>
           </div>
           <div class="flex gap-3">
-            <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400/60 mt-2"></span>
+            <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-warn mt-2"></span>
             <p data-ru="Никогда никому не сообщайте seed-фразы.">Never share seed phrases with anyone.</p>
           </div>
         </div>
@@ -281,7 +281,7 @@ import Layout from '../layouts/Layout.astro';
           </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-border-strong bg-bg-surface p-4">
-          <span class="text-xs font-mono text-amber-400/60 bg-amber-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">3</span>
+          <span class="text-xs font-mono text-warn bg-warn-bg px-2 py-0.5 rounded flex-shrink-0 mt-0.5">3</span>
           <div>
             <p class="text-sm text-white/70 font-medium" data-ru="Оценка">Assessment</p>
             <p class="text-xs text-white/40" data-ru="Оператор оценивает ситуацию и масштаб">Operator assesses situation and scope</p>

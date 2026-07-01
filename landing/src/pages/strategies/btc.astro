@@ -1,0 +1,339 @@
+---
+/*
+ * strategies/btc.astro — BTC lending, VISUALIZED (наглядно).
+ *
+ * The honest story: on-chain BTC lending pays ~0% APY because BTC is barely BORROWED
+ * (utilization ~2-6%). The desk holds tBTC + cbBTC READ-ONLY / ADVISORY and shows the
+ * true ~0% — it does NOT fabricate a BTC yield. WBTC is excluded (governance overhang),
+ * LBTC-restaking rejected (points/airdrop leverage). This is a strategy the desk ASSESSES,
+ * NOT one it holds for yield.
+ *
+ * Grounded in spa_core/adapters/btc_lending.py (TbtcLendingAdapter / CbbtcLendingAdapter,
+ * T2, IS_ADVISORY=True/RESEARCH_ONLY, MIN_APY 0% / MAX_APY 5%, MIN_TVL $5M).
+ *
+ * ui-kit only (PageHeader/Card/Badge/StatusPill/Section/Table + canonical A/B/C/D + SAFE/REFUSE
+ * tones). No raw hex, no red-500/emerald. EN|RU via data-ru. Fail-closed: any live surface is a
+ * graceful enhancement; the honest static numbers render offline.
+ */
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import { PageHeader, Section, Card, Badge, StatusPill, Table, Th, Td } from '../../components/ui';
+
+// The two SAFE wrappers the desk monitors (read-only, advisory). Grounded in btc_lending.py.
+const wrappers = [
+  {
+    id: 'tbtc_lending', symbol: 'TBTC', name: 'tBTC Lending', name_ru: 'tBTC — кредитование',
+    custody: 'Decentralized', custody_ru: 'Децентрализованный',
+    custody_note: 'Threshold ECDSA signer group — no single party can move funds. Lowest wrapper SPOF.',
+    custody_note_ru: 'Пороговая ECDSA-группа подписантов — никто в одиночку не может двигать средства. Наименьший SPOF обёртки.',
+    tone: 'teal',
+  },
+  {
+    id: 'cbbtc_lending', symbol: 'CBBTC', name: 'cbBTC Lending', name_ru: 'cbBTC — кредитование',
+    custody: 'Regulated', custody_ru: 'Регулируемый',
+    custody_note: 'Coinbase — a single US-regulated public company. Regulated, but single-entity custody.',
+    custody_note_ru: 'Coinbase — одна регулируемая в США публичная компания. Регулируемо, но кастоди в одних руках.',
+    tone: 'accent',
+  },
+];
+
+// Excluded wrappers — the honest risk reasons (btc_lending.py docstring).
+const excluded = [
+  {
+    symbol: 'WBTC', verdict: 'REFUSE',
+    reason: 'Governance overhang: the BitGo → BiT Global custody transition + Coinbase delisting. Not held as primary collateral.',
+    reason_ru: 'Навес управления: переход кастоди BitGo → BiT Global + делистинг с Coinbase. Не держим как основной залог.',
+  },
+  {
+    symbol: 'LBTC', verdict: 'REFUSE',
+    reason: 'Restaking "extra" yield is points / airdrop-driven leverage on the bridge, not contractual yield. Rejected.',
+    reason_ru: '«Дополнительная» доходность рестейкинга — это очки / эйрдроп-плечо на мост, а не контрактный доход. Отклонено.',
+  },
+];
+---
+
+<Layout
+  title="BTC lending, visualized — the honest ~0% | SPA earn-defi.com"
+  description="On-chain BTC lending pays ~0% APY because BTC is barely borrowed (utilization ~2-6%). We hold tBTC + cbBTC read-only / advisory and show the truth — we do not fabricate a BTC yield. WBTC excluded, LBTC-restaking rejected. A strategy the desk ASSESSES, not one it holds for yield."
+  canonical="https://earn-defi.com/strategies/btc"
+>
+  <main>
+    <Section width="doc" pad="none">
+      <PageHeader
+        eyebrow="Beyond stablecoins · assessed, not held"
+        eyebrowRu="За пределами стейблов · оценено, не в портфеле"
+        eyebrowTone="accent"
+        title="BTC lending, visualized"
+        titleRu="BTC-кредитование, наглядно"
+        lede="On-chain BTC lending pays ~0% APY — and that is the truth, not a bug. BTC is barely borrowed on-chain (utilization ~2-6%), so the supply rate is near zero. We monitor it read-only and refuse to pretend otherwise."
+        ledeRu="On-chain BTC-кредитование даёт ~0% APY — и это правда, а не баг. BTC почти не занимают on-chain (утилизация ~2-6%), поэтому ставка кредитора близка к нулю. Мы мониторим это read-only и отказываемся притворяться, что это иначе."
+      >
+        <Badge tone="warn" dot>ADVISORY · READ-ONLY</Badge>
+        <StatusPill tier="C" label="TIER T2" ru="ТИР T2" />
+        <Badge tone="muted" dot>NOT LIVE-ALLOCATED</Badge>
+      </PageHeader>
+    </Section>
+
+    <!-- ================================================= 1. THE ONE VISUAL: BTC yield ≈ 0 -->
+    <Section width="doc" pad="md" divider>
+      <p class="eyebrow" data-ru="Одна картинка">The one picture</p>
+      <h2 class="h2" data-ru="On-chain доход по BTC ≈ 0 — и это правда">
+        On-chain BTC yield ≈ 0 — and that's the truth
+      </h2>
+
+      <!-- Big honest number + the "why" bar -->
+      <div class="grid-2 mt-6">
+        <Card variant="status" tone="warn" padding="lg">
+          <p class="k" data-ru="Ставка кредитора BTC (safe-обёртки)">BTC supply APY (safe wrappers)</p>
+          <div class="bignum">~0<span class="unit">–1.2%</span></div>
+          <p class="sub" data-ru="Не приукрашено. Полоса адаптера принимает 0-5%; всё выше на «безопасном» BTC-кредитовании отклоняется как аномалия.">
+            Not dressed up. The adapter band accepts 0-5%; anything above that on "safe" BTC lending is
+            rejected as an anomaly.
+          </p>
+        </Card>
+
+        <Card padding="lg">
+          <p class="k" data-ru="Почему так мало: BTC почти не занимают">Why so low: BTC is barely borrowed</p>
+          <!-- Utilization bar — a visceral ~2-6% sliver -->
+          <div class="util-wrap" role="img" aria-label="BTC lending utilization approximately 2 to 6 percent">
+            <div class="util-track">
+              <div class="util-fill"></div>
+              <span class="util-mark" style="left:2%"></span>
+              <span class="util-mark" style="left:6%"></span>
+            </div>
+            <div class="util-scale">
+              <span>0%</span><span class="util-hi" data-ru="~2-6% занято">~2-6% borrowed</span><span>100%</span>
+            </div>
+          </div>
+          <p class="sub" data-ru="Кредитор зарабатывает только на занятой доле. Если занято ~2-6%, то и доход ~0. Стейблы занимают охотно (утилизация десятки %) — поэтому там ~4.5%, а по BTC — почти ничего.">
+            A lender only earns on the borrowed fraction. If ~2-6% is borrowed, the yield is ~0.
+            Stablecoins are borrowed eagerly (utilization in the tens of %) — that's why stables pay
+            ~4.5% and BTC pays almost nothing.
+          </p>
+        </Card>
+      </div>
+
+      <Card variant="status" tone="danger" padding="md" class="mt-4">
+        <p class="k danger" data-ru="Чего мы НЕ делаем">What we do NOT do</p>
+        <p class="body">
+          <strong data-ru="Мы не выдумываем BTC-доход.">We do not fabricate a BTC yield.</strong>
+          <span data-ru=" Мы не «находим» 8% BTC-APY через рестейкинг с очками, не подмешиваем эйрдропы в ставку и не показываем WBTC как безопасный. Честные ~0% — это и есть продукт этой страницы.">
+            We don't "find" an 8% BTC APY via points-restaking, we don't blend airdrops into the rate,
+            and we don't show WBTC as safe. The honest ~0% is the whole point of this page.
+          </span>
+        </p>
+      </Card>
+    </Section>
+
+    <!-- ================================================= 2. THE TWO SAFE WRAPPERS -->
+    <Section width="doc" pad="md" divider>
+      <p class="eyebrow" data-ru="Что мы мониторим">What we monitor</p>
+      <h2 class="h2" data-ru="Две безопасные обёртки — read-only">Two safe wrappers — read-only</h2>
+      <p class="lede-sm" data-ru="В BTC-DeFi реальный риск — это ОБЁРТКА (мост / кастоди / управление обёрнутого токена), а не ставка. Поэтому мы держим ровно две: децентрализованную и регулируемую. Живые цифры — из адаптеров (fail-closed).">
+        In BTC-DeFi the real risk is the <strong>wrapper</strong> (bridge / custody / governance of the
+        wrapped token), not the APY. So we track exactly two: one decentralized, one regulated. Live
+        figures come from the adapters (fail-closed).
+      </p>
+
+      <div class="grid-2 mt-6">
+        {wrappers.map((w) => (
+          <Card variant="status" tone={w.tone} padding="lg">
+            <div class="wrap-head">
+              <span class="wrap-sym mono">{w.symbol}</span>
+              <Badge tone={w.tone} dot ru={w.custody_ru}>{w.custody}</Badge>
+            </div>
+            <p class="wrap-name" data-ru={w.name_ru}>{w.name}</p>
+            <div class="wrap-metrics">
+              <div>
+                <p class="k" data-ru="APY (live)">APY (live)</p>
+                <p class="metric mono" id={`${w.id}-apy`}>~0%</p>
+              </div>
+              <div>
+                <p class="k" data-ru="TVL (live)">TVL (live)</p>
+                <p class="metric mono" id={`${w.id}-tvl`}>—</p>
+              </div>
+              <div>
+                <p class="k" data-ru="Статус">Status</p>
+                <p class="metric-sm"><StatusPill verdict="WATCH" label="ADVISORY" ru="ADVISORY" dot={false} /></p>
+              </div>
+            </div>
+            <p class="sub" data-ru={w.custody_note_ru}>{w.custody_note}</p>
+          </Card>
+        ))}
+      </div>
+      <p class="src mono">
+        <span data-ru="источник">source</span>: <span id="btc-src" data-ru="статика / офлайн">static / offline</span>
+        · /api/adapters · <span data-ru="APY может читать 0% — это ожидаемо и корректно">APY may read 0% — expected &amp; correct</span>
+      </p>
+    </Section>
+
+    <!-- ================================================= 3. WHY WBTC EXCLUDED / LBTC REJECTED -->
+    <Section width="doc" pad="md" divider>
+      <p class="eyebrow" data-ru="Отказы — честные причины риска">Refusals — the honest risk reasons</p>
+      <h2 class="h2" data-ru="Что мы исключили и почему">What we excluded, and why</h2>
+      <p class="lede-sm" data-ru="Более высокий заявленный BTC-«доход» почти всегда исходит из более рискованной обёртки. Мы отказываемся от него по имени.">
+        A higher advertised BTC "yield" almost always comes from a riskier wrapper. We refuse it by name.
+      </p>
+
+      <div class="excl mt-6">
+        {excluded.map((e) => (
+          <Card variant="status" tone="danger" padding="md">
+            <div class="excl-head">
+              <span class="wrap-sym mono">{e.symbol}</span>
+              <StatusPill verdict="REFUSE" label="EXCLUDED" ru="ИСКЛЮЧЕНО" />
+            </div>
+            <p class="body" data-ru={e.reason_ru}>{e.reason}</p>
+          </Card>
+        ))}
+      </div>
+    </Section>
+
+    <!-- ================================================= 4. HOW WE HOLD IT (the guardrails) -->
+    <Section width="doc" pad="md" divider>
+      <p class="eyebrow" data-ru="Как это устроено">How we hold it</p>
+      <h2 class="h2" data-ru="Read-only / advisory — гарантии">Read-only / advisory — the guardrails</h2>
+      <Table class="mt-6">
+        <thead>
+          <tr>
+            <Th ru="Свойство">Property</Th>
+            <Th ru="Значение">Value</Th>
+            <Th ru="Что это значит">What it means</Th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <Td mono ru="Домен">Domain</Td>
+            <Td mono>READ-ONLY</Td>
+            <Td ru="Только фид — никогда не пишет execution-состояние, нет allocate()/withdraw().">Feed only — never writes execution state, no allocate()/withdraw().</Td>
+          </tr>
+          <tr>
+            <Td mono ru="Флаг">Flag</Td>
+            <Td><StatusPill verdict="WATCH" label="IS_ADVISORY" ru="IS_ADVISORY" dot={false} /></Td>
+            <Td ru="Симуляция/мониторинг. Никогда не аллоцирует живой капитал, никогда не трогает go-live трек.">Simulate / monitor. Never allocates live capital, never touches the go-live track.</Td>
+          </tr>
+          <tr>
+            <Td mono ru="Тир">Tier</Td>
+            <Td><StatusPill tier="C" label="T2" ru="T2" dot={false} /></Td>
+            <Td ru="Кредитование + риск моста/кастоди обёрнутого BTC.">Lending + wrapped-BTC bridge / custody risk.</Td>
+          </tr>
+          <tr>
+            <Td mono ru="Полоса APY">APY band</Td>
+            <Td mono>0% … 5%</Td>
+            <Td ru="0% — легитимное, ожидаемое чтение. >5% на «безопасном» BTC = аномалия → отклоняется.">0% is a legitimate, expected read. &gt;5% on "safe" BTC = anomaly → rejected.</Td>
+          </tr>
+          <tr>
+            <Td mono ru="Порог TVL">TVL floor</Td>
+            <Td mono>≥ $5M</Td>
+            <Td ru="Ниже — не рассматривается (тот же порог RiskPolicy).">Below this it is not considered (the same RiskPolicy floor).</Td>
+          </tr>
+        </tbody>
+      </Table>
+
+      <Card variant="status" tone="accent" padding="md" class="mt-6">
+        <p class="k" data-ru="Итог, по-честному">The bottom line, honestly</p>
+        <p class="body" data-ru="BTC — это диверсификатор экспозиции, а не источник доходности on-chain. Пока BTC почти не занимают, честный ответ — ~0%. Мы показываем именно его и позиционируем BTC как оцениваемую, а не удерживаемую ради дохода стратегию.">
+          BTC is an exposure diversifier, not an on-chain yield source. As long as BTC is barely borrowed,
+          the honest answer is ~0%. We show exactly that, and we frame BTC as a strategy we
+          <strong>assess</strong>, not one we hold for yield.
+        </p>
+      </Card>
+
+      <div class="nav-foot mt-8">
+        <a href="/strategies/leverage-loops" class="foot-link" data-ru="Далее: плечевые петли, наглядно →">Next: leverage loops, visualized →</a>
+        <a href="/strategies" class="foot-link muted" data-ru="← Все стратегии">← All strategies</a>
+      </div>
+    </Section>
+  </main>
+
+  <Disclaimer />
+
+  <script is:inline>
+    /* BTC adapter live surface — graceful, fail-closed. If /api/adapters is offline or a wrapper
+       reads 0% APY (the honest, expected case), the page still shows the honest ~0% static copy. */
+    (function () {
+      var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+        ? 'http://localhost:8765' : 'https://api.earn-defi.com';
+      function isRu() { try { return (localStorage.getItem('spa_lang') || 'en') === 'ru'; } catch (e) { return false; } }
+      function num(x) { var n = Number(x); return isFinite(n) ? n : null; }
+      function usd(x) {
+        var n = num(x); if (n == null) return '—';
+        if (n >= 1e9) return '$' + (n / 1e9).toFixed(2) + 'B';
+        if (n >= 1e6) return '$' + (n / 1e6).toFixed(0) + 'M';
+        if (n >= 1e3) return '$' + (n / 1e3).toFixed(0) + 'k';
+        return '$' + n.toFixed(0);
+      }
+      function setText(id, t) { var el = document.getElementById(id); if (el) el.textContent = t; }
+      var IDS = ['tbtc_lending', 'cbbtc_lending'];
+
+      function apply(rows) {
+        var byProto = {};
+        rows.forEach(function (r) { if (r && r.protocol) byProto[r.protocol] = r; });
+        var any = false;
+        IDS.forEach(function (id) {
+          var r = byProto[id]; if (!r) return;
+          any = true;
+          // adapters may return apy as decimal (0.012) or percent; normalize small decimals up.
+          var apy = num(r.apy != null ? r.apy : r.apy_pct);
+          if (apy != null) {
+            var pctVal = (Math.abs(apy) <= 1) ? apy * 100 : apy;
+            setText(id + '-apy', (pctVal < 0.005 ? '~0%' : pctVal.toFixed(2) + '%'));
+          }
+          var tvl = num(r.tvl_usd != null ? r.tvl_usd : r.tvl);
+          if (tvl != null) setText(id + '-tvl', usd(tvl));
+        });
+        if (any) setText('btc-src', isRu() ? 'live' : 'live');
+      }
+
+      fetch(API + '/api/adapters').then(function (r) { return r.json(); }).then(function (d) {
+        var rows = Array.isArray(d) ? d : (d && Array.isArray(d.adapters) ? d.adapters
+                 : (d && Array.isArray(d.protocols) ? d.protocols : []));
+        if (rows && rows.length) apply(rows);
+      }).catch(function () { /* fail-closed: honest static ~0% stays */ });
+    })();
+  </script>
+
+  <style>
+    main { max-width: none; }
+    .eyebrow { font-family: var(--font-mono); font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--text-faint); margin: 0 0 10px; }
+    .h2 { font-size: 1.625rem; line-height: 1.2; font-weight: 700; letter-spacing: -.015em; color: var(--text-primary); margin: 0; }
+    .lede-sm { margin: 14px 0 0; font-size: 1rem; line-height: 1.6; color: var(--text-secondary); max-width: 46rem; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 720px) { .grid-2 { grid-template-columns: 1fr; } }
+    .k { font-family: var(--font-mono); font-size: .6875rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin: 0 0 8px; }
+    .k.danger { color: var(--danger); }
+    .bignum { font-family: var(--font-mono); font-size: 3rem; font-weight: 700; color: var(--warn); line-height: 1; letter-spacing: -.02em; }
+    .bignum .unit { font-size: 1.5rem; color: var(--text-muted); }
+    .sub { margin: 12px 0 0; font-size: .8125rem; line-height: 1.55; color: var(--text-secondary); }
+    .body { margin: 0; font-size: .9375rem; line-height: 1.6; color: var(--text-secondary); }
+    .mt-4 { margin-top: 16px; } .mt-6 { margin-top: 24px; } .mt-8 { margin-top: 32px; }
+    .mono { font-family: var(--font-mono); }
+
+    /* utilization bar */
+    .util-wrap { margin: 4px 0 2px; }
+    .util-track { position: relative; height: 22px; border-radius: 6px; background: var(--bg-surface-2); border: 1px solid var(--border); overflow: hidden; }
+    .util-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 5%; background: var(--warn); opacity: .85; }
+    .util-mark { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--text-faint); }
+    .util-scale { display: flex; justify-content: space-between; margin-top: 6px; font-family: var(--font-mono); font-size: .6875rem; color: var(--text-muted); }
+    .util-hi { color: var(--warn); font-weight: 600; }
+
+    /* wrapper cards */
+    .wrap-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .wrap-sym { font-size: 1.125rem; font-weight: 700; color: var(--text-primary); }
+    .wrap-name { margin: 8px 0 16px; font-size: .8125rem; color: var(--text-muted); }
+    .wrap-metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; padding: 14px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+    .metric { font-size: 1.125rem; font-weight: 700; color: var(--text-primary); margin: 0; }
+    .metric-sm { margin: 0; }
+
+    /* excluded */
+    .excl { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 720px) { .excl { grid-template-columns: 1fr; } }
+    .excl-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+
+    .src { margin: 16px 0 0; font-family: var(--font-mono); font-size: .6875rem; color: var(--text-faint); }
+    .nav-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .foot-link { font-size: .875rem; font-weight: 600; color: var(--accent); font-family: var(--font-mono); }
+    .foot-link:hover { color: var(--accent-hover); }
+    .foot-link.muted { color: var(--text-muted); font-weight: 500; }
+    .foot-link.muted:hover { color: var(--text-secondary); }
+  </style>
+</Layout>

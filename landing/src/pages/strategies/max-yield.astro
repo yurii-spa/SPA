@@ -16,8 +16,8 @@ const global = strategies.global;
   <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 
     <!-- Coming Soon Banner -->
-    <div class="mt-8 rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 flex items-start gap-3">
-      <span class="text-amber-400 flex-shrink-0 text-lg mt-0.5">&#9888;</span>
+    <div class="mt-8 rounded-xl border border-warn-border bg-warn-bg p-5 flex items-start gap-3">
+      <span class="text-warn flex-shrink-0 text-lg mt-0.5">&#9888;</span>
       <div>
         <p class="text-sm text-white/70 font-medium mb-1" data-ru="ЦЕЛЕВОЙ ПРОФИЛЬ — ОЖИДАЕТ ВАЛИДАЦИИ / СКОРО">TARGET PROFILE — VALIDATION PENDING / COMING SOON</p>
         <p class="text-sm text-white/50 leading-relaxed" data-ru="Эта стратегия находится в фазе валидации. Бумажный трек не ведётся. Целевой APY приведён только для иллюстрации. Без открытого риска ликвидации по умолчанию в v1.0. Более сложные стратегии могут быть добавлены после отдельной бумажной валидации.">
@@ -29,8 +29,8 @@ const global = strategies.global;
 
     <!-- 1. Hero -->
     <section class="pt-12 pb-12">
-      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs text-amber-400 font-medium">
-        <span class="w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden="true"></span>
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-warn-bg border border-warn-border text-xs text-warn font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-warn" aria-hidden="true"></span>
         <span data-ru="Скоро">Coming Soon</span>
       </div>
       <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Стратегия Max Yield">
@@ -76,10 +76,10 @@ const global = strategies.global;
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Текущий статус">Current Status</p>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
+        <div class="rounded-xl border border-warn-border bg-warn-bg p-5">
           <div class="text-xs text-white/30 mb-1" data-ru="Фаза">Phase</div>
-          <div class="text-amber-400 font-semibold flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-amber-400" aria-hidden="true"></span>
+          <div class="text-warn font-semibold flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-warn" aria-hidden="true"></span>
             <span data-ru="Фаза проектирования">Design Phase</span>
           </div>
         </div>
@@ -137,22 +137,22 @@ const global = strategies.global;
           </ul>
         </div>
         <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
-          <p class="text-xs text-teal-400 font-mono uppercase tracking-wider mb-3" data-ru="Мониторинг">Monitoring</p>
+          <p class="text-xs text-data-teal font-mono uppercase tracking-wider mb-3" data-ru="Мониторинг">Monitoring</p>
           <ul class="space-y-2 text-sm text-white/50">
             <li class="flex items-center gap-2">
-              <span class="w-1 h-1 rounded-full bg-teal-400 flex-shrink-0" aria-hidden="true"></span>
+              <span class="w-1 h-1 rounded-full bg-data-teal flex-shrink-0" aria-hidden="true"></span>
               <span data-ru="Оповещения об отклонении цены оракула">Oracle price deviation alerts</span>
             </li>
             <li class="flex items-center gap-2">
-              <span class="w-1 h-1 rounded-full bg-teal-400 flex-shrink-0" aria-hidden="true"></span>
+              <span class="w-1 h-1 rounded-full bg-data-teal flex-shrink-0" aria-hidden="true"></span>
               <span data-ru="Мониторинг уровня утилизации">Utilisation rate monitoring</span>
             </li>
             <li class="flex items-center gap-2">
-              <span class="w-1 h-1 rounded-full bg-teal-400 flex-shrink-0" aria-hidden="true"></span>
+              <span class="w-1 h-1 rounded-full bg-data-teal flex-shrink-0" aria-hidden="true"></span>
               <span data-ru="Проверки здоровья позиций">Position health checks</span>
             </li>
             <li class="flex items-center gap-2">
-              <span class="w-1 h-1 rounded-full bg-teal-400 flex-shrink-0" aria-hidden="true"></span>
+              <span class="w-1 h-1 rounded-full bg-data-teal flex-shrink-0" aria-hidden="true"></span>
               <span data-ru="Автоматические триггеры риска">Automated risk triggers</span>
             </li>
           </ul>
@@ -195,7 +195,7 @@ const global = strategies.global;
 
     <!-- 9. Risk Controls -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-teal-400 uppercase tracking-wider font-mono mb-4" data-ru="Контроль рисков — RiskPolicy v1.0">Risk Controls — RiskPolicy v1.0</p>
+      <p class="text-xs text-data-teal uppercase tracking-wider font-mono mb-4" data-ru="Контроль рисков — RiskPolicy v1.0">Risk Controls — RiskPolicy v1.0</p>
       <p class="text-sm text-white/40 mb-6 leading-relaxed" data-ru="Max Yield работает под тем же детерминированным риск-гейтом, что и все стратегии. Без открытого риска ликвидации по умолчанию в v1.0.">
         Max Yield operates under the same deterministic risk gate as all strategies.
         No open liquidation risk by default in v1.0.
@@ -226,8 +226,8 @@ const global = strategies.global;
               <td class="px-5 py-3 text-white/40" data-ru="Без открытого риска ликвидации по умолчанию">No open liquidation risk by default</td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-amber-400/80 font-mono" data-ru="Kill switch — SOFT">Kill switch — SOFT</td>
-              <td class="px-5 py-3 text-amber-400 font-mono font-semibold" data-ru="&ge; 5% просадки от пика">&ge; 5% peak drawdown</td>
+              <td class="px-5 py-3 text-warn font-mono" data-ru="Kill switch — SOFT">Kill switch — SOFT</td>
+              <td class="px-5 py-3 text-warn font-mono font-semibold" data-ru="&ge; 5% просадки от пика">&ge; 5% peak drawdown</td>
               <td class="px-5 py-3 text-white/40" data-ru="Де-риск: стоп новых входов и увеличения позиций, без ликвидации">De-risk: halt new entries &amp; increases, no liquidation</td>
             </tr>
             <tr>
@@ -243,10 +243,10 @@ const global = strategies.global;
     <!-- 10. Performance / Validation Status -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Статус валидации">Validation Status</p>
-      <div class="rounded-xl border border-amber-500/20 bg-amber-500/5 p-6">
+      <div class="rounded-xl border border-warn-border bg-warn-bg p-6">
         <div class="flex items-center gap-3 mb-4">
-          <span class="w-2 h-2 rounded-full bg-amber-400" aria-hidden="true"></span>
-          <span class="text-sm text-amber-400 font-medium" data-ru="Фаза проектирования — данные отсутствуют">Design Phase — No Data Available</span>
+          <span class="w-2 h-2 rounded-full bg-warn" aria-hidden="true"></span>
+          <span class="text-sm text-warn font-medium" data-ru="Фаза проектирования — данные отсутствуют">Design Phase — No Data Available</span>
         </div>
         <p class="text-sm text-white/40 leading-relaxed" data-ru="Эта стратегия находится в фазе проектирования. Нет бумажного трека, нет данных о результатах, нет валидации. Все параметры и значения APY — предварительные цели, которые могут измениться.">
           This strategy is in design phase. No paper tracking, no performance data, no validation.
@@ -314,7 +314,7 @@ const global = strategies.global;
       <div class="rounded-xl border border-danger-border bg-danger-bg p-6">
         <div class="flex items-start gap-4">
           <div class="w-10 h-10 rounded-lg bg-danger-bg border border-danger-border flex items-center justify-center flex-shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#ef4444" stroke-width="1.5" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" style="stroke:var(--danger)" stroke-width="1.5" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/>
             </svg>
           </div>

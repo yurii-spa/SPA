@@ -18,8 +18,8 @@ const bars = snap.bars ?? [];
 // Per-bar source presentation tokens (Console palette). evidenced cycle bars are
 // the only ones that count toward go-live; everything else is shown but dimmed.
 const SOURCE_META = {
-  cycle:         { en: 'cycle', ru: 'цикл',          dot: 'bg-teal-400',   tag: 'text-teal-300 border-teal-500/30 bg-teal-500/10' },
-  reconstructed: { en: 'reconstructed', ru: 'реконструкция', dot: 'bg-amber-400', tag: 'text-amber-300 border-amber-500/30 bg-amber-500/10' },
+  cycle:         { en: 'cycle', ru: 'цикл',          dot: 'bg-data-teal',   tag: 'text-data-teal border-teal-border bg-teal-bg' },
+  reconstructed: { en: 'reconstructed', ru: 'реконструкция', dot: 'bg-warn', tag: 'text-warn border-warn-border bg-warn-bg' },
   backfill:      { en: 'backfill', ru: 'бэкфилл',    dot: 'bg-white/30',   tag: 'text-white/40 border-border bg-white/[0.03]' },
   warmup:        { en: 'warmup', ru: 'прогрев',      dot: 'bg-white/20',   tag: 'text-white/30 border-border bg-white/[0.02]' },
 };
@@ -35,8 +35,8 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
 
     <!-- Hero -->
     <section class="pt-20 pb-10">
-      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/30 text-xs text-teal-300 font-medium">
-        <span class="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" aria-hidden="true"></span>
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-teal-bg border border-teal-border text-xs text-data-teal font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-data-teal animate-pulse" aria-hidden="true"></span>
         <span data-ru="Трек сброшен — честно">Track reset — honestly</span>
       </div>
       <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Мы сбросили собственный трек">
@@ -51,9 +51,9 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
 
     <!-- The reset — core trust signal -->
     <section class="pb-10">
-      <div class="rounded-2xl border border-teal-500/25 bg-gradient-to-b from-teal-500/[0.07] to-transparent p-6 sm:p-8">
+      <div class="rounded-2xl border border-teal-border bg-gradient-to-b from-teal-bg to-transparent p-6 sm:p-8">
         <div class="flex items-center gap-2 mb-4">
-          <span class="text-xs font-mono uppercase tracking-wider text-teal-300/70" data-ru="Доказуемая честность">Provable honesty</span>
+          <span class="text-xs font-mono uppercase tracking-wider text-data-teal" data-ru="Доказуемая честность">Provable honesty</span>
         </div>
         <h2 class="text-2xl font-bold text-white mb-3 leading-snug" data-ru={`Мы публикуем ${realDays} настоящих дней, а не 15 «надутых»`}>
           We publish {realDays} real days, not 15 padded ones
@@ -71,7 +71,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           </div>
           <div class="rounded-lg border border-border bg-bg-surface px-4 py-3">
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Подтверждено / нужно">Evidenced / needed</p>
-            <p class="text-sm font-mono text-teal-300"><span id="tr-reset-days">{realDays}</span> / {daysNeeded} <span class="text-white/30" data-ru="дней">days</span></p>
+            <p class="text-sm font-mono text-data-teal"><span id="tr-reset-days">{realDays}</span> / {daysNeeded} <span class="text-white/30" data-ru="дней">days</span></p>
           </div>
           <div class="rounded-lg border border-border bg-bg-surface px-4 py-3">
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Цель go-live">Go-live target</p>
@@ -95,7 +95,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         </div>
         <div class="rounded-xl border border-border bg-bg-surface p-5">
           <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Бумажный APY">Paper APY</p>
-          <p class="text-2xl font-mono font-bold text-teal-400" id="tr-apy">—</p>
+          <p class="text-2xl font-mono font-bold text-data-teal" id="tr-apy">—</p>
           <p class="text-xs text-white/30 mt-1" data-ru="переменный · не гарантирован">variable · not guaranteed</p>
         </div>
         <div class="rounded-xl border border-border bg-bg-surface p-5">
@@ -103,9 +103,9 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           <p class="text-2xl font-mono font-bold text-white" id="tr-dd">—</p>
           <p class="text-xs text-white/30 mt-1" data-ru="с начала трека">since track start</p>
         </div>
-        <div class="rounded-xl border border-teal-500/20 bg-teal-500/[0.04] p-5">
-          <p class="text-xs text-teal-300/50 uppercase tracking-wider font-mono mb-2" data-ru="Подтверждённых дней">Evidenced days</p>
-          <p class="text-2xl font-mono font-bold text-teal-400"><span id="tr-days">{realDays}</span><span class="text-white/30 text-lg"> / {daysNeeded}</span></p>
+        <div class="rounded-xl border border-teal-border bg-teal-bg p-5">
+          <p class="text-xs text-data-teal uppercase tracking-wider font-mono mb-2" data-ru="Подтверждённых дней">Evidenced days</p>
+          <p class="text-2xl font-mono font-bold text-data-teal"><span id="tr-days">{realDays}</span><span class="text-white/30 text-lg"> / {daysNeeded}</span></p>
           <p class="text-xs text-white/30 mt-1" data-ru="только дни с логом цикла">cycle-logged days only</p>
         </div>
       </div>
@@ -136,7 +136,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         </p>
       </div>
       <p class="text-sm text-white/45 leading-relaxed mb-4 max-w-2xl" data-ru="Каждый бар помечен своим источником. Только бары «цикл» подтверждены логом и засчитываются в go-live. «Бэкфилл» и «прогрев» приглушены — они показаны для прозрачности, но не считаются.">
-        Each bar is tagged with its source. Only <span class="text-teal-300 font-medium">cycle</span>
+        Each bar is tagged with its source. Only <span class="text-data-teal font-medium">cycle</span>
         bars are evidenced by a log and count toward go-live. <span class="text-white/40">Backfill</span>
         and <span class="text-white/40">warmup</span> bars are dimmed — shown for transparency, but not counted.
       </p>
@@ -156,8 +156,8 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         </div>
       </div>
       <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-xs text-white/40 font-mono">
-        <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-teal-400" aria-hidden="true"></span><span data-ru="цикл · подтверждён · считается">cycle · evidenced · counts</span></span>
-        <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400" aria-hidden="true"></span><span data-ru="реконструкция · помечена">reconstructed · flagged</span></span>
+        <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-data-teal" aria-hidden="true"></span><span data-ru="цикл · подтверждён · считается">cycle · evidenced · counts</span></span>
+        <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-warn" aria-hidden="true"></span><span data-ru="реконструкция · помечена">reconstructed · flagged</span></span>
         <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-white/30" aria-hidden="true"></span><span data-ru="бэкфилл/прогрев · не считается">backfill/warmup · not counted</span></span>
       </div>
     </section>
@@ -201,9 +201,9 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Начислено">Accrued</p>
             <p class="text-xl font-mono font-bold text-white" id="por-accrued">—</p>
           </div>
-          <div class="rounded-lg border border-teal-500/20 bg-teal-500/[0.05] p-4">
-            <p class="text-xs text-teal-300/50 uppercase tracking-wider font-mono mb-2" data-ru="NAV (= капитал)">NAV (= equity)</p>
-            <p class="text-xl font-mono font-bold text-teal-400" id="por-nav">—</p>
+          <div class="rounded-lg border border-teal-border bg-teal-bg p-4">
+            <p class="text-xs text-data-teal uppercase tracking-wider font-mono mb-2" data-ru="NAV (= капитал)">NAV (= equity)</p>
+            <p class="text-xl font-mono font-bold text-data-teal" id="por-nav">—</p>
           </div>
         </div>
 
@@ -227,9 +227,9 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         <div class="rounded-lg bg-black/30 border border-border px-4 py-3">
           <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Хэш проверки (NAV)">Verification hash (NAV)</p>
-            <span class="text-xs text-teal-300/60 font-mono" data-ru="проверяемо · защищено от подмены">verifiable · tamper-evident</span>
+            <span class="text-xs text-data-teal font-mono" data-ru="проверяемо · защищено от подмены">verifiable · tamper-evident</span>
           </div>
-          <p class="text-xs sm:text-sm font-mono text-teal-300/80 break-all" id="por-hash">—</p>
+          <p class="text-xs sm:text-sm font-mono text-data-teal break-all" id="por-hash">—</p>
           <p class="text-xs text-white/25 font-mono mt-1">
             <span data-ru="компоненты:">components:</span> <span id="por-comphash" class="break-all">—</span>
           </p>
@@ -250,22 +250,22 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         <div class="rounded-xl border border-border-strong bg-bg-surface p-6">
           <div class="text-sm text-white/40 uppercase tracking-wider mb-3" data-ru="Критерии GoLiveChecker">GoLiveChecker criteria</div>
           <div class="flex items-end gap-2 mb-3">
-            <span class="text-5xl font-mono font-bold text-amber-400" id="tr-gates-pass">—</span>
+            <span class="text-5xl font-mono font-bold text-warn" id="tr-gates-pass">—</span>
             <span class="text-2xl text-white/30 mb-1">/ <span id="tr-gates-total">29</span></span>
           </div>
           <div class="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
-            <div class="h-full bg-amber-400 rounded-full transition-all" id="tr-gates-bar" style="width:0%"></div>
+            <div class="h-full bg-warn rounded-full transition-all" id="tr-gates-bar" style="width:0%"></div>
           </div>
           <p class="text-white/50 text-sm" data-ru="детерминированные критерии (ADR-002) — все должны пройти до go-live">deterministic criteria (ADR-002) — all must pass before go-live</p>
         </div>
         <div class="rounded-xl border border-border-strong bg-bg-surface p-6">
           <div class="text-sm text-white/40 uppercase tracking-wider mb-3" data-ru="Подтверждённые дни трека">Evidenced track days</div>
           <div class="flex items-end gap-2 mb-3">
-            <span class="text-5xl font-mono font-bold text-teal-400" id="tr-days-2">{realDays}</span>
+            <span class="text-5xl font-mono font-bold text-data-teal" id="tr-days-2">{realDays}</span>
             <span class="text-2xl text-white/30 mb-1">/ {daysNeeded} <span data-ru="дней">days</span></span>
           </div>
           <div class="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
-            <div class="h-full bg-teal-400 rounded-full transition-all" id="tr-days-bar" style={`width:${Math.round((realDays / daysNeeded) * 100)}%`}></div>
+            <div class="h-full bg-data-teal rounded-full transition-all" id="tr-days-bar" style={`width:${Math.round((realDays / daysNeeded) * 100)}%`}></div>
           </div>
           <p class="text-white/50 text-sm"><span data-ru="Якорь подтверждения">Evidence anchor</span> {anchor} <span data-ru="· цель go-live">· go-live target</span> <span id="tr-days-target">{goLiveTarget}</span></p>
         </div>
@@ -280,9 +280,9 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           <p class="text-sm text-white/55 leading-relaxed">
             <span class="text-white/80 font-semibold" data-ru="Подтверждённые дни, не сырые бары.">Evidenced days, not raw bars.</span>
             <span data-ru="Каждый бар в файле equity помечен полем source (warmup / backfill / reconstructed / cycle) и evidenced (true/false). Засчитываются только бары cycle — те, у которых есть реальный лог ежедневного цикла. Ранние бары были бэкфиллом по фиксированной ставке; мы их не считаем, хотя и показываем для прозрачности.">
-              Each bar in the equity file is tagged with a <code class="text-teal-300/80">source</code>
-              (warmup / backfill / reconstructed / cycle) and <code class="text-teal-300/80">evidenced</code>
-              flag. Only <code class="text-teal-300/80">cycle</code> bars — those with a real daily-cycle
+              Each bar in the equity file is tagged with a <code class="text-data-teal">source</code>
+              (warmup / backfill / reconstructed / cycle) and <code class="text-data-teal">evidenced</code>
+              flag. Only <code class="text-data-teal">cycle</code> bars — those with a real daily-cycle
               log behind them — count. The earlier bars were a flat-rate backfill; we don't count them,
               though we still show them for transparency.</span>
           </p>
@@ -311,26 +311,26 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
     <!-- Verify this track yourself (the hash-anchored artifact) -->
     <section class="py-10 border-t border-border">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Проверьте этот трек сами">Verify this track yourself</p>
-      <div class="rounded-xl border border-teal-500/25 bg-gradient-to-b from-teal-500/[0.05] to-transparent p-6 sm:p-8">
+      <div class="rounded-xl border border-teal-border bg-gradient-to-b from-teal-bg to-transparent p-6 sm:p-8">
         <p class="text-sm text-white/55 leading-relaxed max-w-2xl mb-4" data-ru="Трек — не просто график: это верифицируемый артефакт. Сам ряд капитала (только подтверждённые дни) попадает в хешированную цепочку с единым генезисом — equity_track.jsonl; решения, на которых он строится, — в свою цепочку (decision_log) с привязкой к голове (anchors), а NAV каждого дня сверяется (см. Доказательство резервов выше). Не верьте нам — проверьте нас: один автономный верификатор без зависимостей (без импорта нашего кода) пересчитывает каждый хеш ОБЕИХ цепочек и сообщает точный broken_at, если хоть один байт истории — подтверждённое значение капитала, переставленный или задним числом изменённый день — был изменён. Никакого бэкфилла: в цепочку капитала входят только дни с реальным логом цикла.">
           The track is not just a chart — it is a <strong class="text-white/85">verifiable artifact</strong>.
           The evidenced equity series itself is committed to a single-genesis hash chain
-          (<code class="text-teal-300/80">equity_track.jsonl</code>); the decisions behind it are
-          committed to their own chain (<code class="text-teal-300/80">decision_log</code>, head-checkpoint
+          (<code class="text-data-teal">equity_track.jsonl</code>); the decisions behind it are
+          committed to their own chain (<code class="text-data-teal">decision_log</code>, head-checkpoint
           anchors), and each day's NAV reconciles (see Proof of Reserves above). Don't trust us — check
           us: one zero-dependency verifier (it does not import our code) re-derives every hash of
           <strong class="text-white/85">both</strong> chains and reports the exact
-          <code class="text-teal-300/80">broken_at</code> if a single byte of history — an evidenced
+          <code class="text-data-teal">broken_at</code> if a single byte of history — an evidenced
           equity value, a reordered or back-dated day — was altered. No backfill claims: only days with
           a real cycle log enter the equity chain.
         </p>
         <div class="rounded-lg bg-black/30 border border-border px-4 py-3 mb-4 overflow-x-auto">
           <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Команда">Command</p>
-          <code class="text-xs sm:text-sm font-mono text-teal-300/90 break-all">python3 verify_spa.py data/</code>
+          <code class="text-xs sm:text-sm font-mono text-data-teal break-all">python3 verify_spa.py data/</code>
         </div>
         <p class="text-xs text-white/30 leading-relaxed">
           <span data-ru="Верификатор:">Verifier:</span> <span class="font-mono text-white/50">scripts/verify_spa.py</span>
-          (<a href="/verify" class="underline text-teal-300/70 hover:text-teal-200" data-ru="как проверить + демо в браузере">how to verify + in-browser demo</a>,
+          (<a href="/verify" class="underline text-data-teal hover:text-data-teal" data-ru="как проверить + демо в браузере">how to verify + in-browser demo</a>,
           <span data-ru="закреплён">pinned</span> <span class="font-mono text-white/50">verifier-v1.0</span>)
           · <span data-ru="цепочка капитала:">equity chain:</span> <span class="font-mono text-white/50">data/rates_desk/equity_track.jsonl</span>
           · <span data-ru="рецепт:">recipe:</span> <span class="font-mono text-white/50">docs/PROOF_CHAIN_SPEC.md</span>
@@ -468,12 +468,12 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           '<stop offset="0%" stop-color="rgba(54,194,180,.25)"/>' +
           '<stop offset="100%" stop-color="rgba(54,194,180,0)"/></linearGradient></defs>' +
           '<path d="' + area + '" fill="url(#trsg)"/>' +
-          '<path d="' + line + '" fill="none" stroke="#36C2B4" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
+          '<path d="' + line + '" fill="none" style="stroke:var(--data-teal)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
       }
 
       var SRC_META = {
-        cycle:         { en: 'cycle', ru: 'цикл',          dot: 'bg-teal-400', tag: 'text-teal-300 border-teal-500/30 bg-teal-500/10' },
-        reconstructed: { en: 'reconstructed', ru: 'реконструкция', dot: 'bg-amber-400', tag: 'text-amber-300 border-amber-500/30 bg-amber-500/10' },
+        cycle:         { en: 'cycle', ru: 'цикл',          dot: 'bg-data-teal', tag: 'text-data-teal border-teal-border bg-teal-bg' },
+        reconstructed: { en: 'reconstructed', ru: 'реконструкция', dot: 'bg-warn', tag: 'text-warn border-warn-border bg-warn-bg' },
         backfill:      { en: 'backfill', ru: 'бэкфилл',    dot: 'bg-white/30', tag: 'text-white/40 border-border bg-white/[0.03]' },
         warmup:        { en: 'warmup', ru: 'прогрев',      dot: 'bg-white/20', tag: 'text-white/30 border-border bg-white/[0.02]' }
       };
@@ -540,9 +540,9 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           if(chip){
             var ok = d.reconciliation_ok === true;
             chip.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono shrink-0 border ' +
-              (ok ? 'bg-teal-500/10 border-teal-500/30 text-teal-300'
-                  : 'bg-amber-500/10 border-amber-500/30 text-amber-300');
-            chip.innerHTML = '<span class="w-1.5 h-1.5 rounded-full ' + (ok ? 'bg-teal-400' : 'bg-amber-400') +
+              (ok ? 'bg-teal-bg border-teal-border text-data-teal'
+                  : 'bg-warn-bg border-warn-border text-warn');
+            chip.innerHTML = '<span class="w-1.5 h-1.5 rounded-full ' + (ok ? 'bg-data-teal' : 'bg-warn') +
               '" aria-hidden="true"></span>' +
               (ok ? (isRu() ? 'сверено ✓' : 'reconciled ✓')
                   : (isRu() ? 'расхождение ⚠' : 'delta ⚠'));

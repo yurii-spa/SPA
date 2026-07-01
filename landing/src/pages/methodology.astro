@@ -134,7 +134,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
 
     <!-- 6. RiskPolicy v1.0 Parameters -->
     <section class="py-10 border-t border-border">
-      <p class="text-xs text-teal-400 uppercase tracking-wider font-mono mb-4" data-ru="Параметры RiskPolicy v1.0">RiskPolicy v1.0 Parameters</p>
+      <p class="text-xs text-data-teal uppercase tracking-wider font-mono mb-4" data-ru="Параметры RiskPolicy v1.0">RiskPolicy v1.0 Parameters</p>
       <p class="text-sm text-white/40 mb-6 leading-relaxed" data-ru="Детерминированный, жёстко прописанный гейт. Ни человек, ни ИИ, ни стратегия не могут переопределить эти параметры.">
         A deterministic, hard-coded gate. No human, no AI, no strategy can override these parameters.
       </p>
@@ -176,8 +176,8 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
               <td class="px-5 py-3 text-white font-mono font-semibold" data-ru="30% (предел корректности)">30% (sanity cap)</td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-amber-400/80 font-mono" data-ru="Kill switch — SOFT (просадка от пика)">Kill switch — SOFT (peak drawdown)</td>
-              <td class="px-5 py-3 text-amber-400 font-mono font-semibold" data-ru="&ge;5% → де-риск (стоп новых входов, без ликвидации)">&ge;5% &rarr; de-risk (halt new, no liquidation)</td>
+              <td class="px-5 py-3 text-warn font-mono" data-ru="Kill switch — SOFT (просадка от пика)">Kill switch — SOFT (peak drawdown)</td>
+              <td class="px-5 py-3 text-warn font-mono font-semibold" data-ru="&ge;5% → де-риск (стоп новых входов, без ликвидации)">&ge;5% &rarr; de-risk (halt new, no liquidation)</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-danger font-mono" data-ru="Kill switch — HARD (просадка от пика)">Kill switch — HARD (peak drawdown)</td>
@@ -255,8 +255,8 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
         </div>
         <div class="rounded-xl bg-bg-surface border border-border p-5">
           <div class="flex items-center gap-3 mb-2">
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs text-amber-400 font-medium">
-              <span class="w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden="true"></span>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-warn-bg border border-warn-border text-xs text-warn font-medium">
+              <span class="w-1.5 h-1.5 rounded-full bg-warn" aria-hidden="true"></span>
               <span data-ru="Валидация в ожидании">Validation Pending</span>
             </span>
             <span class="text-sm text-white font-semibold">Preserve / Max Yield</span>
@@ -357,7 +357,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
 
     <!-- CPA: Capital Preservation Algorithm -->
     <section id="cpa" class="py-10 border-t border-border">
-      <p class="text-xs text-teal-400 uppercase tracking-wider font-mono mb-4" data-ru="Алгоритм сохранения капитала (CPA)">Capital Preservation Algorithm (CPA)</p>
+      <p class="text-xs text-data-teal uppercase tracking-wider font-mono mb-4" data-ru="Алгоритм сохранения капитала (CPA)">Capital Preservation Algorithm (CPA)</p>
       <p class="text-sm text-white/40 mb-8 leading-relaxed" data-ru="CPA — это многоуровневый фреймворк валидации, который управляет переходом стратегий от исследования к живому капиталу. Каждый шаг требует проверяемых point-in-time доказательств — никаких задним числом подогнанных данных, никакого послезнания.">
         CPA is a layered validation framework that governs how strategies move from research to live capital.
         Every step requires verifiable point-in-time evidence — no retrofitted data, no hindsight.
@@ -401,7 +401,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
               stateRu: 'Гейт перед paper',
               desc: 'Strategy tested on live market data with zero capital at risk. Formal approval before advancing.',
               descRu: 'Стратегия тестируется на живых рыночных данных без капитала под риском. Формальное одобрение перед переходом дальше.',
-              color: 'border-amber-500/30',
+              color: 'border-warn-border',
             },
             {
               stage: '03',
@@ -409,7 +409,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
               stateRu: 'Paper trading',
               desc: 'Full strategy run on virtual capital. Requires ≥ 30 clean evidence points via PaperEvidenceTracker.',
               descRu: 'Полный прогон стратегии на виртуальном капитале. Требуется ≥ 30 чистых evidence-точек через PaperEvidenceTracker.',
-              color: 'border-teal-500/30',
+              color: 'border-teal-border',
             },
             {
               stage: '04',
@@ -453,7 +453,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
                 <td class="px-5 py-3 text-xs text-white/40">Aave V3, Compound, Morpho</td>
               </tr>
               <tr>
-                <td class="px-5 py-3 font-mono text-xs text-amber-400">PENDING</td>
+                <td class="px-5 py-3 font-mono text-xs text-warn">PENDING</td>
                 <td class="px-5 py-3 text-sm text-white/60" data-ru="Данные найдены, на аудите">Data found, under audit</td>
                 <td class="px-5 py-3 text-xs text-white/40">Morpho Steakhouse</td>
               </tr>
@@ -475,7 +475,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
       <!-- CPA 4: Why 86.97% Cash Drag? -->
       <div class="mb-10">
         <p class="text-sm text-white/60 font-medium mb-3" data-ru="Почему 86.97% cash drag?">Why 86.97% Cash Drag?</p>
-        <div class="rounded-xl bg-bg-surface border border-amber-500/20 p-5">
+        <div class="rounded-xl bg-bg-surface border border-warn-border p-5">
           <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="В строгом point-in-time режиме за период 2022–2026 большинство DeFi-протоколов ещё не было запущено или у них не было проверяемых ончейн-данных на дату симуляции. CPA не экстраполирует и не предполагает ретроактивную доступность.">
             In strict point-in-time mode across 2022–2026, most DeFi protocols had not yet launched
             or lacked verifiable on-chain data at the simulation date. CPA does not extrapolate

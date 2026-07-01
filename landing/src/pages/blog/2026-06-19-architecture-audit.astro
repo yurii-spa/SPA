@@ -7,7 +7,7 @@ const post = {
   date: "2026-06-19",
   tag: "Engineering",
   tagRu: "Инженерия",
-  tagColor: "text-teal-400",
+  tagColor: "text-data-teal",
   summary: "Comprehensive audit of all system components: adapters, RiskPolicy gates, GoLiveChecker, launchd daemons, and execution isolation.",
   summaryRu: "Всесторонний аудит всех компонентов системы: адаптеров, гейтов RiskPolicy, GoLiveChecker, демонов launchd и изоляции домена исполнения.",
 };
@@ -78,7 +78,7 @@ const post = {
               area: 'launchd Daemons',
               areaRu: 'Демоны launchd',
               status: 'PARTIAL',
-              color: 'text-amber-400',
+              color: 'text-warn',
               detail: 'com.spa.daily_cycle and com.spa.httpserver active. com.spa.autopush NOT installed — fix pending (mp009_fix_launchd.command).',
               detailRu: 'com.spa.daily_cycle и com.spa.httpserver активны. com.spa.autopush НЕ установлен — исправление в ожидании (mp009_fix_launchd.command).',
             },
@@ -124,7 +124,7 @@ const post = {
         <div class="space-y-3 text-sm">
           <p>
             <span data-ru="Архитектура надёжна для бумажной торговли. Основной блокер для GoLiveChecker — не проблема дизайна, а операционная: демон">The architecture is sound for paper trading. The primary blocker for GoLiveChecker is
-            not a design issue but an operational one:</span> <code class="font-mono text-amber-400 text-xs bg-white/5 px-1.5 py-0.5 rounded">com.spa.autopush</code> <span data-ru="не установлен, что блокирует критерий">daemon
+            not a design issue but an operational one:</span> <code class="font-mono text-warn text-xs bg-white/5 px-1.5 py-0.5 rounded">com.spa.autopush</code> <span data-ru="не установлен, что блокирует критерий">daemon
             is not installed, which blocks the</span> <code class="font-mono text-white/50 text-xs">autopush_installed</code><span data-ru=".">.</span>
           </p>
           <p>

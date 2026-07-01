@@ -1,0 +1,576 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+import { PageHeader, Card, Badge } from '../components/ui';
+
+/*
+ * Tournament — the strategy competition, made VISUAL and HONEST.
+ *
+ * What this page IS: strategies compete backtest → paper (Nd) → live. Only credible-data
+ * winners promote. The desk holds a steady ~4.5% RWA-anchored book; the tournament is how it
+ * VETS candidates — it is NOT a yield promise. The single most important honest truth this
+ * page must show: the promotion gate is FAIL-CLOSED — it REFUSES to promote on degenerate /
+ * untrustworthy data, so "0 promotions" is the CORRECT honest outcome, not a failure or an
+ * empty state.
+ *
+ * Data (all live client-side, graceful offline — mirrors rates-desk.astro conventions):
+ *   GET /api/tournament          → { mass_results:{leaderboard[]}, tournament:{shadow_active_strategies[]}, trustworthy, meta }
+ *   GET /api/tournament/status   → { total_backtested, total_skipped, paper_phase_count, top3 }
+ *   GET /api/strategy-lab/promotion (advisory) → promotion ladder + tournament_trustworthy stamp
+ *
+ * Every field the gate reasons on (trustworthy / data_source_regime / data_quality /
+ * sharpe_degenerate) is surfaced — we do NOT hide that the data is often flagged
+ * untrustworthy → 0 promotions. No fabricated rank/Sharpe: a degenerate/untrustworthy
+ * dataset is rendered FLAGGED, never as a clean winner.
+ *
+ * ui-kit: PageHeader / Card / Badge server-rendered. JS-built leaderboard rows use the same
+ * canonical tint tokens as literal Tailwind strings (bg-ok-bg/border-ok-border/text-ok …),
+ * the established pattern for client-built badges in this design system. No raw hex.
+ */
+
+const RWA_FLOOR_PCT = 4.5;
+
+// The four promotion criteria (mirror spa_core/tournament/tournament_engine.py PROMOTION_CRITERIA).
+const CRITERIA = [
+  { key: 'sharpe', en: 'Sharpe ≥ 1.5',      ru: 'Sharpe ≥ 1.5',        note_en: 'risk-adjusted return', note_ru: 'доходность с поправкой на риск' },
+  { key: 'days',   en: '≥ 7 days paper',    ru: '≥ 7 дней в paper',    note_en: 'enough live samples',  note_ru: 'достаточно живых наблюдений' },
+  { key: 'apy',    en: 'APY ≥ 3%',          ru: 'APY ≥ 3%',            note_en: 'clears a floor',        note_ru: 'выше пола' },
+  { key: 'dd',     en: 'Drawdown ≥ −15%',   ru: 'Просадка ≥ −15%',     note_en: 'survivable loss',       note_ru: 'переживаемый убыток' },
+];
+
+// The pipeline stages (mirror PHASES). Each is a rung a strategy must earn.
+const LADDER = [
+  {
+    id: 'backtest', en: 'Backtest', ru: 'Бэктест',
+    desc_en: 'Historical simulation over the deterministic price/APY series. Ranked by net return + Sharpe.',
+    desc_ru: 'Историческая симуляция по детерминированным сериям цен/APY. Ранжируется по net-доходности + Sharpe.',
+  },
+  {
+    id: 'paper', en: 'Paper (Nd)', ru: 'Paper (N дн.)',
+    desc_en: 'The top strategies shadow-trade live paper daily — no capital. Accruing a real forward track.',
+    desc_ru: 'Топ-стратегии живут в shadow-paper ежедневно — без капитала. Копят реальный форвардный трек.',
+  },
+  {
+    id: 'live', en: 'Live (advisory)', ru: 'Live (advisory)',
+    desc_en: 'A candidate PROMOTES only if it clears every criterion ON CREDIBLE DATA. Advisory — never auto-executes.',
+    desc_ru: 'Кандидат ПРОХОДИТ, только если выполнил каждый критерий НА ДОСТОВЕРНЫХ ДАННЫХ. Advisory — не исполняет сам.',
+  },
+];
+---
+
+<Layout
+  title="Strategy Tournament — how the desk vets candidates | earn-defi.com"
+  description="The SPA strategy tournament, made visual: strategies compete backtest → paper → live, ranked by net return and Sharpe. The honest part: the promotion gate is FAIL-CLOSED — it refuses to promote on degenerate or untrustworthy data, so 0 promotions is the correct honest outcome. Live leaderboard + promotion ladder + the trustworthy/degenerate flags, shown openly. Paper research, advisory, not a yield promise."
+  canonical="https://earn-defi.com/tournament"
+>
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+
+    <!-- ============================================================= a. WHAT IT IS -->
+    <PageHeader
+      eyebrow="Paper research · advisory · not a yield promise"
+      eyebrowRu="Paper-исследование · advisory · не обещание доходности"
+      eyebrowTone="accent"
+      title="Strategy Tournament"
+      titleRu="Турнир стратегий"
+      lede="Strategies compete backtest → paper → live, ranked by net return and Sharpe. Only credible-data winners promote. This is how the desk VETS candidates — not a yield promise. The desk itself holds a steady ~4.5% RWA-anchored book."
+      ledeRu="Стратегии соревнуются backtest → paper → live, ранжируются по net-доходности и Sharpe. Промоушен получают только победители на достоверных данных. Так десk ОТБИРАЕТ кандидатов — это не обещание доходности. Сам десk держит стабильную книгу ~4.5% на якоре RWA."
+      max="46rem"
+    >
+      <span class="inline-flex items-center gap-2 text-[11px] font-mono" style="color:var(--text-faint)">
+        <span data-ru="источник">source</span>:
+        <span id="t-src" data-ru="статика / офлайн">static / offline</span>
+        · <span id="t-asof">—</span>
+      </span>
+    </PageHeader>
+
+    <!-- Honest framing card — the ONE thing to understand -->
+    <section class="mt-8">
+      <div class="rounded-xl p-6" style="background:var(--accent-bg);border:1px solid var(--accent-dim)">
+        <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--accent-hover)"
+           data-ru="Честная рамка — прочтите сначала">The honest framing — read this first</p>
+        <p class="text-sm leading-relaxed mb-3" style="color:var(--text-secondary)"
+           data-ru="Промоушен-гейт FAIL-CLOSED. Он ОТКАЗЫВАЕТСЯ повышать стратегию до live, если данные вырождены (locked-vol / near-constant → Sharpe взрывается) или помечены как недостоверные. Поэтому «0 промоушенов» — это ПРАВИЛЬНЫЙ честный результат, а не сбой и не пустая страница.">
+          The promotion gate is <strong style="color:var(--text-primary)">fail-closed</strong>. It
+          <strong style="color:var(--text-primary)">refuses</strong> to promote a strategy to live when the
+          data is degenerate (locked-vol / near-constant → Sharpe explodes) or flagged untrustworthy.
+          So <strong style="color:var(--text-primary)">"0 promotions" is the CORRECT honest outcome</strong>
+          — not a failure, not an empty page.
+        </p>
+        <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+           data-ru="Мы показываем флаги достоверности открыто. Если датасет помечен недостоверным, каждая стратегия в турнире показана ПОМЕЧЕННОЙ — мы не рендерим mock-ранжирование как живого победителя.">
+          We show the trustworthiness flags openly. If the dataset is flagged untrustworthy, every strategy
+          in the tournament is shown <strong style="color:var(--text-primary)">flagged</strong> — we never
+          render a mock ranking as a live winner.
+        </p>
+      </div>
+    </section>
+
+    <!-- Dataset trust verdict banner (live) -->
+    <section class="mt-4">
+      <div id="trust-banner" class="rounded-xl p-5 flex items-start gap-4"
+           style="background:var(--bg-surface);border:1px solid var(--border)">
+        <span id="trust-dot" class="mt-1 w-2.5 h-2.5 rounded-full shrink-0" style="background:var(--text-muted)" aria-hidden="true"></span>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 flex-wrap mb-1.5">
+            <span id="trust-badge"
+                  class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-mono"
+                  style="background:var(--bg-surface-2);border-color:var(--border-strong);color:var(--text-muted)">
+              <span data-ru="проверка достоверности данных…">assessing data trust…</span>
+            </span>
+            <span id="trust-regime" class="text-[11px] font-mono" style="color:var(--text-faint)"></span>
+          </div>
+          <p id="trust-reason" class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Читаем вердикт достоверности из турнирного датасета…">
+            Reading the trustworthiness verdict from the tournament dataset…
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stat tiles: backtested · paper phase · promotions · refusals -->
+    <section class="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div class="rounded-xl p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+        <p class="text-xs font-mono mb-1" style="color:var(--text-muted)" data-ru="Стратегий в бэктесте">Strategies backtested</p>
+        <p id="stat-backtested" class="text-2xl font-bold font-mono" style="color:var(--text-primary)">—</p>
+      </div>
+      <div class="rounded-xl p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+        <p class="text-xs font-mono mb-1" style="color:var(--text-muted)" data-ru="Соревнуются в paper">Competing in paper</p>
+        <p id="stat-paper" class="text-2xl font-bold font-mono" style="color:var(--text-primary)">—</p>
+      </div>
+      <div class="rounded-xl p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+        <p class="text-xs font-mono mb-1" style="color:var(--text-muted)" data-ru="Промоушенов в live">Promotions to live</p>
+        <p id="stat-promotions" class="text-2xl font-bold font-mono" style="color:var(--text-primary)">—</p>
+      </div>
+      <div class="rounded-xl p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+        <p class="text-xs font-mono mb-1" style="color:var(--text-muted)" data-ru="Отказано (честно)">Refused (honest)</p>
+        <p id="stat-refusals" class="text-2xl font-bold font-mono" style="color:var(--warn)">—</p>
+      </div>
+    </section>
+
+    <!-- ============================================================= b. THE LEADERBOARD -->
+    <section class="py-10 mt-4 border-t" style="border-color:var(--border)">
+      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
+        <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
+           data-ru="Турнирная таблица — стратегии в соревновании">The leaderboard — strategies in competition</p>
+        <span id="lb-flag" class="text-[11px] font-mono" style="color:var(--text-faint)"></span>
+      </div>
+      <p class="text-sm mb-6 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Каждая строка — конкурирующая стратегия: её net-доходность, Sharpe (честно: n/a или вырожден там, где vol заблокирован), риск-класс, фаза и статус промоушена. Живое из /api/tournament. Sharpe показан ПОМЕЧЕННЫМ, если датасет вырожден — высокое число тогда не является достоверным сигналом.">
+        Each row is a competing strategy — its net return, Sharpe (honest: <span class="font-mono">n/a</span>
+        or flagged degenerate where vol is locked), risk-class, phase and promotion status. Live from
+        <span class="font-mono text-xs">/api/tournament</span>. Sharpe is shown
+        <strong style="color:var(--text-primary)">flagged</strong> when the dataset is degenerate — a high
+        number there is not a credible signal.
+      </p>
+
+      <div class="overflow-x-auto rounded-xl" style="border:1px solid var(--border)">
+        <table class="w-full text-sm" style="color:var(--text-secondary)">
+          <thead>
+            <tr class="text-[11px] font-mono uppercase tracking-wider text-left" style="color:var(--text-muted);background:var(--bg-surface-2)">
+              <th class="px-4 py-3" data-ru="#">#</th>
+              <th class="px-4 py-3" data-ru="Стратегия">Strategy</th>
+              <th class="px-4 py-3 text-center" data-ru="Класс">Class</th>
+              <th class="px-4 py-3 text-right" data-ru="Net APY">Net APY</th>
+              <th class="px-4 py-3 text-right" data-ru="Sharpe">Sharpe</th>
+              <th class="px-4 py-3 text-right" data-ru="Просадка">Max DD</th>
+              <th class="px-4 py-3 text-center" data-ru="Фаза">Phase</th>
+              <th class="px-4 py-3 text-center" data-ru="Промоушен">Promotion</th>
+            </tr>
+          </thead>
+          <tbody id="lb-rows">
+            <tr><td colspan="8" class="px-4 py-8 text-center" style="color:var(--text-muted)">
+              <span data-ru="Загрузка турнирной таблицы…">Loading the leaderboard…</span>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-3 text-[11px] leading-relaxed" style="color:var(--text-faint)"
+         data-ru="Net APY / Sharpe / просадка — из детерминированного бэктеста (backtest_derived), НЕ реализованный live-paper. Класс: A бирюзовый (нейтральный / β≈0) · B акцент (кэрри) · C янтарный (directional) · D красный (хвостовой). Sharpe помеченный ⚠ = вырожден (locked-vol) → не достоверен.">
+        Net APY / Sharpe / drawdown are from the deterministic backtest (backtest_derived), NOT realized
+        live paper. Class: A teal (neutral / β≈0) · B accent (carry) · C amber (directional) · D red (tail).
+        A flagged Sharpe (⚠) is degenerate (locked-vol) → not credible.
+      </p>
+    </section>
+
+    <!-- ============================================================= c. THE PROMOTION LADDER -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+         data-ru="Лестница промоушена — где сидит каждая стратегия">The promotion ladder — where each strategy sits</p>
+      <p class="text-sm mb-6 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Стратегия поднимается backtest → paper → live только заслуженно. Живой счётчик под каждой ступенью — сколько стратегий сейчас на ней. Последняя ступень охраняется fail-closed гейтом.">
+        A strategy climbs backtest → paper → live only by earning it. The live counter under each rung is how
+        many strategies sit there right now. The final rung is guarded by the fail-closed gate.
+      </p>
+
+      <!-- Ladder rungs -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {LADDER.map((rung, i) => (
+          <div class="rounded-xl p-5 relative" style="background:var(--bg-surface);border:1px solid var(--border)">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-mono font-bold shrink-0"
+                    style="background:var(--accent-bg);border:1px solid var(--accent-border);color:var(--accent-hover)">{i + 1}</span>
+              <span class="text-sm font-semibold font-mono" style="color:var(--text-primary)" data-ru={rung.ru}>{rung.en}</span>
+            </div>
+            <p class="text-xs leading-relaxed mb-3" style="color:var(--text-secondary)" data-ru={rung.desc_ru}>{rung.desc_en}</p>
+            <div class="flex items-baseline gap-2">
+              <span id={`rung-${rung.id}`} class="text-2xl font-bold font-mono" style="color:var(--text-primary)">—</span>
+              <span class="text-[11px] font-mono" style="color:var(--text-muted)" data-ru="стратегий здесь">strategies here</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <!-- The four criteria a paper strategy must ALL clear to promote -->
+      <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--border)">
+        <p class="text-xs uppercase tracking-wider font-mono mb-4" style="color:var(--text-muted)"
+           data-ru="Все четыре критерия должны выполниться — НА ДОСТОВЕРНЫХ ДАННЫХ">
+          All four criteria must clear — ON CREDIBLE DATA
+        </p>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {CRITERIA.map((c) => (
+            <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
+              <p class="text-sm font-semibold font-mono mb-1" style="color:var(--text-primary)" data-ru={c.ru}>{c.en}</p>
+              <p class="text-[11px] leading-relaxed" style="color:var(--text-muted)" data-ru={c.note_ru}>{c.note_en}</p>
+            </div>
+          ))}
+        </div>
+        <div class="mt-5 rounded-lg p-4" style="background:var(--danger-bg);border:1px solid var(--danger-border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-1.5" style="color:var(--danger)"
+             data-ru="Почему большинство НЕ проходит">Why most DON'T promote</p>
+          <p class="text-xs leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Даже если стратегия математически выполняет все четыре критерия, гейт ОТКАЗЫВАЕТ, если сам датасет вырожден (locked-vol / near-constant → Sharpe взрывается до десятков/сотен) или помечен недостоверным. Вырожденный Sharpe НИКОГДА не может дойти до live. Отказ — это честность, а не сбой.">
+            Even if a strategy mathematically meets all four criteria, the gate
+            <strong style="color:var(--text-primary)">refuses</strong> when the dataset itself is degenerate
+            (locked-vol / near-constant → Sharpe explodes into the tens/hundreds) or flagged untrustworthy.
+            A degenerate Sharpe can <strong style="color:var(--text-primary)">never</strong> reach live.
+            The refusal is honesty, not a failure.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= d. THE REFUSAL VERDICT (live) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
+        <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
+           data-ru="Вердикт промоушена — что гейт решил в этот прогон">The promotion verdict — what the gate decided this run</p>
+        <span id="ref-src" class="text-[11px] font-mono" style="color:var(--text-faint)" data-ru="статика / офлайн">static / offline</span>
+      </div>
+      <div id="verdict-wrap" class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--border)">
+        <p class="text-sm" style="color:var(--text-muted)" data-ru="Загрузка вердикта промоушена…">Loading the promotion verdict…</p>
+      </div>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+
+  <!-- ===================================================================== LIVE FETCH -->
+  <script is:inline>
+    /* Tournament live surfaces — api.earn-defi.com, localhost fallback, graceful offline.
+       Mirrors the api-base + fail-quiet convention in rates-desk.astro / system.astro. */
+    (function () {
+      var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+        ? 'http://localhost:8765'
+        : 'https://api.earn-defi.com';
+      function isRu() { try { return (localStorage.getItem('spa_lang') || 'en') === 'ru'; } catch (e) { return false; } }
+      function esc(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+      function setText(id, t) { var el = document.getElementById(id); if (el) el.textContent = t; }
+      function num(x) { var n = Number(x); return isFinite(n) ? n : null; }
+
+      // The desk's data-credibility ceiling (mirrors DEGENERATE_SHARPE_CEILING in the engine).
+      var DEGENERATE_SHARPE_CEILING = 10.0;
+
+      // Risk-class heuristic (data has no `class`; we infer HONESTLY from key/allocation and
+      // fall back to '—' unclassified — never fabricate a class). teal=A neutral, accent=B carry,
+      // warn=C directional, danger=D tail.
+      function riskClass(s) {
+        var key = String(s.strategy_key || s.strategy_id || s.id || '').toLowerCase();
+        var name = String(s.name || '').toLowerCase();
+        var blob = key + ' ' + name;
+        if (/(delta.?neutral|basis|market.?neutral|hedge)/.test(blob)) return 'A';
+        if (/(susde|ethena|carry|yield.?max|ladder|pt|fixed)/.test(blob)) return 'B';
+        if (/(direction|lever|loop|momentum|lrt|restak)/.test(blob)) return 'C';
+        if (/(tail|degen|points|airdrop)/.test(blob)) return 'D';
+        return null; // unclassified — shown as '—', never guessed as a clean class
+      }
+      var CLASS_BADGE = {
+        A: 'bg-teal-bg border-teal-border text-data-teal',
+        B: 'bg-accent-bg border-accent-border text-accent-hover',
+        C: 'bg-warn-bg border-warn-border text-warn',
+        D: 'bg-danger-bg border-danger-border text-danger',
+      };
+
+      // A dataset-degenerate OR per-strategy-flagged Sharpe is NOT credible → render flagged.
+      function sharpeCell(s, datasetDegenerate) {
+        var v = num(s.sharpe != null ? s.sharpe : s.sharpe_display);
+        var flagged = datasetDegenerate
+          || s.sharpe_degenerate === true
+          || s.rank_unknown === true
+          || (v != null && Math.abs(v) > DEGENERATE_SHARPE_CEILING)
+          || v == null;
+        if (v == null) {
+          return '<span class="font-mono text-xs" style="color:var(--text-muted)">n/a</span>';
+        }
+        if (flagged) {
+          // Suspect number: shown muted with a ⚠, never as a clean winner.
+          return '<span class="inline-flex items-center gap-1 font-mono" style="color:var(--warn)" title="' +
+            esc(isRu() ? 'вырожденный Sharpe (locked-vol) — не достоверен' : 'degenerate Sharpe (locked-vol) — not credible') + '">' +
+            '⚠ ' + v.toFixed(1) + '</span>';
+        }
+        return '<span class="font-mono" style="color:var(--text-primary)">' + v.toFixed(2) + '</span>';
+      }
+
+      function phaseBadge(days) {
+        var ru = isRu();
+        // days_active drives the phase label; backtest→paper at day 1, "live" is only via promotion.
+        if (days == null || days <= 0) {
+          return badge('bg-white/[0.03] border-[var(--border-strong)] text-[var(--text-muted)]', ru ? 'бэктест' : 'backtest');
+        }
+        return badge('bg-accent-bg border-accent-border text-accent-hover',
+          (ru ? 'paper · ' : 'paper · ') + days + (ru ? 'д' : 'd'));
+      }
+
+      function badge(cls, label) {
+        return '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-mono ' + cls + '">' +
+          '<span class="w-1.5 h-1.5 rounded-full" style="background:currentColor" aria-hidden="true"></span>' + esc(label) + '</span>';
+      }
+
+      // Promotion status: REFUSED (honest) when dataset untrustworthy; else PENDING criteria.
+      function promoBadge(datasetTrustworthy) {
+        var ru = isRu();
+        if (!datasetTrustworthy) {
+          return badge('bg-danger-bg border-danger-border text-danger', ru ? 'ОТКАЗ' : 'REFUSED');
+        }
+        return badge('bg-warn-bg border-warn-border text-warn', ru ? 'ОЖИДАЕТ' : 'PENDING');
+      }
+
+      function lbRow(s, i, datasetTrustworthy, datasetDegenerate) {
+        var ru = isRu();
+        var apy = num(s.net_annual_return_pct != null ? s.net_annual_return_pct : s.paper_apy);
+        var apyTxt = apy == null ? '—' : apy.toFixed(2) + '%';
+        var dd = num(s.max_dd_pct != null ? s.max_dd_pct : (s.max_drawdown != null ? s.max_drawdown * 100 : null));
+        var ddTxt = dd == null ? '—' : '−' + Math.abs(dd).toFixed(2) + '%';
+        var cls = riskClass(s);
+        var clsCell = cls
+          ? '<span class="inline-flex items-center px-2 py-0.5 rounded-md border text-[11px] font-mono ' + CLASS_BADGE[cls] + '">' + cls + '</span>'
+          : '<span class="font-mono text-xs" style="color:var(--text-muted)">—</span>';
+        var nm = esc(s.name || s.strategy_key || s.strategy_id || s.id || '?');
+        var key = s.strategy_key || s.strategy_id || s.id;
+        var days = num(s.days_active);
+        var rank = s.rank != null ? s.rank : (i + 1);
+        return '<tr style="border-top:1px solid var(--border)">' +
+          '<td class="px-4 py-3 font-mono" style="color:var(--text-muted)">' + esc(rank) + '</td>' +
+          '<td class="px-4 py-3"><div class="flex flex-col"><span class="font-semibold" style="color:var(--text-primary)">' + nm + '</span>' +
+            (key ? '<span class="font-mono text-[11px]" style="color:var(--text-faint)">' + esc(key) + '</span>' : '') + '</div></td>' +
+          '<td class="px-4 py-3 text-center">' + clsCell + '</td>' +
+          '<td class="px-4 py-3 font-mono text-right" style="color:var(--text-primary)">' + apyTxt + '</td>' +
+          '<td class="px-4 py-3 text-right">' + sharpeCell(s, datasetDegenerate) + '</td>' +
+          '<td class="px-4 py-3 font-mono text-right text-xs" style="color:var(--text-secondary)">' + ddTxt + '</td>' +
+          '<td class="px-4 py-3 text-center">' + phaseBadge(days) + '</td>' +
+          '<td class="px-4 py-3 text-center">' + promoBadge(datasetTrustworthy) + '</td>' +
+        '</tr>';
+      }
+
+      // ── Merge the two lists honestly: prefer the rich shadow_active_strategies (has
+      //    name/key/sharpe/allocation); if absent, fall back to the sparse mass leaderboard.
+      function pickStrategies(d) {
+        var tour = (d && d.tournament) || {};
+        var active = tour.shadow_active_strategies || tour.active_strategies || tour.ranked_strategies || [];
+        if (Array.isArray(active) && active.length) return active;
+        var mass = (d && d.mass_results) || {};
+        var lb = mass.leaderboard || [];
+        return Array.isArray(lb) ? lb.slice(0, 12) : [];
+      }
+
+      // State shared across renders (for language re-render).
+      var _state = null;
+
+      function renderLeaderboard() {
+        if (!_state) return;
+        var d = _state;
+        var trustworthy = d.trustworthy === true; // fail-closed: only explicit true is trusted
+        var dq = ((d.tournament || {}).data_quality) || {};
+        var datasetDegenerate = !trustworthy
+          || dq.status === 'DEGENERATE'
+          || ((d.tournament || {}).data_source_regime || '') === 'DEGENERATE_MOCK'
+          || ((d.tournament || {}).data_source_regime || '') === 'LOW_VOL_YIELD';
+        var strategies = pickStrategies(d);
+        var body = document.getElementById('lb-rows');
+        var ru = isRu();
+        if (!body) return;
+        if (!strategies.length) {
+          body.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center" style="color:var(--text-muted)">' +
+            esc(ru ? 'В турнире пока нет активных стратегий.' : 'No active strategies in the tournament yet.') + '</td></tr>';
+          return;
+        }
+        body.innerHTML = strategies.map(function (s, i) {
+          return lbRow(s, i, trustworthy, datasetDegenerate);
+        }).join('');
+        var flag = document.getElementById('lb-flag');
+        if (flag) {
+          flag.textContent = datasetDegenerate
+            ? (ru ? '⚠ датасет помечен вырожденным — Sharpe не достоверен' : '⚠ dataset flagged degenerate — Sharpe not credible')
+            : (ru ? 'датасет достоверен' : 'dataset trustworthy');
+          flag.style.color = datasetDegenerate ? 'var(--warn)' : 'var(--ok)';
+        }
+      }
+
+      function renderTrustBanner() {
+        if (!_state) return;
+        var d = _state;
+        var ru = isRu();
+        var trustworthy = d.trustworthy === true;
+        var tour = d.tournament || {};
+        var dq = tour.data_quality || {};
+        var regime = tour.data_source_regime || (d.meta && d.meta.data_source_regime) || '';
+        var reason = tour.trust_reason || dq.reason || (d.meta && d.meta.trust_reason) || '';
+
+        var badgeEl = document.getElementById('trust-badge');
+        var dotEl = document.getElementById('trust-dot');
+        var regimeEl = document.getElementById('trust-regime');
+        var reasonEl = document.getElementById('trust-reason');
+
+        if (badgeEl) {
+          badgeEl.className = 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-mono';
+          if (trustworthy) {
+            badgeEl.className += ' bg-ok-bg border-ok-border text-ok';
+            badgeEl.textContent = ru ? 'ДАННЫЕ ДОСТОВЕРНЫ' : 'DATA TRUSTWORTHY';
+            if (dotEl) dotEl.style.background = 'var(--ok)';
+          } else {
+            badgeEl.className += ' bg-danger-bg border-danger-border text-danger';
+            badgeEl.textContent = ru ? 'ДАННЫЕ ВЫРОЖДЕНЫ · ОТКАЗ' : 'DATA DEGENERATE · REFUSED';
+            if (dotEl) dotEl.style.background = 'var(--danger)';
+          }
+        }
+        if (regimeEl) regimeEl.textContent = regime ? ('regime: ' + regime) : '';
+        if (reasonEl) {
+          if (trustworthy) {
+            reasonEl.textContent = ru
+              ? 'Датасет достоверен: гейт оценивает кандидатов по числовым критериям. Промоушен всё равно advisory.'
+              : 'The dataset is trustworthy: the gate evaluates candidates on the numeric criteria. Promotion is still advisory.';
+          } else {
+            reasonEl.textContent = reason ||
+              (ru ? 'Датасет помечен недостоверным (near-constant / mock-подобные данные → Sharpe вырожден). Гейт отказывает во всех промоушенах — это правильный честный результат.'
+                  : 'The dataset is flagged untrustworthy (near-constant / mock-like data → degenerate Sharpe). The gate refuses all promotions — the correct honest outcome.');
+          }
+        }
+      }
+
+      function loadTournament() {
+        fetch(API + '/api/tournament').then(function (r) { return r.json(); }).then(function (d) {
+          if (!d) return;
+          _state = d;
+          renderLeaderboard();
+          renderTrustBanner();
+          setText('t-src', 'live');
+          if (d.server_time) setText('t-asof', String(d.server_time).replace('T', ' ').slice(0, 19) + ' UTC');
+          // Ladder rung counts: strategies in paper vs backtest-only vs live.
+          var strategies = pickStrategies(d);
+          var paperCount = 0, backtestCount = 0;
+          strategies.forEach(function (s) {
+            var days = num(s.days_active);
+            if (days != null && days > 0) paperCount++; else backtestCount++;
+          });
+          // "Backtest" rung = full backtested population (from status); "paper" = shadow-active.
+          setText('rung-paper', String(strategies.length));
+          setText('rung-live', '0'); // fail-closed: nothing promotes on untrustworthy data
+        }).catch(function () {});
+      }
+
+      function loadStatus() {
+        fetch(API + '/api/tournament/status').then(function (r) { return r.json(); }).then(function (d) {
+          if (!d) return;
+          if (d.total_backtested != null) {
+            setText('stat-backtested', String(d.total_backtested));
+            setText('rung-backtest', String(d.total_backtested));
+          }
+          if (d.paper_phase_count != null) setText('stat-paper', String(d.paper_phase_count));
+        }).catch(function () {});
+      }
+
+      // The promotion verdict + refusal count (advisory promotion surface).
+      function loadPromotion() {
+        fetch(API + '/api/strategy-lab/promotion').then(function (r) { return r.json(); }).then(function (d) {
+          if (!d) return;
+          renderVerdict(d);
+          setText('ref-src', 'live');
+        }).catch(function () {
+          // Fall back to the tournament dataset trust verdict for the promotion count.
+          renderVerdict(null);
+        });
+      }
+
+      function renderVerdict(promo) {
+        var ru = isRu();
+        var wrap = document.getElementById('verdict-wrap');
+        if (!wrap) return;
+        var trustworthy = (_state && _state.trustworthy === true);
+        // Refusal count: prefer the engine's own refusal record if surfaced; else derive from
+        // the honest fact that an untrustworthy dataset refuses every competing strategy.
+        var strategies = _state ? pickStrategies(_state) : [];
+        var refusals = 0, promotions = 0;
+        if (promo && typeof promo.promotions_count === 'number') promotions = promo.promotions_count;
+        if (promo && typeof promo.refusals_count === 'number') refusals = promo.refusals_count;
+        else if (!trustworthy) refusals = strategies.length;
+
+        setText('stat-promotions', String(promotions));
+        setText('stat-refusals', String(refusals));
+
+        var promoted = promotions > 0;
+        var headEn, headRu, bodyEn, bodyRu, tone;
+        if (promoted) {
+          tone = 'ok';
+          headEn = promotions + ' promotion(s) — cleared the gate on credible data';
+          headRu = promotions + ' промоушен(ов) — прошли гейт на достоверных данных';
+          bodyEn = 'These candidates cleared all four criteria on trustworthy data. Promotion is advisory — it never auto-executes.';
+          bodyRu = 'Эти кандидаты выполнили все четыре критерия на достоверных данных. Промоушен advisory — не исполняется автоматически.';
+        } else {
+          tone = trustworthy ? 'warn' : 'danger';
+          headEn = trustworthy
+            ? '0 promotions — no candidate has cleared all four criteria yet'
+            : '0 promotions — the gate REFUSED on untrustworthy data (this is correct)';
+          headRu = trustworthy
+            ? '0 промоушенов — ни один кандидат пока не выполнил все четыре критерия'
+            : '0 промоушенов — гейт ОТКАЗАЛ на недостоверных данных (это правильно)';
+          bodyEn = trustworthy
+            ? 'The data is credible but no strategy meets Sharpe ≥ 1.5, ≥ 7 paper days, APY ≥ 3% and DD ≥ −15% simultaneously. Zero promotions is the honest state, not an error.'
+            : 'The tournament ran and ranked strategies, but the dataset is degenerate / untrustworthy (locked-vol → Sharpe explodes). The fail-closed gate refuses every promotion. This is the CORRECT honest outcome — not a failure and not an empty state.';
+          bodyRu = trustworthy
+            ? 'Данные достоверны, но ни одна стратегия не выполняет одновременно Sharpe ≥ 1.5, ≥ 7 дней paper, APY ≥ 3% и DD ≥ −15%. Ноль промоушенов — честное состояние, а не ошибка.'
+            : 'Турнир отработал и отранжировал стратегии, но датасет вырожден / недостоверен (locked-vol → Sharpe взрывается). Fail-closed гейт отказывает во всех промоушенах. Это ПРАВИЛЬНЫЙ честный результат — не сбой и не пустая страница.';
+        }
+
+        var toneCls = tone === 'ok'
+          ? { bg: 'var(--ok-bg)', bd: 'var(--ok-border)', fg: 'var(--ok)', label: ru ? 'ПРОШЛИ' : 'PROMOTED' }
+          : tone === 'warn'
+          ? { bg: 'var(--warn-bg)', bd: 'var(--warn-border)', fg: 'var(--warn)', label: ru ? '0 · ОЖИДАНИЕ' : '0 · PENDING' }
+          : { bg: 'var(--danger-bg)', bd: 'var(--danger-border)', fg: 'var(--danger)', label: ru ? '0 · ОТКАЗ' : '0 · REFUSED' };
+
+        wrap.style.background = toneCls.bg;
+        wrap.style.borderColor = toneCls.bd;
+        wrap.innerHTML =
+          '<div class="flex items-center gap-2 mb-3 flex-wrap">' +
+            '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-mono" ' +
+              'style="background:transparent;border-color:' + toneCls.bd + ';color:' + toneCls.fg + '">' +
+              '<span class="w-1.5 h-1.5 rounded-full" style="background:' + toneCls.fg + '" aria-hidden="true"></span>' +
+              esc(toneCls.label) + '</span>' +
+            '<span class="text-sm font-semibold" style="color:var(--text-primary)">' + esc(ru ? headRu : headEn) + '</span>' +
+          '</div>' +
+          '<p class="text-sm leading-relaxed" style="color:var(--text-secondary)">' + esc(ru ? bodyRu : bodyEn) + '</p>';
+      }
+
+      function init() { loadTournament(); loadStatus(); loadPromotion(); }
+      if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
+      else { init(); }
+
+      // Re-render text on language toggle (Layout i18n runtime calls window.__renderLive).
+      window.__renderLive = (function (prev) {
+        return function () {
+          try { if (prev) prev(); } catch (e) {}
+          try { renderLeaderboard(); renderTrustBanner(); } catch (e) {}
+        };
+      })(window.__renderLive);
+    })();
+  </script>
+</Layout>

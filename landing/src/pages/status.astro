@@ -42,7 +42,7 @@ const checks: { label: string; labelRu: string; status: CheckStatus; detail: str
 
 const statusColor: Record<CheckStatus, string> = {
   pass: "text-ok",
-  warn: "text-amber-400",
+  warn: "text-warn",
   fail: "text-danger",
 };
 const statusIcon: Record<CheckStatus, string> = {
@@ -52,7 +52,7 @@ const statusIcon: Record<CheckStatus, string> = {
 };
 const statusBg: Record<CheckStatus, string> = {
   pass: "border-ok-border bg-ok-bg",
-  warn: "border-amber-500/30 bg-amber-950/20",
+  warn: "border-warn-border bg-warn-bg",
   fail: "border-danger-border bg-danger-bg",
 };
 ---
@@ -61,17 +61,17 @@ const statusBg: Record<CheckStatus, string> = {
   title="System Status — SPA earn-defi.com"
   description="Live operational status of the SPA autonomous DeFi yield optimizer. GoLive criteria, paper track record progress, infrastructure health. Live from api.earn-defi.com, with an honest snapshot fallback when offline."
 >
-  <main class="min-h-screen bg-[#0a0a0a] text-white font-sans">
+  <main class="min-h-screen bg-bg text-white font-sans">
 
     <!-- Header -->
     <div class="max-w-4xl mx-auto px-6 py-12 space-y-10">
 
       <!-- Hero status banner -->
-      <div class="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-8">
+      <div class="rounded-2xl border border-warn-border bg-warn-bg p-8">
         <div class="flex items-start gap-4">
           <div class="text-3xl mt-1">⚠️</div>
           <div>
-            <h1 class="text-2xl font-bold text-amber-300 mb-2" data-ru="В ПРОЦЕССЕ — фаза бумажной торговли">IN PROGRESS — Paper Trading Phase</h1>
+            <h1 class="text-2xl font-bold text-warn mb-2" data-ru="В ПРОЦЕССЕ — фаза бумажной торговли">IN PROGRESS — Paper Trading Phase</h1>
             <p class="text-white/60 leading-relaxed">
               <span data-ru="SPA сейчас работает в проверяемом режиме бумажной торговли с виртуальным капиталом $100,000 USDC. Перевод на реальный капитал (go-live) запланирован на">SPA is currently in verified paper trading mode with virtual capital of $100,000 USDC.
               Go-live transfer to real capital is planned for</span> <strong class="text-white">{goLiveTarget}</strong> <span data-ru="после 30 честных дней трека и ручного review Owner.">after 30 honest tracking days and manual Owner review.</span>
@@ -87,14 +87,14 @@ const statusBg: Record<CheckStatus, string> = {
         <div class="rounded-xl border border-white/10 bg-white/5 p-6">
           <div class="text-sm text-white/40 uppercase tracking-wider mb-3" data-ru="Готовность к GoLive">GoLive Readiness</div>
           <div class="flex items-end gap-2 mb-3">
-            <span class="text-5xl font-bold text-amber-400" id="st-gates-pass">{goLiveChecks}</span>
+            <span class="text-5xl font-bold text-warn" id="st-gates-pass">{goLiveChecks}</span>
             <span class="text-2xl text-white/30 mb-1">/ <span id="st-gates-total">{goLiveTotal}</span></span>
           </div>
           <!-- Progress bar -->
           <div class="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
             <div
               id="st-gates-bar"
-              class="h-full bg-amber-400 rounded-full transition-all"
+              class="h-full bg-warn rounded-full transition-all"
               style={`width: ${goLiveReadinessPct}%`}
             ></div>
           </div>
@@ -169,8 +169,8 @@ const statusBg: Record<CheckStatus, string> = {
               <div class="text-white/70 text-sm mt-0.5" data-ru="Трек сброшен и заякорен на первом дне с реальным логом цикла. Ранний бэкфилл по фиксированной ставке не засчитывается.">Track reset, anchored to the first day with a real cycle log. Earlier flat-rate backfill is not counted.</div>
             </div>
             <div class="relative">
-              <div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-amber-400 ring-2 ring-amber-400/30"></div>
-              <div class="text-amber-400 text-sm font-semibold">2026-07-21 <span data-ru="(ориентировочно)">(estimated)</span></div>
+              <div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-warn ring-2 ring-warn-border"></div>
+              <div class="text-warn text-sm font-semibold">2026-07-21 <span data-ru="(ориентировочно)">(estimated)</span></div>
               <div class="text-white/70 text-sm mt-0.5" data-ru="30 подтверждённых дней завершены — критерии GoLive полностью выполнены">30 evidenced days complete — GoLive criteria fully satisfied</div>
             </div>
             <div class="relative">

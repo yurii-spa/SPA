@@ -46,8 +46,8 @@ const surfaces = [
 
     <!-- Hero -->
     <section class="pt-20 pb-10">
-      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-700/40 text-xs text-teal-300 font-medium">
-        <span class="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" aria-hidden="true"></span>
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-teal-bg border border-teal-border text-xs text-data-teal font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-data-teal animate-pulse" aria-hidden="true"></span>
         <span data-ru="Машина, работающая автономно">The machine, running autonomously</span>
       </div>
       <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Система">
@@ -77,7 +77,7 @@ const surfaces = [
           </div>
           <div class="rounded-lg bg-white/[0.02] border border-white/8 p-4">
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Внимание">Warning</p>
-            <p class="text-2xl font-mono font-bold text-amber-400" id="sys-warn">—</p>
+            <p class="text-2xl font-mono font-bold text-warn" id="sys-warn">—</p>
           </div>
           <div class="rounded-lg bg-white/[0.02] border border-white/8 p-4">
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Критич.">Critical</p>
@@ -101,7 +101,7 @@ const surfaces = [
         {planes.map((p, i) => (
           <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
             <div class="flex items-center gap-3 mb-1.5">
-              <span class="flex-shrink-0 w-6 h-6 rounded-md bg-teal-500/10 border border-teal-500/25 flex items-center justify-center text-xs text-teal-400 font-mono">{i + 1}</span>
+              <span class="flex-shrink-0 w-6 h-6 rounded-md bg-teal-bg border border-teal-border flex items-center justify-center text-xs text-data-teal font-mono">{i + 1}</span>
               <p class="text-sm font-semibold text-white" data-ru={p.ru}>{p.en}</p>
             </div>
             <p class="text-xs text-white/40 leading-relaxed pl-9" data-ru={p.desc_ru}>{p.desc_en}</p>
@@ -138,10 +138,10 @@ const surfaces = [
       </p>
 
       <!-- Honest framing banner -->
-      <div class="rounded-xl border border-amber-700/40 bg-amber-500/[0.06] p-5 mb-6 flex items-start gap-3">
-        <span class="flex-shrink-0 w-5 h-5 mt-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-xs text-amber-400" aria-hidden="true">!</span>
+      <div class="rounded-xl border border-warn-border bg-warn-bg p-5 mb-6 flex items-start gap-3">
+        <span class="flex-shrink-0 w-5 h-5 mt-0.5 rounded-md bg-warn-bg border border-warn-border flex items-center justify-center text-xs text-warn" aria-hidden="true">!</span>
         <div>
-          <p class="text-sm font-semibold text-amber-200 mb-1" data-ru="Бумажное исследование · advisory · не в проде. Честный вывод:">Paper research · advisory · not live. The honest finding:</p>
+          <p class="text-sm font-semibold text-warn mb-1" data-ru="Бумажное исследование · advisory · не в проде. Честный вывод:">Paper research · advisory · not live. The honest finding:</p>
           <p class="text-sm text-white/55 leading-relaxed" data-ru="Только стабильные sleeve'ы достигают PAPER_CANDIDATE. Крипто-sleeve'ы (ETH/BTC) ОТКЛОНЕНЫ — они не обыгрывают безрисковый порог ~3.4% с поправкой на риск. Промоушен детерминирован: чистая арифметика по критериям, без LLM, не переопределяется.">
             Only the stable sleeves reach PAPER_CANDIDATE. The crypto (ETH/BTC) sleeves are REJECTED — they
             do not beat the ~3.4% risk-free floor on a risk-adjusted basis. The gate is deterministic: pure
@@ -157,17 +157,17 @@ const surfaces = [
           {['RESEARCH', 'BACKTEST', 'WALK-FORWARD', 'PAPER', 'CANARY', 'FULL'].map((stage, i, arr) => (
             <>
               <div class="flex-shrink-0 flex flex-col items-center gap-1.5">
-                <span class={`w-7 h-7 rounded-full border flex items-center justify-center text-xs font-mono ${i <= 3 ? 'bg-teal-500/10 border-teal-500/30 text-teal-300' : 'bg-white/[0.02] border-white/10 text-white/30'}`}>{i + 1}</span>
+                <span class={`w-7 h-7 rounded-full border flex items-center justify-center text-xs font-mono ${i <= 3 ? 'bg-teal-bg border-teal-border text-data-teal' : 'bg-white/[0.02] border-white/10 text-white/30'}`}>{i + 1}</span>
                 <span class={`text-[10px] sm:text-xs font-mono whitespace-nowrap ${i <= 3 ? 'text-white/60' : 'text-white/30'}`}>{stage}</span>
               </div>
-              {i < arr.length - 1 && <span class={`flex-1 min-w-[12px] h-px ${i < 3 ? 'bg-teal-500/30' : 'bg-white/10'}`} aria-hidden="true"></span>}
+              {i < arr.length - 1 && <span class={`flex-1 min-w-[12px] h-px ${i < 3 ? 'bg-data-teal' : 'bg-white/10'}`} aria-hidden="true"></span>}
             </>
           ))}
         </div>
         <p class="text-xs text-white/30 mt-4 leading-relaxed" data-ru="Стадии после backtest достигаются только при прохождении гейта. Текущая фаза трека — paper; ни один sleeve не идёт в live, пока трек не подтверждён. RWA-порог, против которого всё измеряется:">
           Stages past backtest are only reached by clearing the gate. The current track phase is paper; no sleeve
           goes live until the track is confirmed. RWA floor everything is measured against:
-          <span class="font-mono text-teal-300" id="promo-floor">—</span>
+          <span class="font-mono text-data-teal" id="promo-floor">—</span>
         </p>
       </div>
 
@@ -177,9 +177,9 @@ const surfaces = [
           <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Кандидат в paper">Paper candidate</p>
           <p class="text-2xl font-mono font-bold text-ok" id="promo-cnt-paper">—</p>
         </div>
-        <div class="rounded-lg bg-white/[0.02] border border-teal-700/30 p-4">
+        <div class="rounded-lg bg-white/[0.02] border border-teal-border p-4">
           <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Прошёл backtest">Backtest pass</p>
-          <p class="text-2xl font-mono font-bold text-teal-300" id="promo-cnt-backtest">—</p>
+          <p class="text-2xl font-mono font-bold text-data-teal" id="promo-cnt-backtest">—</p>
         </div>
         <div class="rounded-lg bg-white/[0.02] border border-danger-border p-4">
           <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Отклонён">Rejected</p>
@@ -228,8 +228,8 @@ const surfaces = [
 
       <!-- Verdict legend + thresholds -->
       <div class="flex flex-wrap items-center gap-2 mb-5 text-[11px] font-mono">
-        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-teal-500/10 border-teal-500/30 text-teal-300"><span class="w-1.5 h-1.5 rounded-full bg-teal-400" aria-hidden="true"></span><span data-ru="БЕЗОПАСЕН">SAFE</span></span>
-        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-amber-500/10 border-amber-500/30 text-amber-300"><span class="w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden="true"></span><span data-ru="НАБЛЮДЕНИЕ">WATCH</span></span>
+        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-teal-bg border-teal-border text-data-teal"><span class="w-1.5 h-1.5 rounded-full bg-data-teal" aria-hidden="true"></span><span data-ru="БЕЗОПАСЕН">SAFE</span></span>
+        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-warn-bg border-warn-border text-warn"><span class="w-1.5 h-1.5 rounded-full bg-warn" aria-hidden="true"></span><span data-ru="НАБЛЮДЕНИЕ">WATCH</span></span>
         <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-danger-bg border-danger-border text-danger"><span class="w-1.5 h-1.5 rounded-full bg-danger" aria-hidden="true"></span><span data-ru="ОТКАЗ">REFUSE</span></span>
         <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-white/5 border-white/15 text-white/40"><span class="w-1.5 h-1.5 rounded-full bg-white/30" aria-hidden="true"></span><span data-ru="НЕИЗВЕСТНО">UNKNOWN</span></span>
         <span class="text-white/25" id="ref-thresholds"></span>
@@ -264,7 +264,7 @@ const surfaces = [
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div>
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="NAV (бумажный)">NAV (paper)</p>
-            <p class="text-lg font-mono font-bold text-teal-400" id="sys-por-nav">—</p>
+            <p class="text-lg font-mono font-bold text-data-teal" id="sys-por-nav">—</p>
           </div>
           <div>
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Расхождение">Delta</p>
@@ -272,7 +272,7 @@ const surfaces = [
           </div>
           <div>
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Хэш проверки">Verification hash</p>
-            <p class="text-sm font-mono text-teal-300/70 break-all" id="sys-por-hash">—</p>
+            <p class="text-sm font-mono text-data-teal break-all" id="sys-por-hash">—</p>
           </div>
         </div>
         <p class="text-xs text-white/30 mt-4" data-ru="NAV = вложено + кэш + начислено, сверяется с заявленным капиталом. Бумажное доказательство резервов (методология на виртуальном портфеле $100k, не реальное кастоди). Полная панель → /track-record">
@@ -286,10 +286,10 @@ const surfaces = [
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6" data-ru="Ежедневный цикл">The daily cycle</p>
       <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5 font-mono text-xs text-white/55 leading-relaxed overflow-x-auto">
-        <span class="text-teal-400">08:00 UTC</span> · adapter orchestrator (read-only) → live APY/TVL<br/>
+        <span class="text-data-teal">08:00 UTC</span> · adapter orchestrator (read-only) → live APY/TVL<br/>
         &nbsp;&nbsp;&nbsp;&nbsp;→ multi-strategy runner (S0–S77, tournament)<br/>
         &nbsp;&nbsp;&nbsp;&nbsp;→ allocator → target allocation with caps<br/>
-        &nbsp;&nbsp;&nbsp;&nbsp;→ <span class="text-amber-400">RiskPolicy gate (deterministic, LLM forbidden)</span><br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;→ <span class="text-warn">RiskPolicy gate (deterministic, LLM forbidden)</span><br/>
         &nbsp;&nbsp;&nbsp;&nbsp;→ virtual rebalance → daily yield accrual<br/>
         &nbsp;&nbsp;&nbsp;&nbsp;→ <span class="text-accent-400">GoLiveChecker → 29 criteria</span>
       </div>
@@ -336,8 +336,8 @@ const surfaces = [
           if(chip){
             var ok = d.reconciliation_ok === true;
             chip.className = 'inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono shrink-0 border ' +
-              (ok ? 'bg-teal-500/10 border-teal-500/30 text-teal-300' : 'bg-amber-500/10 border-amber-500/30 text-amber-300');
-            chip.innerHTML = '<span class="w-1.5 h-1.5 rounded-full ' + (ok ? 'bg-teal-400' : 'bg-amber-400') + '" aria-hidden="true"></span>' +
+              (ok ? 'bg-teal-bg border-teal-border text-data-teal' : 'bg-warn-bg border-warn-border text-warn');
+            chip.innerHTML = '<span class="w-1.5 h-1.5 rounded-full ' + (ok ? 'bg-data-teal' : 'bg-warn') + '" aria-hidden="true"></span>' +
               (ok ? (isRu() ? 'сверено ✓' : 'reconciled ✓') : (isRu() ? 'расхождение ⚠' : 'delta ⚠'));
           }
           setText('sys-por-src', 'live');
@@ -350,7 +350,7 @@ const surfaces = [
       /* Explicit class strings (NOT constructed at runtime — Tailwind only compiles literal classes). */
       var STAGE_META = {
         PAPER_CANDIDATE: { en: 'Paper candidate', ru: 'Кандидат в paper', border: 'border-ok-border', dot: 'bg-ok', text: 'text-ok' },
-        BACKTEST_PASS:   { en: 'Backtest pass',   ru: 'Прошёл backtest', border: 'border-teal-700/30',    dot: 'bg-teal-400',    text: 'text-teal-300' },
+        BACKTEST_PASS:   { en: 'Backtest pass',   ru: 'Прошёл backtest', border: 'border-teal-border',    dot: 'bg-data-teal',    text: 'text-data-teal' },
         REJECT:          { en: 'Rejected',        ru: 'Отклонён',        border: 'border-danger-border',     dot: 'bg-danger',     text: 'text-danger' }
       };
       // Criterion key → bilingual label.
@@ -445,8 +445,8 @@ const surfaces = [
       /* Risk refusal engine — /api/refusal, graceful offline. */
       /* Explicit class strings (Tailwind only compiles literal classes). */
       var VERDICT_META = {
-        SAFE:    { en: 'SAFE',    ru: 'БЕЗОПАСЕН',  border: 'border-teal-700/40',  badge: 'bg-teal-500/10 border-teal-500/30 text-teal-300',  dot: 'bg-teal-400',  bar: 'bg-teal-400/70',  order: 3 },
-        WATCH:   { en: 'WATCH',   ru: 'НАБЛЮДЕНИЕ', border: 'border-amber-700/40', badge: 'bg-amber-500/10 border-amber-500/30 text-amber-300', dot: 'bg-amber-400', bar: 'bg-amber-400/70', order: 1 },
+        SAFE:    { en: 'SAFE',    ru: 'БЕЗОПАСЕН',  border: 'border-teal-border',  badge: 'bg-teal-bg border-teal-border text-data-teal',  dot: 'bg-data-teal',  bar: 'bg-data-teal',  order: 3 },
+        WATCH:   { en: 'WATCH',   ru: 'НАБЛЮДЕНИЕ', border: 'border-warn-border', badge: 'bg-warn-bg border-warn-border text-warn', dot: 'bg-warn', bar: 'bg-warn', order: 1 },
         REFUSE:  { en: 'REFUSE',  ru: 'ОТКАЗ',      border: 'border-danger-border',   badge: 'bg-danger-bg border-danger-border text-danger',     dot: 'bg-danger',   bar: 'bg-danger',   order: 0 },
         UNKNOWN: { en: 'UNKNOWN', ru: 'НЕИЗВЕСТНО', border: 'border-white/10',     badge: 'bg-white/5 border-white/15 text-white/40',         dot: 'bg-white/30',  bar: 'bg-white/30',     order: 2 }
       };

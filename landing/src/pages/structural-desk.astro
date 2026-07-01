@@ -36,7 +36,7 @@ const seats = [
     finding_ru: 'Отказ сработал заранее на токсичных LRT (отклонены до депегов авг-2024 / апр-2026). В бэктесте валидированный sleeve FixedCarry обгоняет RWA-пол 3.4% in/out-of-sample и во всех стрессах — ~6.09% net APY это бэктест/кандидат, а НЕ реализованный carry (advisory, только отчётность). Живой paper-трек ещё короткий (~1 неделя, ~0% net) и пока не обгоняет пол.',
     cta_en: 'Open the Rates Desk', cta_ru: 'Открыть Rates Desk',
     // teal-leaning GO
-    card: 'border-teal-700/35', badge: 'bg-teal-500/10 border-teal-500/30 text-teal-300', dot: 'bg-teal-400', accent: 'group-hover:text-teal-300', arrow: 'group-hover:text-teal-400',
+    card: 'border-teal-border', badge: 'bg-teal-bg border-teal-border text-data-teal', dot: 'bg-data-teal', accent: 'group-hover:text-data-teal', arrow: 'group-hover:text-data-teal',
   },
   {
     n: '02',
@@ -142,7 +142,7 @@ const seats = [
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
             <div class="flex items-baseline justify-between gap-2 mb-1.5 flex-wrap">
-              <span class="text-sm font-semibold" style="color:var(--text-primary)">Rates Desk · <span class="text-teal-300">GO</span></span>
+              <span class="text-sm font-semibold" style="color:var(--text-primary)">Rates Desk · <span class="text-data-teal">GO</span></span>
               <span class="text-[11px] font-mono" style="color:var(--text-faint)" id="sd-rd-asof">—</span>
             </div>
             <p class="text-xs font-mono" style="color:var(--text-secondary)" id="sd-rd-inputs"
@@ -202,8 +202,8 @@ const seats = [
       <div class="flex items-center justify-between gap-3 mb-2 flex-wrap">
         <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
            data-ru="Rates Desk · карта продвижения слив">Rates Desk · sleeve promotion map</p>
-        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium border bg-amber-500/10 border-amber-500/30 text-amber-300">
-          <span class="w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden="true"></span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium border bg-warn-bg border-warn-border text-warn">
+          <span class="w-1.5 h-1.5 rounded-full bg-warn" aria-hidden="true"></span>
           <span data-ru="ADVISORY · reporting-only · не live">ADVISORY · reporting-only · not live</span>
         </span>
       </div>
@@ -220,21 +220,21 @@ const seats = [
         <div class="rounded-xl p-5 border bg-white/[0.02]" style="border-color:var(--border)">
           <div class="flex items-center justify-between gap-2 mb-1.5">
             <p class="text-sm font-bold" style="color:var(--text-primary)">FixedCarry</p>
-            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-teal-500/10 border-teal-500/30 text-teal-300">PAPER_CANDIDATE</span>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-teal-bg border-teal-border text-data-teal">PAPER_CANDIDATE</span>
           </div>
           <p class="text-xs font-mono" style="color:var(--text-muted)" data-ru="бэктест net APY ~6.09% · advisory (не реализованный)">backtest net APY ~6.09% · advisory (not realized)</p>
         </div>
         <div class="rounded-xl p-5 border bg-white/[0.02]" style="border-color:var(--border)">
           <div class="flex items-center justify-between gap-2 mb-1.5">
             <p class="text-sm font-bold" style="color:var(--text-primary)">LeveredCarry</p>
-            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-teal-500/10 border-teal-500/30 text-teal-300">PAPER_CANDIDATE</span>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-teal-bg border-teal-border text-data-teal">PAPER_CANDIDATE</span>
           </div>
           <p class="text-xs font-mono" style="color:var(--text-muted)" data-ru="бэктест net APY ~4.96% · advisory (не реализованный)">backtest net APY ~4.96% · advisory (not realized)</p>
         </div>
         <div class="rounded-xl p-5 border bg-white/[0.02]" style="border-color:var(--border)">
           <div class="flex items-center justify-between gap-2 mb-1.5">
             <p class="text-sm font-bold" style="color:var(--text-primary)">RateMatrix</p>
-            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-teal-500/10 border-teal-500/30 text-teal-300">PAPER_CANDIDATE</span>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-teal-bg border-teal-border text-data-teal">PAPER_CANDIDATE</span>
           </div>
           <p class="text-xs font-mono" style="color:var(--text-muted)" data-ru="бэктест net APY ~6.09% · advisory (не реализованный)">backtest net APY ~6.09% · advisory (not realized)</p>
         </div>
@@ -460,7 +460,7 @@ const seats = [
       // ── Rates Desk — sleeve promotion map (reporting only, advisory; graceful offline) ──
       // Stage → literal badge class strings (Tailwind only compiles classes it sees literally).
       var STAGE_BADGE = {
-        'PAPER_CANDIDATE': 'bg-teal-500/10 border-teal-500/30 text-teal-300',
+        'PAPER_CANDIDATE': 'bg-teal-bg border-teal-border text-data-teal',
         'BACKTEST_PASS':   'bg-indigo-500/10 border-indigo-500/30 text-indigo-300',
         'REJECT':          'bg-danger-bg border-danger-border text-danger',
         'BLOCKED-NO-HEDGE':'bg-danger-bg border-danger-border text-danger'

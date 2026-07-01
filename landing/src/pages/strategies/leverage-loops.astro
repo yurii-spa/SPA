@@ -1,0 +1,358 @@
+---
+/*
+ * strategies/leverage-loops.astro — Leverage looping, VISUALIZED (наглядно).
+ *
+ * The honest story: a leverage loop is deposit → borrow → redeposit ×N. It multiplies the
+ * yield by N AND multiplies the liquidation risk by N. The desk REFUSES this for live capital
+ * — it lives ONLY in the advisory aggressive lab. The real dated cost is shown prominently:
+ * grounded in the committed data/aggressive_lab/scorecard.json leverage_loop row:
+ *   - risk_class C (risk-compensation), risk_shape liquidation
+ *   - backtest realized -8.95% APY, max drawdown -27.94%, Sharpe -0.67 (2024-07 → 2026-05)
+ *   - worst tail -35.22% during the DATED "2025-10 USDe leverage unwind" window; in-sample
+ *     loss -13.02%, NOT RECOVERED.
+ * S73 pattern = wstETH 2× loop on Aave v3 (liquidation tail at 0.825 LTV) — data/.../leverage_loop/meta.json.
+ *
+ * ui-kit only (PageHeader/Card/Badge/StatusPill/Section/Table + canonical A/B/C/D + SAFE/REFUSE
+ * tones; C = warn/amber). No raw hex, no red-500/emerald. EN|RU via data-ru. Live from
+ * /api/aggressive-lab/strategy/leverage_loop, fail-closed — the honest committed numbers render offline.
+ */
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import { PageHeader, Section, Card, Badge, StatusPill, Table, Th, Td } from '../../components/ui';
+
+// The three loop steps — deposit → borrow → redeposit ×N.
+const steps = [
+  { n: '1', en: 'Deposit', ru: 'Депозит', d_en: 'Supply collateral (e.g. wstETH) to a lending market.', d_ru: 'Внести залог (напр. wstETH) в кредитный рынок.' },
+  { n: '2', en: 'Borrow', ru: 'Занять', d_en: 'Borrow a stablecoin against it, up to the LTV limit.', d_ru: 'Занять под него стейблкоин, до предела LTV.' },
+  { n: '3', en: 'Redeposit', ru: 'Реинвест', d_en: 'Swap back to collateral and supply again — repeat ×N.', d_ru: 'Обменять обратно в залог и снова внести — повторить ×N.' },
+];
+
+// The committed leverage_loop scorecard row (data/aggressive_lab/scorecard.json). Static, honest.
+const LL = {
+  headline_apy_pct: 15.0,
+  bt_realized_apy_pct: -8.95,   // backtest realized (the honest one, not the headline)
+  bt_max_dd_pct: -27.94,
+  bt_sharpe: -0.67,
+  worst_tail_dd_pct: -35.22,    // worst shape-shock tail across stress windows
+  worst_window: '2025-10 USDe leverage unwind',
+  worst_window_ru: '2025-10 развязка плеча USDe',
+  worst_insample_loss_pct: -13.02,
+  recovered: false,
+};
+---
+
+<Layout
+  title="Leverage loops, visualized — N× yield, N× liquidation | SPA earn-defi.com"
+  description="What a leverage loop actually is: deposit → borrow → redeposit ×N. It multiplies the yield by N AND the liquidation risk by N. The real dated cost from our advisory aggressive lab: a -35% liquidation-tail during the 2025-10 USDe unwind, NOT recovered. Risk-class C. The desk REFUSES this for live capital."
+  canonical="https://earn-defi.com/strategies/leverage-loops"
+>
+  <main>
+    <Section width="doc" pad="none">
+      <PageHeader
+        eyebrow="Beyond stablecoins · refused for live"
+        eyebrowRu="За пределами стейблов · отказано для live"
+        eyebrowTone="accent"
+        title="Leverage loops, visualized"
+        titleRu="Плечевые петли, наглядно"
+        lede="A leverage loop multiplies the yield by N — and the liquidation risk by N. Here is exactly what that means, and what it actually cost in our advisory lab: a real, dated liquidation tail. The desk refuses this for live capital."
+        ledeRu="Плечевая петля умножает доходность на N — и риск ликвидации на N. Вот что именно это значит и во что оно реально обошлось в нашей advisory-лаборатории: настоящий датированный хвост ликвидации. Деск отказывается от этого для живого капитала."
+      >
+        <StatusPill tier="C" label="RISK-CLASS C" ru="РИСК-КЛАСС C" />
+        <Badge tone="danger" dot>RISK-SHAPE · LIQUIDATION</Badge>
+        <Badge tone="warn" dot>ADVISORY LAB ONLY</Badge>
+        <Badge tone="muted" dot>NOT LIVE-ALLOCATED</Badge>
+      </PageHeader>
+    </Section>
+
+    <!-- ================================================= 1. WHAT A LOOP IS (the diagram) -->
+    <Section width="doc" pad="md" divider>
+      <p class="eyebrow" data-ru="Что это такое">What it is</p>
+      <h2 class="h2" data-ru="Депозит → Занять → Реинвест, ×N">Deposit → Borrow → Redeposit, ×N</h2>
+      <p class="lede-sm" data-ru="Каждый оборот петли добавляет ещё слой той же позиции на заёмные средства. N оборотов ≈ N× экспозиция: N× доходность, но и N× чувствительность к падению цены залога.">
+        Each turn of the loop stacks another layer of the same position on borrowed funds. N turns ≈ N×
+        exposure: N× the yield, but also N× the sensitivity to a drop in the collateral price.
+      </p>
+
+      <!-- The loop, as 3 chevron steps that curve back on themselves -->
+      <div class="loop mt-6">
+        {steps.map((s, i) => (
+          <>
+            <Card variant="status" tone="warn" padding="md" class="loop-step">
+              <span class="loop-n mono">{s.n}</span>
+              <p class="loop-t" data-ru={s.ru}>{s.en}</p>
+              <p class="loop-d" data-ru={s.d_ru}>{s.d_en}</p>
+            </Card>
+            {i < steps.length - 1 && <span class="loop-arrow" aria-hidden="true">→</span>}
+          </>
+        ))}
+        <span class="loop-back mono" aria-hidden="true">↻ ×N</span>
+      </div>
+
+      <!-- Amplification: two mirrored bars -->
+      <div class="grid-2 mt-6">
+        <Card variant="status" tone="accent" padding="md">
+          <p class="k" data-ru="Что растёт вместе с N — привлекательное">Grows with N — the attractive side</p>
+          <p class="amp mono accent">N× <span class="amp-lab" data-ru="доходность">yield</span></p>
+          <p class="sub" data-ru="3-й оборот превращает ~5% в двузначные заявленные цифры — это и есть приманка.">
+            A 3rd turn can turn ~5% into a double-digit headline — that is the lure.
+          </p>
+        </Card>
+        <Card variant="status" tone="danger" padding="md">
+          <p class="k danger" data-ru="Что растёт вместе с N — опасное">Grows with N — the dangerous side</p>
+          <p class="amp mono danger">N× <span class="amp-lab" data-ru="риск ликвидации">liquidation risk</span></p>
+          <p class="sub" data-ru="Тот же множитель бьёт по хвосту. Меньшее падение цены залога стирает позицию целиком.">
+            The same multiplier hits the tail. A smaller drop in the collateral price is enough to wipe
+            the whole position.
+          </p>
+        </Card>
+      </div>
+    </Section>
+
+    <!-- ================================================= 2. HEALTH FACTOR / LIQUIDATION PRICE -->
+    <Section width="doc" pad="md" divider>
+      <p class="eyebrow" data-ru="Механика риска">The risk mechanic</p>
+      <h2 class="h2" data-ru="Health factor и цена ликвидации">Health factor &amp; liquidation price</h2>
+      <p class="lede-sm" data-ru="Пока стоимость залога держит долг с запасом, health factor > 1. Больше оборотов → тоньше запас → выше цена ликвидации → ближе к обрыву. Пример S73: петля wstETH 2× на Aave v3, хвост ликвидации при LTV 0.825.">
+        While the collateral value covers the debt with margin, the health factor is &gt; 1. More turns
+        → thinner margin → higher liquidation price → closer to the cliff. Example S73: a wstETH 2× loop
+        on Aave v3, liquidation tail at 0.825 LTV.
+      </p>
+
+      <!-- Health-factor gauge: green safe zone → amber → red cliff, with a marker sliding toward it -->
+      <Card padding="lg" class="mt-6">
+        <div class="hf-row">
+          <span class="k" data-ru="Health factor">Health factor</span>
+          <span class="k mono" data-ru="1.0 = ликвидация">1.0 = liquidation</span>
+        </div>
+        <div class="hf-track" role="img" aria-label="Health factor gauge: more leverage pushes the position toward the 1.0 liquidation cliff">
+          <div class="hf-zone hf-cliff"></div>
+          <div class="hf-zone hf-warn"></div>
+          <div class="hf-zone hf-safe"></div>
+          <span class="hf-marker" style="left:64%"><span class="hf-flag mono" data-ru="петля ×N">loop ×N</span></span>
+        </div>
+        <div class="hf-scale mono">
+          <span class="danger" data-ru="1.0 · обрыв">1.0 · cliff</span>
+          <span class="warn" data-ru="1.2 · тонкий запас">1.2 · thin</span>
+          <span class="ok" data-ru="1.6+ · безопасно">1.6+ · safe</span>
+        </div>
+        <p class="sub" data-ru="Больше оборотов сдвигает маркер влево, к обрыву. При достижении 1.0 позицию ликвидируют — залог продают со штрафом, и убыток фиксируется. Никакой kill-switch не «отменит» уже случившуюся ликвидацию.">
+          More turns slide the marker left, toward the cliff. At 1.0 the position is liquidated — the
+          collateral is sold at a penalty and the loss is locked in. No kill switch can "undo" a
+          liquidation that already fired.
+        </p>
+      </Card>
+    </Section>
+
+    <!-- ================================================= 3. THE REAL DATED LIQUIDATION -->
+    <Section width="doc" pad="md" divider>
+      <div class="head-row">
+        <div>
+          <p class="eyebrow danger" data-ru="Что петля реально стоила">What looping actually cost</p>
+          <h2 class="h2" data-ru="Настоящий датированный хвост ликвидации">The real, dated liquidation tail</h2>
+        </div>
+        <span class="src mono">
+          <span data-ru="источник">source</span>: <span id="ll-src" data-ru="статика (committed scorecard)">static (committed scorecard)</span>
+        </span>
+      </div>
+      <p class="lede-sm" data-ru="Это не иллюстрация. Это строка leverage_loop из нашего честного multi-metric scorecard advisory-лаборатории — заявленная доходность рядом с хвостом, за который она заплачена.">
+        This is not an illustration. It is the <span class="mono">leverage_loop</span> row from the honest
+        multi-metric scorecard of our advisory lab — the headline yield next to the tail it paid for.
+      </p>
+
+      <!-- Headline vs realized: the honest gap -->
+      <div class="grid-3 mt-6">
+        <Card variant="status" tone="warn" padding="md">
+          <p class="k" data-ru="Заявленный APY (приманка)">Headline APY (the lure)</p>
+          <p class="metric-lg mono warn" id="ll-headline">{LL.headline_apy_pct.toFixed(1)}%</p>
+          <p class="sub" data-ru="То, что рекламирует петля.">What the loop advertises.</p>
+        </Card>
+        <Card variant="status" tone="danger" padding="md">
+          <p class="k danger" data-ru="Реализовано в бэктесте (правда)">Backtest realized (the truth)</p>
+          <p class="metric-lg mono danger" id="ll-realized">{LL.bt_realized_apy_pct.toFixed(2)}%</p>
+          <p class="sub" data-ru="За 2024-07 → 2026-05: доходность отрицательная. Sharpe ≈ -0.67.">
+            2024-07 → 2026-05: the return was negative. Sharpe ≈ {LL.bt_sharpe.toFixed(2)}.
+          </p>
+        </Card>
+        <Card variant="status" tone="danger" padding="md">
+          <p class="k danger" data-ru="Макс. просадка">Max drawdown</p>
+          <p class="metric-lg mono danger" id="ll-maxdd">{LL.bt_max_dd_pct.toFixed(2)}%</p>
+          <p class="sub" data-ru="Реализованная просадка от пика в бэктесте.">Realized peak-to-trough in the backtest.</p>
+        </Card>
+      </div>
+
+      <!-- THE dated event -->
+      <Card variant="status" tone="danger" padding="lg" class="mt-4">
+        <div class="ev-head">
+          <StatusPill verdict="KILL" label="SEVERE TAIL" ru="ТЯЖЁЛЫЙ ХВОСТ" />
+          <span class="ev-date mono" data-ru={LL.worst_window_ru}>{LL.worst_window}</span>
+        </div>
+        <div class="ev-body">
+          <div class="ev-num">
+            <p class="k danger" data-ru="Худший хвост ликвидации (стресс)">Worst liquidation tail (stress)</p>
+            <p class="metric-xl mono danger" id="ll-tail">{LL.worst_tail_dd_pct.toFixed(2)}%</p>
+          </div>
+          <div class="ev-text">
+            <p class="body" data-ru="В окне развязки плеча USDe (октябрь 2025) — датированный, худший тест для петли — просадка in-sample достигла -13.02%, а моделируемый шок обрушил позицию на -35% и НЕ восстановился. Это цена, которую заплатила петля за заявленные 15%.">
+              During the USDe leverage-unwind window (October 2025) — the dated, worst test for the loop —
+              the in-sample drawdown reached {LL.worst_insample_loss_pct.toFixed(2)}%, and the modeled
+              shock crashed the position by ~35% and <strong>did not recover</strong>. That is the price
+              the loop paid for its 15% headline.
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      <Card variant="status" tone="accent" padding="md" class="mt-4">
+        <p class="k" data-ru="Почему это класс C">Why this is class C</p>
+        <p class="body" data-ru="Заявленная доходность — это компенсация за риск (risk-compensation): рынок платит выше именно потому, что несёт хвост ликвидации. Класс C честно маркирует это: доход не «бесплатный edge», а плата за хвост, который иногда прилетает — как здесь.">
+          The headline yield is <strong>risk-compensation</strong>: the market pays more precisely because
+          it carries a liquidation tail. Class C labels this honestly — the yield is not "free edge," it is
+          payment for a tail that sometimes arrives — as it did here.
+        </p>
+      </Card>
+    </Section>
+
+    <!-- ================================================= 4. WHY THE DESK REFUSES IT LIVE -->
+    <Section width="doc" pad="md" divider>
+      <p class="eyebrow" data-ru="Позиция деска">The desk's stance</p>
+      <h2 class="h2" data-ru="Мы отказываемся от этого для живого капитала">We refuse this for live capital</h2>
+      <Table class="mt-6">
+        <thead>
+          <tr>
+            <Th ru="Свойство">Property</Th>
+            <Th ru="Значение">Value</Th>
+            <Th ru="Что это значит">What it means</Th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <Td mono ru="Где живёт">Lives in</Td>
+            <Td><StatusPill verdict="WATCH" label="ADVISORY AGGRESSIVE LAB" ru="ADVISORY AGGRESSIVE LAB" dot={false} /></Td>
+            <Td ru="Paper-only. Показывается, чтобы владелец ВИДЕЛ риск — не для аллокации.">Paper-only. Shown so the owner can SEE the risk — not for allocation.</Td>
+          </tr>
+          <tr>
+            <Td mono ru="Live-аллокация">Live allocation</Td>
+            <Td><StatusPill verdict="REFUSE" label="NEVER" ru="НИКОГДА" /></Td>
+            <Td ru="outside_riskpolicy=true, live_eligible=false. Никогда не трогает go-live трек $100k.">outside_riskpolicy=true, live_eligible=false. Never touches the $100k go-live track.</Td>
+          </tr>
+          <tr>
+            <Td mono ru="Риск-класс">Risk class</Td>
+            <Td><StatusPill tier="C" label="C" ru="C" dot={false} /></Td>
+            <Td ru="Risk-compensation — доход = плата за хвост ликвидации.">Risk-compensation — yield = payment for the liquidation tail.</Td>
+          </tr>
+          <tr>
+            <Td mono ru="Продвижение в live">Promotion to live</Td>
+            <Td mono>OWNER + CUSTODY GATED</Td>
+            <Td ru="Даже «выбор» под флагом SPA_AGGRESSIVE_LAB_SELECT ничего не аллоцирует — нужен явный owner+custody решение.">Even a "select" under SPA_AGGRESSIVE_LAB_SELECT allocates nothing — requires an explicit owner + custody decision.</Td>
+          </tr>
+        </tbody>
+      </Table>
+
+      <Card variant="status" tone="ok" padding="md" class="mt-6">
+        <p class="k" data-ru="Что деск держит вместо этого">What the desk holds instead</p>
+        <p class="body" data-ru="Живой капитал деска — это стейбл-кредитование ~4.5% без открытого риска ликвидации. Плечевые петли мы ОЦЕНИВАЕМ в advisory-лаборатории с открытыми глазами на хвост — и не держим их.">
+          The desk's live capital is ~4.5% stablecoin lending with no open liquidation risk. Leverage loops
+          are something we <strong>assess</strong> in the advisory lab, eyes open on the tail — and do not hold.
+        </p>
+      </Card>
+
+      <div class="nav-foot mt-8">
+        <a href="/strategies/btc" class="foot-link" data-ru="← BTC-кредитование, наглядно">← BTC lending, visualized</a>
+        <a href="/strategies" class="foot-link muted" data-ru="Все стратегии →">All strategies →</a>
+      </div>
+    </Section>
+  </main>
+
+  <Disclaimer />
+
+  <script is:inline>
+    /* Leverage-loop live surface — /api/aggressive-lab/strategy/leverage_loop, fail-closed.
+       If the feed is online it refreshes the metrics VERBATIM from the scorecard row; if offline,
+       the honest committed static numbers stay. The advisory / non-live framing is never altered. */
+    (function () {
+      var API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+        ? 'http://localhost:8765' : 'https://api.earn-defi.com';
+      function num(x) { var n = Number(x); return isFinite(n) ? n : null; }
+      function setText(id, t) { var el = document.getElementById(id); if (el) el.textContent = t; }
+      function signedPct(v, dp) { var n = num(v); if (n == null) return null; return n.toFixed(dp == null ? 2 : dp) + '%'; }
+
+      fetch(API + '/api/aggressive-lab/strategy/leverage_loop').then(function (r) { return r.json(); }).then(function (d) {
+        if (!d || d.available === false) return;
+        var row = d.scorecard_row || {};
+        var bt = row.backtest || {};
+        var tail = row.tail || {};
+        // headline
+        var h = num(row.headline_apy_pct); if (h != null) setText('ll-headline', h.toFixed(1) + '%');
+        // backtest realized (the honest one)
+        var rz = num(bt.realized_apy_pct != null ? bt.realized_apy_pct : row.realized_apy_pct);
+        if (rz != null) setText('ll-realized', signedPct(rz));
+        // max dd — file emits positive magnitude; render as signed loss
+        var dd = num(bt.max_dd_pct != null ? bt.max_dd_pct : row.max_dd_pct);
+        if (dd != null) setText('ll-maxdd', '-' + Math.abs(dd).toFixed(2) + '%');
+        // worst tail — positive magnitude → signed loss
+        var wt = num(tail.worst_tail_dd_pct != null ? tail.worst_tail_dd_pct : tail.worst_shape_shock_dd_pct);
+        if (wt != null) setText('ll-tail', '-' + Math.abs(wt).toFixed(2) + '%');
+        setText('ll-src', 'live (aggressive-lab scorecard)');
+      }).catch(function () { /* fail-closed: honest committed numbers stay */ });
+    })();
+  </script>
+
+  <style>
+    main { max-width: none; }
+    .eyebrow { font-family: var(--font-mono); font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--text-faint); margin: 0 0 10px; }
+    .eyebrow.danger { color: var(--danger); }
+    .h2 { font-size: 1.625rem; line-height: 1.2; font-weight: 700; letter-spacing: -.015em; color: var(--text-primary); margin: 0; }
+    .lede-sm { margin: 14px 0 0; font-size: 1rem; line-height: 1.6; color: var(--text-secondary); max-width: 46rem; }
+    .k { font-family: var(--font-mono); font-size: .6875rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin: 0 0 8px; }
+    .k.danger { color: var(--danger); }
+    .sub { margin: 10px 0 0; font-size: .8125rem; line-height: 1.55; color: var(--text-secondary); }
+    .body { margin: 0; font-size: .9375rem; line-height: 1.6; color: var(--text-secondary); }
+    .mono { font-family: var(--font-mono); }
+    .accent { color: var(--accent-hover); } .danger { color: var(--danger); } .warn { color: var(--warn); } .ok { color: var(--ok); }
+    .mt-4 { margin-top: 16px; } .mt-6 { margin-top: 24px; } .mt-8 { margin-top: 32px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    @media (max-width: 720px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+    /* loop diagram */
+    .loop { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; }
+    .loop-step { flex: 1 1 0; min-width: 150px; position: relative; }
+    .loop-n { position: absolute; top: 12px; right: 14px; font-size: 1.5rem; font-weight: 700; color: var(--warn); opacity: .5; }
+    .loop-t { margin: 0 0 6px; font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+    .loop-d { margin: 0; font-size: .8125rem; line-height: 1.5; color: var(--text-secondary); }
+    .loop-arrow { align-self: center; font-size: 1.5rem; color: var(--text-muted); flex: 0 0 auto; }
+    .loop-back { align-self: center; margin-left: 4px; padding: 6px 12px; border-radius: var(--r-full); border: 1px dashed var(--warn-border); color: var(--warn); background: var(--warn-bg); font-size: .8125rem; font-weight: 600; }
+
+    .amp { font-family: var(--font-mono); font-size: 2rem; font-weight: 700; line-height: 1; margin: 4px 0; letter-spacing: -.02em; }
+    .amp-lab { font-size: 1rem; color: var(--text-muted); font-weight: 500; }
+
+    /* health-factor gauge */
+    .hf-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+    .hf-track { position: relative; height: 26px; border-radius: 6px; overflow: hidden; display: flex; }
+    .hf-zone { height: 100%; }
+    .hf-cliff { width: 22%; background: var(--danger-bg); border-right: 1px solid var(--danger); }
+    .hf-warn { width: 28%; background: var(--warn-bg); border-right: 1px solid var(--warn); }
+    .hf-safe { width: 50%; background: var(--ok-bg); }
+    .hf-marker { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--text-primary); }
+    .hf-flag { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: .625rem; font-weight: 600; color: var(--text-primary); }
+    .hf-scale { display: flex; justify-content: space-between; margin-top: 8px; font-size: .6875rem; }
+
+    .head-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .src { font-family: var(--font-mono); font-size: .6875rem; color: var(--text-faint); }
+
+    .metric-lg { font-size: 1.75rem; font-weight: 700; line-height: 1; margin: 0 0 8px; }
+    .metric-xl { font-size: 2.75rem; font-weight: 700; line-height: 1; margin: 4px 0 0; letter-spacing: -.02em; }
+
+    /* the dated event */
+    .ev-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .ev-date { font-size: .8125rem; font-weight: 600; color: var(--danger); }
+    .ev-body { display: grid; grid-template-columns: minmax(150px, 200px) 1fr; gap: 20px; align-items: center; }
+    @media (max-width: 640px) { .ev-body { grid-template-columns: 1fr; } }
+
+    .nav-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .foot-link { font-size: .875rem; font-weight: 600; color: var(--accent); font-family: var(--font-mono); }
+    .foot-link:hover { color: var(--accent-hover); }
+    .foot-link.muted { color: var(--text-muted); font-weight: 500; }
+    .foot-link.muted:hover { color: var(--text-secondary); }
+  </style>
+</Layout>
