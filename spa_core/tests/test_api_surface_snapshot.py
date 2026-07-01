@@ -79,6 +79,9 @@ GOLDEN_ROUTES = {
     ("/api/dfb/v1/pool/{pool_id}/history", ("GET",)),
     ("/api/dfb/v1/refusals", ("GET",)),
     ("/api/dfb/v1/screener", ("GET",)),
+    # RISKWIRE (measurement-as-a-product): the unified proof surface (always public — verifiability)
+    ("/api/riskwire/proof", ("GET",)),
+    ("/api/riskwire/proof/{artifact}", ("GET",)),
     ("/api/events", ("GET",)),
     ("/api/events/history", ("GET",)),
     ("/api/execution/readiness", ("GET",)),
@@ -212,7 +215,7 @@ def test_route_count_stable():
     surface (/api/underwriting/report + /proof + /full-chain), FLAG-GATED OFF by default
     (SPA_UNDERWRITING_PUBLISH).)
     """
-    assert len(_app_route_table()) == 93
+    assert len(_app_route_table()) == 95
 
 
 def test_openapi_path_count_stable():
@@ -220,7 +223,7 @@ def test_openapi_path_count_stable():
     from fastapi.testclient import TestClient
     with TestClient(server.app) as c:
         paths = c.get("/openapi.json").json()["paths"]
-    assert len(paths) == 92  # 92 HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
+    assert len(paths) == 94  # 92 HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
 
 
 # ── Representative response-shape snapshot (one endpoint per tag group) ──────────

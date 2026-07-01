@@ -2172,6 +2172,25 @@ def _run_fundability_pack(data_dir: "str | os.PathLike | None" = None) -> None:
     except Exception as _d30_exc:  # noqa: BLE001 — never crash the cycle
         log.warning("WS5 day30_artifact write failed (non-critical): %s", _d30_exc)
 
+    # 2.1c — RISKWIRE day-30 REVIEW pipeline (WS1.3): the comprehensive, self-verifying review a
+    # reviewer/funder reads the moment the evidenced track reaches 30 CONTINUOUS days. Ordered AFTER
+    # 2.1b so it embeds the fresh readiness artifact (its proof_hash anchors the review). Composes
+    # the honest reset story + realized risk-adjusted metrics (THIN→None below credible-N) + the
+    # edge-at-scale verdict + the honest fundability framing + the continuity assertion (a gap → the
+    # review REFUSES REVIEW_READY) + the refusal/proof surfaces. Writes data/riskwire/day30_review.json
+    # + (canonical-only) docs/DAY30_REVIEW.md. Read-only over the track, INERT re: cutover, fail-safe.
+    # Honest at 9/30 today (state TRACK_MATURING, "21 days to go").
+    try:
+        from spa_core.riskwire import day30_review as _d30r
+        _rev = _d30r.write_review(data_dir=ddir)
+        print(
+            f"  day30_review: state={_rev.get('state')} "
+            f"readiness={_rev.get('review_readiness_pct')}% "
+            f"review_hash={(_rev.get('review_hash') or '')[:12]}…"
+        )
+    except Exception as _d30r_exc:  # noqa: BLE001 — never crash the cycle
+        log.warning("WS1.3 day30_review write failed (non-critical): %s", _d30r_exc)
+
     # 2.2 — fundability one-pager (regenerates docs/FUNDABILITY.md from fresh data).
     try:
         import importlib.util as _ilu

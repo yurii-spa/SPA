@@ -119,6 +119,8 @@ DFB_FRESH_H = 30.0                        # data/dfb/pools.json staleness (daily
 # fails CLOSED to UNKNOWN when it cannot resolve a kind / build a risk surface). A modest
 # baseline is normal (unresolved kinds); a runaway ratio means the live feed is broken.
 DFB_UNKNOWN_RATIO_WARN = 0.60            # > 60% UNKNOWN → feed-outage canary (WARNING)
+RISKWIRE_MEASUREMENTS_FRESH_H = 30.0     # data/riskwire/measurements.json staleness (WS1.2 cadence + slack)
+RISKWIRE_DAY30_FRESH_D = 8.0             # data/riskwire/day30_review.json staleness in DAYS (weekly-ish + slack)
 ALLOC_CAP_PCT = 30.0                      # monitor tripwire (RiskPolicy T1 cap is 40%)
 T2_CAP_PCT = 50.0                         # ADR-019
 PORTFOLIO_HEALTH_FLOOR = 70.0
@@ -135,6 +137,7 @@ SUBPROC_TIMEOUT = 20
 _DOMAIN_BUDGET = {
     "d1": 5, "d2": 20, "d3": 3, "d4": 25, "d5": 30, "d6": 15, "d7": 5,
     "d_dfb": 5,
+    "d_riskwire": 5,
 }
 
 # Network endpoints
@@ -1360,6 +1363,197 @@ class SystemHealthMonitor:
                            value=round(age_h, 1), evidence=ev)
 
     # ======================================================================
+    # DOMAIN d_riskwire — RISKWIRE (measurement-as-a-product, L3) standing health
+    # ======================================================================
+    def check_d_riskwire(self) -> list[CheckResult]:
+        """Health of the STANDING RISKWIRE product line (WS1.5 — the fail-CLOSED d_riskwire domain).
+
+        Four read-only, fail-CLOSED checks over the two RISKWIRE deliverables under data/riskwire/:
+
+          * d_riskwire.measurements.fresh — data/riskwire/measurements.json (WS1.2 unified snapshot)
+            present + refreshed within RISKWIRE_MEASUREMENTS_FRESH_H. Missing/STALE → the facade is
+            not being maintained → WARNING (NEVER silently OK).
+          * d_riskwire.day30.fresh — data/riskwire/day30_review.json (WS1.3 review) present + refreshed
+            within RISKWIRE_DAY30_FRESH_D days. Missing/STALE → WARNING.
+          * d_riskwire.proof.valid — EVERY RISKWIRE proof chain re-derives (rows chain + head_hash +
+            artifact_hash) via spa_core.riskwire.proof.verify_all. A broken/absent chain → WARNING —
+            "don't trust us, check us" must hold or the whole product is suspect.
+          * d_riskwire.no_fork — RISKWIRE agrees with the SEEDS: every POOL measurement carries a
+            non-empty seed_proof_hash, and (where the DFB seed snapshot is present) its risk_class /
+            native_verdict matches the seed's OWN verbatim verdict for the same subject. Any divergence
+            = RISKWIRE forked the risk engine → WARNING.
+
+        Each sub-check is isolated (one error never blinds the rest). READ-ONLY; this domain writes /
+        activates nothing. fail-CLOSED throughout: a missing artifact is a WARNING, never a silent pass.
+        """
+        D = "d_riskwire"
+        checks = (
+            ("d_riskwire.measurements.fresh", self._check_riskwire_measurements),
+            ("d_riskwire.day30.fresh", self._check_riskwire_day30),
+            ("d_riskwire.proof.valid", self._check_riskwire_proof),
+            ("d_riskwire.no_fork", self._check_riskwire_no_fork),
+        )
+        out: list[CheckResult] = []
+        for cid, fn in checks:
+            try:
+                out.append(fn(D))
+            except Exception as exc:           # noqa: BLE001 — one bad check must not blind the rest
+                out.append(CheckResult(cid, D, WARNING, f"{cid} raised — cannot verify",
+                                       error=repr(exc)))
+        return out
+
+    def _load_riskwire_measurements(self) -> tuple[Optional[dict], Optional[str]]:
+        """Load data/riskwire/measurements.json (the unified snapshot wrapper). Cached per-run."""
+        cache = getattr(self, "_riskwire_cache", "unset")
+        if cache != "unset":
+            return cache
+        doc, err = self._load_json("riskwire/measurements.json")
+        self._riskwire_cache = (doc, err)
+        return self._riskwire_cache
+
+    def _check_riskwire_measurements(self, D: str) -> CheckResult:
+        """data/riskwire/measurements.json present + fresh (the WS1.2 facade snapshot is maintained)."""
+        cid = "d_riskwire.measurements.fresh"
+        doc, err = self._load_riskwire_measurements()
+        if doc is None:
+            return CheckResult(cid, D, WARNING,
+                               "riskwire/measurements.json missing/unreadable — facade snapshot absent",
+                               error=err)
+        if not isinstance(doc, dict):
+            return CheckResult(cid, D, WARNING, "riskwire/measurements.json malformed (not an object)")
+        age = _age_hours(doc.get("generated_at"))
+        n = doc.get("n_measurements")
+        ev = {"n_measurements": n, "age_hours": round(age, 1) if age is not None else None,
+              "generated_at": doc.get("generated_at")}
+        if age is None:
+            return CheckResult(cid, D, WARNING,
+                               "riskwire/measurements.json has no parseable generated_at — "
+                               "cannot verify freshness", evidence=ev)
+        if age > RISKWIRE_MEASUREMENTS_FRESH_H:
+            return CheckResult(cid, D, WARNING,
+                               f"riskwire measurements STALE ({age:.1f}h > "
+                               f"{RISKWIRE_MEASUREMENTS_FRESH_H:.0f}h) — facade not refreshing",
+                               value=round(age, 1), evidence=ev)
+        return CheckResult(cid, D, OK,
+                           f"riskwire measurements fresh ({age:.1f}h, {n} subjects)",
+                           value=round(age, 1), evidence=ev)
+
+    def _check_riskwire_day30(self, D: str) -> CheckResult:
+        """data/riskwire/day30_review.json present + fresh (the WS1.3 review pipeline is maintained)."""
+        cid = "d_riskwire.day30.fresh"
+        doc, err = self._load_json("riskwire/day30_review.json")
+        if doc is None:
+            return CheckResult(cid, D, WARNING,
+                               "riskwire/day30_review.json missing/unreadable — review pipeline absent",
+                               error=err)
+        if not isinstance(doc, dict):
+            return CheckResult(cid, D, WARNING, "riskwire/day30_review.json malformed (not an object)")
+        age = _age_hours(doc.get("generated_at"))
+        # WS1.3 (spa_core.riskwire.day30_review) publishes state / ready_for_review, not "verdict".
+        state = doc.get("state")
+        ev = {"state": state, "ready_for_review": doc.get("ready_for_review"),
+              "age_hours": round(age, 1) if age is not None else None,
+              "generated_at": doc.get("generated_at")}
+        if age is None:
+            return CheckResult(cid, D, WARNING,
+                               "riskwire/day30_review.json has no parseable generated_at — "
+                               "cannot verify freshness", evidence=ev)
+        fresh_h = RISKWIRE_DAY30_FRESH_D * 24.0
+        if age > fresh_h:
+            return CheckResult(cid, D, WARNING,
+                               f"riskwire day-30 review STALE ({age/24.0:.1f}d > "
+                               f"{RISKWIRE_DAY30_FRESH_D:.0f}d) — review pipeline not refreshing",
+                               value=round(age, 1), evidence=ev)
+        return CheckResult(cid, D, OK,
+                           f"riskwire day-30 review fresh ({age/24.0:.1f}d, state={state})",
+                           value=round(age, 1), evidence=ev)
+
+    def _check_riskwire_proof(self, D: str) -> CheckResult:
+        """EVERY RISKWIRE deliverable re-derives its OWN published proof — verify_all (measurements:
+        row-chain + head + artifact_hash; day30_review: WS1.3's review_hash). fail-CLOSED on any
+        broken/absent artifact."""
+        cid = "d_riskwire.proof.valid"
+        try:
+            from spa_core.riskwire import proof as rw_proof
+        except Exception as exc:               # noqa: BLE001
+            return CheckResult(cid, D, WARNING,
+                               "spa_core.riskwire.proof unimportable — cannot verify chains",
+                               error=repr(exc))
+        res = rw_proof.verify_all(data_dir=self.data_dir)
+        arts = res.get("artifacts", {})
+        # fail-CLOSED: an absent/broken artifact makes verify_all.all_ok False; surface WHICH one.
+        if not res.get("all_ok"):
+            broken = [f"{name}({info.get('note')})" for name, info in arts.items()
+                      if not info.get("valid")]
+            return CheckResult(cid, D, WARNING,
+                               "riskwire proof NOT valid — a deliverable is broken/absent: " +
+                               "; ".join(broken), value=False, evidence=arts)
+
+        def _anchor(v: dict) -> str:
+            # each deliverable exposes its own anchor: artifact_hash (measurements) or review_hash (day30)
+            a = v.get("artifact_hash") or v.get("review_hash") or ""
+            return a[:16] if isinstance(a, str) else ""
+        return CheckResult(cid, D, OK,
+                           "riskwire proofs valid (measurements chain + day-30 review_hash re-derive)",
+                           value=True, evidence={k: {"anchor": _anchor(v)} for k, v in arts.items()})
+
+    def _check_riskwire_no_fork(self, D: str) -> CheckResult:
+        """NO-FORK invariant: RISKWIRE never diverges from the seeds.
+
+        (1) every POOL measurement carries a non-empty seed_proof_hash (it was produced by, not
+            independent of, the DFB seed); and (2) where the DFB seed snapshot (data/dfb/pools.json) is
+            present, RISKWIRE's risk_class for a pool subject matches the seed's OWN verbatim risk_class
+            for the same underlying pool. A mismatch = RISKWIRE silently re-scored → WARNING."""
+        cid = "d_riskwire.no_fork"
+        doc, err = self._load_riskwire_measurements()
+        if not isinstance(doc, dict):
+            return CheckResult(cid, D, WARNING,
+                               "riskwire/measurements.json absent/malformed — cannot verify no-fork",
+                               error=err)
+        rows = doc.get("measurements")
+        if not isinstance(rows, list):
+            return CheckResult(cid, D, WARNING,
+                               "riskwire measurements list absent — cannot verify no-fork")
+        pool_rows = [r for r in rows if isinstance(r, dict) and r.get("kind") == "pool"]
+        # (1) seed_proof_hash present on every pool subject
+        missing_anchor = [r.get("subject_id") for r in pool_rows
+                          if not (isinstance(r.get("seed_proof_hash"), str) and r.get("seed_proof_hash"))]
+        if missing_anchor:
+            return CheckResult(cid, D, WARNING,
+                               f"{len(missing_anchor)} pool measurement(s) carry NO seed_proof_hash — "
+                               "RISKWIRE may have graded independently of the seed",
+                               value=len(missing_anchor),
+                               evidence={"missing_anchor": missing_anchor[:10]})
+        # (2) cross-check risk_class against the DFB seed snapshot where joinable
+        dfb, _dfb_err = self._load_dfb_pools()
+        checked = 0
+        forks: list[str] = []
+        if isinstance(dfb, dict) and isinstance(dfb.get("pools"), list):
+            seed_by_pool = {p.get("pool_id"): p for p in dfb["pools"] if isinstance(p, dict)}
+            for r in pool_rows:
+                native = (r.get("native_ref") or {}).get("pool_id")
+                # subject_id is "pool::<native id>"; fall back to that if native_ref has no pool_id
+                if native is None and isinstance(r.get("subject_id"), str):
+                    native = r["subject_id"].split("::", 1)[-1]
+                seed = seed_by_pool.get(native)
+                if not isinstance(seed, dict):
+                    continue
+                checked += 1
+                if seed.get("risk_class") != r.get("risk_class"):
+                    forks.append(f"{r.get('subject_id')}: riskwire={r.get('risk_class')} "
+                                 f"seed={seed.get('risk_class')}")
+        if forks:
+            return CheckResult(cid, D, WARNING,
+                               f"NO-FORK VIOLATION — {len(forks)} pool verdict(s) diverge from the DFB "
+                               "seed (RISKWIRE re-scored): " + "; ".join(forks[:5]),
+                               value=len(forks), evidence={"forks": forks[:10]})
+        note = (f"no-fork OK — {len(pool_rows)} pool subject(s) seed-anchored"
+                + (f", {checked} cross-checked vs DFB seed (0 divergence)" if checked
+                   else " (DFB seed snapshot absent — anchor-presence checked only)"))
+        return CheckResult(cid, D, OK, note,
+                           evidence={"n_pool": len(pool_rows), "n_cross_checked": checked})
+
+    # ======================================================================
     # registry helpers
     # ======================================================================
     def _registry(self):
@@ -1423,6 +1617,7 @@ class SystemHealthMonitor:
             ("d6", "d6_risk_gates", self.check_d6_risk_gates),
             ("d7", "d7_hygiene", self.check_d7_hygiene),
             ("d_dfb", "d_dfb_defi_board", self.check_d_dfb_defi_board),
+            ("d_riskwire", "d_riskwire", self.check_d_riskwire),
         ]
 
         checks: list[CheckResult] = []

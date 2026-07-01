@@ -167,6 +167,7 @@ from spa_core.api.routers import (  # noqa: E402
     optimizer,
     rates_desk,
     redteam,
+    riskwire,
     strategy_lab,
     tier1,
     tournament,
@@ -199,6 +200,12 @@ app.include_router(dfb.router)
 # Flag ON + no key configured → 401 (fail-CLOSED, never silently open). NO-FORK: serves /api/dfb/*'s
 # overlay byte-identical. Public launch (keys/billing/SLA) is OWNER-GATED — see docs/DFB_DATA_API.md.
 app.include_router(dfb_data_api.router)
+# RISKWIRE (Layer-3 measurement-as-a-product) — the PROOF / "check us" surface (/api/riskwire/proof*).
+# Read-only, GET-only, fail-CLOSED; serves every RISKWIRE deliverable's proof chain VERBATIM (uncapped)
+# so a third party re-derives every hash with scripts/verify_riskwire.py (zero spa_core import). NOT
+# flag-gated — verifiability is always available; the PUBLIC report/oracle product surfaces are the
+# owner-flag-gated ones (in their own routers). NO-FORK: every verdict is the seed's, served verbatim.
+app.include_router(riskwire.router)
 
 
 # ─── Backward-compatible handler re-exports ───────────────────────────────────
