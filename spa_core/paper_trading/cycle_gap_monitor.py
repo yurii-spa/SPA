@@ -393,6 +393,41 @@ def run_cycle_gap_monitor(
         today = now_dt.strftime("%Y-%m-%d")
         now_ts = now_dt.isoformat()
 
+        # ── Step 0: WS1.1 track-continuity self-heal ──────────────────────
+        # Recover any PAST day that has real cycle-log evidence but whose equity
+        # bar was dropped (e.g. a git reset to a stale committed equity curve
+        # clobbered the 2026-06-27/28/29 bars). The daily cycle's own append can
+        # only add TODAY — it never back-fills a hole — so this monitor, on its
+        # short cadence, closes a missed append within a day rather than leaving a
+        # permanent gap that freezes real_track_days. Fail-CLOSED (only real-log
+        # days are recovered, never fabricated); idempotent (no gap → no-op);
+        # skipped on dry_run; wrapped so it can never break the monitor.
+        if not dry_run:
+            try:
+                from spa_core.paper_trading.track_self_heal import heal_track
+                heal_rep = heal_track(
+                    equity_path=ddir / "equity_curve_daily.json",
+                    # Logs are a SIBLING of the data dir (repo: data/ ↔ logs/);
+                    # deriving from ``ddir`` keeps sandbox/test runs hermetic.
+                    logs_dir=ddir.parent / "logs",
+                    today=now_dt.date(),
+                    apply=True,
+                )
+                if heal_rep.get("healed") or heal_rep.get("repaired"):
+                    log.info(
+                        "cycle_gap_monitor WS1.1 self-heal: recovered %s + "
+                        "repaired %s (evidenced %s → %s)",
+                        heal_rep.get("healed"), heal_rep.get("repaired"),
+                        heal_rep.get("evidenced_before"),
+                        heal_rep.get("evidenced_after"),
+                    )
+                    result["self_heal"] = heal_rep
+            except Exception as _heal_exc:  # noqa: BLE001 — best-effort
+                log.warning(
+                    "cycle_gap_monitor: WS1.1 self-heal skipped (non-fatal): %s",
+                    _heal_exc,
+                )
+
         # ── Step 1: resolve last cycle timestamp ──────────────────────────
         last_cycle_ts = _get_last_cycle_ts(ddir)
 

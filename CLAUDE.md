@@ -39,7 +39,7 @@ track record (30 честных дней → go-live). Финмодель — `M
 | Поле | Значение |
 |---|---|
 | Реальный трек | anchor **2026-06-22** (evidenced; всё до — backfill/демо, недействительно) |
-| Дней трека | **7/30** evidenced (23 ещё нужно, target go-live **~2026-07-21**) |
+| Дней трека | **9/30** evidenced (21 ещё нужно, target go-live **~2026-07-21**) |
 | Капитал | живые цифры — `data/golive_status.json` / SYSTEM_BRIEFING (снимок дрейфует) |
 | GoLive | ⛔ **27/29 pass** — NOT READY (2 time-gated блокера) |
 | Sprint | **v12.86+** · Backlog: 0 (точные счётчики — KANBAN.json) |
@@ -48,7 +48,7 @@ track record (30 честных дней → go-live). Финмодель — `M
 | Python | `/Users/yuriikulieshov/miniconda3/bin/python3` (всегда этот путь) |
 
 **GoLive блокеры (просто ожидание 30 трек-дней, нечего чинить кодом):**
-- `gap_monitor_30d`: 7/30 evidenced трек-дней (23 дня просто ждать)
+- `gap_monitor_30d`: 9/30 evidenced трек-дней (21 день просто ждать)
 - `min_track_days_30`: то же что gap_monitor
 - (`autopush_installed` теперь **PASS** на реальном Mac; в sandbox/CI всегда fails — проверяй через `launchctl list | grep spa`)
 

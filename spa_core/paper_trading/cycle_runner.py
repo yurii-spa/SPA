@@ -1687,6 +1687,48 @@ def run_cycle(
     if write:
         _atomic_write_json(ddir / TRADES_FILENAME, trades)
         _atomic_write_json(ddir / EQUITY_FILENAME, equity_doc)
+        # WS1.1 TRACK-CONTINUITY SELF-HEAL: the append above only writes TODAY's
+        # bar onto the last bar — it can't recover a day that a real cycle already
+        # ran but whose bar was later dropped (e.g. a git reset to a stale
+        # committed equity curve clobbered the 2026-06-27/28/29 bars). After every
+        # live persist we detect any day that has GROUND-TRUTH cycle-log evidence
+        # but no evidenced bar, and recover it fail-CLOSED from the log (never
+        # fabricating a day without evidence). Idempotent: no gap → no-op. Wrapped
+        # so a heal failure can NEVER break the cycle's own write.
+        try:
+            from spa_core.paper_trading.track_self_heal import heal_track as _heal_track
+            # Logs live as a SIBLING of the data dir (repo: data/ ↔ logs/). Deriving
+            # from ``ddir`` keeps test/sandbox runs hermetic — a tmp data dir has no
+            # logs/ sibling, so the heal is a strict no-op there and can never pull
+            # the real repo track into a sandbox curve.
+            _heal_logs = ddir.parent / "logs"
+            _heal_rep = _heal_track(
+                equity_path=ddir / EQUITY_FILENAME,
+                logs_dir=_heal_logs,
+                apply=True,
+            )
+            if _heal_rep.get("healed") or _heal_rep.get("repaired"):
+                log.info(
+                    "WS1.1 self-heal: recovered %s + repaired %s "
+                    "(evidenced %s → %s)",
+                    _heal_rep.get("healed"), _heal_rep.get("repaired"),
+                    _heal_rep.get("evidenced_before"),
+                    _heal_rep.get("evidenced_after"),
+                )
+                notes.append(
+                    "WS1.1 self-heal: recovered {} evidenced day(s), "
+                    "repaired {} base-drift day(s)".format(
+                        len(_heal_rep.get("healed") or []),
+                        len(_heal_rep.get("repaired") or []),
+                    )
+                )
+                # Re-read the healed doc so the rest of the cycle (status, summary
+                # readers) sees the recovered bars, not the pre-heal in-memory doc.
+                _healed_doc = _read_json(ddir / EQUITY_FILENAME, None)
+                if isinstance(_healed_doc, dict) and _healed_doc.get("daily"):
+                    equity_doc = _healed_doc
+        except Exception as _heal_exc:  # noqa: BLE001 — heal is best-effort
+            log.warning("WS1.1 self-heal skipped (non-fatal): %s", _heal_exc)
         # Compliance / tier / APY summary — downstream readers (SYSTEM_BRIEFING,
         # dashboard) display these fields; the rebalancer writes them too, so the
         # cycle's own write must include them or it clobbers the rich doc with a

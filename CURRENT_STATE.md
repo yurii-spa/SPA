@@ -6,8 +6,9 @@
 > него — **исторический changelog** (датированные снимки), и может противоречить текущему
 > состоянию (старые GoLive 25/26, «32 дня», «31 агент», seed-evidence, cyclerunner — всё
 > УСТАРЕЛО). Живые цифры — `docs/SYSTEM_BRIEFING.md` + `launchctl list | grep spa` + golive_checker.
-> Текущая правда (2026-06-29, синхронизировано с `data/golive_status.json`): GoLive **27/29**,
-> трек **7/30** evidenced (anchor **2026-06-22**; всё до — backfill/демо, недействительно;
+> Текущая правда (2026-07-01, синхронизировано с `data/golive_status.json`): GoLive **26/29**,
+> трек **9/30** evidenced (anchor **2026-06-22**; всё до — backfill/демо, недействительно;
+> 2026-06-27/28/29 восстановлены из реальных daily_cycle-логов после git-reset stale-restore инцидента — WS1.1 self-heal;
 > target go-live **~2026-07-21**), агентов **~45** (launchctl после retirement'ов, agent_health
 > crit=0), портфель compliant, HY $20k + LP $10k sleeves активны. (Историч. changelog ниже всё ещё
 > ссылается на старый anchor 2026-06-10 / target 2026-07-09 — это PRE-RESET снимки, недействительны.)
