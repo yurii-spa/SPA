@@ -212,13 +212,28 @@ const global = strategies.global;
           <tbody class="divide-y divide-white/5">
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono" data-ru="Минимальный TVL">TVL floor</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">&ge; $500M</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">&ge; $5M</td>
               <td class="px-5 py-3 text-white/40" data-ru="Пулы ниже этого порога исключаются">Pools below this threshold excluded</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono" data-ru="Лимит на протокол">Per-protocol cap</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold">25%</td>
-              <td class="px-5 py-3 text-white/40" data-ru="Макс. аллокация в один протокол">Max allocation to single protocol</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold" data-ru="40% T1 / 20% T2">40% T1 / 20% T2</td>
+              <td class="px-5 py-3 text-white/40" data-ru="Макс. аллокация в один протокол по Tier">Max allocation to single protocol, by Tier</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="Всего T2">T2 total cap</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">&le; 50%</td>
+              <td class="px-5 py-3 text-white/40" data-ru="Совокупный лимит на Tier 2">Aggregate cap on Tier 2 exposure</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="Диапазон APY">APY range</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">1% – 30%</td>
+              <td class="px-5 py-3 text-white/40" data-ru="Позиции вне диапазона отклоняются">Positions outside range rejected</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="Денежный буфер">Cash buffer</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">&ge; 5%</td>
+              <td class="px-5 py-3 text-white/40" data-ru="Всегда удерживается в резерве">Always held in reserve</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono" data-ru="Риск ликвидации">Liquidation risk</td>

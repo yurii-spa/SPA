@@ -3,7 +3,7 @@ import { getLang, recordPlaygroundTried } from './progress.js';
 
 /*
  * DepegEventPlayer.jsx — ▶ PLAY a REAL dated event and watch the aggressive
- * «15% delta-neutral» book drop while the steady ~5% book stays flat.
+ * «15% delta-neutral» book drop while the steady ~4.5% book stays flat.
  *
  * The visceral «вот что 15% реально стоит». A timeline scrubber + play/pause walks
  * across the real 2024–2026 dated events and applies, on each event's REAL DATE,
@@ -46,8 +46,8 @@ const STATIC = {
 const T = {
   title: { ru: 'Плеер реальных депег-событий', en: 'Real depeg-event player' },
   intro: {
-    ru: 'Нажми ▶ — таймлайн проигрывает РЕАЛЬНЫЕ датированные события. На каждой реальной дате агрессивная «15% delta-neutral» книга проседает на реальную глубину, а устойчивая ~5% книга остаётся плоской. Вот что 15% реально стоит.',
-    en: 'Press ▶ — the timeline plays REAL dated events. On each real date the aggressive «15% delta-neutral» book drops by its real depth while the steady ~5% book stays flat. This is what 15% really costs.',
+    ru: 'Нажми ▶ — таймлайн проигрывает РЕАЛЬНЫЕ датированные события. На каждой реальной дате агрессивная «15% delta-neutral» книга проседает на реальную глубину, а устойчивая ~4.5% книга остаётся плоской. Вот что 15% реально стоит.',
+    en: 'Press ▶ — the timeline plays REAL dated events. On each real date the aggressive «15% delta-neutral» book drops by its real depth while the steady ~4.5% book stays flat. This is what 15% really costs.',
   },
   play: { ru: '▶ Играть', en: '▶ Play' },
   pause: { ru: '⏸ Пауза', en: '⏸ Pause' },

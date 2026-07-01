@@ -46,8 +46,8 @@ const strategyRu: Record<string, StrategyRu> = {
     tagline: 'Системная, риск-гейтированная доходность DeFi — в бумажном треке с июня 2026',
     status_label: 'В бумажном треке',
     who_for: 'Семейные офисы и частные аллокаторы, ищущие системную, прозрачную доходность DeFi.',
-    description: 'Tier 1 + отдельные протоколы Tier 2. Детерминированная риск-гейтированная ребалансировка. Публичный бумажный трек-рекорд с 10 июня 2026.',
-    target_apy_note: 'Целевой диапазон; фактический бумажный APY ~3.6% с 10 июня 2026. Переменный, не гарантирован.',
+    description: 'Tier 1 + отдельные протоколы Tier 2. Детерминированная риск-гейтированная ребалансировка. Публичный бумажный трек-рекорд, засчитываемый якорь 22 июня 2026.',
+    target_apy_note: 'Целевой диапазон; фактический бумажный APY ~3.6% (переменный, ~4.5% blended). Не гарантирован. Засчитываемый трек с 22 июня 2026.',
     risk_level_label: 'Средний риск',
   },
   'max-yield': {
@@ -89,9 +89,10 @@ const isDisabled = strategy.status === 'coming-soon';
 
   <!-- APY -->
   <div class="mb-6">
+    <p class="text-[10px] text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Целевой профиль">Target profile</p>
     <div class="flex items-baseline gap-1">
-      <span class="text-4xl font-mono font-bold text-white">{strategy.target_apy}%</span>
-      <span class="text-sm text-white/30 font-mono" data-ru="APY">APY</span>
+      <span class="text-4xl font-mono font-bold text-white">~{strategy.target_apy}%</span>
+      <span class="text-sm text-white/30 font-mono" data-ru="целевой APY">target APY</span>
     </div>
     <p class="text-[11px] text-white/25 mt-1 leading-relaxed" data-ru={ru?.target_apy_note}>{strategy.target_apy_note}</p>
   </div>

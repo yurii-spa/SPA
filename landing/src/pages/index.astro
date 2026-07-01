@@ -9,7 +9,7 @@ import snap from '../data/track_snapshot.json';
 // this keeps the hero + track glance readable (real last-evidenced numbers, not bare "—")
 // when the API is offline. Numbers are NOT hardcoded — they come from the committed
 // snapshot derived from data/golive_status.json + data/equity_curve_daily.json.
-const snapDays = snap.real_track_days ?? 5;
+const snapDays = snap.real_track_days ?? 10;
 const snapGates = `${snap.gates_passed ?? 27}/${snap.gates_total ?? 29}`;
 const snapBars = Array.isArray(snap.bars) ? snap.bars : [];
 const lastBar = snapBars.length ? snapBars[snapBars.length - 1] : null;
@@ -21,7 +21,7 @@ const snapEquity = snapBars.map((b) => Number(b.equity)).filter((v) => isFinite(
 
 <Layout
   title="SPA — systematic onchain stablecoin yield | earn-defi.com"
-  description="Personal research project: a deterministic, LLM-free DeFi stablecoin-yield optimizer in paper validation since June 10, 2026. Not raising capital."
+  description="Personal research project: a deterministic, LLM-free DeFi stablecoin-yield optimizer in paper validation, evidenced track anchored June 22, 2026. Not raising capital."
 >
   <!-- ============ HERO (Direction C — Console, institutional) ============ -->
   <section class="hero">

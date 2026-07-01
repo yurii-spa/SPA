@@ -38,7 +38,8 @@
       "yield_sources": ["Aave V3 USDC", "Morpho Blue USDC", "Compound V3 USDC", "Yearn V3 USDC", "Euler V2 USDC"],
       "does_not": ["Use leverage", "Use looping", "Bypass RiskPolicy gates", "Allocate to unaudited protocols"],
       "does_not_ru": ["Использовать плечо", "Использовать лупинг", "Обходить гейты RiskPolicy", "Размещать средства в неаудированных протоколах"],
-      "target_apy_note": "Target band; actual paper APY ~4.5% since June 22, 2026. Variable, not guaranteed.",
+      "target_apy_note": "Target band; current live paper APY ~3.6% (blended book ~4.5%). Variable, not guaranteed. Evidenced track since June 22, 2026.",
+      "target_apy_note_ru": "Целевой диапазон; текущий live бумажный APY ~3.6% (blended-книга ~4.5%). Переменный, не гарантирован. Засчитываемый трек с 22 июня 2026.",
       "assets": ["USDT (TRC-20, ERC-20)", "USDC (ERC-20)"],
       "path": "/strategies/core"
     },

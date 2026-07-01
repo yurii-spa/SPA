@@ -187,14 +187,14 @@ export const T = {
     ru: 'Агрессивная лаборатория недоступна — /api/aggressive-lab/scorecard офлайн.',
   },
 
-  /* annual contrast (the owner's sales surface — 15% aggressive vs the desk's steady ~5%, dated) */
-  acTitle: { en: 'What chasing 15% actually costs — vs the desk’s steady ~5%', ru: 'Сколько на самом деле стоит погоня за 15% — против стабильных ~5% деска' },
+  /* annual contrast (the owner's sales surface — 15% aggressive vs the desk's steady ~4.5%, dated) */
+  acTitle: { en: 'What chasing 15% actually costs — vs the desk’s steady ~4.5%', ru: 'Сколько на самом деле стоит погоня за 15% — против стабильных ~4.5% деска' },
   acEyebrow: { en: 'A year, dated · advisory · paper-only', ru: 'Год, с датами · advisory · только бумага' },
   acIntro: {
     en: 'Same start date, same notional, same window for both sides. The aggressive curve is a 10–15% book the desk REFUSES (its real 2024–2026 backtest). The steady line compounds the desk’s REAL conservative-book rate — an honest baseline, not a lowballed strawman. Drawdowns are dated and labelled by event, and split into realized (real peak-to-trough in the equity) and dated stress overlay (modeled by risk shape) — never blended, never invented.',
     ru: 'Одна дата старта, один notional, одно окно для обеих сторон. Агрессивная кривая — 10–15% книга, которую деск ОТКЛОНЯЕТ (реальный бэктест 2024–2026). Стабильная линия компаундит РЕАЛЬНУЮ ставку консервативной книги — честный baseline, не заниженный. Просадки датированы и подписаны событием, разделены на realized и modeled — никогда не смешиваются.',
   },
-  acStableLegend: { en: 'Steady ~5% (the desk)', ru: 'Стабильные ~5% (деск)' },
+  acStableLegend: { en: 'Steady ~4.5% (the desk)', ru: 'Стабильные ~4.5% (деск)' },
   acAggLegend: { en: 'Aggressive 15%', ru: 'Агрессивные 15%' },
   acRealizedLegend: { en: 'Realized dip (in the equity)', ru: 'Realized просадка (в equity)' },
   acModeledLegend: { en: 'Modeled stress (by risk shape)', ru: 'Modeled стресс (по shape)' },
@@ -206,7 +206,7 @@ export const T = {
   acColCost: { en: 'Cost of chasing', ru: 'Цена погони' },
   acColSide: { en: '', ru: '' },
   acAggSide: { en: 'Aggressive 15%', ru: 'Агрессивные 15%' },
-  acStableSide: { en: 'Steady ~5%', ru: 'Стабильные ~5%' },
+  acStableSide: { en: 'Steady ~4.5%', ru: 'Стабильные ~4.5%' },
   acDdHead: { en: 'The drawdown timeline, dated', ru: 'Таймлайн просадок, с датами' },
   acDdDate: { en: 'Date', ru: 'Дата' },
   acDdEvent: { en: 'Event', ru: 'Событие' },
@@ -752,7 +752,7 @@ export default function DashboardLive() {
   const [day30, setDay30] = useState(undefined);
   /* Aggressive Lab (Lane 3 SURFACE) — advisory/paper-only ranking of the strategies the desk REFUSES */
   const [aggressive, setAggressive] = useState(undefined);
-  /* Annual Contrast (the owner's sales surface — 15% aggressive vs the steady ~5%, dated) */
+  /* Annual Contrast (the owner's sales surface — 15% aggressive vs the steady ~4.5%, dated) */
   const [contrast, setContrast] = useState(undefined);
 
   const [phase, setPhase] = useState('connecting'); // connecting | live | offline
@@ -1638,14 +1638,14 @@ function AggressiveLabSection({ aggressive, contrast, lang, tr }) {
         </>
       )}
 
-      {/* ── THE ANNUAL CONTRAST — the owner's sales surface (15% aggressive vs the steady ~5%) ── */}
+      {/* ── THE ANNUAL CONTRAST — the owner's sales surface (15% aggressive vs the steady ~4.5%) ── */}
       <AnnualContrastView contrast={contrast} lang={lang} tr={tr} />
     </div>
   );
 }
 
 /* ───────────────────────── ANNUAL CONTRAST (the owner's sales tool) ───────────────────
-   Two equity curves over a year — the 10-15% aggressive book vs the desk's REAL steady ~5%
+   Two equity curves over a year — the 10-15% aggressive book vs the desk's REAL steady ~4.5%
    book — with the aggressive book's drawdowns DATED + labelled by event. Two kinds of dip are
    visually DISTINCT and never blended: a REALIZED dip (real peak-to-trough in the backtest
    equity, solid danger marker) vs a MODELED stress marker (the tail a book of this shape would
@@ -1700,7 +1700,7 @@ export function AnnualContrastView({ contrast, lang, tr, embedded = false }) {
         {!embedded && <SourceTag live lang={lang} />}
       </div>
 
-      {/* book picker + proof + steady-baseline source (proves the ~5% is REAL, not a strawman) */}
+      {/* book picker + proof + steady-baseline source (proves the ~4.5% is REAL, not a strawman) */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <label style={{ ...mono, fontSize: '.6875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{tr('acPickStrat')}:</label>
         <select

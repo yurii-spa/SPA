@@ -5,13 +5,13 @@ import { AnnualContrastView, T } from './DashboardLive.jsx';
  * AnnualContrast — the SHAREABLE one-pager island for /annual-contrast.
  *
  * A clean, presentable surface the owner can open in front of a prospect: the two equity curves
- * (the 10-15% aggressive book vs the desk's REAL steady ~5%), the aggressive book's drawdowns
+ * (the 10-15% aggressive book vs the desk's REAL steady ~4.5%), the aggressive book's drawdowns
  * DATED + labelled by event, and the side-by-side contrast table. It RENDERS the exact same
  * <AnnualContrastView> the dashboard uses (single source of truth — no duplicated chart logic),
  * fed from /api/aggressive-lab/annual-contrast served VERBATIM, fail-CLOSED.
  *
  * HONESTY CONTRACT (mirrors the dashboard):
- *   - The steady ~5% line is the REAL conservative book (stable_apy_pct/source from the data),
+ *   - The steady ~4.5% line is the REAL conservative book (stable_apy_pct/source from the data),
  *     not a flattering fake. Its source string is shown on the page.
  *   - A missing/offline contrast file → honest "unavailable", NEVER a fabricated chart.
  *   - Drawdown annotations carry their REAL dates+events from the data; realized vs modeled are

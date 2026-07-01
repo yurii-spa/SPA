@@ -18,13 +18,13 @@ import KeyStat from '../../components/academy/KeyStat.astro';
  * (realized_backtest_series), NOT invented:
  *   eth_directional: peak $129,392 (2025-08-24) → trough $43,545 (2026-06-06) = −66.3% realized.
  *   leverage_loop:   −29.7% in one day (2024-08-08 → 09).
- * The steady ~5% book compounds smoothly (zero dated collapse by construction).
+ * The steady ~4.5% blended book compounds smoothly (zero dated collapse by construction).
  * x is a month index over ~Jan-2025..Jun-2026; the chart animates presentation only —
  * it draws to these REAL depths, never deeper. Start both books at $100,000 notional.
  */
 const M = (i) => i; // month index
-// steady ~5% book: smooth ~+5%/yr compounding from $100k
-const steadyPts = Array.from({ length: 19 }, (_, i) => ({ x: M(i), y: 100000 * Math.pow(1 + 0.05 / 12, i) }));
+// steady ~4.5% blended book: smooth ~+4.5%/yr compounding from $100k
+const steadyPts = Array.from({ length: 19 }, (_, i) => ({ x: M(i), y: 100000 * Math.pow(1 + 0.045 / 12, i) }));
 // aggressive book: climbs to the documented peak, then takes the real −66.3% drawdown to trough
 const aggrPts = [
   { x: 0, y: 100000 }, { x: 3, y: 110000 }, { x: 6, y: 122000 },
@@ -78,7 +78,7 @@ const questions = [
     explanation: 'annual_contrast.py honesty contract: realized_drawdowns — реальные peak-to-trough в backtest equity (proof-chained); dated_stress_overlay — канонические события 2024–2026 через risk SHAPE, помечены modeled_stress_overlay. «We NEVER inflate a realized 0 into a fake −30%».',
   },
   {
-    q: 'Что покупает «устойчивая 5%» книга по сравнению с агрессивной 15%?',
+    q: 'Что покупает «устойчивая ~4.5%» книга по сравнению с агрессивной 15%?',
     options: [
       'Меньше доходности и больше риска',
       'Отсутствие −66%/−29.7% датированных обвалов: то, что покупает 15% — это вот эти просадки на реальных датах',
@@ -86,7 +86,7 @@ const questions = [
       'Плечо',
     ],
     correct: 1,
-    explanation: 'Назначение annual-contrast (owner): положить рядом реальную ~5% книгу и агрессивную ~15% с датированными drawdown\'ами, чтобы было видно, ЧТО реально стоит 15%. Это sales-артефакт, где честность важнее презентабельности.',
+    explanation: 'Назначение annual-contrast (owner): положить рядом реальную ~4.5% книгу и агрессивную ~15% с датированными drawdown\'ами, чтобы было видно, ЧТО реально стоит 15%. Это sales-артефакт, где честность важнее презентабельности.',
   },
 ];
 ---
@@ -146,13 +146,13 @@ const questions = [
     Ниже — иллюстративные кривые equity обеих книг от $100 000. <strong>Глубины и даты просадок —
     реальные</strong> (из <code>realized_backtest_series</code>): кривая «рисуется» при прокрутке,
     а обвал <strong>падает ровно на свою датированную глубину −66.3%</strong>, ни на пункт глубже.
-    Устойчивая ~5% книга компаундит гладко — датированных обвалов нет по построению.
+    Устойчивая ~4.5% книга компаундит гладко — датированных обвалов нет по построению.
   </p>
   <AnimatedChart
     client:visible
     height={240}
     series={[
-      { points: steadyPts, color: 'var(--ok)', width: 2.5, label: 'устойчивая ~5% книга', fill: false },
+      { points: steadyPts, color: 'var(--ok)', width: 2.5, label: 'устойчивая ~4.5% книга', fill: false },
       { points: aggrPts, color: 'var(--warn)', width: 2.5, label: 'агрессивная книга (eth_directional)' },
     ]}
     markers={ddMarkers}
@@ -164,7 +164,7 @@ const questions = [
   <h2>Живой контраст: 15% против реальных 5%</h2>
   <p>
     Ниже — живой annual-contrast с боевого API (<code>/api/aggressive-lab/annual-contrast</code>):
-    реальная устойчивая ~5% книга рядом с агрессивной 10–15% и её датированными drawdown'ами. Это
+    реальная устойчивая ~4.5% книга рядом с агрессивной 10–15% и её датированными drawdown'ами. Это
     sales-артефакт деска, где <strong>честность важнее презентабельности</strong> — отсутствующий/битый
     файл даёт честное «недоступно», а не выдуманную кривую.
   </p>
@@ -173,7 +173,7 @@ const questions = [
 
   <Callout type="key" titleRu="Ключевое">
     То, что «покупает» 15% — это <strong>вот эти датированные обвалы</strong> (−66%, −29.7%, …).
-    Устойчивая ~5% книга деска не имеет таких просадок по построению. Отказ от 15% (модуль 11) — не
+    Устойчивая ~4.5% книга деска не имеет таких просадок по построению. Отказ от 15% (модуль 11) — не
     осторожность ради осторожности, а измеренный, доказанный на реальных датах выбор.
   </Callout>
 
