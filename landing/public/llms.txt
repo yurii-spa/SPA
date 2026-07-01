@@ -1,0 +1,99 @@
+# SPA — earn-defi.com
+> Smart Passive Aggregator: an autonomous, paper-stage DeFi stablecoin-yield & RISK desk. Its identity is provable honesty — it holds a conservative ~4.5% book and REFUSES the 10-15% risk-compensation yield most venues chase. This index is for AI agents auditing the site. All figures are paper (virtual $100k) toward a 30-day evidenced track; numbers are live/fail-closed, never fabricated. Public read-API: https://api.earn-defi.com (e.g. /api/portfolio, /api/refusals, /api/kill-gauge, /api/rates-desk/proof).
+
+## Core
+- [/](https://earn-defi.com/): Home — console overview of the desk (thesis, live posture, journey chooser).
+- [/dashboard](https://earn-defi.com/dashboard): Live portfolio dashboard (paper $100k): NAV, positions, APY, gates — polls the public API.
+- [/methodology](https://earn-defi.com/methodology): Desk methodology — the deterministic pipeline, RiskPolicy, kill-switch.
+- [/status](https://earn-defi.com/status): Live system status.
+- [/system](https://earn-defi.com/system): System hub.
+- [/track-record](https://earn-defi.com/track-record): Evidenced paper track record (honest, real-only days toward 30).
+
+## Desk Cockpit (visual reporting)
+- [/cockpit](https://earn-defi.com/cockpit): Desk Cockpit home — 5-question flight deck; hero = P&L attribution + safety, not a big number.
+- [/cockpit/backtest](https://earn-defi.com/cockpit/backtest): Cockpit: backtest as full history — in/out-sample, Monte-Carlo, counterfactual 'what the gates saved'. ?strategy=<id>.
+- [/cockpit/position](https://earn-defi.com/cockpit/position): Cockpit: one paper position's lifecycle (entry rationale, accrual, exit). ?id=<protocol>.
+- [/cockpit/refusals](https://earn-defi.com/cockpit/refusals): Cockpit: public refusal ledger — every opportunity refused, reason, capital-protected, proof badge.
+- [/cockpit/risk](https://earn-defi.com/cockpit/risk): Cockpit: Risk / Liquidation-NAV-by-AUM-tier, modeled stress, two-tier kill headroom.
+- [/cockpit/strategy](https://earn-defi.com/cockpit/strategy): Cockpit: one strategy deep-dive (equity+gate/refusal markers, kill-panel, attribution). ?id=<strategy>.
+
+## Strategies & Tournament
+- [/strategies](https://earn-defi.com/strategies): Strategy catalog (core / preserve / max-yield / research).
+- [/strategies/btc](https://earn-defi.com/strategies/btc): BTC lending — the honest ~0% story (BTC barely borrowed on-chain); advisory.
+- [/strategies/core](https://earn-defi.com/strategies/core): Core strategy — conservative stablecoin lending (~4.5%, the held book).
+- [/strategies/leverage-loops](https://earn-defi.com/strategies/leverage-loops): Leverage looping — the amplified-risk visual + real dated liquidation; class-C, never live.
+- [/strategies/max-yield](https://earn-defi.com/strategies/max-yield): Max-yield strategy — higher-risk tilt (still risk-gated).
+- [/strategies/preserve](https://earn-defi.com/strategies/preserve): Preserve strategy — capital-preservation tilt.
+- [/strategies/research](https://earn-defi.com/strategies/research): Research strategies — modelled projections, NOT realized/promised.
+- [/tournament](https://earn-defi.com/tournament): Strategy tournament — leaderboard, promotion ladder, honest degenerate-Sharpe flagging.
+
+## Risk Board (DFB)
+- [/board](https://earn-defi.com/board): Risk Board (DFB) — risk-first screener of DeFi yield pools (a DeBank alternative).
+- [/board/alerts](https://earn-defi.com/board/alerts): DFB alerts feed (risk events on tracked pools).
+- [/board/methodology](https://earn-defi.com/board/methodology): DFB methodology — how pools are risk-classified.
+- [/board/pool](https://earn-defi.com/board/pool): DFB pool detail (risk overlay, verdict). ?id=<pool>.
+- [/board/portfolio](https://earn-defi.com/board/portfolio): DFB portfolio lens — paste addresses, risk-scored.
+
+## Research & Proof
+- [/annual-contrast](https://earn-defi.com/annual-contrast): Aggressive-lab annual contrast — dated drawdowns of chasing 15% vs steady ~5%.
+- [/competitive-position](https://earn-defi.com/competitive-position): How the desk compares to other yield venues (honest).
+- [/due-diligence](https://earn-defi.com/due-diligence): Self-verifying due-diligence pack (head-pinned, reproducible).
+- [/exit-nav](https://earn-defi.com/exit-nav): Liquidation-NAV by ticket size — conservative exit-liquidity bound.
+- [/fundability](https://earn-defi.com/fundability): Fundability scorecard — risk-adjusted vs the RWA floor at scale (honest: does not beat floor at fundable scale).
+- [/proof-of-reserves](https://earn-defi.com/proof-of-reserves): Proof-of-reserves surface (paper).
+- [/rates-desk](https://earn-defi.com/rates-desk): Rates Desk — refusal-first fixed/implied-rate carry sleeve (thesis #1, GO).
+- [/refusals](https://earn-defi.com/refusals): Public refusal log (rates-desk) — hash-chained, auditable.
+- [/research](https://earn-defi.com/research): Research journal — the honest research arc + verdicts.
+- [/rwa-backstop](https://earn-defi.com/rwa-backstop): RWA Collateral Safety Board — liquidation-NAV underwriter (thesis #2).
+- [/structural-desk](https://earn-defi.com/structural-desk): Structural Desk — the 3-thesis research arc (measurement-as-moat).
+- [/verify](https://earn-defi.com/verify): Verify us — standalone zero-dependency verifier scripts (don't trust, check).
+
+## Academy (learning)
+- [/academy](https://earn-defi.com/academy): Academy — RU-first interactive course: DeFi basics + everything the desk invented (20 modules).
+- [/academy/01-defi-blockchain-wallets](https://earn-defi.com/academy/01-defi-blockchain-wallets): 
+- [/academy/02-stablecoins-pegs](https://earn-defi.com/academy/02-stablecoins-pegs): 
+- [/academy/03-lending-aave-compound](https://earn-defi.com/academy/03-lending-aave-compound): 
+- [/academy/04-yield-apy-tvl](https://earn-defi.com/academy/04-yield-apy-tvl): 
+- [/academy/05-rwa-tbills-floor](https://earn-defi.com/academy/05-rwa-tbills-floor): 
+- [/academy/06-lst-lrt-restaking](https://earn-defi.com/academy/06-lst-lrt-restaking): 
+- [/academy/07-pendle-pt-yt](https://earn-defi.com/academy/07-pendle-pt-yt): 
+- [/academy/08-funding-basis-deltaneutral](https://earn-defi.com/academy/08-funding-basis-deltaneutral): 
+- [/academy/09-leverage-liquidations-points](https://earn-defi.com/academy/09-leverage-liquidations-points): 
+- [/academy/10-risk-taxonomy-abcd](https://earn-defi.com/academy/10-risk-taxonomy-abcd): 
+- [/academy/11-refusal-first](https://earn-defi.com/academy/11-refusal-first): 
+- [/academy/12-structural-haircut-veto](https://earn-defi.com/academy/12-structural-haircut-veto): 
+- [/academy/13-riskpolicy](https://earn-defi.com/academy/13-riskpolicy): 
+- [/academy/14-two-tier-killswitch](https://earn-defi.com/academy/14-two-tier-killswitch): 
+- [/academy/15-edge-at-scale](https://earn-defi.com/academy/15-edge-at-scale): 
+- [/academy/16-three-layer-stack](https://earn-defi.com/academy/16-three-layer-stack): 
+- [/academy/17-proof-of-risk-verify](https://earn-defi.com/academy/17-proof-of-risk-verify): 
+- [/academy/18-golive-track-honesty](https://earn-defi.com/academy/18-golive-track-honesty): 
+- [/academy/19-aggressive-lab-annual-contrast](https://earn-defi.com/academy/19-aggressive-lab-annual-contrast): 
+- [/academy/20-measurement-as-moat](https://earn-defi.com/academy/20-measurement-as-moat): 
+- [/academy/capstone](https://earn-defi.com/academy/capstone): Academy capstone assessment.
+- [/academy/certificate](https://earn-defi.com/academy/certificate): Academy completion certificate.
+- [/academy/playground](https://earn-defi.com/academy/playground): Academy playground — interactive risk sims.
+
+## Company & Support
+- [/emergency-withdrawal](https://earn-defi.com/emergency-withdrawal): Emergency withdrawal policy.
+- [/faq](https://earn-defi.com/faq): FAQ — honest answers (NOT a high-yield product; targets floor+50-150bps).
+- [/fees](https://earn-defi.com/fees): Fee model (illustrative during paper stage; no fees charged).
+- [/security](https://earn-defi.com/security): Security posture.
+- [/trust](https://earn-defi.com/trust): Trust & safety.
+
+## Legal
+- [/disclaimer](https://earn-defi.com/disclaimer): Legal disclaimer (research project, not investment advice).
+- [/risk](https://earn-defi.com/risk): Risk overview.
+- [/risk-disclosure](https://earn-defi.com/risk-disclosure): Full risk disclosure.
+
+## Blog
+- [/blog](https://earn-defi.com/blog): Blog index.
+- [/blog/2026-06-18-domain-launched](https://earn-defi.com/blog/2026-06-18-domain-launched): 
+- [/blog/2026-06-19-architecture-audit](https://earn-defi.com/blog/2026-06-19-architecture-audit): 
+- [/blog/2026-06-20-paper-trading-started](https://earn-defi.com/blog/2026-06-20-paper-trading-started): 
+
+## Audit notes for agents
+- The desk's edge is measurement/underwriting/refusal as a product, NOT beating yield — honestly, it does NOT beat the ~3.4% RWA floor via yield at fundable scale.
+- Live data panels (dashboard, cockpit, board) are React islands that fetch the public API; static marketing/legal pages are readable without JS.
+- Verify claims independently: /verify links standalone zero-dependency scripts; /refusals + /api/rates-desk/proof are hash-chained.
+- Two-tier kill-switch: SOFT −5% de-risk / HARD −10% all-cash. Track is real-evidenced-only (backfill excluded).
