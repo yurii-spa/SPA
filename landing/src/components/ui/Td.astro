@@ -1,0 +1,6 @@
+---
+/* Td.astro — table body cell (V2 §3.4). props: mono?, num? (right-align tabular), ru? */
+interface Props { mono?: boolean; num?: boolean; ru?: string; class?: string; }
+const { mono = false, num = false, ru, class: cls = '' } = Astro.props;
+---
+<td class:list={[{ mono, num }, cls]} data-ru={ru}><slot /></td>

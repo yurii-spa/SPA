@@ -1,0 +1,35 @@
+---
+/*
+ * LiveChip.astro — one live/offline source chip (V2 §3.4).
+ * props:
+ *   live?: boolean         (default false → offline/muted)
+ *   source?: string        — e.g. 'api.earn-defi.com'
+ *   updated?: string       — e.g. '15s ago'
+ *   ru?: string            — RU translation for the state label
+ * live: green dot (pulse-slow) + 'Live'; offline: muted dot + 'Offline'.
+ */
+import Badge from './Badge.astro';
+interface Props {
+  live?: boolean;
+  source?: string;
+  updated?: string;
+  label?: string;
+  ru?: string;
+  class?: string;
+}
+const { live = false, source, updated, label, ru, class: cls = '' } = Astro.props;
+const text = label ?? (live ? 'Live' : 'Offline');
+---
+<span class:list={['ui-livechip', cls]}>
+  <Badge tone={live ? 'ok' : 'muted'} ru={ru}>
+    <span class:list={['lc-dot', { pulse: live }]} aria-hidden="true"></span>{text}
+  </Badge>
+  {source && <span class="lc-src">{source}{updated ? ` · ${updated}` : ''}</span>}
+</span>
+
+<style>
+  .ui-livechip{display:inline-flex; align-items:center; gap:8px}
+  .lc-dot{width:6px; height:6px; border-radius:50%; background:currentColor; flex-shrink:0}
+  .lc-dot.pulse{animation:pulse 3s cubic-bezier(.4,0,.6,1) infinite}
+  .lc-src{font-family:var(--font-mono); font-size:.6875rem; color:var(--text-muted)}
+</style>

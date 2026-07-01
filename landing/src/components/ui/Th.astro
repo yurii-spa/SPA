@@ -1,0 +1,6 @@
+---
+/* Th.astro — table header cell (V2 §3.4). props: align?: 'left'|'right'; ru?: string */
+interface Props { align?: 'left' | 'right'; ru?: string; class?: string; }
+const { align = 'left', ru, class: cls = '' } = Astro.props;
+---
+<th class:list={[{ num: align === 'right' }, cls]} data-ru={ru}><slot /></th>

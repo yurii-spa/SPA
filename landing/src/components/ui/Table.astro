@@ -1,0 +1,37 @@
+---
+/*
+ * Table.astro — one table style (V2 §3.4). Use with Th.astro / Td.astro.
+ * Wrapper rounded-lg + hairline border + overflow hidden; header row bg-surface-2;
+ * <Th> mono/uppercase/text-muted; rows hairline, hover bg-elevated.
+ * Usage:
+ *   <Table>
+ *     <thead><tr><Th>Col</Th>…</tr></thead>
+ *     <tbody><tr><Td>…</Td></tr></tbody>
+ *   </Table>
+ */
+interface Props { class?: string; }
+const { class: cls = '' } = Astro.props;
+---
+<div class:list={['ui-table-wrap', cls]}>
+  <table class="ui-table"><slot /></table>
+</div>
+
+<style is:global>
+  .ui-table-wrap{border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden; overflow-x:auto}
+  .ui-table{width:100%; border-collapse:collapse; font-size:.8125rem}
+  .ui-table thead tr{background:var(--bg-surface-2)}
+  .ui-table th{
+    text-align:left; font-family:var(--font-mono); font-size:.6875rem; font-weight:500;
+    text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);
+    padding:10px 14px; border-bottom:1px solid var(--border); white-space:nowrap;
+  }
+  .ui-table td{
+    padding:11px 14px; border-bottom:1px solid var(--border); color:var(--text-secondary);
+    vertical-align:middle;
+  }
+  .ui-table tbody tr:last-child td{border-bottom:none}
+  .ui-table tbody tr{transition:background 120ms var(--ease)}
+  .ui-table tbody tr:hover{background:var(--bg-elevated)}
+  .ui-table td.mono,.ui-table th.mono{font-family:var(--font-mono)}
+  .ui-table td.num,.ui-table th.num{text-align:right; font-variant-numeric:tabular-nums}
+</style>

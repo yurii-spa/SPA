@@ -1,0 +1,23 @@
+---
+/*
+ * Eyebrow.astro — canonical section/page label (V2 §3.2). Mono, uppercase, .12em tracking.
+ * Color is text-faint (default) or accent — NEVER green/amber/teal (those are §3.3 semantics).
+ * props: tone?: 'faint'|'accent' (default 'faint'); ru?: string
+ */
+interface Props {
+  tone?: 'faint' | 'accent';
+  ru?: string;
+  class?: string;
+}
+const { tone = 'faint', ru, class: cls = '' } = Astro.props;
+---
+<span class:list={['ui-eyebrow', `t-${tone}`, cls]} data-ru={ru}><slot /></span>
+
+<style>
+  .ui-eyebrow{
+    display:inline-block; font-family:var(--font-mono); font-size:.75rem; font-weight:600;
+    text-transform:uppercase; letter-spacing:.12em; line-height:1.4;
+  }
+  .t-faint{color:var(--text-faint)}
+  .t-accent{color:var(--accent)}
+</style>

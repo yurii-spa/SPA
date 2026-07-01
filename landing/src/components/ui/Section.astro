@@ -1,0 +1,39 @@
+---
+/*
+ * Section.astro — vertical rhythm + max-width container (V2 §3.5/§3.6).
+ * props:
+ *   width?: 'marketing'|'doc'|'app'|'full'   (max-w 1152 / 768 / 1024 / none; default 'marketing')
+ *   pad?: 'lg'|'md'|'sm'|'none'              (96 / 64 / 48 / 0 vertical; default 'md')
+ *   divider?: boolean                        — top hairline border (default false)
+ *   id?: string
+ */
+interface Props {
+  width?: 'marketing' | 'doc' | 'app' | 'full';
+  pad?: 'lg' | 'md' | 'sm' | 'none';
+  divider?: boolean;
+  id?: string;
+  class?: string;
+}
+const { width = 'marketing', pad = 'md', divider = false, id, class: cls = '' } = Astro.props;
+---
+<section class:list={['ui-section', `pad-${pad}`, { divider }, cls]} id={id}>
+  <div class:list={['ui-section-inner', `w-${width}`]}>
+    <slot />
+  </div>
+</section>
+
+<style>
+  .ui-section{}
+  .ui-section.divider{border-top:1px solid var(--border)}
+  .pad-lg{padding-top:96px; padding-bottom:96px}
+  .pad-md{padding-top:64px; padding-bottom:64px}
+  .pad-sm{padding-top:48px; padding-bottom:48px}
+  .pad-none{padding-top:0; padding-bottom:0}
+  .ui-section-inner{margin:0 auto; padding-left:24px; padding-right:24px}
+  .w-marketing{max-width:1152px}
+  .w-doc{max-width:768px}
+  .w-app{max-width:1024px}
+  .w-full{max-width:none}
+  @media(max-width:900px){ .pad-lg{padding-top:64px; padding-bottom:64px} }
+  @media(max-width:520px){ .pad-lg,.pad-md{padding-top:48px; padding-bottom:48px} }
+</style>

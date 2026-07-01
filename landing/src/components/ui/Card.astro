@@ -1,0 +1,49 @@
+---
+/*
+ * Card.astro — ONE card treatment site-wide (V2 §3.4). Solid bg-surface, never the
+ * translucent bg-white/[0.02] variant. Optional left status-border (§3.3 tones).
+ * props:
+ *   variant?: 'default'|'metric'|'status'   (default 'default')
+ *   tone?: 'ok'|'warn'|'danger'|'accent'|'teal'|'muted'  — left border for variant='status'
+ *   padding?: 'sm'|'md'|'lg'   (default 'md' = p-6/p-8)
+ *   hover?: boolean            — border brighten on hover (default true)
+ *   as?: 'div'|'a'; href?: string
+ */
+interface Props {
+  variant?: 'default' | 'metric' | 'status';
+  tone?: 'ok' | 'warn' | 'danger' | 'accent' | 'teal' | 'muted';
+  padding?: 'sm' | 'md' | 'lg';
+  hover?: boolean;
+  as?: 'div' | 'a';
+  href?: string;
+  class?: string;
+}
+const {
+  variant = 'default', tone = 'accent', padding = 'md',
+  hover = true, as = 'div', href, class: cls = '',
+} = Astro.props;
+const Tag = as;
+const classes = ['ui-card', `p-${padding}`, `v-${variant}`, `t-${tone}`, hover ? 'hoverable' : '', cls];
+---
+<Tag class:list={classes} href={href}>
+  <slot />
+</Tag>
+
+<style>
+  .ui-card{
+    display:block; background:var(--bg-surface); border:1px solid var(--border);
+    border-radius:var(--r-lg); transition:border-color 150ms var(--ease), transform 200ms var(--ease);
+  }
+  .ui-card.hoverable:hover{border-color:var(--border-strong)}
+  a.ui-card.hoverable:hover{transform:translateY(-2px)}
+  .p-sm{padding:16px} .p-md{padding:24px} .p-lg{padding:32px}
+  @media(min-width:768px){ .p-md{padding:28px} .p-lg{padding:36px} }
+  /* status variant: 3px left border in the tone color */
+  .v-status{border-left-width:3px}
+  .v-status.t-ok{border-left-color:var(--ok)}
+  .v-status.t-warn{border-left-color:var(--warn)}
+  .v-status.t-danger{border-left-color:var(--danger)}
+  .v-status.t-accent{border-left-color:var(--accent)}
+  .v-status.t-teal{border-left-color:var(--data-teal)}
+  .v-status.t-muted{border-left-color:var(--border-strong)}
+</style>

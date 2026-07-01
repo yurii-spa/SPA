@@ -1,0 +1,55 @@
+---
+/*
+ * Button.astro — one button system (V2 §3.4). Renders <a> if href given, else <button>.
+ * props:
+ *   variant?: 'primary'|'outline'|'ghost'|'secondary'  (default 'primary')
+ *   size?: 'sm'|'md'|'lg'  (default 'md')
+ *   href?: string; type?: string; disabled?: boolean
+ *   ru?: string
+ * primary = accent fill (only place #fff label is allowed); outline = accent hairline;
+ * secondary = neutral border; ghost = text-accent underline-on-hover.
+ */
+interface Props {
+  variant?: 'primary' | 'outline' | 'ghost' | 'secondary';
+  size?: 'sm' | 'md' | 'lg';
+  href?: string;
+  type?: 'button' | 'submit' | 'reset';
+  disabled?: boolean;
+  ru?: string;
+  class?: string;
+}
+const {
+  variant = 'primary', size = 'md', href, type = 'button',
+  disabled = false, ru, class: cls = '',
+} = Astro.props;
+const classes = ['ui-btn', `v-${variant}`, `s-${size}`, cls];
+---
+{href ? (
+  <a class:list={classes} href={disabled ? undefined : href} aria-disabled={disabled} data-ru={ru}><slot /></a>
+) : (
+  <button class:list={classes} type={type} disabled={disabled} data-ru={ru}><slot /></button>
+)}
+
+<style>
+  .ui-btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    font-family:var(--font-sans); font-weight:600; text-decoration:none; cursor:pointer;
+    border-radius:var(--r-sm); border:1px solid transparent; white-space:nowrap;
+    transition:all 120ms var(--ease);
+  }
+  .s-sm{font-size:.8125rem; padding:8px 14px}
+  .s-md{font-size:.9375rem; padding:12px 24px}
+  .s-lg{font-size:1rem; padding:16px 28px}
+  .v-primary{background:var(--accent); color:#fff; box-shadow:var(--shadow-cta)}
+  .v-primary:hover{background:var(--accent-hover); color:#fff; transform:translateY(-2px)}
+  .v-outline{border-color:var(--accent-border); color:var(--accent); background:transparent}
+  .v-outline:hover{border-color:var(--accent); color:var(--accent-hover); background:var(--accent-bg)}
+  .v-secondary{border-color:var(--border); color:var(--text-secondary); background:transparent}
+  .v-secondary:hover{border-color:var(--border-strong); color:var(--text-primary)}
+  .v-ghost{color:var(--accent); background:transparent; padding-left:8px; padding-right:8px}
+  .v-ghost:hover{color:var(--accent-hover); text-decoration:underline; text-underline-offset:4px}
+  .ui-btn[aria-disabled='true'],.ui-btn:disabled{
+    color:var(--text-muted); background:transparent; border-color:var(--border);
+    box-shadow:none; cursor:not-allowed; pointer-events:none; transform:none;
+  }
+</style>

@@ -1,0 +1,54 @@
+---
+/*
+ * PageHeader.astro — the ONE canonical page hero/title block (V2 §3.4).
+ * Fixes H1-size drift (every page title = text-4xl sm:text-5xl / h1 scale) and the
+ * "no hero on /board/pool" gap. Use at the top of every page's <main>.
+ * props:
+ *   eyebrow?: string; eyebrowRu?: string; eyebrowTone?: 'faint'|'accent'
+ *   title: string; titleRu?: string
+ *   lede?: string; ledeRu?: string
+ *   align?: 'left'|'center'  (default 'left'; 'center' for marketing landing sections)
+ *   max?: string            — lede max-width (default '42rem')
+ * Slot: optional trailing controls (LiveChip, tabs, CTAs) rendered under the lede.
+ */
+import Eyebrow from './Eyebrow.astro';
+interface Props {
+  eyebrow?: string;
+  eyebrowRu?: string;
+  eyebrowTone?: 'faint' | 'accent';
+  title: string;
+  titleRu?: string;
+  lede?: string;
+  ledeRu?: string;
+  align?: 'left' | 'center';
+  max?: string;
+  class?: string;
+}
+const {
+  eyebrow, eyebrowRu, eyebrowTone = 'faint',
+  title, titleRu, lede, ledeRu, align = 'left', max = '42rem', class: cls = '',
+} = Astro.props;
+---
+<header class:list={['ui-pageheader', `a-${align}`, cls]}>
+  {eyebrow && <Eyebrow tone={eyebrowTone} ru={eyebrowRu} class="ph-eyebrow">{eyebrow}</Eyebrow>}
+  <h1 class="ph-title" data-ru={titleRu}>{title}</h1>
+  {lede && <p class="ph-lede" data-ru={ledeRu} style={`max-width:${max}`}>{lede}</p>}
+  <div class="ph-slot"><slot /></div>
+</header>
+
+<style>
+  .ui-pageheader{padding:56px 0 0}
+  .a-center{text-align:center}
+  .ph-eyebrow{margin-bottom:14px}
+  .ph-title{
+    font-size:2.25rem; line-height:1.15; font-weight:700; letter-spacing:-.02em;
+    color:var(--text-primary); margin:0;
+  }
+  @media(min-width:640px){ .ph-title{font-size:3rem} }
+  .ph-lede{
+    margin:18px 0 0; font-size:1.125rem; line-height:1.6; color:var(--text-secondary);
+  }
+  .a-center .ph-lede{margin-left:auto; margin-right:auto}
+  .ph-slot:not(:empty){margin-top:24px}
+  .a-center .ph-slot:not(:empty){display:flex; justify-content:center; flex-wrap:wrap; gap:12px}
+</style>

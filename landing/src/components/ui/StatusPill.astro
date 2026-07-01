@@ -1,0 +1,31 @@
+---
+/*
+ * StatusPill.astro — a Badge that maps a risk VERDICT or TIER to the canonical tone,
+ * so B/C page authors never pick a color by hand (V2 §3.3/§3.4).
+ * props (give exactly one of verdict/tier, or an explicit tone):
+ *   verdict?: 'SAFE'|'WATCH'|'REFUSE'|'PASS'|'FAIL'|'PENDING'|'GO'|'NO-GO'|'UNKNOWN'|...
+ *   tier?: 'A'|'B'|'C'|'D'
+ *   tone?: same as Badge (explicit override)
+ *   label?: string  — display text (defaults to the verdict/tier)
+ *   ru?: string     — RU translation
+ *   dot?: boolean
+ * SAFE=green, WATCH=amber, REFUSE=coral, UNKNOWN=muted; A=teal/B=accent/C=warn/D=danger.
+ */
+import Badge from './Badge.astro';
+import { toneForVerdict, toneForTier } from './tokens.js';
+
+interface Props {
+  verdict?: string;
+  tier?: string;
+  tone?: 'ok' | 'warn' | 'danger' | 'accent' | 'teal' | 'muted';
+  label?: string;
+  ru?: string;
+  dot?: boolean;
+  class?: string;
+}
+const { verdict, tier, tone, label, ru, dot = true, class: cls = '' } = Astro.props;
+const resolvedTone = tone
+  || (verdict ? toneForVerdict(verdict) : tier ? toneForTier(tier) : 'muted');
+const text = label ?? verdict ?? tier ?? '';
+---
+<Badge tone={resolvedTone} dot={dot} ru={ru} class={cls}>{text}</Badge>
