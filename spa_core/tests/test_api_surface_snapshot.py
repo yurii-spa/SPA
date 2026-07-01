@@ -61,6 +61,15 @@ GOLDEN_ROUTES = {
     ("/api/backtest/summary", ("GET",)),
     ("/api/chat", ("POST",)),
     ("/api/competitive-watch", ("GET",)),
+    # Desk Cockpit (Sprint-0 Lane A) — the normalized read-API the Cockpit screens consume.
+    # SPA-001 unified decisions/refusals + regime/strategies folds; SPA-002 kill-gauge headroom.
+    # Read-only RESHAPE facade; every response carries ts+stale, fail-CLOSED honest-unavailable.
+    ("/api/decisions", ("GET",)),
+    ("/api/refusals", ("GET",)),
+    ("/api/regime", ("GET",)),
+    ("/api/strategies", ("GET",)),
+    ("/api/strategies/{strategy_id}", ("GET",)),
+    ("/api/kill-gauge", ("GET",)),
     # DFB — DeFi Board (LANE 2): public risk-first pool analytics, read-only/GET/fail-CLOSED.
     ("/api/dfb/pools", ("GET",)),
     ("/api/dfb/pool/{pool_id}", ("GET",)),
@@ -200,7 +209,7 @@ def test_route_table_identical_to_golden():
 def test_route_count_stable():
     """The flat handler surface (expanded across included routers) is the invariant.
 
-    82 HTTP handlers + 1 websocket (/ws/agents) = 83 entries in GOLDEN_ROUTES. This
+    100 HTTP handlers + 1 websocket (/ws/agents) = 101 entries in GOLDEN_ROUTES. This
     is structure-independent (monolith routes vs lazily-included routers) because
     _walk_routes expands `_IncludedRouter` proxies. The launch target
     `spa_core.api.server:app` is unaffected — `app` is still defined in server.py.
@@ -215,7 +224,7 @@ def test_route_count_stable():
     surface (/api/underwriting/report + /proof + /full-chain), FLAG-GATED OFF by default
     (SPA_UNDERWRITING_PUBLISH).)
     """
-    assert len(_app_route_table()) == 95
+    assert len(_app_route_table()) == 101
 
 
 def test_openapi_path_count_stable():
@@ -223,7 +232,7 @@ def test_openapi_path_count_stable():
     from fastapi.testclient import TestClient
     with TestClient(server.app) as c:
         paths = c.get("/openapi.json").json()["paths"]
-    assert len(paths) == 94  # 92 HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
+    assert len(paths) == 100  # HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
 
 
 # ── Representative response-shape snapshot (one endpoint per tag group) ──────────
@@ -269,6 +278,15 @@ SHAPE_GOLDEN = {
     ),
     "/api/v1/evidence": ("data", "source", "timestamp"),
     "/api/live/ping": ("ok", "ts", "version"),
+    # Desk Cockpit (Sprint-0 Lane A) — the empty-data-dir fail-CLOSED fallback shapes.
+    "/api/regime": (
+        "available", "cycle_risk", "detected_at", "reason", "recommendation",
+        "regime", "stale", "streak", "ts", "vol",
+    ),
+    "/api/kill-gauge": (
+        "advisory", "conditions", "n_conditions", "overall_status", "stale",
+        "thresholds_source", "ts",
+    ),
 }
 
 

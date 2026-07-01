@@ -1,0 +1,40 @@
+---
+// /cockpit-kit — the Desk Cockpit PRIMITIVES SHOWCASE (Storybook-lite).
+//
+// Sprint-0 Lane B hard gate: this page renders EVERY Cockpit primitive in EVERY state
+// (healthy / degraded / killed / idle-positive / loading / error-stale) on the canonical
+// design system (ui/tokens.js). It is the vanity test surface for the S1–S7 screen agents:
+// come here to see the compilable vocabulary and its exact states before assembling a screen.
+//
+// The live surface is the <CockpitKit /> React island (synthetic fixture data — NO live API;
+// it exists only to drive states). Bilingual (EN|RU) + prefers-reduced-motion aware.
+import Layout from '../layouts/Layout.astro';
+import CockpitKit from '../components/cockpit/CockpitKit.jsx';
+---
+
+<Layout
+  title="Cockpit Kit — Primitives Showcase | earn-defi.com"
+  description="The Desk Cockpit primitives library — every primitive in every state (healthy / degraded / killed / idle-positive / loading / stale). The compilable vocabulary the Cockpit screens are built from. Internal showcase, synthetic data."
+  canonical="https://earn-defi.com/cockpit-kit"
+>
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section class="pt-16 pb-8">
+      <p class="text-xs font-mono uppercase tracking-[0.12em] text-text-faint mb-4" data-ru="Кокпит · библиотека примитивов">Cockpit · primitives library</p>
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Кокпит-кит — витрина примитивов">
+        Cockpit kit — the primitives showcase
+      </h1>
+      <p class="text-lg text-white/50 leading-relaxed max-w-2xl"
+         data-ru="Каждый примитив Desk Cockpit во всех состояниях (норма / деградация / kill / idle-positive / загрузка / устарело), на канонической дизайн-системе. Три ★ подписных элемента — KillGauge, RefusalFeed, AttributionWaterfall. Данные синтетические (витрина, без live API). Доктрина: «история, не число» · fail-closed · idle = «капитал припаркован» это норма · табличные цифры · без геймификации.">
+        Every Desk Cockpit primitive in every state (healthy / degraded / killed / idle-positive /
+        loading / stale), on the canonical design system. Three ★ signature elements — KillGauge,
+        RefusalFeed, AttributionWaterfall. Data is synthetic (a showcase, no live API). Doctrine:
+        <span class="text-white/70">history, not a number</span> · fail-closed · idle = "capital
+        parked" is positive · tabular figures · no gamification.
+      </p>
+    </section>
+
+    <section class="pb-24">
+      <CockpitKit client:load />
+    </section>
+  </main>
+</Layout>

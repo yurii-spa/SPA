@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, Component } from 'react';
+import { TONES } from './ui/tokens.js';
 
 /*
  * DashboardLive — the COMMAND CENTER for earn-defi.com.
@@ -619,17 +620,12 @@ function Bar({ value, max, color }) {
 }
 
 function Chip({ tone, children, title }) {
-  const tones = {
-    ok: { bg: 'rgba(52,211,153,.12)', bd: 'rgba(52,211,153,.30)', fg: 'var(--ok)' },
-    warn: { bg: 'rgba(242,181,60,.12)', bd: 'rgba(242,181,60,.30)', fg: 'var(--warn)' },
-    danger: { bg: 'rgba(242,109,109,.12)', bd: 'rgba(242,109,109,.30)', fg: 'var(--danger)' },
-    teal: { bg: 'rgba(54,194,180,.12)', bd: 'rgba(54,194,180,.30)', fg: 'var(--data-teal)' },
-    accent: { bg: 'var(--accent-bg)', bd: 'var(--accent-dim)', fg: 'var(--accent-hover)' },
-    muted: { bg: 'var(--bg-surface-2)', bd: 'var(--border-strong)', fg: 'var(--text-muted)' },
-  };
-  const t = tones[tone] || tones.muted;
+  // Converged onto the ONE canonical tone map (ui/tokens.js TONES) — was a local hardcoded
+  // rgba map that DIVERGED from the tokens (Sprint-0 Lane B convergence). Every tone now
+  // resolves to the same CSS custom properties every other surface (Badge/StatusPill/cockpit) uses.
+  const t = TONES[tone] || TONES.muted;
   return (
-    <span title={title} style={{ ...mono, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '.6875rem', padding: '4px 10px', borderRadius: 'var(--r-full)', background: t.bg, border: `1px solid ${t.bd}`, color: t.fg, whiteSpace: 'nowrap' }}>
+    <span title={title} style={{ ...mono, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '.6875rem', padding: '4px 10px', borderRadius: 'var(--r-full)', background: t.bg, border: `1px solid ${t.border}`, color: t.fg, whiteSpace: 'nowrap' }}>
       {children}
     </span>
   );

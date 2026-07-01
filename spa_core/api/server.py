@@ -159,6 +159,7 @@ app.add_middleware(RateLimitMiddleware)
 # Order preserved from the monolith's definition order so OpenAPI listing is stable.
 from spa_core.api.routers import (  # noqa: E402
     aggressive_lab,
+    cockpit,
     competitive_watch,
     dfb,
     dfb_data_api,
@@ -206,6 +207,12 @@ app.include_router(dfb_data_api.router)
 # flag-gated — verifiability is always available; the PUBLIC report/oracle product surfaces are the
 # owner-flag-gated ones (in their own routers). NO-FORK: every verdict is the seed's, served verbatim.
 app.include_router(riskwire.router)
+# Desk Cockpit (Sprint-0 Lane A) — the NORMALIZED read-API the Cockpit screens consume.
+# Read-only RESHAPE facade (SPA-001 unified decisions/refusals + regime/strategies folds,
+# SPA-002 per-condition kill-gauge headroom). NO-FORK: reuses kill_switch/rate_policy/the
+# rates-desk decision_log/market_regime/strategy-lab; never re-derives risk math. Every
+# response carries ts+stale, fail-CLOSED honest-unavailable, GET-only/advisory.
+app.include_router(cockpit.router)
 
 
 # ─── Backward-compatible handler re-exports ───────────────────────────────────
@@ -262,6 +269,14 @@ v1_evidence = v1.v1_evidence
 
 get_tournament = tournament.get_tournament
 get_tournament_status = tournament.get_tournament_status
+
+# Desk Cockpit (Sprint-0 Lane A) — unified decisions/refusals + regime/strategies + kill-gauge.
+get_decisions = cockpit.get_decisions
+get_refusals = cockpit.get_refusals
+get_regime = cockpit.get_regime
+get_strategies = cockpit.get_strategies
+get_strategy = cockpit.get_strategy
+get_kill_gauge = cockpit.get_kill_gauge
 
 get_dfb_pools = dfb.get_dfb_pools
 get_dfb_pool = dfb.get_dfb_pool
