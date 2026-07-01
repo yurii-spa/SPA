@@ -23,6 +23,7 @@
 // idle / never-held → positive «capital parked» / honest empty. Canonical tokens, EN|RU.
 import Layout from '../../layouts/Layout.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
+import CockpitNav from '../../components/cockpit/CockpitNav.astro';
 import CockpitPosition from '../../components/CockpitPosition.jsx';
 ---
 
@@ -33,15 +34,16 @@ import CockpitPosition from '../../components/CockpitPosition.jsx';
 >
   <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
-    <section class="pt-6 pb-0">
-      <p class="text-xs font-mono mb-2">
-        <a href="/cockpit" style="color:var(--text-muted)" data-ru="← Desk cockpit">← Desk cockpit</a>
-        <span style="color:var(--text-faint)"> · </span>
-        <a href="/cockpit/strategy" style="color:var(--text-muted)" data-ru="Разбор стратегии">Strategy deep-dive</a>
+    <section class="pt-10">
+      <CockpitNav active="strategy" />
+      <!-- Position (S6) is a drill-down from Strategy — the Strategy tab stays active; a
+           contextual back-link returns to the parent strategy view. -->
+      <p class="text-[11px] font-mono mt-2">
+        <a href="/cockpit/strategy" style="color:var(--text-muted)" data-ru="← Разбор стратегии">← Strategy deep-dive</a>
       </p>
     </section>
 
-    <section class="pt-6 pb-16">
+    <section class="pt-4 pb-16">
       <CockpitPosition client:load />
     </section>
 

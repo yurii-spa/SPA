@@ -1,0 +1,142 @@
+---
+// CockpitNav — the shared Desk Cockpit sub-nav / section chrome (Sprint 5, SPA coherence fix).
+//
+// One flight-deck tab bar on EVERY cockpit screen (/cockpit* + /tournament) so moving between
+// S1–S7 feels like one product, not seven pages. The user can fly across the whole cockpit
+// without going back to the global SiteHeader. The current section is marked active.
+//
+// Deliberately QUIET (the Chanel-rule / vanity pass): plain text tabs, one accent underline on
+// the active tab — no icons, no gamified badges, no decoration. It orients; it does not shout.
+// The 3 signature elements (KillGauge / RefusalFeed / AttributionWaterfall) remain the only bold
+// spend; this chrome is disciplined.
+//
+// Bilingual (EN|RU via data-ru). Canonical tokens only. Keyboard-focusable (real <a>). Mobile:
+// the row scrolls horizontally as a compact strip on very narrow phones but never forces the PAGE
+// to scroll (overflow contained to the nav), and wraps where there is room — the section stays
+// glanceable on a phone.
+//
+// Usage: <CockpitNav active="dashboard" />  — active ∈ dashboard|strategy|tournament|backtest|risk|refusals
+export interface Props {
+  active: 'dashboard' | 'strategy' | 'tournament' | 'backtest' | 'risk' | 'refusals';
+}
+const { active } = Astro.props;
+
+// The six flight-deck sections. Position (S6) is a drill-down FROM strategy, not a top-level tab
+// (it has no standalone entry point) — so it maps to the `strategy` tab when reached.
+const TABS = [
+  { id: 'dashboard',  href: '/cockpit',            en: 'Dashboard',  ru: 'Дашборд'   },
+  { id: 'strategy',   href: '/cockpit/strategy',   en: 'Strategy',   ru: 'Стратегия' },
+  { id: 'tournament', href: '/tournament',         en: 'Tournament', ru: 'Турнир'    },
+  { id: 'backtest',   href: '/cockpit/backtest',   en: 'Backtest',   ru: 'Бэктест'   },
+  { id: 'risk',       href: '/cockpit/risk',       en: 'Risk',       ru: 'Риск'      },
+  { id: 'refusals',   href: '/cockpit/refusals',   en: 'Refusals',   ru: 'Отказы'    },
+];
+---
+
+<nav
+  class="cockpit-nav"
+  aria-label="Desk Cockpit sections"
+  data-ru-aria="Разделы Desk Cockpit"
+>
+  <span class="cockpit-nav__brand" data-ru="Desk Cockpit">Desk Cockpit</span>
+  <span class="cockpit-nav__sep" aria-hidden="true">·</span>
+  <ul class="cockpit-nav__list">
+    {TABS.map((t) => (
+      <li>
+        <a
+          href={t.href}
+          class={`cockpit-nav__tab${t.id === active ? ' is-active' : ''}`}
+          aria-current={t.id === active ? 'page' : undefined}
+          data-ru={t.ru}
+        >
+          {t.en}
+        </a>
+      </li>
+    ))}
+  </ul>
+</nav>
+
+<style>
+  /* One quiet tab bar. Sticky-under-the-header so it stays a flight-deck reference while
+     scrolling a long screen. Fail-closed styling: pure tokens, no motion beyond the token ease. */
+  .cockpit-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding: 0.5rem 0;
+    margin-bottom: 0.25rem;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+  }
+  .cockpit-nav__brand {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .cockpit-nav__sep {
+    color: var(--text-faint);
+    flex-shrink: 0;
+  }
+  .cockpit-nav__list {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    /* On phones the strip scrolls WITHIN the nav — the page itself never scrolls sideways. */
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    min-width: 0;
+  }
+  .cockpit-nav__list::-webkit-scrollbar { display: none; }
+  .cockpit-nav__tab {
+    display: inline-block;
+    padding: 0.35rem 0.6rem;
+    font-size: 12px;
+    line-height: 1;
+    color: var(--text-muted);
+    border-radius: var(--r-sm);
+    white-space: nowrap;
+    transition: color 0.15s var(--ease), background 0.15s var(--ease);
+  }
+  .cockpit-nav__tab:hover {
+    color: var(--text-secondary);
+    background: var(--bg-surface);
+  }
+  /* The active section — one accent underline, the only bold. */
+  .cockpit-nav__tab.is-active {
+    color: var(--text-primary);
+    background: var(--accent-bg);
+    box-shadow: inset 0 -2px 0 0 var(--accent);
+  }
+  /* Mobile: keep the brand, let tabs form a compact scrollable strip; never overflow the page. */
+  @media (max-width: 720px) {
+    .cockpit-nav { gap: 0.35rem; }
+    .cockpit-nav__sep { display: none; }
+    .cockpit-nav__list { flex-wrap: nowrap; }
+    .cockpit-nav__tab { padding: 0.35rem 0.5rem; }
+  }
+</style>
+<script is:inline>
+  // The nav's aria-label is bilingual too (data-ru-aria) — swap on lang change without JS deps.
+  (function () {
+    function sync() {
+      var n = document.querySelector('.cockpit-nav[data-ru-aria]');
+      if (!n) return;
+      var lang = 'en';
+      try { lang = (window.spaI18n && window.spaI18n.getLang()) || 'en'; } catch (e) {}
+      if (!n.getAttribute('data-en-aria')) n.setAttribute('data-en-aria', n.getAttribute('aria-label') || '');
+      n.setAttribute('aria-label', lang === 'ru' ? n.getAttribute('data-ru-aria') : n.getAttribute('data-en-aria'));
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', sync);
+    else sync();
+    window.addEventListener('storage', function (e) { if (e.key === 'spa_lang') sync(); });
+  })();
+</script>

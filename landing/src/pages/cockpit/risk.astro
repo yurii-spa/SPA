@@ -22,6 +22,7 @@
 // explicitly, a missing number is "—"/UNKNOWN, never fabricated. All PAPER / advisory.
 import Layout from '../../layouts/Layout.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
+import CockpitNav from '../../components/cockpit/CockpitNav.astro';
 import CockpitRisk from '../../components/CockpitRisk.jsx';
 ---
 
@@ -32,12 +33,8 @@ import CockpitRisk from '../../components/CockpitRisk.jsx';
 >
   <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
-    <section class="pt-6 pb-0">
-      <p class="text-xs font-mono mb-2">
-        <a href="/cockpit" style="color:var(--text-muted)" data-ru="← Desk cockpit">← Desk cockpit</a>
-        <span style="color:var(--text-faint)"> · </span>
-        <a href="/cockpit/refusals" style="color:var(--text-muted)" data-ru="Журнал отказов">Refusal ledger</a>
-      </p>
+    <section class="pt-10">
+      <CockpitNav active="risk" />
     </section>
 
     <section class="pt-6 pb-16">

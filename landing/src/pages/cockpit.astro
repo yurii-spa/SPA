@@ -17,6 +17,7 @@
 // (/cockpit/strategy?id=…), which the next sprint builds.
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
+import CockpitNav from '../components/cockpit/CockpitNav.astro';
 import CockpitDashboard from '../components/CockpitDashboard.jsx';
 ---
 
@@ -26,7 +27,10 @@ import CockpitDashboard from '../components/CockpitDashboard.jsx';
   canonical="https://earn-defi.com/cockpit"
 >
   <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-    <section class="pt-16 pb-8">
+    <section class="pt-10">
+      <CockpitNav active="dashboard" />
+    </section>
+    <section class="pt-6 pb-8">
       <CockpitDashboard client:load />
     </section>
   </main>

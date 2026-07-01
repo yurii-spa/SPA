@@ -79,6 +79,7 @@ const T = {
   enginesOffline: { en: 'Engines unavailable — /api/strategies offline (nothing fabricated).', ru: 'Движки недоступны — /api/strategies офлайн (ничего не выдумано).' },
   decisions: { en: 'Decisions (what it DID)', ru: 'Решения (что СДЕЛАЛ)' },
   refusals: { en: 'Refusals (what it REFUSED)', ru: 'Отказы (от чего ОТКАЗАЛСЯ)' },
+  fullLedger: { en: 'full ledger →', ru: 'весь журнал →' },
   /* IDLE — the desk identity */
   idleTitle: { en: 'No qualified carry today. Capital parked.', ru: 'Нет квалифицированного carry сегодня. Капитал припаркован.' },
   paperTag: { en: 'PAPER · advisory · no real capital', ru: 'PAPER · advisory · без реального капитала' },
@@ -149,9 +150,10 @@ function Section({ q, sub, hero, children }) {
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
         <h2 style={{ fontFamily: MONO, fontSize: '.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{q}</h2>
-        {hero && (
-          <span style={{ fontFamily: MONO, fontSize: '.6rem', fontWeight: 700, letterSpacing: '.08em', padding: '2px 8px', borderRadius: 'var(--r-full)', background: 'var(--accent-bg)', border: '1px solid var(--accent-border)', color: 'var(--accent-hover)' }}>★ HERO</span>
-        )}
+        {/* Vanity pass (SPA-505): the decorative "★ HERO" badge was removed — the accent-bordered
+            hero container + the subtitle already establish this as the signature section; a star
+            label changes no decision and confirms no safety. The AttributionWaterfall inside is the
+            bold spend, not a badge. */}
       </div>
       {sub && <p style={{ fontSize: '.75rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>{sub}</p>}
       {children}
@@ -427,7 +429,10 @@ export default function CockpitDashboard() {
             </StaleGuard>
           </div>
           <div>
-            <p style={{ fontFamily: MONO, fontSize: '.6875rem', textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)', margin: '0 0 10px' }}>{pick(T.refusals, lang)}</p>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, margin: '0 0 10px' }}>
+              <p style={{ fontFamily: MONO, fontSize: '.6875rem', textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)', margin: 0 }}>{pick(T.refusals, lang)}</p>
+              <a href="/cockpit/refusals" style={{ fontFamily: MONO, fontSize: '.625rem', color: 'var(--accent-hover)', textDecoration: 'none', whiteSpace: 'nowrap' }}>{pick(T.fullLedger, lang)}</a>
+            </div>
             <StaleGuard payload={refusals.data} loading={refusals.loading} error={refusals.error && !refusals.data} freshness={refusals.freshness} lang={lang} label="refusals">
               <RefusalFeed rows={normalizeRefusals(refusals.data)} chain={{}} lang={lang} max={12}
                 verifyCmd="python3 verify_spa.py data/rates_desk/decision_log.jsonl" />

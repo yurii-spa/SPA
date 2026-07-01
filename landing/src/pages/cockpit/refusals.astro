@@ -24,6 +24,7 @@
 // and why — verify it yourself" — with the verify flow one click away.
 import Layout from '../../layouts/Layout.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
+import CockpitNav from '../../components/cockpit/CockpitNav.astro';
 import RefusalLog from '../../components/cockpit/RefusalLog.jsx';
 ---
 
@@ -34,8 +35,12 @@ import RefusalLog from '../../components/cockpit/RefusalLog.jsx';
 >
   <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 
+    <section class="pt-10">
+      <CockpitNav active="refusals" />
+    </section>
+
     <!-- ============================================================= a. WHAT IT IS -->
-    <section class="pt-20 pb-8">
+    <section class="pt-12 pb-8">
       <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full text-xs font-mono"
            style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">
         <span class="w-1.5 h-1.5 rounded-full" style="background:var(--accent)" aria-hidden="true"></span>

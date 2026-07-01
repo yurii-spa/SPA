@@ -39,3 +39,22 @@ export function usePrefersReducedMotion() {
   }, []);
   return reduced;
 }
+
+/*
+ * useIsNarrow(maxWidth=720) — SPA-504 mobile reflow. One source of truth for "are we on a phone".
+ * Inline-styled primitives can't use CSS media queries, so tables/feeds subscribe to this to
+ * switch to a stacked-card layout below the breakpoint (no forced horizontal page scroll).
+ * SSR-safe: starts false, resolves on mount.
+ */
+export function useIsNarrow(maxWidth = 720) {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia(`(max-width: ${maxWidth}px)`);
+    const on = () => setNarrow(mq.matches);
+    on();
+    mq.addEventListener ? mq.addEventListener('change', on) : mq.addListener(on);
+    return () => { mq.removeEventListener ? mq.removeEventListener('change', on) : mq.removeListener(on); };
+  }, [maxWidth]);
+  return narrow;
+}

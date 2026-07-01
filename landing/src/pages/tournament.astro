@@ -2,6 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import { PageHeader, Card, Badge } from '../components/ui';
+import CockpitNav from '../components/cockpit/CockpitNav.astro';
 import TournamentCockpit from '../components/cockpit/TournamentCockpit.jsx';
 
 /*
@@ -71,6 +72,10 @@ const LADDER = [
   canonical="https://earn-defi.com/tournament"
 >
   <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+
+    <section class="pt-10 pb-2">
+      <CockpitNav active="tournament" />
+    </section>
 
     <!-- ============================================================= a. WHAT IT IS -->
     <PageHeader
