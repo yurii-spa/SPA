@@ -2,9 +2,16 @@
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import { PageHeader, Card, Badge } from '../components/ui';
+import TournamentCockpit from '../components/cockpit/TournamentCockpit.jsx';
 
 /*
  * Tournament — the strategy competition, made VISUAL and HONEST.
+ * DESK COCKPIT S3 (Cockpit PRD §4-S3): this page is UPGRADED to the FULL cockpit tournament.
+ * The honest-framing shell (what-it-is header · the trust framing card · the promotion ladder
+ * · the four criteria · the live promotion verdict) is server-rendered and PRESERVED; the rich
+ * S3 features (the TournamentLeaderboard primitive · head-to-head equity overlay · promotion/
+ * demotion/kill feed · capital-flow SVG · rules panel · timeline-scrubber) live in the
+ * <TournamentCockpit /> React island (client:only), composed from the cockpit primitives.
  *
  * What this page IS: strategies compete backtest → paper (Nd) → live. Only credible-data
  * winners promote. The desk holds a steady ~4.5% RWA-anchored book; the tournament is how it
@@ -127,69 +134,30 @@ const LADDER = [
       </div>
     </section>
 
-    <!-- Stat tiles: backtested · paper phase · promotions · refusals -->
-    <section class="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <div class="rounded-xl p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
-        <p class="text-xs font-mono mb-1" style="color:var(--text-muted)" data-ru="Стратегий в бэктесте">Strategies backtested</p>
-        <p id="stat-backtested" class="text-2xl font-bold font-mono" style="color:var(--text-primary)">—</p>
-      </div>
-      <div class="rounded-xl p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
-        <p class="text-xs font-mono mb-1" style="color:var(--text-muted)" data-ru="Соревнуются в paper">Competing in paper</p>
-        <p id="stat-paper" class="text-2xl font-bold font-mono" style="color:var(--text-primary)">—</p>
-      </div>
-      <div class="rounded-xl p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
-        <p class="text-xs font-mono mb-1" style="color:var(--text-muted)" data-ru="Промоушенов в live">Promotions to live</p>
-        <p id="stat-promotions" class="text-2xl font-bold font-mono" style="color:var(--text-primary)">—</p>
-      </div>
-      <div class="rounded-xl p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
-        <p class="text-xs font-mono mb-1" style="color:var(--text-muted)" data-ru="Отказано (честно)">Refused (honest)</p>
-        <p id="stat-refusals" class="text-2xl font-bold font-mono" style="color:var(--warn)">—</p>
-      </div>
-    </section>
-
-    <!-- ============================================================= b. THE LEADERBOARD -->
+    <!-- ============================================================= b. THE FULL COCKPIT TOURNAMENT (S3 island) -->
+    <!--
+      S3 UPGRADE — the FULL cockpit tournament (Desk Cockpit §4-S3), built on the cockpit
+      primitives (TournamentLeaderboard · EquityChart · MetricStat · StaleGuard · TimeToggle):
+        · stat tiles (backtested · paper · promotions · refused)
+        · the TournamentLeaderboard primitive (rank · net-carry-after-kill-adj · capital · trend · status)
+        · head-to-head equity+drawdown overlay
+        · promotion / demotion / kill feed
+        · a hand-rolled capital-flow (challengers → champion; honest shadow state)
+        · a rules panel (winning metric · kill criteria · rebalance cadence)
+        · a timeline-scrubber (replay the tournament over its paper days)
+      client:only — the island fetches live from api.earn-defi.com + reads the lang; nothing is
+      server-rendered, so the offline / fail-closed state is honest (not a stale SSR snapshot).
+      The honest framing above (degenerate-Sharpe flagged · 0 promotions = correct outcome) is
+      preserved and reinforced inside the island (trust banner + flags + refusal feed).
+    -->
     <section class="py-10 mt-4 border-t" style="border-color:var(--border)">
-      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
+      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-6">
         <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
-           data-ru="Турнирная таблица — стратегии в соревновании">The leaderboard — strategies in competition</p>
-        <span id="lb-flag" class="text-[11px] font-mono" style="color:var(--text-faint)"></span>
+           data-ru="Полный кокпит турнира · /api/tournament">The full tournament cockpit · /api/tournament</p>
+        <span class="text-[11px] font-mono" style="color:var(--text-faint)"
+              data-ru="live · fail-closed офлайн">live · fail-closed offline</span>
       </div>
-      <p class="text-sm mb-6 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
-         data-ru="Каждая строка — конкурирующая стратегия: её net-доходность, Sharpe (честно: n/a или вырожден там, где vol заблокирован), риск-класс, фаза и статус промоушена. Живое из /api/tournament. Sharpe показан ПОМЕЧЕННЫМ, если датасет вырожден — высокое число тогда не является достоверным сигналом.">
-        Each row is a competing strategy — its net return, Sharpe (honest: <span class="font-mono">n/a</span>
-        or flagged degenerate where vol is locked), risk-class, phase and promotion status. Live from
-        <span class="font-mono text-xs">/api/tournament</span>. Sharpe is shown
-        <strong style="color:var(--text-primary)">flagged</strong> when the dataset is degenerate — a high
-        number there is not a credible signal.
-      </p>
-
-      <div class="overflow-x-auto rounded-xl" style="border:1px solid var(--border)">
-        <table class="w-full text-sm" style="color:var(--text-secondary)">
-          <thead>
-            <tr class="text-[11px] font-mono uppercase tracking-wider text-left" style="color:var(--text-muted);background:var(--bg-surface-2)">
-              <th class="px-4 py-3" data-ru="#">#</th>
-              <th class="px-4 py-3" data-ru="Стратегия">Strategy</th>
-              <th class="px-4 py-3 text-center" data-ru="Класс">Class</th>
-              <th class="px-4 py-3 text-right" data-ru="Net APY">Net APY</th>
-              <th class="px-4 py-3 text-right" data-ru="Sharpe">Sharpe</th>
-              <th class="px-4 py-3 text-right" data-ru="Просадка">Max DD</th>
-              <th class="px-4 py-3 text-center" data-ru="Фаза">Phase</th>
-              <th class="px-4 py-3 text-center" data-ru="Промоушен">Promotion</th>
-            </tr>
-          </thead>
-          <tbody id="lb-rows">
-            <tr><td colspan="8" class="px-4 py-8 text-center" style="color:var(--text-muted)">
-              <span data-ru="Загрузка турнирной таблицы…">Loading the leaderboard…</span>
-            </td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="mt-3 text-[11px] leading-relaxed" style="color:var(--text-faint)"
-         data-ru="Net APY / Sharpe / просадка — из детерминированного бэктеста (backtest_derived), НЕ реализованный live-paper. Класс: A бирюзовый (нейтральный / β≈0) · B акцент (кэрри) · C янтарный (directional) · D красный (хвостовой). Sharpe помеченный ⚠ = вырожден (locked-vol) → не достоверен.">
-        Net APY / Sharpe / drawdown are from the deterministic backtest (backtest_derived), NOT realized
-        live paper. Class: A teal (neutral / β≈0) · B accent (carry) · C amber (directional) · D red (tail).
-        A flagged Sharpe (⚠) is degenerate (locked-vol) → not credible.
-      </p>
+      <TournamentCockpit client:only="react" />
     </section>
 
     <!-- ============================================================= c. THE PROMOTION LADDER -->

@@ -1,0 +1,46 @@
+---
+// /cockpit/strategy?id=<strategy_id> — Desk Cockpit S2, the Strategy / Engine deep-dive.
+//
+// The site builds output:'static', so we CANNOT getStaticPaths the live strategy universe at
+// build time (the API may be offline and the sleeve set is dynamic). Instead this is a single
+// static page that is CLIENT-RENDERED: the <CockpitStrategy /> island reads the strategy id
+// from ?id=<strategy_id> (like /board/pool) and consumes /api/strategies/{id} live from
+// api.earn-defi.com. The S1 EngineCards deep-link here (`/cockpit/strategy?id=...`).
+//
+// The 5 questions, at ONE-STRATEGY level:
+//   1. what HAPPENED   → header + EquityChart net-of-fees (evidenced≠backfill, markers)
+//   2. where's the MONEY → AttributionBar (funding/basis/staking/price; price≈0 = neutral proof)
+//   3. how much RISK   → RiskPanel (delta + history, max-dd, Sharpe/Sortino honest-UNKNOWN, LiqNav)
+//   4. what it DID & REFUSED → KillPanel (safety history) + scoped DecisionFeed + RefusalFeed
+//   5. the POSITIONS   → PositionTable (legs → S6 /cockpit/position?id=)
+//
+// Fails CLOSED: unknown id → honest "not found" (not fabricated); idle strategy → positive
+// "parked"; THIN/absent fields → UNKNOWN, never a fabricated number. All PAPER / advisory.
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import CockpitStrategy from '../../components/CockpitStrategy.jsx';
+---
+
+<Layout
+  title="Strategy deep-dive — Desk Cockpit | earn-defi.com"
+  description="One strategy / engine, the 5 questions in depth: the net-of-fees equity curve (evidenced bars distinct from backfill) with gate + refusal markers, P&L attribution (funding / basis / staking / price — price≈0 proves market-neutrality), the risk panel (delta history, max drawdown, Sharpe/Sortino — honest UNKNOWN where thin), the kill-switch manometer panel (the safety history), the open legs, and the decisions + refusals scoped to this strategy. Paper research, advisory, not live."
+  canonical="https://earn-defi.com/cockpit/strategy"
+>
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <section class="pt-6 pb-0">
+      <p class="text-xs font-mono mb-2">
+        <a href="/cockpit" style="color:var(--text-muted)" data-ru="← Desk cockpit">← Desk cockpit</a>
+        <span style="color:var(--text-faint)"> · </span>
+        <a href="/cockpit/refusals" style="color:var(--text-muted)" data-ru="Журнал отказов">Refusal ledger</a>
+      </p>
+    </section>
+
+    <section class="pt-6 pb-16">
+      <CockpitStrategy client:load />
+    </section>
+
+  </main>
+
+  <Disclaimer />
+</Layout>
