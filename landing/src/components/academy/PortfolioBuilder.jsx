@@ -209,7 +209,7 @@ export default function PortfolioBuilder() {
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 14 }}>
                   {m[lang] ?? m.ru}
                   <span style={{ marginLeft: 8, fontFamily: 'var(--font-mono)', fontSize: 11, padding: '1px 7px', borderRadius: 'var(--r-full)', border: `1px solid ${m.tier === 'T1' ? 'var(--data-teal)' : 'var(--accent)'}`, color: m.tier === 'T1' ? 'var(--data-teal)' : 'var(--accent)' }}>{m.tier}</span>
-                  {m.risky && <span style={{ marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--danger)' }}>⚠</span>}
+                  {m.risky && <span aria-hidden="true" style={{ marginLeft: 6, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--danger)' }}>▲</span>}
                 </span>
                 <span style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>APY {m.apy}% · TVL {fmtTvl(m.tvl)}</span>

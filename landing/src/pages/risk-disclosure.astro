@@ -43,9 +43,9 @@ import Layout from '../layouts/Layout.astro';
           1. Paper Trading Status
         </h2>
         <p>
-          <span data-ru="SPA в настоящее время находится в">SPA is currently in</span> <strong class="text-white/80" data-ru="режиме бумажной торговли">paper trading mode</strong>. <span data-ru="Все данные о производительности, отображаемые на этом сайте и связанном дашборде, отражают симулированные торговые операции на виртуальном портфеле в $100,000 USDC. Бумажная торговля началась 10 июня 2026.">All performance
+          <span data-ru="SPA в настоящее время находится в">SPA is currently in</span> <strong class="text-white/80" data-ru="режиме бумажной торговли">paper trading mode</strong>. <span data-ru="Все данные о производительности, отображаемые на этом сайте и связанном дашборде, отражают симулированные торговые операции на виртуальном портфеле в $100,000 USDC. Подтверждённый (evidenced) бумажный трек заякорен на 22 июня 2026.">All performance
           data displayed on this website and the associated dashboard reflects simulated trading
-          operations on a virtual portfolio of $100,000 USDC. Paper trading began on June 10, 2026.</span>
+          operations on a virtual portfolio of $100,000 USDC. The evidenced paper track is anchored at June 22, 2026.</span>
         </p>
         <p class="mt-3" data-ru="Результаты бумажной торговли не учитывают:">
           Paper trading performance does not account for:
@@ -58,10 +58,10 @@ import Layout from '../layouts/Layout.astro';
           <li data-ru="Сбои или задержки оракулов в реальном времени">Real-time oracle failures or delays</li>
         </ul>
         <p class="mt-3">
-          <span data-ru="Целевая дата go-live —">The target go-live date is</span> <strong class="text-white/80" data-ru="приблизительно июль 2026">approximately July 2026</strong><span data-ru=", при условии, что все 29 критериев GoLiveChecker будут выполнены в течение 7+ последовательных дней, после чего обязателен ручной обзор владельцем платформы (ADR-002). До этого момента реальный капитал на этой платформе не подвергается риску.">,
-          contingent on all 29 GoLiveChecker criteria being satisfied for 7+ consecutive days,
-          followed by a mandatory manual review by the platform owner (ADR-002).
-          Until that point, no real capital is at risk on this platform.</span>
+          <span data-ru="Целевая дата go-live —">The target go-live date is</span> <strong class="text-white/80" data-ru="приблизительно 21 июля 2026">approximately July 21, 2026</strong><span data-ru=", при условии, что все 29 критериев GoLiveChecker будут выполнены и накоплено 30 подтверждённых дней трека с непрерывностью gap_monitor, после чего обязателен ручной обзор владельцем платформы (ADR-002). До этого момента реальный капитал на этой платформе не подвергается риску.">,
+          contingent on all 29 GoLiveChecker criteria being satisfied and 30 evidenced track days
+          accumulated with gap_monitor continuity, followed by a mandatory manual review by the
+          platform owner (ADR-002). Until that point, no real capital is at risk on this platform.</span>
         </p>
       </section>
 
@@ -149,7 +149,7 @@ import Layout from '../layouts/Layout.astro';
           <li><strong class="text-white/70" data-ru="Общий лимит Tier 2:">Tier 2 total cap:</strong> <span data-ru="≤50% портфеля — ограничивает экспозицию на менее проаудированные протоколы">≤50% of portfolio — limits exposure to less-audited protocols</span></li>
           <li><strong class="text-white/70" data-ru="Границы APY:">APY bounds:</strong> <span data-ru="1%–30% — исключает неустойчивые выбросы доходности">1%–30% — excludes unsustainable yield outliers</span></li>
           <li><strong class="text-white/70" data-ru="Денежный буфер:">Cash buffer:</strong> <span data-ru="≥5% — поддерживает ликвидность для ребалансировки">≥5% — maintains liquidity for rebalancing</span></li>
-          <li><strong class="text-white/70" data-ru="Аварийное отключение:">Kill switch:</strong> <span data-ru="просадка портфеля ≥5% закрывает все позиции — не может быть переопределено">Portfolio drawdown ≥5% closes all positions — non-overridable</span></li>
+          <li><strong class="text-white/70" data-ru="Двухуровневый kill switch:">Two-tier kill switch:</strong> <span data-ru="просадка от пика ≥5% (SOFT) → де-риск: стоп новых входов и увеличения позиций, без ликвидации; ≥10% (HARD) → весь портфель в кэш — не может быть переопределено">peak-to-current drawdown ≥5% (SOFT) → de-risk: halt new entries and position increases, no liquidation; ≥10% (HARD) → whole portfolio to cash — non-overridable</span></li>
           <li><strong class="text-white/70" data-ru="T3 только рекомендательно:">T3 advisory-only:</strong> <span data-ru="спекулятивные стратегии (Pendle YT) никогда не открывают позиции автоматически">Speculative strategies (Pendle YT) never open positions automatically</span></li>
         </ul>
         <p class="mt-4 text-white/35 text-xs">

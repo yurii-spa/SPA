@@ -17,12 +17,14 @@ import Disclaimer from '../../components/Disclaimer.astro';
 // The verdict vocabulary the engine ACTUALLY emits today (risk_overlay.overlay()).
 // WATCH is reserved-not-yet-emitted (see docs/DFB_METHODOLOGY.md §7) — we list only
 // what the engine produces, so this page never over-claims a live 3-tier verdict.
+// Colors track the ONE canonical risk map (V2 §3.3): A=teal, B=accent, C=warn, D=danger,
+// UNKNOWN=text-muted — identical to the screener, dashboard, and academy.
 const classes = [
-  { c: 'A', fg: '#34D399', en: 'alpha', enDesc: 'Desk would enter; structurally clean, harvestable edge over the ~3.4% RWA floor.', ruDesc: 'Стол вошёл бы; структурно чисто, edge выше ~3.4% RWA-флора.', cond: 'approved · net_edge > rwa_floor' },
-  { c: 'B', fg: '#79A4F5', en: 'beta-floor', enDesc: 'Desk would enter; ~baseline yield ("own-the-floor", no real edge).', ruDesc: 'Стол вошёл бы; ~базовая доходность (без реального edge).', cond: 'approved · net_edge ≤ rwa_floor' },
-  { c: 'C', fg: '#F2B53C', en: 'risk-comp', enDesc: 'Desk refuses — the yield is mostly risk compensation, or unexitable at size.', ruDesc: 'Стол отказывается — доходность это в основном компенсация риска / не выйти на размере.', cond: 'REFUSED · economics / size' },
-  { c: 'D', fg: '#F26D6D', en: 'incentive', enDesc: 'Desk REFUSES on structural toxicity — at ANY size (the tail-veto; cannot be sized around).', ruDesc: 'Стол ОТКАЗЫВАЕТ на структурной токсичности — на ЛЮБОМ размере (tail-veto, не обойти размером).', cond: 'REFUSED · structural tail-veto' },
-  { c: 'UNKNOWN', fg: '#9aa3b2', en: 'fail-closed', enDesc: 'Data too thin / stale / unresolvable — published as a visible hole, never silently graded safe.', ruDesc: 'Данных слишком мало / устарели — публикуется как видимая «дыра», никогда не помечается safe по-тихому.', cond: 'thin / stale / unknown kind' },
+  { c: 'A', fg: 'var(--data-teal)', en: 'alpha', enDesc: 'Desk would enter; structurally clean, harvestable edge over the ~3.4% RWA floor.', ruDesc: 'Стол вошёл бы; структурно чисто, edge выше ~3.4% RWA-флора.', cond: 'approved · net_edge > rwa_floor' },
+  { c: 'B', fg: 'var(--accent)', en: 'beta-floor', enDesc: 'Desk would enter; ~baseline yield ("own-the-floor", no real edge).', ruDesc: 'Стол вошёл бы; ~базовая доходность (без реального edge).', cond: 'approved · net_edge ≤ rwa_floor' },
+  { c: 'C', fg: 'var(--warn)', en: 'risk-comp', enDesc: 'Desk refuses — the yield is mostly risk compensation, or unexitable at size.', ruDesc: 'Стол отказывается — доходность это в основном компенсация риска / не выйти на размере.', cond: 'REFUSED · economics / size' },
+  { c: 'D', fg: 'var(--danger)', en: 'incentive', enDesc: 'Desk REFUSES on structural toxicity — at ANY size (the tail-veto; cannot be sized around).', ruDesc: 'Стол ОТКАЗЫВАЕТ на структурной токсичности — на ЛЮБОМ размере (tail-veto, не обойти размером).', cond: 'REFUSED · structural tail-veto' },
+  { c: 'UNKNOWN', fg: 'var(--text-muted)', en: 'fail-closed', enDesc: 'Data too thin / stale / unresolvable — published as a visible hole, never silently graded safe.', ruDesc: 'Данных слишком мало / устарели — публикуется как видимая «дыра», никогда не помечается safe по-тихому.', cond: 'thin / stale / unknown kind' },
 ];
 ---
 
@@ -140,14 +142,14 @@ const classes = [
       <pre class="rounded-lg p-4 mb-4 text-xs overflow-x-auto font-mono" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-secondary)">total_haircut      = peg + funding_flip + oracle + liquidity + protocol
 structural_haircut = peg + funding_flip + oracle + protocol      (EXCLUDES the size-dependent liquidity term)</pre>
       <ul class="space-y-2.5 text-sm leading-relaxed max-w-3xl" style="color:var(--text-secondary)">
-        <li class="flex gap-2.5"><span class="shrink-0 mt-0.5" style="color:#F26D6D" aria-hidden="true">▸</span>
+        <li class="flex gap-2.5"><span class="shrink-0 mt-0.5" style="color:var(--accent)" aria-hidden="true">▸</span>
           <span data-ru="TAIL_VETO (токсичность, не зависит от размера): structural_haircut > 0.06 (калибровано). Так как структурный haircut ИСКЛЮЧАЕТ размер-зависимый член ликвидности, tail-токсичная книга отказана на ЛЮБОМ размере — уменьшение размера двигает только haircut ликвидности, не вердикт токсичности.">
             <strong style="color:var(--text-primary)">TAIL_VETO (toxicity, size-PROOF):</strong>
             <span class="font-mono">structural_haircut &gt; 0.06</span> (calibrated). Because the structural
             haircut excludes the size-dependent liquidity term, a tail-toxic book is refused at
             <strong style="color:var(--text-primary)">any</strong> size — sizing down only shrinks the
             liquidity haircut, never the toxicity verdict.</span></li>
-        <li class="flex gap-2.5"><span class="shrink-0 mt-0.5" style="color:#F26D6D" aria-hidden="true">▸</span>
+        <li class="flex gap-2.5"><span class="shrink-0 mt-0.5" style="color:var(--accent)" aria-hidden="true">▸</span>
           <span data-ru="TAIL_VETO (экономика, зависит от размера): total_haircut > 0.12. Затем UNDERLYING_DEPEG (peg > 1%), ORACLE_STALE (> 1ч), STABLE_DEPEG (> 0.5%), FUNDING_FLIP (стрик ≥ 5), ECONOMICS, SIZE.">
             <strong style="color:var(--text-primary)">TAIL_VETO (economics, size-aware):</strong>
             <span class="font-mono">total_haircut &gt; 0.12</span>. Then UNDERLYING_DEPEG (peg &gt; 1%),
@@ -246,9 +248,9 @@ python3 scripts/verify_dfb_pool.py pendle__ethereum__susde</pre>
         <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
            data-ru="Чтобы не переобещать: сегодня риск-оверлей выдаёт ровно три значения вердикта — SAFE, REFUSE и UNKNOWN (fail-closed дыра). WATCH зарезервирован, но движком пока НЕ выдаётся.">
           To not over-claim: the risk overlay today emits exactly three verdict values —
-          <span class="font-mono" style="color:#34D399">SAFE</span>,
-          <span class="font-mono" style="color:#F26D6D">REFUSE</span>, and
-          <span class="font-mono" style="color:#9aa3b2">UNKNOWN</span> (a fail-closed hole).
+          <span class="font-mono" style="color:var(--ok)">SAFE</span>,
+          <span class="font-mono" style="color:var(--danger)">REFUSE</span>, and
+          <span class="font-mono" style="color:var(--text-muted)">UNKNOWN</span> (a fail-closed hole).
           <span class="font-mono">WATCH</span> is reserved but <strong style="color:var(--text-primary)">not
           yet emitted</strong> by the engine.
         </p>

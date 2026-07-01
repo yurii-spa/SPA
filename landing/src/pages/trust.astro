@@ -83,9 +83,10 @@ import Layout from '../layouts/Layout.astro';
         <div class="rounded-xl border border-border-strong bg-bg-surface p-5">
           <p class="text-xs text-accent-400/80 font-mono mb-2">Q3</p>
           <h3 class="text-sm font-semibold text-white mb-2" data-ru="Кто может приостановить депозиты?">Who can pause deposits?</h3>
-          <p class="text-sm text-white/55 leading-relaxed" data-ru="Kill switch может быть запущен: (1) автоматическим гейтом просадки (−5% за месяц), (2) ручным запуском оператором. Оба пути логируются. Kill switch переводит портфель в кэш-буфер.">
-            Kill switch can be triggered by: (1) automated drawdown gate (&minus;5% monthly),
-            (2) manual trigger by operator. Both paths are logged. Kill switch moves portfolio to cash buffer.
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Двухуровневый kill switch реагирует на просадку от пика к текущему: (1) SOFT при ≥5% — де-риск (стоп новых входов и увеличения позиций, без ликвидации); (2) HARD при ≥10% — весь портфель в кэш. Возможен и ручной запуск оператором. Оба пути логируются.">
+            The two-tier kill switch responds to peak-to-current drawdown: (1) SOFT at &ge;5% — de-risk
+            (halt new entries and position increases, no liquidation); (2) HARD at &ge;10% — whole portfolio
+            to cash. It can also be triggered manually by the operator. Both paths are logged.
           </p>
         </div>
 
@@ -144,9 +145,9 @@ import Layout from '../layouts/Layout.astro';
           <p class="text-xs text-accent-400/80 font-mono mb-2">Q9</p>
           <h3 class="text-sm font-semibold text-white mb-2" data-ru="Что происходит во время инцидента?">What happens during an incident?</h3>
           <div class="text-sm text-white/55 leading-relaxed space-y-1">
-            <p data-ru="1. Kill switch активируется, если срабатывает гейт просадки.">1. Kill switch activates if drawdown gate fires.</p>
+            <p data-ru="1. Kill switch активируется по уровню: SOFT (≥5%) де-риск, HARD (≥10%) всё в кэш.">1. Kill switch activates by tier: SOFT (&ge;5%) de-risk, HARD (&ge;10%) all to cash.</p>
             <p data-ru="2. Оператор уведомляется через алерты мониторинга.">2. Operator notified via monitoring alerts.</p>
-            <p data-ru="3. Портфель переводится в кэш-буфер.">3. Portfolio moves to cash buffer.</p>
+            <p data-ru="3. Экспозиция снижается (SOFT) или портфель полностью переводится в кэш (HARD).">3. Exposure is reduced (SOFT) or the portfolio moves fully to cash (HARD).</p>
             <p data-ru="4. Инцидент документируется и публикуется.">4. Incident documented and published.</p>
             <p data-ru="5. Никакого возобновления до выявления первопричины.">5. No resumption until root cause identified.</p>
           </div>
@@ -247,7 +248,7 @@ import Layout from '../layouts/Layout.astro';
         <a href="/#live-stats" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-green-400/30 transition-colors group">
           <div>
             <p class="text-sm text-white/80 group-hover:text-white">Paper APY</p>
-            <p class="text-xs text-white/40" data-ru="Отслеживается ежедневно с 10 июня 2026">Tracked daily since June 10, 2026</p>
+            <p class="text-xs text-white/40" data-ru="Отслеживается ежедневно с 22 июня 2026 (evidenced anchor)">Tracked daily since June 22, 2026 (evidenced anchor)</p>
           </div>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-green-400/60">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>

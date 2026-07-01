@@ -29,7 +29,7 @@ const T = {
   mastery: { ru: 'освоение', en: 'mastery' },
   continue: { ru: 'Продолжить', en: 'Continue' },
   start: { ru: 'Начать путь', en: 'Start the path' },
-  allDone: { ru: 'Весь курс пройден 🎉', en: 'Whole course complete 🎉' },
+  allDone: { ru: 'Весь курс пройден', en: 'Whole course complete' },
   cert: { ru: 'Открыть сертификат', en: 'Open certificate' },
   track: { ru: 'ТРЕК', en: 'TRACK' },
   done: { ru: 'пройдено', en: 'done' },
@@ -94,7 +94,7 @@ export default function JourneyMap({ modules = [], tracksMeta = {} }) {
 
         <div style={statRow}>
           <div style={stat}>
-            <div style={statNum}>🔥 {gs.streak.current}</div>
+            <div style={statNum}><span aria-hidden="true" style={{ color: 'var(--warn)', marginRight: 4 }}>≡</span>{gs.streak.current}</div>
             <div style={statLbl}>{tr('streak')} ({tr('days')})</div>
           </div>
           <div style={stat}>
@@ -153,7 +153,7 @@ export default function JourneyMap({ modules = [], tracksMeta = {} }) {
                         ...node,
                         borderColor: nodeColor,
                         background: done ? color : isCurrent ? 'var(--accent-bg)' : 'var(--bg-surface-2)',
-                        color: done ? '#0A0C10' : isCurrent ? 'var(--accent)' : 'var(--text-muted)',
+                        color: done ? 'var(--bg-base)' : isCurrent ? 'var(--accent)' : 'var(--text-muted)',
                         boxShadow: isCurrent ? '0 0 0 4px var(--accent-bg)' : 'none',
                         animation: isCurrent ? 'pulse 2s infinite' : 'none',
                       }}>

@@ -53,8 +53,18 @@ import DfbPortfolio from '../../components/DfbPortfolio.jsx';
       </p>
     </section>
 
-    <section class="pt-6 pb-16">
+    <section class="pt-6 pb-8">
       <DfbPortfolio client:load />
+    </section>
+
+    <!-- Lateral link: from grading a hypothetical book → the desk's own live portfolio. -->
+    <section class="pb-16">
+      <a href="/dashboard" class="block rounded-xl p-6 transition-colors" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
+        <p class="text-sm font-semibold mb-1" style="color:var(--text-primary)" data-ru="Смотреть живой портфель деска →">See the live portfolio →</p>
+        <p class="text-sm leading-relaxed" style="color:var(--text-secondary)" data-ru="Тот же риск-движок оценивает и собственную книгу деска — смотрите её вживую на дашборде: equity, трек, go-live.">
+          The same risk engine grades the desk's own book — see it live on the dashboard: equity, track, go-live readiness.
+        </p>
+      </a>
     </section>
 
   </main>

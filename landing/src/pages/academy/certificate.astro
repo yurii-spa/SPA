@@ -26,6 +26,18 @@ const trackIds = {
       <p>Выдаётся после сдачи капстоуна. Введи имя, распечатай или сохрани в PDF — владелец может сверить отпечаток прогресса.</p>
     </header>
     <AnalystCertificate allIds={allIds} modules={modules} tracks={trackIds} client:load />
+
+    <!-- Apply it — learning → doing → verifying: route the graduate into the live product. -->
+    <nav class="ac-cert-apply" aria-label="Apply the method">
+      <a href="/board">
+        <span class="ac-apply-t">Примени на риск-борде →</span>
+        <span class="ac-apply-d">Классифицируй реальные пулы A/B/C/D тем же методом.</span>
+      </a>
+      <a href="/dashboard">
+        <span class="ac-apply-t">Смотри живой портфель →</span>
+        <span class="ac-apply-d">Что деск реально держит и от чего отказался — вживую.</span>
+      </a>
+    </nav>
   </main>
 </Layout>
 
@@ -36,5 +48,15 @@ const trackIds = {
   .ac-back:hover { color: var(--accent); }
   .ac-cert-head h1 { font-size: 2.2rem; font-weight: 700; color: var(--text-primary); margin: 0 0 12px; }
   .ac-cert-head p { font-size: 15px; line-height: 1.6; color: var(--text-secondary); margin: 0; }
-  @media print { .ac-cert-head, .ac-back { display: none !important; } }
+  .ac-cert-apply { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 40px; }
+  .ac-cert-apply a {
+    flex: 1 1 260px; display: flex; flex-direction: column; gap: 4px;
+    background: var(--bg-surface); border: 1px solid var(--accent-dim);
+    border-radius: var(--r-lg); padding: 16px 18px; text-decoration: none;
+    transition: border-color 120ms var(--ease);
+  }
+  .ac-cert-apply a:hover { border-color: var(--accent); }
+  .ac-apply-t { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+  .ac-apply-d { font-size: 13px; color: var(--text-muted); line-height: 1.45; }
+  @media print { .ac-cert-head, .ac-back, .ac-cert-apply { display: none !important; } }
 </style>

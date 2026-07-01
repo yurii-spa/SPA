@@ -1,26 +1,71 @@
 ---
-// SiteHeader.astro — canonical site chrome (spec §4.1).
-// ONE header on every page (rendered by Layout). Replaces all inline page navs
-// and the in-Hero nav. EN|RU toggle lives here and reuses the Layout i18n runtime
-// (buttons carry data-lang; the inlined runtime in Layout wires #spa-lang-toggle).
+// SiteHeader.astro — canonical site chrome, grouped nav (V2 §3, IA fix).
+// ONE header on every page (rendered by Layout). ~5 groups with keyboard-accessible
+// dropdowns + a persistent Dashboard↗ CTA. EN|RU toggle reuses the Layout i18n runtime
+// (data-lang buttons wired by the inlined runtime). Mobile = hamburger accordion.
+//
+// IA fix: every previously-orphaned page (competitive-position, annual-contrast, faq,
+// fees, security, status, emergency-withdrawal, playground, certificate) is now reachable
+// from a group here or the footer. Fixes the RESEARCH_PATHS bug — /competitive-position
+// used to highlight "Research" as active but had no link into it; it now lives in the
+// Research group so highlight ↔ reachability agree.
 const path = Astro.url.pathname;
-// The Research hub (/structural-desk) is canonical for the whole research surface — keep it
-// highlighted across its sub-desks (/rates-desk, /rwa-backstop, /research).
-const RESEARCH_PATHS = ['/structural-desk', '/rates-desk', '/rwa-backstop', '/research', '/refusals', '/exit-nav', '/proof-of-reserves', '/fundability', '/competitive-position'];
-const isActive = (href) => {
-  if (href === '/structural-desk') return RESEARCH_PATHS.some((p) => path === p || path.startsWith(p + '/'));
-  return href === '/' ? path === '/' : path === href || path.startsWith(href + '/');
-};
 
-const nav = [
-  { href: '/board',        en: 'Board',         ru: 'Риск-борд' },
-  { href: '/methodology',  en: 'Methodology',  ru: 'Методология' },
-  { href: '/strategies',   en: 'Strategies',   ru: 'Стратегии' },
-  { href: '/track-record', en: 'Track Record', ru: 'Трек-рекорд' },
-  { href: '/structural-desk', en: 'Research', ru: 'Исследование' },
-  { href: '/academy',      en: 'Academy',       ru: 'Академия' },
-  { href: '/system',       en: 'System',        ru: 'Система' },
+// Nav groups: label + the pages under each. `match` = paths that light this group active.
+const groups = [
+  {
+    id: 'product', en: 'Product', ru: 'Продукт',
+    items: [
+      { href: '/dashboard', en: 'Dashboard', ru: 'Дашборд', desc: 'Live command center', descRu: 'Живой командный центр' },
+      { href: '/board', en: 'Risk Board', ru: 'Риск-борд', desc: 'DFB pool risk explorer', descRu: 'Обозреватель риска пулов' },
+      { href: '/strategies', en: 'Strategies', ru: 'Стратегии', desc: 'Three risk profiles', descRu: 'Три профиля риска' },
+    ],
+  },
+  {
+    id: 'track', en: 'Track Record', ru: 'Трек-рекорд', href: '/track-record',
+    items: [
+      { href: '/track-record', en: 'Track Record', ru: 'Трек-рекорд', desc: 'The honest paper track', descRu: 'Честный бумажный трек' },
+      { href: '/methodology', en: 'Methodology', ru: 'Методология', desc: 'How the daily cycle works', descRu: 'Как работает дневной цикл' },
+    ],
+  },
+  {
+    id: 'research', en: 'Research', ru: 'Исследование',
+    items: [
+      { href: '/structural-desk', en: 'Structural Desk', ru: 'Структурный стол', desc: 'The $10M-scale edge thesis', descRu: 'Тезис эджа масштаба $10M' },
+      { href: '/rates-desk', en: 'Rates Desk', ru: 'Rates Desk', desc: 'Refusal-first carry (GO)', descRu: 'Refusal-first carry (GO)' },
+      { href: '/rwa-backstop', en: 'RWA Backstop', ru: 'RWA-бэкстоп', desc: 'Collateral safety board', descRu: 'Safety board залога' },
+      { href: '/research', en: 'Research journal', ru: 'Журнал исследований', desc: 'The full research arc', descRu: 'Полная research-арка' },
+      { href: '/competitive-position', en: 'Competitive position', ru: 'Конкурентная позиция', desc: 'Where we stand vs peers', descRu: 'Где мы против конкурентов' },
+      { href: '/annual-contrast', en: 'Annual contrast', ru: 'Годовой контраст', desc: '15% chase vs steady ~5%', descRu: 'Погоня за 15% vs ~5%' },
+    ],
+  },
+  {
+    id: 'proof', en: 'Proof', ru: 'Доказательства',
+    items: [
+      { href: '/verify', en: 'Verify us', ru: 'Проверить нас', desc: "Don't trust us — check us", descRu: 'Не верьте — проверьте' },
+      { href: '/refusals', en: 'Refusal log', ru: 'Лог отказов', desc: 'What we declined, hash-chained', descRu: 'Что отклонили, hash-chain' },
+      { href: '/exit-nav', en: 'Exit-NAV', ru: 'Ликвидационный NAV', desc: 'Liquidation NAV by size', descRu: 'Ликвидационный NAV по размеру' },
+      { href: '/proof-of-reserves', en: 'Proof of Reserves', ru: 'Доказательство резервов', desc: 'On-chain reserve proof', descRu: 'Ончейн-доказательство резервов' },
+      { href: '/fundability', en: 'Fundability', ru: 'Фандабилити', desc: 'Risk-adjusted scorecard', descRu: 'Risk-adjusted scorecard' },
+      { href: '/due-diligence', en: 'Due diligence', ru: 'Дью-дилидженс', desc: 'Self-verifying DD pack', descRu: 'Самопроверяемый DD-пакет' },
+    ],
+  },
+  {
+    id: 'academy', en: 'Academy', ru: 'Академия',
+    items: [
+      { href: '/academy', en: 'Academy', ru: 'Академия', desc: 'Learn the desk from zero', descRu: 'Изучите десk с нуля' },
+      { href: '/academy/playground', en: 'Playground', ru: 'Песочница', desc: 'Interactive trainers', descRu: 'Интерактивные тренажёры' },
+      { href: '/academy/certificate', en: 'Certificate', ru: 'Сертификат', desc: 'Your analyst certificate', descRu: 'Ваш сертификат аналитика' },
+    ],
+  },
 ];
+
+const groupActive = (g) => {
+  const hrefs = g.items.map((i) => i.href);
+  if (g.href && (path === g.href || path.startsWith(g.href + '/'))) return true;
+  return hrefs.some((h) => path === h || path.startsWith(h + '/'));
+};
+const itemActive = (href) => (href === '/' ? path === '/' : path === href || path.startsWith(href + '/'));
 ---
 
 <header class="site-header">
@@ -32,9 +77,33 @@ const nav = [
     </a>
 
     <nav class="nav" aria-label="Primary">
-      {nav.map((item) => (
-        <a class:list={["navlink", { active: isActive(item.href) }]} href={item.href}
-           aria-current={isActive(item.href) ? 'page' : undefined} data-ru={item.ru}>{item.en}</a>
+      {groups.map((g) => (
+        <div class="nav-group" data-group>
+          <button
+            type="button"
+            class:list={['nav-trigger', { active: groupActive(g) }]}
+            aria-expanded="false"
+            aria-haspopup="true"
+            aria-controls={`menu-${g.id}`}
+            data-ru={g.ru}
+          >
+            {g.en}
+            <svg class="chev" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="nav-menu" id={`menu-${g.id}`} role="menu">
+            {g.items.map((it) => (
+              <a
+                class:list={['nav-menu-item', { active: itemActive(it.href) }]}
+                href={it.href}
+                role="menuitem"
+                aria-current={itemActive(it.href) ? 'page' : undefined}
+              >
+                <span class="nmi-label" data-ru={it.ru}>{it.en}</span>
+                <span class="nmi-desc" data-ru={it.descRu}>{it.desc}</span>
+              </a>
+            ))}
+          </div>
+        </div>
       ))}
     </nav>
 
@@ -51,8 +120,13 @@ const nav = [
   </div>
 
   <div class="mobile-panel" id="mobilePanel">
-    {nav.map((item) => (
-      <a href={item.href} data-ru={item.ru}>{item.en}</a>
+    {groups.map((g) => (
+      <details class="m-group" open={groupActive(g)}>
+        <summary data-ru={g.ru}>{g.en}</summary>
+        {g.items.map((it) => (
+          <a href={it.href} aria-current={itemActive(it.href) ? 'page' : undefined} data-ru={it.ru}>{it.en}</a>
+        ))}
+      </details>
     ))}
     <a class="cta-outline" href="/dashboard" data-ru="Дашборд ↗">Dashboard ↗</a>
   </div>
@@ -64,35 +138,69 @@ const nav = [
     background:rgba(10,12,16,.8); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
     border-bottom:1px solid var(--border);
   }
-  .header-inner{max-width:1152px; margin:0 auto; height:64px; padding:0 24px; display:flex; align-items:center; justify-content:space-between; gap:24px}
+  .header-inner{max-width:1152px; margin:0 auto; height:64px; padding:0 24px; display:flex; align-items:center; justify-content:space-between; gap:20px}
   .brand{display:flex; align-items:center; gap:10px}
   .brand img{width:28px; height:28px}
   .brand .wordmark{font-weight:700; color:var(--text-primary); letter-spacing:-.01em; font-size:1.0625rem}
   .brand .domain{font-family:var(--font-mono); font-size:.75rem; color:var(--text-muted)}
-  .nav{display:flex; align-items:center; gap:28px}
-  .nav a.navlink{color:var(--text-secondary); font-size:.875rem; font-weight:500; padding:2px 0; border-bottom:2px solid transparent; transition:color 120ms var(--ease)}
-  .nav a.navlink:hover{color:var(--text-primary)}
-  .nav a.navlink.active{color:var(--text-primary); border-bottom-color:var(--accent)}
-  .header-right{display:flex; align-items:center; gap:16px}
+
+  /* Grouped nav with dropdowns */
+  .nav{display:flex; align-items:center; gap:4px}
+  .nav-group{position:relative}
+  .nav-trigger{
+    display:inline-flex; align-items:center; gap:5px; background:transparent; border:none; cursor:pointer;
+    color:var(--text-secondary); font-family:var(--font-sans); font-size:.875rem; font-weight:500;
+    padding:8px 12px; border-radius:var(--r-sm); transition:color 120ms var(--ease), background 120ms var(--ease);
+  }
+  .nav-trigger:hover{color:var(--text-primary); background:var(--bg-surface)}
+  .nav-trigger.active{color:var(--text-primary)}
+  .nav-trigger .chev{transition:transform 150ms var(--ease); opacity:.7}
+  .nav-group[data-open] .nav-trigger .chev{transform:rotate(180deg)}
+  .nav-group[data-open] .nav-trigger{color:var(--text-primary); background:var(--bg-surface)}
+
+  .nav-menu{
+    position:absolute; top:calc(100% + 8px); left:0; min-width:260px;
+    background:var(--bg-surface); border:1px solid var(--border-strong); border-radius:var(--r-md);
+    box-shadow:var(--shadow-md); padding:6px; opacity:0; visibility:hidden; transform:translateY(-4px);
+    transition:opacity 140ms var(--ease), transform 140ms var(--ease), visibility 140ms;
+  }
+  .nav-group[data-open] .nav-menu{opacity:1; visibility:visible; transform:translateY(0)}
+  .nav-menu-item{
+    display:flex; flex-direction:column; gap:2px; padding:9px 12px; border-radius:var(--r-sm);
+    text-decoration:none; transition:background 120ms var(--ease);
+  }
+  .nav-menu-item:hover{background:var(--bg-elevated)}
+  .nav-menu-item.active{background:var(--accent-bg)}
+  .nmi-label{color:var(--text-primary); font-size:.875rem; font-weight:500}
+  .nav-menu-item.active .nmi-label{color:var(--accent-hover)}
+  .nmi-desc{color:var(--text-muted); font-size:.75rem; line-height:1.35}
+
+  .header-right{display:flex; align-items:center; gap:14px}
   .cta-outline{
     display:inline-flex; align-items:center; gap:6px; font-size:.8125rem; font-weight:600;
-    padding:8px 16px; border-radius:var(--r-sm); border:1px solid rgba(91,141,239,.5);
+    padding:8px 16px; border-radius:var(--r-sm); border:1px solid var(--accent-border);
     color:var(--accent); transition:all 120ms var(--ease); white-space:nowrap;
   }
   .cta-outline:hover{border-color:var(--accent); color:var(--accent-hover); background:var(--accent-bg)}
-  /* lang-toggle reuses Layout i18n runtime; restyle to header palette */
-  .lang-toggle{display:flex; align-items:center; gap:0; position:static; padding:0; background:transparent; border:1px solid var(--border); border-radius:var(--r-sm); overflow:hidden; box-shadow:none; backdrop-filter:none; -webkit-backdrop-filter:none}
+  .lang-toggle{display:flex; align-items:center; gap:0; border:1px solid var(--border); border-radius:var(--r-sm); overflow:hidden}
   .lang-toggle button{background:transparent; border:none; color:var(--text-muted); padding:5px 9px; cursor:pointer; font-family:var(--font-mono); font-size:.75rem; transition:all 120ms var(--ease); border-radius:0}
   .lang-toggle button:hover{color:var(--text-secondary)}
   .lang-toggle button.spa-lang-active{background:var(--accent-bg); color:var(--accent)}
-  .hamburger{display:none; background:transparent; border:1px solid var(--border); border-radius:var(--r-sm); padding:7px; cursor:pointer; color:var(--text-secondary)}
-  .mobile-panel{display:none; flex-direction:column; gap:4px; padding:12px 24px 20px; border-bottom:1px solid var(--border); background:var(--bg-base)}
-  .mobile-panel.open{display:flex}
-  .mobile-panel a{color:var(--text-secondary); font-size:.95rem; padding:10px 0; border-bottom:1px solid var(--border)}
-  .mobile-panel a:hover{color:var(--text-primary)}
-  .mobile-panel .cta-outline{margin-top:10px; justify-content:center; border-bottom:1px solid rgba(91,141,239,.5)}
 
-  @media (max-width:900px){
+  .hamburger{display:none; background:transparent; border:1px solid var(--border); border-radius:var(--r-sm); padding:7px; cursor:pointer; color:var(--text-secondary)}
+  .mobile-panel{display:none; flex-direction:column; gap:2px; padding:12px 24px 20px; border-bottom:1px solid var(--border); background:var(--bg-base)}
+  .mobile-panel.open{display:flex}
+  .m-group{border-bottom:1px solid var(--border)}
+  .m-group summary{color:var(--text-primary); font-size:.9375rem; font-weight:600; padding:12px 0; cursor:pointer; list-style:none}
+  .m-group summary::-webkit-details-marker{display:none}
+  .m-group summary::after{content:'+'; float:right; color:var(--text-muted); font-family:var(--font-mono)}
+  .m-group[open] summary::after{content:'–'}
+  .m-group a{display:block; color:var(--text-secondary); font-size:.875rem; padding:9px 0 9px 14px}
+  .m-group a:hover{color:var(--text-primary)}
+  .m-group a[aria-current='page']{color:var(--accent)}
+  .mobile-panel .cta-outline{margin-top:14px; justify-content:center}
+
+  @media (max-width:1040px){
     .nav, .header-right .cta-outline{display:none}
     .hamburger{display:inline-flex}
   }
@@ -103,12 +211,40 @@ const nav = [
 
 <script is:inline>
   (function () {
+    /* ── Desktop dropdowns: hover + full keyboard support ─────────────── */
+    var groups = Array.prototype.slice.call(document.querySelectorAll('.nav-group'));
+    var openGroup = null;
+    function close(g){ if(!g) return; g.removeAttribute('data-open'); var t=g.querySelector('.nav-trigger'); if(t) t.setAttribute('aria-expanded','false'); if(openGroup===g) openGroup=null; }
+    function open(g){ if(openGroup && openGroup!==g) close(openGroup); g.setAttribute('data-open',''); var t=g.querySelector('.nav-trigger'); if(t) t.setAttribute('aria-expanded','true'); openGroup=g; }
+    groups.forEach(function(g){
+      var trigger = g.querySelector('.nav-trigger');
+      var items = Array.prototype.slice.call(g.querySelectorAll('.nav-menu-item'));
+      g.addEventListener('mouseenter', function(){ open(g); });
+      g.addEventListener('mouseleave', function(){ close(g); });
+      trigger.addEventListener('click', function(e){ e.preventDefault(); (g.hasAttribute('data-open') ? close : open)(g); });
+      trigger.addEventListener('keydown', function(e){
+        if(e.key==='ArrowDown' || e.key==='Enter' || e.key===' '){ e.preventDefault(); open(g); if(items[0]) items[0].focus(); }
+        else if(e.key==='Escape'){ close(g); }
+      });
+      items.forEach(function(it, i){
+        it.addEventListener('keydown', function(e){
+          if(e.key==='ArrowDown'){ e.preventDefault(); (items[i+1]||items[0]).focus(); }
+          else if(e.key==='ArrowUp'){ e.preventDefault(); (items[i-1]||items[items.length-1]).focus(); }
+          else if(e.key==='Escape'){ e.preventDefault(); close(g); trigger.focus(); }
+          else if(e.key==='Tab'){ close(g); }
+        });
+      });
+    });
+    document.addEventListener('click', function(e){ if(openGroup && !openGroup.contains(e.target)) close(openGroup); });
+    document.addEventListener('keydown', function(e){ if(e.key==='Escape' && openGroup){ var t=openGroup.querySelector('.nav-trigger'); close(openGroup); if(t) t.focus(); } });
+
+    /* ── Mobile hamburger ─────────────────────────────────────────────── */
     var btn = document.querySelector('[data-menu-toggle]');
     var panel = document.getElementById('mobilePanel');
     if (btn && panel) {
       btn.addEventListener('click', function () {
-        var open = panel.classList.toggle('open');
-        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        var isOpen = panel.classList.toggle('open');
+        btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
       });
       panel.addEventListener('click', function (e) {
         if (e.target.tagName === 'A') { panel.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }

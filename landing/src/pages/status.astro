@@ -13,15 +13,17 @@ import snap from '../data/track_snapshot.json';
 const goLiveChecks = snap.gates_passed ?? 27;
 const goLiveTotal = snap.gates_total ?? 29;
 const goLiveReadinessPct = Math.round((goLiveChecks / goLiveTotal) * 100);
-const evidenceDays = snap.real_track_days ?? 5;   // evidenced (cycle-logged) days
+const evidenceDays = snap.real_track_days ?? 10;  // evidenced (cycle-logged) days
 const evidenceTarget = snap.days_needed ?? 30;    // 30 honest days required (ADR-002)
 const goLiveTarget = snap.go_live_target ?? "2026-07-21";
 const trackStart = snap.evidenced_anchor ?? "2026-06-22";  // evidence anchor (NOT backfilled 06-10)
 
 // Canonical blockers from data/golive_status.json (2 time-gated: same 30-day track wait).
+// Derived from the snapshot day-count so they never drift from the metric cards; the
+// client-side live fetch updates the cards, and these strings track the same snapshot.
 const blockers = [
-  "min_track_days_30 — 5/30 evidenced track days (time-gated, target 2026-07-21)",
-  "gap_monitor_30d — 5/30 evidenced track days, continuity (time-gated, target 2026-07-21)"
+  `min_track_days_30 — ${evidenceDays}/${evidenceTarget} evidenced track days (time-gated, target ${goLiveTarget})`,
+  `gap_monitor_30d — ${evidenceDays}/${evidenceTarget} evidenced track days, continuity (time-gated, target ${goLiveTarget})`
 ];
 const blockerCount = blockers.length;
 
@@ -31,7 +33,7 @@ const checks: { label: string; labelRu: string; status: CheckStatus; detail: str
   { label: "GoLive Criteria", labelRu: "Критерии GoLive", status: "warn", detail: `${goLiveChecks}/${goLiveTotal} checks pass — 2 time-gated (30-day track)` },
   { label: "Paper Track Record", labelRu: "Track record бумажной торговли", status: "warn", detail: `${evidenceDays}/${evidenceTarget} evidenced days · anchor ${trackStart} (target: ${goLiveTarget})` },
   { label: "Daily Cycle (launchd)", labelRu: "Ежедневный цикл (launchd)", status: "pass", detail: "com.spa.daily_cycle running at 08:00 UTC" },
-  { label: "HTTP Dashboard", labelRu: "HTTP-дашборд", status: "pass", detail: "com.spa.httpserver on port 8765" },
+  { label: "HTTP API", labelRu: "HTTP API", status: "pass", detail: "com.spa.apiserver on port 8765 (FastAPI, api.earn-defi.com)" },
   { label: "Cloudflare Tunnel", labelRu: "Cloudflare Tunnel", status: "pass", detail: "com.spa.cloudflared active" },
   { label: "Risk Policy Gate", labelRu: "Риск-гейт", status: "pass", detail: "RiskPolicy v1.0 — deterministic, LLM forbidden" },
   { label: "Adapter Health", labelRu: "Здоровье адаптеров", status: "pass", detail: "Aave V3, Compound V3, Morpho Steakhouse — all responding" },

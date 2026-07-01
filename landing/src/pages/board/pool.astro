@@ -9,6 +9,8 @@
 // The screener (/board) links each row to /board/pool?id=<pool_id>.
 import Layout from '../../layouts/Layout.astro';
 import Disclaimer from '../../components/Disclaimer.astro';
+import PageHeader from '../../components/ui/PageHeader.astro';
+import Badge from '../../components/ui/Badge.astro';
 import DfbPoolDetail from '../../components/DfbPoolDetail.jsx';
 ---
 
@@ -19,20 +21,26 @@ import DfbPoolDetail from '../../components/DfbPoolDetail.jsx';
 >
   <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
-    <section class="pt-14 pb-2">
-      <p class="text-xs font-mono mb-4">
+    <section class="pt-6 pb-0">
+      <p class="text-xs font-mono mb-2">
         <a href="/board" style="color:var(--text-muted)" data-ru="← DFB риск-борд">← DFB risk board</a>
         <span style="color:var(--text-faint)"> · </span>
         <a href="/board/methodology" style="color:var(--text-muted)" data-ru="Методология">Methodology</a>
       </p>
-      <div class="inline-flex items-center gap-2 mb-2 px-3 py-1.5 rounded-full text-xs font-mono"
-           style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">
-        <span class="w-1.5 h-1.5 rounded-full" style="background:var(--accent)" aria-hidden="true"></span>
-        <span data-ru="DFB · advisory · read-only · не live">DFB · advisory · read-only · not live</span>
-      </div>
     </section>
 
-    <section class="pb-16">
+    <PageHeader
+      eyebrow="DFB — pool risk overlay"
+      eyebrowRu="DFB — риск-оверлей пула"
+      title="Pool detail"
+      titleRu="Детали пула"
+      lede="The full risk overlay for one pool — exit-liquidity by size, the refusal decomposition, APY base/reward split, captured history, and a reproducible proof hash. Don't trust us — check us."
+      ledeRu="Полный риск-оверлей одного пула — ликвидность на выход по размеру, разбор отказа, split APY база/награда, захваченная история и воспроизводимый proof-хеш. Не верь — проверь."
+    >
+      <Badge tone="accent" dot ru="DFB · advisory · read-only · не live">DFB · advisory · read-only · not live</Badge>
+    </PageHeader>
+
+    <section class="pt-8 pb-16">
       <DfbPoolDetail client:load />
     </section>
 

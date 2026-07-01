@@ -73,7 +73,7 @@ export default function IntuitionPrompt({
 
   return (
     <div style={wrap}>
-      <div style={head}>{tr('guess')} 🤔</div>
+      <div style={head}>{tr('guess')}</div>
       <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16, lineHeight: 1.5 }}>{q}</div>
 
       {mode === 'numeric' && (

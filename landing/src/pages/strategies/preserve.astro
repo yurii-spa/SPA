@@ -200,9 +200,14 @@ const global = strategies.global;
               <td class="px-5 py-3 text-white/40" data-ru="Позиции вне диапазона отклоняются">Positions outside range rejected</td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-red-400/80 font-mono" data-ru="Аварийный стоп (kill switch)">Kill switch</td>
-              <td class="px-5 py-3 text-red-400 font-mono font-semibold" data-ru="&ge; 5% просадки">&ge; 5% drawdown</td>
-              <td class="px-5 py-3 text-white/40" data-ru="Немедленно закрыть все позиции">Close all positions immediately</td>
+              <td class="px-5 py-3 text-amber-400/80 font-mono" data-ru="Kill switch — SOFT">Kill switch — SOFT</td>
+              <td class="px-5 py-3 text-amber-400 font-mono font-semibold" data-ru="&ge; 5% просадки от пика">&ge; 5% peak drawdown</td>
+              <td class="px-5 py-3 text-white/40" data-ru="Де-риск: стоп новых входов и увеличения позиций, без ликвидации">De-risk: halt new entries &amp; increases, no liquidation</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-red-400/80 font-mono" data-ru="Kill switch — HARD">Kill switch — HARD</td>
+              <td class="px-5 py-3 text-red-400 font-mono font-semibold" data-ru="&ge; 10% просадки от пика">&ge; 10% peak drawdown</td>
+              <td class="px-5 py-3 text-white/40" data-ru="Весь портфель переводится в кэш">Move whole portfolio to cash</td>
             </tr>
           </tbody>
         </table>
@@ -241,9 +246,9 @@ const global = strategies.global;
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск депега стейблкоина">Stablecoin Depeg Risk</h4>
-          <p class="text-xs text-white/40 leading-relaxed" data-ru="USDC или другие стейблкоины могут временно или навсегда потерять привязку. Аварийный стоп срабатывает при просадке 5% независимо от причины.">
+          <p class="text-xs text-white/40 leading-relaxed" data-ru="USDC или другие стейблкоины могут временно или навсегда потерять привязку. Kill switch реагирует по уровню: SOFT де-риск при просадке от пика ≥5%, HARD (всё в кэш) при ≥10%, независимо от причины.">
             USDC or other stablecoins may temporarily or permanently lose their peg.
-            The kill switch triggers at 5% drawdown regardless of cause.
+            The kill switch responds by tier: SOFT de-risk at ≥5% peak drawdown, HARD (all to cash) at ≥10%, regardless of cause.
           </p>
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
@@ -288,10 +293,11 @@ const global = strategies.global;
             </svg>
           </div>
           <div>
-            <h4 class="text-sm font-semibold text-white mb-2" data-ru="Аварийный стоп: просадка -5% за месяц">Kill Switch: -5% Monthly Drawdown</h4>
-            <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="Если капитал портфеля падает на 5% или более от месячного пика, все позиции закрываются, а средства переводятся в 100% денежный буфер. Это неотменяемо.">
-              If portfolio equity drops 5% or more from the monthly peak, all positions are
-              closed and capital moves to 100% cash buffer. This is non-overridable.
+            <h4 class="text-sm font-semibold text-white mb-2" data-ru="Двухуровневый kill switch (просадка от пика)">Two-Tier Kill Switch (Peak Drawdown)</h4>
+            <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="При просадке капитала от пика ≥5% (SOFT) деск снижает риск: стоп новых входов и увеличения позиций, без ликвидации. При ≥10% (HARD) весь портфель переводится в 100% кэш. Это неотменяемо.">
+              At ≥5% peak-to-current equity drawdown (SOFT) the desk de-risks: it halts new entries
+              and position increases, without liquidating. At ≥10% (HARD) the whole portfolio moves
+              to 100% cash. This is non-overridable.
             </p>
             <p class="text-xs text-white/30" data-ru="Аварийный стоп ограничивает дальнейшую экспозицию после наступления просадки. Он не устраняет убытки, а ограничивает их.">
               The kill switch limits further exposure after a drawdown event. It does not

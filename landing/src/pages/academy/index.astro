@@ -79,14 +79,14 @@ const trackIds = {
     {/* ── Playground (Agent C) + Certificate links ── */}
     <section class="ac-links">
       <a class="ac-link-card" href="/academy/playground">
-        <span class="ac-link-glyph">🎛️</span>
+        <span class="ac-link-glyph" aria-hidden="true">◉</span>
         <span class="ac-link-body">
           <span class="ac-link-title">Тренажёры</span>
           <span class="ac-link-desc">Интерактивная площадка: классификатор риска, хейркат-вето, kill-switch, edge-at-scale — крути ручки, ломай, изучай.</span>
         </span>
       </a>
       <a class="ac-link-card" href="/academy/certificate">
-        <span class="ac-link-glyph">🎓</span>
+        <span class="ac-link-glyph" aria-hidden="true">★</span>
         <span class="ac-link-body">
           <span class="ac-link-title">Сертификат</span>
           <span class="ac-link-desc">Открывается после капстоуна: именной, печатаемый, с отпечатком прогресса. Покажи владельцу.</span>
@@ -118,7 +118,7 @@ const trackIds = {
   .ac-links { margin-top: 48px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
   .ac-link-card { display: flex; gap: 16px; align-items: flex-start; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; text-decoration: none; transition: border-color 120ms, transform 200ms; }
   .ac-link-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
-  .ac-link-glyph { font-size: 30px; line-height: 1; }
+  .ac-link-glyph { font-family: var(--font-mono); font-size: 22px; line-height: 1; color: var(--accent); flex-shrink: 0; margin-top: 2px; }
   .ac-link-body { display: flex; flex-direction: column; gap: 6px; }
   .ac-link-title { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
   .ac-link-desc { font-size: 14px; line-height: 1.5; color: var(--text-secondary); }

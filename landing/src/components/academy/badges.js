@@ -12,7 +12,7 @@
  *   gameState : output of getGameState (xp, level, streak, masteryByTrack, …)
  *   modules   : the manifest module list (for track membership)
  *
- * RU-first labels; emoji glyphs kept tasteful + monochrome-friendly.
+ * RU-first labels; geometric monochrome glyphs (institutional, no emoji).
  */
 
 // Playground widget ids — the full interactive roster (the "all tried" badge).
@@ -47,7 +47,7 @@ function allDone(progress, ids) {
 export const BADGES = [
   {
     id: 'defi-basics',
-    glyph: '🧱',
+    glyph: '▦',
     title_ru: 'DeFi-основы пройдены',
     title_en: 'DeFi fundamentals done',
     desc_ru: 'Весь трек 1 — база DeFi от нуля.',
@@ -55,7 +55,7 @@ export const BADGES = [
   },
   {
     id: 'refusal-first',
-    glyph: '🛡️',
+    glyph: '◈',
     title_ru: 'Понял refusal-first',
     title_en: 'Got refusal-first',
     desc_ru: 'Модуль про отказ ДО экономики пройден.',
@@ -63,7 +63,7 @@ export const BADGES = [
   },
   {
     id: 'haircut-veto',
-    glyph: '✂️',
+    glyph: '✕',
     title_ru: 'Вето хейркатом',
     title_en: 'Haircut veto',
     desc_ru: 'Токсичность нельзя обойти размером — усвоено.',
@@ -71,7 +71,7 @@ export const BADGES = [
   },
   {
     id: 'edge-at-scale',
-    glyph: '📉',
+    glyph: '⟍',
     title_ru: 'Прошёл edge-at-scale',
     title_en: 'Edge-at-scale done',
     desc_ru: 'Обрыв $1M и честная кривая масштаба.',
@@ -79,7 +79,7 @@ export const BADGES = [
   },
   {
     id: 'spa-track',
-    glyph: '🧩',
+    glyph: '◆',
     title_ru: 'Изобретения SPA пройдены',
     title_en: 'SPA inventions done',
     desc_ru: 'Весь трек 2 — refusal-first, вето, kill-switch, edge.',
@@ -87,7 +87,7 @@ export const BADGES = [
   },
   {
     id: 'all-playground',
-    glyph: '🎛️',
+    glyph: '◉',
     title_ru: 'Все тренажёры опробованы',
     title_en: 'All playgrounds tried',
     desc_ru: 'Каждый интерактивный виджет был запущен хотя бы раз.',
@@ -95,7 +95,7 @@ export const BADGES = [
   },
   {
     id: 'sandbox-complete',
-    glyph: '🧪',
+    glyph: '△',
     title_ru: 'Песочница пройдена',
     title_en: 'Sandbox complete',
     desc_ru: 'Все четыре симулятора-песочницы (книга, депег, прогон через гейт, таймлайн отказов) опробованы.',
@@ -104,7 +104,7 @@ export const BADGES = [
   },
   {
     id: 'streak-3',
-    glyph: '🔥',
+    glyph: '≡',
     title_ru: 'Серия 3 дня',
     title_en: '3-day streak',
     desc_ru: 'Учился три календарных дня подряд.',
@@ -112,7 +112,7 @@ export const BADGES = [
   },
   {
     id: 'streak-7',
-    glyph: '🔥🔥',
+    glyph: '≣',
     title_ru: 'Серия 7 дней',
     title_en: '7-day streak',
     desc_ru: 'Неделя занятий без пропусков.',
@@ -120,7 +120,7 @@ export const BADGES = [
   },
   {
     id: 'capstone',
-    glyph: '🎓',
+    glyph: '★',
     title_ru: 'Сдал capstone',
     title_en: 'Capstone passed',
     desc_ru: 'Финальный разбор реальной возможности через refusal-first.',

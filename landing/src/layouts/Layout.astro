@@ -82,14 +82,21 @@ const schemaData = JSON.stringify({
         /* Backgrounds — single near-black scale */
         --bg-base:#0A0C10; --bg-surface:#11141A; --bg-surface-2:#181C24; --bg-elevated:#1E232C;
         --border:#232934; --border-strong:#313945;
-        /* Text */
-        --text-primary:#E8EAF0; --text-secondary:#A6ADBB; --text-muted:#6B7280; --text-faint:#444B57;
+        /* Text — faint bumped #444B57→#565E6D for AA on non-decorative text (V2 a11y) */
+        --text-primary:#E8EAF0; --text-secondary:#A6ADBB; --text-muted:#6B7280; --text-faint:#565E6D;
         /* Brand accent — indigo */
-        --accent:#5B8DEF; --accent-hover:#79A4F5; --accent-dim:#2C4A8A; --accent-bg:rgba(91,141,239,0.10);
-        /* Secondary accent — quant teal */
-        --data-teal:#36C2B4;
-        /* Semantic */
+        --accent:#5B8DEF; --accent-hover:#79A4F5; --accent-dim:#2C4A8A;
+        --accent-bg:rgba(91,141,239,0.10); --accent-border:rgba(91,141,239,0.30);
+        /* Secondary accent — quant teal (A-tier + data-viz/live-tick, NEVER a verdict) */
+        --data-teal:#36C2B4; --teal-bg:rgba(54,194,180,0.12); --teal-border:rgba(54,194,180,0.30);
+        /* Semantic — canonical risk-color language (V2 §3.3, ONE map site-wide):
+           SAFE/PASS/live=ok · WATCH/PENDING=warn · REFUSE/FAIL/kill/offline=danger · UNKNOWN=text-muted */
         --ok:#34D399; --warn:#F2B53C; --danger:#F26D6D; --info:#5B8DEF;
+        /* Semantic tint/border tokens (tokenize the ~20× rgba literals once) */
+        --ok-bg:rgba(52,211,153,0.10); --ok-border:rgba(52,211,153,0.30);
+        --warn-bg:rgba(242,181,60,0.10); --warn-border:rgba(242,181,60,0.30);
+        --danger-bg:rgba(242,109,109,0.12); --danger-border:rgba(242,109,109,0.35);
+        --muted-bg:var(--bg-surface-2); --muted-border:var(--border-strong);
         /* Type */
         --font-sans:'Inter',system-ui,-apple-system,sans-serif;
         --font-mono:'JetBrains Mono','SFMono-Regular',ui-monospace,monospace;
@@ -104,6 +111,13 @@ const schemaData = JSON.stringify({
       html { background-color: var(--bg-base); }
       body { background: var(--bg-base); color: var(--text-secondary); font-family: var(--font-sans); }
       @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+      /* Global keyboard focus ring — one accessible :focus-visible treatment site-wide (V2 a11y).
+         Mouse users see nothing; keyboard/AT users get a clear 2px accent ring on every
+         interactive element. Never removes the outline without a visible replacement. */
+      :where(a,button,input,select,textarea,summary,[tabindex]):focus-visible{
+        outline:2px solid var(--accent); outline-offset:2px; border-radius:var(--r-sm);
+      }
+      :focus:not(:focus-visible){ outline:none; }
       @media (prefers-reduced-motion:reduce){
         *{animation:none !important; transition:none !important; scroll-behavior:auto !important}
       }

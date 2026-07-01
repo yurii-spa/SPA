@@ -102,8 +102,8 @@ export default function Quiz({ moduleId, questions = [], passAll = true }) {
         fireCelebration({
           big: isCapstone,
           message: isCapstone
-            ? (lang === 'en' ? 'Capstone passed! 🎓' : 'Капстоун сдан! 🎓')
-            : (lang === 'en' ? 'Module complete!' : 'Модуль пройден!'),
+            ? (lang === 'en' ? 'Capstone passed' : 'Капстоун сдан')
+            : (lang === 'en' ? 'Module complete' : 'Модуль пройден'),
         });
       }
     }

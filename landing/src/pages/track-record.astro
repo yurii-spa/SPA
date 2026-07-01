@@ -7,7 +7,7 @@ import snap from '../data/track_snapshot.json';
 // override these client-side from api.earn-defi.com; this keeps the page honest
 // and readable when the API is offline. Numbers are NOT hardcoded inline — they
 // are derived from data/golive_status.json + data/equity_curve_daily.json at build.
-const realDays = snap.real_track_days ?? 6;
+const realDays = snap.real_track_days ?? 10;
 const daysNeeded = snap.days_needed ?? 30;
 const goLiveTarget = snap.go_live_target ?? '2026-07-21';
 const anchor = snap.evidenced_anchor ?? '2026-06-22';
@@ -42,7 +42,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
       <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Мы сбросили собственный трек">
         We reset our own track
       </h1>
-      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Мы провели аудит собственного бумажного трека и обнулили его. Считаются только дни, подтверждённые реальным логом ежедневного цикла. Сейчас это 5 честных дней (якорь 2026-06-22), а не 15 «надутых». Каждая точка кривой капитала и метка её источника публичны.">
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru={`Мы провели аудит собственного бумажного трека и обнулили его. Считаются только дни, подтверждённые реальным логом ежедневного цикла. Сейчас это ${realDays} честных дней (якорь ${anchor}), а не 15 «надутых». Каждая точка кривой капитала и метка её источника публичны.`}>
         We audited our own paper track and reset it. Only days backed by a real
         daily-cycle log count. Right now that is {realDays} honest days (anchor {anchor}),
         not 15 padded ones. Every equity point and its source label is public.
@@ -55,10 +55,10 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         <div class="flex items-center gap-2 mb-4">
           <span class="text-xs font-mono uppercase tracking-wider text-teal-300/70" data-ru="Доказуемая честность">Provable honesty</span>
         </div>
-        <h2 class="text-2xl font-bold text-white mb-3 leading-snug" data-ru="Мы публикуем 5 настоящих дней, а не 15 «надутых»">
+        <h2 class="text-2xl font-bold text-white mb-3 leading-snug" data-ru={`Мы публикуем ${realDays} настоящих дней, а не 15 «надутых»`}>
           We publish {realDays} real days, not 15 padded ones
         </h2>
-        <p class="text-white/55 leading-relaxed max-w-2xl mb-5" data-ru="Аудит собственного трека показал, что ранние дни были бэкфиллом по фиксированной ставке — не результатом реального ежедневного цикла. Мы их не считаем. Теперь засчитывается только день, у которого есть реальный лог daily-cycle. Мы предпочтём показать 5 честных дней, чем 15 надутых. Сам этот сброс — и есть сигнал доверия.">
+        <p class="text-white/55 leading-relaxed max-w-2xl mb-5" data-ru={`Аудит собственного трека показал, что ранние дни были бэкфиллом по фиксированной ставке — не результатом реального ежедневного цикла. Мы их не считаем. Теперь засчитывается только день, у которого есть реальный лог daily-cycle. Мы предпочтём показать ${realDays} честных дней, чем 15 надутых. Сам этот сброс — и есть сигнал доверия.`}>
           Auditing our own track found the earlier days were a flat-rate backfill — not
           the output of a real daily cycle. We don't count them. A day now counts only if
           it has a genuine daily-cycle log behind it. We would rather show {realDays} honest

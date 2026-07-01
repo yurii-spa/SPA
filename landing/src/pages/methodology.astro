@@ -117,7 +117,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
         and pool metadata into a standard format for the allocation engine. No write access at scan stage.
       </p>
       <div class="rounded-xl border border-border-strong bg-bg-surface p-5">
-        <p class="text-xs text-white/30 font-mono mb-4" data-ru="ТЕКУЩИЙ РЕЕСТР АДАПТЕРОВ — 10+ адаптеров">CURRENT ADAPTER REGISTRY — 10+ adapters</p>
+        <p class="text-xs text-white/30 font-mono mb-4" data-ru="ТЕКУЩИЙ РЕЕСТР АДАПТЕРОВ — 35 адаптеров (показана выборка)">CURRENT ADAPTER REGISTRY — 35 adapters (sample shown)</p>
         <div class="flex flex-wrap gap-2">
           {[
             'Aave V3 (ETH)', 'Aave V3 (Base)', 'Morpho Blue (ETH)', 'Morpho Blue (Base)',
@@ -176,8 +176,12 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
               <td class="px-5 py-3 text-white font-mono font-semibold" data-ru="30% (предел корректности)">30% (sanity cap)</td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-red-400/80 font-mono" data-ru="Kill switch по просадке">Drawdown kill switch</td>
-              <td class="px-5 py-3 text-red-400 font-mono font-semibold" data-ru="&minus;5% → закрыть всё">&minus;5% → close all</td>
+              <td class="px-5 py-3 text-amber-400/80 font-mono" data-ru="Kill switch — SOFT (просадка от пика)">Kill switch — SOFT (peak drawdown)</td>
+              <td class="px-5 py-3 text-amber-400 font-mono font-semibold" data-ru="&ge;5% → де-риск (стоп новых входов, без ликвидации)">&ge;5% &rarr; de-risk (halt new, no liquidation)</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-red-400/80 font-mono" data-ru="Kill switch — HARD (просадка от пика)">Kill switch — HARD (peak drawdown)</td>
+              <td class="px-5 py-3 text-red-400 font-mono font-semibold" data-ru="&ge;10% → всё в кэш">&ge;10% &rarr; all to cash</td>
             </tr>
           </tbody>
         </table>
@@ -247,7 +251,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
             </span>
             <span class="text-sm text-white font-semibold">Core</span>
           </div>
-          <p class="text-xs text-white/40" data-ru="На paper-трекинге с 10 июня 2026. Проверенные данные о производительности доступны на дашборде.">Paper tracked since June 10, 2026. Verified performance data available on dashboard.</p>
+          <p class="text-xs text-white/40" data-ru="На paper-трекинге с 22 июня 2026 (evidenced anchor). Проверенные данные о производительности доступны на дашборде.">Paper tracked since June 22, 2026 (evidenced anchor). Verified performance data available on dashboard.</p>
         </div>
         <div class="rounded-xl bg-bg-surface border border-border p-5">
           <div class="flex items-center gap-3 mb-2">

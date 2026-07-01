@@ -184,7 +184,7 @@ export default function RefusalGateWalkthrough() {
 
         {/* 2 classify */}
         <Panel show={step >= 1} label={tr('s_classify')} active={step === 1}>
-          <div style={{ fontWeight: 700, color: ex.cls === 'A' ? 'var(--data-teal)' : ex.cls === 'B' ? 'var(--accent)' : ex.cls === 'C' ? 'var(--danger)' : 'var(--warn)', fontSize: 15 }}>
+          <div style={{ fontWeight: 700, color: ex.cls === 'A' ? 'var(--data-teal)' : ex.cls === 'B' ? 'var(--accent)' : ex.cls === 'C' ? 'var(--warn)' : 'var(--danger)', fontSize: 15 }}>
             {CLS[ex.cls][lang] ?? CLS[ex.cls].ru}
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8, lineHeight: 1.55 }}>{tr('clsDesc')}</div>

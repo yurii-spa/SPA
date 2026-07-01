@@ -173,10 +173,17 @@ import Layout from '../layouts/Layout.astro';
           </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-border-strong bg-bg-surface p-4">
-          <span class="text-xs font-mono text-red-400/60 bg-red-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">KILL</span>
+          <span class="text-xs font-mono text-amber-400/60 bg-amber-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">SOFT</span>
           <div>
-            <p class="text-sm text-white/70 font-medium" data-ru="Просадка &minus;5%">Drawdown &minus;5%</p>
-            <p class="text-xs text-white/40" data-ru="Kill switch → портфель переводится в кэш">Kill switch &rarr; portfolio moves to cash</p>
+            <p class="text-sm text-white/70 font-medium" data-ru="Просадка от пика &ge;5%">Peak drawdown &ge;5%</p>
+            <p class="text-xs text-white/40" data-ru="SOFT kill switch → де-риск: стоп новых входов и увеличения позиций, БЕЗ ликвидации">SOFT kill switch &rarr; de-risk: halt new entries &amp; increases, NO liquidation</p>
+          </div>
+        </div>
+        <div class="flex gap-4 items-start rounded-lg border border-border-strong bg-bg-surface p-4">
+          <span class="text-xs font-mono text-red-400/60 bg-red-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">HARD</span>
+          <div>
+            <p class="text-sm text-white/70 font-medium" data-ru="Просадка от пика &ge;10%">Peak drawdown &ge;10%</p>
+            <p class="text-xs text-white/40" data-ru="HARD kill switch → весь портфель переводится в кэш">HARD kill switch &rarr; whole portfolio moves to cash</p>
           </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-border-strong bg-bg-surface p-4">

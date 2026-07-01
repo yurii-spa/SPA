@@ -43,6 +43,19 @@ import DashboardLive from '../components/DashboardLive.jsx';
       </p>
     </section>
 
+    <!-- Cross-section lateral links — connect verifying (here) → doing (/board) → learning
+         (/academy) so the site reads as ONE product, not stitched surfaces. -->
+    <nav class="pb-8 flex flex-wrap gap-3" aria-label="Related product surfaces">
+      <a href="/board" class="dash-lateral">
+        <span class="dash-lateral-t" data-ru="Скринер пулов →">Screen pools →</span>
+        <span class="dash-lateral-d" data-ru="Риск-борд DFB: класс A/B/C/D, ликвидность на выход, вердикт отказа">DFB risk board — A/B/C/D class, exit-liquidity, refuse verdict</span>
+      </a>
+      <a href="/academy" class="dash-lateral">
+        <span class="dash-lateral-t" data-ru="Изучить метод →">Learn the method →</span>
+        <span class="dash-lateral-d" data-ru="Академия: от нуля до refusal-first андеррайтинга">Academy — from zero to refusal-first underwriting</span>
+      </a>
+    </nav>
+
     <!-- The real-time island. client:load so it mounts + starts polling immediately. -->
     <section class="pb-16">
       <DashboardLive client:load />
@@ -52,3 +65,15 @@ import DashboardLive from '../components/DashboardLive.jsx';
 
   <Disclaimer />
 </Layout>
+
+<style>
+  .dash-lateral {
+    display: flex; flex-direction: column; gap: 4px; flex: 1 1 280px;
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: var(--r-lg); padding: 14px 16px; text-decoration: none;
+    transition: border-color 120ms var(--ease);
+  }
+  .dash-lateral:hover { border-color: var(--border-strong); }
+  .dash-lateral-t { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+  .dash-lateral-d { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+</style>

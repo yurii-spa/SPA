@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { classStyle, verdictStyle } from './ui/riskStyles.js';
 
 /*
  * DfbScreener.jsx — THE DFB risk-first pool screener (Lane-3 / WS-1.4).
@@ -47,24 +48,11 @@ function usd(x) {
 }
 function pct(x) { const n = num(x); return n == null ? '—' : n.toFixed(2) + '%'; }
 
-// Risk-class color tokens (A best → D worst). Used by screener + detail.
-export const CLASS_STYLE = {
-  A: { bg: 'rgba(52,211,153,.12)', bd: 'rgba(52,211,153,.35)', fg: '#34D399' },
-  B: { bg: 'rgba(91,141,239,.12)', bd: 'rgba(91,141,239,.35)', fg: '#79A4F5' },
-  C: { bg: 'rgba(242,181,60,.12)', bd: 'rgba(242,181,60,.35)', fg: '#F2B53C' },
-  D: { bg: 'rgba(242,109,109,.14)', bd: 'rgba(242,109,109,.40)', fg: '#F26D6D' },
-};
-const CLASS_FALLBACK = { bg: 'rgba(107,114,128,.12)', bd: 'rgba(107,114,128,.30)', fg: '#9aa3b2' };
-export function classStyle(c) { return CLASS_STYLE[String(c || '').toUpperCase()] || CLASS_FALLBACK; }
-
-// Refusal-verdict color tokens. Verdict comes verbatim from the API.
-export const VERDICT_STYLE = {
-  SAFE:   { bg: 'rgba(52,211,153,.12)', bd: 'rgba(52,211,153,.35)', fg: '#34D399', ru: 'БЕЗОПАСНО' },
-  WATCH:  { bg: 'rgba(242,181,60,.12)', bd: 'rgba(242,181,60,.35)', fg: '#F2B53C', ru: 'НАБЛЮДЕНИЕ' },
-  REFUSE: { bg: 'rgba(242,109,109,.14)', bd: 'rgba(242,109,109,.40)', fg: '#F26D6D', ru: 'ОТКАЗ' },
-};
-const VERDICT_FALLBACK = { bg: 'rgba(107,114,128,.12)', bd: 'rgba(107,114,128,.30)', fg: '#9aa3b2', ru: 'НЕИЗВЕСТНО' };
-export function verdictStyle(v) { return VERDICT_STYLE[String(v || '').toUpperCase()] || VERDICT_FALLBACK; }
+// Risk-class + refusal-verdict colors come from the ONE canonical map
+// (ui/riskStyles.js → ui/tokens.js), so the board renders the risk language
+// identically to the dashboard / academy / marketing. Re-exported here because
+// DfbPoolDetail + DfbPortfolio historically import them from this module.
+export { classStyle, verdictStyle };
 
 // Find the exit-liquidity row for a given ticket size, fail-closed.
 function exitFor(pool, ticket) {
@@ -78,12 +66,13 @@ function isHole(row) {
   return num(row.absorbable_usd) == null;
 }
 
+// One badge geometry, shared across all DFB islands (matches ui/Badge.astro §3.4).
 function Badge({ style, children, title }) {
   return (
     <span title={title} style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px',
-      borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600,
-      background: style.bg, border: '1px solid ' + style.bd, color: style.fg, whiteSpace: 'nowrap',
+      display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px',
+      borderRadius: 'var(--r-full)', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 500,
+      lineHeight: 1, background: style.bg, border: '1px solid ' + style.bd, color: style.fg, whiteSpace: 'nowrap',
     }}>{children}</span>
   );
 }
@@ -181,18 +170,17 @@ export default function DfbScreener() {
     else { setSortKey(k); setSortDir(k === 'protocol' ? 'asc' : (k === 'risk' ? 'asc' : 'desc')); }
   }
   const T = (en, r) => (ru ? r : en);
-  const sortMark = (k) => (sortKey === k ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
 
   // ---- summary header ----
   const summaryTiles = summary ? [
     { lbl: T('Pools followed', 'Пулов отслеживается'), v: summary.total_pools != null ? String(summary.total_pools) : (pools.length ? String(pools.length) : '—') },
-    { lbl: T('Refused (D / REFUSE)', 'Отказано (D / ОТКАЗ)'), v: summary.refused != null ? String(summary.refused) : '—', fg: '#F26D6D' },
-    { lbl: T('Class A', 'Класс A'), v: summary.class_a != null ? String(summary.class_a) : '—', fg: '#34D399' },
+    { lbl: T('Refused (D / REFUSE)', 'Отказано (D / ОТКАЗ)'), v: summary.refused != null ? String(summary.refused) : '—', fg: 'var(--danger)' },
+    { lbl: T('Class A', 'Класс A'), v: summary.class_a != null ? String(summary.class_a) : '—', fg: 'var(--data-teal)' },
     { lbl: T('TVL covered', 'TVL покрыто'), v: usd(summary.total_tvl_usd) },
   ] : [
     { lbl: T('Pools followed', 'Пулов отслеживается'), v: pools.length ? String(pools.length) : '—' },
-    { lbl: T('Refused (D / REFUSE)', 'Отказано (D / ОТКАЗ)'), v: pools.length ? String(pools.filter((p) => String(p.refusal && p.refusal.verdict || '').toUpperCase() === 'REFUSE').length) : '—', fg: '#F26D6D' },
-    { lbl: T('Class A', 'Класс A'), v: pools.length ? String(pools.filter((p) => String(p.risk_class || '').toUpperCase() === 'A').length) : '—', fg: '#34D399' },
+    { lbl: T('Refused (D / REFUSE)', 'Отказано (D / ОТКАЗ)'), v: pools.length ? String(pools.filter((p) => String(p.refusal && p.refusal.verdict || '').toUpperCase() === 'REFUSE').length) : '—', fg: 'var(--danger)' },
+    { lbl: T('Class A', 'Класс A'), v: pools.length ? String(pools.filter((p) => String(p.risk_class || '').toUpperCase() === 'A').length) : '—', fg: 'var(--data-teal)' },
     { lbl: T('TVL covered', 'TVL покрыто'), v: usd(pools.reduce((s, p) => s + (num(p.tvl_usd) || 0), 0) || null) },
   ];
 
@@ -200,18 +188,10 @@ export default function DfbScreener() {
     <div>
       {/* live / offline state chip + summary */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: 'var(--font-mono)', fontSize: 12,
-          padding: '4px 10px', borderRadius: 999,
-          background: state === 'live' ? 'rgba(52,211,153,.10)' : 'rgba(107,114,128,.10)',
-          border: '1px solid ' + (state === 'live' ? 'rgba(52,211,153,.30)' : 'var(--border)'),
-          color: state === 'live' ? '#34D399' : 'var(--text-muted)',
-        }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: state === 'live' ? '#34D399' : 'var(--text-muted)', animation: state === 'live' ? 'pulse 3s ease-in-out infinite' : 'none' }} />
-          {state === 'loading' ? T('Loading…', 'Загрузка…') : state === 'live' ? (T('Live from api.earn-defi.com', 'Вживую с api.earn-defi.com') + (asOf ? ' · ' + asOf : '')) : T('API unavailable', 'API недоступно')}
-        </span>
+        <LiveChip state={state} label={state === 'loading' ? T('Loading…', 'Загрузка…') : state === 'live' ? (T('Live from api.earn-defi.com', 'Вживую с api.earn-defi.com') + (asOf ? ' · ' + asOf : '')) : T('API unavailable', 'API недоступно')} />
       </div>
 
+      <h2 style={srOnly}>{T('Coverage summary', 'Сводка покрытия')}</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 12, marginBottom: 20 }}>
         {summaryTiles.map((t, i) => (
           <div key={i} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
@@ -222,7 +202,8 @@ export default function DfbScreener() {
       </div>
 
       {/* filters */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 16 }}>
+      <h2 style={srOnly}>{T('Filter the pools', 'Фильтры пулов')}</h2>
+      <div role="group" aria-label={T('Filter the pools', 'Фильтры пулов')} style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 16 }}>
         <FilterSelect label={T('Risk class', 'Класс риска')} value={fClass} onChange={setFClass}
           options={[['ALL', T('All', 'Все')], ['A', 'A'], ['B', 'B'], ['C', 'C'], ['D', 'D']]} />
         <FilterSelect label={T('Chain', 'Сеть')} value={fChain} onChange={setFChain}
@@ -230,20 +211,22 @@ export default function DfbScreener() {
         <FilterSelect label={T('Tier', 'Тир')} value={fTier} onChange={setFTier}
           options={[['ALL', T('All', 'Все')], ...tiers.map((t) => [t, t])]} />
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-          <input type="checkbox" checked={refusedOnly} onChange={(e) => setRefusedOnly(e.target.checked)} />
+          <input type="checkbox" checked={refusedOnly} onChange={(e) => setRefusedOnly(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
           {T('Refused only', 'Только отказанные')}
         </label>
       </div>
 
-      {/* table */}
-      <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 16 }}>
+      {/* table (desktop / wide) — hidden on narrow viewports where the card list takes over */}
+      <h2 style={srOnly}>{T('Pools by risk', 'Пулы по риску')}</h2>
+      <div className="dfb-screener-table" style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 980 }}>
+          <caption style={srOnly}>{T('DeFi pools ranked by risk class, with exit-liquidity by ticket size and a refusal verdict.', 'Пулы DeFi по классу риска, с ликвидностью на выход по размеру тикета и вердиктом отказа.')}</caption>
           <thead>
-            <tr style={{ background: 'var(--bg-surface)', textAlign: 'left' }}>
-              <Th onClick={() => toggleSort('protocol')}>{T('Pool', 'Пул') + sortMark('protocol')}</Th>
-              <Th onClick={() => toggleSort('apy')} right>{T('APY (base+reward)', 'APY (база+награда)') + sortMark('apy')}</Th>
-              <Th onClick={() => toggleSort('tvl')} right>{T('TVL', 'TVL') + sortMark('tvl')}</Th>
-              <Th onClick={() => toggleSort('risk')}>{T('Risk', 'Риск') + sortMark('risk')}</Th>
+            <tr style={{ background: 'var(--bg-surface-2)', textAlign: 'left' }}>
+              <Th sortKey="protocol" activeKey={sortKey} dir={sortDir} onSort={toggleSort}>{T('Pool', 'Пул')}</Th>
+              <Th right sortKey="apy" activeKey={sortKey} dir={sortDir} onSort={toggleSort}>{T('APY (base+reward)', 'APY (база+награда)')}</Th>
+              <Th right sortKey="tvl" activeKey={sortKey} dir={sortDir} onSort={toggleSort}>{T('TVL', 'TVL')}</Th>
+              <Th sortKey="risk" activeKey={sortKey} dir={sortDir} onSort={toggleSort}>{T('Risk', 'Риск')}</Th>
               <Th right>{T('Exit @ $1M', 'Выход @ $1M')}</Th>
               <Th right>{T('@ $5M', '@ $5M')}</Th>
               <Th right>{T('@ $10M', '@ $10M')}</Th>
@@ -267,32 +250,89 @@ export default function DfbScreener() {
           </tbody>
         </table>
       </div>
+
+      {/* mobile / narrow — a stacked card per pool (the 9-col table forces horizontal scroll on a phone) */}
+      <div className="dfb-screener-cards" style={{ display: 'none', flexDirection: 'column', gap: 12 }}>
+        {state === 'loading' && <div style={emptyCard}>{T('Loading the risk board…', 'Загрузка риск-борда…')}</div>}
+        {state === 'offline' && <div style={emptyCard}>{T('API unavailable — the risk board does not show fabricated data offline.', 'API недоступно — риск-борд не показывает выдуманные данные офлайн.')}</div>}
+        {state === 'live' && view.length === 0 && <div style={emptyCard}>{T('No pools match the filters.', 'Нет пулов по фильтрам.')}</div>}
+        {state === 'live' && view.map((p) => <PoolCard key={p.pool_id} pool={p} ru={ru} T={T} />)}
+      </div>
+
+      {/* responsive switch: table ≥720px, card list below */}
+      <style>{`
+        @media (max-width: 720px) {
+          .dfb-screener-table { display: none; }
+          .dfb-screener-cards { display: flex !important; }
+        }
+      `}</style>
     </div>
   );
 }
 
-function FilterSelect({ label, value, onChange, options }) {
+export const srOnly = { position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 };
+const emptyCard = { padding: '28px 16px', textAlign: 'center', color: 'var(--text-muted)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)' };
+
+// Live/offline chip — one dialect across DFB islands (green pulse live / muted offline).
+export function LiveChip({ state, label }) {
+  const live = state === 'live';
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: 'var(--font-mono)', fontSize: 12,
+      padding: '4px 10px', borderRadius: 'var(--r-full)',
+      background: live ? 'var(--ok-bg)' : 'var(--bg-surface-2)',
+      border: '1px solid ' + (live ? 'var(--ok-border)' : 'var(--border)'),
+      color: live ? 'var(--ok)' : 'var(--text-muted)',
+    }}>
+      <span style={{ width: 7, height: 7, borderRadius: '50%', background: live ? 'var(--ok)' : 'var(--text-muted)', animation: live ? 'pulse 3s cubic-bezier(.4,0,.6,1) infinite' : 'none' }} />
+      {label}
+    </span>
+  );
+}
+
+export function FilterSelect({ label, value, onChange, options }) {
   return (
     <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
       {label}
       <select value={value} onChange={(e) => onChange(e.target.value)} style={{
-        background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8,
-        color: 'var(--text-secondary)', padding: '5px 8px', fontFamily: 'var(--font-mono)', fontSize: 12,
+        background: 'var(--bg-surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)',
+        color: 'var(--text-primary)', padding: '6px 10px', fontFamily: 'var(--font-mono)', fontSize: 12,
+        appearance: 'none', WebkitAppearance: 'none', cursor: 'pointer',
+        backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%236B7280\' d=\'M3 4.5L6 7.5L9 4.5\'/%3E%3C/svg%3E")',
+        backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', paddingRight: 26,
       }}>
-        {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        {options.map(([v, l]) => <option key={v} value={v} style={{ background: 'var(--bg-surface-2)', color: 'var(--text-primary)' }}>{l}</option>)}
       </select>
     </label>
   );
 }
 
-function Th({ children, onClick, right }) {
+// Keyboard-operable, SR-announced sortable header (P0 a11y fix).
+// A sortable <th> gets role=button + tabindex=0 + Enter/Space activation + aria-sort;
+// non-sortable headers are plain. Contrast raised to --text-secondary (text-muted failed AA).
+function Th({ children, sortKey, activeKey, dir, onSort, right }) {
+  const sortable = !!sortKey && typeof onSort === 'function';
+  const active = sortable && activeKey === sortKey;
+  const ariaSort = active ? (dir === 'asc' ? 'ascending' : 'descending') : (sortable ? 'none' : undefined);
+  const mark = active ? (dir === 'asc' ? '▲' : '▼') : '';
+  const activate = () => sortable && onSort(sortKey);
   return (
-    <th onClick={onClick} style={{
-      padding: '11px 14px', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600,
-      textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-muted)',
-      textAlign: right ? 'right' : 'left', cursor: onClick ? 'pointer' : 'default',
-      whiteSpace: 'nowrap', userSelect: 'none',
-    }}>{children}</th>
+    <th
+      aria-sort={ariaSort}
+      role={sortable ? 'button' : undefined}
+      tabIndex={sortable ? 0 : undefined}
+      onClick={sortable ? activate : undefined}
+      onKeyDown={sortable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } } : undefined}
+      style={{
+        padding: '11px 14px', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600,
+        textTransform: 'uppercase', letterSpacing: '.06em',
+        color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+        textAlign: right ? 'right' : 'left', cursor: sortable ? 'pointer' : 'default',
+        whiteSpace: 'nowrap', userSelect: 'none',
+      }}
+    >
+      {children}{mark ? <span aria-hidden="true"> {mark}</span> : ''}
+    </th>
   );
 }
 
@@ -302,7 +342,7 @@ function ExitCell({ pool, ticket, ru }) {
   const hole = isHole(row);
   if (hole) {
     return (
-      <td style={{ padding: '10px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12, color: '#F26D6D', whiteSpace: 'nowrap' }}
+      <td style={{ padding: '10px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--danger)', whiteSpace: 'nowrap' }}
           title={ru ? 'недостаточно ликвидности на выход — не заполняется выдуманным числом' : 'insufficient exit liquidity — never backfilled with a fabricated number'}>
         {ru ? 'флаг' : 'flagged'}
       </td>
@@ -329,7 +369,7 @@ function PoolRow({ pool, ru, T }) {
   return (
     <tr style={{ borderTop: '1px solid var(--border)' }}>
       <td style={{ padding: '10px 14px' }}>
-        <a href={detailHref} style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 13.5 }}>{pool.protocol || '?'}</a>
+        <a href={detailHref} style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 13 }}>{pool.protocol || '?'}</a>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
           {(pool.asset || '?')} · {(pool.chain || '?')}{pool.tier ? ' · ' + pool.tier : ''}
         </div>
@@ -338,7 +378,7 @@ function PoolRow({ pool, ru, T }) {
         {pct(apy.total)}
         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
           {pct(apy.base)}<span style={{ color: 'var(--text-faint)' }}> base</span>
-          {num(apy.reward) ? <span style={{ color: '#F2B53C' }}> +{pct(apy.reward)} rwd</span> : null}
+          {num(apy.reward) ? <span style={{ color: 'var(--warn)' }}> +{pct(apy.reward)} rwd</span> : null}
         </div>
       </td>
       <td style={{ padding: '10px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{usd(pool.tvl_usd)}</td>
@@ -353,7 +393,7 @@ function PoolRow({ pool, ru, T }) {
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: vs.fg }} />{vLabel}
         </Badge>
         {pool.refusal && pool.refusal.tail_veto && (
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#F26D6D', marginTop: 3 }}>{ru ? 'tail-veto' : 'tail-veto'}</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--danger)', marginTop: 3 }}>tail-veto</div>
         )}
       </td>
       <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -364,3 +404,55 @@ function PoolRow({ pool, ru, T }) {
     </tr>
   );
 }
+
+// Mobile card — the same pool, stacked (no horizontal scroll on a phone).
+function PoolCard({ pool, ru, T }) {
+  const cs = classStyle(pool.risk_class);
+  const verdict = String(pool.refusal && pool.refusal.verdict || '').toUpperCase();
+  const vs = verdictStyle(verdict);
+  const vLabel = ru ? vs.ru : (verdict || (ru ? 'НЕИЗВ.' : 'UNKNOWN'));
+  const apy = pool.apy || {};
+  const ph = pool.proof_hash ? String(pool.proof_hash) : '';
+  const detailHref = '/board/pool?id=' + encodeURIComponent(pool.pool_id);
+  const exitLabel = (ticket) => {
+    const row = exitFor(pool, ticket);
+    return isHole(row) ? (ru ? 'флаг' : 'flagged') : usd(row.absorbable_usd);
+  };
+  const exitHole = (ticket) => isHole(exitFor(pool, ticket));
+  return (
+    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <a href={detailHref} style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 15 }}>{pool.protocol || '?'}</a>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+            {(pool.asset || '?')} · {(pool.chain || '?')}{pool.tier ? ' · ' + pool.tier : ''}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <Badge style={cs} title={(ru ? 'класс риска ' : 'risk class ') + (pool.risk_class || '?')}>{pool.risk_class || '?'}</Badge>
+          <Badge style={vs} title={pool.refusal && pool.refusal.reason ? pool.refusal.reason : ''}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: vs.fg }} />{vLabel}
+          </Badge>
+        </div>
+      </div>
+      <dl style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', margin: '12px 0 0', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+        <div><dt style={cardDt}>APY</dt><dd style={cardDd}>{pct(apy.total)} <span style={{ color: 'var(--text-muted)' }}>({pct(apy.base)} base)</span></dd></div>
+        <div><dt style={cardDt}>TVL</dt><dd style={cardDd}>{usd(pool.tvl_usd)}</dd></div>
+        <div><dt style={cardDt}>{T('Exit @ $1M', 'Выход @ $1M')}</dt><dd style={{ ...cardDd, color: exitHole(1_000_000) ? 'var(--danger)' : 'var(--text-primary)' }}>{exitLabel(1_000_000)}</dd></div>
+        <div><dt style={cardDt}>{T('Exit @ $10M', 'Выход @ $10M')}</dt><dd style={{ ...cardDd, color: exitHole(10_000_000) ? 'var(--danger)' : 'var(--text-primary)' }}>{exitLabel(10_000_000)}</dd></div>
+      </dl>
+      {pool.refusal && pool.refusal.tail_veto && (
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--danger)', marginTop: 8 }}>tail-veto</div>
+      )}
+      <div style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <a href={detailHref} style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--data-teal)' }} title={ph}>
+          {ph ? '#' + ph.slice(0, 8) : '—'}
+        </a>
+        <a href={detailHref} style={{ fontSize: 12, color: 'var(--accent)' }}>{T('detail →', 'детали →')}</a>
+      </div>
+    </div>
+  );
+}
+
+const cardDt = { fontSize: 10, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-muted)', margin: 0 };
+const cardDd = { margin: '2px 0 0', color: 'var(--text-primary)' };

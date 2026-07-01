@@ -81,7 +81,7 @@ export default function AnalystCertificate({ allIds = [], modules = [], tracks =
   if (!passed) {
     return (
       <div className="ac-cert-locked">
-        <div className="ac-cert-glyph" aria-hidden="true">🎓</div>
+        <div className="ac-cert-glyph" aria-hidden="true">★</div>
         <h2>{tr('locked_h')}</h2>
         <p>{tr('locked_p')}</p>
         <a className="ac-cert-cta" href="/academy/capstone">{lang === 'en' ? 'Go to capstone →' : 'К капстоуну →'}</a>
@@ -97,7 +97,7 @@ export default function AnalystCertificate({ allIds = [], modules = [], tracks =
           <span>{tr('nameLabel')}</span>
           <input type="text" value={name} onChange={onName} placeholder={tr('namePlaceholder')} maxLength={80} />
         </label>
-        <button onClick={() => window.print()}>{tr('print')} 🖨️</button>
+        <button onClick={() => window.print()}>{tr('print')}</button>
       </div>
 
       <div className="ac-cert" role="img" aria-label={tr('title')}>
@@ -138,7 +138,7 @@ export default function AnalystCertificate({ allIds = [], modules = [], tracks =
 
 const lockedCss = `
   .ac-cert-locked { text-align:center; max-width:520px; margin:0 auto; padding:48px 24px; border:1px dashed var(--border-strong); border-radius:var(--r-lg); background:var(--bg-surface); }
-  .ac-cert-glyph { font-size:54px; filter:grayscale(1); opacity:.5; }
+  .ac-cert-glyph { font-family:var(--font-mono); font-size:40px; line-height:1; color:var(--text-faint); }
   .ac-cert-locked h2 { color:var(--text-primary); font-size:1.4rem; margin:14px 0 8px; }
   .ac-cert-locked p { color:var(--text-secondary); line-height:1.6; margin:0 0 20px; }
   .ac-cert-cta { background:var(--accent); color:#fff; text-decoration:none; padding:10px 22px; border-radius:var(--r-sm); font-weight:600; }
@@ -153,22 +153,30 @@ const certCss = `
   .ac-cert-controls input:focus { outline:none; border-color:var(--accent); }
   .ac-cert-controls button { background:var(--accent); color:#fff; border:none; border-radius:var(--r-sm); padding:11px 20px; font-weight:600; font-size:14px; cursor:pointer; }
 
-  .ac-cert { background:#fff; border-radius:var(--r-lg); padding:10px; box-shadow:var(--shadow-md); }
-  .ac-cert-border { border:2px solid #1E232C; border-radius:12px; padding:40px 36px; text-align:center; color:#11141A; background:linear-gradient(180deg,#ffffff,#f6f8fc); }
-  .ac-cert-eyebrow { font-family:var(--font-mono); font-size:12px; letter-spacing:.28em; color:#5B8DEF; margin-bottom:18px; }
-  .ac-cert-title { font-size:1.05rem; letter-spacing:.16em; text-transform:uppercase; color:#6B7280; margin-bottom:22px; }
-  .ac-cert-name { font-size:2.2rem; font-weight:800; color:#0A0C10; margin-bottom:8px; line-height:1.1; }
-  .ac-cert-sub { font-size:1rem; color:#374151; margin-bottom:26px; }
+  /* Printable certificate is a deliberate LIGHT artifact (ink on paper). The light ramp is
+     tokenized once here so the values aren't scattered hexes; hues track the canonical
+     accent (#5B8DEF), ink (#0A0C10/#11141A), and neutral greys (§3.3 muted family). */
+  .ac-cert {
+    --cert-paper:#ffffff; --cert-paper-2:#f6f8fc; --cert-ink:#0A0C10; --cert-ink-2:#11141A;
+    --cert-body:#374151; --cert-label:#6B7280; --cert-faint:#9CA3AF;
+    --cert-accent:#5B8DEF; --cert-frame:#1E232C;
+    background:var(--cert-paper); border-radius:var(--r-lg); padding:10px; box-shadow:var(--shadow-md);
+  }
+  .ac-cert-border { border:2px solid var(--cert-frame); border-radius:12px; padding:40px 36px; text-align:center; color:var(--cert-ink-2); background:linear-gradient(180deg,var(--cert-paper),var(--cert-paper-2)); }
+  .ac-cert-eyebrow { font-family:var(--font-mono); font-size:12px; letter-spacing:.28em; color:var(--cert-accent); margin-bottom:18px; }
+  .ac-cert-title { font-size:1.05rem; letter-spacing:.16em; text-transform:uppercase; color:var(--cert-label); margin-bottom:22px; }
+  .ac-cert-name { font-size:2.2rem; font-weight:800; color:var(--cert-ink); margin-bottom:8px; line-height:1.1; }
+  .ac-cert-sub { font-size:1rem; color:var(--cert-body); margin-bottom:26px; }
   .ac-cert-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px 18px; max-width:520px; margin:0 auto 22px; }
   .ac-cert-grid > div { display:flex; flex-direction:column; gap:3px; }
-  .ac-cert-grid span { font-size:10px; font-family:var(--font-mono); letter-spacing:.1em; text-transform:uppercase; color:#9CA3AF; }
-  .ac-cert-grid strong { font-size:15px; color:#11141A; }
-  .ac-cert-badges { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:22px; font-size:22px; }
-  .ac-cert-stamp { display:inline-flex; align-items:center; gap:10px; padding:8px 16px; border:1px solid #5B8DEF; border-radius:var(--r-full); margin-bottom:10px; }
-  .ac-cert-stamp-label { font-size:10px; font-family:var(--font-mono); letter-spacing:.14em; text-transform:uppercase; color:#5B8DEF; }
-  .ac-cert-stamp code { font-family:var(--font-mono); font-size:14px; letter-spacing:.06em; color:#0A0C10; }
-  .ac-cert-note { font-size:11px; color:#9CA3AF; margin:0 0 4px; }
-  .ac-cert-honest { font-size:11px; color:#9CA3AF; margin:0; }
+  .ac-cert-grid span { font-size:10px; font-family:var(--font-mono); letter-spacing:.1em; text-transform:uppercase; color:var(--cert-faint); }
+  .ac-cert-grid strong { font-size:15px; color:var(--cert-ink-2); }
+  .ac-cert-badges { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-bottom:22px; font-family:var(--font-mono); font-size:20px; color:var(--cert-accent); }
+  .ac-cert-stamp { display:inline-flex; align-items:center; gap:10px; padding:8px 16px; border:1px solid var(--cert-accent); border-radius:var(--r-full); margin-bottom:10px; }
+  .ac-cert-stamp-label { font-size:10px; font-family:var(--font-mono); letter-spacing:.14em; text-transform:uppercase; color:var(--cert-accent); }
+  .ac-cert-stamp code { font-family:var(--font-mono); font-size:14px; letter-spacing:.06em; color:var(--cert-ink); }
+  .ac-cert-note { font-size:11px; color:var(--cert-faint); margin:0 0 4px; }
+  .ac-cert-honest { font-size:11px; color:var(--cert-faint); margin:0; }
 
   @media print {
     .no-print { display:none !important; }

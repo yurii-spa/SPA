@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { classStyle, verdictStyle } from './DfbScreener.jsx';
+import { classStyle, verdictStyle } from './ui/riskStyles.js';
 
 /*
  * DfbPortfolio.jsx — the DFB READ-ONLY portfolio risk lens (Lane-C / WS-2.4).
@@ -46,12 +46,13 @@ function usd(x) {
 }
 function pct(x) { const n = num(x); return n == null ? '—' : n.toFixed(1) + '%'; }
 
+// One badge geometry, shared across all DFB islands (matches ui/Badge.astro §3.4).
 function Badge({ style, children, title }) {
   return (
     <span title={title} style={{
-      display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px',
-      borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600,
-      background: style.bg, border: '1px solid ' + style.bd, color: style.fg, whiteSpace: 'nowrap',
+      display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px',
+      borderRadius: 'var(--r-full)', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 500,
+      lineHeight: 1, background: style.bg, border: '1px solid ' + style.bd, color: style.fg, whiteSpace: 'nowrap',
     }}>{children}</span>
   );
 }
@@ -152,10 +153,11 @@ export default function DfbPortfolio() {
 
       {/* ── inputs ── */}
       <div style={{ borderRadius: 12, padding: 20, background: 'var(--bg-surface)', border: '1px solid var(--border)', marginBottom: 24 }}>
-        <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-faint)', marginBottom: 6 }}>
+        <label htmlFor="dfb-pf-address" style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
           {T('Read-only address', 'Read-only адрес')}
         </label>
         <input
+          id="dfb-pf-address"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
           placeholder="0x… / name.eth"
@@ -163,13 +165,14 @@ export default function DfbPortfolio() {
           style={{ width: '100%', padding: '10px 12px', borderRadius: 8, fontFamily: 'var(--font-mono)', fontSize: 14, background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-primary)', marginBottom: 16 }}
         />
 
-        <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-faint)', marginBottom: 6 }}>
+        <span id="dfb-pf-holdings-label" style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
           {T('Declared holdings (pool + value USD)', 'Объявленные позиции (пул + сумма USD)')}
-        </label>
+        </span>
         {rows.map((r, i) => (
-          <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+          <div key={i} role="group" aria-labelledby="dfb-pf-holdings-label" style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
             <input
               list="dfb-pool-ids"
+              aria-label={T('Pool id for holding ' + (i + 1), 'pool_id позиции ' + (i + 1))}
               value={r.pool_id}
               onChange={(e) => setRow(i, 'pool_id', e.target.value)}
               placeholder={T('pool_id', 'pool_id')}
@@ -178,12 +181,13 @@ export default function DfbPortfolio() {
             />
             <input
               type="number" min="0" step="any"
+              aria-label={T('Value in USD for holding ' + (i + 1), 'сумма USD позиции ' + (i + 1))}
               value={r.value_usd}
               onChange={(e) => setRow(i, 'value_usd', e.target.value)}
               placeholder={T('value USD', 'сумма USD')}
               style={{ flex: '1 1 130px', padding: '8px 10px', borderRadius: 8, fontFamily: 'var(--font-mono)', fontSize: 13, background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
             />
-            <button onClick={() => delRow(i)} title={T('remove', 'удалить')}
+            <button onClick={() => delRow(i)} title={T('remove', 'удалить')} aria-label={T('Remove holding ' + (i + 1), 'Удалить позицию ' + (i + 1))}
               style={{ padding: '8px 12px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
           </div>
         ))}
@@ -195,7 +199,7 @@ export default function DfbPortfolio() {
             + {T('add holding', 'добавить позицию')}
           </button>
           <button onClick={run} disabled={!address.trim()}
-            style={{ padding: '8px 18px', borderRadius: 8, background: 'var(--accent)', border: '1px solid var(--accent)', color: '#0b0d12', cursor: address.trim() ? 'pointer' : 'not-allowed', fontWeight: 600, fontSize: 13, opacity: address.trim() ? 1 : 0.5 }}>
+            style={{ padding: '8px 18px', borderRadius: 8, background: 'var(--accent)', border: '1px solid var(--accent)', color: '#fff', cursor: address.trim() ? 'pointer' : 'not-allowed', fontWeight: 600, fontSize: 13, opacity: address.trim() ? 1 : 0.5 }}>
             {T('Grade my portfolio', 'Оценить портфель')}
           </button>
         </div>
@@ -203,13 +207,13 @@ export default function DfbPortfolio() {
 
       {/* ── status ── */}
       {state === 'loading' && <p style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>{T('Grading…', 'Оцениваю…')}</p>}
-      {state === 'offline' && <p style={{ color: 'var(--danger, #F26D6D)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>{T('API unavailable — no fabricated portfolio shown (fail-closed).', 'API недоступно — выдуманный портфель не показан (fail-closed).')}</p>}
+      {state === 'offline' && <p style={{ color: 'var(--danger)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>{T('API unavailable — no fabricated portfolio shown (fail-closed).', 'API недоступно — выдуманный портфель не показан (fail-closed).')}</p>}
 
       {/* ── results ── */}
       {state === 'live' && view && (
         <div>
           {view.address_validated === false && (
-            <p style={{ color: 'var(--danger, #F26D6D)', fontFamily: 'var(--font-mono)', fontSize: 13, marginBottom: 16 }}>
+            <p style={{ color: 'var(--danger)', fontFamily: 'var(--font-mono)', fontSize: 13, marginBottom: 16 }}>
               {T('Address did not validate as a read-only address label.', 'Адрес не прошёл проверку как read-only метка.')}
             </p>
           )}
@@ -221,9 +225,9 @@ export default function DfbPortfolio() {
                 {T('Portfolio risk summary', 'Сводка риска портфеля')}
               </p>
               <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 14 }}>
-                <div><div style={{ fontSize: 12, color: 'var(--text-faint)' }}>{T('Total declared', 'Всего объявлено')}</div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{usd(summary.total_value_usd)}</div></div>
-                <div><div style={{ fontSize: 12, color: 'var(--text-faint)' }}>{T('Positions', 'Позиций')}</div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{summary.n_positions}</div></div>
-                <div><div style={{ fontSize: 12, color: 'var(--text-faint)' }}>{T('In REFUSE-grade', 'В REFUSE-классе')}</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-mono)', color: summary.has_refuse_grade_holdings ? '#F26D6D' : 'var(--text-primary)' }}>{pct(summary.pct_in_refuse_grade)}</div></div>
+                <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{T('Total declared', 'Всего объявлено')}</div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{usd(summary.total_value_usd)}</div></div>
+                <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{T('Positions', 'Позиций')}</div><div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{summary.n_positions}</div></div>
+                <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{T('In REFUSE-grade', 'В REFUSE-классе')}</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-mono)', color: summary.has_refuse_grade_holdings ? 'var(--danger)' : 'var(--text-primary)' }}>{pct(summary.pct_in_refuse_grade)}</div></div>
               </div>
 
               {/* class breakdown */}
@@ -241,9 +245,9 @@ export default function DfbPortfolio() {
 
               {/* the loud flag */}
               {summary.has_refuse_grade_holdings && (
-                <div style={{ borderRadius: 8, padding: 12, background: 'rgba(242,109,109,.10)', border: '1px solid rgba(242,109,109,.35)' }}>
-                  <p style={{ color: '#F26D6D', fontWeight: 600, fontSize: 13, marginBottom: 6 }}>
-                    ⚠ {T('The desk would REFUSE', 'Стол бы ОТКАЗАЛ')} {summary.n_refuse_grade_holdings} {T('of your holdings', 'из ваших позиций')} ({usd(summary.value_in_refuse_grade_usd)})
+                <div style={{ borderRadius: 8, padding: 12, background: 'var(--danger-bg)', border: '1px solid var(--danger-border)' }}>
+                  <p style={{ color: 'var(--danger)', fontWeight: 600, fontSize: 13, marginBottom: 6 }}>
+                    <span aria-hidden="true">▲</span> {T('The desk would REFUSE', 'Стол бы ОТКАЗАЛ')} {summary.n_refuse_grade_holdings} {T('of your holdings', 'из ваших позиций')} ({usd(summary.value_in_refuse_grade_usd)})
                   </p>
                   <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--text-secondary)', fontSize: 12.5, lineHeight: 1.6 }}>
                     {summary.refuse_grade_holdings.map((h) => (
@@ -263,11 +267,11 @@ export default function DfbPortfolio() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: 'var(--bg-surface)', textAlign: 'left' }}>
-                    <th style={{ padding: '10px 12px', color: 'var(--text-faint)', fontWeight: 600 }}>{T('Pool', 'Пул')}</th>
-                    <th style={{ padding: '10px 12px', color: 'var(--text-faint)', fontWeight: 600 }}>{T('Value', 'Сумма')}</th>
-                    <th style={{ padding: '10px 12px', color: 'var(--text-faint)', fontWeight: 600 }}>{T('Class', 'Класс')}</th>
-                    <th style={{ padding: '10px 12px', color: 'var(--text-faint)', fontWeight: 600 }}>{T('Verdict', 'Вердикт')}</th>
-                    <th style={{ padding: '10px 12px', color: 'var(--text-faint)', fontWeight: 600 }}>{T('Exit @ $1M', 'Выход @ $1M')}</th>
+                    <th style={{ padding: '10px 12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600 }}>{T('Pool', 'Пул')}</th>
+                    <th style={{ padding: '10px 12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600 }}>{T('Value', 'Сумма')}</th>
+                    <th style={{ padding: '10px 12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600 }}>{T('Class', 'Класс')}</th>
+                    <th style={{ padding: '10px 12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600 }}>{T('Verdict', 'Вердикт')}</th>
+                    <th style={{ padding: '10px 12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 600 }}>{T('Exit @ $1M', 'Выход @ $1M')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -286,7 +290,7 @@ export default function DfbPortfolio() {
                         <td style={{ padding: '10px 12px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{usd(p.value_usd)}</td>
                         <td style={{ padding: '10px 12px' }}><Badge style={cs} title={p.risk_class_label}>{p.risk_class}</Badge></td>
                         <td style={{ padding: '10px 12px' }}><Badge style={vs} title={p.refusal_reason}>{p.refusal_verdict}{p.tail_veto ? ' · tail-veto' : ''}</Badge></td>
-                        <td style={{ padding: '10px 12px', fontFamily: 'var(--font-mono)', color: (t1 && (t1.flagged || !Number.isFinite(Number(t1.absorbable_usd)))) ? '#F2B53C' : 'var(--text-secondary)' }}>{exitCell}</td>
+                        <td style={{ padding: '10px 12px', fontFamily: 'var(--font-mono)', color: (t1 && (t1.flagged || !Number.isFinite(Number(t1.absorbable_usd)))) ? 'var(--warn)' : 'var(--text-secondary)' }}>{exitCell}</td>
                       </tr>
                     );
                   })}

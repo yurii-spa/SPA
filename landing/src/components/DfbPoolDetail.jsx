@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import AnimatedChart from './academy/AnimatedChart.jsx';
-import { classStyle, verdictStyle } from './DfbScreener.jsx';
+import { classStyle, verdictStyle } from './ui/riskStyles.js';
+import { LiveChip } from './DfbScreener.jsx';
 
 /*
  * DfbPoolDetail.jsx — DFB pool detail (Lane-3 / WS-1.4).
@@ -45,12 +46,13 @@ function usd(x) {
 function pct(x) { const n = num(x); return n == null ? '—' : n.toFixed(2) + '%'; }
 function fracPct(x) { const n = num(x); return n == null ? '—' : (n * 100).toFixed(1) + '%'; }
 
+// One badge geometry, shared across all DFB islands (matches ui/Badge.astro §3.4).
 function Badge({ style, children, title }) {
   return (
     <span title={title} style={{
-      display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px',
-      borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600,
-      background: style.bg, border: '1px solid ' + style.bd, color: style.fg, whiteSpace: 'nowrap',
+      display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px',
+      borderRadius: 'var(--r-full)', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 500,
+      lineHeight: 1, background: style.bg, border: '1px solid ' + style.bd, color: style.fg, whiteSpace: 'nowrap',
     }}>{children}</span>
   );
 }
@@ -159,16 +161,14 @@ export default function DfbPoolDetail() {
     <div>
       {/* live chip */}
       <div style={{ marginBottom: 14 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: 'var(--font-mono)', fontSize: 12, padding: '4px 10px', borderRadius: 999, background: 'rgba(52,211,153,.10)', border: '1px solid rgba(52,211,153,.30)', color: '#34D399' }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34D399', animation: 'pulse 3s ease-in-out infinite' }} />
-          {T('Live from api.earn-defi.com', 'Вживую с api.earn-defi.com')}{pool.as_of ? ' · ' + pool.as_of : ''}
-        </span>
+        <LiveChip state="live" label={T('Live from api.earn-defi.com', 'Вживую с api.earn-defi.com') + (pool.as_of ? ' · ' + pool.as_of : '')} />
       </div>
 
-      {/* header: protocol/asset/chain + risk class + verdict */}
+      {/* pool identity block (the page-level h1 lives in the shell's PageHeader; this is the
+          pool-specific sub-identity as an h2 so headings stay in order) + risk class + verdict */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 8 }}>
         <div>
-          <h1 style={{ fontSize: 32, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.1, margin: 0 }}>{pool.protocol || '?'}</h1>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.15, margin: 0 }}>{pool.protocol || '?'}</h2>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>
             {(pool.asset || '?')} · {(pool.chain || '?')}{pool.tier ? ' · ' + pool.tier : ''} · <span title={pool.pool_id}>{pool.pool_id}</span>
           </div>
@@ -183,7 +183,7 @@ export default function DfbPoolDetail() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 12, margin: '20px 0 28px' }}>
         <Tile lbl={T('APY total', 'APY всего')} v={pct(apy.total)} big />
         <Tile lbl={T('APY base', 'APY база')} v={pct(apy.base)} />
-        <Tile lbl={T('APY reward', 'APY награда')} v={pct(apy.reward)} fg={num(apy.reward) ? '#F2B53C' : undefined} />
+        <Tile lbl={T('APY reward', 'APY награда')} v={pct(apy.reward)} fg={num(apy.reward) ? 'var(--warn)' : undefined} />
         <Tile lbl={T('TVL', 'TVL')} v={usd(pool.tvl_usd)} />
       </div>
       {num(apy.reward) > 0 && (
@@ -216,7 +216,7 @@ export default function DfbPoolDetail() {
                 return (
                   <tr key={i} style={{ borderTop: '1px solid var(--border)', background: hole ? 'rgba(242,109,109,.04)' : 'transparent' }}>
                     <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-primary)' }}>{usd(r.ticket_usd)}</td>
-                    <td style={{ padding: '10px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: hole ? '#F26D6D' : 'var(--text-primary)' }}>
+                    <td style={{ padding: '10px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: hole ? 'var(--danger)' : 'var(--text-primary)' }}>
                       {hole ? (ru ? 'нет расчищающего выхода' : 'no clearing exit') : usd(r.absorbable_usd)}
                     </td>
                     <td style={{ padding: '10px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)' }}>{hole ? '—' : fracPct(r.dex_exit_frac)}</td>
@@ -242,7 +242,7 @@ export default function DfbPoolDetail() {
           <Tile lbl={T('Total haircut', 'Полный хейркат')} v={fracPct(pool.total_haircut)} />
           <Tile lbl={T('Tail-veto', 'Tail-veto')}
             v={pool.refusal && pool.refusal.tail_veto ? T('FIRED', 'СРАБОТАЛ') : T('not fired', 'не сработал')}
-            fg={pool.refusal && pool.refusal.tail_veto ? '#F26D6D' : '#34D399'} />
+            fg={pool.refusal && pool.refusal.tail_veto ? 'var(--danger)' : 'var(--ok)'} />
           <Tile lbl={T('Risk class', 'Класс риска')} v={pool.risk_class || '?'} fg={cs.fg} />
         </div>
         {pool.refusal && pool.refusal.reason && (
@@ -270,7 +270,7 @@ export default function DfbPoolDetail() {
             </div>
             {trend.refusal_state_changes.slice(-5).map((c, i) => (
               <div key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--text-secondary)', padding: '3px 0' }}>
-                {c.date}: {String(c.from_verdict || '?')}/{String(c.from_class || '?')} → <span style={{ color: String(c.to_verdict).toUpperCase() === 'REFUSE' ? '#F26D6D' : '#34D399' }}>{String(c.to_verdict || '?')}/{String(c.to_class || '?')}</span>
+                {c.date}: {String(c.from_verdict || '?')}/{String(c.from_class || '?')} → <span style={{ color: String(c.to_verdict).toUpperCase() === 'REFUSE' ? 'var(--danger)' : 'var(--ok)' }}>{String(c.to_verdict || '?')}/{String(c.to_class || '?')}</span>
               </div>
             ))}
           </div>
@@ -344,7 +344,7 @@ function Empty({ title, body }) {
 function Section({ title, sub, children }) {
   return (
     <section style={{ padding: '28px 0', borderTop: '1px solid var(--border)' }}>
-      <h2 style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>{title}</h2>
+      <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>{title}</h3>
       {sub && <p style={{ fontSize: 13.5, color: 'var(--text-muted)', margin: '8px 0 18px', maxWidth: 680, lineHeight: 1.55 }}>{sub}</p>}
       {children}
     </section>
@@ -365,7 +365,7 @@ function DeltaTile({ window, d, ru }) {
   const apyDelta = ok ? num(d.apy_delta) : null;
   const tvlPct = ok ? num(d.tvl_pct_change) : null;
   const sign = (n) => (n == null ? '' : (n > 0 ? '+' : ''));
-  const col = (n) => (n == null ? 'var(--text-muted)' : (n > 0 ? '#34D399' : (n < 0 ? '#F26D6D' : 'var(--text-primary)')));
+  const col = (n) => (n == null ? 'var(--text-muted)' : (n > 0 ? 'var(--ok)' : (n < 0 ? 'var(--danger)' : 'var(--text-primary)')));
   return (
     <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)', marginBottom: 6 }}>

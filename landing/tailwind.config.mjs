@@ -48,10 +48,26 @@ export default {
           600: '#1f8479',
         },
         // Semantic — meaning only (never decoration / eyebrow)
+        // Canonical risk-color language (docs/SITE_DESIGN_SYSTEM_V2.md §3.3 — ONE map):
+        //   SAFE/ENTRY/PASS/live = ok(green) · WATCH/PENDING = warn(amber) ·
+        //   REFUSE/FAIL/kill/offline = danger(coral) · UNKNOWN = text-muted.
+        //   A/B/C/D risk tiers = data-teal / accent / warn / danger (severity ramp).
         ok: '#34D399',
         warn: '#F2B53C',
         danger: '#F26D6D',
         info: '#5B8DEF',
+        // Semantic tint/border tokens (V2 §3.3 — tokenize the ~20× rgba literals once).
+        // Consumed via bg-ok-bg / border-ok-border etc, or via the shared StatusPill.
+        'ok-bg': 'rgba(52,211,153,0.10)',
+        'ok-border': 'rgba(52,211,153,0.30)',
+        'warn-bg': 'rgba(242,181,60,0.10)',
+        'warn-border': 'rgba(242,181,60,0.30)',
+        'danger-bg': 'rgba(242,109,109,0.12)',
+        'danger-border': 'rgba(242,109,109,0.35)',
+        'accent-bg': 'rgba(91,141,239,0.10)',
+        'accent-border': 'rgba(91,141,239,0.30)',
+        'teal-bg': 'rgba(54,194,180,0.12)',
+        'teal-border': 'rgba(54,194,180,0.30)',
         // Legacy surface aliases mapped onto the unified scale
         surface: {
           900: '#0A0C10',

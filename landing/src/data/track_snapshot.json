@@ -2,14 +2,14 @@
   "generated_from": "data/golive_status.json + data/equity_curve_daily.json",
   "generator": "scripts/generate_track_snapshot.py",
   "note": "Build-time static fallback for /track-record + /due-diligence. Live values come from api.earn-defi.com and override these client-side; this is the last honest snapshot for offline. real_track_days = EVIDENCED bars only.",
-  "real_track_days": 9,
+  "real_track_days": 10,
   "go_live_target": "2026-07-21",
   "evidenced_anchor": "2026-06-22",
   "days_needed": 30,
   "gates_passed": 27,
   "gates_total": 29,
-  "end_equity": 100233.36,
-  "total_return_pct": 0.2334,
+  "end_equity": 100245.65,
+  "total_return_pct": 0.2456,
   "bars": [
     {
       "date": "2026-05-21",
@@ -1050,6 +1050,32 @@
       "accrual_source": "fallback",
       "continuity_repaired": true,
       "note": "base re-chained off true prior evidenced close (stale-restore incident); real daily_yield preserved"
+    },
+    {
+      "date": "2026-07-01",
+      "open_equity": 100233.36,
+      "close_equity": 100245.65,
+      "high_equity": 100245.65,
+      "low_equity": 100233.36,
+      "snapshots": 1,
+      "daily_return_pct": 0.012263,
+      "cumulative_return_pct": 0.245652,
+      "drawdown_pct": 0.0,
+      "equity": 100245.65,
+      "apy_today": 4.4761,
+      "daily_yield_usd": 12.2919,
+      "positions": {
+        "aave_v3": 23250.0,
+        "compound_v3": 15852.27,
+        "spark_susds": 13738.64,
+        "morpho_steakhouse": 10568.18,
+        "maple": 15852.27,
+        "euler_v2": 10568.18,
+        "yearn_v3": 3170.45
+      },
+      "source": "cycle",
+      "evidenced": true,
+      "accrual_source": "fallback"
     }
   ]
 }

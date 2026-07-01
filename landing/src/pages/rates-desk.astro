@@ -119,9 +119,12 @@ const STAGE_META = {
       <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
          data-ru="Четыре формы сделки">The four trade shapes</p>
       <p class="text-sm mb-6 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
-         data-ru="Стадия и net APY из снимка валидации промоушена (2026-06-26). Все рабочие формы обыгрывают RWA-пол ~3.4%. BasisHedge показан честно заблокированным.">
-        Stage and net APY from the promotion validation snapshot (2026-06-26). Every working shape
-        beats the ~{RWA_FLOOR_PCT}% RWA floor. BasisHedge is shown honestly blocked.
+         data-ru="Стадия и net APY — из бэктест-снимка промоушена (backtest / walk-forward), НЕ реализованный carry. Это цифры кандидата: в бэктесте рабочие формы обыгрывают RWA-пол ~3.4%. Живой paper-трек ещё короткий (~1 неделя) и пока НЕ обыгрывает пол — см. секцию ниже. BasisHedge показан честно заблокированным.">
+        Stage and net APY are from the promotion <strong style="color:var(--text-primary)">backtest</strong>
+        snapshot (backtest / walk-forward), <strong style="color:var(--text-primary)">not realized carry</strong>.
+        These are candidate figures: in the backtest the working shapes clear the ~{RWA_FLOOR_PCT}% RWA floor.
+        The live paper track is still short (~1 week) and does <strong style="color:var(--text-primary)">not</strong>
+        yet beat the floor — see the live section below. BasisHedge is shown honestly blocked.
       </p>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -141,10 +144,10 @@ const STAGE_META = {
                 <span class="text-2xl font-bold font-mono" style={blocked ? 'color:var(--text-muted)' : 'color:var(--ok)'}>
                   {blocked ? '—' : `${s.net_apy_pct.toFixed(2)}%`}
                 </span>
-                <span class="text-xs font-mono" style="color:var(--text-muted)" data-ru="net APY">net APY</span>
+                <span class="text-xs font-mono" style="color:var(--text-muted)" data-ru="net APY (бэктест)">net APY (backtest)</span>
                 {s.beats_floor && (
                   <span class="ml-auto text-[11px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-300"
-                        data-ru={`обыгрывает пол ${RWA_FLOOR_PCT}%`}>beats {RWA_FLOOR_PCT}% floor</span>
+                        data-ru={`обыгрывает пол ${RWA_FLOOR_PCT}% (бэктест)`}>beats {RWA_FLOOR_PCT}% floor (backtest)</span>
                 )}
               </div>
               <p class="text-xs leading-relaxed" style="color:var(--text-secondary)" data-ru={s.desc_ru}>{s.desc_en}</p>
@@ -163,8 +166,8 @@ const STAGE_META = {
            data-ru="Движок отказа сработал РАНО: токсичные ezETH / rsETH были завернуты ДО депег-событий (Aug-2024, Apr-2026), а не задним числом. Книга-выживших обыгрывает пол 3.4% через каждый стресс.">
           The refusal engine fired <strong style="color:var(--text-primary)">early</strong>: toxic
           ezETH / rsETH were vetoed <strong style="color:var(--text-primary)">before</strong> the
-          depeg events (Aug-2024, Apr-2026), not in hindsight. The survivor book beats the {RWA_FLOOR_PCT}%
-          floor through every stress.
+          depeg events (Aug-2024, Apr-2026), not in hindsight. In the backtest, the survivor book beats
+          the {RWA_FLOOR_PCT}% floor through every stress (backtest verdict — not the realized live track).
         </p>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
           <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
@@ -184,10 +187,12 @@ const STAGE_META = {
           <p class="text-xs uppercase tracking-wider font-mono mb-1.5" style="color:var(--accent-hover)"
              data-ru="Честная оговорка">Honest caveat</p>
           <p class="text-xs leading-relaxed" style="color:var(--text-secondary)"
-             data-ru="Deflated Sharpe вырождается для locked-кэрри (почти нулевая дисперсия по построению), поэтому GO НЕ опирается на Sharpe. GO опирается на «реализованный APY обыгрывает пол» — in-sample, out-of-sample И в стрессе. См. методологию.">
+             data-ru="Deflated Sharpe вырождается для locked-кэрри (почти нулевая дисперсия по построению), поэтому GO НЕ опирается на Sharpe. GO — это вердикт БЭКТЕСТА: «net APY обыгрывает пол» in-sample, out-of-sample и в стрессе. Это НЕ реализованный трек: живой paper-carry ещё накапливается (см. ниже) и пока не обыгрывает пол. См. методологию.">
             Deflated Sharpe is degenerate for locked carry (near-zero variance by construction), so the
-            GO does <strong style="color:var(--text-primary)">not</strong> rest on Sharpe. GO rests on
-            "realized APY beats floor" — in-sample, out-of-sample <em>and</em> through stress.
+            GO does <strong style="color:var(--text-primary)">not</strong> rest on Sharpe. The GO is a
+            <strong style="color:var(--text-primary)">backtest</strong> verdict — "net APY beats floor"
+            in-sample, out-of-sample <em>and</em> through stress. It is <strong style="color:var(--text-primary)">not</strong>
+            a realized track: the live paper carry is still accumulating (see below) and does not yet beat the floor.
           </p>
           <a href="/methodology" class="inline-block mt-3 text-xs font-mono hover:underline" style="color:var(--accent)"
              data-ru="Методология и определения гейта →">Methodology &amp; gate definitions →</a>

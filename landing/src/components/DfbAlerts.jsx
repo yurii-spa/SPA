@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { sevStyle } from './ui/riskStyles.js';
+import { LiveChip, FilterSelect, srOnly } from './DfbScreener.jsx';
 
 /*
  * DfbAlerts.jsx — THE DFB alert feed (Month-2 Lane-B / WS-2.3).
@@ -46,14 +48,8 @@ function writeWatchlist(list) {
   try { localStorage.setItem(WATCHLIST_KEY, JSON.stringify(Array.from(new Set(list)))); } catch (e) {}
 }
 
-// Severity color tokens (critical worst → medium). Verbatim from the API's severity bucket.
-const SEV_STYLE = {
-  critical: { bg: 'rgba(242,109,109,.14)', bd: 'rgba(242,109,109,.45)', fg: '#F26D6D', ru: 'критично' },
-  high:     { bg: 'rgba(242,150,60,.13)',  bd: 'rgba(242,150,60,.40)',  fg: '#F2963C', ru: 'высокая' },
-  medium:   { bg: 'rgba(242,181,60,.12)',  bd: 'rgba(242,181,60,.35)',  fg: '#F2B53C', ru: 'средняя' },
-};
-const SEV_FALLBACK = { bg: 'rgba(107,114,128,.12)', bd: 'rgba(107,114,128,.30)', fg: '#9aa3b2', ru: 'неизв.' };
-function sevStyle(s) { return SEV_STYLE[String(s || '').toLowerCase()] || SEV_FALLBACK; }
+// Severity colors come from the ONE canonical map (critical=danger, high/medium=warn,
+// unknown=muted) — no invented off-palette orange. Verbatim from the API's severity bucket.
 
 // Human alert-type labels (the API gives the machine type; we present it).
 const TYPE_LABEL = {
@@ -145,8 +141,8 @@ export default function DfbAlerts() {
 
   const tiles = [
     { lbl: T('Active alerts', 'Активных алертов'), v: String(alerts.length) },
-    { lbl: T('Refusal flips (killer)', 'Флипы в отказ (killer)'), v: String(nFlips), fg: '#F26D6D' },
-    { lbl: T('Watching', 'В наблюдении'), v: String(watchlist.length), fg: '#79A4F5' },
+    { lbl: T('Refusal flips (killer)', 'Флипы в отказ (killer)'), v: String(nFlips), fg: 'var(--danger)' },
+    { lbl: T('Watching', 'В наблюдении'), v: String(watchlist.length), fg: 'var(--accent-hover)' },
     { lbl: T('As of', 'На дату'), v: asOf || '—' },
   ];
 
@@ -154,19 +150,11 @@ export default function DfbAlerts() {
     <div>
       {/* state chip */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: 'var(--font-mono)', fontSize: 12,
-          padding: '4px 10px', borderRadius: 999,
-          background: state === 'live' ? 'rgba(52,211,153,.10)' : 'rgba(107,114,128,.10)',
-          border: '1px solid ' + (state === 'live' ? 'rgba(52,211,153,.30)' : 'var(--border)'),
-          color: state === 'live' ? '#34D399' : 'var(--text-muted)',
-        }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: state === 'live' ? '#34D399' : 'var(--text-muted)', animation: state === 'live' ? 'pulse 3s ease-in-out infinite' : 'none' }} />
-          {state === 'loading' ? T('Loading…', 'Загрузка…') : state === 'live' ? T('Live from api.earn-defi.com', 'Вживую с api.earn-defi.com') : T('API unavailable', 'API недоступно')}
-        </span>
+        <LiveChip state={state} label={state === 'loading' ? T('Loading…', 'Загрузка…') : state === 'live' ? T('Live from api.earn-defi.com', 'Вживую с api.earn-defi.com') : T('API unavailable', 'API недоступно')} />
       </div>
 
       {/* summary tiles */}
+      <h2 style={srOnly}>{T('Alert summary', 'Сводка алертов')}</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 12, marginBottom: 20 }}>
         {tiles.map((t, i) => (
           <div key={i} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
@@ -177,16 +165,19 @@ export default function DfbAlerts() {
       </div>
 
       {/* filters */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 16 }}>
+      <h2 style={srOnly}>{T('Filter the alerts', 'Фильтры алертов')}</h2>
+      <div role="group" aria-label={T('Filter the alerts', 'Фильтры алертов')} style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 16 }}>
         <FilterSelect label={T('Severity', 'Серьёзность')} value={fSev} onChange={setFSev}
           options={[['ALL', T('All', 'Все')], ['critical', T('Critical', 'Критич.')], ['high', T('High', 'Высокая')], ['medium', T('Medium', 'Средняя')]]} />
         <FilterSelect label={T('Type', 'Тип')} value={fType} onChange={setFType}
           options={[['ALL', T('All', 'Все')], ...types.map((t) => [t, typeLabel(t, ru)])]} />
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-          <input type="checkbox" checked={watchedOnly} onChange={(e) => setWatchedOnly(e.target.checked)} />
+          <input type="checkbox" checked={watchedOnly} onChange={(e) => setWatchedOnly(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
           {T('Watched only', 'Только наблюдаемые')}
         </label>
       </div>
+
+      <h2 style={srOnly}>{T('Alert feed', 'Лента алертов')}</h2>
 
       {/* feed */}
       {state === 'loading' && (
@@ -216,20 +207,6 @@ export default function DfbAlerts() {
   );
 }
 
-function FilterSelect({ label, value, onChange, options }) {
-  return (
-    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-      {label}
-      <select value={value} onChange={(e) => onChange(e.target.value)} style={{
-        background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8,
-        color: 'var(--text-secondary)', padding: '5px 8px', fontFamily: 'var(--font-mono)', fontSize: 12,
-      }}>
-        {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-      </select>
-    </label>
-  );
-}
-
 function AlertCard({ alert, ru, T, watched, onWatch }) {
   const ss = sevStyle(alert.severity);
   const isFlip = alert.type === 'REFUSAL_FLIP';
@@ -237,15 +214,15 @@ function AlertCard({ alert, ru, T, watched, onWatch }) {
   const sevWord = ru ? ss.ru : String(alert.severity || 'unknown');
   return (
     <div style={{
-      border: '1px solid ' + ss.bd, borderLeft: '4px solid ' + ss.fg, borderRadius: 12,
+      border: '1px solid ' + ss.bd, borderLeft: '4px solid ' + ss.fg, borderRadius: 'var(--r-lg)',
       background: isFlip ? ss.bg : 'var(--bg-surface)', padding: '14px 16px',
       display: 'flex', gap: 14, alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap',
     }}>
       <div style={{ minWidth: 0, flex: '1 1 320px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
           <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', borderRadius: 6,
-            fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700,
+            display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 'var(--r-full)',
+            fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600,
             background: ss.bg, border: '1px solid ' + ss.bd, color: ss.fg, textTransform: 'uppercase',
           }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: ss.fg }} />{sevWord}
@@ -254,7 +231,7 @@ function AlertCard({ alert, ru, T, watched, onWatch }) {
             {typeLabel(alert.type, ru)}
           </span>
           {alert.tail_veto && (
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#F26D6D', border: '1px solid rgba(242,109,109,.35)', borderRadius: 5, padding: '1px 5px' }}>tail-veto</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--danger)', border: '1px solid var(--danger-border)', borderRadius: 5, padding: '1px 5px' }}>tail-veto</span>
           )}
         </div>
         <a href={detailHref} style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 14 }}>
@@ -271,9 +248,9 @@ function AlertCard({ alert, ru, T, watched, onWatch }) {
         <button onClick={onWatch} title={watched ? T('Stop watching this pool', 'Перестать наблюдать') : T('Watch this pool', 'Наблюдать за пулом')}
           style={{
             cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 12, padding: '6px 10px', borderRadius: 8,
-            background: watched ? 'rgba(121,164,245,.14)' : 'var(--bg-base)',
-            border: '1px solid ' + (watched ? 'rgba(121,164,245,.40)' : 'var(--border)'),
-            color: watched ? '#79A4F5' : 'var(--text-muted)', whiteSpace: 'nowrap',
+            background: watched ? 'var(--accent-bg)' : 'var(--bg-surface-2)',
+            border: '1px solid ' + (watched ? 'var(--accent-border)' : 'var(--border)'),
+            color: watched ? 'var(--accent-hover)' : 'var(--text-muted)', whiteSpace: 'nowrap',
           }}>
           {watched ? (ru ? '★ наблюдаю' : '★ watching') : (ru ? '☆ наблюдать' : '☆ watch')}
         </button>
