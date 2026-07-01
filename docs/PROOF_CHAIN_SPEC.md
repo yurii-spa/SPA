@@ -146,10 +146,12 @@ def recompute_entry_hash(row: dict) -> str:
 A row is authentic iff `recompute_entry_hash(row) == row["entry_hash"]`.
 
 > **Worked example (real row, seq=111).** Running the recipe above on the row whose `seq == 111` in the
-> *current* published log (`underlying: "susds"`, `kind: "ENTRY"`,
-> `prev_hash: 38686a8a97b80d7995de8c048a54fdd76e515f92f712f6309e29692fd0c5a832`) yields
-> `ae49892550006e0dff2252d7d84da61230451e2e2e7380ce0b818b7e766556e8`, which equals that row's stored
-> `entry_hash`. (Confirmed in the test suite — see §7.)
+> *current* published log
+> (`prev_hash: 3b439d21aa04afcf8c5d7fd8222f6d8219f3b4667242832689a3afdbcc7b2ecd`) yields
+> `431e7a7608c6e449208d3e1ce8829acbee6c307f5d7c06d2822d20112d1c7366`, which equals that row's stored
+> `entry_hash`. (Confirmed in the test suite — see §7. This literal is auto-refreshed by
+> `scripts/refresh_published_proof.py` on each proof publish, since a ring-buffered mirror re-chains as it
+> grows — so if it ever drifts, recompute it yourself with the snippet below; the recipe is the source of truth.)
 >
 > **Derive-it-yourself (don't trust the literal above — recompute it):** the published log is a
 > ring-buffered mirror, so the row at any fixed `seq` changes as the chain grows; rather than trust a

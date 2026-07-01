@@ -132,6 +132,45 @@ def _refresh_breadth_surfaces(base_data: Path, summary: dict) -> None:
         summary["errors"].append(f"sleeve proof refresh failed: {exc}")
 
 
+def _refresh_spec_worked_example(gen_root: Path, rows: list, summary: dict) -> None:
+    """Keep PROOF_CHAIN_SPEC.md §3 worked-example (seq=111) literals current.
+
+    The published log is a ring-buffered mirror that RE-CHAINS as it grows, so the row at any
+    fixed seq changes its prev_hash/entry_hash on each rebase — a pinned literal drifts stale.
+    This rewrites the two hex literals in the seq=111 worked-example block from the CURRENT chain
+    so a skeptic following the spec literally always gets a MATCH. Scoped to the block, idempotent,
+    atomic, fail-soft (never aborts the refresh)."""
+    import re
+    try:
+        spec_path = Path(gen_root) / "docs" / "PROOF_CHAIN_SPEC.md"
+        if not spec_path.exists() or len(rows) <= 111:
+            return
+        row = rows[111] if rows[111].get("seq") == 111 else next(
+            (r for r in rows if r.get("seq") == 111), None)
+        if not row:
+            return
+        prev, entry = row.get("prev_hash"), row.get("entry_hash")
+        if not (isinstance(prev, str) and isinstance(entry, str) and len(prev) == 64 and len(entry) == 64):
+            return
+        text = spec_path.read_text(encoding="utf-8")
+        m = re.search(r"\*\*Worked example \(real row, seq=111\)\.\*\*[\s\S]{0,600}?which equals that row", text)
+        if not m:
+            return
+        block = m.group(0)
+        new_block = re.sub(r"prev_hash: [0-9a-f]{64}", f"prev_hash: {prev}", block)
+        new_block = re.sub(r"`[0-9a-f]{64}`",
+                           lambda mm: f"`{entry}`" if mm.group(0).strip("`") != prev else mm.group(0),
+                           new_block)
+        if new_block != block:
+            new_text = text.replace(block, new_block)
+            tmp = spec_path.with_suffix(".md.tmp")
+            tmp.write_text(new_text, encoding="utf-8")
+            os.replace(tmp, spec_path)
+            summary["spec_example_refreshed"] = True
+    except Exception as exc:  # noqa: BLE001 — the head-bearing bundle refresh must not abort on this
+        summary["errors"].append(f"spec worked-example refresh failed (non-critical): {exc}")
+
+
 def refresh(data_dir: Optional[Path] = None, dd_pack_path: Optional[Path] = None) -> dict:
     """Refresh the published bundle over the CURRENT decision-chain head and return a summary.
 
@@ -219,6 +258,10 @@ def refresh(data_dir: Optional[Path] = None, dd_pack_path: Optional[Path] = None
     #        so the LIVE artifacts are never touched. fail-soft: a missing producer input is a no-op
     #        (empty/absent chain), never an abort — the head-bearing rates-desk bundle still refreshes.
     _refresh_breadth_surfaces(base_data, summary)
+
+    # ── 4c. PROOF_CHAIN_SPEC.md §3 worked-example — keep the seq=111 literals current (self-heal
+    #        the drifting ring-buffer example so the "check us" doc never cites a stale hash). ──
+    _refresh_spec_worked_example(Path(gen_root), rows, summary)
 
     # ── 5. SELF-VERIFY (fail-CLOSED): the head now in DD_PACK must reproduce against live files ──
     ver = _load_script("verify_spa", "verify_spa.py")
