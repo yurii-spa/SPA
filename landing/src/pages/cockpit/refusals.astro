@@ -1,0 +1,146 @@
+---
+// /cockpit/refusals — the DESK COCKPIT S5 public refusal LEDGER (Cockpit PRD §4-S5).
+//
+// The signature differentiator, cockpit-grade: a fuller, filterable, stats-rich public
+// refusal LEDGER built on the RefusalFeed primitive + the unified /api/refusals endpoint
+// (merges rates-desk + DFB refusals, maps reasons to the contract enum, estimates
+// capital-protected). This is DISTINCT from the marketing /refusals page (kept intact) —
+// this one is the fuller cockpit ledger with filters (reason enum / engine / window) +
+// stats (refusal count, top-reasons breakdown, aggregate capital-protected est).
+//
+// The live surface is the <RefusalLog /> React island (client:only — it fetches live from
+// api.earn-defi.com + reads the localStorage lang; fail-CLOSED offline). It consumes the
+// Cockpit primitives (RefusalFeed + its verified proof badge, MetricStat, StaleGuard,
+// TimeToggle) — it does NOT touch spa_core/api or fork the primitives.
+//
+// Honesty contract (enforced by the primitives, surfaced here):
+//   - the verified proof badge is 3-STATE: verified→green / broken→red / absent→NEUTRAL,
+//     NEVER green on absent (the REAL hash-chain verdict, not fabricated).
+//   - capital-protected is an honest ESTIMATE (labelled "est"), never a claim.
+//   - no fabricated refusals; "0 refusals" / thin-data / offline are honest states.
+//   - the reason enum matches the API contract exactly.
+//
+// Public / shareable framing: this is PROOF of discipline — "here's everything we refused
+// and why — verify it yourself" — with the verify flow one click away.
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import RefusalLog from '../../components/cockpit/RefusalLog.jsx';
+---
+
+<Layout
+  title="Refusal Ledger — the cockpit refusal log | earn-defi.com"
+  description="The public refusal ledger: every opportunity the SPA desk REFUSED — venue, reason (enum), expected edge, fee drag, verdict — each row with a tamper-evident verified proof badge from the hash-chain. Filter by reason, engine, window. Refusal-rate, top reasons, and an honest capital-protected estimate. Refusal is the desk's edge: most 10–15% yield is risk-comp the desk refuses. Paper research, advisory, not live. Verify it yourself."
+  canonical="https://earn-defi.com/cockpit/refusals"
+>
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- ============================================================= a. WHAT IT IS -->
+    <section class="pt-20 pb-8">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full text-xs font-mono"
+           style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">
+        <span class="w-1.5 h-1.5 rounded-full" style="background:var(--accent)" aria-hidden="true"></span>
+        <span data-ru="Кокпит · Proof · paper · advisory · не live">Cockpit · Proof · paper · advisory · not live</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold mb-4 leading-tight" style="color:var(--text-primary)"
+          data-ru="Журнал отказов · что мы отклонили и почему">
+        Refusal ledger · what we declined, and why
+      </h1>
+      <p class="text-xl leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Полный, фильтруемый публичный журнал отказов: каждая возможность, от которой стол ОТКАЗАЛСЯ — площадка, причина (enum), ожидаемый edge, fee-drag, вердикт — каждая строка с tamper-evident значком доказательства из hash-цепочки. Отказ — это и есть ров. Мы публикуем то, от чего отказываемся, а не только то, чем торгуем.">
+        The full, filterable public refusal ledger: every opportunity the desk
+        <strong style="color:var(--text-primary)">declined</strong> — venue, reason, expected
+        edge, fee drag, verdict — each row carrying a tamper-evident
+        <strong style="color:var(--text-primary)">verified</strong> proof badge from the
+        hash-chain. Refusal is the moat. We publish what we refuse, not just what we trade.
+      </p>
+
+      <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+             data-ru="Почему это редкость">Why this is rare</p>
+          <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Все публикуют свои победы. Почти никто не публикует, от чего отказался. Большая часть доходности 10–15% — компенсация за хвостовой риск, от которой стол ОТКАЗЫВАЕТСЯ. Журнал отказов — это и есть артефакт доверия.">
+            Everyone publishes their wins. Almost nobody publishes what they declined. Most
+            10–15% yield is <strong style="color:var(--text-primary)">risk-compensation the desk
+            refuses</strong>, not mispriced carry. The refusal ledger is the credibility artifact.
+          </p>
+        </div>
+        <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+             data-ru="Как читать">How to read it</p>
+          <p class="text-sm leading-relaxed" style="color:var(--text-secondary)"
+             data-ru="Каждая строка — вердикт гейта (ОТКАЗ) с причиной из enum, ожидаемым edge и fee-drag. Значок цепочки 3-состоянийный: подтверждено→зелёный / нарушено→красный / отсутствует→нейтральный (никогда не зелёный при отсутствии). «Защищённый капитал» — честная оценка (est), не заявление.">
+            Each row is a gate verdict (REFUSE) with its enum reason, expected edge and fee drag.
+            The chain badge is 3-state: verified→green / broken→red / absent→neutral (never green
+            on absent). "Capital protected" is an honest estimate (est), not a claim.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= b. THE LIVE LEDGER (island) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-6">
+        <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
+           data-ru="Живой журнал · /api/refusals">The live ledger · /api/refusals</p>
+        <a href="/verify" class="text-[11px] font-mono inline-flex items-center gap-1.5" style="color:var(--accent-hover)"
+           data-ru="Проверить самому ↗">Verify it yourself ↗</a>
+      </div>
+
+      <!-- client:only — the island fetches live + reads the lang; nothing is server-rendered
+           (so the offline / fail-closed state is honest, not a stale SSR snapshot). -->
+      <RefusalLog client:only="react" />
+    </section>
+
+    <!-- ============================================================= c. VERIFY IT YOURSELF -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+         data-ru="Проверьте сами">Verify it yourself</p>
+      <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
+        <p class="text-sm leading-relaxed mb-4" style="color:var(--text-secondary)"
+           data-ru="Не верьте нам — проверьте нас. Один автономный верификатор без зависимостей пересчитывает каждый хеш решения на чистой машине БЕЗ нашего кода и сообщает точный broken_at, если хоть один байт истории изменён задним числом. Значок «подтверждено» выше отражает именно этот пересчёт.">
+          Don't trust us — check us. One zero-dependency standalone verifier re-derives every
+          decision hash on a clean machine with <strong style="color:var(--text-primary)">none of
+          our code</strong> and reports the exact <span class="font-mono">broken_at</span> if a
+          single byte of history was altered. The "verified" badge above reflects that recompute.
+        </p>
+        <div class="rounded-lg p-4 overflow-x-auto" style="background:var(--bg-base);border:1px solid var(--border)">
+          <p class="text-[11px] uppercase tracking-wider font-mono mb-2" style="color:var(--text-faint)"
+             data-ru="Команда">Command</p>
+          <code class="text-xs sm:text-sm font-mono break-all" style="color:var(--data-teal)">python3 verify_spa.py decision_log.jsonl</code>
+        </div>
+        <p class="text-[11px] leading-relaxed mt-4" style="color:var(--text-faint)"
+           data-ru="Спецификация цепочки: docs/PROOF_CHAIN_SPEC.md · верификатор: scripts/verify_spa.py. Цепочка только дописывается — каждая запись хеширует предыдущую голову, поэтому подмена любого прошлого решения ломает связь.">
+          Chain spec: <span class="font-mono">docs/PROOF_CHAIN_SPEC.md</span> · verifier:
+          <span class="font-mono">scripts/verify_spa.py</span>. The chain is append-only — each
+          entry hashes the prior head, so flipping any past decision breaks the link.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============================================================= d. CROSS-LINKS -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-4" style="color:var(--text-muted)" data-ru="Дальше">Go deeper</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <a href="/cockpit" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Desk Cockpit">Desk Cockpit</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="Живой командный центр стола">The desk's live command center</p>
+        </a>
+        <a href="/verify" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Проверить нас">Verify us</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="Не верьте — проверьте">Don't trust us — check us</p>
+        </a>
+        <a href="/rates-desk" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Rates Desk">Rates Desk</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="Движок, который их генерирует">The engine that generates them</p>
+        </a>
+      </div>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+</Layout>

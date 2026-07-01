@@ -1,0 +1,35 @@
+---
+// /cockpit — the DESK COCKPIT home (Sprint 1 / S1). A NEW page, distinct from /dashboard.
+//
+// This is the risk-desk's HOME cockpit screen: it answers the 5 questions in 5 seconds —
+// what happened / where's the money / how much risk / what the system did AND refused /
+// what regime. The HERO is Attribution + Safety, NOT a big P&L number (the risk-desk
+// signature). Idle («capital parked») is rendered as a POSITIVE state, not an empty error.
+//
+// It renders inside the canonical <Layout> (SiteHeader + PaperStrip + SiteFooter + Console
+// tokens) so it is one site, not a separate app. The live surface is the <CockpitDashboard />
+// React island (client:load): every panel polls its OWN Sprint-0 endpoint on
+// api.earn-defi.com (~15s) and is wrapped in StaleGuard — a dead/stale endpoint is shown
+// EXPLICITLY (fail-closed), never as fresh, never fabricated. Bilingual (EN|RU).
+//
+// It reuses the Sprint-0 cockpit primitives library (components/cockpit/*) — it CONSUMES
+// them, never forks them. Deep-links each engine card → the S2 strategy view
+// (/cockpit/strategy?id=…), which the next sprint builds.
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+import CockpitDashboard from '../components/CockpitDashboard.jsx';
+---
+
+<Layout
+  title="Desk Cockpit — the home screen | earn-defi.com"
+  description="The Desk Cockpit: the 5 questions in 5 seconds — what happened, where the money is, how much risk, what the system did AND refused, what regime. The hero is attribution + safety, not a big P&L number. Live from api.earn-defi.com, fail-closed, paper / advisory. Not investment advice."
+  canonical="https://earn-defi.com/cockpit"
+>
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section class="pt-16 pb-8">
+      <CockpitDashboard client:load />
+    </section>
+  </main>
+
+  <Disclaimer />
+</Layout>
