@@ -1,0 +1,51 @@
+---
+// /cockpit/position?id=<protocol_key>  (or ?strategy=<strategy_id>) — Desk Cockpit S6,
+// the Position / Trade lifecycle drill-down (one paper position, end to end).
+//
+// The site builds output:'static', so we CANNOT getStaticPaths the live paper book at
+// build time (the API may be offline; the book is dynamic). So this is a single static,
+// CLIENT-RENDERED page: the <CockpitPosition /> island reads the position key from
+// ?id=<protocol_key> (like /board/pool and /cockpit/strategy?id=), and consumes the live
+// paper book from api.earn-defi.com (/api/live/portfolio + /api/trades + /api/positions).
+// S2 (/cockpit/strategy) deep-links here.
+//
+// HONEST FRAMING (load-bearing): SPA is a PAPER desk holding STABLECOIN LENDING positions
+// (aave / compound / morpho / spark / …), NOT delta-neutral spot-long/perp-short pairs. A
+// «position» here is therefore a paper LENDING position (protocol, asset, size, accrued
+// yield) — the island renders THAT honestly: the entry (the cycle rebalance that allocated
+// it), the accrued yield over time (the real per-day accrual series), the current size, and
+// — if it left the book — the exit rebalance + realized net. Where the delta-neutral leg
+// structure does NOT exist (it doesn't, for lending), the perp/spot-hedge fields render
+// UNKNOWN / n-a — a spot+perp pair the desk does not hold is NEVER fabricated. Thin paper
+// book → «lifecycle detail limited — paper lending position», not an invented trade story.
+//
+// Fails CLOSED: unknown id → honest «not found» (never fabricated); offline → «unavailable»;
+// idle / never-held → positive «capital parked» / honest empty. Canonical tokens, EN|RU.
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import CockpitPosition from '../../components/CockpitPosition.jsx';
+---
+
+<Layout
+  title="Position lifecycle — Desk Cockpit | earn-defi.com"
+  description="One paper position, its full lifecycle: the entry rationale (the cycle rebalance that allocated it), the legs (a paper STABLECOIN LENDING position — protocol, asset, size — NOT a delta-neutral spot/perp pair the desk does not hold), the accrued yield over time, the timeline of rebalances and funding accrual ticks, and — if it exited the book — the exit rationale and realized net. Honest paper-lending framing: where the delta-neutral leg structure does not exist it renders UNKNOWN / n-a, never a fabricated trade. Paper research, advisory, not live."
+  canonical="https://earn-defi.com/cockpit/position"
+>
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <section class="pt-6 pb-0">
+      <p class="text-xs font-mono mb-2">
+        <a href="/cockpit" style="color:var(--text-muted)" data-ru="← Desk cockpit">← Desk cockpit</a>
+        <span style="color:var(--text-faint)"> · </span>
+        <a href="/cockpit/strategy" style="color:var(--text-muted)" data-ru="Разбор стратегии">Strategy deep-dive</a>
+      </p>
+    </section>
+
+    <section class="pt-6 pb-16">
+      <CockpitPosition client:load />
+    </section>
+
+  </main>
+
+  <Disclaimer />
+</Layout>

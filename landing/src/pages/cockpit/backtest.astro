@@ -1,0 +1,56 @@
+---
+// /cockpit/backtest?strategy=<strategy_id> — Desk Cockpit S4, the Backtest / Test view.
+//
+// The desk's answer to "how did it do?" is NOT a single headline APY — it is the FULL history
+// with its drawdowns AND its gate behaviour. This screen exists to make the deterministic gates'
+// value VISIBLE: what the kills/refusals saved (the counterfactual), and to REFUSE to launder a
+// degenerate/mock backtest into a clean number.
+//
+// Static output ⇒ we cannot getStaticPaths the live strategy universe (API may be offline, sleeve
+// set is dynamic). So this is a single static page, CLIENT-RENDERED: the <CockpitBacktest /> island
+// reads ?strategy=<strategy_id> (like /board/pool and /cockpit/strategy) and consumes the backtest
+// endpoints live from api.earn-defi.com. The S2 «Open backtest» button deep-links here.
+//
+// §4-S4 contract:
+//   1. Config-summary   — period · assets · venues · fee-model · AUM-tier · which kills enabled.
+//   2. EquityChart      — in-sample vs OUT-OF-SAMPLE (explicitly separated, never blurred) + benchmark.
+//   3. Drawdown series.
+//   4. Markers          — trades + gate-triggers (where kills fired) + refusals, ON the curve.
+//   5. Summary table    — net APY, Sharpe, Sortino, max DD, win-rate, #kills, #refusals, avg hold, fee drag.
+//   6. Monte-Carlo      — return + drawdown distribution, p5/p95 (hand-rolled SVG histogram).
+//   7. Counterfactual   — «what the gates saved»: return/DD WITHOUT kill-conditions vs WITH.
+//
+// HONESTY (load-bearing): in-sample and out-of-sample are ALWAYS visually distinct (a mock/degenerate
+// backtest — degenerate Sharpe over the ceiling, synthetic data source — is FLAGGED, never shown as a
+// clean number). Fails CLOSED: absent/thin data → honest "unavailable"/UNKNOWN, never fabricated.
+// All PAPER / advisory. Consumes ONLY read-only endpoints; never touches spa_core/api or the primitives.
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import CockpitBacktest from '../../components/CockpitBacktest.jsx';
+---
+
+<Layout
+  title="Backtest / test — Desk Cockpit | earn-defi.com"
+  description="The backtest view: not a final APY number but the full history with drawdowns and gate behaviour. In-sample vs out-of-sample equity (explicitly separated — never blurred) against the RWA-floor benchmark, the drawdown series, trade / gate-trigger / refusal markers on the curve, a summary table (net APY, Sharpe, Sortino, max drawdown, win-rate, kills, refusals, avg hold, fee drag), the Monte-Carlo return + drawdown distribution (p5/p95), and the counterfactual — return and drawdown WITHOUT the kill-conditions vs WITH — which visually proves the value of the deterministic gates. A degenerate / mock backtest is FLAGGED, never laundered into a clean number. Paper research, advisory, fail-closed. Not investment advice."
+  canonical="https://earn-defi.com/cockpit/backtest"
+>
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <section class="pt-6 pb-0">
+      <p class="text-xs font-mono mb-2">
+        <a href="/cockpit" style="color:var(--text-muted)" data-ru="← Desk cockpit">← Desk cockpit</a>
+        <span style="color:var(--text-faint)"> · </span>
+        <a href="/cockpit/strategy" style="color:var(--text-muted)" data-ru="Разбор стратегии">Strategy deep-dive</a>
+        <span style="color:var(--text-faint)"> · </span>
+        <a href="/cockpit/refusals" style="color:var(--text-muted)" data-ru="Журнал отказов">Refusal ledger</a>
+      </p>
+    </section>
+
+    <section class="pt-6 pb-16">
+      <CockpitBacktest client:load />
+    </section>
+
+  </main>
+
+  <Disclaimer />
+</Layout>

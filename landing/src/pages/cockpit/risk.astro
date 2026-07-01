@@ -1,0 +1,50 @@
+---
+// /cockpit/risk — Desk Cockpit S7, the Risk / Liquidation-NAV screen (PRD §4-S7).
+//
+// SPA's stated differentiator: the dedicated risk screen. The site builds output:'static',
+// and the live surface may be offline, so this is a single static page CLIENT-RENDERED by the
+// <CockpitRisk /> island (client:load), which polls its read-only endpoints live from
+// api.earn-defi.com (mirrors /cockpit + /cockpit/strategy).
+//
+// The screen, per §4-S7:
+//   1. NAV · aggregate delta · per-venue margin health  → MetricStat's + RiskStrip.
+//      (~0-leverage paper desk → margin health honestly n/a, never fabricated.)
+//   2. LiqNavTierChart — the liquidation-NAV-by-size curve (THE differentiator): net
+//      proceeds / haircut / time-to-exit per ticket tier, flagged where depth is insufficient.
+//   3. Stress scenarios — 20% price gap + funding-flip, MODELLED from the exit-NAV ladder +
+//      the two-tier kill thresholds (labelled «modeled stress», inputs shown).
+//   4. Portfolio kill-conditions — the KillPanel of the two-tier kill (SOFT 5% / HARD 10%)
+//      + sharpe / red-flags / manual, with REAL headroom (UNKNOWN where THIN).
+//
+// The honest thesis, front-and-centre: a conservative paper / stablecoin-lending desk with
+// ~0 leverage → most «margin / liquidation» risk is genuinely LOW / n/a (the point, not a gap);
+// the real exit risk is the liquidation-NAV-by-size ladder. Fails CLOSED: stale shown
+// explicitly, a missing number is "—"/UNKNOWN, never fabricated. All PAPER / advisory.
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import CockpitRisk from '../../components/CockpitRisk.jsx';
+---
+
+<Layout
+  title="Risk & liquidation-NAV — Desk Cockpit | earn-defi.com"
+  description="The dedicated risk screen: NAV, aggregate delta and per-venue margin health (honestly n/a on a ~0-leverage paper desk), the liquidation-NAV-by-size curve (the real exit-liquidity risk — net proceeds, haircut and time-to-exit per ticket tier, flagged where on-chain depth is insufficient, never a fabricated fill), modeled stress scenarios (a 20% price gap and a funding flip, derived transparently from the exit-NAV ladder and the two-tier kill thresholds), and the portfolio kill-conditions (SOFT 5% de-risk / HARD 10% all-cash, plus sharpe / red-flags / manual, with real headroom). Conservative desk = low leverage risk by design; fail-closed, live from api.earn-defi.com. Paper research, advisory, not investment advice."
+  canonical="https://earn-defi.com/cockpit/risk"
+>
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <section class="pt-6 pb-0">
+      <p class="text-xs font-mono mb-2">
+        <a href="/cockpit" style="color:var(--text-muted)" data-ru="← Desk cockpit">← Desk cockpit</a>
+        <span style="color:var(--text-faint)"> · </span>
+        <a href="/cockpit/refusals" style="color:var(--text-muted)" data-ru="Журнал отказов">Refusal ledger</a>
+      </p>
+    </section>
+
+    <section class="pt-6 pb-16">
+      <CockpitRisk client:load />
+    </section>
+
+  </main>
+
+  <Disclaimer />
+</Layout>
