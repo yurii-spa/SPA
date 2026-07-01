@@ -242,11 +242,11 @@ import Disclaimer from '../components/Disclaimer.astro';
         var ttx = (r.time_to_exit_days == null) ? '—' : (r.time_to_exit_days + (ru ? ' дн.' : 'd'));
         var ph = r.proof_hash ? String(r.proof_hash) : '';
         var phShort = ph ? '#' + ph.slice(0, 10) : '—';
-        var rowCls = hole ? 'bg-red-500/[0.04]' : '';
+        var rowCls = hole ? 'bg-danger-bg' : '';
         return '<tr style="border-top:1px solid var(--border)" class="' + rowCls + '">' +
           '<td class="px-3 py-2.5 font-mono text-xs" style="color:var(--text-primary)">' + usd(r.ticket_usd != null ? r.ticket_usd : r.gross_usd) + '</td>' +
-          '<td class="px-3 py-2.5 font-mono text-xs text-right ' + (hole ? 'text-red-300' : '') + '" ' + (hole ? '' : 'style="color:var(--text-primary)"') + '>' + esc(proceeds) + '</td>' +
-          '<td class="px-3 py-2.5 font-mono text-xs text-right ' + (hole ? 'text-red-300' : '') + '" ' + (hole ? '' : 'style="color:var(--text-secondary)"') + '>' + hc + '</td>' +
+          '<td class="px-3 py-2.5 font-mono text-xs text-right ' + (hole ? 'text-danger' : '') + '" ' + (hole ? '' : 'style="color:var(--text-primary)"') + '>' + esc(proceeds) + '</td>' +
+          '<td class="px-3 py-2.5 font-mono text-xs text-right ' + (hole ? 'text-danger' : '') + '" ' + (hole ? '' : 'style="color:var(--text-secondary)"') + '>' + hc + '</td>' +
           '<td class="px-3 py-2.5 font-mono text-xs text-right" style="color:var(--text-secondary)">' + fracPct(r.price_impact_frac) + '</td>' +
           '<td class="px-3 py-2.5 font-mono text-xs text-right" style="color:var(--text-secondary)">' + ttx + '</td>' +
           '<td class="px-3 py-2.5 font-mono text-[11px] text-right" style="color:var(--text-faint)" title="' + esc(ph) + '">' + esc(phShort) + '</td>' +
@@ -274,7 +274,7 @@ import Disclaimer from '../components/Disclaimer.astro';
           '<div class="flex items-baseline gap-2 flex-wrap min-w-0">' +
             '<span class="text-sm font-semibold font-mono" style="color:var(--text-primary)">' + esc(m.underlying || '?') + '</span>' +
             (m.market_id ? '<span class="text-[11px] font-mono" style="color:var(--text-faint)" title="' + esc(m.market_id) + '">' + esc(String(m.market_id).slice(0, 10)) + '…</span>' : '') +
-            (flagged ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-mono bg-red-500/10 border-red-500/30 text-red-300">' +
+            (flagged ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-mono bg-danger-bg border-danger-border text-danger">' +
               (ru ? 'тонкий рынок' : 'thin market') + '</span>' : '') +
           '</div>' +
           '<span class="text-[11px] font-mono" style="color:var(--text-muted)">' +

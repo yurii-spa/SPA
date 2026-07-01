@@ -58,7 +58,7 @@ const sleeves = [
 const STAGE_META = {
   PAPER_CANDIDATE: {
     en: 'Paper candidate', ru: 'Кандидат в paper',
-    card: 'border-emerald-700/30', dot: 'bg-emerald-400', badge: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300',
+    card: 'border-ok-border', dot: 'bg-ok', badge: 'bg-ok-bg border-ok-border text-ok',
   },
   'BLOCKED-NO-HEDGE': {
     en: 'Blocked — no hedge', ru: 'Заблокировано — нет хеджа',
@@ -146,7 +146,7 @@ const STAGE_META = {
                 </span>
                 <span class="text-xs font-mono" style="color:var(--text-muted)" data-ru="net APY (бэктест)">net APY (backtest)</span>
                 {s.beats_floor && (
-                  <span class="ml-auto text-[11px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-300"
+                  <span class="ml-auto text-[11px] font-mono px-2 py-0.5 rounded-md bg-ok-bg border border-ok-border text-ok"
                         data-ru={`обыгрывает пол ${RWA_FLOOR_PCT}% (бэктест)`}>beats {RWA_FLOOR_PCT}% floor (backtest)</span>
                 )}
               </div>
@@ -180,7 +180,7 @@ const STAGE_META = {
           </div>
           <div class="rounded-lg p-4 bg-white/[0.02]" style="border:1px solid var(--border)">
             <p class="text-xs font-mono mb-1" style="color:var(--text-muted)" data-ru="Отказ сработал">Refusal fired</p>
-            <p class="text-sm font-semibold text-emerald-300" data-ru="до события, не задним числом">before the event</p>
+            <p class="text-sm font-semibold text-ok" data-ru="до события, не задним числом">before the event</p>
           </div>
         </div>
         <div class="rounded-lg p-4" style="background:var(--accent-bg);border:1px solid var(--accent-dim)">
@@ -522,8 +522,8 @@ const STAGE_META = {
         var ru = isRu();
         var refused = x.kind === 'REFUSAL' || x.approved === false;
         var meta = refused
-          ? { card: 'border-red-700/40', badge: 'bg-red-500/10 border-red-500/30 text-red-300', dot: 'bg-red-400', en: 'REFUSED', ru: 'ОТКАЗ' }
-          : { card: 'border-emerald-700/35', badge: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300', dot: 'bg-emerald-400', en: 'ENTERED', ru: 'ВХОД' };
+          ? { card: 'border-danger-border', badge: 'bg-danger-bg border-danger-border text-danger', dot: 'bg-danger', en: 'REFUSED', ru: 'ОТКАЗ' }
+          : { card: 'border-ok-border', badge: 'bg-ok-bg border-ok-border text-ok', dot: 'bg-ok', en: 'ENTERED', ru: 'ВХОД' };
         var dec = x.decomposition || {};
         var under = (dec.underlying || x.underlying || '?');
         var verdictLbl = ru ? meta.ru : meta.en;
@@ -553,7 +553,7 @@ const STAGE_META = {
         });
         var totalHc = num(dec.total_haircut);
         if (totalHc != null) {
-          chips += '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-mono bg-red-500/5 border-red-500/25 text-red-300">' +
+          chips += '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-mono bg-danger-bg border-danger-border text-danger">' +
             (ru ? 'итого хейркат ' : 'total haircut ') + (totalHc * 100).toFixed(2) + '%</span>';
         }
 
@@ -602,8 +602,8 @@ const STAGE_META = {
         var ru = isRu();
         var refused = x.kind === 'REFUSAL' || x.allowed === false;
         var meta = refused
-          ? { badge: 'bg-red-500/10 border-red-500/30 text-red-300', dot: 'bg-red-400', en: 'REFUSED', ru: 'ОТКАЗ' }
-          : { badge: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300', dot: 'bg-emerald-400', en: 'ENTERED', ru: 'ВХОД' };
+          ? { badge: 'bg-danger-bg border-danger-border text-danger', dot: 'bg-danger', en: 'REFUSED', ru: 'ОТКАЗ' }
+          : { badge: 'bg-ok-bg border-ok-border text-ok', dot: 'bg-ok', en: 'ENTERED', ru: 'ВХОД' };
         var reason = x.reason || (refused ? (ru ? 'отказ гейта' : 'gate refusal') : (ru ? 'оценённый кэрри' : 'priced carry'));
         var hc = num(x.haircut_total);
         var hcTxt = hc == null ? '—' : (hc * 100).toFixed(2) + '%';
@@ -616,7 +616,7 @@ const STAGE_META = {
             '</span></td>' +
           '<td class="px-4 py-3 font-mono" style="color:var(--text-primary)">' + esc(x.underlying || '?') + '</td>' +
           '<td class="px-4 py-3 text-xs" style="color:var(--text-secondary)">' + esc(reason) + '</td>' +
-          '<td class="px-4 py-3 font-mono text-right text-xs ' + (refused ? 'text-red-300' : '') + '" ' + (refused ? '' : 'style="color:var(--text-secondary)"') + '>' + hcTxt + '</td>' +
+          '<td class="px-4 py-3 font-mono text-right text-xs ' + (refused ? 'text-danger' : '') + '" ' + (refused ? '' : 'style="color:var(--text-secondary)"') + '>' + hcTxt + '</td>' +
           '<td class="px-4 py-3 font-mono text-right text-[11px]" style="color:var(--text-faint)" title="' + esc(ph) + '">' + esc(phShort) + '</td>' +
         '</tr>';
       }
@@ -631,12 +631,12 @@ const STAGE_META = {
         // 3-state: true→green, false→red, null/absent→NEUTRAL (never implies verified).
         badge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-mono';
         if (verified === true) {
-          badge.className += ' bg-emerald-500/10 border-emerald-500/30 text-emerald-300';
-          dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+          badge.className += ' bg-ok-bg border-ok-border text-ok';
+          dot.className = 'w-2 h-2 rounded-full bg-ok';
           txt.textContent = ru ? 'ПОДТВЕРЖДЕНО · цепочка цела' : 'VERIFIED · chain intact';
         } else if (verified === false) {
-          badge.className += ' bg-red-500/10 border-red-500/30 text-red-300';
-          dot.className = 'w-2 h-2 rounded-full bg-red-400';
+          badge.className += ' bg-danger-bg border-danger-border text-danger';
+          dot.className = 'w-2 h-2 rounded-full bg-danger';
           txt.textContent = ru ? 'НЕ ПОДТВЕРЖДЕНО · цепочка нарушена' : 'NOT VERIFIED · chain broken';
         } else {
           badge.className += ' border-[var(--border)] text-[var(--text-muted)]';
@@ -680,7 +680,7 @@ const STAGE_META = {
           '<td class="px-4 py-3 font-mono text-right" style="color:var(--text-primary)">' + pct(q.quoted_rate) + '</td>' +
           '<td class="px-4 py-3 font-mono text-right text-xs" style="color:var(--text-secondary)">' + usd(q.tvl_usd) + '</td>' +
           '<td class="px-4 py-3 font-mono text-right text-xs" style="color:var(--text-secondary)">' + usd(q.exit_liquidity_usd) + '</td>' +
-          '<td class="px-4 py-3 text-center text-xs font-mono ' + (hedge ? 'text-emerald-300' : '') + '" ' + (hedge ? '' : 'style="color:var(--text-muted)"') + '>' +
+          '<td class="px-4 py-3 text-center text-xs font-mono ' + (hedge ? 'text-ok' : '') + '" ' + (hedge ? '' : 'style="color:var(--text-muted)"') + '>' +
             (hedge ? (ru ? 'есть' : 'yes') : (ru ? 'нет' : 'no')) + '</td>' +
         '</tr>';
       }

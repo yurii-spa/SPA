@@ -66,7 +66,7 @@ const seats = [
     finding_ru: 'УБИТО. Адресуемая возможность по long-tail ликвидациям — ~$2–4M/год брутто (топ-20 ≈ $2.2M) — в 5–10× ниже планки $20M, которая оправдала бы постройку custody + CEX. Наивная оценка в $18M была артефактом кураторских хранилищ MetaMorpho (которые не ликвидируются).',
     cta_en: null, cta_ru: null,
     // red NO-GO
-    card: 'border-red-700/40', badge: 'bg-red-500/10 border-red-500/30 text-red-300', dot: 'bg-red-400', accent: '', arrow: '',
+    card: 'border-danger-border', badge: 'bg-danger-bg border-danger-border text-danger', dot: 'bg-danger', accent: '', arrow: '',
   },
 ];
 ---
@@ -241,7 +241,7 @@ const seats = [
         <div class="rounded-xl p-5 border bg-white/[0.02]" style="border-color:rgba(242,109,109,.35)">
           <div class="flex items-center justify-between gap-2 mb-1.5">
             <p class="text-sm font-bold" style="color:var(--text-primary)">BasisHedge</p>
-            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-red-500/10 border-red-500/30 text-red-300">BLOCKED-NO-HEDGE</span>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-danger-bg border-danger-border text-danger">BLOCKED-NO-HEDGE</span>
           </div>
           <p class="text-xs font-mono" style="color:var(--text-muted)"
              data-ru="нет keyless forward-funding (Boros) · ~4.99% — только бэктест-прокси, live заблокировано">no keyless forward-funding (Boros) · ~4.99% backtest-proxy only, live-blocked</p>
@@ -259,8 +259,8 @@ const seats = [
 
       <div class="rounded-2xl p-7 border" style="border-color:rgba(242,109,109,.35);background:rgba(242,109,109,.05)">
         <div class="flex items-center gap-2.5 mb-4">
-          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium border bg-red-500/10 border-red-500/30 text-red-300">
-            <span class="w-1.5 h-1.5 rounded-full bg-red-400" aria-hidden="true"></span>
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium border bg-danger-bg border-danger-border text-danger">
+            <span class="w-1.5 h-1.5 rounded-full bg-danger" aria-hidden="true"></span>
             <span data-ru="NO-GO">NO-GO</span>
           </span>
           <span class="text-sm font-bold" style="color:var(--text-primary)" data-ru="Тезис #3 — Кросс-доменный ликвидатор">Thesis #3 — Cross-Domain Liquidator</span>
@@ -462,8 +462,8 @@ const seats = [
       var STAGE_BADGE = {
         'PAPER_CANDIDATE': 'bg-teal-500/10 border-teal-500/30 text-teal-300',
         'BACKTEST_PASS':   'bg-indigo-500/10 border-indigo-500/30 text-indigo-300',
-        'REJECT':          'bg-red-500/10 border-red-500/30 text-red-300',
-        'BLOCKED-NO-HEDGE':'bg-red-500/10 border-red-500/30 text-red-300'
+        'REJECT':          'bg-danger-bg border-danger-border text-danger',
+        'BLOCKED-NO-HEDGE':'bg-danger-bg border-danger-border text-danger'
       };
       function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
         return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); }

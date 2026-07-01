@@ -35,19 +35,19 @@ import Layout from '../layouts/Layout.astro';
       <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Безопасность смарт-контрактов">Smart Contract Security</h2>
       <div class="space-y-4 text-sm text-white/55 leading-relaxed">
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p><strong class="text-white/80" data-ru="Фаза бумажной торговли:">Paper trading phase:</strong> <span data-ru="живые контракты не развёрнуты — нет поверхности атаки на смарт-контракты для реальных средств.">no live contracts deployed &mdash; no smart contract attack surface on live funds.</span></p>
         </div>
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p><strong class="text-white/80" data-ru="До запуска:">Pre-go-live:</strong> <span data-ru="внешний аудит запланирован до развёртывания любого live-контракта.">external audit planned before any live contract deployment.</span></p>
         </div>
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
-          <p><strong class="text-white/80" data-ru="Выбор протоколов:">Protocol selection:</strong> <span data-ru="только проаудированные, проверенные по TVL протоколы (см.">only audited, TVL-proven protocols (see</span> <a href="/due-diligence" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">/due-diligence</a> <span data-ru="для вайтлиста).">for whitelist).</span></p>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
+          <p><strong class="text-white/80" data-ru="Выбор протоколов:">Protocol selection:</strong> <span data-ru="только проаудированные, проверенные по TVL протоколы (см.">only audited, TVL-proven protocols (see</span> <a href="/due-diligence" class="text-ok hover:text-ok underline underline-offset-2">/due-diligence</a> <span data-ru="для вайтлиста).">for whitelist).</span></p>
         </div>
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p data-ru="Без интеграции экспериментальных или непроаудированных протоколов.">No experimental or unaudited protocol integration.</p>
         </div>
       </div>
@@ -98,19 +98,19 @@ import Layout from '../layouts/Layout.astro';
           <tbody class="text-white/55">
             <tr class="border-b border-border">
               <td class="p-3 text-white/70">DNSSEC</td>
-              <td class="p-3"><span class="text-green-400/70" data-ru="Включён">Enabled</span> <span data-ru="на earn-defi.com (Cloudflare)">on earn-defi.com (Cloudflare)</span></td>
+              <td class="p-3"><span class="text-ok" data-ru="Включён">Enabled</span> <span data-ru="на earn-defi.com (Cloudflare)">on earn-defi.com (Cloudflare)</span></td>
             </tr>
             <tr class="border-b border-border">
               <td class="p-3 text-white/70" data-ru="Прокси Cloudflare">Cloudflare Proxy</td>
-              <td class="p-3"><span class="text-green-400/70" data-ru="Активен">Active</span> <span data-ru="&mdash; защита от DDoS, WAF">&mdash; DDoS mitigation, WAF</span></td>
+              <td class="p-3"><span class="text-ok" data-ru="Активен">Active</span> <span data-ru="&mdash; защита от DDoS, WAF">&mdash; DDoS mitigation, WAF</span></td>
             </tr>
             <tr class="border-b border-border">
               <td class="p-3 text-white/70">HTTPS</td>
-              <td class="p-3"><span class="text-green-400/70" data-ru="Принудительно">Enforced</span> <span data-ru="&mdash; HTTP перенаправляется на HTTPS">&mdash; HTTP redirects to HTTPS</span></td>
+              <td class="p-3"><span class="text-ok" data-ru="Принудительно">Enforced</span> <span data-ru="&mdash; HTTP перенаправляется на HTTPS">&mdash; HTTP redirects to HTTPS</span></td>
             </tr>
             <tr class="border-b border-border">
               <td class="p-3 text-white/70">HSTS</td>
-              <td class="p-3"><span class="text-green-400/70" data-ru="Включён">Enabled</span> <span data-ru="через Cloudflare">via Cloudflare</span></td>
+              <td class="p-3"><span class="text-ok" data-ru="Включён">Enabled</span> <span data-ru="через Cloudflare">via Cloudflare</span></td>
             </tr>
             <tr class="border-b border-border">
               <td class="p-3 text-white/70">RegistryLock</td>
@@ -130,19 +130,19 @@ import Layout from '../layouts/Layout.astro';
       <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Управление зависимостями">Dependency Management</h2>
       <div class="space-y-4 text-sm text-white/55 leading-relaxed">
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p data-ru="Версии зависимостей зафиксированы в package-lock.json / package.json.">Dependencies pinned in package-lock.json / package.json.</p>
         </div>
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p data-ru="Без автоматического обновления зависимостей без проверки.">No auto-update of dependencies without review.</p>
         </div>
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p data-ru="Оповещения Dependabot отслеживаются (GitHub).">Dependabot alerts monitored (GitHub).</p>
         </div>
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p data-ru="В продакшене нет непроверенных обновлений зависимостей.">No unreviewed dependency upgrades in production.</p>
         </div>
       </div>
@@ -153,19 +153,19 @@ import Layout from '../layouts/Layout.astro';
       <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Процесс развёртывания">Deployment Process</h2>
       <div class="space-y-4 text-sm text-white/55 leading-relaxed">
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p data-ru="Все развёртывания через Cloudflare Pages из основной ветки main на GitHub.">All deployments via Cloudflare Pages from GitHub main branch.</p>
         </div>
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p data-ru="Без прямой загрузки файлов по FTP или вручную.">No direct FTP or manual file upload.</p>
         </div>
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p data-ru="Настройка веток: без прямого push в main без проверки (для командной работы уточняется).">Branch setup: no direct push to main without review (TBD for team setup).</p>
         </div>
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p data-ru="Логи сборки доступны в панели управления Cloudflare Pages.">Build logs visible on Cloudflare Pages dashboard.</p>
         </div>
       </div>
@@ -210,7 +210,7 @@ import Layout from '../layouts/Layout.astro';
           </div>
           <div class="flex gap-3">
             <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400/60 mt-2"></span>
-            <p><span data-ru="Всегда проверяйте адреса контрактов перед взаимодействием (см.">Always verify contract addresses before interacting (see</span> <a href="/emergency-withdrawal" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">/emergency-withdrawal</a><span data-ru=").">).</span></p>
+            <p><span data-ru="Всегда проверяйте адреса контрактов перед взаимодействием (см.">Always verify contract addresses before interacting (see</span> <a href="/emergency-withdrawal" class="text-ok hover:text-ok underline underline-offset-2">/emergency-withdrawal</a><span data-ru=").">).</span></p>
           </div>
           <div class="flex gap-3">
             <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400/60 mt-2"></span>
@@ -229,15 +229,15 @@ import Layout from '../layouts/Layout.astro';
       <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Симуляция транзакций (боевая фаза)">Transaction Simulation (Live Phase)</h2>
       <div class="space-y-4 text-sm text-white/55 leading-relaxed">
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p data-ru="Все транзакции симулируются перед исполнением (Tenderly или аналог).">All transactions simulated before execution (Tenderly or equivalent).</p>
         </div>
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p data-ru="Сбой симуляции → транзакция отменяется.">Simulation failure &rarr; transaction cancelled.</p>
         </div>
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p data-ru="Результаты симуляции логируются каждый цикл.">Simulation results logged per cycle.</p>
         </div>
       </div>
@@ -248,15 +248,15 @@ import Layout from '../layouts/Layout.astro';
       <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Гигиена одобрений токенов">Token Approval Hygiene</h2>
       <div class="space-y-4 text-sm text-white/55 leading-relaxed">
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p><strong class="text-white/80" data-ru="Боевая фаза:">Live phase:</strong> <span data-ru="одобряйте только минимально необходимую сумму.">approve only the minimum necessary amount.</span></p>
         </div>
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p data-ru="Отзывайте неиспользуемые одобрения через revoke.cash или Etherscan.">Revoke unused approvals via revoke.cash or Etherscan.</p>
         </div>
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p data-ru="Адаптеры SPA используют минимальный объём одобрений.">SPA adapters use minimal approval scope.</p>
         </div>
       </div>
@@ -274,7 +274,7 @@ import Layout from '../layouts/Layout.astro';
           </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-border-strong bg-bg-surface p-4">
-          <span class="text-xs font-mono text-red-400/60 bg-red-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">2</span>
+          <span class="text-xs font-mono text-danger bg-danger-bg px-2 py-0.5 rounded flex-shrink-0 mt-0.5">2</span>
           <div>
             <p class="text-sm text-white/70 font-medium" data-ru="Аварийное отключение">Kill Switch</p>
             <p class="text-xs text-white/40" data-ru="Активируется при срабатывании порога просадки">Activated if drawdown gate fires</p>
@@ -310,7 +310,7 @@ import Layout from '../layouts/Layout.astro';
         </div>
       </div>
       <p class="text-sm text-white/40 mt-6">
-        <span data-ru="Официальная коммуникация:">Official communication:</span> <a href="mailto:yuriycooleshov@gmail.com" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">yuriycooleshov@gmail.com</a> <span data-ru="| репозиторий GitHub">| GitHub repository</span>
+        <span data-ru="Официальная коммуникация:">Official communication:</span> <a href="mailto:yuriycooleshov@gmail.com" class="text-ok hover:text-ok underline underline-offset-2">yuriycooleshov@gmail.com</a> <span data-ru="| репозиторий GitHub">| GitHub repository</span>
       </p>
     </section>
 

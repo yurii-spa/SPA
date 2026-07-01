@@ -23,8 +23,8 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
 
     <!-- 1. Hero -->
     <section class="pt-20 pb-12">
-      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-800 text-xs text-green-400 font-medium">
-        <span class="w-1.5 h-1.5 rounded-full bg-green-400" aria-hidden="true"></span>
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-ok-bg border border-ok-border text-xs text-ok font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-ok" aria-hidden="true"></span>
         <span data-ru="Бумажный трек">Paper Tracked</span>
       </div>
       <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Стратегия Core">
@@ -171,7 +171,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {core.does_not.map((item: string, i: number) => (
           <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
-            <span class="text-red-400/70 flex-shrink-0">&#10005;</span>
+            <span class="text-danger flex-shrink-0">&#10005;</span>
             <span class="text-sm text-white/50" data-ru={core.does_not_ru?.[i]}>{item}</span>
           </div>
         ))}
@@ -231,8 +231,8 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
               <td class="px-5 py-3 text-white/40" data-ru="Де-риск: стоп новых входов и увеличения позиций, без ликвидации">De-risk: halt new entries &amp; increases, no liquidation</td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-red-400/80 font-mono" data-ru="Kill switch — HARD">Kill switch — HARD</td>
-              <td class="px-5 py-3 text-red-400 font-mono font-semibold" data-ru="&ge; 10% просадки от пика">&ge; 10% peak drawdown</td>
+              <td class="px-5 py-3 text-danger font-mono" data-ru="Kill switch — HARD">Kill switch — HARD</td>
+              <td class="px-5 py-3 text-danger font-mono font-semibold" data-ru="&ge; 10% просадки от пика">&ge; 10% peak drawdown</td>
               <td class="px-5 py-3 text-white/40" data-ru="Весь портфель переводится в кэш">Move whole portfolio to cash</td>
             </tr>
           </tbody>
@@ -269,7 +269,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
 
     <!-- 11. Strategy-Specific Risks -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-red-400/60 uppercase tracking-wider font-mono mb-4" data-ru="Риски, специфичные для стратегии">Strategy-Specific Risks</p>
+      <p class="text-xs text-danger uppercase tracking-wider font-mono mb-4" data-ru="Риски, специфичные для стратегии">Strategy-Specific Risks</p>
       <p class="text-sm text-white/40 mb-6 leading-relaxed" data-ru="Инвестирование в DeFi-протоколы несёт существенные риски. Эта стратегия не устраняет их — она управляет экспозицией в рамках заданных параметров.">
         Investing in DeFi protocols carries material risks. This strategy does not eliminate
         these risks — it manages exposure within defined parameters.
@@ -309,9 +309,9 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
     <!-- 12. Emergency Behavior -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Поведение в аварийной ситуации">Emergency Behavior</p>
-      <div class="rounded-xl border border-red-500/15 bg-red-500/5 p-6">
+      <div class="rounded-xl border border-danger-border bg-danger-bg p-6">
         <div class="flex items-start gap-4">
-          <div class="w-10 h-10 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
+          <div class="w-10 h-10 rounded-lg bg-danger-bg border border-danger-border flex items-center justify-center flex-shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#ef4444" stroke-width="1.5" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/>
             </svg>

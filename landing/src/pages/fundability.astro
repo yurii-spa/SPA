@@ -48,7 +48,7 @@ import Disclaimer from '../components/Disclaimer.astro';
       <!-- the three verdicts -->
       <div class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
-          <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-mono mb-2 bg-emerald-500/10 border-emerald-500/30 text-emerald-300">GO</span>
+          <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-mono mb-2 bg-ok-bg border-ok-border text-ok">GO</span>
           <p class="text-sm font-semibold mb-1" style="color:var(--text-primary)" data-ru="Rates Desk — carry с отказом-первым">Rates Desk — refusal-first carry</p>
           <p class="text-xs leading-relaxed" style="color:var(--text-muted)" data-ru="Валидирован, live-paper. Carry-нога реальна → fundable. Ограничен по ёмкости.">Validated, live-paper. Carry leg real -> fundable. Capacity-bound.</p>
         </div>
@@ -58,7 +58,7 @@ import Disclaimer from '../components/Disclaimer.astro';
           <p class="text-xs leading-relaxed" style="color:var(--text-muted)" data-ru="Измерение GO; андеррайтинг требует кастоди + права + капитал (вне кода).">Measurement GO; underwriting needs custody + legal + capital (off-code).</p>
         </div>
         <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
-          <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-mono mb-2 bg-red-500/10 border-red-500/30 text-red-300">NO-GO</span>
+          <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-mono mb-2 bg-danger-bg border-danger-border text-danger">NO-GO</span>
           <p class="text-sm font-semibold mb-1" style="color:var(--text-primary)" data-ru="Liquidator — опубликованный отказ">Liquidator — published kill</p>
           <p class="text-xs leading-relaxed" style="color:var(--text-muted)" data-ru="Адресуемый рынок в ~5–10x ниже планки fundability. Мы публикуем то, что закрыли.">Addressable market ~5-10x below the bar. We publish what we kill.</p>
         </div>
@@ -108,7 +108,7 @@ import Disclaimer from '../components/Disclaimer.astro';
         </div>
         <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
           <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)" data-ru="Отказов">Refusals</p>
-          <p class="text-2xl font-mono font-bold text-red-300" id="fb-refusals">—</p>
+          <p class="text-2xl font-mono font-bold text-danger" id="fb-refusals">—</p>
           <p class="text-xs mt-1" style="color:var(--text-faint)" data-ru="опубликованы с причиной">published with reason</p>
         </div>
         <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
@@ -272,8 +272,8 @@ import Disclaimer from '../components/Disclaimer.astro';
           var v = (typeof chain.verified === 'boolean') ? chain.verified : null;
           var el = document.getElementById('fb-verified');
           if (el) {
-            if (v === true) { el.textContent = isRu() ? 'ДА' : 'YES'; el.className = 'text-2xl font-mono font-bold text-emerald-300'; }
-            else if (v === false) { el.textContent = isRu() ? 'НЕТ' : 'NO'; el.className = 'text-2xl font-mono font-bold text-red-300'; }
+            if (v === true) { el.textContent = isRu() ? 'ДА' : 'YES'; el.className = 'text-2xl font-mono font-bold text-ok'; }
+            else if (v === false) { el.textContent = isRu() ? 'НЕТ' : 'NO'; el.className = 'text-2xl font-mono font-bold text-danger'; }
             else { el.textContent = '—'; el.className = 'text-2xl font-mono font-bold'; el.style.color = 'var(--text-muted)'; }
           }
           sawLive = true; setText('fb-src', 'live');

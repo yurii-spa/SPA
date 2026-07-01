@@ -98,12 +98,12 @@ import Disclaimer from '../components/Disclaimer.astro';
             <span id="rf-badge-text" data-ru="проверка цепочки…">verifying chain…</span>
           </span>
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[11px] font-mono bg-red-500/10 border-red-500/30 text-red-300">
-              <span class="w-1.5 h-1.5 rounded-full bg-red-400" aria-hidden="true"></span>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[11px] font-mono bg-danger-bg border-danger-border text-danger">
+              <span class="w-1.5 h-1.5 rounded-full bg-danger" aria-hidden="true"></span>
               <span id="rf-count-refusal">—</span>&nbsp;<span data-ru="отказов">refused</span>
             </span>
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[11px] font-mono bg-emerald-500/10 border-emerald-500/30 text-emerald-300">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400" aria-hidden="true"></span>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[11px] font-mono bg-ok-bg border-ok-border text-ok">
+              <span class="w-1.5 h-1.5 rounded-full bg-ok" aria-hidden="true"></span>
               <span id="rf-count-entry">—</span>&nbsp;<span data-ru="входов">entered</span>
             </span>
           </div>
@@ -231,13 +231,13 @@ import Disclaimer from '../components/Disclaimer.astro';
         badge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs font-mono';
         badge.style.background = '';
         if (verified === true) {
-          badge.className += ' bg-emerald-500/10 border-emerald-500/30 text-emerald-300';
-          dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+          badge.className += ' bg-ok-bg border-ok-border text-ok';
+          dot.className = 'w-2 h-2 rounded-full bg-ok';
           dot.style.background = '';
           txt.textContent = ru ? 'ПОДТВЕРЖДЕНО · цепочка цела' : 'VERIFIED · chain intact';
         } else if (verified === false) {
-          badge.className += ' bg-red-500/10 border-red-500/30 text-red-300';
-          dot.className = 'w-2 h-2 rounded-full bg-red-400';
+          badge.className += ' bg-danger-bg border-danger-border text-danger';
+          dot.className = 'w-2 h-2 rounded-full bg-danger';
           dot.style.background = '';
           txt.textContent = ru ? 'НЕ ПОДТВЕРЖДЕНО · цепочка нарушена' : 'NOT VERIFIED · chain broken';
         } else {
@@ -274,8 +274,8 @@ import Disclaimer from '../components/Disclaimer.astro';
         var ru = isRu();
         var refused = x.kind === 'REFUSAL';
         var meta = refused
-          ? { card: 'border-red-700/40', badge: 'bg-red-500/10 border-red-500/30 text-red-300', dot: 'bg-red-400', en: 'REFUSE', ru: 'ОТКАЗ' }
-          : { card: 'border-emerald-700/35', badge: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300', dot: 'bg-emerald-400', en: 'ENTRY', ru: 'ВХОД' };
+          ? { card: 'border-danger-border', badge: 'bg-danger-bg border-danger-border text-danger', dot: 'bg-danger', en: 'REFUSE', ru: 'ОТКАЗ' }
+          : { card: 'border-ok-border', badge: 'bg-ok-bg border-ok-border text-ok', dot: 'bg-ok', en: 'ENTRY', ru: 'ВХОД' };
         var verdictLbl = ru ? meta.ru : meta.en;
         var under = esc(x.underlying || '?');
         var headline = esc(x.headline || '');

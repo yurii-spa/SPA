@@ -34,19 +34,19 @@ import Layout from '../layouts/Layout.astro';
       <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Модель кастоди">Custody Model</h2>
       <div class="space-y-4 text-sm text-white/55 leading-relaxed">
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p><strong class="text-white/80" data-ru="Этап paper trading:">Paper trading phase:</strong> <span data-ru="реальный капитал не задействован. Виртуальный портфель $100,000 USDC.">no real capital involved. Virtual $100,000 USDC portfolio.</span></p>
         </div>
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p><strong class="text-white/80" data-ru="Live-этап (планируется):">Live phase (planned):</strong> <span data-ru="модель самокастоди. Пользователи сохраняют контроль над активами через мультисиг Gnosis Safe. SPA работает как авторизованный keeper с ограниченными правами исполнения.">self-custodial model. Users retain control of assets via Gnosis Safe multisig. SPA operates as an authorised keeper with limited execution rights.</span></p>
         </div>
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p data-ru="SPA не хранит средства пользователей у централизованного кастодиана.">SPA does not hold user funds in a centralised custodian.</p>
         </div>
         <div class="flex gap-3">
-          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+          <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
           <p><strong class="text-white/80" data-ru="Права keeper:">Keeper permissions:</strong> <span data-ru="ребалансировка только в пределах одобренного вайтлиста. Не может выводить средства на внешние адреса.">rebalance within approved whitelist only. Cannot withdraw to external addresses.</span></p>
         </div>
       </div>
@@ -162,15 +162,15 @@ import Layout from '../layouts/Layout.astro';
       <div class="rounded-xl border border-border-strong bg-bg-surface p-6">
         <div class="space-y-4 text-sm text-white/55 leading-relaxed">
           <div class="flex gap-3">
-            <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+            <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
             <p data-ru="Для просмотра стратегий или дашборда верификация личности не требуется.">No identity verification required to view strategies or dashboard.</p>
           </div>
           <div class="flex gap-3">
-            <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+            <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
             <p data-ru="Сейчас только paper — никаких депозитов. В любой будущей live-фазе процедуры верификации будут задокументированы здесь.">Currently paper-only — no deposits. In any future live phase, verification procedures will be documented here.</p>
           </div>
           <div class="flex gap-3">
-            <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-green-400/60 mt-2"></span>
+            <span class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-ok mt-2"></span>
             <p data-ru="Это paper-исследовательский проект. Никакими средствами не управляют. См. архитектуру выше для запланированных контролей live-фазы.">This is a paper research project. No funds are managed. See architecture above for planned live phase controls.</p>
           </div>
         </div>
@@ -227,30 +227,30 @@ import Layout from '../layouts/Layout.astro';
     <section class="mb-14">
       <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Живые мониторы">Live Monitors</h2>
       <div class="space-y-3">
-        <a href="/#live-stats" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-green-400/30 transition-colors group">
+        <a href="/#live-stats" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-ok-border transition-colors group">
           <div>
             <p class="text-sm text-white/80 group-hover:text-white">GoLiveChecker</p>
             <p class="text-xs text-white/40" data-ru="27/29 критериев сейчас пройдено (НЕ ГОТОВО)">27/29 criteria currently passing (NOT READY)</p>
           </div>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-green-400/60">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-ok">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
           </svg>
         </a>
-        <a href="/#live-stats" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-green-400/30 transition-colors group">
+        <a href="/#live-stats" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-ok-border transition-colors group">
           <div>
             <p class="text-sm text-white/80 group-hover:text-white" data-ru="Блокировки риска">Risk Blocks</p>
             <p class="text-xs text-white/40" data-ru="Все заблокированные ребалансировки залогированы">All blocked rebalances logged</p>
           </div>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-green-400/60">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-ok">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
           </svg>
         </a>
-        <a href="/#live-stats" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-green-400/30 transition-colors group">
+        <a href="/#live-stats" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-ok-border transition-colors group">
           <div>
             <p class="text-sm text-white/80 group-hover:text-white">Paper APY</p>
             <p class="text-xs text-white/40" data-ru="Отслеживается ежедневно с 22 июня 2026 (evidenced anchor)">Tracked daily since June 22, 2026 (evidenced anchor)</p>
           </div>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-green-400/60">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-ok">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
           </svg>
         </a>
@@ -261,7 +261,7 @@ import Layout from '../layouts/Layout.astro';
     <section class="mb-14">
       <h2 class="text-xl font-semibold text-white mb-4 pb-3 border-b border-border" data-ru="Контакты">Contact</h2>
       <p class="text-sm text-white/55 leading-relaxed">
-        <span data-ru="По запросам due diligence:">For due diligence inquiries:</span> <a href="mailto:yuriycooleshov@gmail.com" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">yuriycooleshov@gmail.com</a>
+        <span data-ru="По запросам due diligence:">For due diligence inquiries:</span> <a href="mailto:yuriycooleshov@gmail.com" class="text-ok hover:text-ok underline underline-offset-2">yuriycooleshov@gmail.com</a>
       </p>
     </section>
 

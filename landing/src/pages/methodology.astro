@@ -53,7 +53,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
           { en: 'Does not make discretionary overrides', ru: 'Не делает дискреционных переопределений' },
         ].map((item) => (
           <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-bg-surface border border-border">
-            <span class="text-red-400/70 flex-shrink-0">&#10005;</span>
+            <span class="text-danger flex-shrink-0">&#10005;</span>
             <span class="text-sm text-white/50" data-ru={item.ru}>{item.en}</span>
           </div>
         ))}
@@ -180,8 +180,8 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
               <td class="px-5 py-3 text-amber-400 font-mono font-semibold" data-ru="&ge;5% → де-риск (стоп новых входов, без ликвидации)">&ge;5% &rarr; de-risk (halt new, no liquidation)</td>
             </tr>
             <tr>
-              <td class="px-5 py-3 text-red-400/80 font-mono" data-ru="Kill switch — HARD (просадка от пика)">Kill switch — HARD (peak drawdown)</td>
-              <td class="px-5 py-3 text-red-400 font-mono font-semibold" data-ru="&ge;10% → всё в кэш">&ge;10% &rarr; all to cash</td>
+              <td class="px-5 py-3 text-danger font-mono" data-ru="Kill switch — HARD (просадка от пика)">Kill switch — HARD (peak drawdown)</td>
+              <td class="px-5 py-3 text-danger font-mono font-semibold" data-ru="&ge;10% → всё в кэш">&ge;10% &rarr; all to cash</td>
             </tr>
           </tbody>
         </table>
@@ -245,8 +245,8 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
       <div class="space-y-4">
         <div class="rounded-xl bg-bg-surface border border-border p-5">
           <div class="flex items-center gap-3 mb-2">
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-800 text-xs text-green-400 font-medium">
-              <span class="w-1.5 h-1.5 rounded-full bg-green-400" aria-hidden="true"></span>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-ok-bg border border-ok-border text-xs text-ok font-medium">
+              <span class="w-1.5 h-1.5 rounded-full bg-ok" aria-hidden="true"></span>
               <span data-ru="На paper-трекинге">Paper Tracked</span>
             </span>
             <span class="text-sm text-white font-semibold">Core</span>
@@ -448,7 +448,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
             </thead>
             <tbody class="divide-y divide-white/5">
               <tr>
-                <td class="px-5 py-3 font-mono text-xs text-green-400">CLEAN_INCLUDED</td>
+                <td class="px-5 py-3 font-mono text-xs text-ok">CLEAN_INCLUDED</td>
                 <td class="px-5 py-3 text-sm text-white/60" data-ru="Полные исторические данные, проверяемые ончейн">Full historical data, on-chain verifiable</td>
                 <td class="px-5 py-3 text-xs text-white/40">Aave V3, Compound, Morpho</td>
               </tr>
@@ -463,7 +463,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
                 <td class="px-5 py-3 text-xs text-white/40" data-ru="Экспозиция GMX, концентрированный LP">GMX exposure, Concentrated LP</td>
               </tr>
               <tr>
-                <td class="px-5 py-3 font-mono text-xs text-red-400">SOURCE_NEEDED</td>
+                <td class="px-5 py-3 font-mono text-xs text-danger">SOURCE_NEEDED</td>
                 <td class="px-5 py-3 text-sm text-white/60" data-ru="Источник данных пока не определён">No data source identified yet</td>
                 <td class="px-5 py-3 text-xs text-white/40" data-ru="Прокси на золото, пулы BTC">Gold proxy, BTC pools</td>
               </tr>
@@ -513,13 +513,13 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
               <span data-ru="data source is identified and audited. Evidence-точки за исследовательские дни оцениваются в 0.3 (против 1.0 за чистые дни).">data source is identified and audited. Evidence points from research days score 0.3 (vs 1.0 for clean days).</span>
             </p>
           </div>
-          <div class="rounded-xl bg-bg-surface border border-green-500/20 p-5">
+          <div class="rounded-xl bg-bg-surface border border-ok-border p-5">
             <div class="flex items-center gap-3 mb-2">
-              <span class="px-2 py-0.5 rounded text-xs font-mono bg-green-500/10 text-green-400 border border-green-500/20">CLEAN_INCLUDED</span>
+              <span class="px-2 py-0.5 rounded text-xs font-mono bg-ok-bg text-ok border border-ok-border">CLEAN_INCLUDED</span>
               <span class="text-sm text-white/70 font-medium" data-ru="S0–S9 (стратегии Core)">S0–S9 (Core strategies)</span>
             </div>
             <p class="text-xs text-white/40 leading-relaxed">
-              <span data-ru="Продакшн-стратегии используют только источники данных">Production strategies use only</span> <span class="font-mono text-green-400">CLEAN_INCLUDED</span>
+              <span data-ru="Продакшн-стратегии используют только источники данных">Production strategies use only</span> <span class="font-mono text-ok">CLEAN_INCLUDED</span>
               <span data-ru="data sources. У каждой цели аллокации есть проверяемая ончейн история APY и подтверждённая дата запуска. Это стратегии, пригодные для накопления доказательств в paper trading (1.0 точки за чистый день, 1.5 за день экстремального рынка) и в конечном итоге для размещения живого капитала.">data sources. Each allocation target has on-chain verifiable APY history and a confirmed
               launch date. These are the strategies eligible for paper trading evidence accumulation
               (1.0 point per clean day, 1.5 per extreme-market day) and eventual live capital deployment.</span>

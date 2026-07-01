@@ -47,12 +47,12 @@ const realDays = snap.real_track_days ?? 10;
           <p class="text-sm text-white/70 font-medium" data-ru="~21 июля 2026">~Jul 21, 2026</p>
         </div>
       </div>
-      <div class="mt-4 rounded-lg border border-green-400/20 bg-green-400/5 p-4 flex items-center justify-between">
+      <div class="mt-4 rounded-lg border border-ok-border bg-ok-bg p-4 flex items-center justify-between">
         <div>
           <p class="text-sm text-white/70">GoLiveChecker</p>
           <p class="text-xs text-white/40" data-ru="Автоматические критерии готовности">Automated readiness criteria</p>
         </div>
-        <span class="text-sm font-mono text-green-400" data-ru="27/29 пройдено (НЕ ГОТОВО)">27/29 passing (NOT READY)</span>
+        <span class="text-sm font-mono text-ok" data-ru="27/29 пройдено (НЕ ГОТОВО)">27/29 passing (NOT READY)</span>
       </div>
     </section>
 
@@ -71,7 +71,7 @@ const realDays = snap.real_track_days ?? 10;
           <tbody class="text-white/55">
             <tr class="border-b border-border">
               <td class="p-3 text-white/70 font-medium">Core</td>
-              <td class="p-3"><span class="text-xs font-mono text-green-400/70 bg-green-400/10 px-2 py-0.5 rounded" data-ru="На paper-трекинге">Paper tracked</span></td>
+              <td class="p-3"><span class="text-xs font-mono text-ok bg-ok-bg px-2 py-0.5 rounded" data-ru="На paper-трекинге">Paper tracked</span></td>
               <td class="p-3 text-white/60" data-ru="С 22 июня 2026 (evidenced anchor)">Since Jun 22, 2026 (evidenced anchor)</td>
             </tr>
             <tr class="border-b border-border">
@@ -93,19 +93,19 @@ const realDays = snap.real_track_days ?? 10;
     <section class="mb-14">
       <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Ссылки на живые данные">Live Data Links</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <a href="/#live-stats" class="rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-green-400/30 transition-colors group">
+        <a href="/#live-stats" class="rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-ok-border transition-colors group">
           <p class="text-sm font-semibold text-white/80 group-hover:text-white mb-1" data-ru="Дашборд">Dashboard</p>
           <p class="text-xs text-white/40" data-ru="Живые paper-метрики: дни трека, APY, Sharpe, просадка">Live paper metrics: Track Days, APY, Sharpe, Drawdown</p>
         </a>
-        <a href="/#live-stats" class="rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-green-400/30 transition-colors group">
+        <a href="/#live-stats" class="rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-ok-border transition-colors group">
           <p class="text-sm font-semibold text-white/80 group-hover:text-white mb-1" data-ru="Блокировки риска">Risk Blocks</p>
           <p class="text-xs text-white/40" data-ru="Все заблокированные ребалансировки залогированы и с временными метками">All blocked rebalances logged and timestamped</p>
         </a>
-        <a href="/#live-stats" class="rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-green-400/30 transition-colors group">
+        <a href="/#live-stats" class="rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-ok-border transition-colors group">
           <p class="text-sm font-semibold text-white/80 group-hover:text-white mb-1" data-ru="Логи сделок">Trade Logs</p>
           <p class="text-xs text-white/40" data-ru="Каждый цикл залогирован с обоснованием">Every cycle logged with reasoning</p>
         </a>
-        <a href="/#live-stats" class="rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-green-400/30 transition-colors group">
+        <a href="/#live-stats" class="rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-ok-border transition-colors group">
           <p class="text-sm font-semibold text-white/80 group-hover:text-white mb-1">GoLiveChecker</p>
           <p class="text-xs text-white/40" data-ru="27/29 критериев пройдено (НЕ ГОТОВО) — готовность в реальном времени">27/29 criteria passing (NOT READY) — real-time readiness</p>
         </a>
@@ -116,30 +116,30 @@ const realDays = snap.real_track_days ?? 10;
     <section class="mb-14">
       <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Документация">Documentation</h2>
       <div class="space-y-3">
-        <a href="/trust" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-green-400/30 transition-colors group">
+        <a href="/trust" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-ok-border transition-colors group">
           <div>
             <p class="text-sm text-white/80 group-hover:text-white" data-ru="Архитектура доверия">Trust Architecture</p>
             <p class="text-xs text-white/40" data-ru="Модель контроля, кастоди, 9 ключевых вопросов">Control model, custody, 9 key questions</p>
           </div>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-green-400/60">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-ok">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
           </svg>
         </a>
-        <a href="/risk" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-green-400/30 transition-colors group">
+        <a href="/risk" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-ok-border transition-colors group">
           <div>
             <p class="text-sm text-white/80 group-hover:text-white" data-ru="Риск">Risk</p>
             <p class="text-xs text-white/40" data-ru="Категории, матрица, стресс-сценарии">Categories, matrix, stress scenarios</p>
           </div>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-green-400/60">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-ok">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
           </svg>
         </a>
-        <a href="/risk-disclosure" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-green-400/30 transition-colors group">
+        <a href="/risk-disclosure" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-ok-border transition-colors group">
           <div>
             <p class="text-sm text-white/80 group-hover:text-white" data-ru="Раскрытие рисков">Risk Disclosure</p>
             <p class="text-xs text-white/40" data-ru="Полное юридическое раскрытие">Full legal disclosure</p>
           </div>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-green-400/60">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-ok">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
           </svg>
         </a>
@@ -176,31 +176,31 @@ const realDays = snap.real_track_days ?? 10;
           <tbody class="text-white/55">
             <tr class="border-b border-border">
               <td class="p-3 text-white/70">Aave V3</td>
-              <td class="p-3"><span class="text-xs font-mono text-green-400/70">Tier 1</span></td>
+              <td class="p-3"><span class="text-xs font-mono text-ok">Tier 1</span></td>
               <td class="p-3">Ethereum</td>
               <td class="p-3">$15B+</td>
             </tr>
             <tr class="border-b border-border">
               <td class="p-3 text-white/70">Compound V3</td>
-              <td class="p-3"><span class="text-xs font-mono text-green-400/70">Tier 1</span></td>
+              <td class="p-3"><span class="text-xs font-mono text-ok">Tier 1</span></td>
               <td class="p-3">Ethereum</td>
               <td class="p-3">$3B+</td>
             </tr>
             <tr class="border-b border-border">
               <td class="p-3 text-white/70">Morpho Blue</td>
-              <td class="p-3"><span class="text-xs font-mono text-green-400/70">Tier 1</span></td>
+              <td class="p-3"><span class="text-xs font-mono text-ok">Tier 1</span></td>
               <td class="p-3">Ethereum</td>
               <td class="p-3">$4B+</td>
             </tr>
             <tr class="border-b border-border">
               <td class="p-3 text-white/70">Spark</td>
-              <td class="p-3"><span class="text-xs font-mono text-green-400/70">Tier 1</span></td>
+              <td class="p-3"><span class="text-xs font-mono text-ok">Tier 1</span></td>
               <td class="p-3">Ethereum</td>
               <td class="p-3">$5B+</td>
             </tr>
             <tr class="border-b border-border">
               <td class="p-3 text-white/70">Sky/sUSDS</td>
-              <td class="p-3"><span class="text-xs font-mono text-green-400/70">Tier 1</span> <span class="text-xs text-white/30" data-ru="(условно)">(conditional)</span></td>
+              <td class="p-3"><span class="text-xs font-mono text-ok">Tier 1</span> <span class="text-xs text-white/30" data-ru="(условно)">(conditional)</span></td>
               <td class="p-3">Ethereum</td>
               <td class="p-3">$8B+</td>
             </tr>
@@ -245,7 +245,7 @@ const realDays = snap.real_track_days ?? 10;
           </div>
         </div>
         <div class="flex items-center gap-4 rounded-lg border border-border-strong bg-bg-surface p-4">
-          <span class="flex-shrink-0 w-2 h-2 rounded-full bg-green-400/60"></span>
+          <span class="flex-shrink-0 w-2 h-2 rounded-full bg-ok"></span>
           <div>
             <p class="text-sm text-white/70" data-ru="Ревью кода">Code review</p>
             <p class="text-xs text-white/40" data-ru="Внутреннее ревью завершено">Internal review complete</p>
@@ -312,13 +312,13 @@ const realDays = snap.real_track_days ?? 10;
                 <td class="p-3 font-mono text-white/40 text-xs">1</td>
                 <td class="p-3 text-white/70 font-medium" data-ru="Гейт бэктеста">Backtest Gate</td>
                 <td class="p-3 text-white/50 text-xs" data-ru="4-летняя историческая симуляция по строгим PIT-правилам">4-year historical simulation under strict PIT rules</td>
-                <td class="p-3"><span class="text-xs font-mono text-green-400/80 bg-green-400/10 px-2 py-0.5 rounded" data-ru="✅ ПРОЙДЕНО">✅ PASS</span></td>
+                <td class="p-3"><span class="text-xs font-mono text-ok bg-ok-bg px-2 py-0.5 rounded" data-ru="✅ ПРОЙДЕНО">✅ PASS</span></td>
               </tr>
               <tr class="border-b border-border">
                 <td class="p-3 font-mono text-white/40 text-xs">2</td>
                 <td class="p-3 text-white/70 font-medium" data-ru="Гейт перед paper">Pre-Paper Gate</td>
                 <td class="p-3 text-white/50 text-xs" data-ru="Усиление кода, обзор расширенного набора протоколов">Code hardening, expanded protocol universe review</td>
-                <td class="p-3"><span class="text-xs font-mono text-green-400/80 bg-green-400/10 px-2 py-0.5 rounded" data-ru="✅ ПРОЙДЕНО">✅ PASS</span></td>
+                <td class="p-3"><span class="text-xs font-mono text-ok bg-ok-bg px-2 py-0.5 rounded" data-ru="✅ ПРОЙДЕНО">✅ PASS</span></td>
               </tr>
               <tr class="border-b border-border">
                 <td class="p-3 font-mono text-white/40 text-xs">3</td>
@@ -363,21 +363,21 @@ const realDays = snap.real_track_days ?? 10;
         <h3 class="text-base font-semibold text-white/80 mb-3" data-ru="Что мы раскрываем">What We Disclose</h3>
         <div class="space-y-2">
           <div class="flex items-start gap-3 rounded-lg border border-border bg-bg-surface p-3">
-            <span class="text-green-400/60 text-xs mt-0.5 flex-shrink-0">→</span>
+            <span class="text-ok text-xs mt-0.5 flex-shrink-0">→</span>
             <p class="text-xs text-white/55 leading-relaxed">
               <span class="text-white/70 font-medium">86.97% cash drag</span> <span data-ru="в строгом бэктесте (2022–2026): большинство протоколов ещё не были запущены в период симуляции">in strict backtest (2022–2026):
               most protocols were not yet live during the simulation period</span>
             </p>
           </div>
           <div class="flex items-start gap-3 rounded-lg border border-border bg-bg-surface p-3">
-            <span class="text-green-400/60 text-xs mt-0.5 flex-shrink-0">→</span>
+            <span class="text-ok text-xs mt-0.5 flex-shrink-0">→</span>
             <p class="text-xs text-white/55 leading-relaxed">
               <span data-ru="Исследовательские стратегии (RS-001, RS-002) чётко помечены">Research strategies (RS-001, RS-002) are clearly labelled</span>
               <span class="font-mono text-amber-400/70">RESEARCH ONLY</span> <span data-ru="— не пригодны для живого капитала">— not live capital eligible</span>
             </p>
           </div>
           <div class="flex items-start gap-3 rounded-lg border border-border bg-bg-surface p-3">
-            <span class="text-green-400/60 text-xs mt-0.5 flex-shrink-0">→</span>
+            <span class="text-ok text-xs mt-0.5 flex-shrink-0">→</span>
             <p class="text-xs text-white/55 leading-relaxed">
               <span data-ru="Все целевые значения APY помечены как gross/net с явными допущениями по IL и качеством источника">All APY targets labelled as gross/net with explicit IL assumptions and source quality</span>
               (<span class="font-mono text-white/50">CLEAN / PENDING / RESEARCH / NEEDED</span>)
@@ -390,18 +390,18 @@ const realDays = snap.real_track_days ?? 10;
       <div>
         <h3 class="text-base font-semibold text-white/80 mb-3" data-ru="Чего мы НЕ делаем">What We Don't Do</h3>
         <div class="space-y-2">
-          <div class="flex items-start gap-3 rounded-lg border border-red-400/10 bg-red-400/[0.03] p-3">
-            <span class="text-red-400/50 text-xs mt-0.5 flex-shrink-0">✗</span>
+          <div class="flex items-start gap-3 rounded-lg border border-danger-border bg-danger-bg p-3">
+            <span class="text-danger text-xs mt-0.5 flex-shrink-0">✗</span>
             <p class="text-xs text-white/50 leading-relaxed" data-ru="Подбираем удобные периоды бэктеста, чтобы завысить заявленную доходность">Cherry-pick backtest periods to inflate reported returns</p>
           </div>
-          <div class="flex items-start gap-3 rounded-lg border border-red-400/10 bg-red-400/[0.03] p-3">
-            <span class="text-red-400/50 text-xs mt-0.5 flex-shrink-0">✗</span>
+          <div class="flex items-start gap-3 rounded-lg border border-danger-border bg-danger-bg p-3">
+            <span class="text-danger text-xs mt-0.5 flex-shrink-0">✗</span>
             <p class="text-xs text-white/50 leading-relaxed" data-ru="Используем «бэктестированный» APY протоколов, запущенных после периода симуляции">
               Use "backtested" APY from protocols launched after the simulation period
             </p>
           </div>
-          <div class="flex items-start gap-3 rounded-lg border border-red-400/10 bg-red-400/[0.03] p-3">
-            <span class="text-red-400/50 text-xs mt-0.5 flex-shrink-0">✗</span>
+          <div class="flex items-start gap-3 rounded-lg border border-danger-border bg-danger-bg p-3">
+            <span class="text-danger text-xs mt-0.5 flex-shrink-0">✗</span>
             <p class="text-xs text-white/50 leading-relaxed" data-ru="Задействуем живой капитал до достижения целей накопления доказательств">
               Deploy live capital before evidence accumulation targets are met
             </p>
@@ -415,7 +415,7 @@ const realDays = snap.real_track_days ?? 10;
       <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Контакты">Contact</h2>
       <div class="rounded-xl border border-border-strong bg-bg-surface p-6">
         <p class="text-sm text-white/70 mb-3">
-          <a href="mailto:yuriycooleshov@gmail.com" class="text-green-400/80 hover:text-green-400 underline underline-offset-2">yuriycooleshov@gmail.com</a>
+          <a href="mailto:yuriycooleshov@gmail.com" class="text-ok hover:text-ok underline underline-offset-2">yuriycooleshov@gmail.com</a>
         </p>
         <p class="text-xs text-white/40" data-ru="По вопросам методологии или данных paper trading.">
           For questions about methodology or paper trading data.

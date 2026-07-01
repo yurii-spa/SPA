@@ -72,7 +72,7 @@ const VERDICT_META = {
   },
   UNSAFE: {
     en: 'UNSAFE', ru: 'НЕБЕЗОПАСЕН', rank: 0,
-    card: 'border-red-700/40', badge: 'bg-red-500/10 border-red-500/30 text-red-300', dot: 'bg-red-400',
+    card: 'border-danger-border', badge: 'bg-danger-bg border-danger-border text-danger', dot: 'bg-danger',
   },
 };
 const VERDICT_JSON = JSON.stringify(VERDICT_META);
@@ -290,7 +290,7 @@ const FALLBACK_JSON = JSON.stringify(FALLBACK);
 
         var gapChip = gap == null ? '' :
           '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-mono ' +
-          (gapBad ? 'bg-red-500/5 border-red-500/25 text-red-300' : 'bg-white/[0.03]') + '" ' +
+          (gapBad ? 'bg-danger-bg border-danger-border text-danger' : 'bg-white/[0.03]') + '" ' +
           (gapBad ? '' : 'style="border-color:var(--border);color:var(--text-secondary)"') + '>' +
           (ru ? 'разрыв ' : 'gap ') + gap.toFixed(2) + '%</span>';
 

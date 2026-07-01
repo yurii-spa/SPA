@@ -41,9 +41,9 @@ const checks: { label: string; labelRu: string; status: CheckStatus; detail: str
 ];
 
 const statusColor: Record<CheckStatus, string> = {
-  pass: "text-emerald-400",
+  pass: "text-ok",
   warn: "text-amber-400",
-  fail: "text-red-400",
+  fail: "text-danger",
 };
 const statusIcon: Record<CheckStatus, string> = {
   pass: "✅",
@@ -51,9 +51,9 @@ const statusIcon: Record<CheckStatus, string> = {
   fail: "❌",
 };
 const statusBg: Record<CheckStatus, string> = {
-  pass: "border-emerald-500/30 bg-emerald-950/20",
+  pass: "border-ok-border bg-ok-bg",
   warn: "border-amber-500/30 bg-amber-950/20",
-  fail: "border-red-500/30 bg-red-950/20",
+  fail: "border-danger-border bg-danger-bg",
 };
 ---
 
@@ -123,13 +123,13 @@ const statusBg: Record<CheckStatus, string> = {
 
       <!-- Blockers -->
       {blockers.length > 0 && (
-        <div class="rounded-xl border border-red-500/30 bg-red-950/20 p-6">
-          <h2 class="text-red-400 font-semibold text-lg mb-4" data-ru="⛔ Активные блокеры">⛔ Active Blockers</h2>
+        <div class="rounded-xl border border-danger-border bg-danger-bg p-6">
+          <h2 class="text-danger font-semibold text-lg mb-4" data-ru="⛔ Активные блокеры">⛔ Active Blockers</h2>
           <ul class="space-y-2">
             {blockers.map(b => (
               <li class="flex items-start gap-3 text-white/70 text-sm">
-                <span class="text-red-400 mt-0.5 shrink-0">•</span>
-                <code class="font-mono text-red-300/80 text-xs bg-red-950/40 px-2 py-1 rounded">{b}</code>
+                <span class="text-danger mt-0.5 shrink-0">•</span>
+                <code class="font-mono text-danger text-xs bg-danger px-2 py-1 rounded">{b}</code>
               </li>
             ))}
           </ul>
@@ -164,8 +164,8 @@ const statusBg: Record<CheckStatus, string> = {
           <div class="absolute left-0 top-2 bottom-2 w-px bg-white/10"></div>
           <div class="space-y-6">
             <div class="relative">
-              <div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-emerald-400/30"></div>
-              <div class="text-emerald-400 text-sm font-semibold">2026-06-22</div>
+              <div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-ok ring-2 ring-ok-border"></div>
+              <div class="text-ok text-sm font-semibold">2026-06-22</div>
               <div class="text-white/70 text-sm mt-0.5" data-ru="Трек сброшен и заякорен на первом дне с реальным логом цикла. Ранний бэкфилл по фиксированной ставке не засчитывается.">Track reset, anchored to the first day with a real cycle log. Earlier flat-rate backfill is not counted.</div>
             </div>
             <div class="relative">

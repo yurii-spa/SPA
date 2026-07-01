@@ -62,10 +62,10 @@ const strategyRu: Record<string, StrategyRu> = {
 const ru: StrategyRu | undefined = strategyRu[strategy.id];
 
 const statusStyles: Record<string, string> = {
-  'paper-tracked': 'bg-green-500/10 text-green-400 border border-green-800',
+  'paper-tracked': 'bg-ok-bg text-ok border border-ok-border',
   'target-profile': 'bg-blue-600/10 text-blue-400 border border-blue-800',
   'coming-soon': 'bg-white/5 text-white/40 border border-white/10',
-  'live': 'bg-emerald-500/15 text-emerald-400 border border-emerald-600',
+  'live': 'bg-ok-bg text-ok border border-ok-border',
 };
 
 const isDisabled = strategy.status === 'coming-soon';
@@ -77,7 +77,7 @@ const isDisabled = strategy.status === 'coming-soon';
   <div class="mb-5">
     <span class={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${statusStyles[strategy.status] || statusStyles['coming-soon']}`}>
       {strategy.status === 'live' && (
-        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true"></span>
+        <span class="w-1.5 h-1.5 rounded-full bg-ok animate-pulse" aria-hidden="true"></span>
       )}
       <span data-ru={ru?.status_label}>{strategy.status_label}</span>
     </span>

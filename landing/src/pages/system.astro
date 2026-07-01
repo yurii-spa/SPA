@@ -73,7 +73,7 @@ const surfaces = [
           </div>
           <div class="rounded-lg bg-white/[0.02] border border-white/8 p-4">
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Здоровых">Healthy</p>
-            <p class="text-2xl font-mono font-bold text-emerald-400" id="sys-healthy">—</p>
+            <p class="text-2xl font-mono font-bold text-ok" id="sys-healthy">—</p>
           </div>
           <div class="rounded-lg bg-white/[0.02] border border-white/8 p-4">
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Внимание">Warning</p>
@@ -81,7 +81,7 @@ const surfaces = [
           </div>
           <div class="rounded-lg bg-white/[0.02] border border-white/8 p-4">
             <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Критич.">Critical</p>
-            <p class="text-2xl font-mono font-bold text-red-400" id="sys-crit">—</p>
+            <p class="text-2xl font-mono font-bold text-danger" id="sys-crit">—</p>
           </div>
         </div>
         <p class="text-xs text-white/30 mt-4" data-ru="Статус читается из живого heartbeat агентов (agent_health, ежечасно). При офлайне поля показывают «—».">
@@ -173,17 +173,17 @@ const surfaces = [
 
       <!-- Stage summary counts -->
       <div class="grid grid-cols-3 gap-3 mb-6">
-        <div class="rounded-lg bg-white/[0.02] border border-emerald-700/30 p-4">
+        <div class="rounded-lg bg-white/[0.02] border border-ok-border p-4">
           <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Кандидат в paper">Paper candidate</p>
-          <p class="text-2xl font-mono font-bold text-emerald-400" id="promo-cnt-paper">—</p>
+          <p class="text-2xl font-mono font-bold text-ok" id="promo-cnt-paper">—</p>
         </div>
         <div class="rounded-lg bg-white/[0.02] border border-teal-700/30 p-4">
           <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Прошёл backtest">Backtest pass</p>
           <p class="text-2xl font-mono font-bold text-teal-300" id="promo-cnt-backtest">—</p>
         </div>
-        <div class="rounded-lg bg-white/[0.02] border border-red-700/30 p-4">
+        <div class="rounded-lg bg-white/[0.02] border border-danger-border p-4">
           <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Отклонён">Rejected</p>
-          <p class="text-2xl font-mono font-bold text-red-400" id="promo-cnt-reject">—</p>
+          <p class="text-2xl font-mono font-bold text-danger" id="promo-cnt-reject">—</p>
         </div>
       </div>
 
@@ -210,10 +210,10 @@ const surfaces = [
       </h2>
 
       <!-- Honest framing banner (the core trust signal) -->
-      <div class="rounded-xl border border-red-700/40 bg-red-500/[0.06] p-5 mb-6 flex items-start gap-3">
-        <span class="flex-shrink-0 w-5 h-5 mt-0.5 rounded-md bg-red-500/15 border border-red-500/30 flex items-center justify-center text-xs text-red-400" aria-hidden="true">!</span>
+      <div class="rounded-xl border border-danger-border bg-danger-bg p-5 mb-6 flex items-start gap-3">
+        <span class="flex-shrink-0 w-5 h-5 mt-0.5 rounded-md bg-danger-bg border border-danger-border flex items-center justify-center text-xs text-danger" aria-hidden="true">!</span>
         <div>
-          <p class="text-sm font-semibold text-red-200 mb-1" data-ru="Бумажное исследование · измерительный/advisory движок · не финсовет">Paper research · a measurement / advisory engine · not financial advice</p>
+          <p class="text-sm font-semibold text-danger mb-1" data-ru="Бумажное исследование · измерительный/advisory движок · не финсовет">Paper research · a measurement / advisory engine · not financial advice</p>
           <p class="text-sm text-white/60 leading-relaxed" data-ru="Большинство yield-продуктов рекламируют APY. Мы публикуем активы, которые ОТКАЗЫВАЕМСЯ держать, и почему — движок риска, который пометил токсичные рестейкинг-токены (типа ezETH) ДО их обвала, проверенный на 2 годах данных, включая реальные события депега. Мы скорее упустим доходность, чем будем держать книгу, которая взорвётся.">
             Most yield products advertise APY. We publish the assets we REFUSE and why — a risk engine that
             flagged toxic restaking tokens (ezETH-type) before they collapsed, validated on 2 years of data
@@ -230,7 +230,7 @@ const surfaces = [
       <div class="flex flex-wrap items-center gap-2 mb-5 text-[11px] font-mono">
         <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-teal-500/10 border-teal-500/30 text-teal-300"><span class="w-1.5 h-1.5 rounded-full bg-teal-400" aria-hidden="true"></span><span data-ru="БЕЗОПАСЕН">SAFE</span></span>
         <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-amber-500/10 border-amber-500/30 text-amber-300"><span class="w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden="true"></span><span data-ru="НАБЛЮДЕНИЕ">WATCH</span></span>
-        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-red-500/10 border-red-500/30 text-red-300"><span class="w-1.5 h-1.5 rounded-full bg-red-400" aria-hidden="true"></span><span data-ru="ОТКАЗ">REFUSE</span></span>
+        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-danger-bg border-danger-border text-danger"><span class="w-1.5 h-1.5 rounded-full bg-danger" aria-hidden="true"></span><span data-ru="ОТКАЗ">REFUSE</span></span>
         <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-white/5 border-white/15 text-white/40"><span class="w-1.5 h-1.5 rounded-full bg-white/30" aria-hidden="true"></span><span data-ru="НЕИЗВЕСТНО">UNKNOWN</span></span>
         <span class="text-white/25" id="ref-thresholds"></span>
       </div>
@@ -349,9 +349,9 @@ const surfaces = [
 
       /* Explicit class strings (NOT constructed at runtime — Tailwind only compiles literal classes). */
       var STAGE_META = {
-        PAPER_CANDIDATE: { en: 'Paper candidate', ru: 'Кандидат в paper', border: 'border-emerald-700/30', dot: 'bg-emerald-400', text: 'text-emerald-300' },
+        PAPER_CANDIDATE: { en: 'Paper candidate', ru: 'Кандидат в paper', border: 'border-ok-border', dot: 'bg-ok', text: 'text-ok' },
         BACKTEST_PASS:   { en: 'Backtest pass',   ru: 'Прошёл backtest', border: 'border-teal-700/30',    dot: 'bg-teal-400',    text: 'text-teal-300' },
-        REJECT:          { en: 'Rejected',        ru: 'Отклонён',        border: 'border-red-700/30',     dot: 'bg-red-400',     text: 'text-red-300' }
+        REJECT:          { en: 'Rejected',        ru: 'Отклонён',        border: 'border-danger-border',     dot: 'bg-danger',     text: 'text-danger' }
       };
       // Criterion key → bilingual label.
       var CRIT_LABELS = {
@@ -371,8 +371,8 @@ const surfaces = [
         var pass = c && c.pass === true;
         var color, mark;
         if(pending){ color = 'bg-white/5 border-white/15 text-white/40'; mark = '·'; }
-        else if(pass){ color = 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'; mark = '✓'; }
-        else { color = 'bg-red-500/10 border-red-500/30 text-red-300'; mark = '✗'; }
+        else if(pass){ color = 'bg-ok-bg border-ok-border text-ok'; mark = '✓'; }
+        else { color = 'bg-danger-bg border-danger-border text-danger'; mark = '✗'; }
         var title = c && c.detail ? ' title="' + esc(c.detail) + '"' : '';
         return '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-mono ' + color + '"' + title + '>' + mark + ' ' + esc(lbl) + '</span>';
       }
@@ -447,7 +447,7 @@ const surfaces = [
       var VERDICT_META = {
         SAFE:    { en: 'SAFE',    ru: 'БЕЗОПАСЕН',  border: 'border-teal-700/40',  badge: 'bg-teal-500/10 border-teal-500/30 text-teal-300',  dot: 'bg-teal-400',  bar: 'bg-teal-400/70',  order: 3 },
         WATCH:   { en: 'WATCH',   ru: 'НАБЛЮДЕНИЕ', border: 'border-amber-700/40', badge: 'bg-amber-500/10 border-amber-500/30 text-amber-300', dot: 'bg-amber-400', bar: 'bg-amber-400/70', order: 1 },
-        REFUSE:  { en: 'REFUSE',  ru: 'ОТКАЗ',      border: 'border-red-700/45',   badge: 'bg-red-500/10 border-red-500/30 text-red-300',     dot: 'bg-red-400',   bar: 'bg-red-400/80',   order: 0 },
+        REFUSE:  { en: 'REFUSE',  ru: 'ОТКАЗ',      border: 'border-danger-border',   badge: 'bg-danger-bg border-danger-border text-danger',     dot: 'bg-danger',   bar: 'bg-danger',   order: 0 },
         UNKNOWN: { en: 'UNKNOWN', ru: 'НЕИЗВЕСТНО', border: 'border-white/10',     badge: 'bg-white/5 border-white/15 text-white/40',         dot: 'bg-white/30',  bar: 'bg-white/30',     order: 2 }
       };
 

@@ -7,7 +7,7 @@ const post = {
   date: "2026-06-18",
   tag: "Launch",
   tagRu: "Запуск",
-  tagColor: "text-green-400",
+  tagColor: "text-ok",
   summary: "The public landing site for SPA goes live on Cloudflare Pages. Institutional-grade presentation with live GoLive readiness tracking.",
   summaryRu: "Публичный сайт SPA запущен на Cloudflare Pages. Презентация институционального уровня с отслеживанием готовности к go-live в реальном времени.",
 };
@@ -108,7 +108,7 @@ const post = {
             { en: 'No marketing noise — no "revolutionary" language, no inflated APY projections', ru: 'Никакого маркетингового шума — без «революционных» формулировок и завышенных прогнозов APY' },
           ].map(item => (
             <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
-              <span class="text-green-400 flex-shrink-0 mt-0.5">›</span>
+              <span class="text-ok flex-shrink-0 mt-0.5">›</span>
               <span class="text-white/50" data-ru={item.ru}>{item.en}</span>
             </div>
           ))}
