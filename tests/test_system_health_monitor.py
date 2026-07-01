@@ -989,9 +989,14 @@ def test_collect_returns_full_schema(good_dir, monkeypatch):
     for key in ("schema_version", "generated_at", "run_id", "overall_status",
                 "fingerprint", "counts", "domains", "checks", "trend", "history"):
         assert key in report
+    # collect() enumerates every domain in system_health_monitor.collect()'s
+    # domain_methods table. The dfb (d_dfb_defi_board) and riskwire (d_riskwire)
+    # planes were added as current/green product growth — assert the exact
+    # current set so a dropped/renamed domain is still caught.
     assert set(report["domains"]) == {
         "d1_data_pipeline", "d2_connectivity", "d3_strategy_quality",
-        "d4_external", "d5_code_integrity", "d6_risk_gates", "d7_hygiene"}
+        "d4_external", "d5_code_integrity", "d6_risk_gates", "d7_hygiene",
+        "d_dfb_defi_board", "d_riskwire"}
     # checks sorted by id
     ids = [c["id"] for c in report["checks"]]
     assert ids == sorted(ids)

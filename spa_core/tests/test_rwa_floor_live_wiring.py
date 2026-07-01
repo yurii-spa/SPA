@@ -29,6 +29,20 @@ from spa_core.strategy_lab.strategies.rwa_sleeve import RwaSleeve
 LIVE_RATE = 3.375  # the real TVL-weighted tokenized-T-bill floor (~3.375%, NOT the 4.5 literal)
 
 
+@pytest.fixture(autouse=True)
+def _force_live_floor(monkeypatch):
+    """Consult the live feed regardless of a leaked ``SPA_LAB_LIVE_RWA_FLOOR=0`` env.
+
+    ``config._USE_LIVE_RWA_FLOOR`` is a process-global evaluated at import time from
+    ``SPA_LAB_LIVE_RWA_FLOOR``; another test module (test_aggressive_lab_annual_contrast)
+    ``os.environ.setdefault``s it to "0" at import, which — depending on import order — can
+    poison it to False for the whole session and make ``rwa_floor_apy_pct(live=None)`` return
+    the committed literal instead of the pinned live feed. Pin it True so these tests are
+    order-independent and exercise the LIVE-wiring path they exist to prove.
+    """
+    monkeypatch.setattr(lab_config, "_USE_LIVE_RWA_FLOOR", True)
+
+
 def _snap(date="2026-06-10"):
     return MarketSnapshot(date=date, defi_apy={})
 

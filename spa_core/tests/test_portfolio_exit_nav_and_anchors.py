@@ -234,21 +234,35 @@ def test_server_and_standalone_agree_on_real_file():
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 # (A4) API reproduce-block matches the verifier + server verdict == verify_spa.py
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
-def test_api_proof_reproduce_block_matches_verifier():
+def test_api_proof_reproduce_block_matches_verifier(tmp_path, monkeypatch):
     """The /proof reproduce block teaches the exact verifier command + spec, and the server's
-    verified/head_hash equal what verify_spa.py reproduces on the same files."""
+    verified/head_hash equal what verify_spa.py reproduces on the SAME decision_log bytes.
+
+    Hermetic: the real data/rates_desk/decision_log.jsonl is a runtime-appended, ring-buffered
+    mirror that the live com.spa.rates_desk_paper agent rewrites — reading it once for the server
+    and once for the standalone verifier races that writer (head_hash mismatch flakes). Freeze ONE
+    snapshot into a tmp data dir and point the router at it, so both implementations verify byte-
+    identical rows — which is exactly the cross-implementation invariant under test."""
     from spa_core.api.routers import rates_desk as R
+
+    real = _ROOT / "data" / "rates_desk" / "decision_log.jsonl"
+    # WS4 hermeticity: live-data reproduction guard — skip on empty data/.
+    if not real.exists():
+        pytest.skip(f"live-data artifact absent (clean checkout): {real}")
+
+    # Freeze ONE snapshot of the live log so the two reads below cannot race the paper agent.
+    frozen = tmp_path / "rates_desk" / "decision_log.jsonl"
+    frozen.parent.mkdir(parents=True, exist_ok=True)
+    frozen.write_bytes(real.read_bytes())
+    monkeypatch.setattr(R, "data_dir", lambda: tmp_path)
+
     proof = R.get_rates_desk_proof(last_n=12)
     rep = proof["reproduce"]
     assert rep["spec"] == "docs/PROOF_CHAIN_SPEC.md"
     assert rep["canonical_json_rule"] == V.CANONICAL_JSON_RULE
     assert rep["verify_with"].startswith("python3 verify_spa.py")
-    # server verdict == standalone verifier on the real file
-    real = _ROOT / "data" / "rates_desk" / "decision_log.jsonl"
-    # WS4 hermeticity: live-data reproduction guard — skip on empty data/.
-    if not real.exists():
-        pytest.skip(f"live-data artifact absent (clean checkout): {real}")
-    rows = [json.loads(ln) for ln in real.read_text().splitlines() if ln.strip()]
+    # server verdict == standalone verifier on the SAME frozen snapshot
+    rows = [json.loads(ln) for ln in frozen.read_text().splitlines() if ln.strip()]
     standalone = V.verify_decision_chain(rows)
     assert proof["verified"] == standalone["valid"]
     assert proof["head_hash"] == standalone["head_hash"]

@@ -47,6 +47,15 @@ _ALLOWLIST = {
     _SPA_CORE / "reporting" / "daily_telegram_report.py",
     _SPA_CORE / "reporting" / "weekly_telegram_report.py",
     _SPA_CORE / "telegram" / "bot.py",
+    # Advisory / opt-in senders that route through the sanctioned transport
+    # (telegram_client), not a raw urllib POST — sanctioned, not rogue:
+    #  * backtesting/tier1/status.py: Tier-1 "attention" alert, ONLY on
+    #    build(alert=...) with real problems (guarded, not unsolicited spam).
+    #  * dfb/alerts.py: DFB refusal-flip digest, OFF unless
+    #    SPA_DFB_TELEGRAM_DIGEST is truthy — one flood-guarded message, no new
+    #    agent (dfb is current/green product code).
+    _SPA_CORE / "backtesting" / "tier1" / "status.py",
+    _SPA_CORE / "dfb" / "alerts.py",
 }
 
 # Out-of-scope subtrees (separate investor channel / not the ops chat).

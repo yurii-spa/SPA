@@ -23,6 +23,20 @@ from spa_core.strategy_lab.data.rwa_feed import RWAFeed
 from spa_core.strategy_lab import config as cfg
 
 
+@pytest.fixture(autouse=True)
+def _force_live_floor(monkeypatch):
+    """Consult the live feed regardless of a leaked ``SPA_LAB_LIVE_RWA_FLOOR=0`` env.
+
+    ``config._USE_LIVE_RWA_FLOOR`` is a process-global evaluated at import time; another test
+    module (test_aggressive_lab_annual_contrast) ``os.environ.setdefault``s the flag to "0" at
+    import, which — depending on import order — can poison it to False for the whole session so
+    ``rwa_floor_apy_pct(live=None)`` returns the committed literal and never consults the feed.
+    Pin it True so the ``live``-path tests below are order-independent. Tests that pass an
+    explicit ``live=`` argument override this and are unaffected.
+    """
+    monkeypatch.setattr(cfg, "_USE_LIVE_RWA_FLOOR", True)
+
+
 # ── fake fetcher (url-substring routing, mirrors http_fetch) ──────────────────────────────────
 class FakeFetcher:
     def __init__(self, routes):

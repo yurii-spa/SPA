@@ -239,11 +239,18 @@ def test_regen_refreshes_stale_timestamp(tmp_path):
     stale = {"generated_at": "2026-05-27T21:23:06.102981Z", "scores": []}
     (tmp_path / "risk_scores.json").write_text(json.dumps(stale), encoding="utf-8")
 
+    before = datetime.now(timezone.utc)
     res = _run(tmp_path, risk_scorer_fn=_offline_scorer)
+    after = datetime.now(timezone.utc)
     assert res.status == "ok"
     fresh = json.loads((tmp_path / "risk_scores.json").read_text(encoding="utf-8"))
     assert fresh["generated_at"] > stale["generated_at"]  # ISO-8601 сортируем
-    assert fresh["generated_at"].startswith(NOW.strftime("%Y-%m-"))
+    # The scoring engine stamps generated_at with real wall-clock UTC (it is an independent
+    # module, NOT threaded with the cycle's injected `now`), so assert the fresh stamp lands in
+    # the real regeneration window rather than coupling it to NOW's month (brittle: only passed
+    # when the wall clock happened to share NOW's calendar month).
+    gen = datetime.fromisoformat(fresh["generated_at"].replace("Z", "+00:00"))
+    assert before <= gen <= after, "regenerated generated_at must be a fresh wall-clock stamp"
     assert fresh["scores"], "regenerated snapshot must contain scores"
 
 

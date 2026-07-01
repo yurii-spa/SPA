@@ -33,7 +33,15 @@ def _snap(i: int = 0) -> MarketSnapshot:
 
 
 def _pin_floor(monkeypatch, rate_pct: float) -> None:
-    """Pin the live tokenized-T-bill floor to a known rate (config reads rwa_feed lazily)."""
+    """Pin the live tokenized-T-bill floor to a known rate (config reads rwa_feed lazily).
+
+    Also force ``config._USE_LIVE_RWA_FLOOR`` True: that process-global is evaluated at import
+    time from ``SPA_LAB_LIVE_RWA_FLOOR`` and another test module setdefaults it to "0" at import,
+    which — depending on import order — can poison it to False for the whole session so
+    ``rwa_floor_apy_pct()`` returns the committed literal and never consults this pinned feed.
+    """
+    from spa_core.strategy_lab import config as _lab_config
+    monkeypatch.setattr(_lab_config, "_USE_LIVE_RWA_FLOOR", True)
     monkeypatch.setattr(RWA, "current_rwa_floor_pct", lambda *a, **k: rate_pct)
 
 

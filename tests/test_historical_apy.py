@@ -26,11 +26,19 @@ END = date(2026, 6, 20)
 def store(tmp_path):
     """A populated historical_apy store (synthetic) + a bound APYDatabase.
 
-    Pins ``end=END`` so series dates are deterministic regardless of run date.
+    ``run()`` intentionally does not thread an ``end`` date (it always writes a
+    series ending "today"), so to keep the date-range assertions below
+    deterministic we materialise the per-protocol files directly from the public
+    ``generate_synthetic(..., end=END)`` — the same series ``run(..., force_synthetic=True)``
+    would produce, only pinned to a fixed end date.
     """
-    data_dir = str(tmp_path)
-    fetcher.run(data_dir, days=365, force_synthetic=True, write=True, end=END)
-    database = db.APYDatabase(data_dir=os.path.join(data_dir, "historical_apy"))
+    out_dir = os.path.join(str(tmp_path), "historical_apy")
+    os.makedirs(out_dir)
+    for proto in PROTOCOLS:
+        series = fetcher.generate_synthetic(proto, days=365, end=END)
+        with open(os.path.join(out_dir, f"{proto}.json"), "w") as fh:
+            json.dump(series, fh)
+    database = db.APYDatabase(data_dir=out_dir)
     return database
 
 

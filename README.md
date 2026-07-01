@@ -2,7 +2,7 @@
 
 **Smart Passive Aggregator — DeFi Yield Management System**
 
-Версия: v12.87 | Язык: Python 3 (stdlib-only runtime) | Статус: Paper Trading — реальный трек с honest anchor **2026-06-22** (**9/30** evidenced честных дней, GoLive 26/29, target ~2026-07-21)
+Версия: v12.87 | Язык: Python 3 (stdlib-only runtime) | Статус: Paper Trading — реальный трек с honest anchor **2026-06-22** (**10/30** evidenced честных дней, GoLive 27/29, target ~2026-07-21)
 
 > ⚠️ **Источник истины — `CLAUDE.md` + `docs/SYSTEM_BRIEFING.md` + `data/golive_status.json`, не этот README.**
 > Рантайм **детерминированный, только stdlib, LLM ЗАПРЕЩЁН** в risk/execution/monitoring
