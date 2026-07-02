@@ -60,6 +60,7 @@ Baseline: the RWA floor itself (rwa_sleeve) is spread ≈ 0 by construction — 
 | **WATCH→ADVANCE** | `fixed_carry_held_to_maturity_bounded` | a fixed-rate wrapper (PT) bounds a floating tail; residual = underlying-solvency-to-maturity (measurable) | PT-sUSDe (~11.2%, ~780 bps) |
 | **REFUSE** | `uncollateralized_credit_realized_default` | uncollat credit; the default tail fired at scale | Goldfinch (wind-down, ~$50M) |
 | **WATCH** | `senior_tranche_bounded_by_junior_firstloss` | senior bounded by a genuine junior first-loss + real assets | Centrifuge DROP (~8%) |
+| **ADVANCE(capped)** | `same_underlying_concentration_cap` | different market, identical underlying → ONE cap, not additive diversification | PT-USDe vs PT-sUSDe (both Ethena; ~70% of Pendle TVL) |
 | **NO-EDGE** | `no_edge_floor_parity` | safest lending ≈ the floor; hold the floor | Aave V3 USDC (~5 bps) |
 | **BASELINE** | `is_the_floor` | the yardstick (spread ≈ 0) | rwa_sleeve |
 

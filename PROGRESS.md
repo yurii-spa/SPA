@@ -112,6 +112,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 24 (A capacity DD, 8-12% hunt):** resolved PT-sUSDe's last open gate — **PT capacity-at-size, QUANTIFIED**. Pendle PT-sUSDe = ~$200.89M liquidity / $260.28M TVL across 2 markets (deepest PT market anywhere) BUT 24h vol only ~$1.08M + near-expiry AMM-flattening. Ceiling: fundable held-to-maturity at $100k-~$2M/maturity; ~5-10M = material slippage; $50-100M = can't absorb alone. **Resolution: RISK clears (ADVANCE-to-paper), SCALE capacity-bounded to ~single-digit $M/maturity → ladder maturities+markets + pair with deep core (RWA floor + overcollat lending ~$100M).** Confirms the desk's known 'edge cliff = thin-PT-depth, not deep core'. decision_index + candidate updated. First 8-12% candidate fully underwritten end-to-end (spread→solvency→capacity).
 
+
+- **Cycle 25 (A ladder rung):** PT-USDe ~8.8% fixed -> CONDITIONAL-ADVANCE but KEY finding: **same underlying (Ethena/USDe) as PT-sUSDe** — laddering Ethena-PTs CONCENTRATES, not diversifies. **~70% of ALL Pendle TVL (~$6.1B) is Ethena.** New reason `same_underlying_concentration_cap`: cap by UNDERLYING; the ladder's real diversification must come from DIFFERENT issuers (PT-syrupUSDC=Maple, fixed-rate markets, RWA), not more Ethena PTs. decision_index 14 decisions.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
