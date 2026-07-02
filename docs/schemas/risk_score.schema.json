@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://earn-defi.com/schemas/risk_score.schema.json",
+  "title": "SPA Yield Lab — Risk Scoring v2 Record (Advisory)",
+  "description": "Advisory Risk Scoring v2 scorecard for one Strategy Card (docs/14, RISK-002). ADVISORY ONLY: it never replaces the deterministic RiskPolicy (spa_core/risk/policy.py, v1.0), is never wired to execution, allocation, or the kill path (ADR-YL-004), and composes UNDER the RiskPolicy — only ever stricter, never looser. No LLM sits in the scoring path. All sub-scores are 0-100. Convention: for every *_risk_score and overall_risk_score, higher = riskier; yield_score / confidence_score / allocation_score / spread_attribution_score follow their own stated direction (higher = better). Unknown inputs raise risk toward red and lower confidence (fail-closed); they never default a strategy to safe.",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "score_0_100": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Advisory sub-score in [0,100]. Advisory only (docs/14); never a hard gate. null until computed."
+    }
+  },
+  "properties": {
+    "yield_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Higher = MORE yield (not risk). Attractiveness of the yield vs the product-line target. Informational (weight 0 in the risk aggregate — attractiveness must never lower measured risk)."
+    },
+    "yield_sustainability_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Risk that the yield is not durable (emissions/points/tail-comp vs real cashflow). Fed by the rates_desk refusal signal. Higher = riskier."
+    },
+    "protocol_risk_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Protocol-level risk (age, TVL trend, deps, governance) from scoring_engine sub-scores. Higher = riskier."
+    },
+    "smart_contract_risk_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Contract/exploit exposure (audits, findings, hack history) from scoring_engine. Higher = riskier."
+    },
+    "stablecoin_risk_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Depeg/redemption/reserve risk if a stablecoin is involved (Stablecoin Card, docs/13; peg history); else n/a. Higher = riskier."
+    },
+    "liquidity_risk_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Risk of not exiting at size, from the dfb exit-liquidity-by-size measurement (@ $1M/$5M/$10M). Higher = riskier."
+    },
+    "counterparty_risk_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Reliance on a specific counterparty (CEX, issuer, market maker). Higher = riskier."
+    },
+    "bridge_risk_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Bridged-asset / cross-chain messaging exposure (scoring_engine bridge_dependency). Higher = riskier."
+    },
+    "oracle_risk_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Oracle manipulation/staleness exposure (scoring_engine oracle_risk). Higher = riskier."
+    },
+    "liquidation_risk_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Forced-liquidation exposure (leverage, collateral, LTV). Higher = riskier."
+    },
+    "operational_risk_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Ops / keys / monitoring / human-process risk. Higher = riskier."
+    },
+    "regulatory_risk_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Legal / sanctions / securities surface (scoring_engine regulatory_surface). Higher = riskier."
+    },
+    "concentration_risk_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Single-protocol / single-asset concentration vs book context and RiskPolicy caps. Higher = riskier."
+    },
+    "correlation_risk_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Correlation to BTC/ETH/rates/other book positions (forward_analytics; beta). Higher = riskier."
+    },
+    "market_regime_risk_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Sensitivity to regime (bull/bear/high-vol/low-funding) from the forward_analytics stress overlay. Higher = riskier."
+    },
+    "black_swan_risk_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Tail / stress-scenario fragility (BTC/ETH -50%, funding reverse, basis collapse) from forward_analytics stress + red-team scenarios. Higher = riskier."
+    },
+    "confidence_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Higher = MORE confidence in the inputs/data (not risk). Driven by data completeness, evidence level, and fallback flags. Low confidence shifts overall_risk_score upward (fail-closed), never downward. Gating, not summed."
+    },
+    "overall_risk_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Weighted aggregate of the *_risk_score rows (weights normalized to sum 1.0), then down-adjusted for confidence (low confidence raises it). Higher = riskier. Advisory."
+    },
+    "allocation_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Higher = MORE allocatable. Advisory suggested-allocation signal derived from overall_risk_score, confidence_score, capacity. Never an allocator; can only recommend LESS than the RiskPolicy allows, never more."
+    },
+    "spread_attribution_score": {
+      "$ref": "#/$defs/score_0_100",
+      "description": "Higher = MORE of the spread-over-floor is explained by priced, accepted risks (ADR-YL-008). 100 = spread fully explained; low = large unexplained residual = unpriced tail risk. Advisory: the actual REJECT on unexplained spread is the deterministic spread_fully_explained gate on the Strategy Card (docs/11), never this score. A low score is a mandatory human-review + red-team trigger."
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["ok", "watch", "human_review", "red_team", "hard_reject"],
+      "description": "Advisory composed verdict from the trigger set (docs/14 §3). ADVISORY ONLY: hard_reject means advisory reject at the current lifecycle stage — it never permits anything the RiskPolicy forbids and never overrides the deterministic hard gate; it can only make the desk more cautious."
+    }
+  },
+  "required": [
+    "yield_score",
+    "yield_sustainability_score",
+    "protocol_risk_score",
+    "smart_contract_risk_score",
+    "stablecoin_risk_score",
+    "liquidity_risk_score",
+    "counterparty_risk_score",
+    "bridge_risk_score",
+    "oracle_risk_score",
+    "liquidation_risk_score",
+    "operational_risk_score",
+    "regulatory_risk_score",
+    "concentration_risk_score",
+    "correlation_risk_score",
+    "market_regime_risk_score",
+    "black_swan_risk_score",
+    "confidence_score",
+    "overall_risk_score",
+    "allocation_score",
+    "spread_attribution_score",
+    "verdict"
+  ]
+}

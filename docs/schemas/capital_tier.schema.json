@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://earn-defi.com/schemas/capital_tier.schema.json",
+  "title": "SPA Yield Lab — Capital Tier Policy Record",
+  "description": "Per-tier strategy universe and allocation caps (docs/34, CAPITAL-002). Research-layer artifact; not runtime data. Caps here are RULES that are always subordinate to the deterministic RiskPolicy hard caps (TVL floor >= $5M/pool, per-protocol 40% T1 / 20% T2, T2 total <= 50%, APY 1-30%, min cash >= 5%); a tier cap can only be equal to or stricter than the RiskPolicy, never looser. As capital grows the strategy universe CONTRACTS toward the deep conservative core and away from the thin exotic edge. Percentage caps are policy rules; concrete numbers beyond the RiskPolicy hard caps require verification.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "tier": {
+      "type": "string",
+      "enum": ["$100k", "$200k", "$500k", "$1M", "$5M", "$10M", "$25M", "$50M", "$100M+"],
+      "description": "Capital tier this record governs (docs/34 tier ladder)."
+    },
+    "allowed_strategy_types": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Strategy types deployable at this tier, e.g. conservative-lending, curated-vault, pendle-fixed, stable-lp, rwa-floor, isolated-basis-carry."
+    },
+    "forbidden_strategy_types": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Strategy types NOT deployed at this tier (forbidden = not deployed here, not never-studied), e.g. looping, structured-products, unvetted-credit, otc, thin-exotic-edge."
+    },
+    "max_alloc_per_strategy_pct": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Max % of book in any single strategy. Subordinate to RiskPolicy. null when bounded only by RiskPolicy at this tier."
+    },
+    "max_alloc_per_protocol_pct": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Max % of book in any single protocol. Subordinate to RiskPolicy per-protocol caps (40% T1 / 20% T2). null when bounded only by RiskPolicy."
+    },
+    "max_alloc_per_stablecoin_pct": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Max % of book exposed to any single stablecoin (docs/38 per-stablecoin logic). null when bounded only by RiskPolicy."
+    },
+    "max_alloc_per_chain_pct": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Max % of book on any single chain. null when bounded only by RiskPolicy."
+    },
+    "max_alloc_per_counterparty_pct": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Max % of book on any single counterparty (CEX/custodian/issuer). Per-name limits appear as size grows (docs/34 §3). null when not yet binding at this tier."
+    },
+    "liquidity_requirement": {
+      "type": "string",
+      "description": "Liquidity / exit-depth obligation at this tier, e.g. 'ample; concentration barely binds' or 'documented liquidity/exit plan per position; institutional-grade exit liquidity'."
+    },
+    "custody_requirement": {
+      "type": "string",
+      "enum": ["self_custody", "institutional_appropriate", "institutional_mandatory"],
+      "description": "Custody posture required at this tier (docs/34: self-custody -> institutional appropriate ($5M) -> institutional mandatory ($10M+))."
+    },
+    "legal_review_required": {
+      "type": "boolean",
+      "description": "Whether external legal review is mandatory (credit / OTC / external capital), true from ~$10M (docs/34 §4)."
+    },
+    "ic_required": {
+      "type": "boolean",
+      "description": "Whether a formal Investment Committee is mandatory for allocation decisions, true from ~$25M (docs/34 §4)."
+    },
+    "audit_grade_reporting_required": {
+      "type": "boolean",
+      "description": "Whether audit-grade reporting is mandatory (appropriate at $5M, mandatory at $10M+, docs/34 §4)."
+    }
+  },
+  "required": [
+    "tier",
+    "allowed_strategy_types",
+    "forbidden_strategy_types",
+    "custody_requirement",
+    "legal_review_required",
+    "ic_required",
+    "audit_grade_reporting_required"
+  ]
+}

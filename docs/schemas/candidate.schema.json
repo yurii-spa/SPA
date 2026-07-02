@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://earn-defi.com/schemas/candidate.schema.json",
+  "title": "SPA Yield Lab — Strategy Candidate Record",
+  "description": "A discovered yield opportunity, recorded at the front of the discovery funnel (docs/35 §2, DISCOVERY-002). Research artifact only: explicitly NOT a Strategy Card and NOT an approval; never read by the deterministic RiskPolicy or execution path. A high apparent_yield is a reason to investigate, never to allocate. All concrete APY/TVL/capacity/liquidity numbers are unverified until sourced with an evidence level (docs/37). Promotion to a Strategy Card requires the full docs/35 §3 hard gate ending in human approval.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "candidate_id": {
+      "type": "string",
+      "description": "Stable unique id for the candidate, e.g. CAND-0001. Never reused."
+    },
+    "source": {
+      "type": "string",
+      "description": "Which discovery signal surface (docs/35 §1) surfaced this candidate, e.g. defillama_yields, funding_rates, pendle_markets, rwa_yields, governance, new_launches."
+    },
+    "discovered_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of first observation (ISO-8601 UTC)."
+    },
+    "strategy_type": {
+      "type": "string",
+      "description": "Category from docs/33 / docs/38, e.g. curated-vault, fixed-carry, basis, funding, lp, lending, rwa, restaking, leverage."
+    },
+    "assets": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Concrete assets involved (stablecoin(s) / BTC / ETH), e.g. ['USDC','sUSDe']."
+    },
+    "protocols": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Protocol(s) touched; each requires a Protocol Card (docs/12) before promotion."
+    },
+    "chains": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Chain(s) of execution."
+    },
+    "apparent_yield": {
+      "type": ["number", "string", "null"],
+      "description": "Raw observed feed value labelled unverified, or a category string for public reference. Not a verified APY; requires verification (docs/37). null when unknown."
+    },
+    "suspected_yield_source": {
+      "type": "string",
+      "enum": ["borrow", "tail_comp", "basis_funding", "incentive", "real_economic"],
+      "description": "Which of the five yield buckets (docs/33 §0) the yield is suspected to come from: borrow demand, tail-risk compensation, basis/funding, incentives/subsidy, or real economic cashflow."
+    },
+    "required_due_diligence": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["yield_source_verification", "protocol", "stablecoin", "curator", "liquidity", "risk_scoring", "red_team", "paper_test_plan"]
+      },
+      "description": "Specific reviews still owed before promotion (docs/35 §3 gate)."
+    },
+    "first_risk_flags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Immediate concerns from first look, e.g. leverage, opacity, depeg-history, incentive-dependence, thin-depth, new-launch, off-code-counterparty."
+    },
+    "capacity_guess": {
+      "type": "string",
+      "description": "Rough deployable size plus the binding constraint, expressed as a method not an invented number (docs/35 §2). Requires verification."
+    },
+    "liquidity_guess": {
+      "type": "string",
+      "description": "Rough exit liquidity and expected slippage at the intended tier, expressed as a method (docs/35 §2). Requires verification."
+    },
+    "initial_product_line_fit": {
+      "type": "string",
+      "enum": ["Preserve", "Core", "Enhanced", "MaxYield", "Experimental"],
+      "description": "Tentative product-line fit (docs/34 ranges). Provisional; the real line is decided at approval."
+    },
+    "initial_capital_tier_fit": {
+      "type": "string",
+      "enum": ["$100k", "$200k", "$500k", "$1M", "$5M", "$10M", "$25M", "$50M", "$100M+"],
+      "description": "Smallest capital tier where it plausibly works (docs/34 tier ladder). Tentative."
+    },
+    "required_data_sources": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Feeds needed to verify the yield; must be reproducible by our own code (a yield our code cannot pull cannot pass step-1 verification, docs/35 §3)."
+    },
+    "next_action": {
+      "type": "string",
+      "description": "One concrete next step, e.g. verify feed / write protocol card / red-team / reject / draft paper-test plan."
+    }
+  },
+  "required": [
+    "candidate_id",
+    "source",
+    "discovered_at",
+    "strategy_type",
+    "assets",
+    "protocols",
+    "chains",
+    "suspected_yield_source",
+    "next_action"
+  ]
+}

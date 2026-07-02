@@ -1,0 +1,128 @@
+# Yield Lab Scaffolding — PROGRESS
+
+Branch: `yield-lab-scaffolding` (NOT merged to main by this run). Mode: AUDIT + DOCS + SCAFFOLDING
+only. Local commits only; nothing pushed; nothing deployed. Master charter:
+`prompts/claude_code/yield_lab_master.md`. Authoritative doc index: `docs/00_index.md`.
+
+## DONE (all wrapper steps complete)
+- **STEP 0** — branch created; master charter; PROGRESS.md. (`e88e932bf`)
+- **STEP 1** — read-only audit: `docs/02_current_architecture_audit.md`, `docs/06_spa_core_invariants.md`,
+  `docs/31_open_questions.md`. Key finding: a research layer ALREADY exists (strategy_lab/{aggressive_lab,
+  rates_desk,rwa_backstop,liquidator,underwriting}, redteam/, riskwire/, dfb/, compliance/) — docs
+  formalize/unify, do not duplicate. (`725985e9f`)
+- **STEP 2** — root `CLAUDE.md` extended with a Yield-Lab section (careful append, not rewrite). (`75ca870de`)
+- **STEP 3** — Priority 1 (13 files): 00_index, 33_yield_thesis_map (full), 37_apy_evidence (full),
+  11_strategy_card_system (full), 14_risk_scoring_v2 (full), 28_cc_master_instructions,
+  07_yield_lab_architecture, 10_agent_architecture, 29_backlog (73 tasks), 30_first_30_days,
+  strategy_cards {schema(valid JSON)/template/README} + .gitignore exception. (`d0bd51929`,`b9fbd1015`)
+- **STEP 4** — Priority 2: 38_stablecoin_yield_engine, 35_strategy_discovery_engine, 34_capital_tiers,
+  36_btc_capital_cycle_machine, 15_btc_cycle_framework, 16_eth_yield_framework, 12_protocol_card_system,
+  13_stablecoin_card_system, protocol+stablecoin card schemas(valid JSON)/templates/READMEs, 15 agent
+  prompts. (`1bdb3e8f7`)
+- **STEP 5** — Priority 3: 10 stub docs (23,24,25,26,39,40,41,42,43,44, each "TODO: expand at MVP 2-3"),
+  7 ADR-YL, 5 reporting templates, 5 illustrative example strategy cards. (`4782672e9`)
+- **STEP 6** — this final summary.
+
+## OWNER DECISIONS
+- **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
+  fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
+  accepted, measurable risk; unexplained spread ⇒ REJECT (a positive result, logged in the refusal log);
+  the floor is the official baseline (judge spread, not absolute APY). Propagated to docs/07 (§1a mandate),
+  docs/11 (§3.4a spread fields + promotion gate), docs/14 (row 20 `spread_attribution_score`),
+  red_team_agent (mandatory Q19 + schema + red-flag), capital_allocation_agent (eligibility filter),
+  and the strategy-card schema + template. OQ-1 marked RESOLVED in `docs/31`.
+
+## BACKLOG EXECUTION LOG (one task per commit, docs-only, ADR-YL-008 applied)
+- **STRAT-005** (spectrum demonstrated, 3 real sleeves) — Strategy Cards with spread-attribution:
+  `rates_desk_fixed_carry` (explained-carry, held at paper_testing — realized spread 0/INSUFFICIENT_DATA),
+  `rwa_sleeve` (the **baseline**, spread=0 by construction), `leverage_loop` (**REFUSED** — nominal ~1160bps
+  spread is unpriced liquidation tail, realized −8.95% → refusal-log positive result). Remaining optional:
+  eth_lst_neutral, susde_dn, lrt_carry, points_farm.
+- **PROTO-003** (5/5 DONE) — Protocol Cards: pendle, aave_v3, compound_v3, morpho, euler_v2 (security
+  fields honestly UNVERIFIED = findings; TVL live/requires-verification; Euler V1 $197M/2023 exploit documented).
+- **STABLE-003** (5/5 DONE) — Stablecoin Cards: usdc, usdt, dai, usde, usds (backing/freeze/depeg documented;
+  market-cap/supply/attestation specifics = requires verification; USDe=synthetic-risk-comp; USDS 0%-until-GSM).
+- FixedCarry gates: protocol-review + stablecoin-review now have cards, but still **NOT PASSED** — the
+  UNVERIFIED security/attestation fields in those cards are findings until sourced (honest evidence discipline).
+
+## BACKLOG — actionable tasks CLEARED (2026-07-02)
+Ran the whole backlog one-task-per-commit. Done this arc (beyond the 9 file-marked DONE):
+- **Cards:** 5 Protocol (Pendle/Aave/Compound/Morpho/Euler), 5 Stablecoin (USDC/USDT/DAI/USDe/USDS),
+  Strategy cards spectrum (FixedCarry/rwa_sleeve/leverage_loop/eth_lst_neutral/susde_dn) + 5 pre-ADR
+  example cards brought to ADR-YL-008 conformance (10/10). YL-005 sleeve-status map.
+- **Schemas (valid JSON):** candidate, risk_score, capital_tier, lifecycle_state, btc_signal.
+- **Docs:** 03 glossary, 04 layered-arch, 05 topology, 17 portfolio, 22 compliance-surface, 26_surfaces,
+  35 screening-rubric, security_review, session_checklist, audit/test_health.
+- **Templates:** paper_test_plan, small_capital_report, retirement, stablecoin_scan, lst_dd,
+  allocation_proposal, risk_disclosure, task_plan, work_report, perf_report, ADR-YL-template.
+- **Test/guard harness (100 passed, research-layer, no runtime import):** research/cards/validate.py +
+  research/lifecycle.py; tests: schemas_valid, cards_complete, lifecycle_transitions, evidence_levels,
+  no_secrets_in_research, no_execution_import, yield_thesis_map.
+- **ADR-YL-008** unified mandate (resolves OQ-1) propagated everywhere.
+
+**Only remaining = the P3 stub docs (23,24,26,39,40,41,42,43) explicitly marked "TODO: expand at MVP
+2-3 stage"** — deferred by design, not now. The actionable scaffolding + card + schema + test backlog is done.
+
+## NEXT (future sessions — expansion, none blocking)
+- Expand the 10 Priority-3 stubs at MVP 2-3 (esp. 43 dangerous-strategies + 44 first-20 into full cards).
+- Fill `data/protocol_cards/examples/` + `data/stablecoin_cards/examples/` (schemas + templates ready).
+- Remaining open questions in `docs/31` (owner: OQ-4 Risk-Scoring-v2 reuse; OQ-6/7 live data verification).
+- Pick one task at a time from `docs/29_backlog.md` (73 tasks). Do NOT merge this branch to main or deploy
+  without owner review.
+
+---
+
+## STEP 6 — FINAL SUMMARY (Section 48)
+
+1. **Repo audit** — SPA is a large paper-stage DeFi yield/risk desk: ~55 `spa_core/` packages, 35
+   read-only adapters, deterministic RiskPolicy v1.0, two-tier kill, GoLiveChecker (29 criteria),
+   1,489 test files (suite green), ~400 runtime `data/*.json`, Astro site (Pages), 8 CI workflows.
+2. **Existing architecture map** — see `docs/02`. Load-bearing: `risk/policy.py` (hard gate),
+   `paper_trading/` (cycle+golive+gates), `governance/kill_switch.py`, `adapters/`, `strategy_lab/`
+   (the EXISTING research layer: aggressive_lab, rates_desk, rwa_backstop, liquidator, underwriting),
+   `redteam/`, `riskwire/`, `dfb/`, `tournament/`, `api/server.py`, `execution/` (isolated).
+3. **Files created** — **74 new files** across `docs/`, `docs/adr/`, `prompts/`, `data/*_cards/`,
+   `data/{research_reports,ic_memos,risk_reviews,red_team_reviews}/`.
+4. **Files modified** — **2, both careful non-destructive extends**: root `CLAUDE.md` (+Yield-Lab
+   section) and `.gitignore` (+narrow exception so research-card dirs track despite the runtime
+   `data/*.json` ignore). Plus `PROGRESS.md` (new).
+5. **Existing architecture preserved** — YES. No runtime/execution/RiskPolicy/dashboard/deploy file
+   was touched (verified: `git diff --name-only main..HEAD` contains no such path).
+6. **New docs** — 31 markdown docs (`docs/00,02,06,07,10-16,23-26,28-31,33-45`) + 7 ADR-YL.
+7. **New prompt files** — 15 agent prompts (`prompts/agents/*.md`) + the master charter.
+8. **New schemas/templates** — 3 JSON schemas (strategy/protocol/stablecoin cards, all valid JSON),
+   3 card templates + READMEs, 5 reporting templates, 5 illustrative example strategy cards.
+9. **Tests run** — JSON validity of all 3 card schemas (pass). Repo import used to verify adapter
+   count (35). No suite run needed (docs-only change).
+10. **Tests not run & why** — full pytest suite not re-run: this run added zero runtime code, so it
+    cannot affect test outcomes; the suite was already green earlier this session.
+11. **Risks/uncertainties** — the master prompt's 10-15% target vs the desk's honest finding that it
+    does not beat the ~3.4% RWA floor via yield at fundable scale (held as an explicit tension, not
+    resolved); Priority-3 docs are stubs; all APY/TVL are placeholders "requires verification".
+12. **Open questions** — see `docs/31_open_questions.md` (10 OQs).
+13. **Recommended next 10 tasks** — (1) owner resolves OQ-1 (Yield-Lab mandate framing); (2) verify
+    live data-source availability (OQ-7) before BTC/ETH/discovery docs assume any; (3) fill 3–5 real
+    protocol cards from the 35 adapters; (4) fill 5–7 stablecoin cards (USDC/USDT/DAI/USDe/PYUSD/RLUSD/
+    EURC); (5) wire Risk Scoring v2 as an advisory read over the existing `dfb` overlay/`scoring_engine`
+    (no execution); (6) expand `docs/43` dangerous-strategies per-strategy; (7) expand `docs/44` into
+    strategy cards; (8) draft the first weekly investment report from the template; (9) map the existing
+    rates_desk/aggressive_lab outputs onto Strategy Cards; (10) IC-memo the FixedCarry sleeve.
+14. **No execution-path logic changed** — CONFIRMED.
+15. **No private-key / auto-signing functionality added** — CONFIRMED.
+16. **Deterministic RiskPolicy not weakened** — CONFIRMED (untouched; documented as the sole hard gate).
+17. **Risk Scoring v2 is advisory only** — CONFIRMED (docs/14 + ADR-YL-004; never a gate, not wired
+    to execution).
+18. **BTC/ETH modules are decision-support only** — CONFIRMED (docs/15/16/36 + ADR-YL-007).
+19. **No APY claims added as verified without evidence** — CONFIRMED (all numbers are category ranges
+    or "requires verification"/"illustrative"; evidence standard in docs/37).
+20. **Recommended next Claude Code prompt** — "Read docs/00_index.md, docs/06, docs/29_backlog.md; pick
+    PROTOCOL-CARD task for Aave V3; fill one real Protocol Card (data/protocol_cards/) from the
+    spa_core/adapters + dfb overlay + a DeFiLlama read; mark any unverified metric 'requires
+    verification'; do not touch runtime/RiskPolicy/dashboard/deploy; one task only."
+
+## Environment notes for recovery
+- Existing `docs/` is large; new docs use `NN_lowercase.md` (no collision). New ADRs namespaced
+  **ADR-YL-###** (existing `docs/adr/` holds ADR-002+). New card data in NEW dirs only; runtime
+  `data/*.json` + existing `data/*/` untouched. Local `main` diverges from `origin/main` (API-push
+  model); a future session syncing origin should `git fetch && reset --hard origin/main` on `main`,
+  never on this branch. Never invent APY/TVL — unknown = "requires verification".

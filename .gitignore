@@ -85,3 +85,21 @@ scripts/cf_install_token.command
 # Node modules (landing, etc.)
 node_modules/
 landing/node_modules/
+
+# --- Yield Lab research-layer scaffolding (canonical templates/cards/schemas, NOT runtime state) ---
+# These are version-controlled research artifacts, not per-run runtime churn. Track them despite the
+# broad data/*.json ignore above.
+!data/strategy_cards/
+!data/strategy_cards/**
+!data/protocol_cards/
+!data/protocol_cards/**
+!data/stablecoin_cards/
+!data/stablecoin_cards/**
+!data/research_reports/
+!data/research_reports/**
+!data/ic_memos/
+!data/ic_memos/**
+!data/risk_reviews/
+!data/risk_reviews/**
+!data/red_team_reviews/
+!data/red_team_reviews/**

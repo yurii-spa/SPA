@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://earn-defi.com/schemas/btc_signal.schema.json",
+  "title": "SPA Yield Lab — BTC Cycle Signal Record",
+  "description": "A BTC capital-cycle signal (docs/15 / docs/36, BTC-003). DECISION-SUPPORT ONLY: the BTC cycle module never auto-trades (ADR-YL-007). Any action it suggests is a human-facing recommendation that must still pass the deterministic RiskPolicy and named human approval before any exposure changes; it never mutates runtime allocation or the execution path. No LLM sits in the risk/execution path. Metrics must be real and sourced; unknown inputs are treated cautiously, never as a bullish default.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "phase": {
+      "type": "string",
+      "enum": [
+        "accumulation",
+        "recovery",
+        "early_bull",
+        "mid_bull",
+        "euphoria",
+        "distribution",
+        "early_bear",
+        "capitulation"
+      ],
+      "description": "Detected BTC capital-cycle phase (docs/36)."
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Confidence in the detected phase, in [0,1]. Low confidence widens caution; never used to justify auto-action."
+    },
+    "metrics": {
+      "type": "object",
+      "description": "The real, sourced on-chain / market metrics that produced the phase call (e.g. MVRV, realized-price, funding, dominance). Values require verification; keys/shape are module-defined.",
+      "additionalProperties": true
+    },
+    "source": {
+      "type": "string",
+      "description": "Data source(s) the metrics were pulled from; must be reproducible by our own code."
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp the signal is valid as of (ISO-8601 UTC)."
+    },
+    "recommended_action": {
+      "type": "string",
+      "enum": [
+        "accumulate",
+        "hold",
+        "reduce",
+        "hedge",
+        "rotate_to_stables",
+        "reenter"
+      ],
+      "description": "Human-facing recommended action for the detected phase. DECISION-SUPPORT ONLY (ADR-YL-007) — advisory input to a human, never auto-executed; still subject to RiskPolicy + human approval."
+    },
+    "human_approval_required": {
+      "type": "boolean",
+      "const": true,
+      "description": "Always true. The recommendation cannot change exposure without named human approval; the module never auto-trades (ADR-YL-007)."
+    }
+  },
+  "required": [
+    "phase",
+    "confidence",
+    "source",
+    "as_of",
+    "recommended_action",
+    "human_approval_required"
+  ]
+}

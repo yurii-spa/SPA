@@ -524,3 +524,33 @@ hourly advisory live-paper + `/api/rates-desk/*`; док `docs/RATES_DESK.md`); 
 **35 адаптеров** (+BTC tbtc/cbbtc advisory); секции **Strategy Lab** (eth_lst_neutral + rwa_sleeve + 5-venue
 funding + real RWA floor ~3.4%) и **Сайт** (unified design system, /track-record /research /system /disclaimer
 /app, EN|RU); source of truth = launchctl/SYSTEM_BRIEFING; agent_health честно зелёный.*
+
+---
+
+## 🧪 Yield Lab / AI Investment OS (research layer — docs-first, non-runtime)
+
+A research/documentation layer is being scaffolded on branch `yield-lab-scaffolding` to evolve SPA
+into an AI-native yield research + risk + decision-support system (Yield Lab, AI Investment OS,
+Builder OS, Execution Support). **It never touches the runtime execution path, RiskPolicy, public
+dashboard, or deployment.** Charter: `prompts/claude_code/yield_lab_master.md`. Authoritative index:
+`docs/00_index.md`. Read `docs/06_spa_core_invariants.md` before any related work.
+
+**Hard invariants this layer preserves (superset of the FORBIDDEN list above):**
+- Deterministic **RiskPolicy v1.0** is the sole hard execution gate; **Risk Scoring v2 is advisory
+  only**, never a gate, never in the execution path.
+- **No LLM** in risk/execution/monitoring/kill. **No private keys / seed phrases / signing / fund
+  movement** anywhere; **Execution Support is non-custodial**, human-in-the-loop.
+- **APY claims require an evidence level (L0–L6, `docs/37`)** — never present paper/backtest as live;
+  always show yield source + risk category + last-verified date. Never invent APY/TVL.
+- Higher-yield strategies pass the **Yield Lab lifecycle** (`docs/07`) — yield-source + protocol +
+  stablecoin + liquidity + risk + **Red Team** review + paper test + **human approval** — before any
+  public/live use. **BTC/ETH cycle modules are decision-support, not auto-trading.**
+- Default autonomy **Level 0/1** (research/recommendation). **External capital needs legal review.**
+
+**Workflow (Builder OS, `docs/45`):** read `docs/00_index.md` → `docs/06` → the relevant architecture
+doc → `docs/29_backlog.md`; pick ONE task; modify only required files; tests for code changes; docs
+updated with behavior changes; **stop and ask before touching runtime/RiskPolicy/dashboard/deploy**;
+one task per iteration, no big-bang rewrites, no hidden changes. **A research layer already partially
+exists** (`spa_core/strategy_lab/{aggressive_lab,rates_desk,rwa_backstop,liquidator,underwriting}`,
+`redteam/`, `riskwire/`, `dfb/`, `compliance/`) — the docs formalize/unify these, do NOT duplicate them
+(`docs/02_current_architecture_audit.md`).

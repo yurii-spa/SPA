@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://earn-defi.com/schemas/lifecycle_state.schema.json",
+  "title": "SPA Yield Lab — Lifecycle State Record",
+  "description": "The per-status contract for one Yield Lab lifecycle state (docs/07 §3, YL-001). Research-layer artifact; not runtime data; never read by the deterministic RiskPolicy or execution path. Encodes the entry/exit/evidence/approval/duration/allocation/auto-fail rules for one status in the lifecycle: idea -> research -> rejected, or research -> paper_testing -> paper_passed -> small_capital_testing -> small_capital_passed -> approved_for_{preserve,core,enhanced,max_yield} -> frozen -> retired. All graduation steps are advisory (L0/L1 autonomy); the deterministic RiskPolicy v1.0 remains the sole hard gate and every advance requires the named human approval. Judgment is spread over the live RWA floor, every point risk-explained (ADR-YL-008).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "idea",
+        "research",
+        "rejected",
+        "paper_testing",
+        "paper_passed",
+        "small_capital_testing",
+        "small_capital_passed",
+        "approved_for_preserve",
+        "approved_for_core",
+        "approved_for_enhanced",
+        "approved_for_max_yield",
+        "frozen",
+        "retired"
+      ],
+      "description": "The Yield Lab lifecycle status this record defines (docs/07 §3)."
+    },
+    "entry_criteria": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Conditions required to ENTER this status (docs/07 §3 'Entry criteria' column), e.g. 'yield-source hypothesis written', 'IC memo + human approval to fund a small sleeve'."
+    },
+    "exit_criteria": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Conditions and next-status transitions that EXIT this status (docs/07 §3 'Exit -> next' column). Every transition is read through the ADR-YL-008 spread-over-floor rule."
+    },
+    "required_evidence_level": {
+      "type": "string",
+      "enum": ["L0", "L1", "L2", "L3", "L4", "L5", "L6"],
+      "description": "Minimum APY evidence level required at this status (docs/37): L0 idea/unverified, L1 historical public observed, L2 data-source verified, L3 paper-tracked, L4 small-capital tested, L5 live-capital tested, L6 multi-cycle validated."
+    },
+    "human_approval_required": {
+      "type": "boolean",
+      "description": "Whether advancing INTO/through this status requires a named human sign-off (owner/IC). No LLM and no automated score approves a strategy."
+    },
+    "min_duration_days": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Minimum evidenced days that must elapse in this status before it can be exited (e.g. >= 30 evidenced days in paper_testing). null when not time-gated."
+    },
+    "max_allocation": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "description": "Advisory max capital allowed at this status (0 for idea/research/paper; capped small sleeve for small_capital_testing; product-line + capital-tier caps once approved). Never overrides RiskPolicy caps. null when governed entirely by product-line + tier caps."
+    },
+    "auto_fail_conditions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Conditions that automatically fail the strategy out of this status (docs/07 §3 'Auto-fail conditions'), e.g. 'drawdown past tier limit', 'depeg/exploit/freeze event', 'yield-source assumption falsified', 'evidence gap'."
+    }
+  },
+  "required": [
+    "status",
+    "entry_criteria",
+    "exit_criteria",
+    "required_evidence_level",
+    "human_approval_required",
+    "auto_fail_conditions"
+  ]
+}
