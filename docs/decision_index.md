@@ -19,6 +19,7 @@
 | **SC-SUSDEDN-001** | sUSDe delta-neutral (Ethena) | **research (risk-comp)** | funding carry = risk-comp; funding-flip/CEX-counterparty/peg tail not decomposed → not fully explained | nominal (headline ~11%) | L3 | `data/strategy_cards/examples/susde_dn.strategy.md` |
 | **SC-ETHLSTN-001** | eth_lst_neutral (hedged ETH β≈0) | **paper_testing** | realized spread INSUFFICIENT_DATA; LST-depeg-residual/funding/hedge risks itemized, unpriced pending data | not yet measured | L3 (thin) | `data/strategy_cards/examples/eth_lst_neutral.strategy.md` |
 | **SC-RWA-001** | RWA sleeve (tokenized T-bill floor) | **BASELINE** | it **IS** the floor — spread ≈ 0 by construction; the yardstick every other card is judged against | ≈ 0 | L3 | `data/strategy_cards/examples/rwa_sleeve.strategy.md` |
+| **CAND-SYRUP-001** | Maple syrupUSDC (institutional credit) | **WATCH / CONDITIONAL-ADVANCE** | credit-risk-comp now **bounded** (overcollateralized 120–170% + Anchorage/BitGo/Copper custody + ~3yr zero-loss Syrup) — acceptable in principle, but gated on DD given the v1 **$50M/2022 default** precedent | ~**180 bps** | L2 | `data/strategy_candidates/maple_syrupusdc.candidate.md` |
 
 ## Illustrative example cards (scaffolding — numbers illustrative, not sourced decisions)
 `SC-EX-001` core_stablecoin_lending (held) · `SC-EX-002` pendle_pt_stablecoin (paper) · `SC-EX-003`
@@ -26,9 +27,11 @@ susde_yield (research) · `SC-EX-004` btc_basis (research) · `SC-EX-005` eth_st
 ADR-YL-008-conformant (5 spread fields present) but with `illustrative — requires verification` numbers.
 
 ## What this shows (the moat)
-- **The mandate is applied, not asserted:** 1 ADVANCE (USDY — bounded, sourced spread), 3 REFUSE/HOLD
-  by **three distinct reasons** (leverage_loop = tail-comp; sUSDS = governance-safety precondition;
-  FixedCarry = unrealized-at-size), 1 baseline, plus research/paper sleeves. Refusals dominate — by design.
+- **The mandate is applied, not asserted:** 1 ADVANCE (USDY — bounded, sourced spread), 1 **WATCH/
+  conditional** (Maple credit — bounded but DD-gated), REFUSE/HOLD by **distinct reasons** (leverage_loop
+  = tail-comp; sUSDS = governance-safety precondition; FixedCarry = unrealized-at-size), 1 baseline, plus
+  research/paper sleeves. **Four verdict types** (ADVANCE / WATCH / REFUSE / BASELINE) — refusals + gates
+  dominate by design; the honest middle (WATCH) exists too.
 - **Every number carries an evidence level** (L0–L6, docs/37) and a source; unknowns are `requires
   verification`, never fabricated.
 - **Auditable:** open any card; the spread-attribution cites the sourced issuer/protocol/stablecoin
