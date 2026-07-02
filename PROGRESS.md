@@ -43,6 +43,11 @@ Rotation: (A) edge-hunt ADR-YL-008 · (B) deep-research to institutional depth �
   **REFUSED / HELD-AT-0%** on a NOVEL reason `governance_safety_precondition` — GSM Pause Delay 24h < the
   desk's required 48h (FORBIDDEN #8). Positive result: the desk's own rule + the mandate agree; re-open if
   on-chain GSM ≥48h. Balances the ADVANCE (USDY) with a fresh refusal reason (vs leverage_loop tail-comp).
+- **Cycle 6 (B deep-research):** filled UNVERIFIED attestation/reserve fields on USDC + USDT cards
+  (sourced 2026-07-02): USDC = **Deloitte & Touche, monthly AICPA AUP**, 80%+ in BlackRock Circle Reserve
+  Fund (2a-7 MMF, BNY Mellon); USDT = **BDO Italia, quarterly ISAE 3000**, ~80% T-bills + **~$8B gold +
+  ~$7B BTC** (Q1-26 $191.77B res vs $183.54B liab). Documents USDC's stronger transparency (monthly vs
+  quarterly) + USDT's mixed non-fiat reserve. Both checklists: attestation item now [x].
 
 ## VERIFICATION + REMEDIATION SPRINT (2026-07-02)
 Verified the whole yield-lab build against the charter by ACTUAL repo contents (not memory): invariants

@@ -11,9 +11,9 @@
 - **issuer:** `Circle`
 
 ## Backing & transparency (the due-diligence core)
-- **backing_type:** `fiat_backed` (cash + short-dated US Treasuries)
-- **reserve_transparency:** `partial→full` — Circle publishes reserve reporting; exact cadence/firm `requires verification`
-- **attestations:** `[{firm: "requires verification (Circle publishes monthly attestations)", cadence: "monthly (verify)", last_date: "requires verification"}]`
+- **backing_type:** `fiat_backed` — **sourced (verified 2026-07-02):** ~80%+ held in the **BlackRock-managed Circle Reserve Fund (USDXX, a registered 2a-7 government money-market fund, custodied at BNY Mellon)**; remainder cash at GSIB banks.
+- **reserve_transparency:** **FULL monthly attestation (sourced 2026-07-02)** — AICPA agreed-upon-procedures (point-in-time reserve assertion, NOT a full GAAS audit). Published on Circle's transparency page.
+- **attestations:** `[{firm: "Deloitte & Touche LLP", cadence: "monthly", type: "AICPA agreed-upon-procedures (point-in-time)", last_seen: "March 2026 (as-of Mar 11 + Mar 31 2026)"}]` — **verified 2026-07-02 [L2]**
 - **redemption_mechanism:** `direct issuer redemption (1:1 for eligible/KYC'd institutional accounts) + deep secondary AMM/CEX liquidity for everyone else`
 
 ## Liquidity & market structure (never presented without a last-verified date)
@@ -49,6 +49,6 @@
 
 ### Review checklist (docs/13 §5)
 - [x] `backing_type`, `blacklist_freeze_risk`, `depeg_history`, `emergency_exit_triggers` filled substantively (SVB depeg + freeze capability documented)
-- [ ] `reserve_transparency` attestation firm/cadence sourced with a last-verified date — **pending**
+- [x] `reserve_transparency` attestation firm/cadence SOURCED — **Deloitte & Touche LLP, monthly AICPA AUP, last March 2026 (verified 2026-07-02)**
 - [ ] `market_cap` / `circulating_supply` / liquidity fields sourced with a last-verified date — **pending**
 - [ ] `risk_score` + `max_allocation_recommendation` cite the dfb overlay / RiskPolicy caps — pending

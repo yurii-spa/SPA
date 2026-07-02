@@ -9,9 +9,9 @@
 - **issuer:** `Tether`
 
 ## Backing & transparency (the due-diligence core)
-- **backing_type:** `fiat_backed` (cash, T-bills, and other reserve assets)
-- **reserve_transparency:** `partial` — Tether publishes attestations (not full GAAP audits historically); transparency is weaker than USDC. `requires verification` of current cadence/firm.
-- **attestations:** `[{firm: "requires verification", cadence: "quarterly attestations (verify)", last_date: "requires verification"}]`
+- **backing_type:** `fiat_backed + mixed` — **sourced (verified 2026-07-02):** ~80% US Treasury bills + overnight repo + cash, **PLUS ~$8B gold and ~$7B BTC** + secured loans/other (Q1-2026). The **gold + BTC (~$15B non-fiat) is a real risk-relevant nuance** — USDT is NOT purely cash/T-bill backed. Q1-2026 BDO report: reserves **$191.77B** vs liabilities **$183.54B** → **~$8.23B excess**.
+- **reserve_transparency:** **QUARTERLY attestation (sourced 2026-07-02)** — BDO ISAE 3000 (Revised) assurance report, point-in-time, **NOT a full GAAS audit**. Weaker cadence than USDC's monthly (quarterly vs monthly) + the mixed gold/BTC reserve.
+- **attestations:** `[{firm: "BDO (BDO Italia)", cadence: "quarterly", type: "ISAE 3000 (Revised) assurance (point-in-time, not full audit)", last_seen: "Q1 2026 (as-of Mar 31 2026)"}]` — **verified 2026-07-02 [L2]**
 - **redemption_mechanism:** `direct issuer redemption for large KYC'd accounts (minimums); deep secondary CEX/on-chain liquidity for others`
 
 ## Liquidity & market structure (never presented without a last-verified date)
@@ -47,6 +47,6 @@
 
 ### Review checklist (docs/13 §5)
 - [x] `backing_type`, `blacklist_freeze_risk`, `emergency_exit_triggers` filled; `depeg_history` documented (verify figures)
-- [ ] `reserve_transparency` attestation firm/cadence sourced with a date — **pending (weaker than USDC)**
+- [x] `reserve_transparency` attestation firm/cadence SOURCED — **BDO Italia, quarterly ISAE 3000, last Q1-2026 (verified 2026-07-02); weaker cadence + gold/BTC reserve vs USDC**
 - [ ] `market_cap` / `circulating_supply` / liquidity sourced with a date — pending
 - [ ] `risk_score` + `max_allocation_recommendation` cite dfb overlay / RiskPolicy caps — pending
