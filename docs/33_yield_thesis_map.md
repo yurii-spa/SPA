@@ -1,5 +1,7 @@
 # 33 — Yield Thesis Map
 
+> **Canonical (ADR-YL-009).** Mandate → `adr/ADR-YL-008`. The Preserve/Core/Enhanced/… **APY bands here are ILLUSTRATIVE (pre-audit)** — real decisions in `docs/decision_index.md` supersede them; the canonical product-line definition is spread-based in `docs/17` (OQ-12).
+
 **Purpose.** This is the flagship research document. It answers one question honestly for every
 mechanism the desk may touch: **where does the yield actually come from?** For each mechanism it
 records the yield source, who pays it, why it exists, why it can disappear, an APY-range *category*

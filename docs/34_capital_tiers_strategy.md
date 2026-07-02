@@ -1,5 +1,7 @@
 # 34 — Capital Tiers Strategy
 
+> **Canonical (ADR-YL-009).** This is the **CANONICAL capital-tiers** definition. Product-line APY bands are **NOT** defined here (a common mis-reference from `docs/07`) — see `docs/17` (spread-based, canonical) + OQ-12.
+
 **Purpose.** Document how **capital scale changes the strategy universe**. A strategy that works at
 $100k can fail at $10M — liquidity thins, capacity caps bite, slippage grows, lockups and redemption
 queues matter, counterparty limits appear, ops/legal/custody obligations multiply, and concentration

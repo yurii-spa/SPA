@@ -1,5 +1,7 @@
 # 07 — Yield Lab Architecture
 
+> **Canonical (ADR-YL-009).** Mandate → `adr/ADR-YL-008` (not restated here). Product-line APY bands in this doc are **ILLUSTRATIVE** — the canonical product-line definition is spread-based in `docs/17` (OQ-12); the older "ranges live in docs/34" pointer was wrong (never defined there). Verdict enum (ADVANCE/WATCH/REFUSE/NO-EDGE/BASELINE, `docs/underwriting_rubric.md`) ↔ the lifecycle statuses here: see the bridge in `docs/31` OQ-11.
+
 > The Yield Lab is the closed research layer where SPA **searches for, tests, rejects, validates, and
 > graduates** strategies before any public or live exposure — the place the system looks for
 > **≥10–15%** with **capital preservation first**. This doc **formalizes existing modules into one

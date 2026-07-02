@@ -1,5 +1,7 @@
 # 37 — APY Realism & Evidence Standard
 
+> **Canonical (ADR-YL-009).** This is the **CANONICAL** definition of evidence levels **L0–L6**. Other docs use the tags; none re-defines them.
+
 **Purpose.** This document defines the discipline that prevents the desk from ever presenting a yield
 number it has not earned the right to claim. It codifies (1) **evidence levels L0–L6**, (2) the **APY
 taxonomy** (advertised vs observed vs executable vs net vs sustainable vs risk-adjusted), (3) the

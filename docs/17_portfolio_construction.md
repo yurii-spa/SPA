@@ -1,5 +1,7 @@
 # 17 — Portfolio Construction (recommendation framework)
 
+> **Canonical (ADR-YL-009).** This is the **CANONICAL product-line definition** (spread-based). The absolute-APY bands in `docs/33`/`34`/`38`/`03` are illustrative pre-audit (OQ-12).
+
 > **Task:** PORT-001. **Autonomy:** L0/L1 — **advisory, recommendation-only**. This framework
 > **never auto-executes**, never moves capital, never overrides the deterministic RiskPolicy, and
 > never touches the runtime execution path. It produces a *proposal* a human reviews and approves.
