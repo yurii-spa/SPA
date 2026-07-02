@@ -36,6 +36,8 @@ Rotation: (A) edge-hunt ADR-YL-008 · (B) deep-research to institutional depth �
   Ankura Trust, segregated trusts; monthly independent auditor; wire redemption, custodian-failure=freeze;
   allowlist/KYC transfer restrictions). **Unblocks CAND-USDY-001** — its ~160bps spread now maps to
   DOCUMENTED bounded risks (issuer-concentration/custodian-freeze/8%-banking/KYC-liquidity), ADVANCE holds.
+- **Cycle 3 (D hardening):** harness 105 passed; origin==local; fixed 3 dangling doc cross-refs (07_yield_lab_architecture, 37_apy_realism_and_evidence_standard, 17_portfolio_construction). Honesty scan clean.
+- **Cycle 4 (C measurement-moat):** verify_spa.py → **decision proof-chain reproduces (valid, len 464, VERDICT OK)**; PROMOTED CAND-USDY-001 → `data/strategy_cards/examples/ondo_usdy_floor_plus.strategy.md` (SC-USDY-001) now that PC-ONDO-001 exists — spread-attribution now cites SOURCED issuer data; status=research, spread_fully_explained provisional pending exact APY[L2]+bps-split. Pipeline edge-hunt→issuer-DD→Strategy-Card demonstrated (mandate approve-path).
 
 ## VERIFICATION + REMEDIATION SPRINT (2026-07-02)
 Verified the whole yield-lab build against the charter by ACTUAL repo contents (not memory): invariants
