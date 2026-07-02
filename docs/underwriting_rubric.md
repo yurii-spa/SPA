@@ -79,6 +79,8 @@ Baseline: the RWA floor itself (rwa_sleeve) is spread ≈ 0 by construction — 
 | **NO-EDGE** | `no_native_yield_integrator_gated` | high-quality stable but yield routes to integrators not holders → edge only by being an integrator (off-code, = thesis-#2) | Agora AUSD, M0 wM |
 | **WATCH** | `opaque_backing_governance_discretionary` | real native yield above floor but governance-set rate over opaque/counterparty-loaded collateral | Reservoir srUSD (WLF/USD1) |
 | **REFUSE** | `product_sunset` | protocol wound down / dead — yield gone, blacklist | Level lvlUSD |
+| **CONDITIONAL** | `concentration_unverified_but_onchain_retrievable` | the one binding number (borrower concentration) is undisclosed but ON-CHAIN retrievable → soft conditional, not a hard opacity hold | Maple HY Secured (PoR pull → ADVANCE-with-cap) |
+| **ADVANCE(cap)** | `thin_declining_depth` | real organic yield/spread but capacity thin and shrinking → small-ticket only | Term Finance ($12.5M, −74%) |
 | **NO-EDGE** | `no_edge_floor_parity` | safest lending ≈ the floor; hold the floor | Aave V3 USDC (~5 bps) |
 | **BASELINE** | `is_the_floor` | the yardstick (spread ≈ 0) | rwa_sleeve |
 

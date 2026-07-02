@@ -77,7 +77,7 @@ off-chain borrower-concentration/recourse (issuer data room, not public opacity)
 underwritable non-Ethena ~9-11% EXISTS (Maple HY), with a counterparty-DD gate — the honest edge is real
 but relationship/access-gated at the last mile.
 
-**Non-Ethena FIXED-RATE (scarce):** Notional=dead (~$3M); **Frax FXB** = a REAL non-Ethena zero-coupon fixed-rate (on-chain FRAX yield curve, redeems 1:1 at maturity) but **thin (~$500K/series)** → small-ticket only. PT-sUSDe fixed-carry is Ethena-underlying. Net: non-Ethena fixed-rate EXISTS (FXB) but is capacity-scarce.
+**Non-Ethena FIXED-RATE (uniformly THIN — synthesis 2026-07-03):** ALL non-Ethena fixed-rate venues are real-but-thin, NONE deep: Notional fCash dead (~$3M); **Frax FXB** on-chain zero-coupon but ~$500K/series; **Term Finance** auction-cleared +400-1000bps but $12.5M vaults (−74%, fundable ~$1M not $10M) + some auctions PT-sUSDe-collateralized. PT-sUSDe fixed-carry is the ONLY DEEP fixed-rate — and it's Ethena. **Conclusion: deep non-Ethena fixed-rate does not exist in 2026; only Ethena PT is deep.**
 
 **Deep non-Ethena Core rung (NEW):** **Fluid plain USDC/USDT supply** ~4.3-5.5% (~+0.9-2.1pp) is a genuine bounded organic-lending rung with **RARE DEPTH ($1.01B TVL)** — most non-Ethena rungs are thin; Fluid is deep, and its emissions end 30-Jun-2026 → self-standing. Joins Steakhouse/Maple-Core/Aave as ADVANCE-grade deep capacity. **Integrator-gated meta:** the institutionally-cleanest new stables (Agora AUSD, M0 wM) route yield to INTEGRATORS not holders → their edge is off-code relationship (= thesis-#2), not on-chain-capturable.
 

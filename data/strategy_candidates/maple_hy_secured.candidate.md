@@ -12,3 +12,12 @@
 - **ladder implication:** this is the FIRST publicly-underwritable non-Ethena ~9-11% rung — the 8-12% non-Ethena isn't purely opaque after all; Maple HY's on-chain buffer is the exception. Gated on counterparty DD (off-code), not opacity.
 
 *sources: Maple HY Secured PDF (>11%/9% net, 120-170% overcollat), TID/OAK/Modular Capital/Vaasblock, Stablewatch (syrupUSDC ~$1.22B, 3yr zero-loss) — L2. Live yield requires re-verification at use.*
+
+## DD UPDATE (2026-07-03, borrower-concentration gate)
+The one binding number — **HY-pool top-N borrower concentration — is NOT publicly disclosed**, but (unlike Centrifuge) it is **ON-CHAIN retrievable** via Maple Proof-of-Reserves / syrup.fi (every loan/borrower/collateral balance on-chain). So this is a SOFT conditional (data exists, retrievable), not a hard opacity hold. Stays **CONDITIONAL-PASS** — `concentration_unverified_but_onchain_retrievable`; one PoR query from ADVANCE-WITH-CAP.
+- **buffer (clears):** HY Secured target collat **150-500%** (thicker than Core's 100-150%, because collateral is volatile BTC/ETH/SOL/BNB/XRP at Anchorage/BitGo/Coinbase tri-party); 24h margin-call → liquidate. Oct-10-2025 stress (>$19B industry liquidations): 9 margin calls all cured ≤3h, ZERO liquidations/losses.
+- **recourse (RESOLVED, favorable):** Maple institutional loans are **dual-protected — overcollateralization PLUS legal recourse to the borrower entity** (signed legal agreements), not collateral-only.
+- **losses:** post-rebuild (secured v2, 2023→2026) ZERO losses/defaults on ~$4.45B; the 2022 Orthogonal ~$36M was the pre-rebuild UNSECURED v1 (a Feb-2026 headline just recycled it).
+- **path to ADVANCE:** pull HY top-1/top-3 from PoR → ADVANCE-WITH-CONCENTRATION-CAP if top-1 ≤~25% / top-3 ≤~55% (size so a top-1 jump-to-default is covered by the 150-500% buffer under stress haircut); re-verify each cycle. If top-1 >~30% → stay CONDITIONAL, cap to buffer coverage.
+- **residual:** single-name jump-to-default with recovery lag (not slow buffer erosion) — the concentration % is the sole unmeasured variable.
+*sources: Maple HY datasheet (downloads.eth.maple.finance, L4), Maple Oct-2025 event + 2025 Data Review (L3, 60 borrowers/$11.27B), Modular Capital/OAK (recourse+legal, L2), The Block (2022 Orthogonal L2). HY top-N concentration = L0/requires on-chain PoR pull, NOT fabricated. 2026-07-03.*
