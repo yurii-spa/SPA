@@ -279,6 +279,27 @@ const FALLBACK_JSON = JSON.stringify(FALLBACK);
         '</div>';
       }
 
+      // Normalize an asset to the canonical field names the card + counters read. The live
+      // /api/rwa-safety-board schema uses suffixed names (marketing_nav_usd, liq_nav_usd_1m,
+      // redemption_delay_days, …) while the committed FALLBACK uses the short names; support BOTH
+      // so a live re-render never blanks the board (this was the "all —" bug: schema drift).
+      function pick() { for (var i = 0; i < arguments.length; i++) { if (arguments[i] != null) return arguments[i]; } return null; }
+      function normAsset(a) {
+        if (!a || typeof a !== 'object') return a;
+        var delay = pick(a.redemption_delay, a.redemption_delay_days);
+        if (typeof delay === 'number' && isFinite(delay)) delay = delay > 0 ? (delay + 'd') : '';
+        return {
+          symbol: a.symbol, issuer: a.issuer, verdict: a.verdict,
+          marketing_nav: pick(a.marketing_nav, a.marketing_nav_usd),
+          liq_nav_100k: pick(a.liq_nav_100k, a.liq_nav_usd_100k, a.liq_nav_frac_100k),
+          liq_nav_1m: pick(a.liq_nav_1m, a.liq_nav_usd_1m, a.liq_nav_frac_1m),
+          liq_nav_10m: pick(a.liq_nav_10m, a.liq_nav_usd_10m, a.liq_nav_frac_10m),
+          marketing_vs_liq_gap_pct: pick(a.marketing_vs_liq_gap_pct, a.marketing_vs_liq_gap_pct_1m),
+          on_chain_dex_liquidity: pick(a.on_chain_dex_liquidity, a.on_chain_dex_liquidity_usd),
+          redemption_delay: delay
+        };
+      }
+
       function assetCard(a) {
         var ru = isRu();
         var m = vmeta(a.verdict);
@@ -337,7 +358,7 @@ const FALLBACK_JSON = JSON.stringify(FALLBACK);
         window.__rsbLast = board; window.__rsbLive = isLive;
         var el = document.getElementById('rsb-cards');
         if (!el) return;
-        var assets = (board && Array.isArray(board.assets)) ? board.assets : [];
+        var assets = (board && Array.isArray(board.assets)) ? board.assets.map(normAsset) : [];
         if (!assets.length) return;
         el.innerHTML = sortAssets(assets).map(assetCard).join('');
         setText('rsb-src', isLive ? 'live' : (isRu() ? 'статика / офлайн' : 'static / offline'));
