@@ -85,6 +85,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 15 (B deep-research):** deepened `data/protocol_cards/examples/morpho.protocol.md` (supports CAND-STEAK-001 ADVANCE) — SOURCED: Blue is IMMUTABLE ~650-LOC core (NO admin keys/proxy/upgrade), formally verified (Certora Prover), 8 Spearbit-Cantina engagements + ToB, Vaults V2 by Spearbit/Blackthorn/ChainSecurity/Zellic, **Immunefi** bounty, MORPHO governance. Core DD now COMPLETE; residual = per-vault curator+oracle review. Strengthens the Steakhouse ADVANCE's structural-plus (immutable markets) with primary sources.
 
+
+- **Cycle 16 (A edge-hunt):** `data/strategy_candidates/aave_v3_usdc.candidate.md` — Aave V3 USDC supply ~3.45% (Ethereum, forecast <2.76% in 4wk) vs floor ~3.4%: spread ~5bps -> negative. Verdict **NO-EDGE / FLOOR-PARITY** (new flavor `no_edge_floor_parity`) — the safest/deepest DeFi lending pays the floor; risk-adjusted WORSE (adds smart-contract risk for same yield) -> hold the T-bill floor instead. THE anchor lesson: plain blue-chip lending arbitraged to floor -> every bp of edge must be bought with accepted risk (justifies whole ADR-YL-008 framing). decision_index: 8 decisions, 5 verdict flavors.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific

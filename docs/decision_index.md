@@ -22,6 +22,7 @@
 | **CAND-SYRUP-001** | Maple syrupUSDC (institutional credit) | **WATCH / CONDITIONAL-ADVANCE** | credit-risk-comp now **bounded** (overcollateralized 120–170% + Anchorage/BitGo/Copper custody + ~3yr zero-loss Syrup) — acceptable in principle, but gated on DD given the v1 **$50M/2022 default** precedent | ~**180 bps** | L2 | `data/strategy_candidates/maple_syrupusdc.candidate.md` |
 | **CAND-RESOLV-001** | Resolv RLP / USR (first-loss tranche) | **REFUSE (HARD)** | the 20–30% is **first-loss + self-balancing-leverage tail-comp**, and the tail **FIRED** — 2026 mint exploit (~$25M extracted, 80M unbacked USR, **−39% depeg**, TVL $400M→$9M). Yield = payment to absorb a realized loss | ~**1700–2700 bps** | L2 | `data/strategy_candidates/resolv_rlp.candidate.md` |
 | **CAND-STEAK-001** | Morpho Steakhouse USDC (curated vault) | **ADVANCE (conditional)** | bounded **overcollateralized** DeFi-lending — curator (blue-chip only) + per-market oracle + LLTV, with an **immutable-Blue-markets structural plus** (no governance-rug). Cleaner than credit; DD-gated on per-vault allocation/oracle | ~**110–310 bps** | L2 | `data/strategy_candidates/morpho_steakhouse_usdc.candidate.md` |
+| **CAND-AAVE-001** | Aave V3 USDC lending (mainstream anchor) | **NO-EDGE / FLOOR-PARITY** | the safest, deepest DeFi lending pays **≈ the floor** (~3.45%, trending <2.76%) — no spread to underwrite; risk-adjusted *behind* the floor (adds smart-contract risk for the same yield). **Hold the T-bill floor instead.** The anchor proof that spread must be *earned by risk* | ~**5 bps** (→neg) | L2 | `data/strategy_candidates/aave_v3_usdc.candidate.md` |
 
 ## Illustrative example cards (scaffolding — numbers illustrative, not sourced decisions)
 `SC-EX-001` core_stablecoin_lending (held) · `SC-EX-002` pendle_pt_stablecoin (paper) · `SC-EX-003`
@@ -38,6 +39,11 @@ ADR-YL-008-conformant (5 spread fields present) but with `illustrative — requi
 - **Yield ≠ edge, demonstrated:** the spread ranking is INVERSE to fundability — the ~1700-2700bps Resolv
   spread is the *least* fundable (pure tail-comp, tail fired), the ~160bps USDY spread the *most* (bounded,
   sourced). High APY draws scrutiny, not capital.
+- **The floor-parity anchor (Aave):** the safest, deepest DeFi lending (Aave V3 USDC) pays **≈ the floor**
+  (~5 bps, trending negative) — proof that plain blue-chip lending is arbitraged to the floor, so **every
+  bp of real edge must be bought with accepted, measured risk** (Steakhouse ~150bps for curator/oracle,
+  USDY ~160bps for issuer/custody, Maple ~180bps for credit). Yield is *priced*, never free. Verdict
+  flavors now: ADVANCE / WATCH / REFUSE / BASELINE / **NO-EDGE(floor-parity)**.
 - **Every number carries an evidence level** (L0–L6, docs/37) and a source; unknowns are `requires
   verification`, never fabricated.
 - **Auditable:** open any card; the spread-attribution cites the sourced issuer/protocol/stablecoin
