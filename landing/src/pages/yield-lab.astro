@@ -1,0 +1,129 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+
+// Yield Lab decisions — sourced research candidates run through the ADR-YL-008 mandate
+// (spread over the live RWA floor ~3.4%, every bp risk-explained). RESEARCH, not offerings.
+// Source of truth: docs/decision_index.md + docs/underwriting_rubric.md (public repo).
+// Verdict tone: ok=ADVANCE/paper, warn=WATCH/conditional, danger=REFUSE, muted=NO-EDGE.
+const decisions = [
+  { id: 'PT-sUSDe', mech: 'Pendle fixed carry', mechRu: 'Pendle фикс-carry',
+    yield: '~11.2%', spread: '~780 bps', tone: 'ok', verdict: 'ADVANCE → paper', verdictRu: 'ADVANCE → пейпер',
+    why: 'Fixed-to-maturity removes the funding-flip tail; USDe solvency stress-validated (Oct-2025 crash: overcollateralized throughout). Capacity ~single-digit $M/maturity.',
+    whyRu: 'Фиксация до погашения убирает funding-хвост; платёжеспособность USDe прошла стресс окт-2025 (оставался overcollateralized). Ёмкость ~single-digit $M/срок.' },
+  { id: 'PT-USDe', mech: 'Pendle fixed carry', mechRu: 'Pendle фикс-carry',
+    yield: '~8.8%', spread: '~540 bps', tone: 'ok', verdict: 'ADVANCE (capped)', verdictRu: 'ADVANCE (с cap)',
+    why: 'Same fundable structure, but same Ethena underlying as PT-sUSDe → shares one cap, not extra diversification (~70% of Pendle TVL is Ethena).',
+    whyRu: 'Та же fundable-структура, но тот же Ethena-underlying, что и PT-sUSDe → общий cap, не доп. диверсификация (~70% TVL Pendle = Ethena).' },
+  { id: 'Maple syrupUSDC', mech: 'Institutional credit', mechRu: 'Институц. кредит',
+    yield: '~9–12%', spread: '~180 bps+', tone: 'warn', verdict: 'WATCH', verdictRu: 'WATCH',
+    why: 'Bounded credit — loans overcollateralized 120–170% at qualified custody (Anchorage/BitGo/Copper), ~3yr zero-loss. DD-gated (v1 lost $50M in 2022).',
+    whyRu: 'Ограниченный кредит — займы overcollateralized 120–170% в qualified-custody, ~3 года без потерь. Под DD (v1 потерял $50M в 2022).' },
+  { id: 'Centrifuge DROP', mech: 'RWA senior tranche', mechRu: 'RWA senior-транш',
+    yield: '~8%', spread: '~460 bps', tone: 'warn', verdict: 'WATCH', verdictRu: 'WATCH',
+    why: 'Senior tranche bounded by a real junior (TIN) first-loss buffer + real RWA cash flows. Per-pool off-chain DD required (buffer depth, asset quality).',
+    whyRu: 'Senior-транш ограничен реальным junior (TIN) first-loss буфером + реальные RWA-cashflow. Нужен per-pool off-chain DD (глубина буфера, качество активов).' },
+  { id: 'Aave V3 USDC', mech: 'Blue-chip lending', mechRu: 'Blue-chip кредит',
+    yield: '~3.45%', spread: '~5 bps', tone: 'muted', verdict: 'NO-EDGE', verdictRu: 'NO-EDGE',
+    why: 'The safest, deepest DeFi lending pays ≈ the floor — no spread to underwrite. Hold the T-bill floor instead. Proof that spread must be earned by risk.',
+    whyRu: 'Самый безопасный/глубокий DeFi-кредит платит ≈ floor — нет спреда для андеррайтинга. Держи T-bill floor. Доказательство: спред покупается риском.' },
+  { id: 'Ethena sUSDe (spot)', mech: 'Funding carry', mechRu: 'Funding-carry',
+    yield: '~3.9% (was 9–11%)', spread: '~46 bps', tone: 'danger', verdict: 'lean-REFUSE', verdictRu: 'lean-REFUSE',
+    why: 'Floating funding carry is an unbounded tail (funding-flip, CEX-counterparty, ~1.1% reserve). Thin spread today does not pay for the tail.',
+    whyRu: 'Плавающий funding-carry — неограниченный хвост (funding-flip, CEX-контрагент, резерв ~1.1%). Тонкий спред сегодня не окупает хвост.' },
+  { id: 'Curve/Convex LP', mech: 'Stable LP + emissions', mechRu: 'Stable-LP + эмиссии',
+    yield: '~4–10%', spread: 'mostly emissions', tone: 'danger', verdict: 'REFUSE', verdictRu: 'REFUSE',
+    why: 'The attractive part is CRV/CVX token emissions — a subsidy, not risk-comp. Strip emissions → base fees ≈ floor-parity. Value what you keep if rewards → 0.',
+    whyRu: 'Привлекательная часть — эмиссии CRV/CVX, субсидия, не risk-comp. Убери эмиссии → базовые комиссии ≈ floor. Оцени, что останется при rewards → 0.' },
+  { id: 'Goldfinch Senior', mech: 'Uncollat. EM credit', mechRu: 'Uncollat EM-кредит',
+    yield: '~10–14%', spread: '~660–1060 bps', tone: 'danger', verdict: 'REFUSE (dead)', verdictRu: 'REFUSE (мёртв)',
+    why: 'The tail fired at scale — protocol formally winding down after ~$50M of defaults stranded depositors ~3 years. A "senior" label does not bound a thin first-loss buffer.',
+    whyRu: 'Хвост сработал в масштабе — протокол сворачивается после ~$50M дефолтов, депозиторы застряли ~3 года. Ярлык «senior» не ограничивает тонкий first-loss буфер.' },
+  { id: 'Resolv RLP', mech: 'First-loss tranche', mechRu: 'First-loss транш',
+    yield: '~20–30%', spread: '~1700–2700 bps', tone: 'danger', verdict: 'REFUSE (hard)', verdictRu: 'REFUSE (жёстко)',
+    why: 'The yield is payment to absorb first loss with self-balancing leverage — and the tail already fired: a 2026 mint exploit (~$25M extracted, USDe −39% depeg, TVL $400M→$9M).',
+    whyRu: 'Доход — плата за поглощение first-loss с самобалансирующимся плечом — и хвост уже сработал: эксплойт минта 2026 (~$25M, депег −39%, TVL $400M→$9M).' },
+];
+const toneClass = {
+  ok:     'text-ok border-ok-border bg-ok-bg',
+  warn:   'text-warn border-warn-border bg-warn-bg',
+  danger: 'text-danger border-danger-border bg-danger-bg',
+  muted:  'text-white/40 border-white/10 bg-white/[0.03]',
+};
+---
+
+<Layout
+  title="Yield Lab — Research Decisions | earn-defi.com"
+  description="The Yield Lab evaluates live stablecoin yields against the RWA floor: every basis point of spread must be explained by a measurable, accepted risk, or it is refused. Research decisions with verdicts and evidence levels — not investment offerings."
+  canonical="https://earn-defi.com/yield-lab"
+>
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Hero -->
+    <section class="pt-20 pb-8">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-accent-500/10 border border-accent-700/40 text-xs text-accent-300 font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-accent-400" aria-hidden="true"></span>
+        <span data-ru="Решения, а не предложения">Decisions, not offerings</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Йилд-лаб">
+        Yield Lab
+      </h1>
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl" data-ru="Мы оцениваем живую доходность стейблкоинов против RWA-floor (~3.4%). Каждый базисный пункт спреда должен объясняться измеримым, принятым риском — иначе отказ. Публикуем и отказы: это и есть продукт.">
+        We judge live stablecoin yield against the RWA floor (~3.4%). Every basis point of spread must
+        be explained by a measurable, accepted risk — or it is refused. We publish the refusals too:
+        that discipline is the product.
+      </p>
+    </section>
+
+    <!-- Honesty banner — non-negotiable framing -->
+    <section class="pb-2">
+      <div class="rounded-xl border border-warn-border bg-warn-bg p-5">
+        <p class="text-xs text-warn uppercase tracking-wider font-mono mb-2" data-ru="Как это читать">How to read this</p>
+        <p class="text-sm text-white/70 leading-relaxed" data-ru="Это research-суждения (уровень доказательности L2 — из публичных источников на 2026-07-02), а НЕ live-доходности, не оффер и не инвест-совет. «ADVANCE → пейпер» означает бумажный advisory-тест без капитала, отдельно от нашего go-live трека. Цифры дрейфуют; источник истины — docs/decision_index.md и docs/underwriting_rubric.md в публичном репозитории.">
+          These are research judgements (evidence level L2 — from public sources as of 2026-07-02), <strong class="text-white/85">not</strong>
+          live returns, an offer, or investment advice. "ADVANCE → paper" means an advisory paper test with
+          <strong class="text-white/85">no capital</strong>, separate from our go-live track. Numbers drift; the source of truth is
+          <code class="text-accent-300">docs/decision_index.md</code> + <code class="text-accent-300">docs/underwriting_rubric.md</code> in the public repo.
+        </p>
+      </div>
+    </section>
+
+    <!-- The decisions table -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6" data-ru="Решения на живых данных">Decisions on live data</p>
+      <div class="space-y-3">
+        {decisions.map((d) => (
+          <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5 hover:border-white/15 transition-colors">
+            <div class="flex items-start justify-between gap-4 mb-2 flex-wrap">
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold text-white font-mono">{d.id}</h3>
+                <p class="text-xs text-white/40" data-ru={d.mechRu}>{d.mech}</p>
+              </div>
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <span class="text-sm text-white/70 font-mono tabular-nums">{d.yield}</span>
+                <span class={`inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-medium ${toneClass[d.tone]}`} data-ru={d.verdictRu}>{d.verdict}</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 mb-2 text-xs text-white/35 font-mono">
+              <span data-ru="спред над floor">spread over floor</span>
+              <span class="text-white/60 tabular-nums">{d.spread}</span>
+            </div>
+            <p class="text-sm text-white/60 leading-relaxed" data-ru={d.whyRu}>{d.why}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- The one principle -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Один принцип">The one principle</p>
+      <p class="text-lg text-white/75 leading-relaxed max-w-2xl" data-ru="Доходность ⟂ фандабилити. Самый большой заголовочный процент (Resolv 20–30%) получил самый жёсткий отказ — хвост уже сработал. Самый маленький объяснённый спред (~160–780 bps) — единственные fundable. Спред покупается принятым риском, никогда не бесплатен.">
+        Yield is inverse to fundability. The biggest headline number (Resolv 20–30%) drew the hardest
+        refusal — its tail already fired. The smallest <em>explained</em> spreads (~160–780 bps) are the
+        only fundable ones. Spread is bought with accepted risk; it is never free.
+      </p>
+    </section>
+
+  </main>
+  <Disclaimer />
+</Layout>
