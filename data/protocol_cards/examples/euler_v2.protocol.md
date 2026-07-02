@@ -14,7 +14,7 @@
 - **app_url:** `https://app.euler.finance` <!-- requires verification -->
 
 ## Size & activity (never presented without a last-verified date)
-- **tvl:** `TBD — requires data verification (live via DeFiLlama project "euler-v2")`
+- **tvl:** `~$282M` — **verified 2026-07-02** via DeFiLlama `api.llama.fi/tvl/euler-v2` (281,575,088.96). [L2]  (Smallest of the desk's lenders — capacity-relevant.)
 - **tvl_trend:** `unknown — requires verification`
 - **revenue:** `TBD — requires data verification`
 - **fees:** `TBD — requires data verification`
@@ -22,11 +22,11 @@
 - **protocol_age:** `Euler V1 2022; exploited & wound down 2023; V2 relaunched ~2024 — requires verification`
 
 ## Security & trust surface (the due-diligence core)
-- **audits:** `TBD — requires data verification (V2 was heavily re-audited post-relaunch; source [{firm,scope,date}])`
-- **bug_bounty:** `TBD — requires data verification`
-- **exploit_history:** `MATERIAL — Euler V1 suffered a ~$197M flash-loan/donation exploit in March 2023; funds were subsequently returned by the attacker. V2 is a ground-up redesign. VERIFY exact figures + that V2's architecture addresses the V1 vector before any allocation. This is the single most important field on this card.`
-- **admin_keys:** `TBD — requires data verification (governance + Guardian; source threshold/timelock). Load-bearing.`
-- **upgradeability:** `governance-controlled — requires verification`
+- **audits:** **sourced (verified 2026-07-02):** V2 relaunch backed by **31 audit reports** from **Certora, Omniscia, OtterSec, OpenZeppelin, Trail of Bits** (+ per one source, 45 audits across 13 firms), a **$1.25M Cantina audit competition**, a **$3.5M Hats "Capture the Flag"**, and a bug-bounty — **~$4M DAO security spend**. Exceptional post-hack security investment. [L2]
+- **bug_bounty:** `Yes — part of the ~$4M V2 security program (sourced); exact max payout requires verification`
+- **exploit_history:** **MATERIAL, sourced (verified 2026-07-02):** Euler **V1 suffered a ~$197M flash-loan exploit (March 2023)** (stETH/USDC/wBTC); **the attacker returned ~all funds**. **V2 is a ground-up "meta-lending" redesign** (modular EVK vaults + EVC), relaunched 2024 after the audit program above. The V1 vector is addressed by the redesign — but this history raises the bar. Sources: The Block, CoinDesk, DL News. [L2]
+- **admin_keys:** `EUL governance + Guardian — exact threshold/timelock requires verification (load-bearing given the history)`
+- **upgradeability:** `governance-controlled; per-vault (EVK) configurable — exact params require verification`
 - **oracle_dependencies:** `["per-vault oracle configuration (EVK) — a bad oracle = a bad vault"]`
 - **bridge_dependencies:** `[]`  <!-- verify per chain -->
 - **governance_model:** `EUL token governance + Guardian`
@@ -37,21 +37,22 @@
 
 ## Risk assessment (advisory; cites dfb overlay — never a hard gate)
 - **known_risks:** `["EXPLOIT HISTORY (V1 $197M 2023 — returned; V2 redesigned but this raises the bar)", "per-vault oracle/config risk (modular EVK)", "smart-contract risk (newer V2 codebase)", "governance/admin risk", "liquidity/withdrawal-at-size"]`
-- **risk_score:** `TBD — requires Risk Scoring v2 run (docs/14). Qualitatively HIGHER than Aave/Compound given the V1 exploit + newer V2 code — T2 with an elevated smart-contract weight.`
+- **risk_score:** `TBD — requires Risk Scoring v2 run (docs/14). Qualitatively HIGHER than Aave/Compound: V1 $197M exploit history + newer V2 code + smallest TVL (~$282M, capacity-limited), PARTLY offset by an exceptional 31-audit/$4M security program. T2 with elevated smart-contract + capacity weight; conservative sub-cap advised.`
 - **max_allocation_recommendation:** `Advisory — bounded by RiskPolicy T2 cap (20% per protocol); the exploit history argues for a conservative sub-cap. Exact % requires verification.`
 - **monitoring_frequency:** `daily` + `on_event` (exploit/oracle/governance)
 - **emergency_triggers:** `["any exploit signal", "per-vault oracle failure", "bad debt in a vault", "governance emergency action"]`
 
 ## Provenance
-- **notes:** `Euler V2 carries a MATERIAL exploit history (V1, ~$197M, 2023, funds returned) — the redesigned V2 must be evaluated on its own re-audits; the exploit_history field is the decisive gate item. Adapter read-only/advisory. T2.`
+- **notes:** `Now SOURCED (2026-07-02): TVL ~$282M (DeFiLlama, smallest lender = capacity-limited), V2 re-audit program (31 audits/Certora+ToB+OZ+OtterSec+Omniscia + $1.25M Cantina comp + $3.5M Hats CTF, ~$4M spend), V1 $197M/2023 exploit (funds returned) — V2 is a ground-up redesign. The exploit history + newest code + smallest TVL make it the highest-scrutiny lender in the set. Adapter read-only/advisory. T2, conservative sub-cap.`
 - **created_at:** `2026-07-02`
 - **updated_at:** `2026-07-02`
+- **sources:** DeFiLlama api.llama.fi/tvl/euler-v2; The Block / CoinDesk / DL News (V1 hack + V2 relaunch/31-audits/$4M); euler.finance blog (Cantina audit competition).
 
 ---
 
 ### Review checklist (docs/12 §5)
-- [~] `exploit_history` — **documented (V1 $197M 2023, returned)**; V2-specific re-audit status UNVERIFIED
-- [ ] `admin_keys` / `upgradeability` / `oracle_dependencies` / `emergency_triggers` — UNVERIFIED (findings)
-- [ ] `tvl` etc. sourced with a date — pending (DeFiLlama euler-v2)
+- [x] `exploit_history` — **sourced (V1 $197M March-2023, funds returned; V2 redesign + 31 audits)**
+- [x] `audits` + `bug_bounty` (program) SOURCED; `admin_keys` threshold/timelock still UNVERIFIED
+- [x] `tvl` sourced with a date (~$282M, DeFiLlama, 2026-07-02)
 - [ ] `risk_score` + `max_allocation_recommendation` cite dfb overlay / RiskPolicy T2 cap (conservative sub-cap advised) — pending
 - [x] `protocol_id` mapped to the adapter key (euler_v2)
