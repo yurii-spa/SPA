@@ -57,6 +57,7 @@ Baseline: the RWA floor itself (rwa_sleeve) is spread ≈ 0 by construction — 
 | **REFUSE** | `recursive_leverage_tail` | nominal spread is an unpriced liquidation tail | leverage_loop (realized −8.95%) |
 | **REFUSE** | `first_loss_leverage_tranche + realized_exploit` | yield = payment to absorb first loss; tail already fired | Resolv RLP (~2200 bps, $25M exploit) |
 | **REFUSE** | `emissions_dependent_unpriced_spread` | the spread is token-emissions subsidy, not risk-comp | Curve/Convex |
+| **WATCH→ADVANCE** | `fixed_carry_held_to_maturity_bounded` | a fixed-rate wrapper (PT) bounds a floating tail; residual = underlying-solvency-to-maturity (measurable) | PT-sUSDe (~11.2%, ~780 bps) |
 | **NO-EDGE** | `no_edge_floor_parity` | safest lending ≈ the floor; hold the floor | Aave V3 USDC (~5 bps) |
 | **BASELINE** | `is_the_floor` | the yardstick (spread ≈ 0) | rwa_sleeve |
 
@@ -73,6 +74,7 @@ Baseline: the RWA floor itself (rwa_sleeve) is spread ≈ 0 by construction — 
    *does the spread cover the tail?*
 4. **Subsidies aren't edge.** Emissions (Curve) and governance rate-setting (sUSDS) are not
    risk-compensation; strip them and underwrite what remains.
+6. **Structure can bound an unbounded tail.** Spot sUSDe (floating funding) = lean-REFUSE; PT-sUSDe (fixed, held-to-maturity) = WATCH/ADVANCE — the fixed-rate wrapper removes the funding-flip tail, leaving a *measurable* underlying-solvency residual. The *structure*, not the asset, sets the risk. This is where real 8-12% bounded yield lives — earned by underwriting a measurable (not unbounded) tail.
 5. **Refusals dominate — by design.** 4 REFUSE + 1 lean-REFUSE + 1 NO-EDGE vs 2 ADVANCE + 1 WATCH.
    A desk whose product is *disciplined refusal* is more trustworthy than one selling the top number.
 

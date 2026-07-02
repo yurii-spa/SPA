@@ -100,6 +100,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 20 (C measurement-moat, synthesis):** `docs/underwriting_rubric.md` — a reusable underwriting rubric DISTILLED from the 10 real decisions: the one principle (spread over live floor, every bp risk-explained), a Q1->Q4 decision tree (floor-parity? emissions-stripped? bounded vs unbounded tail? DD-gated?), the reason-code taxonomy (10 rows, each cited to its case), and 5 honest meta-findings (yield ⟂ fundability; spread bought with risk; same-spread-diff-tail; subsidies aren't edge; refusals dominate). The engine moves from collecting decisions -> distilling the METHOD. Cross-linked from decision_index.
 
+
+- **Cycle 21 (A edge-hunt — 8-12% BOUNDED hunt, owner-directed):** `data/strategy_candidates/pt_susde_fixed.candidate.md` — Pendle **PT-sUSDe Mar-2026 ~11.2% fixed** (real 8-12% band; corroborated PT-USDe ~13.78%, PT-sUSDe Jun 9.05%). Verdict **WATCH -> CONDITIONAL-ADVANCE**, new reason `fixed_carry_held_to_maturity_bounded`: the fixed-to-maturity wrapper REMOVES the funding-flip tail that made spot sUSDe lean-REFUSE (c17) -> residual = MEASURABLE USDe-solvency-to-maturity + PT liquidity. Structure (not asset) sets the risk. Fundable IF USDe-solvency DD + cap. decision_index 11 decisions; rubric +1 reason +meta-finding #6. Next hunt: tokenized private-credit SENIOR tranches (Centrifuge/Goldfinch/Maple-cash 9-12%, bounded by seniority+first-loss).
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
