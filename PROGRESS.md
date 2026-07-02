@@ -53,6 +53,10 @@ Rotation: (A) edge-hunt ADR-YL-008 · (B) deep-research to institutional depth �
   1 ADVANCE (USDY), 3 REFUSE/HOLD by 3 DISTINCT reasons (leverage_loop=tail-comp, sUSDS=gov-safety,
   FixedCarry=unrealized-at-size), 1 BASELINE, + research/paper sleeves. Proof-chain reproduces (verify_spa.py).
   Shows the mandate is APPLIED not asserted; refusals dominate by design; no fundable-at-size edge yet (honest).
+- **Cycle 8 (D hardening):** integrity pass GREEN, nothing to fix — research-layer harness **108 passed**
+  (+3 from SC-USDY-001), origin==local (355 yield-lab files, 0 missing), drift-scan clean (no dangling refs
+  in decision_index, no hardcoded floor, no bare verified-APY — all qualified). The layer is consistent +
+  synced + honest after 7 cycles of additions.
 
 ## VERIFICATION + REMEDIATION SPRINT (2026-07-02)
 Verified the whole yield-lab build against the charter by ACTUAL repo contents (not memory): invariants
