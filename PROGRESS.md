@@ -145,6 +145,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **fix-agent-health-spa (owner) DONE:** overall CRITICAL→WARNING, critical_count 3→0. Root cause: `com.spa.{mass_tournament,tier1_governance}` run fine + write fresh output JSON on schedule, but their legacy wrappers (run_backtest_tier1.sh / run_tier1_governance.sh) only echo'd to stdout — no `/tmp/spa_<name>.log` heartbeat → agent_health freshness check fail-closed CRITICAL (FALSE). Fix (honest, not a check-weaken): added canonical `exec >> /tmp/spa_<name>.log 2>&1` heartbeat to both wrappers (matches agent_template.sh); tournament_engine already standard (transient /tmp purge). Pushed 47671d48; kickstarted 3 → fresh logs → critical 0. 9 WARNINGs remain (advisory, non-blocking). ALSO this session: RWA-board site bug fixed (schema-drift normAsset, deploy #274), footer disclaimer compacted to 1-2 lines→/disclaimer, 4 auto-sprint research candidates (decision_index 22).
 
+
+- **Auto-sprint batch #2 (4 parallel agents, 2026-07-02):** integrity green (47). **BREAKTHROUGH — Maple High Yield Secured → CONDITIONAL-PASS (`on_chain_buffer_verifiable`):** the ONE non-Ethena 8-12% (~9-11%) whose loss-absorbing buffer is ON-CHAIN queryable → clears the opacity hold that stopped Centrifuge; gated only on off-chain borrower-DD (data room), not opacity. So a publicly-underwritable non-Ethena ~9-11% DOES exist. Also: **Arbitrum**→ADVANCE-capped (real non-Ethena diversifier chain, native-CCTP, Ethena-not-in-base-markets, but ~2.56% sub-floor now); **Spark/Sky**→REFUSE (inherits sUSDS gov-safety, same Sky underlying); **BTC**→NO-EDGE(lending ~0.15%)/REFUSE(basis funding-flip). decision_index 29; rubric +3; ladder + Maple-HY-exception.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific

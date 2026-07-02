@@ -68,6 +68,20 @@ yield. That trade-off — stated plainly — is the product.
 - **Centrifuge DROP:** DD ATTEMPTED, **held on off-chain opacity** — the junior-buffer depth % (the binding number) is not publicly verifiable; needs issuer-level data. Stays WATCH.
 - **Implication:** the **ADVANCE-grade** (fully-underwritable-from-public-data) non-Ethena book is really **floor + overcollat + Maple-Core ≈ 4.3-4.5%**; the ~8% Centrifuge rung is real-but-unverifiable (WATCH). So the *confidently fundable* non-Ethena edge is even tighter than the blended ~4.75% — Centrifuge's 8% is aspirational-pending-transparency, not bankable today.
 
+## Non-Ethena 8-12% — the honest exception (2026-07-02 transparency scan)
+The 8-12% non-Ethena is NOT purely opaque after all. **Maple High Yield Secured (~9-11%)** is the one
+tokenized-credit product whose loss-absorbing buffer is **ON-CHAIN queryable** (overcollat ratio + margin
+calls) → it CLEARS the opacity hold that stopped Centrifuge (`on_chain_buffer_verifiable`), gated only on
+off-chain borrower-concentration/recourse (issuer data room, not public opacity). Everything else 8-12%
+(SCOPE/ACRED) stays `off_chain_opacity_hold`; JAAA is transparent but sub-band (~5-6%). So: a publicly-
+underwritable non-Ethena ~9-11% EXISTS (Maple HY), with a counterparty-DD gate — the honest edge is real
+but relationship/access-gated at the last mile.
+
+**Chain diversifiers (non-Ethena base lending):** Solana (~3.5% organic, native-CCTP, Ethena-isolated-to-Drift)
++ Arbitrum (~2.56% now, native-CCTP, Ethena-not-in-base-markets — better than Base) are REAL non-Ethena
+cross-chain rungs, but currently thin/sub-floor. Base = still-Ethena (rejected). BTC yield = no-edge (lending)
+or refuse (basis). Spark/Sky = refuse (gov-safety, same Sky underlying).
+
 ## Advisory paper tracks
 The credit rungs (Maple, Centrifuge) already accrue as advisory strategy_lab sleeves
 (`maple_syrup`, `centrifuge_drop`), alongside the RWA floor (`rwa_sleeve`) — a live, separate-from-

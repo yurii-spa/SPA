@@ -69,6 +69,9 @@ Baseline: the RWA floor itself (rwa_sleeve) is spread ≈ 0 by construction — 
 | **ADVANCE** | `floor_realizer_liquidity_custody` | doesn't beat the floor (defines it); ADVANCE on liquidity+custody quality to REALIZE the floor | USYC/BUIDL/USTB T-bill tokens |
 | **REFUSE** | `no_structural_spread_unbounded_funding_tail` | bounded leg sits at the floor; the spread is unbounded funding carry | ETH delta-neutral staking |
 | **REFUSE** | `short_vol_unpriced_tail` | yield = premium for absorbing crash risk (short vol); headline gross not net | options-income vaults |
+| **CONDITIONAL-PASS** | `on_chain_buffer_verifiable` | credit whose loss-absorbing buffer is on-chain queryable → clears the opacity hold (residual = off-chain counterparty) | Maple High Yield Secured (on-chain overcollat) |
+| **ADVANCE(cap)** | `organic_lending_non_ethena_but_sub_floor` | real non-Ethena organic lending on a diversifier chain, but currently below the floor | Arbitrum Aave USDC ~2.56% |
+| **NO-EDGE** | `negative_spread_structural_low_borrow` | structurally near-zero yield (asset is collateral, not borrow-demand) | cbBTC/tBTC lending ~0.15% |
 | **NO-EDGE** | `no_edge_floor_parity` | safest lending ≈ the floor; hold the floor | Aave V3 USDC (~5 bps) |
 | **BASELINE** | `is_the_floor` | the yardstick (spread ≈ 0) | rwa_sleeve |
 
