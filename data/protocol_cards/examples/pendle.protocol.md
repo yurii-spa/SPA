@@ -18,19 +18,19 @@
 - **app_url:** `https://app.pendle.finance` <!-- requires verification -->
 
 ## Size & activity (never presented without a last-verified date)
-- **tvl:** `TBD — requires data verification`  <!-- source live via DeFiLlama (_PENDLE_PROJECT) + date; the adapter reads DeFiLlama but no committed TVL literal exists -->
-- **tvl_trend:** `unknown`  <!-- requires verification from DeFiLlama history -->
+- **tvl:** `~$977.5M` — **verified 2026-07-02** via DeFiLlama `api.llama.fi/tvl/pendle` (977,509,682.86). [L2 data-source verified]
+- **tvl_trend:** `unknown` — single-point read; trend requires DeFiLlama history (requires verification)
 - **revenue:** `TBD — requires data verification`
 - **fees:** `TBD — requires data verification`
 - **user_activity:** `TBD — requires data verification`
-- **protocol_age:** `~4y (mainnet since ~2021) — requires verification`
+- **protocol_age:** `~4y (mainnet since ~2021; V2 since ~2023) — requires verification`
 
-## Security & trust surface (the due-diligence core — the load-bearing gaps)
-- **audits:** `TBD — requires data verification`  <!-- list [{firm, scope, date}] from Pendle's published audits; empty here means NOT YET SOURCED, not "none" -->
-- **bug_bounty:** `TBD — requires data verification`  <!-- program + max payout -->
-- **exploit_history:** `TBD — requires data verification`  <!-- MUST verify: a 2024 exploit hit the Penpie ecosystem protocol (built on Pendle), reportedly not Pendle core — confirm scope + whether PT holders were ever at risk before relying on it -->
-- **admin_keys:** `TBD — requires data verification`  <!-- who controls upgrade/admin keys, multisig threshold, timelock. THE most load-bearing field for a PT-to-maturity strategy — must be sourced before gate passes -->
-- **upgradeability:** `unknown — requires data verification`
+## Security & trust surface (the due-diligence core)
+- **audits:** **sourced (verified 2026-07-02):** Pendle V2 audited by **ChainSecurity** (Pendle V2 Core — "good level of security"), **Ackee Blockchain** (V2 — no critical/high/low findings reported), **Least Authority**, **Dedaub**, **Dingbats**, + **Code4rena** wardens. Reports public in `github.com/pendle-finance` (docs/audits). [L2]  <!-- exact dates/scopes per PDF — spot-verify before live -->
+- **bug_bounty:** `TBD — requires data verification`  <!-- program + max payout not sourced -->
+- **exploit_history:** **sourced (verified 2026-07-02):** the **Penpie hack (Sept 2024, ~$27M reentrancy)** hit **Penpie — a yield protocol BUILT ON Pendle — NOT Pendle core**. Pendle stated its platform was **unaffected** and **paused its contracts defensively** (protecting ~$70M). Affected assets were Pendle-related YT/LP tokens (wstETH, sUSDe, agETH, rswETH). Lesson: Pendle *core* has no principal-loss exploit to date, but **composability risk** on top of Pendle is real. Sources: Halborn, CoinDesk, The Defiant. [L2]
+- **admin_keys:** **partially sourced:** Pendle **can pause its contracts** (confirmed — it did so in Sept-2024). Exact multisig threshold / timelock / key holders `requires verification` before live. [L1→needs L2]
+- **upgradeability:** `pausable + governance-controlled (pause capability confirmed Sept-2024); exact timelock requires verification`
 - **oracle_dependencies:** `["PT/implied-rate pricing (Pendle AMM + rate surface)"]`  <!-- what breaks if PT pricing/oracle fails: mark-to-market + exit — requires verification of exact oracle design -->
 - **bridge_dependencies:** `[]`  <!-- single-chain PT usage per the desk's adapters; N/A unless a bridged underlying is used (verify per market) -->
 - **governance_model:** `token governance (vePENDLE) — requires verification of exact powers`
@@ -40,26 +40,27 @@
 - **yield_sustainability:** `mixed` — PT fixed carry is organic (a mispriced rate), but overall Pendle-market APYs can be incentive-inflated; the Rates Desk gate refuses tail-comp/incentive-only yield (1,070 refusals to date).
 
 ## Risk assessment (advisory; cites dfb overlay — never a hard gate)
-- **known_risks:** `["PT smart-contract / Pendle protocol risk", "PT rate/duration risk (MTM before maturity)", "PT/AMM exit-liquidity-at-size (the FixedCarry capacity constraint — realized-at-size INSUFFICIENT_DATA)", "underlying-asset risk (mitigated: refusal gate rejects toxic underlyings)", "admin-key/upgradeability (UNVERIFIED — treat as risk until sourced)"]`
-- **risk_score:** `TBD — requires a Risk Scoring v2 run (docs/14). Qualitatively moderate; the unverified admin-key/exploit fields cap confidence.`
+- **known_risks:** `["PT rate/duration risk (MTM before maturity)", "PT/AMM exit-liquidity-at-size (the FixedCarry capacity constraint — realized-at-size INSUFFICIENT_DATA)", "COMPOSABILITY risk — protocols built ON Pendle can fail (Penpie $27M Sept-2024), even when Pendle core is safe", "underlying-asset risk (mitigated: refusal gate rejects toxic underlyings)", "admin-key threshold/timelock UNVERIFIED (pause capability confirmed)"]`
+- **risk_score:** `TBD — requires a Risk Scoring v2 run (docs/14). Qualitatively LOW-MODERATE: strong multi-firm audit coverage + Pendle core has no principal-loss exploit; confidence now higher (audits + exploit history sourced). Residual: admin-key threshold + exit-liquidity-at-size.`
 - **max_allocation_recommendation:** `TBD — requires data verification`  <!-- advisory; never exceeds RiskPolicy T2 caps (Pendle is a T2 protocol per CLAUDE.md) -->
 - **monitoring_frequency:** `daily` (rate surface + refusal scan via `com.spa.rates_desk_paper`) + `on_event` (exploit/admin-change)
 - **emergency_triggers:** `["Pendle core exploit", "admin-key change / suspicious upgrade", "PT/AMM liquidity collapse", "oracle/pricing failure", "underlying depeg"]`
 
 ## Provenance
-- **notes:** `Fail-closed stance: because audits/exploit_history/admin_keys are UNVERIFIED here, this card does NOT yet satisfy the FixedCarry protocol-review gate — the empty security fields are findings, not blanks. Adapters confirm read-only/advisory usage (no on-chain execution, no state writes). Pendle is classified T2 in the runtime tier map (CLAUDE.md).`
+- **notes:** `Now largely SOURCED (2026-07-02): TVL ~$977.5M (DeFiLlama), audits (ChainSecurity/Ackee/Least-Authority/Dedaub/Dingbats/Code4rena, public), exploit history (Penpie $27M Sept-2024 = ecosystem-not-core; Pendle paused + unaffected). Remaining to verify before LIVE: admin-key threshold/timelock + bug-bounty. Adapters read-only/advisory. Pendle = T2 in the runtime tier map (CLAUDE.md).`
 - **created_at:** `2026-07-02`
 - **updated_at:** `2026-07-02`
+- **sources:** DeFiLlama api.llama.fi/tvl/pendle; ChainSecurity Pendle-V2-Core audit; Ackee Blockchain V2 audit summary; Least Authority Pendle audit; Halborn / CoinDesk / The Defiant on the Sept-2024 Penpie hack.
 
 ---
 
 ### Review checklist (docs/12 §5)
-- [ ] `admin_keys`, `upgradeability`, `oracle_dependencies`, `exploit_history`, `emergency_triggers` filled substantively — **admin_keys / upgradeability / exploit_history are UNVERIFIED (findings, not blanks)**
-- [ ] `tvl` / `revenue` / `fees` / `user_activity` sourced with a last-verified date — **pending (live via DeFiLlama _PENDLE_PROJECT)**
-- [ ] `risk_score` + `max_allocation_recommendation` cite the dfb overlay / RiskPolicy T2 caps — pending
+- [~] `admin_keys`, `upgradeability`, `oracle_dependencies`, `exploit_history`, `emergency_triggers` — **exploit_history + oracle + upgradeability SOURCED; admin-key threshold/timelock still to verify**
+- [x] `tvl` sourced with a last-verified date (~$977.5M, DeFiLlama, 2026-07-02); revenue/fees/user_activity still pending
+- [ ] `risk_score` + `max_allocation_recommendation` — Risk Scoring v2 run pending (T2 cap)
 - [x] `protocol_id` mapped to the adapter keys (pendle_pt / pendle_pt_susde / pendle_pt_usdc)
 
-> **Gate status for `SC-RDFC-001` (FixedCarry):** protocol-review = **NOT PASSED** — the three security
-> fields (audits, exploit_history, admin_keys) must be sourced from Pendle's primary docs before this
-> card clears the Strategy Card's protocol-review gate. This is the mandate/evidence discipline working:
-> a protocol the desk already reads live is still not "reviewed" until its trust surface is documented.
+> **Gate status for `SC-RDFC-001` (FixedCarry):** protocol-review = **NEARLY PASSED** — TVL + audits +
+> exploit history are now sourced (2026-07-02). **Two items remain before it fully clears:** the
+> admin-key threshold/timelock and the bug-bounty. Honest evidence discipline: the gate moves from
+> "NOT PASSED (all-unverified)" to "one field from passing" as real data lands.
