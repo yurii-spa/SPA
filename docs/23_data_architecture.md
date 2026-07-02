@@ -1,50 +1,109 @@
 # 23 — Data Architecture (§31)
 
-**Status: STUB.** This document is a Priority-3 placeholder. It defines the *shape* of the Yield
-Lab data-architecture spec — the external and on-chain data sources the research layer will consume,
-and the per-source contract (what data, how often, how validated, what fallback, what MVP priority).
-It intentionally contains no detail beyond the outline below.
+**Purpose.** Define the Yield Lab research-layer data architecture: the external and on-chain sources
+the research layer consumes, the path each data point travels (source → ingestion → normalization →
+validation → research store → card/evidence consumers), and the per-source contract (what data, how
+often, how validated, what fallback, what MVP priority). This is the source catalogue that the data
+quality framework ([`40`](40_data_quality_framework.md)) grades and the database schema
+([`24`](24_database_schema.md)) persists.
 
 **Scope discipline.** Research-layer only. This document does not alter any runtime data flow, the
 deterministic RiskPolicy, the public dashboard, or deployment. Runtime `data/*.json` formats are
-untouched (see `06_spa_core_invariants.md`, invariant D-10).
+untouched ([`06_spa_core_invariants.md`](06_spa_core_invariants.md), invariant D-10). **Never invent
+APY/TVL** — availability of every third-party source is `requires verification` (access model, keys,
+rate limits, terms of service must be confirmed before reliance).
 
 **Cross-references (already built — do not duplicate):**
-- `spa_core/adapters/defillama_feed.py` — existing DeFiLlama APY/TVL feed (TTL-cached, keyless).
+- `spa_core/adapters/defillama_feed.py` — existing DeFiLlama APY/TVL feed (TTL-cached ~300s, keyless).
+- `data/funding_feed.py` — existing 5-venue funding feed (median Binance/Bybit/OKX/KuCoin/Hyperliquid).
+- `data/rwa_feed.py` — existing live tokenized-T-bill floor feed (fail-closed to committed literal).
 - `spa_core/data_trust/` — existing source-reliability / freshness / validation culture.
-- `spa_core/data_pipeline/` — existing ingestion/normalization plumbing.
-- `docs/40_data_quality_framework.md` — the data-quality gating this architecture feeds into.
+- `spa_core/data_pipeline/` — existing ingestion / normalization plumbing.
+- [`40_data_quality_framework.md`](40_data_quality_framework.md) — the quality gating this feeds.
 
-## Planned contents (outline only)
+---
 
-- **Data-flow topology** — source → ingestion → normalization → validation → research store →
-  card/evidence consumers. Where each existing module sits on that path.
-- **Source catalogue** — one row per source, each with: *data needed · refresh cadence · validation
-  method · fallback behavior · MVP priority*. Availability of every third-party source is marked
-  **"requires verification"** (access model, keys, rate limits, terms).
-  - DeFiLlama — protocol APY/TVL/yields (existing feed).
-  - CoinGecko — asset prices, market caps.
-  - Dune — custom on-chain analytics queries.
-  - Etherscan (+ chain explorers) — contract/txn/holder verification.
-  - Token Terminal — protocol fundamentals/revenue.
-  - Glassnode — on-chain market-cycle metrics (BTC/ETH).
-  - CryptoQuant — exchange-flow / on-chain cycle metrics.
-  - Coinglass — funding rates, open interest, liquidations.
-  - CEX APIs — spot/perp/funding reference (Binance, Bybit, OKX, KuCoin, Hyperliquid — cross-ref
-    existing `data/funding_feed.py`).
-  - DEX / AMM data — pool depth, liquidity, slippage.
-  - Protocol APIs — protocol-native yield/position/parameter endpoints.
-  - Governance sources — proposals, parameter changes, timelock/pause status.
-  - Audit sources — audit reports, coverage, findings.
-  - GitHub — repo activity, commit velocity, contributor signal.
-  - News / social — qualitative event feed (advisory only).
-  - Macro — rates, TradFi benchmarks (RWA floor context).
-  - ETF data — BTC/ETH ETF flows (decision-support).
-- **Per-source refresh & caching policy** — cadence, TTL, staleness thresholds.
-- **Validation & fallback** — cross-source agreement, fail-closed defaults, "unknown = requires
-  verification" rule (never invent APY/TVL).
-- **Lineage & provenance** — how each data point traces back to source + last-verified timestamp.
-- **MVP prioritization** — which sources are MVP-1 vs MVP-2/3 vs later.
-- **Secrets & access** — keys via Keychain only; no credentials in files (cross-ref secrets policy).
+## 1. Data-flow topology
 
-TODO: expand at MVP 2-3 stage.
+```
+  external / on-chain sources
+        │  (fetch: keyless where possible; keys via Keychain only)
+        ▼
+  ingestion  ──────────────  spa_core/data_pipeline/  (fetch, retry, TTL cache)
+        │
+        ▼
+  normalization  ─────────  unit/label harmonization (APY %-vs-decimal, chain labels)
+        │
+        ▼
+  validation / quality gate  ──  spa_core/data_trust/ + docs/40 (freshness, cross-source, outlier)
+        │        │
+        │        └── fail-closed → mark "unknown / requires verification" (never fabricate)
+        ▼
+  research store  ────────  runtime data/*.json today → future PostgreSQL (docs/24)
+        │
+        ▼
+  consumers  ─────────────  Strategy/Protocol/Stablecoin cards · evidence records (docs/37) ·
+                            Risk Scoring v2 (advisory, docs/14) · research API (docs/25) ·
+                            internal dashboard (docs/26) · IC memos (docs/39) · reports (docs/41)
+```
+
+Each existing module's place on the path: `defillama_feed.py` / `funding_feed.py` / `rwa_feed.py` sit
+at **ingestion**; `data_pipeline/` handles **ingestion + normalization**; `data_trust/` and doc 40 own
+the **validation/quality gate**; the **research store** is JSON today (a relational store is a later
+concern, doc 24).
+
+---
+
+## 2. Source catalogue
+
+One row per source. Every third-party availability, key requirement, rate limit, and ToS is
+**`requires verification`**; no source is assumed reachable until confirmed. MVP priority: **1** =
+needed for first research pass, **2** = MVP 2-3, **L** = later.
+
+| Source | Data needed | Refresh cadence | Validation method | Fallback | MVP |
+|---|---|---|---|---|---|
+| **DeFiLlama** (existing) | Protocol APY / TVL / yields | ~300s TTL | Schema + freshness check; cross-check vs protocol API | Cached last-good; else unknown | 1 |
+| **CoinGecko** | Asset prices, market caps | Minutes (`requires verification`) | Cross-check vs CEX ref price; outlier flag | Cached; else unknown | 1 |
+| **CEX APIs** (Binance/Bybit/OKX/KuCoin/Hyperliquid, existing) | Spot/perp price, funding, OI | Existing feed cadence | Median across ≥3 venues (`funding_feed.py`) | Median of available venues; fail-closed | 1 |
+| **RWA / T-bill feed** (existing) | Tokenized-T-bill rate (the floor) | Existing cadence | TVL-weighted; fail-closed literal flagged | Committed literal (flagged) | 1 |
+| **Chain explorers** (Etherscan + others) | Contract/txn/holder verification | On demand | Verified-bytecode + address match | None → mark unverified | 2 |
+| **Dune** | Custom on-chain analytics queries | Query-dependent | Query provenance + re-run reproducibility | Cached query result | 2 |
+| **DEX / AMM data** | Pool depth, liquidity, slippage | Minutes–hours | Depth cross-check; exit-slippage model | Cached; else unknown | 2 |
+| **Protocol APIs** | Native yield / position / parameters | Protocol-dependent | Cross-check vs DeFiLlama | DeFiLlama value | 2 |
+| **Governance sources** | Proposals, param changes, timelock/pause | Event-driven | Source = official governance portal/chain | Manual note | 2 |
+| **Audit sources** | Audit reports, coverage, findings | On publication | Named auditor + report link | Mark "no audit found" | 2 |
+| **Token Terminal** | Protocol fundamentals / revenue | Daily (`requires verification`) | Cross-check revenue vs on-chain | Cached | L |
+| **Glassnode** | On-chain BTC/ETH cycle metrics | Daily | Provenance + sanity range | Cached | L |
+| **CryptoQuant** | Exchange-flow / cycle metrics | Daily | Provenance | Cached | L |
+| **Coinglass** | Funding, open interest, liquidations | Minutes | Cross-check vs CEX APIs | CEX-API value | L |
+| **GitHub** | Repo activity, commit velocity | Daily | API provenance | Cached | L |
+| **News / social** | Qualitative event feed | Continuous | **Advisory only**, never a number source | Ignore | L |
+| **Macro / TradFi** | Rates, benchmarks (floor context) | Daily | Official source | Cached | L |
+| **ETF data** | BTC/ETH ETF flows | Daily | Official issuer/aggregator | Cached | L |
+
+---
+
+## 3. Per-source refresh, validation, fallback, lineage
+
+- **Refresh & caching.** Each source carries a cadence + TTL + staleness threshold. Beyond the
+  staleness threshold the value is **downgraded to unknown** (fail-closed), not silently reused (doc 40).
+- **Validation.** Where two independent sources exist (e.g. APY from a protocol API vs DeFiLlama),
+  agreement is checked; divergence beyond tolerance flags the point for review (doc 40 cross-source).
+- **Fallback.** Deterministic and explicit: cached last-good (with age shown) → committed literal only
+  where one exists and it is clearly flagged (as `rwa_feed.py` does) → otherwise **unknown / requires
+  verification**. Never fabricate a number to fill a gap.
+- **Lineage & provenance.** Every data point records its source, fetch timestamp, and last-verified
+  date so any card/evidence figure traces back to origin (persisted per doc 24 `data_lineage`).
+
+---
+
+## 4. MVP prioritization & secrets
+
+- **MVP-1** (already reachable): DeFiLlama, CoinGecko, CEX funding feed, RWA floor feed — the sources
+  the first research pass and the existing sleeves already depend on.
+- **MVP 2-3**: explorers, Dune, DEX depth, protocol/governance/audit sources — needed for full
+  protocol/stablecoin cards.
+- **Later**: fundamentals, on-chain-cycle, ETF/macro/news — decision-support enrichment.
+- **Secrets & access.** API keys via **Keychain only**; no credentials in files (SPA secrets policy,
+  [`06`](06_spa_core_invariants.md)). Keyless endpoints preferred where available (as with the existing
+  funding feed).

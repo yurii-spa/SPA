@@ -4,7 +4,7 @@
 > may be used in a sleeve. Fill-in; **no invented numbers** — every APY/peg/TVL is `requires
 > verification`. The desk **prefers plain LST over LRT** for hedged books; LRT stays isolated /
 > research-only ([`../33_yield_thesis_map.md`](../33_yield_thesis_map.md) C1/C2). Cross-refs:
-> [`../35_screening_rubric.md`](../35_screening_rubric.md), [`../37_apy_realism_and_evidence_standard.md`](../37_apy_realism_and_evidence_standard.md),
+> [`../35a_screening_rubric.md`](../35a_screening_rubric.md), [`../37_apy_realism_and_evidence_standard.md`](../37_apy_realism_and_evidence_standard.md),
 > [`../adr/ADR-YL-008-unified-yield-lab-mandate.md`](../adr/ADR-YL-008-unified-yield-lab-mandate.md).
 
 ## Subject
@@ -42,7 +42,7 @@
 - **honest realized-only APY:** `<base + proven only, points EXCLUDED>` `requires verification`
 - > Points/airdrop are **subsidy/speculation, not yield** ([`../33`](../33_yield_thesis_map.md) A5/C2) —
   > never carded as sustainable. Hard-reject if the spread depends on unconverted points
-  > ([`../35_screening_rubric.md`](../35_screening_rubric.md) §1).
+  > ([`../35a_screening_rubric.md`](../35a_screening_rubric.md) §1).
 
 ## 6. Depeg-residual when hedged (for neutral sleeves)
 - **hedge instrument:** `<short ETH perp / other>`
@@ -59,7 +59,7 @@
 ## 8. Red team (mandatory for LRT / restaking)
 - how do we lose money · de-peg magnitude & recovery · slashing cascade · AVS reward collapse ·
   points never convert · withdrawal-queue freeze · ETH −50% · contract/oracle · most-fragile assumption.
-- → run `spa_core/redteam/` battery ([`../35_screening_rubric.md`](../35_screening_rubric.md) §3).
+- → run `spa_core/redteam/` battery ([`../35a_screening_rubric.md`](../35a_screening_rubric.md) §3).
 
 ## 9. Verdict
 - **evidence level:** `L0–L6` ([`../37`](../37_apy_realism_and_evidence_standard.md))

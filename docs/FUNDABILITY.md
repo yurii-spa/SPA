@@ -98,7 +98,7 @@ A risk-adjusted fair-value model for tokenized yield that (a) harvests genuinely
 | basis_hedge | BLOCKED-NO-HEDGE | 3.4000% | no | 0.000% | 0 | 0 |
 | rate_matrix | PAPER_CANDIDATE | 6.0863% | yes | 0.000% | 3098 | 328 |
 
-**Proof chain** (live, hash-linked `data/rates_desk/decision_log.jsonl`): **718** logged decisions — **296 refusals** (of which **162** structural tail-vetoes) and **422 entries**. Every decision — entry AND refusal — is hashed into a tamper-evident record: the public "what we traded AND what we refused, and why."
+**Proof chain** (live, hash-linked `data/rates_desk/decision_log.jsonl`): **432** logged decisions — **108 refusals** (of which **0** structural tail-vetoes) and **324 entries**. Every decision — entry AND refusal — is hashed into a tamper-evident record: the public "what we traded AND what we refused, and why."
 
 
 **Honest caveats (stated, not hidden):**
@@ -122,13 +122,13 @@ The long-tail / nested-collateral liquidation opportunity was measured read-only
 
 ## 4. The forward track-to-date (accruing, not yet 30)
 
-**8/30 evidenced days — accruing, not yet 30** (honest anchor 2026-06-22, target 2026-07-21). Go-live criteria: **27/29 pass** — NOT READY (the remaining blockers are time-gated: there is simply nothing to fix in code, only track days to accrue).
+**11/30 evidenced days — accruing, not yet 30** (honest anchor 2026-06-22, target 2026-07-21). Go-live criteria: **27/29 pass** — NOT READY (the remaining blockers are time-gated: there is simply nothing to fix in code, only track days to accrue).
 
 
 Forward-track integrity: **all_ok** — 8 forward tracks, 0 failing (no duplicates / gaps / out-of-order / future-dated points).
 
 
-**Day-30 readiness (auto, verifiable, hash-anchored):** verdict **NOT_READY**, readiness **26.67%** (8/30 evidenced days). The artifact's content is fingerprinted: `proof_hash=25d17513c67e5a92…` — re-running the generator over the same evidenced track reproduces it, and any tampered/backfilled bar breaks it. The readiness % is the honest evidenced fraction, never an inflated snapshot.
+**Day-30 readiness (auto, verifiable, hash-anchored):** verdict **NOT_READY**, readiness **36.67%** (11/30 evidenced days). The artifact's content is fingerprinted: `proof_hash=f87057656cd802ce…` — re-running the generator over the same evidenced track reproduces it, and any tampered/backfilled bar breaks it. The readiness % is the honest evidenced fraction, never an inflated snapshot.
 
 
 ---
@@ -138,19 +138,19 @@ Forward-track integrity: **all_ok** — 8 forward tracks, 0 failing (no duplicat
 The verdict above is static; THIS is the live risk-adjusted picture computed ON the accruing forward series themselves (per-day equity for the rates-desk carry book + each Strategy-Lab sleeve). Honestly labeled: the forward record is still thin, so trustworthy risk-adjusted ratios arrive near day 30 — until then a thin track reads **THIN (metrics pending)**, never a fabricated Sharpe. The honest thin-labeling IS the credibility.
 
 
-**8 forward tracks** (beats-floor 0 · thin 8 · unknown 0). Attribution baseline: the live RWA floor **3.2%/yr**; a realized Sharpe/Sortino is only trusted at **>= 7 equity points** — below that the ratio is a degenerate artifact and is reported THIN, not a number.
+**8 forward tracks** (beats-floor 4 · thin 2 · unknown 0). Attribution baseline: the live RWA floor **3.4%/yr**; a realized Sharpe/Sortino is only trusted at **>= 7 equity points** — below that the ratio is a degenerate artifact and is reported THIN, not a number.
 
 
 | track | days | realized APY %/yr | excess vs floor %/yr | Sharpe | Sortino | max DD % | status |
 |---|---:|---:|---:|---:|---:|---:|:--|
-| paper/rates_desk_fixed_carry | 5 | 0.71% | -2.47% | UNKNOWN | UNKNOWN | 0.00% | THIN (5/30 days, metrics pending) |
-| strategy_lab_paper/engine_a | 6 | 3.56% | 0.38% | UNKNOWN | UNKNOWN | 0.00% | THIN (6/30 days, metrics pending) |
-| strategy_lab_paper/engine_b | 6 | 8.33% | 5.14% | UNKNOWN | UNKNOWN | 0.00% | THIN (6/30 days, metrics pending) |
-| strategy_lab_paper/engine_c | 6 | 8.87% | 5.69% | UNKNOWN | UNKNOWN | 0.00% | THIN (6/30 days, metrics pending) |
-| strategy_lab_paper/rwa_floor | 6 | 3.56% | 0.38% | UNKNOWN | UNKNOWN | 0.00% | THIN (6/30 days, metrics pending) |
-| strategy_lab_paper/rwa_sleeve | 4 | 3.26% | 0.08% | UNKNOWN | UNKNOWN | 0.00% | THIN (4/30 days, metrics pending) |
-| strategy_lab_paper/variant_d | 6 | -73.84% | -77.02% | UNKNOWN | UNKNOWN | 3.94% | THIN (6/30 days, metrics pending) |
-| strategy_lab_paper/variant_n | 6 | 30.13% | 26.95% | UNKNOWN | UNKNOWN | 0.49% | THIN (6/30 days, metrics pending) |
+| paper/rates_desk_fixed_carry | 8 | 0.73% | -2.63% | 394.45 | UNKNOWN | 0.00% | below floor |
+| strategy_lab_paper/engine_a | 9 | 3.54% | 0.19% | 158.03 | UNKNOWN | 0.00% | beats floor |
+| strategy_lab_paper/engine_b | 9 | 8.33% | 4.98% | UNKNOWN | UNKNOWN | 0.00% | THIN (9/30 days, metrics pending) |
+| strategy_lab_paper/engine_c | 9 | 8.87% | 5.52% | UNKNOWN | UNKNOWN | 0.00% | THIN (9/30 days, metrics pending) |
+| strategy_lab_paper/rwa_floor | 9 | 3.54% | 0.19% | 158.03 | UNKNOWN | 0.00% | beats floor |
+| strategy_lab_paper/rwa_sleeve | 7 | 3.38% | 0.03% | 689.32 | UNKNOWN | 0.00% | beats floor |
+| strategy_lab_paper/variant_d | 9 | 99.61% | 96.25% | 1.67 | 2.42 | 3.94% | beats floor |
+| strategy_lab_paper/variant_n | 9 | -3.32% | -6.67% | -1.07 | -1.32 | 0.49% | below floor |
 
 **Forward stress overlay** (canonical 2024-2026 PT mark-down shocks applied to the **currently-held** carry book — $17,387 PT notional — on top of the REALIZED forward equity, drawdown band 15%): worst-case stressed DD **1.04%**, **survives ALL**.
 
@@ -174,7 +174,7 @@ The verdict above is static; THIS is the live risk-adjusted picture computed ON 
 
 - **Go-live dry-run harness** (`golive_dry_run.json`): all gates reached=yes, ordering_ok=yes, NAV reconciliation=PASS, live-trading gate active=no, would_proceed=no, moves_capital=no. The gates are **verified inert** — the harness proves the fail-closed chain fires (RiskPolicy blocks an over-concentrated trade, the live-trading gate stays inactive) WITHOUT moving any capital.
 
-- **Honest-track reset as a TRUST signal** — the track shows **8/30 accruing**, anchored to the real evidenced start. It was reset to the honest count rather than padded; the published low number IS the credibility.
+- **Honest-track reset as a TRUST signal** — the track shows **11/30 accruing**, anchored to the real evidenced start. It was reset to the honest count rather than padded; the published low number IS the credibility.
 
 
 ---
@@ -193,4 +193,4 @@ This is the honest scale truth: SPA contributes the cheapest, most defensible fi
 
 ---
 
-_Regenerated 2026-06-29 18:06 UTC. All numbers live from `data/` — REALIZED-ONLY sources (carry_truth_table.json · realized_ab/realized_ab.json · edge_at_scale.json · refusal_cost.json) for the §2 edge claims, plus golive_status.json · rates_desk/rates_desk_promotion.json (BACKTEST, fenced) · rates_desk/decision_log.jsonl · rwa_safety_board.json · forward_track_integrity.json · forward_analytics.json · golive_dry_run.json. Regenerable via `python3 scripts/generate_fundability_onepager.py --md`. Reproduce the realized numbers from raw series: `python3 scripts/verify_spa.py --check-fundability data/`. Follow-up: a public `/fundability` site page mirroring this doc._
+_Regenerated 2026-07-02 06:00 UTC. All numbers live from `data/` — REALIZED-ONLY sources (carry_truth_table.json · realized_ab/realized_ab.json · edge_at_scale.json · refusal_cost.json) for the §2 edge claims, plus golive_status.json · rates_desk/rates_desk_promotion.json (BACKTEST, fenced) · rates_desk/decision_log.jsonl · rwa_safety_board.json · forward_track_integrity.json · forward_analytics.json · golive_dry_run.json. Regenerable via `python3 scripts/generate_fundability_onepager.py --md`. Reproduce the realized numbers from raw series: `python3 scripts/verify_spa.py --check-fundability data/`. Follow-up: a public `/fundability` site page mirroring this doc._

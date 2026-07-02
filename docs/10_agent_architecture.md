@@ -1,5 +1,12 @@
 # 10 — Agent Architecture (AI Investment OS + Builder OS)
 
+> **This doc is the combined index.** Full per-agent detail lives in the deep docs: **Investment OS →
+> [`docs/08_ai_investment_os_architecture.md`](08_ai_investment_os_architecture.md)** (the 16
+> Investment agents), **Builder OS → [`docs/09_builder_os_architecture.md`](09_builder_os_architecture.md)**
+> (the 9 Builder agents), with the Builder workflow in
+> [`docs/45_builder_os_workflow.md`](45_builder_os_workflow.md). The one-row tables below are the
+> summary; read `docs/08`/`docs/09` for role/inputs/outputs/FORBIDDEN/approval/frequency per agent.
+
 > **No autonomous agents run in production.** This is **prompts + schemas + architecture only**,
 > default autonomy **L0 (research) / L1 (recommendation)**. Every agent is decision-support: it
 > produces documents/scores/memos for humans, never execution. Build on existing

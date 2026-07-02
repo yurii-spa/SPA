@@ -4,7 +4,7 @@
 > here is a **candidate**, not an approval ([`../35_strategy_discovery_engine.md`](../35_strategy_discovery_engine.md)).
 > Fill-in; **no invented numbers** — every APY/TVL is `requires verification`; apparent yield is a raw
 > feed value labelled unverified or a category. Cross-refs: [`../33_yield_thesis_map.md`](../33_yield_thesis_map.md)
-> (Domain A), [`../35_screening_rubric.md`](../35_screening_rubric.md), [`../37_apy_realism_and_evidence_standard.md`](../37_apy_realism_and_evidence_standard.md),
+> (Domain A), [`../35a_screening_rubric.md`](../35a_screening_rubric.md), [`../37_apy_realism_and_evidence_standard.md`](../37_apy_realism_and_evidence_standard.md),
 > [`../adr/ADR-YL-008-unified-yield-lab-mandate.md`](../adr/ADR-YL-008-unified-yield-lab-mandate.md).
 
 ## Scan header
@@ -16,7 +16,7 @@
 ---
 
 For each candidate fill one block. Verdict ∈ `REJECT | HOLD | RED-TEAM | PASS`
-([`../35_screening_rubric.md`](../35_screening_rubric.md) §4).
+([`../35a_screening_rubric.md`](../35a_screening_rubric.md) §4).
 
 ## A1 — Conservative lending (Aave / Spark / Compound / Euler)
 | Field | Value |

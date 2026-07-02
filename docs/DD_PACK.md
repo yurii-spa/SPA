@@ -22,18 +22,18 @@ _A structured, auto-generated, REAL-DATA data-room for an LP / investor due-dili
 
 **DECISION-CHAIN HEAD (re-derived live, the fingerprint of the entire decision history — this is the `--expect-head` value):**
 
-- chain valid: **yes** · length: **718** decisions
-- decision-chain head: `3b0d34f39a881c28d54a94885d1f6a2998f0fab4e1fe10aeecd5785d65e9058f`
+- chain valid: **yes** · length: **344** decisions
+- decision-chain head: `66cb4eccb669669d02bdef4b083a9d1255dba1ff850548434bbe5998a8713f2e`
 
 Reproduce + assert this exact head yourself (WHOLE data dir → covers ALL 7 surfaces):
 
 ```
-python3 scripts/verify_spa.py --expect-head 3b0d34f39a881c28d54a94885d1f6a2998f0fab4e1fe10aeecd5785d65e9058f data/
+python3 scripts/verify_spa.py --expect-head 66cb4eccb669669d02bdef4b083a9d1255dba1ff850548434bbe5998a8713f2e data/
 ```
 
 **VERIFIER SCRIPT SHA-256 (a DIFFERENT 64-hex value — the checksum of `scripts/verify_spa.py` itself, NOT the chain head; pin it so you trust the verifier too):**
 
-- verifier-v1.0 · `verify_spa.py` SHA-256: `c43c7241dfa5ae56d91fae26fa714fc3b8d61483bc477c1c896793d9bbb62e1b`
+- verifier-v1.0 · `verify_spa.py` SHA-256: `9befddc69c046e022c9a00d4db6855c42ac763a97a683fd3476d6b02f42f3fa0`
 
 ```
 shasum -a 256 verify_spa.py   # must equal the verifier SHA-256 above
@@ -47,59 +47,16 @@ shasum -a 256 verify_spa.py   # must equal the verifier SHA-256 above
 
 This is the differentiator made concrete: on the SAME engine, SAME day, the desk **refused** a toxic LRT carry book and **approved** a clean stable carry book — and BOTH decisions are hashed into the public chain. A great quoted rate cannot buy its way past a structural veto.
 
-### 2a. REFUSAL — `ezeth` (seq #3, as_of 2024-09-01)
-
-A real liquid-restaking-token PT book. The quoted rate looked attractive, but the fair-value engine subtracts structural haircuts and the result is NEGATIVE fair carry — the yield is **tail-risk compensation, not carry**. Refusal fires on structural grounds, *before* economics. **This is exactly the ezETH / over-levered-USDe pattern that blows up in a depeg.**
-
-- verdict: **REFUSAL** · reason: **tail_veto** ("tail-comp veto: quoted rate is risk premium, not carry")
-- net edge (fair carry after haircuts): **-47.77%/yr** — negative -> the quoted yield does not compensate for the structural risk it actually carries.
-
-**Structural haircut breakdown (every term from the hashed `decomposition`):**
-
-| term | value |
-|---|---:|
-| baseline (fair risk-free-ish anchor) | **2.90%** |
-| peg haircut (depeg tail) | **6.40%** |
-| liquidity haircut (exit depth) | **6.00%** |
-| protocol haircut (smart-contract / governance) | **2.60%** |
-| oracle haircut | **0.67%** |
-| funding-flip haircut | **0.00%** |
-| **total haircut** | **15.67%** |
-| **fair yield (baseline − haircuts)** | **-12.77%** |
-
-- max tolerated total haircut: **12.00%** — the realized total haircut exceeds it -> **structural veto**.
-- approved size: **$0** (refused -> zero capital).
-
-**Hashes (re-derivable):**
-
-- `entry_hash`  : `d521e6218863c54c0f8bef01a0a515740a667e08c32dde49431711f371f7f33a`
-- `prev_hash`   : `537c633d9be3fdde3182821dc9b0badcd3bc9a281c854469b64a28c86bcb410d`
-- `proof_hash`  : `f3aa57d1f305cfcf4c9a460802ccbdbfe6ac1328975b53a8a7b8dbadc2c57edc`
-
-### 2b. ENTRY — `susde` (seq #4, as_of 2024-09-01)
-
-The very next decision in the chain (its `prev_hash` == the refusal's `entry_hash` above, so the two are provably adjacent in the tamper-evident log). A clean stable-carry book: positive fair carry after the SAME haircut model, so the desk approves a depth-bounded size.
-
-- verdict: **ENTRY (approved)** · net edge: **18.03%/yr** (positive -> real carry).
-- quoted rate: **12.00%/yr** · total haircut: **7.53%** · fair yield: **-6.53%/yr**.
-- approved size: **$4,062** (depth-bounded by the §9 exit-capacity rule — sizes DOWN rather than eat slippage).
-
-**Hashes (re-derivable):**
-
-- `entry_hash`  : `b7ba67aca34e8f4c672dd60cfb4565525a291b0ca550f4c193d925eedd06bdf9`
-- `prev_hash`   : `d521e6218863c54c0f8bef01a0a515740a667e08c32dde49431711f371f7f33a`
-- `proof_hash`  : `8d9a77d91c3953c4fc5e9a265a065ddd831db4fd5085480369006c02f6605b50`
-
-**The point:** identical engine, identical haircut model, same day — the toxic book is refused on structure and the clean book is sized. The refusal is the product. Both are public and both are hashed.
+Worked example: _data unavailable_ (no adjacent REFUSAL->ENTRY pair found in decision_log.jsonl).
 
 ---
 
 ## 3. The decision record (refusals AND entries, all hashed)
 
-The public, hash-linked `data/rates_desk/decision_log.jsonl` carries **718** logged decisions:
+The public, hash-linked `data/rates_desk/decision_log.jsonl` carries **344** logged decisions:
 
-- **296 refusals** — of which **162** structural tail-vetoes (toxic carry refused before economics) and **134** size-floor declines (real carry, but below the fundable depth floor).
-- **422 entries** — approved, depth-bounded carry books.
+- **86 refusals** — of which **0** structural tail-vetoes (toxic carry refused before economics) and **86** size-floor declines (real carry, but below the fundable depth floor).
+- **258 entries** — approved, depth-bounded carry books.
 
 Every row — entry AND refusal — is hashed. This is the surface no competitor publishes: **what we refused, and why.** Live human-readable view: `/refusals`. Machine: `/api/rates-desk/refusals`.
 
@@ -155,7 +112,7 @@ SPA contributes the cheapest, most defensible first layer: the transparent, fail
 
 ## 7. The track status — THIN, honestly labeled
 
-- evidenced track days: **8/30** — **accruing, not yet 30**. Only days backed by a real daily-cycle log count; the earlier backfill bars were reset OUT. The low number IS the credibility.
+- evidenced track days: **10/30** — **accruing, not yet 30**. Only days backed by a real daily-cycle log count; the earlier backfill bars were reset OUT. The low number IS the credibility.
 - honest anchor: **2026-06-22** · go-live target: **2026-07-21**.
 - go-live criteria: **27/29 pass** — NOT READY. The remaining blockers are **time-gated** (track days to accrue) — nothing to fix in code.
 
@@ -203,10 +160,10 @@ python3 verify_spa.py --check-fundability data/
 
    A forged fundability number — or an INSUFFICIENT_DATA masked behind a rounded zero — does NOT survive: the recompute from the raw series diverges and the verifier FAILS CLOSED with the precise sleeve. This is what makes the realized FUNDABILITY sheet (`docs/FUNDABILITY.md` §2, `docs/FUNDABLE_HONEST.md`) literally checkable, not just asserted.
 
-The append-only anchor ledger currently holds **13** head-checkpoint(s) (a genesis reset over the security-corrected chain head is auditable in the ledger note).
+The append-only anchor ledger currently holds **3** head-checkpoint(s) (a genesis reset over the security-corrected chain head is auditable in the ledger note).
 
 **Honesty contract for this doc:** every numeric token in DD_PACK.md is asserted (by `test_dd_pack.py`) to be present in the set of numbers sourced from `data/` files or hashed decision rows. A number that drifts from its source fails the build. There are no un-sourced claims.
 
 ---
 
-_Regenerated 2026-06-29 18:06 UTC. All numbers live from `data/` (golive_status.json · rates_desk/{rates_desk_promotion,portfolio_capacity}.json · rates_desk/decision_log.jsonl · rates_desk/anchors.jsonl · rwa_safety_board.json · forward_track_integrity.json · golive_dry_run.json) and the hashed decision rows; Liquidator NO-GO figures from `docs/LIQUIDATOR_DERISK.md`. Regenerable via `python3 scripts/generate_dd_pack.py`. Mirror page: `/fundability`._
+_Regenerated 2026-07-01 18:52 UTC. All numbers live from `data/` (golive_status.json · rates_desk/{rates_desk_promotion,portfolio_capacity}.json · rates_desk/decision_log.jsonl · rates_desk/anchors.jsonl · rwa_safety_board.json · forward_track_integrity.json · golive_dry_run.json) and the hashed decision rows; Liquidator NO-GO figures from `docs/LIQUIDATOR_DERISK.md`. Regenerable via `python3 scripts/generate_dd_pack.py`. Mirror page: `/fundability`._

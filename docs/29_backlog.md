@@ -26,7 +26,7 @@
 ## STRATEGY_DISCOVERY
 - **DISCOVERY-001** — Discovery Engine doc. *How candidates are found + screened (dfb, feeds, tournament).* out: `docs/35` · acc: pipeline + screen criteria · deps: AUDIT-001 · P2 · M. Prompt: "Write docs/35 referencing dfb + defillama_feed + tournament."
 - **DISCOVERY-002** — Candidate schema. out: `docs/schemas/candidate.schema.json` · acc: id/source/thesis/evidence fields · deps: DISCOVERY-001 · P2 · S.
-- **DISCOVERY-003** — Screening rubric. out: `docs/35_screening_rubric.md` · acc: hard-reject + human-review triggers · deps: DISCOVERY-001 · P2 · S.
+- **DISCOVERY-003** — Screening rubric. out: `docs/35a_screening_rubric.md` · acc: hard-reject + human-review triggers · deps: DISCOVERY-001 · P2 · S.
 
 ## STRATEGY_CARDS
 - **STRAT-001** — Strategy Card schema. out: `docs/schemas/strategy_card.schema.json` · acc: lifecycle-bound fields · deps: DOCS-002 · P1 · M. Prompt: "Write strategy_card schema bound to docs/07 lifecycle."
@@ -50,7 +50,7 @@
 - **YL-002** — Paper-test plan template. out: `docs/templates/paper_test_plan.md` · acc: duration/thresholds/auto-fail · deps: DOCS-002 · P2 · S.
 - **YL-003** — Small-capital test report template. out: `docs/templates/small_capital_report.md` · acc: slippage/queue/drawdown fields · deps: YL-002 · P2 · S.
 - **YL-004** — Retirement + lessons template. out: `docs/templates/retirement.md` · acc: lessons-learned section · deps: DOCS-002 · P3 · S.
-- **YL-005** — Map existing sleeves onto lifecycle states. out: `docs/07_sleeve_status.md` · acc: each strategy_lab sleeve has a status · deps: STRAT-005 · P2 · M.
+- **YL-005** — Map existing sleeves onto lifecycle states. out: `docs/07a_sleeve_status.md` · acc: each strategy_lab sleeve has a status · deps: STRAT-005 · P2 · M.
 
 ## STABLECOIN_YIELD_ENGINE
 - **SYE-001** — Stablecoin yield engine deep-dive doc. out: `docs/38` · acc: source taxonomy + capacity · deps: YIELD-001 · P2 · L.
@@ -92,7 +92,7 @@
 
 ## DASHBOARD
 - **DASH-001** — Research-layer dashboard expansion PLAN (no code). out: `docs/26` · acc: plan only, existing dashboard untouched, STOP-ask noted · deps: AUDIT-001 · P2 · M. Prompt: "Write docs/26 dashboard expansion PLAN; do not edit landing/."
-- **DASH-002** — Card/evidence surface mockup doc. out: `docs/26_surfaces.md` · acc: read-only, evidence-level badges · deps: DASH-001 · P3 · S.
+- **DASH-002** — Card/evidence surface mockup doc. out: `docs/26a_surfaces.md` · acc: read-only, evidence-level badges · deps: DASH-001 · P3 · S.
 
 ## DATA
 - **DATA-001** — Research-layer data architecture doc (stub). out: `docs/23` · acc: NEW dirs only, runtime data/*.json untouched · deps: AUDIT-001 · P2 · M. Prompt: "Write docs/23 stub; research data in new dirs, never runtime data/."
