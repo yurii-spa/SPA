@@ -42,6 +42,7 @@ rename or break them.** All 14 current site references resolve to real files.
 
 - [`decision_index.md`](decision_index.md) — every candidate's ADR-YL-008 verdict + spread + evidence (the audit surface).
 - [`underwriting_rubric.md`](underwriting_rubric.md) — the reusable method (Q1→Q4 tree + reason-code taxonomy) distilled from real decisions.
+- [`yield_landscape_2026.md`](yield_landscape_2026.md) — **whole-map synthesis** of the honest 2026 stablecoin-yield landscape (floor / ADVANCE rungs / 8-12% / REFUSE archetypes / pick-two).
 - [`non_ethena_ladder.md`](non_ethena_ladder.md) — the assembled honest fundable book (~4.75% non-Ethena; the pick-two trade-off).
 - [`STRUCTURAL_DESK.md`](STRUCTURAL_DESK.md) · [`RATES_DESK_VALIDATION.md`](RATES_DESK_VALIDATION.md) · [`DD_PACK.md`](DD_PACK.md) · [`FUNDABILITY.md`](FUNDABILITY.md) · [`LIQUIDATOR_DERISK.md`](LIQUIDATOR_DERISK.md) · [`PROOF_CHAIN_SPEC.md`](PROOF_CHAIN_SPEC.md) · [`COMPETITIVE_POSITION.md`](COMPETITIVE_POSITION.md) · [`VERIFIER_RELEASE.md`](VERIFIER_RELEASE.md) · [`DFB_METHODOLOGY.md`](DFB_METHODOLOGY.md) · [`SITE_DESIGN_SYSTEM.md`](SITE_DESIGN_SYSTEM.md) / [`SITE_DESIGN_SYSTEM_V2.md`](SITE_DESIGN_SYSTEM_V2.md).
 

@@ -82,6 +82,9 @@ Baseline: the RWA floor itself (rwa_sleeve) is spread ≈ 0 by construction — 
 | **CONDITIONAL** | `concentration_unverified_but_onchain_retrievable` | the one binding number (borrower concentration) is undisclosed but ON-CHAIN retrievable → soft conditional, not a hard opacity hold | Maple HY Secured (PoR pull → ADVANCE-with-cap) |
 | **ADVANCE(cap)** | `thin_declining_depth` | real organic yield/spread but capacity thin and shrinking → small-ticket only | Term Finance ($12.5M, −74%) |
 | **WATCH** | `onchain_first_loss_tranche_but_points_subsidized` | on-chain first-loss buffer (clears opacity) but headline APY is points-subsidized + originator partly off-chain | Huma Finance (~10.5% Classic) |
+| **NO-EDGE** | `gov_tbill_at_floor` | gov-T-bill tokenized product earns the floor rate itself → cash-floor realizer, not a spread | BUIDL, BENJI, OUSG, JPM MONY, USYC |
+| **REFUSE** | `tail_comp_deposit_spread` | the nominal spread is uninsured bank-deposit credit (tail-comp), not a bounded edge | Ondo USDY (+120bps = deposit leg) |
+| **REFUSE** | `funding_dependent_basis_carry` | crypto cash-and-carry basis, funding-dependent/unbounded (often sub-floor when carry compresses) | Bitwise USCC (2.60%<floor) |
 | **NO-EDGE** | `no_edge_floor_parity` | safest lending ≈ the floor; hold the floor | Aave V3 USDC (~5 bps) |
 | **BASELINE** | `is_the_floor` | the yardstick (spread ≈ 0) | rwa_sleeve |
 
