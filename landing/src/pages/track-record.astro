@@ -7,13 +7,15 @@ import snap from '../data/track_snapshot.json';
 // override these client-side from api.earn-defi.com; this keeps the page honest
 // and readable when the API is offline. Numbers are NOT hardcoded inline — they
 // are derived from data/golive_status.json + data/equity_curve_daily.json at build.
-const realDays = snap.real_track_days ?? 10;
-const daysNeeded = snap.days_needed ?? 30;
-const goLiveTarget = snap.go_live_target ?? '2026-07-21';
-const anchor = snap.evidenced_anchor ?? '2026-06-22';
-const gatesPassed = snap.gates_passed ?? 27;
-const gatesTotal = snap.gates_total ?? 29;
+// ONE source (FIX-2), NO hardcoded fallback — a missing field shows an honest em-dash, not a stale literal.
+const realDays = snap.real_track_days != null ? snap.real_track_days : '—';
+const daysNeeded = snap.days_needed != null ? snap.days_needed : '—';
+const goLiveTarget = snap.go_live_target || '—';
+const anchor = snap.evidenced_anchor || '—';
+const gatesPassed = snap.gates_passed != null ? snap.gates_passed : '—';
+const gatesTotal = snap.gates_total != null ? snap.gates_total : '—';
 const bars = snap.bars ?? [];
+const snapAsOf = snap.as_of || snap.generated_at || null;   // snapshot freshness for the "as of <date>" label
 
 // Per-bar source presentation tokens (Console palette). evidenced cycle bars are
 // the only ones that count toward go-live; everything else is shown but dimmed.
@@ -47,6 +49,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         daily-cycle log count. Right now that is {realDays} honest days (anchor {anchor}),
         not 15 padded ones. Every equity point and its source label is public.
       </p>
+      {snapAsOf && <p class="text-xs font-mono text-white/30 mt-3" id="tr-asof" data-ru={`статичный снимок на ${snapAsOf} · вживую обновляется с api.earn-defi.com`}>static snapshot as of {snapAsOf} · updates live from api.earn-defi.com</p>}
     </section>
 
     <!-- The reset — core trust signal -->
@@ -160,6 +163,11 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-warn" aria-hidden="true"></span><span data-ru="реконструкция · помечена">reconstructed · flagged</span></span>
         <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-white/30" aria-hidden="true"></span><span data-ru="бэкфилл/прогрев · не считается">backfill/warmup · not counted</span></span>
       </div>
+      <p class="text-[11px] text-white/35 leading-relaxed mt-3 max-w-2xl" data-ru="Заметили разрыв эквити между сегментами прогрева и бэкфилла? Это ожидаемо: прогрев и бэкфилл — независимые синтетические серии, не входящие в подтверждённый трек. Только бары «цикл» (с реального якоря) непрерывны и засчитываются.">
+        You may see an equity jump between the warmup and backfill segments. That is expected — warmup
+        and backfill are independent synthetic series that are not part of the evidenced track; only the
+        <span class="text-data-teal">cycle</span> bars (from the real anchor onward) are continuous and counted.
+      </p>
     </section>
 
     <!-- Proof of Reserves -->

@@ -10,11 +10,11 @@ import snap from '../data/track_snapshot.json';
 // the honest snapshot stands and the page says so. The day count is the HONEST
 // evidenced count (we reset the track — only cycle-logged days count; earlier days
 // were flat-rate backfill). Anchor 2026-06-22. See /track-record.
-const goLiveChecks = snap.gates_passed ?? 27;
-const goLiveTotal = snap.gates_total ?? 29;
+const goLiveChecks = snap.gates_passed != null ? snap.gates_passed : '—';
+const goLiveTotal = snap.gates_total != null ? snap.gates_total : '—';
 const goLiveReadinessPct = Math.round((goLiveChecks / goLiveTotal) * 100);
-const evidenceDays = snap.real_track_days ?? 10;  // evidenced (cycle-logged) days
-const evidenceTarget = snap.days_needed ?? 30;    // 30 honest days required (ADR-002)
+const evidenceDays = snap.real_track_days != null ? snap.real_track_days : '—';  // evidenced days — ONE source, no hardcode (FIX-2)
+const evidenceTarget = snap.days_needed != null ? snap.days_needed : '—';    // 30 honest days required (ADR-002)
 const goLiveTarget = snap.go_live_target ?? "2026-07-21";
 const trackStart = snap.evidenced_anchor ?? "2026-06-22";  // evidence anchor (NOT backfilled 06-10)
 

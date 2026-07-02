@@ -9,12 +9,16 @@ import snap from '../data/track_snapshot.json';
 // this keeps the hero + track glance readable (real last-evidenced numbers, not bare "—")
 // when the API is offline. Numbers are NOT hardcoded — they come from the committed
 // snapshot derived from data/golive_status.json + data/equity_curve_daily.json.
-const snapDays = snap.real_track_days ?? 10;
-const snapGates = `${snap.gates_passed ?? 27}/${snap.gates_total ?? 29}`;
+// ONE source (FIX-2): every hero number comes from track_snapshot.json (built from the committed
+// golive_status + equity_curve + paper_trading_status — the same authority the API serves). NO
+// hardcoded fallback: a missing value renders an honest em-dash, never a stale/invented number.
+const snapDays = snap.real_track_days != null ? snap.real_track_days : '—';
+const snapGates = (snap.gates_passed != null && snap.gates_total != null) ? `${snap.gates_passed}/${snap.gates_total}` : '—';
 const snapBars = Array.isArray(snap.bars) ? snap.bars : [];
-const lastBar = snapBars.length ? snapBars[snapBars.length - 1] : null;
-const snapApy = lastBar && lastBar.apy_today != null ? Number(lastBar.apy_today).toFixed(1) + '%' : '—';
+const snapApy = snap.paper_apy_pct != null ? '~' + Number(snap.paper_apy_pct).toFixed(1) + '%' : '—';
 const snapDd = snap.max_drawdown_pct != null ? Number(snap.max_drawdown_pct).toFixed(2) + '%' : '—';
+// Snapshot freshness label ("as of <date>") — the JS island flips it to live when the API answers.
+const snapAsOf = snap.as_of || snap.generated_at || null;
 // Equity series for the offline spark fallback (build-time, last snapshot).
 const snapEquity = snapBars.map((b) => Number(b.equity)).filter((v) => isFinite(v));
 ---
@@ -39,8 +43,9 @@ const snapEquity = snapBars.map((b) => Number(b.equity)).filter((v) => isFinite(
         <span class="dot" aria-hidden="true"></span>
         <span class="seg" data-ru="режим бумаги">paper mode</span>
         <span class="div">·</span><span class="num" id="sl-day">{snapDays}</span>&nbsp;<span data-ru="подтв. дней">evidenced days</span>
-        <span class="div">·</span><span class="num" id="sl-apy">~{snapApy}</span>&nbsp;<span data-ru="бумажный APY">paper APY</span>
+        <span class="div">·</span><span class="num" id="sl-apy">{snapApy}</span>&nbsp;<span data-ru="бумажный APY">paper APY</span>
         <span class="div">·</span><span class="num" id="sl-gates">{snapGates}</span>&nbsp;<span data-ru="критериев">criteria</span>
+        {snapAsOf && <span class="div">·</span>}{snapAsOf && <span class="seg" id="sl-asof" style="opacity:.6" data-ru={`на ${snapAsOf}`}>as of {snapAsOf}</span>}
       </div>
 
       <!-- Journey chooser — pick a lens instead of a duplicated single CTA. -->

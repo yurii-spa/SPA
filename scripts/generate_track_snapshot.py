@@ -22,6 +22,7 @@ HONEST rules:
 """
 from __future__ import annotations
 
+import datetime
 import json
 import os
 import sys
@@ -44,9 +45,38 @@ def _atomic_write(path: Path, payload: dict) -> None:
     os.replace(tmp, path)
 
 
-def build_snapshot() -> dict:
-    golive = json.loads(GOLIVE.read_text(encoding="utf-8"))
-    equity = json.loads(EQUITY.read_text(encoding="utf-8"))
+def _load(path: Path) -> dict:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _max_drawdown_pct(bars: list):
+    """Worst peak-to-trough drawdown (%) over the given bars, or None if <2 have equity."""
+    eqs = [float(b.get("equity")) for b in bars if b.get("equity") is not None]
+    if len(eqs) < 2:
+        return None
+    peak = eqs[0]
+    worst = 0.0
+    for e in eqs:
+        peak = max(peak, e)
+        if peak > 0:
+            worst = min(worst, (e - peak) / peak * 100.0)
+    return round(worst, 4)
+
+
+def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_path=None) -> dict:
+    """Assemble the build-time static snapshot from the committed data files.
+
+    ONE source per number (FIX-2): live equity / paper APY / PoR-NAV come from
+    paper_trading_status.json (the same authority the API serves); track days + gates from
+    golive_status.json; the per-bar ledger from equity_curve_daily.json. A missing value is left
+    None so the site renders an honest "data unavailable" — NEVER a bare hardcoded number.
+    """
+    golive = _load(golive_path)
+    equity = _load(equity_path)
+    pts = _load(pts_path if pts_path is not None else (ROOT / "data" / "paper_trading_status.json"))
 
     bars = equity.get("bars") or equity.get("curve") or equity.get("daily") or []
     evidenced = [b for b in bars if b.get("evidenced") is True]
@@ -58,16 +88,28 @@ def build_snapshot() -> dict:
     stable_passed = max(passed_live, total - len(_TIME_GATED))
 
     last = bars[-1] if bars else {}
-    end_equity = float(last.get("equity", equity.get("end_equity", 100000.0)) or 100000.0)
+    # ONE source: prefer the paper_trading_status authority; fall back to the equity ledger tail.
+    nav = pts.get("current_equity")
+    end_equity = float(nav if nav is not None else last.get("equity", equity.get("end_equity", 100000.0)) or 100000.0)
+
+    paper_apy = pts.get("apy_today_pct")
+    if paper_apy is None and last.get("apy_today") is not None:
+        paper_apy = last.get("apy_today")
+
+    # as_of = freshness of the underlying evidenced data (last evidenced bar date), NOT build time.
+    as_of = (evidenced[-1].get("date") if evidenced else last.get("date")) or golive.get("as_of")
+    generated_at = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     snap = {
-        "generated_from": "data/golive_status.json + data/equity_curve_daily.json",
+        "generated_from": "data/golive_status.json + data/equity_curve_daily.json + data/paper_trading_status.json",
         "generator": "scripts/generate_track_snapshot.py",
         "note": (
-            "Build-time static fallback for /track-record + /due-diligence. Live values "
-            "come from api.earn-defi.com and override these client-side; this is the last "
-            "honest snapshot for offline. real_track_days = EVIDENCED bars only."
+            "Build-time static fallback for the public pages. Live values come from api.earn-defi.com "
+            "and override these client-side; this is the last honest snapshot for offline / crawlers. "
+            "real_track_days = EVIDENCED bars only. Missing value => 'data unavailable', never a stale number."
         ),
+        "as_of": as_of,
+        "generated_at": generated_at,
         "real_track_days": real_days,
         "go_live_target": golive.get("target_date") or golive.get("go_live_target") or "2026-07-21",
         "evidenced_anchor": golive.get("evidenced_anchor") or "2026-06-22",
@@ -75,6 +117,9 @@ def build_snapshot() -> dict:
         "gates_passed": stable_passed,
         "gates_total": total,
         "end_equity": round(end_equity, 2),
+        "nav_usd": round(end_equity, 2),                    # PoR-NAV (paper): the reserves backing
+        "paper_apy_pct": round(float(paper_apy), 4) if paper_apy is not None else None,
+        "max_drawdown_pct": _max_drawdown_pct(evidenced or bars),
         "total_return_pct": round((end_equity / 100000.0 - 1.0) * 100.0, 4),
         "bars": bars,
     }

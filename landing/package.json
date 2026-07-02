@@ -2,12 +2,13 @@
   "name": "earn-defi-landing",
   "type": "module",
   "version": "1.0.0",
-  "description": "earn-defi.com landing page — SPA Smart Passive Aggregator",
+  "description": "earn-defi.com landing page \u2014 SPA Smart Passive Aggregator",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "astro check"
+    "check": "astro check",
+    "prebuild": "python3 ../scripts/generate_track_snapshot.py || true"
   },
   "dependencies": {
     "@astrojs/react": "^3.6.0",
