@@ -7,6 +7,9 @@ set +e
 REPO="/Users/yuriikulieshov/Documents/SPA_Claude"
 PY="/Users/yuriikulieshov/miniconda3/bin/python3"
 cd "$REPO" || exit 1
+# Heartbeat log the agent_health monitor reads (/tmp/spa_<name>.log). Runs fine but never emitted
+# this log -> false stale CRITICAL. Fixed.
+exec >> /tmp/spa_tier1_governance.log 2>&1
 
 ts() { date -u "+%Y-%m-%dT%H:%M:%SZ"; }
 

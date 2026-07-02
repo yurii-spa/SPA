@@ -4,6 +4,10 @@
 # Best-effort fetch: on network failure the last-good real cache persists and the run continues.
 set +e
 cd /Users/yuriikulieshov/Documents/SPA_Claude
+# Heartbeat log the agent_health monitor reads (/tmp/spa_<name>.log freshness). This wrapper runs
+# fine + writes fresh output JSON, but never emitted this log -> false 'stale' CRITICAL. Fixed.
+exec >> /tmp/spa_mass_tournament.log 2>&1
+echo "[$(date -u '+%FT%TZ')] com.spa.mass_tournament START (run_backtest_tier1.sh)"
 PY=/Users/yuriikulieshov/miniconda3/bin/python3
 echo "[$(date -u '+%FT%TZ')] fetch real historical APY (DeFiLlama)..."
 $PY scripts/fetch_historical_apy.py
