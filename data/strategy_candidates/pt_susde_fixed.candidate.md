@@ -38,12 +38,17 @@
 - **most-fragile assumption:** that USDe/Ethena survives intact to the maturity date. That is the ONE thing to underwrite — and it is measurable (reserve %, funding history, collateral), unlike the unbounded spot funding tail.
 - **the sharp nuance:** same underlying, different wrapper, different verdict — spot sUSDe (floating) = lean-REFUSE (unbounded funding tail); PT-sUSDe (fixed, held-to-maturity) = WATCH/conditional (bounded to a measurable solvency tail). **The structure, not the asset, sets the risk.**
 
-## Verdict
-- **verdict:** **WATCH → CONDITIONAL-ADVANCE** — a **real ~11.2% (8-12% band) whose worst tail is bounded by the fixed-to-maturity structure**; the residual (USDe-solvency-to-maturity) is measurable, not unbounded. The strongest "real 8-12% with mostly-bounded risk" found so far — but explicitly conditional (USDe is not risk-free).
-- **reason_code:** `fixed_carry_held_to_maturity_bounded` (NEW — the fixed wrapper bounds a floating tail; residual = underlying-solvency-to-maturity)
-- **conditions to move to PAPER:** (1) **USDe/Ethena solvency DD** — reserve coverage %, funding history, peg-stress record, collateral quality (the one underwriting question), (2) **PT exit-liquidity-at-size** (SC-RDFC-001 capacity gate), (3) **held-to-maturity discipline** (no MTM panic-exit) + maturity-laddering, (4) **strict cap** (single-underlying concentration), (5) full Red-Team.
-- **product_line_fit:** `Enhanced` (a genuine higher-yield sleeve if the USDe-solvency DD clears + capped).
-- **relation:** extends the validated FixedCarry thesis (SC-RDFC-001) to a concrete high-carry underlying; the honest tension is that the high fixed rate exists *because* the underlying carries real (if measurable) risk — you are paid for underwriting USDe-to-maturity.
+## Verdict — UPGRADED to CONDITIONAL-ADVANCE (to paper) after solvency DD (2026-07-02)
+- **verdict:** **CONDITIONAL-ADVANCE → PAPER** (was WATCH). The one gating risk — **USDe/Ethena solvency-to-maturity — has now been UNDERWRITTEN and STRESS-VALIDATED**, materially de-risking the residual. A real ~11.2% (8-12% band) whose worst tail (funding-flip) is removed by the fixed-to-maturity wrapper and whose remaining tail (USDe survival) is measurable, monitorable, and has PASSED a live stress test.
+- **reason_code:** `fixed_carry_held_to_maturity_bounded` (residual = underlying-solvency-to-maturity — now DD'd)
+- **SOLVENCY DD RESULT (sourced 2026-07-02, see `usde.stablecoin.md`):**
+  - ✅ **Stress-passed:** in the Oct-2025 $19B deleveraging crash, USDe stayed **overcollateralized ~$66M throughout** (attested live by Chaos Labs / Chainlink / Llama Risk / Harris & Trotter); the $0.65 Binance print was a **Binance-oracle artifact** (DEX only −0.3%); supply $9B→$6B redeemed **without unwinding basis**, short perps **profited**. Design validated under duress; rivals xUSD/deUSD collapsed, USDe did not.
+  - ✅ **Solvency provable:** Anchorage (monthly attestation + weekly PoR) + Kraken (weekly PoR) since Jan-2026.
+  - ✅ **Funding tail bounded/measurable:** over 3yr, negative funding = 17.5% of days but **longest stretch only 13 days**; reserve (~1.1%) covers short bursts + is bidder-of-last-resort.
+  - ⚠️ **Residual (why PAPER not full-live):** reserve is thin (1.1%); reflexivity real (mcap $14.7B→$6.4B in 2mo, survived $8.3B/24h outflow); an **extended negative-funding regime (> reserve coverage)** is the true remaining tail — measurable + monitorable, so it's a *monitored* risk, not a blind one.
+- **remaining conditions (paper → live):** (1) **PT exit-liquidity-at-size** (SC-RDFC-001 capacity gate — the one still-open unknown), (2) **held-to-maturity discipline** + maturity-laddering (no MTM panic-exit), (3) **strict single-underlying cap**, (4) live monitors: negative-funding-regime duration + reserve-coverage % + PoR freshness (kill if reserve coverage breaks a floor), (5) full Red-Team sign-off.
+- **product_line_fit:** `Enhanced` (paper-track now; live only after PT-liquidity-at-size + cap set).
+- **honest bottom line:** this is the strongest real 8-12% the hunt has produced — **~11.2% fixed, funding-tail removed by structure, solvency-tail underwritten + stress-validated + monitorable.** It ADVANCES to paper because the gating risk was measured and passed, NOT waved through. The remaining gate is capacity (can it be sized?), which the FixedCarry track (SC-RDFC-001) already flags as INSUFFICIENT_DATA — so: fundable *thesis*, capacity-limited *scale*.
 
 ## Honest note
 This is the answer to "is there real 8-12% with bounded risk?": **yes, conditionally** — a fixed-rate

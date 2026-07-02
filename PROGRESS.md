@@ -106,6 +106,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 22 (A edge-hunt, 8-12% bounded hunt):** `data/strategy_candidates/private_credit_senior.candidate.md` — private-credit SENIOR tranches SPLIT: **Goldfinch Senior 10-14% -> REFUSE (realized default)** — protocol WINDING DOWN (GIP-87 Jun-2026), ~$50M defaults, 3yr stranded; 'senior' label didn't bound systemic default. **Centrifuge DROP ~8% -> WATCH** — real bound (DROP-senior/TIN-junior first-loss + RWA cashflows, TVL >$500M) but low-end + per-pool off-chain DD. Lesson: underwrite the buffer+assets, not the tranche label. decision_index 13 decisions; rubric +2 reasons +meta#6, meta-numbering fixed.
 
+
+- **Cycle 23 (B deep-research → move WATCH→ADVANCE, owner-directed):** did the **USDe/Ethena solvency DD** for PT-sUSDe (deepened `usde.stablecoin.md` + upgraded `pt_susde_fixed.candidate.md`). Result: **PT-sUSDe WATCH → CONDITIONAL-ADVANCE → PAPER.** The one gating risk (USDe-solvency-to-maturity) is now UNDERWRITTEN + STRESS-VALIDATED: Oct-2025 $19B crash → USDe overcollat ~$66M throughout (attested live: Chaos Labs/Chainlink/Llama Risk/Harris & Trotter), Binance-$0.65 = oracle artifact (DEX −0.3%), redeemed $9B→$6B without unwinding basis, short-perps profited; solvency provable (Anchorage monthly-attest+weekly-PoR, Kraken weekly-PoR, Jan-2026); neg-funding 17.5% days but max 13d/3yr. Residual (why paper not full-live): thin 1.1% reserve + reflexivity + PT-capacity (SC-RDFC INSUFFICIENT_DATA-at-size). **First fundable-THESIS advance of the 8-12% hunt — capacity-limited scale, not risk-logic-limited.** decision_index honest-edge bullet updated.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific

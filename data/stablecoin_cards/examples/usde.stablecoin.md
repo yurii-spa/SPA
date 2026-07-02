@@ -13,8 +13,8 @@
 
 ## Backing & transparency (the due-diligence core)
 - **backing_type:** `synthetic_delta_neutral` — spot crypto collateral (BTC/ETH/LST + stables) HEDGED with short perpetual futures; NOT fiat-backed. The peg relies on the hedge holding.
-- **reserve_transparency:** `partial` — Ethena publishes reserve/position dashboards; custody + exchange positions rely on off-chain reporting. `requires verification`.
-- **attestations:** `[{firm: "requires verification", cadence: "requires verification", last_date: "requires verification"}]`
+- **reserve_transparency:** **STRENGTHENED (sourced 2026-07-02):** solvency is provable — **weekly proof-of-reserves** + institutional custody. Since Jan-2026: **Kraken** custody partner (weekly PoR) + **Anchorage Digital Bank** custodian (**monthly signed attestations + weekly PoR**). Independent attestors (Chaos Labs, Chainlink, Llama Risk, Harris & Trotter) verified overcollateralization live through the Oct-2025 crash. [L2]
+- **attestations:** `[{firm: "Anchorage Digital Bank", cadence: "monthly signed + weekly PoR", since: "Jan 2026"}, {firm: "Kraken (custody)", cadence: "weekly PoR", since: "Jan 2026"}, {firm: "Chaos Labs/Chainlink/Llama Risk/Harris & Trotter", role: "independent overcollateralization attestors (Oct-2025 stress)"}]` — **verified 2026-07-02 [L2]**
 - **redemption_mechanism:** `mint/redeem for whitelisted parties vs backing; sUSDe→USDe carries a ~7-day unstake cooldown (168h per the adapter); secondary DEX/CEX liquidity otherwise`
 
 ## Liquidity & market structure (never presented without a last-verified date)
@@ -25,7 +25,8 @@
 - **top_holder_concentration:** `TBD — requires data verification`
 
 ## Peg & control risk
-- **depeg_history:** `[]`  <!-- USDe is relatively young; verify any stress episodes. Absence here = NOT YET SOURCED, not "none". -->
+- **depeg_history:** `[{date: "2025-10-10/11", event: "$19B market-wide deleveraging (tariff shock)", binance_low: "$0.65 (−35%)", true_impact: "DEX only −0.3% (Curve); the $0.65 was a BINANCE-oracle/Unified-Account ARTIFACT (internal orderbook oracle), NOT true value", solvency: "remained OVERCOLLATERALIZED ~$66M THROUGHOUT (attested live: Chaos Labs, Chainlink, Llama Risk, Harris & Trotter)", mechanism: "supply $9B→$6B redeemed near-instantly WITHOUT unwinding basis; short perps PROFITED as prices fell, padding reserves", outcome: "no exploit, no undercollateralization — design validated under duress; CoinDesk: 'USDe did not de-peg'. Note: $8.3B/24h outflows survived; synthetic rivals xUSD/deUSD collapsed outright"}]`  <!-- SOURCED 2026-07-02 — the key stress test -->
+- **solvency_dd (sourced 2026-07-02, gates PT-sUSDe / CAND-PTSUSDE-001):** negative-funding history over 3yr = **17.5% of days negative, longest stretch 13 days** (vs 176 positive) — frequent but SHORT; reserve fund (~1.1% TVL) covers short bursts + acts as bidder-of-last-resort. **Oct-2025 stress passed overcollateralized.** Residual: thin 1.1% reserve; reflexivity (mcap $14.7B→$6.4B in 2mo); an EXTENDED (>reserve-coverage) negative-funding regime is the real tail — measurable + monitorable.
 - **blacklist_freeze_risk:** `requires verification (issuer-controlled mint/redeem; token-level freeze unclear)`
 - **regulatory_risk:** `ELEVATED (sourced 2026-07-02): Germany's BaFin barred USDe under MiCA in 2026 — a novel synthetic-dollar structure with active regulatory friction. Reserve Fund ~$61M vs ~$5.6B supply (~1.1%) — small buffer, "not a guarantee." sUSDe yield ~9.4% (7d) / ~11.8% (90d) = clearly risk-comp, not a floor.`
 - **jurisdiction:** `Ethena (requires verification)`
@@ -50,6 +51,7 @@
 
 ### Review checklist (docs/13 §5)
 - [x] `backing_type` (synthetic delta-neutral), `key_dependencies` (funding + counterparty), `emergency_exit_triggers` filled
-- [ ] `depeg_history` / stress episodes sourced — **pending (young asset; absence = not-yet-sourced)**
-- [ ] `reserve_transparency` / attestations / market-cap / depth sourced with a date — pending
+- [x] `depeg_history` SOURCED — Oct-2025 $19B crash: overcollateralized ~$66M throughout, Binance-$0.65 = oracle artifact, design validated (the key stress test)
+- [x] `reserve_transparency` / attestations SOURCED — Anchorage (monthly attest + weekly PoR) + Kraken (weekly PoR), Jan-2026; market-cap ~$5.9B (2026-07-02)
+- [x] `solvency_dd` for PT-sUSDe SOURCED — neg-funding 17.5% days/max 13d; reserve 1.1%; stress-passed; residual = extended-negative-funding (measurable)
 - [ ] `risk_score` + `max_allocation_recommendation` cite dfb overlay / RiskPolicy caps + ADR-YL-008 spread test — pending
