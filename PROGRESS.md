@@ -38,6 +38,11 @@ Rotation: (A) edge-hunt ADR-YL-008 · (B) deep-research to institutional depth �
   DOCUMENTED bounded risks (issuer-concentration/custodian-freeze/8%-banking/KYC-liquidity), ADVANCE holds.
 - **Cycle 3 (D hardening):** harness 105 passed; origin==local; fixed 3 dangling doc cross-refs (07_yield_lab_architecture, 37_apy_realism_and_evidence_standard, 17_portfolio_construction). Honesty scan clean.
 - **Cycle 4 (C measurement-moat):** verify_spa.py → **decision proof-chain reproduces (valid, len 464, VERDICT OK)**; PROMOTED CAND-USDY-001 → `data/strategy_cards/examples/ondo_usdy_floor_plus.strategy.md` (SC-USDY-001) now that PC-ONDO-001 exists — spread-attribution now cites SOURCED issuer data; status=research, spread_fully_explained provisional pending exact APY[L2]+bps-split. Pipeline edge-hunt→issuer-DD→Strategy-Card demonstrated (mandate approve-path).
+- **Cycle 5 (A edge-hunt, new round):** `data/strategy_candidates/susds_ssr.candidate.md` — evaluated
+  Sky Savings Rate (sUSDS ~3.60-3.75%, Sky TVL $5.31B) vs floor ~3.4%: spread only ~20-35bps (near-floor);
+  **REFUSED / HELD-AT-0%** on a NOVEL reason `governance_safety_precondition` — GSM Pause Delay 24h < the
+  desk's required 48h (FORBIDDEN #8). Positive result: the desk's own rule + the mandate agree; re-open if
+  on-chain GSM ≥48h. Balances the ADVANCE (USDY) with a fresh refusal reason (vs leverage_loop tail-comp).
 
 ## VERIFICATION + REMEDIATION SPRINT (2026-07-02)
 Verified the whole yield-lab build against the charter by ACTUAL repo contents (not memory): invariants
