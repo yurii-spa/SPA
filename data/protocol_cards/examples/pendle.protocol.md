@@ -26,14 +26,14 @@
 - **protocol_age:** `~4y (mainnet since ~2021; V2 since ~2023) — requires verification`
 
 ## Security & trust surface (the due-diligence core)
-- **audits:** **sourced (verified 2026-07-02):** Pendle V2 audited by **ChainSecurity** (Pendle V2 Core — "good level of security"), **Ackee Blockchain** (V2 — no critical/high/low findings reported), **Least Authority**, **Dedaub**, **Dingbats**, + **Code4rena** wardens. Reports public in `github.com/pendle-finance` (docs/audits). [L2]  <!-- exact dates/scopes per PDF — spot-verify before live -->
-- **bug_bounty:** `TBD — requires data verification`  <!-- program + max payout not sourced -->
+- **audits:** **sourced (verified 2026-07-02):** Pendle V2 audited by **ChainSecurity** (Pendle V2 Core — "good level of security"; also audited the newer **Boros Markets**), **Spearbit**, **Ackee Blockchain** (V2 — no critical/high/low findings reported), **WatchPug**, **Least Authority**, **Dedaub**, **Dingbats**, + **Code4rena** wardens. Reports public in `github.com/pendle-finance` (docs/audits). Deep multi-firm coverage. [L2]  <!-- exact dates/scopes per PDF — spot-verify before live -->
+- **bug_bounty:** **sourced (verified 2026-07-02):** Pendle runs a public **bug-bounty on Cantina** (`cantina.xyz/bounties` — Pendle Bounty). Max payout `requires verification` of the exact tier. [L2 program exists / L1 amount]
 - **exploit_history:** **sourced (verified 2026-07-02):** the **Penpie hack (Sept 2024, ~$27M reentrancy)** hit **Penpie — a yield protocol BUILT ON Pendle — NOT Pendle core**. Pendle stated its platform was **unaffected** and **paused its contracts defensively** (protecting ~$70M). Affected assets were Pendle-related YT/LP tokens (wstETH, sUSDe, agETH, rswETH). Lesson: Pendle *core* has no principal-loss exploit to date, but **composability risk** on top of Pendle is real. Sources: Halborn, CoinDesk, The Defiant. [L2]
 - **admin_keys:** **partially sourced:** Pendle **can pause its contracts** (confirmed — it did so in Sept-2024). Exact multisig threshold / timelock / key holders `requires verification` before live. [L1→needs L2]
 - **upgradeability:** `pausable + governance-controlled (pause capability confirmed Sept-2024); exact timelock requires verification`
-- **oracle_dependencies:** `["PT/implied-rate pricing (Pendle AMM + rate surface)"]`  <!-- what breaks if PT pricing/oracle fails: mark-to-market + exit — requires verification of exact oracle design -->
+- **oracle_dependencies:** **sourced (verified 2026-07-02):** PT/implied-rate pricing uses a **TWAP-based oracle** on the Pendle AMM. Manipulation-resistance is **"good after the maximum allowable TWAP price change was lowered"** (per ChainSecurity's Boros Markets audit); residual note — **TWAP instability if the spread is high**. What breaks on oracle failure: PT mark-to-market + exit pricing. [L2]
 - **bridge_dependencies:** `[]`  <!-- single-chain PT usage per the desk's adapters; N/A unless a bridged underlying is used (verify per market) -->
-- **governance_model:** `token governance (vePENDLE) — requires verification of exact powers`
+- **governance_model:** **sourced (verified 2026-07-02):** **vePENDLE** vote-escrow — lock PENDLE **up to 2 years** to (a) direct emissions (gauge votes), (b) vote on new pool listings, (c) capture protocol fees. Vote-escrow raises decentralization vs a plain multisig. [L2]
 
 ## Yield & incentives
 - **token_incentives:** `PENDLE emissions incentivize LP/PT/YT liquidity — presence + duration requires verification. NOTE: FixedCarry books the PT fixed rate, NOT emissions (incentive_apy ~0).`
@@ -47,20 +47,22 @@
 - **emergency_triggers:** `["Pendle core exploit", "admin-key change / suspicious upgrade", "PT/AMM liquidity collapse", "oracle/pricing failure", "underlying depeg"]`
 
 ## Provenance
-- **notes:** `Now largely SOURCED (2026-07-02): TVL ~$977.5M (DeFiLlama), audits (ChainSecurity/Ackee/Least-Authority/Dedaub/Dingbats/Code4rena, public), exploit history (Penpie $27M Sept-2024 = ecosystem-not-core; Pendle paused + unaffected). Remaining to verify before LIVE: admin-key threshold/timelock + bug-bounty. Adapters read-only/advisory. Pendle = T2 in the runtime tier map (CLAUDE.md).`
+- **notes:** `SOURCED (2026-07-02): TVL ~$977.5M (DeFiLlama); audits (ChainSecurity/Spearbit/Ackee/WatchPug/Least-Authority/Dedaub/Dingbats/Code4rena + Boros); bug-bounty (Cantina); oracle (TWAP, manipulation-resistant per Boros audit); governance (vePENDLE vote-escrow ≤2y); exploit history (Penpie $27M Sept-2024 = ecosystem-not-core; Pendle paused + unaffected). SINGLE remaining gap before LIVE: admin-key multisig threshold/timelock. Adapters read-only/advisory. Pendle = T2 (CLAUDE.md).`
 - **created_at:** `2026-07-02`
 - **updated_at:** `2026-07-02`
-- **sources:** DeFiLlama api.llama.fi/tvl/pendle; ChainSecurity Pendle-V2-Core audit; Ackee Blockchain V2 audit summary; Least Authority Pendle audit; Halborn / CoinDesk / The Defiant on the Sept-2024 Penpie hack.
+- **sources:** DeFiLlama api.llama.fi/tvl/pendle; ChainSecurity Pendle-V2-Core + Boros-Markets audits; Spearbit / Ackee / WatchPug / Least-Authority audits; Cantina bug-bounty (cantina.xyz/bounties); Pendle docs (vePENDLE ≤2y vote-escrow; Security page); Halborn / CoinDesk / The Defiant / Three Sigma on the Sept-2024 Penpie $27M reentrancy hack.
 
 ---
 
 ### Review checklist (docs/12 §5)
-- [~] `admin_keys`, `upgradeability`, `oracle_dependencies`, `exploit_history`, `emergency_triggers` — **exploit_history + oracle + upgradeability SOURCED; admin-key threshold/timelock still to verify**
+- [x] `audits` (multi-firm: ChainSecurity/Spearbit/Ackee/WatchPug/Least-Authority/Dedaub/Dingbats/Code4rena + Boros), `bug_bounty` (Cantina), `oracle_dependencies` (TWAP, manipulation-resistant), `exploit_history` (Penpie=ecosystem-not-core), `governance_model` (vePENDLE ≤2y) — **SOURCED 2026-07-02**
 - [x] `tvl` sourced with a last-verified date (~$977.5M, DeFiLlama, 2026-07-02); revenue/fees/user_activity still pending
+- [ ] `admin_keys` exact multisig threshold/timelock — **the SINGLE remaining load-bearing gap** (pause capability confirmed; threshold not)
 - [ ] `risk_score` + `max_allocation_recommendation` — Risk Scoring v2 run pending (T2 cap)
 - [x] `protocol_id` mapped to the adapter keys (pendle_pt / pendle_pt_susde / pendle_pt_usdc)
 
-> **Gate status for `SC-RDFC-001` (FixedCarry):** protocol-review = **NEARLY PASSED** — TVL + audits +
-> exploit history are now sourced (2026-07-02). **Two items remain before it fully clears:** the
-> admin-key threshold/timelock and the bug-bounty. Honest evidence discipline: the gate moves from
-> "NOT PASSED (all-unverified)" to "one field from passing" as real data lands.
+> **Gate status for `SC-RDFC-001` (FixedCarry):** protocol-review = **ONE FIELD FROM PASSING** — TVL,
+> audits, **bug-bounty (Cantina)**, **oracle (TWAP)**, **governance (vePENDLE)**, and exploit history
+> are now all sourced (2026-07-02). The **single remaining load-bearing gap is the admin-key
+> multisig threshold/timelock** (pause capability is confirmed; the exact threshold is not). Honest
+> evidence discipline: the gate has moved from "all-unverified" → "one on-chain field from clearing."

@@ -76,6 +76,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 12 (D hardening):** integrity GREEN — harness **109 passed**, origin==local (358 yield-lab files, 0 missing), drift-scan clean (no dangling refs, no bare verified-APY, all 6 candidates carry spread-attribution). Consistent + synced + honest after 11 cycles.
 
+
+- **Cycle 13 (B deep-research):** deepened `data/protocol_cards/examples/pendle.protocol.md` (underlies the validated FixedCarry SC-RDFC-001) — SOURCED bug-bounty (Cantina), +audit firms (Spearbit/WatchPug + Boros/ChainSecurity), oracle (TWAP manipulation-resistant per Boros audit), governance (vePENDLE vote-escrow <=2y). Protocol-review gate moved 'two-fields' -> **ONE field from passing** (only admin-key multisig threshold/timelock remains). Sources cited.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
