@@ -119,6 +119,48 @@ const toneClass = {
       </div>
     </section>
 
+    <!-- The non-Ethena ladder -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3" data-ru="Не-Ethena лестница">The non-Ethena ladder</p>
+      <p class="text-base text-white/60 leading-relaxed max-w-2xl mb-6" data-ru="Настоящие 8-12% на стейблах структурно доминируются Ethena (funding-carry). Диверсификация — по КЛАССУ АКТИВА, не по цепи (уход на Base просто возвращает к Ethena). Вот честная лестница без Ethena-концентрации:">
+        The real 8-12% in stablecoins is structurally dominated by Ethena (funding-carry). You diversify
+        by <strong class="text-white/85">asset class</strong>, not by chain (hopping to Base just re-routes to Ethena). Here is the
+        honest ladder without Ethena concentration:
+      </p>
+      <div class="space-y-2 mb-6">
+        <div class="flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-4 py-3">
+          <div class="min-w-0"><span class="text-sm text-white font-medium" data-ru="RWA floor (T-bill)">RWA floor (T-bill)</span><span class="text-xs text-white/40 ml-2" data-ru="глубина ~$15B">~$15B deep</span></div>
+          <div class="flex items-center gap-2 flex-shrink-0"><span class="text-sm text-white/70 font-mono tabular-nums">~3.4%</span><span class="text-xs text-white/40 px-2 py-0.5 rounded-full border border-white/10">BASELINE</span></div>
+        </div>
+        <div class="flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-4 py-3">
+          <div class="min-w-0"><span class="text-sm text-white font-medium">Steakhouse overcollat</span><span class="text-xs text-white/40 ml-2" data-ru="immutable Morpho Blue, глубина ~$6.6B">immutable Morpho Blue, ~$6.6B</span></div>
+          <div class="flex items-center gap-2 flex-shrink-0"><span class="text-sm text-white/70 font-mono tabular-nums">~4.5–6.5%</span><span class="text-xs text-ok px-2 py-0.5 rounded-full border border-ok-border bg-ok-bg">ADVANCE · Core</span></div>
+        </div>
+        <div class="flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-4 py-3">
+          <div class="min-w-0"><span class="text-sm text-white font-medium">Maple syrupUSDC</span><span class="text-xs text-white/40 ml-2" data-ru="кредит, 160%+ overcollat, 0 дефолтов >$600M">credit, 160%+ collat, 0 defaults >$600M</span></div>
+          <div class="flex items-center gap-2 flex-shrink-0"><span class="text-sm text-white/70 font-mono tabular-nums">~4.7%</span><span class="text-xs text-ok px-2 py-0.5 rounded-full border border-ok-border bg-ok-bg" data-ru="ADVANCE · Core (cap)">ADVANCE · Core</span></div>
+        </div>
+        <div class="flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-4 py-3">
+          <div class="min-w-0"><span class="text-sm text-white font-medium">Centrifuge DROP</span><span class="text-xs text-white/40 ml-2" data-ru="RWA senior-транш, junior first-loss">RWA senior, junior first-loss</span></div>
+          <div class="flex items-center gap-2 flex-shrink-0"><span class="text-sm text-white/70 font-mono tabular-nums">~8%</span><span class="text-xs text-warn px-2 py-0.5 rounded-full border border-warn-border bg-warn-bg">WATCH</span></div>
+        </div>
+        <div class="flex items-center justify-between gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-4 py-3 opacity-60">
+          <div class="min-w-0"><span class="text-sm text-white font-medium">Notional fCash</span><span class="text-xs text-white/40 ml-2" data-ru="правильный класс, TVL схлопнулся ~$3M">right class, TVL collapsed ~$3M</span></div>
+          <div class="flex items-center gap-2 flex-shrink-0"><span class="text-xs text-danger px-2 py-0.5 rounded-full border border-danger-border bg-danger-bg" data-ru="ёмкость мертва">capacity-dead</span></div>
+        </div>
+      </div>
+      <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+        <p class="text-xs text-white/40 uppercase tracking-wider font-mono mb-3" data-ru="Правило «выбери два»">The pick-two rule</p>
+        <p class="text-sm text-white/65 leading-relaxed" data-ru="Нельзя одновременно {8-12% · диверсифицировано · не-Ethena · в масштабе}. Диверсифицированная не-Ethena книга (40% floor / 30% overcollat / 20% Maple / 10% Centrifuge) даёт ≈4.75% — bounded, ~135 bps над floor, но НЕ 8-12%. Чтобы получить 8-12% без Ethena — нужна концентрация в higher-risk кредите. Уход от Ethena — правильное риск-решение, и он стоит доходности. Этот озвученный trade-off и есть продукт.">
+          You can't have all of {8-12% · diversified · non-Ethena · at scale}. A diversified non-Ethena book
+          (40% floor / 30% overcollat / 20% Maple / 10% Centrifuge) blends to <strong class="text-white/85">≈4.75%</strong> — bounded,
+          ~135 bps over the floor, but <strong class="text-white/85">not</strong> 8-12%. To reach 8-12% without Ethena you must
+          concentrate in higher-risk credit. Diversifying away from Ethena is the right risk decision, and it
+          costs yield. That stated trade-off is the product. Full analysis: <code class="text-accent-300">docs/non_ethena_ladder.md</code>.
+        </p>
+      </div>
+    </section>
+
     <!-- The one principle -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Один принцип">The one principle</p>
