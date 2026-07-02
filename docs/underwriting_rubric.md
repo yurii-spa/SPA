@@ -72,6 +72,9 @@ Baseline: the RWA floor itself (rwa_sleeve) is spread ≈ 0 by construction — 
 | **CONDITIONAL-PASS** | `on_chain_buffer_verifiable` | credit whose loss-absorbing buffer is on-chain queryable → clears the opacity hold (residual = off-chain counterparty) | Maple High Yield Secured (on-chain overcollat) |
 | **ADVANCE(cap)** | `organic_lending_non_ethena_but_sub_floor` | real non-Ethena organic lending on a diversifier chain, but currently below the floor | Arbitrum Aave USDC ~2.56% |
 | **NO-EDGE** | `negative_spread_structural_low_borrow` | structurally near-zero yield (asset is collateral, not borrow-demand) | cbBTC/tBTC lending ~0.15% |
+| **ADVANCE(thin)** | `real_non_ethena_fixed_rate` | a genuine non-Ethena zero-coupon/fixed-rate instrument, but capacity-thin | Frax FXB bonds (~$500K/series) |
+| **REFUSE** | `realized_depeg_redemption_rule_change` | governance unilaterally rewrote the redemption rule → realized depeg, still unhealed | Usual USD0++ (Jan-2025, bUSD0 ~$0.96) |
+| **WATCH** | `gov_amo_gated` | reserve clean but spread = compensation for governance/AMO opacity + no pause-delay | Frax sfrxUSD (+45bps) |
 | **NO-EDGE** | `no_edge_floor_parity` | safest lending ≈ the floor; hold the floor | Aave V3 USDC (~5 bps) |
 | **BASELINE** | `is_the_floor` | the yardstick (spread ≈ 0) | rwa_sleeve |
 

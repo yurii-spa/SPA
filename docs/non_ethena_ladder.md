@@ -77,6 +77,8 @@ off-chain borrower-concentration/recourse (issuer data room, not public opacity)
 underwritable non-Ethena ~9-11% EXISTS (Maple HY), with a counterparty-DD gate — the honest edge is real
 but relationship/access-gated at the last mile.
 
+**Non-Ethena FIXED-RATE (scarce):** Notional=dead (~$3M); **Frax FXB** = a REAL non-Ethena zero-coupon fixed-rate (on-chain FRAX yield curve, redeems 1:1 at maturity) but **thin (~$500K/series)** → small-ticket only. PT-sUSDe fixed-carry is Ethena-underlying. Net: non-Ethena fixed-rate EXISTS (FXB) but is capacity-scarce.
+
 **Chain diversifiers (non-Ethena base lending):** Solana (~3.5% organic, native-CCTP, Ethena-isolated-to-Drift)
 + Arbitrum (~2.56% now, native-CCTP, Ethena-not-in-base-markets — better than Base) are REAL non-Ethena
 cross-chain rungs, but currently thin/sub-floor. Base = still-Ethena (rejected). BTC yield = no-edge (lending)

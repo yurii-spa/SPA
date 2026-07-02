@@ -157,6 +157,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 - **DUPES MERGED (pointered to canon, not restated): 4 concept-families** — mandate (5 copies→canon ADR-YL-008), product-line bands (7 copies→canon docs/17), evidence-levels (6 copies→canon docs/37), capital-tiers (→canon docs/34).
 - **VERIFY:** site-refs 14/14 resolve · 00_index+ADR-YL-009 links resolve · 4 band-docs all carry the canonical banner (no uncovered divergence) · OQ-11/12 present. **Summary: 3 conflicts found → 1 resolved (C1), 2 → OQ (C2,C3) with recommendations; 4 dupe-families merged to canon; 1 broken pointer fixed.** Runtime/RiskPolicy/deploy/public-pages NOT touched (docs/ + PROGRESS only).
 
+
+- **Auto-sprint batch #3 (2 parallel agents, 2026-07-02):** **Usual USD0/USD0++→REFUSE** (`realized_depeg_redemption_rule_change` — real USYC/T-bill collateral but governance unilaterally rewrote redemption to a floor price, Jan-2025 depeg to $0.87; bUSD0 STILL ~$0.96 [4% below par 18mo later] + yield=collapsed USUAL emissions). **Frax FXB→ADVANCE-thin** (`real_non_ethena_fixed_rate` — genuine non-Ethena zero-coupon, on-chain FRAX yield curve, redeems 1:1 at maturity, alive unlike dead Notional, BUT ~$500K/series depth); **Frax sfrxUSD→WATCH** (`gov_amo_gated`, +45bps = AMO/veFXS-gov premium, no GSM-delay); legacy sFRAX→REFUSE (deprecated 0.21%). decision_index 31; rubric +3; ladder +FXB non-Ethena-fixed-rate note. Integrity counts consistent (0 dangling site-refs).
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
