@@ -21,6 +21,7 @@
 | **SC-RWA-001** | RWA sleeve (tokenized T-bill floor) | **BASELINE** | it **IS** the floor — spread ≈ 0 by construction; the yardstick every other card is judged against | ≈ 0 | L3 | `data/strategy_cards/examples/rwa_sleeve.strategy.md` |
 | **CAND-SYRUP-001** | Maple syrupUSDC (institutional credit) | **WATCH / CONDITIONAL-ADVANCE** | credit-risk-comp now **bounded** (overcollateralized 120–170% + Anchorage/BitGo/Copper custody + ~3yr zero-loss Syrup) — acceptable in principle, but gated on DD given the v1 **$50M/2022 default** precedent | ~**180 bps** | L2 | `data/strategy_candidates/maple_syrupusdc.candidate.md` |
 | **CAND-RESOLV-001** | Resolv RLP / USR (first-loss tranche) | **REFUSE (HARD)** | the 20–30% is **first-loss + self-balancing-leverage tail-comp**, and the tail **FIRED** — 2026 mint exploit (~$25M extracted, 80M unbacked USR, **−39% depeg**, TVL $400M→$9M). Yield = payment to absorb a realized loss | ~**1700–2700 bps** | L2 | `data/strategy_candidates/resolv_rlp.candidate.md` |
+| **CAND-STEAK-001** | Morpho Steakhouse USDC (curated vault) | **ADVANCE (conditional)** | bounded **overcollateralized** DeFi-lending — curator (blue-chip only) + per-market oracle + LLTV, with an **immutable-Blue-markets structural plus** (no governance-rug). Cleaner than credit; DD-gated on per-vault allocation/oracle | ~**110–310 bps** | L2 | `data/strategy_candidates/morpho_steakhouse_usdc.candidate.md` |
 
 ## Illustrative example cards (scaffolding — numbers illustrative, not sourced decisions)
 `SC-EX-001` core_stablecoin_lending (held) · `SC-EX-002` pendle_pt_stablecoin (paper) · `SC-EX-003`
@@ -28,7 +29,7 @@ susde_yield (research) · `SC-EX-004` btc_basis (research) · `SC-EX-005` eth_st
 ADR-YL-008-conformant (5 spread fields present) but with `illustrative — requires verification` numbers.
 
 ## What this shows (the moat)
-- **The mandate is applied, not asserted:** 1 ADVANCE (USDY — bounded, sourced spread), 1 **WATCH/
+- **The mandate is applied, not asserted:** 2 ADVANCE (USDY sovereign T-bill + Steakhouse overcollat vault — both bounded, sourced), 1 **WATCH/
   conditional** (Maple credit — bounded but DD-gated), REFUSE/HOLD by **distinct reasons** (leverage_loop
   = recursive-leverage tail-comp; sUSDS = governance-safety precondition; **Resolv RLP = first-loss-leverage
   tail-comp with a REALIZED $25M mint exploit + −39% depeg**; FixedCarry = unrealized-at-size), 1 baseline,

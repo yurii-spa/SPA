@@ -79,6 +79,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 13 (B deep-research):** deepened `data/protocol_cards/examples/pendle.protocol.md` (underlies the validated FixedCarry SC-RDFC-001) — SOURCED bug-bounty (Cantina), +audit firms (Spearbit/WatchPug + Boros/ChainSecurity), oracle (TWAP manipulation-resistant per Boros audit), governance (vePENDLE vote-escrow <=2y). Protocol-review gate moved 'two-fields' -> **ONE field from passing** (only admin-key multisig threshold/timelock remains). Sources cited.
 
+
+- **Cycle 14 (A edge-hunt):** `data/strategy_candidates/morpho_steakhouse_usdc.candidate.md` — Morpho Steakhouse USDC curated vault (4.5-6.5% net, Blue TVL $6.79B) vs floor ~3.4%: ~110-310bps = bounded overcollateralized-lending risk (curator blue-chip-only + per-market immutable oracle + LLTV), immutable-Blue structural plus (no gov-rug). Verdict **ADVANCE (conditional)** — a 2nd genuine ADVANCE beside USDY, new risk shape (curated-vault-over-immutable-markets). decision_index: now 2 ADVANCE (desk says YES when spread is genuinely explained, not only NO).
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
