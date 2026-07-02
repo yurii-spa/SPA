@@ -118,6 +118,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Owner request (site half) DONE + VERIFIED:** built honest public page **`landing/src/pages/yield-lab.astro`** + nav link (SiteHeader Research group) — fundable candidates + verdicts (ADVANCE/WATCH/REFUSE/NO-EDGE) + spread-over-floor + evidence-L2 + non-negotiable disclaimer ('research judgements, NOT live returns/offer/advice; ADVANCE→paper = advisory no-capital, separate from go-live track'). Astro build 75 pages OK; pushed by-name (e5d1a2c7); deploy #269 build=SUCCESS, deploy-step failed TRANSIENTLY (GH-Pages infra) → rerun-failed-jobs → SUCCESS; **earn-defi.com/yield-lab LIVE** (verified real content, not curl-status). Owner chose: paper=advisory-sleeves-separate-from-go-live, site=honest-research-page. **NEXT: paper-test half = advisory sleeves in strategy_lab (cycle 26).**
 
+
+- **Cycle 26 (A edge-hunt, owner: diversify from Ethena + try Base):** `data/strategy_candidates/base_chain_diversification.candidate.md`. KEY honest finding: **chain-hop to Base does NOT escape Ethena** — Coinbase High-Yield USDC ~10.8% (Morpho/Steakhouse on Base) earns by lending vs **Ethena-powered collateral** → same underlying, different chain (`chain_hop_same_underlying`, SAME Ethena cap + L2 risk). Genuine non-Ethena Base = Morpho blue-chip vaults 4-7% (bounded Core-diversifier, below 8-12% target). META (rubric #7): **diversify by ASSET CLASS not chain** — real non-Ethena 8-12% = credit (Maple/Centrifuge) + fixed-rate-lending (Notional, non-Ethena overcollat 130-170%, flagged next). decision_index 16 decisions.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
