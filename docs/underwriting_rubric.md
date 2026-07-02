@@ -81,6 +81,7 @@ Baseline: the RWA floor itself (rwa_sleeve) is spread ≈ 0 by construction — 
 | **REFUSE** | `product_sunset` | protocol wound down / dead — yield gone, blacklist | Level lvlUSD |
 | **CONDITIONAL** | `concentration_unverified_but_onchain_retrievable` | the one binding number (borrower concentration) is undisclosed but ON-CHAIN retrievable → soft conditional, not a hard opacity hold | Maple HY Secured (PoR pull → ADVANCE-with-cap) |
 | **ADVANCE(cap)** | `thin_declining_depth` | real organic yield/spread but capacity thin and shrinking → small-ticket only | Term Finance ($12.5M, −74%) |
+| **WATCH** | `onchain_first_loss_tranche_but_points_subsidized` | on-chain first-loss buffer (clears opacity) but headline APY is points-subsidized + originator partly off-chain | Huma Finance (~10.5% Classic) |
 | **NO-EDGE** | `no_edge_floor_parity` | safest lending ≈ the floor; hold the floor | Aave V3 USDC (~5 bps) |
 | **BASELINE** | `is_the_floor` | the yardstick (spread ≈ 0) | rwa_sleeve |
 
