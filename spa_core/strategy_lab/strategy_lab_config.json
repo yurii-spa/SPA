@@ -166,8 +166,8 @@
       "is_advisory": true,
       "tier": "T2",
       "capital_usd": 100000,
-      "apy_pct": 10.0,
-      "apy_source": "Maple syrupUSDC weighted APY (WebSearch)",
+      "apy_pct": 4.7,
+      "apy_source": "Maple syrupUSDC LIVE weighted APY ~4.7% (TID Research/Aavescan 2026-07-02); 9-12% = separate higher-risk tier",
       "apy_as_of": "2026-07-02",
       "candidate_ref": "data/strategy_candidates/maple_syrupusdc.candidate.md",
       "drawdown_stop_pct": 12.0

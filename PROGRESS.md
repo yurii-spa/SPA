@@ -127,6 +127,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 27 (A + synthesis, owner: assemble non-Ethena ladder):** Notional fCash = RIGHT non-Ethena asset class (fixed-rate overcollat 130-170% ETH/USDC/WBTC) but **TVL collapsed to ~$3.1M** → capacity-dead (`capacity_dead_venue`). Assembled **`docs/non_ethena_ladder.md`**: honest math — deep non-Ethena capacity is floor+overcollat (3.4-6.5%); non-Ethena 8-12% is CREDIT-ONLY (Maple+Centrifuge, ~$34M combined cap); Notional dead. **The pick-two trade-off: {8-12% · diversified · non-Ethena · at-scale} — can't have all.** Recommended diversified non-Ethena book ≈5.8% (40% floor / 30% overcollat / 20% Maple / 10% Centrifuge) — bounded, ~240bps over floor, but NOT 8-12%. 8-12% non-Ethena = concentrated credit OR re-accept Ethena (PT-sUSDe). Credit rungs already sleeved (advisory). decision_index 17 decisions.
 
+
+- **Cycle 28 (B Maple per-pool DD → WATCH→ADVANCE + honest yield correction):** deepened Maple DD (TID Research+live): syrupUSDC = 79% loans/21% liq; collateral BTC/XRP/cbBTC/HYPE **125-333%, avg 160%+**; **ZERO defaults >$600M**; exit ~12bps/sub-min (queue ≤30d only in stress). Credit-underwriting CLEARS → **CAND-SYRUP-001 WATCH→CONDITIONAL-ADVANCE**. BUT honest correction: **live APY ~4.7% (not 9-12% — that's Maple's higher-risk tier)** → Core sleeve, ~130bps over floor. Binding residual = **borrower concentration (top-3 48.8%/top-1 19.3%)** → concentration cap the condition. Corrected maple_syrup advisory sleeve apy 10→4.7 (both configs), decision_index row, non_ethena_ladder (blended ~5.8%→**~4.75%**; 8-12% non-Ethena = higher-risk credit tier, not the well-underwritten flagship). Sleeve tests 30 passed. decision_index 17.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific

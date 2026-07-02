@@ -35,13 +35,18 @@
 - **most-fragile assumption:** that the 120–170% overcollateralization + reputable custody hold in a fast crash — v1 proved undercollateralized credit CAN lose $50M. The Syrup overcollateralized model materially de-risks this, but credit tail is never zero.
 - **hidden leverage / correlation:** borrowers are crypto trading firms → correlated to a crypto drawdown (the moment collateral is most stressed).
 
-## Verdict
-- **verdict:** **WATCH / CONDITIONAL-ADVANCE** — the ~180 bps spread IS bounded credit-risk-comp (overcollateralized + reputable custody + 3yr zero-loss Syrup track), which the mandate CAN accept in principle — so NOT a refuse. But it is **NOT a clean advance** (unlike USDY's sovereign T-bill): credit tail + the v1 $50M precedent + underwriter/correlation risk demand deeper DD before paper.
-- **reason_code:** `credit_risk_comp_bounded_conditional`
-- **conditions to ADVANCE:** (1) per-pool verification that loans are genuinely overcollateralized 120–170% (not v1-style unsecured), (2) underwriter track-record DD + custody (Anchorage/BitGo/Copper) review, (3) a **strict issuer cap** given the v1 precedent, (4) exit-liquidity-at-size vs the 21% buffer, (5) a full Red-Team (mandatory for credit).
-- **initial_product_line_fit:** `Enhanced` (a genuine higher-yield-than-floor credit sleeve — if the DD clears).
-- **initial_capital_tier_fit:** `$100k–$5M+ (deep pool ~$1.22B; cap concentration)`.
-- **next_action:** Maple Protocol Card (underwriting model, custody, default history, per-pool collateralization) → then ADVANCE-to-paper if conditions clear, else HOLD.
+## Verdict — UPGRADED to CONDITIONAL-ADVANCE (Core-tier) after per-pool DD (2026-07-02)
+- **verdict:** **CONDITIONAL-ADVANCE (Core-tier)** (was WATCH). Per-pool DD materially clears the credit-underwriting concern — BUT reveals the honest current yield is **~4.7%, not 9-12%**, so it is a **Core-band credit sleeve now, not an Enhanced 8-12% rung.**
+- **reason_code:** `credit_risk_comp_bounded_conditional` → now `bounded_credit_underwritten` (Core-tier)
+- **PER-POOL DD RESULT (sourced 2026-07-02, TID Research + live):**
+  - ✅ **Overcollateralization confirmed CONSERVATIVE:** loans backed by **BTC/XRP/cbBTC/HYPE at 125–333%** collateral, **averaging 160%+** across all categories (better than the 120-170% I'd assumed). The credit is genuinely secured, not v1-style unsecured.
+  - ✅ **Track record clean:** **NO loan defaults across >$600M cumulative originations** (Syrup). The v1 $50M/2022 loss was the *undercollateralized* old model — this is the restructured secured model, and it has held.
+  - ✅ **Exit-liquidity measured:** ~**12 bps flat exit cost, sub-minute settlement** in normal markets; the **redemption queue (up to 30d) is the binding constraint ONLY in stress** — measurable + monitorable.
+  - ⚠️ **THE residual (binding condition): BORROWER CONCENTRATION** — top-3 cross-pool borrowers = **~48.8%** of the $1.27B loan book; **single largest ~19.3%**. A single (even overcollateralized) borrower default is a real shock. TID: holding syrupUSDC + syrupUSDT does NOT diversify — same borrowers → compute combined exposure.
+  - ⚠️ **HONEST YIELD CORRECTION:** live syrupUSDC APY is **~4.7%** (range 3-9% across loans), net of Maple take + 3.33% delegate fee — **NOT the 9-12% "high-yield tier" figure.** So the flagship, well-underwritten pool is a ~4.7% Core sleeve; the 9-12% Maple is the higher-risk/more-concentrated tier.
+- **remaining conditions (→ live):** (1) ✅ overcollat + track: CLEARED; (2) **strict BORROWER-concentration cap** (the binding one — cap single-borrower + top-3 exposure, count syrupUSDC+syrupUSDT combined); (3) stress-exit monitor (redemption-queue length as a kill signal); (4) full Red-Team.
+- **product_line_fit:** `Core` at ~4.7% now (was assumed Enhanced) — a bounded, well-underwritten credit sleeve at ~130 bps over floor. Enhanced only if a higher-yield Maple tier is separately DD'd (more concentration).
+- **capacity:** pool ~$1.27B loans + $347M liquidity; ~$24M at 2%-of-pool (cap concentration below that).
 
 ## Honesty note
 Credit is the hardest spread to judge: the yield is real (borrowers pay it) and now largely bounded
