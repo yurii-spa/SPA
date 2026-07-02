@@ -6,7 +6,8 @@
 > A skeptic can open each card and check the reasoning. Refusals are first-class positive results.
 > **Live floor baseline:** ~3.4% (dynamic, `data/rwa_feed.py`). Proof: the rates-desk decision
 > proof-chain reproduces (`scripts/verify_spa.py` → VERDICT OK, chain valid, 464 rows, 2026-07-02).
-> Updated by the value-engine; last: 2026-07-02.
+> Updated by the value-engine; last: 2026-07-02. **The reusable rubric distilled from these
+> decisions:** `docs/underwriting_rubric.md` (decision tree + reason-code taxonomy, each rule cited to a case).
 
 ## Real-data decisions (sourced, ADR-YL-008 applied)
 

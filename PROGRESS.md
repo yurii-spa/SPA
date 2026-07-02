@@ -97,6 +97,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 19 (A edge-hunt):** `data/strategy_candidates/curve_convex_stable_lp.candidate.md` — Curve/Convex stable-LP headline ~4-10% = base fees 3-6% + **CRV/CVX emissions 1-4%** (sample 6.02% = $212 fees + $89 CRV, ~30% emissions). Verdict **REFUSE (emissions-dependent)** — new reason `emissions_dependent_unpriced_spread`: the attractive spread is token-emissions subsidy, not organic risk-comp; strip emissions -> ~floor-parity + volume-dependent, with IL + Curve-2023-hack + Convex-composability tails. The 'farm APY = emissions not edge' archetype. decision_index: 10 decisions.
 
+
+- **Cycle 20 (C measurement-moat, synthesis):** `docs/underwriting_rubric.md` — a reusable underwriting rubric DISTILLED from the 10 real decisions: the one principle (spread over live floor, every bp risk-explained), a Q1->Q4 decision tree (floor-parity? emissions-stripped? bounded vs unbounded tail? DD-gated?), the reason-code taxonomy (10 rows, each cited to its case), and 5 honest meta-findings (yield ⟂ fundability; spread bought with risk; same-spread-diff-tail; subsidies aren't edge; refusals dominate). The engine moves from collecting decisions -> distilling the METHOD. Cross-linked from decision_index.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
