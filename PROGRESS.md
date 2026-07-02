@@ -88,6 +88,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 16 (A edge-hunt):** `data/strategy_candidates/aave_v3_usdc.candidate.md` — Aave V3 USDC supply ~3.45% (Ethereum, forecast <2.76% in 4wk) vs floor ~3.4%: spread ~5bps -> negative. Verdict **NO-EDGE / FLOOR-PARITY** (new flavor `no_edge_floor_parity`) — the safest/deepest DeFi lending pays the floor; risk-adjusted WORSE (adds smart-contract risk for same yield) -> hold the T-bill floor instead. THE anchor lesson: plain blue-chip lending arbitraged to floor -> every bp of edge must be bought with accepted risk (justifies whole ADR-YL-008 framing). decision_index: 8 decisions, 5 verdict flavors.
 
+
+- **Cycle 17 (A edge-hunt):** `data/strategy_candidates/ethena_susde.candidate.md` — Ethena sUSDe ~3.86% (TVL $4.45B) vs floor ~3.4%: spread only ~46bps (funding compressed, can flip negative). Verdict **WATCH -> lean-REFUSE at current spread** — funding-carry = UNBOUNDED risk-comp (funding-flip + CEX/OES-counterparty Copper/Ceffu/Cobo + reserve only 1.1% of supply + LRT peg). Sharp contrast: Aave = floor-parity THIN-tail (hold floor); sUSDe = floor-parity-ish FAT-tail (actively avoid at 46bps). Re-open only if funding widens + strict CEX cap. decision_index: 9 decisions.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
