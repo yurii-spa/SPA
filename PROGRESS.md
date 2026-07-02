@@ -133,6 +133,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 29 (owner: surface non-Ethena ladder on site) DONE + VERIFIED:** added the non-Ethena ladder to public /yield-lab (5 rungs w/ verdict badges: RWA-floor BASELINE / Steakhouse ADVANCE / Maple ~4.7% ADVANCE-Core / Centrifuge WATCH / Notional capacity-dead) + the pick-two rule + honest blended ~4.75% conclusion, bilingual. Caught+fixed an Astro build-breaker (literal {8-12%} in element children parsed as JSX expr → deploy #272 build-fail) → rephrased → deploy #273 SUCCESS, **earn-defi.com/yield-lab LIVE with the ladder** (verified real content). Lesson: never put literal braces in Astro element children.
 
+
+- **Cycle 30 (B Centrifuge DROP per-pool DD):** structure confirmed real (TIN junior first-loss protects DROP senior; Centrifuge TVL ~$1.64B; US real-estate collateral e.g. New Silver) — BUT DD **did NOT clear to ADVANCE**: the binding number (junior-buffer DEPTH %) + pool default history + current DROP APY are **off-chain, pool-specific, NOT publicly verifiable** → new reason `off_chain_opacity_hold`; per rubric meta #6 (underwrite the buffer not the label) no ADVANCE without it. Also legacy-Tinlake nuance (DROP/TIN pre-2023; active $1.64B is newer V3). **Centrifuge STAYS WATCH (opacity-held)** — a transparency hold, not a structural refusal. Implication: the ADVANCE-grade (public-data-underwritable) non-Ethena book is ~4.3-4.5% (floor+overcollat+Maple-Core); Centrifuge's ~8% is unbankable-pending-issuer-data. decision_index 17.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific

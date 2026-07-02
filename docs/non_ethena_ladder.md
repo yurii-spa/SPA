@@ -14,7 +14,7 @@
 | **RWA floor** | Sovereign T-bill | BUIDL / USYC / USDY / OUSG | ~3.4% | ~$15B | ~$300M (effectively unlimited) | BASELINE (the base) |
 | **Overcollat curated** | Overcollateralized lending | blue-chip crypto collateral on **immutable Morpho Blue** (Steakhouse/Gauntlet) | ~4.5–6.5% | ~$6.6B Blue | ~$130M | ADVANCE (Core) |
 | **Institutional credit** | Credit (overcollat) | Maple syrupUSDC (160%+ avg collat, 0 defaults >$600M) | **~4.7% live** (9-12%=higher-risk tier) | ~$1.22B | ~$24M | CONDITIONAL-ADVANCE (Core), concentration-capped |
-| **RWA senior credit** | Tranched RWA credit | Centrifuge DROP (senior over TIN junior first-loss + real RWA cashflows) | ~8% | ~$500M | ~$10M | WATCH (Enhanced) |
+| **RWA senior credit** | Tranched RWA credit | Centrifuge DROP (TIN junior first-loss; US real-estate; TVL ~$1.64B) | ~8% (legacy) | pool-specific | ~$10M | **WATCH — opacity-held** (buffer-depth % not publicly verifiable) |
 | **Fixed-rate lending** | Fixed-rate overcollat | Notional fCash (ETH/USDC/WBTC collat) | fixed (rate n/a) | **~$3.1M** | **~$60k (DEAD)** | capacity-dead venue |
 
 *(Ethena PT-sUSDe/PT-USDe 8-11% is deliberately EXCLUDED — it is the concentration we are diversifying
@@ -61,6 +61,11 @@ You cannot have all three of {8-12% · diversified · non-Ethena · at scale}. P
 headline in stablecoins is either Ethena funding-carry (concentration) or concentrated credit
 (capacity + default risk). Diversifying away from Ethena is the *right* risk decision; it costs
 yield. That trade-off — stated plainly — is the product.
+
+## Credit-rung DD status (2026-07-02)
+- **Maple syrupUSDC:** DD CLEARED (160%+ overcollat, 0 defaults >$600M) → CONDITIONAL-ADVANCE, but live ~4.7% (Core). Concentration-capped.
+- **Centrifuge DROP:** DD ATTEMPTED, **held on off-chain opacity** — the junior-buffer depth % (the binding number) is not publicly verifiable; needs issuer-level data. Stays WATCH.
+- **Implication:** the **ADVANCE-grade** (fully-underwritable-from-public-data) non-Ethena book is really **floor + overcollat + Maple-Core ≈ 4.3-4.5%**; the ~8% Centrifuge rung is real-but-unverifiable (WATCH). So the *confidently fundable* non-Ethena edge is even tighter than the blended ~4.75% — Centrifuge's 8% is aspirational-pending-transparency, not bankable today.
 
 ## Advisory paper tracks
 The credit rungs (Maple, Centrifuge) already accrue as advisory strategy_lab sleeves
