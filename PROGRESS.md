@@ -94,6 +94,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 18 (D hardening, integrity due):** GREEN — harness **109 passed**, origin==local (361 yield-lab files, 7 candidates, 0 missing), drift-scan clean (no dangling refs in decision_index, no bare verified-APY, all 7 candidates carry spread_over_floor_bps + a verdict; index 12 rows = 7 candidates + 5 SC-cards, consistent). Layer honest + synced after 17 cycles.
 
+
+- **Cycle 19 (A edge-hunt):** `data/strategy_candidates/curve_convex_stable_lp.candidate.md` — Curve/Convex stable-LP headline ~4-10% = base fees 3-6% + **CRV/CVX emissions 1-4%** (sample 6.02% = $212 fees + $89 CRV, ~30% emissions). Verdict **REFUSE (emissions-dependent)** — new reason `emissions_dependent_unpriced_spread`: the attractive spread is token-emissions subsidy, not organic risk-comp; strip emissions -> ~floor-parity + volume-dependent, with IL + Curve-2023-hack + Convex-composability tails. The 'farm APY = emissions not edge' archetype. decision_index: 10 decisions.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
