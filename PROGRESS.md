@@ -103,6 +103,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 21 (A edge-hunt — 8-12% BOUNDED hunt, owner-directed):** `data/strategy_candidates/pt_susde_fixed.candidate.md` — Pendle **PT-sUSDe Mar-2026 ~11.2% fixed** (real 8-12% band; corroborated PT-USDe ~13.78%, PT-sUSDe Jun 9.05%). Verdict **WATCH -> CONDITIONAL-ADVANCE**, new reason `fixed_carry_held_to_maturity_bounded`: the fixed-to-maturity wrapper REMOVES the funding-flip tail that made spot sUSDe lean-REFUSE (c17) -> residual = MEASURABLE USDe-solvency-to-maturity + PT liquidity. Structure (not asset) sets the risk. Fundable IF USDe-solvency DD + cap. decision_index 11 decisions; rubric +1 reason +meta-finding #6. Next hunt: tokenized private-credit SENIOR tranches (Centrifuge/Goldfinch/Maple-cash 9-12%, bounded by seniority+first-loss).
 
+
+- **Cycle 22 (A edge-hunt, 8-12% bounded hunt):** `data/strategy_candidates/private_credit_senior.candidate.md` — private-credit SENIOR tranches SPLIT: **Goldfinch Senior 10-14% -> REFUSE (realized default)** — protocol WINDING DOWN (GIP-87 Jun-2026), ~$50M defaults, 3yr stranded; 'senior' label didn't bound systemic default. **Centrifuge DROP ~8% -> WATCH** — real bound (DROP-senior/TIN-junior first-loss + RWA cashflows, TVL >$500M) but low-end + per-pool off-chain DD. Lesson: underwrite the buffer+assets, not the tranche label. decision_index 13 decisions; rubric +2 reasons +meta#6, meta-numbering fixed.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
