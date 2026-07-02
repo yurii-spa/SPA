@@ -121,6 +121,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 26 (A edge-hunt, owner: diversify from Ethena + try Base):** `data/strategy_candidates/base_chain_diversification.candidate.md`. KEY honest finding: **chain-hop to Base does NOT escape Ethena** — Coinbase High-Yield USDC ~10.8% (Morpho/Steakhouse on Base) earns by lending vs **Ethena-powered collateral** → same underlying, different chain (`chain_hop_same_underlying`, SAME Ethena cap + L2 risk). Genuine non-Ethena Base = Morpho blue-chip vaults 4-7% (bounded Core-diversifier, below 8-12% target). META (rubric #7): **diversify by ASSET CLASS not chain** — real non-Ethena 8-12% = credit (Maple/Centrifuge) + fixed-rate-lending (Notional, non-Ethena overcollat 130-170%, flagged next). decision_index 16 decisions.
 
+
+- **Owner request (paper-test half) DONE + VERIFIED:** 4 ADVISORY sleeves (PT-sUSDe 11.2% / PT-USDe 8.8% / Maple 10% / Centrifuge 8%) in strategy_lab via generic `AdvisoryYieldSleeve` (accrues at COMMITTED SOURCED offline rate, is_advisory, stdlib-only, deterministic, fail-CLOSED). Config blocks + capacity + `_REQUIRED_STRATEGY` + registered in paper.py `_build_strategies` + backtest.py; test_advisory_yield_sleeves.py + VALID-fixture updated. **strategy_lab suite 126 passed, research-layer 13 passed.** Bootstrapped via one tick -> data/strategy_lab_paper/{pt_susde,pt_usde,maple_syrup,centrifuge_drop}_series.json created. **go-live track (equity_curve_daily 08:00 untouched) / golive_status (no sleeve leak) / RiskPolicy / cycle_runner NOT touched.** Hourly com.spa.strategy_lab_paper accrues forward. Pushed 1167b2d3. /yield-lab page notes advisory tracks now record (not realized yield).
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
