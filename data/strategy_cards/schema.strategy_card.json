@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://earn-defi.com/schemas/strategy_card.schema.json",
+  "title": "SPA Yield Lab — Strategy Card",
+  "description": "A comparable, auditable record for one yield strategy. Research-layer artifact; not runtime data; never read by the deterministic RiskPolicy or execution path. All APY/TVL/capacity numbers are placeholders requiring verification until sourced with an evidence level. See docs/11_strategy_card_system.md, docs/07 (lifecycle), docs/37 (APY evidence L0-L6), docs/14 (advisory Risk Scoring v2).",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "apy_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "An APY range. Values default to null / 'TBD - requires verification' until sourced.",
+      "properties": {
+        "low": { "type": ["number", "null"], "description": "Low end of the APY range (decimal or percent per project convention). null when TBD." },
+        "high": { "type": ["number", "null"], "description": "High end of the APY range. null when TBD." },
+        "verification_note": { "type": "string", "description": "Source / last-verified date, or 'TBD - requires verification'." }
+      },
+      "required": ["low", "high"]
+    },
+    "score_0_100": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Advisory sub-score in [0,100]. Advisory only (Risk Scoring v2, docs/14); never a hard gate. null until computed."
+    }
+  },
+  "properties": {
+    "strategy_id":  { "type": "string", "pattern": "^SC-[0-9]{4,}$", "description": "Stable unique id, e.g. SC-0001. Never reused." },
+    "name":         { "type": "string", "description": "Human-readable strategy name." },
+    "version":      { "type": "string", "description": "Card version (e.g. '1.0'); bumps on material edits." },
+    "category":     { "type": "string", "description": "Coarse family: lending, rwa, basis, carry, lp, restaking, leverage, options, etc." },
+    "product_line": {
+      "type": "string",
+      "enum": ["Preserve", "Core", "Enhanced", "MaxYield", "Experimental"],
+      "description": "Product line the card is TARGETED at. Approval is separate (approved_for_product_line)."
+    },
+    "asset_type":   { "type": "string", "enum": ["stablecoin", "BTC", "ETH", "mixed"], "description": "Primary underlying asset class." },
+
+    "assets_used":     { "type": "array", "items": { "type": "string" }, "description": "Concrete assets held, e.g. ['USDC','sUSDe']." },
+    "protocols_used":  { "type": "array", "items": { "type": "string" }, "description": "Protocols depended on; cross-reference Protocol Cards (docs/12)." },
+    "chains_used":     { "type": "array", "items": { "type": "string" }, "description": "Chains the strategy operates on." },
+
+    "yield_source":            { "type": "string", "description": "One line: where the yield comes from." },
+    "yield_mechanism":         { "type": "string", "description": "Mechanism detail: lending spread, funding basis, RWA coupon, emissions, points, etc." },
+    "who_pays_the_yield":      { "type": "string", "description": "The counterparty actually paying the yield." },
+    "why_yield_exists":        { "type": "string", "description": "Economic reason this yield is available." },
+    "why_yield_can_disappear": { "type": "string", "description": "Failure/compression modes that end the yield." },
+
+    "expected_apy_range":       { "$ref": "#/$defs/apy_range", "description": "Expected forward APY. TBD - requires verification by default." },
+    "observed_apy_range":       { "$ref": "#/$defs/apy_range", "description": "Observed (paper/backtest/live) APY. Must carry an evidence level." },
+    "base_apy":                 { "type": ["number", "null"], "description": "Base (non-incentive) APY. TBD until sourced." },
+    "incentive_apy":            { "type": ["number", "null"], "description": "Incentive/emissions portion of APY. TBD until sourced." },
+    "sustainable_apy_estimate": { "type": ["number", "null"], "description": "APY expected to persist after incentives/compression. TBD until sourced." },
+    "apy_evidence_level": {
+      "type": "string",
+      "enum": ["L0", "L1", "L2", "L3", "L4", "L5", "L6"],
+      "description": "APY evidence level (docs/37). L0 idea/unverified, L1 historical public observed, L2 data-source verified, L3 paper-tracked, L4 small-capital tested, L5 live-capital tested, L6 multi-cycle validated. No APY treated as verified below this level."
+    },
+
+    "floor_baseline_pct": {
+      "type": "object",
+      "description": "The LIVE RWA floor used to evaluate this card (ADR-YL-008). Source data/rwa_feed.py; NEVER hardcoded. fallback_used flags the committed-literal fail-closed path.",
+      "properties": {
+        "value": { "type": ["number", "null"] },
+        "source": { "type": "string" },
+        "as_of": { "type": ["string", "null"] },
+        "fallback_used": { "type": "boolean" }
+      }
+    },
+    "spread_over_floor_bps":   { "type": ["number", "null"], "description": "(sustainable/observed APY - live floor) in bps. The quantity judged (ADR-YL-008). TBD until sourced." },
+    "spread_risk_explanation": {
+      "type": "array",
+      "description": "Itemized mapping of spread -> specific, accepted, measurable risks (ADR-YL-008). The bps should sum to spread_over_floor_bps.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "risk": { "type": "string" },
+          "bps": { "type": "number" },
+          "evidence": { "type": "string" }
+        },
+        "required": ["risk", "bps"]
+      }
+    },
+    "unexplained_spread_bps":  { "type": ["number", "null"], "description": "Residual = spread_over_floor_bps - sum(spread_risk_explanation.bps). Treated as unpriced tail risk, not alpha (ADR-YL-008)." },
+    "spread_fully_explained":  { "type": "boolean", "description": "True only if unexplained_spread_bps <= tolerance. A card CANNOT advance to Enhanced/MaxYield while false (=> REJECT, logged in the refusal log). ADR-YL-008." },
+
+    "confidence_score": { "$ref": "#/$defs/score_0_100", "description": "Advisory confidence in the card's own inputs/data." },
+    "risk_score":       { "$ref": "#/$defs/score_0_100", "description": "Advisory overall risk (higher = riskier per docs/14). Advisory only." },
+    "liquidity_score":  { "$ref": "#/$defs/score_0_100", "description": "Advisory liquidity / exitability score." },
+    "complexity_score": { "$ref": "#/$defs/score_0_100", "description": "Operational / technical complexity score." },
+
+    "capacity_estimate":     { "type": ["number", "null"], "description": "Approx capital absorbable before APY compresses / slippage bites. TBD - requires verification." },
+    "min_capital":           { "type": ["number", "null"], "description": "Minimum sensible allocation. TBD until sourced." },
+    "max_capital":           { "type": ["number", "null"], "description": "Maximum sensible allocation. TBD until sourced." },
+    "suitable_capital_tiers": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["$100k", "$1M", "$10M", "$100M+"] },
+      "description": "Capital tiers this fits; cross-ref docs/34."
+    },
+    "lockup_period":   { "type": ["string", "null"], "description": "Lockup, e.g. 'none', '7d', 'variable'." },
+    "withdrawal_time": { "type": ["string", "null"], "description": "Expected time to exit to cash." },
+
+    "smart_contract_risk": { "type": "string", "description": "Contract/exploit exposure (qualitative)." },
+    "stablecoin_risk":     { "type": "string", "description": "Depeg/redemption/reserve risk if a stablecoin is involved." },
+    "counterparty_risk":   { "type": "string", "description": "Reliance on a specific counterparty (CEX, issuer, market maker)." },
+    "bridge_risk":         { "type": "string", "description": "Bridged-asset / cross-chain messaging exposure." },
+    "oracle_risk":         { "type": "string", "description": "Oracle manipulation / staleness exposure." },
+    "liquidation_risk":    { "type": "string", "description": "Forced-liquidation exposure (leverage, collateral)." },
+    "regulatory_risk":     { "type": "string", "description": "Legal / sanctions / securities surface." },
+    "operational_risk":    { "type": "string", "description": "Ops / keys / monitoring / human-process risk." },
+    "concentration_risk":  { "type": "string", "description": "Single-protocol / single-asset concentration." },
+    "correlation_risk":    { "type": "string", "description": "Correlation to BTC/ETH/rates/other book positions." },
+    "market_regime_risk":  { "type": "string", "description": "Sensitivity to regime (bull/bear/high-vol/low-funding)." },
+
+    "key_dependencies":       { "type": "array", "items": { "type": "string" }, "description": "External things that must hold (a peg, a CEX leg, an oracle, an incentive program)." },
+    "assumptions":            { "type": "array", "items": { "type": "string" }, "description": "Stated assumptions the thesis rests on." },
+    "entry_conditions":       { "type": "array", "items": { "type": "string" }, "description": "Conditions required to enter." },
+    "exit_conditions":        { "type": "array", "items": { "type": "string" }, "description": "Normal exit conditions." },
+    "emergency_exit_conditions": { "type": "array", "items": { "type": "string" }, "description": "Conditions that force an emergency exit." },
+    "monitoring_requirements": { "type": "array", "items": { "type": "string" }, "description": "What must be monitored while the position is open." },
+    "data_sources_required":  { "type": "array", "items": { "type": "string" }, "description": "Feeds/data the strategy depends on (must be real, cited)." },
+
+    "validation_status":         { "type": "string", "description": "Where the strategy is in validation (mirrors lifecycle)." },
+    "paper_test_status":         { "type": "string", "description": "Paper-testing state/result (cross-ref strategy_lab / tournament)." },
+    "small_capital_test_status": { "type": "string", "description": "Small-capital test state/result." },
+    "red_team_status":           { "type": "string", "description": "Red-team review state/verdict (cross-ref spa_core/redteam/)." },
+    "approved_for_product_line": {
+      "type": ["string", "null"],
+      "enum": ["Preserve", "Core", "Enhanced", "MaxYield", "Experimental", null],
+      "description": "Product line the card is APPROVED for (may lag product_line target). null until human-approved."
+    },
+    "final_recommendation": { "type": "string", "description": "Reviewer recommendation: approve / reject / defer / research-only." },
+    "max_allocation":       { "type": ["number", "null"], "description": "Advisory max allocation if approved. Never overrides RiskPolicy caps." },
+    "review_frequency":     { "type": "string", "description": "How often the card must be re-reviewed, e.g. 'weekly', 'monthly'." },
+
+    "owner":      { "type": "string", "description": "Human owner accountable for the card." },
+    "created_at": { "type": "string", "format": "date-time", "description": "Creation timestamp (ISO-8601 UTC)." },
+    "updated_at": { "type": "string", "format": "date-time", "description": "Last update timestamp (ISO-8601 UTC)." },
+    "status": {
+      "type": "string",
+      "enum": [
+        "idea", "research", "rejected",
+        "paper_testing", "paper_passed",
+        "small_capital_testing", "small_capital_passed",
+        "approved_for_preserve", "approved_for_core", "approved_for_enhanced", "approved_for_max_yield",
+        "frozen", "retired"
+      ],
+      "description": "Yield Lab lifecycle status (docs/07). Distinct from approved_for_product_line."
+    }
+  },
+  "required": [
+    "strategy_id", "name", "version", "category", "product_line", "asset_type",
+    "assets_used", "protocols_used", "chains_used",
+    "yield_source", "yield_mechanism", "who_pays_the_yield", "why_yield_exists", "why_yield_can_disappear",
+    "apy_evidence_level",
+    "validation_status", "status",
+    "owner", "created_at", "updated_at"
+  ]
+}

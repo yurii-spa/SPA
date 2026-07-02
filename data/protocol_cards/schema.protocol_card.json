@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://earn-defi.com/schemas/protocol_card.schema.json",
+  "title": "SPA Yield Lab — Protocol Card",
+  "description": "A comparable, auditable due-diligence record for one protocol SPA can depend on (lending market, vault, LP venue, RWA issuer surface). Research-layer artifact; not runtime data; never read by the deterministic RiskPolicy or execution path. All TVL/revenue/activity numbers are placeholders requiring data verification until sourced with a last-verified date. Advisory scores/allocation recommendations never override RiskPolicy caps. See docs/12_protocol_card_system.md, docs/11 (Strategy Cards), docs/14 (advisory Risk Scoring v2). Formalizes due-diligence implicit in the 35 read-only adapters (spa_core/adapters ADAPTER_REGISTRY) + dfb risk overlay.",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "score_0_100": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Advisory sub-score in [0,100]. Advisory only (Risk Scoring v2, docs/14); never a hard gate. Cites the dfb overlay verdict. null until computed."
+    },
+    "audit_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A single audit record.",
+      "properties": {
+        "firm": { "type": "string", "description": "Audit firm." },
+        "scope": { "type": "string", "description": "Scope of the audit." },
+        "date": { "type": "string", "description": "Audit date (ISO-8601 or 'TBD - requires data verification')." }
+      }
+    },
+    "exploit_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A single exploit/incident record.",
+      "properties": {
+        "what": { "type": "string", "description": "What happened." },
+        "when": { "type": "string", "description": "Date of the incident." },
+        "impact": { "type": "string", "description": "Impact (USD lost, scope)." },
+        "resolution": { "type": "string", "description": "How it was resolved / reimbursed." }
+      }
+    }
+  },
+  "properties": {
+    "protocol_id":   { "type": "string", "pattern": "^PC-[0-9]{4,}$", "description": "Stable unique id, e.g. PC-0001. Never reused. Maps to the adapter key where one exists." },
+    "protocol_name": { "type": "string", "description": "Human-readable protocol name, e.g. 'Aave V3'." },
+    "category": {
+      "type": "string",
+      "enum": ["lending", "dex", "lp", "rwa", "derivatives", "restaking", "yield_aggregator", "stablecoin_issuer", "bridge", "other"],
+      "description": "Coarse protocol family."
+    },
+    "chains":  { "type": "array", "items": { "type": "string" }, "description": "Chains the protocol operates on (cross-ref adapter chains)." },
+    "website": { "type": "string", "description": "Official website URL." },
+    "docs":    { "type": "string", "description": "Official documentation URL." },
+    "app_url": { "type": "string", "description": "Official app / dApp URL." },
+
+    "tvl": { "type": ["number", "null"], "description": "Total value locked (USD). TBD - requires data verification. Cite adapter/DeFiLlama + last-verified date." },
+    "tvl_trend": {
+      "type": "string",
+      "enum": ["rising", "stable", "declining", "volatile", "unknown"],
+      "description": "Direction of TVL over the trailing period."
+    },
+    "revenue":       { "type": ["number", "null"], "description": "Protocol revenue (annualized USD, if known). TBD until sourced." },
+    "fees":          { "type": ["number", "null"], "description": "Protocol fees (annualized USD, if known). TBD until sourced." },
+    "user_activity": { "type": "string", "description": "Qualitative user-activity note (active borrowers/depositors/unique users). TBD - requires data verification until sourced." },
+    "protocol_age":  { "type": "string", "description": "Time live, e.g. '~3y since 2021' (battle-testing proxy)." },
+
+    "audits":              { "type": "array", "items": { "$ref": "#/$defs/audit_record" }, "description": "Audits (firm, scope, date). Empty array = none found (state so explicitly)." },
+    "bug_bounty":          { "type": "string", "description": "Bug-bounty program + size, or 'none'." },
+    "exploit_history":     { "type": "array", "items": { "$ref": "#/$defs/exploit_record" }, "description": "Past exploits/incidents. Empty array = none known (state so explicitly)." },
+    "admin_keys":          { "type": "string", "description": "Who controls admin/upgrade keys; multisig threshold; timelock. The most load-bearing trust field." },
+    "upgradeability": {
+      "type": "string",
+      "enum": ["immutable", "timelock", "multisig", "upgradeable_no_timelock", "unknown"],
+      "description": "Upgradeability posture of the contracts."
+    },
+    "oracle_dependencies": { "type": "array", "items": { "type": "string" }, "description": "Oracles relied on and what breaks if they fail." },
+    "bridge_dependencies": { "type": "array", "items": { "type": "string" }, "description": "Bridges / cross-chain messaging depended on." },
+    "governance_model":    { "type": "string", "description": "Governance structure (token vote, council, DAO, off-chain)." },
+
+    "token_incentives":    { "type": "string", "description": "Token/points incentives inflating APY, and expected duration." },
+    "yield_sustainability": {
+      "type": "string",
+      "enum": ["organic", "incentive_dependent", "mixed", "unsustainable", "unknown"],
+      "description": "Whether the yield survives after incentives end."
+    },
+
+    "known_risks":  { "type": "array", "items": { "type": "string" }, "description": "Enumerated protocol-specific risks (red-team + overlay inputs)." },
+    "risk_score":   { "$ref": "#/$defs/score_0_100", "description": "Advisory overall protocol risk (higher = riskier per docs/14). Advisory only; cites dfb overlay." },
+    "max_allocation_recommendation": { "type": ["number", "null"], "description": "Advisory ceiling (% of book) for this protocol. Never exceeds/overrides RiskPolicy caps (docs/06 A.1). TBD until sourced." },
+    "monitoring_frequency": {
+      "type": "string",
+      "enum": ["continuous", "daily", "weekly", "monthly", "on_event"],
+      "description": "How often the protocol must be re-checked."
+    },
+    "emergency_triggers": { "type": "array", "items": { "type": "string" }, "description": "Conditions that force de-risking/exit (TVL collapse, admin-key change, exploit, oracle failure, governance capture)." },
+
+    "notes":      { "type": "string", "description": "Free-text reviewer notes." },
+    "created_at": { "type": "string", "format": "date-time", "description": "Creation timestamp (ISO-8601 UTC)." },
+    "updated_at": { "type": "string", "format": "date-time", "description": "Last update timestamp (ISO-8601 UTC)." }
+  },
+  "required": [
+    "protocol_id", "protocol_name", "category", "chains",
+    "tvl_trend",
+    "admin_keys", "upgradeability",
+    "yield_sustainability",
+    "risk_score", "monitoring_frequency",
+    "created_at", "updated_at"
+  ]
+}

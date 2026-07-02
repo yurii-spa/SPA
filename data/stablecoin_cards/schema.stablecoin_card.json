@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://earn-defi.com/schemas/stablecoin_card.schema.json",
+  "title": "SPA Yield Lab — Stablecoin Card",
+  "description": "A comparable, auditable due-diligence record for one stablecoin SPA can hold or route yield through (USDC, USDT, DAI, sUSDe, USDS, RWA-backed units). Research-layer artifact; not runtime data; never read by the deterministic RiskPolicy or execution path. All market-cap/supply/depth numbers are placeholders requiring data verification until sourced with a last-verified date. Advisory scores/allocation recommendations never override RiskPolicy caps. See docs/13_stablecoin_card_system.md, docs/12 (Protocol Cards), docs/38 (stablecoin yield engine), docs/14 (advisory Risk Scoring v2). Formalizes due-diligence implicit in stablecoin-bearing adapters (spa_core/adapters) + dfb risk overlay.",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "score_0_100": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Advisory sub-score in [0,100]. Advisory only (Risk Scoring v2, docs/14); never a hard gate. Cites the dfb overlay verdict. null until computed."
+    },
+    "attestation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A single attestation / reserve-audit record.",
+      "properties": {
+        "firm": { "type": "string", "description": "Attesting firm." },
+        "cadence": { "type": "string", "description": "Attestation cadence (e.g. monthly)." },
+        "last_date": { "type": "string", "description": "Last attestation date (ISO-8601 or 'TBD - requires data verification')." }
+      }
+    },
+    "depeg_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A single depeg event record.",
+      "properties": {
+        "date": { "type": "string", "description": "Date of the depeg event." },
+        "depth": { "type": "string", "description": "How far off peg (e.g. '-13% to $0.87')." },
+        "duration": { "type": "string", "description": "How long off peg." },
+        "cause": { "type": "string", "description": "Root cause." },
+        "recovery": { "type": "string", "description": "How/whether it recovered." }
+      }
+    }
+  },
+  "properties": {
+    "stablecoin_id": { "type": "string", "pattern": "^STC-[0-9]{4,}$", "description": "Stable unique id, e.g. STC-0001. Never reused." },
+    "symbol":        { "type": "string", "description": "Ticker, e.g. USDC, sUSDe, USDS." },
+    "issuer":        { "type": "string", "description": "Issuing entity / protocol, e.g. Circle, Ethena, Sky." },
+
+    "backing_type": {
+      "type": "string",
+      "enum": ["fiat_backed", "crypto_overcollateralized", "rwa_backed", "synthetic_delta_neutral", "algorithmic", "hybrid", "unknown"],
+      "description": "What backs the unit."
+    },
+    "reserve_transparency": {
+      "type": "string",
+      "enum": ["full_attestation", "partial", "opaque", "unknown"],
+      "description": "How visible the reserves are."
+    },
+    "attestations":         { "type": "array", "items": { "$ref": "#/$defs/attestation_record" }, "description": "Attestation/audit records. Empty array = none found (state so explicitly)." },
+    "redemption_mechanism": { "type": "string", "description": "How a holder redeems to the underlying (direct issuer redemption, AMM only, queue, gated)." },
+
+    "liquidity_profile":        { "type": "string", "description": "On-chain + CEX liquidity depth summary. TBD - requires data verification." },
+    "exchange_depth":           { "type": "string", "description": "Depth on major venues / DEX pools (for exit-by-size). TBD until sourced." },
+    "market_cap":               { "type": ["number", "null"], "description": "Market cap (USD). TBD until sourced; cite source + last-verified date." },
+    "circulating_supply":       { "type": ["number", "null"], "description": "Circulating supply (units). TBD until sourced." },
+    "top_holder_concentration": { "type": "string", "description": "Concentration of supply in top holders (run-risk proxy). TBD until sourced." },
+
+    "depeg_history":        { "type": "array", "items": { "$ref": "#/$defs/depeg_record" }, "description": "Past depeg events. Empty array = none known (state so explicitly)." },
+    "blacklist_freeze_risk": {
+      "type": "string",
+      "enum": ["can_freeze_and_blacklist", "freeze_only", "no_freeze", "unknown"],
+      "description": "Whether the issuer can freeze/blacklist holdings."
+    },
+    "regulatory_risk": { "type": "string", "description": "Legal / sanctions / securities surface for this unit." },
+    "jurisdiction":    { "type": "string", "description": "Issuer jurisdiction (regulatory exposure)." },
+
+    "chains":         { "type": "array", "items": { "type": "string" }, "description": "Chains the stablecoin is native / bridged on." },
+    "main_use_cases": { "type": "array", "items": { "type": "string" }, "description": "Primary use cases (collateral, settlement, yield unit, LP pair)." },
+    "key_dependencies": { "type": "array", "items": { "type": "string" }, "description": "External things that must hold (oracle, bridge, perp funding leg for synthetics, RWA custodian)." },
+
+    "risk_score":                    { "$ref": "#/$defs/score_0_100", "description": "Advisory overall stablecoin risk (higher = riskier per docs/14). Advisory only; cites dfb overlay." },
+    "max_allocation_recommendation": { "type": ["number", "null"], "description": "Advisory ceiling (% of book) in this unit. Never exceeds/overrides RiskPolicy caps (docs/06 A.1). TBD until sourced." },
+    "monitoring_requirements":       { "type": "array", "items": { "type": "string" }, "description": "What must be monitored (peg, reserve attestation cadence, funding for synthetics, redemption queue)." },
+    "emergency_exit_triggers":       { "type": "array", "items": { "type": "string" }, "description": "Conditions that force exiting the unit (depeg beyond threshold, reserve doubt, freeze/blacklist action, redemption halt, funding flip)." },
+
+    "notes":      { "type": "string", "description": "Free-text reviewer notes." },
+    "created_at": { "type": "string", "format": "date-time", "description": "Creation timestamp (ISO-8601 UTC)." },
+    "updated_at": { "type": "string", "format": "date-time", "description": "Last update timestamp (ISO-8601 UTC)." }
+  },
+  "required": [
+    "stablecoin_id", "symbol", "issuer",
+    "backing_type", "reserve_transparency",
+    "blacklist_freeze_risk",
+    "risk_score",
+    "created_at", "updated_at"
+  ]
+}
