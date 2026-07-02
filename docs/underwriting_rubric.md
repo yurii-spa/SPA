@@ -65,6 +65,10 @@ Baseline: the RWA floor itself (rwa_sleeve) is spread ≈ 0 by construction — 
 | **REFUSE(capacity)** | `capacity_dead_venue` | right asset class but the venue's TVL has collapsed → no deployable capacity | Notional fCash (~$3.1M TVL) |
 | **WATCH(held)** | `off_chain_opacity_hold` | structure sound, but the ONE binding underwriting number is off-chain/pool-specific/not publicly verifiable → can't ADVANCE from public data | Centrifuge DROP (junior-buffer depth unverifiable) |
 | **LEAD(verify)** | `fixed_carry_on_bounded_credit` / `market_not_confirmed` | attractive structure (fixed lock on DD-cleared credit) but the live market isn't publicly confirmed → verify before evaluating | PT-syrupUSDC (no confirmed Pendle market) |
+| **ADVANCE(cap)** | `organic_lending_bounded_but_thin` | real organic borrower-paid lending, bounded, but thin spread + chain/venue tail | Solana base USDC ~3.5% |
+| **ADVANCE** | `floor_realizer_liquidity_custody` | doesn't beat the floor (defines it); ADVANCE on liquidity+custody quality to REALIZE the floor | USYC/BUIDL/USTB T-bill tokens |
+| **REFUSE** | `no_structural_spread_unbounded_funding_tail` | bounded leg sits at the floor; the spread is unbounded funding carry | ETH delta-neutral staking |
+| **REFUSE** | `short_vol_unpriced_tail` | yield = premium for absorbing crash risk (short vol); headline gross not net | options-income vaults |
 | **NO-EDGE** | `no_edge_floor_parity` | safest lending ≈ the floor; hold the floor | Aave V3 USDC (~5 bps) |
 | **BASELINE** | `is_the_floor` | the yardstick (spread ≈ 0) | rwa_sleeve |
 

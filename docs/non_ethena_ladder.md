@@ -11,10 +11,11 @@
 
 | Rung | Asset class | Underlying (NOT Ethena) | Yield | Pool depth | ~2%-of-pool capacity | Verdict |
 |---|---|---|---|---|---|---|
-| **RWA floor** | Sovereign T-bill | BUIDL / USYC / USDY / OUSG | ~3.4% | ~$15B | ~$300M (effectively unlimited) | BASELINE (the base) |
+| **RWA floor** | Sovereign T-bill | **USYC (best realizer: T+0 USDC atomic)** / BUIDL / USTB (USDY=refuse-as-floor) | ~3.4% | ~$15B | ~$300M (effectively unlimited) | BASELINE (the base) |
 | **Overcollat curated** | Overcollateralized lending | blue-chip crypto collateral on **immutable Morpho Blue** (Steakhouse/Gauntlet) | ~4.5–6.5% | ~$6.6B Blue | ~$130M | ADVANCE (Core) |
 | **Institutional credit** | Credit (overcollat) | Maple syrupUSDC (160%+ avg collat, 0 defaults >$600M) | **~4.7% live** (9-12%=higher-risk tier) | ~$1.22B | ~$24M | CONDITIONAL-ADVANCE (Core), concentration-capped |
 | **RWA senior credit** | Tranched RWA credit | Centrifuge DROP (TIN junior first-loss; US real-estate; TVL ~$1.64B) | ~8% (legacy) | pool-specific | ~$10M | **WATCH — opacity-held** (buffer-depth % not publicly verifiable) |
+| **Solana base lending** | Organic lending (non-EVM) | Solana base USDC lending (Kamino/marginfi/Save; native-CCTP, Ethena-isolated-to-Drift) | ~3.5-5% organic | ~$1-2B | ~$20-40M | **ADVANCE (capped)** — real cross-chain non-Ethena diversifier + chain-liveness tail |
 | **Fixed-rate lending** | Fixed-rate overcollat | Notional fCash (ETH/USDC/WBTC collat) | fixed (rate n/a) | **~$3.1M** | **~$60k (DEAD)** | capacity-dead venue |
 
 *(Ethena PT-sUSDe/PT-USDe 8-11% is deliberately EXCLUDED — it is the concentration we are diversifying

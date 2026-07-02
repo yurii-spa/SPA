@@ -139,6 +139,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 31 (A PT-syrupUSDC — non-Ethena fixed-carry lead):** `data/strategy_candidates/pt_syrupusdc_fixed.candidate.md`. Structurally the cleanest non-Ethena fixed-carry idea — a Pendle PT locking the **DD-cleared bounded Maple credit** rate to maturity (non-Ethena underlying, fixed-wrapper removes variability, residual = Maple credit [already DD'd, capped] + PT liquidity). BUT honest blocker: **no confirmed live PT-syrupUSDC market** (Pendle PT stablecoin depth = Aave-USDC/sUSDe/Ethena 5-11%; syrupUSDC not found) → **CONDITIONAL LEAD, market requires verification** (did NOT fabricate a rate). New reasons `fixed_carry_on_bounded_credit` + `market_not_confirmed`. The absence is itself informative: Pendle PT depth is Ethena+Aave, not credit → non-Ethena fixed-carry at depth is scarce. decision_index 18.
 
+
+- **Auto-sprint batch (4 parallel research agents, 2026-07-02):** integrity GREEN (2109+109 passed, origin synced, sleeve rates match). 4 findings committed: **ETH-DN-staking→REFUSE** (staking at floor, spread=unbounded funding, same as Ethena); **T-bill-issuers→ADVANCE floor-realizers** (USYC best T+0-USDC-atomic ~$3B / BUIDL credible / USTB no-min; USDY refuse-as-floor = note/bank tail-comp); **options-vaults→REFUSE** (short-vol, gross≠net, 9/13 DOVs dead, QYLD 12.3%/−5.1%); **Solana-lending→ADVANCE-capped** (REAL non-Ethena diversifier — base ~3.5% organic, native-CCTP, Ethena-isolated-to-Drift; better than Base; thin+chain-tail). decision_index 22; rubric +4 reasons; ladder +Solana rung +USYC-as-floor-realizer. ALSO fixed the RWA Safety Board site bug (API↔render schema drift → all-'—' → normAsset, deploy #274).
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
