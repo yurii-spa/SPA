@@ -48,6 +48,11 @@ Rotation: (A) edge-hunt ADR-YL-008 · (B) deep-research to institutional depth �
   Fund (2a-7 MMF, BNY Mellon); USDT = **BDO Italia, quarterly ISAE 3000**, ~80% T-bills + **~$8B gold +
   ~$7B BTC** (Q1-26 $191.77B res vs $183.54B liab). Documents USDC's stronger transparency (monthly vs
   quarterly) + USDT's mixed non-fiat reserve. Both checklists: attestation item now [x].
+- **Cycle 7 (C measurement-moat):** `docs/decision_index.md` — auditable "check our decisions" surface
+  aggregating all 13 evaluated cards/candidates with ADR-YL-008 verdict + reason + spread + evidence:
+  1 ADVANCE (USDY), 3 REFUSE/HOLD by 3 DISTINCT reasons (leverage_loop=tail-comp, sUSDS=gov-safety,
+  FixedCarry=unrealized-at-size), 1 BASELINE, + research/paper sleeves. Proof-chain reproduces (verify_spa.py).
+  Shows the mandate is APPLIED not asserted; refusals dominate by design; no fundable-at-size edge yet (honest).
 
 ## VERIFICATION + REMEDIATION SPRINT (2026-07-02)
 Verified the whole yield-lab build against the charter by ACTUAL repo contents (not memory): invariants
