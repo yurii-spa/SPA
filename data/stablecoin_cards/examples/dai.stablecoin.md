@@ -17,8 +17,8 @@
 ## Liquidity & market structure (never presented without a last-verified date)
 - **liquidity_profile:** `Deep on-chain (Curve/DEX) — exact depth requires data verification`
 - **exchange_depth:** `TBD — requires data verification`
-- **market_cap:** `TBD — requires data verification`
-- **circulating_supply:** `TBD — requires data verification`
+- **market_cap:** `~$4.7B` — **verified 2026-07-02** (DeFiLlama; the original crypto-collateralized stablecoin, now alongside Sky's newer USDS ~$8.7B which is the strategic successor). [L2]
+- **circulating_supply:** `~$4.7B` (2026)
 - **top_holder_concentration:** `TBD — requires data verification`
 
 ## Peg & control risk
