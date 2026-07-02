@@ -37,6 +37,18 @@ Rotation: (A) edge-hunt ADR-YL-008 · (B) deep-research to institutional depth �
   allowlist/KYC transfer restrictions). **Unblocks CAND-USDY-001** — its ~160bps spread now maps to
   DOCUMENTED bounded risks (issuer-concentration/custodian-freeze/8%-banking/KYC-liquidity), ADVANCE holds.
 
+## VERIFICATION + REMEDIATION SPRINT (2026-07-02)
+Verified the whole yield-lab build against the charter by ACTUAL repo contents (not memory): invariants
+(diff main...branch = 131 files, 129 add / 2 mod [CLAUDE.md+.gitignore] / 0 runtime/RiskPolicy/dashboard/
+deploy; no keys/signing/verified-APY-without-evidence; OQ-1 resolved; floor dynamic-not-hardcoded).
+Found + FIXED (owner: huge sprint): 8 missing/partial named docs created (01 overview, 08 AI-Investment-OS
+[16 agents deep], 09 Builder-OS [9 agents], 18 monitoring, 19 execution-support, 20 autonomy-ladder L0-L5,
+21 security/custody, 45 builder-os-workflow — resolves the CLAUDE.md dangling docs/45 ref); 10 P3 stubs
+expanded to real content (43 dangerous-strategies 20-items/217L, 44 first-20 20-items/238L, 23/24/25/26/
+39/40/41/42); 3 numbering collisions resolved (07a/26a/35a companions, 12 cross-refs, old names deleted on
+origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§8 deviation. Test harness
+105 passed. Charter coverage ~82% → ~95%+. Nothing blocked the backlog before; now cleaner. 0 runtime touched.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
