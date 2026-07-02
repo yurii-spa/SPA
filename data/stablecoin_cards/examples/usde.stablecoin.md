@@ -20,14 +20,14 @@
 ## Liquidity & market structure (never presented without a last-verified date)
 - **liquidity_profile:** `Sizable but younger than USDC/USDT; sUSDe has a 7-day cooldown (exit friction) — depth requires data verification`
 - **exchange_depth:** `TBD — requires data verification`
-- **market_cap:** `~$1.7B fallback literal in the adapter (FALLBACK_TVL_USD, re-verify live) — requires data verification`
-- **circulating_supply:** `TBD — requires data verification`
+- **market_cap:** `~$5.5–5.9B` — **verified 2026-07-02** (DeFiLlama Q2-2026; contracted to ~$5.9B after the Oct-2025 deleveraging). Largest synthetic-dollar after Sky USDS. (The adapter's ~$1.7B literal is stale.) [L2]
+- **circulating_supply:** `~$5.9B` (post Oct-2025 deleverage)
 - **top_holder_concentration:** `TBD — requires data verification`
 
 ## Peg & control risk
 - **depeg_history:** `[]`  <!-- USDe is relatively young; verify any stress episodes. Absence here = NOT YET SOURCED, not "none". -->
 - **blacklist_freeze_risk:** `requires verification (issuer-controlled mint/redeem; token-level freeze unclear)`
-- **regulatory_risk:** `Elevated/uncertain — a novel synthetic-dollar structure; regulatory treatment evolving`
+- **regulatory_risk:** `ELEVATED (sourced 2026-07-02): Germany's BaFin barred USDe under MiCA in 2026 — a novel synthetic-dollar structure with active regulatory friction. Reserve Fund ~$61M vs ~$5.6B supply (~1.1%) — small buffer, "not a guarantee." sUSDe yield ~9.4% (7d) / ~11.8% (90d) = clearly risk-comp, not a floor.`
 - **jurisdiction:** `Ethena (requires verification)`
 
 ## Usage & dependencies
