@@ -70,6 +70,9 @@ expanded to real content (43 dangerous-strategies 20-items/217L, 44 first-20 20-
 origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§8 deviation. Test harness
 105 passed. Charter coverage ~82% → ~95%+. Nothing blocked the backlog before; now cleaner. 0 runtime touched.
 
+
+- **Cycle 11 (A edge-hunt):** `data/strategy_candidates/resolv_rlp.candidate.md` — Resolv RLP (20-30% APY, TVL $8.95M) -> **REFUSE (HARD)**, strongest refusal: yield = first-loss + self-balancing-leverage tail-comp AND the tail FIRED (2026 mint exploit ~$25M extracted, 80M unbacked USR, USR -39% depeg, TVL $400M->$9M). ~1700-2700bps spread = pure tail-comp, realized loss on record. New reason `first_loss_leverage_tranche + realized_mint_exploit_depeg`. decision_index: biggest headline drew hardest NO; yield-rank INVERSE to fundability.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
