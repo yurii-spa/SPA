@@ -115,6 +115,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 25 (A ladder rung):** PT-USDe ~8.8% fixed -> CONDITIONAL-ADVANCE but KEY finding: **same underlying (Ethena/USDe) as PT-sUSDe** — laddering Ethena-PTs CONCENTRATES, not diversifies. **~70% of ALL Pendle TVL (~$6.1B) is Ethena.** New reason `same_underlying_concentration_cap`: cap by UNDERLYING; the ladder's real diversification must come from DIFFERENT issuers (PT-syrupUSDC=Maple, fixed-rate markets, RWA), not more Ethena PTs. decision_index 14 decisions.
 
+
+- **Owner request (site half) DONE + VERIFIED:** built honest public page **`landing/src/pages/yield-lab.astro`** + nav link (SiteHeader Research group) — fundable candidates + verdicts (ADVANCE/WATCH/REFUSE/NO-EDGE) + spread-over-floor + evidence-L2 + non-negotiable disclaimer ('research judgements, NOT live returns/offer/advice; ADVANCE→paper = advisory no-capital, separate from go-live track'). Astro build 75 pages OK; pushed by-name (e5d1a2c7); deploy #269 build=SUCCESS, deploy-step failed TRANSIENTLY (GH-Pages infra) → rerun-failed-jobs → SUCCESS; **earn-defi.com/yield-lab LIVE** (verified real content, not curl-status). Owner chose: paper=advisory-sleeves-separate-from-go-live, site=honest-research-page. **NEXT: paper-test half = advisory sleeves in strategy_lab (cycle 26).**
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
