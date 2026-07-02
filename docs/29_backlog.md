@@ -82,7 +82,7 @@
 - **AGENT-004** — Agent output schemas. out: `docs/schemas/agent_output.schema.json` · acc: UNKNOWN/abstain fields · deps: AGENT-001 · P3 · S.
 
 ## PORTFOLIO
-- **PORT-001** — Portfolio recommendation framework doc. out: `docs/17_portfolio.md` · acc: recommendation-only, caps respected · deps: RISK-001 · P2 · M.
+- **PORT-001** — Portfolio recommendation framework doc. out: `docs/17_portfolio_construction.md` · acc: recommendation-only, caps respected · deps: RISK-001 · P2 · M.
 - **PORT-002** — Allocation-proposal template. out: `docs/templates/allocation_proposal.md` · acc: cap-check section · deps: PORT-001 · P3 · S.
 
 ## REPORTING

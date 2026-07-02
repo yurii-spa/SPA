@@ -4,7 +4,7 @@
 existing files are modified by this document. **Tone:** institutional, evidence-first. **APY/TVL
 numbers in any card are placeholders marked "TBD — requires verification" until sourced.**
 
-Cross-references: `docs/07_yield_lab_lifecycle.md` (lifecycle statuses), `docs/37_apy_evidence_standard.md`
+Cross-references: `docs/07_yield_lab_architecture.md` (lifecycle statuses), `docs/37_apy_realism_and_evidence_standard.md`
 (L0–L6 evidence levels), `docs/14_risk_scoring_v2.md` (advisory scorecard), `docs/06_spa_core_invariants.md`
 (hard invariants preserved), `data/strategy_cards/` (schema + template + examples), the existing
 research layer `spa_core/strategy_lab/*` and `spa_core/tournament/*`.
@@ -192,7 +192,7 @@ floor**, not absolute APY, and **every point of spread must be explained by a na
 
 ## 4. Lifecycle statuses (`status` enum)
 
-Mirrors `docs/07_yield_lab_lifecycle.md` and the master prompt:
+Mirrors `docs/07_yield_lab_architecture.md` and the master prompt:
 
 ```
 idea → research → rejected

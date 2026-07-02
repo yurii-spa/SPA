@@ -12,7 +12,7 @@ APY/TVL claims.** APY/TVL used as inputs must be real and evidence-levelled (`do
 inputs are `TBD — requires verification`.
 
 Cross-references: `docs/11_strategy_card_system.md` (cards carry these scores), `docs/06_spa_core_invariants.md`
-(invariants A.1–A.4, 17), `docs/37_apy_evidence_standard.md` (evidence levels), `docs/34` (capital tiers).
+(invariants A.1–A.4, 17), `docs/37_apy_realism_and_evidence_standard.md` (evidence levels), `docs/34` (capital tiers).
 
 ---
 
