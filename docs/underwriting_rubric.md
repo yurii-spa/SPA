@@ -62,6 +62,7 @@ Baseline: the RWA floor itself (rwa_sleeve) is spread ≈ 0 by construction — 
 | **WATCH** | `senior_tranche_bounded_by_junior_firstloss` | senior bounded by a genuine junior first-loss + real assets | Centrifuge DROP (~8%) |
 | **ADVANCE(capped)** | `same_underlying_concentration_cap` | different market, identical underlying → ONE cap, not additive diversification | PT-USDe vs PT-sUSDe (both Ethena; ~70% of Pendle TVL) |
 | **CONDITIONAL(capped)** | `chain_hop_same_underlying` | high yield on another chain that re-routes to the same underlying — not diversification | Base Coinbase-USDC 10.8% = Ethena-collateral |
+| **REFUSE(capacity)** | `capacity_dead_venue` | right asset class but the venue's TVL has collapsed → no deployable capacity | Notional fCash (~$3.1M TVL) |
 | **NO-EDGE** | `no_edge_floor_parity` | safest lending ≈ the floor; hold the floor | Aave V3 USDC (~5 bps) |
 | **BASELINE** | `is_the_floor` | the yardstick (spread ≈ 0) | rwa_sleeve |
 
