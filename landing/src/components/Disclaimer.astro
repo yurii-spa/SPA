@@ -1,50 +1,14 @@
 ---
-// Disclaimer.astro — v2: no ESMA/EBA, research project framing
-// Блок 5
+// Disclaimer.astro — COMPACT 1-2 line footer notice, small font, links to the full page.
+// The full disclaimer + risk disclosure live on /disclaimer (and /risk-disclosure). Keep data-ru
+// on the leaf <span>/<a> (NOT the parent <p>) so the Layout i18n innerHTML swap preserves the link.
 ---
 
-<section class="py-10 px-4 sm:px-6 lg:px-8 bg-bg-surface border-t border-white/5">
+<section class="py-5 px-4 sm:px-6 lg:px-8 border-t border-white/5">
   <div class="max-w-5xl mx-auto">
-
-    <div class="rounded-xl border border-warn-border bg-warn-bg p-6">
-      <div class="flex gap-3">
-        <div class="flex-shrink-0 mt-0.5">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#f59e0b" stroke-width="1.5" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
-          </svg>
-        </div>
-        <div class="space-y-3 text-xs text-white/45 leading-relaxed">
-          <p>
-            <strong class="text-warn text-xs" data-ru="⚠ Личный исследовательский проект:">⚠ Personal Research Project:</strong> <span data-ru="SPA — личный исследовательский проект на этапе paper-валидации и настройки. Не регулируемая финансовая услуга. Капитал не привлекается. Не является инвестиционной рекомендацией.">SPA is a personal research project
-            in paper validation and tuning. Not a regulated financial service. Not raising capital.
-            Not investment advice.</span>
-          </p>
-          <p>
-            <strong class="text-white/60" data-ru="Раскрытие о бумажной торговле:">Paper Trading Disclosure:</strong> <span data-ru="Все данные о результатах отражают симулированную торговлю на виртуальном портфеле $100,000 USDC. Текущий бумажный APY: ~3.6% (переменный, не прогноз). Симулированные результаты не учитывают реальное проскальзывание, влияние на ликвидность и риск исполнения смарт-контрактов. Мы сбросили собственный трек: засчитываются только дни с реальным логом цикла (сейчас 10/30, якорь 2026-06-22). Цель go-live: ~2026-07-21 — при условии GoLiveChecker 29/29 (сейчас 27/29 НЕ ГОТОВО). Подробности на /track-record.">All performance data reflects simulated trading on a virtual
-            $100,000 USDC portfolio. Current paper APY: ~3.6% (variable, not a forecast).
-            Simulated performance does not account for live slippage, liquidity impact, or smart contract execution risk.
-            We reset our own track: only days with a real cycle log count (currently 10/30, anchor 2026-06-22).
-            Go-live target: ~2026-07-21 — contingent on GoLiveChecker 29/29 (currently 27/29 NOT READY). See /track-record.</span>
-          </p>
-          <p>
-            <strong class="text-white/60" data-ru="Не регулируемая услуга:">Not a Regulated Service:</strong> <span data-ru="SPA — личный исследовательский проект на стадии paper-тестирования. Это не является инвестиционной рекомендацией, финансовым советом или предложением инвестировать в какой-либо юрисдикции. Перед принятием инвестиционных решений проконсультируйтесь с квалифицированными специалистами.">SPA is a personal research project at the paper-testing stage.
-            This does not constitute investment advice, financial advice, or a solicitation to invest in any jurisdiction.
-            Consult qualified professionals before making investment decisions.</span>
-          </p>
-          <p>
-            <strong class="text-white/60" data-ru="Риски, специфичные для DeFi:">DeFi-specific risks:</strong> <span data-ru="Уязвимости и эксплойты смарт-контрактов · Неплатёжеспособность протокола · Депег стейблкоина · Манипуляция оракулом · Действия регуляторов · Технические сбои. Средства в DeFi-протоколах не покрываются никакой схемой компенсации инвесторам.">Smart contract vulnerabilities
-            and exploits · Protocol insolvency · Stablecoin de-pegging · Oracle manipulation ·
-            Regulatory actions · Technology failure. Funds in DeFi protocols are not covered
-            by any investor compensation scheme.</span>
-          </p>
-          <div class="pt-2">
-            <a href="/risk-disclosure" class="text-accent-400/70 hover:text-accent-400 underline underline-offset-2 transition-colors" data-ru="Читать полное раскрытие рисков →">
-              Read the full Risk Disclosure →
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-
+    <p class="text-[11px] leading-relaxed" style="color:var(--text-muted)">
+      <span data-ru="Личный research-проект в paper-валидации — не инвестиционный совет, не регулируемая услуга, капитал не привлекается; результаты симулированы.">Personal research project in paper validation — not investment advice, not a regulated service, not raising capital; results are simulated.</span>
+      <a href="/disclaimer" class="underline underline-offset-2 ml-1" style="color:var(--accent-400)" data-ru="Полный дисклеймер и раскрытие рисков →">Full disclaimer &amp; risk disclosure →</a>
+    </p>
   </div>
 </section>
