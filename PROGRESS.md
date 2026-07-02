@@ -130,6 +130,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 28 (B Maple per-pool DD → WATCH→ADVANCE + honest yield correction):** deepened Maple DD (TID Research+live): syrupUSDC = 79% loans/21% liq; collateral BTC/XRP/cbBTC/HYPE **125-333%, avg 160%+**; **ZERO defaults >$600M**; exit ~12bps/sub-min (queue ≤30d only in stress). Credit-underwriting CLEARS → **CAND-SYRUP-001 WATCH→CONDITIONAL-ADVANCE**. BUT honest correction: **live APY ~4.7% (not 9-12% — that's Maple's higher-risk tier)** → Core sleeve, ~130bps over floor. Binding residual = **borrower concentration (top-3 48.8%/top-1 19.3%)** → concentration cap the condition. Corrected maple_syrup advisory sleeve apy 10→4.7 (both configs), decision_index row, non_ethena_ladder (blended ~5.8%→**~4.75%**; 8-12% non-Ethena = higher-risk credit tier, not the well-underwritten flagship). Sleeve tests 30 passed. decision_index 17.
 
+
+- **Cycle 29 (owner: surface non-Ethena ladder on site) DONE + VERIFIED:** added the non-Ethena ladder to public /yield-lab (5 rungs w/ verdict badges: RWA-floor BASELINE / Steakhouse ADVANCE / Maple ~4.7% ADVANCE-Core / Centrifuge WATCH / Notional capacity-dead) + the pick-two rule + honest blended ~4.75% conclusion, bilingual. Caught+fixed an Astro build-breaker (literal {8-12%} in element children parsed as JSX expr → deploy #272 build-fail) → rephrased → deploy #273 SUCCESS, **earn-defi.com/yield-lab LIVE with the ladder** (verified real content). Lesson: never put literal braces in Astro element children.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
