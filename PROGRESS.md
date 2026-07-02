@@ -23,6 +23,15 @@ only. Local commits only; nothing pushed; nothing deployed. Master charter:
   7 ADR-YL, 5 reporting templates, 5 illustrative example strategy cards. (`4782672e9`)
 - **STEP 6** — this final summary.
 
+## AUTONOMOUS VALUE-ENGINE (continuous, self-paced — owner MAX-sub, tokens not a constraint)
+Rotation: (A) edge-hunt ADR-YL-008 · (B) deep-research to institutional depth · (C) measurement-moat ·
+(D) hardening/verify. One committed task/cycle, real sourced data, docs/research-layer only. Log:
+- **Cycle 1 (A edge-hunt):** `data/strategy_candidates/ondo_usdy.candidate.md` — evaluated Ondo USDY
+  (~5%, tokenized T-bill) vs live floor (~3.4%): ~160 bps spread, attributed to accepted bounded risks
+  (single-issuer concentration / custody / duration / transfer-restriction) → provisional
+  **spread_fully_explained=LIKELY-TRUE → ADVANCE to research** (the mandate's positive path; contrast
+  leverage_loop refused). Next: Ondo issuer card + verify live APY. [L1→needs L2]
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
