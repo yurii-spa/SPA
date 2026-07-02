@@ -17,8 +17,8 @@
 ## Liquidity & market structure (never presented without a last-verified date)
 - **liquidity_profile:** `The most-traded stablecoin globally (deepest CEX liquidity) — exact depth requires data verification`
 - **exchange_depth:** `TBD — requires data verification`
-- **market_cap:** `TBD — requires data verification (largest stablecoin by cap — verify)`
-- **circulating_supply:** `TBD — requires data verification`
+- **market_cap:** `~$188B` — **verified 2026-07-02** (CoinMarketCap, June 2026; the LARGEST stablecoin, ~58% of total stablecoin supply, >2× USDC). [L2]
+- **circulating_supply:** `~$189B` (Q1 2026)
 - **top_holder_concentration:** `TBD — requires data verification`
 
 ## Peg & control risk
