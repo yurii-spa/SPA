@@ -10,7 +10,6 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
-  X-Robots-Tag: noindex, nofollow
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; connect-src 'self' https://api.earn-defi.com https://raw.githubusercontent.com https://api.llama.fi https://yields.llama.fi; frame-ancestors 'none'; base-uri 'self'
 
 # Live pages (dashboard/packages/agents/tournament) must never be cached stale.
@@ -51,6 +50,7 @@
 
 /api/*
   Cache-Control: no-cache, no-store, must-revalidate
+  X-Robots-Tag: noindex
 
 # Hashed, content-addressed bundles — Astro emits them under /_assets/ (underscore).
 /_assets/*

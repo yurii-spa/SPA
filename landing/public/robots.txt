@@ -5,7 +5,10 @@
 # evidence levels, NOT live offerings or investment advice (see /disclaimer, /yield-lab).
 # Machine-readable index for agents: https://earn-defi.com/llms.txt
 
+# AI / LLM crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended, CCBot, etc.) are
+# explicitly WELCOME — owner decision for a transparency-first product. Not blocked.
 User-agent: *
 Allow: /
+Disallow: /api/
 
 Sitemap: https://earn-defi.com/sitemap.xml

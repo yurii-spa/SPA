@@ -27,5 +27,6 @@
 /packages        /strategies 301
 /packages.html   /strategies 301
 
-# Redirect www to apex
-# (configure in Cloudflare DNS — this file handles app-level redirects only)
+# Redirect www -> apex (canonical host = https://earn-defi.com). CF Pages processes full-URL
+# host redirects here; belt-and-suspenders with a Cloudflare Redirect Rule (see PROGRESS deploy notes).
+https://www.earn-defi.com/* https://earn-defi.com/:splat 301
