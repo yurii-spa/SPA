@@ -136,6 +136,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 30 (B Centrifuge DROP per-pool DD):** structure confirmed real (TIN junior first-loss protects DROP senior; Centrifuge TVL ~$1.64B; US real-estate collateral e.g. New Silver) — BUT DD **did NOT clear to ADVANCE**: the binding number (junior-buffer DEPTH %) + pool default history + current DROP APY are **off-chain, pool-specific, NOT publicly verifiable** → new reason `off_chain_opacity_hold`; per rubric meta #6 (underwrite the buffer not the label) no ADVANCE without it. Also legacy-Tinlake nuance (DROP/TIN pre-2023; active $1.64B is newer V3). **Centrifuge STAYS WATCH (opacity-held)** — a transparency hold, not a structural refusal. Implication: the ADVANCE-grade (public-data-underwritable) non-Ethena book is ~4.3-4.5% (floor+overcollat+Maple-Core); Centrifuge's ~8% is unbankable-pending-issuer-data. decision_index 17.
 
+
+- **Cycle 31 (A PT-syrupUSDC — non-Ethena fixed-carry lead):** `data/strategy_candidates/pt_syrupusdc_fixed.candidate.md`. Structurally the cleanest non-Ethena fixed-carry idea — a Pendle PT locking the **DD-cleared bounded Maple credit** rate to maturity (non-Ethena underlying, fixed-wrapper removes variability, residual = Maple credit [already DD'd, capped] + PT liquidity). BUT honest blocker: **no confirmed live PT-syrupUSDC market** (Pendle PT stablecoin depth = Aave-USDC/sUSDe/Ethena 5-11%; syrupUSDC not found) → **CONDITIONAL LEAD, market requires verification** (did NOT fabricate a rate). New reasons `fixed_carry_on_bounded_credit` + `market_not_confirmed`. The absence is itself informative: Pendle PT depth is Ethena+Aave, not credit → non-Ethena fixed-carry at depth is scarce. decision_index 18.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific

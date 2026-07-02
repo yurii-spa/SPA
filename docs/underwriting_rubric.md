@@ -64,6 +64,7 @@ Baseline: the RWA floor itself (rwa_sleeve) is spread ≈ 0 by construction — 
 | **CONDITIONAL(capped)** | `chain_hop_same_underlying` | high yield on another chain that re-routes to the same underlying — not diversification | Base Coinbase-USDC 10.8% = Ethena-collateral |
 | **REFUSE(capacity)** | `capacity_dead_venue` | right asset class but the venue's TVL has collapsed → no deployable capacity | Notional fCash (~$3.1M TVL) |
 | **WATCH(held)** | `off_chain_opacity_hold` | structure sound, but the ONE binding underwriting number is off-chain/pool-specific/not publicly verifiable → can't ADVANCE from public data | Centrifuge DROP (junior-buffer depth unverifiable) |
+| **LEAD(verify)** | `fixed_carry_on_bounded_credit` / `market_not_confirmed` | attractive structure (fixed lock on DD-cleared credit) but the live market isn't publicly confirmed → verify before evaluating | PT-syrupUSDC (no confirmed Pendle market) |
 | **NO-EDGE** | `no_edge_floor_parity` | safest lending ≈ the floor; hold the floor | Aave V3 USDC (~5 bps) |
 | **BASELINE** | `is_the_floor` | the yardstick (spread ≈ 0) | rwa_sleeve |
 
