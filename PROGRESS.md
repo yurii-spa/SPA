@@ -31,6 +31,11 @@ Rotation: (A) edge-hunt ADR-YL-008 · (B) deep-research to institutional depth �
   (single-issuer concentration / custody / duration / transfer-restriction) → provisional
   **spread_fully_explained=LIKELY-TRUE → ADVANCE to research** (the mandate's positive path; contrast
   leverage_loop refused). Next: Ondo issuer card + verify live APY. [L1→needs L2]
+- **Cycle 2 (B deep-research):** `data/protocol_cards/examples/ondo.protocol.md` — Ondo issuer card,
+  SOURCED (TVL $3.56B DeFiLlama; USDY 92% T-bills<6mo / 8% bank-deposits; custody Morgan Stanley +
+  Ankura Trust, segregated trusts; monthly independent auditor; wire redemption, custodian-failure=freeze;
+  allowlist/KYC transfer restrictions). **Unblocks CAND-USDY-001** — its ~160bps spread now maps to
+  DOCUMENTED bounded risks (issuer-concentration/custodian-freeze/8%-banking/KYC-liquidity), ADVANCE holds.
 
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
