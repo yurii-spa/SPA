@@ -160,6 +160,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Auto-sprint batch #3 (2 parallel agents, 2026-07-02):** **Usual USD0/USD0++→REFUSE** (`realized_depeg_redemption_rule_change` — real USYC/T-bill collateral but governance unilaterally rewrote redemption to a floor price, Jan-2025 depeg to $0.87; bUSD0 STILL ~$0.96 [4% below par 18mo later] + yield=collapsed USUAL emissions). **Frax FXB→ADVANCE-thin** (`real_non_ethena_fixed_rate` — genuine non-Ethena zero-coupon, on-chain FRAX yield curve, redeems 1:1 at maturity, alive unlike dead Notional, BUT ~$500K/series depth); **Frax sfrxUSD→WATCH** (`gov_amo_gated`, +45bps = AMO/veFXS-gov premium, no GSM-delay); legacy sFRAX→REFUSE (deprecated 0.21%). decision_index 31; rubric +3; ladder +FXB non-Ethena-fixed-rate note. Integrity counts consistent (0 dangling site-refs).
 
+
+- **Auto-sprint batch #4 (2 parallel agents, 2026-07-02):** scoped integrity 62 passed. **Fluid plain USDC/USDT supply → ADVANCE (deep)** — genuine bounded non-Ethena organic lending ~4.3-5.5% with RARE DEPTH ($1.01B TVL; emissions ending 30-Jun → self-standing) = a real deep Core rung (most non-Ethena is thin). **Yearn V3 → ADVANCE-CONDITIONAL** (repackaged blue-chip lending, per-vault-verify). **Aerodrome/Velodrome stable-LP → REFUSE** (Curve clone, ~100% AERO emissions). **New-stables cluster:** Level→REFUSE(dead $50k), Reservoir srUSD→WATCH(opaque backing+WLF/USD1), **Agora AUSD + M0 wM→NO-EDGE — route yield to INTEGRATORS not holders** (edge=be-an-integrator, off-code = thesis-#2 pattern). decision_index 35; rubric +4; ladder +Fluid-deep-rung +integrator-gated meta.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific

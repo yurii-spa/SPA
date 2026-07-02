@@ -79,6 +79,8 @@ but relationship/access-gated at the last mile.
 
 **Non-Ethena FIXED-RATE (scarce):** Notional=dead (~$3M); **Frax FXB** = a REAL non-Ethena zero-coupon fixed-rate (on-chain FRAX yield curve, redeems 1:1 at maturity) but **thin (~$500K/series)** → small-ticket only. PT-sUSDe fixed-carry is Ethena-underlying. Net: non-Ethena fixed-rate EXISTS (FXB) but is capacity-scarce.
 
+**Deep non-Ethena Core rung (NEW):** **Fluid plain USDC/USDT supply** ~4.3-5.5% (~+0.9-2.1pp) is a genuine bounded organic-lending rung with **RARE DEPTH ($1.01B TVL)** — most non-Ethena rungs are thin; Fluid is deep, and its emissions end 30-Jun-2026 → self-standing. Joins Steakhouse/Maple-Core/Aave as ADVANCE-grade deep capacity. **Integrator-gated meta:** the institutionally-cleanest new stables (Agora AUSD, M0 wM) route yield to INTEGRATORS not holders → their edge is off-code relationship (= thesis-#2), not on-chain-capturable.
+
 **Chain diversifiers (non-Ethena base lending):** Solana (~3.5% organic, native-CCTP, Ethena-isolated-to-Drift)
 + Arbitrum (~2.56% now, native-CCTP, Ethena-not-in-base-markets — better than Base) are REAL non-Ethena
 cross-chain rungs, but currently thin/sub-floor. Base = still-Ethena (rejected). BTC yield = no-edge (lending)

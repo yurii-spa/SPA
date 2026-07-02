@@ -75,6 +75,10 @@ Baseline: the RWA floor itself (rwa_sleeve) is spread ≈ 0 by construction — 
 | **ADVANCE(thin)** | `real_non_ethena_fixed_rate` | a genuine non-Ethena zero-coupon/fixed-rate instrument, but capacity-thin | Frax FXB bonds (~$500K/series) |
 | **REFUSE** | `realized_depeg_redemption_rule_change` | governance unilaterally rewrote the redemption rule → realized depeg, still unhealed | Usual USD0++ (Jan-2025, bUSD0 ~$0.96) |
 | **WATCH** | `gov_amo_gated` | reserve clean but spread = compensation for governance/AMO opacity + no pause-delay | Frax sfrxUSD (+45bps) |
+| **ADVANCE(deep)** | `organic_lending_bounded_spread` | genuine bounded organic lending with a real spread AND rare deep capacity | Fluid plain USDC/USDT ($1B, emissions ending) |
+| **NO-EDGE** | `no_native_yield_integrator_gated` | high-quality stable but yield routes to integrators not holders → edge only by being an integrator (off-code, = thesis-#2) | Agora AUSD, M0 wM |
+| **WATCH** | `opaque_backing_governance_discretionary` | real native yield above floor but governance-set rate over opaque/counterparty-loaded collateral | Reservoir srUSD (WLF/USD1) |
+| **REFUSE** | `product_sunset` | protocol wound down / dead — yield gone, blacklist | Level lvlUSD |
 | **NO-EDGE** | `no_edge_floor_parity` | safest lending ≈ the floor; hold the floor | Aave V3 USDC (~5 bps) |
 | **BASELINE** | `is_the_floor` | the yardstick (spread ≈ 0) | rwa_sleeve |
 
