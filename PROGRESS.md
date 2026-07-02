@@ -73,6 +73,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 11 (A edge-hunt):** `data/strategy_candidates/resolv_rlp.candidate.md` — Resolv RLP (20-30% APY, TVL $8.95M) -> **REFUSE (HARD)**, strongest refusal: yield = first-loss + self-balancing-leverage tail-comp AND the tail FIRED (2026 mint exploit ~$25M extracted, 80M unbacked USR, USR -39% depeg, TVL $400M->$9M). ~1700-2700bps spread = pure tail-comp, realized loss on record. New reason `first_loss_leverage_tranche + realized_mint_exploit_depeg`. decision_index: biggest headline drew hardest NO; yield-rank INVERSE to fundability.
 
+
+- **Cycle 12 (D hardening):** integrity GREEN — harness **109 passed**, origin==local (358 yield-lab files, 0 missing), drift-scan clean (no dangling refs, no bare verified-APY, all 6 candidates carry spread-attribution). Consistent + synced + honest after 11 cycles.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
