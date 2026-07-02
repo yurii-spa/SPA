@@ -35,6 +35,7 @@ from typing import Callable, Dict, List, Optional
 from spa_core.strategy_lab import config as lab_config
 from spa_core.strategy_lab.base import InvalidDataError, Strategy
 from spa_core.strategy_lab.data.market_data import MarketData
+from spa_core.strategy_lab.strategies.advisory_yield_sleeve import AdvisoryYieldSleeve
 from spa_core.strategy_lab.strategies.baselines import build_baselines
 from spa_core.strategy_lab.strategies.rwa_sleeve import RwaSleeve
 from spa_core.strategy_lab.strategies.variant_d import VariantD
@@ -168,6 +169,19 @@ class PaperService:
         rs = RwaSleeve()
         rs.init(float(rwa_block["capital_usd"]), dict(rwa_block))
         out[rs.id] = rs
+
+        # Advisory 8-12% research-candidate sleeves (PT-sUSDe/PT-USDe/Maple/Centrifuge): forward
+        # ADVISORY paper tracks at a COMMITTED SOURCED offline rate — no capital, no go-live-track
+        # touch, no live feed. Their full DD lives in data/strategy_candidates/*.candidate.md.
+        for sid in ("pt_susde", "pt_usde", "maple_syrup", "centrifuge_drop"):
+            blk = strategies_cfg.get(sid)
+            if not blk:
+                continue
+            sv = AdvisoryYieldSleeve(
+                sid, blk["name"], blk.get("tier", "T2"), blk.get("mandate", "stable")
+            )
+            sv.init(float(blk["capital_usd"]), dict(blk))
+            out[sv.id] = sv
         return out
 
     # ── persistence paths ─────────────────────────────────────────────────────────────────

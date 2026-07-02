@@ -51,6 +51,7 @@ from spa_core.strategy_lab import config as lab_config
 from spa_core.strategy_lab.base import MarketSnapshot, Strategy, StrategyMetrics
 from spa_core.strategy_lab.data.market_data import MarketData
 from spa_core.strategy_lab.metrics import compute_metrics
+from spa_core.strategy_lab.strategies.advisory_yield_sleeve import AdvisoryYieldSleeve
 from spa_core.strategy_lab.strategies.baselines import build_baselines
 from spa_core.strategy_lab.strategies.btc_lending_sleeve import BtcLendingSleeve
 from spa_core.strategy_lab.strategies.btc_neutral import BtcNeutral
@@ -165,6 +166,15 @@ def build_strategy_set(cfg: dict, initial_capital: float) -> Dict[str, Strategy]
     rs = RwaSleeve()
     rs.init(initial_capital, strategies_cfg["rwa_sleeve"])
     out["rwa_sleeve"] = rs
+
+    # Advisory 8-12% research-candidate sleeves (offline sourced rate; advisory, NOT go-live).
+    for sid in ("pt_susde", "pt_usde", "maple_syrup", "centrifuge_drop"):
+        blk = strategies_cfg.get(sid)
+        if not blk:
+            continue
+        sv = AdvisoryYieldSleeve(sid, blk["name"], blk.get("tier", "T2"), blk.get("mandate", "stable"))
+        sv.init(initial_capital, dict(blk))
+        out[sid] = sv
     return out
 
 

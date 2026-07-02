@@ -95,6 +95,11 @@ _REQUIRED_STRATEGY: Dict[str, tuple] = {
     "engine_c": ("capital_usd",),
     "rwa_floor": ("capital_usd", "apy_pct"),
     "rwa_sleeve": ("capital_usd", "drawdown_stop_pct"),
+    # Advisory 8-12% research-candidate sleeves (offline sourced rate; NOT go-live).
+    "pt_susde": ("capital_usd", "apy_pct", "drawdown_stop_pct"),
+    "pt_usde": ("capital_usd", "apy_pct", "drawdown_stop_pct"),
+    "maple_syrup": ("capital_usd", "apy_pct", "drawdown_stop_pct"),
+    "centrifuge_drop": ("capital_usd", "apy_pct", "drawdown_stop_pct"),
 }
 
 

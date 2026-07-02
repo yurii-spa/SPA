@@ -64,6 +64,10 @@ VALID = {
         "engine_c": {"capital_usd": 10000},
         "rwa_floor": {"capital_usd": 100000, "apy_pct": 4.5},
         "rwa_sleeve": {"capital_usd": 100000, "drawdown_stop_pct": 1.0},
+        "pt_susde": {"capital_usd": 100000, "apy_pct": 11.2, "drawdown_stop_pct": 12.0},
+        "pt_usde": {"capital_usd": 100000, "apy_pct": 8.8, "drawdown_stop_pct": 12.0},
+        "maple_syrup": {"capital_usd": 100000, "apy_pct": 10.0, "drawdown_stop_pct": 12.0},
+        "centrifuge_drop": {"capital_usd": 100000, "apy_pct": 8.0, "drawdown_stop_pct": 12.0},
     },
 }
 
