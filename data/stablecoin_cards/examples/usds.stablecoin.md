@@ -20,8 +20,8 @@
 ## Liquidity & market structure (never presented without a last-verified date)
 - **liquidity_profile:** `Growing (inherits DAI liquidity via converter) — depth requires data verification`
 - **exchange_depth:** `TBD — requires data verification`
-- **market_cap:** `TBD — requires data verification`
-- **circulating_supply:** `TBD — requires data verification`
+- **market_cap:** `~$8.7–9B` — **verified 2026-07-02** (DeFiLlama; **3rd-largest stablecoin** after USDT/USDC; the DAI successor). sUSDS wrapper ~$6.12B staked; Sky Savings Rate ~3.75% APY (2026, gov-set). [L2]
+- **circulating_supply:** `~$8.7B` (Q1 2026); ~half staked into sUSDS
 - **top_holder_concentration:** `TBD — requires data verification`
 
 ## Peg & control risk
