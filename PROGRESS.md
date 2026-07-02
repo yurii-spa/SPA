@@ -91,6 +91,9 @@ origin); 00_index rewritten to true file set + documents the 03/04/05 charter-§
 
 - **Cycle 17 (A edge-hunt):** `data/strategy_candidates/ethena_susde.candidate.md` — Ethena sUSDe ~3.86% (TVL $4.45B) vs floor ~3.4%: spread only ~46bps (funding compressed, can flip negative). Verdict **WATCH -> lean-REFUSE at current spread** — funding-carry = UNBOUNDED risk-comp (funding-flip + CEX/OES-counterparty Copper/Ceffu/Cobo + reserve only 1.1% of supply + LRT peg). Sharp contrast: Aave = floor-parity THIN-tail (hold floor); sUSDe = floor-parity-ish FAT-tail (actively avoid at 46bps). Re-open only if funding widens + strict CEX cap. decision_index: 9 decisions.
 
+
+- **Cycle 18 (D hardening, integrity due):** GREEN — harness **109 passed**, origin==local (361 yield-lab files, 7 candidates, 0 missing), drift-scan clean (no dangling refs in decision_index, no bare verified-APY, all 7 candidates carry spread_over_floor_bps + a verdict; index 12 rows = 7 candidates + 5 SC-cards, consistent). Layer honest + synced after 17 cycles.
+
 ## OWNER DECISIONS
 - **OQ-1 — RESOLVED** (this session, `docs/adr/ADR-YL-008`): unified Yield Lab mandate — search for
   fundable 10–15%, but every point of spread over the **live** RWA floor must be explained by a specific
