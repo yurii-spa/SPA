@@ -19,8 +19,8 @@
 ## Liquidity & market structure (never presented without a last-verified date)
 - **liquidity_profile:** `Very deep on-chain + CEX (one of the two most-liquid stablecoins) — exact depth requires data verification`
 - **exchange_depth:** `TBD — requires data verification (source depth-for-exit-by-size)`
-- **market_cap:** `TBD — requires data verification`
-- **circulating_supply:** `TBD — requires data verification`
+- **market_cap:** `~$73.5–77B` — **verified 2026-07-02** (Circle transparency / DeFiLlama; 2nd-largest stablecoin). [L2]
+- **circulating_supply:** `~$73.5B across 30+ chains` (2026)
 - **top_holder_concentration:** `TBD — requires data verification`
 
 ## Peg & control risk
