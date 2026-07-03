@@ -173,7 +173,7 @@ class PaperService:
         # Advisory 8-12% research-candidate sleeves (PT-sUSDe/PT-USDe/Maple/Centrifuge): forward
         # ADVISORY paper tracks at a COMMITTED SOURCED offline rate — no capital, no go-live-track
         # touch, no live feed. Their full DD lives in data/strategy_candidates/*.candidate.md.
-        for sid in ("pt_susde", "pt_usde", "maple_syrup", "centrifuge_drop"):
+        for sid in ("pt_susde", "pt_usde", "maple_syrup", "centrifuge_drop", "fluid"):
             blk = strategies_cfg.get(sid)
             if not blk:
                 continue

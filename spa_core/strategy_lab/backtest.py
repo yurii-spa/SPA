@@ -168,7 +168,7 @@ def build_strategy_set(cfg: dict, initial_capital: float) -> Dict[str, Strategy]
     out["rwa_sleeve"] = rs
 
     # Advisory 8-12% research-candidate sleeves (offline sourced rate; advisory, NOT go-live).
-    for sid in ("pt_susde", "pt_usde", "maple_syrup", "centrifuge_drop"):
+    for sid in ("pt_susde", "pt_usde", "maple_syrup", "centrifuge_drop", "fluid"):
         blk = strategies_cfg.get(sid)
         if not blk:
             continue

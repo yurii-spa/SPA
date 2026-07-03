@@ -100,6 +100,7 @@ _REQUIRED_STRATEGY: Dict[str, tuple] = {
     "pt_usde": ("capital_usd", "apy_pct", "drawdown_stop_pct"),
     "maple_syrup": ("capital_usd", "apy_pct", "drawdown_stop_pct"),
     "centrifuge_drop": ("capital_usd", "apy_pct", "drawdown_stop_pct"),
+    "fluid": ("capital_usd", "apy_pct", "drawdown_stop_pct"),
 }
 
 

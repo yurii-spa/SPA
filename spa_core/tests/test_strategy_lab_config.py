@@ -68,6 +68,7 @@ VALID = {
         "pt_usde": {"capital_usd": 100000, "apy_pct": 8.8, "drawdown_stop_pct": 12.0},
         "maple_syrup": {"capital_usd": 100000, "apy_pct": 10.0, "drawdown_stop_pct": 12.0},
         "centrifuge_drop": {"capital_usd": 100000, "apy_pct": 8.0, "drawdown_stop_pct": 12.0},
+        "fluid": {"capital_usd": 100000, "apy_pct": 4.7, "drawdown_stop_pct": 12.0},
     },
 }
 

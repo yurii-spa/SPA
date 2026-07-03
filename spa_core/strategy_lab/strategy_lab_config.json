@@ -184,6 +184,19 @@
       "apy_as_of": "2026-07-02",
       "candidate_ref": "data/strategy_candidates/private_credit_senior.candidate.md",
       "drawdown_stop_pct": 12.0
+    },
+    "fluid": {
+      "name": "Fluid plain USDC/USDT supply (advisory ADVANCE candidate)",
+      "doc": "ADVISORY paper track for CAND-FLUID-001 (Fluid/Instadapp plain USDC/USDT supply lending ~4.3-5.5%, mid ~4.7%). Genuine BOUNDED non-Ethena organic lending with RARE DEEP capacity ($1.01B TVL); $FLUID emissions ending 30-Jun-2026 -> yield self-standing. NOT the leveraged smart-debt vaults (those refuse). Offline SOURCED rate, NOT a live feed nor realized yield. See data/strategy_candidates/aerodrome_fluid_yearn.candidate.md.",
+      "mandate": "stable",
+      "is_advisory": true,
+      "tier": "T2",
+      "capital_usd": 100000,
+      "apy_pct": 4.7,
+      "apy_source": "Fluid USDC/USDT supply APY ~4.3-5.5% organic (DeFiLlama yields 2026-07-03), mid ~4.7%",
+      "apy_as_of": "2026-07-03",
+      "candidate_ref": "data/strategy_candidates/aerodrome_fluid_yearn.candidate.md",
+      "drawdown_stop_pct": 12.0
     }
   },
   "capacity": {
@@ -243,6 +256,10 @@
     },
     "centrifuge_drop": {
       "market_tvl_usd": 500000000.0,
+      "max_pool_pct": 0.02
+    },
+    "fluid": {
+      "market_tvl_usd": 1010000000.0,
       "max_pool_pct": 0.02
     }
   }
