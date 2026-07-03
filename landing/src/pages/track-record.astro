@@ -179,6 +179,22 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
       </p>
     </section>
 
+    <!-- P2-7: Why positions don't move daily (low-turnover by design) -->
+    <section class="pb-10">
+      <div class="rounded-xl border border-border bg-bg-surface p-5">
+        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Почему позиции не меняются каждый день">Why positions don't move daily</p>
+        <p class="text-sm text-white/55 leading-relaxed max-w-2xl" data-ru="Это не застой. Дневной цикл ПРИНИМАЕТ решение каждый день — но чаще всего это осознанный HOLD: детерминированный RiskPolicy и аллокатор оставляют позиции, если целевая аллокация не сдвинулась за пороги (низкая оборачиваемость by design — меньше комиссий и slippage на стейбл-доходности). Каждое такое решение hold залогировано и хешировано в цепочке decision_log — можно проверить, что цикл реально отработал, а не завис.">
+          This is not staleness. The daily cycle makes a decision <strong class="text-white/80">every day</strong> —
+          but most days that decision is a deliberate <strong class="text-white/80">HOLD</strong>: the deterministic
+          RiskPolicy + allocator keep positions when the target allocation hasn't moved past its thresholds
+          (low turnover by design — fewer fees and less slippage on stablecoin yield). Every hold decision is
+          logged and hash-chained in <code class="text-data-teal">decision_log</code>, so you can verify the cycle
+          actually ran and chose to hold — not that it silently stalled.
+        </p>
+        <a href="/verify" class="inline-block mt-3 text-xs font-mono underline" style="color:var(--data-teal)" data-ru="Проверить цепочку решений →">Check the decision chain →</a>
+      </div>
+    </section>
+
     <!-- Proof of Reserves -->
     <section class="py-10 border-t border-border">
       <div class="flex items-baseline justify-between mb-4 flex-wrap gap-2">
