@@ -18,6 +18,27 @@
 
 ---
 
+## 🛡️ Site Custodian — 2026-07-03 (ADR-YL-011)
+
+Autonomous guardian that the public site **never shows stale / divergent / overstated numbers** (precedent:
+24h of "10 days · ~4.5%" vs real "11 · 3.67%"). Four mechanisms — deterministic, kill-rules-as-code, logged:
+1. **Auto-deploy** — `scripts/deploy_site_snapshot.py` (Step 3 of `run_daily_paper_cycle.sh`): regen +
+   push `track_snapshot.json` if changed → `deploy-landing.yml` (landing/**). Fresh snapshot ⇒ fresh site ≤30 min.
+2. **Freshness monitor** — `scripts/site_freshness_monitor.py` + `.github/workflows/site_freshness.yml`
+   (every 6h): independent site↔snapshot↔API check (days/apy±0.05pp/equity/gates/last-bar), freshness ≤30h,
+   sitemap availability, verifier-pin, **OVERSTATED_METRIC** → `data/site_freshness_report.json` + Telegram alert.
+3. **Degraded kill-rule** — OVERSTATED or >48h-two-runs ⇒ `snap.degraded=true` → hero shows a "live data
+   temporarily unavailable" plaque instead of a wrong number (refusal-first); monitor clears on recovery.
+4. **Weekly content audit** — `scripts/site_content_audit.py` + workflow: metric divergence / stale dates>60d /
+   broken links / sitemap↔pages / redirect-shadowing → `data/site_audit_weekly.json`.
+
+**Invariants:** site never overstates; every number has an as-of; missing data shown explicitly. Full spec +
+thresholds + runbook: `docs/adr/ADR-YL-011-site-custodian.md`. New CI gates: `test_site_freshness_monitor`,
+`test_site_content_audit`. **Owner-gated:** add GitHub secrets `TELEGRAM_BOT_TOKEN_SPA` / `TELEGRAM_CHAT_ID_SPA`
+/ `GITHUB_PAT_SPA` for CI alerts + auto-degrade-push.
+
+---
+
 ## Session — 2026-06-23 (v12.83): agent_health → honest green
 
 Восстановлены сломанные launchd-агенты и доведён `agent_health` до честного зелёного
