@@ -1,0 +1,34 @@
+# Site Custodian block 4 (ADR-YL-011) — weekly content-consistency audit.
+# Reads the site SOURCE (no network): cross-page metric divergence, stale hardcoded dates (>60d),
+# broken internal links/anchors, sitemap<->pages mismatch, _redirects shadowing. Alerts on NEW fails.
+name: site-content-audit
+
+on:
+  schedule:
+    - cron: "30 7 * * 1"    # Mondays 07:30 UTC (weekly)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  content-audit:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run Site Custodian content audit
+        env:
+          TELEGRAM_BOT_TOKEN_SPA: ${{ secrets.TELEGRAM_BOT_TOKEN_SPA }}
+          TELEGRAM_CHAT_ID_SPA: ${{ secrets.TELEGRAM_CHAT_ID_SPA }}
+        run: |
+          python scripts/site_content_audit.py
+      - name: Upload weekly audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-audit-weekly
+          path: data/site_audit_weekly.json
+          if-no-files-found: ignore
