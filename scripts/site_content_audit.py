@@ -25,8 +25,10 @@ _ROOT = Path(__file__).resolve().parents[1]
 _PAGES = _ROOT / "landing" / "src" / "pages"
 _SITEMAP = _ROOT / "landing" / "public" / "sitemap.xml"
 _REPORT = _ROOT / "data" / "site_audit_weekly.json"
+_COMPONENTS = _ROOT / "landing" / "src" / "components"
 _KEY_PAGES = ("index", "track-record", "trust", "due-diligence", "methodology")
 _MAX_DATE_AGE_DAYS = 60
+_CANONICAL_CYCLE_HOUR = "08"   # daily_cycle plist Hour=8; /status + CLAUDE.md agree on 08:00 UTC
 
 # Routes that exist without a src/pages file (redirect targets / dynamic) — not "broken".
 _ALLOWED_EXTRA_ROUTES = {"/dashboard", "/strategies", "/"}
@@ -112,7 +114,39 @@ def check_sitemap_vs_pages(sitemap_path: Path, pages_dir: Path):
     return {"missing_from_sitemap": missing_from_sitemap, "sitemap_without_page": sitemap_without_page}
 
 
-def audit(pages_dir: Path = _PAGES, sitemap_path: Path = _SITEMAP, now: datetime.date | None = None):
+def check_narrative_constants(pages_dir: Path, components_dir: Path | None = _COMPONENTS):
+    """Catch narrative-constant drift (audit-re #4):
+      - cycle_time_wrong: any 'NN:00 UTC' daily-cycle reference whose hour isn't the canonical 08
+        (the plist/`/status` value) — a factual bug (the cycle runs at exactly one time).
+      - apy_constants: every hardcoded '~X.X%' APY-prose value across pages + components, mapped to the
+        files it appears in. Reported (not failed): these are legit approximations (e.g. the steady-book
+        '~4.5%', distinct from the live paper APY), surfaced so a human can spot one that has drifted
+        from the data-sourced value it claims to mirror.
+    """
+    files = list(pages_dir.rglob("*.astro"))
+    if components_dir and components_dir.exists():
+        files += list(components_dir.rglob("*.astro")) + list(components_dir.rglob("*.jsx"))
+    cycle_time_wrong, apy_constants = [], {}
+    for f in files:
+        try:
+            text = f.read_text()
+        except OSError:
+            continue
+        rel = str(f).split("/landing/", 1)[-1]
+        for m in re.finditer(r"\b(\d{2}):00 UTC\b", text):
+            # Only the DAILY cycle is pinned to 08:00; other agents legitimately run at other times
+            # (tournament_engine 09:00 UTC etc.). Flag a non-08:00 time only when 'daily' is in context.
+            window = text[max(0, m.start() - 45): m.end() + 45].lower()
+            if m.group(1) != _CANONICAL_CYCLE_HOUR and "daily" in window:
+                cycle_time_wrong.append({"file": rel, "found": m.group(0)})
+        for m in re.finditer(r"~(\d\.\d)\s?%", text):
+            apy_constants.setdefault(m.group(1), set()).add(rel)
+    return {"cycle_time_wrong": cycle_time_wrong,
+            "apy_constants": {k: sorted(v) for k, v in apy_constants.items()}}
+
+
+def audit(pages_dir: Path = _PAGES, sitemap_path: Path = _SITEMAP, now: datetime.date | None = None,
+          components_dir: Path | None = _COMPONENTS):
     now = now or datetime.datetime.now(datetime.timezone.utc).date()
     fails = []
     div = check_metric_divergence(pages_dir)
@@ -136,11 +170,15 @@ def audit(pages_dir: Path = _PAGES, sitemap_path: Path = _SITEMAP, now: datetime
             fails.append({"code": "REDIRECT_SHADOWING", "detail": "see check_redirect_shadowing output"})
     except Exception:
         pass
+    narr = check_narrative_constants(pages_dir, components_dir=components_dir)
+    if narr["cycle_time_wrong"]:
+        fails.append({"code": "NARRATIVE_CYCLE_TIME", "detail": narr["cycle_time_wrong"]})
     return {
         "ts": (now.isoformat()),
         "ok": not fails,
         "n_fails": len(fails),
         "fails": fails,
+        "narrative_apy_constants": narr["apy_constants"],   # informational — surfaced for human review
     }
 
 

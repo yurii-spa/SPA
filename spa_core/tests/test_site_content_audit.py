@@ -57,9 +57,28 @@ def test_sitemap_mismatch(tmp_path):
     assert "orphan" in res["missing_from_sitemap"]
 
 
+def test_narrative_cycle_time_wrong_flagged(tmp_path):
+    _mk(tmp_path, "status", "the daily cycle endpoint at 06:00 UTC")
+    r = aud.check_narrative_constants(tmp_path, components_dir=None)
+    assert any(c["found"] == "06:00 UTC" for c in r["cycle_time_wrong"])
+
+
+def test_narrative_cycle_time_canonical_ok(tmp_path):
+    _mk(tmp_path, "status", "canonical daily cycle 08:00 UTC")
+    r = aud.check_narrative_constants(tmp_path, components_dir=None)
+    assert r["cycle_time_wrong"] == []
+
+
+def test_narrative_apy_constants_collected(tmp_path):
+    _mk(tmp_path, "index", "the desk holds a steady ~4.5% book")
+    _mk(tmp_path, "trust", "floor ~3.4% benchmark")
+    r = aud.check_narrative_constants(tmp_path, components_dir=None)
+    assert "4.5" in r["apy_constants"] and "3.4" in r["apy_constants"]
+
+
 def test_audit_clean_fixture(tmp_path):
     _mk(tmp_path, "index", "welcome {snapDays}")
     sm = tmp_path / "sitemap.xml"
     sm.write_text('<urlset><url><loc>https://earn-defi.com/</loc></url></urlset>')
-    r = aud.audit(pages_dir=tmp_path, sitemap_path=sm, now=NOW)
+    r = aud.audit(pages_dir=tmp_path, sitemap_path=sm, now=NOW, components_dir=None)
     assert r["ok"] is True and r["n_fails"] == 0
