@@ -52,7 +52,7 @@ const realDays = snap.real_track_days != null ? snap.real_track_days : '—';  /
           <p class="text-sm text-white/70">GoLiveChecker</p>
           <p class="text-xs text-white/40" data-ru="Автоматические критерии готовности">Automated readiness criteria</p>
         </div>
-        <span class="text-sm font-mono text-ok" data-ru="27/29 пройдено (НЕ ГОТОВО)">27/29 passing (NOT READY)</span>
+        <span class="text-sm font-mono text-ok" data-ru={`${snap.gates_passed}/${snap.gates_total} пройдено (НЕ ГОТОВО)`}>{snap.gates_passed}/{snap.gates_total} passing (NOT READY)</span>
       </div>
     </section>
 
@@ -107,7 +107,7 @@ const realDays = snap.real_track_days != null ? snap.real_track_days : '—';  /
         </a>
         <a href="/#live-stats" class="rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-ok-border transition-colors group">
           <p class="text-sm font-semibold text-white/80 group-hover:text-white mb-1">GoLiveChecker</p>
-          <p class="text-xs text-white/40" data-ru="27/29 критериев пройдено (НЕ ГОТОВО) — готовность в реальном времени">27/29 criteria passing (NOT READY) — real-time readiness</p>
+          <p class="text-xs text-white/40" data-ru={`${snap.gates_passed}/${snap.gates_total} критериев пройдено (НЕ ГОТОВО) — готовность в реальном времени`}>{snap.gates_passed}/{snap.gates_total} criteria passing (NOT READY) — real-time readiness</p>
         </a>
       </div>
     </section>

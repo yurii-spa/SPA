@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
+import snap from '../data/track_snapshot.json';  // single-source the gate count (no hardcoded drift)
 
 // Canonical GoLive figures — mirror of data/golive_status.json (passed/total).
 // Live source: /api/v1/golive (pass_count/total). Keep in sync; do not hardcode a
@@ -415,8 +416,8 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
               stage: '04',
               state: 'Live Capital',
               stateRu: 'Живой капитал',
-              desc: 'Own capital only. Requires GoLiveChecker all 29 criteria pass (currently 27/29) + 7+ consecutive days READY + Owner manual review (ADR-002).',
-              descRu: 'Только собственный капитал. Требуется прохождение всех 29 критериев GoLiveChecker (сейчас 27/29) + 7+ последовательных дней READY + ручной обзор владельца (ADR-002).',
+              desc: `Own capital only. Requires GoLiveChecker all 29 criteria pass (currently ${snap.gates_passed}/${snap.gates_total}) + 7+ consecutive days READY + Owner manual review (ADR-002).`,
+              descRu: `Только собственный капитал. Требуется прохождение всех 29 критериев GoLiveChecker (сейчас ${snap.gates_passed}/${snap.gates_total}) + 7+ последовательных дней READY + ручной обзор владельца (ADR-002).`,
               color: 'border-accent-500/30',
             },
           ].map((gate) => (
