@@ -18,6 +18,19 @@
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import DashboardLive from '../components/DashboardLive.jsx';
+import snap from '../data/track_snapshot.json';
+// P1-6: seed the island headline (equity/APY/days) from the build-time snapshot so no-JS/crawlers see
+// real numbers; the live poll overrides them. _snapshot marks it non-live (phase stays 'connecting').
+const initialFacts = {
+  current_equity: snap.nav_usd ?? snap.end_equity ?? null,
+  apy_today_pct: snap.paper_apy_pct ?? null,
+  real_track_days: snap.real_track_days ?? null,
+  evidenced_anchor: snap.evidenced_anchor ?? null,
+  go_live_target: snap.go_live_target ?? null,
+  golive_passed: snap.gates_passed ?? null,
+  golive_total: snap.gates_total ?? null,
+  _snapshot: true,
+};
 ---
 
 <Layout
@@ -58,7 +71,7 @@ import DashboardLive from '../components/DashboardLive.jsx';
 
     <!-- The real-time island. client:load so it mounts + starts polling immediately. -->
     <section class="pb-16">
-      <DashboardLive client:load />
+      <DashboardLive client:load initialFacts={initialFacts} />
     </section>
 
   </main>

@@ -50,8 +50,8 @@ export const T = {
   },
   live: { en: 'Live', ru: 'Вживую' },
   offline: { en: 'Offline', ru: 'Офлайн' },
-  snapshot: { en: 'Live API offline', ru: 'Живой API недоступен' },
-  connecting: { en: 'Connecting…', ru: 'Подключение…' },
+  snapshot: { en: 'static snapshot — connecting to live…', ru: 'статичный снимок — подключение к live…' },
+  connecting: { en: 'static snapshot — connecting to live…', ru: 'статичный снимок — подключение к live…' },
   updated: { en: 'Updated', ru: 'Обновлено' },
   refresh: { en: 'Refresh', ru: 'Обновить' },
 
@@ -717,14 +717,14 @@ function sleeveDesc(id, lang) {
 }
 
 /* ─────────────────────────────────────────────────────── component ──────────────── */
-export default function DashboardLive() {
+export default function DashboardLive({ initialFacts = null }) {
   const lang = useLang();
   const tr = (k) => (T[k] ? T[k][lang] : k);
 
   const [tab, setTab] = useState('overview');
 
   /* overview state */
-  const [facts, setFacts] = useState(null);
+  const [facts, setFacts] = useState(initialFacts);  // P1-6: seeded from build-time snapshot so equity/APY/days render without JS; live poll overrides.
   const [fleet, setFleet] = useState(null);
   const [status, setStatus] = useState(null);
   const [golive, setGolive] = useState(null);

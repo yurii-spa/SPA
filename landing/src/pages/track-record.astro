@@ -19,6 +19,12 @@ const snapAsOf = snap.as_of || snap.generated_at || null;   // snapshot freshnes
 // P1-5: the CHART plots only evidenced + reconstructed bars (drops synthetic warmup/backfill) so there
 // is no cross-series seam. The full bar set (incl. warmup/backfill) stays in the ledger table + data.
 const chartPoints = bars.filter((b) => b.evidenced === true || b.source === 'reconstructed').map((b) => Number(b.equity)).filter((v) => isFinite(v));
+// P1-6: key metrics rendered STATICALLY from the snapshot so crawlers / no-JS see real numbers (not "—");
+// the JS island overrides them with live values from api.earn-defi.com.
+const eqTxt  = snap.end_equity != null ? '$' + Number(snap.end_equity).toLocaleString('en-US', { maximumFractionDigits: 0 }) : '—';
+const apyTxt = snap.paper_apy_pct != null ? '~' + Number(snap.paper_apy_pct).toFixed(1) + '%' : '—';
+const ddTxt  = snap.max_drawdown_pct != null ? Number(snap.max_drawdown_pct).toFixed(2) + '%' : '—';
+const navTxt = snap.nav_usd != null ? '$' + Number(snap.nav_usd).toLocaleString('en-US', { maximumFractionDigits: 0 }) : '—';
 
 // Per-bar source presentation tokens (Console palette). evidenced cycle bars are
 // the only ones that count toward go-live; everything else is shown but dimmed.
@@ -96,17 +102,17 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="rounded-xl border border-border bg-bg-surface p-5">
           <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Капитал">Equity</p>
-          <p class="text-2xl font-mono font-bold text-white" id="tr-equity">—</p>
+          <p class="text-2xl font-mono font-bold text-white" id="tr-equity">{eqTxt}</p>
           <p class="text-xs text-white/30 mt-1" data-ru="виртуальные $100k">virtual $100k base</p>
         </div>
         <div class="rounded-xl border border-border bg-bg-surface p-5">
           <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Бумажный APY">Paper APY</p>
-          <p class="text-2xl font-mono font-bold text-data-teal" id="tr-apy">—</p>
+          <p class="text-2xl font-mono font-bold text-data-teal" id="tr-apy">{apyTxt}</p>
           <p class="text-xs text-white/30 mt-1" data-ru="переменный · не гарантирован">variable · not guaranteed</p>
         </div>
         <div class="rounded-xl border border-border bg-bg-surface p-5">
           <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Макс. просадка">Max drawdown</p>
-          <p class="text-2xl font-mono font-bold text-white" id="tr-dd">—</p>
+          <p class="text-2xl font-mono font-bold text-white" id="tr-dd">{ddTxt}</p>
           <p class="text-xs text-white/30 mt-1" data-ru="с начала трека">since track start</p>
         </div>
         <div class="rounded-xl border border-teal-border bg-teal-bg p-5">
@@ -194,7 +200,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           </div>
           <div id="por-recon" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-bg-surface-2 border border-border-strong text-xs font-mono text-white/40 shrink-0">
             <span class="w-1.5 h-1.5 rounded-full bg-white/30" aria-hidden="true"></span>
-            <span data-ru="загрузка…">loading…</span>
+            <span data-ru="статичный снимок — подключение к live…">static snapshot — connecting to live…</span>
           </div>
         </div>
 
@@ -214,7 +220,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           </div>
           <div class="rounded-lg border border-teal-border bg-teal-bg p-4">
             <p class="text-xs text-data-teal uppercase tracking-wider font-mono mb-2" data-ru="NAV (= капитал)">NAV (= equity)</p>
-            <p class="text-xl font-mono font-bold text-data-teal" id="por-nav">—</p>
+            <p class="text-xl font-mono font-bold text-data-teal" id="por-nav">{navTxt}</p>
           </div>
         </div>
 
