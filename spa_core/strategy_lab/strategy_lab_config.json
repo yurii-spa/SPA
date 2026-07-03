@@ -161,7 +161,7 @@
     },
     "maple_syrup": {
       "name": "Maple syrupUSDC (advisory credit candidate)",
-      "doc": "ADVISORY paper track for CAND-SYRUP-001 (Maple syrupUSDC ~9-12%, mid ~10%). Bounded credit: overcollateralized 120-170% + qualified custody + ~3yr zero-loss; DD-gated (v1 lost $50M/2022). Offline SOURCED rate. See data/strategy_candidates/maple_syrupusdc.candidate.md.",
+      "doc": "ADVISORY paper track for CAND-SYRUP-001 (Maple syrupUSDC ~4.7% LIVE weighted APY; 9-12% is a separate higher-risk tier, NOT the headline). Bounded credit: overcollateralized 120-170% + qualified custody + ~3yr zero-loss; DD-gated (v1 lost $50M/2022). Offline SOURCED rate. See data/strategy_candidates/maple_syrupusdc.candidate.md.",
       "mandate": "stable",
       "is_advisory": true,
       "tier": "T2",
