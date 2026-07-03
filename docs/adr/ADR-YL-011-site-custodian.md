@@ -95,7 +95,7 @@ An autonomous, deterministic, kill-rules-as-code guardian (matching SPA's style)
 
 ## Owner-gated
 
-Add GitHub **secrets** `TELEGRAM_BOT_TOKEN_SPA`, `TELEGRAM_CHAT_ID_SPA`, `GITHUB_PAT_SPA` (the last so the
+Uses GitHub **secrets** `TELEGRAM_BOT_TOKEN_SPA`, `TELEGRAM_CHAT_ID_SPA` (set 2026-07-03) + the existing `SPA_PAT` mapped to env GITHUB_PAT_SPA (GitHub reserves the GITHUB_ prefix, so the
 freshness workflow can push the degrade/recover snapshot). Without them the monitor still runs + writes the
 report + fails the Action (GitHub-notification alert), but Telegram + auto-degrade-push are skipped.
 

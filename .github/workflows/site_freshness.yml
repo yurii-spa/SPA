@@ -29,7 +29,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN_SPA: ${{ secrets.TELEGRAM_BOT_TOKEN_SPA }}
           TELEGRAM_CHAT_ID_SPA: ${{ secrets.TELEGRAM_CHAT_ID_SPA }}
-          GITHUB_PAT_SPA: ${{ secrets.GITHUB_PAT_SPA }}
+          GITHUB_PAT_SPA: ${{ secrets.SPA_PAT }}
         run: |
           python scripts/site_freshness_monitor.py
       - name: Upload freshness report
