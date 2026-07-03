@@ -105,3 +105,8 @@ landing/node_modules/
 !data/red_team_reviews/**
 !data/strategy_candidates/
 !data/strategy_candidates/**
+
+# P2-8 audit hygiene: never track vendored deps or local Claude settings (search history / tokens)
+cabinet/node_modules/
+.claude/settings.local.json
+.claude/*.local.json

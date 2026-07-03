@@ -12,13 +12,13 @@
 
 ```bash
 # ПЛОХО — PAT в скрипте
-PAT="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+PAT="ghp_<REDACTED-EXAMPLE-revoked-2026-06-10>"
 python3 push_to_github.py --pat "$PAT" ...
 ```
 
 ```python
 # ПЛОХО — PAT в Python
-PAT = "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+PAT = "ghp_<REDACTED-EXAMPLE-revoked-2026-06-10>"
 headers = {"Authorization": f"token {PAT}"}
 ```
 
