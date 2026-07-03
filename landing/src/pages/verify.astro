@@ -206,6 +206,39 @@ python3 verify_spa.py data/</code></pre>
       </div>
     </section>
 
+    <!-- ==================================================== #8 EXTERNAL TIMESTAMP ANCHORING (OTS) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+         data-ru="Поверхность №8 — внешнее анкорование во времени">Surface #8 — external timestamp anchoring</p>
+      <h2 class="text-xl font-semibold mb-3" style="color:var(--text-primary)"
+          data-ru="Доказательство существования в Bitcoin (OpenTimestamps)">Proof-of-existence in Bitcoin (OpenTimestamps)</h2>
+      <p class="text-sm mb-5 leading-relaxed max-w-2xl" style="color:var(--text-secondary)"
+         data-ru="Хэш-цепочка доказывает целостность, но она самохостится — один оператор теоретически мог бы перегенерировать её задним числом. Чтобы закрыть это, мы ежедневно якорим head-хэш цепочки в Bitcoin через OpenTimestamps. Bitcoin — это внешние часы, которые мы не контролируем.">
+        The hash-chain proves integrity, but it is self-hosted — a single operator could in principle
+        regenerate it back-dated. To close that, we anchor the chain's head-hash into Bitcoin daily via
+        OpenTimestamps. Bitcoin is an external clock we do not control.
+      </p>
+      <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--border)">
+        <p class="text-[11px] uppercase tracking-wider font-mono mb-2" style="color:var(--text-faint)"
+           data-ru="Проверьте сами, своим клиентом">Check it yourself, with your own client</p>
+        <div class="rounded-lg p-4 overflow-x-auto" style="background:var(--bg-base);border:1px solid var(--border)">
+          <code class="text-xs sm:text-sm font-mono break-all" style="color:var(--text-secondary)">pip install opentimestamps-client &amp;&amp; ots verify proofs/ots/&lt;head&gt;.head.ots</code>
+        </div>
+        <p class="text-[11px] leading-relaxed mt-4" style="color:var(--text-muted)"
+           data-ru="Ваш собственный клиент OpenTimestamps подтвердит, что head-хэш существовал не позже времени конкретного блока Bitcoin — без нашего кода и без доверия к нам. verify_spa.py (поверхность [I]) отдельно подтверждает linkage: файл-дайджест точно воссоздаёт head-хэш цепочки.">
+          Your own OpenTimestamps client confirms the head-hash existed no later than a specific Bitcoin
+          block's time — without our code and without trusting us. <span class="font-mono">verify_spa.py</span>
+          (surface [I]) separately confirms the linkage: the digest file re-creates the chain head-hash exactly.
+        </p>
+        <p class="text-[11px] leading-relaxed mt-3" style="color:var(--accent-400)"
+           data-ru="Честная оговорка: OTS-проофы начинаются с даты внедрения (2026-07-03) — историю до этого Bitcoin-анкор не покрывает. Немедленный retro-anchor сегодняшнего head'а доказывает лишь «всё, что существует сегодня, существовало не позже сегодня».">
+          Honest caveat: OTS proofs begin at the adoption date (2026-07-03) — history before that is not
+          Bitcoin-anchored. The immediate retro-anchor of today's head proves only "everything that exists
+          today existed no later than today."
+        </p>
+      </div>
+    </section>
+
     <!-- ============================================================= d. IN-BROWSER RE-HASH DEMO -->
     <section class="py-10 border-t" style="border-color:var(--border)">
       <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">

@@ -1573,6 +1573,59 @@ def _print_human(report: dict) -> None:
     print("=" * 78)
 
 
+
+def check_ots_anchors(paths):
+    """Surface [I] — EXTERNAL timestamp anchoring (OpenTimestamps/Bitcoin), additive & NON-FATAL.
+
+    Zero-dep here: this verifier confirms only the LINKAGE it can (each stamp's `<head>.head` digest
+    file re-creates EXACTLY its head_hash) and emits the precise ``ots verify`` command a skeptic runs
+    with their OWN opentimestamps client to confirm the Bitcoin proof. OTS proofs begin at the adoption
+    date; earlier history is not Bitcoin-anchored (honest scope). Absence is fine (not an error)."""
+    found = None
+    for p in paths:
+        base = Path(p)
+        base = base if base.is_dir() else base.parent
+        cur = base
+        for _ in range(7):
+            c = cur / "proofs" / "ots" / "ots_anchors.jsonl"
+            if c.exists():
+                found = c; break
+            if (cur / "ots_anchors.jsonl").exists():
+                found = cur / "ots_anchors.jsonl"; break
+            cur = cur.parent
+        if found:
+            break
+    if not found:
+        return {"present": False}
+    entries = []
+    for line in found.read_text().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            entries.append(json.loads(line))
+        except Exception:
+            continue
+    stamps = [e for e in entries if e.get("event") == "ots_stamp"]
+    otsdir = found.parent
+    ok = checked = 0
+    cmds = []
+    for e in stamps:
+        hh = e.get("head_hash") or ""
+        checked += 1
+        df = otsdir / f"{hh}.head"
+        if df.exists() and df.read_text().strip() == hh:
+            ok += 1
+        of = otsdir / f"{hh}.head.ots"
+        if of.exists():
+            cmds.append(f"ots verify {of}")
+    confirmed = sum(1 for e in entries
+                    if e.get("event") == "ots_upgrade" and e.get("status") == "confirmed")
+    return {"present": True, "ledger": str(found), "stamps": len(stamps),
+            "linkage_ok": ok, "linkage_checked": checked, "confirmed": confirmed,
+            "verify_cmds": cmds[:5]}
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(
         description="Standalone, zero-dependency verifier for SPA's public proof artifacts.")
@@ -1604,6 +1657,17 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
         _print_human(report)
+        _ots = check_ots_anchors(args.paths)
+        if _ots.get("present"):
+            print("-" * 78)
+            print(f"[I] external timestamp anchoring (OpenTimestamps/Bitcoin): stamps={_ots['stamps']}  "
+                  f"digest-linkage_ok={_ots['linkage_ok']}/{_ots['linkage_checked']}  "
+                  f"bitcoin_confirmed={_ots['confirmed']}")
+            print("    Linkage (digest re-creates the chain head) is checked zero-dep HERE; the BITCOIN")
+            print("    proof you check with YOUR OWN client (don't trust us) — install opentimestamps-client:")
+            for _c in _ots["verify_cmds"]:
+                print(f"      {_c}")
+            print("    Honest scope: OTS proofs start at the adoption date; earlier history isn't Bitcoin-anchored.")
     return 0 if report["ok"] else 1
 
 
