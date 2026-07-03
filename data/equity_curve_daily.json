@@ -1,16 +1,16 @@
 {
-  "generated_at": "2026-07-01T00:31:49.922357+00:00",
+  "generated_at": "2026-07-03T06:00:02.118049+00:00",
   "source": "cycle_runner",
   "execution_mode": "read_only_simulation",
   "is_demo": false,
   "summary": {
-    "num_days": 41,
-    "real_days": 9,
-    "evidenced_days": 9,
-    "num_snapshots": 41,
+    "num_days": 44,
+    "real_days": 12,
+    "evidenced_days": 12,
+    "num_snapshots": 44,
     "start_equity": 100000.0,
-    "end_equity": 100233.36,
-    "total_return_pct": 0.2334,
+    "end_equity": 100264.9,
+    "total_return_pct": 0.2649,
     "best_day": {
       "date": "2026-06-21",
       "daily_return_pct": 0.0159
@@ -21,15 +21,15 @@
     },
     "max_drawdown_pct": -0.2047,
     "real_start_equity": 100134.79,
-    "real_end_equity": 100233.36,
-    "real_total_return_pct": 0.0984,
+    "real_end_equity": 100264.9,
+    "real_total_return_pct": 0.1299,
     "real_max_drawdown_pct": 0.0,
-    "positive_days": 39,
+    "positive_days": 42,
     "negative_days": 0,
-    "daily_volatility_pct": 0.0024,
+    "daily_volatility_pct": 0.0023,
     "first_date": "2026-06-22",
     "first_real_date": "2026-06-22",
-    "last_date": "2026-06-30"
+    "last_date": "2026-07-03"
   },
   "daily": [
     {
@@ -554,7 +554,9 @@
         "maple": 12455.16
       },
       "source": "backfill",
-      "evidenced": false
+      "evidenced": false,
+      "series_reset": true,
+      "note": "series_reset: start of the backfill synthetic series \u2014 the equity step from the prior (warmup) series is a SERIES BOUNDARY, not a real daily loss (daily_return_pct=0.0 by construction; not evidenced, not counted)."
     },
     {
       "date": "2026-06-11",
@@ -934,7 +936,7 @@
         "euler_v2": 10568.18,
         "yearn_v3": 3170.45
       },
-      "note": "canonical production 06:00 UTC cycle endpoint; continuous track (06-21..06-24 reconstructed, no gap)",
+      "note": "canonical production 06:00 UTC cycle endpoint; continuous track (06-21 reconstructed (06-22..06-24 are real evidenced cycle bars), no gap)",
       "source": "cycle",
       "evidenced": true
     },
@@ -1071,6 +1073,84 @@
       "accrual_source": "fallback",
       "continuity_repaired": true,
       "note": "base re-chained off true prior evidenced close (stale-restore incident); real daily_yield preserved"
+    },
+    {
+      "date": "2026-07-01",
+      "open_equity": 100233.36,
+      "close_equity": 100245.65,
+      "high_equity": 100245.65,
+      "low_equity": 100233.36,
+      "snapshots": 1,
+      "daily_return_pct": 0.012263,
+      "cumulative_return_pct": 0.245652,
+      "drawdown_pct": 0.0,
+      "equity": 100245.65,
+      "apy_today": 4.4761,
+      "daily_yield_usd": 12.2919,
+      "positions": {
+        "aave_v3": 23250.0,
+        "compound_v3": 15852.27,
+        "spark_susds": 13738.64,
+        "morpho_steakhouse": 10568.18,
+        "maple": 15852.27,
+        "euler_v2": 10568.18,
+        "yearn_v3": 3170.45
+      },
+      "source": "cycle",
+      "evidenced": true,
+      "accrual_source": "fallback"
+    },
+    {
+      "date": "2026-07-02",
+      "open_equity": 100245.65,
+      "close_equity": 100255.73,
+      "high_equity": 100255.73,
+      "low_equity": 100245.65,
+      "snapshots": 1,
+      "daily_return_pct": 0.010055,
+      "cumulative_return_pct": 0.25573,
+      "drawdown_pct": 0.0,
+      "equity": 100255.73,
+      "apy_today": 3.6701,
+      "daily_yield_usd": 10.0798,
+      "positions": {
+        "aave_v3": 23250.0,
+        "compound_v3": 15852.27,
+        "spark_susds": 13738.64,
+        "morpho_steakhouse": 10568.18,
+        "maple": 15852.27,
+        "euler_v2": 10568.18,
+        "yearn_v3": 3170.45
+      },
+      "source": "cycle",
+      "evidenced": true,
+      "accrual_source": "fallback"
+    },
+    {
+      "date": "2026-07-03",
+      "open_equity": 100255.73,
+      "close_equity": 100264.9,
+      "high_equity": 100264.9,
+      "low_equity": 100255.73,
+      "snapshots": 1,
+      "daily_return_pct": 0.009146,
+      "cumulative_return_pct": 0.264899,
+      "drawdown_pct": 0.0,
+      "equity": 100264.9,
+      "apy_today": 3.3382,
+      "daily_yield_usd": 9.169,
+      "positions": {
+        "aave_v3": 23250.0,
+        "compound_v3": 15852.27,
+        "spark_susds": 13738.64,
+        "morpho_steakhouse": 10568.18,
+        "maple": 15852.27,
+        "euler_v2": 10568.18,
+        "yearn_v3": 3170.45
+      },
+      "source": "cycle",
+      "evidenced": true,
+      "accrual_source": "fallback"
     }
   ]
 }

@@ -53,7 +53,15 @@ def _load(path: Path) -> dict:
 
 
 def _max_drawdown_pct(bars: list):
-    """Worst peak-to-trough drawdown (%) over the given bars, or None if <2 have equity."""
+    """Worst drawdown (%) = min(per-bar drawdown_pct) over the given bars (P1-4 audit fix).
+
+    Uses each bar's own recorded ``drawdown_pct`` (the honest figure the cycle logged) rather than
+    re-deriving peak-to-trough from equity — the old re-derivation returned 0.0 while bars carried
+    drawdown_pct down to -0.026. Falls back to equity peak-to-trough only if no bar has drawdown_pct.
+    """
+    dds = [float(b.get("drawdown_pct")) for b in bars if b.get("drawdown_pct") is not None]
+    if dds:
+        return round(min(dds), 4)
     eqs = [float(b.get("equity")) for b in bars if b.get("equity") is not None]
     if len(eqs) < 2:
         return None
