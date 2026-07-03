@@ -16,10 +16,10 @@ for the reviewer-facing walkthrough.
 
 | Field | Value |
 |---|---|
-| **Version tag** | `verifier-v1.0` |
+| **Version tag** | `verifier-v1.1` |
 | **File** | `scripts/verify_spa.py` |
-| **SHA-256** | `0f8c270c8c1f0c59ffc7236b1e43c1cb2aa58329faf7839c1961ce83209f81da` |
-| **Size** | 68526 bytes · 1207 lines |
+| **SHA-256** | `bbc4853a33b0e92c52dd8d408d6572f01b5184989ce291a00b2268a6acd67cbb` |
+| **Size** | 94634 bytes · 1675 lines |
 | **Spec version** | PROOF_CHAIN_SPEC `1.0` |
 | **Scope** | decision chain (A) · exit-NAV proofs (B) · anchors (C) · equity track (D) · tournament ranking chain (E) · RWA-backstop NAV proof (F) · sleeve forward-series proofs (G) |
 
@@ -30,14 +30,14 @@ On macOS / Linux, after downloading `verify_spa.py`:
 ```bash
 shasum -a 256 verify_spa.py
 # must print:
-# 0f8c270c8c1f0c59ffc7236b1e43c1cb2aa58329faf7839c1961ce83209f81da  verify_spa.py
+# bbc4853a33b0e92c52dd8d408d6572f01b5184989ce291a00b2268a6acd67cbb  verify_spa.py
 ```
 
 or with the GNU coreutils tool:
 
 ```bash
 sha256sum verify_spa.py
-# 0f8c270c8c1f0c59ffc7236b1e43c1cb2aa58329faf7839c1961ce83209f81da  verify_spa.py
+# bbc4853a33b0e92c52dd8d408d6572f01b5184989ce291a00b2268a6acd67cbb  verify_spa.py
 ```
 
 If the digest does not match this manifest **byte-for-byte**, you do not have the
@@ -85,10 +85,10 @@ python3 verify_spa.py data/        # exit 0 = the live API's published heads rep
 
 These are intentionally **owner-gated** and are NOT performed by this manifest:
 
-1. **`git tag verifier-v1.0`** over the commit that contains this exact
+1. **`git tag verifier-v1.1`** over the commit that contains this exact
    `scripts/verify_spa.py`, then push the tag. A pushed git tag gives reviewers an
-   immutable, fetchable reference point (`git fetch --tags` → `git show verifier-v1.0`).
-2. **GPG-sign** the tag (`git tag -s verifier-v1.0`) and/or publish a detached
+   immutable, fetchable reference point (`git fetch --tags` → `git show verifier-v1.1`).
+2. **GPG-sign** the tag (`git tag -s verifier-v1.1`) and/or publish a detached
    signature of the SHA-256 with the project's published GPG key. *Only this* upgrades the
    digest from "identity" to "authenticated provenance." It requires the owner's private
    key and is therefore out of scope for an automated change.
@@ -115,9 +115,19 @@ distinct verifier byte-image gets its own version.
 
 | Version | SHA-256 | Date | Note |
 |---|---|---|---|
-| `verifier-v1.0` | `0f8c270c8c1f0c59ffc7236b1e43c1cb2aa58329faf7839c1961ce83209f81da` | 2026-06-28 | Pinned release (68526 bytes · 1207 lines). Verifies surfaces A–G — decision chain + exit-NAV + anchors + equity track + tournament ranking chain + RWA-backstop NAV proof + sleeve forward-series proofs — per PROOF_CHAIN_SPEC v1.0. Reproducible end-to-end from the live `/api/rates-desk/full-chain/*` download endpoints. |
+| `verifier-v1.1` | `bbc4853a33b0e92c52dd8d408d6572f01b5184989ce291a00b2268a6acd67cbb` | 2026-06-28 | Pinned release (68526 bytes · 1207 lines). Verifies surfaces A–G — decision chain + exit-NAV + anchors + equity track + tournament ranking chain + RWA-backstop NAV proof + sleeve forward-series proofs — per PROOF_CHAIN_SPEC v1.0. Reproducible end-to-end from the live `/api/rates-desk/full-chain/*` download endpoints. |
 
 ---
 
 *Referenced from `/verify`, `docs/DD_PACK.md`, and `/track-record`. Recipe:
 `docs/PROOF_CHAIN_SPEC.md`. stdlib-only · deterministic · fail-CLOSED.*
+
+---
+
+## Changelog
+
+- **verifier-v1.1** (2026-07-03) — re-pin after the verifier gained surface **[I]** external
+  timestamp anchoring (OpenTimestamps/Bitcoin) + the earlier surface additions; the v1.0 pin
+  (`0f8c270c8c1f0c59…`) no longer matched the shipped `scripts/verify_spa.py`. New SHA-256 `bbc4853a33b0e92c…`.
+  The v1.0 tag was never pushed; v1.1 is the first real tag.
+- **verifier-v1.0** (initial) — first published manifest (tag never pushed; superseded by v1.1).
