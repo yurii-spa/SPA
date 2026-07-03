@@ -16,6 +16,9 @@ const gatesPassed = snap.gates_passed != null ? snap.gates_passed : '—';
 const gatesTotal = snap.gates_total != null ? snap.gates_total : '—';
 const bars = snap.bars ?? [];
 const snapAsOf = snap.as_of || snap.generated_at || null;   // snapshot freshness for the "as of <date>" label
+// P1-5: the CHART plots only evidenced + reconstructed bars (drops synthetic warmup/backfill) so there
+// is no cross-series seam. The full bar set (incl. warmup/backfill) stays in the ledger table + data.
+const chartPoints = bars.filter((b) => b.evidenced === true || b.source === 'reconstructed').map((b) => Number(b.equity)).filter((v) => isFinite(v));
 
 // Per-bar source presentation tokens (Console palette). evidenced cycle bars are
 // the only ones that count toward go-live; everything else is shown but dimmed.
@@ -123,7 +126,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         </p>
       </div>
       <div class="rounded-xl border border-border-strong bg-bg-surface p-5">
-        <svg id="tr-spark" viewBox="0 0 800 200" preserveAspectRatio="none" class="w-full h-48" role="img" aria-label="Paper equity curve"></svg>
+        <svg id="tr-spark" viewBox="0 0 800 200" preserveAspectRatio="none" class="w-full h-48" role="img" aria-label="Paper equity curve" data-points={JSON.stringify(chartPoints)}></svg>
         <p class="text-xs text-white/30 mt-3 text-center" id="tr-spark-note" data-ru="Кривая загружается из живого фида доказательств. При офлайне показывается последний статический снимок.">
           Curve loads from the live evidence feed. When offline, the last static snapshot is shown.
         </p>
@@ -163,10 +166,10 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-warn" aria-hidden="true"></span><span data-ru="реконструкция · помечена">reconstructed · flagged</span></span>
         <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-white/30" aria-hidden="true"></span><span data-ru="бэкфилл/прогрев · не считается">backfill/warmup · not counted</span></span>
       </div>
-      <p class="text-[11px] text-white/35 leading-relaxed mt-3 max-w-2xl" data-ru="Заметили разрыв эквити между сегментами прогрева и бэкфилла? Это ожидаемо: прогрев и бэкфилл — независимые синтетические серии, не входящие в подтверждённый трек. Только бары «цикл» (с реального якоря) непрерывны и засчитываются.">
-        You may see an equity jump between the warmup and backfill segments. That is expected — warmup
-        and backfill are independent synthetic series that are not part of the evidenced track; only the
-        <span class="text-data-teal">cycle</span> bars (from the real anchor onward) are continuous and counted.
+      <p class="text-[11px] text-white/35 leading-relaxed mt-3 max-w-2xl" data-ru="График показывает только подтверждённые и реконструированные бары (с 2026-06-21), поэтому шва нет. Синтетические серии прогрева и бэкфилла (до 06-21) — независимые, не входят в подтверждённый трек; они остаются в реестре ниже и в скачиваемых данных, но не на кривой.">
+        The chart plots only evidenced and reconstructed bars (from 2026-06-21 onward), so there is no seam.
+        The synthetic warmup and backfill series (before 06-21) are independent, not part of the evidenced
+        track; they remain in the ledger below and the downloadable data, but not on the curve.
       </p>
     </section>
 
@@ -517,7 +520,11 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           var data = resp && (resp.data || resp);
           var daily = (data && data.daily) || (Array.isArray(data) ? data : null);
           if(!daily || !daily.length) return;
-          var pts = daily.map(function(row){
+          // P1-5: chart only evidenced + reconstructed rows (no synthetic warmup/backfill seam). If the
+          // feed carries no source/evidenced flags, fall back to the whole series.
+          var chartRows = daily.filter(function(r){ return r && (r.evidenced === true || r.source === 'reconstructed'); });
+          if(!chartRows.length){ chartRows = daily; }
+          var pts = chartRows.map(function(row){
             return row.close_equity != null ? row.close_equity
                  : row.equity != null ? row.equity
                  : row.nav != null ? row.nav : null;
@@ -569,7 +576,13 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         }).catch(function(){});
       }
 
-      function init(){ loadHealth(); loadGoLive(); loadReadiness(); loadFacts(); loadEvidence(); loadNav(); }
+      // P1-5/P1-6: draw the build-time filtered (evidenced+reconstructed) curve immediately so the chart
+      // is seam-free and visible before the live feed answers; live then overrides it.
+      function drawStaticSpark(){
+        var svg = document.getElementById('tr-spark'); if(!svg) return;
+        try { var p = JSON.parse(svg.getAttribute('data-points') || '[]'); if(p.length >= 2){ drawSpark(p); } } catch(e){}
+      }
+      function init(){ drawStaticSpark(); loadHealth(); loadGoLive(); loadReadiness(); loadFacts(); loadEvidence(); loadNav(); }
       if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
       else { init(); }
     })();

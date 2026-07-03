@@ -20,7 +20,10 @@ const snapDd = snap.max_drawdown_pct != null ? Number(snap.max_drawdown_pct).toF
 // Snapshot freshness label ("as of <date>") — the JS island flips it to live when the API answers.
 const snapAsOf = snap.as_of || snap.generated_at || null;
 // Equity series for the offline spark fallback (build-time, last snapshot).
-const snapEquity = snapBars.map((b) => Number(b.equity)).filter((v) => isFinite(v));
+// P1-5: chart plots ONLY evidenced + reconstructed bars — drops the synthetic warmup/backfill series
+// so there is no cross-series seam (the −$205 06-09/06-10 jump). Those bars stay in the downloadable
+// data + the /track-record ledger table, just not on the curve.
+const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === 'reconstructed').map((b) => Number(b.equity)).filter((v) => isFinite(v));
 ---
 
 <Layout
