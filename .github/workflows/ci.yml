@@ -89,6 +89,9 @@ jobs:
         env:
           SPA_ENV: ci
 
+      - name: Site redirect-shadowing guard (no _redirects rule may shadow a real page)
+        run: python3 scripts/check_redirect_shadowing.py
+
       - name: Tier-1 module smoke
         run: |
           python3 -c "import spa_core.backtesting.tier1.evaluator, spa_core.backtesting.tier1.gate, spa_core.backtesting.tier1.nav_proof, spa_core.governance.policy, spa_core.governance.ssot, spa_core.execution.readiness_audit, spa_core.audit.hash_chain"
