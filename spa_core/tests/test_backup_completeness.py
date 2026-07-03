@@ -296,6 +296,10 @@ def test_drill_detects_and_refuses_corrupt_proof_chain(tmp_path, monkeypatch):
     backups.mkdir(parents=True)
     _seed_data(data)
     _seed_proof_chain(data)
+    # hermetic: keep the drill's status write inside the tmp data/ — never clobber the live
+    # data/restore_drill_status.json (it feeds the R8 resilience rollup; a test-artifact there
+    # flips resilience OK->WARNING on fake evidence).
+    monkeypatch.setattr(drill, "_STATUS_PATH", str(data / "restore_drill_status.json"))
 
     db = _load_daily_backup_module()
     monkeypatch.setattr(db, "_DATA", str(data))
