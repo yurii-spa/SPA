@@ -109,13 +109,9 @@ def test_twitter_card(layout_src):
 # ── 7. Favicon ──────────────────────────────────────────────────────────────
 
 def test_favicon_svg(layout_src):
-    """SVG favicon link is present."""
+    """SVG favicon link is present (SVG-only by design; the /favicon.png fallback was dropped
+    2026-07-03 — it 404'd and modern browsers use the SVG. See audit-2 Fix #5)."""
     assert 'href="/favicon.svg"' in layout_src
-
-
-def test_favicon_png(layout_src):
-    """PNG favicon link is present."""
-    assert 'href="/favicon.png"' in layout_src
 
 
 # ── 8. Schema.org ───────────────────────────────────────────────────────────

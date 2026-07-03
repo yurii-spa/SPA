@@ -19,6 +19,9 @@ name: SPA Proof Gate
 # Target: < 3 minutes. The full 100k-test suite stays in ci.yml.
 
 on:
+  push:
+    branches: [main]   # SPA pushes direct-to-main via API (no PRs) — without this the flagship
+                       # proof gate never ran (CI-1). Now verify_spa.py fires on the real push path.
   pull_request:
     branches: [main]
   workflow_dispatch:
