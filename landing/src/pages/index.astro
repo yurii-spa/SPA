@@ -396,6 +396,9 @@ const snapEquity = snapBars.map((b) => Number(b.equity)).filter((v) => isFinite(
         setText('m-days', day);
         setText('sl-gates', gates);
         setText('m-gates', gates);
+        // P0-2: the API answered → flip the "as of <date>" static-snapshot label to live.
+        var ru = (document.documentElement.getAttribute('data-lang') === 'ru' || document.documentElement.lang === 'ru');
+        setText('sl-asof', ru ? 'вживую' : 'live');
       }).catch(function(){});
     }
 
