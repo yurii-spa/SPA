@@ -19,6 +19,9 @@ const snapApy = snap.paper_apy_pct != null ? '~' + Number(snap.paper_apy_pct).to
 const snapDd = snap.max_drawdown_pct != null ? Number(snap.max_drawdown_pct).toFixed(2) + '%' : '—';
 // Snapshot freshness label ("as of <date>") — the JS island flips it to live when the API answers.
 const snapAsOf = snap.as_of || snap.generated_at || null;
+// Site-Custodian kill-rule (ADR-YL-011): when degraded, show a plaque instead of a possibly-wrong number
+// (refusal-first — honest absence beats a false figure).
+const degraded = snap.degraded === true;
 // Equity series for the offline spark fallback (build-time, last snapshot).
 // P1-5: chart plots ONLY evidenced + reconstructed bars — drops the synthetic warmup/backfill series
 // so there is no cross-series seam (the −$205 06-09/06-10 jump). Those bars stay in the downloadable
@@ -42,6 +45,13 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         A deterministic, LLM-free DeFi yield optimizer. Every decision is policy, not a model —
         reproducible, logged, and publicly verifiable.
       </p>
+      {degraded && (
+      <div class="status-line" aria-live="polite" style="color:var(--warn,#eab308)">
+        <span class="dot" aria-hidden="true"></span>
+        <span class="seg" data-ru="живые данные временно недоступны — сырые цепочки на api.earn-defi.com">live data temporarily unavailable — see the raw chain at api.earn-defi.com</span>
+      </div>
+      )}
+      {!degraded && (
       <div class="status-line" id="statusLine" aria-live="polite">
         <span class="dot" aria-hidden="true"></span>
         <span class="seg" data-ru="режим бумаги">paper mode</span>
@@ -50,6 +60,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         <span class="div">·</span><span class="num" id="sl-gates">{snapGates}</span>&nbsp;<span data-ru="критериев">criteria</span>
         {snapAsOf && <span class="div">·</span>}{snapAsOf && <span class="seg" id="sl-asof" style="opacity:.6" data-ru={`на ${snapAsOf}`}>as of {snapAsOf}</span>}
       </div>
+      )}
 
       <!-- Journey chooser — pick a lens instead of a duplicated single CTA. -->
       <div class="journey" role="group" aria-label="Choose your path">

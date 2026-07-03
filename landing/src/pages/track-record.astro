@@ -25,6 +25,8 @@ const eqTxt  = snap.end_equity != null ? '$' + Number(snap.end_equity).toLocaleS
 const apyTxt = snap.paper_apy_pct != null ? '~' + Number(snap.paper_apy_pct).toFixed(1) + '%' : '—';
 const ddTxt  = snap.max_drawdown_pct != null ? Number(snap.max_drawdown_pct).toFixed(2) + '%' : '—';
 const navTxt = snap.nav_usd != null ? '$' + Number(snap.nav_usd).toLocaleString('en-US', { maximumFractionDigits: 0 }) : '—';
+// Site-Custodian kill-rule (ADR-YL-011): degraded => show a plaque instead of numbers (refusal-first).
+const degraded = snap.degraded === true;
 
 // Per-bar source presentation tokens (Console palette). evidenced cycle bars are
 // the only ones that count toward go-live; everything else is shown but dimmed.
@@ -99,6 +101,12 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
 
     <!-- Live metric strip -->
     <section class="pb-10">
+      {degraded && (
+      <div class="rounded-xl border p-5" style="border-color:var(--warn,#eab308);background:rgba(234,179,8,.08)">
+        <p class="text-sm font-mono leading-relaxed" style="color:var(--warn,#eab308)" data-ru="Живые данные временно недоступны — сверьтесь с сырой цепочкой на api.earn-defi.com. Мы предпочитаем честно скрыть цифру, чем показать неверную (refusal-first).">live data temporarily unavailable — verify against the raw chain at api.earn-defi.com. We hide the number rather than show a wrong one (refusal-first).</p>
+      </div>
+      )}
+      {!degraded && (
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="rounded-xl border border-border bg-bg-surface p-5">
           <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Капитал">Equity</p>
@@ -121,6 +129,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           <p class="text-xs text-white/30 mt-1" data-ru="только дни с логом цикла">cycle-logged days only</p>
         </div>
       </div>
+      )}
     </section>
 
     <!-- Equity curve -->

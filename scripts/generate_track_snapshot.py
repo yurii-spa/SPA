@@ -118,6 +118,10 @@ def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_p
         ),
         "as_of": as_of,
         "generated_at": generated_at,
+        # Site-Custodian kill-rule flag (ADR-YL-011). A routine regen PRESERVES it (carry-forward) so a
+        # degraded site stays degraded through rebuilds; only the freshness monitor SETS it (on
+        # OVERSTATED/stale) and CLEARS it (on a passing re-check). Default False on first generation.
+        "degraded": bool(_load(OUT).get("degraded", False)),
         "real_track_days": real_days,
         "go_live_target": golive.get("target_date") or golive.get("go_live_target") or "2026-07-21",
         "evidenced_anchor": golive.get("evidenced_anchor") or "2026-06-22",

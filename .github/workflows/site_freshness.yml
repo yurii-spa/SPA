@@ -1,0 +1,41 @@
+# Site Custodian block 2 (ADR-YL-011) — independent freshness/consistency monitor.
+# Runs OUTSIDE the deploy pipeline every 6h: fetches the live site + live API + repo snapshot and
+# asserts the triple agrees, is fresh (<=30h), is available, and never OVERSTATES a metric. Any FAIL
+# alerts via Telegram (secrets) AND turns this job red (a second, built-in alert channel). The kill-rule
+# (OVERSTATED, or staleness>48h two runs) flips the site to degraded — that push needs the PAT secret.
+name: site-freshness
+
+on:
+  schedule:
+    - cron: "15 */6 * * *"   # every 6 hours
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-freshness
+  cancel-in-progress: false
+
+jobs:
+  freshness:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run Site Custodian freshness monitor
+        env:
+          TELEGRAM_BOT_TOKEN_SPA: ${{ secrets.TELEGRAM_BOT_TOKEN_SPA }}
+          TELEGRAM_CHAT_ID_SPA: ${{ secrets.TELEGRAM_CHAT_ID_SPA }}
+          GITHUB_PAT_SPA: ${{ secrets.GITHUB_PAT_SPA }}
+        run: |
+          python scripts/site_freshness_monitor.py
+      - name: Upload freshness report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-freshness-report
+          path: data/site_freshness_report.json
+          if-no-files-found: ignore
