@@ -54,5 +54,11 @@ print(CPACycleWithEvidence(base_dir='.').run())
 " >> "$LOG_FILE" 2>&1 \
   || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] evidence report failed (non-fatal)" >> "$LOG_FILE"
 
+# ── Step 3: Site Custodian auto-deploy (ADR-YL-011) — regenerate the public track_snapshot from the
+# fresh golive/equity state and push it if changed, triggering deploy-landing.yml (landing/** trigger).
+# Non-fatal: a deploy hiccup must never fail the cycle. Result: fresh snapshot -> fresh site, <=30 min lag.
+"$PYTHON" scripts/deploy_site_snapshot.py >> "$LOG_FILE" 2>&1 \
+  || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] site snapshot deploy failed (non-fatal)" >> "$LOG_FILE"
+
 echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Cycle completed (cycle_runner exit $CYCLE_EXIT)" | tee -a "$LOG_FILE"
 exit $CYCLE_EXIT
