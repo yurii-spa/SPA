@@ -28,7 +28,9 @@ _REPORT = _ROOT / "data" / "site_audit_weekly.json"
 _COMPONENTS = _ROOT / "landing" / "src" / "components"
 _KEY_PAGES = ("index", "track-record", "trust", "due-diligence", "methodology")
 _MAX_DATE_AGE_DAYS = 60
-_CANONICAL_CYCLE_HOUR = "08"   # daily_cycle plist Hour=8; /status + CLAUDE.md agree on 08:00 UTC
+_CANONICAL_UTC_HOURS = ("08", "09")   # 08:00 = daily paper cycle (plist Hour=8, /status, CLAUDE.md);
+                                       # 09:00 = tournament_engine daily run. Any other NN:00 UTC on the
+                                       # site is unexplained drift (e.g. the stale 06:00 note fixed here).
 
 # Routes that exist without a src/pages file (redirect targets / dynamic) — not "broken".
 _ALLOWED_EXTRA_ROUTES = {"/dashboard", "/strategies", "/"}
@@ -134,10 +136,9 @@ def check_narrative_constants(pages_dir: Path, components_dir: Path | None = _CO
             continue
         rel = str(f).split("/landing/", 1)[-1]
         for m in re.finditer(r"\b(\d{2}):00 UTC\b", text):
-            # Only the DAILY cycle is pinned to 08:00; other agents legitimately run at other times
-            # (tournament_engine 09:00 UTC etc.). Flag a non-08:00 time only when 'daily' is in context.
-            window = text[max(0, m.start() - 45): m.end() + 45].lower()
-            if m.group(1) != _CANONICAL_CYCLE_HOUR and "daily" in window:
+            # Whitelist the two legit on-the-hour UTC times (08 paper cycle, 09 tournament); any other
+            # NN:00 UTC is unexplained drift and gets flagged (health monitors run at :30, not :00).
+            if m.group(1) not in _CANONICAL_UTC_HOURS:
                 cycle_time_wrong.append({"file": rel, "found": m.group(0)})
         for m in re.finditer(r"~(\d\.\d)\s?%", text):
             apy_constants.setdefault(m.group(1), set()).add(rel)
