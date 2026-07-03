@@ -85,6 +85,7 @@ Baseline: the RWA floor itself (rwa_sleeve) is spread ≈ 0 by construction — 
 | **NO-EDGE** | `gov_tbill_at_floor` | gov-T-bill tokenized product earns the floor rate itself → cash-floor realizer, not a spread | BUIDL, BENJI, OUSG, JPM MONY, USYC |
 | **REFUSE** | `tail_comp_deposit_spread` | the nominal spread is uninsured bank-deposit credit (tail-comp), not a bounded edge | Ondo USDY (+120bps = deposit leg) |
 | **REFUSE** | `funding_dependent_basis_carry` | crypto cash-and-carry basis, funding-dependent/unbounded (often sub-floor when carry compresses) | Bitwise USCC (2.60%<floor) |
+| **WATCH** | `single_originator_concentration` | real bounded structure but the credit book is ~concentrated in ONE off-chain originator with unpublished buffer depth | Huma (Arf 98%, first-loss per-pool-unpublished) |
 | **NO-EDGE** | `no_edge_floor_parity` | safest lending ≈ the floor; hold the floor | Aave V3 USDC (~5 bps) |
 | **BASELINE** | `is_the_floor` | the yardstick (spread ≈ 0) | rwa_sleeve |
 

@@ -12,3 +12,13 @@
 - **bottom line:** **Maple High Yield Secured remains the sole standout non-Ethena publicly-underwritable credit rung** (its buffer AND recourse clear; only concentration-% pending on-chain pull). Huma = the one WATCH to revisit if points burn off + originator data surfaces.
 
 *sources: DeFiLlama /protocol/{clearpool,truefi,goldfinch,superstate-ustb,huma}, Huma docs (tranches/first-loss), GIP-87 gov, TrueFi 2022 default coverage — 2026-07-03, L2-L6. Live per-pool APY + forward = requires verification.*
+
+## Huma DEEP DD (2026-07-03) — stays WATCH (binding numbers not public)
+Deepened the one WATCH closest to ADVANCE. Points-contamination RESOLVED for measurement: Classic mode = real points-stripped **~8-10.5% USDC** organic (PST ~8% live June-2026), **+4.6-7.1pp over floor** — materially positive. BUT ADVANCE stays blocked on two NON-PUBLIC binding numbers + a structural concentration:
+- **(a) first-loss buffer DEPTH % for the specific $183M Huma-2.0 Solana permissionless pool** — docs punt to "per-pool config"; the 2-10% first-loss / junior≥20% figures are **Institutional-scoped, NOT confirmed for the permissionless pool**; whether retail Classic sits senior vs blended = unstated → NOT on-chain-verifiable for the actual pool.
+- **(b) independent realized-loss series** — only a self-reported 0%-default (L1) over ~$2.3-2.5B; not on-chain-auditable.
+- **(c) 98% single-originator concentration (Arf**, merged 2024; borrowers = licensed FIs, 1-5d cross-border USDC working-capital) + receivable underwriting OFF-CHAIN ("privacy-preserving" payment orders) → structural WATCH independent of any number. Plus V1-Polygon exploit ~$101k (2026-05-11, deprecated BaseCreditPool, fees-only, Solana/PST unaffected — hygiene flag).
+- **capacity:** $183M V2 (Solana, DeFiLlama), Arf ~$197M/mo throughput → $1M easy, $10M mechanically feasible but concentrates into single off-chain originator.
+- **verdict: STAY WATCH** — `offchain_originator_underwriting_unverified + first_loss_depth_not_published_permissionless + single_originator_concentration_98pct`. Narrow path: a **≤$100k token research-sleeve** on the organic Classic APY is defensible ONLY once (a)+(b) become verifiable; fundable allocation blocked until then. (Contrast Maple-HY: buffer on-chain-retrievable via PoR → soft-conditional; Huma's is per-pool-unpublished → harder hold.)
+
+*sources: Huma 2.0 blog/docs (Classic 10.5%/Maxi points, L2), Cryptobriefing (PST ~8%, Morpho $16M, June-2026), DeFiLlama huma-finance-v2 ($183M), Messari (Arf 98%/0%-default L1), Cryptonomist (V1 exploit L3) — 2026-07-03. Current-month Classic APY + pool first-loss depth = requires verification.*
