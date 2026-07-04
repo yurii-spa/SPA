@@ -14,11 +14,12 @@ INVARIANTS (do NOT weaken):
   - address comparisons are always lower-cased; log topics are bytes32-padded.
   - LLM FORBIDDEN in this module.
 
-Academy stage 6.
+Academy stage 6 (M0–M3); stage 7 (M4–M8 + gas accumulator).
 """
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -26,9 +27,13 @@ from typing import Optional
 
 from spa_core.academy.onchain import rpc
 from spa_core.academy.onchain.constants import (
+    AAVE_POOL_BASE,
     CHAIN_BASE,
     CHAIN_BASE_SEPOLIA,
+    TOPIC_APPROVAL,
+    TOPIC_SUPPLY,
     TOPIC_TRANSFER,
+    TOPIC_WITHDRAW,
     USDC_BASE,
 )
 
@@ -37,6 +42,10 @@ MIN_CONFIRMATIONS = 5
 # Advisory soft-cap: the course wallet limit is $150. A transfer above this is
 # still accepted (verified) but flagged so the UI can warn — never a hard reject.
 ADVISORY_USDC_CAP = 150_000_000  # 150 USDC at 6 decimals
+# Fixed ETH→USD rate for gas cost estimates. Deliberately NOT a live API call:
+# the gas figure is an educational "what you spent" estimate, not an execution
+# input, so a deterministic constant keeps verifiers pure and offline-testable.
+GAS_USD_RATE = 2500.0
 # Human map from chain id to the DB's ``chain`` column value.
 _CHAIN_NAME = {CHAIN_BASE: "base", CHAIN_BASE_SEPOLIA: "base_sepolia"}
 
@@ -190,6 +199,148 @@ def _receipt_common(chain: int, tx_hash: str, started_unix: Optional[int]):
         return None, None, VerifyResult(
             "unavailable", "Сеть временно недоступна. Попробуйте позже.", {"tx_hash": tx_hash}
         )
+
+
+# ── log / value / gas helpers (M4–M8) ────────────────────────────────────────
+
+
+def _find_log(receipt, address, topic0, topic1=None, topic2=None, topic3=None):
+    """Return the first receipt log matching *address* + the given topics.
+
+    Any of ``topic1..topic3`` left as None is treated as a wildcard. All
+    comparisons are lower-cased. Returns the raw log dict, or None.
+    """
+    addr = address.strip().lower()
+    t0 = topic0.strip().lower()
+    wants = [topic1, topic2, topic3]
+    for lg in receipt.get("logs") or []:
+        if (lg.get("address") or "").lower() != addr:
+            continue
+        topics = [str(t).lower() for t in (lg.get("topics") or [])]
+        if not topics or topics[0] != t0:
+            continue
+        ok = True
+        for i, want in enumerate(wants, start=1):
+            if want is None:
+                continue
+            if len(topics) <= i or topics[i] != want.strip().lower():
+                ok = False
+                break
+        if ok:
+            return lg
+    return None
+
+
+def _log_value_uint(data) -> int:
+    """Decode a single-uint256 log ``data`` field to int. ``0x`` / empty → 0."""
+    if data is None:
+        return 0
+    s = str(data).strip().lower()
+    if s in ("", "0x", "0x0"):
+        return 0
+    value = _hexint(s)
+    return value if value is not None else 0
+
+
+def _decode_supply_amount(data) -> int:
+    """Decode the ``amount`` from an Aave v3 Supply log's non-indexed data.
+
+    Supply's non-indexed args are ``(address user, uint256 amount)`` → the data
+    blob is 2×32 bytes; ``amount`` is the second word. Falls back to decoding the
+    whole blob as one uint if it is a single word.
+    """
+    if data is None:
+        return 0
+    h = str(data).strip().lower()
+    if h.startswith("0x"):
+        h = h[2:]
+    if len(h) >= 128:
+        try:
+            return int(h[64:128], 16)
+        except ValueError:
+            return 0
+    if h:
+        try:
+            return int(h, 16)
+        except ValueError:
+            return 0
+    return 0
+
+
+def _compute_gas_wei(chain: int, receipt: dict, tx_hash: str) -> int:
+    """gasUsed × effectiveGasPrice (wei). Falls back to the tx's gasPrice."""
+    gas_used = _hexint(receipt.get("gasUsed"))
+    price = _hexint(receipt.get("effectiveGasPrice"))
+    if price is None:
+        try:
+            tx = rpc.eth_get_transaction_by_hash(chain, tx_hash)
+        except rpc.RPCError:
+            tx = None
+        if tx:
+            price = _hexint(tx.get("gasPrice"))
+    if gas_used is None or price is None:
+        return 0
+    return gas_used * price
+
+
+def _progress_row(db, user_id: int, lesson_id: int):
+    """Return the (status, evidence_json) progress row, or None."""
+    with db.connect() as conn:
+        return conn.execute(
+            "SELECT status, evidence_json FROM progress "
+            "WHERE user_id = ? AND lesson_id = ?",
+            (user_id, lesson_id),
+        ).fetchone()
+
+
+def _verified_evidence(db, user_id: int, lesson_id: int) -> Optional[dict]:
+    """Return the parsed evidence for a *verified* lesson, else None."""
+    row = _progress_row(db, user_id, lesson_id)
+    if row is None or row["status"] != "verified" or not row["evidence_json"]:
+        return None
+    try:
+        return json.loads(row["evidence_json"])
+    except (ValueError, TypeError):
+        return None
+
+
+def get_gas_summary(db, user_id) -> dict:
+    """Sum ``gas_wei`` across every verified lesson's evidence for *user_id*.
+
+    Returns ``{total_gas_wei, total_gas_eth, total_gas_usd_est}``. Missing /
+    malformed evidence is skipped (never raises). Used by M8 and the certificate.
+    """
+    total = 0
+    with db.connect() as conn:
+        rows = conn.execute(
+            "SELECT evidence_json FROM progress "
+            "WHERE user_id = ? AND status = 'verified'",
+            (user_id,),
+        ).fetchall()
+    for r in rows:
+        raw = r["evidence_json"]
+        if not raw:
+            continue
+        try:
+            ev = json.loads(raw)
+        except (ValueError, TypeError):
+            continue
+        g = ev.get("gas_wei")
+        if isinstance(g, bool):
+            continue
+        if isinstance(g, int):
+            total += g
+        elif isinstance(g, str):
+            try:
+                total += int(g)
+            except ValueError:
+                pass
+    eth = total / 1e18
+    return {
+        "total_gas_wei": total,
+        "total_gas_eth": round(eth, 8),
+        "total_gas_usd_est": round(eth * GAS_USD_RATE, 4),
+    }
 
 
 # ── M0 — testnet tx on Base Sepolia ──────────────────────────────────────────
@@ -347,33 +498,326 @@ def verify_m3(db, user_id, lesson_id, tx_hash, started_at_iso) -> VerifyResult:
     return VerifyResult("verified", message, evidence)
 
 
-# ── M4–M8 — stubs (delivered in stage 7) ─────────────────────────────────────
+# ── M4 — USDC approve + revoke to the Aave Pool on Base ──────────────────────
 
 
-def _pending() -> VerifyResult:
-    return VerifyResult("pending", "Проверка этого модуля появится на этапе 7.", {})
+def verify_m4(db, user_id, lesson_id, approve_tx, revoke_tx, started_at_iso) -> VerifyResult:
+    """M4: a bounded USDC approval to the Aave Pool, then its revoke (→ 0).
+
+    Both txs must be fresh, confirmed, distinct and unused. The approve carries a
+    non-zero Approval(owner=user, spender=Pool) log; the revoke carries the same
+    log with value 0, in a strictly later block.
+    """
+    if not is_tx_hash(approve_tx) or not is_tx_hash(revoke_tx):
+        return VerifyResult("failed", "Некорректный формат tx hash (нужно 0x + 64 hex).", {})
+    approve_tx = approve_tx.strip().lower()
+    revoke_tx = revoke_tx.strip().lower()
+    if approve_tx == revoke_tx:
+        return VerifyResult(
+            "failed", "approve и revoke должны быть разными транзакциями.", {}
+        )
+
+    address = _verified_wallet(db, user_id, "base")
+    if address is None:
+        return VerifyResult(
+            "failed", "Сначала привяжите кошелёк на сети Base (модуль кошелька).", {}
+        )
+    chain_name = _CHAIN_NAME[CHAIN_BASE]
+    if _tx_already_used(db, approve_tx, chain_name) or _tx_already_used(db, revoke_tx, chain_name):
+        return VerifyResult("failed", "Один из tx hash уже был засчитан ранее.", {})
+
+    started_unix = _started_at_unix(started_at_iso)
+    owner_topic = _topic_for_address(address)
+    spender_topic = _topic_for_address(AAVE_POOL_BASE)
+    usdc = USDC_BASE
+
+    # --- approve leg ---
+    receipt_a, block_a, terminal = _receipt_common(CHAIN_BASE, approve_tx, started_unix)
+    if terminal is not None:
+        return terminal
+    approve_log = _find_log(receipt_a, usdc, TOPIC_APPROVAL, owner_topic, spender_topic)
+    if approve_log is None or _log_value_uint(approve_log.get("data")) <= 0:
+        return VerifyResult(
+            "failed",
+            "В approve-транзакции нет разрешения USDC для контракта Aave с "
+            "ненулевым лимитом. Одобрите конкретную сумму на Aave Pool.",
+            {"approve_tx": approve_tx},
+        )
+    block_approve = _hexint(receipt_a.get("blockNumber"))
+
+    # --- revoke leg ---
+    receipt_r, block_r, terminal = _receipt_common(CHAIN_BASE, revoke_tx, started_unix)
+    if terminal is not None:
+        return terminal
+    revoke_log = _find_log(receipt_r, usdc, TOPIC_APPROVAL, owner_topic, spender_topic)
+    if revoke_log is None or _log_value_uint(revoke_log.get("data")) != 0:
+        return VerifyResult(
+            "failed",
+            "В revoke-транзакции нет отзыва разрешения (approval со значением 0) "
+            "для Aave Pool. Отзовите ранее выданный approval.",
+            {"revoke_tx": revoke_tx},
+        )
+    block_revoke = _hexint(receipt_r.get("blockNumber"))
+
+    if block_approve is None or block_revoke is None or block_revoke <= block_approve:
+        return VerifyResult(
+            "failed",
+            "revoke должен быть после approve (в более позднем блоке). "
+            "Сначала выдайте approval, затем отдельной транзакцией отзовите его.",
+            {"approve_tx": approve_tx, "revoke_tx": revoke_tx},
+        )
+
+    if not _record_tx(db, approve_tx, chain_name, user_id, lesson_id) or not _record_tx(
+        db, revoke_tx, chain_name, user_id, lesson_id
+    ):
+        return VerifyResult("failed", "Один из tx hash уже был засчитан ранее.", {})
+
+    evidence = {
+        "approve_tx": approve_tx,
+        "revoke_tx": revoke_tx,
+        "chain": "base",
+        "block_approve": block_approve,
+        "block_revoke": block_revoke,
+        "kind": "approve_revoke",
+    }
+    return VerifyResult(
+        "verified",
+        "Approval выдан и затем отозван — вы управляете разрешениями осознанно. "
+        "Именно так минимизируют риск: доступ ровно на время нужды.",
+        evidence,
+    )
 
 
-def verify_m4(db, user_id, lesson_id, *args, **kwargs) -> VerifyResult:
-    """M4 (approvals/revoke) — stub, coming in stage 7."""
-    return _pending()
+# ── M5 — Supply USDC into Aave v3 on Base ────────────────────────────────────
 
 
-def verify_m5(db, user_id, lesson_id, *args, **kwargs) -> VerifyResult:
-    """M5 (Aave supply) — stub, coming in stage 7."""
-    return _pending()
+def verify_m5(db, user_id, lesson_id, tx_hash, started_at_iso) -> VerifyResult:
+    """M5: a fresh Aave v3 ``Supply`` of USDC on behalf of the user's wallet.
+
+    Counts by the Pool's ``Supply`` event (reserve=USDC, onBehalfOf=user), NOT by
+    an aToken balance read (owner-approved). Amount over $150 → advisory, not a
+    reject.
+    """
+    if not is_tx_hash(tx_hash):
+        return VerifyResult("failed", "Некорректный формат tx hash (нужно 0x + 64 hex).", {})
+    tx_hash = tx_hash.strip().lower()
+    chain_name = _CHAIN_NAME[CHAIN_BASE]
+
+    address = _verified_wallet(db, user_id, "base")
+    if address is None:
+        return VerifyResult(
+            "failed", "Сначала привяжите кошелёк на сети Base (модуль кошелька).", {}
+        )
+    if _tx_already_used(db, tx_hash, chain_name):
+        return VerifyResult("failed", "Этот tx hash уже был засчитан ранее.", {"tx_hash": tx_hash})
+
+    started_unix = _started_at_unix(started_at_iso)
+    receipt, block, terminal = _receipt_common(CHAIN_BASE, tx_hash, started_unix)
+    if terminal is not None:
+        return terminal
+
+    reserve_topic = _topic_for_address(USDC_BASE)
+    behalf_topic = _topic_for_address(address)
+    supply_log = _find_log(receipt, AAVE_POOL_BASE, TOPIC_SUPPLY, reserve_topic, behalf_topic)
+    if supply_log is None:
+        return VerifyResult(
+            "failed",
+            "В транзакции нет депозита USDC в Aave на ваш адрес. Убедитесь, что "
+            "выполнили Supply USDC в официальном контракте Aave на Base.",
+            {"tx_hash": tx_hash},
+        )
+
+    amount_raw = _decode_supply_amount(supply_log.get("data"))
+    block_ts = _hexint(block.get("timestamp")) if block else None
+
+    if not _record_tx(db, tx_hash, chain_name, user_id, lesson_id):
+        return VerifyResult("failed", "Этот tx hash уже был засчитан ранее.", {"tx_hash": tx_hash})
+
+    evidence = {
+        "tx_hash": tx_hash,
+        "chain": "base",
+        "address": AAVE_POOL_BASE.lower(),
+        "amount_usdc": round(amount_raw / 1_000_000, 6),
+        "block": _hexint(receipt.get("blockNumber")),
+        "timestamp": block_ts,
+        "kind": "aave_supply",
+    }
+    message = "Депозит USDC в Aave подтверждён — теперь позиция приносит доходность."
+    if amount_raw > ADVISORY_USDC_CAP:
+        message += (
+            " ⚠️ Сумма превышает учебный лимит $150 — засчитано, но впредь "
+            "держитесь в пределах лимита."
+        )
+        evidence["advisory_over_limit"] = True
+    return VerifyResult("verified", message, evidence)
 
 
-def verify_m6(db, user_id, lesson_id, *args, **kwargs) -> VerifyResult:
-    """M6 (Aave withdraw) — stub, coming in stage 7."""
-    return _pending()
+# ── M6 — Withdraw from Aave v3 on Base ───────────────────────────────────────
 
 
-def verify_m7(db, user_id, lesson_id, *args, **kwargs) -> VerifyResult:
-    """M7 (incidents quiz ≥80%) — stub, coming in stage 7."""
-    return _pending()
+def verify_m6(db, user_id, lesson_id, tx_hash, started_at_iso) -> VerifyResult:
+    """M6: a fresh Aave v3 ``Withdraw`` of USDC involving the user's wallet.
+
+    Withdraw(reserve, user, to, amount) is fully indexed → the user may appear as
+    ``user`` (topic2) OR ``to`` (topic3). Records gas spent for the accumulator.
+    """
+    if not is_tx_hash(tx_hash):
+        return VerifyResult("failed", "Некорректный формат tx hash (нужно 0x + 64 hex).", {})
+    tx_hash = tx_hash.strip().lower()
+    chain_name = _CHAIN_NAME[CHAIN_BASE]
+
+    address = _verified_wallet(db, user_id, "base")
+    if address is None:
+        return VerifyResult(
+            "failed", "Сначала привяжите кошелёк на сети Base (модуль кошелька).", {}
+        )
+    if _tx_already_used(db, tx_hash, chain_name):
+        return VerifyResult("failed", "Этот tx hash уже был засчитан ранее.", {"tx_hash": tx_hash})
+
+    started_unix = _started_at_unix(started_at_iso)
+    receipt, block, terminal = _receipt_common(CHAIN_BASE, tx_hash, started_unix)
+    if terminal is not None:
+        return terminal
+
+    reserve_topic = _topic_for_address(USDC_BASE)
+    user_topic = _topic_for_address(address)
+    # user may be topic2 (user) or topic3 (to) — accept either.
+    withdraw_log = _find_log(
+        receipt, AAVE_POOL_BASE, TOPIC_WITHDRAW, reserve_topic, user_topic
+    ) or _find_log(
+        receipt, AAVE_POOL_BASE, TOPIC_WITHDRAW, reserve_topic, None, user_topic
+    )
+    if withdraw_log is None:
+        return VerifyResult(
+            "failed",
+            "В транзакции нет вывода USDC из Aave на ваш адрес. Убедитесь, что "
+            "выполнили Withdraw USDC из официального контракта Aave на Base.",
+            {"tx_hash": tx_hash},
+        )
+
+    amount_raw = _log_value_uint(withdraw_log.get("data"))
+    block_ts = _hexint(block.get("timestamp")) if block else None
+    block_num = _hexint(receipt.get("blockNumber"))
+    gas_wei = _compute_gas_wei(CHAIN_BASE, receipt, tx_hash)
+
+    # Advisory ordering check against a prior verified M5 (not a reject).
+    advisory_order = False
+    m5_ev = _verified_evidence(db, user_id, 5)
+    if m5_ev is not None:
+        m5_block = m5_ev.get("block")
+        if isinstance(m5_block, int) and isinstance(block_num, int) and block_num <= m5_block:
+            advisory_order = True
+
+    if not _record_tx(db, tx_hash, chain_name, user_id, lesson_id):
+        return VerifyResult("failed", "Этот tx hash уже был засчитан ранее.", {"tx_hash": tx_hash})
+
+    evidence = {
+        "tx_hash": tx_hash,
+        "chain": "base",
+        "address": AAVE_POOL_BASE.lower(),
+        "amount_usdc": round(amount_raw / 1_000_000, 6),
+        "block": block_num,
+        "timestamp": block_ts,
+        "gas_wei": gas_wei,
+        "kind": "aave_withdraw",
+    }
+    message = "Вывод из Aave подтверждён — депозит с процентами вернулся на кошелёк."
+    if advisory_order:
+        message += (
+            " ⚠️ Похоже, вывод в том же/более раннем блоке, что и депозит — "
+            "проверьте порядок действий."
+        )
+        evidence["advisory_order"] = True
+    return VerifyResult("verified", message, evidence)
 
 
-def verify_m8(db, user_id, lesson_id, *args, **kwargs) -> VerifyResult:
-    """M8 (capstone) — stub, coming in stage 7."""
-    return _pending()
+# ── M7 — incidents quiz (≥80%) ───────────────────────────────────────────────
+
+
+def verify_m7(db, user_id, lesson_id) -> VerifyResult:
+    """M7: best quiz score for lesson 7 is ≥80% (no on-chain component)."""
+    with db.connect() as conn:
+        row = conn.execute(
+            "SELECT MAX(score) AS best, COUNT(*) AS n "
+            "FROM quiz_results WHERE user_id = ? AND lesson_id = 7",
+            (user_id,),
+        ).fetchone()
+    best = row["best"] if row else None
+    attempts = row["n"] if row else 0
+    if best is None:
+        return VerifyResult(
+            "failed",
+            "Пройдите квиз с результатом ≥80%. Пока ни одной попытки не найдено.",
+            {},
+        )
+    if best < 80:
+        return VerifyResult(
+            "failed",
+            f"Пройдите квиз с результатом ≥80% (лучший результат — {round(best)}%).",
+            {"best_score": best, "attempt_count": attempts},
+        )
+    return VerifyResult(
+        "verified",
+        "Квиз по инцидентам сдан — вы распознаёте фишинг и drainer-подписи.",
+        {"best_score": best, "attempt_count": attempts},
+    )
+
+
+# ── M8 — capstone (fresh supply+withdraw after start + reflection) ───────────
+
+
+def verify_m8(db, user_id, lesson_id, started_at_iso) -> VerifyResult:
+    """M8: a full fresh cycle — Supply then Withdraw after the capstone started —
+    plus a non-empty reflection note. Reports total gas spent across the course."""
+    started_unix = _started_at_unix(started_at_iso)
+    failures: list[str] = []
+
+    m5_ev = _verified_evidence(db, user_id, 5)
+    if m5_ev is None:
+        failures.append("модуль M5 (Supply) ещё не пройден")
+    else:
+        m5_ts = m5_ev.get("timestamp")
+        if started_unix is not None and isinstance(m5_ts, int) and m5_ts <= started_unix:
+            failures.append("Supply нужно выполнить в рамках капстоуна (после его начала)")
+
+    m6_ev = _verified_evidence(db, user_id, 6)
+    if m6_ev is None:
+        failures.append("модуль M6 (Withdraw) ещё не пройден")
+    elif m5_ev is not None:
+        m5_block = m5_ev.get("block")
+        m6_block = m6_ev.get("block")
+        if isinstance(m5_block, int) and isinstance(m6_block, int) and m6_block <= m5_block:
+            failures.append("Withdraw должен быть в более позднем блоке, чем Supply")
+
+    with db.connect() as conn:
+        note_row = conn.execute(
+            "SELECT text FROM notes WHERE user_id = ? AND lesson_id = 8",
+            (user_id,),
+        ).fetchone()
+    note_text = (note_row["text"] if note_row and note_row["text"] else "").strip()
+    if not note_text:
+        failures.append("добавьте рефлексию в заметки этого модуля")
+
+    if failures:
+        return VerifyResult(
+            "failed",
+            "Капстоун ещё не завершён: " + "; ".join(failures) + ".",
+            {},
+        )
+
+    gas = get_gas_summary(db, user_id)
+    evidence = {
+        "m5_evidence": m5_ev,
+        "m6_evidence": m6_ev,
+        "notes_length": len(note_text),
+        "gas_total_wei": gas["total_gas_wei"],
+        "gas_total_usd_est": gas["total_gas_usd_est"],
+        "kind": "capstone",
+    }
+    return VerifyResult(
+        "verified",
+        "Капстоун пройден: полный цикл на Base выполнен и отрефлексирован. "
+        f"Суммарный газ за курс ≈ ${gas['total_gas_usd_est']}. "
+        "Вы владеете механикой и дисциплиной — именно этого и добивался курс.",
+        evidence,
+    )
