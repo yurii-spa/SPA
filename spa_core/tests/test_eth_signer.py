@@ -14,6 +14,7 @@ Test key #2 (index 1 from the same mnemonic):
 """
 from __future__ import annotations
 
+import os
 import pytest
 
 # Skip entire module if eth_account is not installed (optional dependency)
@@ -99,6 +100,7 @@ class TestGetAddress:
 
 # ─── 2. sign_transaction ──────────────────────────────────────────────────────
 
+@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="execution-layer signing needs the exec-armed gate (SPA_EXEC_ARMED); not armed in the read-only CI — runs locally")
 class TestSignTransaction:
     def test_returns_bytes(self):
         from spa_core.execution.eth_signer import sign_transaction
