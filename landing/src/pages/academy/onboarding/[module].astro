@@ -1,0 +1,38 @@
+---
+/*
+ * /academy/onboarding/[module] — a single onboarding module (M0–M8).
+ *
+ * SSG: getStaticPaths() pre-renders one page per lesson id 0..8. Static content
+ * (title/description/theory/practice/spa-connection) is baked from
+ * src/data/onboarding_modules.json (generated from spa_core.academy.content.modules);
+ * the ModuleRunner island layers on live progress + verification + notes.
+ */
+import Layout from '../../../layouts/Layout.astro';
+import ModuleRunner from '../../../components/academy/onboarding/ModuleRunner.jsx';
+import manifest from '../../../data/onboarding_modules.json';
+
+export function getStaticPaths() {
+  return manifest.modules.map((m) => ({
+    params: { module: String(m.id) },
+    props: { moduleData: m },
+  }));
+}
+
+const { moduleData } = Astro.props;
+const moduleId = moduleData.id;
+const pageTitle = `M${moduleId}: ${moduleData.title_ru} — SPA Академия`;
+---
+<Layout title={pageTitle} description={moduleData.description_ru}>
+  <main class="obm-page">
+    <ModuleRunner moduleId={moduleId} moduleData={moduleData} client:load />
+  </main>
+</Layout>
+
+<style is:global>
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<style>
+  .obm-page { max-width: 820px; margin: 0 auto; padding: 40px 20px 96px; }
+  @media (max-width: 640px) { .obm-page { padding: 28px 16px 72px; } }
+</style>
