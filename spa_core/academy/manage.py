@@ -165,7 +165,8 @@ def cmd_delete_user(args: argparse.Namespace) -> None:
     if row is None:
         _die(f"no user with email {args.email!r}")
     uid = row["id"]
-    if row.get("is_owner") and not args.force:
+    is_owner = ("is_owner" in row.keys() and row["is_owner"])  # sqlite3.Row has no .get()
+    if is_owner and not args.force:
         _die("refusing to delete an owner account without --force")
     with db.connect() as c:
         c.execute("DROP TRIGGER IF EXISTS events_no_delete")  # sanctioned lift for account erasure
