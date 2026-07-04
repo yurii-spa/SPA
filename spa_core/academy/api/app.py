@@ -41,6 +41,9 @@ from spa_core.academy.api.routes import notes as notes_routes
 from spa_core.academy.api.routes import quiz as quiz_routes
 from spa_core.academy.api.routes import wallet as wallet_routes
 from spa_core.academy.api.routes import verify as verify_routes
+from spa_core.academy.api.routes import export as export_routes
+from spa_core.academy.api.routes import admin as admin_routes
+from spa_core.academy.api.routes import certificate as certificate_routes
 
 # Production origin (the site). DEV additionally allows the Astro dev server.
 _PROD_ORIGIN = "https://earn-defi.com"
@@ -135,4 +138,7 @@ def create_academy_app(db_path: Optional[str] = None) -> FastAPI:
     app.include_router(quiz_routes.router)
     app.include_router(wallet_routes.router)
     app.include_router(verify_routes.router)
+    app.include_router(export_routes.router)
+    app.include_router(admin_routes.router)
+    app.include_router(certificate_routes.router)
     return app
