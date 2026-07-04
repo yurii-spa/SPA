@@ -115,9 +115,12 @@ def check_sitemap_vs_pages(sitemap_path: Path, pages_dir: Path):
     pages = set()
     for f in pages_dir.rglob("*.astro"):
         rel = str(f.relative_to(pages_dir).with_suffix("")).replace("index", "").strip("/")
+        if "[" in rel:
+            continue  # dynamic route template (e.g. academy/onboarding/[module]) — not a literal URL
         pages.add(rel)
-    # internal/dev pages we don't require in the sitemap
-    skip = {"cockpit-kit"}  # e.g. dev kits; extend as needed
+    # internal/dev pages + auth-gated app routes we don't require in the public sitemap
+    skip = {"cockpit-kit",  # dev kit
+            "academy/onboarding", "academy/onboarding/certificate"}  # invite-gated app, not SEO-indexed
     missing_from_sitemap = sorted((pages - locs) - skip)
     sitemap_without_page = sorted(locs - pages - {""})
     return {"missing_from_sitemap": missing_from_sitemap, "sitemap_without_page": sitemap_without_page}
@@ -125,8 +128,9 @@ def check_sitemap_vs_pages(sitemap_path: Path, pages_dir: Path):
 
 def check_narrative_constants(pages_dir: Path, components_dir: Path | None = _COMPONENTS):
     """Catch narrative-constant drift (audit-re #4):
-      - cycle_time_wrong: any 'NN:00 UTC' daily-cycle reference whose hour isn't the canonical 08
-        (the plist/`/status` value) — a factual bug (the cycle runs at exactly one time).
+      - cycle_time_wrong: any 'NN:00 UTC' daily-cycle reference whose hour isn't in _CANONICAL_UTC_HOURS
+        (06 daily / 07 tournament — source: com.spa.daily_cycle.plist Hour=8 CEST = 06:00 UTC) — a factual
+        bug (the cycle runs at exactly one time).
       - apy_constants: every hardcoded '~X.X%' APY-prose value across pages + components, mapped to the
         files it appears in. Reported (not failed): these are legit approximations (e.g. the steady-book
         '~4.5%', distinct from the live paper APY), surfaced so a human can spot one that has drifted
