@@ -22,6 +22,9 @@ const snapAsOf = snap.as_of || snap.generated_at || null;
 // Site-Custodian kill-rule (ADR-YL-011): when degraded, show a plaque instead of a possibly-wrong number
 // (refusal-first — honest absence beats a false figure).
 const degraded = snap.degraded === true;
+// Tier-card net-APY static fallback from snapshot.packages (same source /api/tier1/packages fills). A tier
+// with no computed backend value stays '—' (honest absence, never a hardcoded number); JS overrides live.
+const pkgApy = (k) => { const v = snap.packages && snap.packages[k] && snap.packages[k].apy_pct; return v != null ? Number(v).toFixed(1) + '%' : '—'; };
 // Equity series for the offline spark fallback (build-time, last snapshot).
 // P1-5: chart plots ONLY evidenced + reconstructed bars — drops the synthetic warmup/backfill series
 // so there is no cross-series seam (the −$205 06-09/06-10 jump). Those bars stay in the downloadable
@@ -125,7 +128,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         <div class="tier-card t-preserve">
           <h3>Preserve</h3>
           <span class="pill ok" data-ru="Бумажный трек">Paper-tracked</span>
-          <div class="tier-apy" data-fb="apy">—<small> net APY</small></div>
+          <div class="tier-apy" data-fb="apy">{pkgApy('conservative')}<small> net APY</small></div>
           <div class="tier-cap" data-ru="бумажный · переменный · не гарантирован">paper · variable · not guaranteed</div>
           <ul class="tier-dl">
             <li><span class="k" data-ru="Профиль риска">Risk band</span><span class="v" data-ru="Низкий">Low</span></li>
@@ -138,7 +141,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         <div class="tier-card t-core">
           <h3>Core</h3>
           <span class="pill ok" data-ru="Бумажный трек">Paper-tracked</span>
-          <div class="tier-apy" data-fb="apy">—<small> net APY</small></div>
+          <div class="tier-apy" data-fb="apy">{pkgApy('balanced')}<small> net APY</small></div>
           <div class="tier-cap" data-ru="бумажный · переменный · не гарантирован">paper · variable · not guaranteed</div>
           <ul class="tier-dl">
             <li><span class="k" data-ru="Профиль риска">Risk band</span><span class="v" data-ru="Сбаланс.">Balanced</span></li>
@@ -152,7 +155,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
           <h3>Max Yield</h3>
           <span class="pill wait" style="background:rgba(234,179,8,.12);color:#eab308;border:1px solid rgba(234,179,8,.3)" data-ru="ВАЛИДАЦИЯ В ОЖИДАНИИ">VALIDATION PENDING</span>
           <span class="pill wait" data-ru="Целевой профиль">Target profile</span>
-          <div class="tier-apy" data-fb="apy">—<small> net APY</small></div>
+          <div class="tier-apy" data-fb="apy">{pkgApy('aggressive')}<small> net APY</small></div>
           <div class="tier-cap" data-ru="целевой диапазон · не в бумажном треке">target range · not in paper track</div>
           <ul class="tier-dl">
             <li><span class="k" data-ru="Профиль риска">Risk band</span><span class="v" data-ru="Выше">Higher</span></li>

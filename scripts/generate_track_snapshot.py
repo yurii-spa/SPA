@@ -74,6 +74,24 @@ def _max_drawdown_pct(bars: list):
     return round(worst, 4)
 
 
+def _tier_packages() -> dict:
+    """Static fallback for the homepage tier cards (Preserve/Core/Max-Yield net-APY + DD), sourced from
+    data/tier1_packages.json — the SAME field the live /api/tier1/packages fills. A tier whose backend
+    value is not yet computed stays null -> the card honestly shows '—' (never a hardcoded number)."""
+    pk = _load(ROOT / "data" / "tier1_packages.json")
+    pk = pk.get("packages", pk) if isinstance(pk, dict) else {}
+    out = {}
+    for key in ("conservative", "balanced", "aggressive"):
+        p = pk.get(key, {}) if isinstance(pk, dict) else {}
+        apy = p.get("blended_net_apy_pct") if isinstance(p, dict) else None
+        dd = p.get("worst_dd_pct") if isinstance(p, dict) else None
+        out[key] = {
+            "apy_pct": round(float(apy), 1) if isinstance(apy, (int, float)) and not isinstance(apy, bool) else None,
+            "dd_pct": round(float(dd), 1) if isinstance(dd, (int, float)) and not isinstance(dd, bool) else None,
+        }
+    return out
+
+
 def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_path=None) -> dict:
     """Assemble the build-time static snapshot from the committed data files.
 
@@ -133,6 +151,7 @@ def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_p
         "paper_apy_pct": round(float(paper_apy), 4) if paper_apy is not None else None,
         "max_drawdown_pct": _max_drawdown_pct(evidenced or bars),
         "total_return_pct": round((end_equity / 100000.0 - 1.0) * 100.0, 4),
+        "packages": _tier_packages(),   # tier-card net-APY static fallback (Preserve/Core/Max), null if uncomputed
         "bars": bars,
     }
     return snap
