@@ -243,6 +243,7 @@ def test_api_proof_reproduce_block_matches_verifier(tmp_path, monkeypatch):
     and once for the standalone verifier races that writer (head_hash mismatch flakes). Freeze ONE
     snapshot into a tmp data dir and point the router at it, so both implementations verify byte-
     identical rows — which is exactly the cross-implementation invariant under test."""
+    pytest.importorskip("fastapi")  # stdlib-only Proof Gate has no fastapi; these API tests run in full CI
     from spa_core.api.routers import rates_desk as R
 
     real = _ROOT / "data" / "rates_desk" / "decision_log.jsonl"
@@ -269,6 +270,7 @@ def test_api_proof_reproduce_block_matches_verifier(tmp_path, monkeypatch):
 
 
 def test_api_exit_nav_reproduce_block_present():
+    pytest.importorskip("fastapi")  # stdlib-only Proof Gate has no fastapi; these API tests run in full CI
     from spa_core.api.routers import rates_desk as R
     en = R.get_rates_desk_exit_nav()
     assert "reproduce" in en
@@ -277,6 +279,7 @@ def test_api_exit_nav_reproduce_block_present():
 
 
 def test_api_anchors_endpoint_verified():
+    pytest.importorskip("fastapi")  # stdlib-only Proof Gate has no fastapi; these API tests run in full CI
     from spa_core.api.routers import rates_desk as R
     anc = R.get_rates_desk_anchors(limit=50)
     assert anc["verified"] is True
