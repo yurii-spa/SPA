@@ -22,6 +22,9 @@ pydantic>=2.0.0,<3.0.0
 # Family Fund cabinet auth — password hashing (stdlib-rule exception)
 bcrypt>=4.0.0,<6.0.0
 
+# Academy onboarding auth — argon2id password hashing (stdlib-rule exception)
+argon2-cffi>=23.1,<25
+
 # PDF report generation
 reportlab>=4.0.0,<5.0.0
 
