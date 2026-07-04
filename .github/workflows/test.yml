@@ -43,7 +43,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Install test dependencies
-        run: pip install pytest pytest-asyncio pyyaml  # pyyaml: yaml manifests (option-A)
+        run: pip install pytest pytest-asyncio pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas  # option-A full test-dep set (CI runs the whole suite; runtime stays stdlib-only)
 
       # --- Deterministic test execution (Architect N11) ---------------------
       # Two CI runs MUST produce an IDENTICAL collection order + pass/fail set
