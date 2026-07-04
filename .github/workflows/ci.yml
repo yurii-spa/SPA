@@ -1,6 +1,7 @@
 name: SPA CI
 
 on:
+  workflow_dispatch:   # allow manual/official green-confirmation runs
   push:
     branches: [main]
     paths-ignore:
