@@ -18,9 +18,11 @@ OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
 def main():
     mods = [{k: MODULES[i].get(k, MODULES[i].get(k.replace("_en", "_ru")) if k.endswith("_en") else None)
              for k in _KEYS} for i in sorted(MODULES)]
+    # IMPORTANT: the frontend ([module].astro) reads `manifest.modules.map(...)`, so the JSON MUST be an
+    # object {"modules": [...]}, NOT a bare list — a bare list makes getStaticPaths crash the Astro build.
     tmp = OUT + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(mods, f, ensure_ascii=False, indent=2)
+        json.dump({"modules": mods}, f, ensure_ascii=False, indent=2)
     os.replace(tmp, OUT)
     print(f"onboarding_modules.json regenerated: {len(mods)} modules "
           f"({sum(1 for m in mods if m.get('theory_html_en'))} with EN theory)")
