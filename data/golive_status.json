@@ -1,6 +1,6 @@
 {
   "ready": false,
-  "passed": 26,
+  "passed": 27,
   "total": 29,
   "checks": {
     "equity_curve_real": true,
@@ -24,7 +24,7 @@
     "gap_monitor_ok": true,
     "gap_monitor_30d": false,
     "autopush_installed": true,
-    "telegram_alert_today": false,
+    "telegram_alert_today": true,
     "min_track_days_30": false,
     "apy_above_floor": true,
     "drawdown_below_kill": true,
@@ -171,9 +171,9 @@
       "name": "gap_monitor_30d",
       "status": "PENDING",
       "blocking": true,
-      "estimated_days_to_pass": 21,
+      "estimated_days_to_pass": 17,
       "target_date": "2026-07-21",
-      "message": "9/30 honest track days \u2014 21 more needed (target 2026-07-21)"
+      "message": "13/30 honest track days \u2014 17 more needed (target 2026-07-21)"
     },
     {
       "name": "autopush_installed",
@@ -184,18 +184,18 @@
     },
     {
       "name": "telegram_alert_today",
-      "status": "FAIL",
-      "blocking": true,
-      "estimated_days_to_pass": null,
-      "message": "telegram_alert_today: daily digest has not run yet today (last sent 2026-06-21, today is 2026-07-01) \u2014 com.spa.digest_daily fires ~08:10 UTC; this clears once today's digest sends (not a Telegram outage)"
+      "status": "PASS",
+      "blocking": false,
+      "estimated_days_to_pass": 0,
+      "message": "ok"
     },
     {
       "name": "min_track_days_30",
       "status": "PENDING",
       "blocking": true,
-      "estimated_days_to_pass": 21,
+      "estimated_days_to_pass": 17,
       "target_date": "2026-07-21",
-      "message": "9/30 honest track days \u2014 21 more needed (target 2026-07-21)"
+      "message": "13/30 honest track days \u2014 17 more needed (target 2026-07-21)"
     },
     {
       "name": "apy_above_floor",
@@ -241,14 +241,13 @@
     }
   ],
   "blockers": [
-    "gap_monitor_30d: 9/30 evidenced track days (anchor 2026-06-22; 21 more needed \u2014 target ~2026-07-21)",
-    "telegram_alert_today: daily digest has not run yet today (last sent 2026-06-21, today is 2026-07-01) \u2014 com.spa.digest_daily fires ~08:10 UTC; this clears once today's digest sends (not a Telegram outage)",
-    "min_track_days_30: 9/30 evidenced paper-trading days (anchor 2026-06-22; 21 more needed \u2014 target go-live ~2026-07-21)"
+    "gap_monitor_30d: 13/30 evidenced track days (anchor 2026-06-22; 17 more needed \u2014 target ~2026-07-21)",
+    "min_track_days_30: 13/30 evidenced paper-trading days (anchor 2026-06-22; 17 more needed \u2014 target go-live ~2026-07-21)"
   ],
-  "real_track_days": 9,
+  "real_track_days": 13,
   "evidenced_anchor": "2026-06-22",
   "target_date": "2026-07-21",
-  "timestamp": "2026-07-01T00:50:13.764187+00:00",
+  "timestamp": "2026-07-04T11:28:54.198703+00:00",
   "source": "golive_checker",
   "version": "v6.0-29criteria",
   "consecutive_ready_days": 0

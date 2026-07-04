@@ -1,16 +1,16 @@
 {
-  "generated_at": "2026-07-03T06:00:02.118049+00:00",
+  "generated_at": "2026-07-04T06:00:01.839195+00:00",
   "source": "cycle_runner",
   "execution_mode": "read_only_simulation",
   "is_demo": false,
   "summary": {
-    "num_days": 44,
-    "real_days": 12,
-    "evidenced_days": 12,
-    "num_snapshots": 44,
+    "num_days": 45,
+    "real_days": 13,
+    "evidenced_days": 13,
+    "num_snapshots": 45,
     "start_equity": 100000.0,
-    "end_equity": 100264.9,
-    "total_return_pct": 0.2649,
+    "end_equity": 100273.91,
+    "total_return_pct": 0.2739,
     "best_day": {
       "date": "2026-06-21",
       "daily_return_pct": 0.0159
@@ -21,15 +21,15 @@
     },
     "max_drawdown_pct": -0.2047,
     "real_start_equity": 100134.79,
-    "real_end_equity": 100264.9,
-    "real_total_return_pct": 0.1299,
+    "real_end_equity": 100273.91,
+    "real_total_return_pct": 0.1389,
     "real_max_drawdown_pct": 0.0,
-    "positive_days": 42,
+    "positive_days": 43,
     "negative_days": 0,
     "daily_volatility_pct": 0.0023,
     "first_date": "2026-06-22",
     "first_real_date": "2026-06-22",
-    "last_date": "2026-07-03"
+    "last_date": "2026-07-04"
   },
   "daily": [
     {
@@ -1139,6 +1139,32 @@
       "equity": 100264.9,
       "apy_today": 3.3382,
       "daily_yield_usd": 9.169,
+      "positions": {
+        "aave_v3": 23250.0,
+        "compound_v3": 15852.27,
+        "spark_susds": 13738.64,
+        "morpho_steakhouse": 10568.18,
+        "maple": 15852.27,
+        "euler_v2": 10568.18,
+        "yearn_v3": 3170.45
+      },
+      "source": "cycle",
+      "evidenced": true,
+      "accrual_source": "fallback"
+    },
+    {
+      "date": "2026-07-04",
+      "open_equity": 100264.9,
+      "close_equity": 100273.91,
+      "high_equity": 100273.91,
+      "low_equity": 100264.9,
+      "snapshots": 1,
+      "daily_return_pct": 0.008985,
+      "cumulative_return_pct": 0.273909,
+      "drawdown_pct": 0.0,
+      "equity": 100273.91,
+      "apy_today": 3.2795,
+      "daily_yield_usd": 9.0089,
       "positions": {
         "aave_v3": 23250.0,
         "compound_v3": 15852.27,
