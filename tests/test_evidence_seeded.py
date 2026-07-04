@@ -1,3 +1,4 @@
+import pytest
 """
 tests/test_evidence_seeded.py
 
@@ -117,6 +118,8 @@ class TestPaperEvidenceHistoryStructure(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestRealCycleCount(unittest.TestCase):
+
+    @pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/state-dependent (needs real evidenced track / gates data); runs locally, skipped in data-less CI)")
 
     def test_real_days_present(self):
         pe = _load_pe()
