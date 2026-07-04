@@ -65,9 +65,9 @@ def test_narrative_cycle_time_wrong_flagged(tmp_path):
 
 
 def test_narrative_cycle_time_canonical_ok(tmp_path):
-    # both the real-UTC 06:00 and the doc-labelled 08:00 are accepted (local-vs-UTC ambiguity)
+    # canonical daily-cycle time is 06:00 UTC (owner-set; plist Hour=8 CEST = 06:00 UTC); 07:00 = tournament
     _mk(tmp_path, "status", "canonical daily cycle 06:00 UTC")
-    _mk(tmp_path, "s2", "docs say 08:00 UTC")
+    _mk(tmp_path, "s2", "docs say 06:00 UTC")
     r = aud.check_narrative_constants(tmp_path, components_dir=None)
     assert r["cycle_time_wrong"] == []
 
