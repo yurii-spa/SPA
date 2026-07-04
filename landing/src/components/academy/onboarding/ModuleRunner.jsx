@@ -123,12 +123,12 @@ export default function ModuleRunner({ moduleId, moduleData }) {
 
       {/* Theory (static) */}
       <Section title={tr('theory')}>
-        <div style={prose} dangerouslySetInnerHTML={{ __html: moduleData.theory_html_ru }} />
+        <div style={prose} dangerouslySetInnerHTML={{ __html: (lang === 'en' && moduleData.theory_html_en) ? moduleData.theory_html_en : moduleData.theory_html_ru }} />
       </Section>
 
       {/* Practice (static) */}
       <Section title={tr('practice')}>
-        <div style={prose} dangerouslySetInnerHTML={{ __html: moduleData.practice_html_ru }} />
+        <div style={prose} dangerouslySetInnerHTML={{ __html: (lang === 'en' && moduleData.practice_html_en) ? moduleData.practice_html_en : moduleData.practice_html_ru }} />
       </Section>
 
       {/* Verify + quiz + notes (interactive) */}
@@ -173,7 +173,7 @@ export default function ModuleRunner({ moduleId, moduleData }) {
 
       {/* SPA connection (static) */}
       <Section title={tr('spaBlock')} accent>
-        <div style={prose} dangerouslySetInnerHTML={{ __html: moduleData.spa_connection_html_ru }} />
+        <div style={prose} dangerouslySetInnerHTML={{ __html: (lang === 'en' && moduleData.spa_connection_html_en) ? moduleData.spa_connection_html_en : moduleData.spa_connection_html_ru }} />
       </Section>
     </div>
   );

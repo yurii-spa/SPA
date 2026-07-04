@@ -42,6 +42,44 @@ _SAFETY_NOTE = (
     "ни поддержка, ни этот курс.</p>"
 )
 
+_SAFETY_NOTE_EN = (
+    "<p class=\"safety\"><strong>Safety:</strong> the practice-wallet limit is "
+    "≤ $150 — do not fund more. The course never asks you to connect your main "
+    "wallet. Never tell anyone your seed phrase — neither support nor this course "
+    "will ever ask for it.</p>"
+)
+
+
+def _svg_testnet(lang: str) -> str:
+    """Inline SVG: mainnet (real money, mistakes cost) vs Base Sepolia testnet (free, faucet-fed).
+    Language-scoped labels; pure inline SVG (no external assets), scales, dark-theme friendly."""
+    if lang == "en":
+        t = ("Production Base", "real ETH · a mistake costs money", "chain 8453",
+             "Base Sepolia", "test ETH · a mistake is free", "chain 84532", "faucet", "practise here first")
+    else:
+        t = ("Боевой Base", "реальный ETH · ошибка стоит денег", "chain 8453",
+             "Base Sepolia", "тестовый ETH · ошибка бесплатна", "chain 84532", "faucet", "сначала тренируйтесь здесь")
+    return (
+        '<figure class="diagram"><svg viewBox="0 0 600 210" role="img" '
+        'style="width:100%;max-width:560px;height:auto;font-family:system-ui,sans-serif">'
+        '<rect x="8" y="20" width="270" height="150" rx="10" fill="rgba(239,68,68,.08)" stroke="#ef4444" stroke-width="1.5"/>'
+        f'<text x="143" y="52" text-anchor="middle" fill="#ef4444" font-size="17" font-weight="700">{t[0]}</text>'
+        f'<text x="143" y="80" text-anchor="middle" fill="#e5e7eb" font-size="12">{t[1]}</text>'
+        f'<text x="143" y="140" text-anchor="middle" fill="#9ca3af" font-size="12" font-family="monospace">{t[2]}</text>'
+        '<text x="143" y="112" text-anchor="middle" font-size="30">💸</text>'
+        '<rect x="322" y="20" width="270" height="150" rx="10" fill="rgba(20,184,166,.08)" stroke="#14b8a6" stroke-width="1.5"/>'
+        f'<text x="457" y="52" text-anchor="middle" fill="#14b8a6" font-size="17" font-weight="700">{t[3]}</text>'
+        f'<text x="457" y="80" text-anchor="middle" fill="#e5e7eb" font-size="12">{t[4]}</text>'
+        f'<text x="457" y="140" text-anchor="middle" fill="#9ca3af" font-size="12" font-family="monospace">{t[5]}</text>'
+        '<text x="457" y="112" text-anchor="middle" font-size="30">🧪</text>'
+        f'<text x="457" y="196" text-anchor="middle" fill="#14b8a6" font-size="12">💧 {t[6]} → {t[7]}</text>'
+        '</svg></figure>'
+    )
+
+
+_SVG_TESTNET_RU = _svg_testnet("ru")
+_SVG_TESTNET_EN = _svg_testnet("en")
+
 
 MODULES: Dict[int, dict] = {
     # ── M0 — Base Sepolia (testnet) ──────────────────────────────────────────
@@ -55,27 +93,94 @@ MODULES: Dict[int, dict] = {
         "chain": "base_sepolia",
         "wallet_limit_usd": 150,
         "theory_html_ru": (
-            "<p>Base Sepolia — это <strong>тестовая сеть</strong> (testnet). Она "
-            "устроена как настоящий Base, но токены в ней ничего не стоят. Это "
-            "идеальный полигон: любую ошибку здесь можно совершить бесплатно.</p>"
-            "<p>Тестовый ETH берётся из <em>faucet</em> — сервиса, который "
-            "бесплатно выдаёт немного тестовых монет на газ. Chain ID Base "
-            "Sepolia — <code>84532</code> (у Base mainnet — 8453).</p>"
-            "<p>Подтверждённая транзакция в тестнете означает лишь, что она "
-            "внесена в блок тестовой сети. Реальных денег не двигается — это "
-            "репетиция перед mainnet.</p>"
+            "<p><strong>Base Sepolia</strong> — это <strong>тестовая сеть</strong> (testnet): точная копия "
+            "боевого Base, но токены в ней ничего не стоят. Это ваш полигон — любую ошибку здесь можно "
+            "совершить бесплатно и потом повторить правильно.</p>"
+            + _SVG_TESTNET_RU +
+            "<h4>Как это устроено</h4>"
+            "<p>Каждая сеть имеет <strong>Chain ID</strong> — числовой идентификатор, по которому кошелёк "
+            "понимает, куда шлёт транзакцию. У Base Sepolia он <code>84532</code>, у боевого Base — "
+            "<code>8453</code>. Кошелёк подключается к сети через <em>RPC-эндпоинт</em> (URL-шлюз к узлу). "
+            "Тестовый ETH нельзя купить — его выдаёт <em>faucet</em> (кран): вы вставляете свой адрес, "
+            "сервис бесплатно присылает немного тестовых монет на газ.</p>"
+            "<h4>Разбор на примере</h4>"
+            "<p>Вы получаете ~0.05 тестового ETH из faucet → отправляете 0.001 самому себе → транзакция "
+            "попадает в блок Base Sepolia → её видно в explorer по <code>tx hash</code>. Реальные деньги "
+            "не двигаются: подтверждение в тестнете значит лишь «внесено в блок тестовой сети». Это "
+            "полная репетиция боевого действия — те же кнопки, тот же газ, ноль риска.</p>"
+            "<h4>Что может пойти не так</h4>"
+            "<ul>"
+            "<li><strong>Фейковый faucet.</strong> Сайты-обманки просят «подключить кошелёк» или прислать "
+            "«депозит для разблокировки». Настоящий faucet НИЧЕГО не просит, кроме адреса.</li>"
+            "<li><strong>Не та сеть.</strong> Легко по привычке переключиться на mainnet и потратить "
+            "реальный ETH там, где ждали тестовый. Всегда сверяйте Chain ID перед подтверждением.</li>"
+            "<li><strong>Chain-ID mismatch.</strong> Транзакция, подписанная для одной сети, недействительна "
+            "в другой — но подпись на фишинговом сайте может увести реальные средства. Подписывайте только "
+            "то, что понимаете.</li>"
+            "</ul>"
+            "<p class=\"glossary\"><strong>Словарь:</strong> <em>testnet</em> — тестовая сеть с бесплатными "
+            "токенами; <em>faucet</em> — кран тестовых монет; <em>Chain ID</em> — номер сети; "
+            "<em>RPC</em> — шлюз кошелька к узлу; <em>tx hash</em> — публичный идентификатор транзакции.</p>"
+        ),
+        "theory_html_en": (
+            "<p><strong>Base Sepolia</strong> is a <strong>testnet</strong>: an exact copy of production "
+            "Base where the tokens are worthless. It is your practice ground — make any mistake here for "
+            "free, then repeat it correctly.</p>"
+            + _SVG_TESTNET_EN +
+            "<h4>How it works</h4>"
+            "<p>Every network has a <strong>Chain ID</strong> — a numeric identifier your wallet uses to "
+            "know where it is sending a transaction. Base Sepolia's is <code>84532</code>; production Base "
+            "is <code>8453</code>. The wallet reaches the network through an <em>RPC endpoint</em> (a URL "
+            "gateway to a node). You cannot buy test ETH — a <em>faucet</em> hands it out: you paste your "
+            "address and the service sends a little test coin for gas, free.</p>"
+            "<h4>Worked example</h4>"
+            "<p>You get ~0.05 test ETH from a faucet → send 0.001 to yourself → the transaction lands in a "
+            "Base Sepolia block → it is visible in an explorer by its <code>tx hash</code>. No real money "
+            "moves: a testnet confirmation only means \"included in a test-network block.\" It is a full "
+            "dress rehearsal of the real action — same buttons, same gas, zero risk.</p>"
+            "<h4>What can go wrong</h4>"
+            "<ul>"
+            "<li><strong>Fake faucet.</strong> Scam sites ask you to \"connect your wallet\" or send a "
+            "\"deposit to unlock.\" A real faucet asks for nothing but your address.</li>"
+            "<li><strong>Wrong network.</strong> It is easy to switch to mainnet out of habit and spend "
+            "real ETH where you meant to spend test ETH. Always check the Chain ID before confirming.</li>"
+            "<li><strong>Chain-ID mismatch.</strong> A transaction signed for one network is invalid on "
+            "another — but a signature on a phishing site can still drain real funds. Only sign what you "
+            "understand.</li>"
+            "</ul>"
+            "<p class=\"glossary\"><strong>Glossary:</strong> <em>testnet</em> — a test network with free "
+            "tokens; <em>faucet</em> — a tap for test coins; <em>Chain ID</em> — the network's number; "
+            "<em>RPC</em> — the wallet's gateway to a node; <em>tx hash</em> — a transaction's public id.</p>"
         ),
         "practice_html_ru": (
-            "<p><strong>Задание:</strong> создайте учебный кошелёк, получите "
-            "тестовый ETH из faucet Base Sepolia и отправьте небольшую тестовую "
-            "транзакцию себе. Сохраните tx hash — вы проверите его в block "
-            "explorer.</p>" + _SAFETY_NOTE
+            "<p><strong>Задание:</strong> создайте учебный кошелёк, получите тестовый ETH из faucet Base "
+            "Sepolia и отправьте небольшую тестовую транзакцию себе. Сохраните <code>tx hash</code> — вы "
+            "проверите его в block explorer (basescan.org для Sepolia).</p>"
+            "<p><strong>Шаги:</strong> (1) подключите кошелёк к сети Base Sepolia (Chain ID 84532); "
+            "(2) вставьте адрес в faucet и дождитесь тестового ETH; (3) отправьте 0.001 себе; "
+            "(4) откройте tx hash в explorer и убедитесь в статусе «Success».</p>" + _SAFETY_NOTE
+        ),
+        "practice_html_en": (
+            "<p><strong>Task:</strong> create a practice wallet, get test ETH from a Base Sepolia faucet, "
+            "and send a small test transaction to yourself. Save the <code>tx hash</code> — you will check "
+            "it in a block explorer (basescan.org for Sepolia).</p>"
+            "<p><strong>Steps:</strong> (1) connect your wallet to Base Sepolia (Chain ID 84532); "
+            "(2) paste your address into a faucet and wait for the test ETH; (3) send 0.001 to yourself; "
+            "(4) open the tx hash in an explorer and confirm the \"Success\" status.</p>" + _SAFETY_NOTE_EN
         ),
         "spa_connection_html_ru": (
-            "<p><strong>Что бы здесь сделал SPA:</strong> SPA сам начинает всё "
-            "новое в песочнице (paper trading), прежде чем рисковать капиталом. "
-            "Тестнет для вас — то же, что paper-режим для SPA: сначала доказать "
-            "механику без риска, только потом реальные деньги.</p>"
+            "<p><strong>Что бы здесь сделал SPA:</strong> SPA начинает всё новое в песочнице "
+            "(<em>paper trading</em>) — с виртуальным капиталом, прежде чем рисковать реальным. Тестнет для "
+            "вас — ровно то же, что paper-режим для SPA: сначала доказать механику без риска, только потом "
+            "реальные деньги. Этот принцип «докажи в песочнице» — не осторожность ради осторожности, а "
+            "способ отделить настоящий edge от случайной удачи.</p>"
+        ),
+        "spa_connection_html_en": (
+            "<p><strong>What SPA would do here:</strong> SPA starts everything new in a sandbox "
+            "(<em>paper trading</em>) — with virtual capital, before risking real money. A testnet is to "
+            "you exactly what paper mode is to SPA: prove the mechanics with zero risk first, real money "
+            "only after. That \"prove it in the sandbox\" rule is not caution for its own sake — it is how "
+            "you separate a genuine edge from lucky noise.</p>"
         ),
     },
     # ── M1 — Кошелёк и сид-фраза ─────────────────────────────────────────────
