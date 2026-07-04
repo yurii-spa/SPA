@@ -1,5 +1,8 @@
 # SPA — Smart Passive Aggregator · CLAUDE.md
 
+> **IMPORTANT — before working on this repository, read [`PROJECT_CONTROL/00_START_HERE.md`](PROJECT_CONTROL/00_START_HERE.md)** (source-of-truth, deploy topology, two-agent separation, verification commands). Consolidates existing docs; does not replace them.
+
+
 ---
 
 ## ⚡ ПЕРВЫМ ДЕЛОМ (обязательно в начале каждой сессии)

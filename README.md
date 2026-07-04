@@ -1,3 +1,5 @@
+> **IMPORTANT — before working on this repository, read [`PROJECT_CONTROL/00_START_HERE.md`](PROJECT_CONTROL/00_START_HERE.md)** (source-of-truth, deploy topology, two-agent separation, verification commands). Consolidates existing docs; does not replace them.
+
 # SPA_Claude
 
 **Smart Passive Aggregator — DeFi Yield Management System**
