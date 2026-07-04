@@ -238,6 +238,57 @@ _SVG_SUPPLY_RU, _SVG_SUPPLY_EN = _svg_supply("ru"), _svg_supply("en")
 _SVG_UTIL_RU, _SVG_UTIL_EN = _svg_util("ru"), _svg_util("en")
 
 
+def _svg_threats(lang: str) -> str:
+    """Inline SVG: most losses are user-deception (phishing/drainer/urgency), not protocol hacks."""
+    if lang == "en":
+        title = "Most losses = user deception, not protocol hacks"
+        cards = [("🎣", "Phishing", "fake site, lookalike URL"),
+                 ("🩸", "Drainer sig", "approve/permit takes all"),
+                 ("⏳", "Urgency", "\"act in 5 min\" pressure")]
+    else:
+        title = "Большинство потерь = обман пользователя, не взлом протокола"
+        cards = [("🎣", "Фишинг", "фейк-сайт, похожий URL"),
+                 ("🩸", "Drainer-подпись", "approve/permit забирает всё"),
+                 ("⏳", "Срочность", "давление «успей за 5 мин»")]
+    inner = ""
+    for i, (ic, h, sub) in enumerate(cards):
+        x = 12 + i * 194
+        inner += (f'<rect x="{x}" y="40" width="180" height="80" rx="10" fill="rgba(239,68,68,.07)" stroke="#ef4444" stroke-width="1.3"/>'
+                  f'<text x="{x+90}" y="72" text-anchor="middle" font-size="24">{ic}</text>'
+                  f'<text x="{x+90}" y="96" text-anchor="middle" fill="#ef4444" font-size="13" font-weight="700">{h}</text>'
+                  f'<text x="{x+90}" y="112" text-anchor="middle" fill="#9ca3af" font-size="10">{sub}</text>')
+    return ('<figure class="diagram"><svg viewBox="0 0 600 135" role="img" '
+            'style="width:100%;max-width:560px;height:auto;font-family:system-ui,sans-serif">'
+            f'<text x="300" y="24" text-anchor="middle" fill="#e5e7eb" font-size="13" font-weight="600">{title}</text>'
+            + inner + '</svg></figure>')
+
+
+def _svg_journey(lang: str) -> str:
+    """Inline SVG: the full onboarding journey — wallet → network → tx → approval → supply → monitor → withdraw."""
+    if lang == "en":
+        steps = ["Wallet", "Network", "Tx", "Approval", "Supply", "Monitor", "Withdraw"]
+        cap = "the full loop — proven on-chain, within a ≤ $150 limit"
+    else:
+        steps = ["Кошелёк", "Сеть", "Tx", "Approval", "Депозит", "Монитор", "Вывод"]
+        cap = "полный цикл — доказан on-chain, в лимите ≤ $150"
+    inner = ""
+    for i, s in enumerate(steps):
+        x = 8 + i * 84
+        inner += (f'<rect x="{x}" y="45" width="72" height="40" rx="7" fill="rgba(20,184,166,.08)" stroke="#14b8a6" stroke-width="1.3"/>'
+                  f'<text x="{x+36}" y="69" text-anchor="middle" fill="#14b8a6" font-size="11" font-weight="600">{s}</text>')
+        if i < len(steps) - 1:
+            inner += f'<text x="{x+78}" y="69" text-anchor="middle" fill="#9ca3af" font-size="13">→</text>'
+    return ('<figure class="diagram"><svg viewBox="0 0 600 120" role="img" '
+            'style="width:100%;max-width:580px;height:auto;font-family:system-ui,sans-serif">'
+            + inner +
+            f'<text x="300" y="106" text-anchor="middle" fill="#9ca3af" font-size="12">{cap}</text>'
+            '</svg></figure>')
+
+
+_SVG_THREATS_RU, _SVG_THREATS_EN = _svg_threats("ru"), _svg_threats("en")
+_SVG_JOURNEY_RU, _SVG_JOURNEY_EN = _svg_journey("ru"), _svg_journey("en")
+
+
 MODULES: Dict[int, dict] = {
     # ── M0 — Base Sepolia (testnet) ──────────────────────────────────────────
     0: {
@@ -924,19 +975,67 @@ MODULES: Dict[int, dict] = {
         "chain": "none",
         "wallet_limit_usd": 150,
         "theory_html_ru": (
-            "<p>Большинство потерь — не взлом протокола, а обман пользователя. "
-            "Фишинговый сайт маскируется под настоящий: сверяйте точный URL, "
-            "HTTPS и источник ссылки. <strong>Drainer-подпись</strong> — "
-            "вредоносный approve/permit, отдающий все токены злоумышленнику.</p>"
-            "<p><strong>Permit (EIP-2612)</strong> опаснее обычного approval: "
-            "это подпись, а не транзакция — жертва не платит газ, не видит её в "
-            "истории, а атакующий может предъявить её позже. Если permit ещё не "
-            "исполнен — отзывайте разрешение (revoke.cash / etherscan); если "
-            "уже исполнен, отмена невозможна.</p>"
-            "<p>Правила гигиены: заходите по сохранённым закладкам, а не по "
-            "ссылкам из чатов; при каждой подписи проверяйте адрес контракта и "
-            "что именно подписываете; hardware wallet защищает ключи от "
-            "заражённого ПК, но не от вашей собственной вредоносной подписи.</p>"
+            "<p>Самый важный модуль. Главный факт: <strong>большинство потерь — не взлом протокола, а обман "
+            "пользователя</strong>. Смарт-контракт делает ровно то, что вы подписали; беда в том, что вас "
+            "убеждают подписать не то.</p>"
+            + _SVG_THREATS_RU +
+            "<h4>Таксономия угроз</h4>"
+            "<p><strong>Фишинг</strong> — сайт-двойник с похожим URL, ловит вашу подпись. "
+            "<strong>Drainer-подпись</strong> — вредоносный approve/permit, отдающий все токены. "
+            "<strong>Permit (EIP-2612)</strong> опаснее обычного approval: это <em>подпись</em>, а не "
+            "транзакция — жертва не платит газ, не видит её в истории, а атакующий предъявляет её позже. "
+            "Ещё есть <em>rug</em> (команда уводит средства), <em>oracle-манипуляция</em> и "
+            "<em>bridge-эксплойты</em> — но на вашем уровне 90% риска закрывает гигиена подписи.</p>"
+            "<h4>Как реагировать</h4>"
+            "<p>Если permit/approve ещё <em>не исполнен</em> — немедленно отзывайте разрешение "
+            "(<code>revoke.cash</code> / explorer). Если <em>уже исполнен</em> — отмена невозможна, "
+            "переводите остатки на чистый кошелёк. Скомпрометировали seed — считайте ВСЕ адреса из него "
+            "потерянными, заводите новый seed с нуля.</p>"
+            "<h4>Правила гигиены</h4>"
+            "<ul>"
+            "<li>Заходите по <strong>сохранённым закладкам</strong>, не по ссылкам из чатов/рекламы.</li>"
+            "<li>При каждой подписи читайте, <strong>что</strong> подписываете и <strong>кому</strong> "
+            "даёте spender-доступ.</li>"
+            "<li><strong>Срочность = красный флаг.</strong> «Успей за 5 минут», «клейм наград» — типичные "
+            "приёмы давления.</li>"
+            "<li>Hardware wallet защищает ключи от заражённого ПК, но <em>не</em> от вашей же вредоносной "
+            "подписи — читать всё равно надо.</li>"
+            "</ul>"
+            "<p class=\"glossary\"><strong>Словарь:</strong> <em>фишинг</em> — сайт-двойник; <em>drainer</em> "
+            "— подпись, уводящая всё; <em>permit</em> — approval подписью; <em>rug</em> — увод средств "
+            "командой; <em>revoke</em> — отзыв разрешения.</p>"
+        ),
+        "theory_html_en": (
+            "<p>The most important module. The key fact: <strong>most losses are user deception, not "
+            "protocol hacks</strong>. A smart contract does exactly what you signed; the trouble is being "
+            "convinced to sign the wrong thing.</p>"
+            + _SVG_THREATS_EN +
+            "<h4>Threat taxonomy</h4>"
+            "<p><strong>Phishing</strong> — a lookalike site with a similar URL that captures your signature. "
+            "A <strong>drainer signature</strong> — a malicious approve/permit that hands over all tokens. "
+            "<strong>Permit (EIP-2612)</strong> is more dangerous than a normal approval: it is a "
+            "<em>signature</em>, not a transaction — the victim pays no gas, doesn't see it in history, and "
+            "the attacker presents it later. There are also <em>rugs</em> (a team drains funds), "
+            "<em>oracle manipulation</em>, and <em>bridge exploits</em> — but at your level, 90% of the risk "
+            "is closed by signing hygiene.</p>"
+            "<h4>How to respond</h4>"
+            "<p>If a permit/approve is <em>not yet executed</em> — revoke the allowance immediately "
+            "(<code>revoke.cash</code> / an explorer). If <em>already executed</em> — it can't be undone; "
+            "move remaining funds to a clean wallet. If your seed is compromised, treat ALL addresses from it "
+            "as lost and start a fresh seed.</p>"
+            "<h4>Hygiene rules</h4>"
+            "<ul>"
+            "<li>Arrive via <strong>saved bookmarks</strong>, not links from chats/ads.</li>"
+            "<li>On every signature, read <strong>what</strong> you are signing and <strong>who</strong> you "
+            "grant spender access to.</li>"
+            "<li><strong>Urgency = red flag.</strong> \"Act in 5 minutes,\" \"claim rewards\" are classic "
+            "pressure tactics.</li>"
+            "<li>A hardware wallet protects keys from an infected PC, but <em>not</em> from your own "
+            "malicious signature — you still have to read.</li>"
+            "</ul>"
+            "<p class=\"glossary\"><strong>Glossary:</strong> <em>phishing</em> — a lookalike site; "
+            "<em>drainer</em> — a signature that takes everything; <em>permit</em> — approval by signature; "
+            "<em>rug</em> — a team draining funds; <em>revoke</em> — cancelling an allowance.</p>"
         ),
         "practice_html_ru": (
             "<p><strong>Задание:</strong> это самый сложный модуль — пройдите "
@@ -959,6 +1058,25 @@ MODULES: Dict[int, dict] = {
             "<li>Если хоть один пункт вызывает сомнение — я отклоняю подпись.</li>"
             "</ol></div>" + _SAFETY_NOTE
         ),
+        "practice_html_en": (
+            "<p><strong>Task:</strong> this is the hardest module — pass the incidents quiz (≥10 questions, "
+            "80% threshold). Work through each scenario: phishing, drainer, a stuck pending, revoking a "
+            "permit.</p>"
+            "<div class=\"checklist\"><p><strong>Printable \"before every signature\" checklist (11 "
+            "points):</strong></p><ol>"
+            "<li>I arrived via my own bookmark, not a link from a chat/email/ad.</li>"
+            "<li>The exact URL and HTTPS lock match the official domain (no swapped letters).</li>"
+            "<li>I understand what I am signing: a transaction or a signature (permit/off-chain).</li>"
+            "<li>The contract address matches the protocol's official address.</li>"
+            "<li>The approval amount is specific and minimal, not \"unlimited.\"</li>"
+            "<li>The spender (who I grant access to) is the contract I expect.</li>"
+            "<li>This is not a \"reward claim\"/\"unlock\" from an unknown site.</li>"
+            "<li>The wallet simulation does not show all tokens/NFTs leaving.</li>"
+            "<li>No one is rushing or scaring me with urgency (\"act in 5 minutes\").</li>"
+            "<li>The hardware wallet shows the same address and data as the screen.</li>"
+            "<li>If even one point raises doubt — I reject the signature.</li>"
+            "</ol></div>" + _SAFETY_NOTE_EN
+        ),
         "spa_connection_html_ru": (
             "<p><strong>Что бы здесь сделал SPA:</strong> SPA — refusal-first: "
             "он скорее откажется от доходности, которая лишь компенсирует "
@@ -966,6 +1084,12 @@ MODULES: Dict[int, dict] = {
             "автоматически поднимает kill-switch при критической угрозе "
             "удерживаемому протоколу. Ваш аналог: подозрительное — отклоняйте, "
             "не подписывайте на всякий случай.</p>"
+        ),
+        "spa_connection_html_en": (
+            "<p><strong>What SPA would do here:</strong> SPA is refusal-first: it would rather forgo a yield "
+            "that merely compensates for hidden tail risk than sign up for it; a threat-reactor automatically "
+            "raises the kill-switch on a critical threat to a held protocol. Your version: reject the "
+            "suspicious — do not sign \"just in case.\"</p>"
         ),
     },
     # ── M8 — Капстоун (без серверного квиза; notes + on-chain) ───────────────
@@ -979,29 +1103,66 @@ MODULES: Dict[int, dict] = {
         "chain": "base",
         "wallet_limit_usd": 150,
         "theory_html_ru": (
-            "<p>Капстоун связывает всё вместе: вы самостоятельно проходите "
-            "полный цикл — кошелёк → сеть → депозит → мониторинг → вывод — на "
-            "Base, оставаясь в пределах учебного лимита.</p>"
-            "<p>У этого модуля <strong>нет серверного квиза</strong>. Его "
-            "прохождение подтверждается вашими заметками (рефлексией пройденного "
-            "пути) и реальным on-chain действием, а не тестом.</p>"
-            "<p>Задача — не заработать, а доказать себе, что вы владеете "
-            "механикой и дисциплиной: действуете по правилам, а не по эмоциям.</p>"
+            "<p>Капстоун связывает всё вместе. Вы самостоятельно проходите полный цикл на Base, оставаясь в "
+            "пределах учебного лимита — и доказываете себе, что владеете и <strong>механикой</strong>, и "
+            "<strong>дисциплиной</strong>.</p>"
+            + _SVG_JOURNEY_RU +
+            "<h4>Карта пути</h4>"
+            "<p>Каждый модуль — это звено одной цепи риска: <strong>кошелёк</strong> (M1: ключи только ваши) "
+            "→ <strong>сеть/газ</strong> (M2: издержки — часть доходности) → <strong>транзакция</strong> "
+            "(M3: доказательство = tx hash) → <strong>approval</strong> (M4: наименьшая привилегия) → "
+            "<strong>депозит</strong> (M5: доход = плата за риск) → <strong>мониторинг</strong> (M6: "
+            "kill-rule до входа) → <strong>вывод</strong> (M6) — и всё это под щитом <strong>гигиены "
+            "подписи</strong> (M7).</p>"
+            "<h4>Смысл</h4>"
+            "<p>У этого модуля <strong>нет серверного квиза</strong>. Прохождение подтверждается вашими "
+            "заметками (рефлексией) и реальным on-chain действием, а не тестом. Задача — не заработать, а "
+            "доказать: вы действуете по правилам, а не по эмоциям. Это ровно то, что отделяет инвестора от "
+            "игрока — и то, чем живёт SPA.</p>"
+        ),
+        "theory_html_en": (
+            "<p>The capstone ties it all together. You run the full loop on Base yourself, within the "
+            "educational limit — and prove to yourself that you own both the <strong>mechanics</strong> and "
+            "the <strong>discipline</strong>.</p>"
+            + _SVG_JOURNEY_EN +
+            "<h4>The map</h4>"
+            "<p>Every module is a link in one chain of risk: <strong>wallet</strong> (M1: the keys are yours "
+            "alone) → <strong>network/gas</strong> (M2: costs are part of the yield) → "
+            "<strong>transaction</strong> (M3: the proof is the tx hash) → <strong>approval</strong> (M4: "
+            "least privilege) → <strong>supply</strong> (M5: yield is payment for risk) → "
+            "<strong>monitor</strong> (M6: kill-rule before entry) → <strong>withdraw</strong> (M6) — all "
+            "under the shield of <strong>signing hygiene</strong> (M7).</p>"
+            "<h4>The point</h4>"
+            "<p>This module has <strong>no server quiz</strong>. Completion is proven by your notes "
+            "(reflection) and a real on-chain action, not a test. The goal isn't to earn — it's to prove you "
+            "act by rules, not emotion. That is exactly what separates an investor from a gambler — and it is "
+            "what SPA lives by.</p>"
         ),
         "practice_html_ru": (
-            "<p><strong>Задание:</strong> выполните полный цикл на Base в "
-            "пределах лимита (свежие Supply и Withdraw в рамках капстоуна) и "
-            "запишите в заметки рефлексию по трём вопросам: <em>что вас "
-            "удивило</em> на этом пути; <em>что вы бы автоматизировали</em> "
-            "(и почему); <em>что осознанно оставили бы ручным</em> (и почему). "
-            "Подтверждение — on-chain действие + заметки, без квиза.</p>"
+            "<p><strong>Задание:</strong> выполните полный цикл на Base в пределах лимита (свежие Supply и "
+            "Withdraw в рамках капстоуна) и запишите в заметки рефлексию по трём вопросам: <em>что вас "
+            "удивило</em> на этом пути; <em>что вы бы автоматизировали</em> (и почему); <em>что осознанно "
+            "оставили бы ручным</em> (и почему). Подтверждение — on-chain действие + заметки, без квиза.</p>"
             + _SAFETY_NOTE
         ),
+        "practice_html_en": (
+            "<p><strong>Task:</strong> run the full loop on Base within the limit (fresh Supply and Withdraw "
+            "for the capstone) and write a reflection in your notes on three questions: <em>what surprised "
+            "you</em> on this path; <em>what you would automate</em> (and why); <em>what you would "
+            "deliberately keep manual</em> (and why). Completion = an on-chain action + notes, no quiz.</p>"
+            + _SAFETY_NOTE_EN
+        ),
         "spa_connection_html_ru": (
-            "<p><strong>Что бы здесь сделал SPA:</strong> SPA доказывает свой "
-            "track record непрерывным честным paper-циклом с проверяемым "
-            "evidence, прежде чем управлять внешним капиталом. Ваш капстоун — "
-            "то же: доказанная дисциплина, а не обещание.</p>"
+            "<p><strong>Что бы здесь сделал SPA:</strong> SPA доказывает свой track record непрерывным "
+            "честным paper-циклом с проверяемым evidence, прежде чем управлять внешним капиталом. Ваш "
+            "капстоун — то же: доказанная дисциплина, а не обещание. «Докажи, потом доверяй» — и к себе, и к "
+            "системе.</p>"
+        ),
+        "spa_connection_html_en": (
+            "<p><strong>What SPA would do here:</strong> SPA proves its track record with a continuous, "
+            "honest paper cycle and verifiable evidence before managing outside capital. Your capstone is the "
+            "same: proven discipline, not a promise. \"Prove it, then trust it\" — of yourself and of the "
+            "system.</p>"
         ),
     },
 }
