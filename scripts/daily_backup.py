@@ -62,7 +62,10 @@ MUST_HAVE = [
     "track.db",
 ]
 # Files captured via the sqlite online-backup API (consistent even if mid-write).
-_SQLITE_FILES = ("track.db",)
+# academy.db (Academy onboarding DB, stage 9, 2026-07-04) is captured when present
+# but is NOT in MUST_HAVE: on a host where the Academy is not yet deployed the file
+# is simply absent and skipped — it must never fail-CLOSE the daily backup.
+_SQLITE_FILES = ("track.db", "academy.db")
 
 
 class BackupIncompleteError(RuntimeError):
