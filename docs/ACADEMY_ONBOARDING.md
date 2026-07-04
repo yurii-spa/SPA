@@ -143,3 +143,45 @@ progress_notes_quiz,siwe,onchain,verifiers_m4m8,final}.py -v
 ```
 
 Все — против throwaway tmp-file БД, без сети и без реального `data/`.
+
+## Production deploy checklist
+
+The Academy backend is a FastAPI sub-app mounted at `/academy` inside the **live** apiserver
+(`spa_core/api/server.py`, port 8765, served at `api.earn-defi.com` via the cloudflared tunnel — the
+same process the public dashboard depends on). Follow this checklist so bringing it up never disturbs
+the dashboard or the daily paper track.
+
+### When to restart the apiserver
+- **NOT during the daily cycle window.** The cycle runs at **06:00 UTC** (evidence: `last_cycle_ts` in
+  `data/paper_trading_status.json`; note the plists use `Hour=8` in **local/CEST** = 06:00 UTC — the docs
+  that say "08:00 UTC" are mislabelled). Avoid `±15 min` around 06:00 UTC.
+- **NOT during a `site_freshness.yml` run** (cron `15 */6 * * *` → 00:15 / 06:15 / 12:15 / 18:15 UTC).
+  The monitor reads the live API; a restart mid-run can produce a spurious `UNAVAILABLE`/`STALE` alert.
+- Pick a quiet minute outside both windows.
+
+### Bring-up steps (idempotent)
+1. Deps present: `python3 -c "import argon2, eth_account"` (argon2-cffi, eth-account).
+2. DB exists: `python3 scripts/init_academy_db.py --db ~/Documents/SPA_Claude/data/academy.db --create`
+   (first time only; `--create` is required — a bare run refuses to make a new file).
+3. `SPA_ACADEMY_DB` is exported in `scripts/agent_apiserver.sh` (the launchd wrapper) so a plain
+   kickstart brings the mount up. The mount is **fail-safe**: if the env is unset or the app import
+   fails, `server.py` logs `Academy sub-app not mounted` and the main API keeps running.
+4. Restart: `launchctl kickstart -k gui/$(id -u)/com.spa.apiserver`.
+
+### Smoke test (MANDATORY, right after restart)
+- **Old surfaces still alive:**
+  - `curl -s -o /dev/null -w '%{http_code}' https://api.earn-defi.com/api/v1/golive` → **200**
+  - `curl -s -o /dev/null -w '%{http_code}' https://api.earn-defi.com/api/rates-desk/full-chain/equity_track` → **200**
+  - dashboard loads real numbers (earn-defi.com/dashboard).
+- **Academy up:** `curl -s https://api.earn-defi.com/academy/health` → `{"ok":true,"service":"academy"}`.
+- If the old surfaces are NOT 200 → the restart broke the main API — roll back immediately (below).
+
+### Rollback plan (revert to the prior process)
+1. **Unmount the Academy sub-app without touching the main API:** comment out (or set an env guard on)
+   the `SPA_ACADEMY_DB` export in `scripts/agent_apiserver.sh` → kickstart. `create_academy_app()` then
+   raises, the mount is skipped (fail-safe), `/academy/*` returns 404, and the main API is unchanged.
+2. **Full revert:** `git show <prev-sha>:scripts/agent_apiserver.sh > scripts/agent_apiserver.sh`
+   (restore the wrapper without the export) → kickstart. The apiserver returns to its pre-academy state.
+3. The Academy DB (`data/academy.db`) is independent — leaving or removing it does not affect the main
+   API. It is captured by `daily_backup` (`_SQLITE_FILES`), so a wipe is recoverable from backup.
+4. Verify the smoke test's "old surfaces" block is 200 after any rollback.
