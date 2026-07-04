@@ -60,6 +60,11 @@ BIP39_WORDLIST = _load_bip39()
 # 0x + exactly 64 hex nibbles == a 32-byte private key OR a tx hash.
 _HEX64_ANYWHERE = re.compile(r"0x[0-9a-fA-F]{64}")
 _HEX64_EXACT = re.compile(r"^0x[0-9a-fA-F]{64}$")
+# 0x + exactly 130 hex nibbles == a 65-byte ECDSA (EIP-191/EIP-4361) signature.
+# A signature is public cryptographic material, NOT a secret — but it embeds a
+# 64-hex run, so an exact-length top-level `signature` field is exempt from the
+# private-key tripwire (a raw 32-byte key never matches this 130-hex shape).
+_SIG_HEX_EXACT = re.compile(r"^0x[0-9a-fA-F]{130}$")
 
 # Body size we are willing to buffer+scan (auth payloads are tiny). Larger
 # bodies are forwarded unscanned rather than buffered into memory.
@@ -99,14 +104,18 @@ def _scan_nested(value) -> bool:
 def scan_payload(obj) -> bool:
     """Return True if *obj* (parsed JSON) carries a rejected secret.
 
-    Only a single **top-level** ``tx_hash`` field with a valid 64-hex value is
-    exempt; a nested tx_hash, or a 64-hex under any other key, is rejected.
+    Only a single **top-level** ``tx_hash`` field with a valid 64-hex value, or
+    a top-level ``signature`` field with a valid 130-hex (65-byte) value, is
+    exempt; a nested tx_hash/signature, or a 64-hex under any other key, is
+    rejected.
     """
     if isinstance(obj, dict):
         for key, val in obj.items():
             if isinstance(val, str):
                 if key == "tx_hash" and _HEX64_EXACT.match(val):
                     continue  # legitimate on-chain proof — exempt
+                if key == "signature" and _SIG_HEX_EXACT.match(val):
+                    continue  # legitimate SIWE signature — exempt
                 if _is_secret_string(val):
                     return True
             elif _scan_nested(val):
