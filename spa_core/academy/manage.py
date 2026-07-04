@@ -30,8 +30,6 @@ from __future__ import annotations
 
 import argparse
 import getpass
-import hashlib
-import hmac
 import os
 import secrets
 import sqlite3
@@ -39,39 +37,12 @@ import sys
 from typing import Optional
 
 from spa_core.academy.db import AcademyDB
+from spa_core.academy.auth import users as auth_users
 
-# ── Password hashing (stdlib pbkdf2_hmac) ──────────────────────────────────
-# Stored format:  pbkdf2_sha256$<iterations>$<salt_hex>$<hash_hex>
-_PBKDF2_ALGO = "pbkdf2_sha256"
-_PBKDF2_ITERATIONS = 200_000
-_PBKDF2_SALT_BYTES = 16
-
-
-def hash_password(password: str, *, iterations: int = _PBKDF2_ITERATIONS) -> str:
-    """Return a self-describing PBKDF2-SHA256 hash string for *password*."""
-    if not password:
-        raise ValueError("password must not be empty")
-    salt = secrets.token_bytes(_PBKDF2_SALT_BYTES)
-    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
-    return f"{_PBKDF2_ALGO}${iterations}${salt.hex()}${digest.hex()}"
-
-
-def verify_password(password: str, stored: str) -> bool:
-    """Constant-time verify *password* against a stored hash string."""
-    try:
-        algo, iters_s, salt_hex, hash_hex = stored.split("$")
-    except (ValueError, AttributeError):
-        return False
-    if algo != _PBKDF2_ALGO:
-        return False
-    try:
-        iterations = int(iters_s)
-        salt = bytes.fromhex(salt_hex)
-        expected = bytes.fromhex(hash_hex)
-    except ValueError:
-        return False
-    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
-    return hmac.compare_digest(digest, expected)
+# ── Password hashing ───────────────────────────────────────────────────────
+# argon2id lives in spa_core.academy.auth.passwords; user creation / password
+# reset go through spa_core.academy.auth.users so the CLI shares the exact
+# validation, hashing and audit-logging path as the web layer.
 
 
 # ── Password resolution (never logged) ─────────────────────────────────────
@@ -122,16 +93,14 @@ def cmd_create_owner(args: argparse.Namespace) -> None:
     db = _db()
     db.run_migrations()
     password = _resolve_password(args, f"Password for owner {args.email}: ")
-    pw_hash = hash_password(password)
     try:
-        with db.connect() as conn:
-            cur = conn.execute(
-                "INSERT INTO users(email, password_hash, is_owner) VALUES (?,?,1)",
-                (args.email, pw_hash),
-            )
-            user_id = cur.lastrowid
+        user_id = auth_users.create_user(
+            db, args.email, password, invite_code=None, is_owner=True
+        )
     except sqlite3.IntegrityError:
         _die(f"a user with email {args.email!r} already exists")
+    except ValueError as exc:
+        _die(str(exc))
     print(f"created owner id={user_id} email={args.email}")
 
 
@@ -172,14 +141,13 @@ def cmd_reset_password(args: argparse.Namespace) -> None:
     db = _db()
     db.run_migrations()
     password = _resolve_password(args, f"New password for {args.email}: ")
-    pw_hash = hash_password(password)
-    with db.connect() as conn:
-        cur = conn.execute(
-            "UPDATE users SET password_hash = ? WHERE email = ?",
-            (pw_hash, args.email),
-        )
-        if cur.rowcount == 0:
-            _die(f"no user with email {args.email!r}")
+    row = auth_users.get_user_by_email(db, args.email)
+    if row is None:
+        _die(f"no user with email {args.email!r}")
+    try:
+        auth_users.update_password(db, row["id"], password)
+    except ValueError as exc:
+        _die(str(exc))
     print(f"password reset for {args.email}")
 
 
