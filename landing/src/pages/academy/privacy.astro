@@ -1,0 +1,48 @@
+---
+/*
+ * /academy/privacy — Academy portal privacy notice.
+ *
+ * The PUBLIC site collects no personal data. The Academy portal (this /academy area) is a separate,
+ * account-based course and DOES store account data — this page states exactly what, why, and how to
+ * delete it. Kept short and honest; linked from the footer / disclaimer / risk-disclosure so the
+ * site's "no personal data" claim is scoped correctly once Academy is live. Bilingual via data-ru.
+ */
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Academy Privacy — earn-defi.com" description="What the Academy portal stores, why, and how to delete your account.">
+  <main class="max-w-3xl mx-auto px-4 py-16">
+    <h1 class="text-3xl font-bold text-white mb-2" data-ru="Приватность Academy-портала">Academy portal privacy</h1>
+    <p class="text-white/50 text-sm mb-8" data-ru="Публичный сайт earn-defi.com не собирает персональных данных. Academy-портал (/academy) — это отдельный курс с аккаунтами, и он хранит данные ниже — только для проведения курса.">The public site earn-defi.com collects no personal data. The Academy portal (/academy) is a separate, account-based course and stores the data below — solely to run the course.</p>
+
+    <section class="mb-8">
+      <h2 class="text-xl font-semibold text-white mb-3" data-ru="Что мы храним">What we store</h2>
+      <ul class="space-y-2 text-white/70 text-sm list-disc pl-5">
+        <li data-ru="Email — идентификатор аккаунта и вход.">Email — your account identifier and login.</li>
+        <li data-ru="Хеш пароля (argon2id) — сам пароль НЕ хранится и необратим.">Password hash (argon2id) — the password itself is never stored and is irreversible.</li>
+        <li data-ru="Публичный адрес кошелька — чтобы проверять учебные on-chain действия (только адрес; НИКОГДА приватные ключи или сид-фразы).">Public wallet address — to verify your educational on-chain steps (address only; NEVER private keys or seed phrases).</li>
+        <li data-ru="Прогресс курса, результаты квизов, ваши заметки.">Course progress, quiz results, and your own notes.</li>
+        <li data-ru="Хеши подтверждённых транзакций — чтобы один и тот же tx не засчитывался дважды.">Confirmed transaction hashes — so a given tx can't be counted twice.</li>
+        <li data-ru="Сессионная cookie (для входа) и append-only журнал событий (аудит: регистрация/логин/верификация).">A session cookie (to keep you signed in) and an append-only event log (audit: register / login / verification).</li>
+      </ul>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="text-xl font-semibold text-white mb-3" data-ru="Зачем">Why</h2>
+      <p class="text-white/70 text-sm" data-ru="Только для работы курса: вход в аккаунт, отслеживание прогресса, проверка учебных on-chain шагов и выдача сертификата. Никакой рекламы, никаких трекеров третьих сторон, никакой продажи данных.">Only to run the course: authentication, progress tracking, verifying your educational on-chain steps, and issuing your certificate. No advertising, no third-party trackers, no selling of data.</p>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="text-xl font-semibold text-white mb-3" data-ru="Некастодиально">Non-custodial</h2>
+      <p class="text-white/70 text-sm" data-ru="Academy НЕ держит ваши средства и НЕ имеет ваших ключей. Практика — на вашем собственном кошельке с учебным лимитом ≤ $150; все действия вы подписываете сами.">The Academy holds none of your funds and none of your keys. Practice happens on your own wallet with an educational limit of ≤ $150; you sign every action yourself.</p>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="text-xl font-semibold text-white mb-3" data-ru="Удаление аккаунта">Deleting your account</h2>
+      <p class="text-white/70 text-sm mb-2" data-ru="Запросите удаление — и мы полностью сотрём ваш аккаунт и все связанные строки (email, адрес кошелька, прогресс, заметки, квизы И ваши аудит-события). Технически это делает админ-команда с каскадом:">Request deletion and we fully erase your account and all linked rows (email, wallet address, progress, notes, quizzes, AND your audit events). Technically an admin cascade command does this:</p>
+      <pre class="bg-black/40 border border-border rounded p-3 text-xs text-data-teal overflow-x-auto"><code>python3 -m spa_core.academy.manage delete-user --email &lt;you@example.com&gt;</code></pre>
+      <p class="text-white/50 text-xs mt-2" data-ru="Журнал событий обычно append-only (неизменяемый) для честности аудита; удаление аккаунта — единственное санкционированное исключение, при котором ваши события тоже стираются.">The event log is normally append-only (immutable) for audit honesty; account deletion is the one sanctioned exception where your events are erased too.</p>
+    </section>
+
+    <p class="text-white/40 text-xs" data-ru="Вопросы — через контакты в футере. Эта страница относится только к Academy-порталу; остальной earn-defi.com персональных данных не собирает.">Questions — via the footer contact. This page covers the Academy portal only; the rest of earn-defi.com collects no personal data.</p>
+  </main>
+</Layout>

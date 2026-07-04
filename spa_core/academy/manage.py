@@ -151,7 +151,48 @@ def cmd_reset_password(args: argparse.Namespace) -> None:
     print(f"password reset for {args.email}")
 
 
-# ── Argument parsing ───────────────────────────────────────────────────────
+def cmd_delete_user(args: argparse.Namespace) -> None:
+    """GDPR account deletion — remove a user and ALL linked rows (cascade).
+
+    The ``events`` audit table is append-only (two triggers block UPDATE/DELETE). Deleting an account
+    is the ONE sanctioned exception: we drop the ``events_no_delete`` guard for this single transaction,
+    purge the user's events, then recreate the guard — so a "delete my account" request genuinely erases
+    the PII (email, wallet, progress, and the user's audit rows) rather than leaving it forever.
+    """
+    db = _db()
+    db.run_migrations()
+    row = auth_users.get_user_by_email(db, args.email)
+    if row is None:
+        _die(f"no user with email {args.email!r}")
+    uid = row["id"]
+    if row.get("is_owner") and not args.force:
+        _die("refusing to delete an owner account without --force")
+    with db.connect() as c:
+        c.execute("DROP TRIGGER IF EXISTS events_no_delete")  # sanctioned lift for account erasure
+        try:
+            for tbl, col in (("sessions", "user_id"), ("progress", "user_id"),
+                             ("wallets", "user_id"), ("siwe_nonces", "user_id"),
+                             ("quiz_results", "user_id"), ("notes", "user_id"),
+                             ("used_tx_hashes", "user_id"), ("events", "user_id")):
+                try:
+                    c.execute(f"DELETE FROM {tbl} WHERE {col} = ?", (uid,))
+                except Exception:
+                    pass  # table/column may not exist in older schemas
+            # invite_codes references users via created_by AND used_by — null them, keep the code rows
+            for col in ("created_by", "used_by"):
+                try:
+                    c.execute(f"UPDATE invite_codes SET {col} = NULL WHERE {col} = ?", (uid,))
+                except Exception:
+                    pass
+            c.execute("DELETE FROM users WHERE id = ?", (uid,))
+        finally:
+            c.execute("CREATE TRIGGER IF NOT EXISTS events_no_delete BEFORE DELETE ON events "
+                      "BEGIN SELECT RAISE(ABORT, 'events is append-only'); END")
+        c.commit()
+    print(f"deleted user {args.email!r} (id={uid}) and all linked rows")
+
+
+# \u2500\u2500 Argument parsing ───────────────────────────────────────────────────────
 
 
 def _add_password_flags(p: argparse.ArgumentParser) -> None:
@@ -193,6 +234,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_reset.add_argument("--email", required=True)
     _add_password_flags(p_reset)
     p_reset.set_defaults(func=cmd_reset_password)
+
+    p_del = sub.add_parser("delete-user", help="GDPR: delete a user and all linked rows (cascade)")
+    p_del.add_argument("--email", required=True, help="email of the account to delete")
+    p_del.add_argument("--force", action="store_true", help="allow deleting an is_owner account")
+    p_del.set_defaults(func=cmd_delete_user)
 
     return parser
 
