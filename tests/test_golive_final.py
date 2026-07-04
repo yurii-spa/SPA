@@ -16,6 +16,7 @@ Total: 20 tests
 stdlib unittest + pytest compatible
 """
 from __future__ import annotations
+import pytest
 
 import json
 import os
@@ -311,6 +312,7 @@ class TestProgressReportExists(unittest.TestCase):
 # GROUP 6 — Gates ≥ 16/20 не регрессирует (tests 16–17)
 # ══════════════════════════════════════════════════════════════════════════════
 
+@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data-dependent (needs committed data/ backtest gate + golive state); runs locally, skipped in the data-less CI)")
 class TestGatesRegression(unittest.TestCase):
 
     def test_16_production_gates_not_below_16(self):

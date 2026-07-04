@@ -24,6 +24,7 @@ LLM_FORBIDDEN: no LLM calls in this module.
 # LLM_FORBIDDEN
 
 from __future__ import annotations
+from spa_core.utils.errors import SPAError
 
 import json
 import os
@@ -673,7 +674,7 @@ class TestStrategyTournamentRunner(unittest.TestCase):
 
     def test_run_missing_mass_results_raises(self):
         runner = StrategyTournamentRunner(data_dir=Path(self.tmpdir.name) / "empty")
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(SPAError):
             runner.run()
 
     def test_tournament_total_strategies_correct(self):
