@@ -1,0 +1,65 @@
+{
+  "ts": "2026-07-04T08:19:14Z",
+  "ok": false,
+  "fails": [
+    {
+      "code": "SITE_BEHIND_SNAPSHOT",
+      "detail": "home as-of 2026-07-03 != snapshot as_of 2026-07-04",
+      "severity": "FAIL"
+    },
+    {
+      "code": "SITE_BEHIND_SNAPSHOT",
+      "detail": "track as-of 2026-07-03 != snapshot as_of 2026-07-04",
+      "severity": "FAIL"
+    },
+    {
+      "code": "SITE_BEHIND_SNAPSHOT",
+      "detail": "site evidenced_days=12.0 != snapshot evidenced_days=13.0",
+      "severity": "FAIL"
+    },
+    {
+      "code": "OVERSTATED_METRIC",
+      "detail": "home shows APY 4.9% > live API 3.2795% (+0.05pp tol)",
+      "severity": "CRITICAL"
+    },
+    {
+      "code": "OVERSTATED_METRIC",
+      "detail": "track shows APY 4.9% > live API 3.2795% (+0.05pp tol)",
+      "severity": "CRITICAL"
+    }
+  ],
+  "n_fails": 5,
+  "snapshot_age_h": 8.32,
+  "api_age_h": null,
+  "stale_48h": false,
+  "degrade_triggered": true,
+  "degrade_reason": "OVERSTATED_METRIC",
+  "site_home": {
+    "evidenced_days": 12.0,
+    "paper_apy_pct": 4.9,
+    "gates_passed": 27.0,
+    "end_equity": null,
+    "as_of": "2026-07-03"
+  },
+  "site_track": {
+    "evidenced_days": 12.0,
+    "paper_apy_pct": 4.9,
+    "gates_passed": null,
+    "end_equity": 100150.0,
+    "as_of": "2026-07-03"
+  },
+  "snapshot": {
+    "as_of": "2026-07-04",
+    "real_track_days": 13,
+    "paper_apy_pct": 3.2795,
+    "gates_passed": 27,
+    "end_equity": 100273.91
+  },
+  "api": {
+    "evidenced_days": 13.0,
+    "gates_passed": 27.0,
+    "paper_apy_pct": 3.2795,
+    "end_equity": 100273.91,
+    "last_bar": null
+  }
+}

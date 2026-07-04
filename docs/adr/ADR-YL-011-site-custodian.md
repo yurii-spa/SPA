@@ -86,6 +86,37 @@ An autonomous, deterministic, kill-rules-as-code guardian (matching SPA's style)
 - **METRIC_DIVERGENCE / BROKEN_LINK / SITEMAP_MISMATCH / STALE_HARDCODED_DATE** (content audit) — fix the
   source page; add the page to `sitemap.xml`; refresh or parameterize the aging date.
 
+## Deploy path (canonical) — added 2026-07-04
+
+**Canonical production build = Cloudflare Pages, git-integrated.** The CF Pages project is `earn-defi`
+(`wrangler.toml`: `name = "earn-defi"`, `pages_build_output_dir = "landing/dist"`). CF connects directly to
+the GitHub repo and, on every push to `main`, runs the `landing/` build (`npm run build` → `landing/dist`)
+and deploys it to **earn-defi.com** (served behind the Cloudflare edge — `server: cloudflare`, no GitHub-Pages
+CNAME). This is **not** a wrangler-from-Mac deploy; there is no CF-deploy agent — CF's own build system does it.
+
+**The one canonical pipeline (≤30 min):**
+`daily cycle → run_daily_paper_cycle.sh Step 3 (deploy_site_snapshot.py regenerates + pushes
+landing/src/data/track_snapshot.json to main) → CF Pages git-integration builds landing/ → earn-defi.com`.
+The freshness monitor (block 2) verifies the result end-to-end and degrades on divergence.
+
+**GitHub Pages (`deploy-landing.yml`) is a NON-CANONICAL MIRROR.** It publishes to GitHub Pages, which does
+**not** serve earn-defi.com. It was auto-running on every `landing/**` push and failing at the "Deploy to
+GitHub Pages" step (false CI-red, no live impact). Its trigger is now **workflow_dispatch-only** (manual).
+
+**Why the live site lagged `main` (2026-07-04 incident).** `main` carried a fresh snapshot (as_of 07-04,
+13d, 3.28%) while earn-defi.com still served a pre-tier-seed commit (07-03, 12d, ~4.9%) — an **active
+`OVERSTATED_METRIC`** (the stale 4.9% > live 3.28%). Root cause: **CF Pages git-integration did not rebuild
+recent commits** (e.g. `98fe76eb`) — the build is paused or failing on the CF side. CF's build logs are not
+reachable from the repo/Mac; **resolution is owner-gated: the Cloudflare Pages dashboard** (confirm
+auto-build-on-push is enabled, the repo is still linked, and the build command isn't failing).
+
+**Freshness-monitor CI caveat.** The scheduled `site_freshness.yml` run correctly detected the OVERSTATED and
+fired the kill-rule, but its degrade **push 401'd** — the `SPA_PAT` GitHub secret is invalid/expired (distinct
+from the valid Keychain PAT used on the Mac). Owner must set a valid `SPA_PAT`. The `_alert` Telegram path was
+also fixed (2026-07-04): it now passes the required `title=` kwarg, checks `telegram_manager.send`'s return
+(it returns False, not raises, when its cooldown gate suppresses), and falls back to the raw Telegram API with
+Keychain (Mac) / env (CI) creds — so a real alert reliably delivers.
+
 ## Consequences
 
 - The 24h-stale-overstated incident cannot recur silently: it would be caught within 6h (monitor),

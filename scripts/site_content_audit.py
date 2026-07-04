@@ -215,7 +215,7 @@ def main() -> int:
         msg = f"🛡️ SITE CONTENT AUDIT — new fails: {sorted(new_codes)} @ {report['ts']}"
         try:
             from spa_core.alerts import telegram_manager
-            telegram_manager.send(msg)
+            telegram_manager.send(msg, title="🛡️ Site Content Audit", category="site_content_audit")
         except Exception:
             print(msg, file=sys.stderr)
     return 0 if report["ok"] else 1

@@ -1,11 +1,12 @@
-name: Deploy Landing to GitHub Pages
+name: Deploy Landing to GitHub Pages (MIRROR — not canonical)
 
+# CANONICAL PRODUCTION = Cloudflare Pages (project "earn-defi", wrangler.toml
+# pages_build_output_dir=landing/dist), git-integrated: it builds landing/ on every push to main and
+# serves earn-defi.com. This GitHub-Pages workflow is a NON-CANONICAL MIRROR only. It was auto-running on
+# every landing/** push AND failing at the "Deploy to GitHub Pages" step (Pages env), producing false
+# CI-red while never affecting the live CF site. Trigger reduced to manual (workflow_dispatch) so it no
+# longer red-flags the push path. See docs/adr/ADR-YL-011 "Deploy path" for the canonical pipeline.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'landing/**'
-      - '.github/workflows/deploy-landing.yml'
   workflow_dispatch:
 
 permissions:

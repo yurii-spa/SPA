@@ -235,16 +235,27 @@ def _alert(report):
     if report.get("degrade_triggered"):
         lines.append(f"  ⛔ KILL-RULE: site set to DEGRADED ({report['degrade_reason']})")
     msg = "\n".join(lines)
-    # Prefer SPA's telegram_manager (Keychain token, on the Mac). In CI use env secrets directly.
+    # 1. SPA telegram_manager (dedup/cooldown-aware). Only treat as delivered if it RETURNS truthy —
+    #    it returns False (not raises) when its cooldown/creds gate suppresses the send.
     try:
         from spa_core.alerts import telegram_manager
-        telegram_manager.send(msg)
-        return
+        if telegram_manager.send(msg, title="🛡️ Site Custodian", category="site_custodian"):
+            return
     except Exception:
         pass
+    # 2. Raw Telegram API — reliable fallback (telegram_manager can silently suppress). Creds from env
+    #    (CI secrets) or macOS Keychain (Mac). Never hardcoded.
     import os
     tok = os.environ.get("TELEGRAM_BOT_TOKEN_SPA")
     chat = os.environ.get("TELEGRAM_CHAT_ID_SPA")
+    if not (tok and chat):
+        try:
+            tok = tok or subprocess.run(["security", "find-generic-password", "-s", "TELEGRAM_BOT_TOKEN_SPA", "-w"],
+                                        capture_output=True, text=True, timeout=5).stdout.strip()
+            chat = chat or subprocess.run(["security", "find-generic-password", "-s", "TELEGRAM_CHAT_ID_SPA", "-w"],
+                                          capture_output=True, text=True, timeout=5).stdout.strip()
+        except Exception:
+            pass
     if tok and chat:
         try:
             data = json.dumps({"chat_id": chat, "text": msg}).encode()
@@ -253,7 +264,7 @@ def _alert(report):
             urllib.request.urlopen(req, timeout=15)
             return
         except Exception as e:
-            print(f"site_freshness_monitor: env telegram alert failed ({e})", file=sys.stderr)
+            print(f"site_freshness_monitor: raw telegram alert failed ({e})", file=sys.stderr)
     print("site_freshness_monitor: no alert channel available; report written (CI failure = the alert)",
           file=sys.stderr)
 
