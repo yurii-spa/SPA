@@ -140,6 +140,58 @@ _SVG_SEED_RU, _SVG_SEED_EN = _svg_seed("ru"), _svg_seed("en")
 _SVG_ROLLUP_RU, _SVG_ROLLUP_EN = _svg_rollup("ru"), _svg_rollup("en")
 
 
+def _svg_txflow(lang: str) -> str:
+    """Inline SVG: transaction lifecycle — submitted → pending → in a block → confirmed."""
+    if lang == "en":
+        steps = ("You send", "Pending", "In a block", "Confirmed")
+        cap = "each step is public — look it up by tx hash in an explorer"
+    else:
+        steps = ("Вы отправили", "Pending", "В блоке", "Подтверждено")
+        cap = "каждый шаг публичен — ищите по tx hash в explorer"
+    boxes = ""
+    for i, s in enumerate(steps):
+        x = 12 + i * 148
+        col = "#8b5cf6" if i == 0 else ("#f59e0b" if i == 1 else "#14b8a6")
+        boxes += (f'<rect x="{x}" y="55" width="120" height="42" rx="8" fill="rgba(148,163,184,.06)" '
+                  f'stroke="{col}" stroke-width="1.4"/>'
+                  f'<text x="{x+60}" y="81" text-anchor="middle" fill="{col}" font-size="13" font-weight="600">{s}</text>')
+        if i < 3:
+            boxes += f'<text x="{x+134}" y="81" text-anchor="middle" fill="#9ca3af" font-size="16">→</text>'
+    return ('<figure class="diagram"><svg viewBox="0 0 600 130" role="img" '
+            'style="width:100%;max-width:560px;height:auto;font-family:system-ui,sans-serif">'
+            + boxes +
+            f'<text x="300" y="120" text-anchor="middle" fill="#9ca3af" font-size="12">{cap}</text>'
+            '</svg></figure>')
+
+
+def _svg_approval(lang: str) -> str:
+    """Inline SVG: approval grants a contract the right to spend up to a limit — limited vs unlimited."""
+    if lang == "en":
+        t = ("Your wallet", "approve(limit)", "Contract", "can spend UP TO the limit",
+             "✅ limited = capped loss", "⛔ unlimited = whole balance at risk")
+    else:
+        t = ("Ваш кошелёк", "approve(лимит)", "Контракт", "может тратить ДО лимита",
+             "✅ лимит = потеря ограничена", "⛔ безлимит = под риском весь баланс")
+    return ('<figure class="diagram"><svg viewBox="0 0 600 170" role="img" '
+            'style="width:100%;max-width:560px;height:auto;font-family:system-ui,sans-serif">'
+            '<rect x="20" y="30" width="180" height="50" rx="10" fill="rgba(20,184,166,.08)" stroke="#14b8a6" stroke-width="1.5"/>'
+            f'<text x="110" y="60" text-anchor="middle" fill="#14b8a6" font-size="14" font-weight="700">👛 {t[0]}</text>'
+            '<line x1="200" y1="55" x2="398" y2="55" stroke="#9ca3af" stroke-width="1.4" marker-end="url(#ap)"/>'
+            f'<text x="300" y="48" text-anchor="middle" fill="#e5e7eb" font-size="12" font-family="monospace">{t[1]}</text>'
+            f'<text x="300" y="72" text-anchor="middle" fill="#9ca3af" font-size="11">{t[3]}</text>'
+            '<defs><marker id="ap" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">'
+            '<path d="M0,0 L6,3 L0,6 Z" fill="#9ca3af"/></marker></defs>'
+            '<rect x="400" y="30" width="180" height="50" rx="10" fill="rgba(139,92,246,.08)" stroke="#8b5cf6" stroke-width="1.5"/>'
+            f'<text x="490" y="60" text-anchor="middle" fill="#8b5cf6" font-size="14" font-weight="700">📄 {t[2]}</text>'
+            f'<text x="300" y="120" text-anchor="middle" fill="#14b8a6" font-size="12">{t[4]}</text>'
+            f'<text x="300" y="146" text-anchor="middle" fill="#ef4444" font-size="12">{t[5]}</text>'
+            '</svg></figure>')
+
+
+_SVG_TXFLOW_RU, _SVG_TXFLOW_EN = _svg_txflow("ru"), _svg_txflow("en")
+_SVG_APPROVAL_RU, _SVG_APPROVAL_EN = _svg_approval("ru"), _svg_approval("en")
+
+
 MODULES: Dict[int, dict] = {
     # ── M0 — Base Sepolia (testnet) ──────────────────────────────────────────
     0: {
@@ -445,26 +497,87 @@ MODULES: Dict[int, dict] = {
         "chain": "base",
         "wallet_limit_usd": 150,
         "theory_html_ru": (
-            "<p>Отправленная транзакция сперва попадает в <em>pending</em> — "
-            "ждёт включения в блок. У каждой транзакции есть <strong>tx hash</"
-            "strong> — уникальный идентификатор, по которому её видно публично.</p>"
-            "<p>Статус проверяют в block explorer (например, <code>basescan.org"
-            "</code>) по tx hash. Одно подтверждение на L2 уже почти финально, "
-            "но для уверенности принято дождаться нескольких блоков.</p>"
-            "<p>Если перевод не прошёл, типичные причины: нет ETH на газ, нет "
-            "нужного approval, неверный адрес получателя.</p>"
+            "<p>Транзакция — это ваша инструкция сети, которую вы <strong>подписываете</strong> и "
+            "отправляете. Она не исполняется мгновенно: сперва попадает в <em>pending</em> (ждёт включения "
+            "в блок), затем валидаторы включают её в блок, и она становится подтверждённой.</p>"
+            + _SVG_TXFLOW_RU +
+            "<h4>Как это устроено</h4>"
+            "<p>У каждой транзакции есть <strong>tx hash</strong> — уникальный публичный идентификатор. По "
+            "нему любой может посмотреть её в <em>block explorer</em> (например, <code>basescan.org</code>): "
+            "статус, сумму, комиссию, отправителя и получателя. У каждого адреса есть <em>nonce</em> — "
+            "счётчик его транзакций по порядку; он не даёт исполнить одну tx дважды и задаёт очерёдность.</p>"
+            "<h4>Разбор на примере</h4>"
+            "<p>Вы отправляете 5 USDC → кошелёк показывает «pending» + tx hash → через пару секунд на Base "
+            "статус «Success» → открываете hash в explorer и видите перевод. Одно подтверждение на L2 уже "
+            "почти финально; для крупных сумм принято дождаться нескольких блоков. Зависла в pending? Её "
+            "можно <em>ускорить</em> (speed-up) или <em>отменить</em> (cancel), переотправив с тем же nonce "
+            "и большей комиссией.</p>"
+            "<h4>Что может пойти не так</h4>"
+            "<ul>"
+            "<li><strong>Нет ETH на газ</strong> → транзакция не отправится вовсе.</li>"
+            "<li><strong>Неверный адрес получателя.</strong> On-chain перевод <em>необратим</em> — отправили "
+            "не туда, вернуть некому. Всегда сверяйте адрес (первые и последние символы).</li>"
+            "<li><strong>Нет нужного approval.</strong> Для взаимодействия с контрактом часто нужно сперва "
+            "разрешение (следующий модуль) — без него tx откатится.</li>"
+            "</ul>"
+            "<p class=\"glossary\"><strong>Словарь:</strong> <em>pending</em> — ждёт блока; <em>tx hash</em> "
+            "— публичный id транзакции; <em>block explorer</em> — обозреватель сети; <em>nonce</em> — "
+            "счётчик tx адреса; <em>confirmation</em> — блок, включивший транзакцию.</p>"
+        ),
+        "theory_html_en": (
+            "<p>A transaction is your instruction to the network, which you <strong>sign</strong> and send. "
+            "It does not execute instantly: it first enters <em>pending</em> (waiting to be included in a "
+            "block), then validators put it in a block, and it becomes confirmed.</p>"
+            + _SVG_TXFLOW_EN +
+            "<h4>How it works</h4>"
+            "<p>Every transaction has a <strong>tx hash</strong> — a unique public identifier. Anyone can "
+            "look it up in a <em>block explorer</em> (e.g. <code>basescan.org</code>): status, amount, fee, "
+            "sender, and recipient. Each address has a <em>nonce</em> — an in-order counter of its "
+            "transactions; it prevents one tx from executing twice and sets the ordering.</p>"
+            "<h4>Worked example</h4>"
+            "<p>You send 5 USDC → the wallet shows \"pending\" + a tx hash → seconds later on Base the status "
+            "is \"Success\" → you open the hash in an explorer and see the transfer. One confirmation on L2 "
+            "is nearly final; for large amounts it is customary to wait a few blocks. Stuck in pending? You "
+            "can <em>speed it up</em> or <em>cancel</em> it by resending with the same nonce and a higher "
+            "fee.</p>"
+            "<h4>What can go wrong</h4>"
+            "<ul>"
+            "<li><strong>No ETH for gas</strong> → the transaction won't send at all.</li>"
+            "<li><strong>Wrong recipient address.</strong> An on-chain transfer is <em>irreversible</em> — "
+            "send to the wrong place and no one can return it. Always check the address (first and last "
+            "characters).</li>"
+            "<li><strong>Missing approval.</strong> Interacting with a contract often needs a prior allowance "
+            "(next module) — without it the tx reverts.</li>"
+            "</ul>"
+            "<p class=\"glossary\"><strong>Glossary:</strong> <em>pending</em> — waiting for a block; "
+            "<em>tx hash</em> — a transaction's public id; <em>block explorer</em> — a network viewer; "
+            "<em>nonce</em> — an address's tx counter; <em>confirmation</em> — the block that included it.</p>"
         ),
         "practice_html_ru": (
-            "<p><strong>Задание:</strong> отправьте небольшой перевод "
-            "стейблкоина на Base в пределах лимита и найдите свою транзакцию в "
-            "basescan.org по её tx hash. Сохраните hash как доказательство.</p>"
-            + _SAFETY_NOTE
+            "<p><strong>Задание:</strong> отправьте небольшой перевод стейблкоина на Base в пределах лимита "
+            "и найдите свою транзакцию в basescan.org по её tx hash. Сохраните hash как доказательство.</p>"
+            "<p><strong>Шаги:</strong> (1) отправьте малую сумму USDC себе или на известный адрес; "
+            "(2) скопируйте tx hash из кошелька; (3) вставьте его в basescan.org; (4) убедитесь в статусе "
+            "«Success» и сверьте сумму/получателя.</p>" + _SAFETY_NOTE
+        ),
+        "practice_html_en": (
+            "<p><strong>Task:</strong> send a small stablecoin transfer on Base within the limit and find "
+            "your transaction on basescan.org by its tx hash. Save the hash as proof.</p>"
+            "<p><strong>Steps:</strong> (1) send a small USDC amount to yourself or a known address; "
+            "(2) copy the tx hash from your wallet; (3) paste it into basescan.org; (4) confirm the "
+            "\"Success\" status and check the amount/recipient.</p>" + _SAFETY_NOTE_EN
         ),
         "spa_connection_html_ru": (
-            "<p><strong>Что бы здесь сделал SPA:</strong> каждый шаг SPA "
-            "оставляет проверяемый след (audit trail, on-chain proof) — «не "
-            "верь, проверь». Вы делаете то же: доказательство действия — это "
-            "tx hash в explorer, а не слова.</p>"
+            "<p><strong>Что бы здесь сделал SPA:</strong> каждый шаг SPA оставляет проверяемый след (audit "
+            "trail, on-chain proof, hash-chain) — принцип «не верь, проверь». Вы делаете то же: "
+            "доказательство действия — это tx hash в explorer, а не слова. Публичная проверяемость — это то, "
+            "что отличает честную систему от «поверьте нам».</p>"
+        ),
+        "spa_connection_html_en": (
+            "<p><strong>What SPA would do here:</strong> every SPA step leaves a verifiable trail (audit "
+            "trail, on-chain proof, hash-chain) — the \"don't trust, verify\" principle. You do the same: the "
+            "proof of an action is the tx hash in an explorer, not words. Public verifiability is what "
+            "separates an honest system from \"trust us.\"</p>"
         ),
     },
     # ── M4 — Подписи и approvals ─────────────────────────────────────────────
@@ -478,29 +591,91 @@ MODULES: Dict[int, dict] = {
         "chain": "base",
         "wallet_limit_usd": 150,
         "theory_html_ru": (
-            "<p><strong>Approval</strong> — разрешение смарт-контракту тратить "
-            "ваши токены до указанного лимита. Сам по себе approval не двигает "
-            "средства, но открывает контракту доступ к ним.</p>"
-            "<p><em>Unlimited approval</em> опасен: если контракт взломан, "
-            "атакующий может вывести весь баланс токена. Одобряйте только "
-            "нужную сумму, а лишние разрешения отзывайте — <strong>revoke</"
-            "strong> (approval со значением 0).</p>"
-            "<p>Подпись (sign) и транзакция — разное: подпись бесплатна и не "
-            "идёт в сеть, транзакция меняет состояние и требует газа. Перед "
-            "депозитом в протокол обычно нужен approval на нужную сумму.</p>"
+            "<p><strong>Approval</strong> — разрешение смарт-контракту тратить ваши токены до указанного "
+            "лимита. Сам по себе approval не двигает средства — он лишь <em>открывает</em> контракту доступ "
+            "к ним. Почти любое действие в DeFi (депозит, своп) начинается с approval.</p>"
+            + _SVG_APPROVAL_RU +
+            "<h4>Как это устроено</h4>"
+            "<p>Важно различать два разных действия. <strong>Транзакция</strong> (approve) идёт в сеть, "
+            "меняет состояние и требует газа. <strong>Подпись</strong> (sign) — бесплатна, не идёт в сеть "
+            "сразу, но <em>авторизует</em> действие. Особый и опасный случай — <strong>permit</strong> "
+            "(EIP-2612): approval через одну лишь подпись, без отдельной on-chain tx. Одна подпись permit "
+            "может отдать доступ ко всему балансу токена.</p>"
+            "<h4>Разбор на примере</h4>"
+            "<p>Перед вкладом в Aave кошелёк просит approve(USDC, 100) — вы разрешаете пулу списать до 100 "
+            "USDC. Событие <em>Approval</em> видно в explorer. После вы делаете supply. Когда закончили — "
+            "<strong>revoke</strong> (approve со значением 0) закрывает разрешение. Проверить и отозвать "
+            "старые allowance удобно на <code>revoke.cash</code>.</p>"
+            "<h4>Что может пойти не так</h4>"
+            "<ul>"
+            "<li><strong>Unlimited approval.</strong> Многие интерфейсы по умолчанию просят безлимит. Если "
+            "контракт скомпрометирован — атакующий выведет весь баланс токена. Одобряйте только нужную "
+            "сумму.</li>"
+            "<li><strong>Drainer-подпись.</strong> Вредоносный сайт подсовывает permit/approve, отдающий всё "
+            "злоумышленнику. Читайте, ЧТО подписываете — не кликайте вслепую.</li>"
+            "<li><strong>Забытые allowance.</strong> Старые разрешения живут годами. Периодически "
+            "ревокайте неиспользуемые.</li>"
+            "</ul>"
+            "<p class=\"glossary\"><strong>Словарь:</strong> <em>approval/allowance</em> — лимит трат для "
+            "контракта; <em>permit (EIP-2612)</em> — approval подписью; <em>revoke</em> — approval=0; "
+            "<em>подпись vs транзакция</em> — авторизация без газа vs изменение состояния с газом.</p>"
+        ),
+        "theory_html_en": (
+            "<p>An <strong>approval</strong> lets a smart contract spend your tokens up to a stated limit. "
+            "The approval itself moves no funds — it just <em>opens</em> the contract's access to them. "
+            "Almost every DeFi action (deposit, swap) begins with an approval.</p>"
+            + _SVG_APPROVAL_EN +
+            "<h4>How it works</h4>"
+            "<p>Distinguish two different actions. A <strong>transaction</strong> (approve) goes to the "
+            "network, changes state, and costs gas. A <strong>signature</strong> (sign) is free, does not "
+            "go on-chain immediately, but <em>authorizes</em> an action. A special and dangerous case is "
+            "<strong>permit</strong> (EIP-2612): an approval via a signature alone, with no separate "
+            "on-chain tx. A single permit signature can hand over access to your entire token balance.</p>"
+            "<h4>Worked example</h4>"
+            "<p>Before depositing to Aave, the wallet asks approve(USDC, 100) — you let the pool pull up to "
+            "100 USDC. The <em>Approval</em> event is visible in an explorer. Then you supply. When done, "
+            "<strong>revoke</strong> (approve with 0) closes the allowance. You can review and revoke old "
+            "allowances easily at <code>revoke.cash</code>.</p>"
+            "<h4>What can go wrong</h4>"
+            "<ul>"
+            "<li><strong>Unlimited approval.</strong> Many interfaces default to unlimited. If the contract "
+            "is compromised, an attacker drains the whole token balance. Approve only the amount needed.</li>"
+            "<li><strong>Drainer signature.</strong> A malicious site slips you a permit/approve that hands "
+            "everything to the attacker. Read WHAT you are signing — don't click blindly.</li>"
+            "<li><strong>Forgotten allowances.</strong> Old approvals persist for years. Periodically revoke "
+            "the unused ones.</li>"
+            "</ul>"
+            "<p class=\"glossary\"><strong>Glossary:</strong> <em>approval/allowance</em> — a contract's "
+            "spend limit; <em>permit (EIP-2612)</em> — approval by signature; <em>revoke</em> — approval=0; "
+            "<em>signature vs transaction</em> — gasless authorization vs a state change that costs gas.</p>"
         ),
         "practice_html_ru": (
-            "<p><strong>Задание:</strong> выдайте контракту approval на "
-            "конкретную (не безлимитную) сумму, посмотрите событие Approval в "
-            "explorer, затем отзовите его (revoke). Убедитесь, что понимаете "
-            "разницу между подписью и транзакцией.</p>" + _SAFETY_NOTE
+            "<p><strong>Задание:</strong> выдайте контракту approval на конкретную (не безлимитную) сумму, "
+            "посмотрите событие Approval в explorer, затем отзовите его (revoke). Убедитесь, что понимаете "
+            "разницу между подписью и транзакцией.</p>"
+            "<p><strong>Шаги:</strong> (1) approve на конкретную сумму (не unlimited); (2) найдите событие "
+            "Approval в explorer; (3) сделайте revoke (approve=0) или через revoke.cash; (4) сформулируйте "
+            "своими словами разницу sign vs transaction.</p>" + _SAFETY_NOTE
+        ),
+        "practice_html_en": (
+            "<p><strong>Task:</strong> grant a contract an approval for a specific (not unlimited) amount, "
+            "view the Approval event in an explorer, then revoke it. Make sure you understand the difference "
+            "between a signature and a transaction.</p>"
+            "<p><strong>Steps:</strong> (1) approve a specific amount (not unlimited); (2) find the Approval "
+            "event in an explorer; (3) revoke it (approve=0) or via revoke.cash; (4) state in your own words "
+            "the difference between sign and transaction.</p>" + _SAFETY_NOTE_EN
         ),
         "spa_connection_html_ru": (
-            "<p><strong>Что бы здесь сделал SPA:</strong> подход SPA — "
-            "refusal-first: доступ выдаётся минимально необходимый и "
-            "отзывается, когда не нужен; execution изолирован и требует явного "
-            "«armed»-флага. Ваш аналог: минимальные approvals и регулярный "
-            "revoke неиспользуемых.</p>"
+            "<p><strong>Что бы здесь сделал SPA:</strong> подход SPA — <em>refusal-first</em>: доступ "
+            "выдаётся минимально необходимый и отзывается, когда не нужен; execution изолирован и требует "
+            "явного «armed»-флага (по умолчанию всё заблокировано). Ваш аналог: минимальные approvals и "
+            "регулярный revoke неиспользуемых. Наименьшая привилегия — не паранойя, а гигиена.</p>"
+        ),
+        "spa_connection_html_en": (
+            "<p><strong>What SPA would do here:</strong> SPA is <em>refusal-first</em>: access is granted at "
+            "the minimum needed and revoked when not; execution is isolated and requires an explicit "
+            "\"armed\" flag (everything is blocked by default). Your version: minimal approvals and regular "
+            "revokes of the unused ones. Least privilege isn't paranoia — it's hygiene.</p>"
         ),
     },
     # ── M5 — Депозит в Aave ──────────────────────────────────────────────────
