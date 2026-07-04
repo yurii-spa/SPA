@@ -9,10 +9,12 @@ Practice verification endpoint for the Academy sub-application.
 Dispatch by lesson id to the deterministic on-chain verifiers in
 :mod:`spa_core.academy.onchain.verifiers`:
 
-    M0, M3   → require {"tx_hash": "0x…"}          (on-chain tx proof)
+    M0, M3, M5, M6 → require {"tx_hash": "0x…"}    (on-chain tx proof)
+    M4       → {"approve_tx": "0x…", "revoke_tx": "0x…"}  (approve + revoke)
     M1       → {} — checks a verified SIWE wallet binding exists
     M2       → {} — checks the bound Base wallet holds ETH for gas
-    M4–M8    → stubs (return status="pending"; delivered in stage 7)
+    M7       → {} — best incidents-quiz score ≥ 80%
+    M8       → {} — capstone: fresh Supply+Withdraw after start + reflection note
 
 Money-path safety: the verifiers are read-only, hold no keys, and fail-CLOSED
 (RPC outage → "unavailable", never a silent pass). This router only ever writes
@@ -21,7 +23,7 @@ progress + the append-only events log; it never moves funds.
 Rate limiting (10/3600 per principal) is applied by AcademyRateLimit middleware.
 
 LLM FORBIDDEN in this module.
-Academy stage 6.
+Academy stage 6 (M0–M3); stage 7 (M4–M8 routing).
 """
 
 from __future__ import annotations
@@ -97,15 +99,25 @@ def _run_verifier(lesson_id: int, db: AcademyDB, uid: int, started_at, body: dic
             raise HTTPException(status_code=400, detail="tx_hash required")
         return verifiers.verify_m3(db, uid, lesson_id, tx, started_at)
     if lesson_id == 4:
-        return verifiers.verify_m4(db, uid, lesson_id)
+        approve_tx = (body or {}).get("approve_tx")
+        revoke_tx = (body or {}).get("revoke_tx")
+        if not approve_tx or not revoke_tx:
+            raise HTTPException(status_code=400, detail="approve_tx and revoke_tx required")
+        return verifiers.verify_m4(db, uid, lesson_id, approve_tx, revoke_tx, started_at)
     if lesson_id == 5:
-        return verifiers.verify_m5(db, uid, lesson_id)
+        tx = (body or {}).get("tx_hash")
+        if not tx:
+            raise HTTPException(status_code=400, detail="tx_hash required")
+        return verifiers.verify_m5(db, uid, lesson_id, tx, started_at)
     if lesson_id == 6:
-        return verifiers.verify_m6(db, uid, lesson_id)
+        tx = (body or {}).get("tx_hash")
+        if not tx:
+            raise HTTPException(status_code=400, detail="tx_hash required")
+        return verifiers.verify_m6(db, uid, lesson_id, tx, started_at)
     if lesson_id == 7:
         return verifiers.verify_m7(db, uid, lesson_id)
     if lesson_id == 8:
-        return verifiers.verify_m8(db, uid, lesson_id)
+        return verifiers.verify_m8(db, uid, lesson_id, started_at)
     raise HTTPException(status_code=404, detail="unknown lesson")
 
 
