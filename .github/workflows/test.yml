@@ -43,7 +43,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Install test dependencies
-        run: pip install pytest
+        run: pip install pytest pytest-asyncio pyyaml  # pyyaml: yaml manifests (option-A)
 
       # --- Deterministic test execution (Architect N11) ---------------------
       # Two CI runs MUST produce an IDENTICAL collection order + pass/fail set

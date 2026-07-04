@@ -29,7 +29,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pytest pytest-asyncio
+          pip install pytest pytest-asyncio pyyaml  # pyyaml: adapter-SDK manifests are .yaml (option-A: CI runs full suite)
 
       - name: Smoke test — import spa_core
         run: |
