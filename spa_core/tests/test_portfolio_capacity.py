@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+import os
 import pytest
 
 from spa_core.strategy_lab import portfolio_capacity as PC
@@ -56,6 +57,7 @@ def test_three_families_present(report):
     assert set(fams) == {"rates_desk", "rwa_floor", "stable_engines"}
 
 
+@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/env-dependent (needs committed data/ or the Mac host); runs locally, skipped in the data-less GitHub CI")
 def test_each_family_above_floor_identity(report):
     """Per family: above_floor_usd_per_yr == deployable · max(0, net_apy − floor)/100."""
     floor = report["rwa_floor_pct"]

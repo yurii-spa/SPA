@@ -24,6 +24,7 @@ from __future__ import annotations
 import dataclasses
 from decimal import Decimal as D
 
+import os
 import pytest
 
 from spa_core.strategy_lab.rates_desk import calibrate as CAL
@@ -109,6 +110,7 @@ def test_toxic_haircut_strictly_above_threshold_above_healthy():
     assert healthy.total_haircut < p.max_total_haircut < tox.total_haircut
 
 
+@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/env-dependent (needs committed data/ or the Mac host); runs locally, skipped in the data-less GitHub CI")
 def test_sweep_is_deterministic_and_chosen_is_admissible():
     """The sweep is a pure deterministic grid (same data → same chosen point), and the chosen point is
     admissible: 100% toxic coverage + every stress event refused."""
@@ -125,6 +127,7 @@ def test_sweep_is_deterministic_and_chosen_is_admissible():
     assert ch["survivor_beats_floor"] is True
 
 
+@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/env-dependent (needs committed data/ or the Mac host); runs locally, skipped in the data-less GitHub CI")
 def test_sweep_chosen_is_robust_center_not_loose_edge():
     """The robust objective picks a point with POSITIVE margin to BOTH cliffs (it sits inside the band,
     not one grid-step below the toxic leak)."""
@@ -137,6 +140,7 @@ def test_sweep_chosen_is_robust_center_not_loose_edge():
     assert ch["healthy_strangle_margin"] > 0.0
 
 
+@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/env-dependent (needs committed data/ or the Mac host); runs locally, skipped in the data-less GitHub CI")
 def test_sweep_confirms_defaults_are_optimal():
     """Honest 'defaults confirmed' outcome: the chosen point equals the current config defaults. After
     the red-team FAIL #1 fix the swept cliff is max_structural_haircut (the size-INDEPENDENT toxicity

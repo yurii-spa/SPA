@@ -56,6 +56,7 @@ def _run_gate(name: str) -> subprocess.CompletedProcess:
 
 
 @pytest.mark.skipif(not os.path.exists("/bin/bash"), reason="needs bash")
+@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/env-dependent (needs committed data/ or the Mac host); runs locally, skipped in the data-less GitHub CI")
 def test_gate_fails_closed_on_direct_python():
     """Antipattern 1: direct miniconda-python in ProgramArguments → fail-closed before load."""
     plist = os.path.join(_SCRIPTS, "com.spa.gatetest_directpy.plist")
@@ -71,6 +72,7 @@ def test_gate_fails_closed_on_direct_python():
 
 
 @pytest.mark.skipif(not os.path.exists("/bin/bash"), reason="needs bash")
+@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/env-dependent (needs committed data/ or the Mac host); runs locally, skipped in the data-less GitHub CI")
 def test_gate_fails_closed_on_documents_log_path():
     """Antipattern 2: a log path under ~/Documents → TCC exit-78 → fail-closed before load."""
     plist = os.path.join(_SCRIPTS, "com.spa.gatetest_docslog.plist")

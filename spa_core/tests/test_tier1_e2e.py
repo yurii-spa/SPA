@@ -22,6 +22,7 @@ Pure stdlib + pytest. Deterministic. Read-only (write=False). LLM-forbidden.
 # LLM_FORBIDDEN
 from __future__ import annotations
 
+import os
 import pytest
 
 from spa_core.backtesting.tier1 import evaluator
@@ -153,6 +154,7 @@ def test_correlation_package_keys(correlation):
 # ---------------------------------------------------------------------------
 # 5. status.build → health in {OK, ATTENTION}; ATTENTION ⇒ problems non-empty
 # ---------------------------------------------------------------------------
+@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/env-dependent (needs committed data/ or the Mac host); runs locally, skipped in the data-less GitHub CI")
 def test_status_health_invariant(status):
     assert status["health"] in ("OK", "ATTENTION")
     if status["health"] == "ATTENTION":
