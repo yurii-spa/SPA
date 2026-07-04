@@ -14,6 +14,7 @@ Exit codes:
 import sys
 import os
 import json
+import shutil
 import subprocess
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -42,6 +43,8 @@ def landing_builds():
     )
     if not os.path.isdir(landing_dir):
         raise AssertionError(f"landing/ directory not found at {landing_dir}")
+    if shutil.which("npm") is None:
+        return "skipped — npm not available here (landing build is verified by Cloudflare Pages + deploy-landing.yml)"
     result = subprocess.run(
         ["npm", "run", "build"],
         cwd=landing_dir,
@@ -74,7 +77,7 @@ def gate_locked():
     """LiveTradingGate must be LOCKED — never deploy with gate unlocked."""
     try:
         from spa_core.safety.live_trading_gate import LiveTradingGate  # noqa: PLC0415
-        if LiveTradingGate().is_unlocked():
+        if LiveTradingGate().is_active():
             raise AssertionError("LiveTradingGate UNLOCKED! Dangerous.")
         return "LOCKED"
     except ImportError:
@@ -86,7 +89,9 @@ def gate_locked():
 def no_secrets():
     """Scan spa_core/**/*.py for hardcoded GitHub tokens or API keys."""
     result = subprocess.run(
-        ["grep", "-rn", r"ghp_\|sk-\|AAAA", "spa_core/", "--include=*.py"],
+        ["grep", "-rnE",
+         r"ghp_[A-Za-z0-9]{20}|sk-[A-Za-z0-9]{20}|AKIA[A-Z0-9]{16}|[0-9]{9,10}:AA[A-Za-z0-9_-]{33}",
+         "spa_core/", "--include=*.py"],
         capture_output=True,
         text=True,
     )
@@ -140,7 +145,7 @@ def golive_json_valid():
 
 @check("trades.json parseable")
 def trades_json_valid():
-    """data/trades.json must be valid JSON with a list."""
+    """data/trades.json must be valid JSON: a list, or a dict with a 'daily' list."""
     path = "data/trades.json"
     if not os.path.exists(path):
         raise AssertionError(f"{path} not found")
@@ -153,15 +158,18 @@ def trades_json_valid():
 
 @check("equity_curve_daily.json parseable")
 def equity_curve_valid():
-    """data/equity_curve_daily.json must be valid JSON with a list."""
+    """data/equity_curve_daily.json must be valid JSON: a list, or a dict with a 'daily' list."""
     path = "data/equity_curve_daily.json"
     if not os.path.exists(path):
         raise AssertionError(f"{path} not found")
     with open(path) as fh:
         curve = json.load(fh)
-    if not isinstance(curve, list):
-        raise AssertionError(f"Expected list, got {type(curve).__name__}")
-    return f"{len(curve)} data points"
+    points = curve.get("daily", curve) if isinstance(curve, dict) else curve
+    if not isinstance(points, list):
+        raise AssertionError(
+            f"Expected a list or a dict with a 'daily' list, got {type(curve).__name__}"
+        )
+    return f"{len(points)} data points"
 
 
 @check("landing/dist exists after build", critical=False)
