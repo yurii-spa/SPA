@@ -36,7 +36,7 @@ _HEAVY_DEPS = frozenset(("fastapi", "requests", "web3", "numpy", "pandas", "argo
                          "eth_account", "httpx", "uvicorn", "pydantic", "aiohttp", "jwt", "bcrypt"))
 _ANY_MISSING = any(_ilu.find_spec(_d) is None for _d in _HEAVY_DEPS)
 collect_ignore = []
-collect_ignore_glob = ["test_family_fund_api/*"] if _ilu.find_spec("fastapi") is None else []
+collect_ignore_glob = ["test_family_fund_api/*"]  # family_fund runs in its own venv (needs python-multipart etc.); always excluded from the main CI suite
 if _ANY_MISSING:
     _here = _os.path.dirname(__file__)
     _probe_cache = {}

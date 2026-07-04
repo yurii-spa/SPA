@@ -29,7 +29,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pytest pytest-asyncio pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas  # option-A full test-dep set (CI runs the whole suite; runtime stays stdlib-only)
+          pip install pytest pytest-asyncio pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt  # option-A full test-dep set (runtime stays stdlib-only)
 
       - name: Smoke test — import spa_core
         run: |
