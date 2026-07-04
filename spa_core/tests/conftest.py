@@ -16,11 +16,21 @@ from datetime import datetime, timezone, timedelta
 # Must be a collect_ignore at conftest level so pytest never tries to import
 # the sub-conftest that has a bare `from fastapi...` import.
 # ---------------------------------------------------------------------------
+import importlib
+collect_ignore_glob = []
 try:
-    import importlib
     importlib.import_module("fastapi")
 except ImportError:
-    collect_ignore_glob = ["test_family_fund_api/*"]
+    collect_ignore_glob += ["test_family_fund_api/*"]
+# Academy tests need the academy runtime deps (fastapi / argon2 / eth-account), which are absent in the
+# stdlib-only CI (same rationale as family_fund above). Skip them there; they run locally / in a deps venv.
+for _dep in ("fastapi", "argon2", "eth_account"):
+    try:
+        importlib.import_module(_dep)
+    except ImportError:
+        if "test_academy*.py" not in collect_ignore_glob:
+            collect_ignore_glob.append("test_academy*.py")
+        break
 from unittest.mock import MagicMock, patch
 
 # Make spa_core importable from this directory
