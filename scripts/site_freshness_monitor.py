@@ -167,11 +167,18 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
     if verifier_sha and pin_sha and verifier_sha != pin_sha:
         fail("VERIFIER_PIN_MISMATCH", f"live verify_spa.py {verifier_sha[:12]}… != pin {pin_sha[:12]}…")
 
-    # ── kill-rule: OVERSTATED, or staleness>48h on TWO consecutive runs -> degrade ──
-    overstated = any(f["code"] == "OVERSTATED_METRIC" for f in fails)
+    # ── kill-rule: degrade only when the SNAPSHOT ITSELF is overstated (its committed apy exceeds the live
+    #    API) — that's the only case where degrading actually prevents a wrong number. A merely stale LIVE
+    #    site above a CORRECT snapshot is DEPLOY LAG (the fix is to deploy the good snapshot, NOT to degrade
+    #    it — degrading a correct snapshot would make the site show a plaque instead of the right number).
+    #    Deploy lag still ALERTS via OVERSTATED_METRIC + SITE_BEHIND_SNAPSHOT but does NOT degrade. Also
+    #    degrade on staleness > 48h across two consecutive runs.
+    site_overstated = any(f["code"] == "OVERSTATED_METRIC" for f in fails)
+    snap_apy = _num(snap.get("paper_apy_pct"))
+    snapshot_overstated = (snap_apy is not None and api_apy is not None and snap_apy > api_apy + APY_TOL_PP)
     stale_48 = (snap_age is not None and snap_age > DEGRADE_STALE_HOURS)
     prev_stale_48 = bool(prev_report and prev_report.get("stale_48h"))
-    degrade = overstated or (stale_48 and prev_stale_48)
+    degrade = snapshot_overstated or (stale_48 and prev_stale_48)
 
     return {
         "ts": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -182,8 +189,10 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
         "api_age_h": round(api_age, 2) if api_age is not None else None,
         "stale_48h": stale_48,
         "degrade_triggered": degrade,
-        "degrade_reason": ("OVERSTATED_METRIC" if overstated else
+        "degrade_reason": ("SNAPSHOT_OVERSTATED" if snapshot_overstated else
                            "STALE_48H_TWO_RUNS" if degrade else None),
+        "site_overstated": site_overstated,          # live site shows APY > API (may be deploy lag)
+        "snapshot_overstated": snapshot_overstated,  # committed snapshot itself is overstated -> degrade
         "site_home": site_home,
         "site_track": site_track,
         "snapshot": {k: snap.get(k) for k in ("as_of", "real_track_days", "paper_apy_pct", "gates_passed", "end_equity")},
@@ -339,8 +348,11 @@ def run():
         _alert(report)
     if report["degrade_triggered"]:
         _apply_degrade()
-    elif report["ok"] and snapshot.get("degraded") is True:
-        _clear_degrade()   # recovery: all checks pass again -> lift the plaque
+    elif snapshot.get("degraded") is True:
+        # recovery: the kill-rule no longer fires (snapshot not overstated, not 48h-stale) -> lift the
+        # plaque even if other non-degrading fails remain (e.g. deploy-lag OVERSTATED alerts, which must
+        # NOT keep a correct snapshot degraded).
+        _clear_degrade()
     return 0 if report["ok"] else 1
 
 

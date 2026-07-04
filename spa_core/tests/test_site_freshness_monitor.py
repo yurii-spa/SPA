@@ -43,13 +43,26 @@ def test_all_green():
 
 
 def test_overstated_metric_is_critical_and_degrades():
-    # site shows 4.5% while API says 3.3% -> OVERSTATED_METRIC + immediate degrade
+    # the SNAPSHOT itself is overstated (4.5% > API 3.3%) -> OVERSTATED_METRIC + immediate degrade
     r = mon.evaluate(snapshot=_snap(apy=4.5), home_html=_home(apy="4.5"), track_html=_track(apy="4.5"),
                      api=_api(apy=3.3), sitemap_statuses=_urls(), verifier_sha=PIN, pin_sha=PIN, now=NOW)
     codes = {f["code"] for f in r["fails"]}
     assert "OVERSTATED_METRIC" in codes
     assert any(f["severity"] == "CRITICAL" for f in r["fails"])
-    assert r["degrade_triggered"] is True and r["degrade_reason"] == "OVERSTATED_METRIC"
+    assert r["degrade_triggered"] is True and r["degrade_reason"] == "SNAPSHOT_OVERSTATED"
+    assert r["snapshot_overstated"] is True
+
+
+def test_deploy_lag_no_degrade_when_snapshot_correct():
+    # live site stale-overstated (4.9%) while the committed snapshot is CORRECT (3.3% == API) -> DEPLOY LAG:
+    # must ALERT OVERSTATED but must NOT degrade the good snapshot (degrading it would show a plaque
+    # instead of the right number once the deploy catches up).
+    r = mon.evaluate(snapshot=_snap(apy=3.3), home_html=_home(apy="4.9"), track_html=_track(apy="4.9"),
+                     api=_api(apy=3.3), sitemap_statuses=_urls(), verifier_sha=PIN, pin_sha=PIN, now=NOW)
+    codes = {f["code"] for f in r["fails"]}
+    assert "OVERSTATED_METRIC" in codes
+    assert r["site_overstated"] is True and r["snapshot_overstated"] is False
+    assert r["degrade_triggered"] is False
 
 
 def test_stale_snapshot():

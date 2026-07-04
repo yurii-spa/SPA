@@ -86,6 +86,8 @@ An autonomous, deterministic, kill-rules-as-code guardian (matching SPA's style)
 - **METRIC_DIVERGENCE / BROKEN_LINK / SITEMAP_MISMATCH / STALE_HARDCODED_DATE** (content audit) — fix the
   source page; add the page to `sitemap.xml`; refresh or parameterize the aging date.
 
+**Degrade kill-rule refinement (2026-07-04).** The kill-rule now degrades ONLY when the **committed snapshot itself** is overstated (snapshot apy > live API), i.e. deploying it *would* show a wrong number. A merely stale LIVE site above a CORRECT snapshot is **deploy lag** — it still ALERTS (OVERSTATED_METRIC + SITE_BEHIND_SNAPSHOT) but does NOT degrade the good snapshot (degrading it would make the site render a plaque instead of the right figure once the deploy catches up). Recovery auto-clears degraded once the kill-rule no longer fires.
+
 ## Deploy path (canonical) — added 2026-07-04
 
 **Canonical production build = Cloudflare Pages, git-integrated.** The CF Pages project is `earn-defi`
