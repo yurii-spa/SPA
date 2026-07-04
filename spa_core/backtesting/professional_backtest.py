@@ -300,6 +300,8 @@ STRATEGIES: Dict[str, Dict[str, Any]] = {
 # Utility helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+from spa_core.utils.errors import SPAError
+
 def _parse_date(s: str) -> date:
     """Parse ISO date string 'YYYY-MM-DD' → date."""
     return date.fromisoformat(s[:10])
@@ -1366,7 +1368,7 @@ class ProfessionalBacktest:
             strategies_results[strat_name] = metrics
 
         if not strategies_results:
-            raise RuntimeError("No strategy results produced.")
+            raise SPAError("No strategy results produced.", code="BACKTEST_NO_RESULTS")
 
         # ── 4. Benchmarks ────────────────────────────────────────────────
         benchmarks: Dict[str, Dict] = {

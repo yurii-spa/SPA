@@ -41,6 +41,8 @@ VERSION = "v1.0"
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+from spa_core.utils.errors import SPAError
+
 def _atomic_write_json(path: Path, data: Any) -> None:
     """Atomically write *data* as JSON to *path* (tmp + shutil.move)."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -146,7 +148,7 @@ class StrategyTournamentRunner:
         """
         mass = self._load_mass_results()
         if mass is None:
-            raise RuntimeError(
+            raise SPAError(
                 "Cannot run StrategyTournamentRunner: "
                 "mass_tournament_results.json missing or invalid. "
                 "Run MassTournament.run() first."

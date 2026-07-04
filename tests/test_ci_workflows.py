@@ -51,13 +51,15 @@ class TestDeployLandingWorkflow(unittest.TestCase):
         """deploy-landing.yml must exist in .github/workflows/."""
         self.assertTrue(os.path.isfile(DEPLOY_LANDING))
 
-    def test_triggers_on_push_main(self):
-        """Workflow must trigger on push to main."""
-        self.assertIn("branches: [main]", self.content)
+    def test_is_manual_mirror_not_push_triggered(self):
+        """deploy-landing.yml is a NON-CANONICAL MIRROR (ADR-YL-011): workflow_dispatch-only,
+        must NOT auto-trigger on push (canonical deploy = Cloudflare Pages git-integration)."""
+        self.assertIn("workflow_dispatch", self.content)
+        self.assertNotIn("branches: [main]", self.content)
 
-    def test_triggers_on_landing_path(self):
-        """Path filter must include landing/** to avoid spurious runs."""
-        self.assertIn("landing/**", self.content)
+    def test_mirror_self_documented(self):
+        """The workflow name must mark it a MIRROR so its purpose is unambiguous."""
+        self.assertIn("MIRROR", self.content)
 
     def test_permissions_pages_write(self):
         """pages: write permission required for Pages deployment."""
