@@ -1,0 +1,36 @@
+---
+/*
+ * /academy/onboarding — Real-Money Onboarding course map.
+ *
+ * Static Astro shell (site Layout + Console tokens); the OnboardingApp React
+ * island owns auth + live progress. Unauthenticated → inline login (no redirect).
+ * Authenticated → 9 module cards with per-module status. API 5xx → honest
+ * degraded banner ("progress unavailable, content available"). RU-first.
+ */
+import Layout from '../../../layouts/Layout.astro';
+import OnboardingApp from '../../../components/academy/onboarding/OnboardingApp.jsx';
+---
+<Layout
+  title="Практика перед реальными деньгами — SPA Академия"
+  description="Онбординг-курс: девять модулей с проверкой on-chain. Кошелёк, сети, транзакции, approvals, депозит и вывод в Aave, инциденты, капстоун. Учебный лимит ≤ $150."
+>
+  <main class="ob-page">
+    <OnboardingApp client:load />
+
+    <p class="ob-foot">
+      Учебный материал, не инвестиционная рекомендация. Курс некастодиальный: он никогда
+      не просит подключать основной кошелёк и никогда не спрашивает seed-фразу.
+      Учебный лимит кошелька ≤ $150.
+    </p>
+  </main>
+</Layout>
+
+<style is:global>
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<style>
+  .ob-page { max-width: 1000px; margin: 0 auto; padding: 48px 20px 96px; }
+  .ob-foot { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-top: 40px; text-align: center; max-width: 720px; margin-left: auto; margin-right: auto; }
+  @media (max-width: 640px) { .ob-page { padding: 32px 16px 72px; } }
+</style>

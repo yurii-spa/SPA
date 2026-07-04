@@ -41,6 +41,20 @@ const trackIds = {
       <p class="ac-hero-note">Прогресс, XP, серия и награды хранятся в этом браузере (localStorage) — это твой личный трек, без рейтингов и сравнений.</p>
     </header>
 
+    {/* ── Real-money onboarding: practice before real capital ── */}
+    <a class="ac-onboarding" href="/academy/onboarding">
+      <span class="ac-ob-glyph" aria-hidden="true">◆</span>
+      <span class="ac-ob-body">
+        <span class="ac-ob-eyebrow">ПЕРЕД РЕАЛЬНЫМИ ДЕНЬГАМИ</span>
+        <span class="ac-ob-title">Пройди практику онбординга →</span>
+        <span class="ac-ob-desc">
+          Девять модулей с проверкой on-chain: кошелёк, сети, первая транзакция, approvals,
+          депозит и вывод в Aave, инциденты, капстоун. Учебный лимит кошелька ≤ $150 —
+          сначала докажи механику, только потом реальный капитал.
+        </span>
+      </span>
+    </a>
+
     {/* ── The journey dashboard (rank/XP/streak + path) ── */}
     <JourneyMap modules={modules} tracksMeta={tracksMeta} client:load />
 
@@ -110,6 +124,14 @@ const trackIds = {
   .ac-lede strong { color: var(--text-primary); }
   .ac-lede em { color: var(--accent); font-style: normal; font-weight: 600; }
   .ac-hero-note { font-size: 13px; color: var(--text-muted); margin: 0; }
+
+  .ac-onboarding { display: flex; gap: 18px; align-items: flex-start; margin-top: 32px; background: var(--accent-bg); border: 1px solid var(--accent-border); border-radius: var(--r-lg); padding: 22px 24px; text-decoration: none; transition: border-color 120ms var(--ease), transform 200ms var(--ease); }
+  .ac-onboarding:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .ac-ob-glyph { font-family: var(--font-mono); font-size: 24px; line-height: 1; color: var(--accent); flex-shrink: 0; margin-top: 2px; }
+  .ac-ob-body { display: flex; flex-direction: column; gap: 6px; }
+  .ac-ob-eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; color: var(--accent); }
+  .ac-ob-title { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); }
+  .ac-ob-desc { font-size: 14px; line-height: 1.6; color: var(--text-secondary); }
 
   .ac-section { margin-top: 48px; }
   .ac-section-h { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0 0 8px; }

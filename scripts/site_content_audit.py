@@ -34,7 +34,10 @@ _MAX_DATE_AGE_DAYS = 60
 # /status/CLAUDE.md label them "08:00/09:00 UTC". Until the owner reconciles (fix the docs to real UTC, or
 # move the schedule to true 08:00 UTC), accept the whole plausible set so this check doesn't false-fail on
 # the ambiguity; it still catches a genuinely-odd time (e.g. 03:00/12:00 UTC).
-_CANONICAL_UTC_HOURS = ("06", "07", "08", "09")
+# Source of truth: ~/Library/LaunchAgents/com.spa.daily_cycle.plist StartCalendarInterval Hour=8 is
+# LOCAL (CEST=UTC+2) => 06:00 UTC (confirmed by data/paper_trading_status.json last_cycle_ts=06:00:01Z);
+# tournament ~07:00 UTC. The old "08:00/09:00 UTC" labels were a local-vs-UTC mislabel, now corrected.
+_CANONICAL_UTC_HOURS = ("06", "07")
 
 # Routes that exist without a src/pages file (redirect targets / dynamic) — not "broken".
 _ALLOWED_EXTRA_ROUTES = {"/dashboard", "/strategies", "/"}
@@ -112,9 +115,12 @@ def check_sitemap_vs_pages(sitemap_path: Path, pages_dir: Path):
     pages = set()
     for f in pages_dir.rglob("*.astro"):
         rel = str(f.relative_to(pages_dir).with_suffix("")).replace("index", "").strip("/")
+        if "[" in rel:
+            continue  # dynamic route template (e.g. academy/onboarding/[module]) — not a literal URL
         pages.add(rel)
-    # internal/dev pages we don't require in the sitemap
-    skip = {"cockpit-kit"}  # e.g. dev kits; extend as needed
+    # internal/dev pages + auth-gated app routes we don't require in the public sitemap
+    skip = {"cockpit-kit",  # dev kit
+            "academy/onboarding", "academy/onboarding/certificate"}  # invite-gated app, not SEO-indexed
     missing_from_sitemap = sorted((pages - locs) - skip)
     sitemap_without_page = sorted(locs - pages - {""})
     return {"missing_from_sitemap": missing_from_sitemap, "sitemap_without_page": sitemap_without_page}
@@ -122,8 +128,9 @@ def check_sitemap_vs_pages(sitemap_path: Path, pages_dir: Path):
 
 def check_narrative_constants(pages_dir: Path, components_dir: Path | None = _COMPONENTS):
     """Catch narrative-constant drift (audit-re #4):
-      - cycle_time_wrong: any 'NN:00 UTC' daily-cycle reference whose hour isn't the canonical 08
-        (the plist/`/status` value) — a factual bug (the cycle runs at exactly one time).
+      - cycle_time_wrong: any 'NN:00 UTC' daily-cycle reference whose hour isn't in _CANONICAL_UTC_HOURS
+        (06 daily / 07 tournament — source: com.spa.daily_cycle.plist Hour=8 CEST = 06:00 UTC) — a factual
+        bug (the cycle runs at exactly one time).
       - apy_constants: every hardcoded '~X.X%' APY-prose value across pages + components, mapped to the
         files it appears in. Reported (not failed): these are legit approximations (e.g. the steady-book
         '~4.5%', distinct from the live paper APY), surfaced so a human can spot one that has drifted

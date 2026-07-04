@@ -215,6 +215,16 @@ app.include_router(riskwire.router)
 app.include_router(cockpit.router)
 
 
+# Academy onboarding sub-app (D4: own CORS, own credentials)
+try:
+    from spa_core.academy.api.app import create_academy_app as _create_academy_app
+    _academy_app = _create_academy_app()
+    app.mount("/academy", _academy_app)
+except Exception as _e:  # noqa: BLE001
+    import logging as _logging
+    _logging.getLogger(__name__).warning("Academy sub-app not mounted: %s", _e)
+
+
 # ─── Backward-compatible handler re-exports ───────────────────────────────────
 # A few tests call handler functions directly on the server module (e.g.
 # get_health_public). Re-bind the public ones here so those imports keep working.
