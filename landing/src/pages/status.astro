@@ -32,7 +32,7 @@ type CheckStatus = "pass" | "warn" | "fail";
 const checks: { label: string; labelRu: string; status: CheckStatus; detail: string }[] = [
   { label: "GoLive Criteria", labelRu: "Критерии GoLive", status: "warn", detail: `${goLiveChecks}/${goLiveTotal} checks pass — 2 time-gated (30-day track)` },
   { label: "Paper Track Record", labelRu: "Track record бумажной торговли", status: "warn", detail: `${evidenceDays}/${evidenceTarget} evidenced days · anchor ${trackStart} (target: ${goLiveTarget})` },
-  { label: "Daily Cycle (launchd)", labelRu: "Ежедневный цикл (launchd)", status: "pass", detail: "com.spa.daily_cycle running at 08:00 UTC" },
+  { label: "Daily Cycle (launchd)", labelRu: "Ежедневный цикл (launchd)", status: "pass", detail: "com.spa.daily_cycle running at 06:00 UTC" },
   { label: "HTTP API", labelRu: "HTTP API", status: "pass", detail: "com.spa.apiserver on port 8765 (FastAPI, api.earn-defi.com)" },
   { label: "Cloudflare Tunnel", labelRu: "Cloudflare Tunnel", status: "pass", detail: "com.spa.cloudflared active" },
   { label: "Risk Policy Gate", labelRu: "Риск-гейт", status: "pass", detail: "RiskPolicy v1.0 — deterministic, LLM forbidden" },
