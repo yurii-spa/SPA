@@ -58,13 +58,16 @@ def test_sitemap_mismatch(tmp_path):
 
 
 def test_narrative_cycle_time_wrong_flagged(tmp_path):
-    _mk(tmp_path, "status", "the daily cycle endpoint at 06:00 UTC")
+    # 03:00 is outside the accepted set (06-09) -> genuinely-odd, flagged
+    _mk(tmp_path, "status", "the daily cycle endpoint at 03:00 UTC")
     r = aud.check_narrative_constants(tmp_path, components_dir=None)
-    assert any(c["found"] == "06:00 UTC" for c in r["cycle_time_wrong"])
+    assert any(c["found"] == "03:00 UTC" for c in r["cycle_time_wrong"])
 
 
 def test_narrative_cycle_time_canonical_ok(tmp_path):
-    _mk(tmp_path, "status", "canonical daily cycle 08:00 UTC")
+    # both the real-UTC 06:00 and the doc-labelled 08:00 are accepted (local-vs-UTC ambiguity)
+    _mk(tmp_path, "status", "canonical daily cycle 06:00 UTC")
+    _mk(tmp_path, "s2", "docs say 08:00 UTC")
     r = aud.check_narrative_constants(tmp_path, components_dir=None)
     assert r["cycle_time_wrong"] == []
 

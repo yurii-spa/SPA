@@ -28,9 +28,13 @@ _REPORT = _ROOT / "data" / "site_audit_weekly.json"
 _COMPONENTS = _ROOT / "landing" / "src" / "components"
 _KEY_PAGES = ("index", "track-record", "trust", "due-diligence", "methodology")
 _MAX_DATE_AGE_DAYS = 60
-_CANONICAL_UTC_HOURS = ("08", "09")   # 08:00 = daily paper cycle (plist Hour=8, /status, CLAUDE.md);
-                                       # 09:00 = tournament_engine daily run. Any other NN:00 UTC on the
-                                       # site is unexplained drift (e.g. the stale 06:00 note fixed here).
+# Accepted on-the-hour UTC times. NOTE (owner-gated): there is a systemic LOCAL-vs-UTC mislabel — the
+# launchd plists use LOCAL hours (daily_cycle Hour=8, tournament Hour=9 in CEST), so the REAL UTC endpoints
+# are 06:00 (daily, evidenced by paper_trading_status.last_cycle_ts) and ~07:00 (tournament), while the docs
+# /status/CLAUDE.md label them "08:00/09:00 UTC". Until the owner reconciles (fix the docs to real UTC, or
+# move the schedule to true 08:00 UTC), accept the whole plausible set so this check doesn't false-fail on
+# the ambiguity; it still catches a genuinely-odd time (e.g. 03:00/12:00 UTC).
+_CANONICAL_UTC_HOURS = ("06", "07", "08", "09")
 
 # Routes that exist without a src/pages file (redirect targets / dynamic) — not "broken".
 _ALLOWED_EXTRA_ROUTES = {"/dashboard", "/strategies", "/"}

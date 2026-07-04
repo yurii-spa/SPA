@@ -3,7 +3,7 @@
   "generator": "scripts/generate_track_snapshot.py",
   "note": "Build-time static fallback for the public pages. Live values come from api.earn-defi.com and override these client-side; this is the last honest snapshot for offline / crawlers. real_track_days = EVIDENCED bars only. Missing value => 'data unavailable', never a stale number.",
   "as_of": "2026-07-04",
-  "generated_at": "2026-07-04T06:00:31Z",
+  "generated_at": "2026-07-04T08:04:01Z",
   "degraded": false,
   "real_track_days": 13,
   "go_live_target": "2026-07-21",
@@ -935,7 +935,7 @@
         "euler_v2": 10568.18,
         "yearn_v3": 3170.45
       },
-      "note": "canonical production 08:00 UTC cycle endpoint; continuous track (06-21 reconstructed (06-22..06-24 are real evidenced cycle bars), no gap)",
+      "note": "canonical production 06:00 UTC cycle endpoint; continuous track (06-21 reconstructed (06-22..06-24 are real evidenced cycle bars), no gap)",
       "source": "cycle",
       "evidenced": true
     },
