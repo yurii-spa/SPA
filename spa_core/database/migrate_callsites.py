@@ -46,6 +46,9 @@ _EXCLUDED_FILES: frozenset[str] = frozenset(
         # integrity-verify a (possibly mid-write) track.db. That API and the read-only URI only
         # exist on raw sqlite3 connections — it cannot route through the postgres-capable abstraction.
         "spa_core/backtesting/tier1/dr_backup.py",
+        # academy/db.py is the Academy sub-app's OWN sqlite DB layer (data/academy.db), a separate
+        # standalone store — not part of the main-DB postgres migration; uses sqlite3 directly by design.
+        "spa_core/academy/db.py",
     }
 )
 
