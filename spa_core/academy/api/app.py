@@ -38,6 +38,7 @@ from spa_core.academy.api.middleware import AcademyRateLimit, SeedPhraseGuard
 from spa_core.academy.api.routes import auth as auth_routes
 from spa_core.academy.api.routes import progress as progress_routes
 from spa_core.academy.api.routes import notes as notes_routes
+from spa_core.utils.errors import SPAError
 from spa_core.academy.api.routes import quiz as quiz_routes
 from spa_core.academy.api.routes import wallet as wallet_routes
 from spa_core.academy.api.routes import verify as verify_routes
@@ -67,7 +68,7 @@ def _allowed_origins() -> list:
 def _resolve_db_path(db_path: Optional[str]) -> str:
     resolved = db_path if db_path is not None else os.environ.get("SPA_ACADEMY_DB")
     if not resolved:
-        raise RuntimeError(
+        raise SPAError(
             "Academy DB path is not configured: pass db_path= or set "
             "SPA_ACADEMY_DB. Refusing to guess a path."
         )
@@ -81,14 +82,14 @@ def _verify_db_ready(db_path: str) -> None:
     on disk first, then confirm at least migration 0001 is recorded.
     """
     if not os.path.exists(db_path):
-        raise RuntimeError(
+        raise SPAError(
             f"Academy DB not found at {db_path!r}. Create and migrate it first: "
             "`python3 -m spa_core.academy.manage init-db` "
             "(with SPA_ACADEMY_DB set). The API never auto-creates it."
         )
     version = AcademyDB(db_path=db_path).schema_version()
     if version < 1:
-        raise RuntimeError(
+        raise SPAError(
             f"Academy DB at {db_path!r} has no migrations applied "
             "(schema_version=0). Run `manage.py init-db` before serving."
         )

@@ -23,6 +23,7 @@ Academy stage 2.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from spa_core.utils.errors import SPAError
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from argon2 import PasswordHasher
@@ -56,7 +57,7 @@ def _get_hasher() -> "PasswordHasher":
     try:
         from argon2 import PasswordHasher
     except ImportError as exc:  # pragma: no cover - exercised only w/o dep
-        raise RuntimeError(_INSTALL_HINT) from exc
+        raise SPAError(_INSTALL_HINT) from exc
     _HASHER = PasswordHasher(
         time_cost=TIME_COST,
         memory_cost=MEMORY_COST,
@@ -89,7 +90,7 @@ def verify_password(plain: str, hash: str) -> bool:
     try:
         from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
     except ImportError as exc:  # pragma: no cover - exercised only w/o dep
-        raise RuntimeError(_INSTALL_HINT) from exc
+        raise SPAError(_INSTALL_HINT) from exc
     hasher = _get_hasher()
     try:
         return hasher.verify(hash, plain)

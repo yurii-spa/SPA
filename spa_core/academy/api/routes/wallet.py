@@ -36,6 +36,7 @@ from pydantic import BaseModel, Field
 from spa_core.academy.db import AcademyDB
 from spa_core.academy.auth import events
 from spa_core.academy.api.deps import get_current_user, get_db, require_csrf
+from spa_core.utils.errors import SPAError
 
 router = APIRouter(prefix="/wallet", tags=["academy-wallet"])
 
@@ -174,7 +175,7 @@ def _recover_address(message_text: str, signature: str) -> str:
         from eth_account import Account
         from eth_account.messages import encode_defunct
     except ImportError:  # pragma: no cover - dependency is in requirements.txt
-        raise RuntimeError("eth-account not installed; pip install eth-account")
+        raise SPAError("eth-account not installed; pip install eth-account")
     msg = encode_defunct(text=message_text)
     return Account.recover_message(msg, signature=signature)
 
