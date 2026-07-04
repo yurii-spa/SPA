@@ -16,32 +16,61 @@ from datetime import datetime, timezone, timedelta
 # Must be a collect_ignore at conftest level so pytest never tries to import
 # the sub-conftest that has a bare `from fastapi...` import.
 # ---------------------------------------------------------------------------
+import importlib as _il
 import importlib.util as _ilu
 import glob as _glob
 import os as _os
-import re as _re
+import ast as _ast
 # ---------------------------------------------------------------------------
-# stdlib-only CI installs ONLY pytest. Many spa_core/tests modules import non-stdlib
-# deps (fastapi/requests/web3/numpy/pandas/argon2/eth-account/...) used by the API /
-# analytics / academy layers and cannot import when the dep is absent. Rather than
-# list every file, scan each test module and collect_ignore the ones that import a
-# CURRENTLY-MISSING dependency. In a full deps venv nothing is missing -> nothing is
-# ignored -> every test runs. (Generalizes the earlier test_family_fund_api skip.)
+# stdlib-only CI installs ONLY pytest. Many spa_core/tests modules need non-stdlib
+# deps (fastapi/requests/web3/numpy/pandas/argon2/eth-account/...) either directly OR
+# transitively via the spa_core module under test (e.g. a test importing
+# spa_core.api.server pulls in fastapi). Rather than list every file, statically read
+# each test's imports and collect_ignore it if a DIRECT heavy dep is missing OR any
+# spa_core.* module it imports fails to import (transitive missing dep). In a full deps
+# venv nothing is missing -> nothing ignored -> every test runs. Generalizes the
+# earlier test_family_fund_api skip. Only spa_core.* modules are import-probed (they are
+# import-safe); test modules themselves are never executed here.
 # ---------------------------------------------------------------------------
-_HEAVY_DEPS = ("fastapi", "requests", "web3", "numpy", "pandas", "argon2",
-               "eth_account", "httpx", "uvicorn", "pydantic", "aiohttp", "jwt", "bcrypt")
-_MISSING = tuple(d for d in _HEAVY_DEPS if _ilu.find_spec(d) is None)
+_HEAVY_DEPS = frozenset(("fastapi", "requests", "web3", "numpy", "pandas", "argon2",
+                         "eth_account", "httpx", "uvicorn", "pydantic", "aiohttp", "jwt", "bcrypt"))
+_ANY_MISSING = any(_ilu.find_spec(_d) is None for _d in _HEAVY_DEPS)
 collect_ignore = []
-collect_ignore_glob = ["test_family_fund_api/*"] if "fastapi" in _MISSING else []
-if _MISSING:
+collect_ignore_glob = ["test_family_fund_api/*"] if _ilu.find_spec("fastapi") is None else []
+if _ANY_MISSING:
     _here = _os.path.dirname(__file__)
-    _pat = _re.compile(r"^\s*(?:import|from)\s+(" + "|".join(_MISSING) + r")\b", _re.M)
+    _probe_cache = {}
+    def _probe(_mod):
+        if _mod not in _probe_cache:
+            try:
+                _il.import_module(_mod); _probe_cache[_mod] = True
+            except ModuleNotFoundError:
+                _probe_cache[_mod] = False
+            except Exception:
+                _probe_cache[_mod] = True  # non-dep import error -> let pytest report it
+        return _probe_cache[_mod]
     for _f in _glob.glob(_os.path.join(_here, "test_*.py")):
         try:
-            if _pat.search(open(_f, encoding="utf-8").read()):
-                collect_ignore.append(_os.path.basename(_f))
-        except OSError:
-            pass
+            _tree = _ast.parse(open(_f, encoding="utf-8").read())
+        except Exception:
+            continue
+        _skip = False
+        for _n in _ast.walk(_tree):
+            _names = []
+            if isinstance(_n, _ast.Import):
+                _names = [a.name for a in _n.names]
+            elif isinstance(_n, _ast.ImportFrom) and _n.level == 0 and _n.module:
+                _names = [_n.module]
+            for _nm in _names:
+                _top = _nm.split(".")[0]
+                if _top in _HEAVY_DEPS and _ilu.find_spec(_top) is None:
+                    _skip = True; break
+                if _nm.startswith("spa_core") and not _probe(_nm):
+                    _skip = True; break
+            if _skip:
+                break
+        if _skip:
+            collect_ignore.append(_os.path.basename(_f))
 from unittest.mock import MagicMock, patch
 
 # Make spa_core importable from this directory
