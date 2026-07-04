@@ -9,6 +9,7 @@ from spa_core.backtesting.tier1 import oos as oos_mod
 from spa_core.backtesting.tier1 import gate as gate_mod
 from spa_core.backtesting.tier1 import correlation as corr_mod
 from spa_core.backtesting.tier1 import packages as pkg_mod
+import pytest
 
 
 def test_psr_monotonic_and_bounded():
