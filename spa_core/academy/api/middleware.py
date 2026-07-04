@@ -272,6 +272,7 @@ class AcademyRateLimit:
       - /auth/register : 5 / 900s  per IP
       - /verify/*      : 10 / 3600s per user_id
       - /quiz/*        : 20 / 3600s per user_id
+      - /export        : 5 / 3600s  per user_id
       - everything else: 60 / 60s  per IP
     """
 
@@ -281,6 +282,7 @@ class AcademyRateLimit:
         self._register = _make_store(5, 5, 900.0)
         self._verify = _make_store(10, 10, 3600.0)
         self._quiz = _make_store(20, 20, 3600.0)
+        self._export = _make_store(5, 5, 3600.0)
         self._default = _make_store(60, 60, 60.0)
 
     # NOTE: paths seen here are RELATIVE to the mount point ("/auth/login",
@@ -320,6 +322,9 @@ class AcademyRateLimit:
         elif "/quiz/" in path or path.endswith("/quiz") or path.startswith("/quiz"):
             uid = _user_id_from_scope(scope)
             store, key = self._quiz, f"quiz:uid:{uid if uid is not None else ip}"
+        elif path == "/export" or path.endswith("/export"):
+            uid = _user_id_from_scope(scope)
+            store, key = self._export, f"export:uid:{uid if uid is not None else ip}"
         else:
             store, key = self._default, f"default:ip:{ip}"
 
