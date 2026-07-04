@@ -81,6 +81,65 @@ _SVG_TESTNET_RU = _svg_testnet("ru")
 _SVG_TESTNET_EN = _svg_testnet("en")
 
 
+def _svg_seed(lang: str) -> str:
+    """Inline SVG: one seed phrase → private key → many public addresses (HD derivation)."""
+    if lang == "en":
+        t = ("Seed phrase (12 words)", "the master key — never share", "private key",
+             "Address 1", "Address 2", "Address 3", "one seed derives many addresses")
+    else:
+        t = ("Seed-фраза (12 слов)", "мастер-ключ — никому и никогда", "приватный ключ",
+             "Адрес 1", "Адрес 2", "Адрес 3", "один seed рождает много адресов")
+    return (
+        '<figure class="diagram"><svg viewBox="0 0 600 230" role="img" '
+        'style="width:100%;max-width:560px;height:auto;font-family:system-ui,sans-serif">'
+        '<rect x="150" y="12" width="300" height="52" rx="10" fill="rgba(239,68,68,.10)" stroke="#ef4444" stroke-width="1.5"/>'
+        f'<text x="300" y="34" text-anchor="middle" fill="#ef4444" font-size="15" font-weight="700">🔑 {t[0]}</text>'
+        f'<text x="300" y="52" text-anchor="middle" fill="#e5e7eb" font-size="11">{t[1]}</text>'
+        f'<text x="300" y="92" text-anchor="middle" fill="#9ca3af" font-size="12" font-family="monospace">↓ {t[2]}</text>'
+        '<line x1="300" y1="100" x2="120" y2="140" stroke="#14b8a6" stroke-width="1.2"/>'
+        '<line x1="300" y1="100" x2="300" y2="140" stroke="#14b8a6" stroke-width="1.2"/>'
+        '<line x1="300" y1="100" x2="480" y2="140" stroke="#14b8a6" stroke-width="1.2"/>'
+        + "".join(
+            f'<rect x="{x-70}" y="140" width="140" height="40" rx="8" fill="rgba(20,184,166,.08)" stroke="#14b8a6" stroke-width="1.2"/>'
+            f'<text x="{x}" y="165" text-anchor="middle" fill="#14b8a6" font-size="12">{lbl}</text>'
+            for x, lbl in ((120, t[3]), (300, t[4]), (480, t[5])))
+        + f'<text x="300" y="212" text-anchor="middle" fill="#9ca3af" font-size="12">{t[6]}</text>'
+        '</svg></figure>'
+    )
+
+
+def _svg_rollup(lang: str) -> str:
+    """Inline SVG: Base L2 batches many txs into one L1 post — cost shared → low fees."""
+    if lang == "en":
+        t = ("many Base txs", "Base (L2) rolls them into one batch", "1 post to Ethereum (L1)",
+             "L1 cost ÷ many txs = tiny fee each")
+    else:
+        t = ("много tx на Base", "Base (L2) сворачивает их в один пакет", "1 запись в Ethereum (L1)",
+             "стоимость L1 ÷ много tx = крошечная комиссия")
+    return (
+        '<figure class="diagram"><svg viewBox="0 0 600 210" role="img" '
+        'style="width:100%;max-width:560px;height:auto;font-family:system-ui,sans-serif">'
+        + "".join(f'<rect x="{18+i*26}" y="{28+i*8}" width="90" height="26" rx="5" fill="rgba(20,184,166,.10)" stroke="#14b8a6" stroke-width="1"/>'
+                  for i in range(4))
+        + f'<text x="95" y="150" text-anchor="middle" fill="#9ca3af" font-size="12">{t[0]}</text>'
+        '<rect x="210" y="60" width="180" height="60" rx="10" fill="rgba(20,184,166,.08)" stroke="#14b8a6" stroke-width="1.5"/>'
+        f'<text x="300" y="86" text-anchor="middle" fill="#14b8a6" font-size="12" font-weight="700">📦 Base L2</text>'
+        f'<text x="300" y="104" text-anchor="middle" fill="#e5e7eb" font-size="10">{t[1]}</text>'
+        '<line x1="160" y1="90" x2="208" y2="90" stroke="#14b8a6" stroke-width="1.5" marker-end="url(#a)"/>'
+        '<line x1="392" y1="90" x2="470" y2="90" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#a)"/>'
+        '<defs><marker id="a" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">'
+        '<path d="M0,0 L6,3 L0,6 Z" fill="#9ca3af"/></marker></defs>'
+        '<rect x="472" y="60" width="118" height="60" rx="10" fill="rgba(139,92,246,.10)" stroke="#8b5cf6" stroke-width="1.5"/>'
+        f'<text x="531" y="94" text-anchor="middle" fill="#8b5cf6" font-size="11" font-weight="700">⛓ Ethereum L1</text>'
+        f'<text x="300" y="188" text-anchor="middle" fill="#9ca3af" font-size="12">{t[3]}</text>'
+        '</svg></figure>'
+    )
+
+
+_SVG_SEED_RU, _SVG_SEED_EN = _svg_seed("ru"), _svg_seed("en")
+_SVG_ROLLUP_RU, _SVG_ROLLUP_EN = _svg_rollup("ru"), _svg_rollup("en")
+
+
 MODULES: Dict[int, dict] = {
     # ── M0 — Base Sepolia (testnet) ──────────────────────────────────────────
     0: {
@@ -194,28 +253,92 @@ MODULES: Dict[int, dict] = {
         "chain": "base_sepolia",
         "wallet_limit_usd": 150,
         "theory_html_ru": (
-            "<p>Некастодиальный кошелёк — это пара ключей, которой владеете "
-            "только вы. <strong>Seed-фраза</strong> (обычно 12 слов) — мастер-"
-            "ключ ко всем средствам. Её нельзя показывать никому и никогда; "
-            "потеря seed = потеря доступа навсегда.</p>"
-            "<p>Бэкап seed хранят офлайн, в физически защищённом месте — не в "
-            "облаке, не скриншотом, не в переписке. Ещё надёжнее — hardware "
-            "wallet, который держит ключи на изолированном устройстве.</p>"
-            "<p><strong>SIWE</strong> (Sign-In With Ethereum) — вход через "
-            "криптографическую подпись, доказывающую владение адресом. Подпись "
-            "бесплатна и не двигает средства — это не транзакция.</p>"
+            "<p><strong>Некастодиальный кошелёк</strong> — это пара ключей, которой владеете только вы. "
+            "Никакая биржа и никакой сервис не могут заморозить или изъять средства. Обратная сторона: "
+            "ответственность тоже только на вас.</p>"
+            + _SVG_SEED_RU +
+            "<h4>Как это устроено</h4>"
+            "<p><strong>Seed-фраза</strong> (обычно 12 слов по стандарту BIP-39) — это мастер-ключ. Из неё "
+            "детерминированно выводится приватный ключ, а из него — множество адресов (HD-деривация). "
+            "Поэтому один seed — это доступ ко ВСЕМ вашим адресам сразу. Потеря seed = потеря доступа "
+            "навсегда; утечка seed = кража всего. Опциональная <em>passphrase</em> (25-е слово) создаёт "
+            "отдельный «скрытый» кошелёк поверх того же seed.</p>"
+            "<h4>Разбор на примере</h4>"
+            "<p>Вы записываете 12 слов на бумагу и кладёте в сейф. Даже если ноутбук украдут или сломается — "
+            "по этим 12 словам вы восстановите кошелёк на любом устройстве. <strong>SIWE</strong> "
+            "(Sign-In With Ethereum) — вход по криптографической подписи: вы доказываете владение адресом, "
+            "подписав сообщение. Подпись бесплатна и НЕ двигает средства — это не транзакция.</p>"
+            "<h4>Что может пойти не так</h4>"
+            "<ul>"
+            "<li><strong>Seed в цифре.</strong> Скриншот, облако, заметка, переписка — всё это векторы кражи. "
+            "Seed хранят ТОЛЬКО офлайн, физически.</li>"
+            "<li><strong>Фейковый «саппорт».</strong> Никто и никогда не имеет права спрашивать seed — ни "
+            "поддержка, ни «валидатор», ни этот курс. Любой такой запрос = мошенничество.</li>"
+            "<li><strong>Hot vs hardware.</strong> Hot-кошелёк (в браузере/телефоне) удобен, но ключ на "
+            "устройстве с интернетом. <em>Hardware wallet</em> держит ключ изолированно — для крупных сумм "
+            "это резко безопаснее.</li>"
+            "</ul>"
+            "<p class=\"glossary\"><strong>Словарь:</strong> <em>seed-фраза</em> — 12 слов, мастер-ключ; "
+            "<em>приватный ключ</em> — то, чем подписывают; <em>HD-деривация</em> — вывод многих адресов из "
+            "одного seed; <em>passphrase</em> — 25-е слово, скрытый кошелёк; <em>SIWE</em> — вход подписью.</p>"
+        ),
+        "theory_html_en": (
+            "<p>A <strong>non-custodial wallet</strong> is a key pair only you own. No exchange or service "
+            "can freeze or seize the funds. The flip side: the responsibility is entirely yours too.</p>"
+            + _SVG_SEED_EN +
+            "<h4>How it works</h4>"
+            "<p>A <strong>seed phrase</strong> (usually 12 words, the BIP-39 standard) is the master key. It "
+            "deterministically derives a private key, and from that, many addresses (HD derivation). So one "
+            "seed is access to ALL your addresses at once. Lose the seed = lose access forever; leak the seed "
+            "= lose everything. An optional <em>passphrase</em> (a 25th word) creates a separate \"hidden\" "
+            "wallet on top of the same seed.</p>"
+            "<h4>Worked example</h4>"
+            "<p>You write the 12 words on paper and put it in a safe. Even if the laptop is stolen or dies, "
+            "those 12 words restore the wallet on any device. <strong>SIWE</strong> (Sign-In With Ethereum) "
+            "is sign-in by cryptographic signature: you prove you own an address by signing a message. The "
+            "signature is free and does NOT move funds — it is not a transaction.</p>"
+            "<h4>What can go wrong</h4>"
+            "<ul>"
+            "<li><strong>Seed in digital form.</strong> A screenshot, cloud note, or chat message are all "
+            "theft vectors. Store the seed OFFLINE only, physically.</li>"
+            "<li><strong>Fake \"support.\"</strong> No one may ever ask for your seed — not support, not a "
+            "\"validator,\" not this course. Any such request is a scam.</li>"
+            "<li><strong>Hot vs hardware.</strong> A hot wallet (browser/phone) is convenient but the key "
+            "lives on an internet-connected device. A <em>hardware wallet</em> keeps the key isolated — for "
+            "larger sums that is dramatically safer.</li>"
+            "</ul>"
+            "<p class=\"glossary\"><strong>Glossary:</strong> <em>seed phrase</em> — 12 words, the master "
+            "key; <em>private key</em> — what signs; <em>HD derivation</em> — deriving many addresses from "
+            "one seed; <em>passphrase</em> — a 25th word, a hidden wallet; <em>SIWE</em> — sign-in by "
+            "signature.</p>"
         ),
         "practice_html_ru": (
-            "<p><strong>Задание:</strong> надёжно сохраните seed-фразу учебного "
-            "кошелька офлайн, затем войдите в Академию через SIWE-подпись. Вы "
-            "подтверждаете владение адресом, ничего не переводя.</p>"
-            + _SAFETY_NOTE
+            "<p><strong>Задание:</strong> надёжно сохраните seed-фразу учебного кошелька офлайн, затем "
+            "войдите в Академию через SIWE-подпись. Вы подтверждаете владение адресом, ничего не переводя.</p>"
+            "<p><strong>Шаги:</strong> (1) создайте кошелёк и запишите 12 слов на бумагу (не в цифру); "
+            "(2) уберите бумагу в защищённое место; (3) нажмите «Войти через кошелёк» и подпишите сообщение; "
+            "(4) убедитесь, что вход прошёл без какой-либо транзакции.</p>" + _SAFETY_NOTE
+        ),
+        "practice_html_en": (
+            "<p><strong>Task:</strong> safely store your practice wallet's seed phrase offline, then sign in "
+            "to the Academy via a SIWE signature. You prove you own the address without transferring "
+            "anything.</p>"
+            "<p><strong>Steps:</strong> (1) create a wallet and write the 12 words on paper (not digitally); "
+            "(2) put the paper somewhere secure; (3) click \"Sign in with wallet\" and sign the message; "
+            "(4) confirm the sign-in happened with no transaction at all.</p>" + _SAFETY_NOTE_EN
         ),
         "spa_connection_html_ru": (
-            "<p><strong>Что бы здесь сделал SPA:</strong> SPA принципиально "
-            "non-custodial и никогда не хранит приватных ключей или seed — вся "
-            "архитектура запрещает подпись и движение средств из read-only "
-            "кода. Тот же принцип для вас: ключи — только ваши, курс их не видит.</p>"
+            "<p><strong>Что бы здесь сделал SPA:</strong> SPA принципиально non-custodial и никогда не хранит "
+            "приватных ключей или seed — вся архитектура запрещает подпись и движение средств из read-only "
+            "кода (это захардкожено, а не «политика»). Тот же принцип для вас: ключи — только ваши, курс их "
+            "не видит и не может видеть. Custody — это не фича, это то, чего у сервиса НЕ должно быть.</p>"
+        ),
+        "spa_connection_html_en": (
+            "<p><strong>What SPA would do here:</strong> SPA is non-custodial on principle and never stores "
+            "private keys or seeds — the whole architecture forbids signing and fund movement from read-only "
+            "code (hard-coded, not a \"policy\"). The same principle for you: the keys are yours alone, the "
+            "course does not and cannot see them. Custody is not a feature — it is the thing a service "
+            "should NOT have.</p>"
         ),
     },
     # ── M2 — Сети и газ ──────────────────────────────────────────────────────
@@ -229,28 +352,86 @@ MODULES: Dict[int, dict] = {
         "chain": "base",
         "wallet_limit_usd": 150,
         "theory_html_ru": (
-            "<p><strong>Газ</strong> — вычислительная стоимость транзакции, "
-            "оплачиваемая в ETH. Любое действие on-chain, даже перевод "
-            "стейблкоина, требует немного ETH на газ.</p>"
-            "<p>Base — это <strong>L2</strong> (rollup): он собирает множество "
-            "транзакций в пакет и публикует их в Ethereum вместе, деля "
-            "стоимость. Поэтому комиссии на Base кратно ниже, чем на mainnet. "
-            "Chain ID Base — <code>8453</code>.</p>"
-            "<p>Если газа не хватит до завершения, транзакция откатывается "
-            "(revert), но потраченный газ не возвращается. Поэтому на кошельке "
-            "всегда держат небольшую ETH-подушку.</p>"
+            "<p><strong>Газ</strong> — это вычислительная стоимость транзакции, оплачиваемая в ETH. Любое "
+            "действие on-chain, даже перевод стейблкоина, требует немного ETH на газ. Нет ETH — не можете "
+            "сделать ничего, даже если на балансе полно USDC.</p>"
+            + _SVG_ROLLUP_RU +
+            "<h4>Как это устроено</h4>"
+            "<p>Base — это <strong>L2</strong> (rollup): он собирает множество транзакций в один пакет и "
+            "публикует их в Ethereum (L1) вместе, деля дорогую L1-стоимость на всех. Поэтому комиссии на "
+            "Base кратно ниже, чем на mainnet. Chain ID Base — <code>8453</code>. Комиссия складывается из "
+            "<em>base fee</em> (цена сети) + <em>priority fee</em> (чаевые за скорость) + доли L1-data-fee.</p>"
+            "<h4>Разбор на примере</h4>"
+            "<p>Перевод USDC на Ethereum mainnet может стоить несколько долларов газа; тот же перевод на "
+            "Base — центы. Разница — ровно эффект rollup'а. Держите на кошельке маленькую ETH-подушку "
+            "(например, эквивалент $2-5): её хватит на десятки операций.</p>"
+            "<h4>Что может пойти не так</h4>"
+            "<ul>"
+            "<li><strong>Ноль ETH на газ.</strong> Завели только USDC — и не можете даже его отправить. "
+            "Всегда держите немного ETH именно в той сети, где действуете.</li>"
+            "<li><strong>Revert съедает газ.</strong> Если транзакция падает (недостаточно газа, ошибка "
+            "контракта), потраченный газ НЕ возвращается. Проверяйте параметры до подтверждения.</li>"
+            "<li><strong>Не та сеть для газа.</strong> ETH на Ethereum не оплатит газ на Base — газ нужен "
+            "в той же сети. Мосты (bridge) переносят активы между сетями, но это отдельный риск.</li>"
+            "</ul>"
+            "<p class=\"glossary\"><strong>Словарь:</strong> <em>газ</em> — плата за вычисление в ETH; "
+            "<em>L2/rollup</em> — сеть, сворачивающая tx в пакет для L1; <em>base/priority fee</em> — "
+            "компоненты комиссии; <em>revert</em> — откат транзакции с потерей газа.</p>"
+        ),
+        "theory_html_en": (
+            "<p><strong>Gas</strong> is the computational cost of a transaction, paid in ETH. Every on-chain "
+            "action, even a stablecoin transfer, needs a little ETH for gas. No ETH — you can do nothing, "
+            "even with a wallet full of USDC.</p>"
+            + _SVG_ROLLUP_EN +
+            "<h4>How it works</h4>"
+            "<p>Base is an <strong>L2</strong> (rollup): it bundles many transactions into one batch and "
+            "posts them to Ethereum (L1) together, splitting the expensive L1 cost across all of them. That "
+            "is why Base fees are a fraction of mainnet's. Base's Chain ID is <code>8453</code>. A fee is "
+            "made of a <em>base fee</em> (the network price) + a <em>priority fee</em> (a tip for speed) + a "
+            "share of the L1 data fee.</p>"
+            "<h4>Worked example</h4>"
+            "<p>A USDC transfer on Ethereum mainnet can cost several dollars of gas; the same transfer on "
+            "Base costs cents. That gap is exactly the rollup effect. Keep a small ETH cushion in the wallet "
+            "(say the equivalent of $2-5): it covers dozens of actions.</p>"
+            "<h4>What can go wrong</h4>"
+            "<ul>"
+            "<li><strong>Zero ETH for gas.</strong> You funded only USDC — and can't even send it. Always "
+            "keep some ETH in the exact network you are acting on.</li>"
+            "<li><strong>A revert still burns gas.</strong> If a transaction fails (out of gas, contract "
+            "error), the spent gas is NOT refunded. Check the parameters before confirming.</li>"
+            "<li><strong>Gas on the wrong network.</strong> ETH on Ethereum won't pay gas on Base — gas is "
+            "needed on the same network. Bridges move assets between networks, but that is a separate "
+            "risk.</li>"
+            "</ul>"
+            "<p class=\"glossary\"><strong>Glossary:</strong> <em>gas</em> — the compute fee in ETH; "
+            "<em>L2/rollup</em> — a network that batches txs for L1; <em>base/priority fee</em> — fee "
+            "components; <em>revert</em> — a transaction rollback that still costs gas.</p>"
         ),
         "practice_html_ru": (
-            "<p><strong>Задание:</strong> переведите учебный кошелёк в сеть Base "
-            "(mainnet), заведите на него малую сумму в пределах лимита и "
-            "убедитесь, что на балансе есть немного ETH на газ.</p>"
-            + _SAFETY_NOTE
+            "<p><strong>Задание:</strong> переведите учебный кошелёк в сеть Base (mainnet), заведите на него "
+            "малую сумму в пределах лимита и убедитесь, что на балансе есть немного ETH на газ.</p>"
+            "<p><strong>Шаги:</strong> (1) переключите кошелёк на Base (Chain ID 8453); (2) заведите немного "
+            "ETH на газ + учебную сумму USDC (в пределах ≤$150); (3) проверьте, что баланс ETH > 0; "
+            "(4) убедитесь, что видите оба баланса в кошельке.</p>" + _SAFETY_NOTE
+        ),
+        "practice_html_en": (
+            "<p><strong>Task:</strong> move your practice wallet to the Base network (mainnet), fund it with "
+            "a small amount within the limit, and confirm you have a little ETH for gas.</p>"
+            "<p><strong>Steps:</strong> (1) switch the wallet to Base (Chain ID 8453); (2) add a little ETH "
+            "for gas + a practice USDC amount (within ≤$150); (3) check that the ETH balance is > 0; "
+            "(4) confirm you can see both balances in the wallet.</p>" + _SAFETY_NOTE_EN
         ),
         "spa_connection_html_ru": (
-            "<p><strong>Что бы здесь сделал SPA:</strong> SPA закладывает "
-            "gas-cost и breakeven в каждое решение о ребалансе — маленький "
-            "трейд, съедаемый комиссией, он отклоняет. Ваш аналог: не гоняйте "
-            "капитал туда-сюда, если комиссия сопоставима с суммой.</p>"
+            "<p><strong>Что бы здесь сделал SPA:</strong> SPA закладывает gas-cost и breakeven в каждое "
+            "решение о ребалансе — маленький трейд, который съест комиссия, он отклоняет ещё до исполнения. "
+            "Ваш аналог: не гоняйте капитал туда-сюда, если комиссия сопоставима с суммой. Издержки — часть "
+            "доходности, а не «мелочь после».</p>"
+        ),
+        "spa_connection_html_en": (
+            "<p><strong>What SPA would do here:</strong> SPA builds gas cost and breakeven into every "
+            "rebalance decision — a small trade the fee would eat is rejected before it ever executes. Your "
+            "version: don't shuffle capital back and forth when the fee is comparable to the amount. Costs "
+            "are part of the yield, not an afterthought.</p>"
         ),
     },
     # ── M3 — Первая транзакция ───────────────────────────────────────────────
