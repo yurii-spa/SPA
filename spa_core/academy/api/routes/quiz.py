@@ -26,7 +26,7 @@ import json
 import sqlite3
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, Query
 from pydantic import BaseModel
 
 from spa_core.academy.db import AcademyDB
@@ -52,11 +52,12 @@ def _client_ip(request: Request) -> str:
 @router.get("/{lesson_id}")
 def get_quiz(
     lesson_id: int = Path(..., ge=0, le=8),
+    lang: str = Query("ru"),
     db: AcademyDB = Depends(get_db),
     current_user: sqlite3.Row = Depends(get_current_user),
 ) -> dict:
     """Return the module's questions without any server-side answer fields."""
-    questions = quiz_bank.get_questions(lesson_id)
+    questions = quiz_bank.get_questions(lesson_id, lang=lang)
     return {"lesson_id": lesson_id, "questions": questions}
 
 

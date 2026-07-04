@@ -48,74 +48,107 @@ QUIZ_BANK: Dict[int, List[dict]] = {
         {
             "id": 1,
             "text": "Для чего нужен Base Sepolia?",
-            "options": [
-                "Хранить реальные деньги",
-                "Тренироваться без риска",
-                "Получить прибыль",
-                "Майнинг ETH",
-            ],
+            "text_en": "What is Base Sepolia for?",
+            "options": ["Хранить реальные деньги", "Тренироваться без риска", "Получить прибыль", "Майнинг ETH"],
+            "options_en": ["Storing real money", "Practising risk-free", "Making a profit", "Mining ETH"],
             "correct_idx": 1,
             "explanation": (
                 "Base Sepolia — это тестовая сеть (testnet). Токены в ней не "
                 "стоят денег, поэтому на ней безопасно отрабатывать действия "
                 "перед выходом в mainnet."
             ),
+            "explanation_en": (
+                "Base Sepolia is a testnet. Its tokens are worthless, so it's a safe place to rehearse "
+                "actions before going to mainnet."
+            ),
         },
         {
             "id": 2,
             "text": "Что такое faucet?",
-            "options": [
-                "Кошелёк для хранения ключей",
-                "Сервис для получения тестового ETH бесплатно",
-                "Биржа для обмена токенов",
-                "Смарт-контракт кредитования",
-            ],
+            "text_en": "What is a faucet?",
+            "options": ["Кошелёк для хранения ключей", "Сервис для получения тестового ETH бесплатно",
+                        "Биржа для обмена токенов", "Смарт-контракт кредитования"],
+            "options_en": ["A wallet for storing keys", "A service that gives out test ETH for free",
+                           "An exchange for swapping tokens", "A lending smart contract"],
             "correct_idx": 1,
             "explanation": (
                 "Faucet («кран») бесплатно выдаёт небольшое количество "
                 "тестового ETH, чтобы оплачивать газ в тестовой сети."
             ),
+            "explanation_en": (
+                "A faucet gives out a small amount of test ETH for free, to pay for gas on the test network."
+            ),
         },
         {
             "id": 3,
             "text": "Testnet-транзакция подтверждена — это значит...",
-            "options": [
-                "Вы заработали реальные деньги",
-                "Транзакция внесена в блок тестнета, реальных денег нет",
-                "Средства выведены на биржу",
-                "Транзакция ждёт ручного одобрения",
-            ],
+            "text_en": "A testnet transaction is confirmed — this means...",
+            "options": ["Вы заработали реальные деньги", "Транзакция внесена в блок тестнета, реальных денег нет",
+                        "Средства выведены на биржу", "Транзакция ждёт ручного одобрения"],
+            "options_en": ["You earned real money", "The tx is in a testnet block; no real money moved",
+                           "Funds were sent to an exchange", "The tx awaits manual approval"],
             "correct_idx": 1,
             "explanation": (
                 "Подтверждение в тестнете означает лишь включение транзакции в "
                 "блок тестовой сети; никакой реальной стоимости при этом не "
                 "перемещается."
             ),
+            "explanation_en": (
+                "A testnet confirmation only means the tx was included in a test-network block; no real "
+                "value moves."
+            ),
         },
         {
             "id": 4,
             "text": "Chain ID сети Base Sepolia?",
+            "text_en": "What is Base Sepolia's Chain ID?",
             "options": ["1", "137", "8453", "84532"],
+            "options_en": ["1", "137", "8453", "84532"],
             "correct_idx": 3,
             "explanation": (
                 "Chain ID Base Sepolia — 84532. (1 — Ethereum mainnet, 137 — "
                 "Polygon, 8453 — Base mainnet.)"
             ),
+            "explanation_en": (
+                "Base Sepolia's Chain ID is 84532. (1 = Ethereum mainnet, 137 = Polygon, 8453 = Base "
+                "mainnet.)"
+            ),
         },
         {
             "id": 5,
             "text": "После практики на тестнете стоит...",
-            "options": [
-                "Сразу вложить крупную сумму в mainnet",
-                "Повторить те же действия на mainnet с малой суммой",
-                "Больше никогда не заходить в mainnet",
-                "Продать тестовый ETH за реальные деньги",
-            ],
+            "text_en": "After practising on the testnet you should...",
+            "options": ["Сразу вложить крупную сумму в mainnet", "Повторить те же действия на mainnet с малой суммой",
+                        "Больше никогда не заходить в mainnet", "Продать тестовый ETH за реальные деньги"],
+            "options_en": ["Immediately put a large sum into mainnet", "Repeat the same steps on mainnet with a small amount",
+                           "Never touch mainnet again", "Sell the test ETH for real money"],
             "correct_idx": 1,
             "explanation": (
                 "Тестнет — это репетиция. Переходя в mainnet, повторяйте те же "
                 "шаги с маленькой суммой (учебный лимит ≤ $150), а не сразу с "
                 "большим капиталом."
+            ),
+            "explanation_en": (
+                "A testnet is a rehearsal. Moving to mainnet, repeat the same steps with a small amount "
+                "(the ≤ $150 educational limit), not a large capital at once."
+            ),
+        },
+        {
+            "id": 6,
+            "text": "Сайт-«faucet» просит подключить кошелёк и прислать депозит «для разблокировки». Это...",
+            "text_en": "A \"faucet\" site asks you to connect your wallet and send a deposit \"to unlock.\" This is...",
+            "options": ["Нормально для faucet", "Признак мошенничества — настоящий faucet просит только адрес",
+                        "Обязательный шаг верификации", "Способ ускорить выдачу"],
+            "options_en": ["Normal for a faucet", "A scam sign — a real faucet asks only for your address",
+                           "A required verification step", "A way to speed up the payout"],
+            "correct_idx": 1,
+            "explanation": (
+                "Настоящий faucet НИЧЕГО не просит, кроме адреса. Просьба «подключить кошелёк» или прислать "
+                "депозит — типичный фишинг/drainer."
+            ),
+            "explanation_en": (
+                "A real faucet asks for nothing but your address. A request to \"connect your wallet\" or "
+                "send a deposit is classic phishing/drainer behaviour."
             ),
         },
     ],
@@ -753,17 +786,21 @@ def _bank_for(lesson_id: int) -> List[dict]:
     return QUIZ_BANK[lesson_id]
 
 
-def get_questions(lesson_id: int) -> List[dict]:
+def get_questions(lesson_id: int, lang: str = "ru") -> List[dict]:
     """Return this module's questions WITHOUT server-side answer fields.
 
     Each returned item is ``{"id", "text", "options"}`` — ``correct_idx`` and
     ``explanation`` are stripped so the correct answers never reach the client.
     Returns an empty list for a module with no quiz (e.g. M8).
     """
-    return [
-        {"id": q["id"], "text": q["text"], "options": list(q["options"])}
-        for q in _bank_for(lesson_id)
-    ]
+    out = []
+    for q in _bank_for(lesson_id):
+        if lang == "en" and q.get("text_en"):
+            out.append({"id": q["id"], "text": q["text_en"],
+                        "options": list(q.get("options_en") or q["options"])})
+        else:
+            out.append({"id": q["id"], "text": q["text"], "options": list(q["options"])})
+    return out
 
 
 def passing_threshold(lesson_id: int) -> int:

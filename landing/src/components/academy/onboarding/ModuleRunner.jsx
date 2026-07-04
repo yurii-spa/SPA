@@ -326,7 +326,7 @@ function QuizSection({ moduleId, csrf, lang, tr, onPassed }) {
     let live = true;
     (async () => {
       try {
-        const res = await apiGet(`/quiz/${moduleId}`);
+        const res = await apiGet(`/quiz/${moduleId}?lang=${lang}`);
         if (live) setQuestions(res && Array.isArray(res.questions) ? res.questions : []);
       } catch {
         if (live) { setQuestions([]); setErr(tr('quizErr')); }
