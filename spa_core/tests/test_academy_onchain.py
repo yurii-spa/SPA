@@ -287,13 +287,7 @@ def test_m3_over_limit_advisory(db, user_id, monkeypatch):
     assert "лимит" in r.message
 
 
-# ── M4–M8 stubs ────────────────────────────────────────────────────────────────
-
-
-def test_m4_to_m8_pending(db, user_id):
-    for fn in (verifiers.verify_m4, verifiers.verify_m5, verifiers.verify_m6,
-               verifiers.verify_m7, verifiers.verify_m8):
-        assert fn(db, user_id, 5).status == "pending"
+# ── M4–M8 are delivered in stage 7 (test_academy_verifiers_m4m8.py) ─────────────
 
 
 # ── HTTP endpoint ──────────────────────────────────────────────────────────────
