@@ -1,0 +1,39 @@
+---
+/*
+ * /academy/onboarding/certificate — onboarding completion certificate.
+ *
+ * The CertificateView island reads GET /academy/certificate (shipped in stage 9)
+ * and gracefully handles 404 in the meantime ("finish all 9 modules"). Only
+ * renders certificate data when authenticated AND all modules verified.
+ */
+import Layout from '../../../layouts/Layout.astro';
+import CertificateView from '../../../components/academy/onboarding/CertificateView.jsx';
+---
+<Layout
+  title="Сертификат онбординга — SPA Академия"
+  description="Сертификат о прохождении практического онбординга: доказательства on-chain по каждому модулю. Открывается после завершения всех 9 модулей."
+>
+  <main class="obc-page">
+    <header class="obc-head">
+      <a class="obc-back" href="/academy/onboarding">← к карте курса</a>
+      <h1>Сертификат онбординга</h1>
+      <p>Выдаётся после того, как все девять модулей практики подтверждены on-chain.</p>
+    </header>
+
+    <CertificateView client:load />
+  </main>
+</Layout>
+
+<style is:global>
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<style>
+  .obc-page { max-width: 760px; margin: 0 auto; padding: 48px 20px 96px; }
+  .obc-head { text-align: center; margin-bottom: 32px; }
+  .obc-back { display: inline-block; font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); text-decoration: none; margin-bottom: 16px; }
+  .obc-back:hover { color: var(--accent); }
+  .obc-head h1 { font-size: 2rem; font-weight: 700; color: var(--text-primary); margin: 0 0 10px; }
+  .obc-head p { font-size: 15px; color: var(--text-secondary); line-height: 1.6; margin: 0; }
+  @media (max-width: 640px) { .obc-page { padding: 32px 16px 72px; } }
+</style>
