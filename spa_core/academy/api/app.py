@@ -36,6 +36,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from spa_core.academy.db import AcademyDB
 from spa_core.academy.api.middleware import AcademyRateLimit, SeedPhraseGuard
 from spa_core.academy.api.routes import auth as auth_routes
+from spa_core.academy.api.routes import progress as progress_routes
+from spa_core.academy.api.routes import notes as notes_routes
+from spa_core.academy.api.routes import quiz as quiz_routes
 
 # Production origin (the site). DEV additionally allows the Astro dev server.
 _PROD_ORIGIN = "https://earn-defi.com"
@@ -125,4 +128,7 @@ def create_academy_app(db_path: Optional[str] = None) -> FastAPI:
         return {"ok": True, "service": "academy", "dev": _is_dev()}
 
     app.include_router(auth_routes.router)
+    app.include_router(progress_routes.router)
+    app.include_router(notes_routes.router)
+    app.include_router(quiz_routes.router)
     return app
