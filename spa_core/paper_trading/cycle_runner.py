@@ -111,6 +111,7 @@ from spa_core.paper_trading.cycle_gates import (  # noqa: F401 — re-exported
     apply_analytics_blocking_gate,
     apply_base_gas_kill_switch,
     apply_kill_switch_override,
+    apply_rtmr_posture_gate,
     apply_soft_derisk_gate,
 )
 from spa_core.paper_trading.cycle_reporting import (  # noqa: F401 — re-exported
@@ -1459,6 +1460,19 @@ def run_cycle(
                 derisk_active=_derisk_active,
                 notes=notes,
             )
+
+    # ── Step 2e (RTMR / ADR-053): honor the emergency-path risk posture ────────
+    # The RTMR sense/emergency service writes data/monitoring/risk_posture.json on a
+    # de-risk; the rebalance-loop must respect any active FREEZE/CAP/EXIT/DEFENSIVE (§7).
+    # De-risk-only (can only REDUCE a target; freed capital stays in cash) and a NO-OP
+    # when the posture is NORMAL / unreadable — so on a healthy market this changes
+    # nothing. Applied LAST, on the final compliant book, so it clamps the actual targets.
+    target_usd = apply_rtmr_posture_gate(
+        target_usd,
+        capital_usd=capital_usd,
+        now_ts=int(datetime.now(timezone.utc).timestamp()),
+        notes=notes,
+    )
 
     # ── Step 3: virtual rebalance trade if allocation moved > threshold ───
     trades: list[dict] = _read_json(ddir / TRADES_FILENAME, [])
