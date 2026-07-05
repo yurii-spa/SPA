@@ -39,4 +39,10 @@
 3. **S10.4:** `reaction.evaluate()` composes existing kill-switch/cycle-gates actions. **Retire `threat_reactor`'s ad-hoc kill** into the ladder in the SAME change (don't run both).
 4. **S10.5:** `cycle_runner` reads `signals/latest.json` + honors `risk_posture.json`. The two-tier kill/cycle-gates become posture consumers.
 
-**Open (owner §13):** near-real-time data source (today = DeFiLlama TTL 300s = too slow for 30–60s sense; need faster RPC/subgraph/oracle before S10.3 is meaningful); incident source + trust; paper-only actions confirm; news.py now/defer.
+**Status:** S10.1 scaffold DONE (2026-07-05, commit 6cb18a03) — `signal.py` + `posture.py` + `monitoring_config.json` + 17 tests. **Paused here at owner's request** pending §13 answers.
+
+**Open (owner §13) — pending:**
+- **Data source (§13.1) — OWNER DIRECTION (2026-07-05):** don't rely on a single feed — run **5–10 sources in PARALLEL** and cross-validate. This is the right call and shapes the sensor design: each sensor should read a **quorum/median across N independent providers** (RPC + subgraph + price-oracle + DeFiLlama + CEX ref …), and be **fail-closed on disagreement** (if sources diverge beyond a tolerance, or < min-quorum are fresh, emit `critical`, not an averaged-away number). This is exactly the "DataTrust multi-source" hook — build a `sensors/_multisource.py` quorum helper BEFORE the individual sensors (S10.3), so peg/tvl/oracle each consume it. Concrete provider list still TBD by owner. Today's DeFiLlama (TTL 300s) is one source and too slow alone.
+- Incident source + trust level (§13.2).
+- Confirm `actions.py` is paper-log-only for now (§13.3).
+- `news.py` advisory-LLM sensor now or defer (§13.4).
