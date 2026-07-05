@@ -1,0 +1,46 @@
+---
+import Layout from '../layouts/Layout.astro';
+import RtmrMonitor from '../components/RtmrMonitor.jsx';
+---
+<Layout
+  title="Live Risk Monitoring (RTMR) | earn-defi.com"
+  description="RTMR — the real-time risk monitoring organism. Every ~45s it watches stablecoin peg, TVL collapse, oracle health and exit liquidity across 5-10 keyless sources, and de-risks deterministically. Paper, de-risk-only, LLM-forbidden. Live from api.earn-defi.com/api/rtmr."
+>
+  <main style="max-width: 900px; margin: 0 auto; padding: 48px 20px;">
+    <h1 style="font-size: 30px; margin-bottom: 6px;" data-i18n="h1">Живой мониторинг риска</h1>
+    <p style="opacity: 0.7; margin-bottom: 28px; line-height: 1.6;" data-i18n="intro">
+      Система перестала быть «вложил и проверяю раз в день». Теперь это живой организм: непрерывный
+      сторож следит за рынком в реальном времени и мгновенно реагирует на опасность — детерминированно,
+      только снижая риск, на бумаге.
+    </p>
+
+    <RtmrMonitor client:load />
+
+    <p style="opacity: 0.55; font-size: 13px; margin-top: 24px; line-height: 1.6;" data-i18n="note">
+      Источник: <code>api.earn-defi.com/api/rtmr/*</code> · обновляется каждые 30с ·
+      fail-closed (API офлайн → честно «нет данных», никаких выдуманных чисел) ·
+      ADR-053. Реакция на пути капитала детерминированная, LLM запрещён; на текущей фазе — paper.
+    </p>
+  </main>
+
+  <script is:inline>
+    (function () {
+      var EN = {
+        h1: 'Live Risk Monitoring',
+        intro: "The system is no longer 'deposit and check once a day'. It is now a living organism: a continuous watchman follows the market in real time and reacts to danger instantly — deterministically, de-risk-only, on paper.",
+        note: "Source: api.earn-defi.com/api/rtmr/* · refreshes every 30s · fail-closed (API offline → honestly 'no data', never a fabricated number) · ADR-053. The money-path reaction is deterministic, LLM-forbidden; paper for now.",
+      };
+      function apply() {
+        var ru; try { ru = (localStorage.getItem('spa_lang') || 'ru') !== 'en'; } catch (e) { ru = true; }
+        if (ru) return;
+        document.querySelectorAll('[data-i18n]').forEach(function (el) {
+          var k = el.getAttribute('data-i18n');
+          if (EN[k]) el.textContent = EN[k];
+        });
+      }
+      apply();
+      window.addEventListener('storage', apply);
+      document.addEventListener('spa:lang', apply);
+    })();
+  </script>
+</Layout>
