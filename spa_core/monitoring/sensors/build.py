@@ -50,6 +50,14 @@ def build_tvl_sensor(slugs: dict | None = None):
     return TvlSensor({k: v for k, v in current.items() if k in history}, history)
 
 
+
+
+def build_oracle_sensor(assets: list | None = None):
+    from spa_core.monitoring.sensors.oracle import OracleSensor
+    from spa_core.monitoring.sensors.oracle_providers import oracle_feeds
+    return OracleSensor(oracle_feeds(assets))
+
+
 def register_default_sensors() -> list:
     """Register the live-wired sensors with the sense-loop. Returns the registered source names."""
     from spa_core.monitoring.sense_loop import register_sensor, registered_sources
@@ -57,6 +65,10 @@ def register_default_sensors() -> list:
     try:
         register_sensor(build_tvl_sensor())
     except Exception:  # noqa: BLE001 — TVL feed optional; peg still runs
+        pass
+    try:
+        register_sensor(build_oracle_sensor())
+    except Exception:  # noqa: BLE001 — oracle RPC optional
         pass
     # TODO(S10.3 follow-up): register tvl/oracle/liquidity once their providers are wired.
     return registered_sources()
