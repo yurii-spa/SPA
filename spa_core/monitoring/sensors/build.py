@@ -30,9 +30,33 @@ def build_peg_sensor(assets: list | None = None) -> PegSensor:
     return PegSensor(providers, targets)
 
 
+
+
+# protocols to watch for TVL collapse → DeFiLlama slugs
+_TVL_SLUGS = {"aave-v3": "aave_v3", "compound-v3": "compound_v3", "morpho-blue": "morpho_blue",
+              "ethena-usde": "ethena", "sky-lending": "sky", "spark": "spark", "fluid": "fluid"}
+
+
+def build_tvl_sensor(slugs: dict | None = None):
+    from spa_core.monitoring.sensors.tvl import TvlSensor
+    from spa_core.monitoring.sensors.tvl_providers import tvl_current_providers, tvl_24h_ago
+    slugs = slugs or _TVL_SLUGS
+    current, history = {}, {}
+    for slug, scope in slugs.items():
+        current[scope] = tvl_current_providers(slug)
+        h = tvl_24h_ago(slug)
+        if h:
+            history[scope] = h
+    return TvlSensor({k: v for k, v in current.items() if k in history}, history)
+
+
 def register_default_sensors() -> list:
     """Register the live-wired sensors with the sense-loop. Returns the registered source names."""
     from spa_core.monitoring.sense_loop import register_sensor, registered_sources
     register_sensor(build_peg_sensor())
+    try:
+        register_sensor(build_tvl_sensor())
+    except Exception:  # noqa: BLE001 — TVL feed optional; peg still runs
+        pass
     # TODO(S10.3 follow-up): register tvl/oracle/liquidity once their providers are wired.
     return registered_sources()

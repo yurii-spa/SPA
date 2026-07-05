@@ -46,9 +46,9 @@ class TvlSensor:
         return self.poll(cfg, now_ts)
 
     def poll(self, cfg: dict, now_ts: int) -> list:
-        min_q = int(cfg.get("min_quorum", 3))
-        max_spread = float(cfg.get("max_spread", 0.05))  # TVL spreads wider than price; looser default
         tcfg = tvl_config(cfg)
+        min_q = int(tcfg.get("min_quorum", 2))   # TVL is DeFiLlama-dominated → lower quorum than price
+        max_spread = float(tcfg.get("max_spread", 0.05))  # TVL spreads wider than price
         out: list = []
         for scope, providers in self._cur.items():
             q = M.quorum_from(providers, min_quorum=min_q, max_spread=max_spread)
