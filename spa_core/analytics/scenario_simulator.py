@@ -1,3 +1,4 @@
+from spa_core.adapters.tier_map import tier_of  # canonical tier (registry-hygiene)
 #!/usr/bin/env python3
 """Scenario Simulator — portfolio stress-testing via historical and
 hypothetical scenarios (SPA-V509 / MP-586).
@@ -550,7 +551,7 @@ class ScenarioSimulator:
         # 2. Per-protocol and T2/T3 total cap
         t2_t3_total = 0.0
         for aid, w in sub_weights.items():
-            tier = adapter_tier_map.get(aid, "T2")
+            tier = tier_of(aid) or adapter_tier_map.get(aid, "T2")  # canonical first, local fallback, then T2
             if tier == "T1":
                 cap = T1_CAP
             else:
