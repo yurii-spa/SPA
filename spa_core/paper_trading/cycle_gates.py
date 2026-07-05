@@ -233,11 +233,20 @@ def apply_rtmr_posture_gate(
         notes.append("rtmr_posture_gate: portfolio DEFENSIVE → all-cash (RTMR emergency).")
         return target_usd
 
+    try:
+        from spa_core.monitoring.asset_map import asset_of
+    except Exception:  # noqa: BLE001
+        asset_of = lambda _p: None  # noqa: E731
+
     clamped: list[str] = []
     for proto in list(target_usd.keys()):
-        cap = P.cap_for(posture, proto, now_ts=now_ts)  # 0.0 EXITED, frac CAPPED, else None
-        if cap is None:
+        # honor BOTH the protocol-scoped posture (tvl/liquidity) AND the asset-scoped posture
+        # (peg/oracle → the stablecoin this protocol is denominated in). Take the tighter (min) cap.
+        caps = [c for c in (P.cap_for(posture, proto, now_ts=now_ts),
+                            P.cap_for(posture, asset_of(proto) or "", now_ts=now_ts)) if c is not None]
+        if not caps:
             continue
+        cap = min(caps)
         cap_usd = max(0.0, float(cap) * float(capital_usd))
         try:
             want = float(target_usd[proto])

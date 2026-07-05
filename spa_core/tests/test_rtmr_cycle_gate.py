@@ -49,5 +49,21 @@ class TestRtmrPostureGate(unittest.TestCase):
                 self.assertLessEqual(out[k], t[k] + 1e-6)  # never increases
 
 
+    def test_asset_depeg_derisks_asset_protocols(self) -> None:
+        # a USDC posture must clamp USDC-denominated protocols, leave others intact
+        pos = P.set_entry(_pos(), scope="USDC", state=P.EXITED, now_ts=1)
+        out = apply_rtmr_posture_gate({"aave_v3": 40000.0, "frax": 10000.0},
+                                      capital_usd=_CAP, now_ts=100, notes=[], posture=pos)
+        self.assertEqual(out["aave_v3"], 0.0)     # USDC → exited
+        self.assertEqual(out["frax"], 10000.0)    # FRAX → untouched
+
+    def test_tighter_of_protocol_and_asset_cap(self) -> None:
+        # protocol CAPPED 0.2 + asset CAPPED 0.05 → the tighter (0.05) wins
+        pos = P.set_entry(_pos(), scope="aave_v3", state=P.CAPPED, now_ts=1, cap=0.2)
+        pos = P.set_entry(pos, scope="USDC", state=P.CAPPED, now_ts=1, cap=0.05)
+        out = apply_rtmr_posture_gate({"aave_v3": 40000.0}, capital_usd=_CAP, now_ts=100, notes=[], posture=pos)
+        self.assertEqual(out["aave_v3"], 5000.0)  # min(0.2, 0.05) × 100k
+
+
 if __name__ == "__main__":
     unittest.main()
