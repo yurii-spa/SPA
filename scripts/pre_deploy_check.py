@@ -43,8 +43,8 @@ def landing_builds():
     )
     if not os.path.isdir(landing_dir):
         raise AssertionError(f"landing/ directory not found at {landing_dir}")
-    if shutil.which("npm") is None:
-        return "skipped — npm not available here (landing build is verified by Cloudflare Pages + deploy-landing.yml)"
+    if shutil.which("npm") is None or not os.path.isdir(os.path.join(landing_dir, "node_modules")):
+        return "skipped — npm/node_modules not installed here (landing build is verified by Cloudflare Pages + deploy-landing.yml)"
     result = subprocess.run(
         ["npm", "run", "build"],
         cwd=landing_dir,
