@@ -18,6 +18,7 @@
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import DashboardLive from '../components/DashboardLive.jsx';
+import RtmrMonitor from '../components/RtmrMonitor.jsx';
 import snap from '../data/track_snapshot.json';
 // P1-6: seed the island headline (equity/APY/days) from the build-time snapshot so no-JS/crawlers see
 // real numbers; the live poll overrides them. _snapshot marks it non-live (phase stays 'connecting').
@@ -72,6 +73,12 @@ const initialFacts = {
     <!-- The real-time island. client:load so it mounts + starts polling immediately. -->
     <section class="pb-16">
       <DashboardLive client:load initialFacts={initialFacts} />
+    </section>
+
+    <!-- RTMR live risk monitoring (ADR-053) — the real-time watchman, read-only from /api/rtmr. -->
+    <section class="pb-16">
+      <h2 class="text-2xl font-bold text-white mb-4" data-ru="Живой мониторинг риска">Live risk monitoring</h2>
+      <RtmrMonitor client:visible />
     </section>
 
   </main>

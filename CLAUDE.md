@@ -88,6 +88,7 @@ duplicate-flood регрессия). `agent_health` и `verify_fleet_after_reboo
 | `com.spa.rates_desk_paper` | каждый час (advisory) | ✅ |
 | `com.spa.rwa_safety_board` | ежедневно (advisory) | ✅ NEW |
 | `com.spa.daily_backup` | ежедневно | ✅ NEW |
+| `com.spa.rtmr_sense` | KeepAlive (~45с tick) | ✅ NEW (RTMR sense-loop, paper) |
 
 Переустановить все: `bash ~/Documents/SPA_Claude/scripts/install_all_agents.sh`
 
@@ -300,6 +301,32 @@ resilience_status: stdlib-only, детерминированный, fail-CLOSED;
 Post-reboot heal остаётся `scripts/verify_fleet_after_reboot.sh` (см. секцию «После ребута»).
 
 ---
+
+## 🛰️ RTMR — Real-Time Monitoring & Reaction (NEW, 2026-07-05 — ADR-053)
+
+`spa_core/monitoring/` (sense-loop + sensors + reaction + posture) — **живой сторож риска**: непрерывный
+сервис (`com.spa.rtmr_sense`, KeepAlive, ~45с tick) следит за рынком в реальном времени и мгновенно
+снижает риск между дневными циклами. Детерминированный, **LLM запрещён**, **fail-CLOSED**, **de-risk-only**,
+**paper** (капитал не двигает; go-live трек не трогает). Полная петля: **sense → signal → reaction →
+posture → дневной цикл слушается позы**. Карта интеграции (переиспользует существующие
+peg_monitor/red_flag_monitor/threat_reactor/kill_switch, НЕ дублирует) — `docs/RTMR_INTEGRATION_MAP.md`.
+
+- **4 сенсора** (`sensors/`), каждый на **multi-source кворуме 5–10 keyless-источников** (`_multisource.py`,
+  fail-closed на расхождении/недоборе кворума): `peg` (депег стейблов — CoinGecko/DeFiLlama/Coinbase/Kraken/Binance),
+  `tvl` (обвал TVL — DeFiLlama), `oracle` (здоровье оракула — Chainlink on-chain через keyless RPC),
+  `liquidity` (ликвидность выхода). Регистрируются через `build.register_default_sensors()`.
+- **Reaction-лестница** (`reaction.py`, de-risk-only, property-tested): stale→FREEZE, peg/tvl/liquidity
+  critical→FULL_EXIT / warn→REDUCE, oracle critical→FREEZE. **systemic MARKET_EXIT только на СВЕЖИХ
+  critical** (наш рейт-лимит/data-outage НЕ каскадит в ложный портфельный DEFENSIVE).
+- **Posture-стор** (`posture.py`, `data/monitoring/risk_posture.json`): единый файл, который пишет
+  emergency-path и **читает `cycle_runner` Step 2e** (`cycle_gates.apply_rtmr_posture_gate`, owner-approved
+  S10.5b) — clamp target'ов, **no-op при NORMAL**. `asset_map.py` роутит asset-позу (депег USDC) на протоколы.
+- **Устойчивость:** re-entry/самоочистка позы (N чистых тиков), staleness-гистерезис (freeze только
+  после N подряд stale-тиков), per-sensor time budget (25с — медленный сенсор не виснет тик),
+  ярусный кэш (цены 30с / TVL/oracle 300с), параллельные фетчи.
+- **API** (`spa_core/api/routers/rtmr.py`): `/api/rtmr/status` (сводка), `/api/rtmr/signals` (лента),
+  `/api/rtmr/posture`, `/api/rtmr/reactions`. **Сайт:** `/monitoring` (island `RtmrMonitor`, bilingual,
+  fail-closed) + панель на `/dashboard` + callout на `/system`.
 
 ## 🌐 Сайт (rebuilt 2026-06-25, unified design system)
 
