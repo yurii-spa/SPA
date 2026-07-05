@@ -60,6 +60,9 @@ const T = {
     warn: { ru: 'внимание', en: 'watch' },
     critical: { ru: 'тревога', en: 'alert' },
   },
+  stream: { ru: 'Живая лента сигналов', en: 'Live signal stream' },
+  reactions: { ru: 'Недавние де-риски (paper)', en: 'Recent de-risks (paper)' },
+  noReactions: { ru: 'Пока ни одного — всё спокойно', en: 'None yet — all calm' },
 };
 
 const SEV_COLOR = { info: '#2f9e57', warn: '#c78a00', critical: '#c0392b' };
@@ -73,6 +76,8 @@ export default function RtmrMonitor() {
   const [lang, setLang] = useState('ru');
   const [state, setState] = useState('loading'); // loading | live | offline
   const [status, setStatus] = useState(null);
+  const [signals, setSignals] = useState([]);
+  const [reactions, setReactions] = useState([]);
 
   useEffect(() => {
     setLang(getLang());
@@ -84,19 +89,23 @@ export default function RtmrMonitor() {
   }, []);
 
   const poll = useCallback(async () => {
+    const get = (path) => fetch(API + path, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), headers: { Accept: 'application/json' },
+    }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
     try {
-      const r = await fetch(API + '/api/rtmr/status', {
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-        headers: { Accept: 'application/json' },
-      });
-      if (!r.ok) throw new Error('bad status');
-      const d = await r.json();
+      const [d, sig, rx] = await Promise.all([
+        get('/api/rtmr/status'), get('/api/rtmr/signals'), get('/api/rtmr/reactions?limit=8'),
+      ]);
       if (!d || typeof d !== 'object' || !('portfolio_posture' in d)) throw new Error('bad shape');
       setStatus(d);
+      setSignals((sig && Array.isArray(sig.signals)) ? sig.signals : []);
+      setReactions((rx && Array.isArray(rx.recent)) ? rx.recent : []);
       setState('live');
     } catch {
       setState('offline');
       setStatus(null);
+      setSignals([]);
+      setReactions([]);
     }
   }, []);
 
@@ -193,6 +202,47 @@ export default function RtmrMonitor() {
         {active > 0 && status.posture_scopes && (
           <div style={{ fontSize: 12, marginTop: 6, opacity: 0.85 }}>
             {tr('scopes', lang)}: {status.posture_scopes.join(', ')}
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: 18 }}>
+        <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, opacity: 0.6, marginBottom: 8 }}>
+          {tr('stream', lang)}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 6 }}>
+          {signals.slice(0, 24).map((s, i) => (
+            <div key={i} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              border: '1px solid var(--border, #2a2a33)', borderRadius: 7, padding: '6px 10px', fontSize: 12,
+            }}>
+              <span style={{ opacity: 0.85 }}>
+                <span style={{ opacity: 0.6 }}>{s.source}:</span> {s.scope}
+              </span>
+              <span style={{
+                color: SEV_COLOR[s.severity] || '#888', fontWeight: 600, fontSize: 11,
+              }}>
+                {T.sev[s.severity] ? T.sev[s.severity][lang] : s.severity}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 18 }}>
+        <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, opacity: 0.6, marginBottom: 8 }}>
+          {tr('reactions', lang)}
+        </div>
+        {reactions.length === 0 ? (
+          <div style={{ fontSize: 13, opacity: 0.6 }}>{tr('noReactions', lang)}</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {reactions.slice().reverse().slice(0, 6).map((rx, i) => (
+              <div key={i} style={{ fontSize: 12, opacity: 0.85, borderLeft: '2px solid #c78a00', paddingLeft: 10 }}>
+                {(rx.actions || []).map((a) => a.kind + ' ' + a.scope).join(', ')}
+                {rx.mode ? ' · ' + rx.mode : ''}
+              </div>
+            ))}
           </div>
         )}
       </div>
