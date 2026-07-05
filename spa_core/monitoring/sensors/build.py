@@ -58,6 +58,15 @@ def build_oracle_sensor(assets: list | None = None):
     return OracleSensor(oracle_feeds(assets))
 
 
+
+
+def build_liquidity_sensor():
+    from spa_core.monitoring.sensors.liquidity import LiquiditySensor
+    from spa_core.monitoring.sensors.liquidity_providers import liquidity_inputs
+    depth, sizes = liquidity_inputs()
+    return LiquiditySensor(depth, sizes)
+
+
 def register_default_sensors() -> list:
     """Register the live-wired sensors with the sense-loop. Returns the registered source names."""
     from spa_core.monitoring.sense_loop import register_sensor, registered_sources
@@ -69,6 +78,10 @@ def register_default_sensors() -> list:
     try:
         register_sensor(build_oracle_sensor())
     except Exception:  # noqa: BLE001 — oracle RPC optional
+        pass
+    try:
+        register_sensor(build_liquidity_sensor())
+    except Exception:  # noqa: BLE001 — liquidity depth optional
         pass
     # TODO(S10.3 follow-up): register tvl/oracle/liquidity once their providers are wired.
     return registered_sources()

@@ -20,7 +20,9 @@
     "max_dev": 0.01
   },
   "liquidity": {
-    "min_liq_ratio": 2.0
+    "min_liq_ratio": 2.0,
+    "min_quorum": 1,
+    "max_spread": 0.1
   },
   "drawdown_kill": {
     "core": 0.05,

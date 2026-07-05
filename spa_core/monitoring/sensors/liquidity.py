@@ -27,9 +27,10 @@ class LiquiditySensor:
         return self.poll(cfg, now_ts)
 
     def poll(self, cfg: dict, now_ts: int) -> list:
-        min_ratio = float((cfg.get("liquidity", {}) or {}).get("min_liq_ratio", 2.0))
-        min_q = int(cfg.get("min_quorum", 3))
-        max_spread = float(cfg.get("max_spread", 0.10))  # depth estimates spread widely
+        lcfg = cfg.get("liquidity", {}) or {}
+        min_ratio = float(lcfg.get("min_liq_ratio", 2.0))
+        min_q = int(lcfg.get("min_quorum", 1))   # depth proxy is DeFiLlama single-source
+        max_spread = float(lcfg.get("max_spread", 0.10))
         out: list = []
         for scope, providers in self._depth.items():
             pos = float(self._pos.get(scope, 0.0))
