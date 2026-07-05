@@ -31,14 +31,43 @@ def _worst_by_scope(signals) -> dict:
     return out
 
 
+# staleness hysteresis: a scope must be stale for N CONSECUTIVE ticks before its stale signal is
+# allowed to de-risk — a single rate-limit hiccup must not freeze+alert. State lives in-process.
+_STALE_STREAK: dict = {}
+
+
+def _debounce_stale(signals, cfg: dict):
+    """Downgrade a not-yet-persistent stale signal to pending-info; keep it critical once persistent."""
+    from spa_core.monitoring import signal as _S
+    min_ticks = int(cfg.get("stale_ticks_before_derisk", 3))
+    out = []
+    for s in signals:
+        key = (s.source, s.scope)
+        if not s.staleness_ok:
+            n = _STALE_STREAK.get(key, 0) + 1
+            _STALE_STREAK[key] = n
+            if n < min_ticks:  # transient — hold as pending info, do NOT de-risk yet
+                out.append(_S.make_signal(
+                    ts=s.ts, source=s.source, scope=s.scope, metric=s.metric, value=s.value,
+                    severity=_S.INFO, threshold_crossed=False, staleness_ok=True,
+                    detail={**s.detail, "pending_stale_ticks": n}))
+            else:
+                out.append(s)  # persistent stale → keep critical (real outage)
+        else:
+            _STALE_STREAK.pop(key, None)  # recovered → reset streak
+            out.append(s)
+    return out
+
+
 def tick(cfg: dict, now_ts: int) -> list:
     from spa_core.monitoring import posture as P
-    signals = SL.run_tick(cfg=cfg, now_ts=now_ts)          # sense + persist + heartbeat
-    A.react_and_apply(signals, now_ts=now_ts, cfg=cfg, notify=True)  # emergency-path (PAPER): add de-risks
+    signals = SL.run_tick(cfg=cfg, now_ts=now_ts)          # sense + persist RAW + heartbeat
+    debounced = _debounce_stale(signals, cfg)              # staleness hysteresis (ignore transient stale)
+    A.react_and_apply(debounced, now_ts=now_ts, cfg=cfg, notify=True)  # emergency-path (PAPER): add de-risks
     # re-entry / self-clear: drop postures whose scope has recovered for N clean ticks (§5.2)
     reentry = int((cfg.get("peg", {}) or {}).get("reentry_periods", 4))
     pos = P.load_posture()
-    new_pos, cleared = P.reconcile_recovered(pos, _worst_by_scope(signals), now_ts=now_ts,
+    new_pos, cleared = P.reconcile_recovered(pos, _worst_by_scope(debounced), now_ts=now_ts,
                                              reentry_periods=reentry)
     if cleared:
         P.save_posture(new_pos, now_ts=now_ts)

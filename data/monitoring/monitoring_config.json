@@ -41,5 +41,6 @@
       }
     }
   },
-  "sensor_timeout_sec": 25
+  "sensor_timeout_sec": 25,
+  "stale_ticks_before_derisk": 3
 }
