@@ -129,5 +129,45 @@ def cap_for(posture: dict, scope: str, *, now_ts: int) -> float | None:
     return None
 
 
+def reconcile_recovered(posture: dict, severity_by_scope: dict, *, now_ts: int,
+                        reentry_periods: int = 4) -> tuple[dict, list]:
+    """Re-entry / self-clearing (§5.2): drop a posture entry once its scope has RECOVERED.
+
+    ``severity_by_scope`` maps scope → current severity ("info"/"warn"/"critical"). For each active
+    entry: if the scope is currently ``info`` (or absent = no active signal), bump a recovery counter;
+    once it reaches ``reentry_periods`` consecutive clean ticks the entry is REMOVED (re-entry allowed).
+    A warn/critical for that scope RESETS the counter (stays de-risked). Portfolio DEFENSIVE clears the
+    same way (all scopes clean N periods). Returns (new_posture, cleared_scopes). De-risk-only: clearing
+    only ever ALLOWS re-entry via the normal rebalance under RiskPolicy — it never itself increases size.
+    """
+    entries = dict(posture.get("entries", {}))
+    cleared: list = []
+    for scope, e in list(entries.items()):
+        sev = severity_by_scope.get(scope, "info")
+        e = dict(e)
+        if sev in ("warn", "critical"):
+            e["recover_count"] = 0
+            entries[scope] = e
+            continue
+        rc = int(e.get("recover_count", 0)) + 1
+        if rc >= int(reentry_periods):
+            del entries[scope]
+            cleared.append(scope)
+        else:
+            e["recover_count"] = rc
+            entries[scope] = e
+    posture = dict(posture, entries=entries)
+    # lift portfolio DEFENSIVE once nothing is warn/critical for reentry_periods (tracked on a pseudo-scope)
+    if posture.get("portfolio") == DEFENSIVE:
+        hot = any(v in ("warn", "critical") for v in severity_by_scope.values())
+        pc = 0 if hot else int(posture.get("_portfolio_recover", 0)) + 1
+        if pc >= int(reentry_periods):
+            posture = dict(posture, portfolio=NORMAL, _portfolio_recover=0)
+            cleared.append("PORTFOLIO")
+        else:
+            posture = dict(posture, _portfolio_recover=pc)
+    return posture, cleared
+
+
 def portfolio_defensive(posture: dict) -> bool:
     return posture.get("portfolio") == DEFENSIVE

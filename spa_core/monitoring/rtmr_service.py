@@ -17,9 +17,31 @@ from spa_core.monitoring import sense_loop as SL
 from spa_core.monitoring.sensors.build import register_default_sensors
 
 
+_SEV_RANK = {"info": 0, "warn": 1, "critical": 2}
+
+
+def _worst_by_scope(signals) -> dict:
+    """scope → worst current severity (stale counts as critical) — for posture re-entry."""
+    out: dict = {}
+    for s in signals:
+        sev = "critical" if not s.staleness_ok else s.severity
+        if _SEV_RANK.get(sev, 2) > _SEV_RANK.get(out.get(s.scope, "info"), 0):
+            out[s.scope] = sev
+        out.setdefault(s.scope, sev)
+    return out
+
+
 def tick(cfg: dict, now_ts: int) -> list:
+    from spa_core.monitoring import posture as P
     signals = SL.run_tick(cfg=cfg, now_ts=now_ts)          # sense + persist + heartbeat
-    A.react_and_apply(signals, now_ts=now_ts, cfg=cfg, notify=True)  # emergency-path (PAPER)
+    A.react_and_apply(signals, now_ts=now_ts, cfg=cfg, notify=True)  # emergency-path (PAPER): add de-risks
+    # re-entry / self-clear: drop postures whose scope has recovered for N clean ticks (§5.2)
+    reentry = int((cfg.get("peg", {}) or {}).get("reentry_periods", 4))
+    pos = P.load_posture()
+    new_pos, cleared = P.reconcile_recovered(pos, _worst_by_scope(signals), now_ts=now_ts,
+                                             reentry_periods=reentry)
+    if cleared:
+        P.save_posture(new_pos, now_ts=now_ts)
     return signals
 
 
