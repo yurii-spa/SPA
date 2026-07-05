@@ -16,7 +16,7 @@
     "max_spread": 0.05
   },
   "oracle": {
-    "max_staleness_sec": 93600,
+    "max_staleness_sec": 108000,
     "max_dev": 0.01
   },
   "liquidity": {
