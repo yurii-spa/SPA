@@ -38,11 +38,19 @@ The CLAUDE.md claim ("legacy github.io dashboard removed 2026-06-28") is **confi
 
 **The REAL autopush** (`com.spa.autopush` → `scripts/auto_push.sh`) invokes **`push_to_github.py` + `push_v*.sh`** — confirmed by reading `auto_push.sh`. None of the legacy chain is referenced by any launchd/plist. → They are safe **archival** candidates (move to `scripts/legacy/`, don't delete), owner-gated. See `FILES_PROPOSED_FOR_DELETION.md`.
 
-## UNKNOWN-4 — Duplicate test trees (`tests/` vs `spa_core/tests/`)
+## UNKNOWN-4 — Duplicate test trees (`tests/` vs `spa_core/tests/`) — RE-INVESTIGATED, hazard was OVERSTATED
 
-**RESOLVED: real divergent duplication.** **25 files share the SAME name in BOTH `tests/` and `spa_core/tests/`, and ALL 25 are DIFFERENT content (0 identical).** Examples: `conftest.py`, `test_adapter_registry.py`, `test_apy_tracker.py`, `test_ceo_agent_v2.py`, `test_concurrent_fetch.py`, `test_cycle_health_monitor.py`, …
+Initial scan flagged 25 same-named files as a "structural hazard / root of CI path confusion." **Careful follow-up (2026-07-05) downgraded this:** it is NOT a collision hazard and mostly not even duplication.
 
-**This is the root of the CI path confusion** documented during the CI-green work (a failure logged as `tests/test_X.py` might actually be `spa_core/tests/test_X.py`; two same-named `conftest.py` behave differently). It is a genuine structural hazard (module-name collisions, ambiguous ownership) — but **NOT safe to delete** (they are different tests). **Owner decision required:** designate one canonical tree per test, diff-merge the 25 pairs, or namespace them. Until then, treat `spa_core/tests/` as the primary product test tree and `tests/` as the integration/root tree (both are run by CI).
+Breakdown of the 25:
+- **8 were dead `# MOVED — SPA-D003` tombstones** in `tests/` (4-line comment files, `pytest --collect-only` = 0 tests, leftover guardrails from a past consolidation). **Removed** (safe; the real tests live in `spa_core/tests/`). → 25 down to 17.
+- **1 (`test_doc_drift.py`)** is an intentional **re-export shim**: `from spa_core.tests.test_doc_drift import (…)` — single source of truth, no divergent logic. **Keep as-is** (good pattern).
+- **1 (`conftest.py`)** is not a test file — every test dir legitimately owns a `conftest.py`. **Not a duplicate.**
+- **15 are genuinely PARALLEL, INDEPENDENT test suites** for the same module, written by different sessions/sprints with different test names (the smaller suite's tests are ~100% unique names, not a subset). Both provide REAL, additive coverage.
+
+**No actual collision:** `spa_core/tests/` is a proper package (`__init__.py` present; so is `spa_core/__init__.py`), while `tests/` is rootdir-based. Fully-qualified module names differ (`spa_core.tests.test_X` vs `test_X`), so the same basenames **coexist cleanly** — verified: `pytest tests/test_mev_protection.py spa_core/tests/test_mev_protection.py --collect-only` collects all 36 with **no "import file mismatch."** The "CI path confusion" I hit during the green-up was a *log-readability* annoyance (a failure printed as `tests/test_X.py` when it was the `spa_core/tests/` one), **not a functional bug.**
+
+**Verdict:** the sharp real duplication was the 8 tombstones (now gone). The remaining 15 parallel suites are safe, coexist correctly, and each adds coverage — **merging them is cosmetic-only with real risk of dropping tests, and is NOT recommended.** Canonical primary tree = **`spa_core/tests/`** (the package, richer suites); `tests/` is the rootdir/integration tree; both run in CI by design. If ever merged, do it per-file as a union (never a blind delete of the smaller copy).
 
 ## Consequences for the audit
 
