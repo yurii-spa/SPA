@@ -72,18 +72,22 @@ def run_tick(sensors=None, cfg: dict | None = None, *, now_ts: int) -> list:
     """One sense pass: poll every sensor (fail-closed on death), persist, heartbeat. Returns signals."""
     sensors = _SENSORS if sensors is None else sensors
     cfg = cfg if cfg is not None else load_config()
-    signals: list = []
-    for sensor in sensors:
+    def _poll(sensor):
         src = getattr(sensor, "source", "unknown")
         try:
-            out = sensor(cfg, now_ts) if not hasattr(sensor, "poll") else sensor.poll(cfg, now_ts)
+            out = sensor.poll(cfg, now_ts) if hasattr(sensor, "poll") else sensor(cfg, now_ts)
             if not out:
-                # a sensor that yields nothing is treated as blind → critical (never silent-ok)
-                signals.append(S.stale_signal(ts=now_ts, source=src, scope=src, reason="sensor produced no signal"))
-            else:
-                signals.extend(out)
+                return [S.stale_signal(ts=now_ts, source=src, scope=src, reason="sensor produced no signal")]
+            return list(out)
         except Exception as exc:  # noqa: BLE001 — a dead sensor MUST surface as critical, not crash the loop
-            signals.append(S.stale_signal(ts=now_ts, source=src, scope=src, reason=f"sensor raised: {exc!r}"[:200]))
+            return [S.stale_signal(ts=now_ts, source=src, scope=src, reason=f"sensor raised: {exc!r}"[:200])]
+
+    signals: list = []
+    if sensors:
+        import concurrent.futures as _cf
+        with _cf.ThreadPoolExecutor(max_workers=min(8, len(sensors))) as ex:
+            for res in ex.map(_poll, list(sensors)):
+                signals.extend(res)
     _persist(signals, now_ts)
     _heartbeat(now_ts, len(sensors))
     return signals

@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import urllib.request
 
-_TIMEOUT = 8
+_TIMEOUT = 5
 _UA = {"User-Agent": "spa-rtmr/1.0"}
 
 # canonical asset → per-source identifiers. USD-pegged stables price ≈ 1.0.
@@ -27,10 +27,22 @@ _ASSETS: dict[str, dict] = {
 }
 
 
+# URL-level cache (TTL ~30s < one tick): peg and oracle both price USDC/USDT — cache the fetch so the
+# second consumer reuses it instead of re-hitting the network. Keeps ticks fast, still fresh per tick.
+_HTTP_CACHE: dict = {}
+_HTTP_TTL = 30
+
+
 def _get_json(url: str):
+    import time as _t
+    hit = _HTTP_CACHE.get(url)
+    if hit and (_t.time() - hit[1]) < _HTTP_TTL:
+        return hit[0]
     req = urllib.request.Request(url, headers=_UA)
     with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:  # noqa: S310 — trusted public https
-        return json.load(r)
+        data = json.load(r)
+    _HTTP_CACHE[url] = (data, _t.time())
+    return data
 
 
 # ── parse functions (pure, unit-testable) ───────────────────────────────────────────

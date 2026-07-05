@@ -11,14 +11,26 @@ from __future__ import annotations
 import json
 import urllib.request
 
-_TIMEOUT = 10
+_TIMEOUT = 5
 _UA = {"User-Agent": "spa-rtmr/1.0"}
 
 
+# TVL changes slowly (DeFiLlama daily) — cache fetches ~5 min so tvl+liquidity don't hammer the API
+# every 45s tick (rate-limit avoidance). Fail-closed still applies if a cold fetch fails.
+_CACHE: dict = {}
+_TTL = 300
+
+
 def _get(url: str):
+    import time as _t
+    hit = _CACHE.get(url)
+    if hit and (_t.time() - hit[1]) < _TTL:
+        return hit[0]
     req = urllib.request.Request(url, headers=_UA)
     with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:  # noqa: S310 — trusted public https
-        return json.load(r)
+        data = json.load(r)
+    _CACHE[url] = (data, _t.time())
+    return data
 
 
 def parse_tvl_simple(payload) -> float | None:

@@ -13,18 +13,22 @@ from __future__ import annotations
 import json
 import urllib.request
 
-_TIMEOUT = 8
+_TIMEOUT = 4  # short: a slow RPC must not block the sense tick
 _HDR = {"User-Agent": "spa-rtmr/1.0", "Content-Type": "application/json"}
 
 # keyless public Ethereum RPCs (redundancy)
 _RPCS = [
-    "https://eth.llamarpc.com",
     "https://ethereum.publicnode.com",
     "https://rpc.ankr.com/eth",
     "https://cloudflare-eth.com",
 ]
 
 _LATEST_ROUND_DATA = "0xfeaf968c"  # keccak('latestRoundData()')[:4]
+
+# Chainlink stablecoin feeds update on a ~24h heartbeat, so re-reading every 45s tick is pointless
+# and (on a slow RPC) would block the sense loop. Cache the last good (price, updated_at) per feed.
+_READ_CACHE: dict = {}
+_READ_TTL = 300  # seconds
 
 # Chainlink mainnet USD aggregators (8 decimals)
 _FEEDS = {
@@ -66,14 +70,25 @@ def parse_latest_round_data(result_hex: str, decimals: int = _DECIMALS):
 
 
 def chainlink_reader(address: str, decimals: int = _DECIMALS):
-    """callable() → (price, updated_at) reading the feed across the public RPCs (first that answers)."""
+    """callable() → (price, updated_at). Cached (~5 min) so a slow RPC never blocks the tick; on a
+    cache miss, tries the public RPCs (first that answers). Serves the last good value while re-reading
+    fails, up to the TTL — after which a persistent failure surfaces as stale (fail-closed)."""
+    import time as _t
+
     def fn():
+        now = _t.time()
+        cached = _READ_CACHE.get(address)
+        if cached and (now - cached[1]) < _READ_TTL:
+            return cached[0]
         for rpc in _RPCS:
             res = _eth_call(rpc, address, _LATEST_ROUND_DATA)
             if res and res != "0x":
                 parsed = parse_latest_round_data(res, decimals)
                 if parsed is not None:
+                    _READ_CACHE[address] = (parsed, now)
                     return parsed
+        if cached:            # RPCs down but we have a recent value within TTL → serve it
+            return cached[0]
         raise RuntimeError("all RPCs failed for Chainlink feed")  # → sensor treats as stale critical
     return fn
 

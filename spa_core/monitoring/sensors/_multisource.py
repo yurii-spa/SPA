@@ -44,13 +44,21 @@ def collect(providers: dict) -> dict:
     absent from the result (UNAVAILABLE — never counted, never zeroed).
     """
     out: dict = {}
-    for name, fn in providers.items():
+    if not providers:
+        return out
+    import concurrent.futures as _cf
+
+    def _one(item):
+        name, fn = item
         try:
-            v = fn()
+            return (name, fn())
         except Exception:  # noqa: BLE001 — an unavailable source is dropped, not fatal
-            continue
-        if _finite(v):
-            out[str(name)] = float(v)
+            return (name, None)
+
+    with _cf.ThreadPoolExecutor(max_workers=min(8, len(providers))) as ex:
+        for name, v in ex.map(_one, list(providers.items())):
+            if _finite(v):
+                out[str(name)] = float(v)
     return out
 
 
