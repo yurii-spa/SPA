@@ -53,8 +53,15 @@ class OracleSensor:
                 continue
             staleness = max(0.0, float(now_ts) - float(oracle_ts))
             dev = abs(float(oracle_price) / q.value - 1.0)
+            # staleness only escalates when OVERDUE (Chainlink stablecoin feeds have a ~24h heartbeat,
+            # so a feed being <max_staleness old is NORMAL, not a warn). Deviation keeps warn+critical bands.
             crossed = staleness > max_stale or dev > max_dev
-            sev = S.CRITICAL if crossed else (S.WARN if (staleness > 0.5 * max_stale or dev > 0.5 * max_dev) else S.INFO)
+            if crossed:
+                sev = S.CRITICAL
+            elif dev > 0.5 * max_dev:
+                sev = S.WARN
+            else:
+                sev = S.INFO
             out.append(S.make_signal(
                 ts=now_ts, source=self.source, scope=scope,
                 metric=("oracle_staleness_sec" if staleness > max_stale else "oracle_dev_pct"),
