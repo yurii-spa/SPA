@@ -83,6 +83,20 @@ class TestApply(unittest.TestCase):
         log = json.loads(A._LOG.read_text())
         self.assertEqual(log[0]["mode"], "paper")
 
+
+    def test_notify_only_on_posture_change(self) -> None:
+        # applying the SAME exit twice must not re-notify (posture unchanged) — no Telegram spam
+        calls = []
+        import spa_core.monitoring.actions as AA
+        orig = AA._notify
+        AA._notify = lambda ts, applied: calls.append(applied)
+        try:
+            AA.apply_actions([R.Action(R.FULL_EXIT, "susde")], now_ts=1000, cfg=_CFG, notify=True)
+            AA.apply_actions([R.Action(R.FULL_EXIT, "susde")], now_ts=1050, cfg=_CFG, notify=True)
+        finally:
+            AA._notify = orig
+        self.assertEqual(len(calls), 1)  # notified once (first change), not on the re-apply
+
     def test_react_and_apply_paper(self) -> None:
         sigs = [_sig("peg", "usdc", S.CRITICAL)]
         pos = A.react_and_apply(sigs, now_ts=1000, cfg=_CFG, notify=False)

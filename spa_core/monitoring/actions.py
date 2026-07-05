@@ -51,19 +51,32 @@ def _apply_one(posture: dict, act, *, now_ts: int, cooldown_sec: int) -> dict:
     return P.set_entry(posture, scope=act.scope, state=P.FROZEN, now_ts=now_ts, reason=act.reason)
 
 
+def _posture_sig(posture: dict) -> tuple:
+    """Signature of the meaningful posture state (ignores timestamps) — for change detection."""
+    entries = posture.get("entries", {})
+    return (posture.get("portfolio"),
+            tuple(sorted((k, e.get("state"), e.get("cap")) for k, e in entries.items())))
+
+
 def apply_actions(actions, *, now_ts: int, cfg: dict | None = None, notify: bool = True) -> dict:
-    """Apply de-risk actions → new posture (persisted) + reaction_log + Telegram. PAPER (no capital)."""
+    """Apply de-risk actions → new posture (persisted) + reaction_log + Telegram. PAPER (no capital).
+
+    Alerts fire ONLY when the posture actually CHANGES (a new de-risk), never every tick while a
+    posture stays active — so a persistent depeg doesn't spam Telegram every ``sense_interval``.
+    """
     cfg = cfg or {}
     cooldown_sec = int(cfg.get("cooldown_days", 3)) * _DAY
     posture = P.load_posture()
+    sig_before = _posture_sig(posture)
     applied = []
     for act in actions:
         posture = _apply_one(posture, act, now_ts=now_ts, cooldown_sec=cooldown_sec)
         applied.append({"kind": act.kind, "scope": act.scope, "pct": act.pct, "reason": act.reason})
     P.save_posture(posture, now_ts=now_ts)
+    changed = _posture_sig(posture) != sig_before
     if applied:
         _append_log(now_ts, applied)
-        if notify:
+        if notify and changed:  # only alert on a genuinely NEW de-risk, not a still-active one
             _notify(now_ts, applied)
     return posture
 
