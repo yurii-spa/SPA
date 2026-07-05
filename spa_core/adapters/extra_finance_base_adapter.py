@@ -127,6 +127,9 @@ class ExtraFinanceBaseAdapter(BaseAdapter):
     ADAPTER_NAME = ADAPTER_NAME
     CHAIN = CHAIN
     TIER = TIER
+    # ADR-026 Phase-1 MONITORING (not graduated to live): isolated Base lending vault kept
+    # for advisory tracking only. IS_ADVISORY keeps it out of the live allocatable universe.
+    IS_ADVISORY = True
     TVL_USD = TVL_USD
     TVL_USDC_LENDING = TVL_USDC_LENDING
     RISK_SCORE = RISK_SCORE

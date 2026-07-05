@@ -151,6 +151,12 @@ def _default_live_apy_provider() -> dict[str, float]:
             key, _tier, cls = entry[0], entry[1], entry[2]
         except Exception:  # noqa: BLE001 — malformed registry row
             continue
+        # Advisory / research-only adapters are NEVER live-allocatable — they exist for
+        # monitoring/research only (invariant: IS_ADVISORY must not reach the money path).
+        # The registry was ranked by tier caps but NEVER filtered by advisory status, so an
+        # advisory T3 (e.g. susde, extra_finance) could leak into the live book. Exclude here.
+        if getattr(cls, "IS_ADVISORY", False) or getattr(cls, "RESEARCH_ONLY", False):
+            continue
         try:
             info = cls().get_yield_info()
             apy = getattr(info, "apy", None)

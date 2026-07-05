@@ -69,6 +69,10 @@ class SusdeAdapter(BaseAdapter):
 
     # ── тир / риск ───────────────────────────────────────────────────────
     TIER = "T3"
+    # Read-only advisory (per this adapter's own docstring): Ethena sUSDe carries
+    # funding/depeg tail-risk and is NOT a live-allocatable holding. IS_ADVISORY makes the
+    # allocator exclude it from the money path (it had been leaking into the live book).
+    IS_ADVISORY = True
     T3_CAP: float = 0.10          # макс 10% портфеля в этом протоколе (T3 лимит)
     CHAIN = "ethereum"
     CHAIN_ID: int = 1
