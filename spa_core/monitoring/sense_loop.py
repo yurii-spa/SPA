@@ -85,9 +85,17 @@ def run_tick(sensors=None, cfg: dict | None = None, *, now_ts: int) -> list:
     signals: list = []
     if sensors:
         import concurrent.futures as _cf
+        per_sensor_timeout = int(cfg.get("sensor_timeout_sec", 25))  # a slow sensor must not block the tick
+        sensors = list(sensors)
         with _cf.ThreadPoolExecutor(max_workers=min(8, len(sensors))) as ex:
-            for res in ex.map(_poll, list(sensors)):
-                signals.extend(res)
+            futs = {ex.submit(_poll, sensor): sensor for sensor in sensors}
+            for fut, sensor in futs.items():
+                src = getattr(sensor, "source", "unknown")
+                try:
+                    signals.extend(fut.result(timeout=per_sensor_timeout))
+                except Exception:  # noqa: BLE001 — timeout/error → treat the whole sensor as stale (fail-closed)
+                    signals.append(S.stale_signal(ts=now_ts, source=src, scope=src,
+                                                  reason="sensor exceeded time budget"))
     _persist(signals, now_ts)
     _heartbeat(now_ts, len(sensors))
     return signals
