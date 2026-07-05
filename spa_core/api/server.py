@@ -169,6 +169,7 @@ from spa_core.api.routers import (  # noqa: E402
     rates_desk,
     redteam,
     riskwire,
+    rtmr,
     strategy_lab,
     tier1,
     tournament,
@@ -189,6 +190,9 @@ app.include_router(live.router)
 app.include_router(tournament.router)
 app.include_router(competitive_watch.router)
 app.include_router(redteam.router)
+# RTMR (ADR-053) — read-only surface of the real-time monitoring organism (/api/rtmr/*):
+# live signals, defensive posture, recent de-risk actions. Feeds the dashboard.
+app.include_router(rtmr.router)
 # Lane C (Layer-3 moat) — the underwriting report surface is FLAG-GATED OFF by default
 # (SPA_UNDERWRITING_PUBLISH); every route 404s until the owner flips the flag.
 app.include_router(underwriting.router)
