@@ -44,10 +44,8 @@ def build_tvl_sensor(slugs: dict | None = None):
     current, history = {}, {}
     for slug, scope in slugs.items():
         current[scope] = tvl_current_providers(slug)
-        h = tvl_24h_ago(slug)
-        if h:
-            history[scope] = h
-    return TvlSensor({k: v for k, v in current.items() if k in history}, history)
+        history[scope] = (lambda sl=slug: tvl_24h_ago(sl))   # lazy — fetched at poll, not build
+    return TvlSensor(current, history)
 
 
 

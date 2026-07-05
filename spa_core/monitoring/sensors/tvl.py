@@ -53,6 +53,11 @@ class TvlSensor:
         for scope, providers in self._cur.items():
             q = M.quorum_from(providers, min_quorum=min_q, max_spread=max_spread)
             hist = self._hist.get(scope)
+            if callable(hist):        # lazy history provider — fetch at poll, not at build
+                try:
+                    hist = hist()
+                except Exception:  # noqa: BLE001
+                    hist = None
             if not q.ok or not hist:
                 out.append(S.stale_signal(ts=now_ts, source=self.source, scope=scope,
                                           metric="tvl_drop", reason=(q.reason or "no tvl history")))
