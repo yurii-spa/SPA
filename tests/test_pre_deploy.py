@@ -39,14 +39,16 @@ class TestLandingBuilds(unittest.TestCase):
 
     @patch("scripts.pre_deploy_check.subprocess.run")
     @patch("os.path.isdir", return_value=True)
-    def test_build_success(self, _isdir, mock_run):
+    @patch("scripts.pre_deploy_check.shutil.which", return_value="/usr/bin/npm")
+    def test_build_success(self, _which, _isdir, mock_run):
         mock_run.return_value = _make_completed_process(returncode=0)
         result = pdc.landing_builds()
         self.assertEqual(result, "build OK")
 
     @patch("scripts.pre_deploy_check.subprocess.run")
     @patch("os.path.isdir", return_value=True)
-    def test_build_failure_raises(self, _isdir, mock_run):
+    @patch("scripts.pre_deploy_check.shutil.which", return_value="/usr/bin/npm")
+    def test_build_failure_raises(self, _which, _isdir, mock_run):
         mock_run.return_value = _make_completed_process(
             returncode=1, stderr="Error: module not found"
         )
@@ -66,7 +68,7 @@ class TestGateLocked(unittest.TestCase):
 
     def test_gate_locked_ok(self):
         gate_mock = MagicMock()
-        gate_mock.is_unlocked.return_value = False
+        gate_mock.is_active.return_value = False
         klass_mock = MagicMock(return_value=gate_mock)
         module_mock = types.ModuleType("spa_core.safety.live_trading_gate")
         module_mock.LiveTradingGate = klass_mock
@@ -78,7 +80,7 @@ class TestGateLocked(unittest.TestCase):
 
     def test_gate_unlocked_raises(self):
         gate_mock = MagicMock()
-        gate_mock.is_unlocked.return_value = True
+        gate_mock.is_active.return_value = True
         klass_mock = MagicMock(return_value=gate_mock)
         module_mock = types.ModuleType("spa_core.safety.live_trading_gate")
         module_mock.LiveTradingGate = klass_mock
