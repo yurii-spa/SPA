@@ -292,7 +292,8 @@ install_agent \
 #      chain; restart-survival (book restored, not zeroed), idempotent per UTC day, fail-CLOSED.
 #      ADVISORY ONLY: simulates carry, moves no live capital, never touches the go-live track.
 install_agent \
-    "$REPO/scripts/com.spa.rates_desk_paper.plist" \
+    "$REPO/scripts/com.spa.aggressive_lab
+com.spa.rates_desk_paper.plist" \
     "com.spa.rates_desk_paper" \
     "1"
 
