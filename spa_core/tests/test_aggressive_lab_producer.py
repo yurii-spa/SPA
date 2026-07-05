@@ -119,10 +119,12 @@ def test_stale_missing_feed_fails_closed_no_fabricated_accrual(tmp_path):
     assert "susde" not in snap.defi_apy            # the required feed is genuinely absent
     s = roster.build_roster()["susde_spot"]
     s.step(snap)
-    # fail-closed: equity UNCHANGED (no fabricated accrual), book marked killed with a fail-closed reason
-    assert s.equity() == pytest.approx(DEFAULT_NOTIONAL_USD)
-    assert s.metrics().extra["killed"] is True
-    assert "fail-closed" in s.metrics().extra["kill_reason"]
+    # fail-closed = SAFE-HOLD (owner decision 2026-07-06): a transient data gap must NOT fabricate a
+    # number AND must NOT permanently kill — the book holds at its starting notional and RESUMES when
+    # the feed returns (like the mark-gap path / rates_desk). The honesty invariant (no fabricated
+    # accrual) is what matters and is preserved; the book stays alive (killed False), just paused.
+    assert s.equity() == pytest.approx(DEFAULT_NOTIONAL_USD)  # no fabricated accrual (the real invariant)
+    assert s.metrics().extra["killed"] is False              # safe-hold, not a permanent kill
 
 
 def test_paper_service_global_feed_failure_records_gap_not_fake(tmp_path):

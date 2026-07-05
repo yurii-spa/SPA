@@ -90,10 +90,15 @@ class _AggressiveBase(Strategy):
     # When True, a MISSING accrual feed is an honest per-tick GAP (safe-hold, no advance) instead of a
     # permanent kill. Set True for books whose REAL feeds legitimately start later / are sparser than
     # the global replay window (the price/ratio/restaking history is shorter than the deep PT history)
-    # — so the book simply waits for its data to start rather than dying day-1 in warmup. The
-    # strict-kill contract (a genuinely dead yield feed → killed) is preserved for the default-False
-    # books (susde_spot/susde_dn/pendle_*: their yield source is the always-present PT/sUSDe series).
-    accrual_gap_is_safe_hold = False
+    # — so the book simply waits for its data to start rather than dying day-1 in warmup.
+    #
+    # OWNER DECISION 2026-07-06: default is now SAFE-HOLD (pause), not kill. A transient DATA gap in the
+    # accrual feed (e.g. the deep Pendle/sUSDe dataset lagging a few days, as it did 06-25→06-29) must
+    # PAUSE the book (no advance, no fabricated accrual, resume when the data returns) — exactly like the
+    # mark-feed gap path and like rates_desk — NOT permanently kill it. The "always-present" assumption
+    # proved false (that very series went stale and killed every high-tier book). A GENUINE risk event
+    # (liquidation / drawdown breach) is a SEPARATE kill mechanism and is unaffected by this flag.
+    accrual_gap_is_safe_hold = True
 
     def __init__(self) -> None:
         self._capital = 0.0

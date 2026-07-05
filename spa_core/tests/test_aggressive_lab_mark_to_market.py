@@ -189,9 +189,11 @@ def test_missing_mark_feed_is_honest_gap_no_fabricated_advance(tmp_path):
     # honest GAP: equity UNCHANGED (no fabricated accrual/dip), no mark stamped this tick
     assert s.equity() == pytest.approx(DEFAULT_NOTIONAL_USD)
     assert s.metrics().extra["mtm_source"] is None
-    # and a missing ACCRUAL feed (the yield source itself) for a strict book still KILLS (susde_spot)
+    # and a missing ACCRUAL feed (the yield source itself) now SAFE-HOLDS too (owner decision
+    # 2026-07-06: a transient data gap pauses, it does NOT permanently kill). The honesty invariant
+    # (no fabricated accrual) still holds — equity unchanged, book stays alive and resumes on data.
     empty = AggressiveFeeds(eth_price_series={d0: 3000.0}, enable_points=False)
     ss = roster.build_roster()["susde_spot"]
     ss.step(empty.build_live_snapshot(d0))
-    assert ss.metrics().extra["killed"] is True
-    assert "fail-closed" in ss.metrics().extra["kill_reason"]
+    assert ss.metrics().extra["killed"] is False                       # safe-hold, not a kill
+    assert ss.equity() == pytest.approx(DEFAULT_NOTIONAL_USD)          # no fabricated accrual
