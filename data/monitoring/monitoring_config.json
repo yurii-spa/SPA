@@ -1,0 +1,14 @@
+{
+  "_doc": "RTMR (ADR-053) monitoring config — ALL thresholds/intervals/hysteresis live here, never hardcoded in logic (§8). Starting defaults from the ADR; tunable + ADR-governed. Per-asset overrides in 'overrides'.",
+  "version": 1,
+  "sense_interval_sec": 45,
+  "staleness_max_sec": 120,
+  "peg": { "reduce_at": 0.005, "exit_at": 0.010, "reentry_below": 0.003, "reentry_periods": 4 },
+  "tvl": { "drop_24h_exit": 0.20, "drop_1h_exit": 0.10 },
+  "oracle": { "max_staleness_sec": 90, "max_dev": 0.01 },
+  "liquidity": { "min_liq_ratio": 2.0 },
+  "drawdown_kill": { "core": 0.05, "carry": 0.08, "liquidity": 0.06 },
+  "systemic": { "warn_protocols_n": 3, "broad_depeg": 0.007 },
+  "cooldown_days": 3,
+  "overrides": { "aave_v3:USDC": { "peg": { "exit_at": 0.008 } } }
+}
