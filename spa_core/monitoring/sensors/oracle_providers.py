@@ -34,7 +34,7 @@ _READ_TTL = 300  # seconds
 _FEEDS = {
     "USDC": "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6",
     "USDT": "0x3E7d1eAB13ad0104d2750B8863b489D65364e32D",
-    # DAI feed address TBD (add its verified mainnet aggregator here later)
+    "DAI": "0xAed0c38402a5d19df6E4c03F4E2DceD6e29c1ee9",  # verified live: returns ~$1.00
 }
 _DECIMALS = 8
 
