@@ -41,8 +41,16 @@
 
 **Status:** S10.1 scaffold DONE (2026-07-05, commit 6cb18a03) — `signal.py` + `posture.py` + `monitoring_config.json` + 17 tests. **Paused here at owner's request** pending §13 answers.
 
-**Open (owner §13) — pending:**
-- **Data source (§13.1) — OWNER DIRECTION (2026-07-05):** don't rely on a single feed — run **5–10 sources in PARALLEL** and cross-validate. This is the right call and shapes the sensor design: each sensor should read a **quorum/median across N independent providers** (RPC + subgraph + price-oracle + DeFiLlama + CEX ref …), and be **fail-closed on disagreement** (if sources diverge beyond a tolerance, or < min-quorum are fresh, emit `critical`, not an averaged-away number). This is exactly the "DataTrust multi-source" hook — build a `sensors/_multisource.py` quorum helper BEFORE the individual sensors (S10.3), so peg/tvl/oracle each consume it. Concrete provider list still TBD by owner. Today's DeFiLlama (TTL 300s) is one source and too slow alone.
-- Incident source + trust level (§13.2).
-- Confirm `actions.py` is paper-log-only for now (§13.3).
-- `news.py` advisory-LLM sensor now or defer (§13.4).
+**§13 — RESOLVED by owner (2026-07-05):**
+1. **Data sources = FREE / keyless, 5–10 in PARALLEL** with quorum/median cross-validation. Concrete set: CoinGecko + DeFiLlama + public RPC + Chainlink on-chain oracles + DEX/CEX public price endpoints (Binance/Coinbase). No API keys (fits the keyless design). **Design consequence:** build `sensors/_multisource.py` (quorum/median helper, **fail-closed on disagreement** — diverge beyond tolerance OR < min-quorum fresh ⇒ `critical`, never an averaged-away number) BEFORE the individual sensors; peg/tvl/oracle each consume it.
+2. **Incident sensor = DEFERRED.** Start with the deterministic core only (peg / tvl / oracle / liquidity) — it already catches most degradation (exploits usually surface as depeg / TVL-collapse / dead-oracle). Add `incident`/`protocol_events` later with a trusted source.
+3. **Reaction actions = LOG + Telegram alert (paper, human-in-the-loop).** `actions.py` writes `reaction_log.json` ("would EXIT X") AND sends the owner a Telegram alert. **Never moves capital.** Live execution is a separate, explicitly-authorised, later step (execution layer). Reuse the existing Telegram client (Keychain creds; `send` needs `title=`, returns False on cooldown — see memory).
+4. **news.py (advisory-LLM) = DEFERRED.** Deterministic core first; no LLM anywhere in the system for now.
+
+**Resulting build plan (unblocked):**
+- **S10.2** — `sense_loop.py` (persistent poller, interval from config, heartbeat, sensor-death ⇒ `stale_signal`/critical; writes `signals/latest.json` + append `signal_log.json`).
+- **S10.3a** — `sensors/_multisource.py` (keyless quorum/median across the 5 providers above, fail-closed).
+- **S10.3b** — `sensors/peg.py` (wraps existing `peg_monitor`), `sensors/tvl.py` (wraps `red_flag_monitor`), `sensors/oracle.py`, `sensors/liquidity.py` — each emits `RiskSignal` via the multisource helper.
+- **S10.4** — `reaction.py` ladder composing existing kill_switch/cycle_gates; `actions.py` = log + Telegram (paper). Retire `threat_reactor`'s ad-hoc kill into the ladder in the SAME change.
+- **S10.5** — `cycle_runner` reads `signals/latest.json` + honors `risk_posture.json`.
+- Deferred: incident sensor, news.py.
