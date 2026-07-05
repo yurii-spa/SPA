@@ -28,13 +28,34 @@ echo "site-freshness  live=${live:-?}  main-snapshot=${main:-?}  api=${api:-?}  
 if [ -z "$live" ] || [ -z "$main" ]; then
   echo "RESULT: UNKNOWN — could not read one surface (network? or the page markup changed)."; exit 2
 fi
+
+# The live API is the freshest truth. Full-fresh requires live-site == snapshot == API.
+# Check the SNAPSHOT-vs-API gap FIRST — a stale snapshot is invisible to a bare live==snapshot check
+# (both can agree on an OLD number), which used to yield a false PASS.
+have_api=0; [ -n "$api" ] && [ "$api" != "?" ] && [ "$api" -eq "$api" ] 2>/dev/null && have_api=1
+
+if [ "$have_api" = 1 ] && [ "$main" -lt "$api" ] 2>/dev/null; then
+  echo "RESULT: SNAPSHOT-BEHIND-API ⚠ — origin snapshot ($main) is BEHIND the live API ($api): the"
+  echo "        committed track_snapshot wasn't regenerated/pushed for the latest day. Root cause was"
+  echo "        deploy_site_snapshot comparing local-vs-local (fixed 2026-07-05 → compares vs origin);"
+  echo "        if it recurs, check daily-cycle Step 3 (scripts/deploy_site_snapshot.py) in"
+  echo "        logs/daily_cycle_*.log and re-run it standalone. (This is what a bare live==snapshot"
+  echo "        check missed — the snapshot itself was a day stale.)"
+  exit 1
+fi
+
 if [ "$live" = "$main" ]; then
-  echo "RESULT: PASS ✅ — live site == origin/main snapshot (${live} days). Site is fresh."; exit 0
+  if [ "$have_api" = 1 ] && [ "$live" -lt "$api" ] 2>/dev/null; then
+    echo "RESULT: CF-LAG ⚠ — snapshot is fresh ($main) but the live site ($live) is BEHIND the API ($api):"
+    echo "        Cloudflare Pages has not rebuilt from the fresh snapshot. OWNER-GATED — confirm"
+    echo "        auto-build-on-push is ON in the Cloudflare Pages dashboard (build not paused/failing)."
+    exit 1
+  fi
+  echo "RESULT: PASS ✅ — live site == origin snapshot == live API (${live} days). Fully fresh."; exit 0
 elif [ "$live" -lt "$main" ] 2>/dev/null; then
-  echo "RESULT: CF-LAG ⚠ — live ($live) is BEHIND origin/main ($main). Cloudflare Pages has not"
-  echo "        rebuilt the fresh commit. This is the recurring stale-site cause — the fix is"
-  echo "        OWNER-GATED in the Cloudflare Pages dashboard (confirm auto-build-on-push is ON,"
-  echo "        the repo is linked, and the build is not failing). Nothing in the repo fixes it."
+  echo "RESULT: CF-LAG ⚠ — live site ($live) is BEHIND origin snapshot ($main). Cloudflare Pages has not"
+  echo "        rebuilt the fresh commit. OWNER-GATED — confirm auto-build-on-push is ON in the"
+  echo "        Cloudflare Pages dashboard (repo linked, build not failing). Nothing in the repo fixes it."
   exit 1
 else
   echo "RESULT: SNAPSHOT-BEHIND ⚠ — live ($live) is AHEAD of main-snapshot ($main): the daily cycle"
