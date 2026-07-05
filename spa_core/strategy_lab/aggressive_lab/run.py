@@ -88,7 +88,11 @@ def main(argv=None) -> int:
     if mode in ("backtest", "both"):
         out["backtest"] = run_real_backtest()
     if mode in ("paper", "both"):
-        out["paper"] = PaperService().tick()
+        # The live paper tick MUST use the REAL feeds (deep Pendle/sUSDe history + funding + restaking
+        # + price, latest value = "live"), NOT a bare AggressiveFeeds() (empty live_loaders → every
+        # book fail-closes on missing data, so the forward track never grows). This was the root bug
+        # freezing the high-tier track: PaperService defaulted to empty feeds. (2026-07-06)
+        out["paper"] = PaperService(feeds=_real_history_feeds()).tick()
     print(json.dumps(out, indent=2, default=str))
     return 0
 
