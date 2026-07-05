@@ -199,6 +199,59 @@ def apply_soft_derisk_gate(
     return target_usd
 
 
+def apply_rtmr_posture_gate(
+    target_usd: dict[str, float],
+    *,
+    capital_usd: float,
+    now_ts: int,
+    notes: list[str],
+    posture: dict | None = None,
+) -> dict[str, float]:
+    """RTMR (ADR-053) posture-honor gate: clamp targets to the emergency-path's active posture.
+
+    The RTMR sense/emergency service writes ``data/monitoring/risk_posture.json`` on a de-risk;
+    the cycle must honor it (§2, §7). **De-risk-only:** EXITED scope → 0, CAPPED → ``min(target,
+    cap×capital)``, portfolio DEFENSIVE → all-cash. Only ever REDUCES; freed capital stays in cash.
+
+    Protocol-scoped postures (from the tvl / liquidity sensors — scopes ARE protocol names) match
+    ``target_usd`` keys directly. Asset-scoped postures (peg / oracle — scopes are "USDC" etc.) need
+    an asset→protocol map (follow-up) and are dormant here. Deterministic; a NORMAL / unreadable
+    posture is a no-op (fail-safe: never over-constrain the cycle on a read error).
+
+    NOTE: additive — ``cycle_runner`` does not call this yet. Wiring it (one call beside
+    ``apply_soft_derisk_gate``) is the owner-gated money-path activation (S10.5b).
+    """
+    try:
+        from spa_core.monitoring import posture as P
+        posture = posture if posture is not None else P.load_posture()
+    except Exception:  # noqa: BLE001 — no posture module/file → no-op (fail-safe)
+        return target_usd
+
+    if P.portfolio_defensive(posture):
+        for proto in list(target_usd.keys()):
+            target_usd[proto] = 0.0
+        notes.append("rtmr_posture_gate: portfolio DEFENSIVE → all-cash (RTMR emergency).")
+        return target_usd
+
+    clamped: list[str] = []
+    for proto in list(target_usd.keys()):
+        cap = P.cap_for(posture, proto, now_ts=now_ts)  # 0.0 EXITED, frac CAPPED, else None
+        if cap is None:
+            continue
+        cap_usd = max(0.0, float(cap) * float(capital_usd))
+        try:
+            want = float(target_usd[proto])
+        except (TypeError, ValueError):
+            want = 0.0
+        if want > cap_usd:
+            target_usd[proto] = cap_usd
+            clamped.append(f"{proto}->${cap_usd:,.0f}")
+    if clamped:
+        log.warning("RTMR posture gate ACTIVE: clamped %d protocol(s) to posture", len(clamped))
+        notes.append(f"rtmr_posture_gate: honored RTMR posture (de-risk only): {clamped}")
+    return target_usd
+
+
 def apply_base_gas_kill_switch(
     target_usd: dict[str, float],
     *,
