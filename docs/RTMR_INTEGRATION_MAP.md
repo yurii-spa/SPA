@@ -52,5 +52,5 @@
 - **S10.3a** — `sensors/_multisource.py` (keyless quorum/median across the 5 providers above, fail-closed).
 - **S10.3b** — `sensors/peg.py` (wraps existing `peg_monitor`), `sensors/tvl.py` (wraps `red_flag_monitor`), `sensors/oracle.py`, `sensors/liquidity.py` — each emits `RiskSignal` via the multisource helper.
 - **S10.4** — `reaction.py` ladder composing existing kill_switch/cycle_gates; `actions.py` = log + Telegram (paper). Retire `threat_reactor`'s ad-hoc kill into the ladder in the SAME change.
-- **S10.5** — `cycle_runner` reads `signals/latest.json` + honors `risk_posture.json`.
+- **S10.5 ACTIVE (owner-approved 2026-07-05)** — `cycle_runner` Step 2e calls `apply_rtmr_posture_gate`: the daily cycle now HONORS `risk_posture.json` (de-risk-only, no-op on NORMAL). RTMR loop closed: sense→signal→reaction→posture→cycle.
 - Deferred: incident sensor, news.py.
