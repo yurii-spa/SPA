@@ -468,6 +468,12 @@ install_agent \
     "com.spa.daily_backup" \
     "1"
 
+# RTMR sense+emergency service (ADR-053) — continuous risk monitoring, PAPER (no capital).
+install_agent \
+    "$REPO/launchd/com.spa.rtmr_sense.plist" \
+    "com.spa.rtmr_sense" \
+    "1"
+
 # ===========================================================================
 # ИТОГОВАЯ ТАБЛИЦА
 # ===========================================================================
