@@ -69,17 +69,12 @@ def register_default_sensors() -> list:
     """Register the live-wired sensors with the sense-loop. Returns the registered source names."""
     from spa_core.monitoring.sense_loop import register_sensor, registered_sources
     register_sensor(build_peg_sensor())
-    try:
-        register_sensor(build_tvl_sensor())
-    except Exception:  # noqa: BLE001 — TVL feed optional; peg still runs
-        pass
-    try:
-        register_sensor(build_oracle_sensor())
-    except Exception:  # noqa: BLE001 — oracle RPC optional
-        pass
-    try:
-        register_sensor(build_liquidity_sensor())
-    except Exception:  # noqa: BLE001 — liquidity depth optional
-        pass
+    import sys as _sys
+    for _name, _fn in (("tvl", build_tvl_sensor), ("oracle", build_oracle_sensor),
+                       ("liquidity", build_liquidity_sensor)):
+        try:
+            register_sensor(_fn())
+        except Exception as _e:  # noqa: BLE001 — optional sensor; log WHY it was skipped, don't hide it
+            print(f"rtmr build: {_name} sensor skipped: {type(_e).__name__}: {_e}", flush=True)
     # TODO(S10.3 follow-up): register tvl/oracle/liquidity once their providers are wired.
     return registered_sources()

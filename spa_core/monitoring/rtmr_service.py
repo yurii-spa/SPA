@@ -49,7 +49,7 @@ def main() -> int:  # pragma: no cover — long-running service
     register_default_sensors()
     cfg = SL.load_config()
     interval = int(cfg.get("sense_interval_sec", 45))
-    print(f"rtmr_service: started, sensors={SL.registered_sources()}, interval={interval}s (PAPER)")
+    print(f"rtmr_service: started, sensors={SL.registered_sources()}, interval={interval}s (PAPER)", flush=True)
     while True:
         try:
             tick(cfg, int(time.time()))
