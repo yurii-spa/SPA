@@ -64,7 +64,10 @@ def match_rule(sig: S.RiskSignal, cfg: dict) -> Action | None:
 def systemic_condition(signals, cfg: dict) -> bool:
     """N distinct scopes in warn/critical (or any stale) at once ⇒ portfolio-wide exit (§5.2)."""
     n_cfg = int((cfg.get("systemic", {}) or {}).get("warn_protocols_n", 3))
-    hot = {s.scope for s in signals if s.is_actionable()}
+    # require FRESH warn/critical — a genuine market-wide event. Many STALE sensors mean a DATA outage
+    # (often our own rate-limiting), which must NOT cascade the whole portfolio to DEFENSIVE. A stale
+    # scope still de-risks INDIVIDUALLY (FREEZE via match_rule); it just doesn't trigger the systemic exit.
+    hot = {s.scope for s in signals if s.staleness_ok and s.severity in (S.WARN, S.CRITICAL)}
     return len(hot) >= n_cfg
 
 

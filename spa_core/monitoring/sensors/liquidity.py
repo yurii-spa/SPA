@@ -27,6 +27,7 @@ class LiquiditySensor:
         return self.poll(cfg, now_ts)
 
     def poll(self, cfg: dict, now_ts: int) -> list:
+        import concurrent.futures as _cf
         lcfg = cfg.get("liquidity", {}) or {}
         min_ratio = float(lcfg.get("min_liq_ratio", 2.0))
         min_q = int(lcfg.get("min_quorum", 1))   # depth proxy is DeFiLlama single-source

@@ -46,30 +46,34 @@ class TvlSensor:
         return self.poll(cfg, now_ts)
 
     def poll(self, cfg: dict, now_ts: int) -> list:
+        import concurrent.futures as _cf
         tcfg = tvl_config(cfg)
         min_q = int(tcfg.get("min_quorum", 2))   # TVL is DeFiLlama-dominated → lower quorum than price
         max_spread = float(tcfg.get("max_spread", 0.05))  # TVL spreads wider than price
-        out: list = []
-        for scope, providers in self._cur.items():
+        def _one(scope):
+            providers = self._cur[scope]
             q = M.quorum_from(providers, min_quorum=min_q, max_spread=max_spread)
             hist = self._hist.get(scope)
-            if callable(hist):        # lazy history provider — fetch at poll, not at build
+            if callable(hist):
                 try:
                     hist = hist()
                 except Exception:  # noqa: BLE001
                     hist = None
             if not q.ok or not hist:
-                out.append(S.stale_signal(ts=now_ts, source=self.source, scope=scope,
-                                          metric="tvl_drop", reason=(q.reason or "no tvl history")))
-                continue
+                return S.stale_signal(ts=now_ts, source=self.source, scope=scope,
+                                      metric="tvl_drop", reason=(q.reason or "no tvl history"))
             tvl_1h, tvl_24h = float(hist[0]), float(hist[1])
             drop_1h = max(0.0, (tvl_1h - q.value) / tvl_1h) if tvl_1h > 0 else 0.0
             drop_24h = max(0.0, (tvl_24h - q.value) / tvl_24h) if tvl_24h > 0 else 0.0
             sev, crossed, metric = tvl_severity(drop_24h, drop_1h, tcfg)
-            out.append(S.make_signal(
+            return S.make_signal(
                 ts=now_ts, source=self.source, scope=scope, metric=metric,
                 value=(drop_24h if metric.endswith("24h_pct") else drop_1h),
                 severity=sev, threshold_crossed=crossed, staleness_ok=True,
                 detail={"tvl": q.value, "drop_1h": drop_1h, "drop_24h": drop_24h, "n_fresh": q.n_fresh},
-            ))
-        return out
+            )
+        scopes = list(self._cur.keys())
+        if not scopes:
+            return []
+        with _cf.ThreadPoolExecutor(max_workers=min(8, len(scopes))) as ex:
+            return list(ex.map(_one, scopes))
