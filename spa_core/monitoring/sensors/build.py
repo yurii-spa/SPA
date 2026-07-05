@@ -11,8 +11,11 @@ from __future__ import annotations
 from spa_core.monitoring.sensors.peg import PegSensor
 from spa_core.monitoring.sensors.providers import price_providers_for, supported_assets
 
-# stablecoins the book touches (safe majors + the risky ones worth watching for depeg)
-_DEFAULT_ASSETS = ["USDC", "USDT", "DAI", "USDE", "SUSDE"]
+# stablecoins with ENOUGH keyless price sources for a real quorum (>= min_quorum).
+# USDE/SUSDE have too few CEX listings for a price quorum → monitor them ON-CHAIN via the
+# oracle/DEX sensor (follow-up), not this CEX price quorum (else they fail-closed forever).
+_DEFAULT_ASSETS = ["USDC", "USDT", "DAI"]
+_MIN_SOURCES = 3
 
 
 def build_peg_sensor(assets: list | None = None) -> PegSensor:
@@ -21,9 +24,9 @@ def build_peg_sensor(assets: list | None = None) -> PegSensor:
     targets = {}
     for a in assets:
         provs = price_providers_for(a)
-        if provs:
-            providers[a] = provs       # scope = asset symbol (e.g. "USDC")
-            targets[a] = 1.0           # USD-pegged
+        if len(provs) >= _MIN_SOURCES:   # only wire assets with a real multi-source quorum
+            providers[a] = provs         # scope = asset symbol (e.g. "USDC")
+            targets[a] = 1.0             # USD-pegged
     return PegSensor(providers, targets)
 
 
