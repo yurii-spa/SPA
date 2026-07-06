@@ -286,7 +286,13 @@ class StrategyAllocator:
         self.risk_scores_path = (
             Path(risk_scores_path) if risk_scores_path else _RISK_SCORES_PATH
         )
-        self.allocation_model = allocation_model or DEFAULT_MODEL
+        # Model selection: explicit arg > SPA_ALLOCATOR_MODEL env (owner-tunable money-path dial,
+        # set in the daily-cycle agent) > DEFAULT_MODEL. Wiring the env here makes the documented
+        # mechanism actually functional (it was referenced in the header but never read), so the live
+        # cycle can be flipped to optimized_yield without changing the code default that tests rely on.
+        self.allocation_model = (
+            allocation_model or os.environ.get("SPA_ALLOCATOR_MODEL") or DEFAULT_MODEL
+        )
         # WS1.2: OWNER-TUNABLE objective dial for the optimized_yield model —
         # "max_yield" | "balanced" (default) | "min_variance", or a raw float in
         # [0,1] (1=pure yield … 0=max variance penalty). FLAGGED for the owner:

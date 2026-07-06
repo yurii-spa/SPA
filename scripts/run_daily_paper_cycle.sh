@@ -37,6 +37,13 @@ LOG_FILE="$LOG_DIR/daily_cycle_$(date +%Y%m%d).log"
 echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Starting daily paper cycle (cycle_runner)" | tee -a "$LOG_FILE"
 
 # ── Step 1: real cycle engine — advances the paper track ───────────────────
+# OWNER-APPROVED 2026-07-06 (money-path allocation dial): use the constrained yield
+# optimizer instead of the risk_adjusted heuristic. It concentrates into the highest-yield
+# protocols WITHIN the RiskPolicy caps (TVL floor, 40% T1 / 20% T2 per-protocol, T2≤50%,
+# APY≤30%) — targets ~6-8% projected (~5-7% realized after cash buffer/costs) vs the ~3.2%
+# the risk_adjusted default was delivering. Reversible: unset this env to revert to the default.
+export SPA_ALLOCATOR_MODEL="optimized_yield"
+
 # WRITE-INTERLOCK (track-integrity): cycle_runner is fail-CLOSED by default and
 # will NOT write the canonical live track without an explicit opt-in. This is
 # THE production cycle, so it MUST pass --live (== SPA_ALLOW_LIVE_WRITE=1).
