@@ -10,3 +10,6 @@ export AGENT_NAME="aggressive_lab"
 export MODULE="spa_core.strategy_lab.aggressive_lab.run"
 export MODULE_ARGS=(paper)
 /bin/bash /Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_template.sh
+
+# Step 2: regenerate the 3-tier $100k paper rollup (Core/Balanced/Aggressive) — read-only view.
+/Users/yuriikulieshov/miniconda3/bin/python3 /Users/yuriikulieshov/Documents/SPA_Claude/scripts/tier_paper_rollup.py >> /tmp/spa_aggressive_lab.log 2>&1 || true
