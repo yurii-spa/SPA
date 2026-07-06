@@ -70,8 +70,25 @@ const posInTrack = mod ? modules.filter((m) => m.track === mod.track && m.order 
     </header>
 
     <article class="ac-lesson-body">
+      <!-- Honest EN notice: the deep-dive lesson bodies are currently RU-only. Shown ONLY when the
+           reader has EN selected — we do not fake an English translation. Navigation chrome is bilingual. -->
+      <div class="ac-en-notice" style="display:none;margin:0 0 1.25rem;padding:0.75rem 1rem;border:1px solid rgba(255,255,255,0.12);border-radius:0.5rem;background:rgba(255,255,255,0.03);font-size:0.85rem;color:#94a3b8;">
+        This deep-dive lesson is currently written in Russian only — an English translation is on the way.
+        The <a href="/academy" style="color:#5eead4;text-decoration:underline;">Academy overview</a>, quizzes and the onboarding path are bilingual.
+      </div>
       <slot />
     </article>
+    <script is:inline>
+      (function () {
+        function apply() {
+          var en; try { en = (localStorage.getItem('spa_lang') || 'ru') === 'en'; } catch (e) { en = false; }
+          document.querySelectorAll('.ac-en-notice').forEach(function (el) { el.style.display = en ? 'block' : 'none'; });
+        }
+        apply();
+        window.addEventListener('storage', apply);
+        document.addEventListener('spa:lang', apply);
+      })();
+    </script>
 
     <!-- prev / next -->
     <nav class="ac-lesson-nav" aria-label="module navigation" data-reveal>
