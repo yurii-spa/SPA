@@ -1,4 +1,3 @@
-from spa_core.adapters.tier_map import tier_of  # canonical tier (registry-hygiene)
 #!/usr/bin/env python3
 """Scenario Simulator — portfolio stress-testing via historical and
 hypothetical scenarios (SPA-V509 / MP-586).
@@ -76,6 +75,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from spa_core.utils.atomic import atomic_save
+from spa_core.adapters.tier_map import tier_of  # canonical tier (registry-hygiene)
 
 log = logging.getLogger("spa.analytics.scenario_simulator")
 
