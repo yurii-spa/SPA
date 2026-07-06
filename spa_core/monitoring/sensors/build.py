@@ -76,5 +76,5 @@ def register_default_sensors() -> list:
             register_sensor(_fn())
         except Exception as _e:  # noqa: BLE001 — optional sensor; log WHY it was skipped, don't hide it
             print(f"rtmr build: {_name} sensor skipped: {type(_e).__name__}: {_e}", flush=True)
-    # TODO(S10.3 follow-up): register tvl/oracle/liquidity once their providers are wired.
+    # tvl/oracle/liquidity providers are wired (the loop above registers all three); peg is registered first.
     return registered_sources()
