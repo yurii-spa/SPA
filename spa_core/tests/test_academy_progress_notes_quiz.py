@@ -198,8 +198,12 @@ def test_quiz_m7_two_of_ten_fails(client, auth):
     assert body["passed"] is False
 
 
-def test_quiz_m8_empty_auto_passes(client, auth):
-    r = client.post("/quiz/8", json={"answers": []}, headers=_csrf(auth))
+def test_quiz_m8_capstone_all_correct_passes(client, auth):
+    # M8 now carries a graded capstone quiz (full-loop order / chain-of-risk / exit-discipline).
+    # Submitting the correct answers scores 100. Completion itself is still gated on-chain (verify.py),
+    # not by this quiz — the quiz is practice/reinforcement.
+    correct = [q["correct_idx"] for q in quiz_bank.QUIZ_BANK[8]]
+    r = client.post("/quiz/8", json={"answers": correct}, headers=_csrf(auth))
     assert r.status_code == 200
     body = r.json()
     assert body["score"] == 100.0

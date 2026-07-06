@@ -20,7 +20,7 @@ Rules / invariants:
   - ``correct_idx`` and ``explanation`` are SERVER-SIDE ONLY. The only surface
     that ever leaves this process to a client is :func:`get_questions`, which
     strips both keys. Grading happens exclusively via :func:`grade_answers`.
-  - M8 (capstone) has NO server-graded quiz: QUIZ_BANK[8] == []. An empty bank
+  - M8 (capstone) carries a graded practice quiz (full-loop order / chain-of-risk); completion itself
     means :func:`grade_answers` returns score=100.0 / passed=True (auto-pass);
     the M8 gate lives entirely in notes + on-chain verification.
 

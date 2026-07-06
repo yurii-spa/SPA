@@ -50,6 +50,10 @@ import spa_core.api.server as server  # noqa: E402
 # Captured from server.py PRIOR to the router split — the identical-surface oracle.
 GOLDEN_ROUTES = {
     ("/api/agent/thought", ("POST",)),
+    ("/api/rtmr/status", ("GET",)),
+    ("/api/rtmr/signals", ("GET",)),
+    ("/api/rtmr/posture", ("GET",)),
+    ("/api/rtmr/reactions", ("GET",)),
     ("/api/aggressive-lab/annual-contrast", ("GET",)),
     ("/api/aggressive-lab/scorecard", ("GET",)),
     ("/api/aggressive-lab/strategy/{strategy_id}", ("GET",)),
@@ -209,7 +213,7 @@ def test_route_table_identical_to_golden():
 def test_route_count_stable():
     """The flat handler surface (expanded across included routers) is the invariant.
 
-    100 HTTP handlers + 1 websocket (/ws/agents) = 101 entries in GOLDEN_ROUTES. This
+    104 HTTP handlers + 1 websocket (/ws/agents) = 105 entries in GOLDEN_ROUTES. This
     is structure-independent (monolith routes vs lazily-included routers) because
     _walk_routes expands `_IncludedRouter` proxies. The launch target
     `spa_core.api.server:app` is unaffected — `app` is still defined in server.py.
@@ -224,7 +228,7 @@ def test_route_count_stable():
     surface (/api/underwriting/report + /proof + /full-chain), FLAG-GATED OFF by default
     (SPA_UNDERWRITING_PUBLISH).)
     """
-    assert len(_app_route_table()) == 101
+    assert len(_app_route_table()) == 105
 
 
 def test_openapi_path_count_stable():
@@ -232,7 +236,7 @@ def test_openapi_path_count_stable():
     from fastapi.testclient import TestClient
     with TestClient(server.app) as c:
         paths = c.get("/openapi.json").json()["paths"]
-    assert len(paths) == 100  # HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
+    assert len(paths) == 104  # HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
 
 
 # ── Representative response-shape snapshot (one endpoint per tag group) ──────────

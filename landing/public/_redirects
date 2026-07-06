@@ -22,8 +22,6 @@
 /agents.html     /dashboard#system 301
 /control         /dashboard#system 301
 /control.html    /dashboard#system 301
-/packages        /strategies 301
-/packages.html   /strategies 301
 
 # Redirect www -> apex (canonical host = https://earn-defi.com). CF Pages processes full-URL
 # host redirects here; belt-and-suspenders with a Cloudflare Redirect Rule (see PROGRESS deploy notes).

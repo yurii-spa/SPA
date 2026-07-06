@@ -14,7 +14,7 @@ the pre-authored explanation strings — it never reveals a correct option index
 Grading does NOT move a user's progress. Progress (submitted/verified) is driven
 solely by the verify router in a later stage; a passing quiz is recorded as an
 attempt and surfaced, but the lesson is only completed through verification. M8
-has an empty bank → :func:`grade_answers` auto-passes (score 100).
+carries a graded capstone practice quiz; completion itself is gated on-chain (verify.py).
 
 LLM FORBIDDEN in this module (deterministic delivery + grading).
 Academy stage 4.

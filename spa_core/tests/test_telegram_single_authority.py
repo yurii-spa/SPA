@@ -54,8 +54,13 @@ _ALLOWLIST = {
     #  * dfb/alerts.py: DFB refusal-flip digest, OFF unless
     #    SPA_DFB_TELEGRAM_DIGEST is truthy — one flood-guarded message, no new
     #    agent (dfb is current/green product code).
+    #  * monitoring/actions.py (RTMR / ADR-053): de-risk alert, routes through
+    #    telegram_manager.send / telegram_client._post_message (sanctioned transport,
+    #    not a raw POST) and is flood-guarded — notify ONLY when the risk posture
+    #    CHANGES (notify-on-change dedup), never every sense tick. Paper/advisory.
     _SPA_CORE / "backtesting" / "tier1" / "status.py",
     _SPA_CORE / "dfb" / "alerts.py",
+    _SPA_CORE / "monitoring" / "actions.py",
 }
 
 # Out-of-scope subtrees (separate investor channel / not the ops chat).
