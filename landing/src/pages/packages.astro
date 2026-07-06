@@ -1,0 +1,129 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+import snap from '../data/track_snapshot.json';
+
+// Honest yield-package tiers. The framework is evaluator.PACKAGES (Conservative / Balanced /
+// Aggressive by NET APY + drawdown limit); a package is only offered when its strategies pass the
+// DSR gate on REAL data. The honesty is in the STATUS of each tier, not a marketing number:
+//   • Conservative  = the REAL live paper book (~3.3%, evidenced) — this is what the desk delivers.
+//   • Balanced      = research/paper, WITH the tail, NOT yet trustworthy (thin forward track).
+//   • Aggressive    = research/paper, REFUSED for live — brutal tail, shown transparently.
+const liveApy = (snap && typeof snap.paper_apy_pct === 'number') ? snap.paper_apy_pct.toFixed(2) : '3.3';
+
+const tiers = [
+  {
+    key: 'conservative',
+    en: 'Conservative', ru: 'Консервативный',
+    band_en: '2–6% net APY · ≤3% drawdown', band_ru: '2–6% net APY · просадка ≤3%',
+    status_en: 'LIVE · evidenced · fundable', status_ru: 'LIVE · подтверждён · fundable',
+    tone: 'green',
+    live: true,
+    what_en: 'T1/T2 stablecoin lending — Aave, Compound, Morpho, Spark. Deterministic RiskPolicy gate, ≥$5M TVL floor, per-protocol caps. This is the book the desk actually runs on paper today.',
+    what_ru: 'T1/T2 стейбл-кредитование — Aave, Compound, Morpho, Spark. Детерминированный гейт RiskPolicy, порог TVL ≥$5M, cap\'ы на протокол. Это книга, которую деск реально ведёт на бумаге сегодня.',
+    caveat_en: 'The real, evidenced number. No leverage, no tail-compensation yield. This is what "safe" honestly means here.',
+    caveat_ru: 'Реальное, подтверждённое число. Без плеча, без yield-компенсации за хвост. Это и есть честный смысл слова «безопасно» здесь.',
+  },
+  {
+    key: 'balanced',
+    en: 'Balanced', ru: 'Сбалансированный',
+    band_en: '6–12% net APY · ≤10% drawdown', band_ru: '6–12% net APY · просадка ≤10%',
+    status_en: 'RESEARCH · paper · NOT yet trustworthy', status_ru: 'ИССЛЕДОВАНИЕ · paper · пока НЕ trustworthy',
+    tone: 'amber',
+    live: false,
+    what_en: 'sUSDe carry, Pendle YT-sUSDe. Risk-class C (yield paid for a tail). Paper-tested in the Aggressive Lab WITH its drawdowns labelled by event — never live-allocated until it passes the full lifecycle (yield-source + Red Team + ≥30-day paper + human approval).',
+    what_ru: 'sUSDe carry, Pendle YT-sUSDe. Риск-класс C (доход за хвост). Paper-тестируется в Aggressive Lab С просадками, помеченными по событию — не аллоцируется live, пока не пройдёт полный цикл (yield-source + Red Team + ≥30 дней paper + одобрение человека).',
+    caveat_en: 'These returns are real in the good months. The point is what happens in the bad ones — the tail is measured, not hidden. Not fundable as "safe yield" at scale.',
+    caveat_ru: 'В хорошие месяцы эта доходность реальна. Вопрос в плохих — хвост измерен, не спрятан. Не fundable как «безопасная доходность» на масштабе.',
+  },
+  {
+    key: 'aggressive',
+    en: 'Aggressive', ru: 'Агрессивный',
+    band_en: '12%+ net APY · ≤25% drawdown', band_ru: '12%+ net APY · просадка ≤25%',
+    status_en: 'RESEARCH · paper · REFUSED for live', status_ru: 'ИССЛЕДОВАНИЕ · paper · ОТКАЗАН для live',
+    tone: 'red',
+    live: false,
+    what_en: 'Levered PT carry loops, points/incentive farming, unhedged directional restaking. Historically high headline (backtest: the levered loop compounds hard) — and a brutal tail: the unhedged directional book lost ~50% through the ETH crash; the levered loop carries liquidation-cascade risk.',
+    what_ru: 'Плечевые PT-carry петли, points/incentive-фарм, нехеджированный directional-рестейкинг. Исторически высокий headline (бэктест: плечевая петля жёстко компаундит) — и брутальный хвост: нехеджированная directional-книга потеряла ~50% на обвале ETH; плечевая петля несёт риск ликвидационного каскада.',
+    caveat_en: 'This is the 12–20% that gets advertised elsewhere as "yield". The desk REFUSES it for live capital and shows it here WITH its real, dated drawdowns — because a stable 15% is not alpha, it is a tail you are being paid to hold.',
+    caveat_ru: 'Это те 12–20%, что рекламируются в других местах как «доходность». Деск ОТКАЗЫВАЕТСЯ от них для live-капитала и показывает их здесь С реальными датированными просадками — потому что стабильные 15% это не альфа, а хвост, за удержание которого вам платят.',
+  },
+];
+
+const toneMap = {
+  green: { border: 'border-emerald-500/40', bg: 'bg-emerald-500/5', badge: 'bg-emerald-500/15 text-emerald-300', dot: 'bg-emerald-400' },
+  amber: { border: 'border-amber-500/40', bg: 'bg-amber-500/5', badge: 'bg-amber-500/15 text-amber-300', dot: 'bg-amber-400' },
+  red:   { border: 'border-rose-500/40', bg: 'bg-rose-500/5', badge: 'bg-rose-500/15 text-rose-300', dot: 'bg-rose-400' },
+};
+---
+<Layout
+  title="Yield packages — honest tiers | earn-defi.com"
+  description="Three yield-package tiers by target APY and drawdown limit. Conservative is the REAL live paper book (~3.3%, evidenced). Balanced and Aggressive are research/paper only — shown WITH their real, dated tail, refused for live capital. The higher the tier, the bigger the tail — measured, not hidden."
+>
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20">
+    <section class="pb-8">
+      <div class="inline-flex items-center gap-2 mb-5 px-3 py-1.5 rounded-full bg-teal-bg border border-teal-border text-xs text-data-teal font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-data-teal animate-pulse" aria-hidden="true"></span>
+        <span data-ru="Продуктовые тиры — честно">Product tiers — honest</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4" data-ru="Йелд-пакеты">Yield packages</h1>
+      <p class="text-lg text-slate-400 leading-relaxed max-w-3xl" data-ru="Три тира по целевому APY и лимиту просадки. Правда не в маркетинговом числе, а в СТАТУСЕ каждого тира: чем выше доходность, тем больше хвост — и мы его измеряем, а не прячем.">
+        Three tiers by target APY and drawdown limit. The truth is not a marketing number — it is the STATUS of each tier: the higher the yield, the bigger the tail, and we measure it rather than hide it.
+      </p>
+    </section>
+
+    <section class="grid gap-5 md:grid-cols-3 pb-10">
+      {tiers.map((t) => {
+        const c = toneMap[t.tone];
+        return (
+          <div class={`rounded-2xl border ${c.border} ${c.bg} p-6 flex flex-col`}>
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-xl font-bold text-white" data-ru={t.ru}>{t.en}</h2>
+              {t.live && <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300">LIVE ~{liveApy}%</span>}
+            </div>
+            <div class="text-sm text-slate-300 font-mono mb-3" data-ru={t.band_ru}>{t.band_en}</div>
+            <div class={`inline-flex items-center gap-2 self-start text-[11px] font-medium px-2.5 py-1 rounded-full ${c.badge} mb-4`}>
+              <span class={`w-1.5 h-1.5 rounded-full ${c.dot}`} aria-hidden="true"></span>
+              <span data-ru={t.status_ru}>{t.status_en}</span>
+            </div>
+            <p class="text-sm text-slate-400 leading-relaxed mb-4" data-ru={t.what_ru}>{t.what_en}</p>
+            <p class="text-sm text-slate-300 leading-relaxed mt-auto pt-3 border-t border-white/10" data-ru={t.caveat_ru}>{t.caveat_en}</p>
+          </div>
+        );
+      })}
+    </section>
+
+    <section class="rounded-2xl border border-white/10 bg-white/[0.02] p-6 mb-8">
+      <h3 class="text-lg font-semibold text-white mb-3" data-ru="Как тир становится доступным">How a tier becomes available</h3>
+      <p class="text-sm text-slate-400 leading-relaxed mb-3" data-ru="Пакет предлагается клиенту ТОЛЬКО когда его стратегии прошли DSR-гейт на реальных данных + полный Yield-Lab-цикл (yield-source → протокол → ликвидность → риск → Red Team → paper-тест → одобрение человека). Сейчас Conservative — реальный и подтверждённый; Balanced и Aggressive — research/paper, показаны с хвостом, для live НЕ аллоцируются.">
+        A package is offered ONLY when its strategies pass the DSR gate on real data + the full Yield-Lab lifecycle (yield-source → protocol → liquidity → risk → Red Team → paper test → human approval). Today Conservative is real and evidenced; Balanced and Aggressive are research/paper, shown with the tail, and are NOT live-allocated.
+      </p>
+      <div class="flex flex-wrap gap-3 mt-4">
+        <a href="/annual-contrast" class="text-sm text-accent-400 underline" data-ru="Хвост в цифрах: 15% против реальных ~3.3% →">The tail in numbers: 15% vs the real ~3.3% →</a>
+        <a href="/monitoring" class="text-sm text-accent-400 underline" data-ru="Живой мониторинг риска →">Live risk monitoring →</a>
+        <a href="/status" class="text-sm text-accent-400 underline" data-ru="Живой трек и go-live →">Live track & go-live →</a>
+      </div>
+    </section>
+
+    <p class="text-xs text-slate-500 leading-relaxed" data-ru="Paper / advisory. Balanced и Aggressive — outside RiskPolicy, никогда не аллоцируются live, не трогают go-live трек. APY-числа тиров — целевые диапазоны каркаса evaluator.PACKAGES; реализованные числа — на /status (Conservative) и в Aggressive Lab (остальные). Никогда не подаём paper/бэктест как live.">
+      Paper / advisory. Balanced and Aggressive are outside RiskPolicy, never live-allocated, and never touch the go-live track. Tier APY figures are the target bands of the evaluator.PACKAGES framework; realized numbers live on /status (Conservative) and in the Aggressive Lab (the rest). We never present paper/backtest as live.
+    </p>
+  </main>
+  <Disclaimer />
+
+  <script is:inline>
+    (function () {
+      function apply() {
+        var ru; try { ru = (localStorage.getItem('spa_lang') || 'ru') !== 'en'; } catch (e) { ru = true; }
+        document.querySelectorAll('[data-ru]').forEach(function (el) {
+          var r = el.getAttribute('data-ru');
+          if (!el.hasAttribute('data-en')) el.setAttribute('data-en', el.textContent);
+          el.textContent = ru ? r : el.getAttribute('data-en');
+        });
+      }
+      apply();
+      window.addEventListener('storage', apply);
+      document.addEventListener('spa:lang', apply);
+    })();
+  </script>
+</Layout>
