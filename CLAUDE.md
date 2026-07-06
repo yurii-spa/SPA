@@ -334,7 +334,7 @@ peg_monitor/red_flag_monitor/threat_reactor/kill_switch, НЕ дублирует
 `docs/SITE_DESIGN_SYSTEM.md`. Канонические `SiteHeader`/`SiteFooter` в `Layout.astro` на каждой
 странице (NOT touch — пушится параллельно). Console-homepage, новые страницы `/track-record`,
 `/research`, `/system`, `/disclaimer`; приложение (дашборд) на **`/dashboard`** (canonical —
-`landing/src/pages/dashboard.astro`, НЕ `/app`); публичная Proof-of-Reserves поверхность.
+`landing/src/pages/dashboard.astro`, НЕ `/app`); публичная Proof-of-Reserves поверхность. Новое (2026-07-06): **`/packages`** (честные 3 тира — Conservative real ~3.3% / Balanced+Aggressive research-paper С хвостом, refused-for-live), **`/monitoring`** (живой RTMR-дашборд). aggressive_lab paper-тик пофикшен (использовал пустые фиды → все книги fail-close'ились; теперь `_real_history_feeds`, data-gap ПАУЗИТ а не kill'ит).
 Двуязычно (EN|RU) по всему сайту.
 
 ---
