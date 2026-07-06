@@ -9,7 +9,7 @@ const global = strategies.global;
 
 <Layout
   title="Max Yield Strategy — Advanced DeFi Mechanics | SPA earn-defi.com"
-  description="Advanced mechanics for higher yield tolerance. No open liquidation risk by default in v1.0. ~15% target APY (variable, not guaranteed). Coming Soon."
+  description="Advanced mechanics for higher yield tolerance. No open liquidation risk by default in v1.0. ~15% target APY (illustrative). Research/paper — the higher-yield tier the desk REFUSES for live, shown WITH its real tail."
 >
 
   <!-- Nav -->
@@ -19,11 +19,14 @@ const global = strategies.global;
     <div class="mt-8 rounded-xl border border-warn-border bg-warn-bg p-5 flex items-start gap-3">
       <span class="text-warn flex-shrink-0 text-lg mt-0.5">&#9888;</span>
       <div>
-        <p class="text-sm text-white/70 font-medium mb-1" data-ru="ЦЕЛЕВОЙ ПРОФИЛЬ — ОЖИДАЕТ ВАЛИДАЦИИ / СКОРО">TARGET PROFILE — VALIDATION PENDING / COMING SOON</p>
-        <p class="text-sm text-white/50 leading-relaxed" data-ru="Эта стратегия находится в фазе валидации. Бумажный трек не ведётся. Целевой APY приведён только для иллюстрации. Без открытого риска ликвидации по умолчанию в v1.0. Более сложные стратегии могут быть добавлены после отдельной бумажной валидации.">
-          This strategy is in validation phase. No paper tracking active. Target APY is illustrative only.
-          No open liquidation risk by default in v1.0. More complex strategies may be added after separate paper validation.
+        <p class="text-sm text-white/70 font-medium mb-1" data-ru="ЦЕЛЕВОЙ ПРОФИЛЬ — RESEARCH/PAPER, ОТКАЗАН ДЛЯ LIVE">TARGET PROFILE — RESEARCH/PAPER, REFUSED FOR LIVE</p>
+        <p class="text-sm text-white/50 leading-relaxed" data-ru="Целевой APY приведён только для иллюстрации. Высокодоходный тир теперь честно задокументирован: 12–20% стратегии, от которых деск ОТКАЗЫВАЕТСЯ для live, paper-тестируются в Aggressive Lab С реальным датированным хвостом (нехеджированная directional-книга потеряла ~50% на обвале ETH). Стабильные 15% — это не альфа, а хвост.">
+          Target APY is illustrative only. The higher-yield tier is now honestly documented: the 12–20% strategies the desk REFUSES for live are paper-tested in the Aggressive Lab WITH their real, dated tail (the unhedged directional book lost ~50% through the ETH crash). A stable 15% is not alpha — it is a tail.
         </p>
+        <div class="flex flex-wrap gap-3 mt-3">
+          <a href="/packages" class="text-sm text-accent-400 underline" data-ru="Тир Aggressive в пакетах →">The Aggressive tier in packages →</a>
+          <a href="/annual-contrast" class="text-sm text-accent-400 underline" data-ru="Хвост в цифрах: 15% против ~3.3% →">The tail in numbers: 15% vs ~3.3% →</a>
+        </div>
       </div>
     </div>
 
@@ -31,7 +34,7 @@ const global = strategies.global;
     <section class="pt-12 pb-12">
       <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-warn-bg border border-warn-border text-xs text-warn font-medium">
         <span class="w-1.5 h-1.5 rounded-full bg-warn" aria-hidden="true"></span>
-        <span data-ru="Скоро">Coming Soon</span>
+        <span data-ru="Research · Paper">Research · Paper</span>
       </div>
       <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Стратегия Max Yield">
         Max Yield Strategy
