@@ -13,6 +13,8 @@ from __future__ import annotations
 import json
 import urllib.request
 
+from spa_core.utils.errors import SourceError
+
 _TIMEOUT = 4  # short: a slow RPC must not block the sense tick
 _HDR = {"User-Agent": "spa-rtmr/1.0", "Content-Type": "application/json"}
 
@@ -89,7 +91,7 @@ def chainlink_reader(address: str, decimals: int = _DECIMALS):
                     return parsed
         if cached:            # RPCs down but we have a recent value within TTL → serve it
             return cached[0]
-        raise RuntimeError("all RPCs failed for Chainlink feed")  # → sensor treats as stale critical
+        raise SourceError("all RPCs failed for Chainlink feed")  # → sensor treats as stale critical
     return fn
 
 
