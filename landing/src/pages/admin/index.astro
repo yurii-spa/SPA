@@ -12,6 +12,16 @@ const apy = snap.paper_apy_pct != null ? '~' + Number(snap.paper_apy_pct).toFixe
 const gates = (snap.gates_passed != null && snap.gates_total != null) ? `${snap.gates_passed}/${snap.gates_total}` : '—';
 const dd = snap.max_drawdown_pct != null ? Number(snap.max_drawdown_pct).toFixed(2) + '%' : '—';
 
+// Snapshot freshness (operator monitoring — the build no longer BLOCKS on staleness, so surface it
+// here instead). Computed at build time from as_of vs build date; > 2 days = stale.
+const snapAsOf = snap.as_of || snap.generated_at || null;
+let snapDaysOld = null;
+if (snapAsOf) {
+  const a = new Date(String(snapAsOf).slice(0, 10) + 'T00:00:00Z');
+  if (!isNaN(a.getTime())) snapDaysOld = Math.floor((Date.now() - a.getTime()) / 86400000);
+}
+const snapFresh = snapDaysOld == null ? 'unknown' : snapDaysOld <= 2 ? 'fresh' : 'stale';
+
 // Operator directory. `href` = existing real page (re-homed under /admin access). `soon` = needs a
 // backend (analytics/leads/funnels/etc.) → scaffold, honest, not faked.
 const sections = [
@@ -55,6 +65,12 @@ const sections = [
           <a class="ac-tile" href="/board"><div class="k">Risk board</div><div class="v" style="font-size:1rem">open →</div></a>
           <a class="ac-tile" href="/refusals"><div class="k">Latest refusals</div><div class="v" style="font-size:1rem">open →</div></a>
           <a class="ac-tile" href="/rates-desk"><div class="k">Yield rates</div><div class="v" style="font-size:1rem">open →</div></a>
+          <div class="ac-tile" title="Track snapshot freshness — build no longer blocks on staleness (warn-only)">
+            <div class="k">Track snapshot</div>
+            <div class="v" style={`font-size:1rem;color:${snapFresh === 'stale' ? 'var(--warn)' : snapFresh === 'fresh' ? 'var(--data-teal)' : 'var(--text-muted)'}`}>
+              {snapFresh === 'stale' ? `⚠ stale (${snapDaysOld}d)` : snapFresh === 'fresh' ? `✓ fresh (${snapDaysOld}d)` : 'unknown'}
+            </div>
+          </div>
         </div>
       </section>
 
