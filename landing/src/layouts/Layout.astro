@@ -8,6 +8,7 @@ interface Props {
   description?: string;
   ogImage?: string;
   canonical?: string;
+  admin?: boolean;
 }
 
 const {
@@ -15,6 +16,7 @@ const {
   description = "SPA — systematic onchain stablecoin yield. Personal research project in paper validation and tuning.",
   ogImage = "/og-image.png",
   canonical,
+  admin = false,
 } = Astro.props;
 
 const siteUrl = "https://earn-defi.com";
@@ -120,17 +122,40 @@ const schemaData = JSON.stringify({
       @media (prefers-reduced-motion:reduce){
         *{animation:none !important; transition:none !important; scroll-behavior:auto !important}
       }
+      /* Operator Console chrome (admin={true}) — slim internal bar, no public nav */
+      .admin-bar{position:sticky; top:0; z-index:50; display:flex; align-items:center; gap:14px;
+        height:52px; padding:0 24px; background:var(--bg-surface); border-bottom:1px solid var(--border-strong)}
+      .ab-brand{font-weight:700; color:var(--text-primary); font-size:.9375rem; text-decoration:none}
+      .ab-brand b{color:var(--accent); font-weight:700}
+      .ab-tag{font-family:var(--font-mono); font-size:.6875rem; text-transform:uppercase; letter-spacing:.08em;
+        color:var(--warn); border:1px solid var(--border); border-radius:var(--r-full); padding:2px 9px}
+      .ab-exit{margin-left:auto; font-size:.8125rem; color:var(--text-muted); text-decoration:none}
+      .ab-exit:hover{color:var(--text-secondary)}
+      .admin-foot{padding:26px 24px; text-align:center; color:var(--text-faint); font-size:.75rem;
+        font-family:var(--font-mono); border-top:1px solid var(--border)}
     </style>
   </head>
 
   <body class="text-text-secondary antialiased" style="background:var(--bg-base)">
-    <!-- Canonical chrome on EVERY page that uses Layout (spec §4). -->
-    <SiteHeader />
-    <PaperStrip />
+    <!-- Canonical chrome on EVERY page that uses Layout (spec §4). Admin pages get a slim
+         internal bar instead of the public header/footer (Operator Console — Phase 3). -->
+    {admin ? (
+      <header class="admin-bar">
+        <a href="/admin" class="ab-brand">SPA <b>Operator Console</b></a>
+        <span class="ab-tag">internal</span>
+        <a href="/" class="ab-exit">← Public site</a>
+      </header>
+    ) : (
+      <SiteHeader />
+    )}
+    {!admin && <PaperStrip />}
 
     <slot />
 
-    <SiteFooter />
+    {!admin && <SiteFooter />}
+    {admin && (
+      <footer class="admin-foot">SPA Operator Console · internal · not public · access control in Phase 5</footer>
+    )}
 
     <!-- i18n runtime INLINED (external /i18n.js was shadowed by the CF soft-404 → served
          HTML instead of JS, which broke the toggle). Inlining guarantees it always runs.

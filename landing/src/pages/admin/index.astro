@@ -1,0 +1,115 @@
+---
+// /admin — SPA Operator Console (Phase 3). Internal hub: two overview groups + a directory of the
+// operator sections. Reuses EXISTING operator pages (real, just re-homed under /admin access);
+// sections needing a backend (analytics, leads, funnels, decision-log, live-tests, settings) are
+// honest "coming soon" scaffolds — never faked. Access control is Phase 5 (no auth yet — do not
+// link publicly). Not in the public nav.
+import Layout from '../../layouts/Layout.astro';
+import snap from '../../data/track_snapshot.json';
+
+const days = snap.real_track_days ?? '—';
+const apy = snap.paper_apy_pct != null ? '~' + Number(snap.paper_apy_pct).toFixed(1) + '%' : '—';
+const gates = (snap.gates_passed != null && snap.gates_total != null) ? `${snap.gates_passed}/${snap.gates_total}` : '—';
+const dd = snap.max_drawdown_pct != null ? Number(snap.max_drawdown_pct).toFixed(2) + '%' : '—';
+
+// Operator directory. `href` = existing real page (re-homed under /admin access). `soon` = needs a
+// backend (analytics/leads/funnels/etc.) → scaffold, honest, not faked.
+const sections = [
+  { en: 'Overview', href: '/admin', real: true },
+  { en: 'Product Analytics', soon: true },
+  { en: 'Users & Leads', soon: true },
+  { en: 'Funnels', soon: true },
+  { en: 'Agents', href: '/system', real: true, note: 'system health / agents' },
+  { en: 'Strategies', href: '/strategies', real: true },
+  { en: 'Tournaments', href: '/tournament', real: true },
+  { en: 'Risk Board', href: '/board', real: true },
+  { en: 'Decision Log', href: '/cockpit/refusals', real: true, note: 'refusal + decision ledger' },
+  { en: 'Rejected Opportunities', href: '/refusals', real: true },
+  { en: 'Backtests', href: '/cockpit/backtest', real: true },
+  { en: 'Paper Tests', href: '/track-record', real: true },
+  { en: 'Live Tests', soon: true },
+  { en: 'Yield Rates', href: '/rates-desk', real: true },
+  { en: 'Protocol Due Diligence', href: '/due-diligence', real: true },
+  { en: 'Approvals / Security', href: '/security', real: true },
+  { en: 'System Health', href: '/system', real: true },
+  { en: 'Research Desk', href: '/structural-desk', real: true, note: 'strategy framework + research' },
+  { en: 'Settings', soon: true },
+];
+---
+
+<Layout title="SPA Operator Console" admin={true}>
+  <main class="ac">
+    <div class="ac-wrap">
+      <h1 class="ac-h1">Operator Console</h1>
+      <p class="ac-sub">Internal command surface. Public site shows outputs; this shows inputs, signals, and operations. Access control lands in Phase 5.</p>
+
+      <!-- Group 1: Strategy / System Operations -->
+      <section class="ac-sec">
+        <div class="ac-sec-h">Strategy / System Operations</div>
+        <div class="ac-tiles">
+          <a class="ac-tile" href="/track-record"><div class="k">Evidenced days</div><div class="v">{days}</div></a>
+          <a class="ac-tile" href="/track-record"><div class="k">Current APY</div><div class="v teal">{apy}</div></a>
+          <a class="ac-tile" href="/track-record"><div class="k">Max drawdown</div><div class="v">{dd}</div></a>
+          <a class="ac-tile" href="/status"><div class="k">Go-live gates</div><div class="v">{gates}</div></a>
+          <a class="ac-tile" href="/system"><div class="k">System health</div><div class="v" style="font-size:1rem">open →</div></a>
+          <a class="ac-tile" href="/board"><div class="k">Risk board</div><div class="v" style="font-size:1rem">open →</div></a>
+          <a class="ac-tile" href="/refusals"><div class="k">Latest refusals</div><div class="v" style="font-size:1rem">open →</div></a>
+          <a class="ac-tile" href="/rates-desk"><div class="k">Yield rates</div><div class="v" style="font-size:1rem">open →</div></a>
+        </div>
+      </section>
+
+      <!-- Group 2: Product / Site Performance -->
+      <section class="ac-sec">
+        <div class="ac-sec-h">Product / Site Performance <span class="ac-soon">Coming soon — needs analytics backend</span></div>
+        <div class="ac-tiles">
+          {['Visitors today','Visitors 7d','Wallet analyses','Analysis completion','Visitor→analysis','Leads collected','CTA clicks','Bounce rate'].map((k) => (
+            <div class="ac-tile soon"><div class="k">{k}</div><div class="v">—</div></div>
+          ))}
+        </div>
+        <p class="ac-note">Product analytics, leads, and funnels are event-tracked data we don't collect yet. They render as honest placeholders — never fabricated numbers.</p>
+      </section>
+
+      <!-- Operator directory -->
+      <section class="ac-sec">
+        <div class="ac-sec-h">Operator sections</div>
+        <div class="ac-dir">
+          {sections.map((s) => (
+            s.soon ? (
+              <div class="ac-dir-item soon"><span class="lbl">{s.en}</span><span class="tag">soon</span></div>
+            ) : (
+              <a class="ac-dir-item" href={s.href}><span class="lbl">{s.en}</span>{s.note && <span class="desc">{s.note}</span>}<span class="arr">→</span></a>
+            )
+          ))}
+        </div>
+      </section>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .ac{background:var(--bg-base); min-height:calc(100vh - 52px); padding:32px 0 80px}
+  .ac-wrap{max-width:1100px; margin:0 auto; padding:0 24px}
+  .ac-h1{font-size:1.6rem; font-weight:800; color:var(--text-primary); margin:0}
+  .ac-sub{color:var(--text-secondary); font-size:.9375rem; margin:8px 0 28px; max-width:680px}
+  .ac-sec{margin-bottom:30px}
+  .ac-sec-h{font-family:var(--font-mono); font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); margin-bottom:14px; display:flex; gap:12px; align-items:center; flex-wrap:wrap}
+  .ac-soon{color:var(--warn); font-weight:600; letter-spacing:0; text-transform:none; font-family:var(--font-sans); font-size:.75rem}
+  .ac-tiles{display:grid; grid-template-columns:repeat(4,1fr); gap:12px}
+  @media(max-width:820px){.ac-tiles{grid-template-columns:1fr 1fr}}
+  .ac-tile{background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-md); padding:16px 18px; text-decoration:none; transition:border-color 120ms}
+  .ac-tile:hover{border-color:var(--border-strong)}
+  .ac-tile.soon{opacity:.55}
+  .ac-tile .k{font-size:.6875rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em}
+  .ac-tile .v{font-size:1.5rem; font-weight:800; color:var(--text-primary); margin-top:6px}
+  .ac-tile .v.teal{color:var(--data-teal)}
+  .ac-note{font-size:.8125rem; color:var(--text-faint); margin-top:12px}
+  .ac-dir{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
+  @media(max-width:820px){.ac-dir{grid-template-columns:1fr}}
+  .ac-dir-item{display:flex; align-items:center; gap:8px; background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-sm); padding:13px 15px; text-decoration:none; transition:border-color 120ms}
+  .ac-dir-item:hover{border-color:var(--border-strong)}
+  .ac-dir-item .lbl{color:var(--text-primary); font-size:.875rem; font-weight:600}
+  .ac-dir-item .desc{color:var(--text-muted); font-size:.75rem}
+  .ac-dir-item .arr{margin-left:auto; color:var(--accent)}
+  .ac-dir-item.soon{opacity:.5}
+  .ac-dir-item.soon .tag{margin-left:auto; font-family:var(--font-mono); font-size:.625rem; text-transform:uppercase; color:var(--text-muted); border:1px solid var(--border); border-radius:var(--r-full); padding:2px 8px}
+</style>
