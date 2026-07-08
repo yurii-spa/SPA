@@ -59,10 +59,15 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         <span class="dot" aria-hidden="true"></span>
         <span class="seg" data-ru="режим бумаги">paper mode</span>
         <span class="div">·</span><span class="num" id="sl-day">{snapDays}</span>&nbsp;<span data-ru="подтв. дней">evidenced days</span>
-        <span class="div">·</span><span class="num" id="sl-apy">{snapApy}</span>&nbsp;<span data-ru="бумажный APY">paper APY</span>
+        <span class="div">·</span><span class="num" id="sl-apy">{snapApy}</span>&nbsp;<span data-ru="текущий APY">current APY</span>
         <span class="div">·</span><span class="num" id="sl-gates">{snapGates}</span>&nbsp;<span data-ru="критериев">criteria</span>
         {snapAsOf && <span class="div">·</span>}{snapAsOf && <span class="seg" id="sl-asof" style="opacity:.6" data-ru={`на ${snapAsOf}`}>as of {snapAsOf}</span>}
       </div>
+      )}
+      {!degraded && (
+      <p class="status-note" style="font-size:0.8rem;opacity:0.6;margin-top:0.5rem;max-width:44rem;line-height:1.5;" data-ru="Стратегия обновлена на yield-optimized (2026-07-08): текущий APY отражает новую аллокацию в рамках RiskPolicy. Реализованный трек ещё догоняет (ранние дни — консервативные ~3.3%) — полная кривая на /track-record.">
+        Strategy upgraded to yield-optimized (2026-07-08): the current APY reflects the new allocation within RiskPolicy. The realized track is still catching up (early days were the conservative ~3.3%) — full curve on <a href="/track-record" style="text-decoration:underline;">/track-record</a>.
+      </p>
       )}
 
       <!-- Journey chooser — pick a lens instead of a duplicated single CTA. -->
@@ -179,7 +184,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       <div class="track-band">
         <div class="track-metrics">
           <div class="metric-card"><div class="lbl" data-ru="Подтверждённых дней">Evidenced days</div><div class="val" id="m-days">{snapDays}</div></div>
-          <div class="metric-card"><div class="lbl" data-ru="Бумажный APY">Paper APY</div><div class="val teal" id="m-apy">{snapApy}</div></div>
+          <div class="metric-card"><div class="lbl" data-ru="Текущий APY">Current APY</div><div class="val teal" id="m-apy">{snapApy}</div></div>
           <div class="metric-card"><div class="lbl" data-ru="Макс. просадка">Max drawdown</div><div class="val" id="m-dd">{snapDd}</div></div>
           <div class="metric-card"><div class="lbl" data-ru="Прогресс Go-Live">Go-live progress</div><div class="val" id="m-gates">{snapGates}</div></div>
         </div>
