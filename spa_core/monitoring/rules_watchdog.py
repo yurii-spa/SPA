@@ -176,11 +176,13 @@ def check_position_limits() -> CheckResult:
     capital = float(doc.get("capital_usd", 100000) or 100000)
     num = len(positions)
 
+    from spa_core.risk.policy_enforcer import RULES as _RULES  # single-source (reconciled to policy.py)
+
     violations = []
     if num > 8:
         violations.append("too_many_protocols: {} > 8".format(num))
 
-    per_max = 25.0
+    per_max = float(_RULES["per_protocol_max_pct"])  # 40% (policy.max_single_protocol), was stale 25%
     for proto, usd in positions.items():
         pct = float(usd or 0) / capital * 100
         if pct > per_max:
@@ -200,8 +202,13 @@ def check_position_limits() -> CheckResult:
 
 
 def check_t1_concentration() -> CheckResult:
-    """Verify T1 allocation >= 55%."""
-    from spa_core.risk.policy_enforcer import T1_ADAPTERS, T3_ADAPTERS
+    """Verify T1 allocation >= the policy T1 floor (single-sourced from policy.py).
+
+    Owner-approved 2026-07-08: policy.py has NO T1 minimum, so the reconciled floor is 0% — this
+    check no longer imposes the stale 55% risk_adjusted-era floor (the optimized_yield book at T1 45%
+    is compliant under the authoritative gate). Kept as an OK-reporter (flips to CRITICAL only if a
+    future ADR re-introduces a T1 floor in RiskConfig)."""
+    from spa_core.risk.policy_enforcer import T1_ADAPTERS, T3_ADAPTERS, RULES as _RULES
 
     doc = _load_json(_POSITIONS_PATH)
     if not doc or not isinstance(doc.get("positions"), dict):
@@ -214,16 +221,17 @@ def check_t1_concentration() -> CheckResult:
     capital = float(doc.get("capital_usd", 100000) or 100000)
     t1_usd = sum(float(v or 0) for k, v in positions.items() if k in T1_ADAPTERS)
     t1_pct = t1_usd / capital * 100
+    t1_min = float(_RULES["t1_min_pct"])  # 0.0 — policy.py has no T1 floor (reconciled 2026-07-08)
 
-    if t1_pct < 55.0:
+    if t1_min > 0.0 and t1_pct < t1_min:
         return CheckResult(
             "t1_concentration", "CRITICAL",
-            "T1 = {:.1f}% < 55% minimum (policy breach)".format(t1_pct),
+            "T1 = {:.1f}% < {:.0f}% minimum (policy breach)".format(t1_pct, t1_min),
             {"t1_pct": round(t1_pct, 2), "t1_usd": round(t1_usd, 2)},
         )
     return CheckResult(
         "t1_concentration", "OK",
-        "T1 = {:.1f}% >= 55%".format(t1_pct),
+        "T1 = {:.1f}% >= {:.0f}% floor".format(t1_pct, t1_min),
         {"t1_pct": round(t1_pct, 2)},
     )
 

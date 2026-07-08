@@ -37,12 +37,10 @@ def test_cash_floor_parity():
     assert float(_RULES["cash_min_pct"]) == _CFG.min_cash_pct * 100.0
 
 
-@pytest.mark.xfail(reason="enforcer per_protocol 25% is stale vs policy 40% — pending owner sign-off", strict=True)
-def test_per_protocol_cap_parity_PENDING_SIGNOFF():
+def test_per_protocol_cap_parity():
     assert float(_RULES["per_protocol_max_pct"]) == _CFG.max_single_protocol * 100.0
 
 
-@pytest.mark.xfail(reason="enforcer has a 55% T1 floor policy.py does not — pending owner sign-off", strict=True)
-def test_no_t1_floor_beyond_policy_PENDING_SIGNOFF():
+def test_no_t1_floor_beyond_policy():
     # policy.py has NO T1 minimum; the enforcer's 55% floor is a stale extra constraint.
     assert float(_RULES.get("t1_min_pct", 0.0)) == 0.0

@@ -20,14 +20,28 @@ from typing import Dict, List, Optional
 
 log = logging.getLogger("spa.risk.policy_enforcer")
 
-# A4 (single source of truth): the ALLOC-002 diversity floor now lives in
-# RiskConfig.max_protocols. Read it here so RULES never drifts from policy.py.
-# Import-guarded so this module stays usable in isolated unit tests.
+# SINGLE SOURCE OF TRUTH (owner-approved 2026-07-08): every cap below is now read from RiskConfig
+# (policy.py — the authoritative v1.0 gate) so the enforcer can NEVER drift from it again. This
+# RECONCILES the stale risk_adjusted-era constants that made rules_watchdog CRITICAL: per_protocol
+# 25%->40% (policy.max_single_protocol) and the 55% T1 floor -> REMOVED (policy.py has no T1 minimum;
+# the optimized_yield book at T1 45% is compliant under the authoritative gate). Import-guarded for
+# test isolation; the fallbacks equal policy.py's v1.0 defaults.
 try:
     from spa_core.risk.policy import RiskConfig as _RiskConfig
-    _MAX_PROTOCOLS = int(_RiskConfig().max_protocols)
-except Exception:  # pragma: no cover — import guard for test isolation
+    _CFG = _RiskConfig()
+    _MAX_PROTOCOLS = int(_CFG.max_protocols)
+    _PER_PROTOCOL_MAX_PCT = float(_CFG.max_single_protocol) * 100.0   # 40% (was stale 25%)
+    _T2_MAX_PCT = float(_CFG.max_total_t2_allocation) * 100.0         # 50%
+    _T3_MAX_PCT = float(getattr(_CFG, "max_total_t3_allocation", 0.15)) * 100.0  # 15%
+    _CASH_MIN_PCT = float(_CFG.min_cash_pct) * 100.0                  # 5%
+except Exception:  # pragma: no cover — import guard for test isolation (fallbacks = policy v1.0)
     _MAX_PROTOCOLS = 8
+    _PER_PROTOCOL_MAX_PCT = 40.0
+    _T2_MAX_PCT = 50.0
+    _T3_MAX_PCT = 15.0
+    _CASH_MIN_PCT = 5.0
+# policy.py has NO T1 minimum → the enforcer must not impose a stricter one. 0.0 = floor disabled.
+_T1_MIN_PCT = 0.0
 
 # ── T1 adapter set (single source of truth; matches ADAPTER_REGISTRY T1 entries) ──
 T1_ADAPTERS: frozenset = frozenset({
@@ -53,13 +67,13 @@ T3_ADAPTERS: frozenset = frozenset({
 
 # ── Policy rules (deterministic, matches RiskConfig v1.0) ──────────────────
 RULES: Dict[str, object] = {
-    "max_protocols": _MAX_PROTOCOLS,  # ALLOC-002 (A4: single-source from RiskConfig)
-    "per_protocol_max_pct": 25.0,   # не более 25% в одном протоколе
-    "t1_min_pct": 55.0,             # минимум 55% в T1 адаптерах
-    "t2_max_pct": 50.0,             # максимум 50% в T2 (ADR-019)
-    "t3_max_pct": 15.0,             # максимум 15% в T3 (ADR-020)
-    "cash_min_pct": 5.0,            # минимум 5% кэш буфер
-    "apy_rank_tolerance": 3,        # top-3 по APY должны быть в top-5 по аллокации
+    "max_protocols": _MAX_PROTOCOLS,          # ALLOC-002 (single-source from RiskConfig)
+    "per_protocol_max_pct": _PER_PROTOCOL_MAX_PCT,  # policy.max_single_protocol (40%)
+    "t1_min_pct": _T1_MIN_PCT,                # policy.py has NO T1 floor → 0.0 (disabled)
+    "t2_max_pct": _T2_MAX_PCT,                # policy.max_total_t2_allocation (50%, ADR-019)
+    "t3_max_pct": _T3_MAX_PCT,                # policy.max_total_t3_allocation (15%, ADR-020)
+    "cash_min_pct": _CASH_MIN_PCT,            # policy.min_cash_pct (5%)
+    "apy_rank_tolerance": 3,                  # top-3 по APY должны быть в top-5 по аллокации
 }
 
 # Suspended/compromised adapters — fail immediately if present in portfolio

@@ -1,6 +1,6 @@
 # Owner Decisions — Pending
 
-## OWNER DECISION NEEDED — RiskPolicy module drift (surfaced 2026-07-08, autonomous session)
+## [RESOLVED 2026-07-08 — owner chose reconcile-to-policy.py] RiskPolicy module drift (surfaced 2026-07-08, autonomous session)
 
 **Context:** rules_watchdog went CRITICAL. Root cause = the optimized_yield book (owner-approved) is
 compliant under policy.py (the authoritative v1.0 gate) but REJECTED by policy_enforcer.py (a stale
@@ -11,7 +11,7 @@ optimized_yield poured 30% into T3 (susde 20% + extra_finance 10%) vs the 15% ca
 allocator._enforce_t3_total_cap (canonical tier_map). optimized_yield now T1 45% / T2 20% / T3 15%,
 projected APY 6.57% (the HONEST safe ceiling; the 8.44% was inflated by the breach). Commit b8ee41bb.
 
-**PENDING YOUR SIGN-OFF (risk-layer, not touched):** policy_enforcer.py has two constraints policy.py
+**RESOLVED (owner sign-off 2026-07-08 — reconcile to policy.py):** enforcer RULES + rules_watchdog checks now SINGLE-SOURCE from RiskConfig (per_protocol 25→40, T1-floor 55→REMOVED). watchdog GREEN. Original analysis below for the record: policy_enforcer.py has two constraints policy.py
 does NOT: (1) per_protocol_max_pct 25% vs policy 40%; (2) t1_min_pct 55% floor vs policy has none.
 These are stale risk_adjusted-era constants. Two ways:
   (A) Reconcile enforcer -> policy.py (single-source): morpho 40% + T1 45% become compliant, watchdog
