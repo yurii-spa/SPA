@@ -11,65 +11,48 @@
 // Research group so highlight ↔ reachability agree.
 const path = Astro.url.pathname;
 
-// Nav groups: label + the pages under each. `match` = paths that light this group active.
+// PUBLIC nav (Phase 1 — public/admin split). Six user-centric items; DeFi Checkup first.
+// Operator-depth pages (cockpit, board, tournament, structural/rates/rwa desks, exit-nav,
+// proof-of-reserves, fundability, due-diligence, yield-lab, system, status, …) are NO LONGER in
+// the public top nav — they move to the /admin Operator Console (Phase 3). They are NOT deleted:
+// their URLs still resolve and they remain reachable from the footer until the admin move.
+// A group is either a DIRECT link (`direct:true` + `href`, no dropdown) or a dropdown (`items`).
 const groups = [
+  { id: 'checkup', en: 'Checkup', ru: 'Чекап', direct: true, href: '/' },
   {
-    id: 'product', en: 'Product', ru: 'Продукт',
+    id: 'strategy', en: 'Strategy Lab', ru: 'Strategy Lab',
     items: [
-      { href: '/cockpit', en: 'Desk Cockpit', ru: 'Desk Cockpit', desc: 'The 5 questions in 5 seconds', descRu: 'Пять вопросов за пять секунд' },
-      { href: '/dashboard', en: 'Dashboard', ru: 'Дашборд', desc: 'Live command center', descRu: 'Живой командный центр' },
-      { href: '/board', en: 'Risk Board', ru: 'Риск-борд', desc: 'DFB pool risk explorer', descRu: 'Обозреватель риска пулов' },
-      { href: '/strategies', en: 'Strategies', ru: 'Стратегии', desc: 'Three risk profiles', descRu: 'Три профиля риска' },
-      { href: '/strategies/btc', en: 'BTC lending', ru: 'BTC-кредитование', desc: 'The honest ~0% (assessed)', descRu: 'Честные ~0% (оценено)' },
-      { href: '/strategies/leverage-loops', en: 'Leverage loops', ru: 'Плечевые петли', desc: 'N× yield, N× liquidation', descRu: 'N× доход, N× ликвидация' },
-      { href: '/tournament', en: 'Tournament', ru: 'Турнир', desc: 'How candidates are vetted', descRu: 'Как отбираются кандидаты' },
+      { href: '/strategies', en: 'Strategy Lab', ru: 'Strategy Lab', desc: 'Three risk profiles, paper-tested', descRu: 'Три профиля риска, paper-tested' },
+      { href: '/strategies/preserve', en: 'Preserve', ru: 'Preserve', desc: 'Capital protection first (6–8%)', descRu: 'Сначала защита капитала (6–8%)' },
+      { href: '/strategies/core', en: 'Core', ru: 'Core', desc: 'Better yield, controlled risk (10–12%)', descRu: 'Больше доходности, контроль риска (10–12%)' },
+      { href: '/strategies/max-yield', en: 'Max Yield', ru: 'Max Yield', desc: 'Higher risk, active monitoring (≤20%)', descRu: 'Выше риск, активный мониторинг (≤20%)' },
+      { href: '/packages', en: 'Packages', ru: 'Пакеты', desc: 'The three tiers side by side', descRu: 'Три тира рядом' },
     ],
   },
-  {
-    id: 'track', en: 'Track Record', ru: 'Трек-рекорд', href: '/track-record',
-    items: [
-      { href: '/track-record', en: 'Track Record', ru: 'Трек-рекорд', desc: 'The honest paper track', descRu: 'Честный бумажный трек' },
-      { href: '/methodology', en: 'Methodology', ru: 'Методология', desc: 'How the daily cycle works', descRu: 'Как работает дневной цикл' },
-    ],
-  },
-  {
-    id: 'research', en: 'Research', ru: 'Исследование',
-    items: [
-      { href: '/structural-desk', en: 'Structural Desk', ru: 'Структурный стол', desc: 'The $10M-scale edge thesis', descRu: 'Тезис эджа масштаба $10M' },
-      { href: '/yield-lab', en: 'Yield Lab', ru: 'Йилд-лаб', desc: 'Live-yield decisions & verdicts', descRu: 'Решения по доходности + вердикты' },
-      { href: '/rates-desk', en: 'Rates Desk', ru: 'Rates Desk', desc: 'Refusal-first carry (GO)', descRu: 'Refusal-first carry (GO)' },
-      { href: '/rwa-backstop', en: 'RWA Backstop', ru: 'RWA-бэкстоп', desc: 'Collateral safety board', descRu: 'Safety board залога' },
-      { href: '/research', en: 'Research journal', ru: 'Журнал исследований', desc: 'The full research arc', descRu: 'Полная research-арка' },
-      { href: '/competitive-position', en: 'Competitive position', ru: 'Конкурентная позиция', desc: 'Where we stand vs peers', descRu: 'Где мы против конкурентов' },
-      { href: '/annual-contrast', en: 'Annual contrast', ru: 'Годовой контраст', desc: '15% chase vs steady ~4.5%', descRu: 'Погоня за 15% vs ~4.5%' },
-    ],
-  },
-  {
-    id: 'proof', en: 'Proof', ru: 'Доказательства',
-    items: [
-      { href: '/verify', en: 'Verify us', ru: 'Проверить нас', desc: "Don't trust us — check us", descRu: 'Не верьте — проверьте' },
-      { href: '/refusals', en: 'Refusal log', ru: 'Лог отказов', desc: 'What we declined, hash-chained', descRu: 'Что отклонили, hash-chain' },
-      { href: '/cockpit/refusals', en: 'Refusal ledger', ru: 'Журнал отказов', desc: 'Filterable ledger + stats', descRu: 'Фильтруемый журнал + статистика' },
-      { href: '/exit-nav', en: 'Exit-NAV', ru: 'Ликвидационный NAV', desc: 'Liquidation NAV by size', descRu: 'Ликвидационный NAV по размеру' },
-      { href: '/proof-of-reserves', en: 'Proof of Reserves', ru: 'Доказательство резервов', desc: 'On-chain reserve proof', descRu: 'Ончейн-доказательство резервов' },
-      { href: '/fundability', en: 'Fundability', ru: 'Фандабилити', desc: 'Risk-adjusted scorecard', descRu: 'Risk-adjusted scorecard' },
-      { href: '/due-diligence', en: 'Due diligence', ru: 'Дью-дилидженс', desc: 'Self-verifying DD pack', descRu: 'Самопроверяемый DD-пакет' },
-    ],
-  },
+  { id: 'track', en: 'Track Record', ru: 'Трек-рекорд', direct: true, href: '/track-record' },
   {
     id: 'academy', en: 'Academy', ru: 'Академия',
     items: [
-      { href: '/academy', en: 'Academy', ru: 'Академия', desc: 'Learn the desk from zero', descRu: 'Изучите десk с нуля' },
+      { href: '/academy', en: 'Academy', ru: 'Академия', desc: 'Learn the desk from zero', descRu: 'Изучите деск с нуля' },
       { href: '/academy/onboarding', en: 'Onboarding', ru: 'Практика', desc: 'Practice before real money', descRu: 'Практика перед реальными деньгами' },
       { href: '/academy/playground', en: 'Playground', ru: 'Песочница', desc: 'Interactive trainers', descRu: 'Интерактивные тренажёры' },
       { href: '/academy/certificate', en: 'Certificate', ru: 'Сертификат', desc: 'Your analyst certificate', descRu: 'Ваш сертификат аналитика' },
     ],
   },
+  {
+    id: 'research', en: 'Research', ru: 'Исследование',
+    items: [
+      { href: '/research', en: 'Research notes', ru: 'Заметки исследований', desc: 'The public research arc', descRu: 'Публичная research-арка' },
+      { href: '/competitive-position', en: 'Checkup vs trackers', ru: 'Чекап vs трекеры', desc: 'A decision layer, not a tracker', descRu: 'Слой решений, а не трекер' },
+      { href: '/methodology', en: 'Methodology', ru: 'Методология', desc: 'How the daily cycle works', descRu: 'Как работает дневной цикл' },
+    ],
+  },
+  { id: 'trust', en: 'Trust', ru: 'Доверие', direct: true, href: '/trust' },
 ];
 
 const groupActive = (g) => {
-  const hrefs = g.items.map((i) => i.href);
-  if (g.href && (path === g.href || path.startsWith(g.href + '/'))) return true;
+  if (g.href && (path === g.href ? g.href !== '/' || path === '/' : path.startsWith(g.href + '/'))) return true;
+  const hrefs = (g.items || []).map((i) => i.href);
   return hrefs.some((h) => path === h || path.startsWith(h + '/'));
 };
 const itemActive = (href) => (href === '/' ? path === '/' : path === href || path.startsWith(href + '/'));
@@ -84,7 +67,10 @@ const itemActive = (href) => (href === '/' ? path === '/' : path === href || pat
     </a>
 
     <nav class="nav" aria-label="Primary">
-      {groups.map((g) => (
+      {groups.map((g) => (g.direct ? (
+        <a class:list={['nav-trigger nav-link', { active: groupActive(g) }]} href={g.href} data-ru={g.ru}
+           aria-current={groupActive(g) ? 'page' : undefined}>{g.en}</a>
+      ) : (
         <div class="nav-group" data-group>
           <button
             type="button"
@@ -111,11 +97,11 @@ const itemActive = (href) => (href === '/' ? path === '/' : path === href || pat
             ))}
           </div>
         </div>
-      ))}
+      )))}
     </nav>
 
     <div class="header-right">
-      <a class="cta-outline" href="/dashboard" data-ru="Дашборд ↗">Dashboard ↗</a>
+      <a class="cta-outline cta-analyze" href="/#analyze" data-ru="Анализ кошелька">Analyze Wallet</a>
       <div id="spa-lang-toggle" class="lang-toggle" role="group" aria-label="Language">
         <button type="button" data-lang="en" aria-pressed="true">EN</button>
         <button type="button" data-lang="ru" aria-pressed="false">RU</button>
@@ -127,15 +113,17 @@ const itemActive = (href) => (href === '/' ? path === '/' : path === href || pat
   </div>
 
   <div class="mobile-panel" id="mobilePanel">
-    {groups.map((g) => (
+    {groups.map((g) => (g.direct ? (
+      <a class="m-link" href={g.href} aria-current={groupActive(g) ? 'page' : undefined} data-ru={g.ru}>{g.en}</a>
+    ) : (
       <details class="m-group" open={groupActive(g)}>
         <summary data-ru={g.ru}>{g.en}</summary>
         {g.items.map((it) => (
           <a href={it.href} aria-current={itemActive(it.href) ? 'page' : undefined} data-ru={it.ru}>{it.en}</a>
         ))}
       </details>
-    ))}
-    <a class="cta-outline" href="/dashboard" data-ru="Дашборд ↗">Dashboard ↗</a>
+    )))}
+    <a class="cta-outline cta-analyze" href="/#analyze" data-ru="Анализ кошелька">Analyze Wallet</a>
   </div>
 </header>
 
@@ -189,6 +177,14 @@ const itemActive = (href) => (href === '/' ? path === '/' : path === href || pat
     color:var(--accent); transition:all 120ms var(--ease); white-space:nowrap;
   }
   .cta-outline:hover{border-color:var(--accent); color:var(--accent-hover); background:var(--accent-bg)}
+  /* direct (non-dropdown) nav links */
+  .nav-link{text-decoration:none}
+  .nav-link.active{color:var(--text-primary)}
+  /* primary "Analyze Wallet" CTA — filled, the top conversion action */
+  .cta-analyze{background:var(--accent); color:#fff; border-color:var(--accent); box-shadow:var(--shadow-cta)}
+  .cta-analyze:hover{background:var(--accent-hover); color:#fff; border-color:var(--accent-hover)}
+  .m-link{display:block; color:var(--text-primary); font-size:.9375rem; font-weight:600; padding:12px 0; border-bottom:1px solid var(--border); text-decoration:none}
+  .m-link[aria-current='page']{color:var(--accent)}
   .lang-toggle{display:flex; align-items:center; gap:0; border:1px solid var(--border); border-radius:var(--r-sm); overflow:hidden}
   .lang-toggle button{background:transparent; border:none; color:var(--text-muted); padding:5px 9px; cursor:pointer; font-family:var(--font-mono); font-size:.75rem; transition:all 120ms var(--ease); border-radius:0}
   .lang-toggle button:hover{color:var(--text-secondary)}

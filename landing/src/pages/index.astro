@@ -3,6 +3,7 @@
 // strip, footer) comes from Layout; this page is just the Console body + sections.
 import Layout from '../layouts/Layout.astro';
 import snap from '../data/track_snapshot.json';
+import WalletCheck from '../components/WalletCheck.jsx';
 
 // Build-time honest static fallback (last evidenced snapshot) — mirrors the pattern
 // track-record.astro uses. Live values from api.earn-defi.com override these client-side;
@@ -37,81 +38,126 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
   description="Personal research project: a deterministic, LLM-free DeFi stablecoin-yield optimizer in paper validation, evidenced track anchored June 22, 2026. Not raising capital."
 >
   <!-- ============ HERO (Direction C — Console, institutional) ============ -->
-  <section class="hero">
+  <section class="hero" id="analyze">
     <div class="hero-inner">
-      <span class="hero-eyebrow" data-ru="Детерминированный · без LLM · публичный">Deterministic · LLM-free · public</span>
+      <span class="hero-eyebrow" data-ru="Только исследование · сначала бумага · без депозитов · без гарантий доходности">Research-only · Paper testing first · No deposits · No guaranteed returns</span>
       <h1>
-        <span data-ru="Систематическая ончейн">Systematic onchain</span>
-        <span class="accent" data-ru="доходность по стейблкоинам.">stablecoin yield.</span>
+        <span data-ru="Проверьте, стоит ли ваш DeFi-портфель">Check if your DeFi portfolio is</span>
+        <span class="accent" data-ru="риска.">worth the risk.</span>
       </h1>
-      <p class="sub" data-ru="Детерминированный оптимизатор доходности DeFi без LLM. Каждое решение — политика, а не модель: воспроизводимо, залогировано и публично проверяемо.">
-        A deterministic, LLM-free DeFi yield optimizer. Every decision is policy, not a model —
-        reproducible, logged, and publicly verifiable.
+      <p class="sub" data-ru="Вставьте адрес кошелька и получите понятный отчёт о здоровье DeFi: общие активы, простаивающий капитал, оценка APY, риск-скор, экспозиция по протоколам, approvals и практичные рекомендации.">
+        Paste a wallet address and get a clear DeFi health report: total assets, idle capital,
+        estimated APY, risk score, protocol exposure, approvals, and practical recommendations.
       </p>
-      {degraded && (
-      <div class="status-line" aria-live="polite" style="color:var(--warn,#eab308)">
-        <span class="dot" aria-hidden="true"></span>
-        <span class="seg" data-ru="живые данные временно недоступны — сырые цепочки на api.earn-defi.com">live data temporarily unavailable — see the raw chain at api.earn-defi.com</span>
-      </div>
-      )}
-      {!degraded && (
-      <div class="status-line" id="statusLine" aria-live="polite">
-        <span class="dot" aria-hidden="true"></span>
-        <span class="seg" data-ru="режим бумаги">paper mode</span>
-        <span class="div">·</span><span class="num" id="sl-day">{snapDays}</span>&nbsp;<span data-ru="подтв. дней">evidenced days</span>
-        <span class="div">·</span><span class="num" id="sl-apy">{snapApy}</span>&nbsp;<span data-ru="текущий APY">current APY</span>
-        <span class="div">·</span><span class="num" id="sl-gates">{snapGates}</span>&nbsp;<span data-ru="критериев">criteria</span>
-        {snapAsOf && <span class="div">·</span>}{snapAsOf && <span class="seg" id="sl-asof" style="opacity:.6" data-ru={`на ${snapAsOf}`}>as of {snapAsOf}</span>}
-      </div>
-      )}
-      {!degraded && (
-      <p class="status-note" style="font-size:0.8rem;opacity:0.6;margin-top:0.5rem;max-width:44rem;line-height:1.5;" data-ru="Стратегия обновлена на yield-optimized (2026-07-08) — оптимизирует доходность в рамках RiskPolicy (cap'ы T1/T2/T3, TVL-пол, кэш-буфер). Честный целевой потолок безопасного ~6-6.5% (не 15-20% — это потребовало бы хвоста, от которого деск отказывается). Реализованный трек догоняет (ранние дни ~3.3%) — полная кривая на /track-record.">
-        Strategy upgraded to yield-optimized (2026-07-08) — it optimizes yield within RiskPolicy (T1/T2/T3 caps, TVL floor, cash buffer). The honest safe ceiling is ~6-6.5% (not 15-20% — that would need the tail the desk refuses). The realized track is catching up (early days ~3.3%) — full curve on <a href="/track-record" style="text-decoration:underline;">/track-record</a>.
-      </p>
-      )}
 
-      <!-- Journey chooser — pick a lens instead of a duplicated single CTA. -->
-      <div class="journey" role="group" aria-label="Choose your path">
-        <a class="jc" href="/track-record">
-          <span class="jc-role" data-ru="Инвестор">Investor</span>
-          <span class="jc-desc" data-ru="Начните с честного трека и фандабилити.">Start with the honest track record &amp; fundability.</span>
-          <span class="jc-links">
-            <span data-ru="Трек-рекорд">Track record</span> ·
-            <span data-ru="Фандабилити">Fundability</span> ·
-            <span data-ru="Проверка">Verify</span>
-            <span class="jc-arrow" aria-hidden="true">→</span>
-          </span>
-        </a>
-        <a class="jc" href="/board">
-          <span class="jc-role" data-ru="Аналитик">Analyst</span>
-          <span class="jc-desc" data-ru="Разберите риск пулов и научитесь читать деск.">Dig into pool-level risk and learn to read the desk.</span>
-          <span class="jc-links">
-            <span data-ru="Риск-борд">Risk Board</span> ·
-            <span data-ru="Академия">Academy</span>
-            <span class="jc-arrow" aria-hidden="true">→</span>
-          </span>
-        </a>
-        <a class="jc" href="/verify">
-          <span class="jc-role" data-ru="Скептик">Skeptic</span>
-          <span class="jc-desc" data-ru="Не верьте нам — пересчитайте каждый хеш сами.">Don't trust us — re-derive every hash yourself.</span>
-          <span class="jc-links">
-            <span data-ru="Проверка">Verify</span> ·
-            <span data-ru="Отказы">Refusals</span> ·
-            <span data-ru="Доказательства">Proof</span>
-            <span class="jc-arrow" aria-hidden="true">→</span>
-          </span>
-        </a>
+      <!-- Top-of-funnel: free wallet checkup → checkup.earn-defi.com (read-only, no email). -->
+      <WalletCheck client:visible />
+
+      <p class="hero-trust" data-ru="Без подключения кошелька. Без email. Только публичные адреса.">No wallet connection. No email required. Public addresses only.</p>
+
+      <div class="hero-bullets" aria-label="What you get">
+        <span data-ru="Стоимость портфеля">Portfolio value</span>
+        <span data-ru="Простаивающий капитал">Idle capital</span>
+        <span data-ru="Оценка APY">Estimated APY</span>
+        <span data-ru="Риск-скор">Risk score</span>
+        <span data-ru="Топ-риски">Top risks</span>
+        <span data-ru="Рекомендации">Recommendations</span>
       </div>
 
-      <div class="hero-tail">
-        <a class="btn btn-primary" href="/dashboard" data-ru="Открыть дашборд ↗">Open dashboard ↗</a>
-        <a class="por-chip" id="porChip" href="/proof-of-reserves" title="Proof of Reserves">
-          <span class="por-dot" aria-hidden="true"></span>
-          <span data-ru="Доказательство резервов">Proof of Reserves</span>
-          <span class="por-state" id="porChipState" data-ru="загрузка…">loading…</span>
-          <span class="por-arrow" aria-hidden="true">→</span>
-        </a>
+      <div class="hero-secondary">
+        <a class="btn-ghost" href="/strategies" data-ru="Смотреть Strategy Lab →">View Strategy Lab →</a>
       </div>
+
+      <p class="hero-powered" data-ru="На базе SPA Strategy Lab — публичной, paper-tested системы исследования доходности по стейблкоинам.">
+        Powered by <b>SPA Strategy Lab</b> — a public, paper-tested stablecoin yield research system.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ DASHBOARD PREVIEW (the main visual asset) ============ -->
+  <section class="band">
+    <div class="container">
+      <div class="sec-head">
+        <span class="eyebrow" data-ru="Ваш отчёт">Your report</span>
+        <h2 data-ru="Увидьте свой DeFi-портфель глазами риск-аналитика.">See your DeFi portfolio like a risk analyst would.</h2>
+      </div>
+      <div class="dash-preview">
+        <div class="dp-bar">
+          <span data-ru="Кошелёк 0x7a…91f · 5 сетей · 14 активов">Wallet 0x7a…91f · 5 chains · 14 assets</span>
+          <span class="dp-ex" data-ru="Пример отчёта">Example report</span>
+        </div>
+        <div class="dp-kpis">
+          <div class="dp-kpi"><div class="k" data-ru="Стоимость портфеля">Total Value</div><div class="v">$42,500</div><div class="s" data-ru="5 сетей · 14 активов">5 chains · 14 assets</div></div>
+          <div class="dp-kpi teal"><div class="k" data-ru="Оценка APY">Estimated APY</div><div class="v">5.4%</div><div class="s" data-ru="видимые DeFi-позиции">visible DeFi positions</div></div>
+          <div class="dp-kpi amb"><div class="k" data-ru="Эффективность капитала">Capital Efficiency</div><div class="v">68%</div><div class="s" data-ru="$29k работает · $13.5k простаивает">$29k deployed · $13.5k idle</div></div>
+          <div class="dp-kpi red"><div class="k" data-ru="Риск-скор">Risk Score</div><div class="v">72<small>/100</small></div><div class="s" data-ru="Высокий">High</div></div>
+        </div>
+        <div class="dp-low">
+          <div class="dp-mod">
+            <h4 data-ru="Распределение по сетям">Allocation by chain</h4>
+            <div class="dp-row"><span>Ethereum</span><b>$18,000</b></div><div class="dp-line"><i style="width:100%"></i></div>
+            <div class="dp-row"><span>Arbitrum</span><b>$9,500</b></div><div class="dp-line"><i style="width:53%"></i></div>
+            <div class="dp-row"><span>Base</span><b>$6,000</b></div><div class="dp-line"><i style="width:33%"></i></div>
+            <div class="dp-row"><span>BSC</span><b>$4,000</b></div><div class="dp-line"><i style="width:22%"></i></div>
+          </div>
+          <div class="dp-mod">
+            <h4 data-ru="Экспозиция по протоколам">Protocol exposure</h4>
+            <div class="dp-row"><span class="muted" data-ru="Простаивает в кошельке">Idle wallet</span><b style="color:var(--warn)">$13,500</b></div>
+            <div class="dp-row"><span>Aave</span><b>$10,000</b></div>
+            <div class="dp-row"><span>Pendle</span><b>$7,000</b></div>
+            <div class="dp-row"><span>Uniswap</span><b>$4,500</b></div>
+            <div class="dp-row"><span>Curve</span><b>$3,000</b></div>
+          </div>
+          <div class="dp-mod">
+            <h4 data-ru="Топ-рекомендации">Top recommendations</h4>
+            <div class="dp-flag"><span class="d" style="background:var(--danger)"></span><span data-ru="Снизить концентрацию — 44% в 2 протоколах">Reduce concentration — 44% in 2 protocols</span></div>
+            <div class="dp-flag"><span class="d" style="background:var(--data-teal)"></span><span data-ru="Задействовать простаивающий капитал — $13,500">Put idle capital to work — $13,500 idle</span></div>
+            <div class="dp-flag"><span class="d" style="background:var(--accent)"></span><span data-ru="Проверить approvals — 3 безлимитных">Review approvals — 3 unlimited</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="final-cta" style="margin-top:26px">
+        <a class="btn btn-primary" href="/#analyze" data-ru="Проверить кошелёк">Analyze wallet</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ WHAT YOUR CHECKUP INCLUDES ============ -->
+  <section class="band alt">
+    <div class="container">
+      <div class="sec-head">
+        <span class="eyebrow" data-ru="Бесплатный чекап">Free checkup</span>
+        <h2 data-ru="Что входит в ваш бесплатный чекап">What your free checkup includes</h2>
+      </div>
+      <div class="feat-grid">
+        <div class="feat-card"><h3 data-ru="Обзор портфеля">Portfolio overview</h3><p data-ru="Все активы, сети, токены, протоколы, работающий vs простаивающий капитал.">Total assets, chains, tokens, protocols, idle vs deployed capital.</p></div>
+        <div class="feat-card"><h3 data-ru="Эффективность доходности">Yield efficiency</h3><p data-ru="Оценка смешанного APY, простаивающий капитал, упущенная доходность, дисбаланс риск/доход.">Estimated blended APY, idle capital, missed yield potential, yield/risk mismatch.</p></div>
+        <div class="feat-card"><h3 data-ru="Разбор риска">Risk breakdown</h3><p data-ru="Риск протоколов, концентрации, ликвидности, стейблкоинов, смарт-контрактов.">Protocol risk, concentration, liquidity, stablecoin risk, smart-contract exposure.</p></div>
+        <div class="feat-card"><h3 data-ru="Гигиена кошелька">Wallet hygiene</h3><p data-ru="Активные approvals, безлимитные approvals, старые разрешения, рискованные контракты.">Active approvals, unlimited approvals, old permissions, risky contract exposure.</p></div>
+        <div class="feat-card"><h3 data-ru="Рекомендации">Recommendations</h3><p data-ru="Топ-риски, топ-возможности и соответствие стратегии.">Top risks, top opportunities, and strategy fit.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ NOT ANOTHER TRACKER ============ -->
+  <section class="band">
+    <div class="container">
+      <div class="sec-head">
+        <span class="eyebrow" data-ru="Позиционирование">Positioning</span>
+        <h2 data-ru="Не очередной трекер портфеля. Слой принятия решений для DeFi.">Not another portfolio tracker. A decision layer for DeFi.</h2>
+        <p data-ru="Трекеры показывают, что у вас есть. DeFi Checkup объясняет, имеет ли ваш портфель смысл.">Portfolio trackers show what you own. DeFi Checkup explains whether your portfolio makes sense.</p>
+      </div>
+      <table class="cmp-table">
+        <tr><th data-ru="Функция">Feature</th><th data-ru="Трекеры портфеля">Portfolio trackers</th><th>DeFi Checkup</th></tr>
+        <tr><td data-ru="Показать активы кошелька">Show wallet assets</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+        <tr><td data-ru="Показать позиции в протоколах">Show protocol positions</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+        <tr><td data-ru="Оценить простаивающий капитал">Estimate idle capital</td><td class="mid" data-ru="Иногда">Sometimes</td><td class="yes">Yes</td></tr>
+        <tr><td data-ru="Объяснить дисбаланс риск/доход">Explain risk/yield mismatch</td><td class="no">No</td><td class="yes">Yes</td></tr>
+        <tr><td data-ru="Сравнить с профилями стратегий">Compare with strategy profiles</td><td class="no">No</td><td class="yes">Yes</td></tr>
+        <tr><td data-ru="Практичные рекомендации">Practical recommendations</td><td class="mid" data-ru="Ограничено">Limited</td><td class="yes">Yes</td></tr>
+        <tr><td data-ru="Мониторинг изменений риска">Monitor risk changes</td><td class="mid" data-ru="Ограничено">Limited</td><td class="mid" data-ru="Планируется">Planned</td></tr>
+        <tr><td data-ru="Публичный strategy lab">Public strategy lab</td><td class="no">No</td><td class="yes">Yes</td></tr>
+      </table>
     </div>
   </section>
 
@@ -178,8 +224,9 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
   <section class="band" id="track">
     <div class="container">
       <div class="sec-head">
-        <span class="eyebrow" data-ru="Трек-рекорд">Track Record</span>
-        <h2 data-ru="Честный бумажный трек, в реальном времени">An honest paper track, live</h2>
+        <span class="eyebrow" data-ru="Прозрачность">Transparency</span>
+        <h2 data-ru="Публичный трек-рекорд, а не маркетинг доходности.">Public track record, not yield marketing.</h2>
+        <p data-ru="Каждое обновление стратегии логируется. Каждая проверка правил видна. Бумажное тестирование — раньше реального капитала.">Every strategy update is logged. Every rule check is visible. Paper testing comes before real capital.</p>
       </div>
       <div class="track-band">
         <div class="track-metrics">
@@ -204,54 +251,66 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
   <section class="band" id="how">
     <div class="container">
       <div class="sec-head">
-        <span class="eyebrow" data-ru="Как это работает">How it works</span>
-        <h2 data-ru="Детерминированный дневной цикл">A deterministic daily cycle</h2>
+        <span class="eyebrow" data-ru="Методология">Methodology</span>
+        <h2 data-ru="Как система защищает дисциплину">How the system protects discipline</h2>
       </div>
       <div class="steps">
         <div class="step">
           <div class="n">01</div>
-          <h4 data-ru="Считываем рынок">Read the market</h4>
-          <p data-ru="Read-only адаптеры получают живые APY/TVL из whitelist-протоколов DeFi.">Read-only adapters pull live APY/TVL from whitelisted DeFi protocols.</p>
+          <h4 data-ru="Сканирует рынок">Scans the market</h4>
+          <p data-ru="Отслеживает APY, TVL, ликвидность, риск протоколов, концентрацию и экспозицию стейблкоинов.">Tracks APY, TVL, liquidity, protocol risk, concentration, and stablecoin exposure.</p>
         </div>
         <div class="step">
           <div class="n">02</div>
-          <h4 data-ru="Решает политика, не LLM">Policy decides, not an LLM</h4>
-          <p data-ru="Детерминированная RiskPolicy задаёт лимиты TVL, концентрации и денежного буфера.">A deterministic RiskPolicy enforces TVL, concentration, and cash-buffer limits.</p>
+          <h4 data-ru="Применяет строгие правила">Applies strict rules</h4>
+          <p data-ru="Стратегии следуют заранее заданным риск-политикам, а не эмоциям или чёрному ящику AI.">Strategies follow predefined risk policies instead of emotional decisions or black-box AI calls.</p>
         </div>
         <div class="step">
           <div class="n">03</div>
-          <h4 data-ru="Логируем всё">Log everything</h4>
-          <p data-ru="Каждая бумажная сделка, решение риск-гейта и точка кривой капитала публичны.">Every paper trade, risk-gate decision, and equity point is public.</p>
+          <h4 data-ru="Логирует каждое изменение">Logs every change</h4>
+          <p data-ru="Каждая крупная ребалансировка, отклонённая возможность и риск-событие записаны для проверки.">Every major rebalance, rejected opportunity, and risk event is recorded for review.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ============ RESEARCH / STRUCTURAL DESK ============ -->
-  <section class="band">
+  <!-- ============ BACKED BY A PUBLIC STRATEGY LAB ============ -->
+  <section class="band alt">
     <div class="container">
       <div class="sec-head">
         <span class="eyebrow" data-ru="Исследование">Research</span>
-        <h2 data-ru="Реальный эдж — это структурная роль">The real edge is a structural role</h2>
+        <h2 data-ru="За чекапом — публичный strategy lab">Backed by a public strategy lab</h2>
+        <p data-ru="Наш чекап связан с SPA Strategy Lab — публичной исследовательской системой, где мы paper-тестируем стратегии доходности по стейблкоинам, прежде чем рисковать реальным капиталом.">Our checkup is connected to SPA Strategy Lab — a public research system where we paper-test stablecoin yield strategies before risking real capital.</p>
       </div>
-      <a class="research-card" href="/structural-desk">
-        <p class="rc-lead" data-ru="Наш собственный бэктест доказал: обычная крипто-доходность — не эдж. Реальный эдж масштаба $10M — это прозрачный стол измерения и андеррайтинга для on-chain ставок, залога и риска. Три тезиса, де-рискнутых на нашем стеке: Rates Desk (GO), RWA-бэкстоп (measurement-GO), Кросс-доменный ликвидатор (NO-GO — мы публикуем то, что убили).">
-          Our own backtest proved plain crypto yield isn't an edge. The real $10M-scale edge is a
-          transparent measurement &amp; underwriting desk for on-chain rates, collateral and risk.
-          Three theses, de-risked on our stack: Rates Desk (GO), RWA Backstop (measurement-GO),
-          Cross-Domain Liquidator (NO-GO — we publish what we killed).
-        </p>
-        <span class="rc-cta" data-ru="Открыть Структурный стол →">Open the Structural Desk →</span>
-      </a>
+      <p style="color:var(--text-secondary); max-width:680px; margin:0 auto; text-align:center; font-size:.9375rem">
+        <span data-ru="Чекап помогает понять ваш текущий портфель. SPA Strategy Lab показывает, как можно структурировать и отслеживать разные профили риска — каждое обновление залогировано, каждая проверка правил видна.">The checkup helps you understand your current portfolio. The SPA Strategy Lab shows how different risk profiles can be structured and tracked over time — every update logged, every rule check visible.</span>
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ TRUST BY DESIGN ============ -->
+  <section class="band">
+    <div class="container">
+      <div class="sec-head">
+        <span class="eyebrow" data-ru="Доверие по дизайну">Trust by design</span>
+        <h2 data-ru="Построено так, чтобы не верить нам на слово">Built so you never have to trust us blindly</h2>
+      </div>
+      <div class="trust-grid">
+        <div class="trust-card"><h3 data-ru="Без депозитов">No deposits</h3><p data-ru="Мы никогда не просим вносить средства или подключать кошелёк для подписи.">We never ask you to deposit funds or connect a wallet for signing.</p></div>
+        <div class="trust-card"><h3 data-ru="Только публичные адреса">Public addresses only</h3><p data-ru="Чекап работает с публичными ончейн-данными.">The checkup works with public onchain data.</p></div>
+        <div class="trust-card"><h3 data-ru="Без гарантий доходности">No guaranteed yield</h3><p data-ru="Все цифры APY — оценочные, целевые или paper-tested.">All APY figures are estimated, target-based, or paper-tested.</p></div>
+        <div class="trust-card"><h3 data-ru="Прозрачное исследование">Transparent research</h3><p data-ru="Обновления стратегий, проверки риска и paper-результаты логируются публично.">Strategy updates, risk checks, and paper results are logged publicly.</p></div>
+      </div>
     </div>
   </section>
 
   <!-- ============ FINAL CTA ============ -->
   <section class="band">
     <div class="container final-cta">
-      <h2 data-ru="Смотрите систему вживую">See the system, live</h2>
-      <p data-ru="Дашборд, бумажные сделки и чек-лист go-live — публичны и обновляются ежедневно.">The dashboard, paper trades, and go-live checklist are public and updated daily.</p>
-      <a class="btn btn-primary" href="/dashboard" data-ru="Открыть дашборд ↗">Open dashboard ↗</a>
+      <h2 data-ru="Запустите свой DeFi Checkup">Run your DeFi Checkup</h2>
+      <p data-ru="Вставьте публичный адрес кошелька и увидьте первую версию отчёта о здоровье портфеля.">Paste a public wallet address and see the first version of your portfolio health report.</p>
+      <a class="btn btn-primary" href="/#analyze" data-ru="Проверить кошелёк">Analyze wallet</a>
+      <p class="hero-trust" data-ru="Без email. Без подключения кошелька. Без депозитов.">No email required. No wallet connection. No deposits.</p>
     </div>
   </section>
 </Layout>
@@ -278,6 +337,23 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
   .btn{display:inline-flex; align-items:center; gap:8px; border-radius:var(--r-sm); font-weight:600; font-size:.9375rem; transition:all 120ms var(--ease); cursor:pointer; text-decoration:none}
   .btn-primary{background:var(--accent); color:#fff; padding:14px 26px; box-shadow:var(--shadow-cta)}
   .btn-primary:hover{background:var(--accent-hover); color:#fff; transform:translateY(-2px)}
+
+  /* Wallet Checkup — top-of-funnel hero widget (→ checkup.earn-defi.com) */
+  .walletcheck{max-width:640px; margin:0 auto 34px; padding:24px; border-radius:var(--r-lg);
+    border:1px solid var(--border-strong); background:var(--bg-surface); box-shadow:var(--shadow-cta); text-align:left}
+  .wc-title{font-size:clamp(1.05rem,2.4vw,1.35rem); font-weight:700; color:var(--text-primary); line-height:1.25; margin:0 0 8px; letter-spacing:-.01em}
+  .wc-sub{font-size:.875rem; color:var(--text-secondary); line-height:1.55; margin:0 0 16px}
+  .wc-form{display:flex; gap:10px}
+  .wc-input{flex:1; min-width:0; padding:13px 15px; border-radius:var(--r-sm); border:1px solid var(--border);
+    background:var(--bg-base,#0d1017); color:var(--text-primary); font-size:.9375rem; font-family:var(--font-mono)}
+  .wc-input:focus{outline:none; border-color:var(--accent)}
+  .wc-btn{white-space:nowrap; border:none; cursor:pointer; background:var(--accent); color:#fff;
+    padding:13px 22px; border-radius:var(--r-sm); font-weight:600; font-size:.9375rem; transition:all 120ms var(--ease)}
+  .wc-btn:hover{background:var(--accent-hover); transform:translateY(-1px)}
+  .wc-hint{font-size:.8125rem; margin:10px 0 0}
+  .wc-err{color:var(--warn,#eab308)}
+  .wc-micro{font-family:var(--font-mono); font-size:.6875rem; color:var(--text-faint); margin:12px 0 0; line-height:1.5}
+  @media(max-width:560px){.wc-form{flex-direction:column} .walletcheck{text-align:center}}
   .status-line{display:inline-flex; align-items:center; gap:0; flex-wrap:wrap; justify-content:center; font-family:var(--font-mono); font-size:.8125rem; color:var(--text-muted); margin-bottom:36px}
   .status-line .dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--warn); margin-right:8px; animation:pulse 3s cubic-bezier(.4,0,.6,1) infinite}
   .status-line .seg{color:var(--text-secondary)}
@@ -384,6 +460,57 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
     section.band{padding:48px 0}
     .track-metrics{grid-template-columns:1fr 1fr}
   }
+
+  /* ── Phase 1 redesign: checkup-first hero + new sections ─────────────── */
+  .band.alt{background:var(--bg-surface)}
+  .hero-trust{font-size:.8125rem; color:var(--text-muted); margin:14px 0 0}
+  .hero-bullets{display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:18px 0 0}
+  .hero-bullets span{font-size:.75rem; color:var(--text-secondary); background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-full); padding:6px 13px}
+  .hero-secondary{margin-top:22px}
+  .btn-ghost{display:inline-flex; align-items:center; font-size:.9375rem; font-weight:600; color:var(--text-secondary); border:1px solid var(--border); border-radius:var(--r-sm); padding:11px 20px; transition:all 120ms var(--ease)}
+  .btn-ghost:hover{border-color:var(--border-strong); color:var(--text-primary)}
+  .hero-powered{margin-top:26px; font-size:.8125rem; color:var(--text-muted)}
+  .hero-powered b{color:var(--text-secondary)}
+
+  /* dashboard preview */
+  .dash-preview{position:relative; background:linear-gradient(180deg,var(--bg-surface),var(--bg-base)); border:1px solid var(--border-strong); border-radius:var(--r-xl); padding:26px; box-shadow:0 30px 80px -30px rgba(0,0,0,.6), 0 0 0 1px rgba(91,141,239,.1)}
+  .dp-bar{display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; font-size:.8125rem; color:var(--text-muted); flex-wrap:wrap; gap:8px}
+  .dp-ex{background:var(--teal-bg); color:var(--data-teal); font-size:.6875rem; font-weight:700; padding:4px 10px; border-radius:var(--r-full); text-transform:uppercase; letter-spacing:.06em}
+  .dp-kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:14px}
+  .dp-kpi{background:var(--bg-surface-2); border:1px solid var(--border); border-radius:var(--r-md); padding:16px 18px}
+  .dp-kpi .k{font-size:.6875rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em}
+  .dp-kpi .v{font-size:1.6rem; font-weight:800; margin-top:6px; color:var(--text-primary)}
+  .dp-kpi .v small{font-size:.9rem; color:var(--text-muted)}
+  .dp-kpi .s{font-size:.75rem; color:var(--text-secondary); margin-top:3px}
+  .dp-kpi.teal .v{color:var(--data-teal)} .dp-kpi.amb .v{color:var(--warn)} .dp-kpi.red .v{color:var(--danger)}
+  .dp-low{display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:14px; margin-top:14px}
+  .dp-mod{background:var(--bg-surface-2); border:1px solid var(--border); border-radius:var(--r-md); padding:16px 18px}
+  .dp-mod h4{font-size:.6875rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; margin:0 0 12px; font-weight:700}
+  .dp-row{display:flex; justify-content:space-between; font-size:.8125rem; padding:5px 0; color:var(--text-primary)}
+  .dp-line{height:6px; background:var(--bg-base); border-radius:4px; overflow:hidden; margin:2px 0 9px}
+  .dp-line>i{display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--data-teal)); border-radius:4px}
+  .dp-flag{display:flex; gap:9px; align-items:flex-start; font-size:.8125rem; padding:6px 0; color:var(--text-secondary)}
+  .dp-flag .d{width:6px; height:6px; border-radius:50%; margin-top:7px; flex:none}
+  @media(max-width:820px){.dp-kpis{grid-template-columns:1fr 1fr} .dp-low{grid-template-columns:1fr}}
+
+  /* feature cards + comparison table + trust cards */
+  .feat-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:18px}
+  .feat-card{background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:22px}
+  .feat-card h3{font-size:1rem; color:var(--text-primary); margin:0 0 8px}
+  .feat-card p{font-size:.875rem; color:var(--text-secondary); margin:0; line-height:1.55}
+  @media(max-width:820px){.feat-grid{grid-template-columns:1fr}}
+  .cmp-table{width:100%; border-collapse:collapse; font-size:.875rem; background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden}
+  .cmp-table th{text-align:left; padding:14px 18px; font-size:.6875rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); border-bottom:1px solid var(--border)}
+  .cmp-table th:last-child{color:var(--data-teal)}
+  .cmp-table td{padding:13px 18px; border-bottom:1px solid var(--border); color:var(--text-secondary)}
+  .cmp-table td:first-child{color:var(--text-primary)}
+  .cmp-table tr:last-child td{border-bottom:none}
+  .cmp-table .yes{color:var(--ok); font-weight:600} .cmp-table .no{color:var(--text-muted)} .cmp-table .mid{color:var(--warn)}
+  .trust-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:18px}
+  @media(max-width:820px){.trust-grid{grid-template-columns:1fr 1fr}}
+  .trust-card{background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:20px}
+  .trust-card h3{font-size:.9375rem; color:var(--text-primary); margin:0 0 6px}
+  .trust-card p{font-size:.8125rem; color:var(--text-secondary); margin:0; line-height:1.5}
 </style>
 
 <script is:inline>
