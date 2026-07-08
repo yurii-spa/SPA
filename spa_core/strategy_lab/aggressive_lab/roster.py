@@ -622,6 +622,64 @@ class PointsFarm(_AggressiveBase):
         return points_apy / _DAYS_PER_YEAR
 
 
+# ──────────────────────────────────────────────────────────────────────────────────────────────────
+# 9. ETH/STABLE LP (S78, #96) — DEX liquidity provision. Class C, shape impermanent_loss.
+#    Yield SOURCE: real trading-fee APY on an ETH/stable pool (supplied via defi_apy["lp_eth_stable"]).
+#    The position is 50% ETH, so it carries ETH DIRECTIONAL exposure + IMPERMANENT LOSS: a 50/50
+#    constant-product LP's value scales as √(P/P_entry) of the deposit — it lags the upside (IL drag)
+#    AND bleeds on the downside. The real, dated tail is an ETH crash. Fee is smooth carry; the √-mark
+#    is the honest per-day IL/directional move on the REAL ETH price path (not a stamped shock).
+#    VALIDATION-PENDING / refused-for-live until it clears the lifecycle + tail overlay like the rest.
+# ──────────────────────────────────────────────────────────────────────────────────────────────────
+class EthStableLP(_AggressiveBase):
+    id = "lp_eth_stable"
+    name = "ETH/stablecoin LP (S78): trading-fee APY + directional/IL tail"
+    risk_class = "C"
+    risk_shape = "il"
+    yield_source = "DEX ETH/stable pool trading-fee APY; position is 50% ETH → directional + impermanent loss"
+    headline_apy_pct = 18.0
+    accrual_gap_is_safe_hold = True   # fee feed / price history may be sparse → pause, don't die
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._prev_eth: Optional[float] = None
+        self._entry_eth: Optional[float] = None
+
+    def _daily_yield_pct(self, market: MarketSnapshot) -> float:
+        # REAL trading-fee APY (harness-supplied from the live pool feed; fail-CLOSED if absent —
+        # NO hardcoded fee yield). This is the LP's smooth carry leg.
+        fee_apy = market.require("defi_apy", "lp_eth_stable")
+        return fee_apy / _DAYS_PER_YEAR
+
+    def _mark_to_market_pct(self, market: MarketSnapshot) -> float:
+        # IMPERMANENT-LOSS + DIRECTIONAL mark. A 50/50 constant-product LP's value scales as
+        # √(P/P_entry) of the deposit, so the daily LP value change on the REAL ETH price path is
+        # √(P_today/P_prev) − 1: ~half the ETH move up (the IL drag vs holding) and a real, dated
+        # DIP on an ETH crash — the honest tail, from the real price series, never a stamped number.
+        import math as _m
+        eth = market.require("eth_price")
+        if self._entry_eth is None:
+            self._entry_eth = eth
+        if self._prev_eth is None:
+            self._prev_eth = eth
+            return 0.0
+        prev = self._prev_eth
+        self._prev_eth = eth
+        self._mtm_source = "realized_backtest_series"
+        return (_m.sqrt(eth / prev) - 1.0) if (prev and prev > 0) else 0.0
+
+    def _kill(self, market: MarketSnapshot) -> tuple:
+        # Tail kill: a deep LP-value drawdown from entry (ETH crash → LP bleed). Config-sourced,
+        # no hardcode. LP value ratio = √(P/P_entry); a −25% default is a hostile directional/IL move.
+        eth = market.require("eth_price")
+        entry = self._entry_eth or eth
+        lp_dd_pct = ((eth / entry) ** 0.5 - 1.0) * 100.0 if (entry and entry > 0) else 0.0
+        thr = float(self._cfg.get("lp_drawdown_kill_pct", -25.0))
+        if lp_dd_pct < thr:
+            return (True, f"LP value {lp_dd_pct:.1f}% < {thr:.1f}% (ETH-crash / IL tail)")
+        return (False, "")
+
+
 # ── the roster registry (deterministic order) ──────────────────────────────────────────────────────
 ROSTER_CLASSES = (
     SusdeDeltaNeutral,
@@ -632,6 +690,7 @@ ROSTER_CLASSES = (
     EthDirectional,
     LeverageLoop,
     PointsFarm,
+    EthStableLP,
 )
 
 

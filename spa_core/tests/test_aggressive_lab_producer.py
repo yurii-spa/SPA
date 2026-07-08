@@ -67,7 +67,7 @@ def test_roster_complete_and_declares_source_and_shape():
     # ETH-directional, leverage-loop, points-farm.
     assert set(ids) == {
         "susde_dn", "susde_spot", "pendle_yt_susde", "pendle_pt_levered",
-        "lrt_neutral", "eth_directional", "leverage_loop", "points_farm",
+        "lrt_neutral", "eth_directional", "leverage_loop", "points_farm", "lp_eth_stable",
     }
     valid_shapes = {"funding_flip", "depeg", "liquidation", "il", "incentive_decay"}
     for sid, s in strats.items():

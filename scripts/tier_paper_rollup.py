@@ -27,7 +27,7 @@ _AGG = _ROOT / "data" / "aggressive_lab" / "scorecard.json"
 _OUT = _ROOT / "data" / "tier_paper_rollup.json"
 
 _BALANCED = {"susde_dn", "susde_spot", "lrt_neutral"}
-_AGGRESSIVE = {"pendle_pt_levered", "pendle_yt_susde", "points_farm"}
+_AGGRESSIVE = {"pendle_pt_levered", "pendle_yt_susde", "points_farm", "lp_eth_stable"}
 
 
 def _read(path: Path, default):

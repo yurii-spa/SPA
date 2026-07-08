@@ -41,6 +41,10 @@ from spa_core.strategy_lab.base import InvalidDataError, MarketSnapshot
 # require it fail closed if it is not supplied; the default below is only used when points modelling
 # is enabled. (It is NOT a hardcoded yield for a market-priced strategy — those use the live feeds.)
 DEFAULT_POINTS_APY = 0.06
+# ETH/stable LP trading-fee APY (S78, #96). Config-modelled default (like points) — flagged as a
+# MODEL input, not a live feed yet; the VALIDATION step is to wire this to a live DeFiLlama ETH/stable
+# pool apyBase. The IL/directional TAIL is already REAL (marked off the live ETH price path).
+DEFAULT_LP_FEE_APY = 0.18
 
 
 def _utc_today() -> str:
@@ -132,6 +136,8 @@ class AggressiveFeeds:
             defi["pendle_yt_susde"] = pt + self._yt_premium
         if self._enable_points:
             defi["points"] = self._points_apy
+        # LP fee APY (S78): config-modelled until wired to a live pool feed (#96). Tail is real (ETH path).
+        defi["lp_eth_stable"] = float(getattr(self, "_lp_fee_apy", DEFAULT_LP_FEE_APY))
         snap.defi_apy = defi
         return snap
 
@@ -203,6 +209,8 @@ class AggressiveFeeds:
                 snap.gaps.add("lrt_eth_ratio")
         if self._enable_points:
             defi["points"] = self._points_apy
+        # LP fee APY (S78): config-modelled until wired to a live pool feed (#96). Tail is real (ETH path).
+        defi["lp_eth_stable"] = float(getattr(self, "_lp_fee_apy", DEFAULT_LP_FEE_APY))
 
         snap.defi_apy = defi
         return snap
