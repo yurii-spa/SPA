@@ -251,6 +251,13 @@ class StrategyAllocator:
     T2_TOTAL_CAP: float = (
         _POLICY_CONFIG.max_total_t2_allocation if _POLICY_CONFIG is not None else 0.50
     )
+    # ADR-020: T3 (highest-risk: sUSDe, extra_finance_base, …) total cap 15%. Read from the same
+    # policy config so it can never drift. The WS1.2 optimizer collapsed T3→T2 (allocator only ever
+    # emitted "T1"/"T2" tier strings), so this cap was silently unenforced — the optimized_yield book
+    # could pour 30% into T3. _enforce_t3_total_cap (below) re-applies it against the CANONICAL tier_map.
+    T3_TOTAL_CAP: float = (
+        getattr(_POLICY_CONFIG, "max_total_t3_allocation", 0.15) if _POLICY_CONFIG is not None else 0.15
+    )
     # A4 (de-hardcode ALLOC-002): the diversity floor (≤ N funded protocols) is
     # read from RiskConfig (single source of truth) instead of a hardcoded `8`
     # inside allocate(). Owner-gated like every other cap; the WS1.2 optimizer
@@ -734,6 +741,44 @@ class StrategyAllocator:
         )
         return w, True
 
+    def _enforce_t3_total_cap(
+        self, weights: dict[str, float]
+    ) -> tuple[dict[str, float], bool]:
+        """Cap total T3 exposure at :data:`T3_TOTAL_CAP` (ADR-020, 15%).
+
+        T3 = the highest-risk tier (sUSDe, extra_finance_base, …). Classified via the CANONICAL
+        ``tier_map.tier_of`` — NOT the allocator's collapsed "T1"/"T2" tier strings, which never
+        emitted "T3" and so let the optimizer's T3 exposure go unenforced. If Σ T3 > 15%, T3 weights
+        are scaled down proportionally; the freed weight honestly stays cash (it is NOT water-filled
+        into a riskier tier). Idempotent, fail-safe (a tier lookup that fails treats the pool as
+        non-T3 → never forces a trim it can't justify). Returns ``(weights, enforced)``.
+        """
+        try:
+            from spa_core.adapters.tier_map import tier_of
+        except Exception:  # noqa: BLE001 — no resolver → nothing to enforce (fail-open, logged upstream)
+            return dict(weights), False
+
+        def _is_t3(p: str) -> bool:
+            try:
+                return str(tier_of(p) or "").upper() == "T3"
+            except Exception:  # noqa: BLE001
+                return False
+
+        t3_total = sum(wt for p, wt in weights.items() if _is_t3(p))
+        if t3_total <= self.T3_TOTAL_CAP + _EPS:
+            return dict(weights), False
+
+        scale = self.T3_TOTAL_CAP / t3_total
+        w = dict(weights)
+        for p, wt in list(w.items()):
+            if _is_t3(p):
+                w[p] = wt * scale
+        log.warning(
+            "ADR-020: T3-total cap applied: %.1f%% → %.1f%% (freed weight → cash)",
+            t3_total * 100, self.T3_TOTAL_CAP * 100,
+        )
+        return w, True
+
     # ── заполнение остатка T1-якорем (SPA-V405) ───────────────────────────
     def _fill_remainder(
         self,
@@ -1023,6 +1068,17 @@ class StrategyAllocator:
             notes.append(
                 f"MP-011: суммарный T2 срезан до {self.T2_TOTAL_CAP * 100:.0f}% "
                 "(излишек перераспределён в headroom T1 либо остался кэшем)."
+            )
+
+        # ADR-020: T3-total cap (15%) — final invariant. The WS1.2 optimizer collapsed T3→T2 and
+        # never enforced this, so optimized_yield could pour 30% into T3 (susde + extra_finance).
+        # Re-applied here against the CANONICAL tier_map; the trimmed weight stays cash (never moved
+        # to a riskier tier). Makes the go-live book compliant with the T3 cap the policy layer asserts.
+        capped, t3_cap_enforced = self._enforce_t3_total_cap(capped)
+        if t3_cap_enforced:
+            notes.append(
+                f"ADR-020: суммарный T3 срезан до {self.T3_TOTAL_CAP * 100:.0f}% "
+                "(излишек честно остался кэшем — не перемещён в более рисковый тир)."
             )
 
         # Возвращаем исключённые риском протоколы в вывод с нулевым весом —
