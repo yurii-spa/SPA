@@ -159,6 +159,7 @@ app.add_middleware(RateLimitMiddleware)
 # Order preserved from the monolith's definition order so OpenAPI listing is stable.
 from spa_core.api.routers import (  # noqa: E402
     aggressive_lab,
+    analytics,
     cockpit,
     competitive_watch,
     dfb,
@@ -178,6 +179,7 @@ from spa_core.api.routers import (  # noqa: E402
 )
 
 app.include_router(misc.router)
+app.include_router(analytics.router)
 app.include_router(tier1.router)
 app.include_router(strategy_lab.router)
 # Aggressive Lab (Lane 3 SURFACE) — advisory/paper-only ranking of the 10-15% strategies the desk

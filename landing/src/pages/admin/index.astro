@@ -58,16 +58,41 @@ const sections = [
         </div>
       </section>
 
-      <!-- Group 2: Product / Site Performance -->
+      <!-- Group 2: Product / Site Performance (live from our own privacy-friendly counter) -->
       <section class="ac-sec">
-        <div class="ac-sec-h">Product / Site Performance <span class="ac-soon">Coming soon — needs analytics backend</span></div>
+        <div class="ac-sec-h">Product / Site Performance <span class="ac-soon" id="an-state">loading…</span></div>
         <div class="ac-tiles">
-          {['Visitors today','Visitors 7d','Wallet analyses','Analysis completion','Visitor→analysis','Leads collected','CTA clicks','Bounce rate'].map((k) => (
-            <div class="ac-tile soon"><div class="k">{k}</div><div class="v">—</div></div>
-          ))}
+          <div class="ac-tile"><div class="k">Views today</div><div class="v" id="an-today">—</div></div>
+          <div class="ac-tile"><div class="k">Views 7d</div><div class="v" id="an-7d">—</div></div>
+          <div class="ac-tile"><div class="k">Analyze-wallet clicks</div><div class="v" id="an-analyze">—</div></div>
+          <div class="ac-tile"><div class="k">Strategy Lab clicks</div><div class="v" id="an-strat">—</div></div>
+          <div class="ac-tile soon"><div class="k">Leads collected</div><div class="v">—</div></div>
+          <div class="ac-tile soon"><div class="k">Funnel completion</div><div class="v">—</div></div>
+          <div class="ac-tile soon"><div class="k">Bounce rate</div><div class="v">—</div></div>
+          <div class="ac-tile soon"><div class="k">Returning users</div><div class="v">—</div></div>
         </div>
-        <p class="ac-note">Product analytics, leads, and funnels are event-tracked data we don't collect yet. They render as honest placeholders — never fabricated numbers.</p>
+        <div class="ac-pages" id="an-pages"></div>
+        <p class="ac-note">Views &amp; CTA clicks are live from our own privacy-friendly counter (page + event + coarse time, no IP/cookies/PII). Leads, funnels, bounce and returning-user metrics need deeper event tracking — honest placeholders until then, never fabricated.</p>
       </section>
+      <script is:inline>
+        (function(){
+          var API = (location.hostname==='localhost'||location.hostname==='127.0.0.1') ? 'http://localhost:8765' : 'https://api.earn-defi.com';
+          function set(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; }
+          fetch(API+'/api/analytics/summary').then(function(r){return r.json();}).then(function(d){
+            if(!d) return;
+            set('an-today', d.views_today!=null?d.views_today:'—');
+            set('an-7d', d.views_7d!=null?d.views_7d:'—');
+            var ev=d.events||{};
+            set('an-analyze', ev.analyze_wallet!=null?ev.analyze_wallet:0);
+            set('an-strat', ev.view_strategy_lab!=null?ev.view_strategy_lab:0);
+            set('an-state','live');
+            var pg=document.getElementById('an-pages');
+            if(pg && d.top_pages && d.top_pages.length){
+              pg.innerHTML='<div class="ac-pages-h">Top pages</div>'+d.top_pages.map(function(p){return '<div class="ac-pg"><span>'+p.page+'</span><b>'+p.views+'</b></div>';}).join('');
+            }
+          }).catch(function(){ set('an-state','offline — API not reachable'); });
+        })();
+      </script>
 
       <!-- Operator directory -->
       <section class="ac-sec">
@@ -112,4 +137,8 @@ const sections = [
   .ac-dir-item .arr{margin-left:auto; color:var(--accent)}
   .ac-dir-item.soon{opacity:.5}
   .ac-dir-item.soon .tag{margin-left:auto; font-family:var(--font-mono); font-size:.625rem; text-transform:uppercase; color:var(--text-muted); border:1px solid var(--border); border-radius:var(--r-full); padding:2px 8px}
+  .ac-pages{margin-top:14px}
+  .ac-pages-h{font-family:var(--font-mono); font-size:.6875rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); margin-bottom:8px}
+  .ac-pg{display:flex; justify-content:space-between; font-size:.8125rem; padding:6px 0; border-bottom:1px solid var(--border); color:var(--text-secondary)}
+  .ac-pg b{color:var(--text-primary)}
 </style>

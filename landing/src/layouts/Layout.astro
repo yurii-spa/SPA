@@ -211,5 +211,19 @@ const schemaData = JSON.stringify({
         else init();
       })();
     </script>
+    <!-- Site analytics beacon (privacy-friendly MVP): fires a page-view + exposes window.spaTrack
+         for click events. No cookies, no IP stored server-side, no PII. Fails silently. -->
+    <script is:inline>
+      (function(){
+        var API = (location.hostname==='localhost'||location.hostname==='127.0.0.1') ? 'http://localhost:8765' : 'https://api.earn-defi.com';
+        function send(ev){ try{ fetch(API+'/api/analytics/event',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({page:location.pathname,event:ev||'view'}),keepalive:true}).catch(function(){}); }catch(e){} }
+        window.spaTrack = send;
+        send('view');
+        document.addEventListener('click', function(e){
+          var t = e.target && e.target.closest && e.target.closest('[data-track]');
+          if(t){ send(t.getAttribute('data-track')); }
+        });
+      })();
+    </script>
   </body>
 </html>
