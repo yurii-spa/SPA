@@ -57,7 +57,11 @@ export default function WalletCheck() {
     const s = val.trim();
     if (!looksValid(s)) { setErr(true); return; }
     setErr(false);
-    window.location.href = CHECKUP + encodeURIComponent(s);
+    // Pull the bare 0x address out of a DeBank profile URL — the checkup expects
+    // an address/ENS, not the full URL (passing the URL raw would fail to resolve).
+    const debank = s.match(/debank\.com\/profile\/(0x[a-fA-F0-9]{40})/i);
+    const target = debank ? debank[1] : s;
+    window.location.href = CHECKUP + encodeURIComponent(target);
   }
 
   return (
