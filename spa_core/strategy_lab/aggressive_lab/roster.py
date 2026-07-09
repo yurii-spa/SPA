@@ -680,6 +680,59 @@ class EthStableLP(_AggressiveBase):
         return (False, "")
 
 
+
+# ──────────────────────────────────────────────────────────────────────────────────────────────────
+# 10. LEVERED RESTAKING (S79, #96) — deeper-leverage staking loop. Class C, shape liquidation.
+#     Yield SOURCE: real staking APY × 3× leverage − borrow cost. Deeper than LeverageLoop (2×): the
+#     liquidation tail on the stETH/ETH ratio is amplified 3× — a small depeg cascades faster. Real
+#     feed (restaking_apy["steth"] + lrt_ratio["steth"]); no real mark this tick → pure-accrual day.
+# ──────────────────────────────────────────────────────────────────────────────────────────────────
+class LeveredRestaking(_AggressiveBase):
+    id = "levered_restaking"
+    name = "Levered restaking (S79): 3\u00d7 staking loop"
+    risk_class = "C"
+    risk_shape = "liquidation"
+    yield_source = "Staking APY \u00d7 3\u00d7 leverage \u2212 borrow cost (liquidation tail on the stETH/ETH ratio, amplified 3\u00d7)"
+    headline_apy_pct = 11.0
+    accrual_gap_is_safe_hold = True
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._liquidated = False
+
+    def init(self, capital: float, config: dict) -> None:
+        super().init(capital, config)
+        self._liquidated = False
+
+    def _daily_yield_pct(self, market: MarketSnapshot) -> float:
+        try:
+            staking = market.require("restaking_apy", "steth")
+        except InvalidDataError:
+            staking = market.require("defi_apy", "aave_v3_wsteth")
+        lev = float(self._cfg.get("leverage", 3.0))
+        borrow_apy = float(self._cfg.get("borrow_apy", 0.035))
+        net_apy = staking * lev - borrow_apy * (lev - 1.0)
+        self._cum_cost += self._equity * (borrow_apy * (lev - 1.0) / _DAYS_PER_YEAR)
+        return net_apy / _DAYS_PER_YEAR
+
+    def _mark_to_market_pct(self, market: MarketSnapshot) -> float:
+        try:
+            ratio = market.require("lrt_ratio", "steth")
+        except InvalidDataError:
+            return 0.0
+        lev = float(self._cfg.get("leverage", 3.0))
+        levered_move = self._ratio_mtm(ratio) * lev
+        liq_buffer = float(self._cfg.get("liq_buffer_frac", -0.5 / lev))
+        if levered_move <= liq_buffer:
+            self._liquidated = True
+        return levered_move
+
+    def _kill(self, market: MarketSnapshot) -> tuple:
+        if self._liquidated:
+            return (True, "levered restaking liquidated (stETH/ETH ratio breach at 3x leverage)")
+        return (False, "")
+
+
 # ── the roster registry (deterministic order) ──────────────────────────────────────────────────────
 ROSTER_CLASSES = (
     SusdeDeltaNeutral,
@@ -691,6 +744,7 @@ ROSTER_CLASSES = (
     LeverageLoop,
     PointsFarm,
     EthStableLP,
+    LeveredRestaking,
 )
 
 
