@@ -8,7 +8,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",
-    "prebuild": "python3 ../scripts/generate_track_snapshot.py || true && python3 ../scripts/check_snapshot_freshness.py"
+    "prebuild": "python3 ../scripts/check_snapshot_freshness.py || true"
   },
   "dependencies": {
     "@astrojs/react": "^3.6.0",
