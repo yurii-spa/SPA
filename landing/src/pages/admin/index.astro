@@ -26,10 +26,11 @@ const snapFresh = snapDaysOld == null ? 'unknown' : snapDaysOld <= 2 ? 'fresh' :
 // backend (analytics/leads/funnels/etc.) → scaffold, honest, not faked.
 const sections = [
   { en: 'Overview', href: '/admin', real: true },
-  { en: 'Product Analytics', soon: true },
+  { en: 'Product Analytics', href: '/admin/analytics', real: true },
   { en: 'Users & Leads', soon: true },
   { en: 'Funnels', soon: true },
-  { en: 'Agents', href: '/system', real: true, note: 'system health / agents' },
+  { en: 'Agents', href: '/admin/system-health', real: true, note: 'system + agent posture' },
+  { en: 'Monitoring (RTMR)', href: '/admin/monitoring', real: true },
   { en: 'Strategies', href: '/strategies', real: true },
   { en: 'Tournaments', href: '/tournament', real: true },
   { en: 'Risk Board', href: '/board', real: true },
@@ -41,7 +42,7 @@ const sections = [
   { en: 'Yield Rates', href: '/rates-desk', real: true },
   { en: 'Protocol Due Diligence', href: '/due-diligence', real: true },
   { en: 'Approvals / Security', href: '/security', real: true },
-  { en: 'System Health', href: '/system', real: true },
+  { en: 'System Health', href: '/admin/system-health', real: true },
   { en: 'Research Desk', href: '/structural-desk', real: true, note: 'strategy framework + research' },
   { en: 'Settings', soon: true },
 ];

@@ -1,0 +1,48 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Operator · Product Analytics" admin={true}>
+  <main class="ac"><div class="ac-wrap">
+    <h1 class="ac-h1">Product Analytics</h1>
+    <p class="ac-sub">Live from our own privacy-friendly counter (page + event + coarse time, no IP/cookies/PII). Leads/funnels need deeper tracking — shown as honest placeholders.</p>
+    <section class="ac-sec"><div class="ac-sec-h">Traffic <span class="ac-soon" id="an-state">loading…</span></div>
+      <div class="ac-tiles">
+        <div class="ac-tile"><div class="k">Views today</div><div class="v" id="a-today">—</div></div>
+        <div class="ac-tile"><div class="k">Views 7d</div><div class="v" id="a-7d">—</div></div>
+        <div class="ac-tile"><div class="k">Total views</div><div class="v" id="a-total">—</div></div>
+        <div class="ac-tile"><div class="k">Analyze-wallet clicks</div><div class="v" id="a-aw">—</div></div>
+      </div></section>
+    <section class="ac-sec"><div class="ac-sec-h">CTA clicks</div><div class="ac-pages" id="a-events"></div></section>
+    <section class="ac-sec"><div class="ac-sec-h">Top pages</div><div class="ac-pages" id="a-pages"></div></section>
+  </div></main>
+</Layout>
+<script is:inline>
+  (function(){
+    var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8765':'https://api.earn-defi.com';
+    function set(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+    fetch(API+'/api/analytics/summary').then(function(r){return r.json();}).then(function(d){
+      set('a-today',d.views_today);set('a-7d',d.views_7d);set('a-total',d.total_views);
+      var ev=d.events||{};set('a-aw',ev.analyze_wallet||0);set('an-state','live');
+      var ec=document.getElementById('a-events');
+      if(ec)ec.innerHTML=Object.keys(ev).map(function(k){return '<div class="ac-pg"><span>'+k+'</span><b>'+ev[k]+'</b></div>';}).join('')||'<div class="ac-pg"><span>no events yet</span></div>';
+      var pg=document.getElementById('a-pages');
+      if(pg&&d.top_pages)pg.innerHTML=d.top_pages.map(function(p){return '<div class="ac-pg"><span>'+p.page+'</span><b>'+p.views+'</b></div>';}).join('')||'<div class="ac-pg"><span>—</span></div>';
+    }).catch(function(){set('an-state','offline');});
+  })();
+</script>
+<style>
+  .ac{background:var(--bg-base);min-height:calc(100vh - 52px);padding:32px 0 80px}
+  .ac-wrap{max-width:1100px;margin:0 auto;padding:0 24px}
+  .ac-h1{font-size:1.6rem;font-weight:800;color:var(--text-primary);margin:0}
+  .ac-sub{color:var(--text-secondary);font-size:.9375rem;margin:8px 0 28px;max-width:680px}
+  .ac-sec{margin-bottom:30px}
+  .ac-sec-h{font-family:var(--font-mono);font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:14px;display:flex;gap:12px;align-items:center}
+  .ac-soon{color:var(--warn);font-weight:600;text-transform:none;font-family:var(--font-sans)}
+  .ac-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media(max-width:820px){.ac-tiles{grid-template-columns:1fr 1fr}}
+  .ac-tile{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-md);padding:16px 18px}
+  .ac-tile .k{font-size:.6875rem;color:var(--text-muted);text-transform:uppercase}
+  .ac-tile .v{font-size:1.5rem;font-weight:800;color:var(--text-primary);margin-top:6px}
+  .ac-pg{display:flex;justify-content:space-between;font-size:.8125rem;padding:8px 0;border-bottom:1px solid var(--border);color:var(--text-secondary)}
+  .ac-pg b{color:var(--text-primary)}
+</style>

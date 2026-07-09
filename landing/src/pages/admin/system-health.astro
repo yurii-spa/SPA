@@ -1,0 +1,46 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Operator · System Health" admin={true}>
+  <main class="ac"><div class="ac-wrap">
+    <h1 class="ac-h1">System Health</h1>
+    <p class="ac-sub">Live from api.earn-defi.com — track, API, and go-live posture. Fail-closed: offline shows honestly, never a fabricated green.</p>
+    <section class="ac-sec"><div class="ac-sec-h">Track &amp; API <span class="ac-soon" id="s-state">loading…</span></div>
+      <div class="ac-tiles">
+        <div class="ac-tile"><div class="k">API</div><div class="v" id="s-api">—</div></div>
+        <div class="ac-tile"><div class="k">Evidenced days</div><div class="v" id="s-days">—</div></div>
+        <div class="ac-tile"><div class="k">Current APY</div><div class="v" id="s-apy">—</div></div>
+        <div class="ac-tile"><div class="k">Last update</div><div class="v" id="s-upd" style="font-size:.95rem">—</div></div>
+      </div></section>
+    <section class="ac-sec"><div class="ac-sec-h">Deep pages</div><div class="ac-pg"><a href="/system" style="color:var(--accent)">Full system hub →</a></div><div class="ac-pg"><a href="/status" style="color:var(--accent)">Go-live status →</a></div><div class="ac-pg"><a href="/monitoring" style="color:var(--accent)">RTMR monitoring →</a></div></section>
+  </div></main>
+</Layout>
+<script is:inline>
+  (function(){
+    var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8765':'https://api.earn-defi.com';
+    function set(id,v,c){var e=document.getElementById(id);if(e){e.textContent=v;if(c)e.className='v '+c;}}
+    fetch(API+'/api/health-public').then(function(r){return r.json();}).then(function(d){
+      set('s-api','online','ok');set('s-days',d.real_track_days!=null?d.real_track_days+'/30':'—');
+      set('s-apy',d.ytd_apy_pct!=null?'~'+Number(d.ytd_apy_pct).toFixed(1)+'%':'—');
+      set('s-upd',(d.generated_at||'').slice(0,16).replace('T',' '));
+      document.getElementById('s-state').textContent='live';
+    }).catch(function(){set('s-api','OFFLINE','bad');document.getElementById('s-state').textContent='API offline';});
+  })();
+</script>
+<style>
+  .ac{background:var(--bg-base);min-height:calc(100vh - 52px);padding:32px 0 80px}
+  .ac-wrap{max-width:1100px;margin:0 auto;padding:0 24px}
+  .ac-h1{font-size:1.6rem;font-weight:800;color:var(--text-primary);margin:0}
+  .ac-sub{color:var(--text-secondary);font-size:.9375rem;margin:8px 0 28px;max-width:680px}
+  .ac-sec{margin-bottom:30px}
+  .ac-sec-h{font-family:var(--font-mono);font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:14px;display:flex;gap:12px;align-items:center}
+  .ac-soon{color:var(--warn);font-weight:600;text-transform:none;font-family:var(--font-sans)}
+  .ac-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media(max-width:820px){.ac-tiles{grid-template-columns:1fr 1fr}}
+  .ac-tile{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-md);padding:16px 18px}
+  .ac-tile .k{font-size:.6875rem;color:var(--text-muted);text-transform:uppercase}
+  .ac-tile .v{font-size:1.4rem;font-weight:800;color:var(--text-primary);margin-top:6px}
+  .ac-tile .v.ok{color:var(--ok)} .ac-tile .v.warn{color:var(--warn)} .ac-tile .v.bad{color:var(--danger)}
+  .ac-pg{display:flex;justify-content:space-between;font-size:.8125rem;padding:8px 0;border-bottom:1px solid var(--border);color:var(--text-secondary)}
+  .ac-pg b{color:var(--text-primary)}
+</style>

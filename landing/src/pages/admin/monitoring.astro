@@ -1,0 +1,46 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Operator · Monitoring" admin={true}>
+  <main class="ac"><div class="ac-wrap">
+    <h1 class="ac-h1">Live Risk Monitoring (RTMR)</h1>
+    <p class="ac-sub">Continuous de-risk sentinel — peg, TVL, oracle, exit-liquidity across multi-source quorum. Paper, fail-closed. Full public view at /monitoring.</p>
+    <section class="ac-sec"><div class="ac-sec-h">Posture <span class="ac-soon" id="m-state">loading…</span></div>
+      <div class="ac-tiles">
+        <div class="ac-tile"><div class="k">Posture</div><div class="v" id="m-post">—</div></div>
+        <div class="ac-tile"><div class="k">Worst signal</div><div class="v" id="m-worst" style="font-size:1rem">—</div></div>
+        <div class="ac-tile"><div class="k">Active de-risks</div><div class="v" id="m-active">—</div></div>
+        <div class="ac-tile"><div class="k">Last tick</div><div class="v" id="m-tick" style="font-size:1rem">—</div></div>
+      </div></section>
+    <section class="ac-sec"><div class="ac-pg"><a href="/monitoring" style="color:var(--accent)">Full RTMR dashboard →</a></div></section>
+  </div></main>
+</Layout>
+<script is:inline>
+  (function(){
+    var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8765':'https://api.earn-defi.com';
+    function set(id,v,c){var e=document.getElementById(id);if(e){e.textContent=v;if(c)e.className='v '+c;}}
+    fetch(API+'/api/rtmr/status').then(function(r){return r.json();}).then(function(d){
+      var p=(d.posture||d.stance||'NORMAL');set('m-post',p,p==='NORMAL'?'ok':'warn');
+      set('m-worst',d.worst_severity||d.worst||'calm');set('m-active',d.active_derisks!=null?d.active_derisks:0);
+      set('m-tick',(d.last_tick||d.as_of||'').toString().slice(0,16).replace('T',' '));
+      document.getElementById('m-state').textContent='live';
+    }).catch(function(){document.getElementById('m-state').textContent='API offline';});
+  })();
+</script>
+<style>
+  .ac{background:var(--bg-base);min-height:calc(100vh - 52px);padding:32px 0 80px}
+  .ac-wrap{max-width:1100px;margin:0 auto;padding:0 24px}
+  .ac-h1{font-size:1.6rem;font-weight:800;color:var(--text-primary);margin:0}
+  .ac-sub{color:var(--text-secondary);font-size:.9375rem;margin:8px 0 28px;max-width:680px}
+  .ac-sec{margin-bottom:30px}
+  .ac-sec-h{font-family:var(--font-mono);font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:14px;display:flex;gap:12px;align-items:center}
+  .ac-soon{color:var(--warn);font-weight:600;text-transform:none;font-family:var(--font-sans)}
+  .ac-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media(max-width:820px){.ac-tiles{grid-template-columns:1fr 1fr}}
+  .ac-tile{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-md);padding:16px 18px}
+  .ac-tile .k{font-size:.6875rem;color:var(--text-muted);text-transform:uppercase}
+  .ac-tile .v{font-size:1.4rem;font-weight:800;color:var(--text-primary);margin-top:6px}
+  .ac-tile .v.ok{color:var(--ok)} .ac-tile .v.warn{color:var(--warn)} .ac-tile .v.bad{color:var(--danger)}
+  .ac-pg{display:flex;justify-content:space-between;font-size:.8125rem;padding:8px 0;border-bottom:1px solid var(--border);color:var(--text-secondary)}
+  .ac-pg b{color:var(--text-primary)}
+</style>
