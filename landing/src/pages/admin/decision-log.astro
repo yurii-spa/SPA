@@ -1,0 +1,44 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Operator · Decision Log" admin={true}>
+  <main class="ac"><div class="ac-wrap">
+    <h1 class="ac-h1">Decision Log</h1>
+    <p class="ac-sub">Live entries + refusals from the rates desk (hash-chained). Every accept/refuse with its structural reason — the audit trail of what the desk did and declined.</p>
+    <section class="ac-sec"><div class="ac-sec-h">Recent decisions <span class="ac-soon" id="d-state">loading…</span></div>
+      <div id="d-list"></div>
+    </section>
+    <section class="ac-sec"><div class="ac-pg"><a href="/cockpit/refusals" style="color:var(--accent)">Full refusal ledger →</a></div><div class="ac-pg"><a href="/refusals" style="color:var(--accent)">Public refusal log →</a></div></section>
+  </div></main>
+</Layout>
+<script is:inline>
+  (function(){
+    var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8765':'https://api.earn-defi.com';
+    fetch(API+'/api/rates-desk/decisions').then(function(r){return r.json();}).then(function(d){
+      var rows=(d&&(d.decisions||d.entries||d.refusals))||[];
+      if(!rows.length&&d&&d.items)rows=d.items;
+      var el=document.getElementById('d-list');
+      document.getElementById('d-state').textContent=rows.length?'live':'no entries';
+      if(el)el.innerHTML=rows.slice(0,25).map(function(x){
+        var v=x.verdict||x.decision||x.action||(x.refused?'REFUSE':'ENTER');
+        var w=x.reason||x.reason_code||x.underlying||x.name||'';
+        return '<div class="ac-pg"><span>'+(x.date||x.as_of||'').toString().slice(0,10)+' · '+w+'</span><b>'+v+'</b></div>';
+      }).join('')||'<div class="ac-pg"><span>no decisions yet</span></div>';
+    }).catch(function(){document.getElementById('d-state').textContent='API offline';});
+  })();
+</script>
+<style>
+  .ac{background:var(--bg-base);min-height:calc(100vh - 52px);padding:32px 0 80px}
+  .ac-wrap{max-width:1100px;margin:0 auto;padding:0 24px}
+  .ac-h1{font-size:1.6rem;font-weight:800;color:var(--text-primary);margin:0}
+  .ac-sub{color:var(--text-secondary);font-size:.9375rem;margin:8px 0 28px;max-width:680px}
+  .ac-sec{margin-bottom:30px}
+  .ac-sec-h{font-family:var(--font-mono);font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:14px;display:flex;gap:12px;align-items:center}
+  .ac-soon{color:var(--warn);font-weight:600;text-transform:none;font-family:var(--font-sans)}
+  .ac-pg{display:flex;justify-content:space-between;gap:12px;font-size:.8125rem;padding:9px 0;border-bottom:1px solid var(--border);color:var(--text-secondary)}
+  .ac-pg b{color:var(--text-primary)}
+  .funnel{display:grid;gap:8px;max-width:560px}
+  .fstep{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+  .fstep .n{font-size:1.2rem;font-weight:800;color:var(--text-primary)}
+  .fstep .l{font-size:.85rem;color:var(--text-secondary)}
+</style>

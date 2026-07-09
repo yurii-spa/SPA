@@ -1,0 +1,45 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Operator · Funnels" admin={true}>
+  <main class="ac"><div class="ac-wrap">
+    <h1 class="ac-h1">Funnels</h1>
+    <p class="ac-sub">From our own privacy-friendly counter. Homepage view → Analyze-wallet click → (deeper steps need report-level events, honest placeholder). No IP/cookies/PII.</p>
+    <section class="ac-sec"><div class="ac-sec-h">Main funnel <span class="ac-soon" id="f-state">loading…</span></div>
+      <div class="funnel">
+        <div class="fstep"><span class="l">Homepage / site views</span><span class="n" id="f-views">—</span></div>
+        <div class="fstep"><span class="l">Analyze-wallet clicks</span><span class="n" id="f-aw">—</span></div>
+        <div class="fstep"><span class="l">Strategy Lab clicks</span><span class="n" id="f-sl">—</span></div>
+        <div class="fstep" style="opacity:.55"><span class="l">Report viewed → lead (needs event)</span><span class="n">soon</span></div>
+      </div>
+      <p style="font-size:.8rem;color:var(--text-faint);margin-top:12px">View→analyze conversion: <b id="f-conv" style="color:var(--text-secondary)">—</b></p>
+    </section>
+  </div></main>
+</Layout>
+<script is:inline>
+  (function(){
+    var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8765':'https://api.earn-defi.com';
+    function set(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+    fetch(API+'/api/analytics/summary').then(function(r){return r.json();}).then(function(d){
+      var ev=d.events||{};var views=d.total_views||0;var aw=ev.analyze_wallet||0;
+      set('f-views',views);set('f-aw',aw);set('f-sl',ev.view_strategy_lab||0);
+      set('f-conv',views>0?((aw/views*100).toFixed(1)+'%'):'—');
+      set('f-state','live');
+    }).catch(function(){set('f-state','offline');});
+  })();
+</script>
+<style>
+  .ac{background:var(--bg-base);min-height:calc(100vh - 52px);padding:32px 0 80px}
+  .ac-wrap{max-width:1100px;margin:0 auto;padding:0 24px}
+  .ac-h1{font-size:1.6rem;font-weight:800;color:var(--text-primary);margin:0}
+  .ac-sub{color:var(--text-secondary);font-size:.9375rem;margin:8px 0 28px;max-width:680px}
+  .ac-sec{margin-bottom:30px}
+  .ac-sec-h{font-family:var(--font-mono);font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:14px;display:flex;gap:12px;align-items:center}
+  .ac-soon{color:var(--warn);font-weight:600;text-transform:none;font-family:var(--font-sans)}
+  .ac-pg{display:flex;justify-content:space-between;gap:12px;font-size:.8125rem;padding:9px 0;border-bottom:1px solid var(--border);color:var(--text-secondary)}
+  .ac-pg b{color:var(--text-primary)}
+  .funnel{display:grid;gap:8px;max-width:560px}
+  .fstep{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+  .fstep .n{font-size:1.2rem;font-weight:800;color:var(--text-primary)}
+  .fstep .l{font-size:.85rem;color:var(--text-secondary)}
+</style>
