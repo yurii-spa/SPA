@@ -104,6 +104,78 @@ def _metrics(equity):
     return apy, mdd, cal
 
 
+def leverage_frontier(loaded, base_id="susde_dn"):
+    """The money question: does the guardian let us run HIGHER leverage at an ACCEPTABLE tail → higher
+    tier yield? Model leverage L on a base strategy's daily returns WITH an explicit liquidation floor:
+    a L× position is wiped when its drawdown from peak breaches the maintenance margin (~1/L). The
+    pre-emptive guardian modulates exposure (de-risk on own-vol spike) — so it can dodge the wipe.
+    HONEST caveat: linear returns×L + a stylized single-threshold liquidation UNDERSTATES the real
+    super-linear cascade tail; this is a directional frontier, not a precise number. Real levered
+    strategies (pendle_pt_levered etc.) carry the true liquidation mark in their own backtest series."""
+    s = loaded.get(base_id) or next((loaded[k] for k in sorted(loaded) if loaded[k].backtest.n_points >= 60), None)
+    if s is None:
+        return
+    eq = _equity_of(s.backtest.series)
+    if len(eq) < 60:
+        return
+    rets = [eq[i] / eq[i - 1] - 1.0 for i in range(1, len(eq))]
+
+    def _stdev(xs):
+        n = len(xs)
+        if n < 2:
+            return 0.0
+        m = sum(xs) / n
+        return (sum((x - m) ** 2 for x in xs) / (n - 1)) ** 0.5
+
+    def run(L, use_guardian, vol_mult=2.0, lookback=10, derisk_frac=0.0, roundtrip_cost=0.0015):
+        # roundtrip_cost = gas + slippage each time exposure CHANGES (exit or re-enter), scaled by the
+        # leverage moved. The pre-emptive guardian churns, so this cost is NOT negligible — omitting it
+        # is exactly what made the first frontier look absurd (0% DD / 52% at 4x).
+        e = [100000.0]
+        peak = e[0]
+        exposure = 1.0
+        maint = 1.0 / L
+        liq = False
+        switches = 0
+        for i in range(len(rets)):
+            if use_guardian and i >= lookback:
+                recent = _stdev(rets[i - lookback + 1: i + 1])
+                base = _stdev(rets[max(0, i - 4 * lookback): i - lookback + 1]) or 1e-9
+                prev = exposure
+                if exposure >= 1.0 and recent > vol_mult * base:
+                    exposure = derisk_frac
+                elif exposure < 1.0 and recent < 1.2 * base:
+                    exposure = 1.0
+                if exposure != prev:
+                    switches += 1
+                    e[-1] *= (1.0 - roundtrip_cost * L * abs(prev - exposure))  # pay to move the levered leg
+            lev_ret = rets[i] * L * exposure
+            new_e = e[-1] * (1.0 + lev_ret)
+            e.append(new_e)
+            peak = max(peak, new_e)
+            if new_e / peak - 1.0 <= -maint:
+                liq = True
+                e[-1] = e[-2] * (1.0 - maint)
+                break
+        apy, dd, cal = _metrics(e)
+        return apy, dd, cal, liq, switches
+
+    print(f"\n=== LEVERAGE FRONTIER on '{s.strategy_id}' (liquidation floor + realistic tx costs) ===")
+    print(f"{'lev':>4}  {'NO guardian apy/dd/liq':>26}   {'WITH guardian apy/dd/liq(switch)':>34}")
+    print("-" * 70)
+    def f(x):
+        return f"{x:.1f}" if isinstance(x, (int, float)) else "n/a"
+    for L in (1.0, 1.5, 2.0, 3.0, 4.0):
+        a0, d0, _, l0, _ = run(L, use_guardian=False)
+        a1, d1, _, l1, sw = run(L, use_guardian=True)
+        print(f"{L:>4}  {f(a0)+'/'+f(d0)+'/'+('LIQ' if l0 else 'ok'):>26}   "
+              f"{f(a1)+'/'+f(d1)+'/'+('LIQ' if l1 else 'ok')+'/'+str(sw)+'sw':>34}")
+    print("Read: if 'WITH guardian' survives (ok) at a leverage where 'NO guardian' liquidates (LIQ),")
+    print("the guardian expands SAFE leverage → higher tier yield for the same wipe-risk budget.")
+    print("NOW with tx costs per exposure-switch (sw=#switches) — the honest churn drag. Still stylized")
+    print("(linear leverage understates the real cascade); DIRECTIONAL evidence, needs OOS + real levered mark.")
+
+
 def out_of_sample(loaded, split_date="2026-01-01"):
     """Honest overfitting check: pick the best vol-guardian params on the TRAIN half (dates < split),
     then apply those FIXED params to the unseen TEST half and see if the improvement HOLDS. If it
@@ -179,6 +251,7 @@ def main():
     print("exogenous vol/funding/liquidity (not in this equity-only fixture) — potentially earlier still.")
 
     out_of_sample(loaded)
+    leverage_frontier(loaded)
 
 
 if __name__ == "__main__":
