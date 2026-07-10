@@ -206,6 +206,28 @@ import Disclaimer from '../components/Disclaimer.astro';
       </div>
     </section>
 
+    <!-- ============================================================= CROSS-LINKS (Q1-7 instrumented) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-4" style="color:var(--text-muted)" data-ru="Дальше">Go deeper</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <a href="/verify" data-track="exitnav_to_verify" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Проверить самому">Verify it yourself</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="Скачай верификатор, перепроверь этот NAV">Pull the verifier, re-derive this NAV</p>
+        </a>
+        <a href="/refusals" data-track="exitnav_to_refusals" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Журнал отказов">Refusal log</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="От чего деск ОТКАЗАЛСЯ и почему">What the desk refused, and why</p>
+        </a>
+        <a href="/fundability" data-track="exitnav_to_fundability" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+           onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
+          <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Честная фандабилити">Honest fundability</p>
+          <p class="text-xs" style="color:var(--text-muted)" data-ru="Где реально живёт edge — и где нет">Where the edge actually is — and isn't</p>
+        </a>
+      </div>
+    </section>
+
   </main>
 
   <Disclaimer />
