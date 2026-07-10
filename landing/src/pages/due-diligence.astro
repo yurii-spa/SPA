@@ -56,6 +56,31 @@ const realDays = snap.real_track_days != null ? snap.real_track_days : '—';  /
       </div>
     </section>
 
+    <!-- Verify us yourself (Q2-8) — the full "don't trust us, check us" chain, no manual ask -->
+    <section class="mb-14">
+      <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Проверьте нас сами">Verify Us Yourself</h2>
+      <p class="text-sm text-white/60 leading-relaxed mb-5" data-ru="Не верьте нам на слово. Два детерминированных, zero-dependency скрипта воспроизводят всё, что мы публикуем — на нашем публичном data/. Exit 0 или скрипт называет точную сломанную строку.">
+        Don't take our word for anything. Two deterministic, zero-dependency scripts reproduce everything we publish, from our public <code>data/</code>. Exit 0 — or the script names the exact broken row.
+      </p>
+      <div class="rounded-xl border border-border-strong bg-bg-surface p-5 mb-4">
+        <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru="1. Цепочка доказательств цела">1 · Proof chain is intact</p>
+        <pre class="text-xs font-mono text-white/70 overflow-x-auto mb-2">python3 scripts/verify_spa.py data/</pre>
+        <p class="text-xs text-white/40 leading-relaxed" data-ru="Покрывает все 7 поверхностей: decision-chain, exit-NAV, anchors, equity-track, tournament, RWA-NAV, sleeves. Точный --expect-head и SHA-256 самого верификатора — в живом DD-паке (auto-generated, guarded).">Covers all 7 surfaces — decision chain, exit-NAV, anchors, equity track, tournament, RWA-NAV, sleeves. The exact <code>--expect-head</code> fingerprint and the verifier's own SHA-256 live in the auto-generated, test-guarded DD pack (<code>docs/DD_PACK.md</code>).</p>
+      </div>
+      <div class="rounded-xl border border-border-strong bg-bg-surface p-5 mb-4">
+        <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru="2. Защиты доказуемо срабатывают">2 · The safety machinery FIRES</p>
+        <pre class="text-xs font-mono text-white/70 overflow-x-auto mb-2">python3 scripts/defenses_exercised_report.py</pre>
+        <p class="text-xs text-white/40 leading-relaxed" data-ru="11/11 защит срабатывают через тот же governance-код, что и дневной цикл: two-tier kill (SOFT −5% / HARD −10%), soft-derisk блокирует любые NEW/INCREASE. Кривая монотонна (0% просадки) — тормоза спят, потому что не штормило, а не потому что их нет.">11/11 defenses fire through the <b>same</b> governance code the daily cycle uses: two-tier kill ladder (SOFT −5% de-risk / HARD −10% all-cash), soft de-risk blocks every NEW position and INCREASE. The live curve is monotonic (0% drawdown) — the brakes are dormant because it never stressed, not because they're absent.</p>
+      </div>
+      <p class="text-xs text-white/40 leading-relaxed" data-ru="Живые публичные поверхности:">Live public surfaces:
+        <a href="/refusals" class="text-accent-400 hover:underline">/refusals</a> ·
+        <a href="/exit-nav" class="text-accent-400 hover:underline">/exit-nav</a> ·
+        <a href="/proof-of-reserves" class="text-accent-400 hover:underline">/proof-of-reserves</a> ·
+        <a href="/track-record" class="text-accent-400 hover:underline">/track-record</a> ·
+        <a href="/fundability" class="text-accent-400 hover:underline">/fundability</a>
+      </p>
+    </section>
+
     <!-- Strategy Status -->
     <section class="mb-14">
       <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Статус стратегий">Strategy Status</h2>
