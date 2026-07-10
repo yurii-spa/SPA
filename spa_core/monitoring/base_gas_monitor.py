@@ -293,6 +293,12 @@ class BaseGasMonitor:
         Returns None if the response cannot be parsed.
         Raises on network errors (caller handles).
         """
+        # CI/offline guard: no external network under SPA_ENV=ci — the gas-oracle
+        # connect/read can stall and wedge cycle-based CI tests (they reach this via
+        # cycle_gates.apply_base_gas_kill_switch). None → the caller's existing
+        # non-live fallback. Production (SPA_ENV != ci) is unaffected.
+        if os.environ.get("SPA_ENV") == "ci":
+            return None
         req = urllib.request.Request(
             url,
             headers={"Accept": "application/json", "User-Agent": "SPA-Monitor/1.0"},

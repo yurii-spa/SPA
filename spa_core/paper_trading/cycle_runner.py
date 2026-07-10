@@ -747,7 +747,12 @@ def run_cycle(
     # scoring_engine's analytics_composite subscore reads fresh signals. The
     # aggregator is TTL-cached (1h), parallel and fail-open; any exception here
     # degrades to a WARNING + note and the cycle continues. Skipped on dry-run.
-    if write:
+    # CI/offline guard: skipped under SPA_ENV=ci — the aggregator spawns a thread
+    # pool of modules that make live network calls; on CI those stall and the
+    # pool's shutdown(wait=True) wedges the run (a HANG is not caught by the
+    # fail-open except). Since the step is advisory/fail-open, skipping it in CI is
+    # equivalent to its already-handled failure; the money-path cycle is unchanged.
+    if write and os.environ.get("SPA_ENV") != "ci":
         try:
             from spa_core.analytics.signal_aggregator import (
                 run_tier_b as _analytics_tier_b,
