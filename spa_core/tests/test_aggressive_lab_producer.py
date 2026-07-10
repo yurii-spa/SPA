@@ -117,6 +117,23 @@ def test_validate_roster_tiers_deterministic():
     assert roster.validate_roster_tiers() == roster.validate_roster_tiers()
 
 
+def test_strategy_census_every_roster_book_has_explicit_tier():
+    """6mo-M2 #22 (census guard): a new roster strategy must NOT land without an EXPLICIT tier
+    assignment — every ROSTER_CLASSES id must be a key in _TIER_DESCRIPTORS. This prevents silent
+    accretion (the S1→S77 pattern) where a book appears with no tier decision + no verdict."""
+    declared = set(roster._TIER_DESCRIPTORS)
+    roster_members = {c.id for c in roster.ROSTER_CLASSES}
+    missing = roster_members - declared
+    assert not missing, f"roster strategies with no explicit tier assignment: {sorted(missing)}"
+    # and no stale descriptor for a strategy no longer in the roster
+    stale = declared - roster_members
+    assert not stale, f"tier descriptors for non-roster strategies: {sorted(stale)}"
+    # every declared tier must be a real tier_policy profile
+    from spa_core.strategy_lab.aggressive_lab import tier_policy as tp
+    for sid, d in roster._TIER_DESCRIPTORS.items():
+        assert d["tier"] in tp.TIER_PROFILES, f"{sid} assigned unknown tier {d['tier']!r}"
+
+
 # ════════════════════════════════════════════════════════════════════════════════════════════════
 # 2. REAL DATA — accrual tracks the feed; a stale/missing feed fails CLOSED (no fake number)
 # ════════════════════════════════════════════════════════════════════════════════════════════════
