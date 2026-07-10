@@ -425,6 +425,7 @@ def replay_sleeve(
     costs: CostConfig,
     capital: Decimal = DEFAULT_CAPITAL,
     use_funding_proxy: bool = False,
+    return_series: bool = False,
 ) -> dict:
     """Replay ONE sleeve over the full historical date stream. Returns the per-sleeve result block.
 
@@ -445,6 +446,7 @@ def replay_sleeve(
     sleeve.init(float(capital), {})
 
     equity: List[float] = []
+    series_dates: List[str] = []  # date axis parallel to `equity` (only days that produced a bar)
     refusals_count = 0
     approvals_count = 0
     kills = 0
@@ -486,6 +488,7 @@ def replay_sleeve(
             # still accrue the idle cash floor on a no-opportunity day (whole book is in cash).
             _accrue_idle_cash_floor()
             equity.append(sleeve.equity())
+            series_dates.append(d)
             continue
 
         if isinstance(sleeve, FixedCarrySleeve):
@@ -503,6 +506,7 @@ def replay_sleeve(
         sleeve.step(MarketSnapshot(date=d))
         _accrue_idle_cash_floor()
         equity.append(sleeve.equity())
+        series_dates.append(d)
 
     n = len(equity)
     cap_f = float(capital)
@@ -521,6 +525,9 @@ def replay_sleeve(
     max_dd = _max_drawdown_pct(equity)
     mean_apy = round(((equity[-1] - cap_f) / cap_f) / span_years * 100.0, 4) if span_years > 0 else 0.0
     beats_floor = bool(net_apy_pct > float(floor) * 100.0)
+
+    series = ([{"date": series_dates[i], "equity_usd": round(equity[i], 4)} for i in range(n)]
+              if return_series else None)
 
     return {
         "sleeve_id": sleeve.id,
@@ -546,6 +553,7 @@ def replay_sleeve(
         "idle_cash_earns_floor": True,
         "capital_basis": "total_sleeve_capital",
         "final_equity_usd": round(equity[-1], 4) if equity else cap_f,
+        **({"series": series} if return_series else {}),
     }
 
 
