@@ -708,9 +708,12 @@ def _section_forward_analytics(fa) -> str:
         # Honest status: a thin track is labeled "THIN (N/30 days, metrics pending)";
         # an integrity-broken track is UNKNOWN; only a real ratio earns beats/below.
         if verdict == "THIN_TRACK":
-            status = (
-                f"THIN ({n_pts if n_pts is not None else '?'}/30 days, metrics pending)"
-            )
+            # Q2-17: surface the concrete days-to-verdict countdown instead of an opaque "pending".
+            d2v = t.get("days_to_first_verdict")
+            countdown = (f", {d2v} more day(s) to first verdict" if isinstance(d2v, int) and d2v > 0
+                         else ", verdict computable now (awaiting dispersion)" if d2v == 0
+                         else ", metrics pending")
+            status = f"THIN ({n_pts if n_pts is not None else '?'}/30 days{countdown})"
         elif verdict == "BEATS_FLOOR":
             status = "beats floor"
         elif verdict == "BELOW_FLOOR":

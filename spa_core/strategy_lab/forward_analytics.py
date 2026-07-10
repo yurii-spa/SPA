@@ -283,7 +283,18 @@ def analyze_track(
         "drawdown_attribution": None,
         "deflated_sharpe_block": None,
         "verdict": "UNKNOWN",
+        # Q2-17: days-to-verdict countdown — turns an opaque UNKNOWN/THIN_TRACK into a concrete "N more
+        # evidenced days until we can render a (robust) risk-adjusted verdict". Derived from the real
+        # n_points vs the depth thresholds (assumes daily bars); 0 once the threshold is met. Honest:
+        # locked-volatility (zero-dispersion) can also hold the verdict past the depth gate — the count
+        # is a depth lower-bound, not a promise a verdict appears exactly then.
+        "days_to_first_verdict": None,
+        "days_to_robust_verdict": None,
+        "verdict_depth_thresholds": {"first": MIN_POINTS_FOR_RATIO, "robust": MIN_POINTS_FOR_DSR},
     }
+    # populated once we know n_points (below); default to the full countdown from an empty track
+    base["days_to_first_verdict"] = MIN_POINTS_FOR_RATIO
+    base["days_to_robust_verdict"] = MIN_POINTS_FOR_DSR
 
     # ── 1. integrity gate (fail-CLOSED) ──────────────────────────────────────────────────────
     integ = ti.check_track_integrity(series_doc)
@@ -292,6 +303,10 @@ def analyze_track(
     base["n_points"] = integ["n_points"]
     base["first_date"] = integ["first_date"]
     base["last_date"] = integ["last_date"]
+    # Q2-17 countdown now that n_points is known (all subsequent return paths inherit it)
+    _np = integ["n_points"] or 0
+    base["days_to_first_verdict"] = max(0, MIN_POINTS_FOR_RATIO - _np)
+    base["days_to_robust_verdict"] = max(0, MIN_POINTS_FOR_DSR - _np)
 
     if not integ["ok"]:
         # a broken (gapped/dup/out-of-order/future/malformed) track → never compute a number on it

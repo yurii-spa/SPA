@@ -131,6 +131,25 @@ def test_thin_track_sharpe_unknown_not_fabricated():
     assert card["ann_return_pct"] is not None
     assert card["max_dd_pct"] is not None
     assert card["excess_vs_floor_pct"] is not None
+    # Q2-17 countdown: 3 points → 4 more to the first (7) verdict, 17 more to the robust (20) one
+    assert card["days_to_first_verdict"] == fa.MIN_POINTS_FOR_RATIO - 3
+    assert card["days_to_robust_verdict"] == fa.MIN_POINTS_FOR_DSR - 3
+    assert card["verdict_depth_thresholds"] == {
+        "first": fa.MIN_POINTS_FOR_RATIO, "robust": fa.MIN_POINTS_FOR_DSR}
+
+
+def test_days_to_verdict_zero_once_depth_reached():
+    """Q2-17: once the track has ≥ MIN_POINTS_FOR_RATIO points the first-verdict countdown is 0
+    (a verdict is now computable); the robust countdown keeps ticking down to 0 at MIN_POINTS_FOR_DSR."""
+    eq = [100000.0 * (1.001 ** i) for i in range(fa.MIN_POINTS_FOR_RATIO + 1)]
+    card = fa.analyze_track(_series(eq), name="mid", floor_apy_pct=_FLOOR)
+    assert card["days_to_first_verdict"] == 0
+    assert card["days_to_robust_verdict"] == max(0, fa.MIN_POINTS_FOR_DSR - len(eq))
+    # deep enough for the robust block too → both zero
+    eq2 = [100000.0 * (1.001 ** i) for i in range(fa.MIN_POINTS_FOR_DSR + 2)]
+    card2 = fa.analyze_track(_series(eq2), name="deep", floor_apy_pct=_FLOOR)
+    assert card2["days_to_first_verdict"] == 0
+    assert card2["days_to_robust_verdict"] == 0
 
 
 def test_thin_track_never_emits_degenerate_sharpe():
