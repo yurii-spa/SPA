@@ -165,6 +165,14 @@ RETIRED_LABELS = frozenset({
     # + delete their plists at leisure, or revive if a separate digest is wanted.
     "com.spa.tier1_digest",
     "com.spa.digest_weekly",
+    # Q3-1: weekly_backup is a coarse whole-tree tar to a LOCAL folder (~/Documents/SPA_Backups)
+    # — same-host (SPOF, does not survive host loss) and redundant with the real DR path
+    # (com.spa.daily_backup runs daily_backup.py DB snapshot + dr_offsite_copy offsite-verified;
+    # source already lives in git/GitHub). It stood WARNING ("log missing (never ran?)") persistently
+    # → pure alert-fatigue with ~0 DR value beyond daily_backup. Retired so agent_health reaches clean
+    # all-OK. REVERSIBLE: remove this line + re-add to install_all_agents.sh to revive. OWNER: unload the
+    # lingering plist on the prod host (`launchctl bootout gui/$(id -u)/com.spa.weekly_backup`).
+    "com.spa.weekly_backup",
 })
 
 

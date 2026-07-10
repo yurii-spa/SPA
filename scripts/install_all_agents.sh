@@ -457,11 +457,10 @@ install_agent \
     "com.spa.checkpoint-7day" \
     "1"
 
-# 40. Weekly backup
-install_agent \
-    "$REPO/scripts/com.spa.weekly_backup.plist" \
-    "com.spa.weekly_backup" \
-    "1"
+# 40. Weekly backup — RETIRED (Q3-1): coarse whole-tree tar to a LOCAL folder, same-host (SPOF) and
+#     redundant with com.spa.daily_backup (DB snapshot + dr_offsite_copy offsite) + source already in git.
+#     Stood persistently WARNING ("log missing") = alert-fatigue with ~0 DR value. No longer installed
+#     (also in RETIRED_LABELS so agent_health skips it). Owner: bootout the lingering plist on prod.
 
 # 41. Daily data/*.json backup (pre-cycle snapshot, 30-day retention)
 install_agent \
