@@ -157,7 +157,12 @@ def _write_registry(path: Path, content: dict) -> None:
 class TestGenerateEmptyRegistry(unittest.TestCase):
     """T01 — generate() with empty / missing registry produces empty adapters."""
 
-    def test_empty_registry_no_crash(self) -> None:
+    # Mock the live DeFiLlama fetch (like every other test in this file). Without it these
+    # two hit the network and HANG on CI: generate() calls _fetch_defillama() even for an
+    # empty registry, and resp.read() on the large /pools body can stall past urlopen's
+    # connect timeout — wedging the entire spa_core unit-test job for 30min+.
+    @patch("spa_core.monitoring.adapter_status_generator._fetch_defillama", return_value=None)
+    def test_empty_registry_no_crash(self, _mock: MagicMock) -> None:
         with tempfile.TemporaryDirectory() as td:
             reg = Path(td) / "adapter_registry.json"
             reg.write_text('{"adapters": {}}', encoding="utf-8")
@@ -166,7 +171,8 @@ class TestGenerateEmptyRegistry(unittest.TestCase):
             self.assertEqual(doc.get("adapters"), {})
             self.assertEqual(doc.get("schema_version"), SCHEMA_VERSION)
 
-    def test_missing_registry_no_crash(self) -> None:
+    @patch("spa_core.monitoring.adapter_status_generator._fetch_defillama", return_value=None)
+    def test_missing_registry_no_crash(self, _mock: MagicMock) -> None:
         with tempfile.TemporaryDirectory() as td:
             reg = Path(td) / "nonexistent.json"
             doc = generate(registry_path=reg)
