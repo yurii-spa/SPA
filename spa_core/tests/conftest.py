@@ -8,8 +8,22 @@ import sys
 import json
 import pytest
 import os
+import socket as _socket
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
+
+# ---------------------------------------------------------------------------
+# CI network backstop: under SPA_ENV=ci, bound EVERY socket op with a default
+# timeout so no test can wedge the runner on a live network call. The SPA suite
+# has many non-hermetic tests that reach live feeds transitively (adapters build
+# a universe, cycles run monitors, etc.); on CI those stall indefinitely and hang
+# the whole job for 30min+. A socket-level timeout catches ALL of them regardless
+# of module or import style — the call fails fast and each adapter/monitor
+# fail-closes to its documented non-live fallback. Belt-and-suspenders with the
+# per-module SPA_ENV=ci guards. No-op locally (SPA_ENV != ci); production never
+# imports this conftest.
+if os.environ.get("SPA_ENV") == "ci":
+    _socket.setdefaulttimeout(8)
 
 # ---------------------------------------------------------------------------
 # Skip test_family_fund_api if fastapi is not installed (stdlib-only env).

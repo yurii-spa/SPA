@@ -43,7 +43,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Install test dependencies
-        run: pip install pytest pytest-asyncio pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt  # option-A full test-dep set (runtime stays stdlib-only)
+        run: pip install pytest pytest-asyncio pytest-timeout pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt  # option-A full test-dep set (runtime stays stdlib-only). pytest-timeout = a per-test wedge backstop so a hung test fails-fast + NAMED, never wedging the runner 30min.
 
       # --- Deterministic test execution (Architect N11) ---------------------
       # Two CI runs MUST produce an IDENTICAL collection order + pass/fail set
@@ -65,6 +65,7 @@ jobs:
       - name: Run spa_core unit tests
         run: |
           python -m pytest spa_core/tests/ -q --tb=short -p no:randomly \
+            --timeout=180 --timeout-method=thread \
             --ignore=spa_core/tests/test_golive_checker.py
         env:
           SPA_ENV: ci
