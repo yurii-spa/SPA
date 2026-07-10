@@ -219,22 +219,22 @@ import Disclaimer from '../components/Disclaimer.astro';
     <section class="py-10 border-t" style="border-color:var(--border)">
       <p class="text-xs uppercase tracking-wider font-mono mb-4" style="color:var(--text-muted)" data-ru="Проверить каждое утверждение">Check each claim</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <a href="/refusals" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+        <a href="/refusals" data-track="fund_to_refusals" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
            onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
           <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Лог отказов">Refusal log</p>
           <p class="text-xs" style="color:var(--text-muted)" data-ru="что мы отклонили и почему">what we declined, and why</p>
         </a>
-        <a href="/exit-nav" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+        <a href="/exit-nav" data-track="fund_to_exitnav" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
            onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
           <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Ликвидационный NAV по размеру">Liquidation-NAV by size</p>
           <p class="text-xs" style="color:var(--text-muted)" data-ru="что реально получишь на выходе">what you actually realize on exit</p>
         </a>
-        <a href="/track-record" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+        <a href="/track-record" data-track="fund_to_trackrecord" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
            onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
           <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Трек-рекорд">Track record</p>
           <p class="text-xs" style="color:var(--text-muted)" data-ru="накапливающийся, THIN, привязан к хешам">accruing, THIN, hash-anchored</p>
         </a>
-        <a href="/proof-of-reserves" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+        <a href="/proof-of-reserves" data-track="fund_to_por" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
            onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
           <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Доказательство резервов">Proof of Reserves</p>
           <p class="text-xs" style="color:var(--text-muted)" data-ru="честный NAV — бумага, $0 реального капитала">honest NAV — paper, $0 real</p>

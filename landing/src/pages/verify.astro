@@ -97,7 +97,7 @@ const proofs = [
                 style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">1</span>
           <p class="text-xs leading-relaxed" style="color:var(--text-secondary)"
              data-ru="Скачайте verify_spa.py и дёрните полные цепочки с /api/rates-desk/full-chain/* (каждый эндпоинт отдаёт весь файл целиком, без обрезки).">
-            Download <a href="https://raw.githubusercontent.com/yurii-spa/SPA/verifier-v1.1/scripts/verify_spa.py" class="font-mono underline" style="color:var(--accent-400)">verify_spa.py</a> and pull the full chains from
+            Download <a href="https://raw.githubusercontent.com/yurii-spa/SPA/verifier-v1.1/scripts/verify_spa.py" class="font-mono underline" style="color:var(--accent-400)" data-track="verify_download_script">verify_spa.py</a> and pull the full chains from
             <span class="font-mono">/api/rates-desk/full-chain/*</span> (each serves the WHOLE file, uncapped).
           </p>
         </li>
@@ -152,13 +152,13 @@ curl -s $B/sleeve       &gt; data/rates_desk/paper/rates_desk_fixed_carry_series
 python3 verify_spa.py data/</code></pre>
           <p class="text-[11px] uppercase tracking-wider font-mono mt-4 mb-1" style="color:var(--text-faint)" data-ru="Прямые ссылки — все 7 артефактов цепочек">Direct links — all 7 chain artifacts</p>
           <ul class="text-xs font-mono space-y-1 mb-1" style="color:var(--accent-400)">
-            <li><a class="underline break-all" href="https://api.earn-defi.com/api/rates-desk/full-chain/equity_track">api.earn-defi.com/api/rates-desk/full-chain/equity_track</a> (D)</li>
-            <li><a class="underline break-all" href="https://api.earn-defi.com/api/rates-desk/full-chain/decision_log">api.earn-defi.com/api/rates-desk/full-chain/decision_log</a> (A)</li>
-            <li><a class="underline break-all" href="https://api.earn-defi.com/api/rates-desk/full-chain/anchors">api.earn-defi.com/api/rates-desk/full-chain/anchors</a> (C)</li>
-            <li><a class="underline break-all" href="https://api.earn-defi.com/api/rates-desk/full-chain/exit_nav">api.earn-defi.com/api/rates-desk/full-chain/exit_nav</a> (B)</li>
-            <li><a class="underline break-all" href="https://api.earn-defi.com/api/rates-desk/full-chain/tournament">api.earn-defi.com/api/rates-desk/full-chain/tournament</a> (E)</li>
-            <li><a class="underline break-all" href="https://api.earn-defi.com/api/rates-desk/full-chain/nav_proof">api.earn-defi.com/api/rates-desk/full-chain/nav_proof</a> (F)</li>
-            <li><a class="underline break-all" href="https://api.earn-defi.com/api/rates-desk/full-chain/sleeve">api.earn-defi.com/api/rates-desk/full-chain/sleeve</a> (G)</li>
+            <li><a class="underline break-all" data-track="verify_fetch_chain" href="https://api.earn-defi.com/api/rates-desk/full-chain/equity_track">api.earn-defi.com/api/rates-desk/full-chain/equity_track</a> (D)</li>
+            <li><a class="underline break-all" data-track="verify_fetch_chain" href="https://api.earn-defi.com/api/rates-desk/full-chain/decision_log">api.earn-defi.com/api/rates-desk/full-chain/decision_log</a> (A)</li>
+            <li><a class="underline break-all" data-track="verify_fetch_chain" href="https://api.earn-defi.com/api/rates-desk/full-chain/anchors">api.earn-defi.com/api/rates-desk/full-chain/anchors</a> (C)</li>
+            <li><a class="underline break-all" data-track="verify_fetch_chain" href="https://api.earn-defi.com/api/rates-desk/full-chain/exit_nav">api.earn-defi.com/api/rates-desk/full-chain/exit_nav</a> (B)</li>
+            <li><a class="underline break-all" data-track="verify_fetch_chain" href="https://api.earn-defi.com/api/rates-desk/full-chain/tournament">api.earn-defi.com/api/rates-desk/full-chain/tournament</a> (E)</li>
+            <li><a class="underline break-all" data-track="verify_fetch_chain" href="https://api.earn-defi.com/api/rates-desk/full-chain/nav_proof">api.earn-defi.com/api/rates-desk/full-chain/nav_proof</a> (F)</li>
+            <li><a class="underline break-all" data-track="verify_fetch_chain" href="https://api.earn-defi.com/api/rates-desk/full-chain/sleeve">api.earn-defi.com/api/rates-desk/full-chain/sleeve</a> (G)</li>
           </ul>
         <p class="text-[11px] leading-relaxed mt-3" style="color:var(--text-muted)"
            data-ru="Указывайте весь каталог data/ — он покрывает все 7 поверхностей (rates-desk A–D плюс tournament E, RWA-NAV F, sleeve G). Узкая форма data/rates_desk/ видит только A–D. Голову тоже можно зафиксировать: добавьте --expect-head <hex> (это голова цепочки решений, НЕ SHA-256 самого скрипта), и верификатор подтвердит совпадение. А --expect-surfaces A,D,E,F,G падает закрыто, если поверхность отсутствует.">
