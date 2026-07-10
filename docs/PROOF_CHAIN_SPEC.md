@@ -146,14 +146,15 @@ def recompute_entry_hash(row: dict) -> str:
 A row is authentic iff `recompute_entry_hash(row) == row["entry_hash"]`.
 
 > **Worked example (real row, seq=111).** Running the recipe above on the row whose `seq == 111` in the
-> *current* published log
-> (`prev_hash: 3b439d21aa04afcf8c5d7fd8222f6d8219f3b4667242832689a3afdbcc7b2ecd`) yields
-> `431e7a7608c6e449208d3e1ce8829acbee6c307f5d7c06d2822d20112d1c7366`, which equals that row's stored
-> `entry_hash`. (Confirmed in the test suite — see §7. This literal is auto-refreshed by
-> `scripts/refresh_published_proof.py` on each proof publish, since a ring-buffered mirror re-chains as it
-> grows — so if it ever drifts, recompute it yourself with the snippet below; the recipe is the source of truth.)
+> *current* published log yields **exactly that row's own stored `entry_hash`** —
+> i.e. `recompute_entry_hash(row) == row["entry_hash"]`. **No hash literal is pinned here on purpose:**
+> the published log is a ring-buffered mirror that **re-chains as it grows**, so the row at any fixed `seq`
+> — and therefore its `prev_hash`/`entry_hash` — legitimately changes over time. A pinned literal would rot
+> on every re-base; the **recipe is the source of truth, not any published number**. Recompute it yourself
+> against whatever the log holds *right now* with the snippet below. (Confirmed in the test suite — see §7: the live
+> `seq == 111` row self-verifies and this spec publishes the exact recipe.)
 >
-> **Derive-it-yourself (don't trust the literal above — recompute it):** the published log is a
+> **Derive-it-yourself (don't trust any literal — recompute it):** the published log is a
 > ring-buffered mirror, so the row at any fixed `seq` changes as the chain grows; rather than trust a
 > pinned literal, recompute it from whatever the log holds *right now*:
 > ```bash
