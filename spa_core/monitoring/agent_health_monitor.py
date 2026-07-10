@@ -196,6 +196,9 @@ PORTFOLIO_HEALTH_FLOOR = 70.0
 AUTOPUSH_LAG_H = 2.0
 # Track-accrual SLA: daily cadence (24h) + 6h buffer = one fully-missed cycle.
 TRACK_SLA_H = 30.0
+# Resilience DR-posture SLA: com.spa.resilience runs every 6h → stale past ~13h
+# means it missed two runs (advisory WARNING — DR proof rotting, not money-path).
+RESILIENCE_STALE_H = 13.0
 
 
 # ===========================================================================
@@ -610,6 +613,8 @@ def check_system(data_dir: Path, now: datetime,
         "autopush_lag_h": None,
         "track_fresh": None,
         "track_age_h": None,
+        "resilience_posture": None,
+        "resilience_age_h": None,
     }
     status = OK
     issues: List[str] = []
@@ -753,6 +758,33 @@ def check_system(data_dir: Path, now: datetime,
         checks["autopush_lag_h"] = round(lag_h, 2)
         if lag_h > AUTOPUSH_LAG_H:
             issues.append(f"autopush lag {lag_h:.1f}h (>{AUTOPUSH_LAG_H:.0f}h)")
+            status = _worst(status, WARNING)
+
+    # --- resilience DR posture (Q1-10) ---
+    # resilience_status.py rolls up offsite-copy + restore + fleet drills into one
+    # posture. A stale rollup (com.spa.resilience not running) or a non-OK posture
+    # (a drill failed / offsite unverified) is a rotting DR guarantee — surface it
+    # as an advisory WARNING so a decaying posture pages rather than sitting silent
+    # in a JSON nobody reads. Advisory (WARNING, not CRITICAL): DR is not the
+    # money-path; the track/kill checks above own criticality. Only assessed when
+    # the file is present (like the checks above) so sandbox/CI fixtures without a
+    # resilience_status.json are not falsely flagged; a truly missing posture on the
+    # prod host is caught by the per-agent freshness check for com.spa.resilience.
+    res = _load_json(data_dir, "resilience_status.json")
+    if res:
+        rts = res.get("generated_at")
+        rh = _hours_since(rts, now)
+        checks["resilience_age_h"] = round(rh, 2) if rh is not None else None
+        posture = (str(res.get("overall")).upper() if res.get("overall") else None)
+        checks["resilience_posture"] = posture
+        if rh is not None and rh > RESILIENCE_STALE_H:
+            issues.append(
+                f"resilience posture stale {rh:.1f}h (>{RESILIENCE_STALE_H:.0f}h) "
+                "— DR proof-chain not fresh"
+            )
+            status = _worst(status, WARNING)
+        elif posture and posture != OK:
+            issues.append(f"resilience posture {posture} (DR drill/offsite not passing)")
             status = _worst(status, WARNING)
 
     return checks, status, issues
