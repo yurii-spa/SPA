@@ -1,0 +1,80 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="Go-Live Readiness — SPA earn-defi.com"
+  description="What the code has proven vs what only the owner can do. Governance + money-path defenses fire (reproducible); the remaining blockers are custody, audit, legal and the 30-day evidenced track — owner-only and time-gated."
+  canonical="https://earn-defi.com/readiness"
+>
+  <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section class="pt-16 pb-8">
+      <p class="text-xs text-accent-400 font-mono uppercase tracking-widest mb-3" data-ru="Готовность к go-live">Go-Live Readiness</p>
+      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight" data-ru="Что доказал код против того, что может только владелец">What the code has proven vs what only the owner can do</h1>
+      <p class="text-white/60 leading-relaxed" data-ru="Честная поверхность готовности. Защиты доказуемо срабатывают (воспроизводимо, детерминированно). Оставшиеся блокеры — кастоди, аудит, легал и 30 evidenced-дней трека — owner-only и time-gated. Ничто здесь не двигает капитал.">
+        An honest readiness surface. The safety defenses are proven to fire — reproducibly, deterministically, through the same governance code the daily cycle uses. The remaining blockers — custody, audit, legal, and 30 evidenced track-days — are owner-only and time-gated. Nothing here moves capital.
+      </p>
+    </section>
+
+    <section class="py-6 border-t border-border">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Живой статус">Live status</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" id="rdy-cards">
+        <div class="rounded-xl bg-bg-surface border border-border p-5">
+          <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2">Governance defenses</p>
+          <p class="text-2xl font-mono font-bold text-white"><span id="rdy-def">—</span></p>
+          <p class="text-xs text-white/40 mt-1" data-ru="срабатывают на стрессе (SOFT −5% / HARD −10%)">fire on stress (SOFT −5% / HARD −10%)</p>
+        </div>
+        <div class="rounded-xl bg-bg-surface border border-border p-5">
+          <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2">Go-live gate</p>
+          <p class="text-2xl font-mono font-bold text-white"><span id="rdy-gate">—</span></p>
+          <p class="text-xs text-white/40 mt-1"><span id="rdy-days">—</span> <span data-ru="evidenced-дней трека">evidenced track-days</span></p>
+        </div>
+        <div class="rounded-xl bg-bg-surface border border-border p-5">
+          <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2">Target</p>
+          <p class="text-2xl font-mono font-bold text-white"><span id="rdy-target">—</span></p>
+          <p class="text-xs text-white/40 mt-1" data-ru="время, не код">time-gated, not code</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="py-6 border-t border-border">
+      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Блокеры только для владельца (код не может их закрыть)">Owner-only blockers (code cannot satisfy these)</p>
+      <ul class="space-y-2" id="rdy-blockers">
+        <li class="text-sm text-white/50">—</li>
+      </ul>
+    </section>
+
+    <section class="py-6 border-t border-border">
+      <p class="text-xs text-accent-400 uppercase tracking-wider font-mono mb-4" data-ru="Проверьте сами">Reproduce it yourself</p>
+      <pre class="text-xs font-mono text-white/70 overflow-x-auto rounded-lg bg-bg-surface border border-border p-4">python3 scripts/verify_spa.py data/                    # proof chain intact
+python3 scripts/defenses_exercised_report.py          # 11/11 defenses fire
+python3 -m spa_core.paper_trading.pre_cutover_gate     # 16/16 money-path defenses (inert)</pre>
+      <p class="text-xs text-white/30 mt-3" id="rdy-honest" data-ru="Код доказывает защиты; кастоди / аудит / легал / 30-дневный трек — owner-only и time-gated.">The code proves the defenses fire; custody / audit / legal / the 30-day evidenced track are owner-only and time-gated.</p>
+    </section>
+  </main>
+
+  <script is:inline>
+    (function(){
+      var API = (location.hostname==='localhost'||location.hostname==='127.0.0.1') ? 'http://localhost:8765' : 'https://api.earn-defi.com';
+      function set(id, v){ var el=document.getElementById(id); if(el) el.textContent=v; }
+      fetch(API+'/api/readiness').then(function(r){return r.json();}).then(function(d){
+        var g=d.governance_defenses||{}, gl=d.go_live_gate||{};
+        if(g.fired!=null) set('rdy-def', g.fired+'/'+g.total+(g.all_fired?' ✓':''));
+        if(gl.passed!=null) set('rdy-gate', gl.passed+'/'+gl.total);
+        if(gl.evidenced_days!=null) set('rdy-days', gl.evidenced_days+'/'+(gl.days_needed||30));
+        if(gl.target_date) set('rdy-target', gl.target_date);
+        var ul=document.getElementById('rdy-blockers');
+        if(ul && Array.isArray(d.owner_only_blockers)){
+          ul.innerHTML='';
+          d.owner_only_blockers.forEach(function(b){
+            var li=document.createElement('li');
+            li.className='text-sm text-white/55 flex gap-2';
+            li.innerHTML='<span class="text-warn flex-shrink-0">•</span><span><b class="text-white/75">'+b.id+'</b> — '+b.what+'</span>';
+            ul.appendChild(li);
+          });
+        }
+        if(d.honest) set('rdy-honest', d.honest);
+      }).catch(function(){ set('rdy-def','unavailable'); });
+    })();
+  </script>
+</Layout>

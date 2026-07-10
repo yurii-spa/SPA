@@ -168,6 +168,7 @@ from spa_core.api.routers import (  # noqa: E402
     misc,
     optimizer,
     rates_desk,
+    readiness,
     redteam,
     riskwire,
     rtmr,
@@ -186,6 +187,7 @@ app.include_router(strategy_lab.router)
 # REFUSES, shown WITH the tail. OUTSIDE_RiskPolicy; never live-allocated, never touches go-live.
 app.include_router(aggressive_lab.router)
 app.include_router(rates_desk.router)
+app.include_router(readiness.router)
 app.include_router(optimizer.router)
 app.include_router(v1.router)
 app.include_router(live.router)
