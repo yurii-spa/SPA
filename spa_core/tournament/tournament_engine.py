@@ -320,6 +320,16 @@ class TournamentEngine:
             "is_advisory":        IS_ADVISORY,
         }
 
+        # 6mo-M2 #16: refresh the tournament data-trust monitor now that the ranking + promotion
+        # counter are updated (the natural producer→monitor coupling). Advisory read-derive-write;
+        # fail-OPEN — a monitor hiccup must never break the tournament run.
+        try:
+            from spa_core.monitoring import data_trust_monitor as _dtm
+            _dtm.build_report(write=True)
+        except Exception as exc:
+            _log.error("data_trust_monitor refresh failed: %s", exc)
+            errors.append(f"data_trust_monitor: {exc}")
+
         _log.info(
             "run_daily done: %d promotions, %d rank_changes, errors=%d",
             len(promotions), len(rank_changes), len(errors),
