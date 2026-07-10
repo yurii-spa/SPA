@@ -795,6 +795,22 @@ def check_system(data_dir: Path, now: datetime,
             issues.append(f"resilience posture {posture} (DR drill/offsite not passing)")
             status = _worst(status, WARNING)
 
+    # --- tournament data-trust (6mo-M2 #16) ---
+    # data_trust_monitor watches the tournament trustworthy flags + promotion counter. The expected
+    # state today is OK (trustworthy=False, total_promotions=0). An ALERT means either the data-trust
+    # claim flipped True or a strategy was promoted on untrusted data — a human-review event, surfaced
+    # here as an advisory WARNING so it pages rather than sitting silent in a JSON nobody reads.
+    # Advisory (WARNING, not CRITICAL): the tournament is research-only and never gates live allocation.
+    # Only assessed when present (sandbox/CI fixtures without the file are not falsely flagged).
+    dt = _load_json(data_dir, "data_trust_status.json")
+    if dt:
+        dt_status = str(dt.get("status")).upper() if dt.get("status") else None
+        checks["data_trust_status"] = dt_status
+        if dt_status == "ALERT":
+            why = "; ".join(dt.get("reasons") or []) or "tournament data-trust ALERT"
+            issues.append(f"tournament data-trust ALERT — {why} (human review)")
+            status = _worst(status, WARNING)
+
     return checks, status, issues
 
 
