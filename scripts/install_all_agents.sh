@@ -475,6 +475,13 @@ install_agent \
     "com.spa.rtmr_sense" \
     "1"
 
+# Go-live freshness (Q1-11) — keeps golive_checker + inert pre_cutover_gate outputs FRESH
+# and DATED (every 6h), decoupled from the daily cycle. Reporter, exit 0 even on NOT READY.
+install_agent \
+    "$REPO/scripts/com.spa.golive_freshness.plist" \
+    "com.spa.golive_freshness" \
+    "1"
+
 # ===========================================================================
 # ИТОГОВАЯ ТАБЛИЦА
 # ===========================================================================
