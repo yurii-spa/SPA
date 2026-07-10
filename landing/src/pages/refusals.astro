@@ -183,17 +183,17 @@ import Disclaimer from '../components/Disclaimer.astro';
     <section class="py-10 border-t" style="border-color:var(--border)">
       <p class="text-xs uppercase tracking-wider font-mono mb-4" style="color:var(--text-muted)" data-ru="Дальше">Go deeper</p>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <a href="/rates-desk" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+        <a href="/rates-desk" data-track="refusals_to_ratesdesk" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
            onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
           <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Rates Desk">Rates Desk</p>
           <p class="text-xs" style="color:var(--text-muted)" data-ru="Движок, который их генерирует">The engine that generates them</p>
         </a>
-        <a href="/exit-nav" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+        <a href="/exit-nav" data-track="refusals_to_exitnav" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
            onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
           <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Ликвидационный NAV по размеру">Liquidation-NAV by size</p>
           <p class="text-xs" style="color:var(--text-muted)" data-ru="Что реально получишь на выходе">What you actually realize on exit</p>
         </a>
-        <a href="/proof-of-reserves" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+        <a href="/proof-of-reserves" data-track="refusals_to_por" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
            onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
           <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Доказательство резервов">Proof of Reserves</p>
           <p class="text-xs" style="color:var(--text-muted)" data-ru="Честный NAV — это бумага, $0 реального капитала">Honest NAV — paper, $0 real capital</p>
