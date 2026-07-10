@@ -1,6 +1,8 @@
 # SPA Yield Product — Tournament Verdict & 6-Month Backlog
 
 > Synthesis over 6 scout domains. Owner directive: sellable 3-tier yield product (Conservative ~3.3% / Balanced ~8–12% / Aggressive REAL paper-tested ~15–20%+), customer chooses risk/return, tail ALWAYS shown, separate rules per tier, RiskPolicy v1.0 untouched. DeFi Checkup = top-of-funnel. Invariants: no LLM in risk/exec/monitoring, non-custodial, no fabricated APY (evidence L0–L6), deterministic + fail-closed, stdlib-only runtime, atomic writes.
+>
+> **Structure:** PART A = Tournament architectural verdict · PART B = the 6-monthly-theme backlog (67 items) · **PART C = the 3-tier product pipeline (backtest + paper-test + site), BUILT vs REMAINING** — the running ledger of the owner's tier workstream so nothing already built is re-done · OWNER-ONLY CRITICAL PATH · TOP RISKS.
 
 ---
 
@@ -168,6 +170,30 @@ Tags: `[tier: C/B/A/all/none]` · `[owner-gated: …]` or `[code]` · `[effort: 
 65. **Pre-cutover readiness gate stays INERT + advisory.** `[tier:none][code][effort:S]` `pre_cutover_gate.py` — keep `would_cutover=False`, no execution import, refuses live `data/`. Run as advisory CI step proving all money-path defenses fire before any cutover discussion.
 66. **Post-go-live: first-30-day evidenced-track publication.** `[tier:C][code][effort:S]` auto-publish the crossed 30/30 evidenced track to `/track-record` with hash-chained proof — the cheapest highest-trust milestone for a first allocator.
 67. **Wire Tournament "how we vet" read-only snippet to `/research` IF data trustworthy.** `[tier:none][code][effort:S]` only after Month-2 data-fix flips `trustworthy=True`; still never a public yield claim.
+
+---
+
+## PART C — 3-TIER PRODUCT: backtest + paper-test + site (BUILT vs REMAINING)
+
+**Owner priority (`docs/THREE_TIER_YIELD_PRODUCT.md`):** three customer-selectable risk/return tiers, each with a **REAL backtest-on-history number + a live paper track + the tail shown**, presented on the site so the customer chooses. Backtest is the PRIMARY proof (stronger than a 6-month forward paper test); paper track accrues alongside. This section is the running ledger of that workstream so nothing already built is lost or re-done, and the remaining site/paper/backtest deliverables are explicit. Every number here is evidence-tagged; Aggressive is refused-for-live (paper/backtest only) until the full lifecycle + legal (`docs/07`, invariant E-18).
+
+### C.1 — ALREADY BUILT (backtest engine + strategy research, real data)
+- **Backtest harness on 2.5yr real history** (843–899 days, incl. ETH-crash 2024-08, USDe-unwind 2025-10, rsETH-depeg 2026-04) — `aggressive_lab` + `strategy_lab` + `rates_desk.backtest_rates`. Deterministic, tail-overlay, refusal-first.
+- **Real per-strategy backtest numbers** (backtest, NOT realized): `susde_dn` ~23% / ~0.1% maxDD / Sharpe 18.5 (Balanced anchor); `susde_spot` ~16%; `pendle_pt_levered` ~74% / 19% DD; `pendle_yt` RISK_COMPENSATION (huge, tail); `eth_directional` −26%…−51% / 66% DD (DIRECTIONAL_BETA, excluded); `lrt_neutral` SEVERE_TAIL. All in `docs/THREE_TIER_YIELD_PRODUCT.md`.
+- **Novel-edge R&D, backtested + documented** (`docs/DYNAMIC_LEVERAGE_GUARDIAN.md` registry): #1 **Guardian** de-risk overlay (OOS-validated drawdown reducer; production module `aggressive_lab/guardian.py` + 6 tests); #2 naive tier portfolio NEGATIVE (0.87-corr); #3 **cross-desk portfolio VALIDATED** (`scripts/cross_desk_portfolio.py`: sUSDe + rates-carry + RWA-floor, corr≈0, best blend same 4.2% yield / maxDD 8.5%→2.1% / Calmar ×4 → the tier-composition architecture: carry + floor cushion, floor share = client risk dial).
+- **Moat-as-a-number** (feeds Aggressive/Balanced honesty): N-book capacity aggregator (`rates_desk/n_book_capacity.py`, plateau ~$5.3k/yr, rail-limited), avoided-loss refusal ledger (`rates_desk/refusal_value.py`, ~$49k/100k avoided on ezETH/eETH depegs), days-to-verdict countdown (`forward_analytics`).
+- **Live paper agent** `com.spa.aggressive_lab` exists (forward tracks 0–11 days today).
+
+### C.2 — REMAINING (the enumerated Month-1→5 items, grouped by this workstream)
+- **Per-tier enforced rules** → #1 `tier_policy.py`, #2 enforce in `build_roster`, #3 isolation test.
+- **Honesty of the tier NUMBER** → #4 fix `net_apy_pct` mislabel (net_return vs CAGR), #5 clamp <30-day annualization (INSUFFICIENT_HISTORY_FOR_APY), #7 single source for APY bands, #52 reconcile the 5 Conservative numbers.
+- **Backtest ON THE SITE** → #9 regenerate `scorecard.json` + `annual_contrast.json` on the current roster, #29 attribute every offered strategy a measured 12m CAGR + tail, #32 surface realized paper number + tail on `packages.astro`, #33 the 3-line tier-card contract (headline+evidence-level, realized, tail — never "—" at first paint).
+- **Paper-test PER TIER** → #25 run `com.spa.aggressive_lab` continuously + gap-guard, #26 ≥30-day forward gate before any "realized" label, #27 dedicated ≥30-day `susde_dn` Balanced track, #28 composed Aggressive sleeve-of-sleeves (the honest ~15–20% blend, tail shown — NOT one strategy stamped 20%), #30 ONE promotion state machine.
+- **Site presentation + choice** → #46 render tail at point of choice, #47 `data-track` tier instrumentation, #48 checkup→tier bridge, #50 proof strip on `/packages`, #51 "we refuse the 15% others sell" Aggressive headline, #53 choose-a-tier-&-fund flow DESIGN-ONLY/inert, #54 Site-Custodian covers tier numbers.
+- **Guardian → paper/product** → wire `aggressive_lab/guardian.py` into the forward paper harness (not just backtest); keep leverage numbers off the product until forward-proven.
+
+### C.3 — Owner-gated within this workstream (build mechanism, don't block)
+#6/#8/#52 canonical tier NAME set + the ONE public APY definition; #53/#60 Aggressive intake behind legal/Red-Team/custody gate; Aggressive stays refused-for-live regardless of the ~20% marketing desire.
 
 ---
 
