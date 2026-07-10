@@ -133,6 +133,14 @@ def score_strategy(s: ld.LoadedStrategy) -> dict:
         "calmar": primary["calmar"],
         "max_dd_pct": primary["max_dd_pct"],
         "realized_apy_pct": primary["realized_apy_pct"],
+        # Backlog #5: honesty-safe customer-facing fields — `realized_apy_display` is the annualized APY
+        # ONLY when the window is long enough (>= MIN_DAYS_FOR_APY), else the INSUFFICIENT_HISTORY_FOR_APY
+        # sentinel; `period_return_pct` is the honest cumulative return over the window. A /packages card
+        # must render `realized_apy_display` (never the raw over-annualized `realized_apy_pct`) so a thin
+        # forward track can never surface a 200%+ artifact as a realized APY.
+        "realized_apy_display": primary.get("realized_apy_display"),
+        "period_return_pct": primary.get("period_return_pct"),
+        "apy_trustworthy": primary.get("apy_trustworthy", False),
         "ratio_source": primary["name"],
         # ── THE TAIL (surfaced next to the yield, always) ──
         "tail": {

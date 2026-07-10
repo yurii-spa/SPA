@@ -79,5 +79,43 @@ class TestRiskMetrics(unittest.TestCase):
         self.assertIsNone(m["realized_apy_pct"])
 
 
+class TestAnnualizationGuard(unittest.TestCase):
+    """Backlog #5 — a short window must NEVER surface an over-annualized APY artifact."""
+
+    def test_short_window_apy_untrusted_but_period_return_honest(self):
+        # 8-day track, small real gain → annualizing to a year is a huge artifact
+        vals = [100000 * (1.005 ** i) for i in range(8)]
+        m = rm.compute_track_metrics(_series(vals))
+        # raw annualized figure is a big number (kept for continuity) …
+        self.assertGreater(m["realized_apy_pct"], 100.0)
+        # … but it is NOT trustworthy, the display is the sentinel, and the period return is honest
+        self.assertFalse(m["apy_trustworthy"])
+        self.assertEqual(m["realized_apy_display"], rm.INSUFFICIENT_APY)
+        self.assertAlmostEqual(m["period_return_pct"], (vals[-1] / vals[0] - 1.0) * 100.0, places=3)
+
+    def test_long_window_apy_trusted_and_displayed(self):
+        # >= MIN_DAYS_FOR_APY daily steps → the annualized APY is trustworthy and shown as a number
+        n = rm.MIN_DAYS_FOR_APY + 5
+        vals = [100000 * (1.0003 ** i) for i in range(n + 1)]
+        m = rm.compute_track_metrics(_series(vals))
+        self.assertTrue(m["apy_trustworthy"])
+        self.assertEqual(m["realized_apy_display"], m["realized_apy_pct"])
+
+    def test_boundary_exactly_min_days(self):
+        # exactly MIN_DAYS_FOR_APY daily steps (n_points = MIN_DAYS_FOR_APY + 1) → trustworthy
+        n = rm.MIN_DAYS_FOR_APY
+        vals = [100000 * (1.0004 ** i) for i in range(n + 1)]
+        m = rm.compute_track_metrics(_series(vals))
+        self.assertEqual(m["n_points"], n + 1)
+        self.assertTrue(m["apy_trustworthy"])
+
+    def test_broken_track_keeps_untrusted_apy_defaults(self):
+        s = _series([100000, 100100])
+        s.append({"date": "2026-03-01", "equity_usd": 100200.0})  # gap → integrity fail
+        m = rm.compute_track_metrics(s)
+        self.assertFalse(m["apy_trustworthy"])
+        self.assertEqual(m["realized_apy_display"], rm.INSUFFICIENT_APY)
+
+
 if __name__ == "__main__":
     unittest.main()

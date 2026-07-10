@@ -36,9 +36,17 @@ from spa_core.strategy_lab import track_integrity as ti
 # lands here: it gets honest return/vol/maxDD but NO fabricated Sharpe.
 MIN_POINTS = 7
 
+# Backlog #5 — annualizing a SHORT window is a fabricated-APY hazard: `total_growth ** (365/n_days)`
+# on an 8-day forward track turns a small real gain into a 155–217% "APY" artifact that must NEVER
+# reach a customer-facing surface (/packages, scorecard cards). Below this many daily steps the
+# annualized figure is NOT a trustworthy APY — we still report the honest PERIOD return, but flag
+# `apy_trustworthy=False` and expose the sentinel so a card shows INSUFFICIENT_HISTORY_FOR_APY.
+MIN_DAYS_FOR_APY = 30
+
 # The sentinel for "we refuse to emit a number we cannot honestly compute". A STRING, never a
 # float — so a consumer can never mistake it for a real (possibly degenerate) ratio.
 INSUFFICIENT = "INSUFFICIENT_DATA"
+INSUFFICIENT_APY = "INSUFFICIENT_HISTORY_FOR_APY"
 
 
 def _extract_equity(points: Sequence[dict]) -> Optional[List[float]]:
@@ -108,6 +116,12 @@ def compute_track_metrics(
         "integrity_ok": False,
         "integrity_reason": "malformed",
         "realized_apy_pct": None,
+        # Backlog #5: the honest cumulative return over the window (no annualization) — always safe to
+        # show. `apy_trustworthy` is False when the window is too short to annualize honestly; then
+        # `realized_apy_display` carries the INSUFFICIENT_HISTORY_FOR_APY sentinel for cards.
+        "period_return_pct": None,
+        "apy_trustworthy": False,
+        "realized_apy_display": INSUFFICIENT_APY,
         "vol_pct": None,
         "max_dd_pct": None,
         "sharpe": INSUFFICIENT,
@@ -145,6 +159,16 @@ def compute_track_metrics(
     base["realized_apy_pct"] = realized_apy
     base["max_dd_pct"] = max_dd
     base["vol_pct"] = vol
+    # Backlog #5 annualization guard: n_days = daily steps in the window. Below MIN_DAYS_FOR_APY the
+    # annualized `realized_apy_pct` is an over-annualization artifact (a few days of gain compounded to
+    # a year) — keep it in the JSON for continuity but flag it untrustworthy and surface the honest
+    # PERIOD return + the sentinel so no card presents the artifact as a realized APY.
+    n_days = len(equity) - 1
+    total_growth = equity[-1] / equity[0] if equity[0] else 1.0
+    base["period_return_pct"] = round((total_growth - 1.0) * 100.0, 4)
+    base["apy_trustworthy"] = bool(n_days >= MIN_DAYS_FOR_APY)
+    base["realized_apy_display"] = (
+        round(realized_apy, 4) if base["apy_trustworthy"] else INSUFFICIENT_APY)
 
     # ── 3. ratios — THIN-aware + locked-vol-aware (the trustworthy gate) ──
     enough = len(equity) >= min_points
