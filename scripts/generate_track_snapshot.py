@@ -118,9 +118,19 @@ def build_snapshot(golive_path: Path = GOLIVE, equity_path: Path = EQUITY, pts_p
     nav = pts.get("current_equity")
     end_equity = float(nav if nav is not None else last.get("equity", equity.get("end_equity", 100000.0)) or 100000.0)
 
-    paper_apy = pts.get("apy_today_pct")
-    if paper_apy is None and last.get("apy_today") is not None:
-        paper_apy = last.get("apy_today")
+    # Public "Paper APY" = the STABLE evidenced-track annualized return, NOT the
+    # volatile single-day apy_today (which annualizes ONE day's yield → swings daily,
+    # overstates the track, and breaks the stated 2-6% band). Compound-annualize from
+    # the evidenced anchor bar over the real evidenced days. Pre-anchor bars are
+    # backfill/demo (invalid) and are excluded upstream, so this only ever counts
+    # honest evidenced days. Too few evidenced bars to annualize => None => the site
+    # renders "data unavailable", never a misleading volatile number.
+    paper_apy = None
+    if len(evidenced) >= 2 and real_days > 0:
+        anchor_eq = float(evidenced[0].get("equity") or 0)
+        latest_eq = float(evidenced[-1].get("equity") or 0)
+        if anchor_eq > 0 and latest_eq > 0:
+            paper_apy = ((latest_eq / anchor_eq) ** (365.0 / real_days) - 1.0) * 100.0
 
     # as_of = freshness of the underlying evidenced data (last evidenced bar date), NOT build time.
     as_of = (evidenced[-1].get("date") if evidenced else last.get("date")) or golive.get("as_of")
