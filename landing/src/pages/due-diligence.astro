@@ -31,26 +31,26 @@ const realDays = snap.real_track_days != null ? snap.real_track_days : '—';  /
       <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Текущий статус">Current Status</h2>
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4 text-center">
-          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Режим">Mode</p>
+          <p class="text-xs text-white/50 font-mono mb-1" data-ru="Режим">Mode</p>
           <p class="text-sm text-warn font-medium" data-ru="Paper trading">Paper Trading</p>
         </div>
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4 text-center">
-          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Капитал">Capital</p>
+          <p class="text-xs text-white/50 font-mono mb-1" data-ru="Капитал">Capital</p>
           <p class="text-sm text-white/70 font-medium">$100k USDC</p>
         </div>
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4 text-center">
-          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Старт">Start</p>
+          <p class="text-xs text-white/50 font-mono mb-1" data-ru="Старт">Start</p>
           <p class="text-sm text-white/70 font-medium" data-ru="22 июня 2026">Jun 22, 2026</p>
         </div>
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4 text-center">
-          <p class="text-xs text-white/30 font-mono mb-1">Go-Live</p>
+          <p class="text-xs text-white/50 font-mono mb-1">Go-Live</p>
           <p class="text-sm text-white/70 font-medium" data-ru="~21 июля 2026">~Jul 21, 2026</p>
         </div>
       </div>
       <div class="mt-4 rounded-lg border border-ok-border bg-ok-bg p-4 flex items-center justify-between">
         <div>
           <p class="text-sm text-white/70">GoLiveChecker</p>
-          <p class="text-xs text-white/40" data-ru="Автоматические критерии готовности">Automated readiness criteria</p>
+          <p class="text-xs text-white/55" data-ru="Автоматические критерии готовности">Automated readiness criteria</p>
         </div>
         <span class="text-sm font-mono text-ok" data-ru={`${snap.gates_passed}/${snap.gates_total} пройдено (НЕ ГОТОВО)`}>{snap.gates_passed}/{snap.gates_total} passing (NOT READY)</span>
       </div>
@@ -65,14 +65,15 @@ const realDays = snap.real_track_days != null ? snap.real_track_days : '—';  /
       <div class="rounded-xl border border-border-strong bg-bg-surface p-5 mb-4">
         <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru="1. Цепочка доказательств цела">1 · Proof chain is intact</p>
         <pre class="text-xs font-mono text-white/70 overflow-x-auto mb-2">python3 scripts/verify_spa.py data/</pre>
-        <p class="text-xs text-white/40 leading-relaxed" data-ru="Покрывает все 7 поверхностей: decision-chain, exit-NAV, anchors, equity-track, tournament, RWA-NAV, sleeves. Точный --expect-head и SHA-256 самого верификатора — в живом DD-паке (auto-generated, guarded).">Covers all 7 surfaces — decision chain, exit-NAV, anchors, equity track, tournament, RWA-NAV, sleeves. The exact <code>--expect-head</code> fingerprint and the verifier's own SHA-256 live in the auto-generated, test-guarded DD pack (<code>docs/DD_PACK.md</code>).</p>
+        <p class="text-xs text-white/55 leading-relaxed" data-ru="Покрывает все 7 поверхностей: decision-chain, exit-NAV, anchors, equity-track, tournament, RWA-NAV, sleeves. Точный --expect-head и SHA-256 самого верификатора — в живом DD-паке (auto-generated, guarded).">Covers all 7 surfaces — decision chain, exit-NAV, anchors, equity track, tournament, RWA-NAV, sleeves. The exact <code>--expect-head</code> fingerprint and the verifier's own SHA-256 live in the auto-generated, test-guarded DD pack (<code>docs/DD_PACK.md</code>).</p>
       </div>
       <div class="rounded-xl border border-border-strong bg-bg-surface p-5 mb-4">
         <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru="2. Защиты доказуемо срабатывают">2 · The safety machinery FIRES</p>
         <pre class="text-xs font-mono text-white/70 overflow-x-auto mb-2">python3 scripts/defenses_exercised_report.py</pre>
-        <p class="text-xs text-white/40 leading-relaxed" data-ru="11/11 защит срабатывают через тот же governance-код, что и дневной цикл: two-tier kill (SOFT −5% / HARD −10%), soft-derisk блокирует любые NEW/INCREASE. Кривая монотонна (0% просадки) — тормоза спят, потому что не штормило, а не потому что их нет.">11/11 defenses fire through the <b>same</b> governance code the daily cycle uses: two-tier kill ladder (SOFT −5% de-risk / HARD −10% all-cash), soft de-risk blocks every NEW position and INCREASE. The live curve is monotonic (0% drawdown) — the brakes are dormant because it never stressed, not because they're absent.</p>
+        <p class="text-xs text-white/55 leading-relaxed" data-ru="11/11 защит срабатывают через тот же governance-код, что и дневной цикл: two-tier kill (SOFT −5% / HARD −10%), soft-derisk блокирует любые NEW/INCREASE. Кривая монотонна (0% просадки) — тормоза спят, потому что не штормило, а не потому что их нет.">11/11 defenses fire through the <b>same</b> governance code the daily cycle uses: two-tier kill ladder (SOFT −5% de-risk / HARD −10% all-cash), soft de-risk blocks every NEW position and INCREASE. The live curve is monotonic (0% drawdown) — the brakes are dormant because it never stressed, not because they're absent.</p>
       </div>
-      <p class="text-xs text-white/40 leading-relaxed" data-ru="Живые публичные поверхности:">Live public surfaces:
+      <p class="text-xs text-white/55 leading-relaxed" data-ru="Живые публичные поверхности:">Live public surfaces:
+        <a href="/readiness" class="text-accent-400 hover:underline">/readiness</a> ·
         <a href="/refusals" class="text-accent-400 hover:underline">/refusals</a> ·
         <a href="/exit-nav" class="text-accent-400 hover:underline">/exit-nav</a> ·
         <a href="/proof-of-reserves" class="text-accent-400 hover:underline">/proof-of-reserves</a> ·
@@ -88,9 +89,9 @@ const realDays = snap.real_track_days != null ? snap.real_track_days : '—';  /
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-border-strong bg-bg-surface">
-              <th class="text-left text-white/40 font-mono text-xs p-3" data-ru="Стратегия">Strategy</th>
-              <th class="text-left text-white/40 font-mono text-xs p-3" data-ru="Статус">Status</th>
-              <th class="text-left text-white/40 font-mono text-xs p-3" data-ru="Paper-трекинг">Paper Tracking</th>
+              <th class="text-left text-white/55 font-mono text-xs p-3" data-ru="Стратегия">Strategy</th>
+              <th class="text-left text-white/55 font-mono text-xs p-3" data-ru="Статус">Status</th>
+              <th class="text-left text-white/55 font-mono text-xs p-3" data-ru="Paper-трекинг">Paper Tracking</th>
             </tr>
           </thead>
           <tbody class="text-white/55">
@@ -101,13 +102,13 @@ const realDays = snap.real_track_days != null ? snap.real_track_days : '—';  /
             </tr>
             <tr class="border-b border-border">
               <td class="p-3 text-white/70 font-medium">Preserve</td>
-              <td class="p-3"><span class="text-xs font-mono text-white/40 bg-bg-surface-2 px-2 py-0.5 rounded" data-ru="Целевой профиль">Target profile</span></td>
-              <td class="p-3 text-white/40" data-ru="Запланировано">Planned</td>
+              <td class="p-3"><span class="text-xs font-mono text-white/55 bg-bg-surface-2 px-2 py-0.5 rounded" data-ru="Целевой профиль">Target profile</span></td>
+              <td class="p-3 text-white/55" data-ru="Запланировано">Planned</td>
             </tr>
             <tr>
               <td class="p-3 text-white/70 font-medium">Max Yield</td>
-              <td class="p-3"><span class="text-xs font-mono text-white/40 bg-bg-surface-2 px-2 py-0.5 rounded" data-ru="Целевой профиль">Target profile</span></td>
-              <td class="p-3 text-white/40" data-ru="Запланировано">Planned</td>
+              <td class="p-3"><span class="text-xs font-mono text-white/55 bg-bg-surface-2 px-2 py-0.5 rounded" data-ru="Целевой профиль">Target profile</span></td>
+              <td class="p-3 text-white/55" data-ru="Запланировано">Planned</td>
             </tr>
           </tbody>
         </table>
@@ -120,19 +121,19 @@ const realDays = snap.real_track_days != null ? snap.real_track_days : '—';  /
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <a href="/#live-stats" class="rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-ok-border transition-colors group">
           <p class="text-sm font-semibold text-white/80 group-hover:text-white mb-1" data-ru="Дашборд">Dashboard</p>
-          <p class="text-xs text-white/40" data-ru="Живые paper-метрики: дни трека, APY, Sharpe, просадка">Live paper metrics: Track Days, APY, Sharpe, Drawdown</p>
+          <p class="text-xs text-white/55" data-ru="Живые paper-метрики: дни трека, APY, Sharpe, просадка">Live paper metrics: Track Days, APY, Sharpe, Drawdown</p>
         </a>
         <a href="/#live-stats" class="rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-ok-border transition-colors group">
           <p class="text-sm font-semibold text-white/80 group-hover:text-white mb-1" data-ru="Блокировки риска">Risk Blocks</p>
-          <p class="text-xs text-white/40" data-ru="Все заблокированные ребалансировки залогированы и с временными метками">All blocked rebalances logged and timestamped</p>
+          <p class="text-xs text-white/55" data-ru="Все заблокированные ребалансировки залогированы и с временными метками">All blocked rebalances logged and timestamped</p>
         </a>
         <a href="/#live-stats" class="rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-ok-border transition-colors group">
           <p class="text-sm font-semibold text-white/80 group-hover:text-white mb-1" data-ru="Логи сделок">Trade Logs</p>
-          <p class="text-xs text-white/40" data-ru="Каждый цикл залогирован с обоснованием">Every cycle logged with reasoning</p>
+          <p class="text-xs text-white/55" data-ru="Каждый цикл залогирован с обоснованием">Every cycle logged with reasoning</p>
         </a>
         <a href="/#live-stats" class="rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-ok-border transition-colors group">
           <p class="text-sm font-semibold text-white/80 group-hover:text-white mb-1">GoLiveChecker</p>
-          <p class="text-xs text-white/40" data-ru={`${snap.gates_passed}/${snap.gates_total} критериев пройдено (НЕ ГОТОВО) — готовность в реальном времени`}>{snap.gates_passed}/{snap.gates_total} criteria passing (NOT READY) — real-time readiness</p>
+          <p class="text-xs text-white/55" data-ru={`${snap.gates_passed}/${snap.gates_total} критериев пройдено (НЕ ГОТОВО) — готовность в реальном времени`}>{snap.gates_passed}/{snap.gates_total} criteria passing (NOT READY) — real-time readiness</p>
         </a>
       </div>
     </section>
@@ -144,7 +145,7 @@ const realDays = snap.real_track_days != null ? snap.real_track_days : '—';  /
         <a href="/trust" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-ok-border transition-colors group">
           <div>
             <p class="text-sm text-white/80 group-hover:text-white" data-ru="Архитектура доверия">Trust Architecture</p>
-            <p class="text-xs text-white/40" data-ru="Модель контроля, кастоди, 9 ключевых вопросов">Control model, custody, 9 key questions</p>
+            <p class="text-xs text-white/55" data-ru="Модель контроля, кастоди, 9 ключевых вопросов">Control model, custody, 9 key questions</p>
           </div>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-ok">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
@@ -153,7 +154,7 @@ const realDays = snap.real_track_days != null ? snap.real_track_days : '—';  /
         <a href="/risk" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-ok-border transition-colors group">
           <div>
             <p class="text-sm text-white/80 group-hover:text-white" data-ru="Риск">Risk</p>
-            <p class="text-xs text-white/40" data-ru="Категории, матрица, стресс-сценарии">Categories, matrix, stress scenarios</p>
+            <p class="text-xs text-white/55" data-ru="Категории, матрица, стресс-сценарии">Categories, matrix, stress scenarios</p>
           </div>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-ok">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
@@ -162,7 +163,7 @@ const realDays = snap.real_track_days != null ? snap.real_track_days : '—';  /
         <a href="/risk-disclosure" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-ok-border transition-colors group">
           <div>
             <p class="text-sm text-white/80 group-hover:text-white" data-ru="Раскрытие рисков">Risk Disclosure</p>
-            <p class="text-xs text-white/40" data-ru="Полное юридическое раскрытие">Full legal disclosure</p>
+            <p class="text-xs text-white/55" data-ru="Полное юридическое раскрытие">Full legal disclosure</p>
           </div>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-ok">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
@@ -171,14 +172,14 @@ const realDays = snap.real_track_days != null ? snap.real_track_days : '—';  /
         <a href="/security" class="flex items-center justify-between rounded-lg border border-border bg-bg-surface p-4 group hover:border-ok/40 transition-colors">
           <div>
             <p class="text-sm text-white/70" data-ru="Базовая безопасность">Security Baseline</p>
-            <p class="text-xs text-white/40" data-ru="Security-обзор + pre-live чеклист">Security review + pre-live checklist</p>
+            <p class="text-xs text-white/55" data-ru="Security-обзор + pre-live чеклист">Security review + pre-live checklist</p>
           </div>
           <span class="text-white/20 group-hover:text-ok" aria-hidden="true">→</span>
         </a>
         <a href="/emergency-withdrawal" class="flex items-center justify-between rounded-lg border border-border bg-bg-surface p-4 group hover:border-ok/40 transition-colors">
           <div>
             <p class="text-sm text-white/70" data-ru="Экстренный вывод">Emergency Withdrawal</p>
-            <p class="text-xs text-white/40" data-ru="Путь экстренного вывода + kill-switch">Emergency-withdrawal path + kill-switch ladder</p>
+            <p class="text-xs text-white/55" data-ru="Путь экстренного вывода + kill-switch">Emergency-withdrawal path + kill-switch ladder</p>
           </div>
           <span class="text-white/20 group-hover:text-ok" aria-hidden="true">→</span>
         </a>
@@ -192,10 +193,10 @@ const realDays = snap.real_track_days != null ? snap.real_track_days : '—';  /
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-border-strong bg-bg-surface">
-              <th class="text-left text-white/40 font-mono text-xs p-3" data-ru="Протокол">Protocol</th>
-              <th class="text-left text-white/40 font-mono text-xs p-3" data-ru="Уровень">Tier</th>
-              <th class="text-left text-white/40 font-mono text-xs p-3" data-ru="Сеть">Chain</th>
-              <th class="text-left text-white/40 font-mono text-xs p-3">TVL</th>
+              <th class="text-left text-white/55 font-mono text-xs p-3" data-ru="Протокол">Protocol</th>
+              <th class="text-left text-white/55 font-mono text-xs p-3" data-ru="Уровень">Tier</th>
+              <th class="text-left text-white/55 font-mono text-xs p-3" data-ru="Сеть">Chain</th>
+              <th class="text-left text-white/55 font-mono text-xs p-3">TVL</th>
             </tr>
           </thead>
           <tbody class="text-white/55">
@@ -225,7 +226,7 @@ const realDays = snap.real_track_days != null ? snap.real_track_days : '—';  /
             </tr>
             <tr class="border-b border-border">
               <td class="p-3 text-white/70">Sky/sUSDS</td>
-              <td class="p-3"><span class="text-xs font-mono text-ok">Tier 1</span> <span class="text-xs text-white/30" data-ru="(условно)">(conditional)</span></td>
+              <td class="p-3"><span class="text-xs font-mono text-ok">Tier 1</span> <span class="text-xs text-white/50" data-ru="(условно)">(conditional)</span></td>
               <td class="p-3">Ethereum</td>
               <td class="p-3">$8B+</td>
             </tr>
@@ -266,28 +267,28 @@ const realDays = snap.real_track_days != null ? snap.real_track_days : '—';  /
           <span class="flex-shrink-0 w-2 h-2 rounded-full bg-white/20"></span>
           <div>
             <p class="text-sm text-white/70" data-ru="Аудиты смарт-контрактов">Smart contract audits</p>
-            <p class="text-xs text-white/40" data-ru="Пока неприменимо (этап paper trading, нет live-контрактов)">Not yet applicable (paper trading phase, no live contracts)</p>
+            <p class="text-xs text-white/55" data-ru="Пока неприменимо (этап paper trading, нет live-контрактов)">Not yet applicable (paper trading phase, no live contracts)</p>
           </div>
         </div>
         <div class="flex items-center gap-4 rounded-lg border border-border-strong bg-bg-surface p-4">
           <span class="flex-shrink-0 w-2 h-2 rounded-full bg-ok"></span>
           <div>
             <p class="text-sm text-white/70" data-ru="Ревью кода">Code review</p>
-            <p class="text-xs text-white/40" data-ru="Внутреннее ревью завершено">Internal review complete</p>
+            <p class="text-xs text-white/55" data-ru="Внутреннее ревью завершено">Internal review complete</p>
           </div>
         </div>
         <div class="flex items-center gap-4 rounded-lg border border-border-strong bg-bg-surface p-4">
           <span class="flex-shrink-0 w-2 h-2 rounded-full bg-warn"></span>
           <div>
             <p class="text-sm text-white/70" data-ru="Внешний аудит">External audit</p>
-            <p class="text-xs text-white/40" data-ru="Запланирован перед go-live">Planned before go-live</p>
+            <p class="text-xs text-white/55" data-ru="Запланирован перед go-live">Planned before go-live</p>
           </div>
         </div>
         <div class="flex items-center gap-4 rounded-lg border border-border-strong bg-bg-surface p-4">
           <span class="flex-shrink-0 w-2 h-2 rounded-full bg-warn"></span>
           <div>
             <p class="text-sm text-white/70" data-ru="Bug bounty">Bug bounty</p>
-            <p class="text-xs text-white/40" data-ru="Пока не активна — запланирована к go-live">Not yet active &mdash; planned for go-live</p>
+            <p class="text-xs text-white/55" data-ru="Пока не активна — запланирована к go-live">Not yet active &mdash; planned for go-live</p>
           </div>
         </div>
       </div>
@@ -326,41 +327,41 @@ const realDays = snap.real_track_days != null ? snap.real_track_days : '—';  /
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-border-strong bg-bg-surface">
-                <th class="text-left text-white/40 font-mono text-xs p-3" data-ru="Этап">Stage</th>
-                <th class="text-left text-white/40 font-mono text-xs p-3" data-ru="Название">Name</th>
-                <th class="text-left text-white/40 font-mono text-xs p-3" data-ru="Описание">Description</th>
-                <th class="text-left text-white/40 font-mono text-xs p-3" data-ru="Статус">Status</th>
+                <th class="text-left text-white/55 font-mono text-xs p-3" data-ru="Этап">Stage</th>
+                <th class="text-left text-white/55 font-mono text-xs p-3" data-ru="Название">Name</th>
+                <th class="text-left text-white/55 font-mono text-xs p-3" data-ru="Описание">Description</th>
+                <th class="text-left text-white/55 font-mono text-xs p-3" data-ru="Статус">Status</th>
               </tr>
             </thead>
             <tbody class="text-white/55">
               <tr class="border-b border-border">
-                <td class="p-3 font-mono text-white/40 text-xs">1</td>
+                <td class="p-3 font-mono text-white/55 text-xs">1</td>
                 <td class="p-3 text-white/70 font-medium" data-ru="Гейт бэктеста">Backtest Gate</td>
                 <td class="p-3 text-white/50 text-xs" data-ru="4-летняя историческая симуляция по строгим PIT-правилам">4-year historical simulation under strict PIT rules</td>
                 <td class="p-3"><span class="text-xs font-mono text-ok bg-ok-bg px-2 py-0.5 rounded" data-ru="✅ ПРОЙДЕНО">✅ PASS</span></td>
               </tr>
               <tr class="border-b border-border">
-                <td class="p-3 font-mono text-white/40 text-xs">2</td>
+                <td class="p-3 font-mono text-white/55 text-xs">2</td>
                 <td class="p-3 text-white/70 font-medium" data-ru="Гейт перед paper">Pre-Paper Gate</td>
                 <td class="p-3 text-white/50 text-xs" data-ru="Усиление кода, обзор расширенного набора протоколов">Code hardening, expanded protocol universe review</td>
                 <td class="p-3"><span class="text-xs font-mono text-ok bg-ok-bg px-2 py-0.5 rounded" data-ru="✅ ПРОЙДЕНО">✅ PASS</span></td>
               </tr>
               <tr class="border-b border-border">
-                <td class="p-3 font-mono text-white/40 text-xs">3</td>
+                <td class="p-3 font-mono text-white/55 text-xs">3</td>
                 <td class="p-3 text-white/70 font-medium">Paper Trading</td>
                 <td class="p-3 text-white/50 text-xs" data-ru="Живая симуляция на реальных ончейн-данных, без реального капитала">Live simulation with real on-chain data, no real capital</td>
                 <td class="p-3"><span class="text-xs font-mono text-warn bg-warn-bg px-2 py-0.5 rounded" data-ru="⏳ В ПРОЦЕССЕ">⏳ IN PROGRESS</span></td>
               </tr>
               <tr>
-                <td class="p-3 font-mono text-white/40 text-xs">4</td>
+                <td class="p-3 font-mono text-white/55 text-xs">4</td>
                 <td class="p-3 text-white/70 font-medium" data-ru="Живой капитал">Live Capital</td>
                 <td class="p-3 text-white/50 text-xs" data-ru="Требуется авторизация, подписанная владельцем">Owner-signed authorization required</td>
-                <td class="p-3"><span class="text-xs font-mono text-white/30 bg-bg-surface-2 px-2 py-0.5 rounded" data-ru="🔒 ЗАБЛОКИРОВАНО">🔒 BLOCKED</span></td>
+                <td class="p-3"><span class="text-xs font-mono text-white/50 bg-bg-surface-2 px-2 py-0.5 rounded" data-ru="🔒 ЗАБЛОКИРОВАНО">🔒 BLOCKED</span></td>
               </tr>
             </tbody>
           </table>
         </div>
-        <p class="text-xs text-white/30 mt-3 font-mono" id="dd-paper-day" data-ru={`${realDays} подтверждённых дней (якорь 2026-06-22) — цель 30 (ADR-002) · реестр на /track-record`}>
+        <p class="text-xs text-white/50 mt-3 font-mono" id="dd-paper-day" data-ru={`${realDays} подтверждённых дней (якорь 2026-06-22) — цель 30 (ADR-002) · реестр на /track-record`}>
           {realDays} evidenced days (anchor 2026-06-22) — target 30 (ADR-002) · ledger at /track-record
         </p>
         <script is:inline>
@@ -442,7 +443,7 @@ const realDays = snap.real_track_days != null ? snap.real_track_days : '—';  /
         <p class="text-sm text-white/70 mb-3">
           <a href="mailto:yuriycooleshov@gmail.com" class="text-ok hover:text-ok underline underline-offset-2">yuriycooleshov@gmail.com</a>
         </p>
-        <p class="text-xs text-white/40" data-ru="По вопросам методологии или данных paper trading.">
+        <p class="text-xs text-white/55" data-ru="По вопросам методологии или данных paper trading.">
           For questions about methodology or paper trading data.
         </p>
       </div>

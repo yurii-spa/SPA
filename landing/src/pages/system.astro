@@ -76,28 +76,28 @@ const surfaces = [
     <section class="pb-10">
       <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
         <div class="flex items-baseline justify-between mb-4 flex-wrap gap-2">
-          <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Парк агентов · в реальном времени">Agent fleet · live</p>
+          <p class="text-xs text-white/50 uppercase tracking-wider font-mono" data-ru="Парк агентов · в реальном времени">Agent fleet · live</p>
           <p class="text-xs text-white/25 font-mono"><span data-ru="источник:">source:</span> <span id="sys-src">offline</span></p>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div class="rounded-lg bg-white/[0.02] border border-white/8 p-4">
-            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Всего">Total</p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Всего">Total</p>
             <p class="text-2xl font-mono font-bold text-white" id="sys-total">—</p>
           </div>
           <div class="rounded-lg bg-white/[0.02] border border-white/8 p-4">
-            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Здоровых">Healthy</p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Здоровых">Healthy</p>
             <p class="text-2xl font-mono font-bold text-ok" id="sys-healthy">—</p>
           </div>
           <div class="rounded-lg bg-white/[0.02] border border-white/8 p-4">
-            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Внимание">Warning</p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Внимание">Warning</p>
             <p class="text-2xl font-mono font-bold text-warn" id="sys-warn">—</p>
           </div>
           <div class="rounded-lg bg-white/[0.02] border border-white/8 p-4">
-            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Критич.">Critical</p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Критич.">Critical</p>
             <p class="text-2xl font-mono font-bold text-danger" id="sys-crit">—</p>
           </div>
         </div>
-        <p class="text-xs text-white/30 mt-4" data-ru="Статус читается из живого heartbeat агентов (agent_health, ежечасно). При офлайне поля показывают «—».">
+        <p class="text-xs text-white/50 mt-4" data-ru="Статус читается из живого heartbeat агентов (agent_health, ежечасно). При офлайне поля показывают «—».">
           Status reads from the live agent heartbeat (agent_health, hourly). When offline, fields show "—".
         </p>
       </div>
@@ -105,8 +105,8 @@ const surfaces = [
 
     <!-- 8-plane architecture -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Восьмиплоскостная архитектура (Tier-1)">Eight-plane architecture (Tier-1)</p>
-      <p class="text-sm text-white/40 mb-6 leading-relaxed max-w-2xl" data-ru="Каждая плоскость — независимый, детерминированный слой защиты. Цикл fail-safe: если любая плоскость падает, торговля не идёт.">
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Восьмиплоскостная архитектура (Tier-1)">Eight-plane architecture (Tier-1)</p>
+      <p class="text-sm text-white/55 mb-6 leading-relaxed max-w-2xl" data-ru="Каждая плоскость — независимый, детерминированный слой защиты. Цикл fail-safe: если любая плоскость падает, торговля не идёт.">
         Each plane is an independent, deterministic safety layer. The cycle is fail-safe:
         if any plane fails, no trade goes through.
       </p>
@@ -117,7 +117,7 @@ const surfaces = [
               <span class="flex-shrink-0 w-6 h-6 rounded-md bg-teal-bg border border-teal-border flex items-center justify-center text-xs text-data-teal font-mono">{i + 1}</span>
               <p class="text-sm font-semibold text-white" data-ru={p.ru}>{p.en}</p>
             </div>
-            <p class="text-xs text-white/40 leading-relaxed pl-9" data-ru={p.desc_ru}>{p.desc_en}</p>
+            <p class="text-xs text-white/55 leading-relaxed pl-9" data-ru={p.desc_ru}>{p.desc_en}</p>
           </div>
         ))}
       </div>
@@ -125,7 +125,7 @@ const surfaces = [
 
     <!-- Live operational surfaces -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6" data-ru="Живые операционные поверхности">Live operational surfaces</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-6" data-ru="Живые операционные поверхности">Live operational surfaces</p>
       <div class="space-y-3">
         {surfaces.map((s) => (
           <a href={s.href} class="group flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.02] px-5 py-4 hover:border-white/20 hover:bg-white/[0.04] transition-all">
@@ -142,10 +142,10 @@ const surfaces = [
     <!-- Promotion pipeline (the honest decision layer) -->
     <section class="py-10 border-t border-white/5">
       <div class="flex items-baseline justify-between mb-2 flex-wrap gap-2">
-        <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Конвейер промоушена · Strategy Lab">Promotion pipeline · Strategy Lab</p>
+        <p class="text-xs text-white/50 uppercase tracking-wider font-mono" data-ru="Конвейер промоушена · Strategy Lab">Promotion pipeline · Strategy Lab</p>
         <p class="text-xs text-white/25 font-mono"><span data-ru="источник:">source:</span> <span id="promo-src">offline</span></p>
       </div>
-      <p class="text-sm text-white/40 mb-5 leading-relaxed max-w-2xl" data-ru="Решающий слой исследований: какие исследовательские sleeve'ы переходят backtest → paper → live и почему. Промоушен — это детерминированный риск-гейт, а не воронка продаж. Мы публикуем то, что ПРОВАЛИВАЕТСЯ, а не только то, что проходит.">
+      <p class="text-sm text-white/55 mb-5 leading-relaxed max-w-2xl" data-ru="Решающий слой исследований: какие исследовательские sleeve'ы переходят backtest → paper → live и почему. Промоушен — это детерминированный риск-гейт, а не воронка продаж. Мы публикуем то, что ПРОВАЛИВАЕТСЯ, а не только то, что проходит.">
         The research decision layer: which research sleeves graduate backtest → paper → live, and why.
         Promotion is a deterministic risk gate, not a sales funnel. We publish what FAILS, not just what passes.
       </p>
@@ -165,19 +165,19 @@ const surfaces = [
 
       <!-- The pipeline stepper -->
       <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5 mb-6">
-        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Лестница промоушена">The promotion ladder</p>
+        <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Лестница промоушена">The promotion ladder</p>
         <div class="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1">
           {['RESEARCH', 'BACKTEST', 'WALK-FORWARD', 'PAPER', 'CANARY', 'FULL'].map((stage, i, arr) => (
             <>
               <div class="flex-shrink-0 flex flex-col items-center gap-1.5">
-                <span class={`w-7 h-7 rounded-full border flex items-center justify-center text-xs font-mono ${i <= 3 ? 'bg-teal-bg border-teal-border text-data-teal' : 'bg-white/[0.02] border-white/10 text-white/30'}`}>{i + 1}</span>
-                <span class={`text-[10px] sm:text-xs font-mono whitespace-nowrap ${i <= 3 ? 'text-white/60' : 'text-white/30'}`}>{stage}</span>
+                <span class={`w-7 h-7 rounded-full border flex items-center justify-center text-xs font-mono ${i <= 3 ? 'bg-teal-bg border-teal-border text-data-teal' : 'bg-white/[0.02] border-white/10 text-white/50'}`}>{i + 1}</span>
+                <span class={`text-[10px] sm:text-xs font-mono whitespace-nowrap ${i <= 3 ? 'text-white/60' : 'text-white/50'}`}>{stage}</span>
               </div>
               {i < arr.length - 1 && <span class={`flex-1 min-w-[12px] h-px ${i < 3 ? 'bg-data-teal' : 'bg-white/10'}`} aria-hidden="true"></span>}
             </>
           ))}
         </div>
-        <p class="text-xs text-white/30 mt-4 leading-relaxed" data-ru="Стадии после backtest достигаются только при прохождении гейта. Текущая фаза трека — paper; ни один sleeve не идёт в live, пока трек не подтверждён. RWA-порог, против которого всё измеряется:">
+        <p class="text-xs text-white/50 mt-4 leading-relaxed" data-ru="Стадии после backtest достигаются только при прохождении гейта. Текущая фаза трека — paper; ни один sleeve не идёт в live, пока трек не подтверждён. RWA-порог, против которого всё измеряется:">
           Stages past backtest are only reached by clearing the gate. The current track phase is paper; no sleeve
           goes live until the track is confirmed. RWA floor everything is measured against:
           <span class="font-mono text-data-teal" id="promo-floor">—</span>
@@ -187,25 +187,25 @@ const surfaces = [
       <!-- Stage summary counts -->
       <div class="grid grid-cols-3 gap-3 mb-6">
         <div class="rounded-lg bg-white/[0.02] border border-ok-border p-4">
-          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Кандидат в paper">Paper candidate</p>
+          <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Кандидат в paper">Paper candidate</p>
           <p class="text-2xl font-mono font-bold text-ok" id="promo-cnt-paper">—</p>
         </div>
         <div class="rounded-lg bg-white/[0.02] border border-teal-border p-4">
-          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Прошёл backtest">Backtest pass</p>
+          <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Прошёл backtest">Backtest pass</p>
           <p class="text-2xl font-mono font-bold text-data-teal" id="promo-cnt-backtest">—</p>
         </div>
         <div class="rounded-lg bg-white/[0.02] border border-danger-border p-4">
-          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Отклонён">Rejected</p>
+          <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Отклонён">Rejected</p>
           <p class="text-2xl font-mono font-bold text-danger" id="promo-cnt-reject">—</p>
         </div>
       </div>
 
       <!-- Per-sleeve verdicts, grouped by stage (rendered by script) -->
       <div id="promo-groups" class="space-y-6">
-        <p class="text-sm text-white/30" data-ru="Загрузка вердиктов промоушена… При офлайне показываются критерии, но не живые значения.">Loading promotion verdicts… When offline, the criteria are shown but not live values.</p>
+        <p class="text-sm text-white/50" data-ru="Загрузка вердиктов промоушена… При офлайне показываются критерии, но не живые значения.">Loading promotion verdicts… When offline, the criteria are shown but not live values.</p>
       </div>
 
-      <p class="text-xs text-white/30 mt-6 leading-relaxed" data-ru="Критерии (детерминированы, из SSOT-конфига): обыгрывает порог · просадка в пределах · не убит реальным риском · устойчивость walk-forward · ёмкость · положительный net APY. data-gap kill (отсутствующее значение фида) толерируется как fail-closed safe-hold, не как риск-провал. Источник: spa_core/strategy_lab/promotion.py → /api/strategy-lab/promotion.">
+      <p class="text-xs text-white/50 mt-6 leading-relaxed" data-ru="Критерии (детерминированы, из SSOT-конфига): обыгрывает порог · просадка в пределах · не убит реальным риском · устойчивость walk-forward · ёмкость · положительный net APY. data-gap kill (отсутствующее значение фида) толерируется как fail-closed safe-hold, не как риск-провал. Источник: spa_core/strategy_lab/promotion.py → /api/strategy-lab/promotion.">
         Criteria (deterministic, from the SSOT config): beats floor · drawdown within band · not killed by real risk ·
         walk-forward consistency · capacity · positive net APY. A data-gap kill (a missing feed value) is tolerated as
         a fail-closed safe-hold, not a risk failure. Source: spa_core/strategy_lab/promotion.py → /api/strategy-lab/promotion.
@@ -215,7 +215,7 @@ const surfaces = [
     <!-- Risk refusal — what we won't hold -->
     <section class="py-10 border-t border-white/5">
       <div class="flex items-baseline justify-between mb-2 flex-wrap gap-2">
-        <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Отказ по риску · что мы НЕ держим">Risk refusal · what we won't hold</p>
+        <p class="text-xs text-white/50 uppercase tracking-wider font-mono" data-ru="Отказ по риску · что мы НЕ держим">Risk refusal · what we won't hold</p>
         <p class="text-xs text-white/25 font-mono"><span data-ru="источник:">source:</span> <span id="ref-src">offline</span></p>
       </div>
       <h2 class="text-2xl sm:text-3xl font-bold text-white mb-3 leading-tight" data-ru="Активы, которые мы ОТКАЗЫВАЕМСЯ держать — и почему">
@@ -232,7 +232,7 @@ const surfaces = [
             flagged toxic restaking tokens (ezETH-type) before they collapsed, validated on 2 years of data
             including real depeg events. We'd rather miss yield than hold a book that blows up.
           </p>
-          <p class="text-xs text-white/40 leading-relaxed mt-2" data-ru="Это измерительный/advisory движок, а не гарантия. Он оценивает tail-риск каждого доходного актива и выдаёт вердикт SAFE / WATCH / REFUSE / UNKNOWN. Источник: /api/refusal.">
+          <p class="text-xs text-white/55 leading-relaxed mt-2" data-ru="Это измерительный/advisory движок, а не гарантия. Он оценивает tail-риск каждого доходного актива и выдаёт вердикт SAFE / WATCH / REFUSE / UNKNOWN. Источник: /api/refusal.">
             This is a measurement / advisory engine, not a guarantee. It scores the tail risk of each
             yield-bearing asset and emits a verdict of SAFE / WATCH / REFUSE / UNKNOWN. Source: /api/refusal.
           </p>
@@ -244,16 +244,16 @@ const surfaces = [
         <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-teal-bg border-teal-border text-data-teal"><span class="w-1.5 h-1.5 rounded-full bg-data-teal" aria-hidden="true"></span><span data-ru="БЕЗОПАСЕН">SAFE</span></span>
         <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-warn-bg border-warn-border text-warn"><span class="w-1.5 h-1.5 rounded-full bg-warn" aria-hidden="true"></span><span data-ru="НАБЛЮДЕНИЕ">WATCH</span></span>
         <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-danger-bg border-danger-border text-danger"><span class="w-1.5 h-1.5 rounded-full bg-danger" aria-hidden="true"></span><span data-ru="ОТКАЗ">REFUSE</span></span>
-        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-white/5 border-white/15 text-white/40"><span class="w-1.5 h-1.5 rounded-full bg-white/30" aria-hidden="true"></span><span data-ru="НЕИЗВЕСТНО">UNKNOWN</span></span>
+        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-white/5 border-white/15 text-white/55"><span class="w-1.5 h-1.5 rounded-full bg-white/30" aria-hidden="true"></span><span data-ru="НЕИЗВЕСТНО">UNKNOWN</span></span>
         <span class="text-white/25" id="ref-thresholds"></span>
       </div>
 
       <!-- Refusal rows (rendered by script) -->
       <div id="ref-rows" class="space-y-3">
-        <p class="text-sm text-white/30" data-ru="Загрузка вердиктов движка отказа… При офлайне живые значения недоступны.">Loading refusal-engine verdicts… When offline, live values are unavailable.</p>
+        <p class="text-sm text-white/50" data-ru="Загрузка вердиктов движка отказа… При офлайне живые значения недоступны.">Loading refusal-engine verdicts… When offline, live values are unavailable.</p>
       </div>
 
-      <p class="text-xs text-white/30 mt-6 leading-relaxed" data-ru="tail_score (0–1) — нормированная оценка хвостового риска: депег, downside-волатильность, режим фондирования. REFUSE/WATCH сверху. Вердикты — advisory; реальный детерминированный гейт исполнения — RiskPolicy (LLM запрещён). Источник: GET /api/refusal.">
+      <p class="text-xs text-white/50 mt-6 leading-relaxed" data-ru="tail_score (0–1) — нормированная оценка хвостового риска: депег, downside-волатильность, режим фондирования. REFUSE/WATCH сверху. Вердикты — advisory; реальный детерминированный гейт исполнения — RiskPolicy (LLM запрещён). Источник: GET /api/refusal.">
         tail_score (0–1) is the normalised tail-risk score: depeg, downside volatility, funding regime.
         REFUSE/WATCH are listed first. Verdicts are advisory; the live deterministic execution gate is the
         RiskPolicy (LLM forbidden). Source: GET /api/refusal.
@@ -263,32 +263,32 @@ const surfaces = [
     <!-- Proof of Reserves (provenance plane) -->
     <section class="py-10 border-t border-white/5">
       <div class="flex items-baseline justify-between mb-6 flex-wrap gap-2">
-        <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Доказательство резервов">Proof of Reserves</p>
+        <p class="text-xs text-white/50 uppercase tracking-wider font-mono" data-ru="Доказательство резервов">Proof of Reserves</p>
         <p class="text-xs text-white/25 font-mono"><span data-ru="источник:">source:</span> <span id="sys-por-src">static fallback</span></p>
       </div>
       <a href="/track-record" class="group block rounded-xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
         <div class="flex items-start justify-between gap-4 flex-wrap mb-4">
           <p class="text-sm font-medium text-white group-hover:text-white/90" data-ru="Верифицируемый NAV — каждый доллар учтён, криптографически проверяемо">Verifiable NAV — every dollar accounted for, cryptographically verifiable</p>
-          <span id="sys-por-recon" class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-white/40 shrink-0">
+          <span id="sys-por-recon" class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-white/55 shrink-0">
             <span class="w-1.5 h-1.5 rounded-full bg-white/30" aria-hidden="true"></span>
             <span data-ru="загрузка…">loading…</span>
           </span>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div>
-            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="NAV (бумажный)">NAV (paper)</p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="NAV (бумажный)">NAV (paper)</p>
             <p class="text-lg font-mono font-bold text-data-teal" id="sys-por-nav">—</p>
           </div>
           <div>
-            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Расхождение">Delta</p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Расхождение">Delta</p>
             <p class="text-lg font-mono font-bold text-white/70" id="sys-por-delta">—</p>
           </div>
           <div>
-            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Хэш проверки">Verification hash</p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Хэш проверки">Verification hash</p>
             <p class="text-sm font-mono text-data-teal break-all" id="sys-por-hash">—</p>
           </div>
         </div>
-        <p class="text-xs text-white/30 mt-4" data-ru="NAV = вложено + кэш + начислено, сверяется с заявленным капиталом. Бумажное доказательство резервов (методология на виртуальном портфеле $100k, не реальное кастоди). Полная панель → /track-record">
+        <p class="text-xs text-white/50 mt-4" data-ru="NAV = вложено + кэш + начислено, сверяется с заявленным капиталом. Бумажное доказательство резервов (методология на виртуальном портфеле $100k, не реальное кастоди). Полная панель → /track-record">
           NAV = deployed + cash + accrued, reconciled against reported equity. Paper proof-of-reserves
           (methodology on the virtual $100k book, not real custody). Full panel → /track-record
         </p>
@@ -297,7 +297,7 @@ const surfaces = [
 
     <!-- Daily cycle -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6" data-ru="Ежедневный цикл">The daily cycle</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-6" data-ru="Ежедневный цикл">The daily cycle</p>
       <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5 font-mono text-xs text-white/55 leading-relaxed overflow-x-auto">
         <span class="text-data-teal">06:00 UTC</span> · adapter orchestrator (read-only) → live APY/TVL<br/>
         &nbsp;&nbsp;&nbsp;&nbsp;→ multi-strategy runner (S0–S77, tournament)<br/>
@@ -306,7 +306,7 @@ const surfaces = [
         &nbsp;&nbsp;&nbsp;&nbsp;→ virtual rebalance → daily yield accrual<br/>
         &nbsp;&nbsp;&nbsp;&nbsp;→ <span class="text-accent-400">GoLiveChecker → 29 criteria</span>
       </div>
-      <p class="text-xs text-white/30 mt-4" data-ru="Стек: Python 3, только stdlib в runtime. Атомарные записи во все state-файлы. Агенты установлены через launchd и переживают перезагрузку.">
+      <p class="text-xs text-white/50 mt-4" data-ru="Стек: Python 3, только stdlib в runtime. Атомарные записи во все state-файлы. Агенты установлены через launchd и переживают перезагрузку.">
         Stack: Python 3, stdlib-only at runtime. Atomic writes to all state files. Agents are
         installed via launchd and survive reboots.
       </p>
@@ -383,7 +383,7 @@ const surfaces = [
         var pending = c && c.pending === true;
         var pass = c && c.pass === true;
         var color, mark;
-        if(pending){ color = 'bg-white/5 border-white/15 text-white/40'; mark = '·'; }
+        if(pending){ color = 'bg-white/5 border-white/15 text-white/55'; mark = '·'; }
         else if(pass){ color = 'bg-ok-bg border-ok-border text-ok'; mark = '✓'; }
         else { color = 'bg-danger-bg border-danger-border text-danger'; mark = '✗'; }
         var title = c && c.detail ? ' title="' + esc(c.detail) + '"' : '';
@@ -425,7 +425,7 @@ const surfaces = [
         var groupsEl = document.getElementById('promo-groups');
         if(!groupsEl) return;
         if(!sleeves.length){
-          groupsEl.innerHTML = '<p class="text-sm text-white/30">' +
+          groupsEl.innerHTML = '<p class="text-sm text-white/50">' +
             (ru ? 'Вердикты промоушена недоступны (офлайн или нет данных).' : 'Promotion verdicts unavailable (offline or no data).') + '</p>';
           return;
         }
@@ -461,7 +461,7 @@ const surfaces = [
         SAFE:    { en: 'SAFE',    ru: 'БЕЗОПАСЕН',  border: 'border-teal-border',  badge: 'bg-teal-bg border-teal-border text-data-teal',  dot: 'bg-data-teal',  bar: 'bg-data-teal',  order: 3 },
         WATCH:   { en: 'WATCH',   ru: 'НАБЛЮДЕНИЕ', border: 'border-warn-border', badge: 'bg-warn-bg border-warn-border text-warn', dot: 'bg-warn', bar: 'bg-warn', order: 1 },
         REFUSE:  { en: 'REFUSE',  ru: 'ОТКАЗ',      border: 'border-danger-border',   badge: 'bg-danger-bg border-danger-border text-danger',     dot: 'bg-danger',   bar: 'bg-danger',   order: 0 },
-        UNKNOWN: { en: 'UNKNOWN', ru: 'НЕИЗВЕСТНО', border: 'border-white/10',     badge: 'bg-white/5 border-white/15 text-white/40',         dot: 'bg-white/30',  bar: 'bg-white/30',     order: 2 }
+        UNKNOWN: { en: 'UNKNOWN', ru: 'НЕИЗВЕСТНО', border: 'border-white/10',     badge: 'bg-white/5 border-white/15 text-white/55',         dot: 'bg-white/30',  bar: 'bg-white/30',     order: 2 }
       };
 
       function refusalRow(u){
@@ -486,12 +486,12 @@ const surfaces = [
             '</span>' +
           '</div>' +
           '<div class="flex items-center gap-2 mb-2.5">' +
-            '<span class="text-[11px] font-mono text-white/30 w-16 shrink-0">' + (ru ? 'tail-риск' : 'tail-risk') + '</span>' +
+            '<span class="text-[11px] font-mono text-white/50 w-16 shrink-0">' + (ru ? 'tail-риск' : 'tail-risk') + '</span>' +
             '<span class="flex-1 h-1.5 rounded-full bg-white/8 overflow-hidden"><span class="block h-full rounded-full ' + meta.bar + '" style="width:' + scorePct + '%"></span></span>' +
             '<span class="text-[11px] font-mono text-white/50 w-10 text-right shrink-0">' + scoreLbl + '</span>' +
           '</div>' +
           '<p class="text-xs text-white/50 leading-relaxed mb-1.5">' + esc(u.reason || '') + '</p>' +
-          '<p class="text-[11px] font-mono text-white/30">' + metricStr + '</p>' +
+          '<p class="text-[11px] font-mono text-white/50">' + metricStr + '</p>' +
         '</div>';
       }
 
@@ -501,7 +501,7 @@ const surfaces = [
         if(!rowsEl) return;
         var ul = Array.isArray(d.underlyings) ? d.underlyings.slice() : [];
         if(!ul.length){
-          rowsEl.innerHTML = '<p class="text-sm text-white/30">' +
+          rowsEl.innerHTML = '<p class="text-sm text-white/50">' +
             (ru ? 'Вердикты движка отказа недоступны (офлайн или нет данных).' : 'Refusal-engine verdicts unavailable (offline or no data).') + '</p>';
           return;
         }

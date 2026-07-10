@@ -32,7 +32,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
 
     <!-- 1. What SPA Does -->
     <section class="py-10 border-t border-border">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Что делает SPA">What SPA Does</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Что делает SPA">What SPA Does</p>
       <p class="text-white/60 leading-relaxed" data-ru="SPA — это автономный оптимизатор доходности для ончейн-стейблкоинов. Он ежедневно сканирует протоколы кредитования DeFi из вайтлиста, применяет детерминированный риск-гейт к каждой предлагаемой аллокации и ребалансирует между протоколами, когда дрейф превышает порог. В пути исполнения нет дискреционного вмешательства человека. В пути исполнения нет LLM.">
         SPA is an autonomous yield optimizer for onchain stablecoins. It runs daily scans of
         whitelisted DeFi lending protocols, applies a deterministic risk gate to every proposed
@@ -43,7 +43,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
 
     <!-- 2. What SPA Does Not Do -->
     <section class="py-10 border-t border-border">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Что SPA НЕ делает">What SPA Does Not Do</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Что SPA НЕ делает">What SPA Does Not Do</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[
           { en: 'Does not use leverage (Core/Preserve strategies)', ru: 'Не использует плечо (стратегии Core/Preserve)' },
@@ -64,7 +64,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
     <!-- 3. Daily APY Scan -->
     <section class="py-10 border-t border-border">
       <p class="text-xs text-accent-400 uppercase tracking-wider font-mono mb-4" data-ru="Ежедневный скан APY">Daily APY Scan</p>
-      <p class="text-sm text-white/40 mb-6 leading-relaxed" data-ru="Каждый день SPA выполняет полный скан поддерживаемых протоколов для сбора текущих данных о доходности.">
+      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Каждый день SPA выполняет полный скан поддерживаемых протоколов для сбора текущих данных о доходности.">
         Every day, SPA executes a full scan of supported protocols to collect current yield data.
       </p>
       <div class="space-y-4">
@@ -76,7 +76,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
           { label: 'Output', labelRu: 'Результат', value: 'Timestamped JSON log per cycle', valueRu: 'JSON-лог с временной меткой на каждый цикл' },
         ].map((row) => (
           <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 px-4 py-3 rounded-lg bg-bg-surface border border-border">
-            <span class="text-xs text-white/30 font-mono uppercase tracking-wider w-32 flex-shrink-0" data-ru={row.labelRu}>{row.label}</span>
+            <span class="text-xs text-white/50 font-mono uppercase tracking-wider w-32 flex-shrink-0" data-ru={row.labelRu}>{row.label}</span>
             <span class="text-sm text-white/60" data-ru={row.valueRu}>{row.value}</span>
           </div>
         ))}
@@ -85,40 +85,40 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
 
     <!-- 4. Data Sources -->
     <section class="py-10 border-t border-border">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Источники данных">Data Sources</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Источники данных">Data Sources</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru="Основной">Primary</p>
           <p class="text-sm text-white/60">DeFiLlama Yields API</p>
-          <p class="text-xs text-white/30 mt-1" data-ru="Агрегированные APY/TVL по всем поддерживаемым пулам">Aggregated APY/TVL across all supported pools</p>
+          <p class="text-xs text-white/50 mt-1" data-ru="Агрегированные APY/TVL по всем поддерживаемым пулам">Aggregated APY/TVL across all supported pools</p>
         </div>
         <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru="Ончейн">On-Chain</p>
           <p class="text-sm text-white/60" data-ru="Адаптеры протоколов (read-only)">Protocol adapters (read-only)</p>
-          <p class="text-xs text-white/30 mt-1" data-ru="Прямое чтение контрактов для верификации позиций">Direct contract reads for position verification</p>
+          <p class="text-xs text-white/50 mt-1" data-ru="Прямое чтение контрактов для верификации позиций">Direct contract reads for position verification</p>
         </div>
         <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru="Оракулы">Oracles</p>
           <p class="text-sm text-white/60">Chainlink / Pyth price feeds</p>
-          <p class="text-xs text-white/30 mt-1" data-ru="Проверка обеспечения для стратегии Max Yield">Collateral checks for Max Yield strategy</p>
+          <p class="text-xs text-white/50 mt-1" data-ru="Проверка обеспечения для стратегии Max Yield">Collateral checks for Max Yield strategy</p>
         </div>
         <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru="Логирование">Logging</p>
           <p class="text-sm text-white/60" data-ru="Все источники данных логируются на каждый цикл">All data sources logged per cycle</p>
-          <p class="text-xs text-white/30 mt-1" data-ru="Полный аудит-трейл в JSON с временными метками">Full audit trail in timestamped JSON</p>
+          <p class="text-xs text-white/50 mt-1" data-ru="Полный аудит-трейл в JSON с временными метками">Full audit trail in timestamped JSON</p>
         </div>
       </div>
     </section>
 
     <!-- 5. Protocol Adapters -->
     <section class="py-10 border-t border-border">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Адаптеры протоколов">Protocol Adapters</p>
-      <p class="text-sm text-white/40 mb-6 leading-relaxed" data-ru="У каждого поддерживаемого протокола есть отдельный read-only адаптер. Адаптеры нормализуют APY, TVL и метаданные пулов в стандартный формат для движка аллокации. На этапе скана нет доступа на запись.">
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Адаптеры протоколов">Protocol Adapters</p>
+      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="У каждого поддерживаемого протокола есть отдельный read-only адаптер. Адаптеры нормализуют APY, TVL и метаданные пулов в стандартный формат для движка аллокации. На этапе скана нет доступа на запись.">
         Each supported protocol has a dedicated read-only adapter. Adapters normalize APY, TVL,
         and pool metadata into a standard format for the allocation engine. No write access at scan stage.
       </p>
       <div class="rounded-xl border border-border-strong bg-bg-surface p-5">
-        <p class="text-xs text-white/30 font-mono mb-4" data-ru="ТЕКУЩИЙ РЕЕСТР АДАПТЕРОВ — 35 адаптеров (показана выборка)">CURRENT ADAPTER REGISTRY — 35 adapters (sample shown)</p>
+        <p class="text-xs text-white/50 font-mono mb-4" data-ru="ТЕКУЩИЙ РЕЕСТР АДАПТЕРОВ — 35 адаптеров (показана выборка)">CURRENT ADAPTER REGISTRY — 35 adapters (sample shown)</p>
         <div class="flex flex-wrap gap-2">
           {[
             'Aave V3 (ETH)', 'Aave V3 (Base)', 'Morpho Blue (ETH)', 'Morpho Blue (Base)',
@@ -136,7 +136,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
     <!-- 6. Evidence levels (L0–L6) — what every number on the site is allowed to claim -->
     <section class="py-10 border-t border-border">
       <p class="text-xs text-accent-400 uppercase tracking-wider font-mono mb-4" data-ru="Уровни доказательности (L0–L6)">Evidence Levels (L0–L6)</p>
-      <p class="text-sm text-white/40 mb-6 leading-relaxed" data-ru="Каждая цифра доходности на сайте несёт уровень доказательности — сколько реального подтверждения за ней стоит. Ниже L2 никакая APY не показывается публично. Бумага (paper) — это L3, и она всегда помечена «paper», никогда «live». Это канон (ADR-YL-009); другие страницы лишь используют метки.">
+      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Каждая цифра доходности на сайте несёт уровень доказательности — сколько реального подтверждения за ней стоит. Ниже L2 никакая APY не показывается публично. Бумага (paper) — это L3, и она всегда помечена «paper», никогда «live». Это канон (ADR-YL-009); другие страницы лишь используют метки.">
         Every yield number on this site carries an <strong class="text-white/80">evidence level</strong> — how much
         real confirmation stands behind it. Below L2, no APY reaches any public surface. Paper is L3 and is always
         labelled "paper", never "live". This is the canonical scale (ADR-YL-009); other pages only use the tags.
@@ -170,15 +170,15 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
     <!-- 6. RiskPolicy v1.0 Parameters -->
     <section class="py-10 border-t border-border">
       <p class="text-xs text-data-teal uppercase tracking-wider font-mono mb-4" data-ru="Параметры RiskPolicy v1.0">RiskPolicy v1.0 Parameters</p>
-      <p class="text-sm text-white/40 mb-6 leading-relaxed" data-ru="Детерминированный, жёстко прописанный гейт. Ни человек, ни ИИ, ни стратегия не могут переопределить эти параметры.">
+      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Детерминированный, жёстко прописанный гейт. Ни человек, ни ИИ, ни стратегия не могут переопределить эти параметры.">
         A deterministic, hard-coded gate. No human, no AI, no strategy can override these parameters.
       </p>
       <div class="overflow-x-auto rounded-xl border border-border-strong">
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-border-strong bg-bg-surface">
-              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Параметр">Parameter</th>
-              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Значение">Value</th>
+              <th class="text-left px-5 py-3 text-xs text-white/50 font-medium uppercase tracking-wider" data-ru="Параметр">Parameter</th>
+              <th class="text-left px-5 py-3 text-xs text-white/50 font-medium uppercase tracking-wider" data-ru="Значение">Value</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-white/5">
@@ -225,7 +225,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
 
     <!-- 7. Risk-Gated Rebalancing -->
     <section class="py-10 border-t border-border">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Ребалансировка с риск-гейтом">Risk-Gated Rebalancing</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Ребалансировка с риск-гейтом">Risk-Gated Rebalancing</p>
       <div class="space-y-4">
         {[
           { en: 'Rebalance triggered when allocation drift exceeds threshold', ru: 'Ребалансировка запускается, когда дрейф аллокации превышает порог' },
@@ -245,26 +245,26 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
     <!-- 8. Strategy Tournament -->
     <section class="py-10 border-t border-border">
       <p class="text-xs text-accent-400 uppercase tracking-wider font-mono mb-4" data-ru="Турнир стратегий">Strategy Tournament</p>
-      <p class="text-sm text-white/40 mb-6 leading-relaxed">
+      <p class="text-sm text-white/55 mb-6 leading-relaxed">
         <span data-ru="Несколько стратегий работают параллельно и оцениваются по результату с поправкой на риск. Результат турнира носит">Multiple strategies run in parallel and are evaluated on risk-adjusted performance.
         Tournament output is</span> <strong class="text-white/60" data-ru="только рекомендательный характер">advisory-only</strong> <span data-ru="— все решения об аллокации всё равно проходят через риск-гейт RiskPolicy. Ни одна стратегия не может переопределить гейт.">— all allocation decisions still go through RiskPolicy gate.
         No strategy can override the gate.</span>
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-xl bg-bg-surface border border-border p-5">
-          <p class="text-xs text-white/30 font-mono uppercase tracking-wider mb-2" data-ru="Участники">Participants</p>
+          <p class="text-xs text-white/50 font-mono uppercase tracking-wider mb-2" data-ru="Участники">Participants</p>
           <p class="text-sm text-white/60" data-ru="Несколько стратегий работают параллельно на paper">Multiple strategies run in parallel on paper</p>
         </div>
         <div class="rounded-xl bg-bg-surface border border-border p-5">
-          <p class="text-xs text-white/30 font-mono uppercase tracking-wider mb-2" data-ru="Оценка">Scoring</p>
+          <p class="text-xs text-white/50 font-mono uppercase tracking-wider mb-2" data-ru="Оценка">Scoring</p>
           <p class="text-sm text-white/60" data-ru="APY с поправкой на риск (взвешенный по Sharpe)">Risk-adjusted APY (Sharpe-weighted)</p>
         </div>
         <div class="rounded-xl bg-bg-surface border border-border p-5">
-          <p class="text-xs text-white/30 font-mono uppercase tracking-wider mb-2" data-ru="Продвижение">Promotion</p>
+          <p class="text-xs text-white/50 font-mono uppercase tracking-wider mb-2" data-ru="Продвижение">Promotion</p>
           <p class="text-sm text-white/60" data-ru="Лучшие участники продвигаются в paper track record">Top performers promoted to paper track record</p>
         </div>
         <div class="rounded-xl bg-bg-surface border border-border p-5">
-          <p class="text-xs text-white/30 font-mono uppercase tracking-wider mb-2" data-ru="Текущий лидер">Current Leader</p>
+          <p class="text-xs text-white/50 font-mono uppercase tracking-wider mb-2" data-ru="Текущий лидер">Current Leader</p>
           <p class="text-sm text-white/60" data-ru="Стратегия Core — текущий победитель турнира">Core strategy — current tournament winner</p>
         </div>
       </div>
@@ -272,8 +272,8 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
 
     <!-- Strategy Profiles -->
     <section class="py-10 border-t border-border">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Профили стратегий">Strategy Profiles</p>
-      <p class="text-sm text-white/40 mb-6 leading-relaxed" data-ru="SPA предлагает три профиля стратегий: Preserve, Core и Max Yield. У каждого свой целевой профиль риск/доходность и статус валидации.">
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Профили стратегий">Strategy Profiles</p>
+      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="SPA предлагает три профиля стратегий: Preserve, Core и Max Yield. У каждого свой целевой профиль риск/доходность и статус валидации.">
         SPA offers three strategy profiles: Preserve, Core, and Max Yield. Each has a distinct
         risk/return target and validation status.
       </p>
@@ -286,7 +286,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
             </span>
             <span class="text-sm text-white font-semibold">Core</span>
           </div>
-          <p class="text-xs text-white/40" data-ru="На paper-трекинге с 22 июня 2026 (evidenced anchor). Проверенные данные о производительности доступны на дашборде.">Paper tracked since June 22, 2026 (evidenced anchor). Verified performance data available on dashboard.</p>
+          <p class="text-xs text-white/55" data-ru="На paper-трекинге с 22 июня 2026 (evidenced anchor). Проверенные данные о производительности доступны на дашборде.">Paper tracked since June 22, 2026 (evidenced anchor). Verified performance data available on dashboard.</p>
         </div>
         <div class="rounded-xl bg-bg-surface border border-border p-5">
           <div class="flex items-center gap-3 mb-2">
@@ -296,15 +296,15 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
             </span>
             <span class="text-sm text-white font-semibold">Preserve / Max Yield</span>
           </div>
-          <p class="text-xs text-white/40" data-ru="Целевой профиль определён. Paper-трекинг ещё не начат. Исторических данных о производительности нет.">Target profile defined. Paper tracking not yet started. No historical performance data.</p>
+          <p class="text-xs text-white/55" data-ru="Целевой профиль определён. Paper-трекинг ещё не начат. Исторических данных о производительности нет.">Target profile defined. Paper tracking not yet started. No historical performance data.</p>
         </div>
       </div>
     </section>
 
     <!-- Assets -->
     <section class="py-10 border-t border-border">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Поддерживаемые активы">Supported Assets</p>
-      <p class="text-sm text-white/40 mb-4 leading-relaxed" data-ru="SPA работает исключительно со стейблкоинами. Минимальный набор активов для приватного MVP:">
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Поддерживаемые активы">Supported Assets</p>
+      <p class="text-sm text-white/55 mb-4 leading-relaxed" data-ru="SPA работает исключительно со стейблкоинами. Минимальный набор активов для приватного MVP:">
         SPA operates exclusively with stablecoins. Minimum asset set for private MVP:
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -335,7 +335,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
 
     <!-- 9. Compounding and Logging -->
     <section class="py-10 border-t border-border">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Реинвестирование и логирование">Compounding & Logging</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Реинвестирование и логирование">Compounding & Logging</p>
       <div class="space-y-3">
         <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-bg-surface border border-border">
           <span class="text-accent-400 flex-shrink-0 mt-0.5">&#8227;</span>
@@ -354,16 +354,16 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
 
     <!-- 10. GoLiveChecker -->
     <section class="py-10 border-t border-border">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4">GoLiveChecker</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4">GoLiveChecker</p>
       <div class="rounded-xl border border-border-strong bg-bg-surface p-6">
         <div class="flex items-center justify-between mb-4">
           <span class="text-sm text-white/60 font-medium" data-ru="Статус критериев">Criteria Status</span>
-          <span class="text-sm font-mono text-white">{goLivePass}<span class="text-white/30"> / {goLiveTotal} pass</span></span>
+          <span class="text-sm font-mono text-white">{goLivePass}<span class="text-white/50"> / {goLiveTotal} pass</span></span>
         </div>
         <div class="w-full bg-white/10 rounded-full h-2 mb-4">
           <div class="bg-accent-500 h-2 rounded-full" style={`width: ${goLivePct}%`}></div>
         </div>
-        <div class="space-y-2 text-sm text-white/40">
+        <div class="space-y-2 text-sm text-white/55">
           <p data-ru="29 критериев должны пройти перед запуском в live.">29 criteria must pass before live deployment.</p>
           <p data-ru="Непройденные критерии видны в Дашборде → вкладка GoLiveChecker.">Failing criteria visible in Dashboard → GoLiveChecker tab.</p>
           <p><span data-ru="Цель go-live:">Go-live target:</span> <span class="text-white/60 font-mono">July 2026</span></p>
@@ -373,7 +373,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
 
     <!-- 11. Versioning / Changelog -->
     <section class="py-10 border-t border-border">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Версионирование и changelog">Versioning & Changelog</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Версионирование и changelog">Versioning & Changelog</p>
       <div class="space-y-3">
         <div class="flex items-start gap-3 px-4 py-3 rounded-lg bg-bg-surface border border-border">
           <span class="text-accent-400 flex-shrink-0 mt-0.5">&#8227;</span>
@@ -393,7 +393,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
     <!-- CPA: Capital Preservation Algorithm -->
     <section id="cpa" class="py-10 border-t border-border">
       <p class="text-xs text-data-teal uppercase tracking-wider font-mono mb-4" data-ru="Алгоритм сохранения капитала (CPA)">Capital Preservation Algorithm (CPA)</p>
-      <p class="text-sm text-white/40 mb-8 leading-relaxed" data-ru="CPA — это многоуровневый фреймворк валидации, который управляет переходом стратегий от исследования к живому капиталу. Каждый шаг требует проверяемых point-in-time доказательств — никаких задним числом подогнанных данных, никакого послезнания.">
+      <p class="text-sm text-white/55 mb-8 leading-relaxed" data-ru="CPA — это многоуровневый фреймворк валидации, который управляет переходом стратегий от исследования к живому капиталу. Каждый шаг требует проверяемых point-in-time доказательств — никаких задним числом подогнанных данных, никакого послезнания.">
         CPA is a layered validation framework that governs how strategies move from research to live capital.
         Every step requires verifiable point-in-time evidence — no retrofitted data, no hindsight.
       </p>
@@ -407,7 +407,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
             launched in 2023 is invisible to a 2022 backtest — no exceptions. This eliminates
             look-ahead bias, the most common cause of inflated backtest returns in DeFi.
           </p>
-          <p class="text-xs text-white/30 leading-relaxed">
+          <p class="text-xs text-white/50 leading-relaxed">
             <span data-ru="Пример: GMX запущен в Q3 2021. Любая симуляция с датой до этого запуска считает GMX несуществующим, даже если исторические данные APY были опубликованы позже. Вайтлист ограничен по дате на уровне каждого протокола. Каждая запись в point-in-time вайтлисте содержит поле">Example: GMX launched Q3 2021. Any simulation dated before that launch treats GMX as
             non-existent, even if historical APY data was later published. The whitelist is
             date-gated per protocol. Each entry in the point-in-time whitelist carries a</span>
@@ -458,7 +458,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
             <div class={`rounded-xl bg-bg-surface border ${gate.color} p-4`}>
               <span class="text-xs text-white/20 font-mono mb-2 block"><span data-ru="Этап">Stage</span> {gate.stage}</span>
               <p class="text-xs text-white/70 font-semibold mb-2" data-ru={gate.stateRu}>{gate.state}</p>
-              <p class="text-xs text-white/40 leading-relaxed" data-ru={gate.descRu}>{gate.desc}</p>
+              <p class="text-xs text-white/55 leading-relaxed" data-ru={gate.descRu}>{gate.desc}</p>
             </div>
           ))}
         </div>
@@ -476,31 +476,31 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-border-strong bg-bg-surface">
-                <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Состояние">State</th>
-                <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Значение">Meaning</th>
-                <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Примеры">Examples</th>
+                <th class="text-left px-5 py-3 text-xs text-white/50 font-medium uppercase tracking-wider" data-ru="Состояние">State</th>
+                <th class="text-left px-5 py-3 text-xs text-white/50 font-medium uppercase tracking-wider" data-ru="Значение">Meaning</th>
+                <th class="text-left px-5 py-3 text-xs text-white/50 font-medium uppercase tracking-wider" data-ru="Примеры">Examples</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-white/5">
               <tr>
                 <td class="px-5 py-3 font-mono text-xs text-ok">CLEAN_INCLUDED</td>
                 <td class="px-5 py-3 text-sm text-white/60" data-ru="Полные исторические данные, проверяемые ончейн">Full historical data, on-chain verifiable</td>
-                <td class="px-5 py-3 text-xs text-white/40">Aave V3, Compound, Morpho</td>
+                <td class="px-5 py-3 text-xs text-white/55">Aave V3, Compound, Morpho</td>
               </tr>
               <tr>
                 <td class="px-5 py-3 font-mono text-xs text-warn">PENDING</td>
                 <td class="px-5 py-3 text-sm text-white/60" data-ru="Данные найдены, на аудите">Data found, under audit</td>
-                <td class="px-5 py-3 text-xs text-white/40">Morpho Steakhouse</td>
+                <td class="px-5 py-3 text-xs text-white/55">Morpho Steakhouse</td>
               </tr>
               <tr>
                 <td class="px-5 py-3 font-mono text-xs text-orange-400">RESEARCH_ONLY</td>
                 <td class="px-5 py-3 text-sm text-white/60" data-ru="Исторических данных нет, прогнозы на основе модели">No historical data, model-based projections</td>
-                <td class="px-5 py-3 text-xs text-white/40" data-ru="Экспозиция GMX, концентрированный LP">GMX exposure, Concentrated LP</td>
+                <td class="px-5 py-3 text-xs text-white/55" data-ru="Экспозиция GMX, концентрированный LP">GMX exposure, Concentrated LP</td>
               </tr>
               <tr>
                 <td class="px-5 py-3 font-mono text-xs text-danger">SOURCE_NEEDED</td>
                 <td class="px-5 py-3 text-sm text-white/60" data-ru="Источник данных пока не определён">No data source identified yet</td>
-                <td class="px-5 py-3 text-xs text-white/40" data-ru="Прокси на золото, пулы BTC">Gold proxy, BTC pools</td>
+                <td class="px-5 py-3 text-xs text-white/55" data-ru="Прокси на золото, пулы BTC">Gold proxy, BTC pools</td>
               </tr>
             </tbody>
           </table>
@@ -523,7 +523,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
             to overstate historical returns using protocols that were not yet verifiable at the
             simulation date.</span>
           </p>
-          <p class="text-xs text-white/30 leading-relaxed">
+          <p class="text-xs text-white/50 leading-relaxed">
             <span data-ru="Средняя размещённая аллокация 13% (86.97% в кэше) — это честный ответ для периода 2022–2026. По мере того как источники CPA проходят аудит и переводятся из статуса">A 13% average deployed allocation (86.97% cash) is the honest answer for the
             2022–2026 period. As CPA sources are audited and promoted from</span>
             <span class="font-mono">PENDING</span> <span data-ru="в">to</span> <span class="font-mono">CLEAN_INCLUDED</span><span data-ru=", доступная вселенная для размещения растёт, а cash drag снижается.">,
@@ -541,7 +541,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
               <span class="px-2 py-0.5 rounded text-xs font-mono bg-orange-500/10 text-orange-400 border border-orange-500/20">RESEARCH_ONLY</span>
               <span class="text-sm text-white/70 font-medium">RS-001 · RS-002</span>
             </div>
-            <p class="text-xs text-white/40 leading-relaxed">
+            <p class="text-xs text-white/55 leading-relaxed">
               <span data-ru="RS-001 и RS-002 помечены как">RS-001 and RS-002 are tagged</span> <span class="font-mono text-orange-400">RESEARCH_ONLY</span><span data-ru=". Их значения APY — это прогнозы на основе модельных допущений, а не проверенные исторические данные. Они не могут быть продвинуты в paper trading, пока не будет определён и проверен источник данных">.
               Their APY figures are forward projections based on model assumptions — not verified historical
               data. They cannot be promoted to paper trading until a</span> <span class="font-mono">CLEAN_INCLUDED</span>
@@ -553,7 +553,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
               <span class="px-2 py-0.5 rounded text-xs font-mono bg-ok-bg text-ok border border-ok-border">CLEAN_INCLUDED</span>
               <span class="text-sm text-white/70 font-medium" data-ru="S0–S9 (стратегии Core)">S0–S9 (Core strategies)</span>
             </div>
-            <p class="text-xs text-white/40 leading-relaxed">
+            <p class="text-xs text-white/55 leading-relaxed">
               <span data-ru="Продакшн-стратегии используют только источники данных">Production strategies use only</span> <span class="font-mono text-ok">CLEAN_INCLUDED</span>
               <span data-ru="data sources. У каждой цели аллокации есть проверяемая ончейн история APY и подтверждённая дата запуска. Это стратегии, пригодные для накопления доказательств в paper trading (1.0 точки за чистый день, 1.5 за день экстремального рынка) и в конечном итоге для размещения живого капитала.">data sources. Each allocation target has on-chain verifiable APY history and a confirmed
               launch date. These are the strategies eligible for paper trading evidence accumulation
@@ -567,7 +567,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
     <!-- Footer Links -->
     <section class="py-16 border-t border-border">
       <div class="text-center">
-        <p class="text-sm text-white/30 mb-6" data-ru="Продолжите свою проверку (due diligence)">Continue your due diligence</p>
+        <p class="text-sm text-white/50 mb-6" data-ru="Продолжите свою проверку (due diligence)">Continue your due diligence</p>
         <div class="flex flex-wrap items-center justify-center gap-4">
           <a href="/risk-disclosure" class="px-5 py-2.5 rounded-lg border border-border-strong text-white/50 hover:text-white hover:border-white/20 text-sm transition-all" data-ru="Раскрытие рисков">
             Risk Disclosure

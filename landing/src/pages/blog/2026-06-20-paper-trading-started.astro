@@ -47,13 +47,13 @@ const post = {
 
       <!-- Gate checklist -->
       <section>
-        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Статус гейтов">Gate Status</p>
+        <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Статус гейтов">Gate Status</p>
         <div class="space-y-2">
           {[
             { label: 'Backtest Gate',   status: 'PASS', color: 'text-ok' },
             { label: 'Pre-Paper Gate',  status: 'PASS', color: 'text-ok' },
             { label: 'Paper Trading',   status: 'IN PROGRESS', color: 'text-accent-400' },
-            { label: 'Live Capital',    status: 'LOCKED',  color: 'text-white/30' },
+            { label: 'Live Capital',    status: 'LOCKED',  color: 'text-white/50' },
           ].map(g => (
             <div class="flex items-center justify-between px-4 py-3 rounded-lg bg-white/[0.03] border border-white/8">
               <span class="text-sm text-white/60">{g.label}</span>
@@ -65,7 +65,7 @@ const post = {
 
       <!-- What this means -->
       <section>
-        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Что означает бумажная торговля">What Paper Trading Means</p>
+        <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Что означает бумажная торговля">What Paper Trading Means</p>
         <div class="space-y-3 text-sm">
           <p data-ru="Бумажная торговля прогоняет полный продакшн-цикл — сканирование адаптеров, гейты RiskPolicy, турнир стратегий и ребалансировку StrategyAllocator — на живых данных DeFi. Единственное отличие от реальной торговли в том, что никакой реальный капитал не перемещается on-chain.">
             Paper trading runs the full production cycle — adapter scans, RiskPolicy gates, strategy tournament,
@@ -86,7 +86,7 @@ const post = {
 
       <!-- Adapters -->
       <section>
-        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Активные адаптеры">Active Adapters</p>
+        <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Активные адаптеры">Active Adapters</p>
         <div class="flex flex-wrap gap-2">
           {[
             'Aave V3 (ETH)', 'Aave V3 (Arbitrum)', 'Compound V3', 'Morpho Blue',
@@ -102,7 +102,7 @@ const post = {
 
       <!-- What's next -->
       <section>
-        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Что дальше">What's Next</p>
+        <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Что дальше">What's Next</p>
         <div class="space-y-2 text-sm">
           {[
             { en: 'Accumulate 30 clean daily evidence cycles (ETA: ~July 10, 2026)', ru: 'Накопить 30 чистых дневных циклов доказательств (ETA: ~10 июля 2026)' },
@@ -123,8 +123,8 @@ const post = {
 
     <!-- Nav between posts -->
     <div class="py-8 border-t border-white/5 flex items-center justify-between">
-      <a href="/blog" class="text-sm text-white/40 hover:text-white transition-colors" data-ru="← Все записи">← All posts</a>
-      <a href="/blog/2026-06-19-architecture-audit" class="text-sm text-white/40 hover:text-white transition-colors" data-ru="Аудит архитектуры →">
+      <a href="/blog" class="text-sm text-white/55 hover:text-white transition-colors" data-ru="← Все записи">← All posts</a>
+      <a href="/blog/2026-06-19-architecture-audit" class="text-sm text-white/55 hover:text-white transition-colors" data-ru="Аудит архитектуры →">
         Architecture Audit →
       </a>
     </div>

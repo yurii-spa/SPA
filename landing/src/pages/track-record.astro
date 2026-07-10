@@ -33,8 +33,8 @@ const degraded = snap.degraded === true;
 const SOURCE_META = {
   cycle:         { en: 'cycle', ru: 'цикл',          dot: 'bg-data-teal',   tag: 'text-data-teal border-teal-border bg-teal-bg' },
   reconstructed: { en: 'reconstructed', ru: 'реконструкция', dot: 'bg-warn', tag: 'text-warn border-warn-border bg-warn-bg' },
-  backfill:      { en: 'backfill', ru: 'бэкфилл',    dot: 'bg-white/30',   tag: 'text-white/40 border-border bg-white/[0.03]' },
-  warmup:        { en: 'warmup', ru: 'прогрев',      dot: 'bg-white/20',   tag: 'text-white/30 border-border bg-white/[0.02]' },
+  backfill:      { en: 'backfill', ru: 'бэкфилл',    dot: 'bg-white/30',   tag: 'text-white/55 border-border bg-white/[0.03]' },
+  warmup:        { en: 'warmup', ru: 'прогрев',      dot: 'bg-white/20',   tag: 'text-white/50 border-border bg-white/[0.02]' },
 };
 function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
 ---
@@ -60,7 +60,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         daily-cycle log count. Right now that is {realDays} honest days (anchor {anchor}),
         not 15 padded ones. Every equity point and its source label is public.
       </p>
-      {snapAsOf && <p class="text-xs font-mono text-white/30 mt-3" id="tr-asof" data-ru={`статичный снимок на ${snapAsOf} · вживую обновляется с api.earn-defi.com`}>static snapshot as of {snapAsOf} · updates live from api.earn-defi.com</p>}
+      {snapAsOf && <p class="text-xs font-mono text-white/50 mt-3" id="tr-asof" data-ru={`статичный снимок на ${snapAsOf} · вживую обновляется с api.earn-defi.com`}>static snapshot as of {snapAsOf} · updates live from api.earn-defi.com</p>}
     </section>
 
     <!-- The reset — core trust signal -->
@@ -80,19 +80,19 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         </p>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div class="rounded-lg border border-border bg-bg-surface px-4 py-3">
-            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Якорь подтверждения">Evidence anchor</p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Якорь подтверждения">Evidence anchor</p>
             <p class="text-sm font-mono text-white/80">{anchor}</p>
           </div>
           <div class="rounded-lg border border-border bg-bg-surface px-4 py-3">
-            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Подтверждено / нужно">Evidenced / needed</p>
-            <p class="text-sm font-mono text-data-teal"><span id="tr-reset-days">{realDays}</span> / {daysNeeded} <span class="text-white/30" data-ru="дней">days</span></p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Подтверждено / нужно">Evidenced / needed</p>
+            <p class="text-sm font-mono text-data-teal"><span id="tr-reset-days">{realDays}</span> / {daysNeeded} <span class="text-white/50" data-ru="дней">days</span></p>
           </div>
           <div class="rounded-lg border border-border bg-bg-surface px-4 py-3">
-            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Цель go-live">Go-live target</p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Цель go-live">Go-live target</p>
             <p class="text-sm font-mono text-white/80" id="tr-reset-target">{goLiveTarget}</p>
           </div>
         </div>
-        <p class="text-xs text-white/30 mt-4 leading-relaxed" data-ru="Бумажный/исследовательский трек на виртуальном портфеле $100k. Не инвестиционный совет, не прогноз. Метки источника на каждом баре ниже — видно, какие дни реальные.">
+        <p class="text-xs text-white/50 mt-4 leading-relaxed" data-ru="Бумажный/исследовательский трек на виртуальном портфеле $100k. Не инвестиционный совет, не прогноз. Метки источника на каждом баре ниже — видно, какие дни реальные.">
           Paper / research track on a virtual $100k book. Not investment advice, not a
           forecast. Per-bar source labels are shown below — you can see which days are real.
         </p>
@@ -109,24 +109,24 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
       {!degraded && (
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="rounded-xl border border-border bg-bg-surface p-5">
-          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Капитал">Equity</p>
+          <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Капитал">Equity</p>
           <p class="text-2xl font-mono font-bold text-white" id="tr-equity">{eqTxt}</p>
-          <p class="text-xs text-white/30 mt-1" data-ru="виртуальные $100k">virtual $100k base</p>
+          <p class="text-xs text-white/50 mt-1" data-ru="виртуальные $100k">virtual $100k base</p>
         </div>
         <div class="rounded-xl border border-border bg-bg-surface p-5">
-          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Бумажный APY">Paper APY</p>
+          <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Бумажный APY">Paper APY</p>
           <p class="text-2xl font-mono font-bold text-data-teal" id="tr-apy">{apyTxt}</p>
-          <p class="text-xs text-white/30 mt-1" data-ru="переменный · не гарантирован">variable · not guaranteed</p>
+          <p class="text-xs text-white/50 mt-1" data-ru="переменный · не гарантирован">variable · not guaranteed</p>
         </div>
         <div class="rounded-xl border border-border bg-bg-surface p-5">
-          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Макс. просадка">Max drawdown</p>
+          <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Макс. просадка">Max drawdown</p>
           <p class="text-2xl font-mono font-bold text-white" id="tr-dd">{ddTxt}</p>
-          <p class="text-xs text-white/30 mt-1" data-ru="с начала трека">since track start</p>
+          <p class="text-xs text-white/50 mt-1" data-ru="с начала трека">since track start</p>
         </div>
         <div class="rounded-xl border border-teal-border bg-teal-bg p-5">
           <p class="text-xs text-data-teal uppercase tracking-wider font-mono mb-2" data-ru="Подтверждённых дней">Evidenced days</p>
-          <p class="text-2xl font-mono font-bold text-data-teal"><span id="tr-days">{realDays}</span><span class="text-white/30 text-lg"> / {daysNeeded}</span></p>
-          <p class="text-xs text-white/30 mt-1" data-ru="только дни с логом цикла">cycle-logged days only</p>
+          <p class="text-2xl font-mono font-bold text-data-teal"><span id="tr-days">{realDays}</span><span class="text-white/50 text-lg"> / {daysNeeded}</span></p>
+          <p class="text-xs text-white/50 mt-1" data-ru="только дни с логом цикла">cycle-logged days only</p>
         </div>
       </div>
       )}
@@ -135,14 +135,14 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
     <!-- Equity curve -->
     <section class="py-10 border-t border-border">
       <div class="flex items-baseline justify-between mb-4 flex-wrap gap-2">
-        <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Кривая капитала (бумажная)">Equity curve (paper)</p>
+        <p class="text-xs text-white/50 uppercase tracking-wider font-mono" data-ru="Кривая капитала (бумажная)">Equity curve (paper)</p>
         <p class="text-xs text-white/25 font-mono">
           <span data-ru="источник:">source:</span> <span id="tr-spark-src">static fallback</span>
         </p>
       </div>
       <div class="rounded-xl border border-border-strong bg-bg-surface p-5">
         <svg id="tr-spark" viewBox="0 0 800 200" preserveAspectRatio="none" class="w-full h-48" role="img" aria-label="Paper equity curve" data-points={JSON.stringify(chartPoints)}></svg>
-        <p class="text-xs text-white/30 mt-3 text-center" id="tr-spark-note" data-ru="Кривая загружается из живого фида доказательств. При офлайне показывается последний статический снимок.">
+        <p class="text-xs text-white/50 mt-3 text-center" id="tr-spark-note" data-ru="Кривая загружается из живого фида доказательств. При офлайне показывается последний статический снимок.">
           Curve loads from the live evidence feed. When offline, the last static snapshot is shown.
         </p>
       </div>
@@ -151,15 +151,15 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
     <!-- Per-bar evidence ledger: which days are real vs backfill vs warmup -->
     <section class="py-10 border-t border-border">
       <div class="flex items-baseline justify-between mb-2 flex-wrap gap-2">
-        <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Реестр баров — что считается">Bar ledger — what counts</p>
+        <p class="text-xs text-white/50 uppercase tracking-wider font-mono" data-ru="Реестр баров — что считается">Bar ledger — what counts</p>
         <p class="text-xs text-white/25 font-mono">
           <span data-ru="источник:">source:</span> <span id="tr-bars-src">static fallback</span>
         </p>
       </div>
       <p class="text-sm text-white/45 leading-relaxed mb-4 max-w-2xl" data-ru="Каждый бар помечен своим источником. Только бары «цикл» подтверждены логом и засчитываются в go-live. «Бэкфилл» и «прогрев» приглушены — они показаны для прозрачности, но не считаются.">
         Each bar is tagged with its source. Only <span class="text-data-teal font-medium">cycle</span>
-        bars are evidenced by a log and count toward go-live. <span class="text-white/40">Backfill</span>
-        and <span class="text-white/40">warmup</span> bars are dimmed — shown for transparency, but not counted.
+        bars are evidenced by a log and count toward go-live. <span class="text-white/55">Backfill</span>
+        and <span class="text-white/55">warmup</span> bars are dimmed — shown for transparency, but not counted.
       </p>
       <div class="rounded-xl border border-border-strong bg-bg-surface overflow-hidden">
         <div id="tr-bars" class="divide-y divide-border">
@@ -176,7 +176,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           ))}
         </div>
       </div>
-      <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-xs text-white/40 font-mono">
+      <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-xs text-white/55 font-mono">
         <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-data-teal" aria-hidden="true"></span><span data-ru="цикл · подтверждён · считается">cycle · evidenced · counts</span></span>
         <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-warn" aria-hidden="true"></span><span data-ru="реконструкция · помечена">reconstructed · flagged</span></span>
         <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-white/30" aria-hidden="true"></span><span data-ru="бэкфилл/прогрев · не считается">backfill/warmup · not counted</span></span>
@@ -191,7 +191,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
     <!-- P2-7: Why positions don't move daily (low-turnover by design) -->
     <section class="pb-10">
       <div class="rounded-xl border border-border bg-bg-surface p-5">
-        <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Почему позиции не меняются каждый день">Why positions don't move daily</p>
+        <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Почему позиции не меняются каждый день">Why positions don't move daily</p>
         <p class="text-sm text-white/55 leading-relaxed max-w-2xl" data-ru="Это не застой. Дневной цикл ПРИНИМАЕТ решение каждый день — но чаще всего это осознанный HOLD: детерминированный RiskPolicy и аллокатор оставляют позиции, если целевая аллокация не сдвинулась за пороги (низкая оборачиваемость by design — меньше комиссий и slippage на стейбл-доходности). Каждое такое решение hold залогировано и хешировано в цепочке decision_log — можно проверить, что цикл реально отработал, а не завис.">
           This is not staleness. The daily cycle makes a decision <strong class="text-white/80">every day</strong> —
           but most days that decision is a deliberate <strong class="text-white/80">HOLD</strong>: the deterministic
@@ -207,7 +207,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
     <!-- Proof of Reserves -->
     <section class="py-10 border-t border-border">
       <div class="flex items-baseline justify-between mb-4 flex-wrap gap-2">
-        <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Доказательство резервов">Proof of Reserves</p>
+        <p class="text-xs text-white/50 uppercase tracking-wider font-mono" data-ru="Доказательство резервов">Proof of Reserves</p>
         <p class="text-xs text-white/25 font-mono">
           <span data-ru="источник:">source:</span> <span id="por-src">static fallback</span>
         </p>
@@ -223,7 +223,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
               methodology on the virtual $100k book, not real custody.
             </p>
           </div>
-          <div id="por-recon" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-bg-surface-2 border border-border-strong text-xs font-mono text-white/40 shrink-0">
+          <div id="por-recon" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-bg-surface-2 border border-border-strong text-xs font-mono text-white/55 shrink-0">
             <span class="w-1.5 h-1.5 rounded-full bg-white/30" aria-hidden="true"></span>
             <span data-ru="статичный снимок — подключение к live…">static snapshot — connecting to live…</span>
           </div>
@@ -232,15 +232,15 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         <!-- NAV breakdown: deployed + cash + accrued = equity -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
           <div class="rounded-lg border border-border bg-bg-surface p-4">
-            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Вложено">Deployed</p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Вложено">Deployed</p>
             <p class="text-xl font-mono font-bold text-white" id="por-deployed">—</p>
           </div>
           <div class="rounded-lg border border-border bg-bg-surface p-4">
-            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Кэш">Cash</p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Кэш">Cash</p>
             <p class="text-xl font-mono font-bold text-white" id="por-cash">—</p>
           </div>
           <div class="rounded-lg border border-border bg-bg-surface p-4">
-            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Начислено">Accrued</p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Начислено">Accrued</p>
             <p class="text-xl font-mono font-bold text-white" id="por-accrued">—</p>
           </div>
           <div class="rounded-lg border border-teal-border bg-teal-bg p-4">
@@ -252,15 +252,15 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         <!-- reconciliation + meta row -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
           <div class="rounded-lg bg-bg-surface border border-border px-4 py-3">
-            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Расхождение сверки">Reconciliation delta</p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Расхождение сверки">Reconciliation delta</p>
             <p class="text-sm font-mono text-white/70" id="por-delta">—</p>
           </div>
           <div class="rounded-lg bg-bg-surface border border-border px-4 py-3">
-            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Позиций">Positions</p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Позиций">Positions</p>
             <p class="text-sm font-mono text-white/70" id="por-positions">—</p>
           </div>
           <div class="rounded-lg bg-bg-surface border border-border px-4 py-3">
-            <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Последняя проверка">Last verified</p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Последняя проверка">Last verified</p>
             <p class="text-sm font-mono text-white/70" id="por-ts">—</p>
           </div>
         </div>
@@ -268,7 +268,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         <!-- verification hash -->
         <div class="rounded-lg bg-black/30 border border-border px-4 py-3">
           <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
-            <p class="text-xs text-white/30 uppercase tracking-wider font-mono" data-ru="Хэш проверки (NAV)">Verification hash (NAV)</p>
+            <p class="text-xs text-white/50 uppercase tracking-wider font-mono" data-ru="Хэш проверки (NAV)">Verification hash (NAV)</p>
             <span class="text-xs text-data-teal font-mono" data-ru="проверяемо · защищено от подмены">verifiable · tamper-evident</span>
           </div>
           <p class="text-xs sm:text-sm font-mono text-data-teal break-all" id="por-hash">—</p>
@@ -277,7 +277,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           </p>
         </div>
 
-        <p class="text-xs text-white/30 mt-4 leading-relaxed" data-ru="NAV = Σ(позиции по протоколам) + кэш + начисленный доход. components_hash = sha256 канонического JSON отсортированных позиций; nav_hash связывает NAV с его компонентами и временем. Любой может пересчитать опубликованный NAV из компонентов через nav_proof.verify_proof().">
+        <p class="text-xs text-white/50 mt-4 leading-relaxed" data-ru="NAV = Σ(позиции по протоколам) + кэш + начисленный доход. components_hash = sha256 канонического JSON отсортированных позиций; nav_hash связывает NAV с его компонентами и временем. Любой может пересчитать опубликованный NAV из компонентов через nav_proof.verify_proof().">
           NAV = Σ(per-protocol positions) + cash + accrued yield. components_hash = sha256 of the
           canonical JSON of the sorted positions; nav_hash binds the NAV to its components and timestamp.
           Anyone can recompute the published NAV from its components via nav_proof.verify_proof().
@@ -287,13 +287,13 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
 
     <!-- Go-live progress -->
     <section class="py-10 border-t border-border">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Прогресс Go-Live">Go-live progress</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Прогресс Go-Live">Go-live progress</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-xl border border-border-strong bg-bg-surface p-6">
-          <div class="text-sm text-white/40 uppercase tracking-wider mb-3" data-ru="Критерии GoLiveChecker">GoLiveChecker criteria</div>
+          <div class="text-sm text-white/55 uppercase tracking-wider mb-3" data-ru="Критерии GoLiveChecker">GoLiveChecker criteria</div>
           <div class="flex items-end gap-2 mb-3">
             <span class="text-5xl font-mono font-bold text-warn" id="tr-gates-pass">—</span>
-            <span class="text-2xl text-white/30 mb-1">/ <span id="tr-gates-total">29</span></span>
+            <span class="text-2xl text-white/50 mb-1">/ <span id="tr-gates-total">29</span></span>
           </div>
           <div class="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
             <div class="h-full bg-warn rounded-full transition-all" id="tr-gates-bar" style="width:0%"></div>
@@ -301,10 +301,10 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           <p class="text-white/50 text-sm" data-ru="детерминированные критерии (ADR-002) — все должны пройти до go-live">deterministic criteria (ADR-002) — all must pass before go-live</p>
         </div>
         <div class="rounded-xl border border-border-strong bg-bg-surface p-6">
-          <div class="text-sm text-white/40 uppercase tracking-wider mb-3" data-ru="Подтверждённые дни трека">Evidenced track days</div>
+          <div class="text-sm text-white/55 uppercase tracking-wider mb-3" data-ru="Подтверждённые дни трека">Evidenced track days</div>
           <div class="flex items-end gap-2 mb-3">
             <span class="text-5xl font-mono font-bold text-data-teal" id="tr-days-2">{realDays}</span>
-            <span class="text-2xl text-white/30 mb-1">/ {daysNeeded} <span data-ru="дней">days</span></span>
+            <span class="text-2xl text-white/50 mb-1">/ {daysNeeded} <span data-ru="дней">days</span></span>
           </div>
           <div class="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
             <div class="h-full bg-data-teal rounded-full transition-all" id="tr-days-bar" style={`width:${Math.round((realDays / daysNeeded) * 100)}%`}></div>
@@ -316,7 +316,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
 
     <!-- The honest-track narrative -->
     <section class="py-10 border-t border-border">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Как мы считаем честность">How we count honesty</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Как мы считаем честность">How we count honesty</p>
       <div class="space-y-3">
         <div class="rounded-lg bg-bg-surface border border-border px-5 py-4">
           <p class="text-sm text-white/55 leading-relaxed">
@@ -352,7 +352,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
 
     <!-- Verify this track yourself (the hash-anchored artifact) -->
     <section class="py-10 border-t border-border">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Проверьте этот трек сами">Verify this track yourself</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Проверьте этот трек сами">Verify this track yourself</p>
       <div class="rounded-xl border border-teal-border bg-gradient-to-b from-teal-bg to-transparent p-6 sm:p-8">
         <p class="text-sm text-white/55 leading-relaxed max-w-2xl mb-4" data-ru="Трек — не просто график: это верифицируемый артефакт. Сам ряд капитала (только подтверждённые дни) попадает в хешированную цепочку с единым генезисом — equity_track.jsonl; решения, на которых он строится, — в свою цепочку (decision_log) с привязкой к голове (anchors), а NAV каждого дня сверяется (см. Доказательство резервов выше). Не верьте нам — проверьте нас: один автономный верификатор без зависимостей (без импорта нашего кода) пересчитывает каждый хеш ОБЕИХ цепочек и сообщает точный broken_at, если хоть один байт истории — подтверждённое значение капитала, переставленный или задним числом изменённый день — был изменён. Никакого бэкфилла: в цепочку капитала входят только дни с реальным логом цикла.">
           The track is not just a chart — it is a <strong class="text-white/85">verifiable artifact</strong>.
@@ -367,10 +367,10 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           a real cycle log enter the equity chain.
         </p>
         <div class="rounded-lg bg-black/30 border border-border px-4 py-3 mb-4 overflow-x-auto">
-          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Команда">Command</p>
+          <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Команда">Command</p>
           <code class="text-xs sm:text-sm font-mono text-data-teal break-all">python3 verify_spa.py data/</code>
         </div>
-        <p class="text-xs text-white/30 leading-relaxed">
+        <p class="text-xs text-white/50 leading-relaxed">
           <span data-ru="Верификатор:">Verifier:</span> <span class="font-mono text-white/50">scripts/verify_spa.py</span>
           (<a href="/verify" class="underline text-data-teal hover:text-data-teal" data-ru="как проверить + демо в браузере">how to verify + in-browser demo</a>,
           <span data-ru="закреплён">pinned</span> <span class="font-mono text-white/50">verifier-v1.0</span>)
@@ -383,7 +383,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
 
     <!-- Cross-links -->
     <section class="py-10 border-t border-border">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Углубиться">Go deeper</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Углубиться">Go deeper</p>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <a href="/fundability" class="group rounded-xl border border-border-strong bg-bg-surface p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all">
           <p class="text-white font-medium mb-1 group-hover:text-white/90" data-ru="Fundability">Fundability</p>
@@ -516,8 +516,8 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
       var SRC_META = {
         cycle:         { en: 'cycle', ru: 'цикл',          dot: 'bg-data-teal', tag: 'text-data-teal border-teal-border bg-teal-bg' },
         reconstructed: { en: 'reconstructed', ru: 'реконструкция', dot: 'bg-warn', tag: 'text-warn border-warn-border bg-warn-bg' },
-        backfill:      { en: 'backfill', ru: 'бэкфилл',    dot: 'bg-white/30', tag: 'text-white/40 border-border bg-white/[0.03]' },
-        warmup:        { en: 'warmup', ru: 'прогрев',      dot: 'bg-white/20', tag: 'text-white/30 border-border bg-white/[0.02]' }
+        backfill:      { en: 'backfill', ru: 'бэкфилл',    dot: 'bg-white/30', tag: 'text-white/55 border-border bg-white/[0.03]' },
+        warmup:        { en: 'warmup', ru: 'прогрев',      dot: 'bg-white/20', tag: 'text-white/50 border-border bg-white/[0.02]' }
       };
       function srcMeta(s){ return SRC_META[s] || SRC_META.warmup; }
       function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }

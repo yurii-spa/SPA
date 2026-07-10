@@ -64,7 +64,7 @@ const ru: StrategyRu | undefined = strategyRu[strategy.id];
 const statusStyles: Record<string, string> = {
   'paper-tracked': 'bg-ok-bg text-ok border border-ok-border',
   'target-profile': 'bg-blue-600/10 text-blue-400 border border-blue-800',
-  'coming-soon': 'bg-white/5 text-white/40 border border-white/10',
+  'coming-soon': 'bg-white/5 text-white/55 border border-white/10',
   'live': 'bg-ok-bg text-ok border border-ok-border',
 };
 
@@ -89,10 +89,10 @@ const isDisabled = strategy.status === 'coming-soon';
 
   <!-- APY -->
   <div class="mb-6">
-    <p class="text-[10px] text-white/30 uppercase tracking-wider font-mono mb-1" data-ru="Целевой профиль">Target profile</p>
+    <p class="text-[10px] text-white/50 uppercase tracking-wider font-mono mb-1" data-ru="Целевой профиль">Target profile</p>
     <div class="flex items-baseline gap-1">
       <span class="text-4xl font-mono font-bold text-white">~{strategy.target_apy}%</span>
-      <span class="text-sm text-white/30 font-mono" data-ru="целевой APY">target APY</span>
+      <span class="text-sm text-white/50 font-mono" data-ru="целевой APY">target APY</span>
     </div>
     <p class="text-[11px] text-white/25 mt-1 leading-relaxed" data-ru={ru?.target_apy_note}>{strategy.target_apy_note}</p>
   </div>
@@ -116,12 +116,12 @@ const isDisabled = strategy.status === 'coming-soon';
           ></span>
         ))}
       </div>
-      <span class="text-xs text-white/40" data-ru={ru?.risk_level_label}>{strategy.risk_level_label}</span>
+      <span class="text-xs text-white/55" data-ru={ru?.risk_level_label}>{strategy.risk_level_label}</span>
     </div>
   </div>
 
   <!-- Description -->
-  <p class="text-sm text-white/40 leading-relaxed mb-6 flex-grow" data-ru={ru?.description}>{strategy.description}</p>
+  <p class="text-sm text-white/55 leading-relaxed mb-6 flex-grow" data-ru={ru?.description}>{strategy.description}</p>
 
   <!-- Who it's for -->
   <div class="mb-6">
@@ -134,7 +134,7 @@ const isDisabled = strategy.status === 'coming-soon';
     <p class="text-xs text-white/25 uppercase tracking-wider font-mono mb-2" data-ru="Источники доходности">Yield sources</p>
     <div class="flex flex-wrap gap-1.5">
       {strategy.yield_sources.map((source: string) => (
-        <span class="px-2 py-0.5 rounded text-[11px] font-mono bg-white/5 text-white/40 border border-white/8">
+        <span class="px-2 py-0.5 rounded text-[11px] font-mono bg-white/5 text-white/55 border border-white/8">
           {source}
         </span>
       ))}

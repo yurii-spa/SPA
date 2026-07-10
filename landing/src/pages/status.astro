@@ -85,10 +85,10 @@ const statusBg: Record<CheckStatus, string> = {
 
         <!-- GoLive Readiness -->
         <div class="rounded-xl border border-white/10 bg-white/5 p-6">
-          <div class="text-sm text-white/40 uppercase tracking-wider mb-3" data-ru="Готовность к GoLive">GoLive Readiness</div>
+          <div class="text-sm text-white/55 uppercase tracking-wider mb-3" data-ru="Готовность к GoLive">GoLive Readiness</div>
           <div class="flex items-end gap-2 mb-3">
             <span class="text-5xl font-bold text-warn" id="st-gates-pass">{goLiveChecks}</span>
-            <span class="text-2xl text-white/30 mb-1">/ <span id="st-gates-total">{goLiveTotal}</span></span>
+            <span class="text-2xl text-white/50 mb-1">/ <span id="st-gates-total">{goLiveTotal}</span></span>
           </div>
           <!-- Progress bar -->
           <div class="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
@@ -103,10 +103,10 @@ const statusBg: Record<CheckStatus, string> = {
 
         <!-- Paper Track Record -->
         <div class="rounded-xl border border-white/10 bg-white/5 p-6">
-          <div class="text-sm text-white/40 uppercase tracking-wider mb-3" data-ru="Честный track record">Honest Track Record</div>
+          <div class="text-sm text-white/55 uppercase tracking-wider mb-3" data-ru="Честный track record">Honest Track Record</div>
           <div class="flex items-end gap-2 mb-3">
             <span class="text-5xl font-bold text-blue-400" id="st-days">{evidenceDays}</span>
-            <span class="text-2xl text-white/30 mb-1">/ {evidenceTarget} <span data-ru="дней">days</span></span>
+            <span class="text-2xl text-white/50 mb-1">/ {evidenceTarget} <span data-ru="дней">days</span></span>
           </div>
           <!-- Progress bar -->
           <div class="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
@@ -180,18 +180,18 @@ const statusBg: Record<CheckStatus, string> = {
             </div>
             <div class="relative">
               <div class="absolute -left-6 top-1 w-3 h-3 rounded-full bg-white/20 ring-2 ring-white/10"></div>
-              <div class="text-white/40 text-sm font-semibold">2026-07-21 <span data-ru="(цель)">(target)</span></div>
-              <div class="text-white/40 text-sm mt-0.5" data-ru="Go-live: ввод реального капитала после подтверждённого верифицированного трека в 30 дней">Go-live: real capital deployment after confirmed 30-day verified track</div>
+              <div class="text-white/55 text-sm font-semibold">2026-07-21 <span data-ru="(цель)">(target)</span></div>
+              <div class="text-white/55 text-sm mt-0.5" data-ru="Go-live: ввод реального капитала после подтверждённого верифицированного трека в 30 дней">Go-live: real capital deployment after confirmed 30-day verified track</div>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Footer note — honest source label (live-or-snapshot, never a false "updated daily" claim) -->
-      <div class="text-center text-white/30 text-sm pb-4">
+      <div class="text-center text-white/50 text-sm pb-4">
         <p>
           <span data-ru="Источник:">Source:</span>
-          <span id="st-src" class="font-mono text-white/40" data-ru="последний подтверждённый снимок">last evidenced snapshot</span>
+          <span id="st-src" class="font-mono text-white/55" data-ru="последний подтверждённый снимок">last evidenced snapshot</span>
           <span class="text-white/25">·</span>
           <span data-ru="Живые значения загружаются из api.earn-defi.com; при офлайне показывается последний подтверждённый снимок.">Live values load from api.earn-defi.com; the last evidenced snapshot is shown when the API is offline.</span>
         </p>

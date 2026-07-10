@@ -49,10 +49,10 @@ const global = strategies.global;
     <section class="py-10 border-t border-white/5">
       <div class="flex flex-col sm:flex-row sm:items-center gap-6">
         <div>
-          <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-2" data-ru="Целевой APY">Target APY</p>
+          <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Целевой APY">Target APY</p>
           <div class="flex items-baseline gap-2">
             <span class="text-5xl font-mono font-bold text-accent-400">~15%</span>
-            <span class="text-sm text-white/30 font-mono">APY</span>
+            <span class="text-sm text-white/50 font-mono">APY</span>
           </div>
           <p class="text-xs text-white/25 mt-2" data-ru={maxYield.target_apy_note_ru}>{maxYield.target_apy_note}</p>
         </div>
@@ -61,7 +61,7 @@ const global = strategies.global;
 
     <!-- 3. Risk Level -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3" data-ru="Уровень риска">Risk Level</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-3" data-ru="Уровень риска">Risk Level</p>
       <div class="flex items-center gap-3">
         <div class="flex gap-1" aria-label="Risk level: 3 of 3">
           <span class="inline-block w-8 h-3 rounded-sm bg-danger" aria-hidden="true"></span>
@@ -70,28 +70,28 @@ const global = strategies.global;
         </div>
         <span class="text-white/60 text-sm font-medium" data-ru="Повышенный риск">Higher Risk</span>
       </div>
-      <p class="text-xs text-white/30 mt-2" data-ru="Продвинутая механика хранилищ. Более высокая терпимость к доходности с управляемыми параметрами риска.">
+      <p class="text-xs text-white/50 mt-2" data-ru="Продвинутая механика хранилищ. Более высокая терпимость к доходности с управляемыми параметрами риска.">
         Advanced vault mechanics. Higher yield tolerance with managed risk parameters.
       </p>
     </section>
 
     <!-- 4. Current Status -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Текущий статус">Current Status</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Текущий статус">Current Status</p>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="rounded-xl border border-warn-border bg-warn-bg p-5">
-          <div class="text-xs text-white/30 mb-1" data-ru="Фаза">Phase</div>
+          <div class="text-xs text-white/50 mb-1" data-ru="Фаза">Phase</div>
           <div class="text-warn font-semibold flex items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-warn" aria-hidden="true"></span>
             <span data-ru="Фаза проектирования">Design Phase</span>
           </div>
         </div>
         <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
-          <div class="text-xs text-white/30 mb-1" data-ru="Бумажный трек">Paper Tracking</div>
+          <div class="text-xs text-white/50 mb-1" data-ru="Бумажный трек">Paper Tracking</div>
           <div class="text-white/50 font-semibold" data-ru="Не активен">Not active</div>
         </div>
         <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
-          <div class="text-xs text-white/30 mb-1" data-ru="Запуск">Launch</div>
+          <div class="text-xs text-white/50 mb-1" data-ru="Запуск">Launch</div>
           <div class="text-white/50 font-semibold" data-ru="Не определён">TBD</div>
         </div>
       </div>
@@ -99,7 +99,7 @@ const global = strategies.global;
 
     <!-- 5. Who It's For -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3" data-ru="Для кого">Who It's For</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-3" data-ru="Для кого">Who It's For</p>
       <p class="text-white/60 leading-relaxed" data-ru="Опытные инвесторы, принимающие повышенную волатильность и просадку ради потенциала доходности.">
         Experienced allocators accepting higher volatility and drawdown for yield upside.
       </p>
@@ -112,7 +112,7 @@ const global = strategies.global;
 
     <!-- 6. What's Inside -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-3" data-ru="Что внутри">What's Inside</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-3" data-ru="Что внутри">What's Inside</p>
       <p class="text-white/50 text-sm leading-relaxed mb-4" data-ru="Max Yield использует продвинутую механику DeFi-хранилищ для достижения более высокой доходности. Без открытого риска ликвидации по умолчанию в v1.0. Более сложные стратегии могут быть добавлены после отдельной бумажной валидации.">
         Max Yield uses advanced DeFi vault mechanics to target higher returns. No open liquidation
         risk by default in v1.0. More complex strategies may be added after separate paper validation.
@@ -165,7 +165,7 @@ const global = strategies.global;
 
     <!-- 7. Yield Sources -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Источники доходности">Yield Sources</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Источники доходности">Yield Sources</p>
       <div class="flex flex-wrap gap-2">
         {maxYield.yield_sources.map((source: string) => (
           <span class="px-3 py-1.5 rounded-lg text-sm font-mono bg-white/5 text-white/50 border border-white/10">
@@ -180,7 +180,7 @@ const global = strategies.global;
 
     <!-- 8. What This Strategy Does NOT Do -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Чего эта стратегия НЕ делает">What This Strategy Does NOT Do</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Чего эта стратегия НЕ делает">What This Strategy Does NOT Do</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[
           { en: 'Expose to open liquidation risk by default (v1.0)', ru: 'Создавать открытый риск ликвидации по умолчанию (v1.0)' },
@@ -199,7 +199,7 @@ const global = strategies.global;
     <!-- 9. Risk Controls -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-data-teal uppercase tracking-wider font-mono mb-4" data-ru="Контроль рисков — RiskPolicy v1.0">Risk Controls — RiskPolicy v1.0</p>
-      <p class="text-sm text-white/40 mb-6 leading-relaxed" data-ru="Max Yield работает под тем же детерминированным риск-гейтом, что и все стратегии. Без открытого риска ликвидации по умолчанию в v1.0.">
+      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Max Yield работает под тем же детерминированным риск-гейтом, что и все стратегии. Без открытого риска ликвидации по умолчанию в v1.0.">
         Max Yield operates under the same deterministic risk gate as all strategies.
         No open liquidation risk by default in v1.0.
       </p>
@@ -207,51 +207,51 @@ const global = strategies.global;
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-white/10 bg-white/[0.03]">
-              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Параметр">Parameter</th>
-              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Значение">Value</th>
-              <th class="text-left px-5 py-3 text-xs text-white/30 font-medium uppercase tracking-wider" data-ru="Эффект">Effect</th>
+              <th class="text-left px-5 py-3 text-xs text-white/50 font-medium uppercase tracking-wider" data-ru="Параметр">Parameter</th>
+              <th class="text-left px-5 py-3 text-xs text-white/50 font-medium uppercase tracking-wider" data-ru="Значение">Value</th>
+              <th class="text-left px-5 py-3 text-xs text-white/50 font-medium uppercase tracking-wider" data-ru="Эффект">Effect</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-white/5">
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono" data-ru="Минимальный TVL">TVL floor</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">&ge; $5M</td>
-              <td class="px-5 py-3 text-white/40" data-ru="Пулы ниже этого порога исключаются">Pools below this threshold excluded</td>
+              <td class="px-5 py-3 text-white/55" data-ru="Пулы ниже этого порога исключаются">Pools below this threshold excluded</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono" data-ru="Лимит на протокол">Per-protocol cap</td>
               <td class="px-5 py-3 text-white font-mono font-semibold" data-ru="40% T1 / 20% T2">40% T1 / 20% T2</td>
-              <td class="px-5 py-3 text-white/40" data-ru="Макс. аллокация в один протокол по Tier">Max allocation to single protocol, by Tier</td>
+              <td class="px-5 py-3 text-white/55" data-ru="Макс. аллокация в один протокол по Tier">Max allocation to single protocol, by Tier</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono" data-ru="Всего T2">T2 total cap</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">&le; 50%</td>
-              <td class="px-5 py-3 text-white/40" data-ru="Совокупный лимит на Tier 2">Aggregate cap on Tier 2 exposure</td>
+              <td class="px-5 py-3 text-white/55" data-ru="Совокупный лимит на Tier 2">Aggregate cap on Tier 2 exposure</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono" data-ru="Диапазон APY">APY range</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">1% – 30%</td>
-              <td class="px-5 py-3 text-white/40" data-ru="Позиции вне диапазона отклоняются">Positions outside range rejected</td>
+              <td class="px-5 py-3 text-white/55" data-ru="Позиции вне диапазона отклоняются">Positions outside range rejected</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono" data-ru="Денежный буфер">Cash buffer</td>
               <td class="px-5 py-3 text-white font-mono font-semibold">&ge; 5%</td>
-              <td class="px-5 py-3 text-white/40" data-ru="Всегда удерживается в резерве">Always held in reserve</td>
+              <td class="px-5 py-3 text-white/55" data-ru="Всегда удерживается в резерве">Always held in reserve</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono" data-ru="Риск ликвидации">Liquidation risk</td>
               <td class="px-5 py-3 text-white font-mono font-semibold" data-ru="Отсутствует (v1.0)">None (v1.0)</td>
-              <td class="px-5 py-3 text-white/40" data-ru="Без открытого риска ликвидации по умолчанию">No open liquidation risk by default</td>
+              <td class="px-5 py-3 text-white/55" data-ru="Без открытого риска ликвидации по умолчанию">No open liquidation risk by default</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-warn font-mono" data-ru="Kill switch — SOFT">Kill switch — SOFT</td>
               <td class="px-5 py-3 text-warn font-mono font-semibold" data-ru="&ge; 5% просадки от пика">&ge; 5% peak drawdown</td>
-              <td class="px-5 py-3 text-white/40" data-ru="Де-риск: стоп новых входов и увеличения позиций, без ликвидации">De-risk: halt new entries &amp; increases, no liquidation</td>
+              <td class="px-5 py-3 text-white/55" data-ru="Де-риск: стоп новых входов и увеличения позиций, без ликвидации">De-risk: halt new entries &amp; increases, no liquidation</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-danger font-mono" data-ru="Kill switch — HARD">Kill switch — HARD</td>
               <td class="px-5 py-3 text-danger font-mono font-semibold" data-ru="&ge; 10% просадки от пика">&ge; 10% peak drawdown</td>
-              <td class="px-5 py-3 text-white/40" data-ru="Весь портфель переводится в кэш">Move whole portfolio to cash</td>
+              <td class="px-5 py-3 text-white/55" data-ru="Весь портфель переводится в кэш">Move whole portfolio to cash</td>
             </tr>
           </tbody>
         </table>
@@ -260,13 +260,13 @@ const global = strategies.global;
 
     <!-- 10. Performance / Validation Status -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Статус валидации">Validation Status</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Статус валидации">Validation Status</p>
       <div class="rounded-xl border border-warn-border bg-warn-bg p-6">
         <div class="flex items-center gap-3 mb-4">
           <span class="w-2 h-2 rounded-full bg-warn" aria-hidden="true"></span>
           <span class="text-sm text-warn font-medium" data-ru="Фаза проектирования — данные отсутствуют">Design Phase — No Data Available</span>
         </div>
-        <p class="text-sm text-white/40 leading-relaxed" data-ru="Эта стратегия находится в фазе проектирования. Нет бумажного трека, нет данных о результатах, нет валидации. Все параметры и значения APY — предварительные цели, которые могут измениться.">
+        <p class="text-sm text-white/55 leading-relaxed" data-ru="Эта стратегия находится в фазе проектирования. Нет бумажного трека, нет данных о результатах, нет валидации. Все параметры и значения APY — предварительные цели, которые могут измениться.">
           This strategy is in design phase. No paper tracking, no performance data, no validation.
           All parameters and APY figures are preliminary targets subject to change.
         </p>
@@ -276,49 +276,49 @@ const global = strategies.global;
     <!-- 11. Strategy-Specific Risks -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-danger uppercase tracking-wider font-mono mb-4" data-ru="Риски, специфичные для стратегии">Strategy-Specific Risks</p>
-      <p class="text-sm text-white/40 mb-6 leading-relaxed" data-ru="Max Yield несёт все риски стратегии Core плюс дополнительные риски от продвинутой механики хранилищ. Без открытого риска ликвидации по умолчанию в v1.0, но существенный риск потери капитала сохраняется.">
+      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Max Yield несёт все риски стратегии Core плюс дополнительные риски от продвинутой механики хранилищ. Без открытого риска ликвидации по умолчанию в v1.0, но существенный риск потери капитала сохраняется.">
         Max Yield carries all risks of the Core strategy plus additional risks from advanced
         vault mechanics. No open liquidation risk by default in v1.0, but material risk of capital loss remains.
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск смарт-контрактов">Smart Contract Risk</h4>
-          <p class="text-xs text-white/40 leading-relaxed" data-ru="Продвинутая механика хранилищ взаимодействует с большим числом слоёв протоколов, увеличивая площадь потенциальных уязвимостей.">
+          <p class="text-xs text-white/55 leading-relaxed" data-ru="Продвинутая механика хранилищ взаимодействует с большим числом слоёв протоколов, увеличивая площадь потенциальных уязвимостей.">
             Advanced vault mechanics interact with more protocol layers, increasing
             the surface area for potential vulnerabilities.
           </p>
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск депега стейблкоина">Stablecoin Depeg Risk</h4>
-          <p class="text-xs text-white/40 leading-relaxed" data-ru="USDT или USDC могут временно или навсегда потерять привязку. Kill switch реагирует по уровню: SOFT де-риск при просадке от пика ≥5%, HARD (всё в кэш) при ≥10%, независимо от причины.">
+          <p class="text-xs text-white/55 leading-relaxed" data-ru="USDT или USDC могут временно или навсегда потерять привязку. Kill switch реагирует по уровню: SOFT де-риск при просадке от пика ≥5%, HARD (всё в кэш) при ≥10%, независимо от причины.">
             USDT or USDC may temporarily or permanently lose their peg.
             The kill switch responds by tier: SOFT de-risk at ≥5% peak drawdown, HARD (all to cash) at ≥10%, regardless of cause.
           </p>
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск оракулов">Oracle Risk</h4>
-          <p class="text-xs text-white/40 leading-relaxed" data-ru="Ценовые фиды от оракулов могут запаздывать или быть подвержены манипуляциям. Стратегия использует агрегированные фиды для данных по APY.">
+          <p class="text-xs text-white/55 leading-relaxed" data-ru="Ценовые фиды от оракулов могут запаздывать или быть подвержены манипуляциям. Стратегия использует агрегированные фиды для данных по APY.">
             Price feeds from oracles may be delayed or manipulated.
             Strategy relies on aggregated feeds for APY data.
           </p>
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск сложности">Complexity Risk</h4>
-          <p class="text-xs text-white/40 leading-relaxed" data-ru="У продвинутых стратегий больше движущихся частей. Выше требования к мониторингу и шире спектр возможных сценариев отказа.">
+          <p class="text-xs text-white/55 leading-relaxed" data-ru="У продвинутых стратегий больше движущихся частей. Выше требования к мониторингу и шире спектр возможных сценариев отказа.">
             Advanced strategies have more moving parts. Higher monitoring requirements
             and wider range of potential failure modes.
           </p>
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск ликвидности">Liquidity Risk</h4>
-          <p class="text-xs text-white/40 leading-relaxed" data-ru="В экстремальных рыночных условиях вывод средств из пулов может быть временно задержан, если уровень утилизации приближается к 100%.">
+          <p class="text-xs text-white/55 leading-relaxed" data-ru="В экстремальных рыночных условиях вывод средств из пулов может быть временно задержан, если уровень утилизации приближается к 100%.">
             In extreme market conditions, withdrawals from pools may be temporarily
             delayed if utilisation rates approach 100%.
           </p>
         </div>
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск невалидированной стратегии">Unvalidated Strategy Risk</h4>
-          <p class="text-xs text-white/40 leading-relaxed" data-ru="У этой стратегии пока нет бумажного трека. Все параметры и целевые показатели APY являются предварительными и могут измениться.">
+          <p class="text-xs text-white/55 leading-relaxed" data-ru="У этой стратегии пока нет бумажного трека. Все параметры и целевые показатели APY являются предварительными и могут измениться.">
             This strategy has no paper track record yet. All parameters and APY
             targets are preliminary and subject to change.
           </p>
@@ -328,7 +328,7 @@ const global = strategies.global;
 
     <!-- 12. Emergency Behavior -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Поведение в аварийной ситуации">Emergency Behavior</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Поведение в аварийной ситуации">Emergency Behavior</p>
       <div class="rounded-xl border border-danger-border bg-danger-bg p-6">
         <div class="flex items-start gap-4">
           <div class="w-10 h-10 rounded-lg bg-danger-bg border border-danger-border flex items-center justify-center flex-shrink-0">
@@ -343,7 +343,7 @@ const global = strategies.global;
               and position increases, without liquidating. At ≥10% (HARD) the whole portfolio moves
               to 100% cash. Non-overridable, fully automated.
             </p>
-            <p class="text-xs text-white/30" data-ru="Аварийный стоп ограничивает дальнейшую экспозицию, но не предотвращает уже понесённые убытки.">
+            <p class="text-xs text-white/50" data-ru="Аварийный стоп ограничивает дальнейшую экспозицию, но не предотвращает уже понесённые убытки.">
               The kill switch limits further exposure but does not prevent losses already incurred.
             </p>
           </div>
@@ -353,13 +353,13 @@ const global = strategies.global;
 
     <!-- 13. Fees -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Структура комиссий">Fee Structure</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Структура комиссий">Fee Structure</p>
       <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
         <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="Структура комиссий обсуждается индивидуально при онбординге. Действует принцип high-water mark — комиссия за результат не взимается до восстановления предыдущего пика.">
           Fee structure is discussed individually during onboarding. High-water mark applies —
           no performance fee until the previous peak is recovered.
         </p>
-        <p class="text-xs text-white/30" data-ru="В период бумажной торговли комиссии отсутствуют.">
+        <p class="text-xs text-white/50" data-ru="В период бумажной торговли комиссии отсутствуют.">
           No fees during paper trading period.
         </p>
       </div>
@@ -367,12 +367,12 @@ const global = strategies.global;
 
     <!-- 14. FAQ -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-6" data-ru="Часто задаваемые вопросы">Frequently Asked Questions</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-6" data-ru="Часто задаваемые вопросы">Frequently Asked Questions</p>
       <div class="space-y-6">
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Когда будет доступна Max Yield?">When will Max Yield be available?</h4>
-          <p class="text-sm text-white/40 leading-relaxed" data-ru="Max Yield находится в фазе проектирования. Дата запуска не установлена. Бумажный трек начнётся только после того, как стратегия Core подтвердит базовую инфраструктуру.">
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Max Yield находится в фазе проектирования. Дата запуска не установлена. Бумажный трек начнётся только после того, как стратегия Core подтвердит базовую инфраструктуру.">
             Max Yield is in design phase. No launch date has been set. Paper tracking will
             begin only after Core strategy validates the base infrastructure.
           </p>
@@ -380,7 +380,7 @@ const global = strategies.global;
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Есть ли риск ликвидации?">Is there liquidation risk?</h4>
-          <p class="text-sm text-white/40 leading-relaxed" data-ru="Без открытого риска ликвидации по умолчанию в v1.0. Более сложные стратегии с иными профилями риска могут быть добавлены после отдельной бумажной валидации.">
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Без открытого риска ликвидации по умолчанию в v1.0. Более сложные стратегии с иными профилями риска могут быть добавлены после отдельной бумажной валидации.">
             No open liquidation risk by default in v1.0. More complex strategies with different
             risk profiles may be added after separate paper validation.
           </p>
@@ -388,7 +388,7 @@ const global = strategies.global;
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Какие активы поддерживаются?">What assets are supported?</h4>
-          <p class="text-sm text-white/40 leading-relaxed" data-ru="USDT (TRC-20, ERC-20) и USDC (ERC-20). Вход через переговоры — без публичных минимумов и лимитов ёмкости пула.">
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="USDT (TRC-20, ERC-20) и USDC (ERC-20). Вход через переговоры — без публичных минимумов и лимитов ёмкости пула.">
             USDT (TRC-20, ERC-20) and USDC (ERC-20). Entry through conversation — no public minimums
             or pool capacity limits.
           </p>
@@ -396,7 +396,7 @@ const global = strategies.global;
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Подходит ли это для моей первой аллокации в DeFi?">Is this suitable for my first DeFi allocation?</h4>
-          <p class="text-sm text-white/40 leading-relaxed" data-ru="Max Yield нацелена на более высокую доходность с продвинутой механикой. Рассмотрите Core или Preserve как точку входа с меньшим риском, если вы новичок в DeFi.">
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Max Yield нацелена на более высокую доходность с продвинутой механикой. Рассмотрите Core или Preserve как точку входа с меньшим риском, если вы новичок в DeFi.">
             Max Yield targets higher returns with advanced mechanics. Consider Core or Preserve
             for a lower-risk entry point if you're new to DeFi.
           </p>
@@ -404,7 +404,7 @@ const global = strategies.global;
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Применяется ли та же риск-политика?">Does the same risk policy apply?</h4>
-          <p class="text-sm text-white/40 leading-relaxed" data-ru="Да. RiskPolicy v1.0 применяется ко всем стратегиям. У Max Yield есть дополнительные ограничения, связанные с плечом, поверх базовой политики. Действует тот же неотменяемый двухуровневый kill switch: SOFT де-риск при просадке от пика ≥5%, HARD (всё в кэш) при ≥10%.">
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Да. RiskPolicy v1.0 применяется ко всем стратегиям. У Max Yield есть дополнительные ограничения, связанные с плечом, поверх базовой политики. Действует тот же неотменяемый двухуровневый kill switch: SOFT де-риск при просадке от пика ≥5%, HARD (всё в кэш) при ≥10%.">
             Yes. RiskPolicy v1.0 applies to all strategies. Max Yield has additional
             leverage-specific constraints on top of the base policy. The same non-overridable
             two-tier kill switch applies: SOFT de-risk at ≥5% peak drawdown, HARD (all to cash) at ≥10%.
@@ -413,7 +413,7 @@ const global = strategies.global;
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Будет ли период бумажной торговли?">Will there be a paper trading period?</h4>
-          <p class="text-sm text-white/40 leading-relaxed" data-ru="Да. Как и все стратегии, Max Yield пройдёт период бумажной валидации до развёртывания реального капитала. Будут применяться критерии GoLiveChecker.">
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Да. Как и все стратегии, Max Yield пройдёт период бумажной валидации до развёртывания реального капитала. Будут применяться критерии GoLiveChecker.">
             Yes. Like all strategies, Max Yield will undergo a paper trading validation period
             before any real capital is deployed. GoLiveChecker criteria will apply.
           </p>
@@ -426,7 +426,7 @@ const global = strategies.global;
     <section class="py-16 border-t border-white/5">
       <div class="text-center">
         <h2 class="text-2xl font-bold text-white mb-4" data-ru="Изучите другие стратегии">Explore Other Strategies</h2>
-        <p class="text-white/40 mb-8 max-w-lg mx-auto text-sm leading-relaxed" data-ru="Max Yield находится в фазе проектирования. А пока ознакомьтесь со стратегией Core с активным бумажным треком или с Preserve для меньшего риска.">
+        <p class="text-white/55 mb-8 max-w-lg mx-auto text-sm leading-relaxed" data-ru="Max Yield находится в фазе проектирования. А пока ознакомьтесь со стратегией Core с активным бумажным треком или с Preserve для меньшего риска.">
           Max Yield is in design phase. In the meantime, explore our Core strategy
           with an active paper trading track record, or Preserve for lower risk.
         </p>
@@ -446,7 +446,7 @@ const global = strategies.global;
             View Preserve Strategy
           </a>
         </div>
-        <p class="text-sm text-white/30">
+        <p class="text-sm text-white/50">
           <span data-ru="Контакт:">Contact:</span> <a href="mailto:yuriycooleshov@gmail.com" class="text-accent-400/70 hover:text-accent-400 transition-colors">yuriycooleshov@gmail.com</a>
         </p>
       </div>

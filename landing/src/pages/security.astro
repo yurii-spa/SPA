@@ -58,27 +58,27 @@ import Layout from '../layouts/Layout.astro';
       <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Безопасность фронтенда">Frontend Security</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4">
-          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Заголовки CSP">CSP Headers</p>
+          <p class="text-xs text-white/50 font-mono mb-1" data-ru="Заголовки CSP">CSP Headers</p>
           <p class="text-sm text-white/60" data-ru="Политика безопасности контента (CSP) настроена на Cloudflare Pages">Content Security Policy configured on Cloudflare Pages</p>
         </div>
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4">
-          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Без конфиденциальных данных">No Sensitive Data</p>
+          <p class="text-xs text-white/50 font-mono mb-1" data-ru="Без конфиденциальных данных">No Sensitive Data</p>
           <p class="text-sm text-white/60" data-ru="В браузере не обрабатываются конфиденциальные данные">No sensitive data processed in browser</p>
         </div>
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4">
-          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Без приватных ключей">No Private Keys</p>
+          <p class="text-xs text-white/50 font-mono mb-1" data-ru="Без приватных ключей">No Private Keys</p>
           <p class="text-sm text-white/60" data-ru="Приватные ключи никогда не попадают на фронтенд">No private keys ever enter the frontend</p>
         </div>
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4">
-          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Доверенные CDN">Trusted CDNs</p>
+          <p class="text-xs text-white/50 font-mono mb-1" data-ru="Доверенные CDN">Trusted CDNs</p>
           <p class="text-sm text-white/60" data-ru="Все внешние ресурсы загружаются только из доверенных CDN">All external resources loaded from trusted CDNs only</p>
         </div>
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4">
-          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Минимум JS">Minimal JS</p>
+          <p class="text-xs text-white/50 font-mono mb-1" data-ru="Минимум JS">Minimal JS</p>
           <p class="text-sm text-white/60" data-ru="React-острова гидрируются только при client:visible (минимальный объём JS)">React islands hydrated only client:visible (minimal JS footprint)</p>
         </div>
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4">
-          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Без скриптов аналитики">No Analytics Scripts</p>
+          <p class="text-xs text-white/50 font-mono mb-1" data-ru="Без скриптов аналитики">No Analytics Scripts</p>
           <p class="text-sm text-white/60" data-ru="Нет сторонних скриптов аналитики, которые могли бы быть скомпрометированы">No third-party analytics scripts that could be poisoned</p>
         </div>
       </div>
@@ -91,8 +91,8 @@ import Layout from '../layouts/Layout.astro';
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-border-strong bg-bg-surface">
-              <th class="text-left text-white/40 font-mono text-xs p-3" data-ru="Мера">Measure</th>
-              <th class="text-left text-white/40 font-mono text-xs p-3" data-ru="Статус">Status</th>
+              <th class="text-left text-white/55 font-mono text-xs p-3" data-ru="Мера">Measure</th>
+              <th class="text-left text-white/55 font-mono text-xs p-3" data-ru="Статус">Status</th>
             </tr>
           </thead>
           <tbody class="text-white/55">
@@ -176,19 +176,19 @@ import Layout from '../layouts/Layout.astro';
       <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Мониторинг и оповещения">Monitoring and Alerts</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4">
-          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Доступность">Uptime</p>
+          <p class="text-xs text-white/50 font-mono mb-1" data-ru="Доступность">Uptime</p>
           <p class="text-sm text-white/60" data-ru="Аналитика Cloudflare">Cloudflare Analytics</p>
         </div>
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4">
-          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Оповещения об ошибках">Error Alerts</p>
+          <p class="text-xs text-white/50 font-mono mb-1" data-ru="Оповещения об ошибках">Error Alerts</p>
           <p class="text-sm text-white/60" data-ru="Telegram-бот (оператор уведомляется в течение нескольких минут)">Telegram bot (operator notified within minutes)</p>
         </div>
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4">
-          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Просадка">Drawdown</p>
+          <p class="text-xs text-white/50 font-mono mb-1" data-ru="Просадка">Drawdown</p>
           <p class="text-sm text-white/60" data-ru="Аварийное отключение SPA (автоматическое)">SPA kill switch (automated)</p>
         </div>
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4">
-          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Статус протоколов">Protocol Status</p>
+          <p class="text-xs text-white/50 font-mono mb-1" data-ru="Статус протоколов">Protocol Status</p>
           <p class="text-sm text-white/60" data-ru="Проверка состояния адаптеров каждый цикл">Adapter health checks per cycle</p>
         </div>
       </div>
@@ -270,46 +270,46 @@ import Layout from '../layouts/Layout.astro';
           <span class="text-xs font-mono text-accent-400/70 bg-accent-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">1</span>
           <div>
             <p class="text-sm text-white/70 font-medium" data-ru="Обнаружение">Detection</p>
-            <p class="text-xs text-white/40" data-ru="Инцидент обнаружен через оповещение мониторинга или сообщение пользователя">Incident detected via monitoring alert or user report</p>
+            <p class="text-xs text-white/55" data-ru="Инцидент обнаружен через оповещение мониторинга или сообщение пользователя">Incident detected via monitoring alert or user report</p>
           </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-border-strong bg-bg-surface p-4">
           <span class="text-xs font-mono text-danger bg-danger-bg px-2 py-0.5 rounded flex-shrink-0 mt-0.5">2</span>
           <div>
             <p class="text-sm text-white/70 font-medium" data-ru="Аварийное отключение">Kill Switch</p>
-            <p class="text-xs text-white/40" data-ru="Активируется при срабатывании порога просадки">Activated if drawdown gate fires</p>
+            <p class="text-xs text-white/55" data-ru="Активируется при срабатывании порога просадки">Activated if drawdown gate fires</p>
           </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-border-strong bg-bg-surface p-4">
           <span class="text-xs font-mono text-warn bg-warn-bg px-2 py-0.5 rounded flex-shrink-0 mt-0.5">3</span>
           <div>
             <p class="text-sm text-white/70 font-medium" data-ru="Оценка">Assessment</p>
-            <p class="text-xs text-white/40" data-ru="Оператор оценивает ситуацию и масштаб">Operator assesses situation and scope</p>
+            <p class="text-xs text-white/55" data-ru="Оператор оценивает ситуацию и масштаб">Operator assesses situation and scope</p>
           </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-border-strong bg-bg-surface p-4">
           <span class="text-xs font-mono text-accent-400/70 bg-accent-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">4</span>
           <div>
             <p class="text-sm text-white/70 font-medium" data-ru="Коммуникация">Communication</p>
-            <p class="text-xs text-white/40" data-ru="Публичное сообщение в течение 4 часов по официальным каналам">Public communication within 4 hours on official channels</p>
+            <p class="text-xs text-white/55" data-ru="Публичное сообщение в течение 4 часов по официальным каналам">Public communication within 4 hours on official channels</p>
           </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-border-strong bg-bg-surface p-4">
           <span class="text-xs font-mono text-accent-400/70 bg-accent-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">5</span>
           <div>
             <p class="text-sm text-white/70 font-medium" data-ru="Анализ первопричин">Root Cause Analysis</p>
-            <p class="text-xs text-white/40" data-ru="Публикуется в течение 72 часов">Published within 72 hours</p>
+            <p class="text-xs text-white/55" data-ru="Публикуется в течение 72 часов">Published within 72 hours</p>
           </div>
         </div>
         <div class="flex gap-4 items-start rounded-lg border border-border-strong bg-bg-surface p-4">
           <span class="text-xs font-mono text-accent-400/70 bg-accent-400/10 px-2 py-0.5 rounded flex-shrink-0 mt-0.5">6</span>
           <div>
             <p class="text-sm text-white/70 font-medium" data-ru="Возобновление">Resumption</p>
-            <p class="text-xs text-white/40" data-ru="Возобновление работы только после подтверждения устранения проблемы">No resumption until fix verified</p>
+            <p class="text-xs text-white/55" data-ru="Возобновление работы только после подтверждения устранения проблемы">No resumption until fix verified</p>
           </div>
         </div>
       </div>
-      <p class="text-sm text-white/40 mt-6">
+      <p class="text-sm text-white/55 mt-6">
         <span data-ru="Официальная коммуникация:">Official communication:</span> <a href="mailto:yuriycooleshov@gmail.com" class="text-ok hover:text-ok underline underline-offset-2">yuriycooleshov@gmail.com</a> <span data-ru="| репозиторий GitHub">| GitHub repository</span>
       </p>
     </section>

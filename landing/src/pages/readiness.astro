@@ -17,28 +17,28 @@ import Layout from '../layouts/Layout.astro';
     </section>
 
     <section class="py-6 border-t border-border">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Живой статус">Live status</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Живой статус">Live status</p>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" id="rdy-cards">
         <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2">Governance defenses</p>
           <p class="text-2xl font-mono font-bold text-white"><span id="rdy-def">—</span></p>
-          <p class="text-xs text-white/40 mt-1" data-ru="срабатывают на стрессе (SOFT −5% / HARD −10%)">fire on stress (SOFT −5% / HARD −10%)</p>
+          <p class="text-xs text-white/55 mt-1" data-ru="срабатывают на стрессе (SOFT −5% / HARD −10%)">fire on stress (SOFT −5% / HARD −10%)</p>
         </div>
         <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2">Go-live gate</p>
           <p class="text-2xl font-mono font-bold text-white"><span id="rdy-gate">—</span></p>
-          <p class="text-xs text-white/40 mt-1"><span id="rdy-days">—</span> <span data-ru="evidenced-дней трека">evidenced track-days</span></p>
+          <p class="text-xs text-white/55 mt-1"><span id="rdy-days">—</span> <span data-ru="evidenced-дней трека">evidenced track-days</span></p>
         </div>
         <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2">Target</p>
           <p class="text-2xl font-mono font-bold text-white"><span id="rdy-target">—</span></p>
-          <p class="text-xs text-white/40 mt-1" data-ru="время, не код">time-gated, not code</p>
+          <p class="text-xs text-white/55 mt-1" data-ru="время, не код">time-gated, not code</p>
         </div>
       </div>
     </section>
 
     <section class="py-6 border-t border-border">
-      <p class="text-xs text-white/30 uppercase tracking-wider font-mono mb-4" data-ru="Блокеры только для владельца (код не может их закрыть)">Owner-only blockers (code cannot satisfy these)</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Блокеры только для владельца (код не может их закрыть)">Owner-only blockers (code cannot satisfy these)</p>
       <ul class="space-y-2" id="rdy-blockers">
         <li class="text-sm text-white/50">—</li>
       </ul>
@@ -49,7 +49,7 @@ import Layout from '../layouts/Layout.astro';
       <pre class="text-xs font-mono text-white/70 overflow-x-auto rounded-lg bg-bg-surface border border-border p-4">python3 scripts/verify_spa.py data/                    # proof chain intact
 python3 scripts/defenses_exercised_report.py          # 11/11 defenses fire
 python3 -m spa_core.paper_trading.pre_cutover_gate     # 16/16 money-path defenses (inert)</pre>
-      <p class="text-xs text-white/30 mt-3" id="rdy-honest" data-ru="Код доказывает защиты; кастоди / аудит / легал / 30-дневный трек — owner-only и time-gated.">The code proves the defenses fire; custody / audit / legal / the 30-day evidenced track are owner-only and time-gated.</p>
+      <p class="text-xs text-white/50 mt-3" id="rdy-honest" data-ru="Код доказывает защиты; кастоди / аудит / легал / 30-дневный трек — owner-only и time-gated.">The code proves the defenses fire; custody / audit / legal / the 30-day evidenced track are owner-only and time-gated.</p>
     </section>
   </main>
 

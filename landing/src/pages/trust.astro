@@ -56,7 +56,7 @@ import snap from '../data/track_snapshot.json';  // single-source the gate count
     <!-- 9 Key Questions -->
     <section class="mb-14">
       <h2 class="text-xl font-semibold text-white mb-2 pb-3 border-b border-border" data-ru="9 ключевых вопросов">The 9 Key Questions</h2>
-      <p class="text-xs text-white/30 mb-8" data-ru="Ключевые вопросы об архитектуре системы.">Key questions about the system architecture.</p>
+      <p class="text-xs text-white/50 mb-8" data-ru="Ключевые вопросы об архитектуре системы.">Key questions about the system architecture.</p>
 
       <div class="space-y-6">
 
@@ -206,19 +206,19 @@ import snap from '../data/track_snapshot.json';  // single-source the gate count
       <h2 class="text-xl font-semibold text-white mb-6 pb-3 border-b border-border" data-ru="Операционная модель">Operational Model</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4">
-          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Ежедневный цикл">Daily Cycle</p>
+          <p class="text-xs text-white/50 font-mono mb-1" data-ru="Ежедневный цикл">Daily Cycle</p>
           <p class="text-sm text-white/60" data-ru="Скан → Гейт → Ребалансировка (автоматически)">Scan &rarr; Gate &rarr; Rebalance (automated)</p>
         </div>
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4">
-          <p class="text-xs text-white/30 font-mono mb-1" data-ru="LLM в исполнении">LLM in Execution</p>
+          <p class="text-xs text-white/50 font-mono mb-1" data-ru="LLM в исполнении">LLM in Execution</p>
           <p class="text-sm text-white/60" data-ru="Нет. Ноль ИИ в пути принятия решений.">None. Zero AI in the decision path.</p>
         </div>
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4">
-          <p class="text-xs text-white/30 font-mono mb-1" data-ru="Логика решений">Decision Logic</p>
+          <p class="text-xs text-white/50 font-mono mb-1" data-ru="Логика решений">Decision Logic</p>
           <p class="text-sm text-white/60" data-ru="Все решения детерминированы и логируются">All decisions deterministic and logged</p>
         </div>
         <div class="rounded-lg border border-border-strong bg-bg-surface p-4">
-          <p class="text-xs text-white/30 font-mono mb-1">Paper Trading</p>
+          <p class="text-xs text-white/50 font-mono mb-1">Paper Trading</p>
           <p class="text-sm text-white/60" data-ru="Никаких реальных транзакций — все операции симулируются">No real transactions — all operations simulated</p>
         </div>
       </div>
@@ -231,7 +231,7 @@ import snap from '../data/track_snapshot.json';  // single-source the gate count
         <a href="/#live-stats" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-ok-border transition-colors group">
           <div>
             <p class="text-sm text-white/80 group-hover:text-white">GoLiveChecker</p>
-            <p class="text-xs text-white/40" data-ru={`${snap.gates_passed}/${snap.gates_total} критериев сейчас пройдено (НЕ ГОТОВО)`}>{snap.gates_passed}/{snap.gates_total} criteria currently passing (NOT READY)</p>
+            <p class="text-xs text-white/55" data-ru={`${snap.gates_passed}/${snap.gates_total} критериев сейчас пройдено (НЕ ГОТОВО)`}>{snap.gates_passed}/{snap.gates_total} criteria currently passing (NOT READY)</p>
           </div>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-ok">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
@@ -240,7 +240,7 @@ import snap from '../data/track_snapshot.json';  // single-source the gate count
         <a href="/#live-stats" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-ok-border transition-colors group">
           <div>
             <p class="text-sm text-white/80 group-hover:text-white" data-ru="Блокировки риска">Risk Blocks</p>
-            <p class="text-xs text-white/40" data-ru="Все заблокированные ребалансировки залогированы">All blocked rebalances logged</p>
+            <p class="text-xs text-white/55" data-ru="Все заблокированные ребалансировки залогированы">All blocked rebalances logged</p>
           </div>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-ok">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
@@ -249,7 +249,7 @@ import snap from '../data/track_snapshot.json';  // single-source the gate count
         <a href="/#live-stats" class="flex items-center justify-between rounded-lg border border-border-strong bg-bg-surface p-4 hover:border-ok-border transition-colors group">
           <div>
             <p class="text-sm text-white/80 group-hover:text-white">Paper APY</p>
-            <p class="text-xs text-white/40" data-ru="Отслеживается ежедневно с 22 июня 2026 (evidenced anchor)">Tracked daily since June 22, 2026 (evidenced anchor)</p>
+            <p class="text-xs text-white/55" data-ru="Отслеживается ежедневно с 22 июня 2026 (evidenced anchor)">Tracked daily since June 22, 2026 (evidenced anchor)</p>
           </div>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-white/20 group-hover:text-ok">
             <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/>
