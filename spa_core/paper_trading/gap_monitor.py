@@ -203,9 +203,24 @@ def _finalize(result: dict) -> dict:
     gap_detected — синхронизировать CRITICAL-алерт. Никогда не бросает из-за
     алерта: детекция важнее побочного канала."""
     prev = _read_status()
+    gap_now = bool(result.get("gap_detected") or result.get("has_gaps"))
     for k in ("recovery", "recovery_skip"):
         if k in prev and k not in result:
             result[k] = prev[k]
+    # Q1-8 self-clearing recovery state: a resolved gap must NEVER leave a scary
+    # `recovery` artifact (e.g. gap_after_recovery / cycle_ran_but_gap_persists) on
+    # the readiness surface. When the current detection is clean, archive any carried
+    # recovery attempt into `last_recovery` (history preserved for audit — nothing is
+    # erased) stamped resolved, and drop the ACTIVE `recovery` so consumers reading
+    # `recovery` see no active failure that contradicts the OK state.
+    if not gap_now and "recovery" in result:
+        rec = result.pop("recovery")
+        if isinstance(rec, dict):
+            archived = dict(rec)
+            archived["resolved"] = True
+            archived["resolved_at"] = datetime.now(timezone.utc).isoformat()
+            result["last_recovery"] = archived
+        result.pop("recovery_skip", None)
     _write(result)
     if result.get("gap_detected"):
         try:

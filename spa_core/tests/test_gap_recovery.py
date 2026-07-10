@@ -258,6 +258,49 @@ class TestAttemptRecovery(GapRecoveryBase):
         self.assertEqual(cycle.calls, [])
 
 
+# ─── Q1-8 self-clearing recovery state ─────────────────────────────────────────
+
+
+class TestRecoverySelfClearing(GapRecoveryBase):
+    """A resolved gap must never leave a scary `recovery` artifact on the readiness
+    surface. When detection is clean, a carried-forward failed/stale recovery record
+    is archived into `last_recovery` (resolved) and the ACTIVE `recovery` dropped."""
+
+    def _seed_scary_recovery(self):
+        # a prior snapshot whose recovery attempt did NOT close the gap
+        self.status.write_text(json.dumps({
+            "gap_detected": True, "has_gaps": False, "status": "gap",
+            "recovery": {"attempted": True, "succeeded": False,
+                         "error": "cycle_ran_but_gap_persists",
+                         "gap_after_recovery": True, "date": "2026-06-30"},
+        }))
+
+    def test_clean_detection_archives_stale_recovery(self):
+        self._seed_scary_recovery()
+        self.write_fresh_equity()                 # no gap now
+        result = gap_monitor.check_gaps()
+        self.assertFalse(result.get("gap_detected"))
+        on_disk = json.loads(self.status.read_text())
+        # active scary artifact gone …
+        self.assertNotIn("recovery", on_disk)
+        # … but history preserved + stamped resolved (auditable, not erased)
+        self.assertIn("last_recovery", on_disk)
+        self.assertTrue(on_disk["last_recovery"]["resolved"])
+        self.assertIn("resolved_at", on_disk["last_recovery"])
+        self.assertEqual(on_disk["last_recovery"]["error"],
+                         "cycle_ran_but_gap_persists")
+
+    def test_active_gap_keeps_recovery(self):
+        """While a gap is genuinely present, the recovery record is NOT archived."""
+        self._seed_scary_recovery()
+        self.write_stale_equity()                 # gap persists
+        result = gap_monitor.check_gaps()
+        self.assertTrue(result.get("gap_detected"))
+        on_disk = json.loads(self.status.read_text())
+        self.assertIn("recovery", on_disk)         # still active — honest
+        self.assertNotIn("last_recovery", on_disk)
+
+
 # ─── CLI ──────────────────────────────────────────────────────────────────────
 
 
