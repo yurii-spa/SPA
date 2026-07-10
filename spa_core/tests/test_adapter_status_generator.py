@@ -390,6 +390,9 @@ class TestWrite(unittest.TestCase):
 class TestFetchDefillama(unittest.TestCase):
     """T16 — _fetch_defillama() returns None on network error."""
 
+    # Force a non-ci SPA_ENV so the CI network-skip guard is bypassed and the REAL
+    # urlopen error-handling path is exercised (that is what these tests verify).
+    @patch.dict("os.environ", {"SPA_ENV": "test"})
     def test_returns_none_on_error(self) -> None:
         """T16 — no crash; returns None when URL unreachable."""
         import urllib.error
@@ -397,6 +400,7 @@ class TestFetchDefillama(unittest.TestCase):
             result = _fetch_defillama(timeout=1)
         self.assertIsNone(result)
 
+    @patch.dict("os.environ", {"SPA_ENV": "test"})
     def test_returns_none_on_timeout(self) -> None:
         """T16b — returns None on TimeoutError."""
         with patch("urllib.request.urlopen", side_effect=TimeoutError("timed out")):

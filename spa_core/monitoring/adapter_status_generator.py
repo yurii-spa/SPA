@@ -111,6 +111,14 @@ def _fetch_defillama(timeout: int = DEFILLAMA_TIMEOUT) -> Optional[list]:
 
     Returns a list of pool dicts on success, ``None`` on any error.
     """
+    # CI/offline guard: never make an external network call under SPA_ENV=ci. The
+    # DeFiLlama /pools body is large and resp.read() can stall past the connect
+    # timeout, wedging CI test runs for 30min+ (any test that reaches generate()
+    # transitively — cycles, chaos, status — would hang). Returns None → the
+    # generator's existing NON-LIVE fallback (APY honestly marked non-live, never
+    # fabricated). Production (SPA_ENV != ci) is unaffected.
+    if os.environ.get("SPA_ENV") == "ci":
+        return None
     try:
         req = urllib.request.Request(
             DEFILLAMA_URL,
