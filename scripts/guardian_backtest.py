@@ -104,6 +104,41 @@ def _metrics(equity):
     return apy, mdd, cal
 
 
+def out_of_sample(loaded, split_date="2026-01-01"):
+    """Honest overfitting check: pick the best vol-guardian params on the TRAIN half (dates < split),
+    then apply those FIXED params to the unseen TEST half and see if the improvement HOLDS. If it
+    collapses out-of-sample, the in-sample win was curve-fit."""
+    vgrid = [(vm, fr) for vm in (1.5, 2.0, 3.0) for fr in (0.0, 0.25, 0.5)]
+
+    def f(x):
+        return f"{x:.1f}" if isinstance(x, (int, float)) else "n/a"
+
+    print("\n=== OUT-OF-SAMPLE (params fit on <%s, applied to >=%s) ===" % (split_date, split_date))
+    print(f"{'strategy':20} {'TEST raw dd/cal':>16}   {'TEST guarded dd/cal':>20}   {'params(vm,fr)':>14}  holds?")
+    print("-" * 84)
+    for sid in sorted(loaded.keys()):
+        s = loaded[sid]
+        ser = s.backtest.series if s.backtest.n_points >= 2 else []
+        train = _equity_of([p for p in ser if p.get("date", "") < split_date])
+        test = _equity_of([p for p in ser if p.get("date", "") >= split_date])
+        if len(train) < 40 or len(test) < 30:
+            continue
+        # fit on train
+        best = None
+        for vm, fr in vgrid:
+            _, tdd, tcal = _metrics(apply_guardian_vol(train, vol_mult=vm, derisk_frac=fr))
+            key = tcal if isinstance(tcal, (int, float)) else -1e9
+            if best is None or key > best[0]:
+                best = (key, vm, fr)
+        _, vm, fr = best
+        # apply FIXED params to test
+        r_apy, r_dd, r_cal = _metrics(test)
+        g_apy, g_dd, g_cal = _metrics(apply_guardian_vol(test, vol_mult=vm, derisk_frac=fr))
+        holds = (isinstance(g_cal, (int, float)) and isinstance(r_cal, (int, float)) and g_cal >= r_cal) \
+            or (isinstance(g_dd, (int, float)) and isinstance(r_dd, (int, float)) and g_dd <= r_dd)
+        print(f"{sid:20} {f(r_dd)+'/'+f(r_cal):>16}   {f(g_dd)+'/'+f(g_cal):>20}   ({vm},{fr}){'':>4}  {'HOLDS' if holds else 'overfit'}")
+
+
 def main():
     tmp = Path(__import__("tempfile").mkdtemp(prefix="guardian_bt_"))
     fx.materialize(tmp)
@@ -142,6 +177,8 @@ def main():
     print("vol spikes above baseline (a regime signal that often LEADS the loss). Higher Calmar = better")
     print("risk-adjusted. Honest limits: gap moves are still unavoidable; a real RTMR guardian would use")
     print("exogenous vol/funding/liquidity (not in this equity-only fixture) — potentially earlier still.")
+
+    out_of_sample(loaded)
 
 
 if __name__ == "__main__":
