@@ -417,6 +417,78 @@ def get_rates_desk_exit_nav():
     return scrub_nonfinite(raw)
 
 
+def _capacity_reproduce() -> dict:
+    """Honest reproduce block for capacity — it is DETERMINISTIC ARITHMETIC (not a hash-chain),
+    so it teaches re-derivation by re-running the aggregator, not by verify_spa hashing."""
+    return {
+        "deterministic": True,
+        "method": "pure arithmetic over per-family (deployable_usd, net_apy_pct, floor_pct); "
+                  "combined_deployable = naive_sum − correlation_haircut (both recorded); "
+                  "above_floor_usd_per_yr = deployable · max(0, net_apy − RWA_floor)/100",
+        "rerun": "python3 -m spa_core.strategy_lab.portfolio_capacity",
+        "source": "data/rates_desk/portfolio_capacity.json",
+        "doc": "docs/STRUCTURAL_DESK.md (combined portfolio-capacity section)",
+    }
+
+
+@router.get("/api/rates-desk/capacity")
+def get_rates_desk_capacity():
+    """Rates-Desk N-BOOK CAPACITY — the honest scale story: how much above-floor $/yr the desk's
+    gated-carry book can realistically produce, and the GAP to the $10M thesis.
+
+    Serves data/rates_desk/portfolio_capacity.json VERBATIM (built by the deterministic
+    spa_core.strategy_lab.portfolio_capacity aggregator): per-family deployable capacity aggregated
+    with an EXPLICIT correlation haircut for shared exit-liquidity (real desks share rails → the
+    combined book is LESS than the naive sum, and BOTH the naive sum and the haircut are recorded),
+    the resulting dollars_above_floor_per_yr, n_fundable_books, books_needed_for_10m, and the honest
+    gap_to_10m. This is the machine-checkable mitigation for the #1 risk (the edge is unproven at
+    fundable scale) — a number a diligence reviewer can reproduce, not a marketing claim. Read-only,
+    graceful, fail-CLOSED: a missing/corrupt file yields a flagged empty payload with
+    generated_at=null, NEVER a 500. is_advisory is ALWAYS true (no real capital; paper model only).
+    """
+    _meta = backtest_meta(
+        basis="deterministic aggregate of per-family deployable capacity with an EXPLICIT correlation "
+              "haircut on shared-venue exit liquidity (combined = naive_sum − haircut, both recorded); "
+              "PT-carry depth is typically the binding constraint — see docs/STRUCTURAL_DESK.md",
+        period="current model (see window / generated_at)",
+    )
+    raw = read_state("rates_desk/portfolio_capacity.json", {})
+    if not raw or not isinstance(raw, dict):
+        return {
+            "generated_at": None,
+            "model": "portfolio_capacity_correlation_haircut",
+            "total_deployable_usd": None,
+            "dollars_above_floor_per_yr": None,
+            "n_fundable_books": None,
+            "books_needed_for_10m": None,
+            "gap_to_10m_usd": None,
+            "pct_of_10m_target": None,
+            "books": [],
+            "flagged": True,
+            "flag_reason": "portfolio_capacity_unavailable",
+            "is_advisory": True,
+            "meta": _meta,
+            "reproduce": _capacity_reproduce(),
+        }
+    raw.setdefault("is_advisory", True)
+    raw.setdefault("meta", _meta)
+    raw.setdefault("reproduce", _capacity_reproduce())
+    # Defensive units annotation (endpoint-injected, NOT from the aggregator): the aggregator
+    # stores `pct_of_10m_target` in PERCENT — 0.6478 means 0.65% of the $10M/yr target, NOT a
+    # 0-1 fraction (64.78%). A naive machine parse of the bare number could overstate the desk
+    # 100×, so we ship an explicit units map (and the dollar/gap fields + verbatim `note` remain
+    # the unambiguous source). Never overstate: this exists only to make misreading impossible.
+    raw.setdefault("field_units", {
+        "pct_of_10m_target": "PERCENT — e.g. 0.65 means 0.65% of the $10M/yr target "
+                             "(= dollars_above_floor_per_yr / target_above_floor_per_yr_usd × 100); NOT a 0-1 fraction",
+        "dollars_above_floor_per_yr": "USD/yr of carry above the RWA floor",
+        "target_above_floor_per_yr_usd": "USD/yr target (the $10M thesis)",
+        "gap_to_10m_usd": "USD/yr shortfall to the target",
+    })
+    # fail-CLOSED: a corrupt capacity file carrying a NaN/inf must not crash the serializer.
+    return scrub_nonfinite(raw)
+
+
 @router.get("/api/rates-desk/anchors")
 def get_rates_desk_anchors(limit: int = Query(default=50, ge=1, le=500)):
     """Rates-Desk CROSS-EVICTION immutability anchors — data/rates_desk/anchors.jsonl.
