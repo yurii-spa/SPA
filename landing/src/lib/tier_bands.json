@@ -6,7 +6,10 @@
     "alt_en": "Preserve", "alt_ru": "Preserve",
     "band_en": "2–6% net APY · ≤3% drawdown", "band_ru": "2–6% net APY · просадка ≤3%",
     "nav_band_en": "Capital protection first (2–6%)", "nav_band_ru": "Сначала защита капитала (2–6%)",
-    "tone": "green", "live": true
+    "tone": "green", "live": true,
+    "evidence_en": "L6 · live evidenced", "evidence_ru": "L6 · подтверждён вживую",
+    "tail_en": "Worst drawdown: realized to date (live paper track)",
+    "tail_ru": "Макс. просадка: реализованная на сегодня (live paper-трек)"
   },
   "balanced": {
     "key": "balanced",
@@ -14,7 +17,10 @@
     "alt_en": "Core", "alt_ru": "Core",
     "band_en": "6–12% net APY · ≤10% drawdown", "band_ru": "6–12% net APY · просадка ≤10%",
     "nav_band_en": "Better yield, controlled risk (6–12%)", "nav_band_ru": "Больше доходности, контроль риска (6–12%)",
-    "tone": "amber", "live": false
+    "tone": "amber", "live": false,
+    "evidence_en": "L2 · paper / backtest", "evidence_ru": "L2 · paper / бэктест",
+    "tail_en": "Worst drawdown: ~4.5% (backtest, hedged sUSDe book) · budget ≤10%",
+    "tail_ru": "Макс. просадка: ~4.5% (бэктест, хедж-книга sUSDe) · бюджет ≤10%"
   },
   "aggressive": {
     "key": "aggressive",
@@ -22,6 +28,9 @@
     "alt_en": "Max Yield", "alt_ru": "Max Yield",
     "band_en": "12%+ net APY · ≤25% drawdown", "band_ru": "12%+ net APY · просадка ≤25%",
     "nav_band_en": "Higher risk, active monitoring (12%+)", "nav_band_ru": "Выше риск, активный мониторинг (12%+)",
-    "tone": "red", "live": false
+    "tone": "red", "live": false,
+    "evidence_en": "L2 · backtest · refused for live", "evidence_ru": "L2 · бэктест · для live отказан",
+    "tail_en": "Worst drawdown: up to ~50% (backtest, unhedged directional book) · budget ≤25%",
+    "tail_ru": "Макс. просадка: до ~50% (бэктест, нехедж. directional-книга) · бюджет ≤25%"
   }
 }

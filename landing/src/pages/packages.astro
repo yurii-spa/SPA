@@ -54,9 +54,24 @@ const tiers = [
 
 // #7: the shared source is AUTHORITATIVE for name + band + tone + live — overwrite the inline values so
 // a band string only ever exists once (here it's kept inline for diff-locality, but reconciled to BANDS).
+// #33: also pull the evidence-level tag + the measured TAIL line so every card server-renders a real
+// worst-drawdown figure — never "—" at first paint. Conservative's tail is the REALIZED dd from the live
+// snapshot (dynamic); Balanced/Aggressive have no live track yet so they show the measured BACKTEST worst
+// (evidence-tagged L2), never a fabricated realized number.
+const snapPkg = (snap && snap.packages) || {};
 for (const t of tiers) {
   const b = BANDS[t.key];
-  if (b) { t.en = b.en; t.ru = b.ru; t.band_en = b.band_en; t.band_ru = b.band_ru; t.tone = b.tone; t.live = b.live; }
+  if (b) {
+    t.en = b.en; t.ru = b.ru; t.band_en = b.band_en; t.band_ru = b.band_ru; t.tone = b.tone; t.live = b.live;
+    t.evidence_en = b.evidence_en; t.evidence_ru = b.evidence_ru;
+    const dd = snapPkg[t.key] && snapPkg[t.key].dd_pct;
+    if (t.key === 'conservative' && typeof dd === 'number') {
+      t.tail_en = `Worst drawdown: ${dd.toFixed(1)}% realized to date (live paper track)`;
+      t.tail_ru = `Макс. просадка: ${dd.toFixed(1)}% реализованная на сегодня (live paper-трек)`;
+    } else {
+      t.tail_en = b.tail_en; t.tail_ru = b.tail_ru;
+    }
+  }
 }
 
 const toneMap = {
@@ -90,11 +105,15 @@ const toneMap = {
               <h2 class="text-xl font-bold text-white" data-ru={t.ru}>{t.en}</h2>
               {t.live && <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300">LIVE ~{liveApy}%</span>}
             </div>
-            <div class="text-sm text-slate-300 font-mono mb-3" data-ru={t.band_ru}>{t.band_en}</div>
-            <div class={`inline-flex items-center gap-2 self-start text-[11px] font-medium px-2.5 py-1 rounded-full ${c.badge} mb-4`}>
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <span class="text-sm text-slate-300 font-mono" data-ru={t.band_ru}>{t.band_en}</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/[0.06] text-slate-400 whitespace-nowrap" data-ru={t.evidence_ru}>{t.evidence_en}</span>
+            </div>
+            <div class={`inline-flex items-center gap-2 self-start text-[11px] font-medium px-2.5 py-1 rounded-full ${c.badge} mb-3`}>
               <span class={`w-1.5 h-1.5 rounded-full ${c.dot}`} aria-hidden="true"></span>
               <span data-ru={t.status_ru}>{t.status_en}</span>
             </div>
+            <div class="text-xs font-mono text-slate-400 mb-4 pb-3 border-b border-white/10" data-ru={t.tail_ru}>⚠ {t.tail_en}</div>
             <p class="text-sm text-slate-400 leading-relaxed mb-4" data-ru={t.what_ru}>{t.what_en}</p>
             <p class="text-sm text-slate-300 leading-relaxed mt-auto pt-3 border-t border-white/10" data-ru={t.caveat_ru}>{t.caveat_en}</p>
           </div>
