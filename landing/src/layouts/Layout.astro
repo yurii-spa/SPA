@@ -42,7 +42,9 @@ const schemaData = JSON.stringify({
     <!-- Primary Meta -->
     <title>{title}</title>
     <meta name="description" content={description} />
-    <meta name="robots" content="index, follow" />
+    <!-- Public pages are indexable; the /admin Operator Console (admin={true}) is NOT
+         — it holds no auth yet, so keep it out of search indexes entirely. -->
+    <meta name="robots" content={admin ? "noindex, nofollow" : "index, follow"} />
     <meta name="theme-color" content="#0A0C10" />
 
     <!-- Canonical -->

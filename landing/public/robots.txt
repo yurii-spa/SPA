@@ -10,5 +10,8 @@
 User-agent: *
 Allow: /
 Disallow: /api/
+# Operator Console — internal, no auth yet, not for indexing (belt-and-braces with the
+# per-page noindex meta on admin={true} pages).
+Disallow: /admin
 
 Sitemap: https://earn-defi.com/sitemap.xml

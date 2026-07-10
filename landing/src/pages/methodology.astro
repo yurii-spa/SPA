@@ -133,6 +133,40 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
       </div>
     </section>
 
+    <!-- 6. Evidence levels (L0–L6) — what every number on the site is allowed to claim -->
+    <section class="py-10 border-t border-border">
+      <p class="text-xs text-accent-400 uppercase tracking-wider font-mono mb-4" data-ru="Уровни доказательности (L0–L6)">Evidence Levels (L0–L6)</p>
+      <p class="text-sm text-white/40 mb-6 leading-relaxed" data-ru="Каждая цифра доходности на сайте несёт уровень доказательности — сколько реального подтверждения за ней стоит. Ниже L2 никакая APY не показывается публично. Бумага (paper) — это L3, и она всегда помечена «paper», никогда «live». Это канон (ADR-YL-009); другие страницы лишь используют метки.">
+        Every yield number on this site carries an <strong class="text-white/80">evidence level</strong> — how much
+        real confirmation stands behind it. Below L2, no APY reaches any public surface. Paper is L3 and is always
+        labelled "paper", never "live". This is the canonical scale (ADR-YL-009); other pages only use the tags.
+      </p>
+      <div class="space-y-2">
+        {[
+          { l: 'L0', en: 'Idea / unverified — a hypothesis. No APY may be quoted at all.', ru: 'Идея / не проверено — гипотеза. Никакая APY не называется вообще.' },
+          { l: 'L1', en: 'Historical public APY observed from a named source (label as historical, unverified as executable).', ru: 'Историческая публичная APY из названного источника (помечается как историческая, не проверенная как исполнимая).' },
+          { l: 'L2', en: 'Data-source verified — pulled by our own code, schema- & freshness-checked. Minimum level to show any number.', ru: 'Источник данных верифицирован — тянется нашим кодом, проверен по схеме и свежести. Минимум, чтобы показать число.' },
+          { l: 'L3', en: 'Paper-tracked over N evidenced days against live data (no backfill). Must say "paper", never "live".', ru: 'Paper-трек за N evidenced-дней на живых данных (без backfill). Обязано говорить «paper», не «live».' },
+          { l: 'L4', en: 'Small-capital tested — real but small capital; execution frictions (slippage, gas, fills) observed.', ru: 'Тест малым капиталом — реальный, но малый капитал; наблюдаются фрикции исполнения (слиппедж, газ, филлы).' },
+          { l: 'L5', en: 'Live-capital tested — meaningful product-tier capital through at least one full entry/exit.', ru: 'Тест живым капиталом — значимый продуктовый капитал через хотя бы один полный вход/выход.' },
+          { l: 'L6', en: 'Multi-cycle validated — survived multiple regimes incl. a stress episode. The only level supporting a durable claim.', ru: 'Мульти-цикл валидация — пережил несколько режимов, включая стресс. Единственный уровень для устойчивого утверждения.' },
+        ].map((row) => (
+          <div class="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 px-4 py-3 rounded-lg bg-bg-surface border border-border">
+            <span class="text-xs text-accent-400 font-mono uppercase tracking-wider w-10 flex-shrink-0 pt-0.5">{row.l}</span>
+            <span class="text-sm text-white/60" data-ru={row.ru}>{row.en}</span>
+          </div>
+        ))}
+      </div>
+      <div class="mt-5 rounded-xl border border-border-strong bg-bg-surface p-5">
+        <p class="text-sm text-white/60 leading-relaxed" data-ru="Где SPA сейчас: наш evidenced paper-трек — это честный L3 («paper-tracked за N evidenced-дней»), а не L4+. Консервативная планка «~3.3% real» и Paper APY на /track-record — это L3-числа, помеченные «переменные · не гарантированы». Мы не называем бумагу «validated» или «live-tested»; повышение уровня — по одному за раз.">
+          <strong class="text-white/85">Where SPA is now:</strong> our evidenced paper track is honest <strong class="text-accent-400">L3</strong>
+          ("paper-tracked over N evidenced days"), not L4+. The conservative "~3.3% real" floor and the Paper APY on
+          <a href="/track-record" class="text-accent-400 hover:underline">/track-record</a> are L3 numbers, labelled
+          "variable · not guaranteed". We never call paper "validated" or "live-tested"; promotion is one level at a time.
+        </p>
+      </div>
+    </section>
+
     <!-- 6. RiskPolicy v1.0 Parameters -->
     <section class="py-10 border-t border-border">
       <p class="text-xs text-data-teal uppercase tracking-wider font-mono mb-4" data-ru="Параметры RiskPolicy v1.0">RiskPolicy v1.0 Parameters</p>

@@ -18,7 +18,7 @@ const path = Astro.url.pathname;
 // their URLs still resolve and they remain reachable from the footer until the admin move.
 // A group is either a DIRECT link (`direct:true` + `href`, no dropdown) or a dropdown (`items`).
 const groups = [
-  { id: 'checkup', en: 'Checkup', ru: 'Чекап', direct: true, href: '/' },
+  { id: 'checkup', en: 'Checkup', ru: 'Чекап', direct: true, href: '/#analyze' },
   {
     id: 'strategy', en: 'Strategy Lab', ru: 'Strategy Lab',
     items: [
