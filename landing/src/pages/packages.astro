@@ -121,6 +121,16 @@ const toneMap = {
       })}
     </section>
 
+    <!-- #50 proof strip — "don't trust us, check us": every tier number is independently verifiable. -->
+    <section class="rounded-xl border border-white/10 bg-white/[0.02] px-5 py-4 mb-8">
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <span class="text-xs font-mono uppercase tracking-wider text-slate-500" data-ru="Не верьте на слово — проверьте">Don't trust us — check us</span>
+        <a href="/track-record" data-track="packages_proof_track_record" class="text-sm text-accent-400 underline" data-ru="Живой трек →">Live track record →</a>
+        <a href="/refusals" data-track="packages_proof_refusals" class="text-sm text-accent-400 underline" data-ru="Журнал отказов →">Refusal log →</a>
+        <a href="/exit-nav" data-track="packages_proof_exit_nav" class="text-sm text-accent-400 underline" data-ru="Ликвидационный NAV по размеру →">Liquidation-NAV by size →</a>
+      </div>
+    </section>
+
     <section class="rounded-2xl border border-white/10 bg-white/[0.02] p-6 mb-8">
       <h3 class="text-lg font-semibold text-white mb-3" data-ru="Как тир становится доступным">How a tier becomes available</h3>
       <p class="text-sm text-slate-400 leading-relaxed mb-3" data-ru="Пакет предлагается клиенту ТОЛЬКО когда его стратегии прошли DSR-гейт на реальных данных + полный Yield-Lab-цикл (yield-source → протокол → ликвидность → риск → Red Team → paper-тест → одобрение человека). Сейчас Conservative — реальный и подтверждённый; Balanced и Aggressive — research/paper, показаны с хвостом, для live НЕ аллоцируются.">
