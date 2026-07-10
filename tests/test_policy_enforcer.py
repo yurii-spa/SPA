@@ -107,12 +107,12 @@ class TestInputValidation:
         assert result.violations[0].rule == "input_validation"
 
     def test_empty_positions_no_protocols_violates_nothing(self):
-        # Empty dict is valid for protocol-count rule (0 <= 8)
-        # but will fail t1_min_pct if T1=0 < 55%
+        # Empty dict: 0 protocols (<= 8), no per-protocol/T2/T3 exposure, and T1=0 is NOT
+        # a violation — the 55% T1 floor was REMOVED in the owner-approved reconcile to
+        # policy.py (2026-07-08; policy.py has no T1 minimum). So it genuinely violates nothing.
         result = validate_positions({}, CAPITAL, cash_usd=CAPITAL)
-        # T1=0% violates t1_min_pct
         rules = [v.rule for v in result.violations]
-        assert "t1_min_pct" in rules
+        assert "t1_min_pct" not in rules
 
     def test_none_adapter_apy_accepted(self):
         # adapter_apy=None should not cause crash
@@ -202,8 +202,10 @@ class TestMaxProtocols:
 
 class TestT1Minimum:
 
-    def test_rejects_t1_below_55_pct(self):
-        # Like the broken portfolio: T1 = 49.7%
+    def test_t1_floor_disabled_below_55_not_rejected(self):
+        # The 55% T1 floor was REMOVED in the owner-approved reconcile to policy.py
+        # (2026-07-08) — policy.py carries no T1 minimum. A low-T1 book (here T1=42%)
+        # is therefore NOT rejected on t1_min_pct. Regression guard against re-introduction.
         pos = {
             "morpho_steakhouse": 9000.0,   # T1
             "spark_susds": 7500.0,          # T1
@@ -214,18 +216,18 @@ class TestT1Minimum:
             "susde": 5500.0,                # T3
             "frax": 4000.0,                 # T2
         }
-        # T1 = 42,000 = 42% < 55%
+        # T1 = 42,000 = 42% — under the retired 55% floor, but no longer a violation.
         result = validate_positions(pos, CAPITAL, cash_usd=8000.0)
-        assert any(v.rule == "t1_min_pct" for v in result.violations)
+        assert not any(v.rule == "t1_min_pct" for v in result.violations)
 
-    def test_rejects_zero_t1(self):
+    def test_zero_t1_not_rejected_floor_removed(self):
         pos = {
             "frax": 30000.0,
             "scrvusd": 30000.0,
             "susde": 5000.0,
         }
         result = validate_positions(pos, CAPITAL, cash_usd=35000.0)
-        assert any(v.rule == "t1_min_pct" for v in result.violations)
+        assert not any(v.rule == "t1_min_pct" for v in result.violations)
 
     def test_accepts_t1_exactly_55_pct(self):
         pos = {
@@ -259,12 +261,11 @@ class TestT1Minimum:
         assert "susde" not in T1_ADAPTERS
         assert "extra_finance_base" not in T1_ADAPTERS
 
-    def test_violation_contains_t1_pct(self):
-        pos = {"frax": 90000.0}   # T2, T1 = 0%
+    def test_t1_floor_disabled_no_t1_violation(self):
+        pos = {"frax": 90000.0}   # T2, T1 = 0% — no T1 floor to violate anymore
         result = validate_positions(pos, CAPITAL, cash_usd=10000.0)
-        v = next((v for v in result.violations if v.rule == "t1_min_pct"), None)
-        assert v is not None
-        assert v.actual == 0.0
+        # T1 floor removed (owner reconcile 2026-07-08): 0% T1 fires no t1_min_pct.
+        assert not any(v.rule == "t1_min_pct" for v in result.violations)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -273,11 +274,13 @@ class TestT1Minimum:
 
 class TestPerProtocolMax:
 
-    def test_rejects_per_protocol_over_25_pct(self):
+    def test_rejects_per_protocol_over_40_pct(self):
+        # per_protocol cap reconciled 25% -> 40% (owner sign-off 2026-07-08, single-source
+        # from policy.py max_single_protocol=0.40). Only >40% is a breach now.
         pos = {
-            "aave_v3": 30000.0,   # 30% > 25%
-            "compound_v3": 25000.0,
-            "spark_susds": 30000.0,  # 30% > 25%
+            "aave_v3": 45000.0,   # 45% > 40%
+            "compound_v3": 20000.0,
+            "spark_susds": 20000.0,
         }
         result = validate_positions(pos, CAPITAL, cash_usd=15000.0)
         rules = [v.rule for v in result.violations]
@@ -300,14 +303,15 @@ class TestPerProtocolMax:
         assert any(v.rule == "per_protocol_max_pct" for v in result.violations)
 
     def test_violation_names_offending_protocol(self):
-        pos = {"aave_v3": 30000.0, "compound_v3": 25000.0, "spark_susds": 30000.0}
+        pos = {"aave_v3": 45000.0, "compound_v3": 20000.0, "spark_susds": 20000.0}
         result = validate_positions(pos, CAPITAL, cash_usd=15000.0)
         offenders = [v.actual for v in result.violations if v.rule == "per_protocol_max_pct"]
         assert len(offenders) > 0
-        assert all(v > 25.0 for v in offenders)
+        assert all(v > 40.0 for v in offenders)
 
     def test_per_protocol_rule_value(self):
-        assert float(RULES["per_protocol_max_pct"]) == 25.0
+        # 25% -> 40% single-sourced from policy.py (owner reconcile 2026-07-08).
+        assert float(RULES["per_protocol_max_pct"]) == 40.0
 
     def test_valid_portfolio_all_per_protocol_pass(self):
         pos = _valid_portfolio()
@@ -803,10 +807,13 @@ class TestBrokenPortfolioDetected:
         result = validate_positions(pos, CAPITAL, cash_usd=5000.0)
         assert any(v.rule == "max_protocols" for v in result.violations)
 
-    def test_broken_portfolio_detects_t1_below_min(self):
+    def test_t1_floor_removed_broken_portfolio_no_t1_violation(self):
+        # The old "broken" portfolio was broken on the 55% T1 floor, which the owner
+        # REMOVED (reconcile to policy.py, 2026-07-08). It no longer trips t1_min_pct;
+        # any real concentration issue is now caught by the surviving per-protocol/T2/T3 caps.
         pos = self._broken_portfolio()
         result = validate_positions(pos, CAPITAL, cash_usd=5000.0)
-        assert any(v.rule == "t1_min_pct" for v in result.violations)
+        assert not any(v.rule == "t1_min_pct" for v in result.violations)
 
     def test_fixed_portfolio_passes_all_checks(self):
         """After P0 fix, the new portfolio must pass."""
@@ -843,12 +850,15 @@ class TestEdgeCases:
         )
 
     def test_multiple_violations_at_once(self):
-        # Should catch ALL violations, not short-circuit at first
-        pos = {f"p{i}": 4000.0 for i in range(15)}   # 15 protocols > 8
-        result = validate_positions(pos, CAPITAL, cash_usd=5000.0)
+        # Should catch ALL violations, not short-circuit at the first. Two SURVIVING rules
+        # (the 55% T1 floor was retired 2026-07-08): >8 protocols (max_protocols) AND one
+        # protocol over the 40% per-protocol cap.
+        pos = {f"p{i}": 4000.0 for i in range(9)}   # 9 protocols > 8
+        pos["aave_v3"] = 45000.0                      # 45% > 40% per-protocol cap
+        result = validate_positions(pos, CAPITAL, cash_usd=19000.0)
         rule_names = {v.rule for v in result.violations}
         assert "max_protocols" in rule_names
-        assert "t1_min_pct" in rule_names  # 0% T1
+        assert "per_protocol_max_pct" in rule_names
 
     def test_checked_at_is_iso_datetime(self):
         pos = _valid_portfolio()

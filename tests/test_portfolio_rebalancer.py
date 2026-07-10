@@ -190,20 +190,28 @@ class TestPortfolioRebalancer(unittest.TestCase):
 
     # ── Positions satisfy constraints after rebalance ─────────────────────
 
-    def test_positions_satisfy_t1_min_after_rebalance(self):
-        """After rebalance, T1 allocation must be >= 55%."""
+    def test_positions_valid_after_rebalance(self):
+        """After rebalance, the written book must PASS policy validation. The 55% T1 floor
+        was retired (owner reconcile 2026-07-08); the contract is COMPLIANCE, not a fixed
+        T1% — so we assert the rebalanced book satisfies the authoritative policy caps."""
         tmpdir = _make_data_dir(adapter_data=_ADAPTER_DATA_2T1)
         try:
-            from spa_core.tuner.portfolio_rebalancer import rebalance_portfolio
+            from spa_core.tuner.portfolio_rebalancer import (
+                rebalance_portfolio,
+                check_current_positions,
+            )
             rebalance_portfolio(
                 capital_usd=_CAPITAL,
                 data_dir=Path(tmpdir.name),
                 write=True,
                 send_alert=False,
             )
-            doc = json.loads((Path(tmpdir.name) / "current_positions.json").read_text())
-            t1_pct = doc["validation_summary"]["t1_pct"]
-            self.assertGreaterEqual(t1_pct, 55.0, "T1 must be >= 55%")
+            result = check_current_positions(data_dir=Path(tmpdir.name), capital_usd=_CAPITAL)
+            self.assertTrue(
+                result.passed,
+                "rebalanced book must be policy-compliant; violations="
+                + str([v.rule for v in result.violations]),
+            )
         finally:
             tmpdir.cleanup()
 
@@ -360,24 +368,25 @@ class TestPortfolioRebalancer(unittest.TestCase):
             tmpdir.cleanup()
 
     def test_rebalancer_does_not_write_on_validation_failure(self):
-        """If both tuner and fallback fail validation, original file unchanged."""
-        orig_positions = {"aave_v3": 50_000.0}  # invalid: only 50% T1, T1 < 55%? Actually 50% T1...
-        # Let's use a truly invalid portfolio: too many protocols
-        many_pos = {f"proto_{i}": 5000.0 for i in range(12)}  # 12 > 8 max
+        """If BOTH the tuner allocation and the safe fallback fail policy validation, the
+        original file is left unchanged and rebalance_portfolio returns False. Validation is
+        forced to fail (via a monkeypatch) so the SAFETY CONTROL FLOW is exercised regardless
+        of specific cap values — after the 2026-07-08 reconcile the tuner now passes on its
+        own, so a value-based 'bad' fallback no longer reaches this path."""
+        from types import SimpleNamespace
+        many_pos = {f"proto_{i}": 5000.0 for i in range(12)}  # 12 > 8 max — invalid book on disk
         tmpdir = _make_data_dir(positions=many_pos, adapter_data=_ADAPTER_DATA_2T1)
         orig_content = (Path(tmpdir.name) / "current_positions.json").read_text()
         try:
-            # Monkeypatch _build_safe_fallback_positions to return invalid positions
             from spa_core.tuner import portfolio_rebalancer as mod
 
-            _orig_fallback = mod._build_safe_fallback_positions
-
-            def _bad_fallback(capital_usd, base_positions=None):
-                # Return positions that violate per_protocol_max (30% each)
-                bad_pos = {"aave_v3": 30_000.0, "compound_v3": 30_000.0, "maple": 30_000.0}
-                return bad_pos, 10_000.0
-
-            mod._build_safe_fallback_positions = _bad_fallback
+            _orig_validate = mod.validate_positions
+            mod.validate_positions = lambda *a, **k: SimpleNamespace(
+                passed=False,
+                warnings=[],
+                violations=[SimpleNamespace(rule="per_protocol_max_pct", message="forced test violation")],
+                portfolio_summary={},
+            )
             try:
                 result = mod.rebalance_portfolio(
                     capital_usd=_CAPITAL,
@@ -390,7 +399,7 @@ class TestPortfolioRebalancer(unittest.TestCase):
                 new_content = (Path(tmpdir.name) / "current_positions.json").read_text()
                 self.assertEqual(orig_content, new_content, "File must not be modified on failure")
             finally:
-                mod._build_safe_fallback_positions = _orig_fallback
+                mod.validate_positions = _orig_validate
         finally:
             tmpdir.cleanup()
 
@@ -456,19 +465,22 @@ class TestPortfolioRebalancer(unittest.TestCase):
         finally:
             tmpdir.cleanup()
 
-    def test_check_current_positions_detects_t1_violation(self):
-        """check_current_positions() detects T1 below minimum."""
+    def test_check_current_positions_low_t1_still_caught_by_other_caps(self):
+        """The 55% T1 floor was removed (owner reconcile 2026-07-08), so a concentrated
+        low-T1 book is no longer flagged t1_min_pct — but it is STILL rejected by the
+        surviving caps (per-protocol 40% + T2 50%). Detection must not silently vanish."""
         low_t1 = {
-            "maple": 50_000.0,    # T2, 50%
-            "euler_v2": 43_000.0, # T2, 43%
+            "maple": 50_000.0,    # T2, 50% — > 40% per-protocol cap
+            "euler_v2": 43_000.0, # T2, 43% — > 40% per-protocol cap
         }
         tmpdir = _make_data_dir(positions=low_t1)
         try:
             from spa_core.tuner.portfolio_rebalancer import check_current_positions
             result = check_current_positions(data_dir=Path(tmpdir.name), capital_usd=_CAPITAL)
-            self.assertFalse(result.passed)
+            self.assertFalse(result.passed)  # still rejected, just not on t1_min
             rules = [v.rule for v in result.violations]
-            self.assertIn("t1_min_pct", rules, "Should detect T1 below minimum")
+            self.assertNotIn("t1_min_pct", rules)
+            self.assertIn("per_protocol_max_pct", rules)
         finally:
             tmpdir.cleanup()
 
@@ -595,19 +607,21 @@ class TestPortfolioRebalancer(unittest.TestCase):
             tmpdir.cleanup()
 
     def test_telegram_sent_on_double_failure(self):
-        """When both tuner and fallback fail, Telegram alert must be sent."""
+        """When both the tuner allocation and the fallback fail validation, a Telegram alert
+        must be sent. Validation is forced to fail (monkeypatch) to exercise the alert path
+        independent of the post-2026-07-08 cap values (the tuner now passes on its own)."""
+        from types import SimpleNamespace
         tmpdir = _make_data_dir(adapter_data=_ADAPTER_DATA_2T1)
         try:
             from spa_core.tuner import portfolio_rebalancer as mod
 
-            _orig = mod._build_safe_fallback_positions
-
-            def _bad_fallback(capital_usd, base_positions=None):
-                # Return positions that violate per_protocol_max
-                bad = {"aave_v3": 30_000.0, "compound_v3": 30_000.0, "maple": 30_000.0}
-                return bad, 10_000.0
-
-            mod._build_safe_fallback_positions = _bad_fallback
+            _orig_validate = mod.validate_positions
+            mod.validate_positions = lambda *a, **k: SimpleNamespace(
+                passed=False,
+                warnings=[],
+                violations=[SimpleNamespace(rule="per_protocol_max_pct", message="forced test violation")],
+                portfolio_summary={},
+            )
             try:
                 with patch.object(mod, "_send_telegram") as mock_tg:
                     mod.rebalance_portfolio(
@@ -618,7 +632,7 @@ class TestPortfolioRebalancer(unittest.TestCase):
                     )
                     mock_tg.assert_called_once()
             finally:
-                mod._build_safe_fallback_positions = _orig
+                mod.validate_positions = _orig_validate
         finally:
             tmpdir.cleanup()
 
