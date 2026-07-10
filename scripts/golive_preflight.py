@@ -738,10 +738,19 @@ def run_preflight(
     if _sprint_log is not None:
         checks.append(CheckResult("sprint_log_md", "pass",
                                   f"sprint_log present ({_sprint_log.name})", value=str(_sprint_log)))
+    elif (repo_root / "KANBAN.json").exists():
+        # Q1-2 reconcile: the standalone sprint_log.md was RETIRED by design — progress is
+        # tracked in KANBAN.json (the canonical tracker). Its absence is therefore the EXPECTED
+        # state, not a gap, so a permanent WARN on it was pure alert-noise that made preflight
+        # DISAGREE with the authoritative gate. When the canonical tracker (KANBAN.json) is
+        # present, this check PASSES; it only warns if BOTH the legacy doc AND KANBAN are gone.
+        checks.append(CheckResult("sprint_log_md", "pass",
+                                  "progress tracked via KANBAN.json (legacy sprint_log.md retired "
+                                  "by design — not a go-live artifact)", value="kanban"))
     else:
         checks.append(CheckResult("sprint_log_md", "warn",
-                                  "sprint_log.md not present (dev-progress doc, retired in favour of "
-                                  "KANBAN.json — advisory, not a go-live blocker)", value=None))
+                                  "neither sprint_log.md nor KANBAN.json present — no progress "
+                                  "tracker found (advisory, not a go-live blocker)", value=None))
     checks.append(_check_file_exists(
         repo_root / "docs" / "adr" / "ADR-010-gnosis-safe-key-management.md",
         "docs/adr/ADR-010 (Gnosis Safe)", "adr_010_exists"))
