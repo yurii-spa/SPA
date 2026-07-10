@@ -51,6 +51,29 @@ class TestScorecard(unittest.TestCase):
         # not a single yield-sorted leaderboard: the return order differs from the tail order
         self.assertNotEqual(so["by_return_desc"], so["by_tail_asc"])
 
+    def test_tier_assignment_attached_per_strategy(self):
+        """6mo-M1/M2 #1+#2: each scorecard entry carries its enforced tier + eligibility. (Live-roster
+        books resolve a tier via tier_policy; fixture-only ids not in the live roster resolve to None
+        gracefully — never a crash or a fabricated tier.)"""
+        for e in self.doc["strategies"]:
+            self.assertIn("tier", e)
+            self.assertIn("tier_eligible", e)
+            self.assertIn("tier_violations", e)
+        # susde_dn (hedged) is Balanced-eligible; leverage_loop (loops) is Aggressive-eligible
+        self.assertEqual(self.by_id["susde_dn"]["tier"], "balanced")
+        self.assertTrue(self.by_id["susde_dn"]["tier_eligible"])
+        self.assertEqual(self.by_id["leverage_loop"]["tier"], "aggressive")
+        self.assertTrue(self.by_id["leverage_loop"]["tier_eligible"])
+        # a fixture-only strategy not in the live roster → tier None (graceful, not fabricated)
+        if "thin_new" in self.by_id:
+            self.assertIsNone(self.by_id["thin_new"]["tier"])
+
+    def test_tier_summary_rollup(self):
+        ts = self.doc["tier_summary"]
+        self.assertIn("eligible_by_tier", ts)
+        self.assertIn("susde_dn", ts["eligible_by_tier"].get("balanced", []))
+        self.assertIn("leverage_loop", ts["eligible_by_tier"].get("aggressive", []))
+
     def test_advisory_guardrail_stamps(self):
         self.assertTrue(self.doc["is_advisory"])
         self.assertTrue(self.doc["outside_riskpolicy"])

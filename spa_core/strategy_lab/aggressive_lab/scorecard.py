@@ -215,9 +215,31 @@ def build_scorecard(
 
     entries = [score_strategy(loaded[sid]) for sid in sorted(loaded.keys())]
 
+    # 6mo-M1/M2 #1+#2: attach each book's ENFORCED tier assignment + eligibility (tier_policy via
+    # roster.validate_roster_tiers) so a customer-facing surface knows which tier a strategy belongs to
+    # and whether it is live-eligible or PARKED (a tier-band violation, e.g. unhedged directional beta).
+    # Advisory only — this never gates live allocation.
+    try:
+        from spa_core.strategy_lab.aggressive_lab import roster as _roster
+        _tier_map = {r["strategy_id"]: r for r in _roster.validate_roster_tiers()["generated"]}
+    except Exception:
+        _tier_map = {}
+    for e in entries:
+        tr = _tier_map.get(e["strategy_id"])
+        e["tier"] = tr["tier"] if tr else None
+        e["tier_eligible"] = bool(tr["ok"]) if tr else None
+        e["tier_violations"] = tr["violations"] if tr else []
+
     n_trustworthy = sum(1 for e in entries if e["trustworthy"])
     n_severe_tail = sum(1 for e in entries if e["verdict"] == "SEVERE_TAIL")
     n_insufficient = sum(1 for e in entries if e["verdict"] == "INSUFFICIENT_DATA")
+    # tier rollup: eligible book ids per tier + the parked (tier-band-violating) set
+    tier_summary: Dict[str, Any] = {"eligible_by_tier": {}, "parked": []}
+    for e in entries:
+        if e.get("tier_eligible"):
+            tier_summary["eligible_by_tier"].setdefault(e["tier"], []).append(e["strategy_id"])
+        elif e.get("tier_eligible") is False:
+            tier_summary["parked"].append(e["strategy_id"])
 
     out = {
         "generated_at": now,
@@ -237,6 +259,7 @@ def build_scorecard(
         "n_severe_tail": n_severe_tail,
         "n_insufficient_data": n_insufficient,
         "risk_class_legend": dict(RISK_CLASS_LABEL),
+        "tier_summary": tier_summary,
         "sort_orders": _sort_keys(entries) if entries else {},
         "strategies": entries,
         "note": (
