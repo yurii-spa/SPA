@@ -7,7 +7,7 @@
 >
 > **Owner**: Yurii Kulieshov  
 > **Governance**: ADR-002 (go-live transfer rule)  
-> **Prerequisite**: GoLiveChecker ≥ 24/26 pass; gap_monitor 30 days clean; manual Owner review
+> **Prerequisite**: GoLiveChecker ≥ 27/29 pass (the authoritative gate is **29 criteria**; 2 are purely time-gated); gap_monitor 30 days clean; manual Owner review
 
 ---
 
@@ -15,7 +15,7 @@
 
 Before executing this runbook, all of the following must be true:
 
-- [ ] `python3 -m spa_core.paper_trading.golive_checker` → **READY** (≥ 24/26 pass)
+- [ ] `python3 -m spa_core.paper_trading.golive_checker` → **READY** (≥ 27/29 pass; 29-criteria gate)
 - [ ] `python3 -m spa_core.backtesting.pre_launch_validation --save` → **LAUNCH_READY**
 - [ ] 30 consecutive honest paper-trading days in gap_monitor (no gaps)
 - [ ] ADR-002 go-live transfer rule reviewed and Owner approval obtained
@@ -228,11 +228,11 @@ Before executing this runbook, all of the following must be true:
 
 ### Kill Switch Triggers (act immediately)
 
-The live cycle will auto-trigger the kill switch on:
+The live cycle enforces the **two-tier drawdown ladder** (ADR-034 / ADR-048) over the evidenced peak-to-current drawdown:
 
-- Portfolio drawdown ≥ **5%** from peak NAV
-- Any T1 protocol TVL drops below **$5M**
-- Per-protocol concentration exceeds **40%** (T1) or **20%** (T2)
+- Drawdown ∈ **[5%, 10%)** → **SOFT de-risk**: halt new allocations, no INCREASE (hold/reduce OK). Does NOT liquidate.
+- Drawdown ≥ **10%** (inclusive) → **HARD kill**: close everything to cash (`{"cash": 1.0}`).
+- Plus: any T1 protocol TVL drops below **$5M**, or per-protocol concentration exceeds **40%** (T1) / **20%** (T2).
 
 Manual override: **never** — `approved=False` from RiskPolicy cannot be overridden.
 
@@ -242,7 +242,7 @@ Manual override: **never** — `approved=False` from RiskPolicy cannot be overri
 
 If a critical issue is found within first 24 hours:
 
-1. **Immediate**: Trigger kill switch — close all positions to USDC
+1. **Immediate**: Trigger the HARD kill (≥10% tier) — close all positions to USDC
 2. **Notify**: Telegram blast to family fund participants
 3. **Diagnose**: Check `data/risk_policy_blocks.json`, `/tmp/spa_cycle_err.log`
 4. **DR Procedure**: Follow `DR_PROCEDURE_v2.md`
