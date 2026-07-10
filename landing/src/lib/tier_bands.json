@@ -1,0 +1,27 @@
+{
+  "_note": "6mo-M1 #7 — SINGLE canonical source for tier APY/drawdown BAND label strings. Every surface (packages.astro, SiteHeader nav, index fallback) imports from here so the bands can never diverge (they did: SiteHeader said Preserve 6–8% while /packages said Conservative 2–6% — the 6–8% overstated the ~3.3% evidenced conservative book). The live per-tier APY NUMBER still comes dynamically from track_snapshot.packages / /api/tier1/packages; this file is the STATIC band-label + name-set source. The exact band VALUES remain owner-adjustable in ONE place (backlog #8, the canonical public APY definition); the alt_name set (Preserve/Core/Max-Yield) vs primary (Conservative/Balanced/Aggressive) is owner choice #6.",
+  "conservative": {
+    "key": "conservative",
+    "en": "Conservative", "ru": "Консервативный",
+    "alt_en": "Preserve", "alt_ru": "Preserve",
+    "band_en": "2–6% net APY · ≤3% drawdown", "band_ru": "2–6% net APY · просадка ≤3%",
+    "nav_band_en": "Capital protection first (2–6%)", "nav_band_ru": "Сначала защита капитала (2–6%)",
+    "tone": "green", "live": true
+  },
+  "balanced": {
+    "key": "balanced",
+    "en": "Balanced", "ru": "Сбалансированный",
+    "alt_en": "Core", "alt_ru": "Core",
+    "band_en": "6–12% net APY · ≤10% drawdown", "band_ru": "6–12% net APY · просадка ≤10%",
+    "nav_band_en": "Better yield, controlled risk (6–12%)", "nav_band_ru": "Больше доходности, контроль риска (6–12%)",
+    "tone": "amber", "live": false
+  },
+  "aggressive": {
+    "key": "aggressive",
+    "en": "Aggressive", "ru": "Агрессивный",
+    "alt_en": "Max Yield", "alt_ru": "Max Yield",
+    "band_en": "12%+ net APY · ≤25% drawdown", "band_ru": "12%+ net APY · просадка ≤25%",
+    "nav_band_en": "Higher risk, active monitoring (12%+)", "nav_band_ru": "Выше риск, активный мониторинг (12%+)",
+    "tone": "red", "live": false
+  }
+}

@@ -2,6 +2,11 @@
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 import snap from '../data/track_snapshot.json';
+// #7 single band source — the canonical tier name + APY/drawdown band strings live in ONE place so
+// /packages, the SiteHeader nav and the index fallback can never diverge (the old SiteHeader 6–8% vs
+// /packages 2–6% bug). Rich per-tier copy (what/caveat/status) stays inline; band/name/tone/live come
+// from the shared source below.
+import BANDS from '../lib/tier_bands.json';
 
 // Honest yield-package tiers. The framework is evaluator.PACKAGES (Conservative / Balanced /
 // Aggressive by NET APY + drawdown limit); a package is only offered when its strategies pass the
@@ -49,6 +54,13 @@ const tiers = [
     caveat_ru: 'Это те 12–20%, что рекламируются в других местах как «доходность». Деск ОТКАЗЫВАЕТСЯ от них для live-капитала и показывает их здесь С реальными датированными просадками — потому что стабильные 15% это не альфа, а хвост, за удержание которого вам платят.',
   },
 ];
+
+// #7: the shared source is AUTHORITATIVE for name + band + tone + live — overwrite the inline values so
+// a band string only ever exists once (here it's kept inline for diff-locality, but reconciled to BANDS).
+for (const t of tiers) {
+  const b = BANDS[t.key];
+  if (b) { t.en = b.en; t.ru = b.ru; t.band_en = b.band_en; t.band_ru = b.band_ru; t.tone = b.tone; t.live = b.live; }
+}
 
 const toneMap = {
   green: { border: 'border-emerald-500/40', bg: 'bg-emerald-500/5', badge: 'bg-emerald-500/15 text-emerald-300', dot: 'bg-emerald-400' },
