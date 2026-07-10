@@ -175,6 +175,23 @@ def leverage_frontier(loaded, base_id="susde_dn"):
     print("NOW with tx costs per exposure-switch (sw=#switches) — the honest churn drag. Still stylized")
     print("(linear leverage understates the real cascade); DIRECTIONAL evidence, needs OOS + real levered mark.")
 
+    # OOS frontier: same FIXED-param guardian, run ONLY on the unseen test period. If the low DD /
+    # survival collapses here, the full-history frontier was in-sample-timing fantasy.
+    split = "2026-01-01"
+    test_eq = _equity_of([p for p in s.backtest.series if p.get("date", "") >= split])
+    if len(test_eq) >= 30:
+        trets = [test_eq[i] / test_eq[i - 1] - 1.0 for i in range(1, len(test_eq))]
+        saved = rets[:]
+        rets[:] = trets  # run() closes over `rets`
+        print(f"\n  --- OOS frontier (unseen {split}+, {len(test_eq)} days) ---")
+        for L in (2.0, 3.0, 4.0):
+            a0, d0, _, l0, _ = run(L, use_guardian=False)
+            a1, d1, _, l1, sw = run(L, use_guardian=True)
+            print(f"  L={L}: NO-guard {f(a0)}/{f(d0)}/{'LIQ' if l0 else 'ok'}   WITH-guard {f(a1)}/{f(d1)}/{'LIQ' if l1 else 'ok'}")
+        rets[:] = saved
+        print("  If WITH-guard still survives with modest DD here (unseen), the leverage play is credible;")
+        print("  if it liquidates / DD blows up, the full-history frontier was in-sample-timing fantasy.")
+
 
 def out_of_sample(loaded, split_date="2026-01-01"):
     """Honest overfitting check: pick the best vol-guardian params on the TRAIN half (dates < split),
