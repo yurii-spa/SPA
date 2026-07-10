@@ -748,6 +748,61 @@ ROSTER_CLASSES = (
 )
 
 
+# 6mo-M1 #2 — explicit tier ASSIGNMENT + enforcement descriptor per roster strategy. This is auditable
+# product data (which tier each book belongs to + the facts tier_policy validates): leverage, whether it
+# carries a hedge, and whether it uses PT/YT loops / LRT / points. `tail_overlay_present` is True for the
+# WHOLE lab by design — the scorecard ALWAYS builds + surfaces the tail overlay next to every book — so
+# the Balanced/Aggressive tail-required band is met structurally. A book whose facts violate its assigned
+# tier is PARKED (excluded from that tier's live composition), never silently included. eth_directional is
+# assigned Balanced yet carries no hedge → it PARKS by design (pure directional beta belongs in no yield
+# tier, backlog #34) — the enforcement makes that exclusion explicit rather than implicit.
+_TIER_DESCRIPTORS: Dict[str, dict] = {
+    "susde_dn":         {"tier": "balanced",   "leverage": 1.0, "hedged": True,  "uses_points_lrt_loops": False},
+    "susde_spot":       {"tier": "aggressive", "leverage": 1.0, "hedged": False, "uses_points_lrt_loops": False},
+    "pendle_yt_susde":  {"tier": "aggressive", "leverage": 8.0, "hedged": False, "uses_points_lrt_loops": True},
+    "pendle_pt_levered":{"tier": "aggressive", "leverage": 3.0, "hedged": False, "uses_points_lrt_loops": True},
+    "lrt_neutral":      {"tier": "aggressive", "leverage": 1.0, "hedged": True,  "uses_points_lrt_loops": True},
+    "eth_directional":  {"tier": "balanced",   "leverage": 1.0, "hedged": False, "uses_points_lrt_loops": False},
+    "leverage_loop":    {"tier": "aggressive", "leverage": 3.0, "hedged": False, "uses_points_lrt_loops": True},
+    "points_farm":      {"tier": "aggressive", "leverage": 1.0, "hedged": False, "uses_points_lrt_loops": True},
+    "lp_eth_stable":    {"tier": "aggressive", "leverage": 1.0, "hedged": False, "uses_points_lrt_loops": False},
+    "levered_restaking":{"tier": "aggressive", "leverage": 3.0, "hedged": False, "uses_points_lrt_loops": True},
+}
+
+
+def _tier_descriptor_for(cls) -> dict:
+    """Honest enforcement descriptor for a roster class. Explicit table when present; else fail-CLOSED
+    derive the tier from risk_class with conservative facts (unknown → its own risk_class band)."""
+    from spa_core.strategy_lab.aggressive_lab import tier_policy as _tp
+    d = dict(_TIER_DESCRIPTORS.get(cls.id, {}))
+    d.setdefault("tier", _tp.tier_of_risk_class(getattr(cls, "risk_class", "")) or "aggressive")
+    d.setdefault("leverage", 1.0)
+    d.setdefault("hedged", False)
+    d.setdefault("uses_points_lrt_loops", False)
+    d["risk_class"] = getattr(cls, "risk_class", "")
+    d["tail_overlay_present"] = True          # lab invariant: the scorecard always shows the tail
+    return d
+
+
+def validate_roster_tiers(config: Optional[Dict[str, dict]] = None) -> dict:
+    """6mo-M1 #2: validate every roster book against its ASSIGNED tier's enforced band (tier_policy).
+
+    Returns {generated: [...per-book {strategy_id, tier, ok, violations}], live_eligible: [...ids],
+    parked: [...ids]}. A parked book VIOLATES its tier band (leverage / hedge / tail / loops) and must be
+    excluded from that tier's live composition. Pure + deterministic; never raises on a bad config."""
+    from spa_core.strategy_lab.aggressive_lab import tier_policy as _tp
+    rows: List[dict] = []
+    live, parked = [], []
+    for cls in ROSTER_CLASSES:
+        desc = _tier_descriptor_for(cls)
+        res = _tp.validate_book(desc["tier"], desc)
+        rows.append({"strategy_id": cls.id, "tier": desc["tier"], "ok": res["ok"],
+                     "violations": res["violations"]})
+        (live if res["ok"] else parked).append(cls.id)
+    return {"generated": rows, "live_eligible": live, "parked": parked,
+            "riskpolicy_version": _tp.RISKPOLICY_VERSION}
+
+
 def build_roster(config: Optional[Dict[str, dict]] = None,
                  notional_usd: float = 100_000.0) -> Dict[str, _AggressiveBase]:
     """{id: initialized strategy} for the whole aggressive roster. Each gets a comparable virtual

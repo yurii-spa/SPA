@@ -88,6 +88,35 @@ def test_eth_directional_flagged_beta_not_alpha():
     assert points.risk_class == "D"  # incentive — decays, not a durable edge
 
 
+def test_tier_enforcement_parks_directional_beta():
+    """6mo-M1 #2: every roster book is validated against its assigned tier band; eth_directional
+    (Balanced-assigned but unhedged directional beta) PARKS by design — out of any yield tier (#34)."""
+    rep = roster.validate_roster_tiers()
+    ids = set(roster.roster_ids())
+    assert set(rep["live_eligible"]) | set(rep["parked"]) == ids   # every book classified
+    assert "eth_directional" in rep["parked"]
+    park_row = next(r for r in rep["generated"] if r["strategy_id"] == "eth_directional")
+    assert park_row["ok"] is False and any("hedge" in v or "depeg" in v for v in park_row["violations"])
+
+
+def test_tier_enforcement_hedged_susde_dn_is_balanced_eligible():
+    rep = roster.validate_roster_tiers()
+    row = next(r for r in rep["generated"] if r["strategy_id"] == "susde_dn")
+    assert row["tier"] == "balanced" and row["ok"] is True     # hedged, ≤2x, tail shown
+    assert "susde_dn" in rep["live_eligible"]
+
+
+def test_tier_enforcement_aggressive_books_require_tail_and_pass():
+    """Aggressive-tier books (loops/LRT/points) pass because the lab always surfaces the tail overlay."""
+    rep = roster.validate_roster_tiers()
+    aggr = [r for r in rep["generated"] if r["tier"] == "aggressive"]
+    assert aggr and all(r["ok"] for r in aggr)
+
+
+def test_validate_roster_tiers_deterministic():
+    assert roster.validate_roster_tiers() == roster.validate_roster_tiers()
+
+
 # ════════════════════════════════════════════════════════════════════════════════════════════════
 # 2. REAL DATA — accrual tracks the feed; a stale/missing feed fails CLOSED (no fake number)
 # ════════════════════════════════════════════════════════════════════════════════════════════════
