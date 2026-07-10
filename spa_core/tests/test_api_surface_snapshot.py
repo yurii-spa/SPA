@@ -171,6 +171,7 @@ GOLDEN_ROUTES = {
     ("/api/readiness", ("GET",)),
     ("/api/rates-desk/capacity", ("GET",)),
     ("/api/rates-desk/n-book-capacity", ("GET",)),
+    ("/api/rates-desk/refusal-value", ("GET",)),
 }
 
 
@@ -221,7 +222,7 @@ def test_route_table_identical_to_golden():
 def test_route_count_stable():
     """The flat handler surface (expanded across included routers) is the invariant.
 
-    109 HTTP handlers + 1 websocket (/ws/agents) = 110 entries in GOLDEN_ROUTES. This
+    110 HTTP handlers + 1 websocket (/ws/agents) = 111 entries in GOLDEN_ROUTES. This
     is structure-independent (monolith routes vs lazily-included routers) because
     _walk_routes expands `_IncludedRouter` proxies. The launch target
     `spa_core.api.server:app` is unaffected — `app` is still defined in server.py.
@@ -236,7 +237,7 @@ def test_route_count_stable():
     surface (/api/underwriting/report + /proof + /full-chain), FLAG-GATED OFF by default
     (SPA_UNDERWRITING_PUBLISH).)
     """
-    assert len(_app_route_table()) == 110
+    assert len(_app_route_table()) == 111
 
 
 def test_openapi_path_count_stable():
@@ -244,7 +245,7 @@ def test_openapi_path_count_stable():
     from fastapi.testclient import TestClient
     with TestClient(server.app) as c:
         paths = c.get("/openapi.json").json()["paths"]
-    assert len(paths) == 109  # HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
+    assert len(paths) == 110  # HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
 
 
 # ── Representative response-shape snapshot (one endpoint per tag group) ──────────

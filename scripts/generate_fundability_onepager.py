@@ -140,6 +140,9 @@ def load_sources(root: str) -> dict:
         "edge_at_scale": load_json(os.path.join(d, "edge_at_scale.json")),
         "realized_ab": load_json(os.path.join(d, "realized_ab", "realized_ab.json")),
         "refusal_cost": load_json(os.path.join(d, "refusal_cost.json")),
+        # Q2-5b avoided-loss refusal ledger — the OTHER side of §2d: what refusing the
+        # structurally-toxic LRT PTs SAVED (real peg-drawdown lower bound). Missing -> UNAVAILABLE.
+        "refusal_value": load_json(os.path.join(d, "rates_desk", "refusal_value.json")),
     }
 
 
@@ -246,7 +249,7 @@ def _fmt_bps(v):
     return f"{f:+.2f} bps"
 
 
-def _section_realized_edge(carry_truth, realized_ab, edge_at_scale, decisions, refusal_cost) -> str:
+def _section_realized_edge(carry_truth, realized_ab, edge_at_scale, decisions, refusal_cost, refusal_value=None) -> str:
     """## 2 — the REALIZED edge to date. Every number here is read from a WS1 realized artifact
     (carry_truth_table / realized_ab / edge_at_scale / refusal_cost) or is INSUFFICIENT_DATA.
     NO backtest figure appears in this section."""
@@ -402,6 +405,40 @@ def _section_realized_edge(carry_truth, realized_ab, edge_at_scale, decisions, r
             "insurance premium, not forgone alpha. Since even the approved FixedCarry book is "
             "below the floor on realized data so far (§2a), the conservatism is "
             f"**{defensible or UNAVAILABLE}**\n"
+        )
+
+    # --- 2e. Avoided loss (the OTHER side of 2d — what refusing SAVED, real $) ---------------
+    lines.append("\n### 2e. Avoided loss — the refusal moat as realized $ (conservative lower bound)\n")
+    if refusal_value is None or not isinstance(refusal_value, dict):
+        lines.append(f"Avoided-loss ledger: {UNAVAILABLE} (refusal_value.json missing).\n")
+    else:
+        total = refusal_value.get("total_avoided_loss_usd_per_100k")
+        events = refusal_value.get("events") or []
+        unpriced = refusal_value.get("unpriced") or []
+        lines.append(
+            "§2d prices what refusing COSTS (an insurance premium). This prices what it SAVED. For each "
+            "structurally-refused toxic-LRT PT, a naive book holding it would have taken the underlying's "
+            "**real ETH-peg drawdown** — a conservative lower bound (Pendle `pt_price` history is all-null, "
+            "and the AMM exit discount in a rush is typically larger). The peak advertised implied yield is "
+            "shown as EVIDENCE the gate read the yield as tail-comp, **not** netted as forgone carry.\n"
+        )
+        if events:
+            lines.append("| refused underlying | window | peg drawdown | avoided loss / $100k | advertised implied yield (tail-comp) |")
+            lines.append("|---|:--|---:|---:|---:|")
+            for e in events:
+                lines.append(
+                    f"| {e.get('underlying', UNAVAILABLE)} | {e.get('window', UNAVAILABLE)} | "
+                    f"{_fmt_pct(e.get('peg_drawdown_pct'))} | {_fmt_usd(e.get('avoided_loss_usd_per_100k'))} | "
+                    f"{_fmt_pct(e.get('peak_advertised_implied_yield_pct'))} |"
+                )
+            lines.append("")
+        lines.append(
+            f"**Total avoided (lower bound): {_fmt_usd(total)} per $100k of naive allocation** across "
+            f"{len(events)} priced LRT depeg(s)"
+            + (f"; {len(unpriced)} event(s) UNPRICED (no peg series — rsETH/USDe — listed, never fabricated)."
+               if unpriced else ".")
+            + " This is the refusal moat as a P&L number: the gate refused PTs advertising 40–60% implied "
+            "yield right before they broke peg 20–28%. Advisory / measurement — never gates, never capital.\n"
         )
     return "\n".join(lines)
 
@@ -836,6 +873,7 @@ def build_document(sources: dict, now_iso: str) -> str:
     edge_at_scale = sources.get("edge_at_scale")
     realized_ab = sources.get("realized_ab")
     refusal_cost = sources.get("refusal_cost")
+    refusal_value = sources.get("refusal_value")
 
     parts = [
         "# SPA — Fundability one-pager\n",
@@ -847,7 +885,7 @@ def build_document(sources: dict, now_iso: str) -> str:
         "---\n",
         _section_thesis(),
         "\n---\n",
-        _section_realized_edge(carry_truth, realized_ab, edge_at_scale, decisions, refusal_cost),
+        _section_realized_edge(carry_truth, realized_ab, edge_at_scale, decisions, refusal_cost, refusal_value),
         "\n---\n",
         _section_validated_edge(promotion, decisions, rwa),
         "\n---\n",

@@ -543,6 +543,53 @@ def get_rates_desk_n_book_capacity():
     return scrub_nonfinite(raw)
 
 
+@router.get("/api/rates-desk/refusal-value")
+def get_rates_desk_refusal_value():
+    """Rates-Desk REFUSAL AVOIDED-LOSS LEDGER — the refusal moat priced as a P&L number.
+
+    Serves data/rates_desk/refusal_value.json VERBATIM (built by the deterministic
+    spa_core.strategy_lab.rates_desk.refusal_value ledger). For each STRUCTURALLY-REFUSED toxic-LRT PT it
+    reports what a naive book holding it would have lost through the underlying's REAL ETH-peg drawdown
+    (`prices_deep.json`), a CONSERVATIVE LOWER BOUND (Pendle pt_price history is all-null; the AMM exit
+    discount in a rush is typically larger). The refused PT's peak advertised implied yield is shown as
+    EVIDENCE the gate read the yield as tail-comp — NOT netted into a foregone carry (that yield never
+    materializes safely). Events with no peg series (rsETH/USDe) are listed UNPRICED, never fabricated.
+    Read-only, graceful, fail-CLOSED: missing/corrupt file → flagged empty payload, NEVER a 500.
+    is_advisory ALWAYS true (paper measurement; never gates, never moves capital)."""
+    _meta = backtest_meta(
+        basis="real historical peg drawdown (prices_deep ETH-peg series) as a conservative lower bound on "
+              "a refused-PT holder's loss + real advertised implied_yield as tail-comp evidence; no pt_price "
+              "MtM is claimed — see docs/FUNDABILITY.md",
+        period="2024-06+ covered peg window (pre-series / no-peg-data events listed unpriced)",
+    )
+    _repro = {
+        "deterministic": True,
+        "rerun": "python3 -m spa_core.strategy_lab.rates_desk.refusal_value",
+        "source": "data/rates_desk/refusal_value.json",
+        "inputs": ["data/rates_desk/prices_deep.json (peg series)",
+                   "data/rates_desk/pendle_pt_history.json (advertised implied_yield)"],
+        "doc": "docs/FUNDABILITY.md (refusal avoided-loss section)",
+    }
+    raw = read_state("rates_desk/refusal_value.json", {})
+    if not raw or not isinstance(raw, dict):
+        return {
+            "generated_at": None,
+            "model": "refusal_avoided_loss_ledger",
+            "events": [],
+            "unpriced": [],
+            "total_avoided_loss_usd_per_100k": None,
+            "flagged": True,
+            "flag_reason": "refusal_value_unavailable",
+            "is_advisory": True,
+            "meta": _meta,
+            "reproduce": _repro,
+        }
+    raw.setdefault("is_advisory", True)
+    raw.setdefault("meta", _meta)
+    raw.setdefault("reproduce", _repro)
+    return scrub_nonfinite(raw)
+
+
 @router.get("/api/rates-desk/anchors")
 def get_rates_desk_anchors(limit: int = Query(default=50, ge=1, le=500)):
     """Rates-Desk CROSS-EVICTION immutability anchors — data/rates_desk/anchors.jsonl.
