@@ -89,6 +89,7 @@ _RAIL_BY_UNDERLYING = {
     "usde": "ethena_usde",       # USDe → Ethena mint/redeem (SAME rail as sUSDe — the honest overlap)
     "usdc": "circle_usdc",       # USDC → Circle
     "usds": "sky_usds",          # USDS → Sky PSM
+    "susds": "sky_usds",         # sUSDS unwraps → USDS → Sky PSM (SAME rail as USDS — like sUSDe→usde)
     "gho": "aave_gho",           # GHO → Aave GSM
     "sdai": "maker_dai",         # sDAI → Maker DSR/PSM
     "dai": "maker_dai",
