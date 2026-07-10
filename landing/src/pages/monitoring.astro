@@ -31,7 +31,7 @@ import RtmrMonitor from '../components/RtmrMonitor.jsx';
         note: "Source: api.earn-defi.com/api/rtmr/* · refreshes every 30s · fail-closed (API offline → honestly 'no data', never a fabricated number) · ADR-053. The money-path reaction is deterministic, LLM-forbidden; paper for now.",
       };
       function apply() {
-        var ru; try { ru = (localStorage.getItem('spa_lang') || 'ru') !== 'en'; } catch (e) { ru = true; }
+        var ru; try { ru = (localStorage.getItem('spa_lang') || 'en') !== 'en'; } catch (e) { ru = false; }
         if (ru) return;
         document.querySelectorAll('[data-i18n]').forEach(function (el) {
           var k = el.getAttribute('data-i18n');

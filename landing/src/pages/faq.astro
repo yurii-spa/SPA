@@ -103,6 +103,19 @@ const faqs = [
     labelColor: 'text-data-teal',
   },
 ];
+
+// FAQPage structured data (SPA-12) — lets search engines surface these Q&As as
+// a rich result. Built from the same `faqs` array (EN), so it never drifts from
+// the visible copy. Injected in-body (valid for JSON-LD; Google parses it there).
+const faqJsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": faqs.map((f) => ({
+    "@type": "Question",
+    "name": f.q,
+    "acceptedAnswer": { "@type": "Answer", "text": f.a },
+  })),
+});
 ---
 
 <Layout
@@ -110,6 +123,7 @@ const faqs = [
   description="Ответы на вопросы об SPA: условия участия, ожидаемая доходность, вывод средств, CPA методология, безопасность средств и процесс подачи заявки."
   canonical="https://earn-defi.com/faq"
 >
+  <script type="application/ld+json" set:html={faqJsonLd} />
 
   <!-- Nav -->
   <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">

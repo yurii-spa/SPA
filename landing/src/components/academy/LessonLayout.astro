@@ -81,7 +81,7 @@ const posInTrack = mod ? modules.filter((m) => m.track === mod.track && m.order 
     <script is:inline>
       (function () {
         function apply() {
-          var en; try { en = (localStorage.getItem('spa_lang') || 'ru') === 'en'; } catch (e) { en = false; }
+          var en; try { en = (localStorage.getItem('spa_lang') || 'en') === 'en'; } catch (e) { en = true; }
           document.querySelectorAll('.ac-en-notice').forEach(function (el) { el.style.display = en ? 'block' : 'none'; });
         }
         apply();

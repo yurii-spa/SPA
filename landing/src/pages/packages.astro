@@ -114,7 +114,7 @@ const toneMap = {
   <script is:inline>
     (function () {
       function apply() {
-        var ru; try { ru = (localStorage.getItem('spa_lang') || 'ru') !== 'en'; } catch (e) { ru = true; }
+        var ru; try { ru = (localStorage.getItem('spa_lang') || 'en') !== 'en'; } catch (e) { ru = false; }
         document.querySelectorAll('[data-ru]').forEach(function (el) {
           var r = el.getAttribute('data-ru');
           if (!el.hasAttribute('data-en')) el.setAttribute('data-en', el.textContent);

@@ -23,12 +23,29 @@ const siteUrl = "https://earn-defi.com";
 const pageUrl = canonical || `${siteUrl}${Astro.url.pathname}`;
 const ogImageAbsolute = ogImage.startsWith("http") ? ogImage : `${siteUrl}${ogImage}`;
 
+// Structured data (SPA-12): an Organization + WebSite graph so search engines
+// can attribute the site to a publisher (knowledge-panel eligibility) rather than
+// a bare WebSite node. Honest, static site identity — no fabricated claims.
 const schemaData = JSON.stringify({
   "@context": "https://schema.org",
-  "@type": "WebSite",
-  "name": "SPA — systematic onchain stablecoin yield",
-  "url": siteUrl,
-  "description": description,
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${siteUrl}/#organization`,
+      "name": "SPA — earn-defi.com",
+      "url": siteUrl,
+      "logo": `${siteUrl}/og-image.png`,
+      "description": "Systematic onchain stablecoin yield — a personal research project in paper validation, risk measurement and honest evidence levels.",
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${siteUrl}/#website`,
+      "name": "SPA — systematic onchain stablecoin yield",
+      "url": siteUrl,
+      "description": description,
+      "publisher": { "@id": `${siteUrl}/#organization` },
+    },
+  ],
 });
 ---
 
