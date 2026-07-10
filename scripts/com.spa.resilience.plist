@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.spa.resilience</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_resilience.sh</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/tmp/spa_resilience.launchd.err</string>
+	<key>StandardOutPath</key>
+	<string>/tmp/spa_resilience.launchd.out</string>
+	<key>StartInterval</key>
+	<integer>21600</integer>
+	<key>ThrottleInterval</key>
+	<integer>60</integer>
+	<key>WorkingDirectory</key>
+	<string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+</dict>
+</plist>

@@ -158,6 +158,13 @@ RETIRED_LABELS = frozenset({
     "com.spa.telegram_weekly",
     "com.spa.morning_digest",
     "com.spa.daily-paper-report",
+    # Telegram digest agents consolidated into the single daily report (same
+    # anti-flood intent as the telegram_* retirements above). Both were loaded
+    # but not firing (empty /tmp logs) — delivering nothing — so agent_health
+    # should stop expecting a fresh heartbeat from them. Owner may fully unload
+    # + delete their plists at leisure, or revive if a separate digest is wanted.
+    "com.spa.tier1_digest",
+    "com.spa.digest_weekly",
 })
 
 
