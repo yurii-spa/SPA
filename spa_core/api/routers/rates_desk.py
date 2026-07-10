@@ -489,6 +489,60 @@ def get_rates_desk_capacity():
     return scrub_nonfinite(raw)
 
 
+@router.get("/api/rates-desk/n-book-capacity")
+def get_rates_desk_n_book_capacity():
+    """Rates-Desk N-BOOK SCALE CURVE — the finer-grained companion to /capacity: how above-floor $/yr
+    grows as gated-carry BOOK-COUNT increases (distinct maturities/venues), with same-rail books haircut.
+
+    Serves data/rates_desk/n_book_capacity.json VERBATIM (built by the deterministic
+    spa_core.strategy_lab.rates_desk.n_book_capacity aggregator). It composes the honest per-book
+    venue-depth curve with the single-pool APY→AUM compression model, so the "edge is a $100k/$250k
+    artifact" objection becomes a MEASURED curve: above-floor $/yr plateaus because same-rail books share
+    pool depth — the ceiling is set by the number of DISTINCT deep rails, not by stacking more books. This
+    neither invents new depth nor asserts scale the pools do not support. Read-only, graceful, fail-CLOSED:
+    a missing/corrupt file yields a flagged empty payload with generated_at=null, NEVER a 500.
+    is_advisory is ALWAYS true (paper model only; never gates, never moves capital)."""
+    _meta = backtest_meta(
+        basis="deterministic composition of venue-expansion per-book deployable depth (correlation "
+              "haircut applied) with the capacity.py single-pool APY→AUM compression curve; above-floor "
+              "$/yr per rail cluster summed across distinct rails — see docs/STRUCTURAL_DESK.md",
+        period="current model (see generated_at)",
+    )
+    _repro = {
+        "deterministic": True,
+        "rerun": "python3 -m spa_core.strategy_lab.rates_desk.n_book_capacity",
+        "source": "data/rates_desk/n_book_capacity.json",
+        "inputs": ["data/rates_desk/capacity.json (compression)",
+                   "venue_expansion.live_curve (per-book depth + rail)"],
+        "doc": "docs/STRUCTURAL_DESK.md (N-book capacity section)",
+    }
+    raw = read_state("rates_desk/n_book_capacity.json", {})
+    if not raw or not isinstance(raw, dict):
+        return {
+            "generated_at": None,
+            "model": "n_book_capacity_aggregator",
+            "curve": [],
+            "plateau_above_floor_usd_per_yr": None,
+            "n_books_total": None,
+            "n_distinct_rails": None,
+            "flagged": True,
+            "flag_reason": "n_book_capacity_unavailable",
+            "is_advisory": True,
+            "meta": _meta,
+            "reproduce": _repro,
+        }
+    raw.setdefault("is_advisory", True)
+    raw.setdefault("meta", _meta)
+    raw.setdefault("reproduce", _repro)
+    raw.setdefault("field_units", {
+        "above_floor_usd_per_yr": "USD/yr of carry above the RWA floor at that book-count",
+        "deployable_usd": "USD honest (haircut-adjusted) deployable across the first n books",
+        "blended_above_floor_pct": "PERCENTAGE POINTS above floor, blended over the deployed book",
+        "marginal_value_of_last_book_usd_per_yr": "USD/yr the LAST book added contributes (≈0 = rail-saturated)",
+    })
+    return scrub_nonfinite(raw)
+
+
 @router.get("/api/rates-desk/anchors")
 def get_rates_desk_anchors(limit: int = Query(default=50, ge=1, le=500)):
     """Rates-Desk CROSS-EVICTION immutability anchors — data/rates_desk/anchors.jsonl.
