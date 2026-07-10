@@ -26,6 +26,22 @@ const degraded = snap.degraded === true;
 // Tier-card net-APY static fallback from snapshot.packages (same source /api/tier1/packages fills). A tier
 // with no computed backend value stays '—' (honest absence, never a hardcoded number); JS overrides live.
 const pkgApy = (k) => { const v = snap.packages && snap.packages[k] && snap.packages[k].apy_pct; return v != null ? Number(v).toFixed(1) + '%' : '—'; };
+// #46 — render the TAIL (worst drawdown) at the point of tier choice, server-side, so a card NEVER
+// shows a bare "—" for its drawdown at first paint. Realized dd from the live snapshot when present
+// (conservative); otherwise the measured BACKTEST worst from the single tier_bands source (clearly
+// tagged "(bt)", evidence-tagged on /packages) — a real measured value, never invented. JS still
+// overrides the data-fb="dd" cells live.
+import TIER_BANDS from '../lib/tier_bands.json';
+const pkgDD = (k) => {
+  const v = snap.packages && snap.packages[k] && snap.packages[k].dd_pct;
+  if (typeof v === 'number') return Number(v).toFixed(1) + '%';
+  return (TIER_BANDS[k] && TIER_BANDS[k].dd_short_en) || '—';
+};
+const pkgDDru = (k) => {
+  const v = snap.packages && snap.packages[k] && snap.packages[k].dd_pct;
+  if (typeof v === 'number') return Number(v).toFixed(1) + '%';
+  return (TIER_BANDS[k] && TIER_BANDS[k].dd_short_ru) || '—';
+};
 // Equity series for the offline spark fallback (build-time, last snapshot).
 // P1-5: chart plots ONLY evidenced + reconstructed bars — drops the synthetic warmup/backfill series
 // so there is no cross-series seam (the −$205 06-09/06-10 jump). Those bars stay in the downloadable
@@ -183,7 +199,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
           <div class="tier-cap" data-ru="бумажный · переменный · не гарантирован">paper · variable · not guaranteed</div>
           <ul class="tier-dl">
             <li><span class="k" data-ru="Профиль риска">Risk band</span><span class="v" data-ru="Низкий">Low</span></li>
-            <li><span class="k" data-ru="Макс. просадка">Max drawdown</span><span class="v" data-fb="dd">—</span></li>
+            <li><span class="k" data-ru="Макс. просадка">Max drawdown</span><span class="v" data-fb="dd" data-ru={pkgDDru('conservative')}>{pkgDD('conservative')}</span></li>
             <li><span class="k" data-ru="Состав">Tier mix</span><span class="v">T1</span></li>
           </ul>
           <p class="tier-who" data-ru="Капитал прежде всего — только пулы Уровня 1.">Capital-first — Tier 1 pools only.</p>
@@ -196,7 +212,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
           <div class="tier-cap" data-ru="бумажный · переменный · не гарантирован">paper · variable · not guaranteed</div>
           <ul class="tier-dl">
             <li><span class="k" data-ru="Профиль риска">Risk band</span><span class="v" data-ru="Сбаланс.">Balanced</span></li>
-            <li><span class="k" data-ru="Макс. просадка">Max drawdown</span><span class="v" data-fb="dd">—</span></li>
+            <li><span class="k" data-ru="Макс. просадка">Max drawdown</span><span class="v" data-fb="dd" data-ru={pkgDDru('balanced')}>{pkgDD('balanced')}</span></li>
             <li><span class="k" data-ru="Состав">Tier mix</span><span class="v">T1 + T2</span></li>
           </ul>
           <p class="tier-who" data-ru="Сбалансированная база Уровней 1 и 2.">Balanced Tier 1 + Tier 2 blend.</p>
@@ -210,7 +226,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
           <div class="tier-cap" data-ru="целевой диапазон · не в бумажном треке">target range · not in paper track</div>
           <ul class="tier-dl">
             <li><span class="k" data-ru="Профиль риска">Risk band</span><span class="v" data-ru="Выше">Higher</span></li>
-            <li><span class="k" data-ru="Макс. просадка">Max drawdown</span><span class="v" data-fb="dd">—</span></li>
+            <li><span class="k" data-ru="Макс. просадка">Max drawdown</span><span class="v" data-fb="dd" data-ru={pkgDDru('aggressive')}>{pkgDD('aggressive')}</span></li>
             <li><span class="k" data-ru="Состав">Tier mix</span><span class="v">T1 + T2</span></li>
           </ul>
           <p class="tier-who" data-ru="Шире диверсификация по Уровню 2; пока вне бумажного трека.">Wider Tier 2 diversification; not yet in paper track.</p>
