@@ -146,6 +146,18 @@ def append_anchor(
 ) -> Optional[dict]:
     """Append ONE cross-eviction anchor checkpointing the producer ledger's all-time head.
 
+    ⚠️ DORMANT BY DESIGN — DO NOT re-enable naively (finding 2026-07-10). `_decision_log_head`
+    anchors the head of the PUBLIC `decision_log.jsonl`, which `proof_chain` re-bases (re-hashes every
+    row from a fresh genesis) on every write and ring-buffers at LOG_CAP=2000. So a mirror head is
+    EPHEMERAL: once the mirror re-bases past an anchor's checkpointed length (or its prefix rotates out
+    of the cap window), that anchor's head can no longer be re-derived from the public file and
+    verify_spa reports it `broken`. In practice EVERY appended anchor goes stale on the next producer
+    write — the 4 anchors written 2026-07-01..03 all broke and were reset to empty (archived to
+    `anchors.jsonl.orphaned-20260710`). Anchoring a re-based ring-buffer mirror is architecturally
+    unsound; the real tamper-evidence is the full chain-verify of decision_log itself (verify_spa does
+    this) + the authoritative append-only producer ledger. A correct fix would anchor a STABLE
+    append-only ledger head (never re-based), NOT the mirror. Until then this stays UNWIRED.
+
     Idempotent: if the latest anchor already checkpoints the SAME (head_hash, chain_length), this is a
     no-op and returns None (no duplicate anchors when nothing has appended). Monotonic: refuses to
     append an anchor whose chain_length is SHORTER than the last anchor's (the append-only producer
