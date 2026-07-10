@@ -4,6 +4,7 @@
 **Scope:** `earn-defi.com` (SPA landing/Astro/CF Pages · `spa_core/*` runtime · agents/DR) + `checkup.earn-defi.com` (DeFi Checkup, `yurii-spa/defi-checkup` repo)
 **Horizon:** 8 weeks (2026-07-10 → 2026-09-04), four fortnightly sprints
 **Supersedes:** `docs/ROADMAP_2MONTH_EISENHOWER.md` (prior plan — largely shipped/owner-gated). This is a fresh forward plan; already-shipped work is NOT re-listed.
+**Companion (checkup report quality):** `docs/CHECKUP_REPORT_10OF10.md` — triage of the "10/10 decision-ready report" spec vs engine+invariants, with a prioritized honest build queue (P1 cross-position shared-oracle/bridge dependency; P1 decision-ready quantified headline + Critical/Important/Watch; P2 plain-language + fact/interpretation; P2 client Risk-Policy personalization) + a freemium split (free true-partial, paid depth, critical risk never paywalled). The loop pulls these into Q2 checkup-depth work.
 
 ---
 
