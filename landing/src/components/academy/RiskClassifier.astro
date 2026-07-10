@@ -2,7 +2,7 @@
 /*
  * RiskClassifier.astro — Astro wrapper for the A/B/C/D taxonomy card-sort island.
  *
- * Lets module pages drop the widget in with no client:load boilerplate:
+ * Lets module pages drop the widget in with no client-directive boilerplate:
  *   import RiskClassifier from '../../components/academy/RiskClassifier.astro';
  *   <RiskClassifier />                       // pure drill (module 10)
  *   <RiskClassifier moduleId="capstone" />   // marks module done on full pass
@@ -17,4 +17,7 @@ const path = Astro.url.pathname.replace(/\/+$/, '');
 const derived = path.split('/').filter(Boolean).pop() || '';
 const mid = moduleId ?? (derived && derived !== 'academy' ? derived : undefined);
 ---
-<RiskClassifierIsland moduleId={mid} client:load />
+<!-- client:visible: an interactive drill inside lesson body (below the fold) — hydrate
+     on scroll-into-view, not on load. If already visible it hydrates immediately, so
+     there is no correctness cost, only deferred JS for off-screen instances. -->
+<RiskClassifierIsland moduleId={mid} client:visible />
