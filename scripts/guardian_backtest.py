@@ -65,6 +65,38 @@ def apply_guardian(equity, derisk_dd=0.04, derisk_frac=0.25, reenter_frac=0.5):
     return guarded
 
 
+def apply_guardian_vol(equity, lookback=10, vol_mult=2.0, derisk_frac=0.25, calm_mult=1.2):
+    """PRE-EMPTIVE variant: de-risk when the strategy's own rolling realized volatility spikes above
+    vol_mult × its trailing baseline (a regime signal that often LEADS the drawdown), re-enter when vol
+    calms below calm_mult × baseline. Uses only the strategy's own returns (no exogenous feed in the
+    fixture). Honest: this is the best self-contained proxy for a forward-signal guardian — a real RTMR
+    guardian would use exogenous vol/funding/liquidity, potentially earlier still."""
+    if len(equity) < lookback + 2:
+        return list(equity)
+    rets = [equity[i] / equity[i - 1] - 1.0 for i in range(1, len(equity))]
+
+    def _stdev(xs):
+        n = len(xs)
+        if n < 2:
+            return 0.0
+        m = sum(xs) / n
+        return (sum((x - m) ** 2 for x in xs) / (n - 1)) ** 0.5
+
+    guarded = [equity[0]]
+    exposure = 1.0
+    for i in range(len(rets)):
+        gr = rets[i] * exposure
+        guarded.append(guarded[-1] * (1.0 + gr))
+        if i >= lookback:
+            recent = _stdev(rets[i - lookback + 1: i + 1])
+            base = _stdev(rets[max(0, i - 4 * lookback): i - lookback + 1]) or 1e-9
+            if exposure >= 1.0 and recent > vol_mult * base:
+                exposure = derisk_frac                 # regime turned hostile → cut BEFORE the loss compounds
+            elif exposure < 1.0 and recent < calm_mult * base:
+                exposure = 1.0                          # regime calmed → re-enter
+    return guarded
+
+
 def _metrics(equity):
     apy = metrics.net_apy_from_equity(equity)
     mdd = metrics.max_drawdown_pct(equity)
@@ -78,32 +110,38 @@ def main():
     loaded = ld.load_all(data_dir=tmp)
 
     grid = [(dd, fr) for dd in (0.02, 0.03, 0.04, 0.06) for fr in (0.0, 0.2, 0.35, 0.5)]
-    print(f"{'strategy':22} {'raw_apy':>8} {'raw_dd':>7} {'raw_cal':>8}   {'g_apy':>8} {'g_dd':>7} {'g_cal':>8}  {'best(dd,fr)':>12}  helped?")
-    print("-" * 110)
+    vgrid = [(vm, fr) for vm in (1.5, 2.0, 3.0) for fr in (0.0, 0.25, 0.5)]
+
+    def f(x):
+        return f"{x:.1f}" if isinstance(x, (int, float)) else "n/a"
+
+    def best_over(eq, fn, params):
+        best = None
+        for p in params:
+            g = fn(eq, *p)
+            a, d, c = _metrics(g)
+            key = c if isinstance(c, (int, float)) else -1e9
+            if best is None or key > best[0]:
+                best = (key, a, d, c, p)
+        return best[1], best[2], best[3]  # apy, dd, cal
+
+    print(f"{'strategy':20} {'RAW apy/dd/cal':>18}   {'REACTIVE(dd) apy/dd/cal':>26}   {'PRE-EMPTIVE(vol) apy/dd/cal':>28}")
+    print("-" * 100)
     for sid in sorted(loaded.keys()):
         s = loaded[sid]
         eq = _equity_of(s.backtest.series if s.backtest.n_points >= 2 else [])
         if len(eq) < 30:
             continue
         r_apy, r_dd, r_cal = _metrics(eq)
-        best = None
-        for dd, fr in grid:
-            g = apply_guardian(eq, derisk_dd=dd, derisk_frac=fr)
-            g_apy, g_dd, g_cal = _metrics(g)
-            # objective: maximize Calmar; require dd actually reduced
-            key = (g_cal if g_cal is not None else -1e9)
-            if best is None or key > best[0]:
-                best = (key, dd, fr, g_apy, g_dd, g_cal)
-        _, bdd, bfr, g_apy, g_dd, g_cal = best
-        helped = (isinstance(g_cal, (int, float)) and isinstance(r_cal, (int, float)) and g_cal > r_cal) \
-            or (isinstance(g_dd, (int, float)) and isinstance(r_dd, (int, float)) and g_dd < r_dd * 0.8)
-        def f(x):
-            return f"{x:.1f}" if isinstance(x, (int, float)) else "n/a"
-        print(f"{sid:22} {f(r_apy):>8} {f(r_dd):>7} {f(r_cal):>8}   {f(g_apy):>8} {f(g_dd):>7} {f(g_cal):>8}  ({bdd},{bfr})  {'YES' if helped else 'no'}")
+        d_apy, d_dd, d_cal = best_over(eq, lambda e, dd, fr: apply_guardian(e, derisk_dd=dd, derisk_frac=fr), grid)
+        v_apy, v_dd, v_cal = best_over(eq, lambda e, vm, fr: apply_guardian_vol(e, vol_mult=vm, derisk_frac=fr), vgrid)
+        print(f"{sid:20} {f(r_apy)+'/'+f(r_dd)+'/'+f(r_cal):>18}   "
+              f"{f(d_apy)+'/'+f(d_dd)+'/'+f(d_cal):>26}   {f(v_apy)+'/'+f(v_dd)+'/'+f(v_cal):>28}")
     print()
-    print("Honest read: the guardian can only react AFTER it observes a drawdown, so the first `dd`% of")
-    print("any move is UNAVOIDABLE (the gap you cannot outrun). It reduces the COMPOUNDING beyond that.")
-    print("A 'no' means de-risking whipsawed (cut exposure, missed the recovery bounce) — also honest.")
+    print("REACTIVE = de-risk after drawdown breaches a threshold. PRE-EMPTIVE = de-risk when own realized")
+    print("vol spikes above baseline (a regime signal that often LEADS the loss). Higher Calmar = better")
+    print("risk-adjusted. Honest limits: gap moves are still unavoidable; a real RTMR guardian would use")
+    print("exogenous vol/funding/liquidity (not in this equity-only fixture) — potentially earlier still.")
 
 
 if __name__ == "__main__":
