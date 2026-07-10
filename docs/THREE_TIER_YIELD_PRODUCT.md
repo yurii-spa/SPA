@@ -33,8 +33,32 @@ LRT-restaking и modelled points (класс D, decay-flagged), КАЖДЫЙ с 
   (стресс: depeg / exploit / liquidation / incentive-collapse) и явная маркировка risk_class C/D.
   Каждая книга изолирована (`isolation.py`), advisory, `outside_riskpolicy=True`, `owner_selectable`.
 
+## 🔑 Доказательство = БЭКТЕСТ на реальной истории (owner-принцип 2026-07-10)
+**Основной способ доказать доходность тира — прогнать финальную стратегию тира через бэктест на
+2.5 года РЕАЛЬНОЙ истории (2024-03 … 2026-06, включая краш ETH 2024-08, USDe-unwind 2025-10 «главный
+тест», депег rsETH 2026-04), и ПОКАЗАТЬ результат на сайте.** Бэктест сильнее форвардного paper-теста:
+он уже даёт realized-доход / max-drawdown / Sharpe через настоящие кризисы СЕЙЧАС, а не через полгода.
+
+Реальные результаты бэктеста (scorecard, 843 дня) — уже есть:
+| Стратегия | Realized | maxDD | Sharpe | Вердикт |
+|---|---|---|---|---|
+| **sUSDe delta-neutral** (`susde_dn`) | **23.2%** | **0.1%** | **18.5** | RISK_COMPENSATION ✅ (кандидат в флагман) |
+| sUSDe spot | 16.1% | 6.9% | 1.9 | RISK_COMPENSATION ✅ |
+| Pendle YT-sUSDe | ~215% | 2.1% | 16.4 | RISK_COMPENSATION ✅ (regime-dependent) |
+| Pendle PT levered 3× | 74% | 19% | 2.4 | **SEVERE_TAIL** ⚠️ (не продавать как безопасное) |
+| ETH-directional | −26% | 66% | −0.2 | **SEVERE_TAIL** ⚠️ |
+| LRT-neutral | −0.7% | 16.6% | 0.0 | **SEVERE_TAIL** ⚠️ |
+
+**Вывод: честные ~20% РЕАЛЬНЫ** — `susde_dn` даёт 23% с просадкой 0.1% и Sharpe 18.5, пережив все три
+кризиса. Агрессивный тир собираем из ВЫЖИВШИХ (susde_dn / susde_spot / pendle_yt), SEVERE_TAIL метим
+красным. **На сайте (`/packages` + `/annual-contrast`) каждый тир показывает свой бэктест-результат**
+(realized + maxDD + Sharpe за 2.5 года + окно кризиса) с явной меткой уровня доказательства (backtest,
+НЕ live). Инфраструктура готова: `/api/aggressive-lab/scorecard`, `/api/aggressive-lab/annual-contrast`,
+страница `/annual-contrast`.
+
 ## Honesty-гейты (нерушимо)
-1. Каждое число тира — **paper-протестировано на реальных фидах** (harness), не выдумано (evidence L0-L6).
+1. Каждое число тира — **бэктест на реальной истории + paper-forward** (harness), не выдумано (evidence L0-L6);
+   бэктест — ОСНОВНОЕ доказательство, forward копится параллельно.
 2. Хвост ВСЕГДА показан рядом с доходностью (`tail_overlay`, annual_contrast, max_drawdown, стресс).
 3. Агрессивный тир НИКОГДА не подаётся как «безопасный» — только как осознанный выбор высокого риска.
 4. Детерминизм + fail-closed; LLM запрещён в risk; stdlib-only; atomic writes.
