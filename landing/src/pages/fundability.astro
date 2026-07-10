@@ -82,6 +82,7 @@ import Disclaimer from '../components/Disclaimer.astro';
             rates desk clears tens of thousands per year above the floor at today's market depth;
             combined across sleeves, after a correlation haircut, the honest figure is lower still.
             <span class="font-mono">$10M = scale + decorrelation + AUM</span> — NOT reachable today.
+            <span id="fb-capacity-live" class="block mt-1 text-xs font-mono" style="color:var(--text-muted)"></span>
           </li>
           <li data-ru="Капитал бумажный. $0 реального капитала. Это исследовательский/бумажный трек на виртуальном портфеле $100k. Не инвестиционный совет, не прогноз.">
             <strong style="color:var(--text-primary)">The capital is paper.</strong> $0 real capital.
@@ -304,7 +305,43 @@ import Disclaimer from '../components/Disclaimer.astro';
         }).catch(function () {});
       }
 
-      function init() { loadChain(); loadReadiness(); }
+      /* LIVE N-book capacity — the honest above-floor $/yr, fundable-book count and gap to $10M,
+         from the deterministic aggregator (/api/rates-desk/capacity). Uses ONLY the unambiguous
+         DOLLAR fields; the percent is recomputed from dollars/target here so the frontend never
+         touches pct_of_10m_target (stored in percent units → a raw read could overstate 100×).
+         Fail-quiet: the static bullet above stays authoritative when offline. */
+      function fbUsd(n) {
+        n = Number(n);
+        if (!isFinite(n)) return null;
+        if (Math.abs(n) >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
+        if (Math.abs(n) >= 1e3) return '$' + Math.round(n / 1e3) + 'k';
+        return '$' + Math.round(n);
+      }
+      function loadCapacity() {
+        fetch(API + '/api/rates-desk/capacity').then(function (r) { return r.json(); }).then(function (d) {
+          if (!d || d.flagged || d.dollars_above_floor_per_yr == null) return;
+          var above = fbUsd(d.dollars_above_floor_per_yr);
+          if (!above) return;
+          var gap = fbUsd(d.gap_to_10m_usd);
+          var books = (d.n_fundable_books != null) ? d.n_fundable_books : null;
+          var tgt = Number(d.target_above_floor_per_yr_usd);
+          var pctStr = (tgt > 0)
+            ? (function (f) { return (f < 1 ? f.toFixed(2) : f.toFixed(1)) + '%'; })(Number(d.dollars_above_floor_per_yr) / tgt * 100)
+            : null;
+          var en = 'Live: ' + above + '/yr above floor'
+                 + (books != null ? ' · ' + books + ' fundable books' : '')
+                 + (pctStr ? ' · ' + pctStr + ' of the $10M target' : '')
+                 + (gap ? ' · gap ' + gap : '');
+          var ru = 'Вживую: ' + above + '/год над флором'
+                 + (books != null ? ' · ' + books + ' fundable-книг' : '')
+                 + (pctStr ? ' · ' + pctStr + ' от цели $10M' : '')
+                 + (gap ? ' · разрыв ' + gap : '');
+          setText('fb-capacity-live', isRu() ? ru : en);
+          sawLive = true; setText('fb-src', 'live');
+        }).catch(function () {});
+      }
+
+      function init() { loadChain(); loadReadiness(); loadCapacity(); }
       if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
       else { init(); }
     })();
