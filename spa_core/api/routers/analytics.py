@@ -24,12 +24,20 @@ _DAY = 86400
 class Event(BaseModel):
     page: str = "/"
     event: str = "view"
+    # Q2-9: optional campaign attribution (e.g. utm_source=defi-checkup, utm_campaign=depeg from the
+    # Checkup deep-link funnel). Strings only, no PII — lets the reverse funnel be measured end-to-end.
+    utm_source: str = ""
+    utm_campaign: str = ""
 
 
 @router.post("/api/analytics/event")
 def record_event(ev: Event) -> dict:
-    """Record one page-view or click. Privacy-friendly: page + event + day-timestamp only."""
+    """Record one page-view or click. Privacy-friendly: page + event + day-timestamp only (+ optional
+    utm_source/utm_campaign for funnel attribution — strings, never PII)."""
     rec = {"t": int(time.time()), "page": (ev.page or "/")[:200], "event": (ev.event or "view")[:48]}
+    if ev.utm_source or ev.utm_campaign:
+        rec["utm_source"] = (ev.utm_source or "")[:48]
+        rec["utm_campaign"] = (ev.utm_campaign or "")[:48]
     try:
         _LOG.parent.mkdir(parents=True, exist_ok=True)
         with open(_LOG, "a", encoding="utf-8") as fh:
@@ -46,6 +54,7 @@ def summary() -> dict:
     views_today = views_7d = total_views = 0
     events: dict = {}
     pages: dict = {}
+    campaigns: dict = {}
     try:
         with open(_LOG, encoding="utf-8") as fh:
             for line in fh:
@@ -64,14 +73,20 @@ def summary() -> dict:
                         views_7d += 1
                     p = str(r.get("page", "/"))
                     pages[p] = pages.get(p, 0) + 1
+                camp = str(r.get("utm_campaign") or "")
+                if camp:
+                    key = (str(r.get("utm_source") or "?") + ":" + camp)[:64]
+                    campaigns[key] = campaigns.get(key, 0) + 1
     except FileNotFoundError:
         pass
     top_pages = sorted(pages.items(), key=lambda kv: -kv[1])[:8]
+    top_campaigns = sorted(campaigns.items(), key=lambda kv: -kv[1])[:8]
     return {
         "views_today": views_today,
         "views_7d": views_7d,
         "total_views": total_views,
         "events": events,
         "top_pages": [{"page": p, "views": c} for p, c in top_pages],
+        "top_campaigns": [{"campaign": k, "hits": c} for k, c in top_campaigns],
         "note": "privacy-friendly MVP — page + event + coarse time only, no IP/cookies/PII",
     }

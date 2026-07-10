@@ -235,7 +235,18 @@ const schemaData = JSON.stringify({
     <script is:inline>
       (function(){
         var API = (location.hostname==='localhost'||location.hostname==='127.0.0.1') ? 'http://localhost:8765' : 'https://api.earn-defi.com';
-        function send(ev){ try{ fetch(API+'/api/analytics/event',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({page:location.pathname,event:ev||'view'}),keepalive:true}).catch(function(){}); }catch(e){} }
+        // Q2-9: capture campaign attribution once on arrival (e.g. the DeFi Checkup deep-link
+        // utm_source=defi-checkup&utm_campaign=depeg) and carry it on every beacon this session, so a
+        // routed visit is measurable end-to-end. Privacy-friendly: only source/campaign strings, no PII.
+        var src='', camp='';
+        try {
+          var q = new URLSearchParams(location.search);
+          src = (q.get('utm_source')||'').slice(0,48);
+          camp = (q.get('utm_campaign')||'').slice(0,48);
+          if(src||camp){ sessionStorage.setItem('spa_utm', JSON.stringify({s:src,c:camp})); }
+          else { var st = JSON.parse(sessionStorage.getItem('spa_utm')||'null'); if(st){ src=st.s||''; camp=st.c||''; } }
+        } catch(e){}
+        function send(ev){ try{ fetch(API+'/api/analytics/event',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({page:location.pathname,event:ev||'view',utm_source:src,utm_campaign:camp}),keepalive:true}).catch(function(){}); }catch(e){} }
         window.spaTrack = send;
         send('view');
         document.addEventListener('click', function(e){
