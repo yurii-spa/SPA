@@ -55,6 +55,10 @@ def readiness() -> dict:
             "evidenced_days": golive.get("real_track_days"),
             "days_needed": golive.get("min_track_days", 30),
             "target_date": golive.get("target_date") or golive.get("go_live_target"),
+            # Q3-4: the rolling consecutive-READY streak (runbook wants 7 sustained). Surfacing it
+            # turns the remaining wait into a VISIBLE de-risking proof rather than an opaque countdown.
+            "consecutive_ready_days": golive.get("consecutive_ready_days"),
+            "consecutive_ready_days_needed": 7,
         },
         "owner_only_blockers": _OWNER_ONLY,
         "reproduce": {

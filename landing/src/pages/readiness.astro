@@ -18,7 +18,7 @@ import Layout from '../layouts/Layout.astro';
 
     <section class="py-6 border-t border-border">
       <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Живой статус">Live status</p>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" id="rdy-cards">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="rdy-cards">
         <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2">Governance defenses</p>
           <p class="text-2xl font-mono font-bold text-white"><span id="rdy-def">—</span></p>
@@ -33,6 +33,11 @@ import Layout from '../layouts/Layout.astro';
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2">Target</p>
           <p class="text-2xl font-mono font-bold text-white"><span id="rdy-target">—</span></p>
           <p class="text-xs text-white/55 mt-1" data-ru="время, не код">time-gated, not code</p>
+        </div>
+        <div class="rounded-xl bg-bg-surface border border-border p-5">
+          <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru="Серия READY-дней">Ready streak</p>
+          <p class="text-2xl font-mono font-bold text-white"><span id="rdy-streak">—</span></p>
+          <p class="text-xs text-white/55 mt-1" data-ru="подряд READY-дней (нужно 7 устойчивых)">consecutive READY days (7 sustained wanted)</p>
         </div>
       </div>
     </section>
@@ -63,6 +68,7 @@ python3 -m spa_core.paper_trading.pre_cutover_gate     # 16/16 money-path defens
         if(gl.passed!=null) set('rdy-gate', gl.passed+'/'+gl.total);
         if(gl.evidenced_days!=null) set('rdy-days', gl.evidenced_days+'/'+(gl.days_needed||30));
         if(gl.target_date) set('rdy-target', gl.target_date);
+        if(gl.consecutive_ready_days!=null) set('rdy-streak', gl.consecutive_ready_days+'/'+(gl.consecutive_ready_days_needed||7));
         var ul=document.getElementById('rdy-blockers');
         if(ul && Array.isArray(d.owner_only_blockers)){
           ul.innerHTML='';
