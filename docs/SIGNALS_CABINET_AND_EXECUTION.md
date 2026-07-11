@@ -29,7 +29,9 @@
   - P1b-backend — ✅ **DONE** (checkup `79c1216`): `/api/auth/nonce` (issue signed nonce cookie) + `/api/auth/verify` (verify wallet sig + nonce → HMAC session cookie); `siweSession.ts` (stateless, mirrors waitlistTokens HMAC; SIWE_SESSION_SECRET→WALLET_REF_SALT→dev). +12 tests (session tamper/expiry, full flow, impersonation/no-cookie/bad-body). Vitest 318 green, build exit 0.
   - P1b-frontend — NEXT: "Connect wallet + Sign in" button (injected provider / viem `personal_sign`): GET nonce → build message → sign → POST verify → logged in. *(browser UI — can't fully unit-test here)*
   - ⚠️ **OWNER-GATED secret:** set `SIWE_SESSION_SECRET` (or reuse `WALLET_REF_SALT`) in prod env before real logins — dev fallback is only safe pre-launch.
-- **P2 · Cabinet view.** `[NEXT]` Logged-in wallet (read-only) → its positions (reuse checkup analyze) → "Recommended actions for YOUR wallet" (evidence + tail) + refusal log → "prepare transaction" opens the user's OWN wallet to sign. We never sign. First increment: a `/cabinet` page gated on the SIWE session cookie (readSession) that renders the connected wallet's existing checkup analysis behind the login.
+- **P2 · Cabinet view.** `[IN PROGRESS]`
+  - P2a — ✅ **DONE** (checkup `59cc7cb`): gated `/cabinet` page. `sessionServer.ts` (getSessionAddress + pure fail-closed addressFromCookieHeader). Signed-out → WalletLogin gate; signed-in → cabinet shell (connected wallet + "run my checkup"). +4 tests, vitest 329 green, build compiled, route registered.
+  - P2b — NEXT: embed the wallet's checkup analysis + evidence-tagged recommendations (tail shown) + refusal log behind the gate; then "prepare transaction" (user signs on their OWN wallet).
 - **P3 · Paywall / monetization.** Crypto-subscription (USDC/mo) or token-gate over the cabinet (owner confirms model before build).
 - **P4 · Alerts (optional, non-custodial).** XMTP / Push Protocol (wallet-native) or opt-in email; "new signal, log in to review" — the signal + signing stay in the cabinet.
 
