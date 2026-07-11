@@ -23,8 +23,10 @@ are MUTUALLY CONSISTENT — DD_PACK's --expect-head always equals the CURRENT de
   1. Re-derive the current decision-chain head (the SAME recipe verify_spa.py uses — delegated
      to proof_chain.verify_mirror so it is byte-identical). fail-CLOSED: a broken/empty chain
      refreshes NOTHING (we never publish over an unverified head).
-  2. anchors.jsonl — append a fresh head-checkpoint over the NEW head (idempotent: a no-op when
-     the head is unchanged, so re-running between ticks does not bloat the ledger).
+  2. anchors.jsonl — deliberately NOT re-minted (finding 2026-07-10). The public decision_log is a
+     re-based ring buffer, so a mirror-head anchor breaks on the next producer write; the ledger is
+     left EMPTY (vacuously valid). A sound cross-eviction anchor must checkpoint the STABLE
+     append-only producer ledger, not this mirror — see step 2 in refresh() and anchors.py.
   3. exit_nav.json — regenerate the liquidation-NAV-by-size schedule from the now-current
      surface/book (atomic write inside build_exit_nav_schedule).
   4. DD_PACK.md — regenerate (atomic write inside generate_dd_pack), so its embedded
@@ -180,13 +182,12 @@ def refresh(data_dir: Optional[Path] = None, dd_pack_path: Optional[Path] = None
 
     Returns {ok, head, chain_length, anchor_appended, exit_nav_written, dd_pack_path,
              dd_pack_head, self_verify_ok, errors}."""
-    from spa_core.strategy_lab.rates_desk import proof_chain, anchors
+    from spa_core.strategy_lab.rates_desk import proof_chain
     from spa_core.strategy_lab.rates_desk import exit_nav as exit_nav_mod
 
     base_data = data_dir or (_ROOT / "data")
     rd = base_data / "rates_desk"
     decision_log = rd / "decision_log.jsonl"
-    anchors_path = rd / "anchors.jsonl"
     # The DD-pack generator reads <gen_root>/data; in a hermetic test the sandbox data dir's
     # parent IS that root. Default (production) = the repo root.
     gen_root = data_dir.parent if data_dir is not None else _ROOT
@@ -220,16 +221,18 @@ def refresh(data_dir: Optional[Path] = None, dd_pack_path: Optional[Path] = None
     summary["head"] = head
     summary["chain_length"] = chain.get("length")
 
-    # ── 2. anchors.jsonl — append a fresh checkpoint over the new head (idempotent no-op if same) ──
-    try:
-        a = anchors.append_anchor(
-            anchors_path=anchors_path if data_dir is not None else None,
-            log_path=decision_log if data_dir is not None else None,
-            head_hash=head, chain_length=chain.get("length"),
-        )
-        summary["anchor_appended"] = a is not None
-    except Exception as exc:  # noqa: BLE001 — anchoring must not abort the rest of the refresh
-        summary["errors"].append(f"anchor append failed: {exc}")
+    # ── 2. anchors.jsonl — INTENTIONALLY NOT re-minted here (finding 2026-07-10; see anchors.py) ──
+    # The public decision_log.jsonl is a re-based RING BUFFER (proof_chain.LOG_CAP=2000). Its head is
+    # EPHEMERAL: once the ring is permanently full (as it is in prod) EVERY mirror-head anchor goes
+    # `broken` on the very next producer write — the anchor's chain_length==2000 collides with the
+    # current window length, so verify_spa's current-head branch demands it carry TODAY's head, which a
+    # yesterday anchor no longer does. Minting such an anchor here perpetually reddened
+    # /api/rates-desk/proof AND failed the resilience restore-drill (verify_spa: "anchors: broken at
+    # index 0"). Anchoring a re-based ring-buffer mirror is architecturally unsound — anchors.append_anchor
+    # is DORMANT/UNWIRED by design. We leave the anchor ledger EMPTY (empty == vacuously valid). The
+    # correct cross-eviction anchor must checkpoint the STABLE append-only producer ledger
+    # (data/audit_chain.jsonl, never re-based/truncated), not this mirror — tracked as future work.
+    summary["anchor_appended"] = False
 
     # ── 3. exit_nav.json — regenerate from the now-current surface/book (atomic) ──
     # NOTE: build_exit_nav_schedule's `data_dir` redirects READS only; the WRITE always targets its
