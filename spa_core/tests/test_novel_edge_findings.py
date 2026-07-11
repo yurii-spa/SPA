@@ -123,3 +123,61 @@ def test_crossdesk_compute_is_deterministic():
     if a is None:
         pytest.skip("rates-carry data absent")
     assert a["solo_susde"] == b["solo_susde"] and a["best"]["calmar"] == b["best"]["calmar"]
+
+
+# ── idea #6: Carry-Preserving Crisis Rotation (CPCR) ──────────────────────────────────────────────
+_CPCR = _load(_ROOT / "scripts" / "carry_preserving_rotation.py", "_cpcr_under_test")
+
+
+def test_cpcr_beats_fixed_blend_on_calmar():
+    """The de-risk SIGNAL (any destination) must beat static 25/50/25 blend on risk-adjusted return.
+    This is the load-bearing claim of idea #6: signal-triggered rebalancing > passive fixed blend."""
+    r_susde = _CPCR._load_susde_returns()
+    dates = sorted(r_susde)
+    r_rates, _ = _CPCR._load_rates_returns(dates)
+    daily_floor = _CPCR.RWA_FLOOR_APY_PCT / 100.0 / 365.0
+    r_floor = {d: daily_floor for d in dates}
+
+    eq_fixed = _CPCR._run_strategy(dates, r_susde, r_rates, r_floor,
+                                   _CPCR.NORMAL_WEIGHTS, _CPCR.NORMAL_WEIGHTS, 0.0, 999)
+    eq_cpcr  = _CPCR._run_strategy(dates, r_susde, r_rates, r_floor,
+                                   _CPCR.NORMAL_WEIGHTS, _CPCR.ROTATED_WEIGHTS, 0.002, 3)
+    _, _, c_fixed = _CPCR._m(eq_fixed)
+    _, _, c_cpcr  = _CPCR._m(eq_cpcr)
+    assert isinstance(c_fixed, float) and isinstance(c_cpcr, float)
+    assert c_cpcr > c_fixed, f"CPCR Calmar {c_cpcr:.2f} should beat fixed {c_fixed:.2f}"
+
+
+def test_cpcr_carry_destination_not_worse_than_floor_destination():
+    """CPCR (route to rates-carry) must be >= de-risk-to-floor on Calmar.
+    Even tiny positive edge demonstrates 'carry-preserve direction is correct'."""
+    r_susde = _CPCR._load_susde_returns()
+    dates = sorted(r_susde)
+    r_rates, _ = _CPCR._load_rates_returns(dates)
+    daily_floor = _CPCR.RWA_FLOOR_APY_PCT / 100.0 / 365.0
+    r_floor = {d: daily_floor for d in dates}
+
+    eq_floor = _CPCR._run_strategy(dates, r_susde, r_rates, r_floor,
+                                   _CPCR.NORMAL_WEIGHTS, _CPCR.TO_FLOOR_WEIGHTS, 0.002, 3)
+    eq_cpcr  = _CPCR._run_strategy(dates, r_susde, r_rates, r_floor,
+                                   _CPCR.NORMAL_WEIGHTS, _CPCR.ROTATED_WEIGHTS, 0.002, 3)
+    _, _, c_floor = _CPCR._m(eq_floor)
+    _, _, c_cpcr  = _CPCR._m(eq_cpcr)
+    assert isinstance(c_floor, float) and isinstance(c_cpcr, float)
+    # direction must be correct: carry-preserve >= floor-route
+    assert c_cpcr >= c_floor, f"CPCR Calmar {c_cpcr:.3f} should be >= floor-route {c_floor:.3f}"
+
+
+def test_cpcr_is_deterministic():
+    """Two runs produce identical equity curves (deterministic, no randomness)."""
+    r_susde = _CPCR._load_susde_returns()
+    dates = sorted(r_susde)
+    r_rates, _ = _CPCR._load_rates_returns(dates)
+    daily_floor = _CPCR.RWA_FLOOR_APY_PCT / 100.0 / 365.0
+    r_floor = {d: daily_floor for d in dates}
+
+    eq_a = _CPCR._run_strategy(dates, r_susde, r_rates, r_floor,
+                               _CPCR.NORMAL_WEIGHTS, _CPCR.ROTATED_WEIGHTS, 0.002, 3)
+    eq_b = _CPCR._run_strategy(dates, r_susde, r_rates, r_floor,
+                               _CPCR.NORMAL_WEIGHTS, _CPCR.ROTATED_WEIGHTS, 0.002, 3)
+    assert eq_a == eq_b, "CPCR must be deterministic"
