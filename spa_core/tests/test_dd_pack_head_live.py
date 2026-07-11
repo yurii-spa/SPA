@@ -21,8 +21,10 @@ It does EXACTLY what a reviewer does:
 This is RED on a drifted state (DD_PACK head != current chain head) and GREEN once the refresh hook
 (scripts/refresh_published_proof.py, folded into the rates_desk_paper agent) keeps them in lockstep.
 
-A second test proves the refresh hook itself advances the bundle TOGETHER: after a simulated chain
-append, the refresh makes DD_PACK head == decision_log head == anchor head — all three.
+A second test proves the refresh hook advances the bundle TOGETHER: after a simulated chain append,
+the refresh makes DD_PACK head == decision_log head — and (finding 2026-07-10) it does NOT re-mint a
+mirror-head anchor (the public decision_log is a re-based ring buffer, so a mirror anchor breaks on
+the next producer write; the ledger is left EMPTY == vacuously valid).
 
 stdlib + pytest only. The live-files test is read-only; the advance-together test is fully hermetic
 (its own temp data dir; it NEVER touches the canonical data/ or docs/DD_PACK.md).
@@ -150,9 +152,12 @@ def _refresh(tmp_data: Path):
     return refresh.refresh(data_dir=tmp_data)
 
 
-def test_refresh_advances_dd_pack_anchor_and_chain_together(tmp_path):
-    """After a simulated chain-append + the refresh hook, DD_PACK head == decision_log head ==
-    anchor head — all three advance together (the mutual-consistency invariant). Fully hermetic."""
+def test_refresh_advances_dd_pack_and_chain_without_reminting_anchors(tmp_path):
+    """After a simulated chain-append + the refresh hook, DD_PACK head == decision_log head advance
+    together (the mutual-consistency invariant) — AND the refresh does NOT re-mint a mirror-head
+    anchor (finding 2026-07-10: the public decision_log is a re-based ring buffer, so a mirror-head
+    anchor breaks on the next producer write; the ledger is left EMPTY == vacuously valid). Fully
+    hermetic."""
     # hermetic sandbox: <root>/data/rates_desk/ + <root>/docs/ (refresh writes <root>/docs/DD_PACK.md)
     root = tmp_path
     data_dir = root / "data"
@@ -170,8 +175,10 @@ def test_refresh_advances_dd_pack_anchor_and_chain_together(tmp_path):
     assert s1["ok"], s1["errors"]
     assert s1["head"] == head_1
     assert _dd_pack_head(dd_pack.read_text(encoding="utf-8")) == head_1
-    anchors_1 = [json.loads(l) for l in anchors_path.read_text().splitlines() if l.strip()]
-    assert anchors_1[-1]["head_hash"] == head_1
+    # the refresh must NOT mint a mirror-head anchor (unsound over a re-based ring buffer).
+    assert s1["anchor_appended"] is False, "refresh must not re-mint mirror-head anchors"
+    assert not (anchors_path.exists() and anchors_path.read_text().strip()), \
+        "anchor ledger must stay empty (vacuously valid), not carry a soon-to-break mirror anchor"
 
     # SIMULATE THE TICK: append a NEW decision row → the chain head ADVANCES.
     head_2 = _append_decision_row(decision_log, _make_payload(2), "2026-06-28T01:00:00+00:00")
@@ -182,19 +189,14 @@ def test_refresh_advances_dd_pack_anchor_and_chain_together(tmp_path):
     assert s2["ok"], s2["errors"]
     assert s2["head"] == head_2
 
-    # the invariant: DD_PACK head == decision_log head == anchor head (ALL three advanced together).
+    # the invariant: DD_PACK head == decision_log head (both advanced together); still no anchor.
     dd_head = _dd_pack_head(dd_pack.read_text(encoding="utf-8"))
-    anchors_2 = [json.loads(l) for l in anchors_path.read_text().splitlines() if l.strip()]
-    anchor_head = anchors_2[-1]["head_hash"]
     assert dd_head == head_2, f"DD_PACK head {dd_head} did not advance to {head_2}"
-    assert anchor_head == head_2, f"anchor head {anchor_head} did not advance to {head_2}"
-    assert dd_head == anchor_head == head_2
-
-    # the anchor ledger is APPEND-ONLY across the advance (no truncation, monotonic).
-    assert len(anchors_2) == len(anchors_1) + 1
-    assert anchors_2[-1]["seq"] == anchors_1[-1]["seq"] + 1
+    assert s2["anchor_appended"] is False
+    assert not (anchors_path.exists() and anchors_path.read_text().strip())
 
     # SMOKE: verify_spa --expect-head <DD_PACK head> over the sandbox files → EXIT 0 (the F1 command).
+    # An EMPTY anchor ledger is vacuously valid, so the whole bundle still reproduces.
     proc = subprocess.run(
         [sys.executable, str(_VERIFY), "--expect-head", dd_head, str(rd)],
         capture_output=True, text=True,
@@ -202,9 +204,11 @@ def test_refresh_advances_dd_pack_anchor_and_chain_together(tmp_path):
     assert proc.returncode == 0, f"smoke verify_spa failed:\n{proc.stdout}\n{proc.stderr}"
 
 
-def test_refresh_idempotent_no_advance_no_new_anchor(tmp_path):
-    """Re-running the refresh with NO chain advance is a no-op for the anchor ledger (idempotent),
-    and DD_PACK still carries the same head — running it twice does not bloat the ledger."""
+def test_refresh_never_mints_anchor_even_across_ticks(tmp_path):
+    """Idempotence + the anti-regression guard: re-running the refresh (with or without a chain
+    advance) NEVER grows the anchor ledger past empty. This is what stops the perpetual
+    'anchors: broken at index 0' restore-drill failure — the refresh no longer re-mints a mirror
+    anchor that goes stale on the next producer write."""
     root = tmp_path
     data_dir = root / "data"
     rd = data_dir / "rates_desk"
@@ -213,16 +217,19 @@ def test_refresh_idempotent_no_advance_no_new_anchor(tmp_path):
     decision_log = rd / "decision_log.jsonl"
     anchors_path = rd / "anchors.jsonl"
 
+    def _n_anchors():
+        return len(anchors_path.read_text().splitlines()) if anchors_path.exists() else 0
+
     head = _append_decision_row(decision_log, _make_payload(0), "2026-06-28T00:00:00+00:00")
     s1 = _refresh(data_dir)
     assert s1["ok"] and s1["head"] == head
-    n_anchors_1 = len(anchors_path.read_text().splitlines())
+    assert s1["anchor_appended"] is False
+    assert _n_anchors() == 0
 
     s2 = _refresh(data_dir)  # no chain advance
     assert s2["ok"] and s2["head"] == head
-    assert s2["anchor_appended"] is False, "no chain advance must not append a new anchor"
-    n_anchors_2 = len(anchors_path.read_text().splitlines())
-    assert n_anchors_2 == n_anchors_1, "idempotent refresh must not grow the anchor ledger"
+    assert s2["anchor_appended"] is False, "refresh must never append a mirror-head anchor"
+    assert _n_anchors() == 0, "anchor ledger must stay empty across refreshes"
 
 
 def test_refresh_fail_closed_on_broken_chain(tmp_path):
