@@ -46,7 +46,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
       <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Что SPA НЕ делает">What SPA Does Not Do</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[
-          { en: 'Does not use leverage (Core/Preserve strategies)', ru: 'Не использует плечо (стратегии Core/Preserve)' },
+          { en: 'Does not use leverage (Balanced/Conservative strategies)', ru: 'Не использует плечо (стратегии Balanced/Conservative)' },
           { en: 'Does not use unaudited protocols', ru: 'Не использует неаудированные протоколы' },
           { en: 'Does not bypass RiskPolicy gates', ru: 'Не обходит гейты RiskPolicy' },
           { en: 'Does not rely on LLMs for execution decisions', ru: 'Не полагается на LLM при принятии решений об исполнении' },
@@ -100,7 +100,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
         <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru="Оракулы">Oracles</p>
           <p class="text-sm text-white/60">Chainlink / Pyth price feeds</p>
-          <p class="text-xs text-white/50 mt-1" data-ru="Проверка обеспечения для стратегии Max Yield">Collateral checks for Max Yield strategy</p>
+          <p class="text-xs text-white/50 mt-1" data-ru="Проверка обеспечения для стратегии Aggressive">Collateral checks for Aggressive strategy</p>
         </div>
         <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru="Логирование">Logging</p>
@@ -265,7 +265,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
         </div>
         <div class="rounded-xl bg-bg-surface border border-border p-5">
           <p class="text-xs text-white/50 font-mono uppercase tracking-wider mb-2" data-ru="Текущий лидер">Current Leader</p>
-          <p class="text-sm text-white/60" data-ru="Стратегия Core — текущий победитель турнира">Core strategy — current tournament winner</p>
+          <p class="text-sm text-white/60" data-ru="Стратегия Balanced — текущий победитель турнира">Balanced strategy — current tournament winner</p>
         </div>
       </div>
     </section>
@@ -273,8 +273,8 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
     <!-- Strategy Profiles -->
     <section class="py-10 border-t border-border">
       <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Профили стратегий">Strategy Profiles</p>
-      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="SPA предлагает три профиля стратегий: Preserve, Core и Max Yield. У каждого свой целевой профиль риск/доходность и статус валидации.">
-        SPA offers three strategy profiles: Preserve, Core, and Max Yield. Each has a distinct
+      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="SPA предлагает три профиля стратегий: Conservative, Balanced и Aggressive. У каждого свой целевой профиль риск/доходность и статус валидации.">
+        SPA offers three strategy profiles: Conservative, Balanced, and Aggressive. Each has a distinct
         risk/return target and validation status.
       </p>
       <div class="space-y-4">
@@ -284,7 +284,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
               <span class="w-1.5 h-1.5 rounded-full bg-ok" aria-hidden="true"></span>
               <span data-ru="На paper-трекинге">Paper Tracked</span>
             </span>
-            <span class="text-sm text-white font-semibold">Core</span>
+            <span class="text-sm text-white font-semibold">Balanced</span>
           </div>
           <p class="text-xs text-white/55" data-ru="На paper-трекинге с 22 июня 2026 (evidenced anchor). Проверенные данные о производительности доступны на дашборде.">Paper tracked since June 22, 2026 (evidenced anchor). Verified performance data available on dashboard.</p>
         </div>
@@ -294,7 +294,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
               <span class="w-1.5 h-1.5 rounded-full bg-warn" aria-hidden="true"></span>
               <span data-ru="Валидация в ожидании">Validation Pending</span>
             </span>
-            <span class="text-sm text-white font-semibold">Preserve / Max Yield</span>
+            <span class="text-sm text-white font-semibold">Conservative / Aggressive</span>
           </div>
           <p class="text-xs text-white/55" data-ru="Целевой профиль определён. Paper-трекинг ещё не начат. Исторических данных о производительности нет.">Target profile defined. Paper tracking not yet started. No historical performance data.</p>
         </div>
@@ -551,7 +551,7 @@ const goLivePct = Math.round((goLivePass / goLiveTotal) * 100);
           <div class="rounded-xl bg-bg-surface border border-ok-border p-5">
             <div class="flex items-center gap-3 mb-2">
               <span class="px-2 py-0.5 rounded text-xs font-mono bg-ok-bg text-ok border border-ok-border">CLEAN_INCLUDED</span>
-              <span class="text-sm text-white/70 font-medium" data-ru="S0–S9 (стратегии Core)">S0–S9 (Core strategies)</span>
+              <span class="text-sm text-white/70 font-medium" data-ru="S0–S9 (стратегии Balanced)">S0–S9 (Balanced strategies)</span>
             </div>
             <p class="text-xs text-white/55 leading-relaxed">
               <span data-ru="Продакшн-стратегии используют только источники данных">Production strategies use only</span> <span class="font-mono text-ok">CLEAN_INCLUDED</span>

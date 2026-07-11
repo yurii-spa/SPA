@@ -59,7 +59,7 @@ import Layout from '../layouts/Layout.astro';
             <h3 class="text-sm font-semibold text-white" data-ru="Риск оракулов">Oracle Risk</h3>
           </div>
           <p class="text-sm text-white/55 leading-relaxed mb-2" data-ru="Манипуляция ценовым фидом.">Price feed manipulation.</p>
-          <p class="text-xs text-white/55"><span class="text-white/50" data-ru="Митигация:">Mitigation:</span> <span data-ru="основные фиды Chainlink, проверки корректности, мультисорс-валидация для Max Yield.">Chainlink primary feeds, sanity bounds, multi-source validation for Max Yield.</span></p>
+          <p class="text-xs text-white/55"><span class="text-white/50" data-ru="Митигация:">Mitigation:</span> <span data-ru="основные фиды Chainlink, проверки корректности, мультисорс-валидация для Aggressive.">Chainlink primary feeds, sanity bounds, multi-source validation for Aggressive.</span></p>
         </div>
 
         <div class="rounded-xl border border-border-strong bg-bg-surface p-5">
@@ -100,9 +100,9 @@ import Layout from '../layouts/Layout.astro';
           <thead>
             <tr class="border-b border-border-strong bg-bg-surface">
               <th class="text-left text-white/55 font-mono text-xs p-3" data-ru="Тип риска">Risk Type</th>
-              <th class="text-center text-white/55 font-mono text-xs p-3">Preserve</th>
-              <th class="text-center text-white/55 font-mono text-xs p-3">Core</th>
-              <th class="text-center text-white/55 font-mono text-xs p-3">Max Yield</th>
+              <th class="text-center text-white/55 font-mono text-xs p-3">Conservative</th>
+              <th class="text-center text-white/55 font-mono text-xs p-3">Balanced</th>
+              <th class="text-center text-white/55 font-mono text-xs p-3">Aggressive</th>
             </tr>
           </thead>
           <tbody class="text-white/55">
@@ -236,7 +236,7 @@ import Layout from '../layouts/Layout.astro';
         <p><span data-ru="Все значения APY на этом сайте">All APY figures on this site are</span> <strong class="text-white/70" data-ru="переменны и не являются гарантией будущей доходности">variable and not a guarantee of future returns</strong>.</p>
         <p data-ru="Paper APY отражает симулированную производительность на виртуальных $100,000 USDC — не живую торговлю.">Paper APY reflects simulated performance on virtual $100,000 USDC &mdash; not live trading.</p>
         <p data-ru="Прошлая paper-производительность не указывает на будущие live-результаты.">Past paper performance does not indicate future live results.</p>
-        <p data-ru="Целевые профили APY (Preserve, Max Yield) — иллюстративные диапазоны на основе исторической доходности протоколов.">Target APY profiles (Preserve, Max Yield) are illustrative ranges based on historical protocol yields.</p>
+        <p data-ru="Целевые профили APY (Conservative, Aggressive) — иллюстративные диапазоны на основе исторической доходности протоколов.">Target APY profiles (Conservative, Aggressive) are illustrative ranges based on historical protocol yields.</p>
         <p class="text-warn font-medium" data-ru="Возможна потеря капитала на этапе live-торговли.">Possible loss of capital in live trading phase.</p>
       </div>
       <p class="text-xs text-white/50 mt-4">
