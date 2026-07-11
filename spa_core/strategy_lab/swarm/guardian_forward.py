@@ -26,13 +26,18 @@ writes ONLY data/swarm/. Deterministic, stdlib-only. LLM FORBIDDEN.
 # LLM_FORBIDDEN
 from __future__ import annotations
 
-import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Tuple, Sequence
 
 from spa_core.strategy_lab.aggressive_lab.guardian import apply_guardian_vol, stdev
+from spa_core.strategy_lab.swarm.common import (
+    GENESIS_HASH,
+    append_daily_proof,
+    apy_pct as _apy_pct,
+    max_drawdown_pct as _max_drawdown_pct,
+)
 from spa_core.utils.atomic import atomic_save
 
 __all__ = ["vol_guardian_trace", "run_forward_guardian", "GUARDIAN_PARAMS"]
@@ -42,7 +47,6 @@ AGGRESSIVE_LAB_DIR = REPO_ROOT / "data" / "aggressive_lab"
 SWARM_DIR = REPO_ROOT / "data" / "swarm"
 STATUS_NAME = "guardian_forward.json"
 PROOF_NAME = "guardian_forward_proof.jsonl"
-GENESIS_HASH = "0" * 64
 
 # OOS-validated params (docs/DYNAMIC_LEVERAGE_GUARDIAN.md idea #1 / scripts/guardian_backtest.py sweep).
 GUARDIAN_PARAMS = {
@@ -93,21 +97,6 @@ def vol_guardian_trace(
         exposures.append(exposure)
         guarded.append(guarded[-1] * (1.0 + rets[i] * exposure))
     return guarded, exposures, events
-
-
-def _max_drawdown_pct(equity: Sequence[float]) -> float:
-    peak, worst = float("-inf"), 0.0
-    for v in equity:
-        peak = max(peak, v)
-        if peak > 0:
-            worst = min(worst, v / peak - 1.0)
-    return round(worst * 100.0, 4)
-
-
-def _apy_pct(equity: Sequence[float], days: int) -> Optional[float]:
-    if days < 1 or len(equity) < 2 or equity[0] <= 0 or equity[-1] <= 0:
-        return None
-    return round(((equity[-1] / equity[0]) ** (365.0 / days) - 1.0) * 100.0, 4)
 
 
 def _load_series(book_dir: Path) -> List[dict]:
@@ -207,37 +196,12 @@ def _guard_book(book_dir: Path) -> dict:
 
 def _append_proof(doc: dict, proof_path: Path) -> bool:
     """Hash-chain one line per UTC day (idempotent per day). Returns True if appended."""
-    today = doc["as_of_utc"][:10]
-    prev_hash, last_day = GENESIS_HASH, None
-    try:
-        with proof_path.open() as fh:
-            for line in fh:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    rec = json.loads(line)
-                    prev_hash = rec.get("hash", prev_hash)
-                    last_day = rec.get("date", last_day)
-                except ValueError:
-                    continue
-    except OSError:
-        pass
-    if last_day == today:
-        return False
     payload = {
-        "date": today,
         "books": len(doc["books"]),
         "derisked_now": sorted(b for b, v in doc["books"].items() if v.get("state") == "DERISKED"),
         "forward_days_max": max((v.get("forward_days", 0) for v in doc["books"].values()), default=0),
-        "prev_hash": prev_hash,
     }
-    payload["hash"] = hashlib.sha256(
-        (prev_hash + json.dumps(payload, sort_keys=True)).encode()).hexdigest()
-    proof_path.parent.mkdir(parents=True, exist_ok=True)
-    with proof_path.open("a") as fh:
-        fh.write(json.dumps(payload, sort_keys=True) + "\n")
-    return True
+    return append_daily_proof(payload, proof_path, day=doc["as_of_utc"][:10])
 
 
 def run_forward_guardian(
