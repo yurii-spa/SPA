@@ -15,7 +15,9 @@ const getLang = () => {
       if (l === 'en' || l === 'ru') return l;
     }
   } catch (e) { /* ignore */ }
-  return (typeof document !== 'undefined' && document.documentElement.lang === 'en') ? 'en' : 'ru';
+  // EN-first: the site's <html lang> default is EN, so fall back to EN unless the DOM is
+  // explicitly RU — prevents a flash-of-Russian on the hero's primary CTA for EN visitors.
+  return (typeof document !== 'undefined' && document.documentElement.lang === 'ru') ? 'ru' : 'en';
 };
 
 const T = {
@@ -29,7 +31,7 @@ const T = {
   hint: { ru: 'Введите корректный адрес (0x…) или ENS-имя (name.eth).', en: 'Enter a valid address (0x…) or ENS name (name.eth).' },
   micro: { ru: 'Только чтение · публичные ончейн-данные · без подключения кошелька · открывает checkup.earn-defi.com', en: 'Read-only · public onchain data · no wallet connection · opens checkup.earn-defi.com' },
 };
-const tr = (k, lang) => (T[k] ? (T[k][lang] || T[k].ru) : k);
+const tr = (k, lang) => (T[k] ? (T[k][lang] || T[k].en) : k);
 
 // permissive client pre-check: 0x + 40 hex, *.eth, or a debank profile url. Real resolve is server-side.
 function looksValid(v) {
@@ -41,7 +43,7 @@ function looksValid(v) {
 }
 
 export default function WalletCheck() {
-  const [lang, setLang] = useState('ru');
+  const [lang, setLang] = useState('en');
   const [val, setVal] = useState('');
   const [err, setErr] = useState(false);
 

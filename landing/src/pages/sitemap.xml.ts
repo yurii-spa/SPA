@@ -11,8 +11,13 @@ export const prerender = true;
 const SITE = 'https://earn-defi.com';
 
 // Every .astro page in this tree. Excludes: dynamic templates ([slug]), the /admin operator
-// console (robots Disallow), and error pages — none of which belong in a public sitemap.
+// console (robots Disallow), error pages, and INTERNAL pages (noindex dev showcases) — none of
+// which belong in a public sitemap.
 const PAGE_GLOB = import.meta.glob('./**/*.astro');
+
+// Public-URL pages that are noindex (dev/internal showcases) — keep them out of the sitemap so a
+// crawler is never pointed at operator internals. Mirror any page that passes noindex to Layout.
+const INTERNAL_ROUTES = new Set<string>(['cockpit-kit']);
 
 function routesFromGlob(): string[] {
   const out: string[] = [];
@@ -21,6 +26,7 @@ function routesFromGlob(): string[] {
     if (rel.includes('[')) continue; // dynamic template, expanded explicitly below
     if (rel === 'admin' || rel.startsWith('admin/')) continue; // robots Disallow: /admin
     if (rel === '404' || rel === '500') continue;
+    if (INTERNAL_ROUTES.has(rel)) continue; // noindex internal/dev showcase
     const path = rel === 'index' ? '/' : rel.endsWith('/index') ? `/${rel.slice(0, -6)}` : `/${rel}`;
     out.push(path);
   }

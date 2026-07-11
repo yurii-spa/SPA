@@ -9,6 +9,9 @@ interface Props {
   ogImage?: string;
   canonical?: string;
   admin?: boolean;
+  // noindex a public-URL page that should not be crawled/indexed (dev showcases, orphaned/
+  // operator-depth pages) without moving it under /admin. Also drops it from the sitemap.
+  noindex?: boolean;
   // Q2-15: when a page is a blog post, pass {headline, datePublished, description?} and Layout appends a
   // BlogPosting node to the JSON-LD @graph (Article schema → richer indexing + AI answer-engine ingestion).
   article?: { headline: string; datePublished: string; description?: string };
@@ -20,6 +23,7 @@ const {
   ogImage = "/og-image.png",
   canonical,
   admin = false,
+  noindex = false,
   article,
 } = Astro.props;
 
@@ -93,7 +97,7 @@ const schemaData = JSON.stringify({
     <meta name="description" content={description} />
     <!-- Public pages are indexable; the /admin Operator Console (admin={true}) is NOT
          — it holds no auth yet, so keep it out of search indexes entirely. -->
-    <meta name="robots" content={admin ? "noindex, nofollow" : "index, follow"} />
+    <meta name="robots" content={(admin || noindex) ? "noindex, nofollow" : "index, follow"} />
     <meta name="theme-color" content="#0A0C10" />
 
     <!-- Canonical -->

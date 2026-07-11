@@ -51,6 +51,7 @@ import Layout from '../../layouts/Layout.astro';
       set('p-committed', (bs.COMMITTED!=null)?bs.COMMITTED:'—');
       set('p-state','live');
     }).catch(function(){set('p-state','offline');});
+  })();
 </script>
 <style>
   .ac{background:var(--bg-base);min-height:calc(100vh - 52px);padding:32px 0 80px}
