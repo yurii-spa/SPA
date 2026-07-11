@@ -328,6 +328,28 @@ peg_monitor/red_flag_monitor/threat_reactor/kill_switch, НЕ дублирует
   `/api/rtmr/posture`, `/api/rtmr/reactions`. **Сайт:** `/monitoring` (island `RtmrMonitor`, bilingual,
   fail-closed) + панель на `/dashboard` + callout на `/system`.
 
+## 🐝 SPA Swarm (NEW, 2026-07-11 — ADR-YL-012, charter `docs/SWARM_ARCHITECTURE.md`)
+
+`spa_core/strategy_lab/swarm/` — **рефлекторный харвестер carry**: 5-слойный рой агентов над
+aggressive-доменом (цель ~15-25% с показанным хвостом; тезис `Доход = Σ(carry×uptime) − Σ(tail)`).
+Всё **advisory / paper / OUTSIDE_RISKPOLICY**, de-risk-only, fail-closed, LLM FORBIDDEN,
+hash-chain proof у каждого органа (`data/swarm/*_proof.jsonl`). Валидированная база — реестр идей
+`docs/DYNAMIC_LEVERAGE_GUARDIAN.md` (#1 vol-guardian OOS ✅, #3 cross-desk бленд ✅, #5 refusal-veto ✅).
+
+| Агент (hourly) | Модуль | Что |
+|---|---|---|
+| `com.spa.swarm_guardian` | `guardian_forward.py` | L2 стражи всех aggressive-книг (упреждающий vol-overlay) + **S1 shadow**: 12 strategy-lab sleeve'ов + живой консервативный трек (SIGNAL-ONLY) |
+| `com.spa.swarm_blend` | `blend_forward.py` | L3 форвардный 3-desk бленд 25/50/25 (sUSDe/rates/RWA, идея #3) |
+| `com.spa.swarm_regime` | `funding_regime.py` | L1 carry-погода GREEN/YELLOW/RED (5-venue funding; UNKNOWN = не-GREEN) |
+| `com.spa.swarm_brain` | `leverage_brain.py` | L3 плечо-реко = base×regime×guardian×depth, refusal-first (null без exit-depth) |
+| `com.spa.swarm_health` | `swarm_health.py` (+leadtime hourly, +chaos_drill пн) | L4 иммунитет: freshness/контракты/proof-tamper; S2-леджер опережения; weekly chaos-drill |
+
+**API:** `/api/swarm/{guardian,regime,blend,brain,health}` (verbatim, fail-closed, advisory-штампы
+принудительны). **Сайт:** `/aggressive-lab` — carry-weather полоса + 🛡-бейджи стражей per-book.
+**Тир-перенос:** S1 shadow ✅ → S2 evidence (копится) → S3 = **ADR+owner** (vol-режим как RTMR-сенсор;
+до этого рой НЕ имеет полномочий над go-live треком — RiskPolicy v1.0 единственный гейт) → S4 Balanced.
+**R&D-цикл:** scheduled task `novel-edge-rnd` (вт+пт 03:23) автономно тестирует новые edge-идеи → реестр.
+
 ## 🌐 Сайт (rebuilt 2026-06-25, unified design system)
 
 Лендинг (`landing/`, Astro → CF Pages, **earn-defi.com**) пересобран на едином дизайн-системе —

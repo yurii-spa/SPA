@@ -9,3 +9,15 @@
 export AGENT_NAME="swarm_health"
 export MODULE="spa_core.strategy_lab.swarm.swarm_health"
 /bin/bash /Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_template.sh
+RC=$?
+
+# Step 2: S2 lead-time evidence (tier-port) — shadow-signal vs real defense episodes ledger.
+/Users/yuriikulieshov/miniconda3/bin/python3 -m spa_core.strategy_lab.swarm.leadtime_evidence >> /tmp/spa_swarm_health.log 2>&1 || true
+
+# Step 3: weekly chaos drill (Mondays) — prove the immune layer catches every failure mode
+# in a sandbox copy (block 5b). Sandbox-only: live data/swarm is never mutated.
+if [ "$(date -u +%u)" = "1" ]; then
+  /Users/yuriikulieshov/miniconda3/bin/python3 -m spa_core.strategy_lab.swarm.chaos_drill >> /tmp/spa_swarm_health.log 2>&1 || true
+fi
+
+exit $RC
