@@ -8,7 +8,7 @@ const global = strategies.global;
 ---
 
 <Layout
-  title="Preserve Strategy — Capital-Preservation DeFi Yield | SPA earn-defi.com"
+  title="Conservative Strategy — Capital-Preservation DeFi Yield | SPA earn-defi.com"
   description="Capital-preservation focused yield. Tier 1 protocols only, no leverage, no looping. ~6% target APY (variable, not guaranteed). Target profile — not yet paper tracked."
 >
 
@@ -21,8 +21,8 @@ const global = strategies.global;
         <span class="w-1.5 h-1.5 rounded-full bg-warn" aria-hidden="true"></span>
         <span data-ru="Целевой профиль — ожидает валидации">Target Profile — Validation Pending</span>
       </div>
-      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Стратегия Preserve">
-        Preserve Strategy
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Стратегия Conservative">
+        Conservative Strategy
       </h1>
       <p class="text-xl text-white/50 leading-relaxed max-w-2xl">
         <span data-ru={preserve.taglineRu}>{preserve.tagline}</span>. <span data-ru="Только протоколы Tier 1 — максимальная стабильность, минимум сложности.">Tier 1 protocols only — maximum stability, minimum complexity.</span>
@@ -97,8 +97,8 @@ const global = strategies.global;
     <!-- 6. What's Inside -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-3" data-ru="Что внутри">What's Inside</p>
-      <p class="text-white/50 text-sm leading-relaxed mb-4" data-ru="Стратегия Preserve размещает средства исключительно в протоколах кредитования Tier 1 — рынки DeFi-кредитования с наибольшим TVL, наиболее аудированные и дольше всех работающие. Денежный буфер выше, чем в Core.">
-        The Preserve strategy allocates exclusively to Tier 1 lending protocols — the highest TVL,
+      <p class="text-white/50 text-sm leading-relaxed mb-4" data-ru="Стратегия Conservative размещает средства исключительно в протоколах кредитования Tier 1 — рынки DeFi-кредитования с наибольшим TVL, наиболее аудированные и дольше всех работающие. Денежный буфер выше, чем в Balanced.">
+        The Conservative strategy allocates exclusively to Tier 1 lending protocols — the highest TVL,
         most audited, longest-running DeFi lending markets. Higher cash buffer than Core.
       </p>
       <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
@@ -160,9 +160,9 @@ const global = strategies.global;
     <!-- 9. Risk Controls -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-data-teal uppercase tracking-wider font-mono mb-4" data-ru="Контроль рисков — RiskPolicy v1.0">Risk Controls — RiskPolicy v1.0</p>
-      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Каждая предлагаемая аллокация проходит через детерминированный, жёстко зашитый риск-гейт. Стратегия Preserve применяет более строгие ограничения поверх базовой политики.">
+      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Каждая предлагаемая аллокация проходит через детерминированный, жёстко зашитый риск-гейт. Стратегия Conservative применяет более строгие ограничения поверх базовой политики.">
         Every proposed allocation passes through a deterministic, hard-coded risk gate.
-        Preserve strategy applies stricter constraints on top of the base policy.
+        Conservative strategy applies stricter constraints on top of the base policy.
       </p>
       <div class="overflow-x-auto rounded-xl border border-white/10">
         <table class="w-full text-sm">
@@ -222,8 +222,8 @@ const global = strategies.global;
           <span class="w-2 h-2 rounded-full bg-warn" aria-hidden="true"></span>
           <span class="text-sm text-warn font-medium" data-ru="Целевой профиль — ожидает валидации">Target Profile — Validation Pending</span>
         </div>
-        <p class="text-sm text-white/55 leading-relaxed" data-ru="Бумажный трек для Preserve начнётся после валидации. Исторических данных о результатах пока нет. Все показатели APY являются лишь целевыми оценками.">
-          Paper tracking for Preserve will begin after validation. No historical performance data yet.
+        <p class="text-sm text-white/55 leading-relaxed" data-ru="Бумажный трек для Conservative начнётся после валидации. Исторических данных о результатах пока нет. Все показатели APY являются лишь целевыми оценками.">
+          Paper tracking for Conservative will begin after validation. No historical performance data yet.
           All APY figures are target estimates only.
         </p>
       </div>
@@ -338,17 +338,17 @@ const global = strategies.global;
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Чем это отличается от Core?">How does this differ from Core?</h4>
-          <p class="text-sm text-white/55 leading-relaxed" data-ru="Core размещает средства как в Tier 1, так и в отдельных протоколах Tier 2 ради более высокой доходности. Preserve работает только с T1, с более строгими критериями и более высоким эффективным денежным буфером. Ниже ожидаемый APY, ниже профиль риска.">
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Core размещает средства как в Tier 1, так и в отдельных протоколах Tier 2 ради более высокой доходности. Conservative работает только с T1, с более строгими критериями и более высоким эффективным денежным буфером. Ниже ожидаемый APY, ниже профиль риска.">
             Core allocates to both Tier 1 and selected Tier 2 protocols for higher yield.
-            Preserve is T1-only, with stricter eligibility and a higher effective cash buffer.
+            Conservative is T1-only, with stricter eligibility and a higher effective cash buffer.
             Lower expected APY, lower risk profile.
           </p>
         </div>
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Когда начнётся бумажный трек?">When will paper tracking start?</h4>
-          <p class="text-sm text-white/55 leading-relaxed" data-ru="Бумажный трек для Preserve запланирован, но активная дата не установлена. Сейчас приоритет — валидация бумажного трека стратегии Core.">
-            Paper tracking for Preserve is planned but no active date has been set.
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Бумажный трек для Conservative запланирован, но активная дата не установлена. Сейчас приоритет — валидация бумажного трека стратегии Core.">
+            Paper tracking for Conservative is planned but no active date has been set.
             The Core strategy is the current priority for paper track record validation.
           </p>
         </div>
