@@ -86,9 +86,10 @@ source), UX-26 (which tier is the evidenced book), UX-27 (homepage aggressive ca
 of bare "—"), UX-31 (dynamic day-count in faq). UX-30 (RWA floor) is DONE — already consistent at ~3.4%.
 UX-32 (CI lint enforcing single-source) ships WITH the unification.
 
-**OWNER INFRA (separate from the 2 decisions) →** UX-18 (gate /admin behind Cloudflare Access — zero auth
-today, exposes pilot/analytics/ledger), which then unblocks UX-19/UX-35/UX-36/UX-38 (move operator-depth
-pages behind the gate). UX-16 (a real contact mechanism on /pilot) + UX-17 (which public contact identity
+**OWNER INFRA (separate from the 2 decisions) →** UX-18 ✅ **DONE by owner (verified 2026-07-11: all
+`/admin/*` now 302 → Cloudflare Access; public pages still 200)** — the P0 zero-auth admin exposure is
+CLOSED. Downstream UX-19/UX-35/UX-36/UX-38 (move operator-depth pages behind the gate / trim footer links
+to them) are now lower-risk cleanups since the gate itself exists. UX-16 (a real contact mechanism on /pilot) + UX-17 (which public contact identity
 — personal Gmail is on selling pages today) are your business-contact calls.
 
 **IA CONSOLIDATION (your product-shape calls) →** UX-33/UX-34/UX-35/UX-37/UX-40 (collapse the 5-page
