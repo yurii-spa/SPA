@@ -47,7 +47,7 @@
 | Q2-7 | public /pilot page (honest ask, live track number, proof links) | ✅ | `pending` |
 | Q2-8 | pilot pipeline tracker (CRM-lite, PII-minimal state machine) | ✅ | `pending` |
 | Q2-9 | self-verifying data-room bundle (hostile reviewer) | ✅ | `f5bf9819` |
-| Q2-10 | offline DD snapshot (frozen surfaces + pinned verifier head, anchors excluded) | ✅ | `pending` |
+| Q2-10 | offline DD snapshot (frozen surfaces + pinned verifier head, anchors excluded) + `verify_spa.py --offline` checksum-replay | ✅ | `d4380603` |
 | Q2-18 | dated evidenced-track ledger 19→30 (per-day dd/return, /api/readiness) | ✅ | `17b66599` |
 | Q2-14 | auto-generated research changelog (track+refusal digest → /changelog + RSS) | ✅ | `pending` |
 | Q2-15 | RSS/Atom feed + BlogPosting JSON-LD | ✅ | `e4f27123` |
@@ -62,7 +62,7 @@
 | Q2-5 | interest-capture endpoint (PII-minimal) + /pilot beacon + /admin tile (full funnel wired) | ✅ | `76eb9a5a` |
 | Q2-8+ | pilot pipeline exposed via /api/pilot/summary (consumable by /admin) | ✅ | `d49b2de8` |
 | — | /admin/funnels: real design-partner pilot funnel (interest→prospects→dd→active→committed) | ✅ | `pending` |
-| Q2-2 | `--replay` verifier | ⬜ (branch-blocked: verify_spa на verifier-v1.1) | — |
+| Q2-2 | `--replay` verifier (re-derive verdicts from published numbers, 2000/2000, +8 tests) | ✅ SHIPPED TO MAIN 2026-07-11 (firing #34; the "branch-blocked" note was stale — verify_spa.py on origin/main now carries it) | `b67b9103` |
 
 ## Q3 batch — housekeeping / alert-fatigue
 | # | Задача | Статус | Коммит |
