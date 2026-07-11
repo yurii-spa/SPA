@@ -132,6 +132,56 @@ def main():
     print("  OUT-OF-SAMPLE (this run is IN-sample — vol timing flatters every such model). Sizing is CAUSAL")
     print("  (past-vol only), so no look-ahead — but forward paper is the honest confirmation.")
 
+    out_of_sample(dates, r_susde, r_rates, r_rwa, susde_daily_vol, split="2026-01-01")
+
+
+def _slice_metrics(eq_full, dates, test_idx):
+    """Metrics on the TEST segment of a full equity curve (eq_full[i+1] ↔ dates[i]), renormalised."""
+    seg = [eq_full[i + 1] for i in test_idx]
+    if len(seg) < 2:
+        return (None, None, None)
+    base = seg[0]
+    norm = [100000.0] + [100000.0 * v / base for v in seg]   # renormalise test start to 100k
+    return _m(norm)
+
+
+def out_of_sample(dates, r_susde, r_rates, r_rwa, susde_daily_vol, *, split="2026-01-01"):
+    """OOS: FIT the best target_vol on TRAIN (< split), APPLY it to the unseen TEST (>= split). The vol
+    history runs continuously across the boundary (causal), so the test uses only train-derived params +
+    its own past returns — no look-ahead, no test-set fitting."""
+    train_idx = [i for i, d in enumerate(dates) if d < split]
+    test_idx = [i for i, d in enumerate(dates) if d >= split]
+    print("\n=== OUT-OF-SAMPLE (fit target on train 2024–2025, apply to unseen 2026) ===")
+    if len(train_idx) < 60 or len(test_idx) < 30:
+        print(f"  insufficient split (train {len(train_idx)}, test {len(test_idx)}) — skipping OOS")
+        return
+    train_dates = [dates[i] for i in train_idx]
+
+    # FIT: best target_vol by Calmar on TRAIN only
+    best_tv, best_train_cal = None, None
+    for mult in (0.25, 0.5, 0.75, 1.0):
+        tv = susde_daily_vol * mult
+        eq = _vol_targeted(train_dates, r_susde, r_rates, r_rwa, target_vol=tv)[0]
+        _, _, c = _m(eq)
+        if isinstance(c, (int, float)) and (best_train_cal is None or c > best_train_cal):
+            best_tv, best_train_cal = tv, c
+    print(f"  fitted target_vol on TRAIN: {best_tv*100:.3f}%/day (train Calmar {_f(best_train_cal)})")
+
+    # APPLY to full series (continuous vol history) → measure only the TEST slice
+    vt_full = _vol_targeted(dates, r_susde, r_rates, r_rwa, target_vol=best_tv)[0]
+    fx_full = _fixed_blend(dates, r_susde, r_rates, r_rwa, w_susde=0.25, w_rates=_W_RATES)
+    va, vd, vc = _slice_metrics(vt_full, dates, test_idx)
+    fa, fd, fc = _slice_metrics(fx_full, dates, test_idx)
+    print(f"  TEST window {dates[test_idx[0]]}..{dates[test_idx[-1]]} ({len(test_idx)} days):")
+    print(f"    fixed 25/50/25:   apy {_f(fa)}%  maxDD {_f(fd)}%  Calmar {_f(fc)}")
+    print(f"    vol-targeted:     apy {_f(va)}%  maxDD {_f(vd)}%  Calmar {_f(vc)}")
+    holds = isinstance(vc, (int, float)) and isinstance(fc, (int, float)) and vc >= fc * 0.95
+    print(f"  → OOS verdict: vol-targeting {'HOLDS (≥ fixed Calmar on unseen data)' if holds else 'does NOT beat fixed OOS'}")
+    print("  HONEST: 2026 in this fixture is a relatively CALM period — an OOS that never hits a crisis")
+    print("  cannot fully validate the crisis-protection half of vol-targeting (same limit as the guardian")
+    print("  OOS-frontier). A calm-period OOS that holds is necessary-not-sufficient; forward paper through")
+    print("  a real vol event is the honest confirmation.")
+
 
 if __name__ == "__main__":
     main()
