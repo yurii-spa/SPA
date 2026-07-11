@@ -441,3 +441,69 @@ def test_replay_flag_wired_into_run_and_fails_closed_on_tamper(tmp_path):
     assert report["decision_replay"]["failed"] == 1
     assert any("decision_replay" in e for e in report["errors"])
     assert report["ok"] is False
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# Q2-10 --offline: verify a FROZEN checksummed snapshot against its SNAPSHOT_MANIFEST.json (hermetic)
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+def _make_snapshot(tmp_path):
+    import hashlib
+    d = tmp_path / "snap"
+    d.mkdir()
+    payload = b'{"seq":0,"marker":"x"}\n'
+    (d / "decision_log.jsonl").write_bytes(payload)
+    manifest = {
+        "expected_decision_head": "dead" * 16,
+        "expected_surfaces": ["A"],
+        "files": [{"arcname": "decision_log.jsonl", "surface": "A",
+                   "sha256": hashlib.sha256(payload).hexdigest(), "bytes": len(payload)}],
+    }
+    (d / "SNAPSHOT_MANIFEST.json").write_text(json.dumps(manifest), encoding="utf-8")
+    return d
+
+
+def test_snapshot_integrity_clean(tmp_path):
+    integ = V.verify_snapshot_manifest(_make_snapshot(tmp_path))
+    assert integ["manifest_present"] is True
+    assert integ["matched"] == 1 and integ["mismatched"] == 0
+    assert integ["expected_surfaces"] == ["A"]
+
+
+def test_snapshot_integrity_catches_tampered_bytes(tmp_path):
+    d = _make_snapshot(tmp_path)
+    f = d / "decision_log.jsonl"
+    f.write_bytes(f.read_bytes() + b"tamper")   # breaks sha256 + size
+    integ = V.verify_snapshot_manifest(d)
+    assert integ["mismatched"] == 1
+    assert integ["first_bad"]["reason"] == "sha256/size mismatch"
+
+
+def test_snapshot_integrity_catches_missing_pinned_file(tmp_path):
+    d = _make_snapshot(tmp_path)
+    (d / "decision_log.jsonl").unlink()
+    integ = V.verify_snapshot_manifest(d)
+    assert integ["mismatched"] == 1
+    assert integ["first_bad"]["reason"] == "pinned file missing"
+
+
+def test_snapshot_integrity_no_manifest_fails_closed(tmp_path):
+    integ = V.verify_snapshot_manifest(tmp_path)
+    assert integ["manifest_present"] is False
+
+
+def test_offline_flag_fails_closed_on_tampered_snapshot(tmp_path):
+    d = _make_snapshot(tmp_path)
+    f = d / "decision_log.jsonl"
+    f.write_bytes(f.read_bytes() + b"tamper")
+    rc = V.main([str(d), "--offline", "--json"])
+    assert rc == 1   # fail-CLOSED via exit code
+
+
+def test_offline_over_live_snapshot_if_present():
+    # if the real frozen DD snapshot exists, every pinned file must be byte-identical
+    snap = _ROOT / "data" / "dd_snapshot"
+    if not (snap / "SNAPSHOT_MANIFEST.json").exists():
+        pytest.skip("live DD snapshot absent (clean checkout)")
+    integ = V.verify_snapshot_manifest(snap)
+    assert integ["mismatched"] == 0, integ["first_bad"]
+    assert integ["matched"] == integ["checked"] and integ["checked"] > 0

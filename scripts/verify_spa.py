@@ -400,6 +400,55 @@ def verify_decision_replay(rows: List[dict]) -> dict:
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
+# (offline) SNAPSHOT INTEGRITY — a funder replays a FROZEN checksummed dataset with no live API  [Q2-10]
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+def verify_snapshot_manifest(snapshot_dir: Path) -> dict:
+    """OFFLINE reproducibility: assert every file pinned in SNAPSHOT_MANIFEST.json is present and
+    BYTE-IDENTICAL to its recorded sha256 + byte-count. A funder who cloned the frozen DD snapshot
+    proves the dataset is EXACTLY what was published — no live API, no trust in us. fail-CLOSED on any
+    missing / resized / tampered file. Also surfaces the manifest's pinned expected_decision_head +
+    expected_surfaces so ``--offline`` can auto-apply them (the funder needn't copy them by hand).
+
+    Returns {manifest_present, checked, matched, mismatched, first_bad, expected_decision_head,
+    expected_surfaces}. A manifest that is absent/malformed is reported (manifest_present False) and
+    fails CLOSED at the call site."""
+    out = {"manifest_present": False, "checked": 0, "matched": 0, "mismatched": 0,
+           "first_bad": None, "expected_decision_head": None, "expected_surfaces": None}
+    mpath = snapshot_dir / "SNAPSHOT_MANIFEST.json"
+    if not mpath.exists():
+        out["first_bad"] = {"file": "SNAPSHOT_MANIFEST.json", "reason": "manifest absent"}
+        return out
+    try:
+        manifest = json.loads(mpath.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001 — malformed manifest → fail-CLOSED
+        out["first_bad"] = {"file": "SNAPSHOT_MANIFEST.json", "reason": f"parse error: {exc}"}
+        return out
+    out["manifest_present"] = True
+    out["expected_decision_head"] = manifest.get("expected_decision_head")
+    out["expected_surfaces"] = manifest.get("expected_surfaces")
+    for f in manifest.get("files", []):
+        if f.get("absent") or not f.get("sha256"):
+            continue  # source was absent at freeze time (recorded, not a pinned file)
+        out["checked"] += 1
+        fp = snapshot_dir / f.get("arcname", "")
+        if not fp.exists():
+            out["mismatched"] += 1
+            if out["first_bad"] is None:
+                out["first_bad"] = {"file": f.get("arcname"), "reason": "pinned file missing"}
+            continue
+        raw = fp.read_bytes()
+        got = hashlib.sha256(raw).hexdigest()
+        if got == f["sha256"] and len(raw) == f.get("bytes", len(raw)):
+            out["matched"] += 1
+        else:
+            out["mismatched"] += 1
+            if out["first_bad"] is None:
+                out["first_bad"] = {"file": f.get("arcname"), "reason": "sha256/size mismatch",
+                                    "pinned": f["sha256"], "got": got}
+    return out
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
 # (D) equity track — the EVIDENCED equity / go-live track, hash-chained like (A)  [F2]
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 def verify_equity_track(rows: List[dict]) -> dict:
@@ -1604,6 +1653,16 @@ def _print_human(report: dict) -> None:
         if rp.get("first_bad"):
             print(f"    first_bad      : {rp['first_bad']}")
 
+    si = report.get("snapshot_integrity")
+    if si is not None:
+        print(f"[offline] snapshot integrity: {si.get('matched')}/{si.get('checked')} pinned files "
+              f"byte-identical to SNAPSHOT_MANIFEST.json  (mismatched={si.get('mismatched')}, "
+              f"manifest_present={si.get('manifest_present')})")
+        if si.get("expected_decision_head"):
+            print(f"    pinned head    : {si['expected_decision_head']}  surfaces={si.get('expected_surfaces')}")
+        if si.get("first_bad"):
+            print(f"    first_bad      : {si['first_bad']}")
+
     en = report["exit_nav"]
     if en is not None:
         print(f"[B] exit-NAV proofs: valid={en.get('valid')}  "
@@ -1766,14 +1825,42 @@ def main(argv: Optional[List[str]] = None) -> int:
                          "re-hash): fair_yield==baseline−total_haircut, non-negative haircuts, approved⇒"
                          "net_edge>0 (refusal-first), refused⇒reason. A stored verdict that does not "
                          "follow from its published inputs fails CLOSED (the measurement-moat replay proof).")
+    ap.add_argument("--offline", action="store_true",
+                    help="OFFLINE self-contained mode for a FROZEN DD snapshot dir: read its "
+                         "SNAPSHOT_MANIFEST.json, assert every pinned file is byte-identical to its "
+                         "recorded sha256+size, and AUTO-APPLY the manifest's expected head/surfaces. "
+                         "A cloned snapshot reproduces with NO live API and NO trust in us; any "
+                         "missing/tampered file fails CLOSED.")
     args = ap.parse_args(argv)
 
     expect_surfaces = None
     if args.expect_surfaces:
         expect_surfaces = [s.strip().upper() for s in args.expect_surfaces.split(",") if s.strip()]
 
+    # (Q2-10) --offline: verify the frozen snapshot's pinned checksums + inherit its expected head/surfaces
+    integ = None
+    if args.offline:
+        snap = Path(args.paths[0])
+        snap_dir = snap if snap.is_dir() else snap.parent
+        integ = verify_snapshot_manifest(snap_dir)
+        if args.expect_head is None and integ.get("expected_decision_head"):
+            args.expect_head = integ["expected_decision_head"]
+        if expect_surfaces is None and integ.get("expected_surfaces"):
+            expect_surfaces = [str(s).strip().upper() for s in integ["expected_surfaces"]]
+
     report = run(args.paths, expect_head=args.expect_head, expect_surfaces=expect_surfaces,
                  check_fundability=args.check_fundability, replay=args.replay)
+
+    if integ is not None:
+        report["snapshot_integrity"] = integ
+        if (not integ["manifest_present"]) or integ["mismatched"] > 0 or integ["checked"] == 0:
+            fb = integ.get("first_bad") or {}
+            report["errors"].append(
+                f"snapshot_integrity: {integ['mismatched']}/{integ['checked']} pinned file(s) do not "
+                f"match the manifest (first: {fb.get('file')} — {fb.get('reason')})"
+                if integ["manifest_present"] else
+                f"snapshot_integrity: no usable SNAPSHOT_MANIFEST.json ({fb.get('reason')})")
+            report["ok"] = (len(report["errors"]) == 0)
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

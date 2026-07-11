@@ -71,6 +71,9 @@ def build(out_dir: Path = OUT_DIR, now: datetime | None = None) -> dict:
     surfaces = sorted(f["surface"] for f in files if f.get("sha256"))
     replay_cmd = (f"python3 scripts/verify_spa.py <snapshot_dir> "
                   f"--expect-head {head} --expect-surfaces {','.join(surfaces)}")
+    # one-flag equivalent (Q2-10): --offline reads THIS manifest, checksums every pinned file, and
+    # auto-applies expected_decision_head + expected_surfaces — the funder needn't copy them by hand.
+    offline_cmd = "python3 scripts/verify_spa.py <snapshot_dir> --offline"
 
     manifest = {
         "model": "spa_dd_snapshot_manifest",
@@ -82,11 +85,13 @@ def build(out_dir: Path = OUT_DIR, now: datetime | None = None) -> dict:
         "expected_decision_head": head,
         "expected_surfaces": surfaces,
         "replay_command": replay_cmd,
+        "offline_command": offline_cmd,
         "files": files,
         "excluded_surfaces": _EXCLUDED,
-        "note": ("Frozen, offline-verifiable DD snapshot. Clone it, then run the replay_command — the "
-                 "standalone verifier re-derives the decision-chain head from the raw files with ZERO "
-                 "dependencies and asserts it equals expected_decision_head. No live API, no trust in us. "
+        "note": ("Frozen, offline-verifiable DD snapshot. Clone it, then run the offline_command (or the "
+                 "explicit replay_command) — the standalone verifier checksums every pinned file against "
+                 "this manifest AND re-derives the decision-chain head from the raw files with ZERO "
+                 "dependencies, asserting it equals expected_decision_head. No live API, no trust in us. "
                  "The anchors surface is excluded (known-unsound, documented). Advisory / read-only."),
     }
     (out_dir / "SNAPSHOT_MANIFEST.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
