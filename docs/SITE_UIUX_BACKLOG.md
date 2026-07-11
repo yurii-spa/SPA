@@ -6,8 +6,10 @@
 > UX-10 Preserve honesty (target-profile not Paper-tracked) · UX-11 checkup terminal earn-defi CTA ·
 > UX-12 honest waitlist copy · UX-13 canonical CTA URLs · UX-20 warm report one-liner · UX-22 no
 > duplicate /check form. (commits bed4e015, 47926e43, f35f6500, 1d210d6d + checkup 5033c8a, 91d2193,
-> 62368b4, 34e8726) — **ALL clean code-doable-solo items shipped (16 total).** Everything remaining is
-> OWNER-GATED (below) or needs-judgment (UX-05) or depends on the owner's taxonomy/number decision.
+> 62368b4, 34e8726) + UX-39 compare-table reframe (96a40b6) + Max-Yield card tail (71c661d6) + methodology
+> "baseline" (c4bd37ea) — **18 items shipped.** Everything remaining is OWNER-GATED (below) or
+> needs-judgment (UX-05) or depends on the owner's taxonomy/number decision — see
+> `docs/SITE_TAXONOMY_NUMBERS_DECISION.md` for the unblock-map (1 owner line → ~12 items).
 > **🔒 OWNER-GATED (need a decision):** tier NAMING (pick ONE taxonomy: Preserve/Core/Max-Yield vs
 > Conservative/Balanced/Aggressive), the canonical public APY number(s), /admin auth (CF Access).
 > **⚠️ NEEDS JUDGMENT (not blindly):** UX-05 noindex list includes intentional public proof/research
