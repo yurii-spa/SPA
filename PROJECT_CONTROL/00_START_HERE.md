@@ -15,9 +15,14 @@ This project (SPA — Smart Passive Aggregator / earn-defi.com) is developed thr
 4. **RiskPolicy is deterministic and LLM-FORBIDDEN.** Never put an LLM in risk/execution/monitoring/kill. Never import `spa_core/execution/` from read-only/paper code. Never move funds / handle keys.
 5. **Secrets live in macOS Keychain, never in files.** (`GITHUB_PAT_SPA`, `TELEGRAM_*_SPA`, `FAMILY_FUND_JWT_SECRET`.) `.claude/settings.local.json` once leaked a `ghp_` token — keep it ignored, never print/commit it.
 
+> ⚠️ **PARALLEL SESSIONS:** if several Claude sessions run at once (CLI / terminal / project),
+> read **`16_MULTI_SESSION_PROTOCOL.md`** FIRST — file-partitioning, the shared announce log
+> (`python3 scripts/log_session_change.py --tail`), and the audit/change procedure so parallel
+> edits don't clobber docs or race state.
+
 ## Before doing ANY work
 
-1. Read this file + `01_MASTER_RULES.md`.
+1. Read this file + `01_MASTER_RULES.md` (+ `16_MULTI_SESSION_PROTOCOL.md` when others are active).
 2. Read `docs/SYSTEM_BRIEFING.md` (auto-updated 30 min) for live state — **required before saying anything about "what works".**
 3. Read the control file(s) for your task: `03` GitHub · `04` hosting · `05` product agents · `06` dev agents · `07` data/paper · `08` deploy/autopush · `09` code structure · `10` testing.
 4. Read the deep audits behind them: `AUDIT_00`…`AUDIT_07` + `PROJECT_PROBLEM_MAP.md` (repo root).
