@@ -56,7 +56,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
   <!-- ============ HERO (Direction C — Console, institutional) ============ -->
   <section class="hero" id="analyze">
     <div class="hero-inner">
-      <span class="hero-eyebrow" data-ru="Только исследование · сначала бумага · без депозитов · без гарантий доходности">Research-only · Paper testing first · No deposits · No guaranteed returns</span>
+      <span class="hero-eyebrow" data-ru="Бесплатный чек-ап DeFi-портфеля · только исследование · paper · без гарантий доходности">Free DeFi portfolio checkup · Research-only · paper-tested · no guaranteed returns</span>
       <h1>
         <span data-ru="Проверьте, стоит ли ваш DeFi-портфель">Check if your DeFi portfolio is</span>
         <span class="accent" data-ru="риска.">worth the risk.</span>
@@ -657,7 +657,17 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       }catch(e){}
     }
 
-    function init(){ drawSnapshot(); loadHealth(); loadGoLive(); loadPackages(); loadEvidence(); loadNav(); }
+    // UX-09: when a lower "Analyze wallet" CTA navigates to #analyze, focus the hero input
+    // (not just scroll) so the user can start typing immediately. The WalletCheck island is at
+    // the top of the page and already mounted, so .wc-input exists by the time we scroll up.
+    function focusAnalyze(){
+      if(location.hash !== '#analyze') return;
+      var i = document.querySelector('.wc-input');
+      if(i){ try{ i.focus({preventScroll:true}); }catch(e){ i.focus(); } }
+    }
+    window.addEventListener('hashchange', function(){ setTimeout(focusAnalyze, 350); });
+
+    function init(){ drawSnapshot(); loadHealth(); loadGoLive(); loadPackages(); loadEvidence(); loadNav(); setTimeout(focusAnalyze, 400); }
     if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
     else { init(); }
   })();
