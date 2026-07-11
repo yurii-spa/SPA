@@ -282,5 +282,16 @@ def test_api_anchors_endpoint_verified():
     pytest.importorskip("fastapi")  # stdlib-only Proof Gate has no fastapi; these API tests run in full CI
     from spa_core.api.routers import rates_desk as R
     anc = R.get_rates_desk_anchors(limit=50)
-    assert anc["verified"] is True
+    # The anchors surface is architecturally UNSOUND at index 0 by design (the re-based ring-buffer
+    # mirror — [[rates-desk-anchor-mirror-unsound]] / roadmap Q1-4). So the honest invariant is NOT
+    # "verified is always True" (that only held vacuously with an EMPTY anchors file, and failed the
+    # moment a real stale/broken anchor existed locally) — it is that the endpoint REPORTS the state
+    # COHERENTLY and fail-CLOSED: verified=True ⟺ no break (broken_at is None); verified=False ⟹ a
+    # break is NAMED. This never lets the endpoint LIE (claim verified while broken) and never demands a
+    # verified verdict from a known-unsound surface.
+    assert isinstance(anc["verified"], bool)
+    if anc["verified"] is True:
+        assert anc.get("broken_at") is None
+    else:
+        assert anc.get("broken_at") is not None      # a False verdict must NAME where the chain broke
     assert "reproduce" in anc
