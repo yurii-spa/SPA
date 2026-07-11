@@ -24,7 +24,22 @@ const {
 } = Astro.props;
 
 const siteUrl = "https://earn-defi.com";
-const pageUrl = canonical || `${siteUrl}${Astro.url.pathname}`;
+// The site builds with Astro's directory format: the canonical 200 URL carries a trailing
+// slash (`/faq/`), and the no-slash form 308-redirects to it. Both the explicit `canonical`
+// props and the Astro.url.pathname fallback emit the NO-slash form, so every page was
+// declaring a canonical that redirects — split SEO signals. Normalise to the trailing-slash
+// 200 form (matches the server + sitemap.xml). Root and real files (with an extension) untouched.
+function canonicalUrl(u: string): string {
+  const m = /^(https?:\/\/[^/]+)(\/[^?#]*)?([?#].*)?$/.exec(u);
+  if (!m) return u;
+  const origin = m[1];
+  let path = m[2] || "/";
+  const rest = m[3] || "";
+  const last = path.split("/").pop() || "";
+  if (path !== "/" && !path.endsWith("/") && !last.includes(".")) path += "/";
+  return `${origin}${path}${rest}`;
+}
+const pageUrl = canonicalUrl(canonical || `${siteUrl}${Astro.url.pathname}`);
 const ogImageAbsolute = ogImage.startsWith("http") ? ogImage : `${siteUrl}${ogImage}`;
 
 // Structured data (SPA-12): an Organization + WebSite graph so search engines

@@ -35,9 +35,19 @@ export async function GET() {
   }
   routes.add('/rss.xml'); // the feed is a real, linkable resource
 
+  // The site is built with Astro's directory format: the CANONICAL 200 URL carries a trailing
+  // slash (`/fundability/`), and the no-slash form 308-redirects to it. List the canonical form
+  // so every sitemap entry is a 200, not a redirect (crawlers penalise redirect-only sitemaps).
+  // Real files (.xml) and the root stay as-is.
+  const canonical = (p: string): string => {
+    if (p === '/' || p.endsWith('.xml') || p.endsWith('/')) return p;
+    return `${p}/`;
+  };
+
   const urls = [...routes]
+    .map(canonical)
     .sort()
-    .map((path) => `  <url><loc>${SITE}${path === '/' ? '/' : path}</loc></url>`)
+    .map((path) => `  <url><loc>${SITE}${path}</loc></url>`)
     .join('\n');
 
   const xml = [
