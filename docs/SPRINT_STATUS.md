@@ -4,7 +4,7 @@
 > `docs/ROADMAP_2MONTH_EISENHOWER_v2.md` (4 двухнедельных спринта) + вплетаемые Month-1/2 задачи
 > из `docs/TOURNAMENT_VERDICT_AND_6MO_BACKLOG.md` (3-тир продукт). Легенда: ✅ done · 🔄 in progress · ⬜ next.
 
-**Обновлено:** 2026-07-11 (firing #16) · **Текущий спринт:** Sprint 1–2 (W1–W4) активно · **Track:** 19/30 evidenced (go-live ~07-21)
+**Обновлено:** 2026-07-11 (firing #17) · **Текущий спринт:** Sprint 1–2 (W1–W4) активно · **Track:** 19/30 evidenced (go-live ~07-21)
 
 ---
 
@@ -15,7 +15,7 @@
 | 🔄 | 3-тир продукт: вывод realized+tail на все поверхности | 6mo M3–M5 (вплетено) |
 | ⬜ | #13→#14 турнир на реальные фиды → tail-penalized ранжирование | Sprint 2 (M2) |
 | ⬜ | Q2-11 / Q2-12 checkup: Uniswap V3 LP + Morpho/Fluid leverage detection | Sprint 3 |
-| ⬜ | Q2-8 pilot pipeline tracker (CRM-lite) | Sprint 3 |
+| ⬜ | Q2-7 public /pilot page + downloadable DD pack | Sprint 3 |
 
 ---
 
@@ -37,6 +37,7 @@
 |---|---|---|---|
 | Q2-1 | N-book capacity aggregator (кривая above-floor $/yr) | ✅ | `c7ee9c6c` |
 | Q2-5b | avoided-loss refusal P&L ledger (~$49k/100k) | ✅ | `5888c0e7` |
+| Q2-8 | pilot pipeline tracker (CRM-lite, PII-minimal state machine) | ✅ | `pending` |
 | Q2-9 | self-verifying data-room bundle (hostile reviewer) | ✅ | `f5bf9819` |
 | Q2-10 | offline DD snapshot (frozen surfaces + pinned verifier head, anchors excluded) | ✅ | `pending` |
 | Q2-18 | dated evidenced-track ledger 19→30 (per-day dd/return, /api/readiness) | ✅ | `17b66599` |
