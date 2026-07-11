@@ -112,46 +112,62 @@ def severity_sweep(toxic_ids, floor_cagr):
         print("  → no CAGR crossing in the swept range (edge direction constant across these severities).")
 
 
-def main():
-    roster = fixtures.roster()
-    toxic = []          # (id, meta, equity) for the refused C/D universe
-    print("Per-book truth (backtest span, all three crises) — headline vs realized risk-adjusted:")
-    print(f"{'book':>15} {'class':>5} {'shape':>15} {'headline':>9} {'realCAGR':>9} {'maxDD':>8} {'Calmar':>7} {'gate':>8}")
-    print("-" * 86)
-    for sid in roster:
+def compute_books():
+    """Deterministic CORE of idea #5 — pure (no printing) so the finding is testable/verifiable
+    ("don't trust us, check us" applied to the research itself). Returns per-book truth + the
+    naive-vs-disciplined verdict over the crisis-bearing backtest span. None if no refused book."""
+    per_book = []
+    toxic = []          # (id, equity) for the refused C/D universe
+    for sid in fixtures.roster():
         meta = fixtures.strategy_meta(sid)
-        rc = meta["risk_class"]
         eq = _backtest_equity(sid)
         if len(eq) < 30:
             continue
         a, d, c = _metrics(eq)
-        refused = rc in _REFUSED_CLASSES
-        gate = "REFUSE" if refused else "admit"
-        print(f"{sid:>15} {rc:>5} {meta['risk_shape']:>15} {meta['headline_apy_pct']:>8.1f}% "
-              f"{_fmt(a):>8}% {_fmt(d):>7}% {_fmt(c):>7} {gate:>8}")
+        refused = meta["risk_class"] in _REFUSED_CLASSES
+        per_book.append({"id": sid, "class": meta["risk_class"], "shape": meta["risk_shape"],
+                         "headline": meta["headline_apy_pct"], "cagr": a, "maxdd": d,
+                         "calmar": c, "refused": refused})
         if refused:
-            toxic.append((sid, meta, eq))
-
+            toxic.append((sid, eq))
     if not toxic:
-        print("no refused books in fixture")
-        return
-
+        return None
     # NAIVE yield-chaser: equal-weight the refused (toxic high-headline) universe over the common span.
-    n = min(len(eq) for _, _, eq in toxic)
-    rets_by_book = [_returns(eq[:n]) for _, _, eq in toxic]
+    n = min(len(eq) for _, eq in toxic)
+    rets_by_book = [_returns(eq[:n]) for _, eq in toxic]
     naive_eq = [100000.0]
     for t in range(n - 1):
-        r = sum(rb[t] for rb in rets_by_book) / len(rets_by_book)   # equal-weight daily return
-        naive_eq.append(naive_eq[-1] * (1.0 + r))
+        naive_eq.append(naive_eq[-1] * (1.0 + sum(rb[t] for rb in rets_by_book) / len(rets_by_book)))
     na, nd, nc = _metrics(naive_eq)
-
     # REFUSAL-disciplined: refuse all of them → bank the RWA floor on that capital.
     daily_floor = (RWA_FLOOR_PCT / 100.0) / 365.0
     disc_eq = [100000.0]
     for _ in range(n - 1):
         disc_eq.append(disc_eq[-1] * (1.0 + daily_floor))
     da, dd, dc = _metrics(disc_eq)
+    return {
+        "per_book": per_book,
+        "toxic_ids": [sid for sid, _ in toxic],
+        "naive": {"cagr": na, "maxdd": nd, "calmar": nc},
+        "disciplined": {"cagr": da, "maxdd": dd, "calmar": dc},
+    }
 
+
+def main():
+    res = compute_books()
+    print("Per-book truth (backtest span, all three crises) — headline vs realized risk-adjusted:")
+    print(f"{'book':>15} {'class':>5} {'shape':>15} {'headline':>9} {'realCAGR':>9} {'maxDD':>8} {'Calmar':>7} {'gate':>8}")
+    print("-" * 86)
+    if res is None:
+        print("no refused books in fixture")
+        return
+    for b in res["per_book"]:
+        gate = "REFUSE" if b["refused"] else "admit"
+        print(f"{b['id']:>15} {b['class']:>5} {b['shape']:>15} {b['headline']:>8.1f}% "
+              f"{_fmt(b['cagr']):>8}% {_fmt(b['maxdd']):>7}% {_fmt(b['calmar']):>7} {gate:>8}")
+
+    na, nd, nc = res["naive"]["cagr"], res["naive"]["maxdd"], res["naive"]["calmar"]
+    da, dd, dc = res["disciplined"]["cagr"], res["disciplined"]["maxdd"], res["disciplined"]["calmar"]
     disc_calmar = _fmt(dc) if dc is not None else "∞ (maxDD≈0 — monotonic floor, no tail to divide by)"
     print("\n=== PORTFOLIO VERDICT — naive yield-chaser vs refusal-disciplined (same crisis span) ===")
     print(f"  NAIVE (holds the C/D toxic book, equal-weight):  CAGR {_fmt(na)}%  maxDD {_fmt(nd)}%  Calmar {_fmt(nc)}")
@@ -166,7 +182,7 @@ def main():
 
     # HONEST BOUNDARY: at what crisis severity does the edge hold? (floor CAGR = da, severity-invariant)
     if isinstance(da, (int, float)):
-        severity_sweep([sid for sid, _, _ in toxic], da)
+        severity_sweep(res["toxic_ids"], da)
 
     print("\n=== HONEST READ ===")
     print("  The naive book banks the fat headline in calm months, then the catastrophic depeg/liquidation")
