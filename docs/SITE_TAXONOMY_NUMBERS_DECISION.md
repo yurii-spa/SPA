@@ -1,5 +1,17 @@
 # Site coherence — the 2 OWNER decisions that unblock the biggest UI/UX lever
 
+> ## ✅ DECIDED + EXECUTED 2026-07-11
+> Owner chose: **taxonomy = Conservative / Balanced / Aggressive** everywhere; **APY display = "up to X%"**
+> (Conservative up-to-6%, Balanced up-to-12%, Aggressive CAPPED at up-to-20%), tail always shown.
+> **Implemented across the whole site** (batches 1-4, commits c1207ac2, d7395f46, d84ad71b, c63ee627):
+> single source `tier_bands.json`/`strategy_config.json`; **0 old tier-name leftovers** (Preserve/Core/
+> Max-Yield gone); bands → "up to X%"; volatile `/packages` LIVE badge killed → "LIVE · evidenced".
+> **Remaining minor:** homepage "Current APY" glance still shows the live day-rate (honestly labelled,
+> a track metric not a tier claim); URL rename `/strategies/preserve→conservative` (+redirects) deferred;
+> UX-26 "which tier is evidenced" is a factual reconciliation (tier_bands says conservative=live vs
+> strategy_config core=paper-tracked) — verify against the real track before flipping. History below.
+
+
 *From the 7-architect audit (`docs/SITE_UIUX_BACKLOG.md`). Everything code-doable is already shipped;
 these two decisions are the only thing standing between "fragmented" and "one coherent, selling site".
 Pick an answer for each — then I unify EVERY page to a single source of truth in code (one pass), and
