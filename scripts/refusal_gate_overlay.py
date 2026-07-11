@@ -65,6 +65,53 @@ def _returns(eq):
     return [eq[i] / eq[i - 1] - 1.0 for i in range(1, len(eq))]
 
 
+def _toxic_equity_scaled(strategy_id: str, k: float):
+    """Rebuild a fixture book's backtest equity with its crisis-window losses scaled by k (severity
+    multiplier). k=1.0 is the fixture's calibrated magnitudes; k<1 a milder world, k>1 a harsher one.
+    Uses the fixture's OWN deterministic builder — no fabrication, just a what-if on crisis severity."""
+    import copy
+    spec = copy.deepcopy(fixtures._SPEC[strategy_id])
+    spec["window_hits"] = {key: v * k for key, v in spec.get("window_hits", {}).items()}
+    return [float(p["equity_usd"]) for p in fixtures._build_backtest_series(spec)]
+
+
+def severity_sweep(toxic_ids, floor_cagr):
+    """HONEST BOUNDARY of idea #5: at what crisis SEVERITY does refusal-discipline stop dominating?
+    The floor is invariant to severity (it never holds the toxic books); only the naive yield-chaser's
+    tail scales. Sweep k and find the break-even severity where the naive book's realized CAGR crosses
+    below the floor — below it, chasing the headline actually wins (a mild-crisis world); above it, the
+    boring floor wins on return alone (and always on risk). Quantifies WHEN the selection edge holds."""
+    print("\n=== SEVERITY SENSITIVITY — where does the selection edge hold? ===")
+    print(f"  (floor is severity-invariant at CAGR {floor_cagr:.2f}% / maxDD 0.00%; only the naive book's tail scales)")
+    print(f"{'severity ×':>11} {'naive CAGR':>11} {'naive maxDD':>12} {'floor wins?':>12}")
+    print("-" * 50)
+    prev_k = prev_cagr = None
+    breakeven = None
+    for k in (0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0):
+        eqs = [_toxic_equity_scaled(sid, k) for sid in toxic_ids]
+        m = min(len(e) for e in eqs)
+        rets = [_returns(e[:m]) for e in eqs]
+        eq = [100000.0]
+        for t in range(m - 1):
+            eq.append(eq[-1] * (1.0 + sum(rb[t] for rb in rets) / len(rets)))
+        a, d, _ = _metrics(eq)
+        floor_wins = isinstance(a, (int, float)) and a < floor_cagr
+        print(f"{k:>10.2f}× {_fmt(a):>10}% {_fmt(d):>11}% {'YES' if floor_wins else 'no':>12}")
+        # linear-interpolate the break-even severity where naive CAGR crosses the floor
+        if breakeven is None and prev_cagr is not None and isinstance(a, (int, float)):
+            if (prev_cagr - floor_cagr) * (a - floor_cagr) < 0:   # sign change → crossed
+                frac = (prev_cagr - floor_cagr) / (prev_cagr - a) if (prev_cagr - a) != 0 else 0.0
+                breakeven = prev_k + frac * (k - prev_k)
+        prev_k, prev_cagr = k, a
+    if breakeven is not None:
+        print(f"  → BREAK-EVEN severity ≈ {breakeven:.2f}× the fixture's calibrated crisis magnitudes:")
+        print(f"    below it the naive headline-chaser out-earns the floor (mild-crisis world); at/above it")
+        print(f"    the refusal-disciplined floor wins on return too. The selection edge is NOT unconditional —")
+        print(f"    it is the honest statement 'discipline wins once crises are ≥ ~{breakeven:.2f}× as severe as calibrated'.")
+    else:
+        print("  → no CAGR crossing in the swept range (edge direction constant across these severities).")
+
+
 def main():
     roster = fixtures.roster()
     toxic = []          # (id, meta, equity) for the refused C/D universe
@@ -116,6 +163,11 @@ def main():
               f"realized CAGR {_fmt(na)}% → {_fmt(da)}% (higher), maxDD {_fmt(nd)}% → {_fmt(dd)}% (lower). "
               f"The fat 12–15% headlines net NEGATIVE realized CAGR after their tails; the floor's boring "
               f"~3.4% with ~0 drawdown wins outright.")
+
+    # HONEST BOUNDARY: at what crisis severity does the edge hold? (floor CAGR = da, severity-invariant)
+    if isinstance(da, (int, float)):
+        severity_sweep([sid for sid, _, _ in toxic], da)
+
     print("\n=== HONEST READ ===")
     print("  The naive book banks the fat headline in calm months, then the catastrophic depeg/liquidation")
     print("  tail (rseth_depeg 22% / usde_unwind 28% in the fixture) erases it — its Calmar collapses. The")
