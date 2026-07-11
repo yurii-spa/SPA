@@ -208,6 +208,11 @@ TRACK_SLA_H = 30.0
 # means it missed two runs (advisory WARNING — DR proof rotting, not money-path).
 RESILIENCE_STALE_H = 13.0
 
+# Fleet-parity freshness: the declared-vs-plist-vs-retired drift guard (Q3-2). Fleet
+# composition changes rarely, so a generous window — a status older than this just means
+# nobody re-ran the parity check (advisory WARNING, not money-path).
+FLEET_PARITY_STALE_H = 26.0
+
 
 # ===========================================================================
 # Dataclasses
@@ -793,6 +798,40 @@ def check_system(data_dir: Path, now: datetime,
             status = _worst(status, WARNING)
         elif posture and posture != OK:
             issues.append(f"resilience posture {posture} (DR drill/offsite not passing)")
+            status = _worst(status, WARNING)
+
+    # --- fleet parity drift (Q3-2) ---
+    # fleet_parity_check compares the installer's DECLARED fleet vs the on-disk plists vs
+    # RETIRED_LABELS (and, on the prod host, the live launchctl set). A DRIFT — a retired
+    # label still installed (revival / Telegram-409 flood hazard), an orphan plist nobody
+    # installs, a declared label with no plist, or a declared agent not running — currently
+    # writes a JSON nobody is paged on. Surface it as an advisory WARNING (fleet hygiene is
+    # not the money-path; the track/kill checks own criticality). Only assessed when present
+    # so sandbox/CI fixtures without the file are not falsely flagged.
+    fp = _load_json(data_dir, "fleet_parity.json")
+    if fp:
+        fh = _hours_since(fp.get("generated_at") or fp.get("ts"), now)
+        checks["fleet_parity_age_h"] = round(fh, 2) if fh is not None else None
+        fp_status = str(fp.get("status")).upper() if fp.get("status") else None
+        checks["fleet_parity_status"] = fp_status
+        if fh is not None and fh > FLEET_PARITY_STALE_H:
+            issues.append(
+                f"fleet parity stale {fh:.1f}h (>{FLEET_PARITY_STALE_H:.0f}h) — drift guard not re-run"
+            )
+            status = _worst(status, WARNING)
+        elif fp_status == "DRIFT":
+            classes = []
+            for k, lbl in (("retired_but_installed", "retired-still-installed"),
+                           ("orphan_plist_not_declared", "orphan-plist"),
+                           ("broken_declared_no_plist", "declared-no-plist")):
+                n = len(fp.get(k) or [])
+                if n:
+                    classes.append(f"{n} {lbl}")
+            live = fp.get("live") or {}
+            dnr = len(live.get("declared_not_running") or [])
+            if dnr:
+                classes.append(f"{dnr} declared-not-running")
+            issues.append("fleet parity DRIFT (" + ", ".join(classes or ["see fleet_parity.json"]) + ")")
             status = _worst(status, WARNING)
 
     # --- tournament data-trust (6mo-M2 #16) ---

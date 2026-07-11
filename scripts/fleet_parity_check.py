@@ -27,6 +27,7 @@ import re
 import shutil
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -113,6 +114,7 @@ def build_report(write: bool = True) -> dict:
     problems = bool(broken or orphan or retired_installed)
     report = {
         "model": "fleet_parity_check",
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "is_advisory": True,
         "deterministic": True,
         "llm_forbidden": True,
