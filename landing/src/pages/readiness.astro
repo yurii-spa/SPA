@@ -53,7 +53,11 @@ import Layout from '../layouts/Layout.astro';
       <p class="text-xs text-accent-400 uppercase tracking-wider font-mono mb-4" data-ru="Проверьте сами">Reproduce it yourself</p>
       <pre class="text-xs font-mono text-white/70 overflow-x-auto rounded-lg bg-bg-surface border border-border p-4">python3 scripts/verify_spa.py data/                    # proof chain intact
 python3 scripts/defenses_exercised_report.py          # 11/11 defenses fire
-python3 -m spa_core.paper_trading.pre_cutover_gate     # 16/16 money-path defenses (inert)</pre>
+python3 -m spa_core.paper_trading.pre_cutover_gate     # 16/16 money-path defenses (inert)
+python3 scripts/kill_switch_drill.py                   # emergency-stop latency drill (dated evidence)</pre>
+      <p class="text-xs text-white/60 mt-3 font-mono" data-ru="Дрилл аварийного стопа (kill-switch):">
+        Emergency-stop (kill-switch) drill: <span id="rdy-ksd" class="text-white/80">—</span>
+      </p>
       <p class="text-xs text-white/50 mt-3" id="rdy-honest" data-ru="Код доказывает защиты; кастоди / аудит / легал / 30-дневный трек — owner-only и time-gated.">The code proves the defenses fire; custody / audit / legal / the 30-day evidenced track are owner-only and time-gated.</p>
     </section>
   </main>
@@ -69,6 +73,8 @@ python3 -m spa_core.paper_trading.pre_cutover_gate     # 16/16 money-path defens
         if(gl.evidenced_days!=null) set('rdy-days', gl.evidenced_days+'/'+(gl.days_needed||30));
         if(gl.target_date) set('rdy-target', gl.target_date);
         if(gl.consecutive_ready_days!=null) set('rdy-streak', gl.consecutive_ready_days+'/'+(gl.consecutive_ready_days_needed||7));
+        var k=d.kill_switch_drill||{};
+        if(k.latency_ms!=null){ var dt=(k.last_drill_at||'').slice(0,10); set('rdy-ksd', (k.verdict||'')+' · '+k.latency_ms+'ms / '+(k.latency_limit_ms||1000)+'ms budget'+(dt?(' · '+dt):'')); }
         var ul=document.getElementById('rdy-blockers');
         if(ul && Array.isArray(d.owner_only_blockers)){
           ul.innerHTML='';

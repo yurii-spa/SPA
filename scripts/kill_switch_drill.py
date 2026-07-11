@@ -21,6 +21,34 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_REPO_ROOT))
 
 from spa_core.utils import clock  # noqa: E402  (after sys.path setup for standalone run)
+from spa_core.utils.atomic import atomic_save  # noqa: E402
+
+
+def write_status(result: dict, data_dir: str | None = None) -> Path:
+    """Q3-5: persist a compact, dated kill-switch drill EVIDENCE artifact so the emergency-stop is
+    AUDITABLE (measured latency + last-drill date + verdict), not a transient print. Atomic. Advisory —
+    the drill is sandboxed and never touches live positions."""
+    ddir = Path(data_dir) if data_dir else _REPO_ROOT / "data"
+    steps = result.get("steps", [])
+    status = {
+        "model": "kill_switch_drill_status",
+        "is_advisory": True,
+        "last_drill_at": result.get("drill_timestamp"),
+        "latency_ms": result.get("total_time_ms"),
+        "latency_limit_ms": 1000.0,
+        "passed": bool(result.get("passed")),
+        "verdict": result.get("verdict", ""),
+        "n_steps": len(steps),
+        "all_steps_ok": all(s.get("ok") for s in steps) if steps else False,
+        "note": (
+            "Dated evidence that the money-path kill-switch gate fires within its latency budget "
+            "(sandboxed drill — never touches live positions/state). Emergency-stop is auditable: "
+            "last_drill_at + measured latency_ms vs latency_limit_ms. Advisory."
+        ),
+    }
+    path = ddir / "kill_switch_drill_status.json"
+    atomic_save(status, str(path))
+    return path
 
 
 def run_drill(data_dir: str | None = None) -> dict:
@@ -219,6 +247,13 @@ def main() -> int:
 
     result = run_drill(data_dir=args.data_dir)
     print(json.dumps(result, indent=2, ensure_ascii=False))
+    # Q3-5: persist the dated latency/verdict evidence artifact (best-effort — a write hiccup must not
+    # change the drill's pass/fail exit code).
+    try:
+        path = write_status(result, data_dir=args.data_dir)
+        print(f"[kill_switch_drill] wrote {path}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[kill_switch_drill] status write failed: {exc}")
     return 0 if result["passed"] else 1
 
 

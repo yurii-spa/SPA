@@ -29,6 +29,9 @@ STEPS: list[tuple[str, list[str]]] = [
     ("R6 offsite-copy", [PY, "-m", "spa_core.dr.offsite_copy"]),
     ("R7 restore-drill", [PY, str(ROOT / "scripts" / "drill_restore.py")]),
     ("R4 fleet-down-drill", [PY, str(ROOT / "scripts" / "drill_fleet_down.py")]),
+    # Q3-6: fold the money-path brake (sandboxed, de-risk-only kill-switch drill) into the
+    # provably-exercised list — it now writes a dated latency/verdict artifact each cycle.
+    ("Q3-5 kill-switch-drill", [PY, str(ROOT / "scripts" / "kill_switch_drill.py")]),
     ("R8 resilience-rollup", [PY, "-m", "spa_core.monitoring.resilience_status"]),
 ]
 

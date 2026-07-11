@@ -42,12 +42,22 @@ _OWNER_ONLY = [
 def readiness() -> dict:
     dex = _load("defenses_exercised.json")
     golive = _load("golive_status.json")
+    ksd = _load("kill_switch_drill_status.json")
     return {
         "governance_defenses": {
             "fired": dex.get("scenarios_fired"),
             "total": dex.get("scenarios_total"),
             "all_fired": dex.get("all_defenses_fired"),
             "thresholds": dex.get("thresholds"),
+        },
+        # Q3-5: dated kill-switch drill evidence — the emergency-stop is auditable (measured latency vs
+        # its 1s budget + last-drill date). Missing artifact → nulls (honest absence, never a 500).
+        "kill_switch_drill": {
+            "last_drill_at": ksd.get("last_drill_at"),
+            "latency_ms": ksd.get("latency_ms"),
+            "latency_limit_ms": ksd.get("latency_limit_ms"),
+            "passed": ksd.get("passed"),
+            "verdict": ksd.get("verdict"),
         },
         "go_live_gate": {
             "passed": golive.get("passed"),
