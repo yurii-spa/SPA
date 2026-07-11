@@ -24,7 +24,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from spa_core.execution.draft_prep import prepare_draft  # noqa: E402
+from spa_core.execution.draft_prep import (  # noqa: E402
+    prepare_draft,
+    recommendations_from_checkup_approvals,
+)
 
 
 def _load(argv: list) -> dict:
@@ -33,15 +36,55 @@ def _load(argv: list) -> dict:
     return json.loads(raw)
 
 
+def _extract_approvals(doc: dict) -> dict:
+    """Find the checkup approvals finding-set in a report/approvals JSON (fail-closed to {})."""
+    if not isinstance(doc, dict):
+        return {}
+    if "unlimited" in doc or "to_unknown" in doc:
+        return doc
+    for path in (("approvals",), ("report", "approvals")):
+        cur = doc
+        for k in path:
+            cur = cur.get(k) if isinstance(cur, dict) else None
+        if isinstance(cur, dict) and ("unlimited" in cur or "to_unknown" in cur):
+            return cur
+    return {}
+
+
 def main(argv: list) -> int:
     want_json = "--json" in argv
+    from_checkup = "--from-checkup" in argv
     try:
-        rec = _load(argv)
+        doc = _load(argv)
     except (OSError, ValueError) as e:
-        print(f"ERROR: could not read/parse recommendation JSON: {e}", file=sys.stderr)
+        print(f"ERROR: could not read/parse JSON: {e}", file=sys.stderr)
         return 2
 
-    draft = prepare_draft(rec)
+    # --from-checkup: read a checkup report/approvals JSON → a draft per de-risk finding.
+    if from_checkup:
+        recs = recommendations_from_checkup_approvals(_extract_approvals(doc))
+        drafts = [prepare_draft(r) for r in recs]
+        if want_json:
+            print(json.dumps([d.to_dict() for d in drafts], indent=2))
+            return 0
+        if not drafts:
+            print("No revocable approval findings in this checkup (nothing to prepare).")
+            return 0
+        print(f"{len(drafts)} de-risk draft(s) from checkup findings "
+              "(each UNSIGNED — you sign in your OWN wallet):\n")
+        for d in drafts:
+            print("=" * 74)
+            print(f"DRAFT — {d.kind} (evidence {d.evidence_level})")
+            print(f"  {d.action_summary}")
+            print(f"  tail: {d.tail}")
+            if d.unsigned_tx:
+                print(f"  to={d.unsigned_tx['to']} chainId={d.unsigned_tx['chainId']}")
+                print(f"  data={d.unsigned_tx['data']}")
+            print(f"  signed={d.signed}  requires_human_signature={d.requires_human_signature}")
+        print("=" * 74)
+        return 0
+
+    draft = prepare_draft(doc)
 
     if want_json:
         print(json.dumps(draft.to_dict(), indent=2))

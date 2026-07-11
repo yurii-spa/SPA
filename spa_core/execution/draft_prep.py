@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field, asdict
-from typing import Optional
+from typing import List, Optional
 
 # Read-only posture display ONLY. arming.is_exec_armed() reads an env var and has no
 # side effects; it is the guard, not a capital primitive. We never call
@@ -50,10 +50,15 @@ from spa_core.execution.arming import is_exec_armed
 
 __all__ = [
     "prepare_draft",
+    "recommendations_from_checkup_approvals",
     "DraftReview",
     "SUPPORTED_KINDS",
     "DERISK_KINDS",
 ]
+
+# Evidence level for a revoke recommendation: the risky allowance is a DIRECTLY
+# on-chain-observed fact (the checkup read it from chain), not a modelled/paper claim.
+_ONCHAIN_OBSERVED_EVIDENCE = "L2"
 
 # ---------------------------------------------------------------------------
 # Recommendation taxonomy — de-risk ONLY. Anything that would ADD exposure is
@@ -221,3 +226,61 @@ def prepare_draft(recommendation: dict) -> DraftReview:
         refusal_note=refusal_note,
         exec_armed=is_exec_armed(),
     )
+
+
+def recommendations_from_checkup_approvals(approvals: dict) -> List[dict]:
+    """Turn a DeFi-Checkup ``approvals`` finding-set into de-risk ``revoke_approval``
+    recommendation dicts ready for :func:`prepare_draft`.
+
+    This is the glue that lets E1 be driven by REAL product output (a wallet checkup) instead
+    of hand-authored JSON: checkup finding → recommendation → unsigned draft the user signs.
+    Input is the checkup shape ``{"unlimited": [...], "to_unknown": [...]}`` where each item
+    carries ``token_address`` / ``spender_address`` (+ optional ``token_symbol`` /
+    ``spender_label`` / ``chain_id``). Pure DATA transform (no code import from the checkup /
+    advisory side — isolation preserved), deterministic, fail-CLOSED:
+
+    * A finding missing a valid ``token_address`` or ``spender_address`` is SKIPPED — never a
+      fabricated address.
+    * De-risk ONLY: every emitted recommendation is a ``revoke_approval`` (set allowance to 0).
+    * Every recommendation carries the on-chain-observed evidence level + a category-specific
+      tail (never sell the finding as safe). De-duped by (token, spender).
+    """
+    if not isinstance(approvals, dict):
+        return []
+    out: List[dict] = []
+    seen = set()
+    _CATEGORIES = (
+        ("unlimited", "unlimited allowance",
+         "This is an UNLIMITED allowance — if the spender is malicious or compromised it can move "
+         "your ENTIRE {sym} balance, now or any time in the future."),
+        ("to_unknown", "allowance to an unlabeled/unknown spender",
+         "This spender is not in our registry — if it is malicious it can move up to the approved "
+         "{sym} amount. Verify you trust it before leaving the allowance open."),
+    )
+    for key, reason, tail_tmpl in _CATEGORIES:
+        items = approvals.get(key)
+        if not isinstance(items, list):
+            continue
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            token = str(it.get("token_address", "")).strip()
+            spender = str(it.get("spender_address", "")).strip()
+            if not _ADDR_RE.match(token) or not _ADDR_RE.match(spender):
+                continue  # fail-closed: no fabrication of a missing/invalid address
+            dedup = (token.lower(), spender.lower())
+            if dedup in seen:
+                continue
+            seen.add(dedup)
+            sym = str(it.get("token_symbol", "") or "token").strip() or "token"
+            chain_id = it.get("chain_id") or it.get("chain") or 1
+            out.append({
+                "kind": "revoke_approval",
+                "token": token,
+                "spender": spender,
+                "chain_id": chain_id,
+                "reason": reason,
+                "evidence_level": _ONCHAIN_OBSERVED_EVIDENCE,
+                "tail": tail_tmpl.format(sym=sym),
+            })
+    return out

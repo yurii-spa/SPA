@@ -167,3 +167,73 @@ def test_to_dict_roundtrip_serializable():
     s = json.dumps(d.to_dict())          # must be JSON-serializable for owner review
     assert '"signed": false' in s
     assert re.search(r'"data": "0x095ea7b3', s)
+
+
+# --- checkup-approvals → recommendations glue (E1 driven by real product output) ---------
+from spa_core.execution.draft_prep import recommendations_from_checkup_approvals as _recs
+
+_T1 = "0x2222222222222222222222222222222222222222"
+_S1 = "0x1111111111111111111111111111111111111111"
+_S2 = "0x3333333333333333333333333333333333333333"
+
+
+def _checkup(**over):
+    base = {
+        "unlimited": [{"token_address": _T1, "spender_address": _S1, "token_symbol": "USDC", "chain_id": 1}],
+        "to_unknown": [{"token_address": _T1, "spender_address": _S2, "token_symbol": "USDC"}],
+    }
+    base.update(over)
+    return base
+
+
+def test_converts_both_categories_to_revoke_recommendations():
+    recs = _recs(_checkup())
+    assert len(recs) == 2
+    assert {r["spender"] for r in recs} == {_S1, _S2}
+    assert all(r["kind"] == "revoke_approval" for r in recs)
+    assert all(r["evidence_level"] in ("L0", "L1", "L2", "L3", "L4", "L5", "L6") for r in recs)
+    assert all(r["tail"] for r in recs)
+
+
+def test_recommendations_feed_prepare_draft_end_to_end():
+    for rec in _recs(_checkup()):
+        d = prepare_draft(rec)
+        assert not d.refused
+        assert d.unsigned_tx["to"] == _T1
+        assert d.unsigned_tx["data"].startswith("0x095ea7b3")
+
+
+def test_unlimited_tail_warns_entire_balance():
+    recs = _recs(_checkup(to_unknown=[]))
+    assert "ENTIRE" in recs[0]["tail"] and "USDC" in recs[0]["tail"]
+
+
+def test_skips_findings_with_bad_or_missing_address_no_fabrication():
+    bad = {"unlimited": [
+        {"token_address": _T1, "spender_address": "0xbad"},        # bad spender
+        {"token_address": "", "spender_address": _S1},              # missing token
+        {"spender_address": _S1},                                   # no token at all
+        {"token_address": _T1, "spender_address": _S1, "token_symbol": "OK"},  # good
+    ]}
+    recs = _recs(bad)
+    assert len(recs) == 1 and recs[0]["spender"] == _S1
+
+
+def test_dedupes_same_token_spender():
+    dup = {"unlimited": [
+        {"token_address": _T1, "spender_address": _S1},
+        {"token_address": _T1.upper().replace("X", "x"), "spender_address": _S1},  # same, case-insensitive
+    ]}
+    assert len(_recs(dup)) == 1
+
+
+def test_chain_id_passthrough():
+    recs = _recs({"unlimited": [{"token_address": _T1, "spender_address": _S1, "chain_id": 8453}]})
+    assert recs[0]["chain_id"] == 8453
+    assert prepare_draft(recs[0]).unsigned_tx["chainId"] == 8453
+
+
+def test_non_dict_or_empty_returns_empty():
+    assert _recs("nope") == []
+    assert _recs({}) == []
+    assert _recs({"unlimited": None, "to_unknown": "x"}) == []
