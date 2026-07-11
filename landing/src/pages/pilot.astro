@@ -1,0 +1,102 @@
+---
+// Q2-7 — public design-partner pilot page. Surfaces docs/PILOT_ONE_PAGER.md as a live, guard-checked
+// surface so a warm intro can self-serve the honest story + reproducible proof. NO fabricated numbers:
+// the ONLY quantitative figure that changes (the evidenced track day-count) is fetched live from
+// /api/readiness at runtime; the honest constraints + proven claims are transcribed from the one-pager
+// (each independently checkable via the linked verifier). This is NOT an offer or solicitation.
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+---
+
+<Layout
+  title="Design-partner pilot — the honest ask | earn-defi.com"
+  description="A non-custodial, advisory design-partner pilot. We lead with what we REFUSE, state the honest constraints up front (thin paper track, edge does not yet beat the floor at scale), and every claim is checkable with our public verifier. Not an offer or solicitation — legal review gates external capital."
+  canonical="https://earn-defi.com/pilot"
+>
+  <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20">
+    <section class="pb-8">
+      <div class="inline-flex items-center gap-2 mb-5 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs text-slate-400 font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-slate-400" aria-hidden="true"></span>
+        <span data-ru="Черновик для разговора — не оферта">Draft for a conversation — not an offer</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4" data-ru="Пилот с дизайн-партнёром">Design-partner pilot</h1>
+      <p class="text-lg text-slate-300 leading-relaxed" data-ru="Детерминированный refusal-first деск доходности по стейблкоинам, чей edge — честное измерение риска, а не более высокая ставка. Fail-closed, LLM запрещён в risk/execution. Research в paper-валидации — НЕ оферта и не инвестсовет.">
+        A deterministic, refusal-first on-chain stablecoin-yield desk whose edge is honest risk measurement,
+        not a higher headline rate. Fail-closed; LLM-forbidden in the risk/execution path. A research desk in
+        paper validation — NOT an offer, solicitation, or investment advice.
+      </p>
+    </section>
+
+    <section class="rounded-2xl border border-amber-500/30 bg-amber-500/[0.04] p-6 mb-6">
+      <h2 class="text-lg font-semibold text-white mb-3" data-ru="Честные ограничения — их слышат ДО любого числа">The honest constraints — heard BEFORE any number</h2>
+      <ul class="space-y-2 text-sm text-slate-300 leading-relaxed">
+        <li data-ru="Трек ТОНКИЙ и бумажный: ~«ниже» evidenced-дней из 30 (виртуальные $100k, $0 реальных). Day-30 вердикт: NOT_READY, hash-anchored."><span class="font-mono text-amber-300"><span id="pilot-days">~19</span>/30</span> evidenced days of an honest paper track ($100k <em>virtual</em>, $0 real). Day-30 verdict: <span class="font-mono">NOT_READY</span>, hash-anchored.</li>
+        <li data-ru="Реализованный форвардный edge пока НЕ бьёт RWA-пол на fundable-масштабе. Uplift оптимизатора — артефакт ~$100k; sleeves читаются INSUFFICIENT_DATA. Мы НЕ заявляем single-strategy alpha.">The realized forward edge does not yet beat the RWA floor at fundable scale. We do <strong>not</strong> claim single-strategy alpha.</li>
+        <li data-ru="Ёмкость ограничена — честный addressable сегодня мал (~sub-$100k/yr net). Это игра масштаба-через-много-книг + доверие на годы, не ставка на сегодня.">Capacity is bounded — honest addressable is small today. A scale-across-many-books + trust play over years, not a today-rate play.</li>
+      </ul>
+    </section>
+
+    <section class="mb-6">
+      <h2 class="text-xl font-bold text-white mb-3" data-ru="Мы ведём с того, от чего ОТКАЗЫВАЕМСЯ">We lead with what we REFUSE</h2>
+      <ul class="space-y-2 text-sm text-slate-300 leading-relaxed">
+        <li data-ru="Liquidator: NO-GO, опубликовано — ~$3.8M/yr gross, в 5–10× ниже нашего бара $20M → не строили. Публикуем kills, не только ships."><strong>Liquidator: NO-GO, published.</strong> ~$3.8M/yr gross addressable, ~5–10× below our $20M bar → we did not build it.</li>
+        <li data-ru="RWA Repo Backstop: measurement-GO / book NO-GO. Измерение реально; андеррайтинг — relationships+capital+legal, вне кода."><strong>RWA Repo Backstop: measurement-GO / book NO-GO.</strong></li>
+        <li data-ru="Rates Desk: GO (paper). Refusal-first fair-value движок; токсичные LRT PT-книги отказаны структурно по реальной истории 2024–2026."><strong>Rates Desk: GO (paper).</strong> Toxic LRT PT-books refused on structural grounds over the real 2024–2026 history.</li>
+      </ul>
+    </section>
+
+    <section class="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.04] p-6 mb-6">
+      <h2 class="text-lg font-semibold text-white mb-3" data-ru="Что УЖЕ доказано (проверяемо, не заявлено)">What is already PROVEN (checkable, not asserted)</h2>
+      <ul class="space-y-2 text-sm text-slate-300 leading-relaxed">
+        <li data-ru="«Не верьте — проверьте.» Zero-dependency верификатор воспроизводит каждую опубликованную proof-поверхность."><strong>"Don't trust us, check us."</strong> A zero-dependency verifier reproduces every published proof surface.</li>
+        <li data-ru="Защитная машинерия ДОКАЗАННО срабатывает — 11/11 защит через тот же production-код цикла (two-tier kill SOFT −5% / HARD −10%)."><strong>The safety machinery is proven to FIRE</strong> — 11/11 defenses through the same production governance code (two-tier kill: SOFT −5% / HARD −10%).</li>
+        <li data-ru="Публичный журнал отказов + proof-цепочка (hash-anchored, tamper-evident) — всю цепочку можно отдать скептику без ручного запроса."><strong>Public refusal log + proof chain</strong> (hash-anchored, tamper-evident).</li>
+      </ul>
+      <div class="mt-4 flex flex-wrap gap-3">
+        <a href="/fundability" data-track="pilot_to_fundability" class="text-sm text-accent-400 underline" data-ru="Честная фандабилити →">Honest fundability →</a>
+        <a href="/refusals" data-track="pilot_to_refusals" class="text-sm text-accent-400 underline" data-ru="Журнал отказов →">Refusal log →</a>
+        <a href="/verify" data-track="pilot_to_verify" class="text-sm text-accent-400 underline" data-ru="Проверить самому →">Verify it yourself →</a>
+        <a href="/exit-nav" data-track="pilot_to_exitnav" class="text-sm text-accent-400 underline" data-ru="Ликвидационный NAV →">Liquidation-NAV →</a>
+      </div>
+    </section>
+
+    <section class="mb-6">
+      <h2 class="text-xl font-bold text-white mb-3" data-ru="Просьба пилота (non-custodial, human-in-the-loop)">The pilot ask (non-custodial, human-in-the-loop)</h2>
+      <p class="text-sm text-slate-300 leading-relaxed mb-2" data-ru="Малая non-custodial, advisory аллокация как дизайн-партнёр: мы НИКОГДА не берём кастоди, не держим ключи, не подписываем. Исполнение — human-in-the-loop; деск выдаёт детерминированные, evidence-tagged рекомендации + журнал отказов.">
+        A small non-custodial, advisory allocation as a design partner. We never take custody, never hold keys,
+        never sign. Execution is human-in-the-loop; the desk produces deterministic, evidence-tagged
+        recommendations + a refusal log. You keep full control of funds (your Safe / your signers).
+      </p>
+    </section>
+
+    <section class="rounded-2xl border border-white/10 bg-white/[0.02] p-6 mb-8">
+      <h2 class="text-lg font-semibold text-white mb-3" data-ru="Что должно быть верно ПЕРВЫМ (мы это не пропустим)">What has to be true first (we will not skip these)</h2>
+      <ol class="list-decimal list-inside space-y-1 text-sm text-slate-300 leading-relaxed">
+        <li data-ru="30-дневный честный paper-трек завершён (evidenced, не backfilled).">The 30-day honest paper track completes (evidenced, not backfilled).</li>
+        <li data-ru="Юридическая проверка сущности, раскрытия и no-guarantee рамки (fail-closed гейт до любого внешнего капитала).">Legal review of entity, disclosure and no-guarantee framing (the fail-closed gate before any external capital).</li>
+        <li data-ru="Кастоди на стороне владельца (2-of-3 Safe, живые подписанты) + внешний аудит домена исполнения.">Owner-side custody (2-of-3 Safe, human signers) + an external audit of the execution domain.</li>
+      </ol>
+    </section>
+
+    <p class="text-xs text-slate-500 leading-relaxed">
+      Paper research, advisory only — not investment advice, not an offer or solicitation. Past paper
+      performance does not indicate future results. APY is variable and not guaranteed. External capital is
+      gated on legal review (not yet cleared). See <a href="/disclaimer" class="underline">/disclaimer</a> and
+      <a href="/fundability" class="underline">the full checkable picture</a>.
+    </p>
+  </main>
+
+  <Disclaimer />
+
+  <script is:inline>
+    (function(){
+      var API = (location.hostname==='localhost'||location.hostname==='127.0.0.1') ? 'http://localhost:8765' : 'https://api.earn-defi.com';
+      fetch(API+'/api/readiness').then(function(r){return r.json();}).then(function(d){
+        var t=(d.track_ledger)||{}, gl=(d.go_live_gate)||{};
+        var n = (t.n_evidenced_days!=null) ? t.n_evidenced_days : gl.evidenced_days;
+        var el=document.getElementById('pilot-days');
+        if(el && n!=null) el.textContent = n;
+      }).catch(function(){});
+    })();
+  </script>
+</Layout>
