@@ -15,9 +15,18 @@ const SITE = 'https://earn-defi.com';
 // which belong in a public sitemap.
 const PAGE_GLOB = import.meta.glob('./**/*.astro');
 
-// Public-URL pages that are noindex (dev/internal showcases) — keep them out of the sitemap so a
-// crawler is never pointed at operator internals. Mirror any page that passes noindex to Layout.
-const INTERNAL_ROUTES = new Set<string>(['cockpit-kit']);
+// Public-URL pages that are noindex — keep them out of the sitemap so a crawler is never pointed
+// at a page we've told it not to index. Mirror EVERY page that passes noindex to Layout here:
+//   • cockpit-kit                    — internal/dev showcase
+//   • strategies/{preserve,core,max-yield} — meta-refresh redirect STUBS left behind by the
+//     tier URL rename (→ conservative/balanced/aggressive). They 302 humans onward and carry
+//     noindex+canonical; a sitemap must advertise the canonical targets, never the redirect stubs.
+const INTERNAL_ROUTES = new Set<string>([
+  'cockpit-kit',
+  'strategies/preserve',
+  'strategies/core',
+  'strategies/max-yield',
+]);
 
 function routesFromGlob(): string[] {
   const out: string[] = [];
