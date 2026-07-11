@@ -8,8 +8,16 @@
 > Max-Yield gone); bands → "up to X%"; volatile `/packages` LIVE badge killed → "LIVE · evidenced".
 > **Remaining minor:** homepage "Current APY" glance still shows the live day-rate (honestly labelled,
 > a track metric not a tier claim); URL rename `/strategies/preserve→conservative` (+redirects) deferred;
-> UX-26 "which tier is evidenced" is a factual reconciliation (tier_bands says conservative=live vs
-> strategy_config core=paper-tracked) — verify against the real track before flipping. History below.
+> UX-26 "which tier is evidenced" — **INVESTIGATED 2026-07-11, needs 1 owner line (public honesty claim,
+> not guessed).** FACTS: the live go-live book holds **T1+T2** (aave_v3 + pendle + susde + morpho, equity
+> $100,379) and realizes **~3.3-4.2%**. So by COMPOSITION it's **Balanced/Core**, but by REALIZED RETURN it
+> sits in the **Conservative** range. Sources disagree: `tier_bands.json` + `/packages` say "Conservative =
+> live evidenced"; `strategy_config.json` + memory + the T1+T2 composition say "Balanced/Core =
+> paper-tracked" (3 signals vs 2). Right now the HOMEPAGE (via strategy_config) says Balanced=Paper-tracked
+> while /packages (via tier_bands) says Conservative=LIVE — a live self-contradiction. **Owner call: is the
+> evidenced book labelled Conservative or Balanced?** (My read: it's a T1+T2 = Balanced-composition book
+> realizing conservative-range returns — so "Balanced, live, ~3.3% realized so far" is the most defensible;
+> but it's your product definition + a public claim.) Once you say which, I align both sources in one pass.
 
 
 *From the 7-architect audit (`docs/SITE_UIUX_BACKLOG.md`). Everything code-doable is already shipped;
