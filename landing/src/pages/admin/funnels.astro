@@ -14,6 +14,18 @@ import Layout from '../../layouts/Layout.astro';
       </div>
       <p style="font-size:.8rem;color:var(--text-faint);margin-top:12px">View→analyze conversion: <b id="f-conv" style="color:var(--text-secondary)">—</b></p>
     </section>
+
+    <!-- Q2-5/Q2-8: real design-partner pilot funnel (PII-minimal — anonymous interest + opaque-label pipeline) -->
+    <section class="ac-sec"><div class="ac-sec-h">Design-partner pilot funnel <span class="ac-soon" id="p-state">loading…</span></div>
+      <div class="funnel">
+        <div class="fstep"><span class="l">Pilot interest signals (anonymous)</span><span class="n" id="p-interest">—</span></div>
+        <div class="fstep"><span class="l">Prospects in pipeline</span><span class="n" id="p-prospects">—</span></div>
+        <div class="fstep"><span class="l">DD artifact sent</span><span class="n" id="p-dd">—</span></div>
+        <div class="fstep"><span class="l">Active (LEAD…DILIGENCE)</span><span class="n" id="p-active">—</span></div>
+        <div class="fstep"><span class="l">Committed</span><span class="n" id="p-committed">—</span></div>
+      </div>
+      <p style="font-size:.8rem;color:var(--text-faint);margin-top:12px">PII-minimal: anonymous interest + opaque-label pipeline, no email/name/contact. Intake is legal-gated.</p>
+    </section>
   </div></main>
 </Layout>
 <script is:inline>
@@ -26,7 +38,19 @@ import Layout from '../../layouts/Layout.astro';
       set('f-conv',views>0?((aw/views*100).toFixed(1)+'%'):'—');
       set('f-state','live');
     }).catch(function(){set('f-state','offline');});
-  })();
+    // Design-partner pilot funnel — real interest + pipeline data (PII-minimal).
+    Promise.all([
+      fetch(API+'/api/interest/summary').then(function(r){return r.json();}).catch(function(){return null;}),
+      fetch(API+'/api/pilot/summary').then(function(r){return r.json();}).catch(function(){return null;})
+    ]).then(function(res){
+      var i=res[0]||{}, p=res[1]||{}, bs=(p.by_stage)||{};
+      set('p-interest', (i.total_interest!=null)?i.total_interest:'—');
+      set('p-prospects', (p.n_prospects!=null)?p.n_prospects:'—');
+      set('p-dd', (p.n_dd_sent!=null)?p.n_dd_sent:'—');
+      set('p-active', (p.n_active!=null)?p.n_active:'—');
+      set('p-committed', (bs.COMMITTED!=null)?bs.COMMITTED:'—');
+      set('p-state','live');
+    }).catch(function(){set('p-state','offline');});
 </script>
 <style>
   .ac{background:var(--bg-base);min-height:calc(100vh - 52px);padding:32px 0 80px}
