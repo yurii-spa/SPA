@@ -73,7 +73,8 @@ def test_verifier_only_uses_stdlib():
     import ast
     tree = ast.parse(_VERIFY.read_text(encoding="utf-8"))
     stdlib_ok = {"argparse", "hashlib", "json", "sys", "pathlib", "typing", "__future__",
-                 "datetime"}  # datetime: stdlib, used by the WS6 --check-fundability date math
+                 "datetime",   # datetime: stdlib, used by the WS6 --check-fundability date math
+                 "decimal"}    # decimal: stdlib, used by the Q2-2 --replay verdict re-derivation
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for n in node.names:
@@ -359,3 +360,84 @@ def test_run_no_files_fails_closed():
     report = V.run([str(_ROOT / "nonexistent_dir_xyz")])
     assert report["ok"] is False
     assert report["errors"]
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# Q2-2 --replay: re-DERIVE each verdict from its own published numbers (hermetic synthetic fixtures)
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+def _clean_verdict():
+    # approved book with a positive published edge + a self-consistent decomposition
+    return {"approved": True, "reason": "", "net_edge": "0.30",
+            "decomposition": {"baseline": "0.05", "total_haircut": "0.01", "fair_yield": "0.04",
+                              "peg_haircut": "0.005", "protocol_haircut": "0.005"}}
+
+
+def test_replay_clean_verdicts_pass():
+    rep = V.verify_decision_replay([_clean_verdict(), _clean_verdict()])
+    assert rep["failed"] == 0 and rep["passed"] == 2
+    assert rep["invariants"]["d1_identity"] == 2
+    assert rep["invariants"]["d3_approve_edge"] == 2
+
+
+def test_replay_empty_is_vacuously_ok():
+    rep = V.verify_decision_replay([])
+    assert rep["failed"] == 0 and rep["checked"] == 0
+
+
+def test_replay_catches_broken_fair_value_identity():
+    # D1: fair_yield no longer equals baseline − total_haircut → tamper caught
+    bad = _clean_verdict()
+    bad["decomposition"]["fair_yield"] = "0.99"
+    rep = V.verify_decision_replay([bad])
+    assert rep["failed"] == 1
+    assert rep["first_bad"]["check"] == "D1_identity"
+
+
+def test_replay_catches_approved_nonpositive_edge():
+    # D3: a flipped `approved` on a non-positive-edge book (refusal-first violation)
+    bad = _clean_verdict()
+    bad["net_edge"] = "-0.5"
+    rep = V.verify_decision_replay([bad])
+    assert rep["failed"] == 1
+    assert rep["first_bad"]["check"] == "D3_approve_edge"
+
+
+def test_replay_catches_refusal_without_reason():
+    # D4: every refusal must carry a reason
+    bad = {"approved": False, "reason": "", "net_edge": "0.2"}
+    rep = V.verify_decision_replay([bad])
+    assert rep["failed"] == 1
+    assert rep["first_bad"]["check"] == "D4_refuse_reason"
+
+
+def test_replay_catches_negative_haircut():
+    # D2: a fabricated negative haircut (a "credit" inflating fair value)
+    bad = _clean_verdict()
+    bad["decomposition"]["peg_haircut"] = "-0.02"
+    rep = V.verify_decision_replay([bad])
+    assert rep["failed"] == 1
+    assert rep["first_bad"]["check"] == "D2_nonneg"
+
+
+def test_replay_over_live_data_all_verdicts_follow_from_inputs():
+    # every REAL published verdict must re-derive from its own published numbers
+    _require_live_rates_desk()
+    rows = _read_jsonl(_DECISION_LOG)
+    rep = V.verify_decision_replay(rows)
+    assert rep["failed"] == 0, rep["first_bad"]
+    assert rep["checked"] == len(rows)
+
+
+def test_replay_flag_wired_into_run_and_fails_closed_on_tamper(tmp_path):
+    # a tampered decision_log fed through the full run(..., replay=True) fails CLOSED
+    bad = _clean_verdict()
+    bad["net_edge"] = "-1"          # approved but negative edge
+    # minimal valid chain fields so the chain-walk doesn't short-circuit before replay runs
+    bad.update({"seq": 0, "prev_hash": "0" * 64})
+    bad["entry_hash"] = V.recompute_entry_hash(bad)
+    log = tmp_path / "decision_log.jsonl"
+    log.write_text(json.dumps(bad) + "\n", encoding="utf-8")
+    report = V.run([str(log)], replay=True)
+    assert report["decision_replay"]["failed"] == 1
+    assert any("decision_replay" in e for e in report["errors"])
+    assert report["ok"] is False

@@ -86,6 +86,7 @@ import argparse
 import hashlib
 import json
 import sys
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -300,6 +301,102 @@ def verify_decision_chain(rows: List[dict]) -> dict:
         expected_prev = row["entry_hash"]
         head_hash = row["entry_hash"]
     return {"valid": True, "length": n, "broken_at": None, "head_hash": head_hash}
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# (A-replay) DECISION REPLAY — re-DERIVE each verdict from its OWN published numbers  [Q2-2]
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+_REPLAY_TOL = Decimal("1e-9")
+
+
+def _dec(x) -> Optional[Decimal]:
+    """Parse a published Decimal-string/number → Decimal, or None if unparseable."""
+    if x is None:
+        return None
+    try:
+        return Decimal(str(x))
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def verify_decision_replay(rows: List[dict]) -> dict:
+    """RE-DERIVE each published verdict from its OWN published inputs — not a re-hash (that only proves
+    the row wasn't edited), but an independent check that the STORED verdict actually FOLLOWS from the
+    numbers the desk published alongside it. Trusts neither the stored ``fair_yield`` nor ``approved``.
+
+    Per row, fail-CLOSED on the first violation:
+      • D1 fair-value identity     — decomposition.fair_yield == baseline − total_haircut (±1e-9). A
+        tampered fair_yield that no longer equals baseline minus the published haircuts is caught here.
+      • D2 haircut non-negativity  — every published structural haircut ≥ 0 (a negative haircut would be
+        a fabricated "credit" inflating fair value); total_haircut ≥ 0.
+      • D3 approve→edge coherence  — approved==True ⇒ net_edge > 0 (REFUSAL-FIRST never enters a book
+        whose own published net edge is ≤ 0). A flipped ``approved`` on a non-positive-edge book is caught.
+      • D4 refuse→reason coherence — approved==False ⇒ a non-empty ``reason`` (every refusal is explained).
+
+    Returns {checked, passed, failed, first_bad, invariants:{d1,d2,d3,d4 counts}}. Empty ⇒ vacuously ok.
+    HONEST SCOPE: this replays the published DECOMPOSITION→verdict coherence. Re-deriving the haircuts
+    THEMSELVES from raw Pendle history + pinned calibration (fuller moat proof) is the next increment."""
+    checked = passed = 0
+    inv = {"d1_identity": 0, "d2_nonneg": 0, "d3_approve_edge": 0, "d4_refuse_reason": 0}
+    first_bad: Optional[dict] = None
+
+    def _fail(idx, code, msg):
+        nonlocal first_bad
+        if first_bad is None:
+            first_bad = {"row": idx, "check": code, "detail": msg}
+
+    for idx, row in enumerate(rows):
+        if not isinstance(row, dict):
+            _fail(idx, "shape", "row is not an object")
+            continue
+        checked += 1
+        ok = True
+
+        decomp = row.get("decomposition")
+        if isinstance(decomp, dict):
+            base = _dec(decomp.get("baseline"))
+            total = _dec(decomp.get("total_haircut"))
+            fair = _dec(decomp.get("fair_yield"))
+            # D1 — fair-value identity
+            if base is not None and total is not None and fair is not None:
+                if abs((base - total) - fair) <= _REPLAY_TOL:
+                    inv["d1_identity"] += 1
+                else:
+                    ok = False
+                    _fail(idx, "D1_identity",
+                          f"fair_yield {fair} != baseline {base} − total_haircut {total}")
+            # D2 — every haircut component (and the total) non-negative
+            hc_keys = [k for k in decomp if k.endswith("_haircut")]
+            neg = [k for k in hc_keys if (_dec(decomp.get(k)) or Decimal(0)) < 0]
+            if not neg:
+                inv["d2_nonneg"] += 1
+            else:
+                ok = False
+                _fail(idx, "D2_nonneg", f"negative haircut(s): {neg}")
+
+        # D3 — approved ⇒ net_edge > 0  (refusal-first never enters non-positive edge)
+        approved = bool(row.get("approved"))
+        ne = _dec(row.get("net_edge"))
+        if approved:
+            if ne is not None and ne > 0:
+                inv["d3_approve_edge"] += 1
+            else:
+                ok = False
+                _fail(idx, "D3_approve_edge",
+                      f"approved but net_edge={row.get('net_edge')} is not > 0")
+        else:
+            # D4 — every refusal carries a reason
+            if str(row.get("reason") or "").strip():
+                inv["d4_refuse_reason"] += 1
+            else:
+                ok = False
+                _fail(idx, "D4_refuse_reason", "refused with empty reason")
+
+        if ok:
+            passed += 1
+
+    return {"checked": checked, "passed": passed, "failed": checked - passed,
+            "first_bad": first_bad, "invariants": inv}
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1166,7 +1263,7 @@ def _enforce_coverage(inputs: dict, report: dict) -> None:
 
 def run(paths: List[str], expect_head: Optional[str] = None,
         expect_surfaces: Optional[List[str]] = None,
-        check_fundability: bool = False) -> dict:
+        check_fundability: bool = False, replay: bool = False) -> dict:
     """Run all available verifications over the resolved inputs. Returns a verdict dict. A proof is
     only checked if its file is present; at least ONE file must be present (else nothing to verify).
 
@@ -1259,6 +1356,15 @@ def run(paths: List[str], expect_head: Optional[str] = None,
                 decision_rows = rows  # carried so historical in-window anchors are checkable (§6a)
             else:
                 report["errors"].append(f"decision_log: chain broken at row {res['broken_at']}")
+            # (A-replay Q2-2) re-derive each verdict from its own published numbers, fail-CLOSED
+            if replay:
+                rep = verify_decision_replay(rows)
+                report["decision_replay"] = rep
+                if rep["failed"]:
+                    fb = rep.get("first_bad") or {}
+                    report["errors"].append(
+                        f"decision_replay: {rep['failed']}/{rep['checked']} verdict(s) do not follow "
+                        f"from their published inputs (first: row {fb.get('row')} {fb.get('check')})")
 
     # (B) exit-NAV proof hashes
     if inputs["exit_nav"]:
@@ -1488,6 +1594,16 @@ def _print_human(report: dict) -> None:
               f"broken_at={dc.get('broken_at')}")
         print(f"    head_hash      : {dc.get('head_hash')}")
 
+    rp = report.get("decision_replay")
+    if rp is not None:
+        iv = rp.get("invariants", {})
+        print(f"[A-replay] verdict re-derivation: {rp.get('passed')}/{rp.get('checked')} verdicts follow "
+              f"from their own published inputs  (failed={rp.get('failed')})")
+        print(f"    invariants     : identity={iv.get('d1_identity')}  nonneg-haircut={iv.get('d2_nonneg')}  "
+              f"approved→edge>0={iv.get('d3_approve_edge')}  refused→reason={iv.get('d4_refuse_reason')}")
+        if rp.get("first_bad"):
+            print(f"    first_bad      : {rp['first_bad']}")
+
     en = report["exit_nav"]
     if en is not None:
         print(f"[B] exit-NAV proofs: valid={en.get('valid')}  "
@@ -1645,6 +1761,11 @@ def main(argv: Optional[List[str]] = None) -> int:
                          "from the RAW *_series.json tracks and assert they match (the WS6 FUNDABILITY "
                          "'don't trust us, check us' surface). A forged fundability number, or an "
                          "INSUFFICIENT_DATA masked as a real bps, fails CLOSED.")
+    ap.add_argument("--replay", action="store_true",
+                    help="ALSO re-DERIVE each rates-desk verdict from its OWN published numbers (not a "
+                         "re-hash): fair_yield==baseline−total_haircut, non-negative haircuts, approved⇒"
+                         "net_edge>0 (refusal-first), refused⇒reason. A stored verdict that does not "
+                         "follow from its published inputs fails CLOSED (the measurement-moat replay proof).")
     args = ap.parse_args(argv)
 
     expect_surfaces = None
@@ -1652,7 +1773,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         expect_surfaces = [s.strip().upper() for s in args.expect_surfaces.split(",") if s.strip()]
 
     report = run(args.paths, expect_head=args.expect_head, expect_surfaces=expect_surfaces,
-                 check_fundability=args.check_fundability)
+                 check_fundability=args.check_fundability, replay=args.replay)
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
