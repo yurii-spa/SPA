@@ -24,12 +24,12 @@
 ## Phased backlog
 
 ### Track 1 — Signals Cabinet (repo: DeFi Checkup, Next.js)
-- **P1 · Web3 auth (SIWE / EIP-4361).** `[P1a DONE]`
+- **P1 · Web3 auth (SIWE / EIP-4361).** ✅ **COMPLETE end-to-end** (checkup P1a `181ca5c` + P1b-backend `79c1216` + P1b-frontend `e3c4569`). 22 tests, vitest 323 green, build compiled. Wallet = account, non-custodial, no PII.
   - P1a — ✅ **DONE** (checkup `181ca5c`): `apps/web/src/lib/siwe.ts` — nonce + canonical EIP-4361 message + fail-closed `verifySiwe` (viem `verifyMessage`). +7 unit tests (round-trip accept / impersonation reject / nonce-replay reject / malformed fail-closed). Full vitest 303 green, build exit 0.
   - P1b-backend — ✅ **DONE** (checkup `79c1216`): `/api/auth/nonce` (issue signed nonce cookie) + `/api/auth/verify` (verify wallet sig + nonce → HMAC session cookie); `siweSession.ts` (stateless, mirrors waitlistTokens HMAC; SIWE_SESSION_SECRET→WALLET_REF_SALT→dev). +12 tests (session tamper/expiry, full flow, impersonation/no-cookie/bad-body). Vitest 318 green, build exit 0.
   - P1b-frontend — NEXT: "Connect wallet + Sign in" button (injected provider / viem `personal_sign`): GET nonce → build message → sign → POST verify → logged in. *(browser UI — can't fully unit-test here)*
   - ⚠️ **OWNER-GATED secret:** set `SIWE_SESSION_SECRET` (or reuse `WALLET_REF_SALT`) in prod env before real logins — dev fallback is only safe pre-launch.
-- **P2 · Cabinet view.** Logged-in wallet (read-only) → its positions (reuse checkup analyze) → "Recommended actions for YOUR wallet" (evidence + tail) + refusal log → "prepare transaction" opens the user's OWN wallet to sign. We never sign.
+- **P2 · Cabinet view.** `[NEXT]` Logged-in wallet (read-only) → its positions (reuse checkup analyze) → "Recommended actions for YOUR wallet" (evidence + tail) + refusal log → "prepare transaction" opens the user's OWN wallet to sign. We never sign. First increment: a `/cabinet` page gated on the SIWE session cookie (readSession) that renders the connected wallet's existing checkup analysis behind the login.
 - **P3 · Paywall / monetization.** Crypto-subscription (USDC/mo) or token-gate over the cabinet (owner confirms model before build).
 - **P4 · Alerts (optional, non-custodial).** XMTP / Push Protocol (wallet-native) or opt-in email; "new signal, log in to review" — the signal + signing stay in the cabinet.
 
