@@ -99,8 +99,8 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       </div>
       <div class="dash-preview">
         <div class="dp-bar">
-          <span data-ru="Кошелёк 0x7a…91f · 5 сетей · 14 активов">Wallet 0x7a…91f · 5 chains · 14 assets</span>
-          <span class="dp-ex" data-ru="Пример отчёта">Example report</span>
+          <span data-ru="Пример-кошелёк 0x7a…91f · 5 сетей · 14 активов">Sample wallet 0x7a…91f · 5 chains · 14 assets</span>
+          <span class="dp-ex" data-ru="Иллюстрация · не реальный кошелёк">Illustrative · not a real wallet</span>
         </div>
         <div class="dp-kpis">
           <div class="dp-kpi"><div class="k" data-ru="Стоимость портфеля">Total Value</div><div class="v">$42,500</div><div class="s" data-ru="5 сетей · 14 активов">5 chains · 14 assets</div></div>
@@ -131,6 +131,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
             <div class="dp-flag"><span class="d" style="background:var(--accent)"></span><span data-ru="Проверить approvals — 3 безлимитных">Review approvals — 3 unlimited</span></div>
           </div>
         </div>
+        <p style="text-align:center;margin:14px 0 0;font-size:12px;color:var(--text-dim)" data-ru="Иллюстративный пример — вымышленный кошелёк и цифры. Ваш отчёт строится из реальных ончейн-данных.">Illustrative example — a made-up wallet and numbers. Your report is built from real on-chain data.</p>
       </div>
       <div class="final-cta" style="margin-top:26px">
         <a class="btn btn-primary" href="/#analyze" data-track="analyze_wallet" data-ru="Проверить кошелёк">Analyze wallet</a>
@@ -194,9 +195,10 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       <div class="tier-grid" id="tierGrid">
         <div class="tier-card t-preserve">
           <h3>Preserve</h3>
-          <span class="pill ok" data-ru="Бумажный трек">Paper-tracked</span>
+          <span class="pill wait" style="background:rgba(234,179,8,.12);color:#eab308;border:1px solid rgba(234,179,8,.3)" data-ru="ВАЛИДАЦИЯ В ОЖИДАНИИ">VALIDATION PENDING</span>
+          <span class="pill wait" data-ru="Целевой профиль">Target profile</span>
           <div class="tier-apy" data-fb="apy">{pkgApy('conservative')}<small> net APY</small></div>
-          <div class="tier-cap" data-ru="бумажный · переменный · не гарантирован">paper · variable · not guaranteed</div>
+          <div class="tier-cap" data-ru="целевой диапазон · не в бумажном треке">target range · not in paper track</div>
           <ul class="tier-dl">
             <li><span class="k" data-ru="Профиль риска">Risk band</span><span class="v" data-ru="Низкий">Low</span></li>
             <li><span class="k" data-ru="Макс. просадка">Max drawdown</span><span class="v" data-fb="dd" data-ru={pkgDDru('conservative')}>{pkgDD('conservative')}</span></li>

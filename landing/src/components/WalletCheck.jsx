@@ -68,7 +68,8 @@ export default function WalletCheck() {
 
   return (
     <div className="walletcheck">
-      <h2 className="wc-title">{tr('title', lang)}</h2>
+      {/* UX-06: the page hero <h1> is the single headline; the widget is the input, not a second
+          pitch. wc-title (a competing h2) removed; the sub stays as a compact functional line. */}
       <p className="wc-sub">{tr('sub', lang)}</p>
       <form className="wc-form" onSubmit={submit}>
         <input
