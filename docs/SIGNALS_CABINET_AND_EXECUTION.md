@@ -44,9 +44,16 @@
 - **P4 · Alerts (optional, non-custodial).** XMTP / Push Protocol (wallet-native) or opt-in email; "new signal, log in to review" — the signal + signing stay in the cabinet.
 
 ### Track 2 — Execution A/B (repo: SPA, `spa_core/execution/`, ISOLATED)
-- **E1 · Unsigned draft-transaction builder.** Given a recommendation, assemble the exact on-chain calldata as an UNSIGNED draft (level A). Never signs. Owner reviews + signs in their own wallet.
-- **E2 · Safe 2-of-2 flow (level B).** Draft → proposed to a Gnosis Safe (ADR-010) where the owner co-signs; nothing executes on one signature.
-- **E3 · Hard caps + kill-switch on the live-test wallet.** Tiny capital, per-tx cap, daily cap, kill-switch, only after 30-day track. Level C (auto hot-wallet) permanently REJECTED.
+**INVENTORY (2026-07-11): the infra LARGELY EXISTS — do not rebuild; the real remaining work is owner-setup, not code.**
+- `execution/safe_tx_builder.py` — builds Gnosis Safe **2-of-3** proposals (ADR-022/010); `is_paper_mode()` when `SPA_EXECUTION_MODE != 'live'`. **This is level B.**
+- `execution/arming.py` — `SPA_EXEC_ARMED` = THE owner-gated cutover switch; default **OFF**, guards `_sign_and_send`. Nothing signs/sends unless the owner arms it.
+- `execution/eth_signer.py` + `wallet.py` — capital primitives (sign/send, Safe SDK). `router.py` + adapters (aave/compound/yearn/morpho) — the venues.
+
+- **E1 · Unsigned draft (level A).** ✅ **substantially COVERED by `safe_tx_builder` in paper mode** — it assembles the proposal/tx dict WITHOUT signing (the owner reviews + signs). Remaining code (small, needs owner sign-off before I touch execution/): a thin "prepare draft for THIS recommendation → present for review" wrapper. NOT built unattended (execution/ is AVOID-listed + real money).
+- **E2 · Safe 2-of-N (level B).** ✅ **covered by `safe_tx_builder` (2-of-3)**. Needs: owner deploys the Safe (ADR-010) + co-signer set.
+- **E3 · Caps + kill-switch.** Partly present (`rate_limiter.py`, kill-switch in governance). Needs owner config: tiny capital, per-tx/daily cap, only after 30-day track. **Level C (auto hot-wallet key) permanently REJECTED.**
+
+**⚠️ E1/E2 are OWNER-SETUP-gated, not code-gated:** (1) deploy a Gnosis Safe + choose co-signers (ADR-010); (2) set `SPA_EXECUTION_MODE=live` + arm `SPA_EXEC_ARMED` only when ready; (3) fund the live-test wallet tiny. Until then everything is paper/OFF by design. The code path (build draft → owner signs via Safe) already exists; I will only add the thin per-recommendation draft wrapper WITH your explicit go-ahead (it touches the isolated execution/ layer).
 
 ## Verify gates (per repo)
 - Checkup: `(cd apps/web && npx vitest run)` + `npm run build -w @spa/web` — both exit 0 before push.
