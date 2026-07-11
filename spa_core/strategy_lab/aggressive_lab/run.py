@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import socket
 import sys
+from typing import Optional
 
 from spa_core.strategy_lab.aggressive_lab import feeds as af
 from spa_core.strategy_lab.aggressive_lab.feeds import AggressiveFeeds
@@ -80,6 +81,22 @@ def run_real_backtest() -> dict:
     return run_backtest(feeds, start, end)
 
 
+def run_daily(as_of: Optional[str] = None) -> dict:
+    """Advance the Aggressive Lab forward paper track by ONE live tick — the programmatic
+    Lane-1 accrual entry the standing daily runner (``aggressive_lab_runner``) resolves
+    FIRST (spec ``run:run_daily``).
+
+    It MUST build :func:`_real_history_feeds` so the restaking / PT / sUSDe books get real
+    live data. A bare ``PaperService()`` defaults to an EMPTY ``AggressiveFeeds()`` whose
+    live loaders are unpopulated → every restaking/ratio book fail-closes on missing data
+    and the forward track FREEZES (the 2026-07-06 root bug; leverage_loop + levered_restaking
+    stayed at 0 days). Before this function existed the runner's fallback ``cls().tick()`` hit
+    exactly that empty-feeds path. Deterministic, fail-closed, advisory (moves no capital,
+    never touches the go-live track — isolation-verified inside ``tick``).
+    """
+    return PaperService(feeds=_real_history_feeds()).tick(as_of)
+
+
 def main(argv=None) -> int:
     socket.setdefaulttimeout(30)
     argv = list(sys.argv[1:] if argv is None else argv)
@@ -92,7 +109,7 @@ def main(argv=None) -> int:
         # + price, latest value = "live"), NOT a bare AggressiveFeeds() (empty live_loaders → every
         # book fail-closes on missing data, so the forward track never grows). This was the root bug
         # freezing the high-tier track: PaperService defaulted to empty feeds. (2026-07-06)
-        out["paper"] = PaperService(feeds=_real_history_feeds()).tick()
+        out["paper"] = run_daily()
     print(json.dumps(out, indent=2, default=str))
     return 0
 
