@@ -32,7 +32,8 @@
 - **P2 · Cabinet view.** `[IN PROGRESS]`
   - P2a — ✅ **DONE** (checkup `59cc7cb`): gated `/cabinet` page. `sessionServer.ts` (getSessionAddress + pure fail-closed addressFromCookieHeader). Signed-out → WalletLogin gate; signed-in → cabinet shell (connected wallet + "run my checkup"). +4 tests, vitest 329 green, build compiled, route registered.
   - P2b — ✅ **DONE** (checkup `bc32ac5`): the wallet's FULL checkup analysis now renders behind the gate — `/cabinet` runs the same proven `analyzeWallet` pipeline as `/check` (cache→analyze→saveReport→CheckReport) for the SESSION address (no typed input), under Suspense + AnalyzeError→ErrorState. Signed-in users see their live positions + risk + tail. Build compiled, vitest 329 green.
-  - P2c — NEXT: an explicit "recommended actions for YOUR wallet" layer (evidence-tagged, tail shown, + refusal log) → "prepare transaction" the user signs on their own wallet. We never sign.
+  - P2c — ✅ **DONE** (checkup `08ff469`): recommended-actions layer + one-click NON-CUSTODIAL revoke. `CabinetActions` surfaces the wallet's own risky approvals (unlimited + unlabeled-spender) with the tail per row + a refusal note (de-risking only, never acquire/chase-yield). `RevokeApprovalButton` builds `approve(spender,0)` (`revokeTx.ts`, +3 tests) → user signs in their OWN wallet via raw `eth_sendTransaction`. We never sign/hold a key/move funds. Full vitest 335 green.
+  - **P2 cabinet is functionally complete: login → analysis → de-risk actions the user executes themselves.** Later polish: reduce-concentration/leverage prepare-tx, per-action evidence links.
 - **P3 · Paywall / monetization.** Crypto-subscription (USDC/mo) or token-gate over the cabinet (owner confirms model before build).
 - **P4 · Alerts (optional, non-custodial).** XMTP / Push Protocol (wallet-native) or opt-in email; "new signal, log in to review" — the signal + signing stay in the cabinet.
 
