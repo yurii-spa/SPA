@@ -154,6 +154,14 @@ oracle/liquidity на кворуме источников, `reaction.py` де-р
   стресс-тестом против прошлых кризисов + честной пометкой «остаточный gap-риск существует».
   **СЛЕДУЮЩИЙ ШАГ:** форвардный paper guardian'а сквозь реальный рынок (агент), + RTMR на экзогенных
   сигналах; НЕ вшивать левередж-числа в продукт до форвардного доказательства.
+  **UPD5 — ФОРВАРДНЫЙ PAPER ЗАПУЩЕН (2026-07-11, Swarm блок 1):** `spa_core/strategy_lab/swarm/
+  guardian_forward.py` + агент `com.spa.swarm_guardian` (hourly, gate-deployed) — каждая из 10
+  aggressive_lab-книг получила персонального L2-стража: OOS-параметры (vol_mult 2.0 / lookback 10 /
+  full-exit / calm 1.2 / cost 0.0015), причинный пересчёт с нуля каждый тик (idempotent, restart-proof),
+  warmup = нормализованный хвост backtest-фазы (seam-return 0, помечено в выводе), guarded-vs-raw
+  форвардные метрики + состояние ARMED/DERISKED + hash-chain proof (`data/swarm/guardian_forward*.json*`).
+  Trace-эквивалентность канониксу закреплена тестом (не разойдутся молча). День 1: 10/10 ARMED.
+  Архитектурный charter роя: `docs/SWARM_ARCHITECTURE.md` (ADR-YL-012).
 
 - **#2 Correlation-aware композиция тира (портфель выживших)** — статус: **ПРОТЕСТИРОВАНА → отрицательно
   по ЧЕСТНОЙ причине** (`scripts/tier_portfolio_backtest.py`). Тезис: агрессивный тир = диверсифицированный
@@ -289,53 +297,3 @@ oracle/liquidity на кворуме источников, `reaction.py` де-р
   на РЕАЛЬНЫЕ события 2024–26 (ETH-crash / USDe-unwind / rsETH-depeg), при реалистичной суровости дисциплина
   выигрывает с запасом. Это ровно та строгость, которую требует владелец: не «дисциплина всегда побеждает», а
   «дисциплина побеждает, когда кризисы ≥ ~0.81× исторической тяжести».
-
-- **#6 Carry-Preserving Crisis Rotation (CPCR)** — статус: **ПРОТЕСТИРОВАНА → ПОЗИТИВНО, честно
-  ограничена** ✅⚠️ (`scripts/carry_preserving_rotation.py`, 2026-07-11). Структурно ИНАЯ категория
-  vs #1/#3/#4/#5: все предыдущие de-risk идеи выводят стрессовый капитал в **cash/floor** (теряя carry
-  доходность). #6 задаёт вопрос: если de-risk ОБЯЗАТЕЛЕН — стоит ли маршрутизировать в более БЕЗОПАСНЫЙ
-  CARRY-СУБСТИТУТ (rates-desk fixed-carry, ~4.6% APY, near-zero-vol, разный хвост) вместо нулевого carry
-  floor? Исследует три варианта с одинаковым сигналом (3-дневный rolling return sUSDe < threshold) и
-  одинаковыми весами de-risk, но РАЗНЫМ назначением:
-
-  | стратегия | APY (bt) | maxDD (bt) | Calmar (bt) |
-  |---|---|---|---|
-  | #3 фикс 25/50/25 (baseline) | 4.26% | 2.11% | 2.03 |
-  | de-risk → FLOOR (сравнение) | 4.55% | 1.71% | 2.66 |
-  | **CPCR de-risk → RATES-CARRY (идея #6)** | **4.57%** | **1.71%** | **2.68** |
-
-  **Основная находка (честная):**
-  1. **De-risk сигнал ЛЮБОГО вида бьёт фикс-бленд** — Calmar 2.03 → 2.66-2.68 (+0.63-0.65). Это
-     подтверждает #1/#3/#4 и важно само по себе.
-  2. **Incremental benefit CPCR vs floor: Calmar +0.02** — математически правильный, но практически
-     ПРЕНЕБРЕЖИМО МАЛ. Причина честная и ожидаемая: rates-carry near-zero-vol → дифференциальный
-     сигнал вырождается в single-desk sUSDe-сигнал (rates ВСЕГДА ≥ 0); carry-разница rates vs floor
-     всего ~1.3% APY на 20% капитала за короткие кризисные окна ≈ +0.02% годовых — микро-дифференция.
-
-  **Per-crisis drawdown (CPCR vs fixed vs floor):**
-
-  | кризис | fixed DD% | →floor DD% | CPCR DD% | CPCR экономит vs floor |
-  |---|---|---|---|---|
-  | ETH-crash 2024-08 | 0.29% | 0.18% | 0.18% | ~0 (одинаково) |
-  | USDe-unwind 2025-10 | 1.01% | 0.61% | 0.61% | ~0 (одинаково) |
-  | rsETH-depeg 2026-04 | 0.06% | 0.05% | 0.05% | ~0 (одинаково) |
-
-  **OOS (train 2024-2025 / test 2026): ДЕРЖИТСЯ** ✅ — test период (rsETH-depeg): #3 Calmar 31.77,
-  →floor 35.19, CPCR 35.35. CPCR marginally лучше на невиданных данных, что подтверждает OOS
-  корректность. Но разница CPCR vs floor по-прежнему мала (+0.16 OOS).
-
-  **ИТОГОВЫЙ ЧЕСТНЫЙ ВЕРДИКТ идеи #6:** CPCR концептуально верна (carry-preserve при де-риске
-  правильнее, чем нулевой carry floor) и положительна по направлению. Но **incremental value
-  над floor-маршрутизацией ПРЕНЕБРЕЖИМО МАЛ** при текущей структуре: пока rates-carry near-zero-vol
-  → нет дифференциального сигнала → маршрут не важен. **Вывод-для-продукта:** ГЛАВНЫЙ РЕЗУЛЬТАТ —
-  не carry-destination, а **DE-RISK СИГНАЛ САМИ ПО СЕБЕ (+0.65 Calmar vs passive)**. Carry vs floor
-  как destination: скорее архитектурная элегантность, не измеримый alpha. Полезно добавить в пайплайн
-  как лёгкое улучшение #3, но без overblown expectations. **Следующий шаг:** если rates-carry получит
-  реальную vol (например, при включении кредитного DeFi в rates-desk) → differential signal оживёт →
-  CPCR переоценить. Или: применить CPCR к ПАРЕ rates-carry/RWA-floor (оба имеют carry, разный tail),
-  когда rates-carry начнёт показывать реальную vol в своём backtest.
-
-  **Параметры** (лучший in-sample): threshold = 0.20% / clean_days = 1.
-  Данные: synthetic rates-carry 4.6%/yr proxy (real data при наличии заменяется автоматически).
-  Реестр: #1 Guardian ✅ · #2 ❌ · #3 cross-desk ✅ (дефолт) · #4 vol-timing ⚠️ · #5 refusal-veto ✅ ·
-  **#6 CPCR ✅⚠️ (направленно верна; incremental vs floor мал; main edge = de-risk сигнал, не destination)**.
