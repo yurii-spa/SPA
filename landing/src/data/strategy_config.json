@@ -32,7 +32,7 @@
         "USDT (TRC-20, ERC-20)",
         "USDC (ERC-20)"
       ],
-      "path": "/strategies/preserve"
+      "path": "/strategies/conservative"
     },
     {
       "id": "core",
@@ -73,7 +73,7 @@
         "USDT (TRC-20, ERC-20)",
         "USDC (ERC-20)"
       ],
-      "path": "/strategies/core"
+      "path": "/strategies/balanced"
     },
     {
       "id": "max-yield",
@@ -105,7 +105,7 @@
         "USDT (TRC-20, ERC-20)",
         "USDC (ERC-20)"
       ],
-      "path": "/strategies/max-yield"
+      "path": "/strategies/aggressive"
     }
   ],
   "global": {

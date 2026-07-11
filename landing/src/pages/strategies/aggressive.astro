@@ -1,0 +1,458 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import strategies from '../../data/strategy_config.json';
+
+const maxYield = strategies.strategies.find(s => s.id === 'max-yield')!;
+const global = strategies.global;
+---
+
+<Layout
+  title="Aggressive Strategy — Advanced DeFi Mechanics | SPA earn-defi.com"
+  description="Advanced mechanics for higher yield tolerance. No open liquidation risk by default in v1.0. ~15% target APY (illustrative). Research/paper — the higher-yield tier the desk REFUSES for live, shown WITH its real tail."
+>
+
+  <!-- Nav -->
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Coming Soon Banner -->
+    <div class="mt-8 rounded-xl border border-warn-border bg-warn-bg p-5 flex items-start gap-3">
+      <span class="text-warn flex-shrink-0 text-lg mt-0.5">&#9888;</span>
+      <div>
+        <p class="text-sm text-white/70 font-medium mb-1" data-ru="ЦЕЛЕВОЙ ПРОФИЛЬ — RESEARCH/PAPER, ОТКАЗАН ДЛЯ LIVE">TARGET PROFILE — RESEARCH/PAPER, REFUSED FOR LIVE</p>
+        <p class="text-sm text-white/50 leading-relaxed" data-ru="Целевой APY приведён только для иллюстрации. Высокодоходный тир теперь честно задокументирован: 12–20% стратегии, от которых деск ОТКАЗЫВАЕТСЯ для live, paper-тестируются в Aggressive Lab С реальным датированным хвостом (нехеджированная directional-книга потеряла ~50% на обвале ETH). Стабильные 15% — это не альфа, а хвост.">
+          Target APY is illustrative only. The higher-yield tier is now honestly documented: the 12–20% strategies the desk REFUSES for live are paper-tested in the Aggressive Lab WITH their real, dated tail (the unhedged directional book lost ~50% through the ETH crash). A stable 15% is not alpha — it is a tail.
+        </p>
+        <div class="flex flex-wrap gap-3 mt-3">
+          <a href="/packages" class="text-sm text-accent-400 underline" data-ru="Тир Aggressive в пакетах →">The Aggressive tier in packages →</a>
+          <a href="/annual-contrast" class="text-sm text-accent-400 underline" data-ru="Хвост в цифрах: 15% против ~3.3% →">The tail in numbers: 15% vs ~3.3% →</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1. Hero -->
+    <section class="pt-12 pb-12">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-warn-bg border border-warn-border text-xs text-warn font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-warn" aria-hidden="true"></span>
+        <span data-ru="Research · Paper">Research · Paper</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Стратегия Aggressive">
+        Aggressive Strategy
+      </h1>
+      <p class="text-xl text-white/50 leading-relaxed max-w-2xl">
+        <span data-ru={maxYield.taglineRu}>{maxYield.tagline}</span>. <span data-ru="Продвинутая механика хранилищ и оптимизированные стратегии кредитования для опытных инвесторов. Без открытого риска ликвидации по умолчанию в v1.0.">Advanced vault mechanics and optimised lending strategies
+        for experienced allocators. No open liquidation risk by default in v1.0.</span>
+      </p>
+    </section>
+
+    <!-- 2. Target APY -->
+    <section class="py-10 border-t border-white/5">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-6">
+        <div>
+          <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Целевой APY">Target APY</p>
+          <div class="flex items-baseline gap-2">
+            <span class="text-5xl font-mono font-bold text-accent-400">~15%</span>
+            <span class="text-sm text-white/50 font-mono">APY</span>
+          </div>
+          <p class="text-xs text-white/25 mt-2" data-ru={maxYield.target_apy_note_ru}>{maxYield.target_apy_note}</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Risk Level -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-3" data-ru="Уровень риска">Risk Level</p>
+      <div class="flex items-center gap-3">
+        <div class="flex gap-1" aria-label="Risk level: 3 of 3">
+          <span class="inline-block w-8 h-3 rounded-sm bg-danger" aria-hidden="true"></span>
+          <span class="inline-block w-8 h-3 rounded-sm bg-danger" aria-hidden="true"></span>
+          <span class="inline-block w-8 h-3 rounded-sm bg-danger" aria-hidden="true"></span>
+        </div>
+        <span class="text-white/60 text-sm font-medium" data-ru="Повышенный риск">Higher Risk</span>
+      </div>
+      <p class="text-xs text-white/50 mt-2" data-ru="Продвинутая механика хранилищ. Более высокая терпимость к доходности с управляемыми параметрами риска.">
+        Advanced vault mechanics. Higher yield tolerance with managed risk parameters.
+      </p>
+    </section>
+
+    <!-- 4. Current Status -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Текущий статус">Current Status</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="rounded-xl border border-warn-border bg-warn-bg p-5">
+          <div class="text-xs text-white/50 mb-1" data-ru="Фаза">Phase</div>
+          <div class="text-warn font-semibold flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-warn" aria-hidden="true"></span>
+            <span data-ru="Фаза проектирования">Design Phase</span>
+          </div>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+          <div class="text-xs text-white/50 mb-1" data-ru="Бумажный трек">Paper Tracking</div>
+          <div class="text-white/50 font-semibold" data-ru="Не активен">Not active</div>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+          <div class="text-xs text-white/50 mb-1" data-ru="Запуск">Launch</div>
+          <div class="text-white/50 font-semibold" data-ru="Не определён">TBD</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Who It's For -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-3" data-ru="Для кого">Who It's For</p>
+      <p class="text-white/60 leading-relaxed" data-ru="Опытные инвесторы, принимающие повышенную волатильность и просадку ради потенциала доходности.">
+        Experienced allocators accepting higher volatility and drawdown for yield upside.
+      </p>
+      <div class="mt-4 rounded-xl bg-accent-500/5 border border-accent-500/15 p-5">
+        <p class="text-sm text-white/50 leading-relaxed" data-ru={maxYield.descriptionRu}>
+          {maxYield.description}
+        </p>
+      </div>
+    </section>
+
+    <!-- 6. What's Inside -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-3" data-ru="Что внутри">What's Inside</p>
+      <p class="text-white/50 text-sm leading-relaxed mb-4" data-ru="Aggressive использует продвинутую механику DeFi-хранилищ для достижения более высокой доходности. Без открытого риска ликвидации по умолчанию в v1.0. Более сложные стратегии могут быть добавлены после отдельной бумажной валидации.">
+        Aggressive uses advanced DeFi vault mechanics to target higher returns. No open liquidation
+        risk by default in v1.0. More complex strategies may be added after separate paper validation.
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+          <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-3" data-ru="Механика">Mechanics</p>
+          <ul class="space-y-2 text-sm text-white/50">
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
+              <span data-ru="Продвинутая механика хранилищ">Advanced vault mechanics</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
+              <span data-ru="Оптимизированные позиции кредитования">Optimised lending positions</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
+              <span data-ru="Отобранные пулы с повышенной доходностью">Selected higher-yield pools</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
+              <span data-ru="Без открытого риска ликвидации (по умолчанию в v1.0)">No open liquidation risk (v1.0 default)</span>
+            </li>
+          </ul>
+        </div>
+        <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
+          <p class="text-xs text-data-teal font-mono uppercase tracking-wider mb-3" data-ru="Мониторинг">Monitoring</p>
+          <ul class="space-y-2 text-sm text-white/50">
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-data-teal flex-shrink-0" aria-hidden="true"></span>
+              <span data-ru="Оповещения об отклонении цены оракула">Oracle price deviation alerts</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-data-teal flex-shrink-0" aria-hidden="true"></span>
+              <span data-ru="Мониторинг уровня утилизации">Utilisation rate monitoring</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-data-teal flex-shrink-0" aria-hidden="true"></span>
+              <span data-ru="Проверки здоровья позиций">Position health checks</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <span class="w-1 h-1 rounded-full bg-data-teal flex-shrink-0" aria-hidden="true"></span>
+              <span data-ru="Автоматические триггеры риска">Automated risk triggers</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. Yield Sources -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Источники доходности">Yield Sources</p>
+      <div class="flex flex-wrap gap-2">
+        {maxYield.yield_sources.map((source: string) => (
+          <span class="px-3 py-1.5 rounded-lg text-sm font-mono bg-white/5 text-white/50 border border-white/10">
+            {source}
+          </span>
+        ))}
+      </div>
+      <p class="text-xs text-white/25 mt-3" data-ru="Доходность усиливается за счёт плеча. Более высокая доходность сопряжена с пропорционально более высоким риском потерь.">
+        Yield amplified through leverage. Higher returns come with proportionally higher risk of loss.
+      </p>
+    </section>
+
+    <!-- 8. What This Strategy Does NOT Do -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Чего эта стратегия НЕ делает">What This Strategy Does NOT Do</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {[
+          { en: 'Expose to open liquidation risk by default (v1.0)', ru: 'Создавать открытый риск ликвидации по умолчанию (v1.0)' },
+          { en: 'Allocate without risk gate approval', ru: 'Размещать средства без одобрения риск-гейта' },
+          { en: 'Bypass RiskPolicy deterministic gate', ru: 'Обходить детерминированный гейт RiskPolicy' },
+          { en: 'Override kill switch in any scenario', ru: 'Переопределять kill switch в любом сценарии' },
+        ].map((item) => (
+          <div class="flex items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.02] border border-white/5">
+            <span class="text-danger flex-shrink-0">&#10005;</span>
+            <span class="text-sm text-white/50" data-ru={item.ru}>{item.en}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- 9. Risk Controls -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-data-teal uppercase tracking-wider font-mono mb-4" data-ru="Контроль рисков — RiskPolicy v1.0">Risk Controls — RiskPolicy v1.0</p>
+      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Aggressive работает под тем же детерминированным риск-гейтом, что и все стратегии. Без открытого риска ликвидации по умолчанию в v1.0.">
+        Aggressive operates under the same deterministic risk gate as all strategies.
+        No open liquidation risk by default in v1.0.
+      </p>
+      <div class="overflow-x-auto rounded-xl border border-white/10">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-white/10 bg-white/[0.03]">
+              <th class="text-left px-5 py-3 text-xs text-white/50 font-medium uppercase tracking-wider" data-ru="Параметр">Parameter</th>
+              <th class="text-left px-5 py-3 text-xs text-white/50 font-medium uppercase tracking-wider" data-ru="Значение">Value</th>
+              <th class="text-left px-5 py-3 text-xs text-white/50 font-medium uppercase tracking-wider" data-ru="Эффект">Effect</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5">
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="Минимальный TVL">TVL floor</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">&ge; $5M</td>
+              <td class="px-5 py-3 text-white/55" data-ru="Пулы ниже этого порога исключаются">Pools below this threshold excluded</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="Лимит на протокол">Per-protocol cap</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold" data-ru="40% T1 / 20% T2">40% T1 / 20% T2</td>
+              <td class="px-5 py-3 text-white/55" data-ru="Макс. аллокация в один протокол по Tier">Max allocation to single protocol, by Tier</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="Всего T2">T2 total cap</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">&le; 50%</td>
+              <td class="px-5 py-3 text-white/55" data-ru="Совокупный лимит на Tier 2">Aggregate cap on Tier 2 exposure</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="Диапазон APY">APY range</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">1% – 30%</td>
+              <td class="px-5 py-3 text-white/55" data-ru="Позиции вне диапазона отклоняются">Positions outside range rejected</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="Денежный буфер">Cash buffer</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold">&ge; 5%</td>
+              <td class="px-5 py-3 text-white/55" data-ru="Всегда удерживается в резерве">Always held in reserve</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-white/60 font-mono" data-ru="Риск ликвидации">Liquidation risk</td>
+              <td class="px-5 py-3 text-white font-mono font-semibold" data-ru="Отсутствует (v1.0)">None (v1.0)</td>
+              <td class="px-5 py-3 text-white/55" data-ru="Без открытого риска ликвидации по умолчанию">No open liquidation risk by default</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-warn font-mono" data-ru="Kill switch — SOFT">Kill switch — SOFT</td>
+              <td class="px-5 py-3 text-warn font-mono font-semibold" data-ru="&ge; 5% просадки от пика">&ge; 5% peak drawdown</td>
+              <td class="px-5 py-3 text-white/55" data-ru="Де-риск: стоп новых входов и увеличения позиций, без ликвидации">De-risk: halt new entries &amp; increases, no liquidation</td>
+            </tr>
+            <tr>
+              <td class="px-5 py-3 text-danger font-mono" data-ru="Kill switch — HARD">Kill switch — HARD</td>
+              <td class="px-5 py-3 text-danger font-mono font-semibold" data-ru="&ge; 10% просадки от пика">&ge; 10% peak drawdown</td>
+              <td class="px-5 py-3 text-white/55" data-ru="Весь портфель переводится в кэш">Move whole portfolio to cash</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 10. Performance / Validation Status -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Статус валидации">Validation Status</p>
+      <div class="rounded-xl border border-warn-border bg-warn-bg p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="w-2 h-2 rounded-full bg-warn" aria-hidden="true"></span>
+          <span class="text-sm text-warn font-medium" data-ru="Фаза проектирования — данные отсутствуют">Design Phase — No Data Available</span>
+        </div>
+        <p class="text-sm text-white/55 leading-relaxed" data-ru="Эта стратегия находится в фазе проектирования. Нет бумажного трека, нет данных о результатах, нет валидации. Все параметры и значения APY — предварительные цели, которые могут измениться.">
+          This strategy is in design phase. No paper tracking, no performance data, no validation.
+          All parameters and APY figures are preliminary targets subject to change.
+        </p>
+      </div>
+    </section>
+
+    <!-- 11. Strategy-Specific Risks -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-danger uppercase tracking-wider font-mono mb-4" data-ru="Риски, специфичные для стратегии">Strategy-Specific Risks</p>
+      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Aggressive несёт все риски стратегии Balanced плюс дополнительные риски от продвинутой механики хранилищ. Без открытого риска ликвидации по умолчанию в v1.0, но существенный риск потери капитала сохраняется.">
+        Aggressive carries all risks of the Balanced strategy plus additional risks from advanced
+        vault mechanics. No open liquidation risk by default in v1.0, but material risk of capital loss remains.
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск смарт-контрактов">Smart Contract Risk</h4>
+          <p class="text-xs text-white/55 leading-relaxed" data-ru="Продвинутая механика хранилищ взаимодействует с большим числом слоёв протоколов, увеличивая площадь потенциальных уязвимостей.">
+            Advanced vault mechanics interact with more protocol layers, increasing
+            the surface area for potential vulnerabilities.
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск депега стейблкоина">Stablecoin Depeg Risk</h4>
+          <p class="text-xs text-white/55 leading-relaxed" data-ru="USDT или USDC могут временно или навсегда потерять привязку. Kill switch реагирует по уровню: SOFT де-риск при просадке от пика ≥5%, HARD (всё в кэш) при ≥10%, независимо от причины.">
+            USDT or USDC may temporarily or permanently lose their peg.
+            The kill switch responds by tier: SOFT de-risk at ≥5% peak drawdown, HARD (all to cash) at ≥10%, regardless of cause.
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск оракулов">Oracle Risk</h4>
+          <p class="text-xs text-white/55 leading-relaxed" data-ru="Ценовые фиды от оракулов могут запаздывать или быть подвержены манипуляциям. Стратегия использует агрегированные фиды для данных по APY.">
+            Price feeds from oracles may be delayed or manipulated.
+            Strategy relies on aggregated feeds for APY data.
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск сложности">Complexity Risk</h4>
+          <p class="text-xs text-white/55 leading-relaxed" data-ru="У продвинутых стратегий больше движущихся частей. Выше требования к мониторингу и шире спектр возможных сценариев отказа.">
+            Advanced strategies have more moving parts. Higher monitoring requirements
+            and wider range of potential failure modes.
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск ликвидности">Liquidity Risk</h4>
+          <p class="text-xs text-white/55 leading-relaxed" data-ru="В экстремальных рыночных условиях вывод средств из пулов может быть временно задержан, если уровень утилизации приближается к 100%.">
+            In extreme market conditions, withdrawals from pools may be temporarily
+            delayed if utilisation rates approach 100%.
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Риск невалидированной стратегии">Unvalidated Strategy Risk</h4>
+          <p class="text-xs text-white/55 leading-relaxed" data-ru="У этой стратегии пока нет бумажного трека. Все параметры и целевые показатели APY являются предварительными и могут измениться.">
+            This strategy has no paper track record yet. All parameters and APY
+            targets are preliminary and subject to change.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12. Emergency Behavior -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Поведение в аварийной ситуации">Emergency Behavior</p>
+      <div class="rounded-xl border border-danger-border bg-danger-bg p-6">
+        <div class="flex items-start gap-4">
+          <div class="w-10 h-10 rounded-lg bg-danger-bg border border-danger-border flex items-center justify-center flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" style="stroke:var(--danger)" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/>
+            </svg>
+          </div>
+          <div>
+            <h4 class="text-sm font-semibold text-white mb-2" data-ru="Двухуровневый kill switch (просадка от пика)">Two-Tier Kill Switch (Peak Drawdown)</h4>
+            <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="При просадке капитала от пика ≥5% (SOFT) деск снижает риск: стоп новых входов и увеличения позиций, без ликвидации. При ≥10% (HARD) весь портфель переводится в 100% кэш. Неотменяемо, полностью автоматизировано.">
+              At ≥5% peak-to-current equity drawdown (SOFT) the desk de-risks: it halts new entries
+              and position increases, without liquidating. At ≥10% (HARD) the whole portfolio moves
+              to 100% cash. Non-overridable, fully automated.
+            </p>
+            <p class="text-xs text-white/50" data-ru="Аварийный стоп ограничивает дальнейшую экспозицию, но не предотвращает уже понесённые убытки.">
+              The kill switch limits further exposure but does not prevent losses already incurred.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 13. Fees -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Структура комиссий">Fee Structure</p>
+      <div class="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+        <p class="text-sm text-white/50 leading-relaxed mb-3" data-ru="Структура комиссий обсуждается индивидуально при онбординге. Действует принцип high-water mark — комиссия за результат не взимается до восстановления предыдущего пика.">
+          Fee structure is discussed individually during onboarding. High-water mark applies —
+          no performance fee until the previous peak is recovered.
+        </p>
+        <p class="text-xs text-white/50" data-ru="В период бумажной торговли комиссии отсутствуют.">
+          No fees during paper trading period.
+        </p>
+      </div>
+    </section>
+
+    <!-- 14. FAQ -->
+    <section class="py-10 border-t border-white/5">
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-6" data-ru="Часто задаваемые вопросы">Frequently Asked Questions</p>
+      <div class="space-y-6">
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Когда будет доступна Aggressive?">When will Aggressive be available?</h4>
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Aggressive находится в фазе проектирования. Дата запуска не установлена. Бумажный трек начнётся только после того, как стратегия Balanced подтвердит базовую инфраструктуру.">
+            Aggressive is in design phase. No launch date has been set. Paper tracking will
+            begin only after Balanced strategy validates the base infrastructure.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Есть ли риск ликвидации?">Is there liquidation risk?</h4>
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Без открытого риска ликвидации по умолчанию в v1.0. Более сложные стратегии с иными профилями риска могут быть добавлены после отдельной бумажной валидации.">
+            No open liquidation risk by default in v1.0. More complex strategies with different
+            risk profiles may be added after separate paper validation.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Какие активы поддерживаются?">What assets are supported?</h4>
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="USDT (TRC-20, ERC-20) и USDC (ERC-20). Вход через переговоры — без публичных минимумов и лимитов ёмкости пула.">
+            USDT (TRC-20, ERC-20) and USDC (ERC-20). Entry through conversation — no public minimums
+            or pool capacity limits.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Подходит ли это для моей первой аллокации в DeFi?">Is this suitable for my first DeFi allocation?</h4>
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Aggressive нацелена на более высокую доходность с продвинутой механикой. Рассмотрите Balanced или Conservative как точку входа с меньшим риском, если вы новичок в DeFi.">
+            Aggressive targets higher returns with advanced mechanics. Consider Balanced or Conservative
+            for a lower-risk entry point if you're new to DeFi.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Применяется ли та же риск-политика?">Does the same risk policy apply?</h4>
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Да. RiskPolicy v1.0 применяется ко всем стратегиям. У Aggressive есть дополнительные ограничения, связанные с плечом, поверх базовой политики. Действует тот же неотменяемый двухуровневый kill switch: SOFT де-риск при просадке от пика ≥5%, HARD (всё в кэш) при ≥10%.">
+            Yes. RiskPolicy v1.0 applies to all strategies. Aggressive has additional
+            leverage-specific constraints on top of the base policy. The same non-overridable
+            two-tier kill switch applies: SOFT de-risk at ≥5% peak drawdown, HARD (all to cash) at ≥10%.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-2" data-ru="Будет ли период бумажной торговли?">Will there be a paper trading period?</h4>
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Да. Как и все стратегии, Aggressive пройдёт период бумажной валидации до развёртывания реального капитала. Будут применяться критерии GoLiveChecker.">
+            Yes. Like all strategies, Aggressive will undergo a paper trading validation period
+            before any real capital is deployed. GoLiveChecker criteria will apply.
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 15. CTA -->
+    <section class="py-16 border-t border-white/5">
+      <div class="text-center">
+        <h2 class="text-2xl font-bold text-white mb-4" data-ru="Изучите другие стратегии">Explore Other Strategies</h2>
+        <p class="text-white/55 mb-8 max-w-lg mx-auto text-sm leading-relaxed" data-ru="Aggressive находится в фазе проектирования. А пока ознакомьтесь со стратегией Balanced с активным бумажным треком или с Conservative для меньшего риска.">
+          Aggressive is in design phase. In the meantime, explore our Balanced strategy
+          with an active paper trading track record, or Conservative for lower risk.
+        </p>
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
+          <a
+            href="/strategies/balanced"
+            class="inline-flex items-center gap-2 px-7 py-4 rounded-lg bg-accent-500 hover:bg-accent-400 text-white font-semibold transition-colors shadow-lg shadow-accent-500/20"
+            data-ru="Смотреть стратегию Balanced"
+          >
+            View Balanced Strategy
+          </a>
+          <a
+            href="/strategies/conservative"
+            class="inline-flex items-center gap-2 px-7 py-4 rounded-lg border border-white/15 hover:border-white/30 text-white/60 hover:text-white font-medium transition-all text-sm"
+            data-ru="Смотреть стратегию Conservative"
+          >
+            View Conservative Strategy
+          </a>
+        </div>
+        <p class="text-sm text-white/50">
+          <span data-ru="Контакт:">Contact:</span> <a href="mailto:yuriycooleshov@gmail.com" class="text-accent-400/70 hover:text-accent-400 transition-colors">yuriycooleshov@gmail.com</a>
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <Disclaimer />
+</Layout>
