@@ -9,7 +9,7 @@ const global = strategies.global;
 
 <Layout
   title="Conservative Strategy — Capital-Preservation DeFi Yield | SPA earn-defi.com"
-  description="Capital-preservation focused yield. Tier 1 protocols only, no leverage, no looping. ~6% target APY (variable, not guaranteed). Target profile — not yet paper tracked."
+  description="Capital-preservation focused yield. Tier 1 protocols only, no leverage, no looping. Up to 6% target APY (variable, not guaranteed). The live, evidenced paper-tracked book (anchor June 22, 2026 · ~3.3% realized so far) — the tier the desk actually runs."
 >
 
   <!-- Nav -->
@@ -17,9 +17,9 @@ const global = strategies.global;
 
     <!-- 1. Hero -->
     <section class="pt-20 pb-12">
-      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-warn-bg border border-warn-border text-xs text-warn font-medium">
-        <span class="w-1.5 h-1.5 rounded-full bg-warn" aria-hidden="true"></span>
-        <span data-ru="Целевой профиль — ожидает валидации">Target Profile — Validation Pending</span>
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full bg-ok-bg border border-ok-border text-xs text-ok font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-ok" aria-hidden="true"></span>
+        <span data-ru="Бумажный трек · подтверждён (anchor 22.06.2026)">Paper-Tracked · evidenced (anchor Jun 22, 2026)</span>
       </div>
       <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" data-ru="Стратегия Conservative">
         Conservative Strategy
@@ -35,7 +35,7 @@ const global = strategies.global;
         <div>
           <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-2" data-ru="Целевой APY">Target APY</p>
           <div class="flex items-baseline gap-2">
-            <span class="text-5xl font-mono font-bold text-accent-400">~6%</span>
+            <span class="text-5xl font-mono font-bold text-accent-400">up to 6%</span>
             <span class="text-sm text-white/50 font-mono">APY</span>
           </div>
           <p class="text-xs text-white/25 mt-2" data-ru={preserve.target_apy_note_ru}>{preserve.target_apy_note}</p>
@@ -63,16 +63,16 @@ const global = strategies.global;
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Текущий статус">Current Status</p>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="rounded-xl border border-warn-border bg-warn-bg p-5">
+        <div class="rounded-xl border border-ok-border bg-ok-bg p-5">
           <div class="text-xs text-white/50 mb-1" data-ru="Фаза">Phase</div>
-          <div class="text-warn font-semibold flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-warn" aria-hidden="true"></span>
-            <span data-ru="Ожидает валидации">Validation Pending</span>
+          <div class="text-ok font-semibold flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-ok" aria-hidden="true"></span>
+            <span data-ru="Бумажная торговля (go-live трек)">Paper Trading (go-live track)</span>
           </div>
         </div>
         <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
-          <div class="text-xs text-white/50 mb-1" data-ru="Бумажный трек">Paper Tracking</div>
-          <div class="text-white/50 font-semibold" data-ru="Пока не активен">Not yet active</div>
+          <div class="text-xs text-white/50 mb-1" data-ru="Отслеживается с">Tracking Since</div>
+          <div class="text-white font-semibold">{global.paper_trading_start}</div>
         </div>
         <div class="rounded-xl border border-white/10 bg-white/[0.03] p-5">
           <div class="text-xs text-white/50 mb-1" data-ru="Цель запуска">Go-Live Target</div>
@@ -216,15 +216,15 @@ const global = strategies.global;
 
     <!-- 10. Performance / Validation Status -->
     <section class="py-10 border-t border-white/5">
-      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Статус валидации">Validation Status</p>
-      <div class="rounded-xl border border-warn-border bg-warn-bg p-6">
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Статус трека">Track Status</p>
+      <div class="rounded-xl border border-ok-border bg-ok-bg p-6">
         <div class="flex items-center gap-3 mb-4">
-          <span class="w-2 h-2 rounded-full bg-warn" aria-hidden="true"></span>
-          <span class="text-sm text-warn font-medium" data-ru="Целевой профиль — ожидает валидации">Target Profile — Validation Pending</span>
+          <span class="w-2 h-2 rounded-full bg-ok" aria-hidden="true"></span>
+          <span class="text-sm text-ok font-medium" data-ru="Живой бумажный трек · подтверждён">Live paper track · evidenced</span>
         </div>
-        <p class="text-sm text-white/55 leading-relaxed" data-ru="Бумажный трек для Conservative начнётся после валидации. Исторических данных о результатах пока нет. Все показатели APY являются лишь целевыми оценками.">
-          Paper tracking for Conservative will begin after validation. No historical performance data yet.
-          All APY figures are target estimates only.
+        <p class="text-sm text-white/55 leading-relaxed" data-ru="Conservative — это подтверждённая бумажная книга, живой go-live трек (anchor 22 июня 2026, ~3.3% реализовано на текущий момент). Именно этот тир деск реально ведёт. Все показатели APY — переменные, не гарантированы.">
+          Conservative IS the evidenced paper-tracked book — the live go-live track (anchor June 22, 2026, ~3.3% realized so far). This is the tier the desk actually runs.
+          All APY figures are variable, not guaranteed.
         </p>
       </div>
     </section>
@@ -347,8 +347,8 @@ const global = strategies.global;
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Когда начнётся бумажный трек?">When will paper tracking start?</h4>
-          <p class="text-sm text-white/55 leading-relaxed" data-ru="Бумажный трек для Conservative запланирован, но активная дата не установлена. Сейчас приоритет — валидация бумажного трека стратегии Balanced.">
-            Paper tracking for Conservative is planned but no active date has been set.
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Conservative — это живая evidenced-книга (go-live трек, anchor 22.06.2026, ~3.3% реализовано). Именно её деск реально ведёт.">
+            Conservative is the live paper-tracked book — the go-live track. The 30-day evidenced track is accumulating toward go-live.
             The Balanced strategy is the current priority for paper track record validation.
           </p>
         </div>
