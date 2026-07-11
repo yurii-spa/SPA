@@ -386,7 +386,8 @@ def test_generalized_verifier_is_zero_dependency():
     tree = ast.parse(src)
     # datetime: stdlib, used by the WS6 --check-fundability date math (kept in sync with the sibling
     # test_verify_spa_standalone.py allowlist — the zero-dependency contract is "stdlib only").
-    stdlib_ok = {"argparse", "hashlib", "json", "sys", "pathlib", "typing", "__future__", "datetime"}
+    stdlib_ok = {"argparse", "hashlib", "json", "sys", "pathlib", "typing", "__future__", "datetime",
+                 "decimal"}  # decimal: stdlib, used by the Q2-2 --replay verdict re-derivation
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for n in node.names:
