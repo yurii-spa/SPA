@@ -268,6 +268,26 @@ class TestCheckGapMonitor(unittest.TestCase):
         r = _check_gap_monitor(self.tmp)
         self.assertEqual(r.status, "fail")
 
+    def test_gap_transient_single_bar_is_warn(self):
+        # Q1-2: one late/missed daily bar (<48h) self-heals next cycle → WARN, not a hard FAIL
+        _write_json(self.tmp / "gap_monitor.json", {
+            "gap_detected": True, "status": "gap", "hours_since_last_entry": 27.1,
+            "message": "cycle missed a day",
+        })
+        r = _check_gap_monitor(self.tmp)
+        self.assertEqual(r.status, "warn")
+        self.assertTrue(r.value.get("transient"))
+
+    def test_gap_genuine_multiday_break_is_fail(self):
+        # ≥48h with an explicit hours value = a real track break → stays a hard FAIL
+        _write_json(self.tmp / "gap_monitor.json", {
+            "gap_detected": True, "status": "gap", "hours_since_last_entry": 72.0,
+            "message": "gap 3 days",
+        })
+        r = _check_gap_monitor(self.tmp)
+        self.assertEqual(r.status, "fail")
+        self.assertFalse(r.value.get("transient"))
+
     def test_status_not_ok(self):
         _write_json(self.tmp / "gap_monitor.json", {
             "gap_detected": False, "status": "stale", "message": "stale"

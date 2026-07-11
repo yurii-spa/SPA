@@ -167,8 +167,17 @@ def _check_consecutive_ready_days(data_dir: Path) -> CheckResult:
         return CheckResult(name, "fail", f"consecutive_ready_days error: {exc}", value=0)
 
 
+_GAP_TRANSIENT_MAX_H = 48.0   # ≤ this = one late/missed daily bar (recovers next cycle); > this = genuine break
+
+
 def _check_gap_monitor(data_dir: Path) -> CheckResult:
-    """Проверяет gap_monitor.json: gap_detected=False, status=ok (C2)."""
+    """Проверяет gap_monitor.json: gap_detected=False, status=ok (C2).
+
+    Q1-2 reconcile: distinguish a TRANSIENT single-bar staleness (daily cadence, last entry <48h ago →
+    one cycle ran late/was skipped once, self-heals on the next 06:00 UTC cycle) from a GENUINE multi-day
+    track break (≥48h). A transient gap is NOT a go-live code blocker and must not read as a hard FAIL that
+    disagrees with the authoritative go-live gate (which counts only the time-gated track-day blockers); it
+    surfaces as a WARN with an explicit self-heal note. A genuine ≥48h break stays a hard FAIL."""
     name = "gap_monitor_clean"
     path = data_dir / "gap_monitor.json"
     try:
@@ -179,10 +188,20 @@ def _check_gap_monitor(data_dir: Path) -> CheckResult:
         if not gap and status == "ok":
             return CheckResult(name, "pass",
                                f"No gaps — last entry {hours:.1f}h ago", value={"gap": gap, "hours": hours})
-        else:
-            msg = data.get("message", "gap detected")
-            return CheckResult(name, "fail",
-                               f"Gap detected: {msg}", value={"gap": gap, "status": status})
+        msg = data.get("message", "gap detected")
+        try:
+            hrs = float(hours)
+        except (TypeError, ValueError):
+            hrs = 999.0
+        if gap and hrs <= _GAP_TRANSIENT_MAX_H:
+            # one late/missed daily bar — self-heals on the next cycle, not a genuine go-live blocker
+            return CheckResult(name, "warn",
+                               f"Transient staleness ({hrs:.1f}h < {_GAP_TRANSIENT_MAX_H:.0f}h) — one late/"
+                               f"missed daily bar, self-heals next cycle; not a go-live blocker: {msg}",
+                               value={"gap": gap, "status": status, "hours": hrs, "transient": True})
+        return CheckResult(name, "fail",
+                           f"Gap detected ({hrs:.1f}h ≥ {_GAP_TRANSIENT_MAX_H:.0f}h — genuine break): {msg}",
+                           value={"gap": gap, "status": status, "hours": hrs, "transient": False})
     except FileNotFoundError:
         return CheckResult(name, "fail", "data/gap_monitor.json not found", value=None)
     except Exception as exc:
