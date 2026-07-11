@@ -103,6 +103,52 @@ def _f(x):
     return f"{x:.1f}" if isinstance(x, (int, float)) else "n/a"
 
 
+_BLENDS = [
+    ("100 / 0 / 0  (solo sUSDe)", [1.0, 0.0, 0.0]),
+    ("50 / 50 / 0", [0.5, 0.5, 0.0]),
+    ("50 / 25 / 25", [0.5, 0.25, 0.25]),
+    ("40 / 40 / 20", [0.4, 0.4, 0.2]),
+    ("34 / 33 / 33  (equal)", [0.34, 0.33, 0.33]),
+    ("25 / 50 / 25", [0.25, 0.5, 0.25]),   # the tier-default blend (idea #3)
+]
+
+
+def compute():
+    """Deterministic CORE of idea #3 — pure (no printing) so the finding (the tier-default blend) is
+    testable/verifiable. Returns None if the sUSDe series is too short OR the rates-carry committed data
+    is absent (clean checkout) so a consumer can skip gracefully."""
+    susde = _susde_series()
+    rates = _rates_carry_series()
+    if len(susde) < 60 or len(rates) < 60:
+        return None
+    r_susde = _returns(susde)
+    r_rates = _returns(rates)
+    dates = sorted(set(r_susde) & set(r_rates))
+    if len(dates) < 60:
+        dates = sorted(r_susde)
+    daily_rwa = (RWA_FLOOR_PCT / 100.0) / 365.0
+    r_rwa = {d: daily_rwa for d in dates}
+
+    def _mt(w):
+        a, d, c = _m(_blend_equity(dates, [r_susde, r_rates, r_rwa], w))
+        return {"apy": a, "maxdd": d, "calmar": c}
+
+    solo_a, solo_d, solo_c = _m(_blend_equity(dates, [r_susde], [1.0]))
+    blends = [{"label": lbl.strip(), "weights": w, **_mt(w)} for lbl, w in _BLENDS]
+    ranked = [b for b in blends if isinstance(b["calmar"], (int, float))]
+    best = max(ranked, key=lambda b: b["calmar"]) if ranked else None
+    default = next((b for b in blends if b["weights"] == [0.25, 0.5, 0.25]), None)
+    return {
+        "n_days": len(dates),
+        "window": (dates[0], dates[-1]),
+        "corr_susde_rates": _corr(r_susde, r_rates),
+        "solo_susde": {"apy": solo_a, "maxdd": solo_d, "calmar": solo_c},
+        "blends": blends,
+        "best": best,
+        "default_25_50_25": default,
+    }
+
+
 def main():
     susde = _susde_series()
     rates = _rates_carry_series()
@@ -133,16 +179,8 @@ def main():
     solo = _m(_blend_equity(dates, [r_susde], [1.0]))
     print(f"\n{'blend (sUSDe/rates/RWA)':>26}   {'apy':>6} {'maxDD':>7} {'Calmar':>7}")
     print("-" * 54)
-    blends = [
-        ("100 / 0 / 0  (solo sUSDe)", [1.0, 0.0, 0.0]),
-        ("50 / 50 / 0", [0.5, 0.5, 0.0]),
-        ("50 / 25 / 25", [0.5, 0.25, 0.25]),
-        ("40 / 40 / 20", [0.4, 0.4, 0.2]),
-        ("34 / 33 / 33  (equal)", [0.34, 0.33, 0.33]),
-        ("25 / 50 / 25", [0.25, 0.5, 0.25]),
-    ]
     best = None
-    for label, w in blends:
+    for label, w in _BLENDS:
         a, d, c = _m(_blend_equity(dates, [r_susde, r_rates, r_rwa], w))
         print(f"{label:>26}   {_f(a):>6} {_f(d):>7} {_f(c):>7}")
         if isinstance(c, (int, float)) and (best is None or c > best[3]):

@@ -12,18 +12,22 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 _ROOT = Path(__file__).resolve().parent.parent.parent
 _SCRIPT = _ROOT / "scripts" / "refusal_gate_overlay.py"
+_CROSSDESK = _ROOT / "scripts" / "cross_desk_portfolio.py"
 
 
-def _load_overlay():
-    spec = importlib.util.spec_from_file_location("_refusal_gate_overlay_under_test", _SCRIPT)
+def _load(path, name):
+    spec = importlib.util.spec_from_file_location(name, path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
 
 
-M = _load_overlay()
+M = _load(_SCRIPT, "_refusal_gate_overlay_under_test")
+CD = _load(_CROSSDESK, "_cross_desk_portfolio_under_test")
 
 
 def test_refused_set_is_exactly_risk_class_C_and_D():
@@ -80,3 +84,42 @@ def _naive_cagr_at(mod, toxic_ids, k):
 def test_compute_books_is_deterministic():
     a, b = M.compute_books(), M.compute_books()
     assert a["naive"] == b["naive"] and a["disciplined"] == b["disciplined"]
+
+
+# ── idea #3: cross-desk blend (the TIER DEFAULT — most load-bearing finding) ─────────────────────────
+def _crossdesk_or_skip():
+    res = CD.compute()
+    if res is None:
+        pytest.skip("rates-carry committed data absent (clean checkout) — cross-desk not computable")
+    return res
+
+
+def test_crossdesk_blend_cuts_drawdown_vs_solo_susde_at_comparable_yield():
+    # THE tier-default claim (idea #3): a decorrelated blend keeps ~the same yield as solo sUSDe while
+    # cutting drawdown hard → higher Calmar. Qualitative direction, not exact numbers.
+    res = _crossdesk_or_skip()
+    solo, best = res["solo_susde"], res["best"]
+    assert best["maxdd"] < solo["maxdd"], (best, solo)          # blend draws down far less
+    assert best["calmar"] > solo["calmar"], (best, solo)        # → better risk-adjusted
+    # yield is roughly preserved (the whole point: diversification does NOT cost much yield here)
+    assert best["apy"] >= solo["apy"] * 0.85, (best, solo)
+
+
+def test_crossdesk_best_blend_is_the_2550_25_tier_default():
+    res = _crossdesk_or_skip()
+    assert res["best"]["weights"] == [0.25, 0.5, 0.25], res["best"]
+    # and the default entry matches the best (they are the same blend)
+    assert res["default_25_50_25"]["calmar"] == res["best"]["calmar"]
+
+
+def test_crossdesk_susde_and_rates_are_decorrelated():
+    # the mechanism: sUSDe and rates-carry are near-uncorrelated (that is WHY the blend cuts DD).
+    res = _crossdesk_or_skip()
+    assert abs(res["corr_susde_rates"]) < 0.5, res["corr_susde_rates"]
+
+
+def test_crossdesk_compute_is_deterministic():
+    a, b = CD.compute(), CD.compute()
+    if a is None:
+        pytest.skip("rates-carry data absent")
+    assert a["solo_susde"] == b["solo_susde"] and a["best"]["calmar"] == b["best"]["calmar"]
