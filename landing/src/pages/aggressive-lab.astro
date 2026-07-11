@@ -1,0 +1,45 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+import AggressiveLabLive from '../components/AggressiveLabLive.jsx';
+
+/*
+ * /aggressive-lab — the honest "N unstable aggressive strategies on a live paper test" board.
+ * Owner-requested (2026-07-11): instead of ONE smoothed "Aggressive ~20%" number (which would be
+ * dishonest — these strategies are unstable and DIFFERENT), show each one live: its own $100k paper
+ * book, current P&L + days/30, its risk verdict, and its DATED tail. Nothing is live-allocated.
+ * The <AggressiveLabLive/> island (client:load) polls /api/aggressive-lab/paper + /scorecard and
+ * fails closed to an honest "unavailable" — never a fabricated number.
+ */
+---
+<Layout
+  title="Aggressive Lab — live paper tests | earn-defi.com"
+  description="We paper-test several unstable aggressive DeFi strategies in parallel — each on its own $100k, each with its live P&L, days accrued, risk verdict and DATED tail. None is live-allocated (advisory / outside RiskPolicy v1.0). See what the yield really costs.">
+  <main class="mx-auto max-w-6xl px-4 py-12">
+    <div class="mb-2 flex items-center gap-2 text-[11px] font-mono uppercase tracking-wider" style="color:var(--text-faint)">
+      <span data-ru="Вне RiskPolicy · advisory · только бумага">Outside RiskPolicy · advisory · paper-only</span>
+    </div>
+    <h1 class="text-4xl sm:text-5xl font-bold mb-4 leading-tight" style="color:var(--text-primary)"
+        data-ru="Лаборатория агрессивных: живой paper-тест">Aggressive Lab — live paper tests</h1>
+    <p class="text-base leading-relaxed mb-8 max-w-3xl" style="color:var(--text-secondary)"
+       data-ru="Вместо одного усреднённого «Агрессивный ~20%» (это было бы враньём — стратегии нестабильны и разные) мы показываем КАЖДУЮ вживую: свой $100k, текущий paper-P&L, дни N/30, вердикт по риску и хвост с датами. Ни одна не идёт в live-капитал.">
+      Instead of one smoothed &ldquo;Aggressive ~20%&rdquo; number (which would be dishonest — these
+      strategies are unstable and different), we show each one live: its own $100k paper book, current
+      P&amp;L, days N/30, its risk verdict, and its dated tail. None is allocated live capital.
+    </p>
+
+    <AggressiveLabLive client:load />
+
+    <div class="mt-10">
+      <a href="/annual-contrast" class="text-sm underline" style="color:var(--accent-400)"
+         data-ru="Хвост в цифрах: 15% против реальных ~3.3% →">The tail in numbers: 15% vs the real ~3.3% →</a>
+      <span class="mx-2" style="color:var(--text-faint)">·</span>
+      <a href="/packages" class="text-sm underline" style="color:var(--accent-400)"
+         data-ru="Три тира →">The three tiers →</a>
+    </div>
+
+    <div class="mt-10">
+      <Disclaimer />
+    </div>
+  </main>
+</Layout>

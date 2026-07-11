@@ -152,6 +152,56 @@ def get_aggressive_lab_scorecard():
     return scrub_nonfinite(out)
 
 
+@router.get("/api/aggressive-lab/paper")
+def get_aggressive_lab_paper():
+    """Live PER-BOOK paper P&L — data/aggressive_lab/paper_state.json.
+
+    Each aggressive book paper-tests on its OWN $100k; this surfaces the live accruing track (days,
+    equity, return) so ALL N aggressive strategies' live paper tests are visible in one place — the
+    honest 'we run several unstable strategies in parallel, here's each one live' view. Read-only,
+    FAIL-CLOSED, advisory / outside-RiskPolicy / NEVER live-allocated. A thin track (<30 days) is
+    HONESTLY labelled accruing-toward-day-30; a flat book with no live mark yet as awaiting-feed —
+    never presented as a trustworthy number. Missing/corrupt state → 200 with an empty envelope.
+    """
+    raw = read_state("aggressive_lab/paper_state.json", {})
+    env = _advisory_envelope()
+    books_in = (raw.get("books") if isinstance(raw, dict) else None) or {}
+    books = []
+    for bid, b in books_in.items():
+        if not isinstance(b, dict):
+            continue
+        eq = b.get("equity")
+        days = b.get("days")
+        ret = ((float(eq) / 100000.0 - 1.0) * 100.0) if isinstance(eq, (int, float)) else None
+        di = days if isinstance(days, int) else None
+        books.append({
+            "id": bid,
+            "days": days,
+            "equity_usd": eq,
+            "return_pct": round(ret, 4) if ret is not None else None,
+            "days_to_30": (max(0, 30 - di) if di is not None else None),
+            "killed": bool(b.get("killed")),
+            "kill_reason": b.get("kill_reason") or None,
+            "status": ("killed" if b.get("killed")
+                       else "awaiting_feed" if di == 0
+                       else "accruing" if (di is not None and di < 30)
+                       else "mature" if di is not None else "unknown"),
+        })
+    books.sort(key=lambda x: (x["days"] or 0), reverse=True)
+    return scrub_nonfinite({
+        "generated_at": raw.get("saved_at") if isinstance(raw, dict) else None,
+        "model": "aggressive_lab_paper",
+        "last_tick": raw.get("last_tick") if isinstance(raw, dict) else None,
+        "available": bool(books),
+        **env,
+        "capital_per_book_usd": 100000.0,
+        "n_books": len(books),
+        "books": books,
+        "note": "Each aggressive book paper-tests on its OWN $100k. Advisory / outside RiskPolicy / "
+                "never live-allocated. Thin tracks (<30d) are not yet trustworthy — accruing toward day-30.",
+    })
+
+
 @router.get("/api/aggressive-lab/strategy/{strategy_id}")
 def get_aggressive_lab_strategy(strategy_id: str):
     """A single aggressive strategy's realized series + its risk shape.
