@@ -73,11 +73,19 @@ def apply_guardian_vol(
     derisk_frac: float = 0.0,
     calm_mult: float = 1.2,
     roundtrip_cost: float = 0.0,
+    min_vol: float = 1e-5,
 ) -> List[float]:
     """PRE-EMPTIVE overlay. De-risk when the strategy's own rolling realized vol spikes above
     `vol_mult` × its trailing baseline (a regime signal that often LEADS the drawdown); re-enter when
     vol calms below `calm_mult` × baseline. `roundtrip_cost` (fraction) is charged each time exposure
-    changes — the honest churn drag. Uses only the strategy's own returns (self-contained)."""
+    changes — the honest churn drag. Uses only the strategy's own returns (self-contained).
+
+    `min_vol` is an ABSOLUTE daily-vol floor for the de-risk trigger: on a near-zero-vol book
+    (smooth floor accrual — e.g. engine_b, RWA sleeves) the trailing baseline is ~0, so numeric
+    dust (1e-6 returns from cent-rounding) makes the RATIO explode and fired false de-risks
+    (caught live 2026-07-11 on the S1 shadow domains). A spike must therefore ALSO exceed
+    `min_vol` (0.001%/day — economically nothing; real crisis vol is 0.5-5%/day, ≫ floor) to
+    de-risk. Cannot change any validated backtest number: every registry book has real vol."""
     equity = list(equity)
     if len(equity) < lookback + 2:
         return equity
@@ -89,9 +97,11 @@ def apply_guardian_vol(
             recent = stdev(rets[i - lookback + 1: i + 1])
             base = stdev(rets[max(0, i - 4 * lookback): i - lookback + 1]) or 1e-9
             prev = exposure
-            if exposure >= 1.0 and recent > vol_mult * base:
+            if exposure >= 1.0 and recent > vol_mult * base and recent > min_vol:
                 exposure = derisk_frac
-            elif exposure < 1.0 and recent < calm_mult * base:
+            elif exposure < 1.0 and (recent < calm_mult * base or recent < min_vol):
+                # calm again — including the symmetric floor case: sub-min_vol "vol" is not a
+                # regime, so a book stuck DERISKED on numeric dust re-arms instead of freezing
                 exposure = 1.0
             if exposure != prev and roundtrip_cost:
                 guarded[-1] *= (1.0 - roundtrip_cost * abs(prev - exposure))

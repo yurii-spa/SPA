@@ -20,8 +20,18 @@ Design decisions (honest, restart-proof):
   • Fail-CLOSED: a book with no readable series or no forward days gets state NO_FORWARD and no
     invented numbers. Guardians are DE-RISK-ONLY by construction (exposure ∈ {derisk_frac, 1.0}).
 
-ADVISORY / paper-only / OUTSIDE_RISKPOLICY: moves no capital, never touches the go-live track,
-writes ONLY data/swarm/. Deterministic, stdlib-only. LLM FORBIDDEN.
+TIER PORT — S1 SHADOW DOMAINS (charter «Тир-перенос», owner-requested 2026-07-11): the same
+pre-emptive vol-guardian also watches, SIGNAL-ONLY, (a) every Strategy-Lab sleeve forward series
+(the Balanced-tier candidates) and (b) the LIVE conservative go-live equity curve. For those
+domains the guardian is a pure SHADOW: it computes the signal and the what-if overlay but acts on
+NOTHING — RiskPolicy v1.0 stays the sole execution gate and the two-tier kill ladder is untouched;
+wiring this signal into the live cycle would require a new ADR + owner approval (the sanctioned
+path is an RTMR sensor). The shadow exists to ACCUMULATE EVIDENCE (S2): how often and how early
+the vol signal leads the reactive kill events.
+
+ADVISORY / paper-only / OUTSIDE_RISKPOLICY: moves no capital, never touches the go-live track
+(reads it read-only for the shadow), writes ONLY data/swarm/. Deterministic, stdlib-only.
+LLM FORBIDDEN.
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
@@ -29,7 +39,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Tuple, Sequence
+from typing import Dict, List, Optional, Tuple, Sequence
 
 from spa_core.strategy_lab.aggressive_lab.guardian import apply_guardian_vol, stdev
 from spa_core.strategy_lab.swarm.common import (
@@ -44,17 +54,22 @@ __all__ = ["vol_guardian_trace", "run_forward_guardian", "GUARDIAN_PARAMS"]
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 AGGRESSIVE_LAB_DIR = REPO_ROOT / "data" / "aggressive_lab"
+STRATEGY_LAB_PAPER_DIR = REPO_ROOT / "data" / "strategy_lab_paper"
+LIVE_TRACK_PATH = REPO_ROOT / "data" / "equity_curve_daily.json"
 SWARM_DIR = REPO_ROOT / "data" / "swarm"
 STATUS_NAME = "guardian_forward.json"
 PROOF_NAME = "guardian_forward_proof.jsonl"
 
 # OOS-validated params (docs/DYNAMIC_LEVERAGE_GUARDIAN.md idea #1 / scripts/guardian_backtest.py sweep).
+# min_vol: absolute daily-vol floor guarding zero-vol books from numeric-dust false de-risks
+# (caught live on engine_b, 2026-07-11) — see apply_guardian_vol docstring.
 GUARDIAN_PARAMS = {
     "lookback": 10,
     "vol_mult": 2.0,
     "derisk_frac": 0.0,
     "calm_mult": 1.2,
     "roundtrip_cost": 0.0015,
+    "min_vol": 1e-5,
 }
 # Warm-up tail taken from the backtest phase: baseline window (4×lookback) + recent window + 1.
 WARMUP_POINTS = 4 * GUARDIAN_PARAMS["lookback"] + GUARDIAN_PARAMS["lookback"] + 1
@@ -68,6 +83,7 @@ def vol_guardian_trace(
     derisk_frac: float = GUARDIAN_PARAMS["derisk_frac"],
     calm_mult: float = GUARDIAN_PARAMS["calm_mult"],
     roundtrip_cost: float = GUARDIAN_PARAMS["roundtrip_cost"],
+    min_vol: float = GUARDIAN_PARAMS["min_vol"],
 ) -> Tuple[List[float], List[float], List[Tuple[int, str]]]:
     """Same math as the canonical `apply_guardian_vol`, but ALSO returns the per-return exposure
     trace and the (index, action) event list. `events` index i refers to the day of equity[i+1]
@@ -86,9 +102,9 @@ def vol_guardian_trace(
             recent = stdev(rets[i - lookback + 1: i + 1])
             base = stdev(rets[max(0, i - 4 * lookback): i - lookback + 1]) or 1e-9
             prev = exposure
-            if exposure >= 1.0 and recent > vol_mult * base:
+            if exposure >= 1.0 and recent > vol_mult * base and recent > min_vol:
                 exposure = derisk_frac
-            elif exposure < 1.0 and recent < calm_mult * base:
+            elif exposure < 1.0 and (recent < calm_mult * base or recent < min_vol):
                 exposure = 1.0
             if exposure != prev:
                 events.append((i, "DERISK" if exposure < prev else "REENTER"))
@@ -194,12 +210,101 @@ def _guard_book(book_dir: Path) -> dict:
     }
 
 
+# ── S1 shadow domains: Strategy-Lab sleeves + the LIVE conservative track (signal-only) ────────
+def _guard_shadow(dates: List[str], equity: List[float], *, domain: str) -> dict:
+    """Pure SHADOW guardian over one continuous daily series: live signal + what-if overlay.
+    Signal-only by construction — the returned view carries no authority over any book."""
+    if len(equity) < GUARDIAN_PARAMS["lookback"] + 2:
+        return {"domain": domain, "state": "WARMUP", "days": len(equity),
+                "note": f"needs ≥{GUARDIAN_PARAMS['lookback'] + 2} daily points"}
+    guarded, exposures, events = vol_guardian_trace(equity)
+    rets = [equity[i] / equity[i - 1] - 1.0 for i in range(1, len(equity)) if equity[i - 1]]
+    lb = GUARDIAN_PARAMS["lookback"]
+    i = len(rets) - 1
+    recent = stdev(rets[i - lb + 1: i + 1])
+    baseline = stdev(rets[max(0, i - 4 * lb): i - lb + 1]) or 1e-9
+    raw0 = equity[0] or 1.0
+    return {
+        "domain": domain,
+        "state": "DERISKED" if (exposures and exposures[-1] < 1.0) else "ARMED",
+        "days": len(equity),
+        "window": {"start": dates[0], "end": dates[-1]},
+        "signal": {"recent_vol": round(recent, 8), "baseline_vol": round(baseline, 8),
+                   "ratio": round(recent / baseline, 3),
+                   "derisk_threshold": GUARDIAN_PARAMS["vol_mult"]},
+        "what_if": {"raw_max_dd_pct": _max_drawdown_pct([v / raw0 for v in equity]),
+                    "guarded_max_dd_pct": _max_drawdown_pct([v / guarded[0] for v in guarded])},
+        "derisk_events": [
+            {"date": dates[j] if 0 <= (j := idx + 1) < len(dates) else None, "action": act}
+            for idx, act in events][-10:],
+        "shadow_only": True,
+    }
+
+
+def _load_sleeve_series(path: Path) -> Optional[tuple]:
+    """strategy_lab paper series {'series': [{date, equity_usd}, …]} → (dates, equity)."""
+    try:
+        doc = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+    rows = doc.get("series") if isinstance(doc, dict) else None
+    if not isinstance(rows, list):
+        return None
+    pairs = [(str(r["date"]), float(r["equity_usd"])) for r in rows
+             if isinstance(r, dict) and r.get("date")
+             and isinstance(r.get("equity_usd"), (int, float))]
+    pairs.sort()
+    return ([d for d, _ in pairs], [e for _, e in pairs]) if pairs else None
+
+
+def _load_live_track(path: Path) -> Optional[tuple]:
+    """READ-ONLY view of the canonical go-live curve {'daily': [{date, close_equity}, …]}."""
+    try:
+        doc = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+    rows = doc.get("daily") if isinstance(doc, dict) else None
+    if not isinstance(rows, list):
+        return None
+    pairs = [(str(r["date"]), float(r["close_equity"])) for r in rows
+             if isinstance(r, dict) and r.get("date")
+             and isinstance(r.get("close_equity"), (int, float))]
+    pairs.sort()
+    return ([d for d, _ in pairs], [e for _, e in pairs]) if pairs else None
+
+
+def _shadow_domains(sleeves_dir: Path, live_track_path: Path) -> dict:
+    """All S1 shadow views: every Strategy-Lab sleeve series + the live conservative track."""
+    sleeves: Dict[str, dict] = {}
+    if sleeves_dir.is_dir():
+        for p in sorted(sleeves_dir.glob("*_series.json")):
+            name = p.stem.replace("_series", "")
+            loaded = _load_sleeve_series(p)
+            if loaded:
+                sleeves[name] = _guard_shadow(*loaded, domain=f"strategy_lab.{name}")
+    live = None
+    loaded = _load_live_track(live_track_path)
+    if loaded:
+        live = _guard_shadow(*loaded, domain="live_track_conservative")
+        live["note"] = ("SHADOW of the canonical go-live track — SIGNAL ONLY: RiskPolicy v1.0 "
+                        "remains the sole gate and the two-tier kill ladder is untouched; acting "
+                        "on this signal requires a new ADR + owner (sanctioned path: RTMR sensor). "
+                        "Purpose: accumulate lead-time evidence (S2).")
+    return {
+        "label": "S1 tier-port shadow guardians / SIGNAL-ONLY / zero authority",
+        "sleeves": sleeves,
+        "live_track": live if live else {"state": "NO_DATA",
+                                         "note": "equity_curve_daily.json missing/unreadable"},
+    }
+
+
 def _append_proof(doc: dict, proof_path: Path) -> bool:
     """Hash-chain one line per UTC day (idempotent per day). Returns True if appended."""
     payload = {
         "books": len(doc["books"]),
         "derisked_now": sorted(b for b, v in doc["books"].items() if v.get("state") == "DERISKED"),
         "forward_days_max": max((v.get("forward_days", 0) for v in doc["books"].values()), default=0),
+        "shadow_derisked": doc.get("summary", {}).get("shadow_derisked", []),
     }
     return append_daily_proof(payload, proof_path, day=doc["as_of_utc"][:10])
 
@@ -207,14 +312,18 @@ def _append_proof(doc: dict, proof_path: Path) -> bool:
 def run_forward_guardian(
     agg_dir: Path = AGGRESSIVE_LAB_DIR,
     out_dir: Path = SWARM_DIR,
+    sleeves_dir: Path = STRATEGY_LAB_PAPER_DIR,
+    live_track_path: Path = LIVE_TRACK_PATH,
 ) -> dict:
-    """One guardian pass over every aggressive_lab book. Writes the status JSON + daily proof line;
-    returns the status doc. Deterministic given the input series (timestamp aside)."""
+    """One guardian pass: every aggressive_lab book (authoritative for the aggressive paper
+    domain) + the S1 SHADOW domains (Strategy-Lab sleeves + live conservative track, signal-only).
+    Writes the status JSON + daily proof line; deterministic given the inputs (timestamp aside)."""
     books: Dict[str, dict] = {}
     if agg_dir.is_dir():
         for book_dir in sorted(p for p in agg_dir.iterdir() if p.is_dir()):
             if (book_dir / "realized_series.jsonl").exists():
                 books[book_dir.name] = _guard_book(book_dir)
+    shadow = _shadow_domains(sleeves_dir, live_track_path)
     doc = {
         "domain": "swarm.guardian_forward",
         "label": "SWARM L2 position guardians / ADVISORY / paper / OUTSIDE_RISKPOLICY",
@@ -228,12 +337,18 @@ def run_forward_guardian(
             "labeled per book; guarded numbers are paper, not realized capital."
         ),
         "books": books,
+        "shadow": shadow,
         "summary": {
             "books": len(books),
             "armed": sum(1 for v in books.values() if v.get("state") == "ARMED"),
             "derisked": sum(1 for v in books.values() if v.get("state") == "DERISKED"),
             "warmup_or_none": sum(1 for v in books.values()
                                   if v.get("state") in ("WARMUP", "NO_FORWARD")),
+            "shadow_sleeves": len(shadow["sleeves"]),
+            "shadow_derisked": sorted(
+                [n for n, v in shadow["sleeves"].items() if v.get("state") == "DERISKED"]
+                + (["live_track"] if shadow["live_track"].get("state") == "DERISKED" else [])),
+            "live_track_state": shadow["live_track"].get("state"),
         },
     }
     atomic_save(doc, str(out_dir / STATUS_NAME))
@@ -252,6 +367,11 @@ def main() -> int:
         if b.get("signal"):
             line += f" vol_ratio={b['signal']['ratio']}"
         print(line)
+    sh = doc["shadow"]
+    lt = sh["live_track"]
+    print(f"  shadow: {len(sh['sleeves'])} sleeves · live_track={lt.get('state')}"
+          + (f" vol_ratio={lt['signal']['ratio']}" if lt.get("signal") else "")
+          + f" · derisked={doc['summary']['shadow_derisked'] or 'none'}")
     return 0
 
 

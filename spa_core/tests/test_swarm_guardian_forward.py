@@ -124,5 +124,60 @@ def test_run_forward_guardian_writes_status_and_chained_proof(tmp_path):
 
 
 def test_run_forward_guardian_empty_dir_fail_closed(tmp_path):
-    doc = gf.run_forward_guardian(agg_dir=tmp_path / "missing", out_dir=tmp_path / "swarm")
+    doc = gf.run_forward_guardian(agg_dir=tmp_path / "missing", out_dir=tmp_path / "swarm",
+                                  sleeves_dir=tmp_path / "no_sleeves",
+                                  live_track_path=tmp_path / "no_track.json")
     assert doc["books"] == {} and doc["summary"]["books"] == 0
+    assert doc["shadow"]["live_track"]["state"] == "NO_DATA"  # honest, not invented-healthy
+
+
+# ── S1 tier-port shadow domains (sleeves + live conservative track, SIGNAL-ONLY) ───────────────
+def _write_sleeve(root: Path, name: str, eq: list[float]) -> None:
+    root.mkdir(parents=True, exist_ok=True)
+    (root / f"{name}_series.json").write_text(json.dumps({
+        "id": name,
+        "series": [{"date": f"2026-{(i // 28) + 1:02d}-{(i % 28) + 1:02d}", "equity_usd": round(v, 2)}
+                   for i, v in enumerate(eq)]}))
+
+
+def _write_live_track(path: Path, eq: list[float]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({
+        "daily": [{"date": f"2026-{(i // 28) + 1:02d}-{(i % 28) + 1:02d}", "close_equity": round(v, 2)}
+                  for i, v in enumerate(eq)]}))
+
+
+def test_shadow_sleeve_spike_derisks_signal_only(tmp_path):
+    sleeves = tmp_path / "sleeves"
+    _write_sleeve(sleeves, "variant_n", _series(31, 80, spike_at=70))  # spike near the end
+    _write_sleeve(sleeves, "rwa_floor", [100_000.0 * (1.0001 ** i) for i in range(81)])  # smooth floor accrual — truly zero-vol
+    _write_live_track(tmp_path / "track.json", _series(35, 60))
+    doc = gf.run_forward_guardian(agg_dir=tmp_path / "none", out_dir=tmp_path / "swarm",
+                                  sleeves_dir=sleeves, live_track_path=tmp_path / "track.json")
+    sl = doc["shadow"]["sleeves"]
+    assert set(sl) == {"variant_n", "rwa_floor"}
+    assert sl["variant_n"]["shadow_only"] is True
+    assert any(e["action"] == "DERISK" for e in sl["variant_n"]["derisk_events"])
+    # what-if overlay must improve the spiky sleeve's drawdown, and not invent one for the calm
+    assert sl["variant_n"]["what_if"]["guarded_max_dd_pct"] > sl["variant_n"]["what_if"]["raw_max_dd_pct"]
+    assert sl["rwa_floor"]["derisk_events"] == []
+
+
+def test_shadow_live_track_is_signal_only_with_adr_note(tmp_path):
+    _write_live_track(tmp_path / "track.json", _series(35, 60))
+    doc = gf.run_forward_guardian(agg_dir=tmp_path / "none", out_dir=tmp_path / "swarm",
+                                  sleeves_dir=tmp_path / "no_sleeves",
+                                  live_track_path=tmp_path / "track.json")
+    lt = doc["shadow"]["live_track"]
+    assert lt["state"] in ("ARMED", "DERISKED")
+    assert lt["days"] == 61
+    assert "RiskPolicy v1.0" in lt["note"] and "ADR" in lt["note"]  # zero authority, explicit
+    assert doc["summary"]["live_track_state"] == lt["state"]
+
+
+def test_shadow_short_series_warmup(tmp_path):
+    sleeves = tmp_path / "sleeves"
+    _write_sleeve(sleeves, "young", _series(3, 5))  # 6 points < lookback+2
+    doc = gf.run_forward_guardian(agg_dir=tmp_path / "none", out_dir=tmp_path / "swarm",
+                                  sleeves_dir=sleeves, live_track_path=tmp_path / "no.json")
+    assert doc["shadow"]["sleeves"]["young"]["state"] == "WARMUP"
