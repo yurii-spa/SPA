@@ -1,9 +1,12 @@
 # SITE UI/UX BACKLOG — deep architect audit (2026-07-11)
 
 > **✅ SHIPPED (2026-07-11):** UX-01 funnels IIFE · UX-02 WalletCheck EN-first · UX-03 cockpit-kit noindex ·
-> UX-04 sitemap excludes internal · UX-06 single hero headline · UX-08 dashboard mock illustrative ·
+> UX-04 sitemap excludes internal · UX-06 single hero headline · UX-07 hero eyebrow benefit-first ·
+> UX-08 dashboard mock illustrative · UX-09 Analyze-CTA focuses hero input ·
 > UX-10 Preserve honesty (target-profile not Paper-tracked) · UX-11 checkup terminal earn-defi CTA ·
-> UX-12 honest waitlist copy. (commits bed4e015, 47926e43, checkup 5033c8a)
+> UX-12 honest waitlist copy. (commits bed4e015, 47926e43, f35f6500, checkup 5033c8a) — **entire "now"
+> code-doable-solo bucket shipped.** Remaining: UX-13 (P3), "next"/"later" buckets (UX-20/21/22 etc.),
+> and the owner-gated + needs-judgment items below.
 > **🔒 OWNER-GATED (need a decision):** tier NAMING (pick ONE taxonomy: Preserve/Core/Max-Yield vs
 > Conservative/Balanced/Aggressive), the canonical public APY number(s), /admin auth (CF Access).
 > **⚠️ NEEDS JUDGMENT (not blindly):** UX-05 noindex list includes intentional public proof/research
