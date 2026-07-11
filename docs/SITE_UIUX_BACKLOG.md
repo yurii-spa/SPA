@@ -54,6 +54,8 @@ WHERE THE SITE DIVERGES:
 ## Prioritized backlog
 
 
+> **Loop-shipped 2026-07-12:** UX-05 (partial safe scope — sitemap drops 3 noindex tier redirect-stubs, `1eebd929`) · UX-31 (faq stale 'a third of the way' removed, `498dad40`). funnels.astro IIFE bug already fixed upstream.
+
 ### — NOW —
 
 **UX-03 · P0 · [S] · ✅solo — Remove /cockpit-kit synthetic-data dev Storybook from the public, indexed build**
