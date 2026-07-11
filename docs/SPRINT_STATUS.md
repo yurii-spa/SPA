@@ -4,7 +4,7 @@
 > `docs/ROADMAP_2MONTH_EISENHOWER_v2.md` (4 двухнедельных спринта) + вплетаемые Month-1/2 задачи
 > из `docs/TOURNAMENT_VERDICT_AND_6MO_BACKLOG.md` (3-тир продукт). Легенда: ✅ done · 🔄 in progress · ⬜ next.
 
-**Обновлено:** 2026-07-11 (firing #39) · **Текущий спринт:** Sprint 1–4 (W1–W8) активно · **Track:** 19/30 evidenced (go-live ~07-21)
+**Обновлено:** 2026-07-11 (firing #40) · **Текущий спринт:** Sprint 1–4 (W1–W8) активно · **Track:** 19/30 evidenced (go-live ~07-21)
 
 > **firing #35** — **Q2-10** `verify_spa.py --offline`: self-contained frozen-snapshot reproducibility — читает SNAPSHOT_MANIFEST.json, сверяет каждый pinned-файл byte-identical (sha256+size, fail-CLOSED на tamper/missing), auto-applies expected head/surfaces → фандер воспроизводит датасет ОДНИМ флагом без живого API. build_dd_snapshot эмитит offline_command; +6 тестов; засурфейзено на /proof-of-reserves. Пейрится с Q2-2 --replay в том же verifier. Коммит `d4380603`. **+Q1-3** — orphaned `com.spa.resilience.plist` вписан в install_all_agents.sh (gate PASSED, загружен exit 0, под agent_health) `a908a75b`. Flagged: те же 2 pre-existing anchor-теста (Q1-4, не мои).
 
