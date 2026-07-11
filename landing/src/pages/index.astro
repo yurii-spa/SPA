@@ -194,10 +194,10 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       </div>
       <div class="tier-grid" id="tierGrid">
         <div class="tier-card t-preserve">
-          <h3>Preserve</h3>
+          <h3>Conservative</h3>
           <span class="pill wait" style="background:rgba(234,179,8,.12);color:#eab308;border:1px solid rgba(234,179,8,.3)" data-ru="ВАЛИДАЦИЯ В ОЖИДАНИИ">VALIDATION PENDING</span>
           <span class="pill wait" data-ru="Целевой профиль">Target profile</span>
-          <div class="tier-apy" data-fb="apy">{pkgApy('conservative')}<small> net APY</small></div>
+          <div class="tier-apy">up to 6%<small> net APY</small></div>
           <div class="tier-cap" data-ru="целевой диапазон · не в бумажном треке">target range · not in paper track</div>
           <ul class="tier-dl">
             <li><span class="k" data-ru="Профиль риска">Risk band</span><span class="v" data-ru="Низкий">Low</span></li>
@@ -208,9 +208,9 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
           <a class="btn-card" href="/strategies/preserve" data-track="tier_view_conservative" data-ru="Подробнее →">View strategy details →</a>
         </div>
         <div class="tier-card t-core">
-          <h3>Core</h3>
+          <h3>Balanced</h3>
           <span class="pill ok" data-ru="Бумажный трек">Paper-tracked</span>
-          <div class="tier-apy" data-fb="apy">{pkgApy('balanced')}<small> net APY</small></div>
+          <div class="tier-apy">up to 12%<small> net APY</small></div>
           <div class="tier-cap" data-ru="бумажный · переменный · не гарантирован">paper · variable · not guaranteed</div>
           <ul class="tier-dl">
             <li><span class="k" data-ru="Профиль риска">Risk band</span><span class="v" data-ru="Сбаланс.">Balanced</span></li>
@@ -221,17 +221,17 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
           <a class="btn-card" href="/strategies/core" data-track="tier_view_balanced" data-ru="Подробнее →">View strategy details →</a>
         </div>
         <div class="tier-card t-max">
-          <h3>Max Yield</h3>
+          <h3>Aggressive</h3>
           <span class="pill wait" style="background:rgba(234,179,8,.12);color:#eab308;border:1px solid rgba(234,179,8,.3)" data-ru="ВАЛИДАЦИЯ В ОЖИДАНИИ">VALIDATION PENDING</span>
           <span class="pill wait" data-ru="Целевой профиль">Target profile</span>
-          <div class="tier-apy" data-fb="apy">{pkgApy('aggressive')}<small> net APY</small></div>
+          <div class="tier-apy">up to 20%<small> net APY</small></div>
           <div class="tier-cap" data-ru="целевой диапазон · не в бумажном треке">target range · not in paper track</div>
           <ul class="tier-dl">
             <li><span class="k" data-ru="Профиль риска">Risk band</span><span class="v" data-ru="Выше">Higher</span></li>
             <li><span class="k" data-ru="Макс. просадка">Max drawdown</span><span class="v" data-fb="dd" data-ru={pkgDDru('aggressive')}>{pkgDD('aggressive')}</span></li>
             <li><span class="k" data-ru="Состав">Tier mix</span><span class="v">T1 + T2</span></li>
           </ul>
-          <p class="tier-who" style="color:#eab308" data-ru="Research/paper — деск ОТКАЗЫВАЕТ это для live. Реальный датированный хвост: нехеджированная книга потеряла ~50% на обвале ETH. Стабильные 15% — это не альфа, а хвост.">Research/paper — the desk REFUSES this for live. Real dated tail: an unhedged book lost ~50% through the ETH crash. A stable 15% is not alpha — it is a tail.</p>
+          <p class="tier-who" style="color:#eab308" data-ru="Research/paper — деск ОТКАЗЫВАЕТ это для live. Реальный датированный хвост: нехеджированная книга потеряла ~50% на обвале ETH. Стабильные 20% — это не альфа, а хвост.">Research/paper — the desk REFUSES this for live. Real dated tail: an unhedged book lost ~50% through the ETH crash. A stable 20% is not alpha — it is a tail.</p>
           <a class="btn-card" href="/strategies/max-yield" data-track="tier_view_aggressive" data-ru="Подробнее →">View strategy details →</a>
         </div>
       </div>

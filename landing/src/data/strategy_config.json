@@ -2,7 +2,7 @@
   "strategies": [
     {
       "id": "preserve",
-      "name": "Preserve",
+      "name": "Conservative",
       "tagline": "Capital-preservation focused yield",
       "target_apy": 6,
       "risk_level": "lower",
@@ -14,16 +14,29 @@
       "taglineRu": "Доходность с фокусом на сохранении капитала",
       "description": "Tier 1 protocols only. No looping, no leverage. Higher cash buffer. Stricter protocol eligibility. Validation pending — paper tracking has not started yet.",
       "descriptionRu": "Только протоколы Tier 1. Без лупинга, без плеча. Более высокий денежный буфер. Более строгие критерии отбора протоколов. Ожидает валидации — бумажный трек ещё не начат.",
-      "yield_sources": ["Aave V3 USDC", "Compound V3 USDC", "Spark sUSDS"],
-      "does_not": ["Use leverage", "Use looping", "Chase extreme APY", "Allocate to Tier 3 protocols", "Bypass RiskPolicy"],
+      "yield_sources": [
+        "Aave V3 USDC",
+        "Compound V3 USDC",
+        "Spark sUSDS"
+      ],
+      "does_not": [
+        "Use leverage",
+        "Use looping",
+        "Chase extreme APY",
+        "Allocate to Tier 3 protocols",
+        "Bypass RiskPolicy"
+      ],
       "target_apy_note": "Target profile — validation pending. Not paper tracked. Variable APY, not guaranteed.",
       "target_apy_note_ru": "Целевой профиль — ожидает валидации. Бумажный трек не ведётся. Переменный APY, не гарантирован.",
-      "assets": ["USDT (TRC-20, ERC-20)", "USDC (ERC-20)"],
+      "assets": [
+        "USDT (TRC-20, ERC-20)",
+        "USDC (ERC-20)"
+      ],
       "path": "/strategies/preserve"
     },
     {
       "id": "core",
-      "name": "Core",
+      "name": "Balanced",
       "tagline": "Systematic, risk-gated DeFi yield — paper-tracked since June 2026",
       "target_apy": 5,
       "risk_level": "medium",
@@ -35,17 +48,36 @@
       "who_for": "Family offices and individual allocators seeking systematic, transparent DeFi yield.",
       "descriptionRu": "Протоколы Tier 1 и отдельные Tier 2. Детерминированная ребалансировка с риск-гейтами. Публичный бумажный трек с 22 июня 2026 года (evidenced anchor).",
       "description": "Tier 1 + selected Tier 2 protocols. Deterministic risk-gated rebalancing. Public paper track record since June 22, 2026 (evidenced anchor).",
-      "yield_sources": ["Aave V3 USDC", "Morpho Blue USDC", "Compound V3 USDC", "Yearn V3 USDC", "Euler V2 USDC"],
-      "does_not": ["Use leverage", "Use looping", "Bypass RiskPolicy gates", "Allocate to unaudited protocols"],
-      "does_not_ru": ["Использовать плечо", "Использовать лупинг", "Обходить гейты RiskPolicy", "Размещать средства в неаудированных протоколах"],
+      "yield_sources": [
+        "Aave V3 USDC",
+        "Morpho Blue USDC",
+        "Compound V3 USDC",
+        "Yearn V3 USDC",
+        "Euler V2 USDC"
+      ],
+      "does_not": [
+        "Use leverage",
+        "Use looping",
+        "Bypass RiskPolicy gates",
+        "Allocate to unaudited protocols"
+      ],
+      "does_not_ru": [
+        "Использовать плечо",
+        "Использовать лупинг",
+        "Обходить гейты RiskPolicy",
+        "Размещать средства в неаудированных протоколах"
+      ],
       "target_apy_note": "Target band; current live paper APY ~3.6% (blended book ~4.5%). Variable, not guaranteed. Evidenced track since June 22, 2026.",
       "target_apy_note_ru": "Целевой диапазон; текущий live бумажный APY ~3.6% (blended-книга ~4.5%). Переменный, не гарантирован. Засчитываемый трек с 22 июня 2026.",
-      "assets": ["USDT (TRC-20, ERC-20)", "USDC (ERC-20)"],
+      "assets": [
+        "USDT (TRC-20, ERC-20)",
+        "USDC (ERC-20)"
+      ],
       "path": "/strategies/core"
     },
     {
       "id": "max-yield",
-      "name": "Max Yield",
+      "name": "Aggressive",
       "tagline": "Advanced mechanics for higher yield tolerance",
       "target_apy": 15,
       "risk_level": "higher",
@@ -57,11 +89,22 @@
       "taglineRu": "Продвинутая механика для повышенной терпимости к доходности",
       "description": "Advanced vault mechanics and optimised lending strategies. No open liquidation risk by default in v1.0. More complex strategies may be added after separate paper validation.",
       "descriptionRu": "Продвинутая механика хранилищ и оптимизированные стратегии кредитования. Без открытого риска ликвидации по умолчанию в v1.0. Более сложные стратегии могут быть добавлены после отдельной бумажной валидации.",
-      "yield_sources": ["Optimised Aave positions", "Advanced Morpho vaults", "Selected higher-yield pools"],
-      "does_not": ["Expose to open liquidation risk by default", "Bypass RiskPolicy gates", "Allocate without risk gate approval"],
+      "yield_sources": [
+        "Optimised Aave positions",
+        "Advanced Morpho vaults",
+        "Selected higher-yield pools"
+      ],
+      "does_not": [
+        "Expose to open liquidation risk by default",
+        "Bypass RiskPolicy gates",
+        "Allocate without risk gate approval"
+      ],
       "target_apy_note": "Target profile — validation pending. Not paper tracked. Variable APY, not guaranteed. Possible loss of capital.",
       "target_apy_note_ru": "Целевой профиль — ожидает валидации. Бумажный трек не ведётся. Переменный APY, не гарантирован. Возможна потеря капитала.",
-      "assets": ["USDT (TRC-20, ERC-20)", "USDC (ERC-20)"],
+      "assets": [
+        "USDT (TRC-20, ERC-20)",
+        "USDC (ERC-20)"
+      ],
       "path": "/strategies/max-yield"
     }
   ],
@@ -70,6 +113,12 @@
     "paper_trading_start": "June 22, 2026",
     "withdrawal_terms": "No lock-up. Standard processing T+1. Large withdrawals up to 5 business days.",
     "apy_disclaimer": "APY figures are variable and not guaranteed. Past paper performance does not guarantee future results. Possible loss of capital.",
-    "forbidden_words": ["safe", "guaranteed", "protected", "risk-free", "capital protection"]
+    "forbidden_words": [
+      "safe",
+      "guaranteed",
+      "protected",
+      "risk-free",
+      "capital protection"
+    ]
   }
 }
