@@ -54,6 +54,14 @@ VERSION = "1.0"
 # Promotion criteria
 # ─────────────────────────────────────────────────────────────────────────────
 
+# #17 — the OTHER promotion framework is spa_core/paper_trading/promotion_engine.py (PromotionEngine),
+# the CANONICAL daily-cycle shadow-panel promote/demote/kill (PROMOTE_SHARPE=0.8, MIN_DAYS=14). These are
+# DIFFERENT subsystems by design (see that module's docstring + docs/DECISIONS.md): this TournamentEngine
+# is the standalone research-breadth pipeline (backtest→paper_30d→live, its own strategy_tournament.json,
+# 09:00 UTC agent). Reaching THIS engine's research-'live' is STRICTER than a shadow-promote (min_sharpe
+# 1.5 ≥ 0.8) — an invariant pinned by spa_core/tests/test_promotion_parity.py so the two can't silently
+# drift into contradiction. Both are advisory; neither moves real capital (the data-credibility gate +
+# trustworthy=False keep research-'live' out of live allocation).
 PROMOTION_CRITERIA: Dict[str, Any] = {
     "min_sharpe":       1.5,    # Sharpe ≥ 1.5
     "min_days_paper":   7,      # at least 7 paper days
