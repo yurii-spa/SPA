@@ -15,6 +15,14 @@ import Layout from '../../layouts/Layout.astro';
       <p style="font-size:.8rem;color:var(--text-faint);margin-top:12px">View→analyze conversion: <b id="f-conv" style="color:var(--text-secondary)">—</b></p>
     </section>
 
+    <!-- Checkup → earn-defi campaign attribution (utm_campaign on the DeFi Checkup deep-CTA: which
+         risk signal drove the click). Backend already attributes it (analytics summary top_campaigns);
+         this surfaces it so the reverse funnel is measurable, not just captured. -->
+    <section class="ac-sec"><div class="ac-sec-h">Checkup → earn-defi campaigns <span class="ac-soon" id="c-state">loading…</span></div>
+      <p class="ac-sub" style="margin-bottom:10px">Which risk signal in the DeFi Checkup report drove the click here (depeg / leverage / idle_stables / concentration…). No IP/cookies/PII — campaign tag only.</p>
+      <div class="funnel" id="c-list"><div class="fstep"><span class="l">—</span><span class="n">—</span></div></div>
+    </section>
+
     <!-- Q2-5/Q2-8: real design-partner pilot funnel (PII-minimal — anonymous interest + opaque-label pipeline) -->
     <section class="ac-sec"><div class="ac-sec-h">Design-partner pilot funnel <span class="ac-soon" id="p-state">loading…</span></div>
       <div class="funnel">
@@ -32,12 +40,23 @@ import Layout from '../../layouts/Layout.astro';
   (function(){
     var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8765':'https://api.earn-defi.com';
     function set(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+    function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
     fetch(API+'/api/analytics/summary').then(function(r){return r.json();}).then(function(d){
       var ev=d.events||{};var views=d.total_views||0;var aw=ev.analyze_wallet||0;
       set('f-views',views);set('f-aw',aw);set('f-sl',ev.view_strategy_lab||0);
       set('f-conv',views>0?((aw/views*100).toFixed(1)+'%'):'—');
       set('f-state','live');
-    }).catch(function(){set('f-state','offline');});
+      // Checkup → earn-defi campaign attribution (top_campaigns = [{campaign, hits}]).
+      var cl=document.getElementById('c-list'); var camps=d.top_campaigns||[];
+      if(cl){
+        if(camps.length){
+          cl.innerHTML=camps.map(function(c){return '<div class="fstep"><span class="l">'+esc(c.campaign)+'</span><span class="n">'+(c.hits||0)+'</span></div>';}).join('');
+        } else {
+          cl.innerHTML='<div class="fstep"><span class="l" style="opacity:.6">no campaign clicks yet</span><span class="n">0</span></div>';
+        }
+      }
+      set('c-state','live');
+    }).catch(function(){set('f-state','offline');set('c-state','offline');});
     // Design-partner pilot funnel — real interest + pipeline data (PII-minimal).
     Promise.all([
       fetch(API+'/api/interest/summary').then(function(r){return r.json();}).catch(function(){return null;}),
