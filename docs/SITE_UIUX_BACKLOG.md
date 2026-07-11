@@ -1,5 +1,15 @@
 # SITE UI/UX BACKLOG — deep architect audit (2026-07-11)
 
+> **✅ SHIPPED (2026-07-11):** UX-01 funnels IIFE · UX-02 WalletCheck EN-first · UX-03 cockpit-kit noindex ·
+> UX-04 sitemap excludes internal · UX-06 single hero headline · UX-08 dashboard mock illustrative ·
+> UX-10 Preserve honesty (target-profile not Paper-tracked) · UX-11 checkup terminal earn-defi CTA ·
+> UX-12 honest waitlist copy. (commits bed4e015, 47926e43, checkup 5033c8a)
+> **🔒 OWNER-GATED (need a decision):** tier NAMING (pick ONE taxonomy: Preserve/Core/Max-Yield vs
+> Conservative/Balanced/Aggressive), the canonical public APY number(s), /admin auth (CF Access).
+> **⚠️ NEEDS JUDGMENT (not blindly):** UX-05 noindex list includes intentional public proof/research
+> pages (rates-desk, rwa-backstop, structural-desk, due-diligence, exit-nav) — noindexing them would
+> HURT the measurement-moat SEO; only clearly-operator pages should be noindex'd.
+
 > 7-architect parallel audit (`site-uiux-audit` wf_0b25760f, 8 agents, ~769k tok) of earn-defi.com
 > (public site + /admin + DeFi Checkup funnel). 50 findings → 40 deduped prioritized items.
 > Owner directive: one coherent SELLING customer journey — consistent numbers/naming, clear
