@@ -43,7 +43,7 @@ import Layout from '../layouts/Layout.astro';
     </section>
 
     <section class="py-6 border-t border-border">
-      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Блокеры только для владельца (код не может их закрыть)">Owner-only blockers (code cannot satisfy these)</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Блокеры только для владельца (код не может их закрыть)">Owner-only blockers (code cannot satisfy these)<span id="rdy-blockers-count" class="text-white/35 normal-case"></span></p>
       <ul class="space-y-2" id="rdy-blockers">
         <li class="text-sm text-white/50">—</li>
       </ul>
@@ -76,14 +76,25 @@ python3 scripts/kill_switch_drill.py                   # emergency-stop latency 
         var k=d.kill_switch_drill||{};
         if(k.latency_ms!=null){ var dt=(k.last_drill_at||'').slice(0,10); set('rdy-ksd', (k.verdict||'')+' · '+k.latency_ms+'ms / '+(k.latency_limit_ms||1000)+'ms budget'+(dt?(' · '+dt):'')); }
         var ul=document.getElementById('rdy-blockers');
-        if(ul && Array.isArray(d.owner_only_blockers)){
+        // Q1-9: prefer the richer per-gate tracker (status open/in_progress/satisfied);
+        // fall back to the flat list for older API responses.
+        var ob=d.owner_blockers, gates=(ob&&Array.isArray(ob.gates))?ob.gates:d.owner_only_blockers;
+        if(ul && Array.isArray(gates)){
           ul.innerHTML='';
-          d.owner_only_blockers.forEach(function(b){
+          var badge={open:['open','text-warn bg-warn/10 border-warn/30'],
+                     in_progress:['in progress','text-accent-400 bg-accent-400/10 border-accent-400/30'],
+                     satisfied:['satisfied','text-ok bg-ok/10 border-ok/30']};
+          gates.forEach(function(b){
+            var st=b.status||'', bd=badge[st]||['','text-white/40 border-white/15'];
             var li=document.createElement('li');
-            li.className='text-sm text-white/55 flex gap-2';
-            li.innerHTML='<span class="text-warn flex-shrink-0">•</span><span><b class="text-white/75">'+b.id+'</b> — '+b.what+'</span>';
+            li.className='text-sm text-white/55 flex gap-2 items-start';
+            var pill= st ? ('<span class="text-[10px] font-mono px-1.5 py-0.5 rounded border '+bd[1]+' flex-shrink-0">'+bd[0]+'</span>') : '<span class="text-warn flex-shrink-0">•</span>';
+            var detail = b.detail ? (' <span class="text-white/40">— '+b.detail+'</span>') : '';
+            li.innerHTML=pill+'<span><b class="text-white/75">'+b.id+'</b> — '+b.what+detail+'</span>';
             ul.appendChild(li);
           });
+          var ts=document.getElementById('rdy-blockers-count');
+          if(ts && ob && ob.open_count!=null) ts.textContent=' — '+ob.open_count+'/'+ob.total+' still open';
         }
         if(d.honest) set('rdy-honest', d.honest);
       }).catch(function(){ set('rdy-def','unavailable'); });

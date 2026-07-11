@@ -33,6 +33,10 @@ if str(ROOT) not in sys.path:
 STEPS: list[tuple[str, list[str]]] = [
     ("golive_checker", [PY, "-m", "spa_core.paper_trading.golive_checker"]),
     ("pre_cutover_gate", [PY, str(ROOT / "scripts" / "pre_cutover_gate.py")]),
+    # Q1-9: refresh the owner-only procurement tracker AFTER golive_checker rewrites
+    # golive_status.json, so track_days is derived from the just-updated count. Advisory;
+    # never marks audit/legal satisfied on its own (owner-asserted evidence only).
+    ("owner_blockers", [PY, "-m", "spa_core.execution.owner_blockers"]),
 ]
 
 

@@ -30,12 +30,32 @@ def _load(name: str) -> dict:
 
 # The owner-only blockers are stable, documented facts (pre_cutover_gate advisory +
 # ADR-010 + the go-live gate) — NOT fabricated numbers. AI holds no keys, is never a signer.
+# Static fallback used only when data/owner_blockers.json is absent (sandbox/CI fixtures).
 _OWNER_ONLY = [
     {"id": "custody", "what": "Gnosis Safe 2-of-3 deployed + keys provisioned (ADR-010) — AI holds no keys and is never a signer"},
     {"id": "audit", "what": "external security audit of the execution path signed off"},
     {"id": "legal", "what": "entity + disclosure / no-guarantee framing reviewed by counsel before any external capital"},
     {"id": "track_days", "what": "≥30 evidenced honest paper-track days (the go-live gate; time-gated, nothing to fix in code)"},
 ]
+
+
+def _owner_blockers() -> dict:
+    """Q1-9: serve the dynamic owner-only procurement tracker (per-gate status:
+    open/in_progress/satisfied). Code never fabricates progress — audit/legal flip only
+    on owner-asserted evidence, track_days is time-derived. Falls back to the static
+    catalogue when data/owner_blockers.json is absent (never a 500)."""
+    ob = _load("owner_blockers.json")
+    gates = ob.get("gates") if isinstance(ob, dict) else None
+    if not gates:
+        return {"gates": _OWNER_ONLY, "open_count": len(_OWNER_ONLY),
+                "total": len(_OWNER_ONLY), "all_satisfied": False, "generated_at": None}
+    return {
+        "gates": gates,
+        "open_count": ob.get("open_count"),
+        "total": ob.get("total"),
+        "all_satisfied": ob.get("all_satisfied"),
+        "generated_at": ob.get("generated_at"),
+    }
 
 
 @router.get("/api/readiness")
@@ -92,7 +112,12 @@ def readiness() -> dict:
             "consecutive_ready_days": golive.get("consecutive_ready_days"),
             "consecutive_ready_days_needed": 7,
         },
-        "owner_only_blockers": _OWNER_ONLY,
+        # Q1-9: dynamic owner-only blocker tracker — each gate carries a live status
+        # (open/in_progress/satisfied) so procurement runs in parallel with track days.
+        # `owner_only_blockers` stays a flat list for backward-compat consumers; the
+        # richer per-gate view is under `owner_blockers`.
+        "owner_only_blockers": [{"id": g["id"], "what": g["what"]} for g in _owner_blockers()["gates"]],
+        "owner_blockers": _owner_blockers(),
         "reproduce": {
             "proof_chain": "python3 scripts/verify_spa.py data/",
             "defenses_fire": "python3 scripts/defenses_exercised_report.py",
