@@ -4,7 +4,7 @@
 > `docs/ROADMAP_2MONTH_EISENHOWER_v2.md` (4 двухнедельных спринта) + вплетаемые Month-1/2 задачи
 > из `docs/TOURNAMENT_VERDICT_AND_6MO_BACKLOG.md` (3-тир продукт). Легенда: ✅ done · 🔄 in progress · ⬜ next.
 
-**Обновлено:** 2026-07-11 (firing #15) · **Текущий спринт:** Sprint 1–2 (W1–W4) активно · **Track:** 19/30 evidenced (go-live ~07-21)
+**Обновлено:** 2026-07-11 (firing #16) · **Текущий спринт:** Sprint 1–2 (W1–W4) активно · **Track:** 19/30 evidenced (go-live ~07-21)
 
 ---
 
@@ -15,7 +15,7 @@
 | 🔄 | 3-тир продукт: вывод realized+tail на все поверхности | 6mo M3–M5 (вплетено) |
 | ⬜ | #13→#14 турнир на реальные фиды → tail-penalized ранжирование | Sprint 2 (M2) |
 | ⬜ | Q2-11 / Q2-12 checkup: Uniswap V3 LP + Morpho/Fluid leverage detection | Sprint 3 |
-| ⬜ | Q2-14 auto-generated research changelog из live-трека | Sprint 2 |
+| ⬜ | Q2-8 pilot pipeline tracker (CRM-lite) | Sprint 3 |
 
 ---
 
@@ -40,6 +40,7 @@
 | Q2-9 | self-verifying data-room bundle (hostile reviewer) | ✅ | `f5bf9819` |
 | Q2-10 | offline DD snapshot (frozen surfaces + pinned verifier head, anchors excluded) | ✅ | `pending` |
 | Q2-18 | dated evidenced-track ledger 19→30 (per-day dd/return, /api/readiness) | ✅ | `17b66599` |
+| Q2-14 | auto-generated research changelog (track+refusal digest → /changelog + RSS) | ✅ | `pending` |
 | Q2-15 | RSS/Atom feed + BlogPosting JSON-LD | ✅ | `e4f27123` |
 | Q2-16 | per-protocol SEO-страницы (is ezETH safe? …) | ✅ | `889544ba` |
 | Q2-17 | days-to-verdict countdown | ✅ | `e29bcdf4` |

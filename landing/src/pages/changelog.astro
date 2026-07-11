@@ -1,0 +1,53 @@
+---
+// Q2-14 — auto-generated research changelog. Renders landing/src/data/changelog.json (produced
+// deterministically by scripts/generate_research_changelog.py from the live track + hash-chained refusal
+// log). A public heartbeat for the track + a re-index reason for crawlers. Every number is real +
+// evidence-tagged; the digest text is a deterministic template, never fabricated.
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+let entries = [];
+try { entries = (await import('../data/changelog.json')).default || []; } catch (e) { entries = []; }
+---
+
+<Layout
+  title="Research changelog — SPA track & refusal digest | earn-defi.com"
+  description="Auto-generated dated digests of the SPA evidenced paper track and the hash-chained refusal log. A public heartbeat — every number real, evidence-tagged, deterministic. Paper research, advisory."
+  canonical="https://earn-defi.com/changelog"
+>
+  <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20">
+    <section class="pb-8">
+      <p class="text-xs text-accent-400 font-mono uppercase tracking-widest mb-3" data-ru="Живой журнал">Auto changelog</p>
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4" data-ru="Журнал исследования">Research changelog</h1>
+      <p class="text-lg text-slate-400 leading-relaxed" data-ru="Датированные дайджесты evidenced-трека и hash-chained журнала отказов, сгенерированные из живых данных. Каждое число реальное и с уровнем доказательства. Детерминированный шаблон, ничего не выдумано.">
+        Dated digests of the evidenced paper track + the hash-chained refusal log, generated from live data.
+        Every number is real and evidence-tagged — a deterministic template, nothing invented.
+      </p>
+    </section>
+
+    {entries.length === 0 ? (
+      <p class="text-sm text-slate-500" data-ru="Пока нет записей.">No entries yet.</p>
+    ) : (
+      <section class="space-y-4">
+        {entries.map((e) => (
+          <article class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-accent-400/15 text-accent-400">{e.tag}</span>
+              <time class="text-xs text-slate-500 font-mono">{e.date}</time>
+              {e.evidence && <span class="text-[10px] font-mono text-slate-500">{e.evidence}</span>}
+            </div>
+            <h2 class="text-lg font-semibold text-white mb-2" data-ru={e.titleRu}>{e.title}</h2>
+            <p class="text-sm text-slate-300 leading-relaxed" data-ru={e.summaryRu}>{e.summary}</p>
+          </article>
+        ))}
+      </section>
+    )}
+
+    <section class="mt-8 flex flex-wrap gap-3">
+      <a href="/track-record" data-track="changelog_to_track_record" class="text-sm text-accent-400 underline" data-ru="Живой трек →">Live track record →</a>
+      <a href="/refusals" data-track="changelog_to_refusals" class="text-sm text-accent-400 underline" data-ru="Журнал отказов →">Refusal log →</a>
+      <a href="/rss.xml" data-track="changelog_to_rss" class="text-sm text-accent-400 underline">RSS →</a>
+    </section>
+  </main>
+
+  <Disclaimer />
+</Layout>
