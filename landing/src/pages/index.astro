@@ -195,10 +195,9 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       <div class="tier-grid" id="tierGrid">
         <div class="tier-card t-preserve">
           <h3>Conservative</h3>
-          <span class="pill wait" style="background:rgba(234,179,8,.12);color:#eab308;border:1px solid rgba(234,179,8,.3)" data-ru="ВАЛИДАЦИЯ В ОЖИДАНИИ">VALIDATION PENDING</span>
-          <span class="pill wait" data-ru="Целевой профиль">Target profile</span>
+          <span class="pill ok" data-ru="Бумажный трек · подтверждён">Paper-tracked · evidenced</span>
           <div class="tier-apy">up to 6%<small> net APY</small></div>
-          <div class="tier-cap" data-ru="целевой диапазон · не в бумажном треке">target range · not in paper track</div>
+          <div class="tier-cap" data-ru="бумажный · переменный · не гарантирован">paper · variable · not guaranteed</div>
           <ul class="tier-dl">
             <li><span class="k" data-ru="Профиль риска">Risk band</span><span class="v" data-ru="Низкий">Low</span></li>
             <li><span class="k" data-ru="Макс. просадка">Max drawdown</span><span class="v" data-fb="dd" data-ru={pkgDDru('conservative')}>{pkgDD('conservative')}</span></li>
@@ -209,9 +208,9 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         </div>
         <div class="tier-card t-core">
           <h3>Balanced</h3>
-          <span class="pill ok" data-ru="Бумажный трек">Paper-tracked</span>
+          <span class="pill wait" style="background:rgba(234,179,8,.12);color:#eab308;border:1px solid rgba(234,179,8,.3)" data-ru="Research / paper">Research / paper</span>
           <div class="tier-apy">up to 12%<small> net APY</small></div>
-          <div class="tier-cap" data-ru="бумажный · переменный · не гарантирован">paper · variable · not guaranteed</div>
+          <div class="tier-cap" data-ru="research/paper · хвост показан · не в go-live треке">research/paper · tail shown · not in go-live track</div>
           <ul class="tier-dl">
             <li><span class="k" data-ru="Профиль риска">Risk band</span><span class="v" data-ru="Сбаланс.">Balanced</span></li>
             <li><span class="k" data-ru="Макс. просадка">Max drawdown</span><span class="v" data-fb="dd" data-ru={pkgDDru('balanced')}>{pkgDD('balanced')}</span></li>
