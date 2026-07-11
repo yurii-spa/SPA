@@ -4,7 +4,9 @@
 > `docs/ROADMAP_2MONTH_EISENHOWER_v2.md` (4 двухнедельных спринта) + вплетаемые Month-1/2 задачи
 > из `docs/TOURNAMENT_VERDICT_AND_6MO_BACKLOG.md` (3-тир продукт). Легенда: ✅ done · 🔄 in progress · ⬜ next.
 
-**Обновлено:** 2026-07-11 (firing #34) · **Текущий спринт:** Sprint 1–4 (W1–W8) активно · **Track:** 19/30 evidenced (go-live ~07-21)
+**Обновлено:** 2026-07-11 (firing #35) · **Текущий спринт:** Sprint 1–4 (W1–W8) активно · **Track:** 19/30 evidenced (go-live ~07-21)
+
+> **firing #35** — **Q2-10** `verify_spa.py --offline`: self-contained frozen-snapshot reproducibility — читает SNAPSHOT_MANIFEST.json, сверяет каждый pinned-файл byte-identical (sha256+size, fail-CLOSED на tamper/missing), auto-applies expected head/surfaces → фандер воспроизводит датасет ОДНИМ флагом без живого API. build_dd_snapshot эмитит offline_command; +6 тестов; засурфейзено на /proof-of-reserves. Пейрится с Q2-2 --replay в том же verifier. Коммит `d4380603`. Flagged: те же 2 pre-existing anchor-теста (Q1-4, не мои).
 
 > **firing #34** — 3 roadmap-items shipped: **Q1-7** data-track на /proof-of-reserves (все 7 proof-страниц теперь измеримы, `898f119e`); **Q1-2** golive_preflight reconcile (transient <48h gap → WARN не FAIL; 3 artifact-fails уже были PASS; preflight теперь 1 genuine FAIL, `2444b42b`); **Q2-2** `verify_spa.py --replay` — независимо ре-деривирует каждый вердикт из его же опубликованных чисел (2000/2000; 800 refused-при-положительном-edge = moat-сигнал; +8 тестов; засурфейзено на сайте, `b67b9103`+`9394c962`). Flagged: 2 pre-existing anchor-теста красные на broken-anchor dev-данных (Q1-4, не трогаю per DO-NOT-NAIVELY).
 
