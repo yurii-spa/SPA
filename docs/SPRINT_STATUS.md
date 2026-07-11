@@ -4,7 +4,9 @@
 > `docs/ROADMAP_2MONTH_EISENHOWER_v2.md` (4 двухнедельных спринта) + вплетаемые Month-1/2 задачи
 > из `docs/TOURNAMENT_VERDICT_AND_6MO_BACKLOG.md` (3-тир продукт). Легенда: ✅ done · 🔄 in progress · ⬜ next.
 
-**Обновлено:** 2026-07-11 (firing #24) · **Текущий спринт:** Sprint 1–4 (W1–W8) активно · **Track:** 19/30 evidenced (go-live ~07-21)
+**Обновлено:** 2026-07-11 (firing #33) · **Текущий спринт:** Sprint 1–4 (W1–W8) активно · **Track:** 19/30 evidenced (go-live ~07-21)
+
+> **firing #33** — novel-edge hardening: per-crisis breakdown дефолт-бленда #3 (`scripts/cross_desk_crisis_breakdown.py`) — бленд режет просадку ~4× в КАЖДОМ кризисе (USDe-unwind −8.48%→−2.11%). Реестр идей: #1 Guardian ✅ · #2 ❌ · #3 cross-desk ✅ (дефолт, теперь с per-event evidence) · #4 vol-timing ⚠️ (OOS не держится). Коммит 43c30923.
 
 ---
 
