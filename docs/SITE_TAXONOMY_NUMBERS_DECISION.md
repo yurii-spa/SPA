@@ -39,7 +39,7 @@ For what is nominally ONE book, the site currently shows all of these:
 | Conservative | **2.7%** · **4.25%** (volatile day-rate) · **~3.3%** (8 pages) · **~3.6%** · **~6%** (target) | homepage card / packages LIVE badge+hero / packages prose / strategy_config / preserve.astro |
 | Core | **~5%** · **4–6%** · **6–12%** · live **—** | card / its hero / nav band / snapshot (null, honest) |
 | Aggressive | **~15%** · **12%+** · **12–20%** · live **—** | detail / nav / packages / snapshot (null, honest) |
-| RWA floor | **~3.3%** vs **~3.4%** (sometimes same sentence) | methodology vs yield-lab/structural-desk/faq |
+| RWA floor | **~3.4%** everywhere — ✅ **VERIFIED CONSISTENT** (annual-contrast/faq/rates-desk/structural-desk/yield-lab all say ~3.4%). The stray "~3.3%" is the conservative **BOOK** (realized paper return), a DISTINCT concept honestly shown "near the ~3.4% floor" — NOT a floor inconsistency. No action needed; the only nit is `methodology.astro:163` phrasing ("~3.3% real floor" conflates book+floor). | verified 2026-07-11 |
 
 **Root cause (code):** despite comments claiming "single canonical source", only the band-LABEL strings +
 the hero snapshot fields were centralized. The per-book APY numbers and the tier NAMES are still
