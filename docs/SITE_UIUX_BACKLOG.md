@@ -4,9 +4,10 @@
 > UX-04 sitemap excludes internal · UX-06 single hero headline · UX-07 hero eyebrow benefit-first ·
 > UX-08 dashboard mock illustrative · UX-09 Analyze-CTA focuses hero input ·
 > UX-10 Preserve honesty (target-profile not Paper-tracked) · UX-11 checkup terminal earn-defi CTA ·
-> UX-12 honest waitlist copy. (commits bed4e015, 47926e43, f35f6500, checkup 5033c8a) — **entire "now"
-> code-doable-solo bucket shipped.** Remaining: UX-13 (P3), "next"/"later" buckets (UX-20/21/22 etc.),
-> and the owner-gated + needs-judgment items below.
+> UX-12 honest waitlist copy · UX-20 warm report one-liner. (commits bed4e015, 47926e43, f35f6500,
+> checkup 5033c8a + 91d2193) — **entire "now" code-doable-solo bucket shipped + UX-20 from "next".**
+> Remaining clean: UX-13 (P3), UX-22 (audit's Hero.tsx ref is stale — needs the real entry-flow mapped
+> before touching). Everything else = owner-gated (below) or needs-judgment (UX-05).
 > **🔒 OWNER-GATED (need a decision):** tier NAMING (pick ONE taxonomy: Preserve/Core/Max-Yield vs
 > Conservative/Balanced/Aggressive), the canonical public APY number(s), /admin auth (CF Access).
 > **⚠️ NEEDS JUDGMENT (not blindly):** UX-05 noindex list includes intentional public proof/research
