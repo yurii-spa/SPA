@@ -74,7 +74,7 @@
 | Q3-5 | kill-switch drill EVIDENCE артефакт (latency + дата) | ✅ | `59cd31b4` |
 | Q3-6 | kill-switch drill в resilience_cycle | ✅ | `59cd31b4` |
 | Q3-8 | post-reboot verify status-capture JSON + login-agent mechanism | ✅ (status done; agent owner-bootstrap) | `84987c7e` |
-| Q3-3 | checkup KNOWN_SPENDERS per-chain routers | ⛔ SKIP (нужны верифиц. адреса — риск фабрикации) | — |
+| Q3-3 | checkup KNOWN_SPENDERS per-chain routers | 🔄 handled by PARALLEL checkup-firing с **web-verified** адресами (Pendle V4/Morpho Blue/LI.FI/1inch, Q2-14 коммиты); я без web-доступа безопасно не делаю → parallel-owned | (checkup repo) |
 
 ---
 
