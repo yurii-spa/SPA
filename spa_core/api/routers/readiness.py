@@ -43,6 +43,7 @@ def readiness() -> dict:
     dex = _load("defenses_exercised.json")
     golive = _load("golive_status.json")
     ksd = _load("kill_switch_drill_status.json")
+    tledger = _load("track_ledger.json")
     return {
         "governance_defenses": {
             "fired": dex.get("scenarios_fired"),
@@ -58,6 +59,18 @@ def readiness() -> dict:
             "latency_limit_ms": ksd.get("latency_limit_ms"),
             "passed": ksd.get("passed"),
             "verdict": ksd.get("verdict"),
+        },
+        # Q2-18: dated evidenced-track ledger SUMMARY — the 30-day go-live claim as a checkable artifact
+        # (day-by-day dd/return reproducible via `python3 -m spa_core.paper_trading.track_ledger`). Only
+        # the summary is surfaced here; the full per-day ledger lives in data/track_ledger.json.
+        "track_ledger": {
+            "n_evidenced_days": tledger.get("n_evidenced_days"),
+            "days_needed": tledger.get("days_needed"),
+            "days_remaining": tledger.get("days_remaining"),
+            "first_evidenced_date": tledger.get("first_evidenced_date"),
+            "last_evidenced_date": tledger.get("last_evidenced_date"),
+            "cumulative_return_pct": tledger.get("cumulative_return_pct"),
+            "max_drawdown_from_peak_pct": tledger.get("max_drawdown_from_peak_pct"),
         },
         "go_live_gate": {
             "passed": golive.get("passed"),
