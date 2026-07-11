@@ -507,3 +507,22 @@ def test_offline_over_live_snapshot_if_present():
     integ = V.verify_snapshot_manifest(snap)
     assert integ["mismatched"] == 0, integ["first_bad"]
     assert integ["matched"] == integ["checked"] and integ["checked"] > 0
+
+
+# --- Regression (2026-07-11): whole-`data/` discovery must not adopt frozen-copy chains ----------
+def test_under_frozen_copy_excludes_snapshot_and_backup_subdirs(tmp_path):
+    """`verify_spa data/` walks recursively; a frozen dd_snapshot/ copy (a checksummed daily freeze,
+    replayed only via --offline) sorts BEFORE rates_desk/ and would hand surface [A] a STALE head,
+    breaking --expect-head. The discovery must skip snapshot/backup SUBDIRS — but NOT when the
+    snapshot IS the explicit target (root), so --offline still works."""
+    root = tmp_path
+    # frozen-copy subdirs under the walked root → excluded
+    assert V._under_frozen_copy(root / "dd_snapshot" / "decision_log.jsonl", root) is True
+    assert V._under_frozen_copy(root / "backups" / "spa.jsonl", root) is True
+    # an intermediate dir archived with a .orphaned suffix is also skipped
+    assert V._under_frozen_copy(root / "rates_desk.orphaned" / "decision_log.jsonl", root) is True
+    # the live surface → kept
+    assert V._under_frozen_copy(root / "rates_desk" / "decision_log.jsonl", root) is False
+    # --offline: when root IS the snapshot dir, nothing between root and file matches → still discovered
+    snap = root / "dd_snapshot"
+    assert V._under_frozen_copy(snap / "decision_log.jsonl", snap) is False

@@ -1198,6 +1198,25 @@ def _resolve_data_dir(args_paths: List[str]) -> Optional[Path]:
     return None
 
 
+# Frozen point-in-time copies that live UNDER data/ but are NOT the live surface: the offline
+# DD snapshot (data/dd_snapshot/, a checksummed daily freeze replayed explicitly via --offline)
+# and DB/backup dirs. A recursive discovery must NOT adopt their (stale) decision_log/proofs as
+# the canonical live chain — e.g. data/dd_snapshot/decision_log.jsonl sorts BEFORE
+# data/rates_desk/decision_log.jsonl and would hand surface [A] a stale head, breaking
+# --expect-head. Excluded only when they are a SUBDIR of the walked root; an explicit
+# --offline target (root == the snapshot dir) has nothing matching between root and file, so it
+# is still discovered.
+_DISCOVERY_EXCLUDE_DIRS = frozenset({"dd_snapshot", "backups", "backup"})
+
+
+def _under_frozen_copy(fp: Path, root: Path) -> bool:
+    try:
+        inter = fp.relative_to(root).parts[:-1]  # intermediate dirs only (drop the filename)
+    except ValueError:
+        return False
+    return any(part in _DISCOVERY_EXCLUDE_DIRS or part.endswith(".orphaned") for part in inter)
+
+
 def _resolve_inputs(args_paths: List[str]) -> dict:
     """Map the CLI paths to EVERY anchored surface AND every producer that MUST have a proof. A
     directory is walked RECURSIVELY (rglob) so a single ``verify_spa.py data/`` auto-discovers all
@@ -1223,11 +1242,11 @@ def _resolve_inputs(args_paths: List[str]) -> dict:
             seen: set = set()
             for fname in _DISCOVER:
                 for fp in sorted(p.rglob(fname)):
-                    if fp.is_file() and fp not in seen:
+                    if fp.is_file() and fp not in seen and not _under_frozen_copy(fp, p):
                         seen.add(fp)
                         _classify_file(fp, found)
             for fp in sorted(p.rglob("*_series_proof.jsonl")):
-                if fp.is_file() and fp not in seen:
+                if fp.is_file() and fp not in seen and not _under_frozen_copy(fp, p):
                     seen.add(fp)
                     _classify_file(fp, found)
             # sleeve PRODUCERS that REQUIRE a matching proof (FAIL#5 coverage). Scoped to the
@@ -1238,6 +1257,7 @@ def _resolve_inputs(args_paths: List[str]) -> dict:
             # rates_desk/paper/ dir, so they are correctly excluded — no false coverage failure.
             for fp in sorted(p.rglob("*_series.json")):
                 if (fp.is_file() and _is_sleeve_producer_dir(fp.parent)
+                        and not _under_frozen_copy(fp, p)
                         and fp not in found["sleeve_producers"]):
                     found["sleeve_producers"].append(fp)
         else:
