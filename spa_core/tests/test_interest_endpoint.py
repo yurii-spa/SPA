@@ -55,3 +55,12 @@ def test_summary_empty_is_zero(client):
     c, _ = client
     s = c.get("/api/interest/summary").json()
     assert s["total_interest"] == 0 and s["by_tier"] == {}
+
+
+def test_pilot_summary_endpoint(client):
+    """Q2-8 pilot pipeline funnel is consumable via /api/pilot/summary (PII-minimal, graceful)."""
+    c, _ = client
+    s = c.get("/api/pilot/summary").json()
+    assert s["model"] == "pilot_pipeline"
+    assert s["is_advisory"] is True
+    assert "by_stage" in s and "n_prospects" in s

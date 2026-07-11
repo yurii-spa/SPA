@@ -105,3 +105,15 @@ def summary() -> dict:
         "note": ("anonymous intent only — opaque tier/topic/utm + coarse time, no email/name/IP/cookies. "
                  "Contact-capture is an owner policy decision (consent + legal), deliberately not built."),
     }
+
+
+@router.get("/api/pilot/summary")
+def pilot_summary() -> dict:
+    """Q2-8: the design-partner pilot pipeline funnel rollup for the Operator Console (PII-minimal —
+    opaque labels only). Read-only; graceful (missing store → empty funnel). Never a gate."""
+    try:
+        from spa_core.pilot import pipeline as pp
+        return pp.summary()
+    except Exception as exc:  # noqa: BLE001 — admin surface must never 500
+        return {"model": "pilot_pipeline", "is_advisory": True, "n_prospects": 0,
+                "by_stage": {}, "flag_reason": f"unavailable: {exc}"}
