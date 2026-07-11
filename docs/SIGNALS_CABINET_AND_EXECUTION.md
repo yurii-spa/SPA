@@ -37,7 +37,8 @@
   - P2-polish — ✅ **DONE** (checkup `fa1305c` sign-out + `ee02118` nav link): `/api/auth/logout` + SignOutButton (clears session); `/cabinet` added to the site nav (bilingual, discoverable site-wide). Vitest 338 green.
 - **P3 · Paywall / monetization.** Model CONFIRMED by owner (2026-07-11): **freemium + USDC/mo crypto-subscription**, non-custodial (user pays on-chain to our receive address; we read the chain, never custody).
   - P3a — ✅ **DONE** (checkup `683dc05`): `subscription.ts` (pure state machine over on-chain payments, fail-closed on underpay/wrong-recipient/wrong-wallet/non-USDC) + `subscriptionConfig.ts` (env; price/period defaults). +12 tests, vitest 353 green.
-  - P3b — NEXT: on-chain payment read (find USDC transfers wallet→receiveAddress via RPC/indexer) + a "Subscribe (USDC/mo)" pay button + `PremiumGate` around the cabinet's premium features.
+  - P3b — ✅ **DONE** (checkup `c308c5a`): payment mechanism + gate. `paymentTx.buildUsdcPaymentTx` (USDC transfer to receiveAddress, canonical USDC per chain, +4 tests) → `SubscribeButton` (user signs in own wallet). `getWalletSubscription` fail-closed resolver (+3 tests) with an INJECTABLE payment reader. `PremiumGate` wired into `/cabinet` (premium ↔ subscribe ↔ "coming soon" while unconfigured). vitest 364 green.
+  - P3b-read — NEXT: wire the payment reader to an RPC/indexer (query USDC Transfer logs wallet→receiveAddress) so a real payment actually unlocks premium. Needs `SUBSCRIPTION_RECEIVE_ADDRESS` (owner) + an RPC.
   - ⚠️ **OWNER-GATED:** set `SUBSCRIPTION_RECEIVE_ADDRESS` (a real address you control) in prod env — the feature is OFF (fail-closed) until then; we never fabricate a payment target.
 - **P4 · Alerts (optional, non-custodial).** XMTP / Push Protocol (wallet-native) or opt-in email; "new signal, log in to review" — the signal + signing stay in the cabinet.
 
