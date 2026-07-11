@@ -1,0 +1,56 @@
+{
+  "_note": "Q2-16 — STATIC, AUDITED per-protocol structural verdicts for the programmatic SEO pages (/protocols/[slug]). Sourced from the real desk analysis: refusal reasons from fair_value_engine's PEG haircut + REASON_EXPLAIN, and the MEASURED figures from data/rates_desk/refusal_value.json (real ETH-peg drawdowns, conservative lower bounds — pt_price MtM unavailable). Every number is evidence-tagged and backtest-labelled; nothing is fabricated. rsETH is REFUSED on STRUCTURAL grounds but carries NO measured drawdown here because our peg series does not cover its window (fail-closed, honest gap). This file is committed so the pages render server-side (SEO); the live /refusals log fetches the hashed decision log dynamically.",
+  "protocols": [
+    {
+      "slug": "ezeth",
+      "name": "ezETH",
+      "full": "Renzo ezETH (liquid restaking token)",
+      "verdict": "REFUSED",
+      "question_en": "Is ezETH safe to farm / hold as fixed-rate carry?",
+      "question_ru": "Безопасно ли фармить / держать ezETH как фиксированный carry?",
+      "answer_en": "The SPA Rates Desk REFUSES ezETH fixed-carry books on structural grounds: it carries a peg-breakdown tail that the quoted yield is compensation for, not alpha. This is not a live-capital position.",
+      "answer_ru": "SPA Rates Desk ОТКАЗЫВАЕТСЯ от fixed-carry книг на ezETH по структурным причинам: у него хвост разрыва пега, за который платит доходность — это не альфа. Не является live-позицией.",
+      "reason_en": "Structural PEG-breakdown tail (fair_value_engine PEG haircut). A liquid restaking token can trade well below its ETH redemption value in stress.",
+      "reason_ru": "Структурный хвост разрыва пега (PEG-хейркат fair_value_engine). LRT может торговаться сильно ниже своей ETH-стоимости выкупа в стрессе.",
+      "measured": {
+        "peg_drawdown_pct": -21.48,
+        "avoided_loss_usd_per_100k": 21476,
+        "advertised_implied_yield_pct": 63.36,
+        "worst_date": "2025-04-06",
+        "evidence": "L4 · real ETH-peg drawdown (backtest, conservative lower bound)"
+      }
+    },
+    {
+      "slug": "weeth",
+      "name": "weETH / eETH",
+      "full": "ether.fi weETH (wrapped eETH liquid restaking token)",
+      "verdict": "REFUSED",
+      "question_en": "Is weETH / eETH safe to hold in a fixed-rate PT book?",
+      "question_ru": "Безопасно ли держать weETH / eETH в fixed-rate PT-книге?",
+      "answer_en": "REFUSED on structural grounds: the peg-breakdown tail outweighs the quoted carry. A ~50% advertised implied yield on an LST PT is the price of exactly the peg break that followed, not durable yield.",
+      "answer_ru": "ОТКАЗАН по структурным причинам: хвост разрыва пега перевешивает carry. ~50% implied yield на LST PT — это цена ровно того разрыва пега, что последовал, а не устойчивая доходность.",
+      "reason_en": "Structural PEG-breakdown tail (fair_value_engine PEG haircut).",
+      "reason_ru": "Структурный хвост разрыва пега (PEG-хейркат fair_value_engine).",
+      "measured": {
+        "peg_drawdown_pct": -27.66,
+        "avoided_loss_usd_per_100k": 27661,
+        "advertised_implied_yield_pct": 50.2,
+        "worst_date": "2025-05-08",
+        "evidence": "L4 · real ETH-peg drawdown (backtest, conservative lower bound)"
+      }
+    },
+    {
+      "slug": "rseth",
+      "name": "rsETH",
+      "full": "Kelp rsETH (liquid restaking token)",
+      "verdict": "REFUSED",
+      "question_en": "Is rsETH safe as fixed-rate carry?",
+      "question_ru": "Безопасен ли rsETH как фиксированный carry?",
+      "answer_en": "REFUSED on structural grounds (the same LRT peg-breakdown tail family as ezETH/weETH). We do NOT quote a measured drawdown here: our peg series does not cover rsETH's window, so — fail-closed — we refuse to fabricate a number. The refusal is structural, not price-derived.",
+      "answer_ru": "ОТКАЗАН по структурным причинам (то же семейство LRT-хвостов, что ezETH/weETH). Мы НЕ приводим измеренную просадку: наша peg-серия не покрывает окно rsETH, поэтому — fail-closed — отказываемся выдумывать число. Отказ структурный, не из цены.",
+      "reason_en": "Structural PEG-breakdown tail (LRT family). Measured figure withheld — no peg series in our window (honest gap, not fabricated).",
+      "reason_ru": "Структурный хвост разрыва пега (семейство LRT). Измеренная цифра не приводится — нет peg-серии в нашем окне (честный пробел, не выдумка).",
+      "measured": null
+    }
+  ]
+}
