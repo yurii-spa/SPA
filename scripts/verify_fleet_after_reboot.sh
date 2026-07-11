@@ -84,19 +84,61 @@ echo "  cloudflared tunnel: $([ "$cf_st" -gt 0 ] && echo loaded || echo 'NOT LOA
 echo "── proof artifacts (read-only) ──"
 PY="/Users/yuriikulieshov/miniconda3/bin/python3"
 [ -x "$PY" ] || PY="python3"
+proof_state="skipped"
 if [ -d "$REPO/data/rates_desk" ] && [ -f "$REPO/scripts/verify_spa.py" ]; then
   if "$PY" "$REPO/scripts/verify_spa.py" "$REPO/data/rates_desk/" >/dev/null 2>&1; then
-    echo "  verify_spa.py data/rates_desk/: ✅ reproduces"
+    echo "  verify_spa.py data/rates_desk/: ✅ reproduces"; proof_state="reproduces"
   else
-    echo "  verify_spa.py data/rates_desk/: ⚠️ does NOT reproduce — restore golden copy (DR §5/§9b)"
+    echo "  verify_spa.py data/rates_desk/: ⚠️ does NOT reproduce — restore golden copy (DR §5/§9b)"; proof_state="does_not_reproduce"
   fi
 else
   echo "  verify_spa.py data/rates_desk/: (skipped — files absent)"
 fi
 
+# Overall verdict.
 if [ "$still_down" -eq 0 ] && [ "$exit78" -eq 0 ] && [ "$ping_code" = "200" ]; then
-  echo "✅ FLEET HEALTHY — all agents loaded, no exit-78, API up."
-  exit 0
+  verdict="HEALTHY"; rc=0
+else
+  verdict="ATTENTION"; rc=1
 fi
-echo "⚠️ Some items need attention (see above). Re-run, or check scripts/check_agent_before_deploy.sh <name>."
-exit 1
+
+# ── Q3-8: capture an AUDITABLE status JSON so "probably recovered" becomes proven + dated. ──
+# Atomic write (tmp in the SAME dir + mv → no cross-device/partial-file), read-only wrt the track.
+json_arr() { # join "$@" into a JSON string array
+  local out="" x; for x in "$@"; do
+    x="${x//\\/\\\\}"; x="${x//\"/\\\"}"; out="$out\"$x\","
+  done; echo "[${out%,}]"
+}
+STATUS_DIR="$REPO/data"; STATUS_JSON="$STATUS_DIR/fleet_reboot_status.json"
+if [ -d "$STATUS_DIR" ]; then
+  tmp="$(mktemp "$STATUS_DIR/.fleet_reboot_status.XXXXXX")" || tmp=""
+  if [ -n "$tmp" ]; then
+    cat > "$tmp" <<JSON
+{
+  "model": "spa_fleet_reboot_status",
+  "generated_at": "$(date -u '+%Y-%m-%dT%H:%M:%SZ')",
+  "verdict": "$verdict",
+  "installed": $installed,
+  "loaded": $loaded,
+  "healed": $healed,
+  "still_down": $still_down,
+  "exit78": $exit78,
+  "healed_labels": $(json_arr ${HEALED[@]+"${HEALED[@]}"}),
+  "still_down_labels": $(json_arr ${FAILED[@]+"${FAILED[@]}"}),
+  "apiserver_ping_code": "${ping_code:-DOWN}",
+  "telegram_bot_loaded": $([ -n "$bot_st" ] && echo true || echo false),
+  "cloudflared_loaded": $([ "$cf_st" -gt 0 ] && echo true || echo false),
+  "proof_reproduces": "$proof_state",
+  "note": "Written by verify_fleet_after_reboot.sh (Q3-8). Advisory/read-only DR audit artifact; never mutates the go-live track. verdict=HEALTHY only when still_down=0 AND exit78=0 AND apiserver ping=200."
+}
+JSON
+    mv -f "$tmp" "$STATUS_JSON" 2>/dev/null && echo "  → wrote $STATUS_JSON (verdict=$verdict)" || rm -f "$tmp"
+  fi
+fi
+
+if [ "$rc" -eq 0 ]; then
+  echo "✅ FLEET HEALTHY — all agents loaded, no exit-78, API up."
+else
+  echo "⚠️ Some items need attention (see above). Re-run, or check scripts/check_agent_before_deploy.sh <name>."
+fi
+exit "$rc"
