@@ -481,6 +481,16 @@ install_agent \
     "com.spa.golive_freshness" \
     "1"
 
+# Resilience DR posture (Q1-3) — every 6h rolls up offsite-copy + restore-drill + fleet-drill
+# into data/resilience_status.json (R8). Plist existed but was orphaned (never in this installer),
+# so a fresh reinstall left agent_health expecting a com.spa.resilience that never came up. Now
+# persisted here → survives reboot/reinstall + under agent_health coverage. On-standard (bash-wrapper
+# + /tmp logs); pre-deploy gate PASSED (sandboxed run exit 0, canonical track untouched).
+install_agent \
+    "$REPO/scripts/com.spa.resilience.plist" \
+    "com.spa.resilience" \
+    "1"
+
 # ===========================================================================
 # ИТОГОВАЯ ТАБЛИЦА
 # ===========================================================================
