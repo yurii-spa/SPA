@@ -24,9 +24,9 @@
 ## Phased backlog
 
 ### Track 1 — Signals Cabinet (repo: DeFi Checkup, Next.js)
-- **P1 · Web3 auth (SIWE / EIP-4361).** `[IN PROGRESS]`
-  - P1a — backend: nonce issue + signed-message verification (recover address), pure + unit-tested. *(no browser needed)*
-  - P1b — frontend: "Connect wallet + Sign in" button, session, wallet address = account.
+- **P1 · Web3 auth (SIWE / EIP-4361).** `[P1a DONE]`
+  - P1a — ✅ **DONE** (checkup `181ca5c`): `apps/web/src/lib/siwe.ts` — nonce + canonical EIP-4361 message + fail-closed `verifySiwe` (viem `verifyMessage`). +7 unit tests (round-trip accept / impersonation reject / nonce-replay reject / malformed fail-closed). Full vitest 303 green, build exit 0.
+  - P1b — NEXT: API routes (`/api/auth/nonce` issue+store, `/api/auth/verify` → session cookie) + "Connect wallet + Sign in" button. Wallet address = account.
 - **P2 · Cabinet view.** Logged-in wallet (read-only) → its positions (reuse checkup analyze) → "Recommended actions for YOUR wallet" (evidence + tail) + refusal log → "prepare transaction" opens the user's OWN wallet to sign. We never sign.
 - **P3 · Paywall / monetization.** Crypto-subscription (USDC/mo) or token-gate over the cabinet (owner confirms model before build).
 - **P4 · Alerts (optional, non-custodial).** XMTP / Push Protocol (wallet-native) or opt-in email; "new signal, log in to review" — the signal + signing stay in the cabinet.
