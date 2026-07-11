@@ -6,7 +6,7 @@
 
 **Обновлено:** 2026-07-11 (firing #35) · **Текущий спринт:** Sprint 1–4 (W1–W8) активно · **Track:** 19/30 evidenced (go-live ~07-21)
 
-> **firing #35** — **Q2-10** `verify_spa.py --offline`: self-contained frozen-snapshot reproducibility — читает SNAPSHOT_MANIFEST.json, сверяет каждый pinned-файл byte-identical (sha256+size, fail-CLOSED на tamper/missing), auto-applies expected head/surfaces → фандер воспроизводит датасет ОДНИМ флагом без живого API. build_dd_snapshot эмитит offline_command; +6 тестов; засурфейзено на /proof-of-reserves. Пейрится с Q2-2 --replay в том же verifier. Коммит `d4380603`. Flagged: те же 2 pre-existing anchor-теста (Q1-4, не мои).
+> **firing #35** — **Q2-10** `verify_spa.py --offline`: self-contained frozen-snapshot reproducibility — читает SNAPSHOT_MANIFEST.json, сверяет каждый pinned-файл byte-identical (sha256+size, fail-CLOSED на tamper/missing), auto-applies expected head/surfaces → фандер воспроизводит датасет ОДНИМ флагом без живого API. build_dd_snapshot эмитит offline_command; +6 тестов; засурфейзено на /proof-of-reserves. Пейрится с Q2-2 --replay в том же verifier. Коммит `d4380603`. **+Q1-3** — orphaned `com.spa.resilience.plist` вписан в install_all_agents.sh (gate PASSED, загружен exit 0, под agent_health) `a908a75b`. Flagged: те же 2 pre-existing anchor-теста (Q1-4, не мои).
 
 > **firing #34** — 3 roadmap-items shipped: **Q1-7** data-track на /proof-of-reserves (все 7 proof-страниц теперь измеримы, `898f119e`); **Q1-2** golive_preflight reconcile (transient <48h gap → WARN не FAIL; 3 artifact-fails уже были PASS; preflight теперь 1 genuine FAIL, `2444b42b`); **Q2-2** `verify_spa.py --replay` — независимо ре-деривирует каждый вердикт из его же опубликованных чисел (2000/2000; 800 refused-при-положительном-edge = moat-сигнал; +8 тестов; засурфейзено на сайте, `b67b9103`+`9394c962`). Flagged: 2 pre-existing anchor-теста красные на broken-anchor dev-данных (Q1-4, не трогаю per DO-NOT-NAIVELY).
 
@@ -36,6 +36,7 @@
 | Q1-8 | self-clearing gap-recovery state | ✅ | `b73600b4` |
 | Q1-10 | resilience → agent_health WARNING | ✅ (было готово) | — |
 | Q1-11 | golive/pre_cutover freshness agent | ✅ (built, bootstrap owner) | — |
+| Q1-3 | resilience plist persisted → installer + agent_health coverage (gate-validated) | ✅ | `a908a75b` |
 
 ## Sprint 2 · W3–W4 — «Prove scale & replayability; wake the funnel & the blog»
 **Цель:** превратить «edge — артефакт $100k» в измеренную кривую масштаба; сделать отказы воспроизводимыми; включить discoverability.
