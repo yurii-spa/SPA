@@ -111,6 +111,38 @@ const sections = [
         })();
       </script>
 
+      <!-- Readiness & safety proofs (composes the go-live/proof/safety artifacts into one operator view) -->
+      <section class="ac-sec">
+        <div class="ac-sec-h">Readiness &amp; Safety proofs <span class="ac-soon" id="rp-state">loading…</span></div>
+        <div class="ac-tiles">
+          <div class="ac-tile"><div class="k">Go-live gate</div><div class="v" id="rp-gate">—</div></div>
+          <div class="ac-tile"><div class="k">Evidenced track</div><div class="v" id="rp-track">—</div></div>
+          <div class="ac-tile"><div class="k">Track cum. return</div><div class="v" id="rp-cum">—</div></div>
+          <div class="ac-tile"><div class="k">Governance defenses</div><div class="v" id="rp-gov">—</div></div>
+          <div class="ac-tile"><div class="k">RTMR defenses</div><div class="v" id="rp-rtmr">—</div></div>
+          <div class="ac-tile"><div class="k">Kill-switch drill</div><div class="v" id="rp-ksd">—</div></div>
+        </div>
+        <p class="ac-note">Live from <code>/api/readiness</code>: the go-live gate, the dated evidenced-track ledger, and the proven-to-FIRE defenses (daily-cycle kill ladder + the RTMR real-time reaction ladder) + the dated kill-switch latency drill. Every figure is reproducible with the standalone scripts — nothing fabricated.</p>
+      </section>
+      <script is:inline>
+        (function(){
+          var API = (location.hostname==='localhost'||location.hostname==='127.0.0.1') ? 'http://localhost:8765' : 'https://api.earn-defi.com';
+          function set(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; }
+          fetch(API+'/api/readiness').then(function(r){return r.json();}).then(function(d){
+            if(!d) return;
+            var gl=d.go_live_gate||{}, tl=d.track_ledger||{}, g=d.governance_defenses||{}, rt=d.rtmr_defenses||{}, k=d.kill_switch_drill||{};
+            if(gl.passed!=null) set('rp-gate', gl.passed+'/'+gl.total);
+            var days=(tl.n_evidenced_days!=null)?tl.n_evidenced_days:gl.evidenced_days;
+            if(days!=null) set('rp-track', days+'/'+((tl.days_needed)||gl.days_needed||30));
+            if(tl.cumulative_return_pct!=null) set('rp-cum', tl.cumulative_return_pct+'%');
+            if(g.fired!=null) set('rp-gov', g.fired+'/'+g.total+(g.all_fired?' ✓':''));
+            if(rt.fired!=null) set('rp-rtmr', rt.fired+'/'+rt.total+(rt.all_fired?' ✓':''));
+            if(k.latency_ms!=null) set('rp-ksd', k.latency_ms+'ms '+(k.passed?'✓':''));
+            set('rp-state','live');
+          }).catch(function(){ set('rp-state','offline — API not reachable'); });
+        })();
+      </script>
+
       <!-- Operator directory -->
       <section class="ac-sec">
         <div class="ac-sec-h">Operator sections</div>
