@@ -83,7 +83,7 @@ const sections = [
           <div class="ac-tile"><div class="k">Views 7d</div><div class="v" id="an-7d">—</div></div>
           <div class="ac-tile"><div class="k">Analyze-wallet clicks</div><div class="v" id="an-analyze">—</div></div>
           <div class="ac-tile"><div class="k">Strategy Lab clicks</div><div class="v" id="an-strat">—</div></div>
-          <div class="ac-tile soon"><div class="k">Leads collected</div><div class="v">—</div></div>
+          <div class="ac-tile"><div class="k">Pilot interest (7d)</div><div class="v" id="an-interest">—</div></div>
           <div class="ac-tile soon"><div class="k">Funnel completion</div><div class="v">—</div></div>
           <div class="ac-tile soon"><div class="k">Bounce rate</div><div class="v">—</div></div>
           <div class="ac-tile soon"><div class="k">Returning users</div><div class="v">—</div></div>
@@ -108,6 +108,10 @@ const sections = [
               pg.innerHTML='<div class="ac-pages-h">Top pages</div>'+d.top_pages.map(function(p){return '<div class="ac-pg"><span>'+p.page+'</span><b>'+p.views+'</b></div>';}).join('');
             }
           }).catch(function(){ set('an-state','offline — API not reachable'); });
+          // Q2-5: real anonymous pilot-interest count (PII-minimal sink) — replaces the placeholder tile.
+          fetch(API+'/api/interest/summary').then(function(r){return r.json();}).then(function(d){
+            if(d && d.interest_7d!=null) set('an-interest', d.interest_7d + (d.total_interest!=null?(' / '+d.total_interest+' total'):''));
+          }).catch(function(){});
         })();
       </script>
 

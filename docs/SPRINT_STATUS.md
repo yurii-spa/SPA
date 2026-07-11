@@ -53,7 +53,7 @@
 | — | /admin operator view: Readiness & Safety proofs панель | ✅ | `8142b89c` |
 | Q2-19 | non-custodial advisory loop (unsigned draft + refusal context, AI-never-signs, isolation-tested) | ✅ | `e73ba132` |
 | Q3-7 | footer coherence — trust/risk/legal в одну колонку + /pilot,/changelog в footer (no page delete) | ✅ | `53c45333` |
-| Q2-5 | interest-capture endpoint (PII-minimal, /api/interest + summary; contact-capture owner-gated) | ✅ | `pending` |
+| Q2-5 | interest-capture endpoint (PII-minimal) + /pilot beacon + /admin tile (full funnel wired) | ✅ | `76eb9a5a` |
 | Q2-2 | `--replay` verifier | ⬜ (branch-blocked: verify_spa на verifier-v1.1) | — |
 
 ## Q3 batch — housekeeping / alert-fatigue

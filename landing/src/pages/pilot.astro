@@ -97,6 +97,18 @@ import Disclaimer from '../components/Disclaimer.astro';
         var el=document.getElementById('pilot-days');
         if(el && n!=null) el.textContent = n;
       }).catch(function(){});
+      // Q2-5 interest beacon — fire an ANONYMOUS intent signal on a MEANINGFUL action (engaging a proof
+      // link from /pilot), NOT on mere page-view. PII-minimal: topic=pilot + utm only, no contact.
+      try {
+        var q=new URLSearchParams(location.search);
+        var utm=q.get('utm_source')||'', camp=q.get('utm_campaign')||'';
+        document.addEventListener('click', function(e){
+          var a=e.target && e.target.closest && e.target.closest('a[data-track^="pilot_to_"]');
+          if(!a) return;
+          fetch(API+'/api/interest',{method:'POST',headers:{'content-type':'application/json'},
+            body:JSON.stringify({topic:'pilot',utm_source:utm,utm_campaign:camp}),keepalive:true}).catch(function(){});
+        });
+      } catch(e){}
     })();
   </script>
 </Layout>
