@@ -217,17 +217,17 @@ import Disclaimer from '../components/Disclaimer.astro';
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <a href="/track-record" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+        <a href="/track-record" data-track="por_to_trackrecord" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
            onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
           <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Трек-рекорд">Track Record</p>
           <p class="text-xs" style="color:var(--text-muted)" data-ru="Подтверждённые дни, не надутые">Evidenced days, not padded</p>
         </a>
-        <a href="/refusals" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+        <a href="/refusals" data-track="por_to_refusals" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
            onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
           <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Лог отказов">Refusal log</p>
           <p class="text-xs" style="color:var(--text-muted)" data-ru="Что мы отклонили и почему">What we declined, and why</p>
         </a>
-        <a href="/exit-nav" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
+        <a href="/exit-nav" data-track="por_to_exitnav" class="group rounded-xl border bg-white/[0.02] p-5 transition-all" style="border-color:var(--border)"
            onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="this.style.borderColor='var(--border)'">
           <p class="font-medium mb-1" style="color:var(--text-primary)" data-ru="Ликвидационный NAV">Liquidation-NAV</p>
           <p class="text-xs" style="color:var(--text-muted)" data-ru="Что реально получишь на выходе">What you realize on exit</p>
