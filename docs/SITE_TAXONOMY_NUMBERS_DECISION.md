@@ -69,5 +69,31 @@ the hero snapshot fields were centralized. The per-book APY numbers and the tier
    ("T1+T2, wider diversification, no liquidation") while its own page describes levered PT loops with a
    ~50% tail — align the card to show the tail at the point of choice.
 
-*Answer inline (e.g. "taxonomy = Conservative/Balanced/Aggressive; Conservative live = track-to-date;
-RWA floor = 3.4%") and I ship the unification pass immediately. Companion: `docs/SITE_UIUX_BACKLOG.md`.*
+*Answer inline (e.g. "taxonomy = Conservative/Balanced/Aggressive; Conservative live = track-to-date")
+and I ship the unification pass immediately. Companion: `docs/SITE_UIUX_BACKLOG.md`.*
+
+---
+
+## What each decision unblocks (the leverage — every remaining backlog item hangs off these)
+
+**DECISION 1 (taxonomy) unblocks →** UX-23 (one canonical name set site-wide), UX-28 (SiteHeader dropdown
+stops teaching two names), plus the naming half of UX-25/UX-26.
+
+**DECISION 2 (canonical numbers) unblocks →** UX-14 (kill the volatile /packages LIVE badge → stable
+track-to-date), UX-24 (one canonical "current book APY" sourced everywhere), UX-25 (per-tier bands from one
+source), UX-26 (which tier is the evidenced book), UX-27 (homepage aggressive card = same tail story as
+/packages — the honesty half I already shipped; the number half waits on you), UX-29 (target bands instead
+of bare "—"), UX-31 (dynamic day-count in faq). UX-30 (RWA floor) is DONE — already consistent at ~3.4%.
+UX-32 (CI lint enforcing single-source) ships WITH the unification.
+
+**OWNER INFRA (separate from the 2 decisions) →** UX-18 (gate /admin behind Cloudflare Access — zero auth
+today, exposes pilot/analytics/ledger), which then unblocks UX-19/UX-35/UX-36/UX-38 (move operator-depth
+pages behind the gate). UX-16 (a real contact mechanism on /pilot) + UX-17 (which public contact identity
+— personal Gmail is on selling pages today) are your business-contact calls.
+
+**IA CONSOLIDATION (your product-shape calls) →** UX-33/UX-34/UX-35/UX-37/UX-40 (collapse the 5-page
+trust/risk cluster + the 5 "how it works" pages into a spine, add an above-the-fold trust anchor). I can
+propose a concrete merge map on request; the cut/keep decisions are yours.
+
+*Net: **one line from you (the 2 decisions) unblocks ~12 backlog items** I can then ship in a pass. The
+admin-auth + contact + IA-consolidation calls are separate owner decisions, flagged here, not blocking.*
