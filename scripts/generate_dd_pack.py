@@ -765,6 +765,29 @@ def _sec_how_to_verify(doc: SourcedDoc, s: dict):
         "the precise sleeve. This is what makes the realized FUNDABILITY sheet (`docs/FUNDABILITY.md` "
         "§2, `docs/FUNDABLE_HONEST.md`) literally checkable, not just asserted.",
         "",
+        "6. **Re-DERIVE every verdict, not just re-hash it** — run with `--replay` and the verifier "
+        "re-derives each rates-desk decision from its OWN published numbers: `fair_yield == baseline − "
+        "total_haircut`; every haircut ≥ 0; `approved ⇒ net_edge > 0` (the refusal-first invariant — we "
+        "never enter a book whose own published net edge is ≤ 0); every refusal carries a reason. A "
+        "stored verdict that does not FOLLOW from its inputs fails CLOSED — this proves not merely "
+        "\"we did not edit the row\" (that is the hash chain) but \"the decision actually follows from "
+        "the numbers we published\". It re-derives all decisions incl. the refusals that fired on "
+        "positive-edge-but-toxic books (the refusal moat, made checkable):",
+        "",
+        "```",
+        "python3 verify_spa.py data/rates_desk/ --replay",
+        "```",
+        "",
+        "7. **Replay a FROZEN snapshot fully offline** — build a self-contained checksummed dataset "
+        "(`python3 scripts/build_dd_snapshot.py` → `data/dd_snapshot/` + `SNAPSHOT_MANIFEST.json`), then "
+        "`--offline` asserts every pinned file is byte-identical to its recorded sha256 and auto-applies "
+        "the pinned decision-head + surfaces — so you reproduce the whole dataset with NO live API and "
+        "NO trust in us; any missing/tampered/resized file fails CLOSED:",
+        "",
+        "```",
+        "python3 verify_spa.py data/dd_snapshot/ --offline",
+        "```",
+        "",
     )
     if anchors:
         ASRC = "data/rates_desk/anchors.jsonl"
