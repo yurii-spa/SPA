@@ -208,9 +208,17 @@ import Disclaimer from '../components/Disclaimer.astro';
           standalone verifier — with none of our code. The same "don't trust, check" discipline applies
           across every public artifact.
         </p>
-        <div class="rounded-lg p-4 overflow-x-auto" style="background:var(--bg-base);border:1px solid var(--border)">
-          <code class="text-xs sm:text-sm font-mono break-all" style="color:var(--data-teal)">python3 verify_spa.py data/rates_desk/</code>
+        <div class="rounded-lg p-4 overflow-x-auto space-y-2" style="background:var(--bg-base);border:1px solid var(--border)">
+          <code class="block text-xs sm:text-sm font-mono break-all" style="color:var(--data-teal)">python3 verify_spa.py data/rates_desk/</code>
+          <code class="block text-xs sm:text-sm font-mono break-all" style="color:var(--data-teal)">python3 verify_spa.py data/rates_desk/ --replay</code>
         </div>
+        <p class="text-xs leading-relaxed mt-3" style="color:var(--text-muted)"
+           data-ru="Флаг --replay идёт дальше хэшей: он ЗАНОВО ВЫВОДИТ каждый вердикт из его же опубликованных чисел (fair_yield = baseline − суммарный хейркат; approved ⇒ net_edge > 0; каждый отказ несёт причину). Сохранённый вердикт, который не следует из своих входных данных, падает CLOSED — так проверяется не «мы не редактировали строку», а «решение действительно вытекает из цифр».">
+          The <span class="font-mono">--replay</span> flag goes beyond hashes: it <strong>re-derives</strong> each
+          verdict from its own published numbers (fair_yield = baseline − total haircut; approved ⇒ net_edge &gt; 0;
+          every refusal carries a reason). A stored verdict that doesn't follow from its inputs fails closed — proving
+          not "we didn't edit the row" but "the decision actually follows from the numbers".
+        </p>
         <p class="text-[11px] font-mono mt-3" style="color:var(--text-faint)" data-ru="верификатор: scripts/verify_spa.py · спецификация: docs/PROOF_CHAIN_SPEC.md">
           verifier: scripts/verify_spa.py · spec: docs/PROOF_CHAIN_SPEC.md
         </p>
