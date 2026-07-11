@@ -4,7 +4,7 @@
 > `docs/ROADMAP_2MONTH_EISENHOWER_v2.md` (4 двухнедельных спринта) + вплетаемые Month-1/2 задачи
 > из `docs/TOURNAMENT_VERDICT_AND_6MO_BACKLOG.md` (3-тир продукт). Легенда: ✅ done · 🔄 in progress · ⬜ next.
 
-**Обновлено:** 2026-07-11 (firing #18) · **Текущий спринт:** Sprint 1–2 (W1–W4) активно · **Track:** 19/30 evidenced (go-live ~07-21)
+**Обновлено:** 2026-07-11 (firing #19) · **Текущий спринт:** Sprint 1–2 (W1–W4) активно · **Track:** 19/30 evidenced (go-live ~07-21)
 
 ---
 
@@ -15,7 +15,8 @@
 | 🔄 | 3-тир продукт: вывод realized+tail на все поверхности | 6mo M3–M5 (вплетено) |
 | ⬜ | #13→#14 турнир на реальные фиды → tail-penalized ранжирование | Sprint 2 (M2) |
 | ⬜ | Q2-11 / Q2-12 checkup: Uniswap V3 LP + Morpho/Fluid leverage detection | Sprint 3 |
-| ⬜ | Q2-13 defenses-exercised на RTMR + refusal gate на реальных данных | Sprint 4 |
+| ⬜ | Q2-11 / Q2-12 checkup LP + Morpho/Fluid (адреса — осторожно) | Sprint 3 |
+| ⬜ | #13→#14 турнир на реальные фиды → tail-penalized | Sprint 2 (M2) |
 
 ---
 
@@ -48,6 +49,7 @@
 | Q2-17 | days-to-verdict countdown | ✅ | `e29bcdf4` |
 | #16 | tournament data-trust monitor + agent_health WARNING | ✅ | `a059b631` |
 | #17 | promotion-framework parity (2 фреймворка + parity-тест) | ✅ | `b684c583` |
+| Q2-13 | RTMR defenses-exercised (12/12 de-risk-реакций fire, /api/readiness) | ✅ | `pending` |
 | Q2-2 | `--replay` verifier | ⬜ (branch-blocked: verify_spa на verifier-v1.1) | — |
 
 ## Q3 batch — housekeeping / alert-fatigue

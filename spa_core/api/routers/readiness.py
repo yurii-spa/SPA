@@ -41,6 +41,7 @@ _OWNER_ONLY = [
 @router.get("/api/readiness")
 def readiness() -> dict:
     dex = _load("defenses_exercised.json")
+    rtmr = _load("defenses_exercised_rtmr.json")
     golive = _load("golive_status.json")
     ksd = _load("kill_switch_drill_status.json")
     tledger = _load("track_ledger.json")
@@ -50,6 +51,14 @@ def readiness() -> dict:
             "total": dex.get("scenarios_total"),
             "all_fired": dex.get("all_defenses_fired"),
             "thresholds": dex.get("thresholds"),
+        },
+        # Q2-13: the RTMR real-time de-risk reaction ladder proven to FIRE (peg/tvl/oracle/liquidity +
+        # stale + systemic) through the production reaction engine — complements the daily-cycle kill
+        # ladder above. Missing artifact → nulls (honest absence, never a 500).
+        "rtmr_defenses": {
+            "fired": rtmr.get("scenarios_fired"),
+            "total": rtmr.get("scenarios_total"),
+            "all_fired": rtmr.get("all_fired"),
         },
         # Q3-5: dated kill-switch drill evidence — the emergency-stop is auditable (measured latency vs
         # its 1s budget + last-drill date). Missing artifact → nulls (honest absence, never a 500).
