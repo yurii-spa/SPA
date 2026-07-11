@@ -4,7 +4,7 @@
 > `docs/ROADMAP_2MONTH_EISENHOWER_v2.md` (4 двухнедельных спринта) + вплетаемые Month-1/2 задачи
 > из `docs/TOURNAMENT_VERDICT_AND_6MO_BACKLOG.md` (3-тир продукт). Легенда: ✅ done · 🔄 in progress · ⬜ next.
 
-**Обновлено:** 2026-07-11 (firing #22) · **Текущий спринт:** Sprint 1–4 (W1–W8) активно · **Track:** 19/30 evidenced (go-live ~07-21)
+**Обновлено:** 2026-07-11 (firing #24) · **Текущий спринт:** Sprint 1–4 (W1–W8) активно · **Track:** 19/30 evidenced (go-live ~07-21)
 
 ---
 
@@ -52,7 +52,8 @@
 | Q2-13 | RTMR defenses-exercised (12/12 de-risk-реакций fire, /api/readiness) | ✅ | `45a19d7e` |
 | — | /admin operator view: Readiness & Safety proofs панель | ✅ | `8142b89c` |
 | Q2-19 | non-custodial advisory loop (unsigned draft + refusal context, AI-never-signs, isolation-tested) | ✅ | `e73ba132` |
-| Q3-7 | footer coherence — trust/risk/legal в одну колонку + /pilot,/changelog в footer (no page delete) | ✅ | `pending` |
+| Q3-7 | footer coherence — trust/risk/legal в одну колонку + /pilot,/changelog в footer (no page delete) | ✅ | `53c45333` |
+| Q2-5 | interest-capture endpoint (PII-minimal, /api/interest + summary; contact-capture owner-gated) | ✅ | `pending` |
 | Q2-2 | `--replay` verifier | ⬜ (branch-blocked: verify_spa на verifier-v1.1) | — |
 
 ## Q3 batch — housekeeping / alert-fatigue

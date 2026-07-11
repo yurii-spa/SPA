@@ -164,6 +164,7 @@ from spa_core.api.routers import (  # noqa: E402
     competitive_watch,
     dfb,
     dfb_data_api,
+    interest,
     live,
     misc,
     optimizer,
@@ -181,6 +182,7 @@ from spa_core.api.routers import (  # noqa: E402
 
 app.include_router(misc.router)
 app.include_router(analytics.router)
+app.include_router(interest.router)
 app.include_router(tier1.router)
 app.include_router(strategy_lab.router)
 # Aggressive Lab (Lane 3 SURFACE) — advisory/paper-only ranking of the 10-15% strategies the desk
