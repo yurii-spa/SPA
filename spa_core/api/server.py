@@ -174,6 +174,7 @@ from spa_core.api.routers import (  # noqa: E402
     riskwire,
     rtmr,
     strategy_lab,
+    swarm,
     tier1,
     tournament,
     underwriting,
@@ -188,6 +189,9 @@ app.include_router(strategy_lab.router)
 # Aggressive Lab (Lane 3 SURFACE) — advisory/paper-only ranking of the 10-15% strategies the desk
 # REFUSES, shown WITH the tail. OUTSIDE_RiskPolicy; never live-allocated, never touches go-live.
 app.include_router(aggressive_lab.router)
+# SPA Swarm (block-6 SURFACE) — read-only status of the swarm organs (guardians/regime/blend/
+# brain/health). Advisory/paper-only; recommends, never allocates. docs/SWARM_ARCHITECTURE.md.
+app.include_router(swarm.router)
 app.include_router(rates_desk.router)
 app.include_router(readiness.router)
 app.include_router(optimizer.router)
