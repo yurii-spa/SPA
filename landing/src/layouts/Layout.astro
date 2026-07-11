@@ -9,6 +9,9 @@ interface Props {
   ogImage?: string;
   canonical?: string;
   admin?: boolean;
+  // Q2-15: when a page is a blog post, pass {headline, datePublished, description?} and Layout appends a
+  // BlogPosting node to the JSON-LD @graph (Article schema → richer indexing + AI answer-engine ingestion).
+  article?: { headline: string; datePublished: string; description?: string };
 }
 
 const {
@@ -17,6 +20,7 @@ const {
   ogImage = "/og-image.png",
   canonical,
   admin = false,
+  article,
 } = Astro.props;
 
 const siteUrl = "https://earn-defi.com";
@@ -45,6 +49,19 @@ const schemaData = JSON.stringify({
       "description": description,
       "publisher": { "@id": `${siteUrl}/#organization` },
     },
+    // Q2-15: BlogPosting node for blog posts (Article schema). Only added when the page passes `article`.
+    ...(article ? [{
+      "@type": "BlogPosting",
+      "@id": `${pageUrl}#article`,
+      "headline": article.headline,
+      "datePublished": article.datePublished,
+      "dateModified": article.datePublished,
+      "description": article.description || description,
+      "url": pageUrl,
+      "mainEntityOfPage": pageUrl,
+      "author": { "@id": `${siteUrl}/#organization` },
+      "publisher": { "@id": `${siteUrl}/#organization` },
+    }] : []),
   ],
 });
 ---
@@ -66,6 +83,8 @@ const schemaData = JSON.stringify({
 
     <!-- Canonical -->
     <link rel="canonical" href={pageUrl} />
+    <!-- Q2-15: RSS autodiscovery — feed readers + AI answer engines find the changelog automatically. -->
+    <link rel="alternate" type="application/rss+xml" title="SPA — earn-defi.com" href="https://earn-defi.com/rss.xml" />
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
