@@ -39,6 +39,9 @@ SELECTORS: Dict[str, dict] = {
     "eeth":  {"project": "ether.fi-stake", "chain": "Ethereum", "symbol": "WEETH"},
     "weeth": {"project": "ether.fi-stake", "chain": "Ethereum", "symbol": "WEETH"},
     "ezeth": {"project": "renzo",          "chain": "Ethereum", "symbol": "EZETH"},
+    # plain LST staking yield (Lido stETH) — the wstETH holder's real base yield, needed by the
+    # leverage-loop + levered-restaking books. A best-TVL selector, fail-closed if no pool matches.
+    "steth": {"project": "lido",           "chain": "Ethereum", "symbol": "STETH"},
 }
 
 Fetcher = Callable[[str], object]
