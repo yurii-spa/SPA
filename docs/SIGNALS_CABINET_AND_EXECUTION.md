@@ -35,7 +35,10 @@
   - P2c — ✅ **DONE** (checkup `08ff469`): recommended-actions layer + one-click NON-CUSTODIAL revoke. `CabinetActions` surfaces the wallet's own risky approvals (unlimited + unlabeled-spender) with the tail per row + a refusal note (de-risking only, never acquire/chase-yield). `RevokeApprovalButton` builds `approve(spender,0)` (`revokeTx.ts`, +3 tests) → user signs in their OWN wallet via raw `eth_sendTransaction`. We never sign/hold a key/move funds. Full vitest 335 green.
   - **P2 cabinet is functionally complete: login → analysis → de-risk actions the user executes themselves.** Later polish: reduce-concentration/leverage prepare-tx, per-action evidence links.
   - P2-polish — ✅ **DONE** (checkup `fa1305c` sign-out + `ee02118` nav link): `/api/auth/logout` + SignOutButton (clears session); `/cabinet` added to the site nav (bilingual, discoverable site-wide). Vitest 338 green.
-- **P3 · Paywall / monetization.** Crypto-subscription (USDC/mo) or token-gate over the cabinet (owner confirms model before build).
+- **P3 · Paywall / monetization.** Model CONFIRMED by owner (2026-07-11): **freemium + USDC/mo crypto-subscription**, non-custodial (user pays on-chain to our receive address; we read the chain, never custody).
+  - P3a — ✅ **DONE** (checkup `683dc05`): `subscription.ts` (pure state machine over on-chain payments, fail-closed on underpay/wrong-recipient/wrong-wallet/non-USDC) + `subscriptionConfig.ts` (env; price/period defaults). +12 tests, vitest 353 green.
+  - P3b — NEXT: on-chain payment read (find USDC transfers wallet→receiveAddress via RPC/indexer) + a "Subscribe (USDC/mo)" pay button + `PremiumGate` around the cabinet's premium features.
+  - ⚠️ **OWNER-GATED:** set `SUBSCRIPTION_RECEIVE_ADDRESS` (a real address you control) in prod env — the feature is OFF (fail-closed) until then; we never fabricate a payment target.
 - **P4 · Alerts (optional, non-custodial).** XMTP / Push Protocol (wallet-native) or opt-in email; "new signal, log in to review" — the signal + signing stay in the cabinet.
 
 ### Track 2 — Execution A/B (repo: SPA, `spa_core/execution/`, ISOLATED)
