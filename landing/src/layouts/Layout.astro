@@ -176,6 +176,12 @@ const schemaData = JSON.stringify({
         outline:2px solid var(--accent); outline-offset:2px; border-radius:var(--r-sm);
       }
       :focus:not(:focus-visible){ outline:none; }
+      /* Skip-to-content (WCAG 2.4.1): off-screen until keyboard-focused, then pinned top-left. */
+      .skip-link{position:fixed; left:8px; top:-48px; z-index:200; background:var(--accent); color:#fff;
+        padding:8px 16px; border-radius:0 0 var(--r-sm) var(--r-sm); font-size:.875rem; font-weight:600;
+        text-decoration:none; transition:top 120ms var(--ease)}
+      .skip-link:focus{top:0}
+      #main-content:focus{outline:none}
       @media (prefers-reduced-motion:reduce){
         *{animation:none !important; transition:none !important; scroll-behavior:auto !important}
       }
@@ -194,6 +200,10 @@ const schemaData = JSON.stringify({
   </head>
 
   <body class="text-text-secondary antialiased" style="background:var(--bg-base)">
+    <!-- Skip-to-content (WCAG 2.4.1 Bypass Blocks, Level A): first focusable element, visually hidden
+         until keyboard-focused, lets keyboard/screen-reader users jump past the repeated nav. Targets
+         #main-content (the slot wrapper below). -->
+    <a href="#main-content" class="skip-link" data-ru="Перейти к содержимому">Skip to content</a>
     <!-- Canonical chrome on EVERY page that uses Layout (spec §4). Admin pages get a slim
          internal bar instead of the public header/footer (Operator Console — Phase 3). -->
     {admin ? (
@@ -207,7 +217,9 @@ const schemaData = JSON.stringify({
     )}
     {!admin && <PaperStrip />}
 
-    <slot />
+    <div id="main-content" tabindex="-1">
+      <slot />
+    </div>
 
     {!admin && <SiteFooter />}
     {admin && (
