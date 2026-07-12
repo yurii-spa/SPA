@@ -42,6 +42,10 @@ def _healthy_swarm(d: Path, age_h: float = 0.5) -> None:
     (d / "swarm_book.json").write_text(json.dumps(
         {"as_of_utc": ts, "equity": 100_000.0, "weights": {"susde_dn": 0.25}}))
     (d / "swarm_book_proof.jsonl").write_text(_proof_line({"equity": 100_000.0}))
+    (d / "eyc_allocator.json").write_text(json.dumps(
+        {"as_of_utc": ts, "state": "SCORED", "venues": {"aave_v3_usdc": {}},
+         "algorithm": {"authority": "NONE — shadow only"}}))
+    (d / "eyc_allocator_proof.jsonl").write_text(_proof_line({"state": "SCORED"}))
 
 
 def test_all_healthy_ok(tmp_path):

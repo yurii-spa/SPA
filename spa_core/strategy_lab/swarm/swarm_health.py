@@ -43,6 +43,7 @@ ORGANS = {
     "funding_regime": {"status": "funding_regime.json", "proof": "funding_regime_proof.jsonl"},
     "leverage_brain": {"status": "leverage_brain.json", "proof": "leverage_brain_proof.jsonl"},
     "swarm_book": {"status": "swarm_book.json", "proof": "swarm_book_proof.jsonl"},
+    "eyc_allocator": {"status": "eyc_allocator.json", "proof": "eyc_allocator_proof.jsonl"},
 }
 
 _KNOWN_BLEND_STATES = {"TRACKING", "WARMUP", "DEGRADED", "STALE_LEG"}
@@ -124,6 +125,15 @@ def _contract_check(organ: str, doc: dict) -> tuple[bool, str]:
         if total > 1.0 + 1e-6:
             return False, f"weights sum {total:.4f} > 1 — the book can never be levered"
         return True, f"equity ${doc['equity']:,.0f}, {len(weights)} books, Σw={total:.3f}"
+    if organ == "eyc_allocator":
+        st = doc.get("state")
+        if st not in ("SCORED", "NO_SCOREABLE_VENUES", "UNAVAILABLE"):
+            return False, f"unknown state {st!r}"
+        if st == "SCORED":
+            auth = str((doc.get("algorithm") or {}).get("authority", ""))
+            if "NONE" not in auth:
+                return False, "shadow authority stamp missing — allocator may be mistaken for live"
+        return True, f"state={st}, {len(doc.get('venues') or {})} venues scored"
     return False, "unknown organ"
 
 

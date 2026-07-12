@@ -15,6 +15,8 @@ RC=$?
 # Step 2: the SWARM BOOK — apply pending bars with the PRIOR decision, then record the new
 # decision for future bars (block A: the exercised paper portfolio). Runs right after the
 # brain so the decision it persists is at most seconds old.
-/Users/yuriikulieshov/miniconda3/bin/python3 -m spa_core.strategy_lab.swarm.swarm_book >> /tmp/spa_swarm_brain.log 2>&1 || true
+# NB: launchd's cwd is NOT the repo — cd first or `-m spa_core.*` fails ModuleNotFound
+# (caught by the immune layer 2026-07-12: swarm_book stale 7.5h while the brain ticked).
+cd /Users/yuriikulieshov/Documents/SPA_Claude && /Users/yuriikulieshov/miniconda3/bin/python3 -m spa_core.strategy_lab.swarm.swarm_book >> /tmp/spa_swarm_brain.log 2>&1 || true
 
 exit $RC

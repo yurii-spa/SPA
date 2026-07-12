@@ -44,6 +44,9 @@ _ORGANS = {
     "book": ("swarm/swarm_book.json", "swarm.swarm_book",
              "the SWARM BOOK — the paper portfolio the swarm actually manages (exercised "
              "decisions, causal weights, hash-chained trail)"),
+    "eyc": ("swarm/eyc_allocator.json", "swarm.eyc_allocator",
+            "EYC v2 shadow allocator — equilibrium (not spot) yield scoring + own-size rate "
+            "impact ('APY after us'); shadow-only, logs divergences vs the naive spot pick"),
 }
 
 
@@ -110,3 +113,10 @@ def get_swarm_book():
     """The SWARM BOOK — data/swarm/swarm_book.json VERBATIM (fail-closed). The paper portfolio
     the swarm actually manages: weights decided BEFORE the bars they apply to."""
     return _serve("book")
+
+
+@router.get("/api/swarm/eyc")
+def get_swarm_eyc():
+    """EYC v2 shadow allocator — data/swarm/eyc_allocator.json VERBATIM (fail-closed).
+    Equilibrium yield scoring + 'APY after us' at size; SHADOW-ONLY (zero capital authority)."""
+    return _serve("eyc")
