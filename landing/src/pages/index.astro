@@ -150,8 +150,10 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
           <div style="font-size:11px;color:var(--text-muted)" data-ru="подтверждённых дней">evidenced days</div>
         </div>
         <a href="/refusals" data-track="m4_refusals" style="text-align:center;padding:14px;border-radius:10px;background:var(--bg-surface);border:1px solid var(--border);text-decoration:none;display:block">
-          <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:#eab308" data-ru="Отказы">Refusals</div>
-          <div style="font-size:11px;color:var(--text-muted)" data-ru="каждый опубликован →">every one published →</div>
+          <!-- M6 (redesign): live refusal-count badge — the moat as a real number from
+               /api/rates-desk/decisions counts.REFUSAL. Static fallback = current count. -->
+          <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:#eab308"><span id="m4-refusals">20</span></div>
+          <div style="font-size:11px;color:var(--text-muted)" data-ru="отказов · все опубликованы →">refusals · all published →</div>
         </a>
         <div style="text-align:center;padding:14px;border-radius:10px;background:var(--bg-surface);border:1px solid var(--border)">
           <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--text-primary)" data-ru="Некастод.">Non-custodial</div>
@@ -733,6 +735,14 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       }).catch(function(){});
     }
 
+    // M6 (redesign): live refusal-count badge on the homepage proof strip — the moat as a real number.
+    function loadRefusalCount(){
+      fetch(API + '/api/rates-desk/decisions').then(function(r){ return r.json(); }).then(function(d){
+        var c = (d && d.counts && d.counts.REFUSAL != null) ? d.counts.REFUSAL : null;
+        if (c != null) setText('m4-refusals', c);
+      }).catch(function(){});
+    }
+
     var PKG_ORDER = ['conservative','balanced','aggressive'];
     function loadPackages(){
       fetch(API + '/api/tier1/packages').then(function(r){ return r.json(); }).then(function(d){
@@ -830,7 +840,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
     }
     window.addEventListener('hashchange', function(){ setTimeout(focusAnalyze, 350); });
 
-    function init(){ drawSnapshot(); loadHealth(); loadGoLive(); loadPackages(); loadEvidence(); loadNav(); setTimeout(focusAnalyze, 400); }
+    function init(){ drawSnapshot(); loadHealth(); loadGoLive(); loadPackages(); loadEvidence(); loadNav(); loadRefusalCount(); setTimeout(focusAnalyze, 400); }
     if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
     else { init(); }
   })();
