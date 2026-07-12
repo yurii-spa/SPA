@@ -33,6 +33,9 @@ import Layout from '../../layouts/Layout.astro';
         <div class="fstep"><span class="l">Active (LEAD…DILIGENCE)</span><span class="n" id="p-active">—</span></div>
         <div class="fstep"><span class="l">Committed</span><span class="n" id="p-committed">—</span></div>
       </div>
+      <!-- I1 (redesign): leads by SOURCE (opaque labels, no PII) — which surface converts. -->
+      <div class="ac-sec-h" style="margin-top:14px;font-size:.9rem">Contact requests by source</div>
+      <div class="funnel" id="p-by-source"><div class="fstep"><span class="l">—</span><span class="n">—</span></div></div>
       <p style="font-size:.8rem;color:var(--text-faint);margin-top:12px">PII-minimal: anonymous interest + opaque-label pipeline, no email/name/contact. Intake is legal-gated.</p>
     </section>
   </div></main>
@@ -71,6 +74,12 @@ import Layout from '../../layouts/Layout.astro';
       set('p-dd', (p.n_dd_sent!=null)?p.n_dd_sent:'—');
       set('p-active', (p.n_active!=null)?p.n_active:'—');
       set('p-committed', (bs.COMMITTED!=null)?bs.COMMITTED:'—');
+      // I1: render contact requests broken down by source (opaque labels, no PII).
+      var byS=(rq.by_source)||{}, keys=Object.keys(byS).sort(function(a,b){return byS[b]-byS[a];});
+      var el=document.getElementById('p-by-source');
+      if(el){ el.innerHTML = keys.length
+        ? keys.map(function(k){ return '<div class="fstep"><span class="l">'+k+'</span><span class="n">'+byS[k]+'</span></div>'; }).join('')
+        : '<div class="fstep"><span class="l">no requests yet</span><span class="n">0</span></div>'; }
       set('p-state','live');
     }).catch(function(){set('p-state','offline');});
   })();

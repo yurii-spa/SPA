@@ -204,6 +204,8 @@ def pilot_requests_count() -> dict:
     (that would leak PII on the currently-unauthenticated /admin). Total + today + 7d only."""
     now = int(time.time())
     total = today = last_7d = 0
+    by_source: dict = {}   # I1: leads by SOURCE (early_access / snapshot / pilot) — opaque labels, no PII
+    by_tier: dict = {}     # I1: leads by opaque interest band/tier — no PII
     try:
         with open(_REQ_LOG, encoding="utf-8") as fh:
             for line in fh:
@@ -217,8 +219,15 @@ def pilot_requests_count() -> dict:
                     today += 1
                 if age <= 7 * _DAY:
                     last_7d += 1
+                src = str(r.get("source") or "pilot")
+                by_source[src] = by_source.get(src, 0) + 1
+                tier = str(r.get("tier") or "")
+                if tier:
+                    by_tier[tier] = by_tier.get(tier, 0) + 1
     except FileNotFoundError:
         pass
     return {"total_requests": total, "requests_today": today, "requests_7d": last_7d,
-            "note": "count only — full contact requests are delivered to the owner via Telegram + "
-                    "data/pilot_requests.jsonl; never exposed on the unauthenticated admin surface."}
+            "by_source": by_source, "by_tier": by_tier,
+            "note": "count only (incl. by-source/by-tier opaque breakdowns) — full contact requests are "
+                    "delivered to the owner via Telegram + data/pilot_requests.jsonl; never exposed on the "
+                    "unauthenticated admin surface."}
