@@ -80,6 +80,7 @@ anywhere.
 |---|---|---|
 | **M** | **Conversion mechanics / sell sprint** *(NEW — Phase 0)* | The 12 marketing moves, §4 |
 | **N** | **Single source of numbers** *(NEW — from UX-24/25/28/29/30/32)* | One canonical number set + CI lint; prerequisite for all selling copy |
+| **U** | **One-product seam: Checkup ⇄ site** *(NEW — §5b)* | checkup.earn-defi.com must feel like a PAGE of earn-defi.com, not a second site — long before the gated D2 merge |
 | A | Component kit | **Rescoped: EXTEND existing `ui/` kit**, not build |
 | B | Dashboard-shell | Kept; /dashboard re-shell = wrapper-first, L+ |
 | C | Checkup conversion layer | Kept; copy tone flips per §2 |
@@ -183,6 +184,36 @@ flipped; checkup report captures yield-gap leads; funnel events flowing into
   rebuild FIRST on shell, then B3 /monitoring /aggressive-lab /packages; B4/B5/B7/B8 tables/
   drawers/scorecards; G1 perf budget; H1 a11y on new primitives; QA1 visual-regression +
   token-drift test; F3 funnel dashboard segmented by holdings band.
+### 5b. Workstream U — One-product seam (Checkup ⇄ site, starts in Phase 0/1, NOT gated)
+
+**Problem:** Checkup lives in a separate repo on a separate subdomain (Railway) — without an
+explicit workstream it stays "a second site" with its own header, nav and look. The funnel
+(dashboard-showroom → Checkup → /pilot) only converts if the user **never notices the seam**.
+The full merge (D2: fold dashboard into the Checkup product) is Phase-4/owner-gated — but
+*feeling* like one product is cheap and must NOT wait for it:
+
+- **U1 `[P0][M]` Shared chrome.** Checkup renders the SAME header/nav/footer as earn-defi.com
+  (same logo, same nav taxonomy incl. Strategy Lab / Track Record / Academy links back to the
+  main site, same EN|RU toggle, same "Analyze Wallet" CTA semantics). Implementation: port
+  `SiteHeader`/`SiteFooter` markup + tokens into the checkup repo (manual sync is fine at this
+  scale; QA1's token-drift test later guards divergence). *Acceptance: screenshot of checkup
+  home next to earn-defi.com — indistinguishable chrome.*
+- **U2 `[P0][S]` Bidirectional wiring, both directions always visible.** Dashboard → Checkup
+  hook = B-ENTRY. Checkup → site: the earn-defi CTA band (UX-11, already shipped) stays on
+  every checkup surface incl. the report and clean-wallet result, upgraded by M8's yield-gap
+  line. No dead ends in either property.
+- **U3 `[P0][S]` One analytics stream.** Checkup pages fire the same `spaTrack` beacon to the
+  same `/api/analytics/event` (page + door + UTM), so F-workstream funnel numbers cover the
+  WHOLE journey, not just the landing half. Cross-domain: pass/persist the session/UTM params
+  through the dashboard→checkup link.
+- **U4 `[P1][S]` One demo, one taxonomy.** CHK-DEMO (the no-scan demo report) lives on the
+  MAIN site styled by the dashboard shell and is linked from checkup home as "see a sample
+  report" — one artifact serving both properties; tier names/numbers on checkup surfaces read
+  from the same canonical set as workstream N (no checkup-local APY literals).
+- **U5 `[Q-OWN]` Domain seam.** Recommend keeping the subdomain for now (path-unification
+  `earn-defi.com/checkup` needs CF routing in front of Railway — owner infra). File as a
+  question; revisit at D2.
+
 - **Phase 3 — IA consolidation + cruft → /admin** (J1 + carried UX items, §6): **BLOCKED on
   admin auth.** Then: move operator set (`cockpit*`, `cockpit/*`, `board/*`, `tournament`,
   `system`, `status`, `monitoring`, `readiness`, `rates-desk`, `structural-desk`,
@@ -267,6 +298,9 @@ flipped; checkup report captures yield-gap leads; funnel events flowing into
 4. **Conservative headline number:** confirm "~3.3% realized (track-to-date)" as the lead with
    "up to 6%" demoted to band context (keeps the 2026-07-11 display decision, fixes the
    contradiction that kills credibility).
+5. **Checkup domain seam (U5):** keep checkup.earn-defi.com subdomain for now, or unify to
+   earn-defi.com/checkup (needs CF routing in front of Railway — owner infra). Recommendation:
+   keep subdomain until D2; U1–U4 make the seam invisible either way.
 
 ---
 
@@ -274,7 +308,9 @@ flipped; checkup report captures yield-gap leads; funnel events flowing into
 
 - **Phase 0:** one canonical number story site-wide (lint enforced); hero/packages/pilot flipped
   to selling frame; comparison bar + calculator + counter strip + countdown + early-access live;
-  checkup yield-gap capture live; funnel events flowing; baseline F2 targets defined.
+  checkup yield-gap capture live; funnel events flowing; baseline F2 targets defined;
+  **one-product seam started: checkup carries the site's chrome (U1), both directions wired
+  (U2), one analytics stream end-to-end (U3).**
 - **Product (end-state):** app surfaces on the shell; journey dashboard→checkup(scan/snapshot/
   demo)→bridge→/pilot works end-to-end with numeric conversion targets met; every number carries
   its evidence framing; LCP/CLS within budget; WCAG-AA on new primitives; zero token drift
