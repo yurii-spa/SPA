@@ -133,27 +133,12 @@ import Disclaimer from '../components/Disclaimer.astro';
       </p>
     </section>
 
-    <!-- ============================================ c2. PER-SLEEVE HONEST VERDICTS (Q-OWN-05) -->
-    <section class="py-10 border-t" style="border-color:var(--border)">
-      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
-        <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
-           data-ru="Вердикты по sleeve'ам против RWA-floor">Per-sleeve verdicts vs the RWA floor</p>
-        <span class="text-[11px] font-mono" style="color:var(--text-faint)" id="fb-sl-floor">—</span>
-      </div>
-      <p class="text-sm leading-relaxed mb-5" style="color:var(--text-secondary)"
-         data-ru="RWA-floor — безрисковая планка (токенизированные US Treasuries). Любой sleeve обязан бить её с поправкой на риск, иначе разумнее держать облигации. Мы публикуем ВСЕ вердикты — включая собственный флагман НИЖЕ планки. Система работает как задумано: она сообщает, когда её флагман не берёт барьер.">
-        The RWA floor is the risk-free bar (tokenized US Treasuries). Every sleeve must beat it risk-adjusted,
-        or holding T-bills is smarter. We publish ALL verdicts — including our own flagship BELOW the bar.
-        The system works as designed: it tells you when its flagship doesn't clear the barrier.
-      </p>
-      <div id="fb-sleeves" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <p class="text-sm" style="color:var(--text-faint)" data-ru="Загрузка вердиктов…">Loading verdicts…</p>
-      </div>
-      <p class="text-[11px] leading-relaxed mt-3" style="color:var(--text-faint)">
-        <span data-ru="Paper forward-трек · advisory · НЕ live-капитал. «Мало данных» (THIN) и «ниже флора» (BELOW) — разные вещи.">Paper forward-track · advisory · NOT live capital. "Not enough data" (THIN) and "below the floor" (BELOW) are different things.</span>
-        <a href="/refusals" data-track="fund_to_refusals_verdicts" class="underline" style="color:var(--accent-400)" data-ru="Журнал отказов →">Full refusal log →</a>
-      </p>
-    </section>
+    {/* c2. PER-SLEEVE VERDICTS — HIDDEN 2026-07-12 (owner Q9: "скрыть до улучшения"). The granular
+        per-sleeve forward verdicts (incl. the flagship's BELOW_FLOOR) are held OFF the public page
+        until the track improves. Aggregate honesty is intact: the three-verdict block above + the
+        "combined across sleeves the honest figure is lower still" line remain. NOT a claim that the
+        flagship beats the floor — just not publishing the granular sleeve cards. Restore: re-add this
+        <section id="fb-sleeves"> + its /api/fundability/sleeves fetch (both in git history). */}
 
     <!-- ============================================================= d. THE VALIDATED EDGE (worked example pointer) -->
     <section class="py-10 border-t" style="border-color:var(--border)">
@@ -290,7 +275,9 @@ import Disclaimer from '../components/Disclaimer.astro';
       function setText(id, t) { var el = document.getElementById(id); if (el) el.textContent = t; }
       function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 
-      // Q-OWN-05: per-sleeve honest verdicts vs the RWA floor — THIN (grey/neutral) vs BELOW (red) kept distinct.
+      // Q-OWN-05: per-sleeve verdicts. HIDDEN 2026-07-12 (owner Q9) — guarded so the fetch only fires
+      // if the #fb-sleeves section is present (it was removed above). Restore the section → this lights up again.
+      if (document.getElementById('fb-sleeves'))
       fetch(API + '/api/fundability/sleeves').then(function (r) { return r.json(); }).then(function (d) {
         var box = document.getElementById('fb-sleeves'); if (!box) return;
         if (!d || !d.available || !(d.sleeves && d.sleeves.length)) {
