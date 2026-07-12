@@ -1,0 +1,82 @@
+---
+// C6 (redesign spec 04) — the bridge page: "How we think about stablecoin yield (honestly)". The §2
+// reframe in long form. Every snapshot / report result that names an un-fixable gap (C5) links here.
+// No promised returns, no fabricated numbers — the honest thesis, stated plainly, with the canonical
+// ~3.3% realized floor vs the up-to-20% target (paper, tail shown). Bilingual.
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+import TrustBand from '../components/TrustBand.astro';
+---
+<Layout
+  title="How we think about stablecoin yield — honestly | earn-defi.com"
+  description="The honest way to think about stablecoin yield: every percent above the risk-free floor pays you for a risk. We measure that risk, publish what we refuse, and show the tail. ~3.3% realized on the live paper track; up-to-20% targets are research/paper, shown with their drawdowns. Not investment advice."
+>
+  <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24">
+    <p class="text-xs font-mono uppercase tracking-[0.12em] text-text-faint mb-4" data-ru="Честная рамка">The honest frame</p>
+    <h1 class="text-3xl sm:text-4xl font-bold text-white mb-5 leading-tight" data-ru="Как мы честно думаем о доходности на стейблкоинах">How we think about stablecoin yield — honestly</h1>
+    <p class="text-lg text-slate-400 leading-relaxed mb-10" data-ru="Если коротко: бесплатной доходности не бывает. Каждый процент сверх безрисковой планки платит вам за какой-то риск. Наша работа — честно измерить этот риск и отказаться, когда он не стоит того.">
+      The short version: there is no free yield. Every percent above the risk-free floor is paying you for
+      a risk. Our whole job is to measure that risk honestly — and to refuse when it isn't worth it.
+    </p>
+
+    <section class="mb-10">
+      <h2 class="text-xl font-semibold text-white mb-3" data-ru="1. Доходность — это цена риска">1. Yield is the price of a risk</h2>
+      <p class="text-base text-slate-300 leading-relaxed mb-3" data-ru="Токенизированные US Treasuries дают ~3,4% почти без риска — это «пол». Всё, что выше, вы получаете за что-то: за плечо, за хвост депега, за points/эмиссии, которые кончатся, за смарт-контрактный риск. Само по себе это не плохо — плохо, когда вам продают верхнюю цифру и молчат про то, за что вы её получаете.">
+        Tokenized US Treasuries pay ~3.4% at almost no risk — that's the floor. Everything above it, you are
+        being paid for something: leverage, a depeg tail, points/emissions that will end, smart-contract risk.
+        That's not bad by itself — it's bad when someone sells you the top number and stays quiet about what
+        you're being paid to hold.
+      </p>
+    </section>
+
+    <section class="mb-10">
+      <h2 class="text-xl font-semibold text-white mb-3" data-ru="2. Наш ров — измерение и отказ, а не ставка">2. Our moat is measurement and refusal, not the rate</h2>
+      <p class="text-base text-slate-300 leading-relaxed mb-3" data-ru="Все публикуют свои победы. Почти никто не публикует, от чего отказался. У нас детерминированный движок (никакого ИИ в риске) прогоняет каждую книгу через структурный гейт и ОТКАЗЫВАЕТ, когда доходность — лишь компенсация за хвостовой риск. Этот лог отказов публичен и hash-anchored: каждый вердикт можно пересчитать самому.">
+        Everyone publishes their wins. Almost nobody publishes what they declined. Our deterministic engine
+        (no AI in the risk path) runs every book through a structural gate and REFUSES when the yield is just
+        compensation for a tail. That refusal log is public and hash-anchored — you can re-derive every verdict.
+      </p>
+      <div class="flex flex-wrap gap-3 mt-3">
+        <a href="/refusals" data-track="htw_to_refusals" class="text-sm text-accent-400 underline" data-ru="Журнал отказов →">The refusal log →</a>
+        <a href="/verify" data-track="htw_to_verify" class="text-sm text-accent-400 underline" data-ru="Проверить самому →">Verify it yourself →</a>
+      </div>
+    </section>
+
+    <section class="mb-10">
+      <h2 class="text-xl font-semibold text-white mb-3" data-ru="3. Проверенный пол против показанного хвоста">3. The proven floor vs the shown tail</h2>
+      <p class="text-base text-slate-300 leading-relaxed mb-3" data-ru="Наш живой консервативный paper-трек даёт ~3,3% реализованных при 0,0% просадки — реально, подтверждено, проверяемо. Цели до ~20% существуют в исследовательских стратегиях — но это бумага, и мы ВСЕГДА показываем их хвост (одна книга теряла ~50% на обвале ETH). Мы не подаём бумагу как live и не обещаем доходность. Вы выбираете осознанно.">
+        Our live conservative paper track runs at ~3.3% realized with 0.0% drawdown — real, evidenced,
+        checkable. Up-to-~20% targets exist in the research strategies — but that is paper, and we ALWAYS
+        show the tail (one book lost ~50% through the ETH crash). We never present paper as live and never
+        promise a return. You choose with your eyes open.
+      </p>
+      <div class="flex flex-wrap gap-3 mt-3">
+        <a href="/annual-contrast" data-track="htw_to_annual" class="text-sm text-accent-400 underline" data-ru="Хвост в цифрах: 15% против ~3,3% →">The tail in numbers: 15% vs ~3.3% →</a>
+        <a href="/packages" data-track="htw_to_packages" class="text-sm text-accent-400 underline" data-ru="Три честных тира →">The three honest tiers →</a>
+      </div>
+    </section>
+
+    <section class="mb-10">
+      <h2 class="text-xl font-semibold text-white mb-3" data-ru="4. Мы никогда не держим ваши средства">4. We never hold your funds</h2>
+      <p class="text-base text-slate-300 leading-relaxed" data-ru="Всё некастодиально. Мы не держим ключи, не двигаем средства, не подписываем. Деск выдаёт детерминированные, evidence-tagged рекомендации + журнал отказов; исполняете вы, на своём кошельке. Худшее, что может случиться от нашего совета — вы с ним не согласитесь.">
+        Everything is non-custodial. We never hold keys, move funds, or sign. The desk produces
+        deterministic, evidence-tagged recommendations + a refusal log; you execute, on your own wallet. The
+        worst our advice can do is be something you disagree with.
+      </p>
+    </section>
+
+    <div class="rounded-2xl border border-accent-500/20 bg-accent-500/[0.04] p-6 mb-8">
+      <h3 class="text-lg font-semibold text-white mb-2" data-ru="Дальше">Next</h3>
+      <p class="text-sm text-slate-400 leading-relaxed mb-4" data-ru="Хотите увидеть, как это ложится на ваши стейблы? Пройдите 60-секундный снимок, посмотрите тиры или поговорите с человеком.">
+        Want to see how this maps onto your stables? Take the 60-second snapshot, look at the tiers, or talk to a human.
+      </p>
+      <div class="flex flex-wrap gap-3">
+        <a href="/snapshot" data-track="htw_to_snapshot" class="inline-flex items-center px-4 py-2.5 rounded-lg bg-accent-500 hover:bg-accent-400 text-white text-sm font-semibold transition-colors" data-ru="60-секундный снимок →">60-second snapshot →</a>
+        <a href="/pilot?src=how-we-think" data-track="htw_to_pilot" class="inline-flex items-center px-4 py-2.5 rounded-lg border border-white/15 text-white text-sm font-medium hover:border-white/30 transition-colors" data-ru="Поговорить с человеком →">Talk to a human →</a>
+      </div>
+    </div>
+
+    <TrustBand />
+  </main>
+  <Disclaimer />
+</Layout>

@@ -56,9 +56,10 @@
 | CHK-DEMO no-scan demo report (fixture wallet) | PENDING (checkup has "View a sample report" link — check what it points to; upgrade per spec) |
 | B6 Checkup report rebuild on shell | PENDING |
 | E1 five SEO/learn pages | PENDING |
-| C8 trust band | **SHIPPED** (2026-07-12, build green) — `TrustBand.astro`: 4 honest pillars (Non-custodial · Honest-first · Public track · We-show-the-bad-news), one reusable component, dropped on the /snapshot result + /packages (pilot-CTA). EN|RU, no promised returns. Live-verify pending CF |
+| C8 trust band | **LIVE-VERIFIED** (2026-07-12, curl) — `TrustBand.astro` (4 honest pillars: Non-custodial · Honest-first · Public track · We-show-the-bad-news) renders on both /packages/ and /snapshot/. EN|RU, no promised returns |
 | C7 dual-CTA audit | **SHIPPED** (2026-07-12, build green) — audited all conversion surfaces (snapshot/packages/pilot/fundability/aggressive-lab) for both a self-serve step AND a "Talk to a human". Only `/aggressive-lab` lacked the human path → added "Talk to a human →" /pilot?src=aggressive-lab. All surfaces now dual-CTA |
-| C5 un-fixable-gap panel · C6 bridge page · E3 share card · I1 post-lead ops | PENDING |
+| C6 bridge page | **SHIPPED** (2026-07-12, build green) — new `/how-we-think` ("How we think about stablecoin yield — honestly"): the §2 reframe long-form (yield = price of a risk · moat = measurement+refusal not rate · proven ~3.3% floor vs shown up-to-20% tail · non-custodial), links to refusals/verify/annual-contrast/packages/snapshot/pilot + TrustBand. EN|RU, no promised returns. C5 un-fixable-gap panels will link here. Live-verify pending CF |
+| C5 un-fixable-gap panel · E3 share card · I1 post-lead ops | PENDING |
 
 ## Phase 3 — IA consolidation (spec 02)
 
