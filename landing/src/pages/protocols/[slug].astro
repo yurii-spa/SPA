@@ -16,7 +16,15 @@ export async function getStaticPaths() {
 
 const { p } = Astro.props;
 const m = p.measured;
+// Verdict-aware: REFUSED (toxic LRT, rose) vs CONSIDERED (safe-path LST, emerald). The template must
+// NEVER render a safe-path page in the refusal palette or with an avoided-loss it never had.
+const refused = p.verdict === 'REFUSED';
 const canonical = `https://earn-defi.com/protocols/${p.slug}`;
+// Literal Tailwind strings only (compiler can't see runtime-built classes) — pick a whole class set.
+const badgeCls = refused
+  ? 'inline-flex items-center gap-2 mb-5 px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 font-medium'
+  : 'inline-flex items-center gap-2 mb-5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 font-medium';
+const dotCls = refused ? 'w-1.5 h-1.5 rounded-full bg-rose-400' : 'w-1.5 h-1.5 rounded-full bg-emerald-400';
 ---
 
 <Layout
@@ -27,9 +35,9 @@ const canonical = `https://earn-defi.com/protocols/${p.slug}`;
 >
   <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20">
     <section class="pb-8">
-      <div class="inline-flex items-center gap-2 mb-5 px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 font-medium">
-        <span class="w-1.5 h-1.5 rounded-full bg-rose-400" aria-hidden="true"></span>
-        <span>{p.verdict} · structural</span>
+      <div class={badgeCls}>
+        <span class={dotCls} aria-hidden="true"></span>
+        <span>{refused ? `${p.verdict} · structural` : `${p.verdict} · safer path (LST)`}</span>
       </div>
       <h1 class="text-3xl sm:text-4xl font-bold text-white mb-3" data-ru={p.question_ru}>{p.question_en}</h1>
       <p class="text-sm text-slate-500 font-mono mb-6">{p.full}</p>
@@ -38,12 +46,12 @@ const canonical = `https://earn-defi.com/protocols/${p.slug}`;
 
     <section class="grid gap-4 sm:grid-cols-2 pb-8">
       <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
-        <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru="Причина">Structural reason</p>
+        <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru={refused ? 'Причина' : 'Почему безопаснее'}>{refused ? 'Structural reason' : 'Why it is structurally safer'}</p>
         <p class="text-sm text-slate-300 leading-relaxed" data-ru={p.reason_ru}>{p.reason_en}</p>
       </div>
       <div class="rounded-xl border border-white/10 bg-white/[0.02] p-5">
-        <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru="Измеренный хвост">Measured tail</p>
-        {m ? (
+        <p class="text-xs text-accent-400 font-mono uppercase tracking-wider mb-2" data-ru={refused ? 'Измеренный хвост' : 'Безопаснее — не безрисково'}>{refused ? 'Measured tail' : 'Safer is not risk-free'}</p>
+        {refused ? (m ? (
           <ul class="text-sm text-slate-300 space-y-1 font-mono">
             <li>Peg drawdown: <span class="text-rose-300">{m.peg_drawdown_pct}%</span> ({m.worst_date})</li>
             <li>Avoided loss: <span class="text-emerald-300">${m.avoided_loss_usd_per_100k.toLocaleString()}</span> / $100k</li>
@@ -52,6 +60,8 @@ const canonical = `https://earn-defi.com/protocols/${p.slug}`;
           </ul>
         ) : (
           <p class="text-sm text-slate-400 leading-relaxed" data-ru="Измеренная цифра не приводится — нет peg-серии в нашем окне (fail-closed, не выдумка). Отказ структурный.">Measured figure withheld — no peg series in our window (fail-closed, not fabricated). The refusal is structural.</p>
+        )) : (
+          <p class="text-sm text-slate-400 leading-relaxed" data-ru={p.caveat_ru}>{p.caveat_en}</p>
         )}
       </div>
     </section>
@@ -61,14 +71,16 @@ const canonical = `https://earn-defi.com/protocols/${p.slug}`;
         <span class="text-xs font-mono uppercase tracking-wider text-slate-500" data-ru="Проверьте сами">Check us</span>
         <a href="/refusals" data-track={`protocol_${p.slug}_to_refusals`} class="text-sm text-accent-400 underline" data-ru="Журнал отказов (hash-chained) →">Refusal log (hash-chained) →</a>
         <a href="/exit-nav" data-track={`protocol_${p.slug}_to_exitnav`} class="text-sm text-accent-400 underline" data-ru="Ликвидационный NAV по размеру →">Liquidation-NAV by size →</a>
-        <a href="/packages" data-track={`protocol_${p.slug}_to_packages`} class="text-sm text-accent-400 underline" data-ru="Что мы предлагаем вместо →">What we offer instead →</a>
+        <a href="/packages" data-track={`protocol_${p.slug}_to_packages`} class="text-sm text-accent-400 underline" data-ru={refused ? 'Что мы предлагаем вместо →' : 'Тиры, которые мы ведём →'}>{refused ? 'What we offer instead →' : 'The tiers we run →'}</a>
       </div>
     </section>
 
     <p class="text-xs text-slate-500 leading-relaxed">
       SPA is a paper-stage research desk. This is a structural risk verdict, not investment advice.
       Measured figures are BACKTEST (real ETH-peg history), conservative lower bounds — never presented as
-      realized returns. The differentiator is what we REFUSE, published transparently.
+      realized returns. A {'CONSIDERED'} verdict means we do not refuse it on structural grounds — it is
+      not an endorsement, a recommendation, or a claim of safety. The differentiator is what we REFUSE,
+      published transparently.
     </p>
   </main>
 

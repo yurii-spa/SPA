@@ -1,5 +1,5 @@
 {
-  "_note": "Q2-16 — STATIC, AUDITED per-protocol structural verdicts for the programmatic SEO pages (/protocols/[slug]). Sourced from the real desk analysis: refusal reasons from fair_value_engine's PEG haircut + REASON_EXPLAIN, and the MEASURED figures from data/rates_desk/refusal_value.json (real ETH-peg drawdowns, conservative lower bounds — pt_price MtM unavailable). Every number is evidence-tagged and backtest-labelled; nothing is fabricated. rsETH is REFUSED on STRUCTURAL grounds but carries NO measured drawdown here because our peg series does not cover its window (fail-closed, honest gap). This file is committed so the pages render server-side (SEO); the live /refusals log fetches the hashed decision log dynamically.",
+  "_note": "Q2-16 — STATIC, AUDITED per-protocol structural verdicts for the programmatic SEO pages (/protocols/[slug]). Sourced from the real desk analysis: refusal reasons from fair_value_engine's PEG haircut + REASON_EXPLAIN, and the MEASURED figures from data/rates_desk/refusal_value.json (real ETH-peg drawdowns, conservative lower bounds — pt_price MtM unavailable). Every number is evidence-tagged and backtest-labelled; nothing is fabricated. rsETH is REFUSED on STRUCTURAL grounds but carries NO measured drawdown here because our peg series does not cover its window (fail-closed, honest gap). This file is committed so the pages render server-side (SEO); the live /refusals log fetches the hashed decision log dynamically. 2026-07-12 — added the SAFE PATH (verdict=CONSIDERED): stETH / rETH are the plain-staking LSTs the desk treats as structurally safer than any LRT (from refusal_engine.LST_SAFE). These pages exist for balance + long-tail coverage ('is stETH safe'): they carry NO measured avoided-loss (nothing was refused) and every one states plainly that 'safer than an LRT' ≠ 'safe' — the carry gate still applies per book, see the live refusal log.",
   "protocols": [
     {
       "slug": "ezeth",
@@ -50,6 +50,36 @@
       "answer_ru": "ОТКАЗАН по структурным причинам (то же семейство LRT-хвостов, что ezETH/weETH). Мы НЕ приводим измеренную просадку: наша peg-серия не покрывает окно rsETH, поэтому — fail-closed — отказываемся выдумывать число. Отказ структурный, не из цены.",
       "reason_en": "Structural PEG-breakdown tail (LRT family). Measured figure withheld — no peg series in our window (honest gap, not fabricated).",
       "reason_ru": "Структурный хвост разрыва пега (семейство LRT). Измеренная цифра не приводится — нет peg-серии в нашем окне (честный пробел, не выдумка).",
+      "measured": null
+    },
+    {
+      "slug": "steth",
+      "name": "stETH",
+      "full": "Lido stETH (liquid staking token)",
+      "verdict": "CONSIDERED",
+      "question_en": "Is stETH safe to hold or use as fixed-rate carry?",
+      "question_ru": "Безопасно ли держать stETH или использовать как фиксированный carry?",
+      "answer_en": "The SPA Rates Desk does NOT refuse stETH on structural grounds. It is a plain liquid-staking token (LST), not a liquid restaking token (LRT) — it does not carry the stacked restaking / operator-slashing tail that gets ezETH, weETH and rsETH refused. It is still not risk-free. This is paper research, not a live-capital position.",
+      "answer_ru": "SPA Rates Desk НЕ отказывается от stETH по структурным причинам. Это обычный токен ликвидного стейкинга (LST), а не restaking-токен (LRT) — у него нет наложенного хвоста рестейкинга / слэшинга операторов, из-за которого отказаны ezETH, weETH и rsETH. Но он не безрисковый. Это paper-исследование, не live-позиция.",
+      "reason_en": "Plain staking, not restaking. No extra restaking / operator-slashing layer on top of ETH staking; the deepest LST liquidity on-chain; historically tracks its ETH redemption value closely (the 2022 discount resolved without insolvency). This is the LST path the desk treats as structurally safer than any LRT — the peg-breakdown tail is far smaller than the refused restaking tokens.",
+      "reason_ru": "Обычный стейкинг, не рестейкинг. Нет дополнительного слоя рестейкинга / слэшинга операторов поверх ETH-стейкинга; самая глубокая ликвидность среди LST; исторически близко держит стоимость выкупа в ETH (дисконт 2022 разрешился без банкротства). Это путь LST, который деск считает структурно безопаснее любого LRT — хвост разрыва пега намного меньше, чем у отказанных restaking-токенов.",
+      "caveat_en": "Safer is not risk-free: stETH still carries Lido smart-contract risk, validator-slashing risk, ETH price risk, and a secondary-market discount in a fast exit. 'Structurally safer than an LRT' is not 'safe'. Whether a specific fixed-rate PT book on stETH clears the desk's carry gate depends on live pricing and haircuts — see the live refusal log for the current verdict.",
+      "caveat_ru": "Безопаснее — не значит безрисково: у stETH остаётся смарт-контрактный риск Lido, риск слэшинга валидаторов, риск цены ETH и вторичный дисконт при быстром выходе. «Структурно безопаснее LRT» — не «безопасно». Пройдёт ли конкретная fixed-rate PT-книга на stETH гейт carry — зависит от живого ценообразования и хейркатов; смотрите живой лог отказов.",
+      "measured": null
+    },
+    {
+      "slug": "reth",
+      "name": "rETH",
+      "full": "Rocket Pool rETH (liquid staking token)",
+      "verdict": "CONSIDERED",
+      "question_en": "Is rETH safe to hold or use as fixed-rate carry?",
+      "question_ru": "Безопасно ли держать rETH или использовать как фиксированный carry?",
+      "answer_en": "The SPA Rates Desk does NOT refuse rETH on structural grounds. Like stETH it is a plain liquid-staking token (LST), not a restaking token (LRT): no stacked restaking / operator-slashing tail. Rocket Pool's node operators post their own collateral, which is a different — not zero — trust model. It is still not risk-free. Paper research, not a live-capital position.",
+      "answer_ru": "SPA Rates Desk НЕ отказывается от rETH по структурным причинам. Как и stETH, это обычный LST, а не restaking-токен: нет наложенного хвоста рестейкинга / слэшинга. Ноды Rocket Pool вносят собственный залог — иная (не нулевая) модель доверия. Он не безрисковый. Paper-исследование, не live-позиция.",
+      "reason_en": "Plain staking, not restaking. Decentralised node-operator set with operator-posted collateral, and no restaking layer stacked on top. The peg-breakdown tail is far smaller than the refused LRTs — this is the safer LST path, not the toxic restaking one.",
+      "reason_ru": "Обычный стейкинг, не рестейкинг. Децентрализованный набор нод-операторов с их собственным залогом и без наложенного слоя рестейкинга. Хвост разрыва пега намного меньше, чем у отказанных LRT — это безопасный путь LST, а не токсичный restaking.",
+      "caveat_en": "Safer is not risk-free: rETH carries Rocket Pool smart-contract risk, slashing risk, ETH price risk, and thinner secondary liquidity than stETH (a bigger exit can move its own price). 'Structurally safer than an LRT' is not 'safe'. Whether a specific PT book on rETH clears the carry gate depends on live pricing — see the live refusal log.",
+      "caveat_ru": "Безопаснее — не безрисково: у rETH смарт-контрактный риск Rocket Pool, риск слэшинга, риск цены ETH и более тонкая вторичная ликвидность, чем у stETH (крупный выход двигает свою же цену). «Структурно безопаснее LRT» — не «безопасно». Пройдёт ли конкретная PT-книга на rETH гейт carry — зависит от живого ценообразования; смотрите живой лог отказов.",
       "measured": null
     }
   ]
