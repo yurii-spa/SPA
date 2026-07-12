@@ -13,5 +13,10 @@ Disallow: /api/
 # Operator Console — internal, no auth yet, not for indexing (belt-and-braces with the
 # per-page noindex meta on admin={true} pages).
 Disallow: /admin
+# Desk Cockpit — internal operator home screen (UX-05, refined): not a public-proof page, so it
+# should not be indexed as a standalone result. The public proof pages (rates-desk, rwa-backstop,
+# exit-nav, due-diligence, structural-desk, monitoring, readiness, system, yield-lab, annual-contrast)
+# are DELIBERATELY left indexable — they are the funnel's proof surface, not operator internals.
+Disallow: /cockpit
 
 Sitemap: https://earn-defi.com/sitemap.xml

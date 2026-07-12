@@ -7,7 +7,14 @@
 > UX-12 honest waitlist copy · UX-13 canonical CTA URLs · UX-20 warm report one-liner · UX-22 no
 > duplicate /check form. (commits bed4e015, 47926e43, f35f6500, 1d210d6d + checkup 5033c8a, 91d2193,
 > 62368b4, 34e8726) + UX-39 compare-table reframe (96a40b6) + Max-Yield card tail (71c661d6) + methodology
-> "baseline" (c4bd37ea) — **18 items shipped.** Everything remaining is OWNER-GATED (below) or
+> "baseline" (c4bd37ea) — **18 items shipped.**
+> **✅ SHIPPED (2026-07-12):** UX-21 clean-wallet upside CTA (idle threshold 40%→25% OR $1k+, weak
+> generic fallback → /packages conservative-tier opportunity) · UX-05 **(refined)** noindex the ONE
+> genuinely operator-internal page (`/cockpit` "Desk Cockpit home screen") + robots Disallow — the
+> other pages the audit lumped in (rates-desk, rwa-backstop, exit-nav, due-diligence, structural-desk,
+> monitoring, readiness, system, yield-lab, annual-contrast) are DELIBERATELY kept indexable: they are
+> the funnel's public proof surface, NOT operator internals (blanket-noindex would have deindexed the
+> selling pages). — **20 items shipped.** Everything remaining is OWNER-GATED (below) or
 > needs-judgment (UX-05) or depends on the owner's taxonomy/number decision — see
 > `docs/SITE_TAXONOMY_NUMBERS_DECISION.md` for the unblock-map (1 owner line → ~12 items).
 > **🔒 OWNER-GATED (need a decision):** tier NAMING (pick ONE taxonomy: Preserve/Core/Max-Yield vs
