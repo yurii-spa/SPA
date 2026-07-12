@@ -18,7 +18,7 @@
 |---|---|---|
 | F1 | Funnel events wired end-to-end | PENDING VERIFY — beacon exists; confirm new events (`calc_interact`, `early_access_submit`, `checkup:*`) appear in /admin/funnels |
 | N1 | One canonical number story | **LIVE-VERIFIED** (2026-07-12, API+code) — evidenced-days discrepancy CLOSED: /pilot rewired from the lagging `track_ledger.n_evidenced_days` (19, last-evidenced 07-10) to the SSOT `/api/ssot/facts` → `track_days` (=21), the SAME number the homepage shows via `/api/v1/golive.real_track_days` (=21). SSOT + golive both return 21 (curl-confirmed). The `#pilot-days` number span was moved OUTSIDE its `data-ru` parent so it renders live in EN+RU (was wiped by the i18n textContent swap). All three surfaces now = 21 |
-| N2 | Numbers lint in CI (advisory) | PENDING |
+| N2 | Numbers lint in CI (advisory) | **SHIPPED** (2026-07-12) — `.github/workflows/numbers-lint.yml` runs `check_tier_band_consistency.py` as an ADVISORY GitHub Actions lint (protocol §3: Actions, NOT CF prebuild). Guard currently CLEAN (no hardcoded bands outside tier_bands.json). Flip to blocking later via `STRICT_TIER_BANDS=1`. Verify: workflow appears in Actions on next landing push |
 | M1 | Hero rewrite | **LIVE-VERIFIED** (2026-07-12 curl: "A stablecoin yield desk that proves every number" + dual CTA) — RU parity to verify |
 | M2 | Comparison bar | **LIVE-VERIFIED** (bank ~0.4% / T-bills ~3.5% / Cons ~3.3% realized / Aggr up to 20% target) |
 | M3 | Yield calculator | **LIVE-VERIFIED on /** ($50,000 → ~$1,650 + up-to-$10,000 dashed w/ tail) — verify /packages embed + RU + `data-track` events |

@@ -1,0 +1,33 @@
+name: SPA Numbers Lint (advisory)
+
+# N2 (redesign spec 01): keep the public tier numbers to ONE source. This runs the tier-band
+# consistency guard as a GitHub Actions lint (redesign protocol §3: CI lints live in Actions, NOT in
+# the CF prebuild — the CF prebuild must never exit 1 and freeze the whole site). ADVISORY today:
+# the guard exits 0 and only reports drift. Flip to blocking later by setting STRICT_TIER_BANDS=1 once
+# the number story is stable (it is currently CLEAN — no hardcoded bands outside tier_bands.json).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'landing/**'
+      - 'scripts/check_tier_band_consistency.py'
+      - '.github/workflows/numbers-lint.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'landing/**'
+      - 'scripts/check_tier_band_consistency.py'
+
+jobs:
+  numbers-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Tier-band consistency (advisory — canonical numbers live in landing/src/lib/tier_bands.json)
+        # Advisory: exits 0 and reports any band-shaped literal re-hardcoded outside the single source.
+        # The report is visible in the Actions log; drift is caught before it spreads across pages.
+        run: python scripts/check_tier_band_consistency.py
