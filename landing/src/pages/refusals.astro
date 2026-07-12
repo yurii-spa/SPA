@@ -120,6 +120,35 @@ import Disclaimer from '../components/Disclaimer.astro';
       </div>
     </section>
 
+    <!-- ============================================================= b2. WHAT REFUSING WAS WORTH ($) -->
+    <!-- Q2-5b: surface the avoided-loss ledger — the refusal moat as a P&L NUMBER (roadmap's #1 conversion
+         lever). Honest framing: a measured COUNTERFACTUAL lower bound from the real dated peg drawdowns,
+         NOT our realized P&L (we did not hold these books). Served verbatim from the deterministic API. -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <p class="text-xs uppercase tracking-wider font-mono mb-2" style="color:var(--text-muted)"
+         data-ru="Сколько стоил отказ — в долларах">What refusing was worth — in dollars</p>
+      <div class="rounded-xl p-6" style="background:var(--bg-surface);border:1px solid var(--accent-dim)">
+        <p class="text-sm leading-relaxed mb-5 max-w-2xl" style="color:var(--text-secondary)"
+           data-ru="Отказ — это ров, но от философии легко отмахнуться. Вот он в деньгах: сколько наивная книга, ДЕРЖАВШАЯ отказанные токсичные PT, потеряла бы на реальных датированных депегах 2024–2026. Это измеренный контрфакт (нижняя граница по реальной просадке пега), а НЕ наш реализованный P&L — мы эти книги не держали.">
+          Refusal is the moat — but philosophy is easy to wave away. Here it is in money: how much a naive
+          book that HELD the refused toxic PTs would have lost through the real, dated 2024–2026 depegs. This
+          is a measured <strong style="color:var(--text-primary)">counterfactual</strong> (a lower bound, from
+          the real peg drawdown), NOT our realized P&L — we did not hold these books.
+        </p>
+        <div class="mb-5">
+          <div class="text-4xl sm:text-5xl font-bold font-mono" style="color:var(--ok)" id="rf-avoided-total">—</div>
+          <p class="text-xs mt-1" style="color:var(--text-faint)"
+             data-ru="предотвращённый убыток на $100k аллокации · нижняя граница · evidence: исторический бэктест">avoided loss per $100k allocation · lower bound · evidence: historical backtest</p>
+        </div>
+        <div id="rf-avoided-events" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+        <p class="text-[11px] mt-4 font-mono" style="color:var(--text-faint)">
+          <span data-ru="Источник">Source</span>: /api/rates-desk/refusal-value ·
+          <span data-ru="детерминированно, пересчитывается">deterministic, rebuild</span>:
+          <span class="break-all">python3 -m spa_core.strategy_lab.rates_desk.refusal_value</span>
+        </p>
+      </div>
+    </section>
+
     <!-- ============================================================= c. THE LOG (rows) -->
     <section class="py-10 border-t" style="border-color:var(--border)">
       <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
@@ -384,10 +413,33 @@ import Disclaimer from '../components/Disclaimer.astro';
         });
       }
 
-      // Re-render on language toggle (Layout i18n runtime calls window.__renderLive).
-      window.__renderLive = function () { try { if (LAST) render(LAST, true); else setBadge(null); } catch (e) {} };
+      // Q2-5b: avoided-loss ledger — the refusal moat as a P&L number. Served verbatim from the
+      // deterministic API; honest counterfactual framing lives in the static copy. Fail-closed (absent →
+      // leave the "—" placeholder, never a fabricated number).
+      function loadAvoided() {
+        fetch(API + '/api/rates-desk/refusal-value').then(function (r) { return r.json(); }).then(function (d) {
+          if (!d) return;
+          var total = num(d.total_avoided_loss_usd_per_100k);
+          if (total != null) setText('rf-avoided-total', '~$' + Math.round(total).toLocaleString('en-US') + (isRu() ? ' предотвращено' : ' avoided'));
+          var events = (d && d.events) || [];
+          var box = document.getElementById('rf-avoided-events');
+          if (!box) return;
+          box.innerHTML = events.map(function (e) {
+            var av = num(e.avoided_loss_usd_per_100k);
+            var dd = num(e.peg_drawdown_pct);
+            return '<div class="rounded-lg p-4" style="background:var(--bg-base);border:1px solid var(--border)">'
+              + '<div class="text-sm font-semibold" style="color:var(--text-primary)">' + esc(e.underlying || '?') + '</div>'
+              + '<div class="text-2xl font-bold font-mono" style="color:var(--ok)">~$' + (av != null ? Math.round(av).toLocaleString('en-US') : '—') + '</div>'
+              + '<div class="text-[11px]" style="color:var(--text-faint)">' + (isRu() ? 'депег пега ' : 'peg drawdown ') + (dd != null ? dd.toFixed(1) + '%' : '—') + ' · ' + esc(e.worst_date || '') + '</div>'
+              + '</div>';
+          }).join('');
+        }).catch(function () { /* fail-closed: leave the "—" placeholder */ });
+      }
 
-      function init() { load(); }
+      // Re-render on language toggle (Layout i18n runtime calls window.__renderLive).
+      window.__renderLive = function () { try { if (LAST) render(LAST, true); else setBadge(null); loadAvoided(); } catch (e) {} };
+
+      function init() { load(); loadAvoided(); }
       if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
       else { init(); }
     })();
