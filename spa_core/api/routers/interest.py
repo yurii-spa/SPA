@@ -133,18 +133,21 @@ class PilotRequest(BaseModel):
     email: str = ""
     message: str = ""      # optional free note from the requester
     tier: str = ""         # opaque interest bucket
+    source: str = ""       # M7: e.g. "early_access" — routes framing + returns a real position number
     utm_source: str = ""
     utm_campaign: str = ""
 
 
-def _notify_owner_telegram(email: str, message: str, tier: str, utm: str) -> bool:
+def _notify_owner_telegram(email: str, message: str, tier: str, utm: str, source: str = "") -> bool:
     """Best-effort Telegram ping to the owner. Never raises (a page must not break on notify failure)."""
     try:
         import html as _html
         from spa_core.alerts.telegram_client import send_message
+        header = ("🎟 <b>Early-access заявка</b>\n" if source == "early_access"
+                  else "🔔 <b>Новая заявка с /pilot</b>\n")
         body = (
-            "🔔 <b>Новая заявка с /pilot</b>\n"
-            f"✉️ <b>Email:</b> {_html.escape(email)}\n"
+            header
+            + f"✉️ <b>Email:</b> {_html.escape(email)}\n"
             + (f"🏷 <b>Тир:</b> {_html.escape(tier)}\n" if tier else "")
             + (f"📈 <b>UTM:</b> {_html.escape(utm)}\n" if utm else "")
             + (f"💬 <b>Сообщение:</b> {_html.escape(message)}\n" if message else "")
@@ -164,17 +167,30 @@ def pilot_request(req: PilotRequest) -> dict:
         return {"ok": False, "error": "a valid email is required to request a conversation"}
     message = (req.message or "").strip()[:1000]
     tier = _clean(req.tier)
+    source = _clean(req.source)
     src, camp = _clean(req.utm_source), _clean(req.utm_campaign)
     utm = (f"{src}:{camp}" if (src or camp) else "")
-    rec = {"t": int(time.time()), "email": email, "message": message, "tier": tier, "utm": utm}
+    # M7: early-access position = count of prior early_access signups + 1 (REAL, never fabricated).
+    position = None
+    if source == "early_access":
+        try:
+            with open(_REQ_LOG, encoding="utf-8") as fh:
+                position = sum(1 for l in fh if '"source": "early_access"' in l) + 1
+        except FileNotFoundError:
+            position = 1
+    rec = {"t": int(time.time()), "email": email, "message": message, "tier": tier,
+           "source": source, "utm": utm}
     try:
         _REQ_LOG.parent.mkdir(parents=True, exist_ok=True)
         with open(_REQ_LOG, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception:  # noqa: BLE001 — capture must never break the page
         pass
-    notified = _notify_owner_telegram(email, message, tier, utm)
-    return {"ok": True, "notified": notified}
+    notified = _notify_owner_telegram(email, message, tier, utm, source)
+    out = {"ok": True, "notified": notified}
+    if position is not None:
+        out["position"] = position
+    return out
 
 
 @router.get("/api/pilot/requests/count")

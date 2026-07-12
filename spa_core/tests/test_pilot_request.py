@@ -59,6 +59,18 @@ def test_telegram_failure_does_not_break_request(monkeypatch):
     assert I._REQ_LOG.exists()  # still persisted even if the ping failed
 
 
+def test_early_access_returns_real_position(monkeypatch):
+    # M7: source=early_access returns a REAL, incrementing position; normal requests get no position.
+    monkeypatch.setattr(I, "_notify_owner_telegram", lambda *a, **k: True)
+    r1 = I.pilot_request(I.PilotRequest(email="a@b.co", source="early_access", tier="aggressive"))
+    r2 = I.pilot_request(I.PilotRequest(email="c@d.co", source="early_access"))
+    r3 = I.pilot_request(I.PilotRequest(email="e@f.co"))  # normal, no source
+    assert r1["position"] == 1 and r2["position"] == 2
+    assert "position" not in r3  # non-early-access requests never get a fabricated number
+    rows = [json.loads(l) for l in I._REQ_LOG.read_text(encoding="utf-8").splitlines()]
+    assert sum(1 for r in rows if r.get("source") == "early_access") == 2
+
+
 def test_email_edge_cases():
     for bad in ("", "a@b", "no-at.com", "x@y.", "@no-local.com"):
         assert I.pilot_request(I.PilotRequest(email=bad))["ok"] is False
