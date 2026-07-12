@@ -14,7 +14,9 @@ import BANDS from '../lib/tier_bands.json';
 //   • Conservative  = up to 6% target; the REAL live paper book (~3.3% realized so far, evidenced) — what the desk delivers.
 //   • Balanced      = research/paper, WITH the tail, NOT yet trustworthy (thin forward track).
 //   • Aggressive    = research/paper, REFUSED for live — brutal tail, shown transparently.
-const liveApy = (snap && typeof snap.paper_apy_pct === 'number') ? snap.paper_apy_pct.toFixed(2) : '3.3';
+// NOTE: the Conservative LIVE badge is deliberately a TEXT chip ("LIVE · evidenced"), NOT a number.
+// The volatile single-day paper_apy_pct (swings 3.2–8.5%) is intentionally NOT rendered here — it
+// contradicted the "up to 6% / ~3.3% realized" framing (backlog UX-14). Do not re-add it as a badge.
 
 const tiers = [
   {
