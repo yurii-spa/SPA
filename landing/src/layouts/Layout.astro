@@ -141,7 +141,10 @@ const schemaData = JSON.stringify({
         --bg-base:#0A0C10; --bg-surface:#11141A; --bg-surface-2:#181C24; --bg-elevated:#1E232C;
         --border:#232934; --border-strong:#313945;
         /* Text — faint bumped #444B57→#565E6D for AA on non-decorative text (V2 a11y) */
-        --text-primary:#E8EAF0; --text-secondary:#A6ADBB; --text-muted:#6B7280; --text-faint:#565E6D;
+        --text-primary:#E8EAF0; --text-secondary:#A6ADBB; --text-muted:#868D99; --text-faint:#727A88;
+        /* Q-OWN-21 (owner-approved 2026-07-12): text-muted #6B7280→#868D99 (3.81→5.52:1 on surface) +
+           text-faint #565E6D→#727A88 (2.83→4.26:1) — both now clear WCAG AA body contrast; hierarchy
+           primary>secondary>muted>faint preserved (secondary 8.2 > muted 5.5 > faint 4.3). */
         /* Brand accent — indigo */
         --accent:#5B8DEF; --accent-hover:#79A4F5; --accent-dim:#2C4A8A;
         --accent-bg:rgba(91,141,239,0.10); --accent-border:rgba(91,141,239,0.30);
