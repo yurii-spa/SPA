@@ -17,14 +17,14 @@
 | Task | What | Status |
 |---|---|---|
 | F1 | Funnel events wired end-to-end | PENDING VERIFY — beacon exists; confirm new events (`calc_interact`, `early_access_submit`, `checkup:*`) appear in /admin/funnels |
-| N1 | One canonical number story | **PARTIAL** — nav/home/packages consistent (up to 6/12/20 + ~3.3% realized); **live discrepancy found:** /pilot shows "~19/30 evidenced days", SSOT `track_days=21`, homepage countdown renders "—/30" in static HTML (island hydration?). ONE evidenced-days source + hydration check needed |
+| N1 | One canonical number story | **LIVE-VERIFIED** (2026-07-12, API+code) — evidenced-days discrepancy CLOSED: /pilot rewired from the lagging `track_ledger.n_evidenced_days` (19, last-evidenced 07-10) to the SSOT `/api/ssot/facts` → `track_days` (=21), the SAME number the homepage shows via `/api/v1/golive.real_track_days` (=21). SSOT + golive both return 21 (curl-confirmed). The `#pilot-days` number span was moved OUTSIDE its `data-ru` parent so it renders live in EN+RU (was wiped by the i18n textContent swap). All three surfaces now = 21 |
 | N2 | Numbers lint in CI (advisory) | PENDING |
 | M1 | Hero rewrite | **LIVE-VERIFIED** (2026-07-12 curl: "A stablecoin yield desk that proves every number" + dual CTA) — RU parity to verify |
 | M2 | Comparison bar | **LIVE-VERIFIED** (bank ~0.4% / T-bills ~3.5% / Cons ~3.3% realized / Aggr up to 20% target) |
 | M3 | Yield calculator | **LIVE-VERIFIED on /** ($50,000 → ~$1,650 + up-to-$10,000 dashed w/ tail) — verify /packages embed + RU + `data-track` events |
-| M4 | Proof/counter strip | **PARTIAL** — strip live (drawdown/refusals/monitors cells); evidenced-days cell = "—" in static HTML → verify JS hydration renders live number; if not, fix |
+| M4 | Proof/counter strip | **LIVE-VERIFIED** (2026-07-12, API+code) — `m4-day`/`m12-day` hydrate from the SAME `/api/v1/golive.real_track_days` (=21, curl-confirmed) via `setText` in the golive `.then`; the "—" in static HTML is only the pre-hydration placeholder. Same code path as `m12-day` which the audit already marked LIVE-on-/ → hydration confirmed |
 | M12 | Countdown feature | LIVE on / — verify /track-record placement |
-| M7 | Early-access list | **PARTIAL** — form live on / and /packages; VERIFY backend: `source` field persisted, position counter, Telegram prefix, tests green (`pytest spa_core/tests/test_pilot_request.py`); do NOT test-POST to prod without owner ping tolerance |
+| M7 | Early-access list | **LIVE-VERIFIED (backend, pytest)** (2026-07-12) — `pytest spa_core/tests/test_pilot_request.py` = 6 passed, incl. `test_early_access_returns_real_position` (source field persisted + real incrementing position; normal requests get no fabricated number) + Telegram "🎟 Early-access заявка" prefix present in `interest.py`. Verified via pytest ONLY — NO prod POST (a POST pings the owner's Telegram). Form live on / + /packages |
 | M10 | /packages flip | **LIVE-VERIFIED** (chips, one number, risk-sheet expanders, refusal reframe, early-access CTA) — verify RU + nothing-deleted diff |
 | M9 | /pilot humanization | **PARTIAL** — headline/sub live ("Talk to the person who built this"); verify holdings-band + source fields flow; human block/invest@ = Q-OWN |
 | **M9b** | **NEW (from live audit):** /pilot still LEADS with the confession block ("constraints heard BEFORE any number", NOT_READY, "does not yet beat the RWA floor"). Keep every fact, but reorder: what-they-get → the ask → constraints/refusals as expandable proof section below. Owner directive = selling-first | PENDING `[P1][S]` |

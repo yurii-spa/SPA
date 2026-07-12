@@ -30,7 +30,7 @@ import Disclaimer from '../components/Disclaimer.astro';
     <section class="rounded-2xl border border-amber-500/30 bg-amber-500/[0.04] p-6 mb-6">
       <h2 class="text-lg font-semibold text-white mb-3" data-ru="Честные ограничения — их слышат ДО любого числа">The honest constraints — heard BEFORE any number</h2>
       <ul class="space-y-2 text-sm text-slate-300 leading-relaxed">
-        <li data-ru="Трек ТОНКИЙ и бумажный: ~«ниже» evidenced-дней из 30 (виртуальные $100k, $0 реальных). Day-30 вердикт: NOT_READY, hash-anchored."><span class="font-mono text-amber-300"><span id="pilot-days">~19</span>/30</span> evidenced days of an honest paper track ($100k <em>virtual</em>, $0 real). Day-30 verdict: <span class="font-mono">NOT_READY</span>, hash-anchored.</li>
+        <li><span class="font-mono text-amber-300"><span id="pilot-days">21</span>/30</span><span data-ru=" подтверждённых дней честного бумажного трека (виртуальные $100k, $0 реальных). Вердикт Day-30: NOT_READY, hash-anchored."> evidenced days of an honest paper track ($100k <em>virtual</em>, $0 real). Day-30 verdict: <span class="font-mono">NOT_READY</span>, hash-anchored.</span></li>
         <li data-ru="Реализованный форвардный edge пока НЕ бьёт RWA-пол на fundable-масштабе. Uplift оптимизатора — артефакт ~$100k; sleeves читаются INSUFFICIENT_DATA. Мы НЕ заявляем single-strategy alpha.">The realized forward edge does not yet beat the RWA floor at fundable scale. We do <strong>not</strong> claim single-strategy alpha.</li>
         <li data-ru="Ёмкость ограничена — честный адресуемый рынок сегодня мал (~менее $100k/год net). Это игра масштаба-через-много-книг и доверия на годы, не ставка на сегодня.">Capacity is bounded — honest addressable is small today. A scale-across-many-books + trust play over years, not a today-rate play.</li>
       </ul>
@@ -111,9 +111,12 @@ import Disclaimer from '../components/Disclaimer.astro';
   <script is:inline>
     (function(){
       var API = (location.hostname==='localhost'||location.hostname==='127.0.0.1') ? 'http://localhost:8765' : 'https://api.earn-defi.com';
-      fetch(API+'/api/readiness').then(function(r){return r.json();}).then(function(d){
-        var t=(d.track_ledger)||{}, gl=(d.go_live_gate)||{};
-        var n = (t.n_evidenced_days!=null) ? t.n_evidenced_days : gl.evidenced_days;
+      // N1 (redesign §2): the evidenced track-day count comes from the ONE canonical SSOT
+      // (/api/ssot/facts → track_days), the SAME number the homepage/golive shows (21), NOT the
+      // lagging track_ledger.n_evidenced_days (19, last-evidenced behind SSOT). One source, no drift.
+      fetch(API+'/api/ssot/facts').then(function(r){return r.json();}).then(function(d){
+        var f=(d && d.facts) ? d.facts : d;
+        var n = (f && f.track_days!=null) ? f.track_days : null;
         var el=document.getElementById('pilot-days');
         if(el && n!=null) el.textContent = n;
       }).catch(function(){});
