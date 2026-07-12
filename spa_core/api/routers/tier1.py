@@ -142,3 +142,74 @@ def get_tier1_regime():
     return read_state("tier1_regime.json", {
         "generated_at": now(), "model": "tier1_regime", "current": None, "labels": [],
     })
+
+
+@router.get("/api/tier1/proof")
+def get_tier1_proof():
+    """THE Tier-1 proof panel — the one-stop "why you can trust the conservative tier" surface.
+
+    Aggregates (verbatim, fail-closed — a missing artifact is reported missing, never invented):
+      • evidenced track state (go-live gate pass count + evidenced days, from golive_status.json)
+      • track continuity (gap_monitor.json)
+      • the swarm's SHADOW guardian on the LIVE conservative track (signal-only, zero authority)
+      • the S2 lead-time evidence ledger INCLUDING false alarms (the cost side, same weight)
+      • how to verify all of it INDEPENDENTLY (scripts/verify_spa.py, zero-dependency)
+
+    This is the Tier-1 differentiator surface: not a yield claim, a VERIFIABILITY claim.
+    Numbers themselves stay owner-gated on /packages; this panel only exposes proof states.
+    """
+    golive = read_state("golive_status.json", {}) or {}
+    gap = read_state("gap_monitor.json", {}) or {}
+    guardian = read_state("swarm/guardian_forward.json", {}) or {}
+    leadtime = read_state("swarm/leadtime_evidence.json", {}) or {}
+
+    shadow_lt = ((guardian.get("shadow") or {}).get("live_track") or {})
+    checks = golive.get("checks") or golive.get("criteria") or {}
+    passed = golive.get("passed") or golive.get("n_passed")
+    total = golive.get("total") or golive.get("n_total")
+    if passed is None and isinstance(checks, dict) and checks:
+        vals = list(checks.values())
+        passed = sum(1 for v in vals
+                     if (isinstance(v, dict) and v.get("pass")) or v is True)
+        total = len(vals)
+
+    return {
+        "generated_at": now(),
+        "model": "tier1_proof_panel",
+        "is_advisory": True,
+        "claim": ("verifiability, not yield: every number below is backed by a hash-chained "
+                  "artifact you can re-derive yourself with the standalone verifier"),
+        "golive_gate": {
+            "available": bool(golive),
+            "passed": passed, "total": total,
+            "ready": golive.get("ready", golive.get("go_live_ready")),
+        },
+        "track_continuity": {
+            "available": bool(gap),
+            "status": gap.get("status"),
+            "gap_detected": gap.get("gap_detected"),
+            "days_count": gap.get("days_count"),
+            "last_entry_date": gap.get("last_entry_date"),
+        },
+        "shadow_guardian_live_track": {
+            "available": bool(shadow_lt),
+            "state": shadow_lt.get("state"),
+            "vol_ratio": (shadow_lt.get("signal") or {}).get("ratio"),
+            "days_watched": shadow_lt.get("days"),
+            "authority": "NONE — signal-only; RiskPolicy v1.0 is the sole gate (see charter)",
+        },
+        "leadtime_ledger": {
+            "available": bool(leadtime),
+            "state": leadtime.get("state"),
+            "score": leadtime.get("score"),
+            "false_alarms": leadtime.get("false_alarms"),
+            "honesty": "false alarms are published with the same weight as saves — "
+                       "an alarm-heavy ledger argues AGAINST the signal, and we will say so",
+        },
+        "verify_yourself": {
+            "tool": "scripts/verify_spa.py (standalone, zero-dependency, no spa_core import)",
+            "command": "python3 verify_spa.py <data-dir> --expect-surfaces A,D,I",
+            "covers": "decision chain (A) · evidenced equity track (D) · swarm decision chains (I) "
+                      "— any forged/edited/dropped historical row diverges the recompute",
+        },
+    }

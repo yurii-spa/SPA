@@ -43,6 +43,21 @@ def test_missing_artifact_fail_closed_envelope(client, monkeypatch):
     assert "not produced yet" in doc["unavailable_reason"]
 
 
+def test_tier1_proof_panel(client):
+    """The Tier-1 proof panel: never 500, honest structure, false alarms visible."""
+    r = client.get("/api/tier1/proof")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["is_advisory"] is True
+    assert "verifiability" in d["claim"]
+    for section in ("golive_gate", "track_continuity", "shadow_guardian_live_track",
+                    "leadtime_ledger", "verify_yourself"):
+        assert section in d
+    assert "NONE" in d["shadow_guardian_live_track"]["authority"]
+    assert "same weight" in d["leadtime_ledger"]["honesty"]
+    assert "verify_spa.py" in d["verify_yourself"]["tool"]
+
+
 def test_artifact_served_verbatim_with_stamps_forced(client, monkeypatch):
     fake = {"regime": "GREEN", "symbols": {"ETH": {"regime": "GREEN"}},
             "as_of_utc": "2026-07-11T12:00:00+00:00",

@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
+import Tier1ProofPanel from '../components/Tier1ProofPanel.jsx';
 import snap from '../data/track_snapshot.json';
 
 // Honest, build-time static fallback (last evidenced snapshot). Live values
@@ -352,7 +353,10 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
 
     <!-- Verify this track yourself (the hash-anchored artifact) -->
     <section class="py-10 border-t border-border">
-      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Проверьте этот трек сами">Verify this track yourself</p>
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Живой сторож и его честный счёт">Live watchdog & its honest scorecard</p>
+      <Tier1ProofPanel client:load />
+
+      <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4 mt-10" data-ru="Проверьте этот трек сами">Verify this track yourself</p>
       <div class="rounded-xl border border-teal-border bg-gradient-to-b from-teal-bg to-transparent p-6 sm:p-8">
         <p class="text-sm text-white/55 leading-relaxed max-w-2xl mb-4" data-ru="Трек — не просто график: это верифицируемый артефакт. Сам ряд капитала (только подтверждённые дни) попадает в хешированную цепочку с единым генезисом — equity_track.jsonl; решения, на которых он строится, — в свою цепочку (decision_log) с привязкой к голове (anchors), а NAV каждого дня сверяется (см. Доказательство резервов выше). Не верьте нам — проверьте нас: один автономный верификатор без зависимостей (без импорта нашего кода) пересчитывает каждый хеш ОБЕИХ цепочек и сообщает точный broken_at, если хоть один байт истории — подтверждённое значение капитала, переставленный или задним числом изменённый день — был изменён. Никакого бэкфилла: в цепочку капитала входят только дни с реальным логом цикла.">
           The track is not just a chart — it is a <strong class="text-white/85">verifiable artifact</strong>.

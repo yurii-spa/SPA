@@ -1227,6 +1227,7 @@ def _resolve_inputs(args_paths: List[str]) -> dict:
     found: dict = {
         "decision_log": None, "exit_nav": None, "anchors": None, "equity_track": None,
         "tournament": None, "nav_proof": None, "sleeve_proofs": [], "underwriting": None,
+        "swarm_proofs": [],
         # producers that MUST carry a proof (FAIL#5). Recorded for coverage enforcement in run().
         "sleeve_producers": [],
     }
@@ -1249,6 +1250,13 @@ def _resolve_inputs(args_paths: List[str]) -> dict:
                 if fp.is_file() and fp not in seen and not _under_frozen_copy(fp, p):
                     seen.add(fp)
                     _classify_file(fp, found)
+            # (I) SWARM daily proof chains — *_proof.jsonl living in a swarm/ directory
+            # (guardian_forward/blend_forward/funding_regime/leverage_brain/swarm_book).
+            for fp in sorted(p.rglob("*_proof.jsonl")):
+                if (fp.is_file() and fp.parent.name == "swarm" and fp not in seen
+                        and not _under_frozen_copy(fp, p)):
+                    seen.add(fp)
+                    found["swarm_proofs"].append(fp)
             # sleeve PRODUCERS that REQUIRE a matching proof (FAIL#5 coverage). Scoped to the
             # sleeve-proof surface's CANONICAL producer location — a ``rates_desk/paper/`` directory.
             # The requirement holds even if the proof was DELETED (an empty proof_dirs set must still
@@ -1286,7 +1294,44 @@ def _resolve_inputs(args_paths: List[str]) -> dict:
 _SURFACE_LETTERS = {
     "A": "decision_log", "B": "exit_nav", "C": "anchors", "D": "equity_track",
     "E": "tournament", "F": "nav_proof", "G": "sleeve_proofs", "H": "underwriting",
+    "I": "swarm_proofs",
 }
+
+
+def verify_swarm_chain(rows: List[dict]) -> dict:
+    """(I) SWARM daily proof chains — data/swarm/*_proof.jsonl (guardian/blend/regime/brain/book).
+
+    Recipe (spa_core/strategy_lab/swarm/common.py::append_daily_proof, reproduced inline —
+    NO spa_core import): each line is a JSON object carrying ``date``, ``prev_hash``, ``hash``
+    and the organ's daily payload. ``hash`` = SHA-256 of ``prev_hash`` concatenated with the
+    line's own JSON (sort_keys=True, default separators) WITHOUT the ``hash`` field. Genesis
+    prev_hash is 64 zeros; every later line's prev_hash must equal the previous line's hash.
+    One line per UTC day, dates strictly increasing. A forged payload, a dropped/reordered day,
+    or an edited historical line diverges the recompute → precise broken_at."""
+    prev = "0" * 64
+    last_date: Optional[str] = None
+    for i, rec in enumerate(rows):
+        if not isinstance(rec, dict) or not isinstance(rec.get("hash"), str) \
+                or not isinstance(rec.get("prev_hash"), str) or not rec.get("date"):
+            return {"rows": len(rows), "valid": False, "broken_at": i,
+                    "reason": "malformed row (need date/prev_hash/hash)", "head_hash": None}
+        if rec["prev_hash"] != prev:
+            return {"rows": len(rows), "valid": False, "broken_at": i,
+                    "reason": "prev_hash does not link to the previous line", "head_hash": None}
+        body = dict(rec)
+        expect = body.pop("hash")
+        got = hashlib.sha256(
+            (rec["prev_hash"] + json.dumps(body, sort_keys=True)).encode()).hexdigest()
+        if got != expect:
+            return {"rows": len(rows), "valid": False, "broken_at": i,
+                    "reason": "hash recompute mismatch", "head_hash": None}
+        if last_date is not None and str(rec["date"]) <= last_date:
+            return {"rows": len(rows), "valid": False, "broken_at": i,
+                    "reason": "dates not strictly increasing (dropped/reordered day?)",
+                    "head_hash": None}
+        last_date = str(rec["date"])
+        prev = expect
+    return {"rows": len(rows), "valid": True, "broken_at": None, "head_hash": prev or None}
 
 
 def _sleeve_proof_for(producer: Path) -> Path:
@@ -1363,6 +1408,7 @@ def run(paths: List[str], expect_head: Optional[str] = None,
         "nav_proof": None,
         "sleeves": None,
         "underwriting": None,
+        "swarm": None,
         "fundability": None,
         "errors": [],
         "ok": False,
@@ -1521,6 +1567,30 @@ def run(paths: List[str], expect_head: Optional[str] = None,
         report["sleeves"] = {"valid": all_valid, "n_sleeves": len(per_sleeve),
                              "per_sleeve": per_sleeve}
 
+    # (I) SWARM daily proof chains — one tamper-evident chain per swarm organ (guardian/blend/
+    # regime/brain/book). The swarm-book chain is the EXERCISED decision trail: forging a weight
+    # decision after the fact, or dropping the day a guardian fired, diverges the recompute.
+    if inputs["swarm_proofs"]:
+        per_chain: List[dict] = []
+        all_valid = True
+        for sp in inputs["swarm_proofs"]:
+            rows, err = _read_jsonl(sp)
+            if err is not None:
+                report["errors"].append(f"swarm {sp.name}: {err}")
+                per_chain.append({"file": str(sp), "valid": False, "broken_at": None,
+                                  "head_hash": None, "rows": None})
+                all_valid = False
+                continue
+            res = {"file": str(sp), **verify_swarm_chain(rows)}
+            per_chain.append(res)
+            if not res["valid"]:
+                report["errors"].append(
+                    f"swarm {sp.name}: chain broken at row {res['broken_at']} "
+                    f"({res.get('reason')})")
+                all_valid = False
+        report["swarm"] = {"valid": all_valid, "n_chains": len(per_chain),
+                           "per_chain": per_chain}
+
     # (H) underwriting report section chain — LANE C moat (per-section proof_hash + chained + the
     # cross-section refusal-consistency property: a REFUSED market may not be underwritten capacity).
     if inputs["underwriting"]:
@@ -1563,6 +1633,7 @@ def run(paths: List[str], expect_head: Optional[str] = None,
             "C": bool(inputs["anchors"]), "D": bool(inputs["equity_track"]),
             "E": bool(inputs["tournament"]), "F": bool(inputs["nav_proof"]),
             "G": bool(inputs["sleeve_proofs"]), "H": bool(inputs["underwriting"]),
+            "I": bool(inputs["swarm_proofs"]),
         }
         report["expected_surfaces"] = list(expect_surfaces)
         for letter in expect_surfaces:
@@ -1729,6 +1800,13 @@ def _print_human(report: dict) -> None:
               f"broken_at={uw.get('broken_at')}  refusal_consistent={uw.get('refusal_consistent')}  "
               f"published={uw.get('published')}")
         print(f"    head_hash      : {uw.get('head_hash')}")
+
+    sw = report.get("swarm")
+    if sw is not None:
+        print(f"[I] swarm chains   : valid={sw.get('valid')}  n_chains={sw.get('n_chains')}")
+        for c in sw.get("per_chain", []):
+            print(f"    {Path(c['file']).name:42s}: valid={c.get('valid')}  rows={c.get('rows')}  "
+                  f"broken_at={c.get('broken_at')}  head={c.get('head_hash')}")
         if uw.get("smuggled_markets"):
             print(f"    ✗ refused markets smuggled into capacity: {uw['smuggled_markets']}")
 
