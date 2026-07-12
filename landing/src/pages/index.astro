@@ -158,6 +158,42 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
     </div>
   </section>
 
+  <!-- ============ M3: YIELD CALCULATOR (dual-line, tail in the calculator) ============ -->
+  <section class="band alt" style="padding-top:34px;padding-bottom:34px">
+    <div style="max-width:720px;margin:0 auto;padding:0 24px;text-align:center">
+      <p style="font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);font-family:var(--font-mono);margin:0 0 6px" data-ru="Посчитайте свою доходность">Estimate your yield</p>
+      <h2 style="font-size:24px;font-weight:800;color:var(--text-primary);margin:0 0 20px" data-ru="Сколько могут заработать ваши стейблкоины">What your stablecoins could earn</h2>
+      <div style="font-size:15px;color:var(--text-secondary);margin-bottom:8px"><span data-ru="Сумма">Amount</span>: <span id="calc-amt" style="font-family:var(--font-mono);font-weight:800;color:var(--text-primary)">$50,000</span></div>
+      <input id="calc-slider" type="range" min="1000" max="500000" step="1000" value="50000" aria-label="Amount" style="width:100%;max-width:520px;accent-color:#34d399" />
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:22px">
+        <div style="padding:18px;border-radius:12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.35)">
+          <div style="font-size:12px;color:#34d399" data-ru="На нашем реализованном треке">At our realized rate</div>
+          <div style="font-size:28px;font-weight:800;font-family:var(--font-mono);color:#34d399">~$<span id="calc-real">1,650</span><small style="font-size:13px;font-weight:600">/yr</small></div>
+          <div style="font-size:11px;color:var(--text-faint)" data-ru="~3,3% realized · 0,0% просадки">~3.3% realized · 0.0% drawdown</div>
+        </div>
+        <div style="padding:18px;border-radius:12px;background:var(--bg-surface);border:1px dashed rgba(234,179,8,.5)">
+          <div style="font-size:12px;color:#eab308" data-ru="Если research-таргеты подтвердятся">If research targets validate</div>
+          <div style="font-size:28px;font-weight:800;font-family:var(--font-mono);color:#eab308">up to $<span id="calc-agg">10,000</span><small style="font-size:13px;font-weight:600">/yr</small></div>
+          <div style="font-size:11px;color:var(--text-faint)" data-ru="research · до 20% target · макс. бэктест-просадка ~50%">research · up-to-20% target · max backtest drawdown ~50%</div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--text-faint);margin-top:14px" data-ru="Иллюстрация из реального realized-числа и research-таргета — не обещание. Прошлые paper-результаты не гарантируют будущих.">Illustrative from the real realized number + a research target — not a promise. Past paper results don't guarantee future returns.</p>
+    </div>
+    <script is:inline>
+      (function(){
+        var s=document.getElementById('calc-slider'); if(!s) return;
+        function fmt(n){ return Math.round(n).toLocaleString('en-US'); }
+        function upd(){
+          var a=+s.value;
+          document.getElementById('calc-amt').textContent='$'+fmt(a);
+          document.getElementById('calc-real').textContent=fmt(a*0.033);
+          document.getElementById('calc-agg').textContent=fmt(a*0.20);
+        }
+        s.addEventListener('input',upd); upd();
+      })();
+    </script>
+  </section>
+
   <!-- ============ DASHBOARD PREVIEW (the main visual asset) ============ -->
   <section class="band">
     <div class="container">
