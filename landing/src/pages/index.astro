@@ -56,12 +56,12 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
   <!-- ============ HERO (Direction C — Console, institutional) ============ -->
   <section class="hero" id="analyze">
     <div class="hero-inner">
-      <span class="hero-eyebrow" data-ru="Некастодиально · paper-стадия · каждое число проверяемо блок за блоком">Non-custodial · paper-stage · every number auditable block-by-block</span>
+      <span class="hero-eyebrow" data-ru="Некастодиально · пока на бумаге · каждую цифру можно проверить самому">Non-custodial · paper-stage · every number auditable block-by-block</span>
       <h1>
-        <span data-ru="Йелд-десk по стейблкоинам, который">A stablecoin yield desk that</span>
-        <span class="accent" data-ru="доказывает каждое число.">proves every number.</span>
+        <span data-ru="Доходность на стейблкоинах,">A stablecoin yield desk that</span>
+        <span class="accent" data-ru="где доказана каждая цифра.">proves every number.</span>
       </h1>
-      <p class="sub" data-ru="~3,3% realized на живом консервативном треке · 0,0% реализованной просадки · таргеты до 20% в research, опубликованные С их хвостами. Начните с бесплатной проверки своего кошелька.">
+      <p class="sub" data-ru="~3,3% фактической доходности на живом консервативном треке · 0,0% просадки · цели до 20% в исследовательских стратегиях — показываем вместе с их риском («хвостом»). Начните с бесплатной проверки своего кошелька.">
         ~3.3% realized on the live conservative track · 0.0% realized drawdown · up-to-20% targets in
         research, published with their tails. Start with a free check of your own wallet.
       </p>
@@ -87,7 +87,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         <a class="btn-ghost" href="/strategies" data-track="view_strategy_lab" data-ru="Смотреть Strategy Lab →">View Strategy Lab →</a>
       </div>
 
-      <p class="hero-powered" data-ru="На базе SPA Strategy Lab — публичной, paper-tested системы исследования доходности по стейблкоинам.">
+      <p class="hero-powered" data-ru="На базе SPA Strategy Lab — публичной системы исследования доходности на стейблкоинах, проверенной на бумаге.">
         Powered by <b>SPA Strategy Lab</b> — a public, paper-tested stablecoin yield research system.
       </p>
     </div>
@@ -105,17 +105,17 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         <div style="text-align:center;padding:18px 14px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
           <div style="font-size:13px;color:var(--text-muted)" data-ru="Гособлигации США">US T-bills</div>
           <div style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:var(--text-secondary)">~3.5%</div>
-          <div style="font-size:11px;color:var(--text-faint)" data-ru="нельзя проверить on-chain">can't audit on-chain</div>
+          <div style="font-size:11px;color:var(--text-faint)" data-ru="нельзя проверить в блокчейне">can't audit on-chain</div>
         </div>
         <div style="text-align:center;padding:18px 14px;border-radius:12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.35)">
           <div style="font-size:13px;color:#34d399" data-ru="SPA Conservative">SPA Conservative</div>
-          <div style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:#34d399">~3.3%<small style="font-size:12px;font-weight:600"> realized</small></div>
+          <div style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:#34d399">~3.3%<small style="font-size:12px;font-weight:600" data-ru=" фактич."> realized</small></div>
           <div style="font-size:11px;color:var(--text-faint)" data-ru="проверяемо блок за блоком · 0,0% просадки">auditable block-by-block · 0.0% drawdown</div>
         </div>
         <div style="text-align:center;padding:18px 14px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
-          <div style="font-size:13px;color:var(--text-muted)" data-ru="Aggressive (research)">Aggressive (research)</div>
-          <div style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:#eab308">up to 20%<small style="font-size:12px;font-weight:600"> target</small></div>
-          <div style="font-size:11px;color:var(--text-faint)" data-ru="paper · хвост показан · отказан для live">paper · tail shown · refused for live</div>
+          <div style="font-size:13px;color:var(--text-muted)" data-ru="Aggressive (исследование)">Aggressive (research)</div>
+          <div style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:#eab308">up to 20%<small style="font-size:12px;font-weight:600" data-ru=" цель"> target</small></div>
+          <div style="font-size:11px;color:var(--text-faint)" data-ru="бумага · хвост показан · для live отклонён">paper · tail shown · refused for live</div>
         </div>
       </div>
     </div>
@@ -133,7 +133,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
           <div id="m12-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#34d399,#10b981);transition:width .6s"></div>
         </div>
         <div style="margin-top:10px;font-size:12px;color:var(--text-faint)">
-          <span data-ru="Живой капитал не открывается, пока трек не пройдёт 30 дней + реальное vol-событие.">Live capital doesn't open until the track clears 30 days + a real vol event.</span>
+          <span data-ru="Реальный капитал не подключаем, пока трек не пройдёт 30 дней и реальное событие волатильности.">Live capital doesn't open until the track clears 30 days + a real vol event.</span>
           <a href="/track-record" data-track="m12_follow_countdown" style="color:var(--accent-400);text-decoration:underline" data-ru="Следить за отсчётом →">Follow the countdown →</a>
         </div>
       </div>
@@ -169,15 +169,15 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         <div style="padding:18px;border-radius:12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.35)">
           <div style="font-size:12px;color:#34d399" data-ru="На нашем реализованном треке">At our realized rate</div>
           <div style="font-size:28px;font-weight:800;font-family:var(--font-mono);color:#34d399">~$<span id="calc-real">1,650</span><small style="font-size:13px;font-weight:600">/yr</small></div>
-          <div style="font-size:11px;color:var(--text-faint)" data-ru="~3,3% realized · 0,0% просадки">~3.3% realized · 0.0% drawdown</div>
+          <div style="font-size:11px;color:var(--text-faint)" data-ru="~3,3% фактической · 0,0% просадки">~3.3% realized · 0.0% drawdown</div>
         </div>
         <div style="padding:18px;border-radius:12px;background:var(--bg-surface);border:1px dashed rgba(234,179,8,.5)">
-          <div style="font-size:12px;color:#eab308" data-ru="Если research-таргеты подтвердятся">If research targets validate</div>
+          <div style="font-size:12px;color:#eab308" data-ru="Если цели исследования подтвердятся">If research targets validate</div>
           <div style="font-size:28px;font-weight:800;font-family:var(--font-mono);color:#eab308">up to $<span id="calc-agg">10,000</span><small style="font-size:13px;font-weight:600">/yr</small></div>
-          <div style="font-size:11px;color:var(--text-faint)" data-ru="research · до 20% target · макс. бэктест-просадка ~50%">research · up-to-20% target · max backtest drawdown ~50%</div>
+          <div style="font-size:11px;color:var(--text-faint)" data-ru="исследование · цель до 20% · макс. просадка в бэктесте ~50%">research · up-to-20% target · max backtest drawdown ~50%</div>
         </div>
       </div>
-      <p style="font-size:11px;color:var(--text-faint);margin-top:14px" data-ru="Иллюстрация из реального realized-числа и research-таргета — не обещание. Прошлые paper-результаты не гарантируют будущих.">Illustrative from the real realized number + a research target — not a promise. Past paper results don't guarantee future returns.</p>
+      <p style="font-size:11px;color:var(--text-faint);margin-top:14px" data-ru="Иллюстрация на основе реального фактического числа и исследовательской цели — не обещание. Прошлые результаты на бумаге не гарантируют будущих.">Illustrative from the real realized number + a research target — not a promise. Past paper results don't guarantee future returns.</p>
     </div>
     <script is:inline>
       (function(){
@@ -199,7 +199,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
     <div style="max-width:560px;margin:0 auto;padding:0 24px;text-align:center">
       <p style="font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#eab308;font-family:var(--font-mono);margin:0 0 6px" data-ru="Ранний доступ">Early access</p>
       <h2 style="font-size:22px;font-weight:800;color:var(--text-primary);margin:0 0 10px" data-ru="Агрессивные таргеты выйдут в live только после проверки">Aggressive targets go live only after they're proven</h2>
-      <p style="font-size:14px;color:var(--text-secondary);margin:0 0 18px" data-ru="30 форвардных дней + реальное vol-событие. Вступите, чтобы первым получить отчёт о валидации — без обязательств, без обещаний доходности.">30 forward days + a real vol event. Join to get the validation report first — no obligation, no yield promise.</p>
+      <p style="font-size:14px;color:var(--text-secondary);margin:0 0 18px" data-ru="30 дней вперёд и реальное событие волатильности. Вступите, чтобы первыми получить отчёт о проверке — без обязательств и без обещаний доходности.">30 forward days + a real vol event. Join to get the validation report first — no obligation, no yield promise.</p>
       <form id="ea-form" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
         <input id="ea-email" type="email" required placeholder="you@fund.com" aria-label="Email" style="flex:1;min-width:220px;max-width:320px;padding:11px 16px;border-radius:10px;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-primary)" />
         <button type="submit" style="padding:11px 22px;border-radius:10px;background:#eab308;color:#000;font-weight:700;border:none;cursor:pointer" data-ru="Вступить">Join the list</button>
@@ -263,7 +263,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
             <h4 data-ru="Топ-рекомендации">Top recommendations</h4>
             <div class="dp-flag"><span class="d" style="background:var(--danger)"></span><span data-ru="Снизить концентрацию — 44% в 2 протоколах">Reduce concentration — 44% in 2 protocols</span></div>
             <div class="dp-flag"><span class="d" style="background:var(--data-teal)"></span><span data-ru="Задействовать простаивающий капитал — $13,500">Put idle capital to work — $13,500 idle</span></div>
-            <div class="dp-flag"><span class="d" style="background:var(--accent)"></span><span data-ru="Проверить approvals — 3 безлимитных">Review approvals — 3 unlimited</span></div>
+            <div class="dp-flag"><span class="d" style="background:var(--accent)"></span><span data-ru="Проверить разрешения токенов — 3 безлимитных">Review approvals — 3 unlimited</span></div>
           </div>
         </div>
         <p style="text-align:center;margin:14px 0 0;font-size:12px;color:var(--text-dim)" data-ru="Иллюстративный пример — вымышленный кошелёк и цифры. Ваш отчёт строится из реальных ончейн-данных.">Illustrative example — a made-up wallet and numbers. Your report is built from real on-chain data.</p>
