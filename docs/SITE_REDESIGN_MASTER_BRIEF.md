@@ -1,5 +1,9 @@
 # SITE REDESIGN MASTER BRIEF (v3 — audited, marketing-first)
 
+> **⚠️ EXECUTION LAYER LIVES IN `docs/redesign/` — start at `docs/redesign/00_INDEX.md`.**
+> This brief = strategy/priorities; the redesign/ specs = task-level detail (files, EN+RU copy,
+> data sources, acceptance criteria, verification). Where a spec is more concrete, follow the spec.
+
 > **What this is:** the external-analyst audit of `docs/PRODUCT_REDESIGN_ROADMAP_H2_2026.md` (v2),
 > commissioned by the owner 2026-07-12, rebuilt into the **authoritative execution brief**.
 > **Where this brief and roadmap-v2 conflict, THIS BRIEF WINS.** Roadmap-v2 stays as background.
