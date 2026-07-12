@@ -56,20 +56,23 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
   <!-- ============ HERO (Direction C — Console, institutional) ============ -->
   <section class="hero" id="analyze">
     <div class="hero-inner">
-      <span class="hero-eyebrow" data-ru="Бесплатный чек-ап DeFi-портфеля · только исследование · paper · без гарантий доходности">Free DeFi portfolio checkup · Research-only · paper-tested · no guaranteed returns</span>
+      <span class="hero-eyebrow" data-ru="Некастодиально · paper-стадия · каждое число проверяемо блок за блоком">Non-custodial · paper-stage · every number auditable block-by-block</span>
       <h1>
-        <span data-ru="Проверьте, стоит ли ваш DeFi-портфель">Check if your DeFi portfolio is</span>
-        <span class="accent" data-ru="риска.">worth the risk.</span>
+        <span data-ru="Йелд-десk по стейблкоинам, который">A stablecoin yield desk that</span>
+        <span class="accent" data-ru="доказывает каждое число.">proves every number.</span>
       </h1>
-      <p class="sub" data-ru="Вставьте адрес кошелька и получите понятный отчёт о здоровье DeFi: общие активы, простаивающий капитал, оценка APY, риск-скор, экспозиция по протоколам, approvals и практичные рекомендации.">
-        Paste a wallet address and get a clear DeFi health report: total assets, idle capital,
-        estimated APY, risk score, protocol exposure, approvals, and practical recommendations.
+      <p class="sub" data-ru="~3,3% realized на живом консервативном треке · 0,0% реализованной просадки · таргеты до 20% в research, опубликованные С их хвостами. Начните с бесплатной проверки своего кошелька.">
+        ~3.3% realized on the live conservative track · 0.0% realized drawdown · up-to-20% targets in
+        research, published with their tails. Start with a free check of your own wallet.
       </p>
 
       <!-- Top-of-funnel: free wallet checkup → checkup.earn-defi.com (read-only, no email). -->
       <WalletCheck client:visible />
 
       <p class="hero-trust" data-ru="Без подключения кошелька. Без email. Только публичные адреса.">No wallet connection. No email required. Public addresses only.</p>
+      <div style="margin-top:14px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <a class="btn btn-ghost" href="/track-record" data-track="hero_see_live_track" data-ru="Смотреть живой трек →">See the live track →</a>
+      </div>
 
       <div class="hero-bullets" aria-label="What you get">
         <span data-ru="Стоимость портфеля">Portfolio value</span>
