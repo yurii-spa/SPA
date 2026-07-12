@@ -67,7 +67,7 @@
 
 | Step | Status |
 |---|---|
-| PREREQ /admin auth (Q-OWN-03) | **BLOCKED (owner)** |
+| PREREQ /admin auth (Q-OWN-03) | ✅ **DONE (CF Access, owner-email, verified live 2026-07-12: /admin→302 cloudflareaccess.com)** — Phase 3 UNBLOCKED |
 | Merges + 301s (trust cluster, strategy alt-names, annual-contrast) | PENDING |
 | ADMIN moves (cockpit*, board*, tournament, system, status, monitoring console) | BLOCKED on prereq |
 | JUDGMENT Q-OWN batch (rates-desk/structural-desk/… noindex set) | PENDING (file the Q-OWN) |

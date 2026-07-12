@@ -39,13 +39,12 @@
 
 ## 🟡 СРЕДНИЙ ПРИОРИТЕТ (инфра / нарратив)
 
-### Q-OWN-03 · CF Access на /admin (утечка бизнес-данных)
-**Контекст:** `/admin/*` (funnels, analytics, pipeline, decision/refusal ledger) отдаётся
-**без авторизации** — защищён только noindex + отсутствием ссылок. Любой, угадав `/admin/funnels`,
-видит живой pipeline дизайн-партнёров и аналитику. Enforcement — привязка Cloudflare Access
-(инфра-действие на твоей стороне; ты уже используешь CF Access по памяти).
-**Что нужно:** включить CF Access на `earn-defi.com/admin`. Я не могу это сделать (инфра).
-**ОТВЕТ:**
+### Q-OWN-03 · CF Access на /admin (утечка бизнес-данных)  ✅ RESOLVED 2026-07-12
+**ОТВЕТ (owner):** «уже сделано давно, вход по моей почте». **ПРОВЕРЕНО ВЖИВУЮ 2026-07-12:** `/admin`
+и `/admin/funnels` → **HTTP 302 → `restless-pond-...cloudflareaccess.com` (Cloudflare Access «Sign in»)**.
+Admin закрыт CF Access по owner-email. Прежняя оценка «без auth» была НЕВЕРНОЙ — я смотрел код, а auth
+стоит на CF-edge ДО origin (в коде не виден). **Разблокирует Phase 3 (admin-auth prereq satisfied).**
+**Контекст (historic):** `/admin/*` в коде без auth — защита на CF-edge (не в коде).
 
 ### Q-OWN-04 · Консолидация дашбордов (page sprawl, UX-36)
 **Контекст:** три параллельных дашборда: `/dashboard` (canonical), `/cockpit/*` (Desk Cockpit),
@@ -110,7 +109,7 @@ Approvals — сигнал риска #1 (drain-риск). Fallback на Alchemy
 **Контекст:** brief M9 — /pilot должен вести живым человеком: «поговори с тем, кто это построил». Нужно: твоё отображаемое имя (или псевдоним) + опц. фото + ссылка на календарь (Calendly и т.п.). Плюс: создать `invest@earn-defi.com` (или подобный), чтобы убрать личный Gmail с продающих страниц (UX-17). Копию /pilot чиню сейчас; человека/почту добавлю по твоему ответу.
 **ОТВЕТ:**
 
-### Q-OWN-12 · Admin auth (эскалация Q-OWN-03; блокирует Phase 3)
+### Q-OWN-12 · Admin auth (эскалация Q-OWN-03; блокирует Phase 3)  ✅ RESOLVED 2026-07-12 (CF Access live, see Q-OWN-03) — Phase 3 UNBLOCKED
 **Контекст:** `/admin/*` без авторизации, а Phase 3 хочет спрятать туда ещё чувствительные операторские страницы. Нельзя двигать их под /admin без auth. Выбор: (A) Cloudflare Access на /admin (твоя инфра, ~15 мин) — рекомендую; (B) серверный shared-token gate (я могу построить). Phase 3 заблокирован, пока не выберешь.
 **ОТВЕТ:**
 
