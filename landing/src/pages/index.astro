@@ -456,6 +456,27 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
     </div>
   </section>
 
+  <!-- ============ M11: ASSET-ENTRY CARDS (entry by situation, not tier taxonomy) ============ -->
+  <section class="band alt" style="padding:34px 0">
+    <div style="max-width:1000px;margin:0 auto;padding:0 24px">
+      <p style="text-align:center;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);font-family:var(--font-mono);margin:0 0 18px" data-ru="Начните с того, что у вас есть">Start from what you hold</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px">
+        <a href="/packages" data-track="m11_usdc" style="display:block;text-decoration:none;padding:20px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
+          <div style="font-size:16px;font-weight:800;color:var(--text-primary)" data-ru="Есть USDC / USDT?">Holding USDC / USDT?</div>
+          <div style="font-size:13px;color:var(--text-secondary);margin-top:6px" data-ru="Смотрите консервативный тир — ~3,3% realized, проверяемо, 0,0% просадки →">See the conservative tier — ~3.3% realized, auditable, 0.0% drawdown →</div>
+        </a>
+        <a href="/#analyze" data-track="m11_idle" style="display:block;text-decoration:none;padding:20px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
+          <div style="font-size:16px;font-weight:800;color:var(--text-primary)" data-ru="Стейблы простаивают под 0%?">Idle stables earning 0%?</div>
+          <div style="font-size:13px;color:var(--text-secondary);margin-top:6px" data-ru="Бесплатно посчитаем, сколько вы недополучаете →">Free — we'll show what you're leaving on the table →</div>
+        </a>
+        <a href="/#analyze" data-track="m11_defi" style="display:block;text-decoration:none;padding:20px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
+          <div style="font-size:16px;font-weight:800;color:var(--text-primary)" data-ru="Уже в DeFi (Aave, LP…)?">Already in DeFi (Aave, LP…)?</div>
+          <div style="font-size:13px;color:var(--text-secondary);margin-top:6px" data-ru="Проверьте риск вашей позиции бесплатно →">Check your position's real risk, free →</div>
+        </a>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ FINAL CTA ============ -->
   <section class="band">
     <div class="container final-cta">
