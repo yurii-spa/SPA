@@ -93,6 +93,34 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
     </div>
   </section>
 
+  <!-- ============ M2: YIELD COMPARISON BAR (anchor against banks/T-bills) ============ -->
+  <section class="band" style="padding-top:32px;padding-bottom:8px">
+    <div style="max-width:1080px;margin:0 auto;padding:0 24px">
+      <p style="text-align:center;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);font-family:var(--font-mono);margin:0 0 16px" data-ru="Куда положить стейблкоины — честное сравнение">Where to park stablecoins — an honest comparison</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px">
+        <div style="text-align:center;padding:18px 14px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
+          <div style="font-size:13px;color:var(--text-muted)" data-ru="Банковский вклад">Bank savings</div>
+          <div style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:var(--text-secondary)">~0.4%</div>
+        </div>
+        <div style="text-align:center;padding:18px 14px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
+          <div style="font-size:13px;color:var(--text-muted)" data-ru="Гособлигации США">US T-bills</div>
+          <div style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:var(--text-secondary)">~3.5%</div>
+          <div style="font-size:11px;color:var(--text-faint)" data-ru="нельзя проверить on-chain">can't audit on-chain</div>
+        </div>
+        <div style="text-align:center;padding:18px 14px;border-radius:12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.35)">
+          <div style="font-size:13px;color:#34d399" data-ru="SPA Conservative">SPA Conservative</div>
+          <div style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:#34d399">~3.3%<small style="font-size:12px;font-weight:600"> realized</small></div>
+          <div style="font-size:11px;color:var(--text-faint)" data-ru="проверяемо блок за блоком · 0,0% просадки">auditable block-by-block · 0.0% drawdown</div>
+        </div>
+        <div style="text-align:center;padding:18px 14px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border)">
+          <div style="font-size:13px;color:var(--text-muted)" data-ru="Aggressive (research)">Aggressive (research)</div>
+          <div style="font-size:26px;font-weight:800;font-family:var(--font-mono);color:#eab308">up to 20%<small style="font-size:12px;font-weight:600"> target</small></div>
+          <div style="font-size:11px;color:var(--text-faint)" data-ru="paper · хвост показан · отказан для live">paper · tail shown · refused for live</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ DASHBOARD PREVIEW (the main visual asset) ============ -->
   <section class="band">
     <div class="container">
