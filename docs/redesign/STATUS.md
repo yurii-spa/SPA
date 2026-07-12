@@ -57,7 +57,8 @@
 | B6 Checkup report rebuild on shell | PENDING |
 | E1 five SEO/learn pages | PENDING |
 | C8 trust band | **SHIPPED** (2026-07-12, build green) — `TrustBand.astro`: 4 honest pillars (Non-custodial · Honest-first · Public track · We-show-the-bad-news), one reusable component, dropped on the /snapshot result + /packages (pilot-CTA). EN|RU, no promised returns. Live-verify pending CF |
-| C5 un-fixable-gap panel · C6 bridge page · C7 dual-CTA audit · E3 share card · I1 post-lead ops | PENDING |
+| C7 dual-CTA audit | **SHIPPED** (2026-07-12, build green) — audited all conversion surfaces (snapshot/packages/pilot/fundability/aggressive-lab) for both a self-serve step AND a "Talk to a human". Only `/aggressive-lab` lacked the human path → added "Talk to a human →" /pilot?src=aggressive-lab. All surfaces now dual-CTA |
+| C5 un-fixable-gap panel · C6 bridge page · E3 share card · I1 post-lead ops | PENDING |
 
 ## Phase 3 — IA consolidation (spec 02)
 
