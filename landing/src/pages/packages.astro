@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
+import TrustBand from '../components/TrustBand.astro';
 import snap from '../data/track_snapshot.json';
 // #7 single band source — the canonical tier name + APY/drawdown band strings live in ONE place so
 // /packages, the SiteHeader nav and the index fallback can never diverge (the old SiteHeader 6–8% vs
@@ -162,6 +163,9 @@ const toneMap = {
       </p>
       <a href="/pilot" data-track="packages_to_pilot" class="inline-flex items-center gap-2 text-sm font-semibold text-accent-400 underline" data-ru="Пилот с дизайн-партнёром →">Design-partner pilot →</a>
     </section>
+
+    <!-- C8: reusable trust band — same four honest pillars on every conversion surface. -->
+    <div class="mb-8"><TrustBand /></div>
 
     <p class="text-xs text-slate-500 leading-relaxed" data-ru="Paper / advisory. Balanced и Aggressive — outside RiskPolicy, никогда не аллоцируются live, не трогают go-live трек. APY-числа тиров — целевые диапазоны каркаса evaluator.PACKAGES; реализованные числа — на /status (Conservative) и в Aggressive Lab (остальные). Никогда не подаём paper/бэктест как live.">
       Paper / advisory. Balanced and Aggressive are outside RiskPolicy, never live-allocated, and never touch the go-live track. Tier APY figures are the target bands of the evaluator.PACKAGES framework; realized numbers live on /status (Conservative) and in the Aggressive Lab (the rest). We never present paper/backtest as live.

@@ -1,0 +1,46 @@
+---
+// C8 (redesign spec 04) — the reusable trust band. Four honest pillars, one component, dropped on every
+// conversion surface (snapshot result, packages, pilot, …) so the "why trust us" reads the same
+// everywhere. No promised returns, no fabricated numbers — each pillar is a verifiable posture, not a claim.
+---
+<section class="trust-band" aria-label="Why you can trust us">
+  <div class="tb-item">
+    <span class="tb-icon" aria-hidden="true">🔑</span>
+    <div>
+      <div class="tb-t" data-ru="Некастодиально">Non-custodial</div>
+      <div class="tb-d" data-ru="Мы никогда не держим ключи, не двигаем средства и не подписываем. Ваш кошелёк — ваш контроль.">We never hold keys, move funds, or sign. Your wallet stays your control.</div>
+    </div>
+  </div>
+  <div class="tb-item">
+    <span class="tb-icon" aria-hidden="true">📖</span>
+    <div>
+      <div class="tb-t" data-ru="Честность прежде всего">Honest-first</div>
+      <div class="tb-d" data-ru="Каждое число помечено уровнем доказательства; бумага никогда не выдаётся за live; хвост риска показан всегда.">Every number is evidence-tagged; paper is never shown as live; the tail is always shown.</div>
+    </div>
+  </div>
+  <div class="tb-item">
+    <span class="tb-icon" aria-hidden="true">📈</span>
+    <div>
+      <div class="tb-t" data-ru="Публичный трек">Public track</div>
+      <div class="tb-d" data-ru="Живой paper-трек и go-live проверяемы; каждый хеш можно пересчитать одним zero-dependency верификатором.">A live paper track + go-live, checkable; every hash re-derivable with one zero-dependency verifier.</div>
+    </div>
+  </div>
+  <div class="tb-item">
+    <span class="tb-icon" aria-hidden="true">⚠️</span>
+    <div>
+      <div class="tb-t" data-ru="Показываем плохие новости">We show the bad news</div>
+      <div class="tb-d" data-ru="Публичный лог отказов, опубликованные NO-GO и реальные просадки. Мы публикуем то, от чего отказались.">A public refusal log, published NO-GOs, and real drawdowns. We publish what we declined.</div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .trust-band {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;
+    padding: 20px; border-radius: var(--r-lg); background: var(--bg-surface); border: 1px solid var(--border);
+  }
+  .tb-item { display: flex; gap: 10px; align-items: flex-start; }
+  .tb-icon { font-size: 18px; line-height: 1.3; flex: 0 0 auto; }
+  .tb-t { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 3px; }
+  .tb-d { font-size: 12px; color: var(--text-muted); line-height: 1.45; }
+</style>

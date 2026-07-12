@@ -56,7 +56,8 @@
 | CHK-DEMO no-scan demo report (fixture wallet) | PENDING (checkup has "View a sample report" link — check what it points to; upgrade per spec) |
 | B6 Checkup report rebuild on shell | PENDING |
 | E1 five SEO/learn pages | PENDING |
-| C5 un-fixable-gap panel · C6 bridge page · C7 dual-CTA audit · C8 trust band · E3 share card · I1 post-lead ops | PENDING |
+| C8 trust band | **SHIPPED** (2026-07-12, build green) — `TrustBand.astro`: 4 honest pillars (Non-custodial · Honest-first · Public track · We-show-the-bad-news), one reusable component, dropped on the /snapshot result + /packages (pilot-CTA). EN|RU, no promised returns. Live-verify pending CF |
+| C5 un-fixable-gap panel · C6 bridge page · C7 dual-CTA audit · E3 share card · I1 post-lead ops | PENDING |
 
 ## Phase 3 — IA consolidation (spec 02)
 
