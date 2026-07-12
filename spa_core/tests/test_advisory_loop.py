@@ -83,10 +83,16 @@ def test_isolation_clean_room_no_execution_loaded():
     spa_core.execution module (avoids shared-process test pollution giving a false pass/fail)."""
     import subprocess
     import sys
+    from pathlib import Path
     code = ("import sys;"
             "from spa_core.pilot import advisory_loop as al;"
             "al.build_advisory(decisions_path='/nonexistent');"
             "leaked=[m for m in sys.modules if m.startswith('spa_core.execution')];"
             "print('LEAK' if leaked else 'CLEAN')")
-    r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=60)
+    # Run the clean-room interpreter FROM the repo root so `spa_core` is importable via cwd-on-path.
+    # Without cwd, CI (where spa_core is not pip-installed, only on the repo path) raises
+    # ModuleNotFoundError in the subprocess → empty stdout → a false "leak" failure.
+    repo_root = str(Path(__file__).resolve().parents[2])
+    r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=60,
+                       cwd=repo_root)
     assert "CLEAN" in r.stdout, f"execution leaked into the advisory import: {r.stdout} {r.stderr}"
