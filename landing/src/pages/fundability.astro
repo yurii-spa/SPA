@@ -129,6 +129,28 @@ import Disclaimer from '../components/Disclaimer.astro';
       </p>
     </section>
 
+    <!-- ============================================ c2. PER-SLEEVE HONEST VERDICTS (Q-OWN-05) -->
+    <section class="py-10 border-t" style="border-color:var(--border)">
+      <div class="flex items-baseline justify-between gap-3 flex-wrap mb-2">
+        <p class="text-xs uppercase tracking-wider font-mono" style="color:var(--text-muted)"
+           data-ru="Вердикты по sleeve'ам против RWA-floor">Per-sleeve verdicts vs the RWA floor</p>
+        <span class="text-[11px] font-mono" style="color:var(--text-faint)" id="fb-sl-floor">—</span>
+      </div>
+      <p class="text-sm leading-relaxed mb-5" style="color:var(--text-secondary)"
+         data-ru="RWA-floor — безрисковая планка (токенизированные US Treasuries). Любой sleeve обязан бить её с поправкой на риск, иначе разумнее держать облигации. Мы публикуем ВСЕ вердикты — включая собственный флагман НИЖЕ планки. Система работает как задумано: она сообщает, когда её флагман не берёт барьер.">
+        The RWA floor is the risk-free bar (tokenized US Treasuries). Every sleeve must beat it risk-adjusted,
+        or holding T-bills is smarter. We publish ALL verdicts — including our own flagship BELOW the bar.
+        The system works as designed: it tells you when its flagship doesn't clear the barrier.
+      </p>
+      <div id="fb-sleeves" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <p class="text-sm" style="color:var(--text-faint)" data-ru="Загрузка вердиктов…">Loading verdicts…</p>
+      </div>
+      <p class="text-[11px] leading-relaxed mt-3" style="color:var(--text-faint)">
+        <span data-ru="Paper forward-трек · advisory · НЕ live-капитал. «Мало данных» (THIN) и «ниже флора» (BELOW) — разные вещи.">Paper forward-track · advisory · NOT live capital. "Not enough data" (THIN) and "below the floor" (BELOW) are different things.</span>
+        <a href="/refusals" data-track="fund_to_refusals_verdicts" class="underline" style="color:var(--accent-400)" data-ru="Журнал отказов →">Full refusal log →</a>
+      </p>
+    </section>
+
     <!-- ============================================================= d. THE VALIDATED EDGE (worked example pointer) -->
     <section class="py-10 border-t" style="border-color:var(--border)">
       <p class="text-xs uppercase tracking-wider font-mono mb-4" style="color:var(--text-muted)"
@@ -262,6 +284,34 @@ import Disclaimer from '../components/Disclaimer.astro';
         : 'https://api.earn-defi.com';
       function isRu() { try { return (localStorage.getItem('spa_lang') || 'en') === 'ru'; } catch (e) { return false; } }
       function setText(id, t) { var el = document.getElementById(id); if (el) el.textContent = t; }
+      function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+      // Q-OWN-05: per-sleeve honest verdicts vs the RWA floor — THIN (grey/neutral) vs BELOW (red) kept distinct.
+      fetch(API + '/api/fundability/sleeves').then(function (r) { return r.json(); }).then(function (d) {
+        var box = document.getElementById('fb-sleeves'); if (!box) return;
+        if (!d || !d.available || !(d.sleeves && d.sleeves.length)) {
+          box.innerHTML = '<p class="text-sm" style="color:var(--text-faint)">' + (isRu() ? 'вердикты накапливаются на paper-треке' : 'verdicts accruing on the paper track') + '</p>'; return;
+        }
+        var fl = document.getElementById('fb-sl-floor');
+        if (fl && d.rwa_floor_apy_pct != null) fl.textContent = 'RWA floor ≈ ' + Number(d.rwa_floor_apy_pct).toFixed(1) + '%';
+        var meta = {
+          BEATS_FLOOR: { l: isRu() ? 'бьёт флор' : 'beats floor', c: 'var(--ok)', bg: 'rgba(16,185,129,.10)', bd: 'rgba(16,185,129,.30)' },
+          THIN_TRACK: { l: isRu() ? 'мало данных' : 'not enough data yet', c: 'var(--text-muted)', bg: 'var(--bg-surface)', bd: 'var(--border)' },
+          BELOW_FLOOR: { l: isRu() ? 'ниже флора' : 'below floor', c: 'var(--danger)', bg: 'rgba(239,68,68,.08)', bd: 'rgba(239,68,68,.30)' }
+        };
+        box.innerHTML = d.sleeves.map(function (s) {
+          var m = meta[s.verdict] || meta.THIN_TRACK;
+          var excess = (s.excess_vs_floor_pct != null) ? ((s.excess_vs_floor_pct >= 0 ? '+' : '') + Number(s.excess_vs_floor_pct).toFixed(1) + 'pp ' + (isRu() ? 'к флору' : 'vs floor')) : '';
+          var days = (s.verdict === 'THIN_TRACK' && s.days_to_robust_verdict != null) ? ('<span style="color:var(--text-faint)"> · ~' + s.days_to_robust_verdict + (isRu() ? 'д до вердикта' : 'd to verdict') + '</span>') : '';
+          var diag = (s.verdict === 'BELOW_FLOOR') ? ('<p class="text-[11px] mt-2" style="color:var(--text-secondary)">' + (isRu() ? 'Измеренный carry не берёт флор с поправкой на риск — эджа при текущих ставках нет. Мы это публикуем, а не прячем.' : 'The measured carry doesn\'t clear the floor risk-adjusted — the edge isn\'t there at current rates. We publish it rather than hide it.') + '</p>') : '';
+          var star = s.is_flagship ? '<span title="flagship" style="color:var(--accent-400)">★ </span>' : '';
+          return '<div class="rounded-xl p-4" style="background:' + m.bg + ';border:1px solid ' + m.bd + '">'
+            + '<div class="flex items-center justify-between gap-2 mb-1">'
+            + '<span class="font-mono text-sm" style="color:var(--text-primary)">' + star + esc(s.name) + '</span>'
+            + '<span class="text-[10px] font-mono px-2 py-0.5 rounded" style="color:' + m.c + ';border:1px solid ' + m.bd + '">' + m.l + '</span></div>'
+            + '<p class="text-xs font-mono" style="color:var(--text-muted)">' + excess + days + '</p>' + diag + '</div>';
+        }).join('');
+      }).catch(function () { });
 
       var sawLive = false;
 
