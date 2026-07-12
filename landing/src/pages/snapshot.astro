@@ -91,6 +91,10 @@ import TrustBand from '../components/TrustBand.astro';
         <a href="/pilot?src=snapshot" data-track="snapshot_to_pilot" class="inline-flex items-center px-4 py-2.5 rounded-lg border border-white/15 text-white text-sm font-medium hover:border-white/30 transition-colors" data-ru="Поговорить с человеком →">Talk to a human →</a>
       </div>
       <p id="sn-email-status" class="text-xs text-slate-400 mt-2" role="status" aria-live="polite" style="min-height:1em"></p>
+      <!-- Journey: snapshot is the NO-wallet path; for holders who DO have an on-chain wallet, offer the
+           real deeper scan (the checkup) — connects the two entry points. -->
+      <p class="text-sm text-slate-400 mt-4" data-ru="Есть ончейн-кошелёк? Получите настоящий, более глубокий скан — только публичный адрес, без подключения.">Have an on-chain wallet? Get a real, deeper scan — public address only, no connection.
+        <a href="https://checkup.earn-defi.com/check?utm_source=snapshot" data-track="snapshot_to_checkup" class="text-accent-400 underline" data-ru="Проверить кошелёк →">Check your wallet →</a></p>
       <!-- C8: trust band — reinforces "why trust us" at the conversion moment. -->
       <div class="mt-6"><TrustBand /></div>
       <p class="text-[11px] text-slate-500 mt-4 leading-relaxed" data-ru="Оценка по вашим ответам, не по кошельку. «На столе» — иллюстрация на нашей реализованной paper-ставке ~3,3% (0,0% просадки, проверяемо), не гарантия. Не инвестиционный совет.">
