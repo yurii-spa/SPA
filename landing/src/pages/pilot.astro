@@ -27,15 +27,6 @@ import Disclaimer from '../components/Disclaimer.astro';
       </p>
     </section>
 
-    <section class="rounded-2xl border border-amber-500/30 bg-amber-500/[0.04] p-6 mb-6">
-      <h2 class="text-lg font-semibold text-white mb-3" data-ru="Честные ограничения — их слышат ДО любого числа">The honest constraints — heard BEFORE any number</h2>
-      <ul class="space-y-2 text-sm text-slate-300 leading-relaxed">
-        <li><span class="font-mono text-amber-300"><span id="pilot-days">21</span>/30</span><span data-ru=" подтверждённых дней честного бумажного трека (виртуальные $100k, $0 реальных). Вердикт Day-30: NOT_READY, hash-anchored."> evidenced days of an honest paper track ($100k <em>virtual</em>, $0 real). Day-30 verdict: <span class="font-mono">NOT_READY</span>, hash-anchored.</span></li>
-        <li data-ru="Реализованный форвардный edge пока НЕ бьёт RWA-пол на fundable-масштабе. Uplift оптимизатора — артефакт ~$100k; sleeves читаются INSUFFICIENT_DATA. Мы НЕ заявляем single-strategy alpha.">The realized forward edge does not yet beat the RWA floor at fundable scale. We do <strong>not</strong> claim single-strategy alpha.</li>
-        <li data-ru="Ёмкость ограничена — честный адресуемый рынок сегодня мал (~менее $100k/год net). Это игра масштаба-через-много-книг и доверия на годы, не ставка на сегодня.">Capacity is bounded — honest addressable is small today. A scale-across-many-books + trust play over years, not a today-rate play.</li>
-      </ul>
-    </section>
-
     <section class="mb-6">
       <h2 class="text-xl font-bold text-white mb-3" data-ru="Мы ведём с того, от чего ОТКАЗЫВАЕМСЯ">We lead with what we REFUSE</h2>
       <ul class="space-y-2 text-sm text-slate-300 leading-relaxed">
@@ -88,6 +79,22 @@ import Disclaimer from '../components/Disclaimer.astro';
         <p id="pf-status" class="text-xs text-slate-400" style="min-height:1em" role="status" aria-live="polite"></p>
       </form>
     </section>
+
+    <!-- M9b (redesign §2): the honest-constraints block was moved from ABOVE the ask to HERE, below the
+         form, as an EXPANDABLE proof section — selling-first per owner directive. NO fact removed: the
+         21/30 NOT_READY track, the "does-not-yet-beat-RWA-floor" edge, and the bounded capacity all stay,
+         just reordered + collapsible. The honesty floor is intact; only the sequence changed. -->
+    <details class="rounded-2xl border border-amber-500/30 bg-amber-500/[0.04] p-6 mb-6 group">
+      <summary class="cursor-pointer list-none flex items-center gap-2 text-lg font-semibold text-white">
+        <span class="transition-transform group-open:rotate-90" aria-hidden="true">▸</span>
+        <span data-ru="Честные ограничения — прочтите ДО того, как решитесь">The honest constraints — read before you commit</span>
+      </summary>
+      <ul class="space-y-2 text-sm text-slate-300 leading-relaxed mt-4">
+        <li><span class="font-mono text-amber-300"><span id="pilot-days">21</span>/30</span><span data-ru=" подтверждённых дней честного бумажного трека (виртуальные $100k, $0 реальных). Вердикт Day-30: NOT_READY, hash-anchored."> evidenced days of an honest paper track ($100k <em>virtual</em>, $0 real). Day-30 verdict: <span class="font-mono">NOT_READY</span>, hash-anchored.</span></li>
+        <li data-ru="Реализованный форвардный edge пока НЕ бьёт RWA-пол на fundable-масштабе. Uplift оптимизатора — артефакт ~$100k; sleeves читаются INSUFFICIENT_DATA. Мы НЕ заявляем single-strategy alpha.">The realized forward edge does not yet beat the RWA floor at fundable scale. We do <strong>not</strong> claim single-strategy alpha.</li>
+        <li data-ru="Ёмкость ограничена — честный адресуемый рынок сегодня мал (~менее $100k/год net). Это игра масштаба-через-много-книг и доверия на годы, не ставка на сегодня.">Capacity is bounded — honest addressable is small today. A scale-across-many-books + trust play over years, not a today-rate play.</li>
+      </ul>
+    </details>
 
     <section class="rounded-2xl border border-white/10 bg-white/[0.02] p-6 mb-8">
       <h2 class="text-lg font-semibold text-white mb-3" data-ru="Что должно быть верно ПЕРВЫМ (мы это не пропустим)">What has to be true first (we will not skip these)</h2>
