@@ -17,7 +17,7 @@
       </div>
 
       <div class="footer-col">
-        <h5 data-ru="Продукт">Product</h5>
+        <h2 data-ru="Продукт">Product</h2>
         <a href="/dashboard" data-ru="Дашборд">Dashboard</a>
         <a href="/board" data-ru="Риск-борд (DFB)">Risk Board (DFB)</a>
         <a href="/strategies" data-ru="Стратегии">Strategies</a>
@@ -29,7 +29,7 @@
       </div>
 
       <div class="footer-col">
-        <h5 data-ru="Исследование и доказательства">Research &amp; Proof</h5>
+        <h2 data-ru="Исследование и доказательства">Research &amp; Proof</h2>
         <a href="/structural-desk" data-ru="Структурный стол">Structural Desk</a>
         <a href="/rates-desk" data-ru="Rates Desk">Rates Desk</a>
         <a href="/rwa-backstop" data-ru="RWA-бэкстоп">RWA Backstop</a>
@@ -45,7 +45,7 @@
       </div>
 
       <div class="footer-col">
-        <h5 data-ru="Компания и поддержка">Company &amp; Support</h5>
+        <h2 data-ru="Компания и поддержка">Company &amp; Support</h2>
         <a href="/faq" data-ru="Частые вопросы">FAQ</a>
         <a href="/fees" data-ru="Комиссии">Fees</a>
         <a href="/status" data-ru="Статус системы">Status</a>
@@ -57,7 +57,7 @@
 
       <div class="footer-col">
         <!-- E1/C2/C6 (redesign): the honest-guides + no-wallet entry, discoverable in-site (not only via search). -->
-        <h5 data-ru="Разобраться">Learn</h5>
+        <h2 data-ru="Разобраться">Learn</h2>
         <a href="/snapshot" data-ru="Снимок безопасности (60с)">Safety snapshot (60s)</a>
         <a href="/how-we-think" data-ru="Как мы честно думаем о доходности">How we think about yield</a>
         <a href="/learn/is-usdt-safe-2026" data-ru="Безопасен ли USDT в 2026?">Is USDT safe in 2026?</a>
@@ -70,7 +70,7 @@
       <div class="footer-col">
         <!-- Q3-7 coherence: all trust/risk/legal pages grouped in ONE column (were scattered across
              Company & Legal). Pages are unchanged + still reachable — just a coherent spine. -->
-        <h5 data-ru="Доверие и правовое">Trust &amp; Legal</h5>
+        <h2 data-ru="Доверие и правовое">Trust &amp; Legal</h2>
         <a href="/trust" data-ru="Доверие и безопасность">Trust</a>
         <a href="/security" data-ru="Безопасность">Security</a>
         <a href="/risk" data-ru="Риск">Risk</a>
@@ -96,7 +96,9 @@
   .footer-brand p{font-size:.8125rem; color:var(--text-muted); line-height:1.55; max-width:300px; margin-bottom:14px}
   .footer-status{display:inline-flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:.6875rem; color:var(--warn)}
   .footer-status .d{width:7px; height:7px; border-radius:50%; background:var(--warn); animation:pulse 3s cubic-bezier(.4,0,.6,1) infinite}
-  .footer-col h5{font-family:var(--font-mono); font-size:.6875rem; text-transform:uppercase; letter-spacing:.1em; color:var(--text-faint); margin-bottom:16px}
+  /* Footer column labels are <h2> (not <h5>) so the document heading order never skips levels
+     (h1 → h5 was flagged by axe/Lighthouse under WCAG 1.3.1). Styling is unchanged — small-caps mono. */
+  .footer-col h2{font-family:var(--font-mono); font-size:.6875rem; text-transform:uppercase; letter-spacing:.1em; color:var(--text-faint); margin-bottom:16px}
   .footer-col a{display:block; font-size:.8125rem; color:var(--text-secondary); padding:6px 0; transition:color 120ms var(--ease)}
   .footer-col a:hover{color:var(--text-primary)}
   .footer-bottom{border-top:1px solid var(--border); padding-top:24px; display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; font-size:.75rem; color:var(--text-muted)}
