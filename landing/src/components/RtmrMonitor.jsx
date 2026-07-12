@@ -23,7 +23,10 @@ const getLang = () => {
       if (l === 'en' || l === 'ru') return l;
     }
   } catch (e) { /* ignore */ }
-  return (typeof document !== 'undefined' && document.documentElement.lang === 'en') ? 'en' : 'ru';
+  // EN-first, matching the rest of the site: default to EN unless the page is explicitly RU. (Was
+  // RU-defaulting, which leaked "Загрузка…" on the EN page when the island hydrated before <html lang>
+  // resolved — owner-flagged localization leak.)
+  return (typeof document !== 'undefined' && document.documentElement.lang === 'ru') ? 'ru' : 'en';
 };
 
 const T = {
