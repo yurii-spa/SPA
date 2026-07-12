@@ -850,6 +850,32 @@ def check_system(data_dir: Path, now: datetime,
             issues.append(f"tournament data-trust ALERT — {why} (human review)")
             status = _worst(status, WARNING)
 
+    # --- capital efficiency (Q1-13, owner-flagged 2026-07-12) ---
+    # capital_efficiency guard flags LAZY idle cash — deployable T1/T2 headroom left at 0% beyond the
+    # min-cash floor — the class of silent under-earning that previously had NO check anywhere. Advisory
+    # WARNING (capital efficiency is not the money-path safety plane; the track/kill checks own
+    # criticality). STRUCTURAL cash (caps genuinely exhausted) is verdict OK and never flagged. Only
+    # assessed when present so sandbox/CI fixtures without the file are not falsely flagged; the guard's
+    # own verdict is fail-CLOSED (idle book + unreadable feed → UNKNOWN → still surfaced).
+    ce = _load_json(data_dir, "capital_efficiency.json")
+    if ce:
+        ce_verdict = str(ce.get("verdict")).upper() if ce.get("verdict") else None
+        checks["capital_efficiency"] = ce_verdict
+        checks["capital_idle_excess_pct"] = ce.get("idle_excess_pct")
+        if ce_verdict == "WARNING":
+            fb = ce.get("forgone_yield_bps_est")
+            issues.append(
+                "capital-efficiency LAZY: {:.0f}% deployable capital idle at 0%{} "
+                "(allocator left safe headroom unused)".format(
+                    (ce.get("deployable_now_pct") or 0) * 100,
+                    f" — ~{fb}bps/yr forgone" if fb else "",
+                )
+            )
+            status = _worst(status, WARNING)
+        elif ce_verdict == "UNKNOWN":
+            issues.append("capital-efficiency UNKNOWN (idle book, feed unreadable — fail-closed)")
+            status = _worst(status, WARNING)
+
     return checks, status, issues
 
 

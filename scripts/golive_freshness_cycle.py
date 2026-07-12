@@ -37,6 +37,10 @@ STEPS: list[tuple[str, list[str]]] = [
     # golive_status.json, so track_days is derived from the just-updated count. Advisory;
     # never marks audit/legal satisfied on its own (owner-asserted evidence only).
     ("owner_blockers", [PY, "-m", "spa_core.execution.owner_blockers"]),
+    # Q1-13 (owner-flagged): refresh the capital-efficiency guard — flags LAZY idle cash (deployable
+    # T1/T2 headroom left at 0%). Read-only/advisory: writes data/capital_efficiency.json which
+    # agent_health escalates. Non-zero exit here just means WARNING/UNKNOWN — best-effort, never gates.
+    ("capital_efficiency", [PY, "-m", "spa_core.monitoring.capital_efficiency"]),
 ]
 
 
