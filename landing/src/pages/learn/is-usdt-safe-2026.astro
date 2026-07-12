@@ -1,0 +1,110 @@
+---
+// E1 (redesign spec 04) — SEO / answer-engine page #1: "Is USDT safe in 2026? An honest risk breakdown".
+// The highest-intent query for the target persona (a non-technical USDT holder). One honest expert
+// answer: what USDT is, reserve transparency, depeg history, what we watch (RTMR), how to size it.
+// FAQ JSON-LD, snapshot CTA mid+end, internal links to monitoring/refusals/snapshot/packages.
+// No fabricated numbers, no promised returns. Bilingual.
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+
+const faq = [
+  {
+    q: 'Is USDT safe to hold in 2026?',
+    a: "USDT is the largest stablecoin and has held its peg through multiple crises, but 'safe' has caveats: its reserves are attested rather than fully audited to the standard of a bank, and brief depegs have happened under stress. It is reasonable to hold — but treat it as a risk you size and monitor, not a guaranteed dollar.",
+  },
+  {
+    q: 'Has USDT ever depegged?',
+    a: 'USDT has had short, shallow depegs during market stress (e.g. it briefly traded a few cents under $1 during the 2022 contagion), but it recovered each time. That is different from a terminal depeg (like UST in 2022). The tail exists; it has so far been survivable — which is not a promise about the future.',
+  },
+  {
+    q: 'USDT vs USDC — which is safer?',
+    a: 'USDC publishes more transparent, regularly-attested reserves and is regulated in more jurisdictions; USDT is larger and more liquid but less transparent. Neither is risk-free. Diversifying across issuers, and knowing where each one can break, matters more than picking a single "winner".',
+  },
+];
+const faqLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+};
+---
+<Layout
+  title="Is USDT safe in 2026? An honest risk breakdown | earn-defi.com"
+  description="Is USDT safe in 2026? An honest breakdown: what backs it, how transparent the reserves are, its depeg history, and what a risk desk actually watches. USDT has held its peg through crises but is a risk you size and monitor — not a guaranteed dollar. Not investment advice."
+>
+  <script type="application/ld+json" set:html={JSON.stringify(faqLd)} />
+  <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24">
+    <p class="text-xs font-mono uppercase tracking-[0.12em] text-text-faint mb-4" data-ru="Разбор">The breakdown</p>
+    <h1 class="text-3xl sm:text-4xl font-bold text-white mb-5 leading-tight" data-ru="Безопасен ли USDT в 2026? Честный разбор рисков">Is USDT safe in 2026? An honest risk breakdown</h1>
+    <p class="text-lg text-slate-400 leading-relaxed mb-8" data-ru="Короткий ответ: USDT — крупнейший стейблкоин и держал пег через несколько кризисов, но «безопасен» с оговорками. Резервы аттестуются, а не аудируются по банковскому стандарту; краткие депеги под стрессом случались. Это риск, который стоит держать осознанно, измерять и мониторить — а не «гарантированный доллар».">
+      The short answer: USDT is the largest stablecoin and has held its peg through several crises, but
+      "safe" has caveats. Its reserves are attested rather than audited to a bank standard; brief depegs
+      have happened under stress. It's a risk to hold with your eyes open, size, and monitor — not a
+      "guaranteed dollar".
+    </p>
+
+    <section class="mb-8">
+      <h2 class="text-xl font-semibold text-white mb-3" data-ru="Что стоит за USDT">What backs USDT</h2>
+      <p class="text-base text-slate-300 leading-relaxed" data-ru="Tether (эмитент USDT) заявляет резервы преимущественно в US Treasuries и эквивалентах кэша, с регулярными аттестациями. Ключевая честная оговорка: аттестация — это не полный аудит по банковскому стандарту. Исторически резервов хватало на выкупы даже в стресс, но прозрачность ниже, чем у некоторых конкурентов. Это не «плохо» — это то, что вы должны знать про то, что держите.">
+        Tether (USDT's issuer) reports reserves mostly in US Treasuries and cash equivalents, with regular
+        attestations. The honest caveat: an attestation is not a full audit to a bank standard.
+        Historically reserves have covered redemptions even under stress, but transparency is lower than
+        some competitors'. Not "bad" — just something you should know about what you hold.
+      </p>
+    </section>
+
+    <div class="rounded-xl p-5 my-8" style="background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.25)">
+      <p class="text-sm text-slate-300 leading-relaxed mb-3" data-ru="Держите USDT и не уверены в риске? Пройдите честный 60-секундный снимок — без кошелька, без email.">Holding USDT and unsure about the risk? Take the honest 60-second snapshot — no wallet, no email.</p>
+      <a href="/snapshot?src=learn" data-track="learn_cta_click" class="inline-flex items-center px-4 py-2.5 rounded-lg bg-accent-500 hover:bg-accent-400 text-white text-sm font-semibold transition-colors" data-ru="Пройти снимок →">Take the snapshot →</a>
+    </div>
+
+    <section class="mb-8">
+      <h2 class="text-xl font-semibold text-white mb-3" data-ru="История депегов — честно">Depeg history — honestly</h2>
+      <p class="text-base text-slate-300 leading-relaxed" data-ru="USDT переживал короткие неглубокие депеги в стресс (например, кратко торговался на несколько центов ниже $1 в контагион 2022) — и каждый раз восстанавливался. Это принципиально отличается от терминального депега (UST в 2022, минус ~100%). Хвост есть, и пока он был переживаемым — но это не обещание про будущее. Именно поэтому мы мониторим пег в реальном времени, а не полагаемся на веру.">
+        USDT has had short, shallow depegs under stress (it briefly traded a few cents below $1 in the 2022
+        contagion) — and recovered each time. That is fundamentally different from a terminal depeg (UST in
+        2022, ~-100%). The tail exists and has so far been survivable — but that is not a promise about the
+        future. It is exactly why we monitor the peg in real time rather than rely on faith.
+      </p>
+      <div class="flex flex-wrap gap-3 mt-3">
+        <a href="/monitoring" data-track="learn_to_monitoring" class="text-sm text-accent-400 underline" data-ru="Живой мониторинг пега (RTMR) →">Live peg monitoring (RTMR) →</a>
+      </div>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="text-xl font-semibold text-white mb-3" data-ru="Как мы к этому относимся">How we treat it</h2>
+      <p class="text-base text-slate-300 leading-relaxed" data-ru="Мы не заявляем, что USDT «безопасен» или «опасен» — мы его ИЗМЕРЯЕМ. Наш real-time сторож следит за депегом стейблов по кворуму независимых источников и снижает риск между дневными циклами. И мы отказываемся от стратегий, где доход — лишь компенсация за скрытый хвост. Наша грань — честное измерение, а не громкое число.">
+        We don't claim USDT is "safe" or "dangerous" — we MEASURE it. Our real-time watchman tracks stable
+        depegs across a quorum of independent sources and de-risks between daily cycles. And we refuse
+        strategies where the yield is just compensation for a hidden tail. Our edge is honest measurement,
+        not a loud number.
+      </p>
+      <div class="flex flex-wrap gap-3 mt-3">
+        <a href="/refusals" data-track="learn_to_refusals" class="text-sm text-accent-400 underline" data-ru="Журнал отказов →">The refusal log →</a>
+        <a href="/how-we-think" data-track="learn_to_bridge" class="text-sm text-accent-400 underline" data-ru="Наша честная рамка →">Our honest frame →</a>
+      </div>
+    </section>
+
+    <section class="mb-10">
+      <h2 class="text-xl font-semibold text-white mb-4" data-ru="Частые вопросы">FAQ</h2>
+      {faq.map((f) => (
+        <details class="mb-3 rounded-lg p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <summary class="cursor-pointer text-sm font-semibold text-white list-none">{f.q}</summary>
+          <p class="text-sm text-slate-400 leading-relaxed mt-2">{f.a}</p>
+        </details>
+      ))}
+    </section>
+
+    <div class="rounded-2xl border border-accent-500/20 bg-accent-500/[0.04] p-6">
+      <p class="text-sm text-slate-400 leading-relaxed mb-4" data-ru="Хотите честный взгляд на свои стейблы — без обещаний доходности?">Want an honest look at your own stables — with no promised returns?</p>
+      <div class="flex flex-wrap gap-3">
+        <a href="/snapshot?src=learn" data-track="learn_cta_click" class="inline-flex items-center px-4 py-2.5 rounded-lg bg-accent-500 hover:bg-accent-400 text-white text-sm font-semibold transition-colors" data-ru="60-секундный снимок →">60-second snapshot →</a>
+        <a href="/packages" data-track="learn_to_packages" class="inline-flex items-center px-4 py-2.5 rounded-lg border border-white/15 text-white text-sm font-medium hover:border-white/30 transition-colors" data-ru="Три честных тира →">The three honest tiers →</a>
+      </div>
+    </div>
+  </main>
+  <Disclaimer />
+
+  <script is:inline>
+    (function(){ try{ if(window.spaTrack) window.spaTrack('learn_view'); }catch(e){} })();
+  </script>
+</Layout>
