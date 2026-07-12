@@ -64,16 +64,20 @@ realized). The ~3.3% realized is the PROOF that the machine is real, not the hea
 
 | # | Gap (what's broken in the journey today) | Where | Fix | Status |
 |---|---|---|---|---|
-| **J1** | **No `/dashboard` link in the top nav** — the yield dashboard is only in the FOOTER. A user can't find "show me the desk working". | `SiteHeader.astro` header-right | Add a persistent **Dashboard ↗** link/CTA in the header (the file's own comment even promises it). | ⏳ TODO |
+| **J1** | **No `/dashboard` link in the top nav** — the yield dashboard is only in the FOOTER. A user can't find "show me the desk working". | `SiteHeader.astro` header-right | Add a persistent **Dashboard ↗** link/CTA in the header. | ✅ **LIVE** (commit 5bd4fd1d) |
 | **J2** | **"Checkup" nav item → `/#analyze`** (a homepage anchor), NOT the full Checkup product. Confusing: the flagship free tool is hidden behind a scroll-anchor. | `SiteHeader.astro` groups[checkup] | Point "Checkup" at the real product entry (homepage widget is fine as the *inline* start, but also expose **Sample report** + **Check a wallet** so a user can SEE an example without scanning). | ⏳ TODO |
-| **J3** | **Homepage leads with 3.3% (conservative)**, owner wants the **maximum** aspiration to lead. | `index.astro` hero + comparison | Re-frame hero to LEAD with "up to ~20% target" (paper, tail shown) as the aspiration, with ~3.3% realized as the proven floor beneath it. Honesty floor intact. | ⏳ TODO |
-| **J4** | **Checkup site header still reads "foreign"** — colours/fonts were aligned (indigo + Inter, commit 03e4913) but the header STRUCTURE differs from earn-defi's grouped nav, so it still feels like a different site. | checkup `(site)/layout.tsx` | Restructure the checkup header to mirror earn-defi's SiteHeader shape (brand `SPA · earn-defi.com`, same nav idiom, a clear **← back to the yield desk** link). | ⏳ TODO |
+| **J3** | **Homepage leads with 3.3% (conservative)**, owner wants the **maximum** aspiration to lead. | `index.astro` hero + comparison | Hero now LEADS with "Target up to ~20%/yr" (paper, tail shown) on the proven ~3.3% floor. | ✅ **LIVE** (5bd4fd1d) |
+| **J4** | **Checkup site header still reads "foreign"** — colours/fonts were aligned (indigo + Inter, commit 03e4913) but the header STRUCTURE differs from earn-defi's grouped nav, so it still feels like a different site. | checkup `(site)/layout.tsx` | Header now ties to earn-defi.com + a **Yield desk ↗** link back to the desk. | ✅ **LIVE** (Railway 1b07026); further brand-shape polish optional |
 | **J5** | **No easy "see an example" path** — a first-timer with no wallet can't preview the analysis without knowing the `/sample-report` URL. | home + checkup nav | Put a **"See a sample analysis →"** link next to every "Check my wallet" CTA, pointing at `checkup.earn-defi.com/sample-report`. | ⏳ TODO |
-| **J6** | **Checkup → desk connection is only in the footer + report CTA** — the top of the checkup doesn't say "this is the free tool of the earn-defi yield desk". | checkup layout | Add a header line / badge tying Checkup to earn-defi (product coherence). | ⏳ TODO |
+| **J6** | **Checkup → desk connection is only in the footer + report CTA** — the top of the checkup doesn't say "this is the free tool of the earn-defi yield desk". | checkup layout | Header 'part of earn-defi.com — the yield desk ↗' (linked). | ✅ **LIVE** (Railway 1b07026) |
 
 ---
 
-## 4. ⚠️ BLOCKER that hides all landing fixes right now — CF Pages not deploying
+## 4. ✅ RESOLVED (2026-07-12) — CF Pages deploy blocker (owner unblocked; all landing fixes now LIVE)
+
+_History (kept for the runbook):_ CF Pages had stopped deploying after `88a081bc`; the owner unblocked it via the Cloudflare dashboard and the full backlog (J1, J3, moat surfaces) deployed. Original diagnosis below.
+
+### ⚠️ BLOCKER (historical) — CF Pages not deploying
 
 **The single most important operational fact:** landing changes I push to `origin/main` are **NOT appearing
 on earn-defi.com**. The last deployed commit is `88a081bc`; everything after it (the moat surfaces, and any
