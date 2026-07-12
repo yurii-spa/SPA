@@ -306,7 +306,11 @@ import Disclaimer from '../components/Disclaimer.astro';
         box.innerHTML = d.sleeves.map(function (s) {
           var m = meta[s.verdict] || meta.THIN_TRACK;
           var excess = (s.excess_vs_floor_pct != null) ? ((s.excess_vs_floor_pct >= 0 ? '+' : '') + Number(s.excess_vs_floor_pct).toFixed(1) + 'pp ' + (isRu() ? 'к флору' : 'vs floor')) : '';
-          var days = (s.verdict === 'THIN_TRACK' && s.days_to_robust_verdict != null) ? ('<span style="color:var(--text-faint)"> · ~' + s.days_to_robust_verdict + (isRu() ? 'д до вердикта' : 'd to verdict') + '</span>') : '';
+          // Q2-17: show the days-to-robust-verdict countdown for ANY still-thin sleeve, not just
+          // THIN_TRACK. A BELOW_FLOOR (or BEATS_FLOOR) verdict on < MIN_POINTS_FOR_DSR points is
+          // measured but not yet statistically ROBUST — hiding the countdown makes a not-yet-robust
+          // verdict read as settled. Honest: the number is still firming up for N more days.
+          var days = (s.days_to_robust_verdict != null && s.days_to_robust_verdict > 0) ? ('<span style="color:var(--text-faint)"> · ~' + s.days_to_robust_verdict + (isRu() ? 'д до устойч. вердикта' : 'd to robust verdict') + '</span>') : '';
           var diag = (s.verdict === 'BELOW_FLOOR') ? ('<p class="text-[11px] mt-2" style="color:var(--text-secondary)">' + (isRu() ? 'Измеренный carry не берёт флор с поправкой на риск — эджа при текущих ставках нет. Мы это публикуем, а не прячем.' : 'The measured carry doesn\'t clear the floor risk-adjusted — the edge isn\'t there at current rates. We publish it rather than hide it.') + '</p>') : '';
           var star = s.is_flagship ? '<span title="flagship" style="color:var(--accent-400)">★ </span>' : '';
           return '<div class="rounded-xl p-4" style="background:' + m.bg + ';border:1px solid ' + m.bd + '">'
