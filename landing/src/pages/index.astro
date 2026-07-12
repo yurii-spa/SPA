@@ -256,14 +256,14 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         </div>
         <div class="dp-low">
           <div class="dp-mod">
-            <h4 data-ru="Распределение по сетям">Allocation by chain</h4>
+            <h3 data-ru="Распределение по сетям">Allocation by chain</h3>
             <div class="dp-row"><span>Ethereum</span><b>$18,000</b></div><div class="dp-line"><i style="width:100%"></i></div>
             <div class="dp-row"><span>Arbitrum</span><b>$9,500</b></div><div class="dp-line"><i style="width:53%"></i></div>
             <div class="dp-row"><span>Base</span><b>$6,000</b></div><div class="dp-line"><i style="width:33%"></i></div>
             <div class="dp-row"><span>BSC</span><b>$4,000</b></div><div class="dp-line"><i style="width:22%"></i></div>
           </div>
           <div class="dp-mod">
-            <h4 data-ru="Экспозиция по протоколам">Protocol exposure</h4>
+            <h3 data-ru="Экспозиция по протоколам">Protocol exposure</h3>
             <div class="dp-row"><span class="muted" data-ru="Простаивает в кошельке">Idle wallet</span><b style="color:var(--warn)">$13,500</b></div>
             <div class="dp-row"><span>Aave</span><b>$10,000</b></div>
             <div class="dp-row"><span>Pendle</span><b>$7,000</b></div>
@@ -271,7 +271,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
             <div class="dp-row"><span>Curve</span><b>$3,000</b></div>
           </div>
           <div class="dp-mod">
-            <h4 data-ru="Топ-рекомендации">Top recommendations</h4>
+            <h3 data-ru="Топ-рекомендации">Top recommendations</h3>
             <div class="dp-flag"><span class="d" style="background:var(--danger)"></span><span data-ru="Снизить концентрацию — 44% в 2 протоколах">Reduce concentration — 44% in 2 protocols</span></div>
             <div class="dp-flag"><span class="d" style="background:var(--data-teal)"></span><span data-ru="Задействовать простаивающий капитал — $13,500">Put idle capital to work — $13,500 idle</span></div>
             <div class="dp-flag"><span class="d" style="background:var(--accent)"></span><span data-ru="Проверить разрешения токенов — 3 безлимитных">Review approvals — 3 unlimited</span></div>
@@ -420,17 +420,17 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       <div class="steps">
         <div class="step">
           <div class="n">01</div>
-          <h4 data-ru="Сканирует рынок">Scans the market</h4>
+          <h3 data-ru="Сканирует рынок">Scans the market</h3>
           <p data-ru="Отслеживает APY, TVL, ликвидность, риск протоколов, концентрацию и экспозицию стейблкоинов.">Tracks APY, TVL, liquidity, protocol risk, concentration, and stablecoin exposure.</p>
         </div>
         <div class="step">
           <div class="n">02</div>
-          <h4 data-ru="Применяет строгие правила">Applies strict rules</h4>
+          <h3 data-ru="Применяет строгие правила">Applies strict rules</h3>
           <p data-ru="Стратегии следуют заранее заданным риск-политикам, а не эмоциям или чёрному ящику AI.">Strategies follow predefined risk policies instead of emotional decisions or black-box AI calls.</p>
         </div>
         <div class="step">
           <div class="n">03</div>
-          <h4 data-ru="Логирует каждое изменение">Logs every change</h4>
+          <h3 data-ru="Логирует каждое изменение">Logs every change</h3>
           <p data-ru="Каждая крупная ребалансировка, отклонённая возможность и риск-событие записаны для проверки.">Every major rebalance, rejected opportunity, and risk event is recorded for review.</p>
         </div>
       </div>
@@ -620,7 +620,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
   .step{background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:28px; transition:border-color 120ms var(--ease)}
   .step:hover{border-color:var(--border-strong)}
   .step .n{font-family:var(--font-mono); font-size:.75rem; color:var(--accent); margin-bottom:14px; letter-spacing:.1em}
-  .step h4{font-size:1rem; font-weight:600; color:var(--text-primary); margin-bottom:8px}
+  .step h3{font-size:1rem; font-weight:600; color:var(--text-primary); margin-bottom:8px}
   .step p{font-size:.875rem; color:var(--text-secondary); line-height:1.55}
 
   /* Final CTA */
@@ -669,7 +669,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
   .dp-kpi.teal .v{color:var(--data-teal)} .dp-kpi.amb .v{color:var(--warn)} .dp-kpi.red .v{color:var(--danger)}
   .dp-low{display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:14px; margin-top:14px}
   .dp-mod{background:var(--bg-surface-2); border:1px solid var(--border); border-radius:var(--r-md); padding:16px 18px}
-  .dp-mod h4{font-size:.6875rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; margin:0 0 12px; font-weight:700}
+  .dp-mod h3{font-size:.6875rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; margin:0 0 12px; font-weight:700}
   .dp-row{display:flex; justify-content:space-between; font-size:.8125rem; padding:5px 0; color:var(--text-primary)}
   .dp-line{height:6px; background:var(--bg-base); border-radius:4px; overflow:hidden; margin:2px 0 9px}
   .dp-line>i{display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--data-teal)); border-radius:4px}
