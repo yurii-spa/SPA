@@ -1,0 +1,197 @@
+---
+// C2 — Stablecoin Safety Snapshot (no-wallet 60-second micro-quiz). The product for the non-technical
+// USDT holder with NO wallet to scan: 4 questions → an instant, personalized, DETERMINISTIC result
+// (a decision matrix — NO LLM, no fabricated numbers) → one matched next step + two CTAs. Standalone
+// (no shell/kit dependency), bilingual, honesty-floor intact (the yield-gap uses the canonical ~3.3%
+// realized rate, labelled; nothing promised). Redesign spec 04 §C2.
+import Layout from '../layouts/Layout.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+---
+<Layout
+  title="Stablecoin Safety Snapshot — 60-second check, no wallet | earn-defi.com"
+  description="A free 60-second stablecoin safety check for non-technical holders — no wallet connection, no scan. Four questions → a personalized, honest risk snapshot + how much yield your idle stables leave on the table at our ~3.3% realized paper rate. Not investment advice."
+>
+  <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24">
+    <div class="inline-flex items-center gap-2 mb-5 px-3 py-1.5 rounded-full bg-teal-bg border border-teal-border text-xs text-data-teal font-medium">
+      <span class="w-1.5 h-1.5 rounded-full bg-data-teal animate-pulse" aria-hidden="true"></span>
+      <span data-ru="60 секунд · без кошелька · без email">60 seconds · no wallet · no email</span>
+    </div>
+    <h1 class="text-3xl sm:text-4xl font-bold text-white mb-3" data-ru="Проверка безопасности стейблкоинов">Stablecoin Safety Snapshot</h1>
+    <p class="text-base text-slate-400 leading-relaxed mb-8" data-ru="Четыре вопроса. Никакого подключения кошелька, никакого email. Честный снимок риска + сколько ваши стейблы оставляют «на столе». Не инвестиционный совет.">
+      Four questions. No wallet connection, no email. An honest risk snapshot + how much your idle stables
+      leave on the table. Not investment advice.
+    </p>
+
+    <!-- progress dots -->
+    <div id="sn-dots" class="flex gap-2 mb-6" aria-hidden="true">
+      <span class="sn-dot sn-dot-on"></span><span class="sn-dot"></span><span class="sn-dot"></span><span class="sn-dot"></span>
+    </div>
+
+    <!-- Q1 -->
+    <section class="sn-q" data-q="1">
+      <h2 class="text-xl font-semibold text-white mb-4" data-ru="Сколько у вас в стейблкоинах?">How much do you hold in stablecoins?</h2>
+      <div class="sn-opts" data-single>
+        <button class="sn-opt" data-v="lt10k" data-ru="Меньше $10k">Under $10k</button>
+        <button class="sn-opt" data-v="10_50k" data-ru="$10k–50k">$10k–50k</button>
+        <button class="sn-opt" data-v="50_250k" data-ru="$50k–250k">$50k–250k</button>
+        <button class="sn-opt" data-v="gt250k" data-ru="$250k+">$250k+</button>
+      </div>
+    </section>
+
+    <!-- Q2 -->
+    <section class="sn-q" data-q="2" hidden>
+      <h2 class="text-xl font-semibold text-white mb-4" data-ru="Где они лежат сейчас? (можно несколько)">Where do they sit right now? (multi)</h2>
+      <div class="sn-opts" data-multi>
+        <button class="sn-opt" data-v="cex" data-ru="Биржа (CEX)">Exchange (CEX)</button>
+        <button class="sn-opt" data-v="idle" data-ru="Свой кошелёк, простаивают">Own wallet, idle</button>
+        <button class="sn-opt" data-v="defi" data-ru="DeFi-протоколы">DeFi protocols</button>
+        <button class="sn-opt" data-v="bank" data-ru="Связаны с банком (финтех)">Bank-linked (fintech)</button>
+      </div>
+      <button class="sn-next" data-ru="Дальше →">Next →</button>
+    </section>
+
+    <!-- Q3 -->
+    <section class="sn-q" data-q="3" hidden>
+      <h2 class="text-xl font-semibold text-white mb-4" data-ru="Какие стейблкоины? (можно несколько)">Which stablecoins? (multi)</h2>
+      <div class="sn-opts" data-multi>
+        <button class="sn-opt" data-v="usdt" data-ru="USDT">USDT</button>
+        <button class="sn-opt" data-v="usdc" data-ru="USDC">USDC</button>
+        <button class="sn-opt" data-v="dai" data-ru="DAI">DAI</button>
+        <button class="sn-opt" data-v="algo" data-ru="Другой / алго">Other / algo</button>
+      </div>
+      <button class="sn-next" data-ru="Дальше →">Next →</button>
+    </section>
+
+    <!-- Q4 -->
+    <section class="sn-q" data-q="4" hidden>
+      <h2 class="text-xl font-semibold text-white mb-4" data-ru="Что важнее всего?">What matters most?</h2>
+      <div class="sn-opts" data-single>
+        <button class="sn-opt" data-v="safe" data-ru="Не потерять">Don't lose it</button>
+        <button class="sn-opt" data-v="income" data-ru="Стабильный доход">Steady income</button>
+        <button class="sn-opt" data-v="growth" data-ru="Максимальный рост">Max growth</button>
+      </div>
+    </section>
+
+    <!-- Result -->
+    <section id="sn-result" hidden>
+      <h2 class="text-2xl font-bold text-white mb-4" data-ru="Ваш снимок">Your snapshot</h2>
+      <div id="sn-yieldgap" class="rounded-xl p-5 mb-4" style="background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3)"></div>
+      <ul id="sn-notes" class="space-y-2 text-sm text-slate-300 leading-relaxed mb-5"></ul>
+      <div id="sn-next" class="rounded-xl p-5 mb-6" style="background:var(--bg-surface);border:1px solid var(--accent-border)"></div>
+      <div class="flex flex-wrap gap-3">
+        <form id="sn-email-form" class="flex gap-2 flex-wrap">
+          <input id="sn-email" type="email" maxlength="256" placeholder="you@email.com" autocomplete="email"
+            class="rounded-lg bg-white/[0.04] border border-white/15 px-4 py-2.5 text-sm text-white placeholder-white/30 focus:border-accent-400/60 focus:outline-none" />
+          <button type="submit" data-track="snapshot_email" data-ru="Прислать снимок"
+            class="inline-flex items-center px-4 py-2.5 rounded-lg bg-accent-500 hover:bg-accent-400 text-white text-sm font-semibold transition-colors">Email me my snapshot</button>
+        </form>
+        <a href="/pilot?src=snapshot" data-track="snapshot_to_pilot" class="inline-flex items-center px-4 py-2.5 rounded-lg border border-white/15 text-white text-sm font-medium hover:border-white/30 transition-colors" data-ru="Поговорить с человеком →">Talk to a human →</a>
+      </div>
+      <p id="sn-email-status" class="text-xs text-slate-400 mt-2" role="status" aria-live="polite" style="min-height:1em"></p>
+      <p class="text-[11px] text-slate-500 mt-4 leading-relaxed" data-ru="Оценка по вашим ответам, не по кошельку. «На столе» — иллюстрация на нашей реализованной paper-ставке ~3,3% (0,0% просадки, проверяемо), не гарантия. Не инвестиционный совет.">
+        Estimated from your answers, not a wallet scan. The "on the table" figure is illustrative at our
+        ~3.3% realized paper rate (0.0% drawdown, auditable) — not a guarantee. Not investment advice.
+      </p>
+    </section>
+  </main>
+  <Disclaimer />
+
+  <script is:inline>
+    (function(){
+      var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8765':'https://api.earn-defi.com';
+      function isRu(){ try{ return (localStorage.getItem('spa_lang')||'en')==='ru'; }catch(e){ return false; } }
+      var ans={1:null,2:[],3:[],4:null};
+      var cur=1;
+      function show(q){
+        document.querySelectorAll('.sn-q').forEach(function(s){ s.hidden = (+s.getAttribute('data-q'))!==q; });
+        var dots=document.querySelectorAll('#sn-dots .sn-dot');
+        dots.forEach(function(d,i){ d.classList.toggle('sn-dot-on', i < q); });
+        cur=q;
+      }
+      // option selection
+      document.querySelectorAll('.sn-q').forEach(function(sec){
+        var q=+sec.getAttribute('data-q');
+        var single=sec.querySelector('[data-single]')!=null;
+        sec.querySelectorAll('.sn-opt').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            var v=btn.getAttribute('data-v');
+            if(single){
+              sec.querySelectorAll('.sn-opt').forEach(function(b){ b.classList.remove('sn-opt-on'); });
+              btn.classList.add('sn-opt-on'); ans[q]=v;
+              if(q===1){ show(2); } else if(q===4){ finish(); }
+            } else {
+              btn.classList.toggle('sn-opt-on');
+              var arr=ans[q]; var idx=arr.indexOf(v);
+              if(idx>=0) arr.splice(idx,1); else arr.push(v);
+            }
+          });
+        });
+      });
+      document.querySelectorAll('.sn-next').forEach(function(nb){
+        nb.addEventListener('click', function(){ if(cur<4) show(cur+1); });
+      });
+
+      function fmtUsd(n){ return '$'+Math.round(n).toLocaleString('en-US'); }
+      var MID={lt10k:5000, '10_50k':30000, '50_250k':150000, gt250k:250000};
+      function finish(){
+        var ru=isRu();
+        // yield-gap: band midpoint × canonical realized rate (~3.3%), only if idle/CEX (money not earning)
+        var mid=MID[ans[1]]||0;
+        var earning = ans[2].indexOf('defi')>=0;
+        var gapEl=document.getElementById('sn-yieldgap');
+        if(mid>0 && (!earning || ans[2].indexOf('idle')>=0 || ans[2].indexOf('cex')>=0)){
+          var perYr=mid*0.033;
+          gapEl.innerHTML='<div style="font-size:13px;color:var(--text-muted)">'+(ru?'Простаивающие стейблы оставляют «на столе»':'Idle stables leave on the table')+'</div>'+
+            '<div style="font-size:30px;font-weight:800;font-family:var(--font-mono);color:#34d399">~'+fmtUsd(perYr)+(ru?'/год':'/yr')+'</div>'+
+            '<div style="font-size:11px;color:var(--text-faint)">'+(ru?'на нашей реализованной paper-ставке ~3,3% · проверяемо · 0,0% просадки · не гарантия':'at our ~3.3% realized paper rate · auditable · 0.0% drawdown · not a guarantee')+'</div>';
+        } else { gapEl.style.display='none'; }
+        // risk notes per answer combo (deterministic)
+        var notes=[];
+        if(ans[2].indexOf('cex')>=0) notes.push(ru?'Биржа (CEX): вы НЕ держите ключи — это custody-риск. Проверьте вывод небольшой суммы, пока не срочно.':'Exchange (CEX): you do NOT hold the keys — that is custody risk. Test a small withdrawal while it is not urgent.');
+        if(ans[3].indexOf('usdt')>=0) notes.push(ru?'USDT: крупнейший стейбл, но резервы менее прозрачны, чем у некоторых. Депеги случались кратко — это хвостовой риск, не паника.':'USDT: the largest stable, but its reserves are less transparent than some. Brief depegs have happened — a tail risk, not a panic.');
+        if(ans[3].indexOf('algo')>=0) notes.push(ru?'Алго/прочие стейблы: исторически САМЫЙ хрупкий класс (см. UST-2022). Держите долю малой и знайте механизм пега.':'Algo/other stables: historically the MOST fragile class (see UST-2022). Keep the share small and know the peg mechanism.');
+        if(ans[2].indexOf('idle')>=0) notes.push(ru?'Простаивают в кошельке: под 0%. Даже безопасный ~3,3% — это реальные деньги за год.':'Idle in a wallet: earning 0%. Even a safe ~3.3% is real money over a year.');
+        if(ans[2].indexOf('defi')>=0) notes.push(ru?'В DeFi: проверьте approvals (безлимитные разрешения) и здоровье протокола — самый частый скрытый риск.':'In DeFi: check your approvals (unlimited allowances) and protocol health — the most common hidden risk.');
+        if(!notes.length) notes.push(ru?'По вашим ответам явных красных флагов нет — но проверяемость важнее ощущений.':'No obvious red flags from your answers — but verifiability beats a feeling.');
+        var ul=document.getElementById('sn-notes'); ul.innerHTML=notes.map(function(n){ return '<li>• '+n+'</li>'; }).join('');
+        // matched next step
+        var goal=ans[4], nx=document.getElementById('sn-next');
+        var step;
+        if(goal==='safe') step={t:ru?'Ваш приоритет — сохранность':'Your priority is safety',d:ru?'Консервативный тир: T1/T2 стейбл-кредитование, ~3,3% реализованных, 0,0% просадки. То, что деск реально ведёт.':'The Conservative tier: T1/T2 stablecoin lending, ~3.3% realized, 0.0% drawdown. What the desk actually runs.',h:'/packages',c:ru?'Смотреть консервативный тир →':'See the Conservative tier →'};
+        else if(goal==='income') step={t:ru?'Ваш приоритет — стабильный доход':'Your priority is steady income',d:ru?'Три честных тира по целевому доходу и лимиту просадки — с показанным хвостом.':'Three honest tiers by target income and drawdown limit — with the tail shown.',h:'/packages',c:ru?'Смотреть пакеты →':'See the packages →'};
+        else step={t:ru?'Ваш приоритет — рост':'Your priority is growth',d:ru?'Aggressive Lab: цели до ~20% (research/paper, ВСЕГДА с хвостом, отказан для live). Ранний доступ — войти в день валидации.':'Aggressive Lab: up-to-~20% targets (research/paper, ALWAYS with the tail, refused for live). Early-access to get in the day it validates.',h:'/aggressive-lab',c:ru?'Смотреть Aggressive Lab →':'See the Aggressive Lab →'};
+        nx.innerHTML='<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px">'+step.t+'</div>'+
+          '<div style="font-size:14px;color:var(--text-secondary);line-height:1.5;margin-bottom:10px">'+step.d+'</div>'+
+          '<a href="'+step.h+'?src=snapshot" data-track="snapshot_next" style="color:var(--accent-400);text-decoration:underline;font-size:14px;font-weight:600">'+step.c+'</a>';
+        // reveal result
+        document.querySelectorAll('.sn-q').forEach(function(s){ s.hidden=true; });
+        document.getElementById('sn-dots').style.display='none';
+        document.getElementById('sn-result').hidden=false;
+        try{ if(window.spaTrack) window.spaTrack('snapshot_complete'); }catch(e){}
+        try{ document.getElementById('sn-result').scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){}
+      }
+      // email capture → /api/pilot/request source=snapshot
+      var ef=document.getElementById('sn-email-form');
+      ef.addEventListener('submit', function(e){
+        e.preventDefault();
+        var ru=isRu(); var email=(document.getElementById('sn-email').value||'').trim();
+        var st=document.getElementById('sn-email-status'); st.textContent=ru?'Отправляем…':'Sending…';
+        fetch(API+'/api/pilot/request',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:email,source:'snapshot',tier:ans[4]||'',utm_source:'snapshot'})})
+          .then(function(r){return r.json();}).then(function(d){
+            if(d&&d.ok){ st.textContent=ru?'Готово — снимок и следующий шаг пришлём.':'Done — we’ll send your snapshot + next step.'; ef.reset(); }
+            else st.textContent=(d&&d.error)||(ru?'Введите корректный email':'Enter a valid email');
+          }).catch(function(){ st.textContent=ru?'Ошибка сети':'Network error'; });
+      });
+    })();
+  </script>
+
+  <style>
+    .sn-dot{width:28px;height:4px;border-radius:2px;background:var(--border)}
+    .sn-dot-on{background:var(--accent)}
+    .sn-opts{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+    .sn-opt{text-align:left;padding:14px 16px;border-radius:12px;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-primary);font-size:15px;cursor:pointer;transition:border-color 120ms,background 120ms}
+    .sn-opt:hover{border-color:var(--border-strong)}
+    .sn-opt-on{border-color:var(--accent);background:var(--accent-bg);color:var(--accent-hover)}
+    .sn-next{padding:10px 20px;border-radius:10px;background:var(--accent-500,var(--accent));color:#fff;border:none;font-size:14px;font-weight:600;cursor:pointer}
+  </style>
+</Layout>

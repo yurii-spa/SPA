@@ -52,7 +52,7 @@
 
 | Task | Status |
 |---|---|
-| C2 Stablecoin Safety Snapshot (4-question quiz) | PENDING |
+| C2 Stablecoin Safety Snapshot (4-question quiz) | **SHIPPED** (2026-07-12, build green) — new `/snapshot` page: 4-Q no-wallet quiz (holdings band / where / which stables / goal) with progress dots; DETERMINISTIC result (decision matrix, NO LLM): per-answer risk notes (CEX custody / USDT depeg / algo fragility / idle yield-gap / DeFi approvals) + yield-gap (band-midpoint × canonical 3.3% realized, labelled not-a-guarantee) + goal-matched next step (safe→Conservative / income→packages / growth→aggressive-lab) + 2 CTAs (email→`/api/pilot/request` source=snapshot; Talk-to-human→/pilot?src=snapshot). Linked from the hero ("No wallet to scan? 60-second snapshot"). EN|RU. data-track: snapshot_complete/_email/_to_pilot/_next. Live-verify pending CF |
 | CHK-DEMO no-scan demo report (fixture wallet) | PENDING (checkup has "View a sample report" link — check what it points to; upgrade per spec) |
 | B6 Checkup report rebuild on shell | PENDING |
 | E1 five SEO/learn pages | PENDING |

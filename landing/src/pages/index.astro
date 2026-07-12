@@ -70,6 +70,8 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
       <WalletCheck client:visible />
 
       <p class="hero-trust" data-ru="Без подключения кошелька. Без email. Только публичные адреса.">No wallet connection. No email required. Public addresses only.</p>
+      <!-- C2 (redesign): the "no wallet to scan" path — a 60-second snapshot for non-technical holders. -->
+      <p style="margin-top:12px"><a href="/snapshot" data-track="hero_snapshot" style="color:var(--accent-400);text-decoration:underline;font-size:14px;font-weight:600" data-ru="Нет кошелька для скана? Пройдите 60-секундный снимок безопасности →">No wallet to scan? Take the 60-second safety snapshot →</a></p>
       <div style="margin-top:14px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
         <!-- J5 (customer-journey-map): a first-timer with no wallet can preview the analysis instantly,
              right at the entry — answers "how do I see an example" without hunting for the URL. -->
