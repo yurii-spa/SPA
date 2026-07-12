@@ -194,7 +194,11 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
           document.getElementById('calc-real').textContent=fmt(a*0.033);
           document.getElementById('calc-agg').textContent=fmt(a*0.20);
         }
-        s.addEventListener('input',upd); upd();
+        // F1 (redesign): fire calc_interact ONCE when the user first engages the yield calculator
+        // (a funnel-depth signal), then keep updating. Throttled to a single event to avoid flooding.
+        var calcFired=false;
+        s.addEventListener('input',function(){ upd(); if(!calcFired){ calcFired=true; try{ if(window.spaTrack) window.spaTrack('calc_interact'); }catch(e){} } });
+        upd();
       })();
     </script>
   </section>
@@ -222,7 +226,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
           var st=document.getElementById('ea-status'); st.textContent=isRu?'Отправляем…':'Joining…';
           fetch(API+'/api/pilot/request',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:email,source:'early_access',tier:'aggressive'})})
             .then(function(r){return r.json();}).then(function(d){
-              if(d&&d.ok){ var p=d.position?(' — '+(isRu?'вы №':"you're #")+d.position):''; st.textContent=(isRu?'Готово! Отчёт о валидации пришлём первым':"Done! We'll send you the validation report first")+p; f.reset(); }
+              if(d&&d.ok){ var p=d.position?(' — '+(isRu?'вы №':"you're #")+d.position):''; st.textContent=(isRu?'Готово! Отчёт о валидации пришлём первым':"Done! We'll send you the validation report first")+p; f.reset(); try{ if(window.spaTrack) window.spaTrack('early_access_submit'); }catch(e){} }
               else st.textContent=(d&&d.error)||(isRu?'Введите корректный email':'Enter a valid email');
             }).catch(function(){ st.textContent=isRu?'Ошибка сети':'Network error'; });
         });
