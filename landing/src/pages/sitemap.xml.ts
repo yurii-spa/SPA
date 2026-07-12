@@ -34,6 +34,9 @@ function routesFromGlob(): string[] {
     const rel = key.replace(/^\.\//, '').replace(/\.astro$/, ''); // 'blog/2026-..' | 'index' | 'admin/index'
     if (rel.includes('[')) continue; // dynamic template, expanded explicitly below
     if (rel === 'admin' || rel.startsWith('admin/')) continue; // robots Disallow: /admin
+    // Q-OWN-04 (owner: /dashboard is the ONE public dashboard): /cockpit/* + /board/* are operator
+    // surfaces — keep them out of the public sitemap (robots Disallow + per-page noindex too).
+    if (rel === 'cockpit' || rel.startsWith('cockpit/') || rel === 'board' || rel.startsWith('board/')) continue;
     if (rel === '404' || rel === '500') continue;
     if (INTERNAL_ROUTES.has(rel)) continue; // noindex internal/dev showcase
     const path = rel === 'index' ? '/' : rel.endsWith('/index') ? `/${rel.slice(0, -6)}` : `/${rel}`;

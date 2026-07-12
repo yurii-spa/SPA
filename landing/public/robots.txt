@@ -18,5 +18,8 @@ Disallow: /admin
 # exit-nav, due-diligence, structural-desk, monitoring, readiness, system, yield-lab, annual-contrast)
 # are DELIBERATELY left indexable — they are the funnel's proof surface, not operator internals.
 Disallow: /cockpit
+# Q-OWN-04 (owner: /dashboard is the ONE public dashboard): /board/* (DFB risk board) is an operator
+# surface too — /dashboard is the canonical public one.
+Disallow: /board
 
 Sitemap: https://earn-defi.com/sitemap.xml
