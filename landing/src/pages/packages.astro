@@ -11,7 +11,7 @@ import BANDS from '../lib/tier_bands.json';
 // Honest yield-package tiers. The framework is evaluator.PACKAGES (Conservative / Balanced /
 // Aggressive by NET APY + drawdown limit); a package is only offered when its strategies pass the
 // DSR gate on REAL data. The honesty is in the STATUS of each tier, not a marketing number:
-//   • Conservative  = the REAL live paper book (~3.3%, evidenced) — this is what the desk delivers.
+//   • Conservative  = up to 6% target; the REAL live paper book (~3.3% realized so far, evidenced) — what the desk delivers.
 //   • Balanced      = research/paper, WITH the tail, NOT yet trustworthy (thin forward track).
 //   • Aggressive    = research/paper, REFUSED for live — brutal tail, shown transparently.
 const liveApy = (snap && typeof snap.paper_apy_pct === 'number') ? snap.paper_apy_pct.toFixed(2) : '3.3';
@@ -82,7 +82,7 @@ const toneMap = {
 ---
 <Layout
   title="Yield packages — honest tiers | earn-defi.com"
-  description="Three yield-package tiers by target APY and drawdown limit. Conservative is the REAL live paper book (~3.3%, evidenced). Balanced and Aggressive are research/paper only — shown WITH their real, dated tail, refused for live capital. The higher the tier, the bigger the tail — measured, not hidden."
+  description="Three yield-package tiers by target APY and drawdown limit. Conservative targets up to 6% (the REAL live paper book, ~3.3% realized so far, evidenced). Balanced (up to 12%) and Aggressive (up to 20%) are research/paper only — shown WITH their real, dated tail, refused for live capital. The higher the tier, the bigger the tail — measured, not hidden."
 >
   <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20">
     <section class="pb-8">
