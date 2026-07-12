@@ -356,15 +356,15 @@ python3 verify_spa.py data/</code></pre>
             Full uncapped chains: <span class="font-mono">/api/rates-desk/full-chain/{'{surface}'}</span>
             (index at <span class="font-mono">/api/rates-desk/full-chain</span>). Also live:
             <span class="font-mono">/api/rates-desk/proof</span> (machine) and
-            <a href="/refusals" class="hover:underline" style="color:var(--accent)">/refusals</a> (human).
+            <a data-track="verify_to_refusals" href="/refusals" class="hover:underline" style="color:var(--accent)">/refusals</a> (human).
           </p>
         </div>
         <div class="rounded-xl p-5" style="background:var(--bg-surface);border:1px solid var(--border)">
           <p class="text-xs uppercase tracking-wider font-mono mb-3" style="color:var(--text-muted)" data-ru="Документы">Documents</p>
           <ul class="space-y-2 text-sm">
-            <li><a href="/refusals" class="hover:underline" style="color:var(--accent)" data-ru="Лог отказов (человеко-читаемый) →">Refusal log (human-readable) →</a></li>
-            <li><a href="/track-record" class="hover:underline" style="color:var(--accent)" data-ru="Трек-рекорд (хеш-привязанный) →">Track record (hash-anchored) →</a></li>
-            <li><a href="/exit-nav" class="hover:underline" style="color:var(--accent)" data-ru="Ликвидационный NAV →">Liquidation-NAV →</a></li>
+            <li><a data-track="verify_to_refusals" href="/refusals" class="hover:underline" style="color:var(--accent)" data-ru="Лог отказов (человеко-читаемый) →">Refusal log (human-readable) →</a></li>
+            <li><a data-track="verify_to_track_record" href="/track-record" class="hover:underline" style="color:var(--accent)" data-ru="Трек-рекорд (хеш-привязанный) →">Track record (hash-anchored) →</a></li>
+            <li><a data-track="verify_to_exit_nav" href="/exit-nav" class="hover:underline" style="color:var(--accent)" data-ru="Ликвидационный NAV →">Liquidation-NAV →</a></li>
             <li><a href="/proof-of-reserves" class="hover:underline" style="color:var(--accent)" data-ru="Доказательство резервов →">Proof of Reserves →</a></li>
           </ul>
           <p class="text-[11px] leading-relaxed mt-3" style="color:var(--text-muted)"

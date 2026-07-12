@@ -201,7 +201,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
           logged and hash-chained in <code class="text-data-teal">decision_log</code>, so you can verify the cycle
           actually ran and chose to hold — not that it silently stalled.
         </p>
-        <a href="/verify" class="inline-block mt-3 text-xs font-mono underline" style="color:var(--data-teal)" data-ru="Проверить цепочку решений →">Check the decision chain →</a>
+        <a data-track="track_record_to_verify" href="/verify" class="inline-block mt-3 text-xs font-mono underline" style="color:var(--data-teal)" data-ru="Проверить цепочку решений →">Check the decision chain →</a>
       </div>
     </section>
 
@@ -376,7 +376,7 @@ function meta(src) { return SOURCE_META[src] || SOURCE_META.warmup; }
         </div>
         <p class="text-xs text-white/50 leading-relaxed">
           <span data-ru="Верификатор:">Verifier:</span> <span class="font-mono text-white/50">scripts/verify_spa.py</span>
-          (<a href="/verify" class="underline text-data-teal hover:text-data-teal" data-ru="как проверить + демо в браузере">how to verify + in-browser demo</a>,
+          (<a data-track="track_record_to_verify" href="/verify" class="underline text-data-teal hover:text-data-teal" data-ru="как проверить + демо в браузере">how to verify + in-browser demo</a>,
           <span data-ru="закреплён">pinned</span> <span class="font-mono text-white/50">verifier-v1.0</span>)
           · <span data-ru="цепочка капитала:">equity chain:</span> <span class="font-mono text-white/50">data/rates_desk/equity_track.jsonl</span>
           · <span data-ru="рецепт:">recipe:</span> <span class="font-mono text-white/50">docs/PROOF_CHAIN_SPEC.md</span>

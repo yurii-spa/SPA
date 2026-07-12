@@ -69,7 +69,7 @@ import strategies from '../../data/strategy_config.json';
             tail — measured, not hidden.
           </p>
         </div>
-        <a href="/packages" class="shrink-0 inline-flex items-center gap-1.5 text-sm font-mono whitespace-nowrap px-3 py-1.5 rounded-md border"
+        <a data-track="index_to_packages" href="/packages" class="shrink-0 inline-flex items-center gap-1.5 text-sm font-mono whitespace-nowrap px-3 py-1.5 rounded-md border"
            style="border-color:var(--accent-border);color:var(--accent-hover);background:var(--accent-bg)"
            data-ru="Открыть пакеты →">Open packages →</a>
       </div>
@@ -85,14 +85,14 @@ import strategies from '../../data/strategy_config.json';
           </p>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <a href="/strategies/btc" class="block rounded-xl p-5 transition-colors" style="background:var(--bg-surface);border:1px solid var(--border);border-left:3px solid var(--data-teal)">
+          <a data-track="index_to_strategies_btc" href="/strategies/btc" class="block rounded-xl p-5 transition-colors" style="background:var(--bg-surface);border:1px solid var(--border);border-left:3px solid var(--data-teal)">
             <div class="flex items-center justify-between gap-3 mb-2">
               <span class="text-sm font-semibold text-text-primary" data-ru="BTC-кредитование, наглядно">BTC lending, visualized</span>
               <span class="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full" style="background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-border)" data-ru="advisory">advisory</span>
             </div>
             <p class="text-xs text-text-secondary leading-relaxed" data-ru="Честные ~0% on-chain — почему BTC почти не занимают и почему мы не притворяемся иначе.">The honest ~0% on-chain — why BTC is barely borrowed, and why we don't pretend otherwise.</p>
           </a>
-          <a href="/strategies/leverage-loops" class="block rounded-xl p-5 transition-colors" style="background:var(--bg-surface);border:1px solid var(--border);border-left:3px solid var(--warn)">
+          <a data-track="index_to_strategies_leverage_loops" href="/strategies/leverage-loops" class="block rounded-xl p-5 transition-colors" style="background:var(--bg-surface);border:1px solid var(--border);border-left:3px solid var(--warn)">
             <div class="flex items-center justify-between gap-3 mb-2">
               <span class="text-sm font-semibold text-text-primary" data-ru="Плечевые петли, наглядно">Leverage loops, visualized</span>
               <span class="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full" style="background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-border)" data-ru="класс C · отказ">class C · refused</span>
