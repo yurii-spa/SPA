@@ -15,7 +15,7 @@ import TournamentCockpit from '../components/cockpit/TournamentCockpit.jsx';
  * <TournamentCockpit /> React island (client:only), composed from the cockpit primitives.
  *
  * What this page IS: strategies compete backtest → paper (Nd) → live. Only credible-data
- * winners promote. The desk holds a steady ~4.5% RWA-anchored book; the tournament is how it
+ * winners promote. The desk holds a steady RWA-anchored book (~3.3% realized track-to-date); the tournament is how it
  * VETS candidates — it is NOT a yield promise. The single most important honest truth this
  * page must show: the promotion gate is FAIL-CLOSED — it REFUSES to promote on degenerate /
  * untrustworthy data, so "0 promotions" is the CORRECT honest outcome, not a failure or an
@@ -84,8 +84,8 @@ const LADDER = [
       eyebrowTone="accent"
       title="Strategy Tournament"
       titleRu="Турнир стратегий"
-      lede="Strategies compete backtest → paper → live, ranked by net return and Sharpe. Only credible-data winners promote. This is how the desk VETS candidates — not a yield promise. The desk itself holds a steady ~4.5% RWA-anchored book."
-      ledeRu="Стратегии соревнуются backtest → paper → live, ранжируются по net-доходности и Sharpe. Промоушен получают только победители на достоверных данных. Так десk ОТБИРАЕТ кандидатов — это не обещание доходности. Сам десk держит стабильную книгу ~4.5% на якоре RWA."
+      lede="Strategies compete backtest → paper → live, ranked by net return and Sharpe. Only credible-data winners promote. This is how the desk VETS candidates — not a yield promise. The desk itself holds a steady RWA-anchored conservative book — ~3.3% realized track-to-date."
+      ledeRu="Стратегии соревнуются backtest → paper → live, ранжируются по net-доходности и Sharpe. Промоушен получают только победители на достоверных данных. Так десk ОТБИРАЕТ кандидатов — это не обещание доходности. Сам десk держит стабильную консервативную книгу на якоре RWA — ~3.3% realized track-to-date."
       max="46rem"
     >
       <span class="inline-flex items-center gap-2 text-[11px] font-mono" style="color:var(--text-faint)">
