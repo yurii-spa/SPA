@@ -67,6 +67,7 @@ def readiness() -> dict:
     golive = _load("golive_status.json")
     ksd = _load("kill_switch_drill_status.json")
     tledger = _load("track_ledger.json")
+    ceff = _load("capital_efficiency.json")
     return {
         "governance_defenses": {
             "fired": dex.get("scenarios_fired"),
@@ -90,6 +91,17 @@ def readiness() -> dict:
             "latency_limit_ms": ksd.get("latency_limit_ms"),
             "passed": ksd.get("passed"),
             "verdict": ksd.get("verdict"),
+        },
+        # Q1-13 (owner-flagged): capital-efficiency verdict — the desk measures RISK world-class; this
+        # makes CAPITAL EFFICIENCY a first-class, published invariant too. deployed_pct + verdict
+        # (OK=capital working / WARNING=deployable headroom left idle / UNKNOWN=fail-closed). Missing
+        # artifact → nulls (honest absence, never a 500). Advisory: this guard moves no capital.
+        "capital_efficiency": {
+            "verdict": ceff.get("verdict"),
+            "deployed_pct": ceff.get("deployed_pct"),
+            "cash_pct": ceff.get("cash_pct"),
+            "min_cash_pct": ceff.get("min_cash_pct"),
+            "forgone_yield_bps_est": ceff.get("forgone_yield_bps_est"),
         },
         # Q2-18: dated evidenced-track ledger SUMMARY — the 30-day go-live claim as a checkable artifact
         # (day-by-day dd/return reproducible via `python3 -m spa_core.paper_trading.track_ledger`). Only
