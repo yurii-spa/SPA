@@ -1,0 +1,43 @@
+---
+// Branded 404 page. Astro emits this as dist/404.html, which Cloudflare Pages serves with a proper
+// 404 STATUS for any unmatched route. Before this existed, an unknown URL silently served the homepage
+// with HTTP 200 — a soft-404 (SEO liability: Google penalises soft-404s; UX liability: a mistyped or
+// broken link showed the homepage, not "not found"). This page returns the right status AND recovers the
+// visitor into the funnel with the real journey links (home / snapshot / packages / checkup). noindex
+// belt-and-suspenders (a 404-status page is not indexed anyway). Bilingual, uses the canonical Layout.
+import Layout from '../layouts/Layout.astro';
+---
+<Layout
+  title="Page not found (404) | earn-defi.com"
+  description="That page doesn't exist. Here are the useful ways back in."
+  noindex={true}
+>
+  <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-28 text-center">
+    <p class="text-xs font-mono uppercase tracking-[0.14em] text-text-faint mb-4">404</p>
+    <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4 leading-tight"
+        data-ru="Такой страницы нет">This page doesn't exist</h1>
+    <p class="text-lg text-slate-400 leading-relaxed mb-10 max-w-lg mx-auto"
+       data-ru="Ссылка могла устареть или содержать опечатку. Вот полезные пути обратно — включая честный 60-секундный снимок риска.">
+      The link may be out of date or mistyped. Here are the useful ways back in — including the honest
+      60-second risk snapshot.
+    </p>
+
+    <div class="flex flex-wrap justify-center gap-3 mb-10">
+      <a href="/" data-track="404_to_home"
+         class="inline-flex items-center px-5 py-2.5 rounded-lg border border-white/15 text-white text-sm font-medium hover:border-white/30 transition-colors"
+         data-ru="На главную">Home</a>
+      <a href="/snapshot" data-track="404_to_snapshot"
+         class="inline-flex items-center px-5 py-2.5 rounded-lg bg-accent-500 hover:bg-accent-400 text-white text-sm font-semibold transition-colors"
+         data-ru="60-секундный снимок →">60-second snapshot →</a>
+      <a href="/packages" data-track="404_to_packages"
+         class="inline-flex items-center px-5 py-2.5 rounded-lg border border-white/15 text-white text-sm font-medium hover:border-white/30 transition-colors"
+         data-ru="Тарифы">Packages</a>
+    </div>
+
+    <p class="text-sm text-slate-500">
+      <span data-ru="Есть ончейн-кошелёк? ">Have an on-chain wallet? </span>
+      <a href="https://checkup.earn-defi.com/check?utm_source=404" data-track="404_to_checkup"
+         class="text-accent-400 underline" data-ru="Проверьте его — только публичный адрес →">Check it — public address only →</a>
+    </p>
+  </main>
+</Layout>
