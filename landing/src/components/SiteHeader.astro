@@ -108,6 +108,9 @@ const itemActive = (href) => (href === '/' ? path === '/' : path === href || pat
     </nav>
 
     <div class="header-right">
+      <!-- J1 (customer-journey-map): the Dashboard was only reachable from the footer — a user couldn't
+           find "show me the desk working". Persistent header link now, as the file's own comment promised. -->
+      <a class="cta-outline cta-dash" href="/dashboard" data-track="header_dashboard" data-ru="Дашборд ↗">Dashboard ↗</a>
       <a class="cta-outline cta-analyze" href="/#analyze" data-track="analyze_wallet" data-ru="Анализ кошелька">Analyze Wallet</a>
       <div id="spa-lang-toggle" class="lang-toggle" role="group" aria-label="Language">
         <button type="button" data-lang="en" aria-pressed="true">EN</button>
@@ -130,6 +133,7 @@ const itemActive = (href) => (href === '/' ? path === '/' : path === href || pat
         ))}
       </details>
     )))}
+    <a class="cta-outline cta-dash" href="/dashboard" data-track="header_dashboard" data-ru="Дашборд ↗">Dashboard ↗</a>
     <a class="cta-outline cta-analyze" href="/#analyze" data-track="analyze_wallet" data-ru="Анализ кошелька">Analyze Wallet</a>
   </div>
 </header>
