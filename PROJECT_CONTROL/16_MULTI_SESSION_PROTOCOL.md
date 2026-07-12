@@ -51,6 +51,16 @@ work or hand off.
   deploy only through `scripts/check_agent_before_deploy.sh`, ≤3 agents per batch. Monitor-only
   otherwise.
 
+## 3b. Owner-gated decisions → write them to the shared questions file (don't lose them in chat)
+When you hit something the owner must decide (a **public number / naming / legal / infra / secret /
+brand narrative** — anything in §3 or the invariants), do NOT block and do NOT invent. Append it to
+**`docs/OWNER_DECISIONS_NEEDED.md`** as a `Q-OWN-NN` block (priority, context, options, recommendation,
+empty **ОТВЕТ:**). The owner answers there in batches (directive 2026-07-12: chat questions get lost
+between loop firings). Every session **re-reads this file at start**: if the owner filled an **ОТВЕТ:**,
+execute it and mark the block RESOLVED (never delete it). Keep the "УЖЕ РЕШЕНО" section current so a
+settled decision (e.g. tier names = Conservative/Balanced/Aggressive; APY display = "up to {max}%") is
+never re-litigated. This is how owner-gated backlog items stay actionable instead of silently dropped.
+
 ## 4. ANNOUNCE every change — the shared session-activity log
 After you finish a change (and before/after pushing), record it so other sessions and the owner see
 what moved:
