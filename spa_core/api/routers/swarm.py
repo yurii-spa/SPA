@@ -41,6 +41,9 @@ _ORGANS = {
               "L3 dynamic-leverage recommendations (refusal-first)"),
     "health": ("swarm/swarm_health.json", "swarm.swarm_health",
                "L4 immune layer — monitors the monitors"),
+    "book": ("swarm/swarm_book.json", "swarm.swarm_book",
+             "the SWARM BOOK — the paper portfolio the swarm actually manages (exercised "
+             "decisions, causal weights, hash-chained trail)"),
 }
 
 
@@ -100,3 +103,10 @@ def get_swarm_brain():
 def get_swarm_health():
     """L4 immune layer — data/swarm/swarm_health.json VERBATIM (fail-closed)."""
     return _serve("health")
+
+
+@router.get("/api/swarm/book")
+def get_swarm_book():
+    """The SWARM BOOK — data/swarm/swarm_book.json VERBATIM (fail-closed). The paper portfolio
+    the swarm actually manages: weights decided BEFORE the bars they apply to."""
+    return _serve("book")

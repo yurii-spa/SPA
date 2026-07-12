@@ -56,9 +56,64 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 AGGRESSIVE_LAB_DIR = REPO_ROOT / "data" / "aggressive_lab"
 STRATEGY_LAB_PAPER_DIR = REPO_ROOT / "data" / "strategy_lab_paper"
 LIVE_TRACK_PATH = REPO_ROOT / "data" / "equity_curve_daily.json"
+RTMR_POSTURE_PATH = REPO_ROOT / "data" / "monitoring" / "risk_posture.json"
 SWARM_DIR = REPO_ROOT / "data" / "swarm"
 STATUS_NAME = "guardian_forward.json"
 PROOF_NAME = "guardian_forward_proof.jsonl"
+
+# ── RTMR exogenous wiring (упреждение раньше собственной vol) ──────────────────────────────────
+# Which RTMR posture keys concern which book (matched case-insensitively as substrings against
+# the posture entry keys). HONEST SEMANTICS: a posture entry frozen for a STALE/BLIND SENSOR is
+# RTMR's own fail-closed housekeeping, NOT market trouble — it must never cascade into a false
+# aggressive de-risk (mirrors RTMR's "systemic exit only on FRESH critical" rule). Only entries
+# whose reason is NOT staleness count as an exogenous de-risk signal.
+BOOK_POSTURE_KEYS: Dict[str, tuple] = {
+    "susde_dn": ("usde", "susde", "ethena", "usdt", "usdc"),
+    "susde_spot": ("usde", "susde", "ethena"),
+    "pendle_pt_levered": ("usde", "susde", "pendle"),
+    "pendle_yt_susde": ("usde", "susde", "pendle"),
+    "points_farm": ("usde", "susde", "ethena"),
+    "eth_directional": ("eth",),
+    "lrt_neutral": ("eth", "eeth", "weeth", "restaking"),
+    "levered_restaking": ("eth", "steth", "reth"),
+    "leverage_loop": ("eth", "steth"),
+    "lp_eth_stable": ("eth", "usdc"),
+}
+_EXOGENOUS_STATES = {"FULL_EXIT", "REDUCE", "FROZEN"}  # FROZEN counts only if reason ≠ staleness
+
+
+def _load_rtmr_entries(path: Path = RTMR_POSTURE_PATH) -> Dict[str, dict]:
+    try:
+        doc = json.loads(path.read_text())
+        entries = doc.get("entries") if isinstance(doc, dict) else None
+        return entries if isinstance(entries, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _rtmr_context_for(book: str, entries: Dict[str, dict]) -> Optional[dict]:
+    """The book's slice of the RTMR posture + the honest exogenous verdict."""
+    keys = BOOK_POSTURE_KEYS.get(book)
+    if not keys or not entries:
+        return None
+    hits = {}
+    exogenous = False
+    for name, e in entries.items():
+        if not isinstance(e, dict):
+            continue
+        low = str(name).lower()
+        if any(k in low for k in keys):
+            state = str(e.get("state", ""))
+            reason = str(e.get("reason", ""))
+            stale = "stale" in reason.lower() or "blind" in reason.lower()
+            hits[name] = {"state": state, "reason": reason, "stale_sensor": stale}
+            if state in _EXOGENOUS_STATES and not stale:
+                exogenous = True
+    if not hits:
+        return None
+    return {"entries": hits, "exogenous_derisk": exogenous,
+            "note": "stale/blind-sensor freezes are RTMR housekeeping, not market trouble — "
+                    "they never trigger the exogenous flag"}
 
 # OOS-validated params (docs/DYNAMIC_LEVERAGE_GUARDIAN.md idea #1 / scripts/guardian_backtest.py sweep).
 # min_vol: absolute daily-vol floor guarding zero-vol books from numeric-dust false de-risks
@@ -210,6 +265,67 @@ def _guard_book(book_dir: Path) -> dict:
     }
 
 
+# ── Systemic sentinel (В): the one slow risk no per-book guardian can see ──────────────────────
+SYSTEMIC_CORR_WINDOW = 30      # trailing daily returns per book
+SYSTEMIC_CORR_THRESHOLD = 0.7  # median pairwise corr above this = books moving as one
+SYSTEMIC_MIN_DERISKED = 2      # AND at least this many guardians already fired
+
+
+def _pearson(a: List[float], b: List[float]) -> Optional[float]:
+    n = min(len(a), len(b))
+    if n < 5:
+        return None
+    a, b = a[-n:], b[-n:]
+    ma, mb = sum(a) / n, sum(b) / n
+    va = sum((x - ma) ** 2 for x in a) ** 0.5
+    vb = sum((x - mb) ** 2 for x in b) ** 0.5
+    if va < 1e-12 or vb < 1e-12:
+        return None  # a flat book has no co-movement to measure — exclude, don't fake 0
+    return sum((a[i] - ma) * (b[i] - mb) for i in range(n)) / (va * vb)
+
+
+def _systemic_sentinel(books: Dict[str, dict], agg_dir: Path) -> dict:
+    """Cross-book contagion watch: in a SYSTEMIC crisis all crypto legs correlate toward 1 —
+    the registry's own honest caveat, which no per-book guardian can see. Deterministic:
+    median pairwise correlation of trailing daily returns + count of already-derisked guardians.
+    SIGNAL-ONLY here; the swarm book (block A) is the consumer that acts on it (paper)."""
+    rets: Dict[str, List[float]] = {}
+    for name in books:
+        entries = _load_series(agg_dir / name)[-1 - SYSTEMIC_CORR_WINDOW:]
+        # returns WITHIN a phase only — the backtest→forward seam is an equity RE-BASE
+        # (163k → 100k), not a market move; naive returns across it fabricate a giant
+        # common "crash" that dominates every correlation (caught live 2026-07-11)
+        r = [float(entries[i]["equity_usd"]) / float(entries[i - 1]["equity_usd"]) - 1.0
+             for i in range(1, len(entries))
+             if float(entries[i - 1].get("equity_usd") or 0) > 0
+             and entries[i].get("phase") == entries[i - 1].get("phase")]
+        if len(r) >= 5:
+            rets[name] = r
+    names = sorted(rets)
+    corrs: List[float] = []
+    for i in range(len(names)):
+        for j in range(i + 1, len(names)):
+            c = _pearson(rets[names[i]], rets[names[j]])
+            if c is not None:
+                corrs.append(c)
+    median_corr = sorted(corrs)[len(corrs) // 2] if corrs else None
+    derisked = sorted(n for n, v in books.items() if v.get("state") == "DERISKED")
+    systemic = (median_corr is not None and median_corr > SYSTEMIC_CORR_THRESHOLD
+                and len(derisked) >= SYSTEMIC_MIN_DERISKED)
+    return {
+        "state": "SYSTEMIC" if systemic else "NORMAL",
+        "median_pairwise_corr": round(median_corr, 4) if median_corr is not None else None,
+        "pairs_measured": len(corrs),
+        "books_in_window": names,
+        "derisked_now": derisked,
+        "thresholds": {"corr": SYSTEMIC_CORR_THRESHOLD, "min_derisked": SYSTEMIC_MIN_DERISKED,
+                       "window_days": SYSTEMIC_CORR_WINDOW},
+        "note": ("SYSTEMIC = books co-moving (median corr > threshold) AND ≥N guardians already "
+                 "fired — the all-to-cash recommendation for the swarm paper book. Window mixes "
+                 "backtest+forward bars while the forward track is young (honest, converges)."),
+    }
+
+
 # ── S1 shadow domains: Strategy-Lab sleeves + the LIVE conservative track (signal-only) ────────
 def _guard_shadow(dates: List[str], equity: List[float], *, domain: str) -> dict:
     """Pure SHADOW guardian over one continuous daily series: live signal + what-if overlay.
@@ -319,11 +435,23 @@ def run_forward_guardian(
     domain) + the S1 SHADOW domains (Strategy-Lab sleeves + live conservative track, signal-only).
     Writes the status JSON + daily proof line; deterministic given the inputs (timestamp aside)."""
     books: Dict[str, dict] = {}
+    rtmr_entries = _load_rtmr_entries()
     if agg_dir.is_dir():
         for book_dir in sorted(p for p in agg_dir.iterdir() if p.is_dir()):
             if (book_dir / "realized_series.jsonl").exists():
-                books[book_dir.name] = _guard_book(book_dir)
+                view = _guard_book(book_dir)
+                ctx = _rtmr_context_for(book_dir.name, rtmr_entries)
+                if ctx is not None:
+                    view["rtmr"] = ctx
+                    # exogenous OR-gate: RTMR sees real (non-stale) trouble on this book's
+                    # assets → the guardian de-risks NOW, without waiting for the daily bar
+                    if ctx["exogenous_derisk"] and view.get("state") == "ARMED":
+                        view["state"] = "DERISKED"
+                        view["exposure_now"] = 0.0
+                        view["derisk_source"] = "rtmr_exogenous"
+                books[book_dir.name] = view
     shadow = _shadow_domains(sleeves_dir, live_track_path)
+    systemic = _systemic_sentinel(books, agg_dir)
     doc = {
         "domain": "swarm.guardian_forward",
         "label": "SWARM L2 position guardians / ADVISORY / paper / OUTSIDE_RISKPOLICY",
@@ -337,6 +465,7 @@ def run_forward_guardian(
             "labeled per book; guarded numbers are paper, not realized capital."
         ),
         "books": books,
+        "systemic": systemic,
         "shadow": shadow,
         "summary": {
             "books": len(books),

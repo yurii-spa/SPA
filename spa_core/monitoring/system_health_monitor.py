@@ -919,6 +919,7 @@ class SystemHealthMonitor:
             ("d6.red_flags", self._check_red_flags),
             ("d6.killswitch", self._check_killswitch),
             ("d6.safety_state", self._check_safety_state),
+            ("d6.swarm", self._check_swarm),
         )
         out: list[CheckResult] = []
         for cid, fn in gates:
@@ -1019,6 +1020,43 @@ class SystemHealthMonitor:
                                evidence={"flags": [f.get("message", f.get("protocol", "?")) for f in crit[:5]]})
         return CheckResult("d6.red_flags", D, OK,
                            f"no CRITICAL red flags ({len(flags)} total)")
+
+    def _check_swarm(self, D: str) -> CheckResult:
+        """SPA Swarm immune-layer rollup (docs/SWARM_ARCHITECTURE.md). The swarm is ADVISORY
+        (paper-only, zero authority over live) so its problems are never CRITICAL here — but a
+        silently dead monitoring swarm is worse than none (consumers keep reading yesterday's
+        'all calm'), so missing/stale/WARNING surfaces as WARNING in the daily health reports."""
+        path = self.data_dir / "swarm" / "swarm_health.json"
+        try:
+            doc = json.loads(path.read_text())
+        except FileNotFoundError:
+            return CheckResult("d6.swarm", D, WARNING,
+                               "swarm_health.json missing — swarm immune layer never ran?")
+        except Exception as exc:           # noqa: BLE001
+            return CheckResult("d6.swarm", D, WARNING,
+                               "swarm_health.json unreadable", error=repr(exc))
+        age_h = None
+        try:
+            ts = datetime.fromisoformat(str(doc.get("as_of_utc")))
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            age_h = (datetime.now(timezone.utc) - ts).total_seconds() / 3600.0
+        except (ValueError, TypeError):
+            pass
+        if age_h is None or age_h > 3.0:
+            return CheckResult("d6.swarm", D, WARNING,
+                               f"swarm_health stale ({age_h and round(age_h, 1)}h > 3h) — "
+                               "hourly immune agent not ticking",
+                               evidence={"age_hours": age_h})
+        if doc.get("overall") != "OK":
+            bad = [name for name, o in (doc.get("organs") or {}).items()
+                   if isinstance(o, dict) and not o.get("ok")]
+            return CheckResult("d6.swarm", D, WARNING,
+                               f"swarm immune layer WARNING (organs: {', '.join(bad) or '?'})",
+                               evidence={"organs": bad})
+        return CheckResult("d6.swarm", D, OK,
+                           f"swarm OK ({len(doc.get('organs') or {})} organs, "
+                           f"{round(age_h, 2)}h old; advisory domain)")
 
     def _check_killswitch(self, D: str) -> CheckResult:
         """DRY read-only probe: KillSwitchChecker.is_kill_switch_active() evaluates

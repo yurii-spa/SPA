@@ -18,7 +18,7 @@ def client():
 
 
 ENDPOINTS = ["/api/swarm/guardian", "/api/swarm/regime", "/api/swarm/blend",
-             "/api/swarm/brain", "/api/swarm/health"]
+             "/api/swarm/brain", "/api/swarm/health", "/api/swarm/book"]
 
 
 @pytest.mark.parametrize("path", ENDPOINTS)

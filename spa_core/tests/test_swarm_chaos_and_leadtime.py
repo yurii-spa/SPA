@@ -40,6 +40,9 @@ def _healthy_swarm(d: Path) -> None:
                                           "levered_shape": False,
                                           "factors": {"depth_factor": 1.0}}}}))
     (d / "leverage_brain_proof.jsonl").write_text(_proof_line({"recos": {}}))
+    (d / "swarm_book.json").write_text(json.dumps(
+        {"as_of_utc": ts, "equity": 100_000.0, "weights": {"b": 0.25}}))
+    (d / "swarm_book_proof.jsonl").write_text(_proof_line({"equity": 100_000.0}))
 
 
 def test_chaos_drill_all_scenarios_caught(tmp_path):

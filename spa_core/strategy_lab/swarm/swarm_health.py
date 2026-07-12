@@ -42,6 +42,7 @@ ORGANS = {
     "blend_forward": {"status": "blend_forward.json", "proof": "blend_forward_proof.jsonl"},
     "funding_regime": {"status": "funding_regime.json", "proof": "funding_regime_proof.jsonl"},
     "leverage_brain": {"status": "leverage_brain.json", "proof": "leverage_brain_proof.jsonl"},
+    "swarm_book": {"status": "swarm_book.json", "proof": "swarm_book_proof.jsonl"},
 }
 
 _KNOWN_BLEND_STATES = {"TRACKING", "WARMUP", "DEGRADED", "STALE_LEG"}
@@ -113,6 +114,16 @@ def _contract_check(organ: str, doc: dict) -> tuple[bool, str]:
             if str(b.get("state", "")).startswith("REFUSED") and reco is not None:
                 return False, f"{name}: state REFUSED but reco={reco} — must be null"
         return True, f"{len(doc.get('books') or {})} books, refusal invariant holds"
+    if organ == "swarm_book":
+        if not isinstance(doc.get("equity"), (int, float)) or doc["equity"] <= 0:
+            return False, f"equity invalid: {doc.get('equity')!r}"
+        weights = doc.get("weights")
+        if not isinstance(weights, dict):
+            return False, "weights missing"
+        total = sum(v for v in weights.values() if isinstance(v, (int, float)))
+        if total > 1.0 + 1e-6:
+            return False, f"weights sum {total:.4f} > 1 — the book can never be levered"
+        return True, f"equity ${doc['equity']:,.0f}, {len(weights)} books, Σw={total:.3f}"
     return False, "unknown organ"
 
 

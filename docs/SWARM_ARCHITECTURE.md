@@ -152,6 +152,23 @@ re-enter) — экономически ничто, кризисная vol 0.5–
 
 ---
 
+## ⚡ Раунд-2 усилений (owner: «глубже, сверх построенного», 2026-07-11 — все построены)
+
+| # | Усиление | Что закрывает | Статус |
+|---|---|---|---|
+| **А** | **SWARM BOOK** (`swarm/swarm_book.py`, step-2 wrapper'а swarm_brain, `/api/swarm/book`): $100k paper-портфель, которым рой РЕАЛЬНО управляет — веса = brain-reco × guardian × RTMR × systemic, решаются ДО баров (causality contract: init без ретро-применения, append-only история, daily proof-chain), concentration cap 25%/книгу, Σw≤1 железно (иммунитет проверяет), fail-closed ALL-CASH на stale-входах | главную дыру: решения роя раньше никем не исполнялись → через 30 дней был бы только raw-трек + гипотетические оверлеи. Теперь будет exercised-трек решений | ✅ live (день 1: 7 книг взвешено, 3 levered исключены автоматически) |
+| **Б** | RTMR → стражи (экзогенный OR-gate в `guardian_forward`): карта книга→posture-ключи, per-book `rtmr`-контекст; state FULL_EXIT/REDUCE/FROZEN с НЕ-staleness причиной → мгновенный DERISK (`derisk_source: rtmr_exogenous`), staleness-freeze = housekeeping RTMR и НИКОГДА не каскадит (зеркалит правило самого RTMR) | стражи видели только дневные бары (реакция до суток); RTMR тикает ~45с | ✅ live (сейчас честно: все хиты — stale-freezes, exogenous=false) |
+| **В** | Системный часовой (`_systemic_sentinel` в guardian): медианная парная корр доходностей книг (внутри-фазово — seam-артефакт re-base пойман и исключён) + счёт derisked-стражей → SYSTEMIC → Swarm Book идёт ALL-CASH | «в системный кризис все крипто-ноги коррелируют к 1» — единственный медленный риск, который per-book стражи не видят | ✅ live (NORMAL, corr 0.09) |
+| **Г** | `d6.swarm`-гейт в `system_health_monitor`: missing/stale>3h/WARNING роя → WARNING в утренние/вечерние health-отчёты и Telegram | рой молча умирал в JSON, который никто не читал | ✅ live (d6.swarm OK) |
+
+**Иммунитет окупился в тот же час:** контракт «Σw>1 = никогда» поймал rounding-dust
+(Σ=1.000004) первого же живого тика Swarm Book → источник исправлен (детерминированный shave
+крупнейшего веса). Отброшено сознательно: 1000 агентов/ML-предсказания (шум, LLM-FORBIDDEN),
+углубление плечо-математики (недоказуемо вперёд до форвардных фактов), любое касание
+консервативного цикла вне S2→ADR-лестницы.
+
+---
+
 *Создан 2026-07-11. Связан: `docs/DYNAMIC_LEVERAGE_GUARDIAN.md` (реестр идей + числа),
 `docs/THREE_TIER_YIELD_PRODUCT.md` (продуктовый charter), `docs/RTMR_INTEGRATION_MAP.md` (L0),
 `docs/RATES_DESK.md` (fair-value/refusal), `docs/STRATEGY_LAB.md` (harness).*

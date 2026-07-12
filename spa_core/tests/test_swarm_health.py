@@ -39,6 +39,9 @@ def _healthy_swarm(d: Path, age_h: float = 0.5) -> None:
             "leverage_loop": {"state": "REFUSED_NO_DEPTH", "leverage_reco": None,
                               "levered_shape": True, "factors": {"depth_factor": None}}}}))
     (d / "leverage_brain_proof.jsonl").write_text(_proof_line({"recos": {}}))
+    (d / "swarm_book.json").write_text(json.dumps(
+        {"as_of_utc": ts, "equity": 100_000.0, "weights": {"susde_dn": 0.25}}))
+    (d / "swarm_book_proof.jsonl").write_text(_proof_line({"equity": 100_000.0}))
 
 
 def test_all_healthy_ok(tmp_path):
@@ -101,3 +104,14 @@ def test_status_written(tmp_path):
     sh.run_swarm_health(now=NOW, swarm_dir=tmp_path)
     saved = json.loads((tmp_path / sh.STATUS_NAME).read_text())
     assert saved["overall"] == "OK" and "fail-closed" in saved["note"]
+
+
+def test_swarm_book_levered_weights_caught(tmp_path):
+    """The book must never be levered: Σweights > 1 trips the immune layer."""
+    _healthy_swarm(tmp_path)
+    (tmp_path / "swarm_book.json").write_text(json.dumps(
+        {"as_of_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+         "equity": 100_000.0, "weights": {"a": 0.8, "b": 0.6}}))
+    doc = sh.run_swarm_health(now=datetime.now(timezone.utc), swarm_dir=tmp_path)
+    assert doc["overall"] == "WARNING"
+    assert "never be levered" in doc["organs"]["swarm_book"]["contract"]["detail"]
