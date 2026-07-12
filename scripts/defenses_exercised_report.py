@@ -46,8 +46,73 @@ from spa_core.governance.kill_switch import (  # noqa: E402
 )
 from spa_core.paper_trading.cycle_gates import apply_soft_derisk_gate  # noqa: E402
 from spa_core.paper_trading.pre_cutover_gate import _curve_for_drawdown  # noqa: E402
+from spa_core.monitoring import signal as S  # noqa: E402  (RTMR sensor-signal constructor)
+from spa_core.monitoring import reaction as RX  # noqa: E402  (RTMR de-risk reaction ladder)
 
 _OUT = _ROOT / "data" / "defenses_exercised.json"
+
+# RTMR reaction config (§5.2): 3 distinct FRESH warn/critical scopes ⇒ systemic MARKET_EXIT.
+_RTMR_CFG = {"systemic": {"warn_protocols_n": 3}}
+
+
+def _rtmr_rows() -> list:
+    """Family 4 — RTMR monitoring plane (Q2-13). Replay the REAL production reaction ladder
+    (``spa_core.monitoring.reaction.evaluate``, the same code the live sense-loop runs) over
+    labelled sensor signals modelled on the real stress events (ETH-crash 2024-08, USDe-unwind
+    2025-10, rsETH-depeg 2026-04) and assert the de-risk action fires. INERT: pure signal→action
+    logic, no live ``data/`` touched, no capital math, no Telegram. Extends "the brakes provably
+    work" from the portfolio kill-switch to the live monitoring plane."""
+    def _sig(source, scope, severity, stale=False):
+        return S.make_signal(ts=1, source=source, scope=scope, metric="stress", value=0.0,
+                             severity=severity, threshold_crossed=True, staleness_ok=not stale)
+
+    def _kinds(signals):
+        return sorted({a.kind for a in RX.evaluate(signals, _RTMR_CFG)})
+
+    def _one(source, scope, severity, expected, event, stale=False):
+        acts = RX.evaluate([_sig(source, scope, severity, stale)], _RTMR_CFG)
+        actual = acts[0].kind if acts else "NONE"
+        de_risk = all(a.is_de_risk_only() for a in acts)
+        return _row(f"rtmr_{source}_{severity if not stale else 'stale'}", "rtmr_reaction",
+                    "monitoring.reaction.evaluate", expected,
+                    actual if de_risk else f"{actual}(NOT_DE_RISK)", event)
+
+    rows = [
+        # peg / tvl / liquidity: critical → FULL_EXIT, warn → REDUCE (the real crisis mapping)
+        _one("peg", "ethena:USDe", S.CRITICAL, RX.FULL_EXIT, "USDe-unwind 2025-10 pattern (depeg critical)"),
+        _one("peg", "kelp:rsETH", S.WARN, RX.REDUCE, "rsETH-depeg 2026-04 pattern (warn tier)"),
+        _one("tvl", "some_pool", S.CRITICAL, RX.FULL_EXIT, "protocol TVL collapse (exit-liquidity flight)"),
+        _one("liquidity", "eth_pool", S.CRITICAL, RX.FULL_EXIT, "ETH-crash 2024-08 pattern (exit liquidity gone)"),
+        # oracle: freeze-first (fail-closed) on critical, tighten on warn
+        _one("oracle", "chainlink:ETH", S.CRITICAL, RX.FREEZE, "oracle bad-price → freeze first (fail-closed)"),
+        _one("oracle", "chainlink:USDC", S.WARN, RX.TIGHTEN, "oracle drift warn → tighten cap"),
+        # fail-closed: a stale/blind sensor de-risks by FREEZE regardless of value
+        _one("peg", "coingecko:USDC", S.INFO, RX.FREEZE, "stale/blind sensor → freeze (fail-closed)", stale=True),
+    ]
+
+    # systemic: 3 distinct FRESH warn scopes ⇒ portfolio-wide MARKET_EXIT
+    systemic_sigs = [_sig("peg", f"proto_{i}", S.WARN) for i in range(3)]
+    sys_kinds = _kinds(systemic_sigs)
+    rows.append(_row("rtmr_systemic_market_exit", "rtmr_reaction", "monitoring.reaction.evaluate",
+                     "MARKET_EXIT_present", "MARKET_EXIT_present" if RX.MARKET_EXIT in sys_kinds else "ABSENT",
+                     "3 fresh degraded scopes at once → whole-portfolio defensive exit (§5.2)"))
+
+    # anti-false-cascade: MANY STALE sensors = data outage (often our own rate-limit), must NOT
+    # cascade the whole portfolio to MARKET_EXIT — each stale scope FREEZEs individually only.
+    stale_sigs = [S.stale_signal(ts=1, source="tvl", scope=f"s{i}") for i in range(3)]
+    stale_kinds = _kinds(stale_sigs)
+    rows.append(_row("rtmr_stale_no_false_cascade", "rtmr_reaction", "monitoring.reaction.evaluate",
+                     "no_MARKET_EXIT", "no_MARKET_EXIT" if RX.MARKET_EXIT not in stale_kinds else "FALSE_CASCADE",
+                     "3 STALE sensors (data outage) must NOT cascade to systemic exit — freeze only"))
+
+    # global de-risk-only invariant across the whole batch (§1.4): no action ever raises exposure
+    everything = ([_sig("peg", "a", S.CRITICAL), _sig("oracle", "b", S.WARN),
+                   _sig("tvl", "c", S.WARN)] + systemic_sigs + stale_sigs)
+    all_de_risk = all(a.is_de_risk_only() for a in RX.evaluate(everything, _RTMR_CFG))
+    rows.append(_row("rtmr_de_risk_only_invariant", "rtmr_reaction", "reaction.Action.is_de_risk_only",
+                     "all_de_risk", "all_de_risk" if all_de_risk else "VIOLATED",
+                     "every reaction across the batch strictly REDUCES risk — never raises exposure"))
+    return rows
 
 
 def _row(scenario: str, family: str, fn: str, expected: str, actual: str, detail: str = "") -> dict:
@@ -128,6 +193,9 @@ def run() -> dict:
     rows[-2]["fired"] = ok_new
     rows[-1]["fired"] = ok_reduce
 
+    # ── Family 4: RTMR monitoring plane — the live reaction ladder fires on sensor stress ──
+    rows.extend(_rtmr_rows())
+
     all_fired = all(r["fired"] for r in rows)
 
     # ── Honest contrast: the SAME classifier on the REAL live curve (if present) ──
@@ -158,6 +226,7 @@ def run() -> dict:
         "governance_modules": [
             "spa_core.governance.kill_switch",
             "spa_core.paper_trading.cycle_gates",
+            "spa_core.monitoring.reaction",  # Q2-13: RTMR de-risk reaction ladder (live monitoring plane)
         ],
         "all_defenses_fired": all_fired,
         "scenarios_total": len(rows),
