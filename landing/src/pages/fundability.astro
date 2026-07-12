@@ -83,6 +83,10 @@ import Disclaimer from '../components/Disclaimer.astro';
             combined across sleeves, after a correlation haircut, the honest figure is lower still.
             <span class="font-mono">$10M = scale + decorrelation + AUM</span> — NOT reachable today.
             <span id="fb-capacity-live" class="block mt-1 text-xs font-mono" style="color:var(--text-muted)"></span>
+            <!-- Q2-1 surface: the measured N-book scale curve — turns "$10M not reachable" from an
+                 assertion into a deterministic plateau (adding books plateaus; the last book adds ~$0).
+                 The honest ceiling is structural (thin PT depth), not effort. -->
+            <span id="fb-nbook-live" class="block mt-1 text-xs font-mono" style="color:var(--text-faint)"></span>
           </li>
           <li data-ru="Капитал бумажный. $0 реального капитала. Это исследовательский/бумажный трек на виртуальном портфеле $100k. Не инвестиционный совет, не прогноз.">
             <strong style="color:var(--text-primary)">The capital is paper.</strong> $0 real capital.
@@ -396,7 +400,28 @@ import Disclaimer from '../components/Disclaimer.astro';
         }).catch(function () {});
       }
 
-      function init() { loadChain(); loadReadiness(); loadCapacity(); }
+      /* Q2-1: the measured N-book scale curve — the honest ceiling as a deterministic plateau, not an
+         assertion. Fail-quiet (absent → leave blank; the static bullet stays authoritative). */
+      function loadNbook() {
+        fetch(API + '/api/rates-desk/n-book-capacity').then(function (r) { return r.json(); }).then(function (d) {
+          if (!d || d.flagged) return;
+          var plateau = fbUsd(d.plateau_above_floor_usd_per_yr);
+          var atN = d.plateau_at_n_books;
+          var marg = fbUsd(d.marginal_value_of_last_book_usd_per_yr);
+          if (!plateau || atN == null) return;
+          var en = 'The rates-carry book ALONE (same-rail stacking, distinct from the combined figure above) '
+                 + 'plateaus at ~' + plateau + '/yr above floor by ' + atN + ' books'
+                 + (marg ? ' — the last book adds only ~' + marg + '/yr' : '')
+                 + '. That ceiling is structural (thin PT depth), not effort.';
+          var ru = 'Rates-carry книга ОТДЕЛЬНО (стек по одному рельсу, это НЕ комбинированное число выше) '
+                 + 'выходит на плато ~' + plateau + '/год над флором к ' + atN + ' книгам'
+                 + (marg ? ' — последняя книга добавляет лишь ~' + marg + '/год' : '')
+                 + '. Этот потолок структурный (тонкая глубина PT), не вопрос усилий.';
+          setText('fb-nbook-live', isRu() ? ru : en);
+        }).catch(function () {});
+      }
+
+      function init() { loadChain(); loadReadiness(); loadCapacity(); loadNbook(); }
       if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
       else { init(); }
     })();
