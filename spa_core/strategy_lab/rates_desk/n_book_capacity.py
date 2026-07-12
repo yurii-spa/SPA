@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.errors import SPAError
 
 _DATA = Path(__file__).resolve().parent.parent.parent.parent / "data"
 _CAPACITY_JSON = _DATA / "rates_desk" / "capacity.json"
@@ -41,9 +42,9 @@ def _load_capacity() -> dict:
     try:
         d = json.loads(_CAPACITY_JSON.read_text())
     except (OSError, ValueError) as e:
-        raise RuntimeError(f"n_book_capacity: capacity.json unreadable ({e}); run capacity.py first") from e
+        raise SPAError(f"n_book_capacity: capacity.json unreadable ({e}); run capacity.py first") from e
     if not d.get("aum_levels"):
-        raise RuntimeError("n_book_capacity: capacity.json has no aum_levels")
+        raise SPAError("n_book_capacity: capacity.json has no aum_levels")
     return d
 
 
@@ -56,7 +57,7 @@ def _spread_fn(cap: dict):
         for r in cap["aum_levels"] if r.get("aum_usd") and r.get("book_net_apy_pct") is not None
     )
     if not pts:
-        raise RuntimeError("n_book_capacity: no usable aum_levels points")
+        raise SPAError("n_book_capacity: no usable aum_levels points")
 
     def spread(size_usd: float) -> float:
         if size_usd <= pts[0][0]:
@@ -80,7 +81,7 @@ def _live_books() -> Tuple[List[dict], dict]:
     lc = VE.build_report(enabled=False).get("live_curve") or {}
     curve = lc.get("curve") or []
     if not curve:
-        raise RuntimeError("n_book_capacity: venue live_curve empty (no fundable PT books)")
+        raise SPAError("n_book_capacity: venue live_curve empty (no fundable PT books)")
     return curve, lc
 
 

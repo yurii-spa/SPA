@@ -865,7 +865,10 @@ def test_d6_sub_gate_exception_is_isolated(good_dir, monkeypatch):
     # d6.safety_state (D3-T3) is the 5th gate — present with a clean (no
     # de-risk / no kill files in a good_dir) verdict.
     assert by_id(res, "d6.safety_state") is not None
-    assert len(res) == 5
+    # d6.swarm (ADR-YL swarm immune layer) is the 6th gate — present; absence of
+    # swarm_health.json in a good_dir degrades to WARNING (never ran), not a domain abort.
+    assert by_id(res, "d6.swarm") is not None
+    assert len(res) == 6
 
 
 # ---------------------------------------------------------------------------

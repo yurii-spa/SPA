@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.errors import SPAError
 
 _DATA = Path(__file__).resolve().parent.parent.parent.parent / "data"
 _PRICES = _DATA / "rates_desk" / "prices_deep.json"
@@ -54,7 +55,7 @@ def _load(path: Path, what: str) -> dict:
     try:
         return json.loads(path.read_text())
     except (OSError, ValueError) as e:
-        raise RuntimeError(f"refusal_value: {what} unreadable ({e})") from e
+        raise SPAError(f"refusal_value: {what} unreadable ({e})") from e
 
 
 def _peg_drawdown(lrt_series: Dict[str, float], eth_series: Dict[str, float]) -> Optional[dict]:
@@ -97,7 +98,7 @@ def build_report(write: bool = True) -> dict:
     pt_hist = _load(_PT_HIST, "pendle_pt_history.json")
     eth = prices.get("eth") or {}
     if not eth:
-        raise RuntimeError("refusal_value: no ETH peg reference series")
+        raise SPAError("refusal_value: no ETH peg reference series")
 
     events: List[dict] = []
     unpriced: List[dict] = []

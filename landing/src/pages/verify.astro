@@ -26,9 +26,9 @@
 import Layout from '../layouts/Layout.astro';
 import Disclaimer from '../components/Disclaimer.astro';
 
-// Pinned verifier release (mirror of docs/VERIFIER_RELEASE.md · verifier-v1.0).
-const VERIFIER_VERSION = 'verifier-v1.1';
-const VERIFIER_SHA256 = 'bbc4853a33b0e92c52dd8d408d6572f01b5184989ce291a00b2268a6acd67cbb';
+// Pinned verifier release (mirror of docs/VERIFIER_RELEASE.md · verifier-v1.2).
+const VERIFIER_VERSION = 'verifier-v1.2';
+const VERIFIER_SHA256 = 'f560aed8260bb324ef0a3a5f0001ea5c33777c389f32a8914f69c3aebe74d078';
 const VERIFIER_FILE = 'scripts/verify_spa.py';
 
 // The four independent proofs the verifier reproduces (PROOF_CHAIN_SPEC §3/§5/§6/§6a/§8).
@@ -97,7 +97,7 @@ const proofs = [
                 style="background:var(--accent-bg);border:1px solid var(--accent-dim);color:var(--accent-hover)">1</span>
           <p class="text-xs leading-relaxed" style="color:var(--text-secondary)"
              data-ru="Скачайте verify_spa.py и дёрните полные цепочки с /api/rates-desk/full-chain/* (каждый эндпоинт отдаёт весь файл целиком, без обрезки).">
-            Download <a href="https://raw.githubusercontent.com/yurii-spa/SPA/verifier-v1.1/scripts/verify_spa.py" class="font-mono underline" style="color:var(--accent-400)" data-track="verify_download_script">verify_spa.py</a> and pull the full chains from
+            Download <a href="https://raw.githubusercontent.com/yurii-spa/SPA/main/scripts/verify_spa.py" class="font-mono underline" style="color:var(--accent-400)" data-track="verify_download_script">verify_spa.py</a> and pull the full chains from
             <span class="font-mono">/api/rates-desk/full-chain/*</span> (each serves the WHOLE file, uncapped).
           </p>
         </li>
