@@ -203,7 +203,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
             <li><span class="k" data-ru="Макс. просадка">Max drawdown</span><span class="v" data-fb="dd" data-ru={pkgDDru('conservative')}>{pkgDD('conservative')}</span></li>
             <li><span class="k" data-ru="Состав">Tier mix</span><span class="v">T1</span></li>
           </ul>
-          <p class="tier-who" data-ru="Капитал прежде всего — только пулы Уровня 1.">Capital-first — Tier 1 pools only.</p>
+          <p class="tier-who" style="color:#34d399" data-ru="Реальная книга, которую деск ведёт сегодня — живой бумажный трек с 22 июня 2026, ~3.3% реализовано. Только пулы Уровня 1.">The real book the desk runs today — a live paper track since June 22, 2026, ~3.3% realized so far. Tier 1 pools only.</p>
           <a class="btn-card" href="/strategies/conservative" data-track="tier_view_conservative" data-ru="Подробнее →">View strategy details →</a>
         </div>
         <div class="tier-card t-core">
@@ -229,7 +229,7 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
             <li><span class="k" data-ru="Макс. просадка">Max drawdown</span><span class="v" data-fb="dd" data-ru={pkgDDru('aggressive')}>{pkgDD('aggressive')}</span></li>
             <li><span class="k" data-ru="Состав">Tier mix</span><span class="v">T1 + T2</span></li>
           </ul>
-          <p class="tier-who" style="color:#eab308" data-ru="Research/paper — деск ОТКАЗЫВАЕТ это для live. Реальный датированный хвост: нехеджированная книга потеряла ~50% на обвале ETH. Стабильные 20% — это не альфа, а хвост.">Research/paper — the desk REFUSES this for live. Real dated tail: an unhedged book lost ~50% through the ETH crash. A stable 20% is not alpha — it is a tail.</p>
+          <p class="tier-who" data-ru="Advisory-исследование — paper-тест в Aggressive Lab, никогда не в live. Хвост показан честно, не спрятан.">Advisory research — paper-tested in the Aggressive Lab, never live-allocated. The tail is shown honestly, not hidden.</p>
           <a class="btn-card" href="/strategies/aggressive" data-track="tier_view_aggressive" data-ru="Подробнее →">View strategy details →</a>
         </div>
       </div>
