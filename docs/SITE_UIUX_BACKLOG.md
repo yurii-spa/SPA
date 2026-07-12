@@ -54,7 +54,7 @@ WHERE THE SITE DIVERGES:
 ## Prioritized backlog
 
 
-> **Loop-shipped 2026-07-12:** UX-05 (partial safe scope — sitemap drops 3 noindex tier redirect-stubs, `1eebd929`) · UX-31 (faq stale 'a third of the way' removed, `498dad40`). funnels.astro IIFE bug already fixed upstream.
+> **Loop-shipped 2026-07-12:** UX-24 (owner: show MAX 'up to 6/12/20%' everywhere, ~3.3% realized as context — index/strategies/system/packages/faq/leverage-loops · bc0e9b10/94e06498) · UX-27 (aggressive 'no liquidation risk' contradiction ×7 → honest cascade/depeg tail · 3e2f14e4) · UX-14 (dead volatile-badge read removed · 86ff6b96) · UX-15 (journey wiring: /pilot reachable from /packages + /conservative · 5199ae5d; copy/nav-item + UX-16/17 personal-Gmail contact stay OWNER-GATED) · UX-05 (partial safe scope — sitemap drops 3 noindex tier redirect-stubs, `1eebd929`) · UX-31 (faq stale 'a third of the way' removed, `498dad40`). funnels.astro IIFE bug already fixed upstream.
 
 ### — NOW —
 
