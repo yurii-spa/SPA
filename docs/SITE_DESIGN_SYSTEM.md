@@ -176,8 +176,8 @@ qualifier. This is a lab notebook, not a fund pitch.
 /* Text */
 --text-primary:   #E8EAF0   /* headings, key numbers */
 --text-secondary: #A6ADBB   /* body */
---text-muted:     #6B7280   /* captions, mono labels, disclaimers */
---text-faint:     #444B57   /* eyebrow dim, decorative */
+--text-muted:     #868D99   /* captions, mono labels, disclaimers — WCAG AA 5.5:1 (Q-OWN-21) */
+--text-faint:     #727A88   /* eyebrow dim, microcopy — WCAG AA 4.3:1 (Q-OWN-21) */
 
 /* Brand accent — refined indigo-blue (single primary) */
 --accent:         #5B8DEF   /* primary accent, links, primary CTA */
