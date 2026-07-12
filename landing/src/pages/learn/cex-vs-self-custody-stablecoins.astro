@@ -1,0 +1,92 @@
+---
+// E1 (redesign spec 04) — SEO / answer-engine page #4: "CEX vs self-custody for stablecoins: what
+// actually gets people". Approvals, custody, the honest trade-off. FAQ JSON-LD, snapshot CTA, funnel
+// links. No fabricated numbers, no promised returns. Bilingual.
+import Layout from '../../layouts/Layout.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+
+const faq = [
+  { q: 'Is it safer to keep stablecoins on an exchange or in my own wallet?', a: 'Neither is strictly "safer" — they fail differently. An exchange (CEX) means someone else holds the keys: convenient, but you carry counterparty risk (the exchange freezing, failing, or being hacked). Self-custody puts you in control but exposes you to your own mistakes — phishing, a bad token approval, or losing your seed phrase. The right answer depends on size and habits, and often means splitting across both.' },
+  { q: 'What actually gets self-custody users?', a: 'Rarely a protocol hack — usually a token approval. An "unlimited" allowance you granted once lets a malicious or compromised contract drain the wallet later. Reviewing and revoking stale approvals is the single highest-leverage thing a self-custody stablecoin holder can do.' },
+  { q: 'What actually gets CEX users?', a: 'Counterparty risk: the exchange halting withdrawals, becoming insolvent, or being hacked — your "balance" is an IOU. It usually works, until a stress event when everyone wants out at once. Testing a withdrawal while it is NOT urgent is a cheap way to know you can.' },
+];
+const faqLd = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) };
+---
+<Layout
+  title="CEX vs self-custody for stablecoins: what actually gets people | earn-defi.com"
+  description="Exchange vs self-custody for stablecoins — neither is strictly safer, they fail differently. CEX = counterparty risk (freezes, insolvency, hacks); self-custody = your own mistakes (approvals, phishing, lost keys). Here's the honest trade-off and what actually gets people. Not investment advice."
+>
+  <script type="application/ld+json" set:html={JSON.stringify(faqLd)} />
+  <main class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24">
+    <p class="text-xs font-mono uppercase tracking-[0.12em] text-text-faint mb-4" data-ru="Разбор">The breakdown</p>
+    <h1 class="text-3xl sm:text-4xl font-bold text-white mb-5 leading-tight" data-ru="Биржа против самокастоди для стейблкоинов: что реально губит людей">CEX vs self-custody for stablecoins: what actually gets people</h1>
+    <p class="text-lg text-slate-400 leading-relaxed mb-8" data-ru="Ни то, ни другое не «безопаснее» само по себе — они ломаются по-разному. Биржа = риск контрагента; самокастоди = ваши собственные ошибки. Разберём честный размен и что на самом деле губит людей в каждом варианте.">
+      Neither is strictly "safer" — they fail differently. An exchange means counterparty risk; self-custody
+      means your own mistakes. Here's the honest trade-off, and what actually gets people in each.
+    </p>
+
+    <section class="mb-8">
+      <h2 class="text-xl font-semibold text-white mb-3" data-ru="Биржа (CEX): риск контрагента">Exchange (CEX): counterparty risk</h2>
+      <p class="text-base text-slate-300 leading-relaxed" data-ru="На бирже ключи держит она, не вы — ваш «баланс» это IOU. Удобно, и обычно работает. Губит людей стресс-событие: заморозка выводов, неплатёжеспособность или взлом, когда все хотят выйти одновременно. Дешёвый способ узнать, что вы можете выйти — проверить вывод небольшой суммы, пока это НЕ срочно.">
+        On an exchange, it holds the keys, not you — your "balance" is an IOU. Convenient, and it usually
+        works. What gets people is a stress event: withdrawal halts, insolvency, or a hack when everyone
+        wants out at once. A cheap way to know you can exit is to test a small withdrawal while it is NOT urgent.
+      </p>
+    </section>
+
+    <div class="rounded-xl p-5 my-8" style="background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.25)">
+      <p class="text-sm text-slate-300 leading-relaxed mb-3" data-ru="Не уверены, какой риск несёт ВАШ сетап? Пройдите честный 60-секундный снимок — без кошелька, без email.">Not sure what risk YOUR setup carries? Take the honest 60-second snapshot — no wallet, no email.</p>
+      <a href="/snapshot?src=learn" data-track="learn_cta_click" class="inline-flex items-center px-4 py-2.5 rounded-lg bg-accent-500 hover:bg-accent-400 text-white text-sm font-semibold transition-colors" data-ru="Пройти снимок →">Take the snapshot →</a>
+    </div>
+
+    <section class="mb-8">
+      <h2 class="text-xl font-semibold text-white mb-3" data-ru="Самокастоди: ваши собственные ошибки">Self-custody: your own mistakes</h2>
+      <p class="text-base text-slate-300 leading-relaxed" data-ru="Самокастоди даёт контроль — и всю ответственность. Губит людей редко взлом протокола, а чаще token approval: «безлимитное» разрешение, выданное однажды, позволяет вредоносному контракту слить кошелёк позже. Плюс фишинг и потеря seed-фразы. Проверка и отзыв старых approvals — самое высокорычажное действие для держателя стейблов в самокастоди.">
+        Self-custody gives you control — and all the responsibility. What gets people is rarely a protocol
+        hack; it's usually a token approval: an "unlimited" allowance granted once lets a malicious contract
+        drain the wallet later. Plus phishing and lost seed phrases. Reviewing and revoking stale approvals
+        is the highest-leverage move a self-custody stablecoin holder can make.
+      </p>
+      <div class="flex flex-wrap gap-3 mt-3">
+        <a href="/how-we-think" data-track="learn_to_bridge" class="text-sm text-accent-400 underline" data-ru="Наша честная рамка →">Our honest frame →</a>
+      </div>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="text-xl font-semibold text-white mb-3" data-ru="Честный ответ: обычно — разделить">The honest answer: usually, split</h2>
+      <p class="text-base text-slate-300 leading-relaxed" data-ru="Правильный ответ зависит от размера и привычек. Малые суммы для трат — удобство биржи часто оправдано; крупные долгосрочные — самокастоди с дисциплиной по approvals. Диверсификация по хранению и по эмитентам обычно лучше, чем спор «что победит». Мы некастодиальны: мы НЕ держим ваши средства — только помогаем честно измерить риск и не двигаем ни цента.">
+        The right answer depends on size and habits. Small spending balances — the exchange's convenience is
+        often fine; large long-term balances — self-custody with approval discipline. Diversifying across
+        storage AND issuers usually beats arguing "which wins". We are non-custodial: we never hold your
+        funds — only help you measure the risk honestly, and we move nothing.
+      </p>
+      <div class="flex flex-wrap gap-3 mt-3">
+        <a href="/refusals" data-track="learn_to_refusals" class="text-sm text-accent-400 underline" data-ru="Журнал отказов →">The refusal log →</a>
+        <a href="/packages" data-track="learn_to_packages" class="text-sm text-accent-400 underline" data-ru="Три честных тира →">The three honest tiers →</a>
+      </div>
+    </section>
+
+    <section class="mb-10">
+      <h2 class="text-xl font-semibold text-white mb-4" data-ru="Частые вопросы">FAQ</h2>
+      {faq.map((f) => (
+        <details class="mb-3 rounded-lg p-4" style="background:var(--bg-surface);border:1px solid var(--border)">
+          <summary class="cursor-pointer text-sm font-semibold text-white list-none">{f.q}</summary>
+          <p class="text-sm text-slate-400 leading-relaxed mt-2">{f.a}</p>
+        </details>
+      ))}
+    </section>
+
+    <div class="rounded-2xl border border-accent-500/20 bg-accent-500/[0.04] p-6">
+      <p class="text-sm text-slate-400 leading-relaxed mb-4" data-ru="Хотите честный взгляд на свои стейблы — без обещаний доходности?">Want an honest look at your own stables — with no promised returns?</p>
+      <div class="flex flex-wrap gap-3">
+        <a href="/snapshot?src=learn" data-track="learn_cta_click" class="inline-flex items-center px-4 py-2.5 rounded-lg bg-accent-500 hover:bg-accent-400 text-white text-sm font-semibold transition-colors" data-ru="60-секундный снимок →">60-second snapshot →</a>
+        <a href="/packages" data-track="learn_to_packages" class="inline-flex items-center px-4 py-2.5 rounded-lg border border-white/15 text-white text-sm font-medium hover:border-white/30 transition-colors" data-ru="Три честных тира →">The three honest tiers →</a>
+      </div>
+    </div>
+  </main>
+  <Disclaimer />
+
+  <script is:inline>
+    (function(){ try{ if(window.spaTrack) window.spaTrack('learn_view'); }catch(e){} })();
+  </script>
+</Layout>
