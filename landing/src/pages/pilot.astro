@@ -69,9 +69,11 @@ import Disclaimer from '../components/Disclaimer.astro';
       </p>
       <form id="pilot-form" class="flex flex-col gap-3 max-w-md">
         <input id="pf-email" type="email" required maxlength="256" autocomplete="email"
+          aria-label="Your email"
           placeholder="you@fund.com"
           class="rounded-lg bg-white/[0.04] border border-white/15 px-4 py-2.5 text-sm text-white placeholder-white/30 focus:border-accent-400/60 focus:outline-none" />
         <textarea id="pf-msg" rows="3" maxlength="1000"
+          aria-label="Optional message about you or your fund"
           placeholder="(optional) a line about you / your fund"
           class="rounded-lg bg-white/[0.04] border border-white/15 px-4 py-2.5 text-sm text-white placeholder-white/30 focus:border-accent-400/60 focus:outline-none"></textarea>
         <button type="submit" data-ru="Запросить разговор →"
