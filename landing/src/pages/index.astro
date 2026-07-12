@@ -121,6 +121,43 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
     </div>
   </section>
 
+  <!-- ============ M4+M12: GO-LIVE COUNTDOWN + TRUST STRIP ============ -->
+  <section class="band" style="padding-top:8px;padding-bottom:34px">
+    <div style="max-width:1080px;margin:0 auto;padding:0 24px">
+      <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:9px">
+          <span style="font-size:13px;font-weight:700;color:var(--text-primary)" data-ru="Валидация go-live">Go-live validation</span>
+          <span style="font-size:13px;font-family:var(--font-mono);color:#34d399"><span id="m12-day">—</span> <span data-ru="из 30 подтверждённых дней">of 30 evidenced days</span></span>
+        </div>
+        <div style="height:10px;border-radius:6px;background:var(--border);overflow:hidden">
+          <div id="m12-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#34d399,#10b981);transition:width .6s"></div>
+        </div>
+        <div style="margin-top:10px;font-size:12px;color:var(--text-faint)">
+          <span data-ru="Живой капитал не открывается, пока трек не пройдёт 30 дней + реальное vol-событие.">Live capital doesn't open until the track clears 30 days + a real vol event.</span>
+          <a href="/track-record" data-track="m12_follow_countdown" style="color:var(--accent-400);text-decoration:underline" data-ru="Следить за отсчётом →">Follow the countdown →</a>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+        <div style="text-align:center;padding:14px;border-radius:10px;background:var(--bg-surface);border:1px solid var(--border)">
+          <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:#34d399">0.0%</div>
+          <div style="font-size:11px;color:var(--text-muted)" data-ru="реализованной просадки">realized drawdown</div>
+        </div>
+        <div style="text-align:center;padding:14px;border-radius:10px;background:var(--bg-surface);border:1px solid var(--border)">
+          <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--text-primary)"><span id="m4-day">—</span>/30</div>
+          <div style="font-size:11px;color:var(--text-muted)" data-ru="подтверждённых дней">evidenced days</div>
+        </div>
+        <a href="/refusals" data-track="m4_refusals" style="text-align:center;padding:14px;border-radius:10px;background:var(--bg-surface);border:1px solid var(--border);text-decoration:none;display:block">
+          <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:#eab308" data-ru="Отказы">Refusals</div>
+          <div style="font-size:11px;color:var(--text-muted)" data-ru="каждый опубликован →">every one published →</div>
+        </a>
+        <div style="text-align:center;padding:14px;border-radius:10px;background:var(--bg-surface);border:1px solid var(--border)">
+          <div style="font-size:22px;font-weight:800;font-family:var(--font-mono);color:var(--text-primary)" data-ru="Некастод.">Non-custodial</div>
+          <div style="font-size:11px;color:var(--text-muted)" data-ru="45 автономных мониторов 24/7">45 autonomous monitors 24/7</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ DASHBOARD PREVIEW (the main visual asset) ============ -->
   <section class="band">
     <div class="container">
@@ -592,6 +629,11 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         var gates = (pass != null && total != null) ? (pass + '/' + total) : '—/—';
         setText('sl-day', day);
         setText('m-days', day);
+        // M4+M12: go-live countdown progress bar + evidenced-days counters
+        setText('m12-day', day);
+        setText('m4-day', day);
+        var dn = (typeof day === 'number') ? day : parseInt(day, 10);
+        if (!isNaN(dn)) { var bar = document.getElementById('m12-bar'); if (bar) bar.style.width = Math.min(100, Math.round(dn / 30 * 100)) + '%'; }
         setText('sl-gates', gates);
         setText('m-gates', gates);
         // P0-2: the API answered → flip the "as of <date>" static-snapshot label to live.
