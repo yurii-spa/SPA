@@ -31,11 +31,13 @@ def _load(name: str) -> dict:
 # The owner-only blockers are stable, documented facts (pre_cutover_gate advisory +
 # ADR-010 + the go-live gate) — NOT fabricated numbers. AI holds no keys, is never a signer.
 # Static fallback used only when data/owner_blockers.json is absent (sandbox/CI fixtures).
+# Every gate carries a status (fail-closed: no evidence artifact ⇒ honestly "open" — the code never
+# fabricates procurement progress), so the fallback shape matches the rich owner_blockers.build() output.
 _OWNER_ONLY = [
-    {"id": "custody", "what": "Gnosis Safe 2-of-3 deployed + keys provisioned (ADR-010) — AI holds no keys and is never a signer"},
-    {"id": "audit", "what": "external security audit of the execution path signed off"},
-    {"id": "legal", "what": "entity + disclosure / no-guarantee framing reviewed by counsel before any external capital"},
-    {"id": "track_days", "what": "≥30 evidenced honest paper-track days (the go-live gate; time-gated, nothing to fix in code)"},
+    {"id": "custody", "status": "open", "what": "Gnosis Safe 2-of-3 deployed + keys provisioned (ADR-010) — AI holds no keys and is never a signer"},
+    {"id": "audit", "status": "open", "what": "external security audit of the execution path signed off"},
+    {"id": "legal", "status": "open", "what": "entity + disclosure / no-guarantee framing reviewed by counsel before any external capital"},
+    {"id": "track_days", "status": "open", "what": "≥30 evidenced honest paper-track days (the go-live gate; time-gated, nothing to fix in code)"},
 ]
 
 

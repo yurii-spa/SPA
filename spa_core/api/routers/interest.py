@@ -139,21 +139,26 @@ class PilotRequest(BaseModel):
 
 
 def _notify_owner_telegram(email: str, message: str, tier: str, utm: str, source: str = "") -> bool:
-    """Best-effort Telegram ping to the owner. Never raises (a page must not break on notify failure)."""
+    """Route the owner lead-alert through the SINGLE Telegram authority (push_policy digest queue),
+    NOT a direct telegram_client.send — a raw send bypasses the one push authority
+    (see test_no_rogue_telegram_senders). The lead folds into the owner's daily digest. Instant
+    per-lead push would need a Tier-1 whitelist key (owner/ADR decision — flagged, not forced here).
+    Best-effort, never raises (a page must not break on notify failure)."""
     try:
         import html as _html
-        from spa_core.alerts.telegram_client import send_message
-        header = ("🎟 <b>Early-access заявка</b>\n" if source == "early_access"
-                  else "🔔 <b>Новая заявка с /pilot</b>\n")
-        body = (
-            header
-            + f"✉️ <b>Email:</b> {_html.escape(email)}\n"
-            + (f"🏷 <b>Тир:</b> {_html.escape(tier)}\n" if tier else "")
-            + (f"📈 <b>UTM:</b> {_html.escape(utm)}\n" if utm else "")
-            + (f"💬 <b>Сообщение:</b> {_html.escape(message)}\n" if message else "")
-            + "\n<i>Некастодиально · это запрос на разговор, не сделка.</i>"
-        )
-        return bool(send_message(body, parse_mode="HTML"))
+        from spa_core.telegram import push_policy
+        title = ("🎟 Early-access заявка" if source == "early_access" else "🔔 Новая заявка с /pilot")
+        parts = [f"✉️ Email: {_html.escape(email)}"]
+        if tier:
+            parts.append(f"🏷 Тир: {_html.escape(tier)}")
+        if utm:
+            parts.append(f"📈 UTM: {_html.escape(utm)}")
+        if message:
+            parts.append(f"💬 {_html.escape(message)}")
+        parts.append("Некастодиально · запрос на разговор, не сделка.")
+        push_policy.enqueue_digest("pilot_request", title, " · ".join(parts),
+                                   severity="INFO", reason="pilot_lead")
+        return True
     except Exception:  # noqa: BLE001 — notify is best-effort
         return False
 

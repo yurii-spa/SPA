@@ -88,7 +88,13 @@ def test_compute_books_is_deterministic():
 
 # ── idea #3: cross-desk blend (the TIER DEFAULT — most load-bearing finding) ─────────────────────────
 def _crossdesk_or_skip():
-    res = CD.compute()
+    # The deep Pendle PT history / rates-carry series live under data/ (gitignored, runtime-only), so a
+    # clean checkout / CI has them absent — compute() then RAISES FileNotFoundError (not just returns
+    # None). Skip in that case: a data-availability gap, not a logic regression (exercised locally).
+    try:
+        res = CD.compute()
+    except FileNotFoundError as exc:
+        pytest.skip(f"rates-carry committed data absent (clean checkout / CI) — cross-desk not computable: {exc}")
     if res is None:
         pytest.skip("rates-carry committed data absent (clean checkout) — cross-desk not computable")
     return res
@@ -119,7 +125,10 @@ def test_crossdesk_susde_and_rates_are_decorrelated():
 
 
 def test_crossdesk_compute_is_deterministic():
-    a, b = CD.compute(), CD.compute()
+    try:
+        a, b = CD.compute(), CD.compute()
+    except FileNotFoundError as exc:
+        pytest.skip(f"rates-carry committed data absent (clean checkout / CI): {exc}")
     if a is None:
         pytest.skip("rates-carry data absent")
     assert a["solo_susde"] == b["solo_susde"] and a["best"]["calmar"] == b["best"]["calmar"]
@@ -129,10 +138,19 @@ def test_crossdesk_compute_is_deterministic():
 _CPCR = _load(_ROOT / "scripts" / "carry_preserving_rotation.py", "_cpcr_under_test")
 
 
+def _cpcr_susde_or_skip():
+    # sUSDe realized series lives under data/ (gitignored, runtime-only) → absent on a clean checkout /
+    # CI, where _load_susde_returns() RAISES FileNotFoundError. Skip there (data-availability, not logic).
+    try:
+        return _CPCR._load_susde_returns()
+    except FileNotFoundError as exc:
+        pytest.skip(f"sUSDe realized series absent (clean checkout / CI): {exc}")
+
+
 def test_cpcr_beats_fixed_blend_on_calmar():
     """The de-risk SIGNAL (any destination) must beat static 25/50/25 blend on risk-adjusted return.
     This is the load-bearing claim of idea #6: signal-triggered rebalancing > passive fixed blend."""
-    r_susde = _CPCR._load_susde_returns()
+    r_susde = _cpcr_susde_or_skip()
     dates = sorted(r_susde)
     r_rates, _ = _CPCR._load_rates_returns(dates)
     daily_floor = _CPCR.RWA_FLOOR_APY_PCT / 100.0 / 365.0
@@ -151,7 +169,7 @@ def test_cpcr_beats_fixed_blend_on_calmar():
 def test_cpcr_carry_destination_not_worse_than_floor_destination():
     """CPCR (route to rates-carry) must be >= de-risk-to-floor on Calmar.
     Even tiny positive edge demonstrates 'carry-preserve direction is correct'."""
-    r_susde = _CPCR._load_susde_returns()
+    r_susde = _cpcr_susde_or_skip()
     dates = sorted(r_susde)
     r_rates, _ = _CPCR._load_rates_returns(dates)
     daily_floor = _CPCR.RWA_FLOOR_APY_PCT / 100.0 / 365.0
@@ -170,7 +188,7 @@ def test_cpcr_carry_destination_not_worse_than_floor_destination():
 
 def test_cpcr_is_deterministic():
     """Two runs produce identical equity curves (deterministic, no randomness)."""
-    r_susde = _CPCR._load_susde_returns()
+    r_susde = _cpcr_susde_or_skip()
     dates = sorted(r_susde)
     r_rates, _ = _CPCR._load_rates_returns(dates)
     daily_floor = _CPCR.RWA_FLOOR_APY_PCT / 100.0 / 365.0
