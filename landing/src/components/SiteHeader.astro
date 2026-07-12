@@ -23,7 +23,16 @@ import TIER_BANDS from '../lib/tier_bands.json';
 // their URLs still resolve and they remain reachable from the footer until the admin move.
 // A group is either a DIRECT link (`direct:true` + `href`, no dropdown) or a dropdown (`items`).
 const groups = [
-  { id: 'checkup', en: 'Checkup', ru: 'Чекап', direct: true, href: '/#analyze' },
+  {
+    // J2 (customer-journey-map): the flagship free tool was hidden behind a single `/#analyze` scroll
+    // anchor. Expose the real entries so a user can CHECK a wallet or SEE a sample without hunting.
+    id: 'checkup', en: 'Checkup', ru: 'Чекап',
+    items: [
+      { href: 'https://checkup.earn-defi.com/check', en: 'Check my wallet', ru: 'Проверить кошелёк', desc: 'Public address — no wallet connection', descRu: 'Публичный адрес — без подключения кошелька', track: 'nav_checkup_check' },
+      { href: 'https://checkup.earn-defi.com/sample-report', en: 'See a sample analysis', ru: 'Пример анализа', desc: 'Preview the full report, no scan', descRu: 'Пример полного отчёта, без сканирования', track: 'nav_checkup_sample' },
+      { href: '/#analyze', en: 'Analyze on this page', ru: 'Анализ прямо здесь', desc: 'Start inline, right now', descRu: 'Начать сразу тут' },
+    ],
+  },
   {
     id: 'strategy', en: 'Strategy Lab', ru: 'Strategy Lab',
     items: [
