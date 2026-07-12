@@ -40,8 +40,7 @@ const global = strategies.global;
         Aggressive Strategy
       </h1>
       <p class="text-xl text-white/50 leading-relaxed max-w-2xl">
-        <span data-ru={maxYield.taglineRu}>{maxYield.tagline}</span>. <span data-ru="Продвинутая механика хранилищ и оптимизированные стратегии кредитования для опытных инвесторов. Без открытого риска ликвидации по умолчанию в v1.0.">Advanced vault mechanics and optimised lending strategies
-        for experienced allocators. No open liquidation risk by default in v1.0.</span>
+        <span data-ru={maxYield.taglineRu}>{maxYield.tagline}</span>. <span data-ru="Плечевой PT-carry, points-фарминг и нехеджированный directional-рестейкинг — paper-тест в Aggressive Lab, отказан для live-капитала. Реальный хвост каскадных ликвидаций и депега (нехеджированная книга — ~50% на обвале ETH), показан честно.">Levered PT carry, points farming, and unhedged directional restaking — paper-tested in the Aggressive Lab, refused for live capital. Real liquidation-cascade and depeg tail (an unhedged book saw ~50% through the ETH crash), shown honestly.</span>
       </p>
     </section>
 
@@ -113,9 +112,9 @@ const global = strategies.global;
     <!-- 6. What's Inside -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-3" data-ru="Что внутри">What's Inside</p>
-      <p class="text-white/50 text-sm leading-relaxed mb-4" data-ru="Aggressive использует продвинутую механику DeFi-хранилищ для достижения более высокой доходности. Без открытого риска ликвидации по умолчанию в v1.0. Более сложные стратегии могут быть добавлены после отдельной бумажной валидации.">
-        Aggressive uses advanced DeFi vault mechanics to target higher returns. No open liquidation
-        risk by default in v1.0. More complex strategies may be added after separate paper validation.
+      <p class="text-white/50 text-sm leading-relaxed mb-4" data-ru="Aggressive — это плечевой PT-carry, points/incentive-фарминг и нехеджированный directional-рестейкинг. Он несёт реальный риск каскадных ликвидаций и депега — paper-тест в Aggressive Lab, отказан для live-капитала. Более сложные стратегии могут добавляться после отдельной бумажной валидации.">
+        Aggressive is levered PT carry, points / incentive farming, and unhedged directional restaking. It carries
+        real liquidation-cascade and depeg risk — paper-tested in the Aggressive Lab, refused for live capital. More complex strategies may be added after separate paper validation.
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-xl bg-white/[0.03] border border-white/8 p-5">
@@ -123,19 +122,19 @@ const global = strategies.global;
           <ul class="space-y-2 text-sm text-white/50">
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
-              <span data-ru="Продвинутая механика хранилищ">Advanced vault mechanics</span>
+              <span data-ru="Плечевые PT-carry петли">Levered PT carry loops</span>
             </li>
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
-              <span data-ru="Оптимизированные позиции кредитования">Optimised lending positions</span>
+              <span data-ru="Points / incentive-фарминг">Points / incentive farming</span>
             </li>
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
-              <span data-ru="Отобранные пулы с повышенной доходностью">Selected higher-yield pools</span>
+              <span data-ru="Нехеджированный directional-рестейкинг">Unhedged directional restaking</span>
             </li>
             <li class="flex items-center gap-2">
               <span class="w-1 h-1 rounded-full bg-accent-400 flex-shrink-0" aria-hidden="true"></span>
-              <span data-ru="Без открытого риска ликвидации (по умолчанию в v1.0)">No open liquidation risk (v1.0 default)</span>
+              <span data-ru="Реальный риск каскадных ликвидаций и депега">Real liquidation-cascade &amp; depeg risk</span>
             </li>
           </ul>
         </div>
@@ -183,7 +182,7 @@ const global = strategies.global;
       <p class="text-xs text-white/50 uppercase tracking-wider font-mono mb-4" data-ru="Чего эта стратегия НЕ делает">What This Strategy Does NOT Do</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[
-          { en: 'Expose to open liquidation risk by default (v1.0)', ru: 'Создавать открытый риск ликвидации по умолчанию (v1.0)' },
+          { en: 'Move real / live capital — paper-only, refused for live', ru: 'Двигать реальный / live-капитал — только paper, отказан для live' },
           { en: 'Allocate without risk gate approval', ru: 'Размещать средства без одобрения риск-гейта' },
           { en: 'Bypass RiskPolicy deterministic gate', ru: 'Обходить детерминированный гейт RiskPolicy' },
           { en: 'Override kill switch in any scenario', ru: 'Переопределять kill switch в любом сценарии' },
@@ -199,9 +198,9 @@ const global = strategies.global;
     <!-- 9. Risk Controls -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-data-teal uppercase tracking-wider font-mono mb-4" data-ru="Контроль рисков — RiskPolicy v1.0">Risk Controls — RiskPolicy v1.0</p>
-      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Aggressive работает под тем же детерминированным риск-гейтом, что и все стратегии. Без открытого риска ликвидации по умолчанию в v1.0.">
-        Aggressive operates under the same deterministic risk gate as all strategies.
-        No open liquidation risk by default in v1.0.
+      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Aggressive — это advisory-исследование ВНЕ RiskPolicy v1.0: детерминированный гейт ОТКАЗЫВАЕТ его для live-капитала. Параметры ниже — это живой гейт, который тир не проходит; сам механизм несёт реальный риск каскадных ликвидаций и депега.">
+        Aggressive is advisory research OUTSIDE RiskPolicy v1.0 — the deterministic gate REFUSES it for live capital.
+        The parameters below are the live gate it does not pass; the aggressive mechanic itself carries real liquidation-cascade and depeg risk.
       </p>
       <div class="overflow-x-auto rounded-xl border border-white/10">
         <table class="w-full text-sm">
@@ -240,8 +239,8 @@ const global = strategies.global;
             </tr>
             <tr>
               <td class="px-5 py-3 text-white/60 font-mono" data-ru="Риск ликвидации">Liquidation risk</td>
-              <td class="px-5 py-3 text-white font-mono font-semibold" data-ru="Отсутствует (v1.0)">None (v1.0)</td>
-              <td class="px-5 py-3 text-white/55" data-ru="Без открытого риска ликвидации по умолчанию">No open liquidation risk by default</td>
+              <td class="px-5 py-3 text-danger font-mono font-semibold" data-ru="Реальный (каскад)">Real (cascade)</td>
+              <td class="px-5 py-3 text-white/55" data-ru="Плечевые петли и directional-рестейкинг несут каскад ликвидаций и депег — причина, по которой гейт отказывает live">Levered loops + directional restaking carry cascade &amp; depeg — why the gate refuses live</td>
             </tr>
             <tr>
               <td class="px-5 py-3 text-warn font-mono" data-ru="Kill switch — SOFT">Kill switch — SOFT</td>
@@ -275,9 +274,9 @@ const global = strategies.global;
     <!-- 11. Strategy-Specific Risks -->
     <section class="py-10 border-t border-white/5">
       <p class="text-xs text-danger uppercase tracking-wider font-mono mb-4" data-ru="Риски, специфичные для стратегии">Strategy-Specific Risks</p>
-      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Aggressive несёт все риски стратегии Balanced плюс дополнительные риски от продвинутой механики хранилищ. Без открытого риска ликвидации по умолчанию в v1.0, но существенный риск потери капитала сохраняется.">
-        Aggressive carries all risks of the Balanced strategy plus additional risks from advanced
-        vault mechanics. No open liquidation risk by default in v1.0, but material risk of capital loss remains.
+      <p class="text-sm text-white/55 mb-6 leading-relaxed" data-ru="Aggressive несёт все риски Balanced плюс риски плеча и directional-экспозиции. Он имеет реальный риск каскадных ликвидаций и депега — нехеджированная книга потеряла ~50% на обвале ETH. Отказан для live-капитала.">
+        Aggressive carries all risks of the Balanced strategy plus leverage and directional risks. It has
+        real liquidation-cascade and depeg risk — an unhedged book saw ~50% through the ETH crash. Refused for live capital.
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="rounded-xl border border-white/8 bg-white/[0.02] p-5">
@@ -378,9 +377,9 @@ const global = strategies.global;
 
         <div>
           <h4 class="text-sm font-semibold text-white mb-2" data-ru="Есть ли риск ликвидации?">Is there liquidation risk?</h4>
-          <p class="text-sm text-white/55 leading-relaxed" data-ru="Без открытого риска ликвидации по умолчанию в v1.0. Более сложные стратегии с иными профилями риска могут быть добавлены после отдельной бумажной валидации.">
-            No open liquidation risk by default in v1.0. More complex strategies with different
-            risk profiles may be added after separate paper validation.
+          <p class="text-sm text-white/55 leading-relaxed" data-ru="Да. Этот тир несёт реальный риск каскадных ликвидаций (плечевые петли) и депега (directional-рестейкинг) — именно поэтому деск ОТКАЗЫВАЕТ его для live-капитала. Он существует как advisory paper-исследование с показанным хвостом.">
+            Yes — this tier carries real liquidation-cascade risk (levered loops) and depeg risk (directional
+            restaking). That is exactly why the desk REFUSES it for live capital; it exists as advisory paper research with the tail shown.
           </p>
         </div>
 

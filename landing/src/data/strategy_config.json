@@ -87,15 +87,15 @@
       "status_label": "Research · refused for live",
       "who_for": "Experienced allocators accepting higher volatility for yield upside.",
       "taglineRu": "Продвинутая механика для повышенной терпимости к доходности",
-      "description": "Advanced vault mechanics and optimised lending strategies. No open liquidation risk by default in v1.0. More complex strategies may be added after separate paper validation.",
-      "descriptionRu": "Продвинутая механика хранилищ и оптимизированные стратегии кредитования. Без открытого риска ликвидации по умолчанию в v1.0. Более сложные стратегии могут быть добавлены после отдельной бумажной валидации.",
+      "description": "Levered PT carry, points / incentive farming, and unhedged directional restaking. Real liquidation-cascade and depeg risk — paper-tested in the Aggressive Lab, refused for live capital. The tail is shown, not hidden.",
+      "descriptionRu": "Плечевой PT-carry, points / incentive-фарминг и нехеджированный directional-рестейкинг. Реальный риск каскадных ликвидаций и депега — paper-тест в Aggressive Lab, отказан для live-капитала. Хвост показан, не спрятан.",
       "yield_sources": [
         "Optimised Aave positions",
         "Advanced Morpho vaults",
         "Selected higher-yield pools"
       ],
       "does_not": [
-        "Expose to open liquidation risk by default",
+        "Move real / live capital (paper-only, refused for live)",
         "Bypass RiskPolicy gates",
         "Allocate without risk gate approval"
       ],
