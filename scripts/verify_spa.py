@@ -1800,6 +1800,11 @@ def _print_human(report: dict) -> None:
               f"broken_at={uw.get('broken_at')}  refusal_consistent={uw.get('refusal_consistent')}  "
               f"published={uw.get('published')}")
         print(f"    head_hash      : {uw.get('head_hash')}")
+        # smuggled_markets is an underwriting property — guard on uw (was mis-nested in the
+        # swarm block below, crashing _print_human with AttributeError when swarm is present
+        # but underwriting is absent, i.e. uw is None).
+        if uw.get("smuggled_markets"):
+            print(f"    ✗ refused markets smuggled into capacity: {uw['smuggled_markets']}")
 
     sw = report.get("swarm")
     if sw is not None:
@@ -1807,8 +1812,6 @@ def _print_human(report: dict) -> None:
         for c in sw.get("per_chain", []):
             print(f"    {Path(c['file']).name:42s}: valid={c.get('valid')}  rows={c.get('rows')}  "
                   f"broken_at={c.get('broken_at')}  head={c.get('head_hash')}")
-        if uw.get("smuggled_markets"):
-            print(f"    ✗ refused markets smuggled into capacity: {uw['smuggled_markets']}")
 
     fd = report.get("fundability")
     if fd is not None:
