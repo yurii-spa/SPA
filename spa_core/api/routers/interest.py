@@ -117,3 +117,87 @@ def pilot_summary() -> dict:
     except Exception as exc:  # noqa: BLE001 — admin surface must never 500
         return {"model": "pilot_pipeline", "is_advisory": True, "n_prospects": 0,
                 "by_stage": {}, "flag_reason": f"unavailable: {exc}"}
+
+
+# ── Pilot contact request (OWNER-APPROVED opt-in contact capture, 2026-07-12) ──────────────────────
+# The owner enabled contact capture for the /pilot funnel: a warm visitor may LEAVE A CONTACT to request
+# a conversation. Unlike the anonymous /api/interest beacon (zero-PII), this is an explicit opt-in — the
+# person types their own email to be contacted. The full request is delivered to the owner over Telegram
+# (private) + appended to data/pilot_requests.jsonl. It is DELIBERATELY NOT exposed in /admin (which has
+# no auth yet — Q-OWN-03); /admin shows only a COUNT so no email leaks on an unauthenticated surface.
+_REQ_LOG = Path(__file__).resolve().parents[3] / "data" / "pilot_requests.jsonl"
+_EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,190}\.[A-Za-z]{2,24}$")
+
+
+class PilotRequest(BaseModel):
+    email: str = ""
+    message: str = ""      # optional free note from the requester
+    tier: str = ""         # opaque interest bucket
+    utm_source: str = ""
+    utm_campaign: str = ""
+
+
+def _notify_owner_telegram(email: str, message: str, tier: str, utm: str) -> bool:
+    """Best-effort Telegram ping to the owner. Never raises (a page must not break on notify failure)."""
+    try:
+        import html as _html
+        from spa_core.alerts.telegram_client import send_message
+        body = (
+            "🔔 <b>Новая заявка с /pilot</b>\n"
+            f"✉️ <b>Email:</b> {_html.escape(email)}\n"
+            + (f"🏷 <b>Тир:</b> {_html.escape(tier)}\n" if tier else "")
+            + (f"📈 <b>UTM:</b> {_html.escape(utm)}\n" if utm else "")
+            + (f"💬 <b>Сообщение:</b> {_html.escape(message)}\n" if message else "")
+            + "\n<i>Некастодиально · это запрос на разговор, не сделка.</i>"
+        )
+        return bool(send_message(body, parse_mode="HTML"))
+    except Exception:  # noqa: BLE001 — notify is best-effort
+        return False
+
+
+@router.post("/api/pilot/request")
+def pilot_request(req: PilotRequest) -> dict:
+    """Record a pilot CONTACT request (opt-in). Validates a plausible email fail-closed, appends to
+    data/pilot_requests.jsonl, and pings the owner on Telegram. No email is ever surfaced on /admin."""
+    email = (req.email or "").strip()[:256]
+    if not _EMAIL_RE.match(email):
+        return {"ok": False, "error": "a valid email is required to request a conversation"}
+    message = (req.message or "").strip()[:1000]
+    tier = _clean(req.tier)
+    src, camp = _clean(req.utm_source), _clean(req.utm_campaign)
+    utm = (f"{src}:{camp}" if (src or camp) else "")
+    rec = {"t": int(time.time()), "email": email, "message": message, "tier": tier, "utm": utm}
+    try:
+        _REQ_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(_REQ_LOG, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except Exception:  # noqa: BLE001 — capture must never break the page
+        pass
+    notified = _notify_owner_telegram(email, message, tier, utm)
+    return {"ok": True, "notified": notified}
+
+
+@router.get("/api/pilot/requests/count")
+def pilot_requests_count() -> dict:
+    """COUNT-ONLY rollup of contact requests for the Operator Console — NO email/message is returned
+    (that would leak PII on the currently-unauthenticated /admin). Total + today + 7d only."""
+    now = int(time.time())
+    total = today = last_7d = 0
+    try:
+        with open(_REQ_LOG, encoding="utf-8") as fh:
+            for line in fh:
+                try:
+                    r = json.loads(line)
+                except Exception:  # noqa: BLE001
+                    continue
+                total += 1
+                age = now - int(r.get("t", 0))
+                if age <= _DAY:
+                    today += 1
+                if age <= 7 * _DAY:
+                    last_7d += 1
+    except FileNotFoundError:
+        pass
+    return {"total_requests": total, "requests_today": today, "requests_7d": last_7d,
+            "note": "count only — full contact requests are delivered to the owner via Telegram + "
+                    "data/pilot_requests.jsonl; never exposed on the unauthenticated admin surface."}

@@ -69,6 +69,26 @@ import Disclaimer from '../components/Disclaimer.astro';
       </p>
     </section>
 
+    <!-- OWNER-approved contact capture (2026-07-12): opt-in request → owner Telegram + admin count. -->
+    <section class="rounded-2xl border border-accent-500/25 bg-accent-500/[0.05] p-6 mb-8">
+      <h2 class="text-lg font-semibold text-white mb-2" data-ru="Запросить разговор">Request a conversation</h2>
+      <p class="text-sm text-slate-400 leading-relaxed mb-4" data-ru="Оставьте email — это запрос на разговор с дизайн-партнёром, НЕ сделка и не оферта. Некастодиально, human-in-the-loop. Мы не берём кастоди и не двигаем средства.">
+        Leave an email — this is a request for a conversation with a design partner, NOT a deal or an offer.
+        Non-custodial, human-in-the-loop. We never take custody or move funds.
+      </p>
+      <form id="pilot-form" class="flex flex-col gap-3 max-w-md">
+        <input id="pf-email" type="email" required maxlength="256" autocomplete="email"
+          placeholder="you@fund.com"
+          class="rounded-lg bg-white/[0.04] border border-white/15 px-4 py-2.5 text-sm text-white placeholder-white/30 focus:border-accent-400/60 focus:outline-none" />
+        <textarea id="pf-msg" rows="3" maxlength="1000"
+          placeholder="(optional) a line about you / your fund"
+          class="rounded-lg bg-white/[0.04] border border-white/15 px-4 py-2.5 text-sm text-white placeholder-white/30 focus:border-accent-400/60 focus:outline-none"></textarea>
+        <button type="submit" data-ru="Запросить разговор →"
+          class="self-start inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-accent-500 hover:bg-accent-400 text-white text-sm font-semibold transition-colors">Request a conversation →</button>
+        <p id="pf-status" class="text-xs text-slate-400" style="min-height:1em" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
     <section class="rounded-2xl border border-white/10 bg-white/[0.02] p-6 mb-8">
       <h2 class="text-lg font-semibold text-white mb-3" data-ru="Что должно быть верно ПЕРВЫМ (мы это не пропустим)">What has to be true first (we will not skip these)</h2>
       <ol class="list-decimal list-inside space-y-1 text-sm text-slate-300 leading-relaxed">
@@ -109,6 +129,22 @@ import Disclaimer from '../components/Disclaimer.astro';
             body:JSON.stringify({topic:'pilot',utm_source:utm,utm_campaign:camp}),keepalive:true}).catch(function(){});
         });
       } catch(e){}
+      // OWNER-approved contact form → /api/pilot/request → owner Telegram + admin count.
+      var isRu = (document.documentElement.getAttribute('lang')==='ru') || (localStorage.getItem('lang')==='ru');
+      var form=document.getElementById('pilot-form');
+      if(form){ form.addEventListener('submit', function(e){
+        e.preventDefault();
+        var email=(document.getElementById('pf-email').value||'').trim();
+        var msg=(document.getElementById('pf-msg').value||'').trim();
+        var st=document.getElementById('pf-status');
+        st.textContent = isRu ? 'Отправляем…' : 'Sending…';
+        fetch(API+'/api/pilot/request',{method:'POST',headers:{'content-type':'application/json'},
+          body:JSON.stringify({email:email,message:msg,tier:'',utm_source:utm,utm_campaign:camp})})
+          .then(function(r){return r.json();}).then(function(d){
+            if(d && d.ok){ st.textContent = isRu ? 'Спасибо — свяжемся. Это был запрос на разговор, не сделка.' : 'Thanks — we’ll be in touch. This was a conversation request, not a deal.'; form.reset(); }
+            else { st.textContent = (d && d.error) ? d.error : (isRu ? 'Введите корректный email.' : 'Please enter a valid email.'); }
+          }).catch(function(){ st.textContent = isRu ? 'Ошибка сети — попробуйте ещё раз.' : 'Network error — please try again.'; });
+      }); }
     })();
   </script>
 </Layout>
