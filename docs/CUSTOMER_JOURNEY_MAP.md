@@ -73,9 +73,9 @@ realized). The ~3.3% realized is the PROOF that the machine is real, not the hea
 
 ---
 
-## 4. ✅ RESOLVED (2026-07-12) — CF Pages deploy blocker (owner unblocked; all landing fixes now LIVE)
+## 4. ❌ FALSE ALARM (2026-07-12) — there was NO CF blocker; my verification method was buggy
 
-_History (kept for the runbook):_ CF Pages had stopped deploying after `88a081bc`; the owner unblocked it via the Cloudflare dashboard and the full backlog (J1, J3, moat surfaces) deployed. Original diagnosis below.
+_Correction:_ CF was deploying fine the whole time (owner confirmed all deployments green, no quota). My 'not deployed' reads were a **verification bug**: curl-ing `/refusals` without `-L` returned the empty 308 trailing-slash redirect body, and `?cb=` broke Astro sub-page routing → false negatives. Verify with `curl -L https://earn-defi.com/<page>/` (trailing slash, no query). All J1-J6 are live.
 
 ### ⚠️ BLOCKER (historical) — CF Pages not deploying
 
