@@ -1,0 +1,138 @@
+---
+// Q-OWN-19 / Phase-1 B1 — DashboardShell: a DeBank/Zapper-style app chrome (collapsible sidebar +
+// sticky topbar + fluid 12-col grid) that WRAPS existing dashboard islands UNCHANGED (spec
+// docs/redesign/03_PHASE1_SHELL_SPEC.md §2-3). Reuses Layout.astro :root tokens — NO new colors.
+//
+// Slots: `kpi` (full-width strip) · default (main, 8 cols) · `rail` (4 cols right context) ·
+// `below` (full-width). On <900px the sidebar becomes a horizontal scroll strip and the grid
+// collapses to one column (rail stacks under main). Sidebar collapse (256⇄64) persists in
+// localStorage. This is static chrome only — no feed logic, no fabricated data.
+interface Props { title?: string; titleRu?: string; }
+const { title = 'Dashboard', titleRu } = Astro.props;
+const path = Astro.url.pathname;
+const nav = [
+  { href: '/dashboard',   label: 'Overview',   ru: 'Обзор',        icon: '▦' },
+  { href: '/board',       label: 'Positions',  ru: 'Позиции',      icon: '▤' },
+  { href: '/strategies',  label: 'Strategies', ru: 'Стратегии',    icon: '◈' },
+  { href: '/risk',        label: 'Risk',       ru: 'Риск',         icon: '⚠' },
+  { href: '/monitoring',  label: 'Monitoring', ru: 'Мониторинг',   icon: '◉' },
+  { href: '/research',    label: 'Research',   ru: 'Исследования', icon: '❋' },
+];
+---
+<div class="shell" data-shell>
+  <aside class="shell-sidebar" data-shell-sidebar aria-label="App navigation">
+    <button type="button" class="shell-collapse" data-shell-collapse aria-label="Collapse sidebar" title="Collapse">
+      <span class="cc" aria-hidden="true">«</span>
+    </button>
+    <nav class="shell-nav" aria-label="App sections">
+      {nav.map((n) => (
+        <a href={n.href} class:list={["shell-navlink", { active: path === n.href }]} data-ru={n.ru}
+           aria-current={path === n.href ? 'page' : undefined}>
+          <span class="ic" aria-hidden="true">{n.icon}</span><span class="lbl">{n.label}</span>
+        </a>
+      ))}
+    </nav>
+  </aside>
+
+  <div class="shell-body">
+    <header class="shell-topbar">
+      <h1 class="shell-title" data-ru={titleRu}>{title}</h1>
+      <div class="shell-actions">
+        <a href="https://checkup.earn-defi.com/check?utm_source=dashboard" class="shell-cta"
+           data-ru="Проверить кошелёк →">Check your wallet →</a>
+      </div>
+    </header>
+
+    <div class="shell-grid">
+      <div class="shell-kpi"><slot name="kpi" /></div>
+      <div class="shell-main"><slot /></div>
+      <aside class="shell-rail" aria-label="Context"><slot name="rail" /></aside>
+      <div class="shell-below"><slot name="below" /></div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .shell { display: flex; align-items: flex-start; gap: 0; }
+  .shell-sidebar {
+    flex: 0 0 256px; width: 256px; align-self: stretch; position: sticky; top: 0;
+    border-right: 1px solid var(--border); background: var(--bg-surface);
+    padding: 16px 12px; min-height: 60vh; transition: width 140ms var(--ease), flex-basis 140ms var(--ease);
+  }
+  .shell-collapse {
+    display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+    margin: 0 0 12px auto; border: 1px solid var(--border); border-radius: var(--r-sm);
+    background: var(--bg-base); color: var(--text-muted); cursor: pointer; transition: color 120ms var(--ease);
+  }
+  .shell-collapse:hover { color: var(--text-primary); }
+  .shell-nav { display: flex; flex-direction: column; gap: 4px; }
+  .shell-navlink {
+    display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: var(--r-md);
+    color: var(--text-secondary); text-decoration: none; font-size: .875rem; white-space: nowrap;
+    transition: background 120ms var(--ease), color 120ms var(--ease);
+  }
+  .shell-navlink:hover { background: var(--bg-surface-2); color: var(--text-primary); }
+  .shell-navlink.active { background: var(--accent-bg); color: var(--accent); }
+  .shell-navlink .ic { flex: 0 0 auto; width: 20px; text-align: center; font-size: 1rem; }
+
+  .shell-body { flex: 1 1 auto; min-width: 0; }
+  .shell-topbar {
+    position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; height: 60px; padding: 0 24px; background: color-mix(in srgb, var(--bg-base) 88%, transparent);
+    backdrop-filter: blur(8px); border-bottom: 1px solid var(--border);
+  }
+  .shell-title { font-size: 1.125rem; font-weight: 700; color: var(--text-primary); margin: 0; }
+  .shell-cta {
+    display: inline-flex; align-items: center; padding: 7px 14px; border-radius: var(--r-sm);
+    background: var(--accent); color: #fff; font-size: .8125rem; font-weight: 600; text-decoration: none;
+    transition: background 120ms var(--ease);
+  }
+  .shell-cta:hover { background: var(--accent-hover); }
+
+  .shell-grid {
+    display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px;
+    max-width: 1440px; padding: 24px; align-content: start;
+  }
+  .shell-kpi   { grid-column: 1 / -1; }
+  .shell-main  { grid-column: span 8 / span 8; min-width: 0; }
+  .shell-rail  { grid-column: span 4 / span 4; min-width: 0; }
+  .shell-below { grid-column: 1 / -1; }
+  /* Empty slots collapse so they add no gap. */
+  .shell-kpi:empty, .shell-rail:empty, .shell-below:empty { display: none; }
+
+  /* Collapsed sidebar (icons only) — toggled via data-collapsed on [data-shell]. */
+  [data-shell].is-collapsed .shell-sidebar { flex-basis: 64px; width: 64px; }
+  [data-shell].is-collapsed .shell-navlink .lbl { display: none; }
+  [data-shell].is-collapsed .shell-navlink { justify-content: center; gap: 0; }
+  [data-shell].is-collapsed .shell-collapse .cc { transform: rotate(180deg); }
+
+  @media (max-width: 900px) {
+    .shell { flex-direction: column; }
+    .shell-sidebar {
+      position: sticky; top: 0; z-index: 31; flex-basis: auto; width: 100%; min-height: 0;
+      border-right: none; border-bottom: 1px solid var(--border); padding: 8px 12px;
+    }
+    .shell-collapse { display: none; }
+    .shell-nav { flex-direction: row; overflow-x: auto; gap: 4px; }
+    .shell-navlink .lbl { display: inline; }
+    .shell-grid { grid-template-columns: 1fr; padding: 16px; }
+    .shell-main, .shell-rail { grid-column: 1 / -1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .shell-sidebar, .shell-collapse, .shell-navlink, .shell-cta { transition: none; }
+  }
+</style>
+
+<script is:inline>
+  (function () {
+    var shell = document.querySelector('[data-shell]');
+    var btn = document.querySelector('[data-shell-collapse]');
+    if (!shell || !btn) return;
+    try { if (localStorage.getItem('spa-shell-collapsed') === '1') shell.classList.add('is-collapsed'); } catch (e) {}
+    btn.addEventListener('click', function () {
+      var on = shell.classList.toggle('is-collapsed');
+      btn.setAttribute('aria-label', on ? 'Expand sidebar' : 'Collapse sidebar');
+      try { localStorage.setItem('spa-shell-collapsed', on ? '1' : '0'); } catch (e) {}
+    });
+  })();
+</script>
