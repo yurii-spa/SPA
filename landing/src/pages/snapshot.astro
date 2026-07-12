@@ -79,6 +79,8 @@ import TrustBand from '../components/TrustBand.astro';
       <div id="sn-yieldgap" class="rounded-xl p-5 mb-4" style="background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3)"></div>
       <ul id="sn-notes" class="space-y-2 text-sm text-slate-300 leading-relaxed mb-5"></ul>
       <div id="sn-next" class="rounded-xl p-5 mb-6" style="background:var(--bg-surface);border:1px solid var(--accent-border)"></div>
+      <!-- C5: name the ONE thing we can't fix for you (honest, no promised returns) → bridge to /how-we-think. -->
+      <div id="sn-gap" class="rounded-xl p-5 mb-6" style="background:rgba(242,181,60,.06);border:1px solid rgba(242,181,60,.28)"></div>
       <div class="flex flex-wrap gap-3">
         <form id="sn-email-form" class="flex gap-2 flex-wrap">
           <input id="sn-email" type="email" maxlength="256" placeholder="you@email.com" autocomplete="email"
@@ -166,6 +168,15 @@ import TrustBand from '../components/TrustBand.astro';
         nx.innerHTML='<div style="font-size:13px;color:var(--text-muted);margin-bottom:4px">'+step.t+'</div>'+
           '<div style="font-size:14px;color:var(--text-secondary);line-height:1.5;margin-bottom:10px">'+step.d+'</div>'+
           '<a href="'+step.h+'?src=snapshot" data-track="snapshot_next" style="color:var(--accent-400);text-decoration:underline;font-size:14px;font-weight:600">'+step.c+'</a>';
+        // C5: the ONE thing we can't fix for you — honest, then a bridge to how a desk thinks about it.
+        var gapTitle, gapBody;
+        if(ans[2].indexOf('cex')>=0){ gapTitle=ru?'Что мы НЕ можем починить за вас: кастоди':'The one we can\'t fix for you: custody'; gapBody=ru?'Пока стейблы на бирже, ключи держит она, а не вы. Мы некастодиальны — мы не можем взять на себя этот риск, только помочь думать о нём.':'While stables sit on an exchange, it holds the keys, not you. We are non-custodial — we cannot take that risk on for you, only help you think about it.'; }
+        else if(ans[3].indexOf('algo')>=0){ gapTitle=ru?'Что мы НЕ можем починить: механизм пега':'The one we can\'t fix: the peg mechanism'; gapBody=ru?'Алго/прочие стейблы держатся на механизме, который может сломаться (UST-2022). Никакая доходность это не компенсирует — только меньший размер и понимание.':'Algo/other stables rely on a mechanism that can break (UST-2022). No yield compensates for that — only a smaller size and understanding do.'; }
+        else if(ans[2].indexOf('idle')>=0){ gapTitle=ru?'Что мы НЕ можем починить: за вас нажать кнопку':'The one we can\'t fix: taking the step for you'; gapBody=ru?'Простаивающие деньги под 0% — это выбор бездействия. Мы можем показать честный путь, но некастодиально — решаете и исполняете вы.':'Idle money at 0% is the choice to do nothing. We can show an honest path, but non-custodially — you decide and execute.'; }
+        else { gapTitle=ru?'Что мы НЕ можем починить: доверие':'The one we can\'t fix: trust'; gapBody=ru?'Проверку нельзя аутсорсить. Но её можно СДЕЛАТЬ — каждое наше число пересчитывается одним верификатором.':'Verification can\'t be outsourced. But it CAN be done — every number we publish is re-derivable with one verifier.'; }
+        document.getElementById('sn-gap').innerHTML='<div style="font-size:13px;font-weight:600;color:#f2b53c;margin-bottom:4px">'+gapTitle+'</div>'+
+          '<div style="font-size:14px;color:var(--text-secondary);line-height:1.5;margin-bottom:10px">'+gapBody+'</div>'+
+          '<a href="/how-we-think?src=snapshot" data-track="snapshot_to_bridge" style="color:var(--accent-400);text-decoration:underline;font-size:14px;font-weight:600">'+(ru?'Как деск думает об этом честно →':'How a desk thinks about this, honestly →')+'</a>';
         // reveal result
         document.querySelectorAll('.sn-q').forEach(function(s){ s.hidden=true; });
         document.getElementById('sn-dots').style.display='none';

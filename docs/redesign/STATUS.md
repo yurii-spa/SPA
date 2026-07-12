@@ -59,7 +59,8 @@
 | C8 trust band | **LIVE-VERIFIED** (2026-07-12, curl) — `TrustBand.astro` (4 honest pillars: Non-custodial · Honest-first · Public track · We-show-the-bad-news) renders on both /packages/ and /snapshot/. EN|RU, no promised returns |
 | C7 dual-CTA audit | **SHIPPED** (2026-07-12, build green) — audited all conversion surfaces (snapshot/packages/pilot/fundability/aggressive-lab) for both a self-serve step AND a "Talk to a human". Only `/aggressive-lab` lacked the human path → added "Talk to a human →" /pilot?src=aggressive-lab. All surfaces now dual-CTA |
 | C6 bridge page | **SHIPPED** (2026-07-12, build green) — new `/how-we-think` ("How we think about stablecoin yield — honestly"): the §2 reframe long-form (yield = price of a risk · moat = measurement+refusal not rate · proven ~3.3% floor vs shown up-to-20% tail · non-custodial), links to refusals/verify/annual-contrast/packages/snapshot/pilot + TrustBand. EN|RU, no promised returns. C5 un-fixable-gap panels will link here. Live-verify pending CF |
-| C5 un-fixable-gap panel · E3 share card · I1 post-lead ops | PENDING |
+| C5 un-fixable-gap panel | **SHIPPED** (2026-07-12, build green) — the /snapshot result now names the ONE thing we can't fix for you (custody if CEX / peg-mechanism if algo / the-step if idle / trust otherwise — honest, no promised returns) with a bridge link → /how-we-think (C6). Checkup-report C5 panel is a follow (checkup repo). Live-verify pending CF |
+| E3 share card · I1 post-lead ops | PENDING |
 
 ## Phase 3 — IA consolidation (spec 02)
 
