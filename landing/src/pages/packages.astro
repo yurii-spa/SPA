@@ -37,9 +37,9 @@ const tiers = [
     tone: 'amber',
     live: false,
     what_en: 'sUSDe carry, Pendle YT-sUSDe. Risk-class C (yield paid for a tail). Paper-tested in the Aggressive Lab WITH its drawdowns labelled by event — never live-allocated until it passes the full lifecycle (yield-source + Red Team + ≥30-day paper + human approval).',
-    what_ru: 'sUSDe carry, Pendle YT-sUSDe. Риск-класс C (доход за хвост). Paper-тестируется в Aggressive Lab С просадками, помеченными по событию — не аллоцируется live, пока не пройдёт полный цикл (yield-source + Red Team + ≥30 дней paper + одобрение человека).',
+    what_ru: 'sUSDe carry, Pendle YT-sUSDe. Риск-класс C (доход за хвост). Тестируется на бумаге в Aggressive Lab С просадками, помеченными по событию — не аллоцируется live, пока не пройдёт полный цикл (источник дохода + Red Team + ≥30 дней на бумаге + одобрение человека).',
     caveat_en: 'Our engine already found this — and its tail. It stays in paper until it clears 30 forward days + a real vol event; that discipline IS the product. Real in the good months, measured in the bad. Join early-access to get in the day it clears.',
-    caveat_ru: 'Наш движок уже нашёл это — и его хвост. Оно остаётся в paper, пока не пройдёт 30 форвардных дней + реальное vol-событие; эта дисциплина И ЕСТЬ продукт. Реально в хорошие месяцы, измерено в плохие. Вступи в early-access, чтобы войти в день, когда оно пройдёт.',
+    caveat_ru: 'Наш движок уже нашёл это — и его хвост. Оно остаётся на бумаге, пока не пройдёт 30 форвардных дней и реальное событие волатильности; эта дисциплина И ЕСТЬ продукт. Реально в хорошие месяцы, измерено в плохие. Вступи в ранний доступ, чтобы войти в день, когда оно пройдёт.',
   },
   {
     key: 'aggressive',
@@ -92,7 +92,7 @@ const toneMap = {
         <span class="w-1.5 h-1.5 rounded-full bg-data-teal animate-pulse" aria-hidden="true"></span>
         <span data-ru="Продуктовые тиры — честно">Product tiers — honest</span>
       </div>
-      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4" data-ru="Йелд-пакеты">Yield packages</h1>
+      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4" data-ru="Доходные пакеты">Yield packages</h1>
       <p class="text-lg text-slate-400 leading-relaxed max-w-3xl" data-ru="Три тира по целевому APY и лимиту просадки. Правда не в маркетинговом числе, а в СТАТУСЕ каждого тира: чем выше доходность, тем больше хвост — и мы его измеряем, а не прячем.">
         Three tiers by target APY and drawdown limit. The truth is not a marketing number — it is the STATUS of each tier: the higher the yield, the bigger the tail, and we measure it rather than hide it.
       </p>
