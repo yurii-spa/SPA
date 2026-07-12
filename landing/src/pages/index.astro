@@ -71,6 +71,9 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
 
       <p class="hero-trust" data-ru="Без подключения кошелька. Без email. Только публичные адреса.">No wallet connection. No email required. Public addresses only.</p>
       <div style="margin-top:14px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <!-- J5 (customer-journey-map): a first-timer with no wallet can preview the analysis instantly,
+             right at the entry — answers "how do I see an example" without hunting for the URL. -->
+        <a class="btn btn-ghost" href="https://checkup.earn-defi.com/sample-report" data-track="hero_sample_report" data-ru="Посмотреть пример анализа →">See a sample analysis →</a>
         <a class="btn btn-ghost" href="/track-record" data-track="hero_see_live_track" data-ru="Смотреть живой трек →">See the live track →</a>
       </div>
 
