@@ -350,3 +350,54 @@ oracle/liquidity на кворуме источников, `reaction.py` де-р
   fixed-point равновесного APY С УЧЁТОМ ВЛИЯНИЯ СОБСТВЕННОГО РАЗМЕРА (rate-impact-at-size — наш
   депозит сам сдвигает utilization ⇒ честный «APY после нас», которого не считает никто из
   агрегаторов) + shadow-аллокатор рядом с живым (paper, advisory) → S2-style сравнение → ADR.
+
+- **#7 Carry-Regime-Adaptive Cross-Desk Portfolio (PERS — Pre-Event Regime Shift)** — статус:
+  **ПРОТЕСТИРОВАНА на бэктесте → ПОЗИТИВНО, честно ограничена** ✅
+  (`scripts/carry_regime_adaptive_portfolio.py`, 2026-07-13). Структурно новая категория —
+  ни guardian (#1), ни vol-targeting (#4), ни EYC (#6). **COMPOSITION SHIFT**: адаптирует
+  СОСТАВ cross-desk портфеля (#3) под текущий carry-режим (GREEN/YELLOW/RED), а не просто
+  сайзинг или venue-отбор. Режимные веса: GREEN→25/50/25, YELLOW→15/45/40, RED→5/25/70
+  (sUSDe / rates-carry / RWA-floor).
+
+  **Бэктест-результаты (699 дней, 2024-07..2026-05, синтетическая fixture + smooth rates):**
+
+  | портфель | APY | maxDD | Calmar |
+  |---|---|---|---|
+  | Static cross-desk #3 (25/50/25) | 4.26% | **2.11%** | 2.03 |
+  | **Adaptive 0d lead (moderate shift)** | **5.44%** | **0.38%** | **14.29** |
+  | Adaptive 14d lead (moderate shift) | 5.33% | 0.38% | 14.01 |
+  | Adaptive aggressive (0/10/90 в RED) | 5.54% | 0.00% | n/a |
+
+  **Per-crisis breakdown (adaptive 0d vs static #3):**
+
+  | кризис | static DD | adaptive DD | спасено |
+  |---|---|---|---|
+  | eth_crash 2024-08 | −0.63% | −0.08% | **0.55pp** |
+  | usde_unwind 2025-10 | −2.09% | −0.36% | **1.73pp** |
+  | rseth_depeg 2026-04 | −0.15% | 0.00% | **0.15pp** |
+
+  **Ключевая находка:** ценность — НЕ в advance warning (YELLOW-фаза перед событием), а в
+  IN-EVENT COMPOSITION SHIFT (RED-фаза: 5/25/70 вместо 25/50/25 во время события). Чем длиннее
+  pre-event lead → тем НИЖЕ Calmar (YELLOW = лишние дни в защитном режиме → теряем carry без
+  пропорционального снижения DD). Оптимум = 0 дней опережения (реагировать на ТЕКУЩЕЕ событие,
+  не пытаться его предсказать). Это «compounding asymmetry» effect: избегание -2% потери
+  (которую нужно восстанавливать) + продолжение carry на более высокой базе → APY ↑ ТОЖЕ.
+
+  **Связь с RTMR:** именно это делают сенсоры peg/tvl/oracle в `spa_core/monitoring/` — они
+  детектируют ТЕКУЩЕЕ событие в ~45с–90с. Архитектурный смысл: RTMR-posture уже существует
+  (`data/monitoring/risk_posture.json`) — следующий шаг: читать posture в cross-desk аллокаторе
+  (advisory) и сдвигать веса при SOFT/DEFENSIVE ↔ GREEN.
+
+  **Честные оговорки:**
+  (а) Режимный сигнал СИНТЕТИЧЕСКИЙ, откалиброван под известные даты кризисов из фикстуры
+      → ВЕРХНЯЯ ГРАНИЦА. Реальные RTMR-сенсоры имеют шум и false-positive → реальный edge меньше.
+  (б) Rates-carry = синтетически гладкий (pendle_pt_history не в cloud checkout). Реальная серия
+      имеет maturity-timing и refusal-filtering → небольшая vol.
+  (в) В МАКРО-кризисе (рост ставок) rates-carry leg испытывает duration loss — не смоделировано.
+  (г) «Aggressive shift» (0% sUSDe в RED) устраняет DD в фикстуре — артефакт smooth fixture;
+      в реальности сдвиг 25pp за тик (~45с) невозможен ликвидности. Moderate shift реалистичнее.
+  (д) Evidence level: **L0** (backtest/synthetic). НЕ live результаты.
+
+  **СЛЕДУЮЩИЙ ШАГ:** wire RTMR-posture → advisory cross-desk composition signal; накапливать
+  форвардный paper сквозь реальные vol-события и смотреть, когда RTMR-RED фактически
+  срабатывает относительно portfolio DD. ADR перед любым реальным capital-movement.
