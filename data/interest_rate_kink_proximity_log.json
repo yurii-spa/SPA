@@ -762,5 +762,73 @@
       "Insufficient data: no utilization signal and/or data marked unreliable. Cannot assess kink proximity for this market."
     ],
     "timestamp": 1782010805.028244
+  },
+  {
+    "name": "TestMarket",
+    "utilization_pct": 50.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 50000000.0,
+    "total_supplied_usd": 100000000.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 30.0,
+    "projected_borrow_apr_now_pct": 2.5,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 1.125,
+    "liquidity_buffer_pct": 50.0,
+    "kink_proximity_score": 33.75,
+    "classification": "COMFORTABLE",
+    "grade": "D",
+    "flags": [
+      "STEEP_SECOND_SLOPE",
+      "LARGE_RATE_SHOCK",
+      "AMPLE_HEADROOM"
+    ],
+    "recommendations": [
+      "Comfortable: utilization 50.00% sits a healthy ~30.00 points below the 80.00% kink.",
+      "Large embedded rate shock: crossing the kink would add ~60.00 points of borrow APR up to 100% utilization. Carry can deteriorate quickly if utilization rises.",
+      "Steep second slope: this market's rate model punishes over-utilization aggressively; suppliers benefit from spikes but borrowers (and looped positions) are exposed.",
+      "Ample headroom remains before the kink: borrow-rate stability is favourable for both suppliers and looped borrowers."
+    ],
+    "timestamp": 1784021227.1342838
+  },
+  {
+    "name": "TestMarket",
+    "utilization_pct": 50.0,
+    "kink_utilization_pct": 80.0,
+    "base_rate_pct": 0.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "reserve_factor_pct": 10.0,
+    "available_liquidity_usd": 50000000.0,
+    "total_supplied_usd": 100000000.0,
+    "data_quality_ok": true,
+    "utilization_headroom_pct": 30.0,
+    "projected_borrow_apr_now_pct": 2.5,
+    "projected_borrow_apr_at_kink_pct": 4.0,
+    "projected_borrow_apr_at_full_pct": 64.0,
+    "rate_shock_if_crossed_pct": 60.0,
+    "supply_apr_now_pct": 1.125,
+    "liquidity_buffer_pct": 50.0,
+    "kink_proximity_score": 33.75,
+    "classification": "COMFORTABLE",
+    "grade": "D",
+    "flags": [
+      "STEEP_SECOND_SLOPE",
+      "LARGE_RATE_SHOCK",
+      "AMPLE_HEADROOM"
+    ],
+    "recommendations": [
+      "Comfortable: utilization 50.00% sits a healthy ~30.00 points below the 80.00% kink.",
+      "Large embedded rate shock: crossing the kink would add ~60.00 points of borrow APR up to 100% utilization. Carry can deteriorate quickly if utilization rises.",
+      "Steep second slope: this market's rate model punishes over-utilization aggressively; suppliers benefit from spikes but borrowers (and looped positions) are exposed.",
+      "Ample headroom remains before the kink: borrow-rate stability is favourable for both suppliers and looped borrowers."
+    ],
+    "timestamp": 1784021228.181112
   }
 ]

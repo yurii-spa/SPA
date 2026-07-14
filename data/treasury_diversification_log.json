@@ -206,5 +206,21 @@
     "runway_months": null,
     "hhi_concentration_score": 100.0,
     "diversification_label": "CONCENTRATED"
+  },
+  {
+    "ts": "2026-07-14T09:00:07.977150+00:00",
+    "protocol_name": "TestProtocol",
+    "total_treasury_usd": 10000000.0,
+    "runway_months": 20.0,
+    "hhi_concentration_score": 38.0,
+    "diversification_label": "ADEQUATE"
+  },
+  {
+    "ts": "2026-07-14T09:00:07.988452+00:00",
+    "protocol_name": "TestProtocol",
+    "total_treasury_usd": 10000000.0,
+    "runway_months": 20.0,
+    "hhi_concentration_score": 38.0,
+    "diversification_label": "ADEQUATE"
   }
 ]

@@ -214,5 +214,221 @@
     "algo_exposure_pct": 0.0,
     "concentration_score": 100.0,
     "component_count": 2
+  },
+  {
+    "ts": "2026-07-14T09:00:02Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 21.48,
+    "basket_label": "AVOID_BASKET",
+    "algo_exposure_pct": 40.0,
+    "concentration_score": 4.0,
+    "component_count": 2
+  },
+  {
+    "ts": "2026-07-14T09:00:02Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 17.0,
+    "basket_label": "FORTRESS_BASKET",
+    "algo_exposure_pct": 0,
+    "concentration_score": 100.0,
+    "component_count": 1
+  },
+  {
+    "ts": "2026-07-14T09:00:02Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 17.0,
+    "basket_label": "FORTRESS_BASKET",
+    "algo_exposure_pct": 0,
+    "concentration_score": 100.0,
+    "component_count": 1
+  },
+  {
+    "ts": "2026-07-14T09:00:02Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 42.0,
+    "basket_label": "BALANCED",
+    "algo_exposure_pct": 0,
+    "concentration_score": 100.0,
+    "component_count": 1
+  },
+  {
+    "ts": "2026-07-14T09:00:02Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 20.08,
+    "basket_label": "AVOID_BASKET",
+    "algo_exposure_pct": 35.0,
+    "concentration_score": 9.0,
+    "component_count": 2
+  },
+  {
+    "ts": "2026-07-14T09:00:02Z",
+    "basket_name": "MyBasket",
+    "basket_risk_score": 17.0,
+    "basket_label": "FORTRESS_BASKET",
+    "algo_exposure_pct": 0,
+    "concentration_score": 100.0,
+    "component_count": 1
+  },
+  {
+    "ts": "2026-07-14T09:00:02Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 5.0,
+    "basket_label": "FORTRESS_BASKET",
+    "algo_exposure_pct": 0,
+    "concentration_score": 0.0,
+    "component_count": 3
+  },
+  {
+    "ts": "2026-07-14T09:00:02Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 17.0,
+    "basket_label": "FORTRESS_BASKET",
+    "algo_exposure_pct": 0,
+    "concentration_score": 100.0,
+    "component_count": 1
+  },
+  {
+    "ts": "2026-07-14T09:00:02Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 5.0,
+    "basket_label": "FORTRESS_BASKET",
+    "algo_exposure_pct": 0,
+    "concentration_score": 0.0,
+    "component_count": 2
+  },
+  {
+    "ts": "2026-07-14T09:00:02Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 17.0,
+    "basket_label": "FORTRESS_BASKET",
+    "algo_exposure_pct": 0,
+    "concentration_score": 100.0,
+    "component_count": 1
+  },
+  {
+    "ts": "2026-07-14T09:00:02Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 17.0,
+    "basket_label": "FORTRESS_BASKET",
+    "algo_exposure_pct": 0,
+    "concentration_score": 100.0,
+    "component_count": 1
+  },
+  {
+    "ts": "2026-07-14T09:00:02Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 25.0,
+    "basket_label": "CONSERVATIVE",
+    "algo_exposure_pct": 0,
+    "concentration_score": 0.0,
+    "component_count": 2
+  },
+  {
+    "ts": "2026-07-14T09:00:02Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 0.0,
+    "basket_label": "FORTRESS_BASKET",
+    "algo_exposure_pct": 0,
+    "concentration_score": 0.0,
+    "component_count": 2
+  },
+  {
+    "ts": "2026-07-14T09:00:02Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 17.0,
+    "basket_label": "FORTRESS_BASKET",
+    "algo_exposure_pct": 0,
+    "concentration_score": 100.0,
+    "component_count": 1
+  },
+  {
+    "ts": "2026-07-14T09:00:02Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 17.0,
+    "basket_label": "FORTRESS_BASKET",
+    "algo_exposure_pct": 0,
+    "concentration_score": 100.0,
+    "component_count": 1
+  },
+  {
+    "ts": "2026-07-14T09:00:02Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 100.0,
+    "basket_label": "AVOID_BASKET",
+    "algo_exposure_pct": 100.0,
+    "concentration_score": 100.0,
+    "component_count": 1
+  },
+  {
+    "ts": "2026-07-14T09:00:03Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 57.0,
+    "basket_label": "AVOID_BASKET",
+    "algo_exposure_pct": 100.0,
+    "concentration_score": 100.0,
+    "component_count": 1
+  },
+  {
+    "ts": "2026-07-14T09:00:03Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 5.48,
+    "basket_label": "FORTRESS_BASKET",
+    "algo_exposure_pct": 0,
+    "concentration_score": 4.0,
+    "component_count": 2
+  },
+  {
+    "ts": "2026-07-14T09:00:03Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 5.0,
+    "basket_label": "FORTRESS_BASKET",
+    "algo_exposure_pct": 0,
+    "concentration_score": 0.0,
+    "component_count": 5
+  },
+  {
+    "ts": "2026-07-14T09:00:03Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 42.0,
+    "basket_label": "BALANCED",
+    "algo_exposure_pct": 0,
+    "concentration_score": 100.0,
+    "component_count": 1
+  },
+  {
+    "ts": "2026-07-14T09:00:03Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 47.0,
+    "basket_label": "BALANCED",
+    "algo_exposure_pct": 0,
+    "concentration_score": 100.0,
+    "component_count": 1
+  },
+  {
+    "ts": "2026-07-14T09:00:03Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 11.4,
+    "basket_label": "FORTRESS_BASKET",
+    "algo_exposure_pct": 0,
+    "concentration_score": 0.0,
+    "component_count": 5
+  },
+  {
+    "ts": "2026-07-14T09:00:03Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 0.0,
+    "basket_label": "FORTRESS_BASKET",
+    "algo_exposure_pct": 0,
+    "concentration_score": 0.0,
+    "component_count": 2
+  },
+  {
+    "ts": "2026-07-14T09:00:03Z",
+    "basket_name": "TestBasket",
+    "basket_risk_score": 17.0,
+    "basket_label": "FORTRESS_BASKET",
+    "algo_exposure_pct": 0.0,
+    "concentration_score": 100.0,
+    "component_count": 2
   }
 ]

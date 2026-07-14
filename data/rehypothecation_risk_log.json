@@ -25,5 +25,32 @@
     "extreme_count": 0,
     "safest_position": "Pos",
     "riskiest_position": "Pos"
+  },
+  {
+    "ts": "2026-07-14T08:59:59Z",
+    "position_count": 2,
+    "avg_rehypothecation_risk": 48.93,
+    "avg_leverage_multiple": 4.229,
+    "extreme_count": 1,
+    "safest_position": "NoLev",
+    "riskiest_position": "Extreme"
+  },
+  {
+    "ts": "2026-07-14T08:59:59Z",
+    "position_count": 2,
+    "avg_rehypothecation_risk": 29.43,
+    "avg_leverage_multiple": 2.7344,
+    "extreme_count": 0,
+    "safest_position": "Pos",
+    "riskiest_position": "P2"
+  },
+  {
+    "ts": "2026-07-14T08:59:59Z",
+    "position_count": 1,
+    "avg_rehypothecation_risk": 29.43,
+    "avg_leverage_multiple": 2.7344,
+    "extreme_count": 0,
+    "safest_position": "Pos",
+    "riskiest_position": "Pos"
   }
 ]

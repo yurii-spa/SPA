@@ -758,5 +758,69 @@
       "Insufficient data: position_value_usd <= 0 or no slashing probabilities supplied. Cannot assess slashing exposure."
     ],
     "timestamp": 1782010805.0295281
+  },
+  {
+    "name": "TestPosition",
+    "position_value_usd": 1000000.0,
+    "num_validators": 100.0,
+    "operator_concentration_pct": 10.0,
+    "annual_downtime_slash_prob": 0.01,
+    "annual_correlated_slash_prob": 0.001,
+    "downtime_penalty_pct": 0.1,
+    "correlated_penalty_pct": 50.0,
+    "restaking_layers": 0.0,
+    "insurance_coverage_pct": 0.0,
+    "data_quality_ok": true,
+    "restaking_amplification_factor": 1.0,
+    "expected_annual_slashing_loss_pct": 0.051000000000000004,
+    "expected_annual_slashing_loss_usd": 510.00000000000006,
+    "worst_case_haircut_pct": 5.0,
+    "correlated_loss_contribution_pct": 98.0392156862745,
+    "effective_exposure_after_insurance_pct": 0.051000000000000004,
+    "slashing_risk_score": 18.562882352941177,
+    "classification": "LOW",
+    "grade": "B",
+    "flags": [
+      "UNINSURED",
+      "WELL_DIVERSIFIED"
+    ],
+    "recommendations": [
+      "Low slashing exposure: expected annual loss ~0.05%. Risk is contained but not zero.",
+      "Effectively uninsured: ~0.05% expected loss is borne directly with no coverage offset.",
+      "Well diversified across validators and operators, which limits the correlated-slashing haircut to a small slice of the position."
+    ],
+    "timestamp": 1784021241.221638
+  },
+  {
+    "name": "TestPosition",
+    "position_value_usd": 1000000.0,
+    "num_validators": 100.0,
+    "operator_concentration_pct": 10.0,
+    "annual_downtime_slash_prob": 0.01,
+    "annual_correlated_slash_prob": 0.001,
+    "downtime_penalty_pct": 0.1,
+    "correlated_penalty_pct": 50.0,
+    "restaking_layers": 0.0,
+    "insurance_coverage_pct": 0.0,
+    "data_quality_ok": true,
+    "restaking_amplification_factor": 1.0,
+    "expected_annual_slashing_loss_pct": 0.051000000000000004,
+    "expected_annual_slashing_loss_usd": 510.00000000000006,
+    "worst_case_haircut_pct": 5.0,
+    "correlated_loss_contribution_pct": 98.0392156862745,
+    "effective_exposure_after_insurance_pct": 0.051000000000000004,
+    "slashing_risk_score": 18.562882352941177,
+    "classification": "LOW",
+    "grade": "B",
+    "flags": [
+      "UNINSURED",
+      "WELL_DIVERSIFIED"
+    ],
+    "recommendations": [
+      "Low slashing exposure: expected annual loss ~0.05%. Risk is contained but not zero.",
+      "Effectively uninsured: ~0.05% expected loss is borne directly with no coverage offset.",
+      "Well diversified across validators and operators, which limits the correlated-slashing haircut to a small slice of the position."
+    ],
+    "timestamp": 1784021242.2528613
   }
 ]

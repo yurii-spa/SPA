@@ -313,5 +313,320 @@
     "liquidation_price_drop_pct": 50.4505,
     "margin_of_safety_pct": 45.4505,
     "leverage_risk_label": "CONSERVATIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 2.3125,
+    "net_apy_pct": 7.7812,
+    "liquidation_price_drop_pct": 29.0541,
+    "margin_of_safety_pct": 9.0541,
+    "leverage_risk_label": "LIQUIDATION_PRONE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 2.5,
+    "net_apy_pct": 8.25,
+    "liquidation_price_drop_pct": 26.8293,
+    "margin_of_safety_pct": 11.8293,
+    "leverage_risk_label": "AGGRESSIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 2.5,
+    "net_apy_pct": 8.25,
+    "liquidation_price_drop_pct": 26.8293,
+    "margin_of_safety_pct": 11.8293,
+    "leverage_risk_label": "AGGRESSIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 2.5,
+    "net_apy_pct": 8.25,
+    "liquidation_price_drop_pct": 26.8293,
+    "margin_of_safety_pct": 11.8293,
+    "leverage_risk_label": "AGGRESSIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 2.5,
+    "net_apy_pct": 8.25,
+    "liquidation_price_drop_pct": 26.8293,
+    "margin_of_safety_pct": 11.8293,
+    "leverage_risk_label": "AGGRESSIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 1.5,
+    "net_apy_pct": 5.75,
+    "liquidation_price_drop_pct": 48.7179,
+    "margin_of_safety_pct": 43.7179,
+    "leverage_risk_label": "CONSERVATIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 2.3125,
+    "net_apy_pct": 21.8125,
+    "liquidation_price_drop_pct": 30.7844,
+    "margin_of_safety_pct": 15.7844,
+    "leverage_risk_label": "AGGRESSIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 2.5,
+    "net_apy_pct": 8.25,
+    "liquidation_price_drop_pct": 26.8293,
+    "margin_of_safety_pct": 11.8293,
+    "leverage_risk_label": "AGGRESSIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 2.5,
+    "net_apy_pct": 8.25,
+    "liquidation_price_drop_pct": 26.8293,
+    "margin_of_safety_pct": 11.8293,
+    "leverage_risk_label": "AGGRESSIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 3.0508,
+    "net_apy_pct": 9.627,
+    "liquidation_price_drop_pct": 15.9731,
+    "margin_of_safety_pct": -9.0269,
+    "leverage_risk_label": "LIQUIDATION_IMMINENT"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 2.5,
+    "net_apy_pct": 8.25,
+    "liquidation_price_drop_pct": 26.8293,
+    "margin_of_safety_pct": 11.8293,
+    "leverage_risk_label": "AGGRESSIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 2.5,
+    "net_apy_pct": 8.25,
+    "liquidation_price_drop_pct": 26.8293,
+    "margin_of_safety_pct": 11.8293,
+    "leverage_risk_label": "AGGRESSIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 2.5,
+    "net_apy_pct": 8.25,
+    "liquidation_price_drop_pct": 26.8293,
+    "margin_of_safety_pct": 11.8293,
+    "leverage_risk_label": "AGGRESSIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 2.5,
+    "net_apy_pct": -9.5,
+    "liquidation_price_drop_pct": 26.8293,
+    "margin_of_safety_pct": 11.8293,
+    "leverage_risk_label": "AGGRESSIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 1.0,
+    "net_apy_pct": 4.5,
+    "liquidation_price_drop_pct": 100.0,
+    "margin_of_safety_pct": 85.0,
+    "leverage_risk_label": "CONSERVATIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 1.0,
+    "net_apy_pct": 4.5,
+    "liquidation_price_drop_pct": 100.0,
+    "margin_of_safety_pct": 85.0,
+    "leverage_risk_label": "CONSERVATIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 1.0,
+    "net_apy_pct": 6.0,
+    "liquidation_price_drop_pct": 100.0,
+    "margin_of_safety_pct": 85.0,
+    "leverage_risk_label": "CONSERVATIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 2.5,
+    "net_apy_pct": 8.25,
+    "liquidation_price_drop_pct": 26.8293,
+    "margin_of_safety_pct": 11.8293,
+    "leverage_risk_label": "AGGRESSIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Morpho Blue",
+    "effective_leverage_x": 2.5,
+    "net_apy_pct": 8.25,
+    "liquidation_price_drop_pct": 26.8293,
+    "margin_of_safety_pct": 11.8293,
+    "leverage_risk_label": "AGGRESSIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 1.75,
+    "net_apy_pct": 6.375,
+    "liquidation_price_drop_pct": 47.7352,
+    "margin_of_safety_pct": 47.7352,
+    "leverage_risk_label": "CONSERVATIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 2.0,
+    "net_apy_pct": 7.0,
+    "liquidation_price_drop_pct": 47.3684,
+    "margin_of_safety_pct": 32.3684,
+    "leverage_risk_label": "MODERATE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": null,
+    "effective_leverage_x": null,
+    "net_apy_pct": null,
+    "liquidation_price_drop_pct": null,
+    "margin_of_safety_pct": null,
+    "leverage_risk_label": null
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": null,
+    "effective_leverage_x": null,
+    "net_apy_pct": null,
+    "liquidation_price_drop_pct": null,
+    "margin_of_safety_pct": null,
+    "leverage_risk_label": null
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": null,
+    "effective_leverage_x": null,
+    "net_apy_pct": null,
+    "liquidation_price_drop_pct": null,
+    "margin_of_safety_pct": null,
+    "leverage_risk_label": null
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": null,
+    "effective_leverage_x": null,
+    "net_apy_pct": null,
+    "liquidation_price_drop_pct": null,
+    "margin_of_safety_pct": null,
+    "leverage_risk_label": null
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": null,
+    "effective_leverage_x": null,
+    "net_apy_pct": null,
+    "liquidation_price_drop_pct": null,
+    "margin_of_safety_pct": null,
+    "leverage_risk_label": null
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": null,
+    "effective_leverage_x": null,
+    "net_apy_pct": null,
+    "liquidation_price_drop_pct": null,
+    "margin_of_safety_pct": null,
+    "leverage_risk_label": null
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": null,
+    "effective_leverage_x": null,
+    "net_apy_pct": null,
+    "liquidation_price_drop_pct": null,
+    "margin_of_safety_pct": null,
+    "leverage_risk_label": null
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": null,
+    "effective_leverage_x": null,
+    "net_apy_pct": null,
+    "liquidation_price_drop_pct": null,
+    "margin_of_safety_pct": null,
+    "leverage_risk_label": null
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 2.5,
+    "net_apy_pct": 497.0,
+    "liquidation_price_drop_pct": 26.8293,
+    "margin_of_safety_pct": 11.8293,
+    "leverage_risk_label": "AGGRESSIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 3.0,
+    "net_apy_pct": 9.5,
+    "liquidation_price_drop_pct": 16.6667,
+    "margin_of_safety_pct": 4.6667,
+    "leverage_risk_label": "LIQUIDATION_PRONE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 3.9905,
+    "net_apy_pct": 11.9762,
+    "liquidation_price_drop_pct": 8.6093,
+    "margin_of_safety_pct": -6.3907,
+    "leverage_risk_label": "LIQUIDATION_IMMINENT"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 2.5,
+    "net_apy_pct": 8.25,
+    "liquidation_price_drop_pct": 26.8293,
+    "margin_of_safety_pct": 11.8293,
+    "leverage_risk_label": "AGGRESSIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 1.0,
+    "net_apy_pct": 4.5,
+    "liquidation_price_drop_pct": 100.0,
+    "margin_of_safety_pct": 85.0,
+    "leverage_risk_label": "CONSERVATIVE_LEVERAGE"
+  },
+  {
+    "ts": "2026-07-14T08:59:50Z",
+    "protocol_name": "Aave V3",
+    "effective_leverage_x": 1.11,
+    "net_apy_pct": 4.775,
+    "liquidation_price_drop_pct": 50.4505,
+    "margin_of_safety_pct": 45.4505,
+    "leverage_risk_label": "CONSERVATIVE_LEVERAGE"
   }
 ]

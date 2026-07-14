@@ -19,5 +19,26 @@
     "safest_pool": "pool-1",
     "total_whale_volume_usd": 30000.0,
     "timestamp": 1781968221.3529348
+  },
+  {
+    "pools": [
+      {
+        "protocol": "Aave",
+        "pool_id": "pool-1",
+        "whale_tx_count": 1,
+        "whale_volume_usd": 30000.0,
+        "whale_volume_pct_tvl": 3.0,
+        "net_whale_flow_usd": 30000.0,
+        "yield_dilution_pct": 2.9126213592233086,
+        "price_impact_pct": 0.0,
+        "impact_level": "LOW",
+        "user_impact": "Pool activity within normal parameters \u2014 1 whale transactions",
+        "recommended_action": "No action required \u2014 normal market activity"
+      }
+    ],
+    "most_impacted_pool": "pool-1",
+    "safest_pool": "pool-1",
+    "total_whale_volume_usd": 30000.0,
+    "timestamp": 1784019649.645775
   }
 ]
