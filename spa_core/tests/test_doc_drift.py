@@ -304,7 +304,12 @@ def test_narrative_docs_match_golive_state():
     track_lo = max(0, track - 7)
     track_hi = min(30, track + 1)
 
-    for path in (_CLAUDE_MD, _CURRENT_STATE_MD, _README_MD):
+    # CLAUDE.md was deliberately condensed to lean instructions (env-setup-v3 Фаза 2, commit
+    # e50a138c) and no longer carries the volatile live GoLive/track dashboard — those numbers now
+    # live in CURRENT_STATE.md (auto-updated operational status) + README.md, which stay guarded here.
+    # A condensed root instruction doc must not carry drift-prone live counters; the sibling test
+    # `test_claude_md_no_stale_golive_or_app_ref` still forbids CLAUDE.md from showing a STALE count.
+    for path in (_CURRENT_STATE_MD, _README_MD):
         text = _read(path)
 
         doc_passed = _doc_fraction(text, total, lo=golive_lo, hi=golive_hi)
