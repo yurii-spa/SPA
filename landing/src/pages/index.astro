@@ -401,7 +401,10 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
         <div class="spark-wrap">
           <div class="sh">
             <span class="eyebrow" data-ru="Кривая капитала">Equity curve</span>
-            <span class="src" id="spark-src" data-ru="снимок">snapshot</span>
+            <span class="sh-right">
+              {snapAsOf && <span class="src" id="sl-asof" data-ru={`на дату ${snapAsOf}`}>as of {snapAsOf}</span>}
+              <span class="src" id="spark-src" data-ru="снимок">snapshot</span>
+            </span>
           </div>
           <svg id="spark" viewBox="0 0 400 120" preserveAspectRatio="none" role="img" aria-label="Paper equity curve" data-points={JSON.stringify(snapEquity)}></svg>
           <div class="spark-foot" data-ru="Виртуальный портфель $100,000 USDC · считаются только дни с логом цикла (мы сбросили трек) · реестр на /track-record">Virtual $100,000 USDC portfolio · only cycle-logged days count (we reset the track) · ledger at /track-record</div>
@@ -612,6 +615,8 @@ const snapEquity = snapBars.filter((b) => b.evidenced === true || b.source === '
   .spark-wrap .sh{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px}
   .spark-wrap .sh .eyebrow{color:var(--accent)}
   .spark-wrap .sh .src{font-family:var(--font-mono); font-size:.6875rem; color:var(--text-muted)}
+  .spark-wrap .sh .sh-right{display:inline-flex; align-items:center; gap:10px}
+  .spark-wrap .sh .sh-right #sl-asof{color:var(--text-faint)}
   #spark{width:100%; height:120px; display:block}
   .spark-foot{font-size:.6875rem; color:var(--text-muted); margin-top:12px; text-align:center}
 

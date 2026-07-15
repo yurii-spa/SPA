@@ -142,13 +142,22 @@ def evaluate(*, snapshot, home_html, track_html, api, sitemap_statuses, verifier
     cmp_int("gates_passed", site_home.get("gates_passed"), _num(snap.get("gates_passed")))
 
     # 5. snapshot == API (snapshot regenerated after cycle?)
+    #    evidenced_days: robust like-for-like staleness signal (both count the same real
+    #    daily-cycle bars). Kept as the SNAPSHOT_BEHIND_API detector.
     if apih.get("evidenced_days") is not None and snap.get("real_track_days") is not None:
         if abs(apih["evidenced_days"] - _num(snap["real_track_days"])) >= 1:
             fail("SNAPSHOT_BEHIND_API", f"snapshot days={snap['real_track_days']} != API days={apih['evidenced_days']}")
-    if apih.get("paper_apy_pct") is not None and snap.get("paper_apy_pct") is not None:
-        if abs(apih["paper_apy_pct"] - _num(snap["paper_apy_pct"])) > APY_TOL_PP:
-            fail("SNAPSHOT_BEHIND_API",
-                 f"snapshot apy={snap['paper_apy_pct']} != API apy={apih['paper_apy_pct']} (>{APY_TOL_PP}pp)")
+    #    apy leg REMOVED 2026-07-15 (OWNER-APPROVED, вариант «а»; rule #16 satisfied — owner
+    #    decided via card owner-decision-20260715-212059-apy, journaled). It was a CATEGORY-ERROR
+    #    false positive: the API exposes only the VOLATILE single-day apy_today_pct (api_headline
+    #    maps it into paper_apy_pct), while the committed snapshot.paper_apy_pct is the STABLE
+    #    track-to-date APY that generate_track_snapshot.py deliberately computes from anchor equity
+    #    and explicitly does NOT source from apy_today ("volatile single-day apy_today ... swings
+    #    daily"). Comparing stable-track vs volatile-daily fired SNAPSHOT_BEHIND_API almost every
+    #    intraday poll though the snapshot was correctly regenerated (a fresh build_snapshot()
+    #    reproduces the committed value). Real staleness stays covered by evidenced_days (above) +
+    #    STALE_SNAPSHOT (as_of age). Re-enable an apy leg only when the API exposes a matching
+    #    track-to-date apy (like-for-like comparison).
 
     # 6. OVERSTATED_METRIC — the site must NEVER show an APY higher than the live API (critical)
     api_apy = apih.get("paper_apy_pct")
