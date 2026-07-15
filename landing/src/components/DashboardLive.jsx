@@ -769,8 +769,11 @@ export default function DashboardLive({ initialFacts = null }) {
       setPhase('live');
       setLastUpdated(new Date());
     } catch {
+      // Транзиентный сбой поллинга: помечаем offline (бейдж честно покажет «снимок»),
+      // но НЕ стираем последние хорошие значения — иначе дашборд мигает в пустые «—»
+      // на пару секунд при открытии/переполле. Числа остаются (last-good/снимок),
+      // честность сохранена бейджем «снимок / подключение к live…» (не «Вживую»).
       setPhase('offline');
-      setFacts(null);
     }
 
     /* Every other surface is INDEPENDENT — a failure on one sets only its own
@@ -883,8 +886,10 @@ export default function DashboardLive({ initialFacts = null }) {
           ) : (
             <Chip tone="muted">{tr('connecting')}</Chip>
           )}
-          {/* SLO: reachable surfaces / total polled — honest per-surface uptime read */}
-          {surfacesTotal > 0 && (
+          {/* SLO: reachable surfaces / total polled — honest per-surface uptime read.
+              Скрываем во время начальной загрузки (phase==='connecting'), чтобы не мигать
+              тревожным красным «0/24», пока первый полл ещё не завершился. */}
+          {surfacesTotal > 0 && phase !== 'connecting' && (
             <Chip tone={surfacesLive === surfacesTotal ? 'ok' : surfacesLive === 0 ? 'danger' : 'warn'}
               title={lang === 'ru' ? 'Сколько публичных API-поверхностей сейчас отвечают' : 'How many public API surfaces are currently responding'}>
               {surfacesLive}/{surfacesTotal} {lang === 'ru' ? 'поверхностей' : 'surfaces'}
