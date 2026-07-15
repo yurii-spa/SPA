@@ -61,6 +61,12 @@ _Обновлено: 2026-07-15 (ручной снимок при setup сред
 - **P3-стабы Yield Lab** (`docs/23,24,26,39–43`) на ветке `yield-lab-scaffolding` — оставлены как
   заглушки «TODO: expand at MVP 2-3» (часть 23/24/25/26/39–44 уже расширена в remediation-sprint;
   остаток — по мере строительства Yield Lab). Разворачивать при MVP 2–3, не раньше.
+- **Остаток ROADMAP v2 (незавершённое остановленной сессии)** — durably в `docs/ROADMAP_2MONTH_EISENHOWER_v2.md`
+  (не потеряется). Сессия аннотировала: `🔎 VERIFIED` = сделано (Q1-12,Q2-5b,8,9,15,17,18), `⚠️ NOTE` = отложено.
+  Реально открытые код-задачи: Q2-7 (public /pilot+DD), Q2-11/12 (Uniswap-LP detection, отложены),
+  Q2-13 (defenses→RTMR), Q2-14 (research-changelog → карточка own-20), Q2-16 (per-refusal SEO), Q2-19
+  (non-custodial advisory pilot), Q3-7 (page-sprawl dedupe). Owner-gated Q1-5/6, Q2-3/4/5 → карточки own-*.
+  **НЕ подхватываю автоматически** — приоритеты выбирает владелец (карточками, по одной, под новым протоколом).
 - ENV_SETUP_BRIEF_v3 smoke-test пройден (owner-done→ingested, голосовой inbox, декомпозиция) → [ADR-TEST](decisions/ADR-TEST-smoke-2026-07-15.md).
 - Two-tier kill-switch SOFT −5% / HARD −10% inclusive → [ADR-048](decisions/ADR-048-two-tier-kill-switch.md) (+ADR-034).
 - RiskPolicy → governance-слой, API auth, exec-bypass закрыт → ADR-050.
