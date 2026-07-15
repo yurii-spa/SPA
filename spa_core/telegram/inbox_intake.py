@@ -119,6 +119,19 @@ def download_telegram_file(token: str, file_id: str, dest_dir: str | Path, timeo
         return None
 
 
+def transcribe_voice_message(token: str, file_id: str) -> str | None:
+    """Download a Telegram voice file and transcribe it (NO card). Returns text or None.
+
+    Used by the Q&A router: a voice message may be a QUESTION, not a task — so we
+    transcribe first, then classify, instead of always saving an Inbox card.
+    """
+    with tempfile.TemporaryDirectory(prefix="spa_voice_") as tmp:
+        audio = download_telegram_file(token, file_id, tmp)
+        if audio is None:
+            return None
+        return transcribe_voice(audio)
+
+
 def handle_voice_message(token: str, file_id: str) -> tuple[Path, str] | None:
     """Full voice path: download → transcribe → Inbox card. Returns (path, transcript) or None."""
     with tempfile.TemporaryDirectory(prefix="spa_voice_") as tmp:
