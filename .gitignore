@@ -53,6 +53,10 @@ logs/*.log
 # Frontend build artifacts
 cabinet/dist/
 landing/dist/
+landing/.astro/
+
+# Auto-generated lockfiles (not committed — managed per-subproject)
+package-lock.json
 
 # Backup files
 *.bak
