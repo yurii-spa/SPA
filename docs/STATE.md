@@ -48,6 +48,9 @@ _Обновлено: 2026-07-15 (ручной снимок при setup сред
 
 - **Правило (owner, 2026-07-15):** ничего «в воздухе» — любое решение/договорённость/пожелание из
   любой сессии фиксировать до её конца (решение→ADR+STATE, задача→Inbox, идея→docs/ideas/). Внесено в CLAUDE.md §Протокол-сессии п.4.
+- **STOP автономного ROADMAP-loop (owner, 2026-07-15):** сессия `1345fef8` (PID 2853, запущена 02.07,
+  «full autonomy») ОСТАНОВЛЕНА, полномочия отозваны. Состояние заморожено в `MIGRATION_FREEZE.md`
+  (8 ships, остаток owner-gated, in-flight работы не было). Пережила Этап-0 т.к. это не LaunchAgent.
 - ENV_SETUP_BRIEF_v3 smoke-test пройден (owner-done→ingested, голосовой inbox, декомпозиция) → [ADR-TEST](decisions/ADR-TEST-smoke-2026-07-15.md).
 - Two-tier kill-switch SOFT −5% / HARD −10% inclusive → [ADR-048](decisions/ADR-048-two-tier-kill-switch.md) (+ADR-034).
 - RiskPolicy → governance-слой, API auth, exec-bypass закрыт → ADR-050.
