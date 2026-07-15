@@ -2,6 +2,7 @@
 trackerStatus:
   type: inbox
 title: Спека уведомлений DeFi Checkup (e-mail + Telegram, диплинк по 569Xlматериальности)
+status: done
 source: telegram
 created: 2026-07-15
 ---
@@ -18,4 +19,14 @@ created: 2026-07-15
 - Ничего не строим до утверждения спеки владельцем; это дизайн-документ, не код.
 
 ## Статус
-Классифицировано как ЗАДАЧА (§6.3). Ожидает исполнения (attended или автономный оркестратор).
+Классифицировано как ЗАДАЧА (§6.3). **ИСПОЛНЕНО** автономным циклом оркестратора (env-setup-v3, 2026-07-15).
+
+## Порождённая работа (§6.4)
+- **Спека:** [`docs/CHECKUP_NOTIFICATIONS_SPEC.md`](../../docs/CHECKUP_NOTIFICATIONS_SPEC.md) — запушено в
+  origin (`git sha b8a3b5a5`). Покрывает всё acceptance: каналы (e-mail Resend + Telegram), классы
+  триггеров + пороги `$M_low/mid/high` по $-материальности, deeplink-схема
+  `/check/<wallet_ref>?report&focus=<reason_code>#anchor`, weekly digest (пустая неделя — тоже шлём,
+  сигнал живости + fail-closed), шаблоны сообщений TG/e-mail (вердикт-банд как в карточках, honest-tone,
+  no-solicitation), бэклог push/webhooks с обоснованием (до PVA/B2B).
+- **Дизайн-документ, НЕ код.** Сборка стартует только после `#approved` владельцем — открытые owner-gates
+  вынесены в §8 спеки (RESEND_API_KEY/own-07, дефолт-пороги/own-16, отдельный TG-бот, кадэнс дайджеста).
