@@ -486,9 +486,17 @@ install_agent \
 
 # cc-kanban (ENV_SETUP v3 §4.1) — read-only claude-code-kanban monitor over ~/.claude on
 # http://localhost:4455 (KeepAlive). Observes headless orchestrator sessions Nimbalyst can't see.
-install_agent \\
-    "$REPO/launchd/com.spa.cc-kanban.plist" \\
-    "com.spa.cc-kanban" \\
+install_agent \
+    "$REPO/launchd/com.spa.cc-kanban.plist" \
+    "com.spa.cc-kanban" \
+    "1"
+
+# orchestrator (governed autonomy, owner-approved 2026-07-15) — headless claude каждые 3ч:
+# разбор очереди + hardening + мелкие не-owner-gated фичи под протоколом (docs/ORCHESTRATOR_PROTOCOL.md).
+# ARMED через SPA_ORCHESTRATOR_ARMED=1 в plist. Выключить: launchctl bootout com.spa.orchestrator.
+install_agent \
+    "$REPO/launchd/com.spa.orchestrator.plist" \
+    "com.spa.orchestrator" \
     "1"
 
 # ===========================================================================
