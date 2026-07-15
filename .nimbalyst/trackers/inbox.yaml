@@ -1,0 +1,52 @@
+# Inbox tracker (ENV_SETUP_BRIEF_v3 · Этап 6)
+# Files-first очередь ЗАДАНИЙ от владельца. Любая карточка здесь = задание.
+# Три входа, все → карточка `inbox-*` в nimbalyst-local/tracker/:
+#   1. карточка в Nimbalyst (десктоп/телефон);
+#   2. заметка в Obsidian в папку inbox/ (оркестратор конвертирует в карточку);
+#   3. Telegram-бот: /task <текст> ИЛИ голосовое (whisper-расшифровка, source: voice).
+# Оркестратор разбирает (задача/идея/непонятно) и закрывает карточку со ссылками (§6.4).
+type: inbox
+displayName: Inbox task
+displayNamePlural: Inbox
+icon: inbox
+color: "#2563eb"
+
+modes:
+  inline: false
+  fullDocument: true
+
+idPrefix: inbox
+idFormat: ulid
+
+fields:
+  - name: title
+    type: string
+    required: true
+  - name: status
+    type: select
+    default: new
+    options:
+      - value: new
+        label: New
+      - value: in-progress
+        label: In Progress
+      - value: done
+        label: Done
+  - name: source
+    type: select
+    default: nimbalyst
+    options:
+      - value: nimbalyst
+        label: Nimbalyst
+      - value: obsidian
+        label: Obsidian
+      - value: telegram
+        label: Telegram
+      - value: voice
+        label: Voice
+  - name: created
+    type: string
+
+roles:
+  title: title
+  workflowStatus: status
