@@ -499,6 +499,13 @@ install_agent \
     "com.spa.orchestrator" \
     "1"
 
+# inbox_watch (событийный интейк, owner 2026-07-15) — WatchPaths на inbox/ → мгновенная
+# классификация новых заметок (только карточки+notify, без кода/пушей). Debounce/lock/fail-safe в wrapper.
+install_agent \
+    "$REPO/launchd/com.spa.inbox_watch.plist" \
+    "com.spa.inbox_watch" \
+    "1"
+
 # ===========================================================================
 # ИТОГОВАЯ ТАБЛИЦА
 # ===========================================================================
