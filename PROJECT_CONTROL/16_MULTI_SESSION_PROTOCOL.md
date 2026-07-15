@@ -44,6 +44,9 @@ work or hand off.
 3. Prefer creating a NEW file over editing a shared one when you can.
 4. `KANBAN.json`: reload from disk immediately before writing (an hourly agent also writes it).
 
+## 2b. Ship a ROADMAP/backlog item → mark it DONE in the SAME push (stop stale-marker re-scouting)
+Recurring failure mode: a session ships an item's CODE but leaves the `docs/ROADMAP_2MONTH_EISENHOWER_v2.md` / `docs/SITE_UIUX_BACKLOG.md` row UNMARKED, so every later session re-scouts it, re-discovers "already done", and burns a firing (this happened repeatedly — two reconcile passes were needed 2026-07-15). Rule: when you finish a roadmap/backlog item, add a `✅ SHIPPED <date> (<commit>: <one-line evidence>)` prefix to its row IN THE SAME PUSH as the code (minimal additive edit per §2). If you only VERIFY an already-shipped-but-unmarked item, mark it `🔎 VERIFIED <date> (evidence you actually checked — test passed / file:line renders)` — NEVER mark `✅` on faith. Accurate markers are the difference between "backlog exhausted" being true vs. re-litigated.
+
 ## 3. Never touch these in parallel without owner sign-off
 - **Live paper track** (`data/equity_curve_daily.json`, `paper_trading/…`), **RiskPolicy v1.0**
   (`spa_core/risk/policy.py`), **`spa_core/execution/`**, and the **launchd agent fleet**
