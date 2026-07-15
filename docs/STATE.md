@@ -46,6 +46,11 @@ _Обновлено: 2026-07-15 (ручной снимок при setup сред
 
 ## 🗂️ Последние решения (одной строкой → ADR)
 
+- **Автономный цикл (2026-07-15, inbox-569xl):** исполнена owner-задача из Telegram — написана
+  [`docs/CHECKUP_NOTIFICATIONS_SPEC.md`](CHECKUP_NOTIFICATIONS_SPEC.md) (уведомления DeFi Checkup:
+  e-mail+Telegram, deeplink по $-материальности, weekly digest, honesty-gated). Дизайн-документ, НЕ код;
+  сборка — только после `#approved` владельцем (owner-gates в §8 спеки: RESEND/own-07, пороги/own-16,
+  отдельный TG-бот, кадэнс). Карточка закрыта `done`. Детали — journal `2026-W29.md`.
 - **ADR backfill (автономный цикл, 2026-07-15):** выписаны 3 ADR-файла, бывшие «backfill TODO» в
   INDEX — [ADR-050](decisions/ADR-050-riskpolicy-governance-layer.md) (RiskPolicy→governance / API auth /
   exec-bypass), [ADR-053](decisions/ADR-053-rtmr-sense-loop.md) (RTMR sense-loop), [ADR-YL-012](decisions/ADR-YL-012-spa-swarm.md)
