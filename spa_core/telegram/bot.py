@@ -954,17 +954,37 @@ class TelegramBot:
 
     # ── §6 Inbox intake (/task text + voice → files-first Inbox card) ───────
 
-    def _handle_inbox_intake(self, msg: Dict, text: str, chat_id: str) -> bool:
-        """Owner-only: route ``/task <text>`` or a voice message into an Inbox card.
+    def _classify_route(self, message: str, chat_id: str, source: str) -> None:
+        """Свободное сообщение → ВОПРОС (ответить) / ЗАДАЧА (карточка) / НЕПОНЯТНО (переспросить)."""
+        import html
+        from spa_core.telegram.ask_router import classify_and_answer
 
-        Returns True if handled (caller must not fall through to the menu). Fail-safe:
-        any error replies friendly and still returns True. Non-intake messages → False.
+        kind, resp = classify_and_answer(message)
+        if kind == "question":
+            self.send_message(html.escape(resp) or "(пустой ответ)", chat_id)
+        elif kind == "task":
+            from spa_core.telegram.inbox_intake import save_inbox_task
+
+            _p, title = save_inbox_task(message, source=source)
+            self.send_message(
+                f"📥 Понял как задачу, добавил в inbox: <b>{html.escape(title)}</b>", chat_id)
+        else:  # unclear
+            self.send_message(f"🤔 {html.escape(resp)}", chat_id)
+
+    def _handle_inbox_intake(self, msg: Dict, text: str, chat_id: str) -> bool:
+        """Owner-only intake. ``/task`` → всегда задача; ``/status`` → сводка; свободный текст/голос →
+        классификатор ВОПРОС/ЗАДАЧА/НЕПОНЯТНО (бот отвечает, а не только принимает задачи).
+
+        Returns True if handled. Fail-safe. Non-owner / команды (/start,/help…) → False (обычный роут).
         """
-        is_task = text.strip().lower().startswith("/task")
-        is_status = text.strip().lower().startswith("/status")
+        stripped = text.strip()
+        is_task = stripped.lower().startswith("/task")
+        is_status = stripped.lower().startswith("/status")
         voice = msg.get("voice") or msg.get("audio")
         is_voice = isinstance(voice, dict) and bool(voice.get("file_id"))
-        if not (is_task or is_status or is_voice):
+        # свободный текст = непустой и НЕ команда (иначе /start,/menu… идут своим путём)
+        is_bare_text = bool(stripped) and not stripped.startswith("/")
+        if not (is_task or is_status or is_voice or is_bare_text):
             return False
         import html
         try:
@@ -987,19 +1007,17 @@ class TelegramBot:
                     f"📥 Добавил в inbox: <b>{html.escape(title)}</b>\n"
                     "Оркестратор разберёт в следующем цикле.", chat_id)
                 return True
-            # voice
-            self.send_message("🎤 Расшифровываю голосовое…", chat_id)
-            from spa_core.telegram.inbox_intake import handle_voice_message
-            result = handle_voice_message(self.token, str(voice["file_id"]))
-            if result is None:
-                self.send_message(
-                    "🎤 Не смог расшифровать голосовое. Пришли текстом (<code>/task …</code>) "
-                    "или запиши ещё раз.", chat_id)
+            if is_voice:  # голос → расшифровать → классифицировать (вопрос/задача/непонятно)
+                self.send_message("🎤 Слушаю…", chat_id)
+                from spa_core.telegram.inbox_intake import transcribe_voice_message
+                transcript = transcribe_voice_message(self.token, str(voice["file_id"]))
+                if not transcript:
+                    self.send_message("🎤 Не смог расшифровать. Повтори или напиши текстом.", chat_id)
+                    return True
+                self._classify_route(transcript, chat_id, source="voice")
                 return True
-            _path, transcript = result
-            preview = transcript if len(transcript) <= 200 else transcript[:199] + "…"
-            self.send_message(
-                f"🎤 Расшифровал и добавил в inbox:\n<i>{html.escape(preview)}</i>", chat_id)
+            # свободный текст → классифицировать
+            self._classify_route(stripped, chat_id, source="telegram")
             return True
         except Exception as exc:  # noqa: BLE001 — never crash the poll loop
             log.warning("_handle_inbox_intake failed: %s", exc)
