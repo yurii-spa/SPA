@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.spa.orchestrator — headless orchestrator agent (ENV_SETUP_BRIEF_v3 §3.5).
+
+  INERT / NOT LOADED until Stage 8 smoke-test. Two safety layers:
+    1. This plist is NOT bootstrapped (activation = launchctl bootstrap at Stage 8).
+    2. Even if loaded, scripts/agent_orchestrator.sh is INERT unless
+       SPA_ORCHESTRATOR_ARMED=1 (not set here) — it just logs and exits 0.
+
+  To activate at Stage 8 (owner-approved): add SPA_ORCHESTRATOR_ARMED=1 (and the
+  chosen permission mode) to EnvironmentVariables below, run
+  scripts/check_agent_before_deploy.sh orchestrator, then launchctl bootstrap.
+  Logs go to /tmp per CLAUDE.md invariant #12 (never ~/Documents → TCC exit-78).
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.spa.orchestrator</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_orchestrator.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <!-- Daily, after the paper cycle. Inert until armed (Stage 8). -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <!-- Activation flag lives here at Stage 8 (kept absent now = inert):
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>SPA_ORCHESTRATOR_ARMED</key>
+        <string>1</string>
+    </dict>
+    -->
+
+    <key>StandardOutPath</key>
+    <string>/tmp/spa_orchestrator.plist.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/spa_orchestrator.plist.err.log</string>
+</dict>
+</plist>
