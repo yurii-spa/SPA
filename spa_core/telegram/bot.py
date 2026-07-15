@@ -858,6 +858,7 @@ class TelegramBot:
             {"command": "why",       "description": "Диагностика причин ❌ агентов"},
             {"command": "pause",     "description": "Kill-switch (поставить на паузу)"},
             {"command": "resume",    "description": "Снять паузу"},
+            {"command": "task",      "description": "Добавить задание в inbox (текст или голосовое)"},
             {"command": "help",      "description": "Список всех команд"},
         ]
         result = self._api_call("setMyCommands", {"commands": commands}, timeout=10)
@@ -942,10 +943,65 @@ class TelegramBot:
                 chat_id = str(msg.get("chat", {}).get("id", "")) or self.chat_id
                 if not chat_id:
                     return
+                # §6 Inbox intake: /task <text> or a voice message → Inbox card.
+                if self._handle_inbox_intake(msg, text, chat_id):
+                    return
                 # Any command or bare text (re)spawns the Home panel as a new message.
                 router.handle_command(text if text.startswith("/") else "/menu", chat_id)
         except Exception as exc:  # noqa: BLE001 — never let one update crash the loop
             log.warning("handle_update failed: %s", exc)
+
+    # ── §6 Inbox intake (/task text + voice → files-first Inbox card) ───────
+
+    def _handle_inbox_intake(self, msg: Dict, text: str, chat_id: str) -> bool:
+        """Owner-only: route ``/task <text>`` or a voice message into an Inbox card.
+
+        Returns True if handled (caller must not fall through to the menu). Fail-safe:
+        any error replies friendly and still returns True. Non-intake messages → False.
+        """
+        is_task = text.strip().lower().startswith("/task")
+        voice = msg.get("voice") or msg.get("audio")
+        is_voice = isinstance(voice, dict) and bool(voice.get("file_id"))
+        if not (is_task or is_voice):
+            return False
+        import html
+        try:
+            if not self._get_router().is_owner(chat_id):
+                return False  # non-owner → let normal flow answer
+            if is_task:
+                task_text = text.strip()[len("/task"):].strip()
+                if not task_text:
+                    self.send_message(
+                        "📥 Использование: <code>/task купить зонт в пятницу</code>\n"
+                        "Или пришли голосовое — расшифрую и добавлю в inbox.", chat_id)
+                    return True
+                from spa_core.telegram.inbox_intake import save_inbox_task
+                _path, title = save_inbox_task(task_text, source="telegram")
+                self.send_message(
+                    f"📥 Добавил в inbox: <b>{html.escape(title)}</b>\n"
+                    "Оркестратор разберёт в следующем цикле.", chat_id)
+                return True
+            # voice
+            self.send_message("🎤 Расшифровываю голосовое…", chat_id)
+            from spa_core.telegram.inbox_intake import handle_voice_message
+            result = handle_voice_message(self.token, str(voice["file_id"]))
+            if result is None:
+                self.send_message(
+                    "🎤 Не смог расшифровать голосовое. Пришли текстом (<code>/task …</code>) "
+                    "или запиши ещё раз.", chat_id)
+                return True
+            _path, transcript = result
+            preview = transcript if len(transcript) <= 200 else transcript[:199] + "…"
+            self.send_message(
+                f"🎤 Расшифровал и добавил в inbox:\n<i>{html.escape(preview)}</i>", chat_id)
+            return True
+        except Exception as exc:  # noqa: BLE001 — never crash the poll loop
+            log.warning("_handle_inbox_intake failed: %s", exc)
+            try:
+                self.send_message("⚠️ Не удалось обработать задание — попробуй ещё раз.", chat_id)
+            except Exception:
+                pass
+            return True
 
     # ── Single-instance lock + startup settle (409-on-restart fix) ─────────
 
