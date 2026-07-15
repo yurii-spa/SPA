@@ -482,12 +482,18 @@ class TestScheduleComponent:
         from datetime import datetime, timezone
         rec = rs._schedule_component()
         assert isinstance(rec["days_to_golive"], int)
-        # for TARGET_DATE 2026-07-15 vs today, the value must equal the formula.
+        # The value must equal the signed formula (target - today). This is the real,
+        # time-INVARIANT regression guard. It is deliberately NOT asserted to be > 0:
+        # days_to_golive is a countdown that legitimately reaches 0 on the target day
+        # and goes negative once the project clock passes a stale/hit TARGET_DATE. The
+        # sign behaviour across future/today/overdue is fully covered by the monkeypatch
+        # tests below (far_out / final_stretch / boundary_today / overdue). A hardcoded
+        # `> 0` here was a time-bomb: it fired the day the clock reached TARGET_DATE
+        # (2026-07-15), reddening CI for a countdown correctly hitting zero — not a
+        # regression. (If the go-live target has genuinely moved, bump rs.TARGET_DATE.)
         target = datetime.strptime(rs.TARGET_DATE, "%Y-%m-%d").date()
         expected = (target - datetime.now(timezone.utc).date()).days
         assert rec["days_to_golive"] == expected
-        # go-live is in the future relative to the project clock -> positive.
-        assert rec["days_to_golive"] > 0
 
     def test_status_ok_when_far_out(self, monkeypatch):
         monkeypatch.setattr(rs, "TARGET_DATE", "2099-01-01")
