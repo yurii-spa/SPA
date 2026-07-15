@@ -26,7 +26,7 @@ _Обновлено: 2026-07-15 (ручной снимок при setup сред
 | Трек | **24/30** evidenced (anchor 2026-06-22, target ~2026-07-21) |
 | Portfolio | ~$100,456 (+0.46%/24d), deployed 80% / cash 20%, ✅ policy-compliant |
 | Аллокация | T1 45% · T2 35% · cash 20% · expected APY ~8.35% |
-| Агенты | 56 загружено (`launchctl`), agent_health 46/46 nominal |
+| Агенты | 54 загружено (`launchctl`, после чистки), agent_health nominal |
 | KANBAN | v12.80 · done 1358 · 65 стратегий · 33 адаптера |
 
 **GoLive блокеры (только ожидание, не баги):** `gap_monitor_30d`, `min_track_days_30` — оба
