@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.spa.inbox_watch — событийный интейк Inbox (owner-approved 2026-07-15).
+  Срабатывает при изменении файлов в inbox/ (заметка Obsidian) → agent_inbox_intake.sh
+  (лёгкий: классификация + карточка + Telegram-ответ; НИКАКОГО кода/пушей/исполнения).
+  Debounce/lock/fail-safe — в самом wrapper'е. Логи в /tmp (инвариант #12).
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.spa.inbox_watch</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_inbox_intake.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+    <key>WatchPaths</key>
+    <array>
+        <string>/Users/yuriikulieshov/Documents/SPA_Claude/inbox</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/spa_inbox_watch.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/spa_inbox_watch.err.log</string>
+</dict>
+</plist>
