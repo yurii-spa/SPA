@@ -2,6 +2,9 @@
 
 > **Источник правды — файлы в git.** Nimbalyst / Obsidian / дашборды — только окна в них.
 > Полная топология и two-agent separation: [`PROJECT_CONTROL/00_START_HERE.md`](PROJECT_CONTROL/00_START_HERE.md).
+>
+> **Снимок состояния** (git-committed `data/golive_status.json`; ЖИВЫЕ числа — `docs/SYSTEM_BRIEFING.md` /
+> `docs/STATE.md`): GoLive **27/29** · трек **13/30** evidenced (anchor **2026-06-22**) · kill-switch SOFT −5% / HARD −10%.
 
 ## Что это (5 строк)
 
