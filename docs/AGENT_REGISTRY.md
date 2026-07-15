@@ -114,6 +114,25 @@ session-pid'ов** пушили изменения. Это в основном s
 
 ---
 
+## A7. Разбор «НЕПОНЯТНО» — по свежести вывода (2026-07-15, own-21 п.4)
+
+Проверил, что реально запускает каждый + свежесть output (эталон «живого» = 9ч, последний цикл).
+**Почти все живые → ВАЖНЫЕ/advisory:**
+
+| Агент | Что оказалось | Свежесть | Вердикт |
+|---|---|---|---|
+| `bts-feed` / `bts-monitor` | **perp funding feed** (`perp_funding_rates.json`) — кормит rates-desk / swarm funding-regime / hy_cycle | **0ч** | ✅ **ВАЖНЫЙ** — оставить |
+| `hy_cycle` / `lp_cycle` | Engine B (HY $20k) / Engine C (LP $10k) paper-книги | **0ч** | ✅ **ВАЖНЫЙ** (advisory) — оставить |
+| `governance_watcher` | мониторинг governance-предложений whitelisted-протоколов (`governance_proposals.json`) | **0ч** | ✅ **ВАЖНЫЙ** — оставить |
+| `tier1_governance` | обновляет SSOT/policy/readiness JSON'ы (`ssot_manifest`, `governance_policy`) | сегодня 07:15 | ✅ **ВАЖНЫЙ** — оставить |
+| `dfb_capture` | DFB risk-board capture (pools через SPA-движок, proof-chain) | 7ч | ✅ ВАЖНЫЙ (advisory) — оставить |
+| `analytics_tier_b` / `_c` | `signal_aggregator` (ADR-031) — агрегатор аналит-сигналов | 0–9ч | ✅ advisory — оставить (мелочь: оба один модуль, консолидация не срочна) |
+| `base_gas_monitor` | газ на Base-сети (`base_gas_history.json`) | 9ч | ✅ advisory (дёшево) — оставить |
+| `checkpoint-7day` | **отработавший one-shot** (расписание `Month:6 Day:19` — сработал 19 июня, 7-дневный чекпоинт трека; больше не сработает до след. июня) | не запускается | ⛔ **УСТАРЕЛ** — рекомендую **выгрузить** (безвредный, но висит зря) |
+
+**Итог п.4:** оставить всё, кроме `checkpoint-7day` (отработанный one-shot → выгрузить). Настоящих
+«мёртвых/непонятных» больше нет.
+
 ## C. Мои новые агенты (новый протокол, env-setup-v3)
 
 | Агент | Что | Статус |
