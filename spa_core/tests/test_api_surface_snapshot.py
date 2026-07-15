@@ -189,6 +189,13 @@ GOLDEN_ROUTES = {
     ("/api/swarm/health", ("GET",)),
     ("/api/swarm/regime", ("GET",)),
     ("/api/tier1/proof", ("GET",)),
+    # Added since last golden refresh (2026-07-15): CMO editorial layer draft-approval surface
+    # (flow B — draft → owner approve/reject → publish; deterministic honesty-gate; LLM only in the
+    # marketing-rewrite step, never in risk/exec/monitoring).
+    ("/api/cmo/drafts", ("GET",)),
+    ("/api/cmo/drafts/{draft_id}", ("GET",)),
+    ("/api/cmo/drafts/{draft_id}/approve", ("POST",)),
+    ("/api/cmo/drafts/{draft_id}/reject", ("POST",)),
 }
 
 
@@ -239,7 +246,7 @@ def test_route_table_identical_to_golden():
 def test_route_count_stable():
     """The flat handler surface (expanded across included routers) is the invariant.
 
-    125 HTTP handlers + 1 websocket (/ws/agents) = 126 entries in GOLDEN_ROUTES. This
+    129 HTTP handlers + 1 websocket (/ws/agents) = 130 entries in GOLDEN_ROUTES. This
     is structure-independent (monolith routes vs lazily-included routers) because
     _walk_routes expands `_IncludedRouter` proxies. The launch target
     `spa_core.api.server:app` is unaffected — `app` is still defined in server.py.
@@ -254,7 +261,7 @@ def test_route_count_stable():
     surface (/api/underwriting/report + /proof + /full-chain), FLAG-GATED OFF by default
     (SPA_UNDERWRITING_PUBLISH).)
     """
-    assert len(_app_route_table()) == 126
+    assert len(_app_route_table()) == 130
 
 
 def test_openapi_path_count_stable():
@@ -262,7 +269,7 @@ def test_openapi_path_count_stable():
     from fastapi.testclient import TestClient
     with TestClient(server.app) as c:
         paths = c.get("/openapi.json").json()["paths"]
-    assert len(paths) == 125  # HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
+    assert len(paths) == 129  # HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
 
 
 # ── Representative response-shape snapshot (one endpoint per tag group) ──────────
