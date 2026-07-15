@@ -46,6 +46,10 @@ _Обновлено: 2026-07-15 (ручной снимок при setup сред
 
 ## 🗂️ Последние решения (одной строкой → ADR)
 
+- **ADR backfill (автономный цикл, 2026-07-15):** выписаны 3 ADR-файла, бывшие «backfill TODO» в
+  INDEX — [ADR-050](decisions/ADR-050-riskpolicy-governance-layer.md) (RiskPolicy→governance / API auth /
+  exec-bypass), [ADR-053](decisions/ADR-053-rtmr-sense-loop.md) (RTMR sense-loop), [ADR-YL-012](decisions/ADR-YL-012-spa-swarm.md)
+  (SPA Swarm advisory). Запись уже принятых решений, без изменения risk-логики. Детали — journal `2026-W29.md`.
 - **Правило (owner, 2026-07-15):** ничего «в воздухе» — любое решение/договорённость/пожелание из
   любой сессии фиксировать до её конца (решение→ADR+STATE, задача→Inbox, идея→docs/ideas/). Внесено в CLAUDE.md §Протокол-сессии п.4.
 - **STOP автономного ROADMAP-loop (owner, 2026-07-15):** сессия `1345fef8` (PID 2853, запущена 02.07,
