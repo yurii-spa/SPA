@@ -532,4 +532,67 @@ oracle/liquidity на кворуме источников, `reaction.py` де-р
   churn на tight-θ → tight-θ-дизайн cost-fragile; предпочитать **шире θ / меньше switch'ей**. Косты плоские
   (оптимистично — stress-slippage хуже), перп-roll не учтён → true break-even достигается РАНЬШЕ. Evidence: **L0**.
   Следующий шаг: репортить causal-edge NET консервативного коста, не gross; дизайны с редкими switch'ами.
+
+- **#11 YB-CPPI (Yield-Bearing Constant Proportion Portfolio Insurance)** — статус:
+  **ПРОТЕСТИРОВАНА → ✅ ПОЗИТИВНО vs static #3, ЧАСТИЧНО vs DDO #9** (`scripts/ybcppi_backtest.py`,
+  2026-07-15). Структурно НОВАЯ категория — ни guardian (#1), ни vol-sizing (#4), ни EYC (#6), ни
+  DDO (#9), ни TCB (#10). Все предыдущие crisis-protection-идеи требуют СИГНАЛА (порог vol/просадки/режима).
+  **YB-CPPI устраняет сигнал полностью**: портфель непрерывно и автоматически регулирует risky-аллокацию
+  как функцию текущей «подушки» над floor'ом:
+
+      risky(t) = min( m × cushion(t),  max_risky_pct × V(t) )
+      cushion(t) = max( 0,  V(t) − floor(t) )
+
+  **DeFi-твист (что реально ново vs TradFi CPPI):** в классическом TradFi floor = наличные (0% доходности).
+  В DeFi floor несёт **реальный yield** (rates-carry ~4.6% / RWA ~3.31%) → floor «самоисцеляется» — даже при
+  полном de-risk cushion растёт за счёт yield → более быстрое восстановление без дополнительного риска.
+  Плюс **ratchet**: на каждом новом HWM floor поднимается до V×(1−cushion_pct) — прибыль защищена навсегда.
+
+  **Бэктест-результаты (699 дней, 2024-07..2026-05, bt = backtest):**
+
+  | портфель | APY (bt) | maxDD (bt) | Calmar (bt) | USDe-unwind DD |
+  |---|---|---|---|---|
+  | static #3 (25/50/25) | 4.26% | 2.11% | 2.03 | 2.11% |
+  | pure RWA floor | 3.37% | 0.00% | ∞ | 0.00% |
+  | causal DDO #9 (лучший из прошлых) | 4.69% | 1.27% | **3.68** | 1.27% |
+  | **YB-CPPI m=8 rates (лучший)** | **4.63%** | **1.66%** | **2.79** | 1.66% |
+
+  **YB-CPPI vs static #3: Calmar +0.76 (×1.37); APY +0.37%; maxDD −0.45pp** — улучшение ПО ОБЕИМ осям.
+  **YB-CPPI vs DDO #9: Calmar −0.89** — DDO #9 всё ещё лучше по risk-adjusted в этой фикстуре.
+
+  **Per-crisis breakdown (лучший YB-CPPI m=8 vs static #3):**
+  | кризис | static #3 DD | YB-CPPI DD | спасено |
+  |---|---|---|---|
+  | ETH-crash 2024-08 | −0.64% | −0.59% | 0.05pp |
+  | USDe-unwind 2025-10 | −2.11% | −1.66% | **0.45pp** |
+  | rsETH-depeg 2026-04 | −0.17% | −0.08% | 0.09pp |
+
+  **Почему YB-CPPI не бьёт DDO #9 в этой фикстуре:** DDO бинарно прыгает на 5% sUSDe (с 25%) в первый
+  же DEFEND-день — более агрессивная реакция. CPPI плавно снижает с 25% до ~15-18% за 14 дней кризиса
+  (подушка m=8: cushion=3.12%, сжимается на 0.45pp ≈ выкинуто ≈ 30% risky). Без «GAP-события», которое
+  мгновенно съедает 12.5%+ от V (≈ cushion m=8 = 3.12%), CPPI никогда не входит в «full floor protection».
+
+  **OOS-валидация (best m=8 from train 2024-07..2025-06, apply to test 2025-06..2026-05):**
+  static #3: Calmar 1.57 · DDO #9: Calmar 3.01 · **YB-CPPI m=8: Calmar 2.25** → держится между DDO и static.
+  Честная оговорка: OOS-период спокойный (та же calm-OOS-проблема, что у #1/#4/#8/#9).
+
+  **Структурные преимущества YB-CPPI ПЕРЕД DDO, не видимые в числах фикстуры:**
+  (а) Без пороговой чувствительности: нет θ_enter/θ_exit/harvest_days для тюнинга → меньше overfitting.
+  (б) Математически ограниченный downside: при достаточном кризисе floor не может быть пробит (risky→0
+  до того, как V достигнет floor) — гарантия TradFi-математикой, а не backtest'ом.
+  (в) Самоисцеляющийся floor: yield-bearing floor растёт даже в de-risk состоянии → короче путь к восстановлению.
+  (г) **Дополнительность с TCB (#10) и DDO (#9)**: CPPI + DDO — не конкуренты, а КОМПОНУЕМЫЕ механизмы.
+  Hybrid идея (CPPI-base + DDO-harvest overlay в recovery) = потенциал для следующего теста (idea #12).
+
+  **Честные оговорки (обязательно):**
+  (а) Fixture-кризисы geometrically front-loaded → худший урон всегда в день 1; gap-events (мгновенный 20%+)
+      пробьют любой CPPI floor (irreducible gap-risk). (б) Safe leg = smooth synthetic (4.6%/3.31%/день),
+      без duration-риска. (в) Ratchet без транзакционных издержек. (г) max_risky_pct 40%/60% не кусается
+      (avg risky только 20.1% — cap никогда не достигается на этой истории). (д) Evidence: **L0**. НЕ live.
+
+  **ИТОГОВЫЙ ЧЕСТНЫЙ ВЕРДИКТ идеи #11:** YB-CPPI **улучшает static #3 по обеим осям** (APY ↑, DD ↓,
+  Calmar ×1.37) без какого-либо сигнала — чисто математической структурой. Не dominates DDO #9 (Calmar 2.79
+  < 3.68), но оба механизма ДОПОЛНЯЮТ друг друга. **СЛЕДУЮЩИЙ ШАГ:** Hybrid idea #12 = CPPI-base + DDO
+  harvest overlay (CPPI обеспечивает непрерывную защиту floor; DDO добавляет дискретную recovery-harvest фазу).
+  Плюс: sweep более высоких m (12, 16) — приближают CPPI к бинарному DDO-поведению (гипотеза конвергенции).
   **ADR перед любым capital-movement.**
