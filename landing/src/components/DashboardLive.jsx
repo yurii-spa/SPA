@@ -955,7 +955,21 @@ export default function DashboardLive({ initialFacts = null }) {
       {tab === 'overview' && (
         <PanelBoundary lang={lang}>
         <div id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" tabIndex={0} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* ── ТИР 1 · ДЕНЬГИ — ведущий блок (самое важное для владельца) ── */}
           <Panel style={{ background: 'linear-gradient(180deg, rgba(54,194,180,.06), transparent)', border: '1px solid rgba(54,194,180,.22)', padding: '28px' }}>
+            <Eyebrow>{tr('portfolio')}</Eyebrow>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginTop: 8 }}>
+              <Metric loading={phase === 'connecting'} label={tr('equity')} value={fmtUsd0(f.current_equity)} sub={lang === 'ru' ? 'база $100k' : '$100k base'} />
+              <Metric loading={phase === 'connecting'} label={tr('apyToday')} value={fmtPct(f.apy_today_pct, 2)} accent="var(--data-teal)" sub={lang === 'ru' ? 'переменный' : 'variable'} />
+              <Metric loading={phase === 'connecting'} label={tr('dailyYield')} value={fmtUsd2(f.daily_yield_usd)} sub={lang === 'ru' ? 'бумажный' : 'paper'} />
+              <Metric loading={phase === 'connecting'} label={tr('totalReturn')} value={fmtSigned(f.total_return_pct, 2)} accent={(f.total_return_pct ?? 0) >= 0 ? 'var(--ok)' : 'var(--danger)'} />
+              <Metric loading={phase === 'connecting'} label={tr('regime')} value={regime ?? NA} />
+              <Metric loading={phase === 'connecting'} label={tr('nav')} value={fmtUsd0(f.nav)} accent="var(--data-teal)" sub={f.nav_reconciliation_ok ? (lang === 'ru' ? 'сверено ✓' : 'reconciled ✓') : undefined} />
+            </div>
+          </Panel>
+
+          {/* ── ТИР 2 · ПУТЬ К GO-LIVE — прогресс трека (вторично) ── */}
+          <Panel>
             <Eyebrow>{tr('heroEyebrow')}</Eyebrow>
             <div style={{ display: 'flex', gap: 28, alignItems: 'center', flexWrap: 'wrap' }}>
               <Ring value={days} max={DAYS_NEEDED} label={lang === 'ru' ? 'дней' : 'days'} />
@@ -985,19 +999,6 @@ export default function DashboardLive({ initialFacts = null }) {
               </div>
             </div>
           </Panel>
-
-          {/* portfolio */}
-          <div>
-            <div style={{ marginBottom: 12 }}><h2 style={HEADING}>{tr('portfolio')}</h2></div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-              <Metric loading={phase === 'connecting'} label={tr('equity')} value={fmtUsd0(f.current_equity)} sub={lang === 'ru' ? 'база $100k' : '$100k base'} />
-              <Metric loading={phase === 'connecting'} label={tr('apyToday')} value={fmtPct(f.apy_today_pct, 2)} accent="var(--data-teal)" sub={lang === 'ru' ? 'переменный' : 'variable'} />
-              <Metric loading={phase === 'connecting'} label={tr('dailyYield')} value={fmtUsd2(f.daily_yield_usd)} sub={lang === 'ru' ? 'бумажный' : 'paper'} />
-              <Metric loading={phase === 'connecting'} label={tr('totalReturn')} value={fmtSigned(f.total_return_pct, 2)} accent={(f.total_return_pct ?? 0) >= 0 ? 'var(--ok)' : 'var(--danger)'} />
-              <Metric loading={phase === 'connecting'} label={tr('regime')} value={regime ?? NA} />
-              <Metric loading={phase === 'connecting'} label={tr('nav')} value={fmtUsd0(f.nav)} accent="var(--data-teal)" sub={f.nav_reconciliation_ok ? (lang === 'ru' ? 'сверено ✓' : 'reconciled ✓') : undefined} />
-            </div>
-          </div>
 
           {/* go-live + safety */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
