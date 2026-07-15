@@ -45,21 +45,24 @@ if [ "${SPA_ORCHESTRATOR_ARMED:-0}" != "1" ]; then
     exit 0
 fi
 
-# ── ARMED: run one headless orchestrator cycle ──────────────────────────────
-PROMPT="Ты — оркестратор SPA. Исполни ПОЛНОСТЬЮ протокол в docs/ORCHESTRATOR_PROTOCOL.md \
-за один цикл: прочитай docs/STATE.md + docs/decisions/INDEX.md + docs/SYSTEM_BRIEFING.md; \
-разбери Inbox (классификация задача/идея/непонятно); инжест owner-done решений (ADR + перевод \
-карточек в ingested через scripts/orchestrator_queue.py, НИКОГДА не ставь owner-done); обнови \
-docs/STATE.md и docs/journal/<ISO-неделя>.md; новые вопросы владельцу — только карточкой \
-needs-owner + notify. Соблюдай инварианты CLAUDE.md. По завершении выведи краткий отчёт."
+# ── ARMED: run one headless GOVERNED-AUTONOMY cycle ─────────────────────────
+PROMPT="Ты — оркестратор SPA под НОВЫМ протоколом «управляемая автономия» (owner-approved 2026-07-15). \
+Исполни ПОЛНОСТЬЮ docs/ORCHESTRATOR_PROTOCOL.md за один цикл, включая раздел «Автономный рабочий мандат»: \
+(1) прочитай docs/STATE.md + docs/decisions/INDEX.md + docs/SYSTEM_BRIEFING.md + свежие data/session_changes.jsonl; \
+(2) разбери Inbox (задача/идея/непонятно) и инжест owner-done (ADR + set-status ingested через \
+scripts/orchestrator_queue.py; НИКОГДА не ставь owner-done); (3) если явных заданий нет — возьми ОДНУ \
+безопасную задачу сам (hardening/тесты/доки/мелкие НЕ-owner-gated фичи из backlog/roadmap). \
+ОБЯЗАТЕЛЬНО: объяви владение файлами (scripts/log_session_change.py) до правок; изолированный worktree; \
+ТЕСТЫ ЗЕЛЁНЫЕ до пуша; пуш через push_to_github.py. ЗАПРЕЩЕНО: трогать RiskPolicy/kill/risk-логику, живой \
+трек data/equity_curve_daily.json, деплой/выгрузку агентов, числа/нейминг/legal на сайте, МОЛЧА ослаблять/ \
+отключать тесты — всё это ТОЛЬКО карточкой needs-owner + notify, не делать. Обнови STATE + journal. \
+Ничего «в воздухе». По завершении — краткий отчёт что сделано/что в карточки."
 
-# Permission mode is chosen with the owner at activation (Stage 8). Default here
-# is the conservative acceptEdits; bash calls to orchestrator_queue.py may need a
-# broader mode or a settings allowlist — finalize at Stage 8.
-PERM_MODE="${SPA_ORCHESTRATOR_PERM_MODE:-acceptEdits}"
-
-echo "[$(ts)] ARMED: invoking headless Claude (perm-mode=$PERM_MODE)" >> "$LOG"
-"$CLAUDE_BIN" -p "$PROMPT" --permission-mode "$PERM_MODE" >> "$LOG" 2>&1
+# Headless: не может отвечать на интерактивные запросы разрешений → bypass (машина владельца,
+# гардрейлы в промпте + стоп-правила протокола + инвариант #16). Выключение = снять
+# SPA_ORCHESTRATOR_ARMED из plist (launchctl bootout com.spa.orchestrator).
+echo "[$(ts)] ARMED: invoking headless Claude (governed autonomy, skip-permissions)" >> "$LOG"
+"$CLAUDE_BIN" -p "$PROMPT" --dangerously-skip-permissions >> "$LOG" 2>&1
 RC=$?
 echo "[$(ts)] === orchestrator cycle END (claude exit $RC) ===" >> "$LOG"
 exit $RC
