@@ -27,25 +27,18 @@
     <key>WorkingDirectory</key>
     <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
 
-    <!-- Daily, after the paper cycle. Inert until armed (Stage 8). -->
-    <key>StartCalendarInterval</key>
-    <dict>
-        <key>Hour</key>
-        <integer>9</integer>
-        <key>Minute</key>
-        <integer>0</integer>
-    </dict>
+    <!-- ARMED 2026-07-15 (owner-approved governed autonomy). Каждые 3 часа. -->
+    <key>StartInterval</key>
+    <integer>10800</integer>
 
     <key>RunAtLoad</key>
     <false/>
 
-    <!-- Activation flag lives here at Stage 8 (kept absent now = inert):
     <key>EnvironmentVariables</key>
     <dict>
         <key>SPA_ORCHESTRATOR_ARMED</key>
         <string>1</string>
     </dict>
-    -->
 
     <key>StandardOutPath</key>
     <string>/tmp/spa_orchestrator.plist.out.log</string>
