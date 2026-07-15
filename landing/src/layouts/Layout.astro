@@ -15,6 +15,10 @@ interface Props {
   // Q2-15: when a page is a blog post, pass {headline, datePublished, description?} and Layout appends a
   // BlogPosting node to the JSON-LD @graph (Article schema → richer indexing + AI answer-engine ingestion).
   article?: { headline: string; datePublished: string; description?: string };
+  // Phase-1 B1: app-shell mode — suppresses marketing SiteHeader / PaperStrip / SiteFooter so a
+  // React SPA island (DashboardSPAApp) can provide its own compact chrome. CSS design tokens + i18n
+  // runtime still load (the island needs them). Only for /dashboard-preview (noindex required).
+  app?: boolean;
 }
 
 const {
@@ -25,6 +29,7 @@ const {
   admin = false,
   noindex = false,
   article,
+  app = false,
 } = Astro.props;
 
 const siteUrl = "https://earn-defi.com";
@@ -209,23 +214,22 @@ const schemaData = JSON.stringify({
     <a href="#main-content" class="skip-link" data-ru="Перейти к содержимому">Skip to content</a>
     <!-- Canonical chrome on EVERY page that uses Layout (spec §4). Admin pages get a slim
          internal bar instead of the public header/footer (Operator Console — Phase 3). -->
-    {admin ? (
+    {!app && admin && (
       <header class="admin-bar">
         <a href="/admin" class="ab-brand">SPA <b>Operator Console</b></a>
         <span class="ab-tag">internal</span>
         <a href="/" class="ab-exit">← Public site</a>
       </header>
-    ) : (
-      <SiteHeader />
     )}
-    {!admin && <PaperStrip />}
+    {!app && !admin && <SiteHeader />}
+    {!app && !admin && <PaperStrip />}
 
     <div id="main-content" tabindex="-1">
       <slot />
     </div>
 
-    {!admin && <SiteFooter />}
-    {admin && (
+    {!app && !admin && <SiteFooter />}
+    {!app && admin && (
       <footer class="admin-foot">SPA Operator Console · internal · not public · access control in Phase 5</footer>
     )}
 
