@@ -138,7 +138,8 @@ session-pid'ов** пушили изменения. Это в основном s
 | Агент | Что | Статус |
 |---|---|---|
 | `cc-kanban` | Монитор сессий/задач на :4455 (read-only над ~/.claude) | ✅ загружен |
-| `orchestrator` (`com.spa.orchestrator`) | Оркестратор files-first очереди | **INERT** — plist создан, НЕ загружен (arming-gate; активируется по твоему решению) |
+| `orchestrator` (`com.spa.orchestrator`) | Оркестратор files-first очереди (governed autonomy, каждые 3ч) — разбор очереди + hardening + мелкие фичи под протоколом | ✅ armed |
+| `inbox_watch` (`com.spa.inbox_watch`) | **Событийный интейк** (owner 2026-07-15): `WatchPaths` на `inbox/` → мгновенный разбор новых заметок Obsidian. ПРАВА: только классификация (Claude через ask_router) + карточка + Telegram-ответ. НИКАКОГО кода/пушей/исполнения. Debounce 60с + lock + fail-safe. «срочно» → сразу полный цикл | ✅ загружен (WatchPaths, не расписание) |
 
 ---
 
