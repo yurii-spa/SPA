@@ -45,6 +45,13 @@ if [ "${SPA_ORCHESTRATOR_ARMED:-0}" != "1" ]; then
     exit 0
 fi
 
+# ── OWNER-GATE ACTIVE (ADR-OWN-2026-07-autoship, owner-approved full auto-ship) ──
+# Mark autonomous context so the deterministic push interlock in push_to_github*.py
+# enforces the owner-gate on any landing/ push (SAFE ships to live; owner-gated classes
+# — yield numbers / tier naming / legal / solicitation — are routed to a needs-owner card
+# by scripts/safe_site_push.py, never auto-shipped). Kill = unset SPA_ORCHESTRATOR_ARMED.
+export SPA_AUTONOMOUS=1
+
 # ── ARMED: run one headless GOVERNED-AUTONOMY cycle ─────────────────────────
 PROMPT="Ты — оркестратор SPA под НОВЫМ протоколом «управляемая автономия» (owner-approved 2026-07-15). \
 Исполни ПОЛНОСТЬЮ docs/ORCHESTRATOR_PROTOCOL.md за один цикл, включая раздел «Автономный рабочий мандат»: \
@@ -53,10 +60,12 @@ PROMPT="Ты — оркестратор SPA под НОВЫМ протоколо
 scripts/orchestrator_queue.py; НИКОГДА не ставь owner-done); (3) если явных заданий нет — возьми ОДНУ \
 безопасную задачу сам (hardening/тесты/доки/мелкие НЕ-owner-gated фичи из backlog/roadmap). \
 ОБЯЗАТЕЛЬНО: объяви владение файлами (scripts/log_session_change.py) до правок; изолированный worktree; \
-ТЕСТЫ ЗЕЛЁНЫЕ до пуша; пуш через push_to_github.py. ЗАПРЕЩЕНО: трогать RiskPolicy/kill/risk-логику, живой \
-трек data/equity_curve_daily.json, деплой/выгрузку агентов, числа/нейминг/legal на сайте, МОЛЧА ослаблять/ \
-отключать тесты — всё это ТОЛЬКО карточкой needs-owner + notify, не делать. Обнови STATE + journal. \
-Ничего «в воздухе». По завершении — краткий отчёт что сделано/что в карточки."
+ТЕСТЫ ЗЕЛЁНЫЕ до пуша; пуш КОДА через push_to_github.py, а пуш ЛЮБЫХ файлов сайта (landing/**) — ТОЛЬКО \
+через scripts/safe_site_push.py (owner-gate ADR-OWN-2026-07: безопасные layout/копирайт/SEO/багфиксы \
+уезжают в live сами; числа доходности/нейминг тиров/legal/solicitation линтер САМ заворачивает в карточку). \
+ЗАПРЕЩЕНО: трогать RiskPolicy/kill/risk-логику, живой трек data/equity_curve_daily.json, деплой/выгрузку \
+агентов, МОЛЧА ослаблять/отключать тесты — всё это ТОЛЬКО карточкой needs-owner + notify, не делать. \
+Обнови STATE + journal. Ничего «в воздухе». По завершении — краткий отчёт что сделано/что в карточки."
 
 # Headless: не может отвечать на интерактивные запросы разрешений → bypass (машина владельца,
 # гардрейлы в промпте + стоп-правила протокола + инвариант #16). Выключение = снять

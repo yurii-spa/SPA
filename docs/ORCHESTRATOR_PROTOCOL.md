@@ -94,11 +94,21 @@ Telegram `/task <текст>` · Telegram голосовое (whisper-расши
 **КАЖДЫЙ автономный заход:**
 1. Прочитать STATE + очередь + `data/session_changes.jsonl` (кто чем владеет).
 2. Объявить владение файлами (`log_session_change.py`) — не трогать чужое.
-3. Одна задача → изолированный worktree → **тесты зелёные до пуша** → пуш.
+3. Одна задача → изолированный worktree → **тесты зелёные до пуша** → пуш: **КОД** через
+   `push_to_github.py`; **ЛЮБОЙ файл сайта `landing/**` — ТОЛЬКО через `scripts/safe_site_push.py`**.
 4. Отчёт в journal + announce. Спорное → карточка. Ничего «в воздухе».
 
-**Контроль владельца:** arming-flag `SPA_ORCHESTRATOR_ARMED` (вкл/выкл одной командой); кадэнс —
-несколько раз в день (пересмотр ~2026-07-17 по расходу токенов).
+**🔒 Owner-gate авто-шипа сайта (ADR-OWN-2026-07-autoship, owner-approved full auto-ship).**
+Оркестратор пушит БЕЗОПАСНЫЕ правки сайта в live сам, но owner-gated классы (числа доходности,
+нейминг тиров, расшифровка «SPA», legal/disclaimer, solicitation, удаление honesty-токенов) НИКОГДА
+не уезжают сами — `scripts/check_owner_gate.py` их ловит, `safe_site_push.py` создаёт карточку
+`needs-owner` + notify, пуш не происходит. Детерминированный interlock в `push_to_github*.py` (активен
+при `SPA_AUTONOMOUS=1`, ставит `agent_orchestrator.sh`) не даёт обойти гейт «забыв» wrapper (fail-closed).
+Гейт — кооперативный контроль (см. ADR риск). Полный гайд: `docs/OWNER_GATE.md`.
+
+**Контроль владельца:** arming-flag `SPA_ORCHESTRATOR_ARMED` (вкл/выкл одной командой; заодно снимает
+`SPA_AUTONOMOUS` → interlock и авто-шип отключены); кадэнс — несколько раз в день (пересмотр
+~2026-07-17 по расходу токенов).
 
 ## 📏 Правила задач (§3.4)
 

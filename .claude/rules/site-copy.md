@@ -2,6 +2,13 @@
 
 **Читать перед любой правкой публичного текста earn-defi.com.**
 
+> **🔒 Авто-шип + owner-gate (ADR-OWN-2026-07-autoship).** Автономный оркестратор пушит БЕЗОПАСНЫЕ
+> правки сайта в live сам. Owner-gated классы этого правила (числа доходности · нейминг тиров ·
+> расшифровка «SPA» · legal/disclaimer · solicitation · удаление honesty-токенов) НИКОГДА не уезжают
+> автономно — `scripts/check_owner_gate.py` их ловит, `scripts/safe_site_push.py` заворачивает в
+> карточку владельцу. Пуш `landing/**` из автономного контекста — ТОЛЬКО через `safe_site_push.py`.
+> Гайд: `docs/OWNER_GATE.md`.
+
 - **Никакого solicitation-языка.** Продукт на paper-стадии, внешний капитал закрыт до
   legal-clearance. Запрещены формулировки действующего фонда: «minimum investment»,
   «withdrawals within N days», «no lock-up», «fee after KYC» как активные условия.
