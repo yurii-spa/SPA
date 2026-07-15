@@ -17,10 +17,20 @@ legacy_id: AGENT-CLEANUP
 - **П.2 — `novel-edge-rnd` ПЕРЕПОДЧИНЁН:** в его `SKILL.md` добавлен блок «НОВЫЙ ПРОТОКОЛ» (announce
   владения, запрет молча-править-тесты, owner-gated карточками, читать STATE, деплой агента только по карточке).
 
-**Осталось (реши когда захочешь):** п.3 (возобновлять ли roadmap-loop — рекомендую НЕТ, см. `MIGRATION_FREEZE.md`);
-п.4 (агенты «НЕПОНЯТНО»: bts-feed/monitor, dfb_capture, analytics_tier_b/c, base_gas_monitor,
-governance_watcher, hy_cycle/lp_cycle, tier1_governance, checkpoint-7day — важны или в утиль). Карточка
-остаётся `needs-owner` до твоего слова по п.3/п.4 (можно и «закрой, остальное потом»).
+**П.4 РАЗОБРАН (2026-07-15) — по свежести вывода каждого (детали в `AGENT_REGISTRY.md` §A7):**
+- **Оставить (все живые):** `bts-feed`/`bts-monitor` (perp funding feed, 0ч — кормит rates-desk/swarm/hy),
+  `hy_cycle`/`lp_cycle` (Engine B/C paper-книги, 0ч), `governance_watcher` (0ч), `tier1_governance`
+  (SSOT/policy, сегодня), `dfb_capture` (7ч), `analytics_tier_b`/`_c` (0–9ч), `base_gas_monitor` (9ч).
+- **⛔ Выгрузить — `checkpoint-7day`:** отработавший one-shot (расписание Month:6 Day:19, сработал 19 июня,
+  больше не сработает до след. июня). Рекомендую выгрузить. → скажи «выгрузи checkpoint-7day».
+
+**П.3 РАЗОБРАН — roadmap-loop возобновлять? Рекомендую НЕТ.** Причины: (1) его остаток — почти весь
+owner-gated (нужны твои решения), чистого автономного кода мало (19 done / 21 owner-gated); (2) автономия
+дала именно те проблемы (без координации, молча правил тесты); (3) новый контур это закрывает: открытые
+код-пункты roadmap ты берёшь карточками (я исполняю по одной), а R&D ведёт переподчинённый `novel-edge-rnd`.
+Остаток roadmap durably в `docs/ROADMAP_2MONTH_EISENHOWER_v2.md` (не потеряется). → скажи «не возобновлять» (подтверди).
+
+**Действие от тебя:** «выгрузи checkpoint-7day» + «roadmap не возобновлять» → исполню и закрою карточку.
 
 ---
 
