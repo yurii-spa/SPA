@@ -32,6 +32,29 @@
 - **PID 2853 остановлен** 2026-07-15 (owner-directed). Полномочия full-autonomy отозваны.
 - Сессия НЕ должна авто-возрождаться (внешнего релончера нет). Если появится — это регрессия.
 
+## Главный артефакт сессии: ветка `yield-lab-scaffolding` (на ревью владельца)
+
+Финальный отчёт сессии перед остановкой (окно #1): эта ветка — её основной результат.
+
+- **Ветка:** `yield-lab-scaffolding` — **ЛОКАЛЬНАЯ**, в `origin/main` НЕ смержена и НЕ запушена.
+- **Точка восстановления:** `PROGRESS.md` на ветке (детальный лог всех STEP 0–5 + remediation-sprint).
+- **Размер (факт на 2026-07-15):** ~**116 коммитов** от main, **173 добавленных файла**. Последний
+  коммит **2026-07-03 00:40**. _(Само-отчёт сессии называл 62 коммита / 127 файлов — это был
+  более ранний срез; ветка доросла в «VERIFICATION + REMEDIATION SPRINT» после того отчёта.)_
+- **Что это:** docs-first research-слой **Yield Lab / AI Investment OS** — НЕ трогает runtime /
+  RiskPolicy / дашборд / деплой (по чартеру `prompts/claude_code/yield_lab_master.md`). Содержимое:
+  docs 00–45 (архитектура, thesis-map, evidence-standard, card-системы strategy/protocol/stablecoin),
+  ADR-YL, reporting-шаблоны, + edge-hunt research-циклы (кандидаты: Resolv RLP REFUSE, Curve/Convex
+  REFUSE, **PT-sUSDe → ADVANCE-to-paper**, private-credit split, и т.д.).
+- **Extends (изменённые файлы):** `CLAUDE.md` (расширяла СТАРУЮ 608-строчную версию → на ветке 556
+  строк), `.gitignore`, + docs/{DAY30_REVIEW,DD_PACK,FUNDABILITY,PROOF_CHAIN_SPEC,SYSTEM_BRIEFING}.md,
+  landing/public/* (по факту extends больше, чем «2» из отчёта).
+- **⚠️ Риски мержа (для карточки own-22):** (1) часть docs (00_index, 07, 29, 33, yield_lab_master)
+  **уже на origin** — слой частично влит другими сессиями → нужен dedup; (2) SPA — API-push-only,
+  git-merge нет → «мерж» = селективный push файлов; (3) CLAUDE.md-extend ветки **конфликтует** с моим
+  кондснсом на origin (556 vs 176); (4) ветка на 12 дней устарела относительно дрейфующего main.
+- **Решение о мерже — за владельцем** (карточка `own-22`). Пока ветка сохраняется как есть (артефакт).
+
 ## Условия возобновления (только под НОВЫМ протоколом)
 
 Если владелец решит снова запустить roadmap-работу — не «resume as-is», а под новыми правилами:
