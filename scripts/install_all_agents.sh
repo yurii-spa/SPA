@@ -230,12 +230,8 @@ install_agent \
     "com.spa.digest_daily" \
     "1"
 
-# 17c. Telegram digest (WEEKLY) — THE sole weekly-report owner (Sun 10:00). Was
-#      MISSING from installer (audit 2026-06-27); replaces com.spa.telegram_weekly.
-install_agent \
-    "$REPO/scripts/com.spa.digest_weekly.plist" \
-    "com.spa.digest_weekly" \
-    "1"
+# 17c. (RETIRED 2026-07-15, owner-decided own-21) com.spa.digest_weekly — было в RETIRED_LABELS,
+#      но всё ещё устанавливалось/грузилось. Выгружен + plist убран. НЕ переустанавливать.
 
 # 18. Dashboard static server — :8767 (moved off :8766 to avoid familyfund conflict)
 install_agent \
@@ -250,11 +246,8 @@ install_agent \
     "com.spa.mass_tournament" \
     "1"
 
-# 20. Tier-1 weekly digest — eligible strategies + packages + diversification → Telegram
-install_agent \
-    "$REPO/scripts/com.spa.tier1_digest.plist" \
-    "com.spa.tier1_digest" \
-    "1"
+# 20. (RETIRED 2026-07-15, owner-decided own-21) com.spa.tier1_digest — было в RETIRED_LABELS,
+#      но всё ещё устанавливалось/грузилось. Выгружен + plist убран. НЕ переустанавливать.
 
 # 21. Tier-1 governance — daily 07:15 UTC, refreshes SSOT/policy/readiness/DR report JSONs
 install_agent \
