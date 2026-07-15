@@ -491,6 +491,13 @@ install_agent \
     "com.spa.resilience" \
     "1"
 
+# cc-kanban (ENV_SETUP v3 §4.1) — read-only claude-code-kanban monitor over ~/.claude on
+# http://localhost:4455 (KeepAlive). Observes headless orchestrator sessions Nimbalyst can't see.
+install_agent \\
+    "$REPO/launchd/com.spa.cc-kanban.plist" \\
+    "com.spa.cc-kanban" \\
+    "1"
+
 # ===========================================================================
 # ИТОГОВАЯ ТАБЛИЦА
 # ===========================================================================
