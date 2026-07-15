@@ -232,10 +232,13 @@ def test_get_updates_advances_offset(data_dir):
 
 
 def test_handle_update_routes_correctly(bot):
-    # Interactive rebuild: a command (re)spawns the Home panel (UX §3).
+    # /status is now a REAL command → plain-language status summary (2026-07-15 feature).
+    # Обоснование смены ассерта (CLAUDE.md #16): раньше /status была НЕизвестной командой и падала
+    # в Home-панель; теперь это отдельная команда со своей сводкой. Fallback-на-Home для НЕизвестных
+    # команд по-прежнему покрыт test_unknown_command_shows_help ('/frobnicate' → 'SPA Monitor').
     bot.handle_update({"update_id": 1, "message": {"text": "/status",
                                                    "chat": {"id": 999}}})
-    assert "SPA Monitor" in _last_text(bot)
+    assert "Статус SPA" in _last_text(bot)
 
 
 def test_send_message_formats_html(bot):
