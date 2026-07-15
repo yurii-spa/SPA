@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: Команда /status в Telegram-боте — сводка системы простым языком
-status: new
+status: done
 source: nimbalyst
 created: 2026-07-15
 ---
@@ -32,3 +32,7 @@ created: 2026-07-15
 
 ## Что будет после
 Оркестратор возьмёт задачу в работу (изолированный worktree, тесты до закрытия), закроет карточку.
+
+## Оркестратор: выполнено (2026-07-15, сухой прогон автономного цикла)
+Команда `/status` собрана: `spa_core/telegram/status_summary.py` + intercept в `bot.py` + `/status` в
+setMyCommands + 3 теста (зелёные). Вывод проверен вживую (агенты/сессии/карточки/свежесть). Карточка → done.
