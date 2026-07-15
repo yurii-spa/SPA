@@ -570,15 +570,22 @@ function Eyebrow({ children }) {
   );
 }
 
-function Metric({ label, value, sub, accent }) {
+function Metric({ label, value, sub, accent, loading }) {
+  // Во время начальной загрузки (loading) вместо пустого «—» показываем скелетон —
+  // чтобы при открытии дашборда не мигали пустые прочерки, пока не пришли живые данные.
+  const showSkeleton = loading && (value == null || value === NA);
   return (
     <div style={{ ...card, padding: '18px 18px 16px' }}>
       <p style={{ ...mono, fontSize: '.6875rem', textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)', marginBottom: '8px' }}>
         {label}
       </p>
-      <p style={{ ...mono, fontSize: '1.6rem', fontWeight: 700, color: accent || 'var(--text-primary)', lineHeight: 1.1 }}>
-        {value}
-      </p>
+      {showSkeleton ? (
+        <div aria-label="loading" style={{ height: '1.6rem', width: '68%', borderRadius: 6, background: 'var(--bg-surface-2)', animation: 'pulse 1.4s ease-in-out infinite' }} />
+      ) : (
+        <p style={{ ...mono, fontSize: '1.6rem', fontWeight: 700, color: accent || 'var(--text-primary)', lineHeight: 1.1 }}>
+          {value}
+        </p>
+      )}
       {sub && <p style={{ fontSize: '.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>{sub}</p>}
     </div>
   );
@@ -983,12 +990,12 @@ export default function DashboardLive({ initialFacts = null }) {
           <div>
             <div style={{ marginBottom: 12 }}><h2 style={HEADING}>{tr('portfolio')}</h2></div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-              <Metric label={tr('equity')} value={fmtUsd0(f.current_equity)} sub={lang === 'ru' ? 'база $100k' : '$100k base'} />
-              <Metric label={tr('apyToday')} value={fmtPct(f.apy_today_pct, 2)} accent="var(--data-teal)" sub={lang === 'ru' ? 'переменный' : 'variable'} />
-              <Metric label={tr('dailyYield')} value={fmtUsd2(f.daily_yield_usd)} sub={lang === 'ru' ? 'бумажный' : 'paper'} />
-              <Metric label={tr('totalReturn')} value={fmtSigned(f.total_return_pct, 2)} accent={(f.total_return_pct ?? 0) >= 0 ? 'var(--ok)' : 'var(--danger)'} />
-              <Metric label={tr('regime')} value={regime ?? NA} />
-              <Metric label={tr('nav')} value={fmtUsd0(f.nav)} accent="var(--data-teal)" sub={f.nav_reconciliation_ok ? (lang === 'ru' ? 'сверено ✓' : 'reconciled ✓') : undefined} />
+              <Metric loading={phase === 'connecting'} label={tr('equity')} value={fmtUsd0(f.current_equity)} sub={lang === 'ru' ? 'база $100k' : '$100k base'} />
+              <Metric loading={phase === 'connecting'} label={tr('apyToday')} value={fmtPct(f.apy_today_pct, 2)} accent="var(--data-teal)" sub={lang === 'ru' ? 'переменный' : 'variable'} />
+              <Metric loading={phase === 'connecting'} label={tr('dailyYield')} value={fmtUsd2(f.daily_yield_usd)} sub={lang === 'ru' ? 'бумажный' : 'paper'} />
+              <Metric loading={phase === 'connecting'} label={tr('totalReturn')} value={fmtSigned(f.total_return_pct, 2)} accent={(f.total_return_pct ?? 0) >= 0 ? 'var(--ok)' : 'var(--danger)'} />
+              <Metric loading={phase === 'connecting'} label={tr('regime')} value={regime ?? NA} />
+              <Metric loading={phase === 'connecting'} label={tr('nav')} value={fmtUsd0(f.nav)} accent="var(--data-teal)" sub={f.nav_reconciliation_ok ? (lang === 'ru' ? 'сверено ✓' : 'reconciled ✓') : undefined} />
             </div>
           </div>
 
