@@ -46,6 +46,8 @@ _Обновлено: 2026-07-15 (ручной снимок при setup сред
 
 ## 🗂️ Последние решения (одной строкой → ADR)
 
+- **Правило (owner, 2026-07-15):** ничего «в воздухе» — любое решение/договорённость/пожелание из
+  любой сессии фиксировать до её конца (решение→ADR+STATE, задача→Inbox, идея→docs/ideas/). Внесено в CLAUDE.md §Протокол-сессии п.4.
 - ENV_SETUP_BRIEF_v3 smoke-test пройден (owner-done→ingested, голосовой inbox, декомпозиция) → [ADR-TEST](decisions/ADR-TEST-smoke-2026-07-15.md).
 - Two-tier kill-switch SOFT −5% / HARD −10% inclusive → [ADR-048](decisions/ADR-048-two-tier-kill-switch.md) (+ADR-034).
 - RiskPolicy → governance-слой, API auth, exec-bypass закрыт → ADR-050.
