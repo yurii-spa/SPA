@@ -32,6 +32,20 @@ jobs:
           GITHUB_PAT_SPA: ${{ secrets.SPA_PAT }}
         run: |
           python scripts/site_freshness_monitor.py
+      - name: Funnel link-integrity tripwire (advisory)
+        # Activates the previously-orphaned scripts/funnel_link_check.py: crawls the live
+        # conversion path (entry -> checkup -> packages -> pilot, both domains) and fails ONLY on a
+        # real broken link (exit 1). A transient network failure (exit 2) is a warning, never a red
+        # herring. Read-only/advisory -- never mutates the site. Isolated from the fail-closed monitor
+        # above so it can never affect the degraded-snapshot kill-rule.
+        run: |
+          set +e
+          python scripts/funnel_link_check.py
+          code=$?
+          set -e
+          if [ "$code" = "1" ]; then echo "::error::broken link in conversion funnel (funnel_link_check exit 1)"; exit 1; fi
+          if [ "$code" = "2" ]; then echo "::warning::funnel_link_check could not verify (network/transient) -- not failing"; fi
+          echo "funnel_link_check exit=$code"
       - name: Upload freshness report
         if: always()
         uses: actions/upload-artifact@v4
