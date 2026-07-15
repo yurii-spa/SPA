@@ -226,6 +226,24 @@ def main():
     # Авто-сообщение если не указано
     message = args.message or f"chore: push {len(all_files)} file(s) via push_to_github.py"
 
+    # ── OWNER-GATE INTERLOCK (ADR-OWN-2026-07) — autonomous context ONLY ──────────
+    # In the autonomous orchestrator (SPA_AUTONOMOUS=1) any push touching landing/ MUST
+    # have passed the owner-gate guard via scripts/safe_site_push.py (which sets
+    # SPA_SITE_PUSH_VERIFIED=1). If not, re-run the guard here and FAIL CLOSED. Attended
+    # sessions and the deterministic custodian run WITHOUT SPA_AUTONOMOUS → unaffected.
+    if (not args.dry_run and os.environ.get("SPA_AUTONOMOUS") == "1"
+            and os.environ.get("SPA_SITE_PUSH_VERIFIED") != "1"):
+        _site = [f for f in all_files if "landing/" in str(f).replace("\\", "/")]
+        if _site:
+            _guard = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "scripts", "check_owner_gate.py")
+            _rc = subprocess.run([sys.executable, _guard, "--diff-mode", "files",
+                                  "--files", *_site, "--commit-message", message]).returncode
+            if _rc != 0:
+                print(f"BLOCKED (owner-gate rc={_rc}): autonomous site push must go through "
+                      f"scripts/safe_site_push.py → owner card. Not pushing.", file=sys.stderr)
+                sys.exit(3)
+
     # PAT
     if args.pat and args.pat.strip():
         pat = args.pat.strip()

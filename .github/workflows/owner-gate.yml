@@ -1,0 +1,49 @@
+# Owner-gate guard — BLOCKING CI check on site changes (ADR-OWN-2026-07-autoship).
+#
+# Fails the run if a landing/ change touches an OWNER-GATED class (yield numbers / tier
+# naming / SPA expansion / legal / solicitation / honesty-token removal) without an
+# `Owner-Approved: own-NN` trailer backed by an owner-done card.
+#
+# HONEST NOTE: this red run is a VISIBLE second layer + the gate for PR flows. It does
+# NOT stop the Cloudflare Pages deploy (CF builds every push to main independently of
+# Actions). The AUTHORITATIVE stop for the autonomous orchestrator is the deterministic
+# pre-push interlock in push_to_github*.py (active when SPA_AUTONOMOUS=1) + safe_site_push.py.
+name: owner-gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'landing/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'landing/**'
+
+jobs:
+  owner-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need the base commit for the diff
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Owner-gate guard (blocking)
+        run: |
+          # For a push: diff the pushed range. For a PR: diff base..head.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+            HEAD="${{ github.sha }}"
+          fi
+          # First-push sentinel (all-zero before-sha) → compare against the tree root.
+          case "$BASE" in
+            0000000000000000000000000000000000000000|"") BASE="$(git rev-list --max-parents=0 HEAD | tail -1)" ;;
+          esac
+          echo "owner-gate: diff $BASE..$HEAD"
+          python3 scripts/check_owner_gate.py --diff-mode git-range --base "$BASE" --head "$HEAD" --commit-message "$(git log -1 --pretty=%B "$HEAD")"

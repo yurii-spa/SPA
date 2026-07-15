@@ -234,6 +234,23 @@ def main():
 
     message = args.message or f"chore: batch push {len(all_files)} file(s) in one commit"
 
+    # ── OWNER-GATE INTERLOCK (ADR-OWN-2026-07) — autonomous context ONLY ──────────
+    # Same guard as push_to_github.py: in the autonomous orchestrator (SPA_AUTONOMOUS=1)
+    # any landing/ push MUST have passed the owner-gate guard via safe_site_push.py
+    # (SPA_SITE_PUSH_VERIFIED=1). Otherwise re-run the guard and FAIL CLOSED.
+    if (not args.dry_run and os.environ.get("SPA_AUTONOMOUS") == "1"
+            and os.environ.get("SPA_SITE_PUSH_VERIFIED") != "1"):
+        _site = [f for f in all_files if "landing/" in str(f).replace("\\", "/")]
+        if _site:
+            _guard = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "scripts", "check_owner_gate.py")
+            _rc = subprocess.run([sys.executable, _guard, "--diff-mode", "files",
+                                  "--files", *_site, "--commit-message", message]).returncode
+            if _rc != 0:
+                print(f"BLOCKED (owner-gate rc={_rc}): autonomous site push must go through "
+                      f"scripts/safe_site_push.py → owner card. Not pushing.", file=sys.stderr)
+                sys.exit(3)
+
     if args.pat and args.pat.strip():
         pat = args.pat.strip()
     else:
