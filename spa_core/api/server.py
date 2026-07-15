@@ -160,6 +160,7 @@ app.add_middleware(RateLimitMiddleware)
 from spa_core.api.routers import (  # noqa: E402
     aggressive_lab,
     analytics,
+    cmo,
     cockpit,
     competitive_watch,
     dfb,
@@ -229,6 +230,9 @@ app.include_router(riskwire.router)
 # rates-desk decision_log/market_regime/strategy-lab; never re-derives risk math. Every
 # response carries ts+stale, fail-CLOSED honest-unavailable, GET-only/advisory.
 app.include_router(cockpit.router)
+# CMO Editorial Layer (flow B review surface) — list/approve/reject drafts at /api/cmo/drafts/*.
+# Draft store is advisory/read-write; no auto-publish. Owner approves via POST /approve.
+app.include_router(cmo.router)
 
 
 # Academy onboarding sub-app (D4: own CORS, own credentials)

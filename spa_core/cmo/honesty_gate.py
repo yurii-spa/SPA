@@ -116,6 +116,8 @@ def _collect_source_numbers(facts: Any, depth: int = 0) -> list[float]:
         v = float(facts)
         if 0 < v < 1e12:
             nums.append(v)
+        elif -1e12 < v < 0:
+            nums.append(abs(v))  # drafts may show absolute value of a negative source (e.g. drawdown)
     elif isinstance(facts, dict):
         for vv in facts.values():
             nums.extend(_collect_source_numbers(vv, depth + 1))
@@ -128,9 +130,12 @@ def _collect_source_numbers(facts: Any, depth: int = 0) -> list[float]:
 
 
 def _number_allowed(val: float, source_nums: list[float]) -> bool:
-    """Return True if val is within ±TOLERANCE of any source number, or is a small round integer."""
+    """Return True if val is within ±TOLERANCE of any source number, or is a structural constant."""
     # small integers (1, 2, 5, 10, 30…) are structural constants, not data claims
     if val == int(val) and int(val) <= 100:
+        return True
+    # year-like 4-digit integers (1900–2100) are date artifacts, not financial claims
+    if val == int(val) and 1900 <= int(val) <= 2100:
         return True
     for s in source_nums:
         if s == 0:
