@@ -10,11 +10,11 @@ _Обновлено: 2026-07-15 (ручной снимок при setup сред
 
 ## 🎯 Текущий фокус
 
-- **ENV_SETUP_BRIEF_v3 — ЗАВЕРШЁН (все 8 этапов + smoke-test пройден 2026-07-15).** Files-first
+- **ENV_SETUP_BRIEF_v3 — ЗАВЕРШЁН + запушен в origin** (все 8 этапов + smoke-test). Files-first
   контур владельца живой: Owner Decisions + Inbox трекеры, протокол оркестратора, наблюдение :4455,
-  Obsidian-база знаний. Ветка `env-setup-v3` (не запушена — мягкая заморозка).
-  **Открытые owner-решения:** (1) вооружить автономный `com.spa.orchestrator` (сейчас INERT) или
-  оставить attended; (2) мержить/пушить ветку `env-setup-v3`.
+  Obsidian-база знаний, Telegram `/task`+`/status`+голос.
+- **Автономный цикл `com.spa.orchestrator` ВКЛЮЧЁН** (governed autonomy, каждые 3ч; пересмотр кадэнса ~17.07).
+- **Agent cleanup сделан:** roadmap-loop остановлен, novel-edge переподчинён, 3 retired выгружены (fleet 54).
 - **Go-live трек** — идёт фоном: ~24/30 evidenced дней (anchor 2026-06-22, target ~2026-07-21).
   Осталось просто дождать честных трек-дней. Кодом чинить нечего.
 
@@ -51,6 +51,9 @@ _Обновлено: 2026-07-15 (ручной снимок при setup сред
 - **STOP автономного ROADMAP-loop (owner, 2026-07-15):** сессия `1345fef8` (PID 2853, запущена 02.07,
   «full autonomy») ОСТАНОВЛЕНА, полномочия отозваны. Состояние заморожено в `MIGRATION_FREEZE.md`
   (8 ships, остаток owner-gated, in-flight работы не было). Пережила Этап-0 т.к. это не LaunchAgent.
+- **Автономный цикл ВКЛЮЧЁН (owner, 2026-07-15):** `com.spa.orchestrator` armed, governed autonomy,
+  каждые 3ч (headless claude под протоколом; очередь+hardening+мелкие фичи; owner-gated→карточки; тесты не
+  трогать молча). Выключить: `launchctl bootout gui/$(id -u)/com.spa.orchestrator`. **Пересмотр кадэнса ~17.07** (own-23).
 - **Единственная активная сессия SPA (owner, 2026-07-15):** первое окно закрыто, roadmap-loop
   полностью завершён; env-setup сессия (PID 94256) — теперь главная и единственная сессия SPA.
   Конкурентного клоббера больше нет. Работа — под новым протоколом (owner-gated карточками, announce,
