@@ -114,3 +114,9 @@ landing/node_modules/
 cabinet/node_modules/
 .claude/settings.local.json
 .claude/*.local.json
+
+# ENV_SETUP v3 §6 — runtime inbox note archive (not canonical)
+inbox/.ingested/
+
+# ENV_SETUP v3 §7.4 — Obsidian per-device vault config (not canonical, device-local)
+.obsidian/
