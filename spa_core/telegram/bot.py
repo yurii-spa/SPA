@@ -859,6 +859,7 @@ class TelegramBot:
             {"command": "pause",     "description": "Kill-switch (поставить на паузу)"},
             {"command": "resume",    "description": "Снять паузу"},
             {"command": "task",      "description": "Добавить задание в inbox (текст или голосовое)"},
+            {"command": "status",    "description": "Сводка системы простым языком"},
             {"command": "help",      "description": "Список всех команд"},
         ]
         result = self._api_call("setMyCommands", {"commands": commands}, timeout=10)
@@ -960,14 +961,19 @@ class TelegramBot:
         any error replies friendly and still returns True. Non-intake messages → False.
         """
         is_task = text.strip().lower().startswith("/task")
+        is_status = text.strip().lower().startswith("/status")
         voice = msg.get("voice") or msg.get("audio")
         is_voice = isinstance(voice, dict) and bool(voice.get("file_id"))
-        if not (is_task or is_voice):
+        if not (is_task or is_status or is_voice):
             return False
         import html
         try:
             if not self._get_router().is_owner(chat_id):
                 return False  # non-owner → let normal flow answer
+            if is_status:
+                from spa_core.telegram.status_summary import build_status_summary
+                self.send_message(build_status_summary(), chat_id)
+                return True
             if is_task:
                 task_text = text.strip()[len("/task"):].strip()
                 if not task_text:
