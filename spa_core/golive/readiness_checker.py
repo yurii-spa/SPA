@@ -36,7 +36,7 @@ from spa_core.golive.criteria import CRITERIA, CRITERIA_BY_ID, WEIGHT_POINTS
 # ─── Constants ──────────────────────────────────────────────────────────────────
 SPA_DIR = Path(__file__).resolve().parents[2]
 
-GO_LIVE_DATE = "2026-07-15"
+GO_LIVE_DATE = "2026-07-21"
 # Real track started 2026-06-10; data before this date is demo/invalid.
 PAPER_START_DATE = "2026-06-10"
 MIN_PAPER_DAYS = 30

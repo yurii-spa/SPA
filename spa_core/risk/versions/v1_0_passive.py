@@ -71,7 +71,7 @@ VERSION_INFO = {
     "approved_by": "Yurii (Owner)",
     "adr": "docs/adr/ADR_001_initial_risk_policy.md",
     "paper_test_start": "2026-05-20",
-    "paper_test_end_target": "2026-07-15",
+    "paper_test_end_target": "2026-07-21",
     "status": "active_paper_testing",
     "strategy": "Stable Lending Core — T1/T2 stablecoin lending protocols only",
     "capital": "$100,000 paper (virtual)",

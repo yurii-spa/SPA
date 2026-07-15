@@ -66,7 +66,7 @@ SCHEMA_VERSION = 1
 _SEVERITY: Dict[str, int] = {"ok": 0, "warn": 1, "degraded": 2, "unknown": 3}
 
 # Target go-live date (informational; surfaced for the dashboard countdown).
-TARGET_DATE = "2026-07-15"
+TARGET_DATE = "2026-07-21"
 
 # Default data dir: <repo>/data (spa_core/golive/ -> parents[2] == repo root).
 DEFAULT_DATA_DIR = Path(__file__).resolve().parents[2] / "data"

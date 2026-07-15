@@ -1,7 +1,7 @@
 """
 Strategy Tournament — runs multiple strategies on the same historical data
 and picks a winner based on risk-adjusted performance.
-Used to decide which strategy goes live on 2026-07-15.
+Used to decide which strategy goes live on 2026-07-21.
 
 Usage:
     from backtesting.tournament import StrategyTournament

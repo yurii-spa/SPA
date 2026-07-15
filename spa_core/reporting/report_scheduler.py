@@ -119,7 +119,7 @@ def generate_latest_report(data_dir: str, output_dir: str) -> str:
         "generated_at":  generated_at,
         "pdf_filename":  filename,
         "report_date":   now.strftime("%Y-%m-%d"),
-        "go_live_date":  "2026-07-15",
+        "go_live_date":  "2026-07-21",
         "days_remaining": days_rem,
         "status":        "ON TRACK" if days_rem > 0 else "READY",
     }

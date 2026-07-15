@@ -242,8 +242,8 @@ class TestReadinessChecker(_Harness):
 
     def test_days_to_golive_calculation(self):
         result = self._build(today=date(2026, 6, 9)).check_all()
-        # 2026-07-15 − 2026-06-09 = 36 days.
-        self.assertEqual(result["days_to_golive"], 36)
+        # 2026-07-21 − 2026-06-09 = 42 days.
+        self.assertEqual(result["days_to_golive"], 42)
 
     def test_var95_skip_when_missing(self):
         data = _good_data()

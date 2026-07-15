@@ -37,7 +37,7 @@ from typing import Any
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
-GO_LIVE_DATE     = "2026-07-15"
+GO_LIVE_DATE     = "2026-07-21"
 # Real track started 2026-06-10; data before this date is demo/invalid.
 PAPER_START_DATE = "2026-06-10"
 MIN_PAPER_DAYS   = 56    # minimum days of paper trading required (8 weeks)
@@ -86,7 +86,7 @@ def _parse_iso(ts: str) -> datetime:
 # ── Individual criteria ───────────────────────────────────────────────────────
 
 def days_remaining() -> int:
-    """Return days remaining until go-live target date (2026-07-15). Never negative."""
+    """Return days remaining until go-live target date (2026-07-21). Never negative."""
     go_live_dt = datetime.fromisoformat(GO_LIVE_DATE).replace(tzinfo=timezone.utc)
     return max(0, (go_live_dt - _today()).days)
 

@@ -280,7 +280,7 @@ class InvestmentMemoGenerator(BaseAnalytics):
             "|--------------------------------|--------------------|\n"
             "| Paper trading start            | 2026-06-10 ✅      |\n"
             "| 30-day gap-free track complete | ~2026-07-10        |\n"
-            "| GoLiveChecker READY (all 26)   | ~2026-07-15        |\n"
+            "| GoLiveChecker READY (all 26)   | ~2026-07-21        |\n"
             "| Manual owner review (ADR-002)  | ~2026-07-20        |\n"
             "| Live capital accepted          | **~2026-08-01**    |\n"
             "| First investor statement       | 2026-09-01         |\n"

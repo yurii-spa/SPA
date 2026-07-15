@@ -144,7 +144,7 @@ def generate_report_card(check_result: dict) -> str:
     verdict        = check_result.get("verdict", "NOT_READY")
     verdict_emoji  = check_result.get("verdict_emoji", "🔴")
     days_remaining = check_result.get("days_remaining", 0)
-    go_live_date   = check_result.get("go_live_date", "2026-07-15")
+    go_live_date   = check_result.get("go_live_date", "2026-07-21")
     criteria       = check_result.get("criteria", [])
     recommendation = check_result.get("recommendation", "")
 

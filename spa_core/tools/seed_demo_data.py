@@ -327,7 +327,7 @@ def _build_meta(days: int, capital: float, now: datetime) -> dict:
         "updated_at": now.isoformat(),
         "paper_trading_day": days,
         "paper_start_date": paper_start.date().isoformat(),
-        "go_live_target": "2026-07-15",
+        "go_live_target": "2026-07-21",
         "capital_usd": capital,
         "target_apy": 7.3,
         "version": "1.6",

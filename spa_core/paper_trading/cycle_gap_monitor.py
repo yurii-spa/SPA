@@ -252,7 +252,7 @@ def _compute_paper_days(status: dict, now: datetime) -> int:
 
 
 def _compute_days_to_golive(now: datetime) -> int:
-    """Return calendar days until the go-live decision date (2026-07-15)."""
+    """Return calendar days until the go-live decision date (2026-07-21)."""
     try:
         delta = _GOLIVE_DATE - now
         return max(0, delta.days)

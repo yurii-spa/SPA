@@ -120,7 +120,7 @@ class SpaArchitect:
 
         system = """You are a senior software architect reviewing a DeFi paper trading project called SPA.
 Your job is to prioritize the development backlog and recommend the next sprint.
-Be concise, practical, and focused on go-live readiness (target: 2026-07-15).
+Be concise, practical, and focused on go-live readiness (target: 2026-07-21).
 Risk and execution agents must NEVER use LLM — only deterministic code.
 Format your response as:
 1. Next sprint recommendation (3-5 tasks, with estimates)
@@ -128,7 +128,7 @@ Format your response as:
 3. Any risks or blockers"""
 
         user = f"""Project: SPA — DeFi paper trading targeting 7.3% APY on $100K
-Go-live: 2026-07-15 (7 weeks away)
+Go-live: 2026-07-21 (7 weeks away)
 Done so far: {done_count} tasks completed
 
 Current backlog:
@@ -187,7 +187,7 @@ Keep it technical and specific."""
 {json.dumps(backlog, indent=2)}
 
 Currently in progress: {json.dumps(in_progress, indent=2)}
-Go-live: 2026-07-15 (7 weeks). Priority: stability over new features."""
+Go-live: 2026-07-21 (7 weeks). Priority: stability over new features."""
 
         return self._ask_claude(system, user)
 

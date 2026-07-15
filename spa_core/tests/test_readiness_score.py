@@ -53,7 +53,7 @@ def test_document_top_level_keys_and_types():
     assert isinstance(doc["overall_score"], float)
     assert doc["overall_status"] in rs._SEVERITY
     assert isinstance(doc["components"], list)
-    assert doc["target_date"] == "2026-07-15"
+    assert doc["target_date"] == "2026-07-21"
 
 
 def test_components_with_required_fields():
@@ -474,7 +474,7 @@ class TestScheduleComponent:
             assert key in rec
         assert rec["key"] == "schedule"
         assert rec["label"] == "Days to go-live"
-        assert rec["target_date"] == rs.TARGET_DATE == "2026-07-15"
+        assert rec["target_date"] == rs.TARGET_DATE == "2026-07-21"
         assert rec["contributes_to_overall"] is False
         assert rec["scored"] is False
 
