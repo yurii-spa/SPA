@@ -1,0 +1,53 @@
+# Owner Decisions tracker (ENV_SETUP_BRIEF_v3 · Этап 2)
+# Files-first очередь решений владельца. Источник правды — эти markdown-карточки в git.
+# Nimbalyst рендерит их как kanban; инструмент может умереть — карточки останутся в репо.
+type: owner-decision
+displayName: Owner Decision
+displayNamePlural: Owner Decisions
+icon: gavel
+color: "#dc2626"
+
+modes:
+  inline: false
+  fullDocument: true
+
+idPrefix: own
+idFormat: ulid
+
+fields:
+  - name: title
+    type: string
+    required: true
+  - name: status
+    type: select
+    default: needs-owner
+    options:
+      - value: needs-owner
+        label: Needs Owner
+      - value: owner-done
+        label: Owner Done
+      - value: ingested
+        label: Ingested
+  - name: priority
+    type: select
+    default: medium
+    options:
+      - value: high
+        label: High
+      - value: medium
+        label: Medium
+      - value: low
+        label: Low
+  - name: owner
+    type: string
+  - name: blocks
+    type: string
+  - name: created
+    type: string
+
+roles:
+  title: title
+  workflowStatus: status
+
+# ПРАВИЛО (жёсткое, дублируется в CLAUDE.md): агентам запрещено переводить карточку в
+# 'owner-done'. Только владелец. Агент двигает лишь needs-owner -> ingested (после инжеста).
