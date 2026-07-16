@@ -138,16 +138,52 @@ class PilotRequest(BaseModel):
     utm_campaign: str = ""
 
 
+# Common free email providers — a lead from one of these is treated as a retail/individual signal.
+# A lead from ANY OTHER domain is a B2B/institutional signal (a company/family-office/fund address)
+# → "material" → instant per-lead Telegram ping. Owner decision Q-OWN-16: big/B2B → instant, rest → digest.
+_FREE_EMAIL_DOMAINS = frozenset({
+    "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "msn.com",
+    "yahoo.com", "yahoo.co.uk", "ymail.com", "icloud.com", "me.com", "mac.com",
+    "proton.me", "protonmail.com", "pm.me", "aol.com", "gmx.com", "gmx.net", "mail.com",
+    "zoho.com", "yandex.ru", "yandex.com", "mail.ru", "inbox.ru", "bk.ru", "list.ru",
+    "fastmail.com", "hey.com", "web.de", "t-online.de", "qq.com", "163.com", "126.com",
+})
+
+
+def _is_material_lead(email: str, message: str, tier: str, source: str) -> bool:
+    """Deterministic materiality classifier for a /pilot lead (owner Q-OWN-16: big/B2B → instant ping,
+    rest → digest). No dollar field is captured (zero-PII brand), so materiality is inferred from
+    available signals. MATERIAL if ANY of:
+      • B2B/institutional — email domain is NOT a common free provider (company/fund/family-office);
+      • early-access — the person joined the committed early-access list (source == "early_access");
+      • aggressive tier — the largest-ticket interest band.
+    Otherwise (free-mail retail signal with no commitment marker) → non-material → digest.
+    Pure, side-effect-free; easy to tune via the signals above."""
+    domain = email.rsplit("@", 1)[-1].strip().lower() if "@" in email else ""
+    if domain and domain not in _FREE_EMAIL_DOMAINS:
+        return True                       # B2B / institutional address
+    if (source or "").strip().lower() == "early_access":
+        return True                       # explicit commitment
+    if (tier or "").strip().lower() == "aggressive":
+        return True                       # largest-ticket band
+    return False
+
+
 def _notify_owner_telegram(email: str, message: str, tier: str, utm: str, source: str = "") -> bool:
-    """Route the owner lead-alert through the SINGLE Telegram authority (push_policy digest queue),
+    """Route the owner lead-alert through the SINGLE Telegram authority (push_policy),
     NOT a direct telegram_client.send — a raw send bypasses the one push authority
-    (see test_no_rogue_telegram_senders). The lead folds into the owner's daily digest. Instant
-    per-lead push would need a Tier-1 whitelist key (owner/ADR decision — flagged, not forced here).
-    Best-effort, never raises (a page must not break on notify failure)."""
+    (see test_no_rogue_telegram_senders).
+
+    Owner decision Q-OWN-16 (ADR-OWN-2026-07-lead-pings): a MATERIAL lead (B2B / early-access /
+    aggressive tier — see ``_is_material_lead``) fires an instant per-lead Tier-1 ping via the
+    ``pilot_request`` one-shot whitelist key (still under the policy's daily ceiling). A non-material
+    lead is demoted to the owner's daily digest exactly as before. Best-effort, never raises."""
     try:
         import html as _html
         from spa_core.telegram import push_policy
-        title = ("🎟 Early-access заявка" if source == "early_access" else "🔔 Новая заявка с /pilot")
+        material = _is_material_lead(email, message, tier, source)
+        head = ("🎟 Early-access заявка" if source == "early_access" else "🔔 Новая заявка с /pilot")
+        title = f"{head} — крупная/B2B" if material else head
         parts = [f"✉️ Email: {_html.escape(email)}"]
         if tier:
             parts.append(f"🏷 Тир: {_html.escape(tier)}")
@@ -156,8 +192,14 @@ def _notify_owner_telegram(email: str, message: str, tier: str, utm: str, source
         if message:
             parts.append(f"💬 {_html.escape(message)}")
         parts.append("Некастодиально · запрос на разговор, не сделка.")
-        push_policy.enqueue_digest("pilot_request", title, " · ".join(parts),
-                                   severity="INFO", reason="pilot_lead")
+        body = " · ".join(parts)
+        if material:
+            # instant per-lead ping (one-shot Tier-1 key; still capped by the daily ceiling)
+            push_policy.push_critical("pilot_request", "INFO", title, body)
+        else:
+            # retail/individual signal → folds into the one daily digest (unchanged behaviour)
+            push_policy.enqueue_digest("pilot_request", title, body,
+                                       severity="INFO", reason="pilot_lead")
         return True
     except Exception:  # noqa: BLE001 — notify is best-effort
         return False
