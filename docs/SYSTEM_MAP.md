@@ -71,7 +71,24 @@ proof-gate + owner-gate + numbers-lint + site_freshness + site_content_audit + s
   роутера живы. File-contract (JSON verbatim) тоже недосчитывается import-графом — сверять с launchd.
 - ⚠️ **Инвариант #16:** dead-модули с тестами (tear_sheet_hf, pnl_attribution, apy_* …) — двигать модуль+тест ВМЕСТЕ.
 
-**Не проверено (pass 3):** `spa_core/{analytics, tournament, dfb, redteam, riskwire, compliance}`, docs/, root.
+### WS-A PASS 3 (analytics · tournament · dfb · redteam · riskwire · compliance · scheduler · utils · agents · остальные ~40 dirs, аудит 2026-07-16)
+~1189 файлов. **Все ~40 подсистем 🟢 живы** (launchd `-m` entry-points, CI, динамические реестры).
+- ⚠️ **КРИТИЧНО — `analytics/` (756 файлов) REGISTRY-DRIVEN:** `signal_aggregator` (живой агент) через
+  `_module_registry.py` (712 записей) делает `importlib.import_module` — **697 модулей живы динамически,
+  naive-grep их НЕ видит. НЕ трогать слепо** (была бы крупнейшая ложная-мёртвость аудита).
+- 🔴 **Подтверждённые attic (~14, 0-ref/0-entry/0-dynamic, БЕЗ тестов):** `spa_core/portfolio/` (вся папка —
+  мёртвый остров, пустой `__init__`); `data_trust/pit_wrapper` (вытеснён backtesting/point_in_time_whitelist);
+  `data_pipeline/{gmx_v2_discovery, yield_aggregator_v2}`; `golive/readiness_report` (дубль analytics/golive_readiness_report);
+  7 analytics-orphans (apy_history_tracker, decision_audit_trail, rebalance_engine, research_risk_limits …).
+- 🟡 **Карточкой (НЕ трогать сам):** `safety/{drawdown_circuit_breaker, position_limit_enforcer}` (risk-домен!);
+  dead-but-test-backed дубли `agents/{architect_agent, tester_agent}` (вытеснены dev_agents/), `milestone/milestone_v2`,
+  `pilot/advisory_loop` — инвариант #16, тест не ронять; ~13 analytics migration-orphans (сверить со статусом миграции).
+- 🟡 **Топ-хазард — дубли-басенеймы:** `adapter_watchdog` (scheduler vs monitoring), `monte_carlo`, `var_calculator`,
+  `parameter_optimizer`, `model_config`, `defillama_feed`, `policy`, `proof`, `registry`… — источник и import-путаницы,
+  и ложных срабатываний грепа. Параллельные sizer'ы (optimization/allocator/tuner/analytics) → consolidation ADR.
+
+**ИТОГ WS-A (все 3 pass):** ~800+ модулей + ~340 скриптов откартографированы. Живой surface надёжен; мёртвое —
+контейнеризовано (analytics registry-driven — главный нюанс). Чистка идёт фазами с тестами (см. журнал/attic).
 
 _ИТОГ АУДИТА: система полностью откартографирована (агенты · сайт · код). Чистка (attic) — фаза исполнения:
 безопасные скрипты → `scripts/archive/`; модули с тестами → attic вместе с тестом; крупные развязки
