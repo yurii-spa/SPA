@@ -26,6 +26,7 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 
 # Ensure repo root is on sys.path (works when run from scripts/ or repo root).
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -42,6 +43,22 @@ from spa_core.owner_queue.queue import (
     set_status,
 )
 from spa_core.owner_queue.notify import notify_needs_owner
+
+
+def _rebuild_board() -> None:
+    """Best-effort regen of nimbalyst-local/tracker/_BOARD.md (single-glance card index for bootstrap).
+    Never raises — board is a derived index; card mutation must not fail on its account."""
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "build_tracker_board",
+            str(Path(__file__).resolve().parent / "build_tracker_board.py"),
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.main()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _card_dict(c) -> dict:
@@ -80,6 +97,7 @@ def cmd_set_status(args) -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
     print(f"OK: {args.path} -> status: {args.status}")
+    _rebuild_board()
     return 0
 
 
@@ -102,6 +120,7 @@ def cmd_create(args) -> int:
         print(f"REFUSED: {exc}", file=sys.stderr)
         return 2
     print(str(path))
+    _rebuild_board()
     return 0
 
 
@@ -111,6 +130,8 @@ def cmd_ingest_notes(args) -> int:
         print("(no loose notes to ingest)")
     for p in created:
         print(f"ingested -> {p}")
+    if created:
+        _rebuild_board()
     return 0
 
 
