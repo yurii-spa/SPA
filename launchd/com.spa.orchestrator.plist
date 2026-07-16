@@ -27,9 +27,9 @@
     <key>WorkingDirectory</key>
     <string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
 
-    <!-- ARMED 2026-07-15 (owner-approved governed autonomy). Каждые 3 часа. -->
+    <!-- ARMED 2026-07-15 (owner-approved governed autonomy). Каждый час (owner 2026-07-16: чаще → больше работы). -->
     <key>StartInterval</key>
-    <integer>10800</integer>
+    <integer>3600</integer>
 
     <key>RunAtLoad</key>
     <false/>
