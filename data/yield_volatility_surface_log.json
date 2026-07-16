@@ -2,670 +2,6 @@
   {
     "protocols": [
       {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "vol_7d_pct": 0.083299,
-        "vol_30d_pct": 0.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 3.085714,
-        "mean_30d_apy": 3.0,
-        "mean_90d_apy": 3.0,
-        "vol_term_structure": "FLAT",
-        "risk_adjusted_7d": 37.043694,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
-      }
-    ],
-    "most_stable": "Aave (USDC)",
-    "most_volatile": "Aave (USDC)",
-    "stable_protocols": [
-      "Aave (USDC)"
-    ],
-    "average_stability_score": 100.0,
-    "timestamp": 1781968480.359923
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "vol_7d_pct": 0.083299,
-        "vol_30d_pct": 0.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 3.085714,
-        "mean_30d_apy": 3.0,
-        "mean_90d_apy": 3.0,
-        "vol_term_structure": "FLAT",
-        "risk_adjusted_7d": 37.043694,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
-      }
-    ],
-    "most_stable": "Aave (USDC)",
-    "most_volatile": "Aave (USDC)",
-    "stable_protocols": [
-      "Aave (USDC)"
-    ],
-    "average_stability_score": 100.0,
-    "timestamp": 1781968480.360411
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "vol_7d_pct": 0.083299,
-        "vol_30d_pct": 0.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 3.085714,
-        "mean_30d_apy": 3.0,
-        "mean_90d_apy": 3.0,
-        "vol_term_structure": "FLAT",
-        "risk_adjusted_7d": 37.043694,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
-      }
-    ],
-    "most_stable": "Aave (USDC)",
-    "most_volatile": "Aave (USDC)",
-    "stable_protocols": [
-      "Aave (USDC)"
-    ],
-    "average_stability_score": 100.0,
-    "timestamp": 1781968480.360843
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "vol_7d_pct": 0.083299,
-        "vol_30d_pct": 0.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 3.085714,
-        "mean_30d_apy": 3.0,
-        "mean_90d_apy": 3.0,
-        "vol_term_structure": "FLAT",
-        "risk_adjusted_7d": 37.043694,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
-      }
-    ],
-    "most_stable": "Aave (USDC)",
-    "most_volatile": "Aave (USDC)",
-    "stable_protocols": [
-      "Aave (USDC)"
-    ],
-    "average_stability_score": 100.0,
-    "timestamp": 1781968480.361266
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "vol_7d_pct": 0.083299,
-        "vol_30d_pct": 0.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 3.085714,
-        "mean_30d_apy": 3.0,
-        "mean_90d_apy": 3.0,
-        "vol_term_structure": "FLAT",
-        "risk_adjusted_7d": 37.043694,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
-      }
-    ],
-    "most_stable": "Aave (USDC)",
-    "most_volatile": "Aave (USDC)",
-    "stable_protocols": [
-      "Aave (USDC)"
-    ],
-    "average_stability_score": 100.0,
-    "timestamp": 1781968480.361718
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "vol_7d_pct": 0.083299,
-        "vol_30d_pct": 0.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 3.085714,
-        "mean_30d_apy": 3.0,
-        "mean_90d_apy": 3.0,
-        "vol_term_structure": "FLAT",
-        "risk_adjusted_7d": 37.043694,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
-      }
-    ],
-    "most_stable": "Aave (USDC)",
-    "most_volatile": "Aave (USDC)",
-    "stable_protocols": [
-      "Aave (USDC)"
-    ],
-    "average_stability_score": 100.0,
-    "timestamp": 1781968480.3621619
-  },
-  {
-    "protocols": [],
-    "most_stable": null,
-    "most_volatile": null,
-    "stable_protocols": [],
-    "average_stability_score": 0.0,
-    "timestamp": 1781968480.362658
-  },
-  {
-    "protocols": [],
-    "most_stable": null,
-    "most_volatile": null,
-    "stable_protocols": [],
-    "average_stability_score": 0.0,
-    "timestamp": 1781968480.363128
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "vol_7d_pct": 0.0,
-        "vol_30d_pct": 0.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 0.0,
-        "mean_30d_apy": 0.0,
-        "mean_90d_apy": 0.0,
-        "vol_term_structure": "FLAT",
-        "risk_adjusted_7d": 0.0,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 0.00%"
-      }
-    ],
-    "most_stable": "Aave (USDC)",
-    "most_volatile": "Aave (USDC)",
-    "stable_protocols": [
-      "Aave (USDC)"
-    ],
-    "average_stability_score": 100.0,
-    "timestamp": 1781968480.363631
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "vol_7d_pct": 0.0,
-        "vol_30d_pct": 0.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 0.0,
-        "mean_30d_apy": 0.0,
-        "mean_90d_apy": 0.0,
-        "vol_term_structure": "FLAT",
-        "risk_adjusted_7d": 0.0,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 0.00%"
-      }
-    ],
-    "most_stable": "Aave (USDC)",
-    "most_volatile": "Aave (USDC)",
-    "stable_protocols": [
-      "Aave (USDC)"
-    ],
-    "average_stability_score": 100.0,
-    "timestamp": 1781968480.3645701
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "vol_7d_pct": 0.0,
-        "vol_30d_pct": 0.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 7.5,
-        "mean_30d_apy": 7.5,
-        "mean_90d_apy": 7.5,
-        "vol_term_structure": "FLAT",
-        "risk_adjusted_7d": 7.5,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 7.50%"
-      }
-    ],
-    "most_stable": "Aave (USDC)",
-    "most_volatile": "Aave (USDC)",
-    "stable_protocols": [
-      "Aave (USDC)"
-    ],
-    "average_stability_score": 100.0,
-    "timestamp": 1781968480.365206
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "vol_7d_pct": 0.0,
-        "vol_30d_pct": 0.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 5.0,
-        "mean_30d_apy": 5.0,
-        "mean_90d_apy": 5.0,
-        "vol_term_structure": "FLAT",
-        "risk_adjusted_7d": 5.0,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 5.00%"
-      }
-    ],
-    "most_stable": "Aave (USDC)",
-    "most_volatile": "Aave (USDC)",
-    "stable_protocols": [
-      "Aave (USDC)"
-    ],
-    "average_stability_score": 100.0,
-    "timestamp": 1781968480.365779
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "vol_7d_pct": 0.0,
-        "vol_30d_pct": 0.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 4.0,
-        "mean_30d_apy": 4.0,
-        "mean_90d_apy": 4.0,
-        "vol_term_structure": "FLAT",
-        "risk_adjusted_7d": 4.0,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 4.00%"
-      }
-    ],
-    "most_stable": "Aave (USDC)",
-    "most_volatile": "Aave (USDC)",
-    "stable_protocols": [
-      "Aave (USDC)"
-    ],
-    "average_stability_score": 100.0,
-    "timestamp": 1781968480.366422
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "vol_7d_pct": 2.373321,
-        "vol_30d_pct": 2.0,
-        "vol_90d_pct": 2.0,
-        "mean_7d_apy": 4.285714,
-        "mean_30d_apy": 3.0,
-        "mean_90d_apy": 3.0,
-        "vol_term_structure": "NORMAL",
-        "risk_adjusted_7d": 1.805788,
-        "stability_score": 30,
-        "yield_category": "VOLATILE",
-        "surface_label": "Aave/USDC: VOLATILE yield, 2.00% 30d vol, mean APY 3.00%"
-      }
-    ],
-    "most_stable": "Aave (USDC)",
-    "most_volatile": "Aave (USDC)",
-    "stable_protocols": [],
-    "average_stability_score": 30.0,
-    "timestamp": 1781968480.366967
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "vol_7d_pct": 0.049487,
-        "vol_30d_pct": 0.05,
-        "vol_90d_pct": 0.05,
-        "mean_7d_apy": 3.042857,
-        "mean_30d_apy": 3.05,
-        "mean_90d_apy": 3.05,
-        "vol_term_structure": "FLAT",
-        "risk_adjusted_7d": 61.487804,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Aave/USDC: STABLE yield, 0.05% 30d vol, mean APY 3.05%"
-      }
-    ],
-    "most_stable": "Aave (USDC)",
-    "most_volatile": "Aave (USDC)",
-    "stable_protocols": [
-      "Aave (USDC)"
-    ],
-    "average_stability_score": 100.0,
-    "timestamp": 1781968480.367539
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "vol_7d_pct": 0.049487,
-        "vol_30d_pct": 4.0,
-        "vol_90d_pct": 0.05,
-        "mean_7d_apy": 3.042857,
-        "mean_30d_apy": 5.0,
-        "mean_90d_apy": 3.05,
-        "vol_term_structure": "HUMPED",
-        "risk_adjusted_7d": 61.487804,
-        "stability_score": 15,
-        "yield_category": "HIGHLY_VOLATILE",
-        "surface_label": "Aave/USDC: HIGHLY_VOLATILE yield, 4.00% 30d vol, mean APY 5.00%"
-      }
-    ],
-    "most_stable": "Aave (USDC)",
-    "most_volatile": "Aave (USDC)",
-    "stable_protocols": [],
-    "average_stability_score": 15.0,
-    "timestamp": 1781968480.368063
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "vol_7d_pct": 0.049487,
-        "vol_30d_pct": 0.05,
-        "vol_90d_pct": 4.0,
-        "mean_7d_apy": 3.042857,
-        "mean_30d_apy": 3.05,
-        "mean_90d_apy": 5.0,
-        "vol_term_structure": "INVERTED",
-        "risk_adjusted_7d": 61.487804,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Aave/USDC: STABLE yield, 0.05% 30d vol, mean APY 3.05%"
-      }
-    ],
-    "most_stable": "Aave (USDC)",
-    "most_volatile": "Aave (USDC)",
-    "stable_protocols": [
-      "Aave (USDC)"
-    ],
-    "average_stability_score": 100.0,
-    "timestamp": 1781968480.368593
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "vol_7d_pct": 3.958973,
-        "vol_30d_pct": 0.5,
-        "vol_90d_pct": 0.05,
-        "mean_7d_apy": 4.428571,
-        "mean_30d_apy": 3.5,
-        "mean_90d_apy": 3.55,
-        "vol_term_structure": "NORMAL",
-        "risk_adjusted_7d": 1.118616,
-        "stability_score": 70,
-        "yield_category": "MODERATE",
-        "surface_label": "Aave/USDC: MODERATE yield, 0.50% 30d vol, mean APY 3.50%"
-      }
-    ],
-    "most_stable": "Aave (USDC)",
-    "most_volatile": "Aave (USDC)",
-    "stable_protocols": [
-      "Aave (USDC)"
-    ],
-    "average_stability_score": 70.0,
-    "timestamp": 1781968480.369146
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "vol_7d_pct": 0.083299,
-        "vol_30d_pct": 0.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 3.085714,
-        "mean_30d_apy": 3.0,
-        "mean_90d_apy": 3.0,
-        "vol_term_structure": "FLAT",
-        "risk_adjusted_7d": 37.043694,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
-      }
-    ],
-    "most_stable": "Aave (USDC)",
-    "most_volatile": "Aave (USDC)",
-    "stable_protocols": [
-      "Aave (USDC)"
-    ],
-    "average_stability_score": 100.0,
-    "timestamp": 1781968480.3697238
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Stable",
-        "asset": "USDC",
-        "vol_7d_pct": 0.083299,
-        "vol_30d_pct": 0.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 3.085714,
-        "mean_30d_apy": 3.0,
-        "mean_90d_apy": 3.0,
-        "vol_term_structure": "FLAT",
-        "risk_adjusted_7d": 37.043694,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Stable/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
-      },
-      {
-        "protocol": "Volatile",
-        "asset": "DAI",
-        "vol_7d_pct": 0.083299,
-        "vol_30d_pct": 4.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 3.085714,
-        "mean_30d_apy": 5.0,
-        "mean_90d_apy": 3.0,
-        "vol_term_structure": "HUMPED",
-        "risk_adjusted_7d": 37.043694,
-        "stability_score": 15,
-        "yield_category": "HIGHLY_VOLATILE",
-        "surface_label": "Volatile/DAI: HIGHLY_VOLATILE yield, 4.00% 30d vol, mean APY 5.00%"
-      }
-    ],
-    "most_stable": "Stable (USDC)",
-    "most_volatile": "Volatile (DAI)",
-    "stable_protocols": [
-      "Stable (USDC)"
-    ],
-    "average_stability_score": 57.5,
-    "timestamp": 1781968480.370304
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Morpho",
-        "asset": "DAI",
-        "vol_7d_pct": 0.083299,
-        "vol_30d_pct": 0.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 3.085714,
-        "mean_30d_apy": 3.0,
-        "mean_90d_apy": 3.0,
-        "vol_term_structure": "FLAT",
-        "risk_adjusted_7d": 37.043694,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Morpho/DAI: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
-      }
-    ],
-    "most_stable": "Morpho (DAI)",
-    "most_volatile": "Morpho (DAI)",
-    "stable_protocols": [
-      "Morpho (DAI)"
-    ],
-    "average_stability_score": 100.0,
-    "timestamp": 1781968480.370889
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Stable",
-        "asset": "USDC",
-        "vol_7d_pct": 0.083299,
-        "vol_30d_pct": 0.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 3.085714,
-        "mean_30d_apy": 3.0,
-        "mean_90d_apy": 3.0,
-        "vol_term_structure": "FLAT",
-        "risk_adjusted_7d": 37.043694,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Stable/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
-      },
-      {
-        "protocol": "Volatile",
-        "asset": "DAI",
-        "vol_7d_pct": 0.083299,
-        "vol_30d_pct": 4.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 3.085714,
-        "mean_30d_apy": 5.0,
-        "mean_90d_apy": 3.0,
-        "vol_term_structure": "HUMPED",
-        "risk_adjusted_7d": 37.043694,
-        "stability_score": 15,
-        "yield_category": "HIGHLY_VOLATILE",
-        "surface_label": "Volatile/DAI: HIGHLY_VOLATILE yield, 4.00% 30d vol, mean APY 5.00%"
-      }
-    ],
-    "most_stable": "Stable (USDC)",
-    "most_volatile": "Volatile (DAI)",
-    "stable_protocols": [
-      "Stable (USDC)"
-    ],
-    "average_stability_score": 57.5,
-    "timestamp": 1781968480.371522
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "vol_7d_pct": 0.083299,
-        "vol_30d_pct": 0.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 3.085714,
-        "mean_30d_apy": 3.0,
-        "mean_90d_apy": 3.0,
-        "vol_term_structure": "FLAT",
-        "risk_adjusted_7d": 37.043694,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
-      }
-    ],
-    "most_stable": "Aave (USDC)",
-    "most_volatile": "Aave (USDC)",
-    "stable_protocols": [
-      "Aave (USDC)"
-    ],
-    "average_stability_score": 100.0,
-    "timestamp": 1781968480.372137
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Wild",
-        "asset": "USDC",
-        "vol_7d_pct": 0.083299,
-        "vol_30d_pct": 9.75,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 3.085714,
-        "mean_30d_apy": 10.25,
-        "mean_90d_apy": 3.0,
-        "vol_term_structure": "HUMPED",
-        "risk_adjusted_7d": 37.043694,
-        "stability_score": 5,
-        "yield_category": "HIGHLY_VOLATILE",
-        "surface_label": "Wild/USDC: HIGHLY_VOLATILE yield, 9.75% 30d vol, mean APY 10.25%"
-      }
-    ],
-    "most_stable": "Wild (USDC)",
-    "most_volatile": "Wild (USDC)",
-    "stable_protocols": [],
-    "average_stability_score": 5.0,
-    "timestamp": 1781968480.372833
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Medium",
-        "asset": "USDC",
-        "vol_7d_pct": 0.083299,
-        "vol_30d_pct": 0.8,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 3.085714,
-        "mean_30d_apy": 3.0,
-        "mean_90d_apy": 3.0,
-        "vol_term_structure": "HUMPED",
-        "risk_adjusted_7d": 37.043694,
-        "stability_score": 50,
-        "yield_category": "MODERATE",
-        "surface_label": "Medium/USDC: MODERATE yield, 0.80% 30d vol, mean APY 3.00%"
-      }
-    ],
-    "most_stable": "Medium (USDC)",
-    "most_volatile": "Medium (USDC)",
-    "stable_protocols": [
-      "Medium (USDC)"
-    ],
-    "average_stability_score": 50.0,
-    "timestamp": 1781968480.3735209
-  },
-  {
-    "protocols": [
-      {
-        "protocol": "Stable",
-        "asset": "USDC",
-        "vol_7d_pct": 0.083299,
-        "vol_30d_pct": 0.0,
-        "vol_90d_pct": 0.0,
-        "mean_7d_apy": 3.085714,
-        "mean_30d_apy": 3.0,
-        "mean_90d_apy": 3.0,
-        "vol_term_structure": "FLAT",
-        "risk_adjusted_7d": 37.043694,
-        "stability_score": 100,
-        "yield_category": "STABLE",
-        "surface_label": "Stable/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
-      }
-    ],
-    "most_stable": "Stable (USDC)",
-    "most_volatile": "Stable (USDC)",
-    "stable_protocols": [
-      "Stable (USDC)"
-    ],
-    "average_stability_score": 100.0,
-    "timestamp": 1781968480.374389
-  },
-  {
-    "protocols": [
-      {
         "protocol": "P0",
         "asset": "USDC",
         "vol_7d_pct": 0.083299,
@@ -2560,5 +1896,1286 @@
     ],
     "average_stability_score": 61.67,
     "timestamp": 1784022003.4355946
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.029073
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.0334742
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.0375993
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.0416787
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.0457077
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.0498018
+  },
+  {
+    "protocols": [],
+    "most_stable": null,
+    "most_volatile": null,
+    "stable_protocols": [],
+    "average_stability_score": 0.0,
+    "timestamp": 1784194680.054019
+  },
+  {
+    "protocols": [],
+    "most_stable": null,
+    "most_volatile": null,
+    "stable_protocols": [],
+    "average_stability_score": 0.0,
+    "timestamp": 1784194680.0583396
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.0,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 0.0,
+        "mean_30d_apy": 0.0,
+        "mean_90d_apy": 0.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 0.0,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 0.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.0625193
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.0,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 0.0,
+        "mean_30d_apy": 0.0,
+        "mean_90d_apy": 0.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 0.0,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 0.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.066614
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.0,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 7.5,
+        "mean_30d_apy": 7.5,
+        "mean_90d_apy": 7.5,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 7.5,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 7.50%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.0708046
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.0,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 5.0,
+        "mean_30d_apy": 5.0,
+        "mean_90d_apy": 5.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 5.0,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 5.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.0749402
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.0,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 4.0,
+        "mean_30d_apy": 4.0,
+        "mean_90d_apy": 4.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 4.0,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 4.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.0791693
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 2.373321,
+        "vol_30d_pct": 2.0,
+        "vol_90d_pct": 2.0,
+        "mean_7d_apy": 4.285714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "NORMAL",
+        "risk_adjusted_7d": 1.805788,
+        "stability_score": 30,
+        "yield_category": "VOLATILE",
+        "surface_label": "Aave/USDC: VOLATILE yield, 2.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [],
+    "average_stability_score": 30.0,
+    "timestamp": 1784194680.0836122
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.049487,
+        "vol_30d_pct": 0.05,
+        "vol_90d_pct": 0.05,
+        "mean_7d_apy": 3.042857,
+        "mean_30d_apy": 3.05,
+        "mean_90d_apy": 3.05,
+        "vol_term_structure": "HUMPED",
+        "risk_adjusted_7d": 61.487804,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.05% 30d vol, mean APY 3.05%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.0880568
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.049487,
+        "vol_30d_pct": 4.0,
+        "vol_90d_pct": 0.05,
+        "mean_7d_apy": 3.042857,
+        "mean_30d_apy": 5.0,
+        "mean_90d_apy": 3.05,
+        "vol_term_structure": "HUMPED",
+        "risk_adjusted_7d": 61.487804,
+        "stability_score": 15,
+        "yield_category": "HIGHLY_VOLATILE",
+        "surface_label": "Aave/USDC: HIGHLY_VOLATILE yield, 4.00% 30d vol, mean APY 5.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [],
+    "average_stability_score": 15.0,
+    "timestamp": 1784194680.0925562
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.049487,
+        "vol_30d_pct": 0.05,
+        "vol_90d_pct": 4.0,
+        "mean_7d_apy": 3.042857,
+        "mean_30d_apy": 3.05,
+        "mean_90d_apy": 5.0,
+        "vol_term_structure": "INVERTED",
+        "risk_adjusted_7d": 61.487804,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.05% 30d vol, mean APY 3.05%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.0973206
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 3.958973,
+        "vol_30d_pct": 0.5,
+        "vol_90d_pct": 0.05,
+        "mean_7d_apy": 4.428571,
+        "mean_30d_apy": 3.5,
+        "mean_90d_apy": 3.55,
+        "vol_term_structure": "NORMAL",
+        "risk_adjusted_7d": 1.118616,
+        "stability_score": 70,
+        "yield_category": "MODERATE",
+        "surface_label": "Aave/USDC: MODERATE yield, 0.50% 30d vol, mean APY 3.50%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 70.0,
+    "timestamp": 1784194680.101631
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.106062
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Stable",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Stable/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      },
+      {
+        "protocol": "Volatile",
+        "asset": "DAI",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 4.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 5.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "HUMPED",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 15,
+        "yield_category": "HIGHLY_VOLATILE",
+        "surface_label": "Volatile/DAI: HIGHLY_VOLATILE yield, 4.00% 30d vol, mean APY 5.00%"
+      }
+    ],
+    "most_stable": "Stable (USDC)",
+    "most_volatile": "Volatile (DAI)",
+    "stable_protocols": [
+      "Stable (USDC)"
+    ],
+    "average_stability_score": 57.5,
+    "timestamp": 1784194680.1110985
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Morpho",
+        "asset": "DAI",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Morpho/DAI: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Morpho (DAI)",
+    "most_volatile": "Morpho (DAI)",
+    "stable_protocols": [
+      "Morpho (DAI)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.1168177
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Stable",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Stable/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      },
+      {
+        "protocol": "Volatile",
+        "asset": "DAI",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 4.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 5.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "HUMPED",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 15,
+        "yield_category": "HIGHLY_VOLATILE",
+        "surface_label": "Volatile/DAI: HIGHLY_VOLATILE yield, 4.00% 30d vol, mean APY 5.00%"
+      }
+    ],
+    "most_stable": "Stable (USDC)",
+    "most_volatile": "Volatile (DAI)",
+    "stable_protocols": [
+      "Stable (USDC)"
+    ],
+    "average_stability_score": 57.5,
+    "timestamp": 1784194680.1212192
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.1263065
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Wild",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 9.75,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 10.25,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "HUMPED",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 5,
+        "yield_category": "HIGHLY_VOLATILE",
+        "surface_label": "Wild/USDC: HIGHLY_VOLATILE yield, 9.75% 30d vol, mean APY 10.25%"
+      }
+    ],
+    "most_stable": "Wild (USDC)",
+    "most_volatile": "Wild (USDC)",
+    "stable_protocols": [],
+    "average_stability_score": 5.0,
+    "timestamp": 1784194680.1312091
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Medium",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.8,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "HUMPED",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 50,
+        "yield_category": "MODERATE",
+        "surface_label": "Medium/USDC: MODERATE yield, 0.80% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Medium (USDC)",
+    "most_volatile": "Medium (USDC)",
+    "stable_protocols": [
+      "Medium (USDC)"
+    ],
+    "average_stability_score": 50.0,
+    "timestamp": 1784194680.1359184
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Stable",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Stable/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Stable (USDC)",
+    "most_volatile": "Stable (USDC)",
+    "stable_protocols": [
+      "Stable (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.1406481
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "P0",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "P0/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      },
+      {
+        "protocol": "P1",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "P1/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      },
+      {
+        "protocol": "P2",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "P2/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      },
+      {
+        "protocol": "P3",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "P3/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      },
+      {
+        "protocol": "P4",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "P4/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "P0 (USDC)",
+    "most_volatile": "P0 (USDC)",
+    "stable_protocols": [
+      "P0 (USDC)",
+      "P1 (USDC)",
+      "P2 (USDC)",
+      "P3 (USDC)",
+      "P4 (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.1460607
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "P0",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "P0/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      },
+      {
+        "protocol": "P1",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "P1/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      },
+      {
+        "protocol": "P2",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "P2/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      },
+      {
+        "protocol": "P3",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "P3/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      },
+      {
+        "protocol": "P4",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "P4/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "P0 (USDC)",
+    "most_volatile": "P0 (USDC)",
+    "stable_protocols": [
+      "P0 (USDC)",
+      "P1 (USDC)",
+      "P2 (USDC)",
+      "P3 (USDC)",
+      "P4 (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.1507854
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.1553938
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "A",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "A/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      },
+      {
+        "protocol": "B",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 4.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 5.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "HUMPED",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 15,
+        "yield_category": "HIGHLY_VOLATILE",
+        "surface_label": "B/USDC: HIGHLY_VOLATILE yield, 4.00% 30d vol, mean APY 5.00%"
+      }
+    ],
+    "most_stable": "A (USDC)",
+    "most_volatile": "B (USDC)",
+    "stable_protocols": [
+      "A (USDC)"
+    ],
+    "average_stability_score": 57.5,
+    "timestamp": 1784194680.1602175
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 1.0,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 4.5,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "NORMAL",
+        "risk_adjusted_7d": 4.5,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.165369
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.0,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 5.0,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 5.0,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.1702101
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 14.75,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 15.25,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "HUMPED",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 5,
+        "yield_category": "HIGHLY_VOLATILE",
+        "surface_label": "Aave/USDC: HIGHLY_VOLATILE yield, 14.75% 30d vol, mean APY 15.25%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [],
+    "average_stability_score": 5.0,
+    "timestamp": 1784194680.1749995
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.1795917
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.184104
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.188688
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.1933794
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Compound",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Compound/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Compound (USDC)",
+    "most_volatile": "Compound (USDC)",
+    "stable_protocols": [
+      "Compound (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.197893
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Aave (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.2023654
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "A",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "A/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      },
+      {
+        "protocol": "B",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 4.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "B/USDC: STABLE yield, 0.00% 30d vol, mean APY 4.00%"
+      }
+    ],
+    "most_stable": "A (USDC)",
+    "most_volatile": "A (USDC)",
+    "stable_protocols": [
+      "A (USDC)",
+      "B (USDC)"
+    ],
+    "average_stability_score": 100.0,
+    "timestamp": 1784194680.207051
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Wild1",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 9.75,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 10.25,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "HUMPED",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 5,
+        "yield_category": "HIGHLY_VOLATILE",
+        "surface_label": "Wild1/USDC: HIGHLY_VOLATILE yield, 9.75% 30d vol, mean APY 10.25%"
+      },
+      {
+        "protocol": "Wild2",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 12.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 13.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "HUMPED",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 5,
+        "yield_category": "HIGHLY_VOLATILE",
+        "surface_label": "Wild2/USDC: HIGHLY_VOLATILE yield, 12.00% 30d vol, mean APY 13.00%"
+      }
+    ],
+    "most_stable": "Wild1 (USDC)",
+    "most_volatile": "Wild1 (USDC)",
+    "stable_protocols": [],
+    "average_stability_score": 5.0,
+    "timestamp": 1784194680.2116458
+  },
+  {
+    "protocols": [
+      {
+        "protocol": "Morpho",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 4.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 5.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "HUMPED",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 15,
+        "yield_category": "HIGHLY_VOLATILE",
+        "surface_label": "Morpho/USDC: HIGHLY_VOLATILE yield, 4.00% 30d vol, mean APY 5.00%"
+      },
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.0,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "FLAT",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 100,
+        "yield_category": "STABLE",
+        "surface_label": "Aave/USDC: STABLE yield, 0.00% 30d vol, mean APY 3.00%"
+      },
+      {
+        "protocol": "Euler",
+        "asset": "USDC",
+        "vol_7d_pct": 0.083299,
+        "vol_30d_pct": 0.5,
+        "vol_90d_pct": 0.0,
+        "mean_7d_apy": 3.085714,
+        "mean_30d_apy": 3.0,
+        "mean_90d_apy": 3.0,
+        "vol_term_structure": "HUMPED",
+        "risk_adjusted_7d": 37.043694,
+        "stability_score": 70,
+        "yield_category": "MODERATE",
+        "surface_label": "Euler/USDC: MODERATE yield, 0.50% 30d vol, mean APY 3.00%"
+      }
+    ],
+    "most_stable": "Aave (USDC)",
+    "most_volatile": "Morpho (USDC)",
+    "stable_protocols": [
+      "Aave (USDC)",
+      "Euler (USDC)"
+    ],
+    "average_stability_score": 61.67,
+    "timestamp": 1784194680.2163484
   }
 ]
