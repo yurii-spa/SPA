@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for spa_core.paper_trading.alpha_decay (SPA-V430 / MP-130).
+"""Tests for spa_core.analytics_lab.alpha_decay (SPA-V430 / MP-130).
 
 Plain unittest, NO external dependencies, NO network, ALL persistence in
 tempdir. Covers:
@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 # Module under test
-from spa_core.paper_trading import alpha_decay as ad
+from spa_core.analytics_lab import alpha_decay as ad
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _MODULE_PATH = Path(ad.__file__).resolve()
