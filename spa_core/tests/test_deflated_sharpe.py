@@ -44,7 +44,7 @@ from typing import Any, Dict, List
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT))
 
-from spa_core.paper_trading import deflated_sharpe as ds
+from spa_core.analytics_lab import deflated_sharpe as ds
 from spa_core.paper_trading import probabilistic_sharpe as ps
 from spa_core.reporting import tear_sheet as ts
 
@@ -534,7 +534,7 @@ class TestCLIDirect(_TmpBase):
 class TestCLISubprocess(_TmpBase):
     def _run(self, args: List[str]) -> subprocess.CompletedProcess:
         return subprocess.run(
-            [sys.executable, "-m", "spa_core.paper_trading.deflated_sharpe", *args],
+            [sys.executable, "-m", "spa_core.analytics_lab.deflated_sharpe", *args],
             cwd=str(_REPO_ROOT), capture_output=True, text=True, timeout=120,
         )
 
