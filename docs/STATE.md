@@ -49,12 +49,12 @@ _Обновлено: 2026-07-16 (бэклог владельца: **Q2 analytics
 - **Hardening (автономный цикл, 2026-07-16, #14):** очередь пуста (inbox/owner-done/promotions/loose-notes=0)
   → hardening, диверсифицировал от owner_queue/адаптеров/CLI/router → домен **monitoring**:
   `spa_core/monitoring/data_freshness_monitor.py` — self-детектор устаревания данных site/monitoring-контура
-  (FRESH/STALE/MISSING по mtime-порогам), на origin **0 тестов**. +13 герметичных регресс-тестов
+  (FRESH/STALE/MISSING по mtime-порогам), на origin **0 тестов**. +12 герметичных регресс-тестов
   (`spa_core/tests/test_data_freshness_monitor.py`, новый; инжект clock/thresholds/file_map, всё под tmp,
   запретных файлов — включая живой трек — НЕ трогает): строгая **STALE/FRESH граница** (ровно порог→FRESH,
   +1с→STALE, `now` запинен к реальному mtime); **два пути MISSING** (нет файла / неизвестный тип→path:None);
   **`is_fresh()` три-состояние** (None/False/True); консистентность summary↔списков (partition), метаданные
-  чека, label-fallback. Модуль НЕ менял (только тесты, инвариант #16). 13/13 + 5261 смежных зелёные (в worktree
+  чека, label-fallback. Модуль НЕ менял (только тесты, инвариант #16). 12/12 + 5261 смежных зелёные (в worktree
   1 сбой data-dependent `test_tier1_e2e` — нет live `data/`; на основном дереве passed, файл чисто аддитивный,
   чужой тест не трогал). Пуш кодом+STATE+journal на origin. НЕ трогал risk/kill/трек/site/агентов; owner-done
   не ставил. Детали — journal `2026-W29.md`.
