@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for spa_core.paper_trading.tail_risk (SPA-V438 / MP-119).
+"""Tests for spa_core.analytics_lab.tail_risk (SPA-V438 / MP-119).
 
 Plain unittest, NO pytest, NO network, ALL persistence in a tempdir. Covers:
 
@@ -41,7 +41,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from spa_core.paper_trading import tail_risk as tr
+from spa_core.analytics_lab import tail_risk as tr
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -818,7 +818,7 @@ class TestCLI(_TmpBase):
     def test_subprocess_check_exit_0(self):
         self._make_data()
         result = subprocess.run(
-            [sys.executable, "-m", "spa_core.paper_trading.tail_risk",
+            [sys.executable, "-m", "spa_core.analytics_lab.tail_risk",
              "--check", "--data-dir", str(self.data_dir)],
             capture_output=True, text=True,
             cwd=str(_REPO_ROOT),
@@ -830,7 +830,7 @@ class TestCLI(_TmpBase):
     def test_subprocess_run_exit_0(self):
         self._make_data()
         result = subprocess.run(
-            [sys.executable, "-m", "spa_core.paper_trading.tail_risk",
+            [sys.executable, "-m", "spa_core.analytics_lab.tail_risk",
              "--run", "--data-dir", str(self.data_dir)],
             capture_output=True, text=True,
             cwd=str(_REPO_ROOT),
@@ -840,7 +840,7 @@ class TestCLI(_TmpBase):
 
     def test_subprocess_junk_arg_exit_0(self):
         result = subprocess.run(
-            [sys.executable, "-m", "spa_core.paper_trading.tail_risk",
+            [sys.executable, "-m", "spa_core.analytics_lab.tail_risk",
              "--blah-blah-garbage"],
             capture_output=True, text=True,
             cwd=str(_REPO_ROOT),
@@ -883,12 +883,12 @@ class TestImportHygiene(unittest.TestCase):
                     )
 
     def test_tail_risk_no_forbidden_imports(self):
-        p = _REPO_ROOT / "spa_core" / "paper_trading" / "tail_risk.py"
+        p = _REPO_ROOT / "spa_core" / "analytics_lab" / "tail_risk.py"
         self.assertTrue(p.exists(), "tail_risk.py not found")
         self._check_file(p)
 
     def test_no_network_calls(self):
-        p = _REPO_ROOT / "spa_core" / "paper_trading" / "tail_risk.py"
+        p = _REPO_ROOT / "spa_core" / "analytics_lab" / "tail_risk.py"
         src = p.read_text(encoding="utf-8")
         for forbidden in ["requests.", "urllib.request", "http.client"]:
             self.assertNotIn(
@@ -897,13 +897,13 @@ class TestImportHygiene(unittest.TestCase):
             )
 
     def test_no_execution_imports(self):
-        p = _REPO_ROOT / "spa_core" / "paper_trading" / "tail_risk.py"
+        p = _REPO_ROOT / "spa_core" / "analytics_lab" / "tail_risk.py"
         src = p.read_text(encoding="utf-8")
         self.assertNotIn("from spa_core.execution", src)
         self.assertNotIn("import spa_core.execution", src)
 
     def test_no_risk_policy_imports(self):
-        p = _REPO_ROOT / "spa_core" / "paper_trading" / "tail_risk.py"
+        p = _REPO_ROOT / "spa_core" / "analytics_lab" / "tail_risk.py"
         src = p.read_text(encoding="utf-8")
         self.assertNotIn("from spa_core.risk", src)
         self.assertNotIn("import spa_core.risk", src)
@@ -928,17 +928,17 @@ class TestRegressionImports(unittest.TestCase):
         self.assertTrue(callable(yield_attribution.build_yield_attribution))
 
     def test_risk_contribution_importable(self):
-        from spa_core.paper_trading import risk_contribution
+        from spa_core.analytics_lab import risk_contribution
         self.assertTrue(callable(risk_contribution.build_risk_contribution))
 
     def test_tail_risk_does_not_import_drawdown_analytics(self):
         # tail_risk is standalone — no cross-module dependencies
-        src = (_REPO_ROOT / "spa_core" / "paper_trading" / "tail_risk.py"
+        src = (_REPO_ROOT / "spa_core" / "analytics_lab" / "tail_risk.py"
                ).read_text(encoding="utf-8")
         self.assertNotIn("drawdown_analytics", src)
 
     def test_tail_risk_does_not_import_concentration_analytics(self):
-        src = (_REPO_ROOT / "spa_core" / "paper_trading" / "tail_risk.py"
+        src = (_REPO_ROOT / "spa_core" / "analytics_lab" / "tail_risk.py"
                ).read_text(encoding="utf-8")
         self.assertNotIn("concentration_analytics", src)
 
