@@ -161,13 +161,13 @@ from spa_core.api.routers import (  # noqa: E402
     agents,
     aggressive_lab,
     analytics,
-    cmo,
     cockpit,
     competitive_watch,
     dfb,
     dfb_data_api,
     fundability,
     interest,
+    investment_os,
     live,
     misc,
     optimizer,
@@ -185,11 +185,8 @@ from spa_core.api.routers import (  # noqa: E402
 )
 
 app.include_router(misc.router)
-app.include_router(analytics.router)
-# Agent registry (fleet management) — read-only surface of the launchd fleet (/api/agents/*):
-# every com.spa.* agent with role/schedule/load-state/pid/reboot-safety/problems. Feeds the
-# internal /admin/agents management dashboard. Fail-safe: missing registry → empty fleet.
 app.include_router(agents.router)
+app.include_router(analytics.router)
 app.include_router(interest.router)
 app.include_router(fundability.router)
 app.include_router(tier1.router)
@@ -200,6 +197,9 @@ app.include_router(aggressive_lab.router)
 # SPA Swarm (block-6 SURFACE) — read-only status of the swarm organs (guardians/regime/blend/
 # brain/health). Advisory/paper-only; recommends, never allocates. docs/SWARM_ARCHITECTURE.md.
 app.include_router(swarm.router)
+# AI Investment OS (product-layer SURFACE) — read-only advisory analyst artifacts (stablecoin-yield/
+# market-regime/reporting). Advisory/paper-only; observes + evidence-tags, never allocates. docs/08.
+app.include_router(investment_os.router)
 app.include_router(rates_desk.router)
 app.include_router(readiness.router)
 app.include_router(optimizer.router)
@@ -235,9 +235,6 @@ app.include_router(riskwire.router)
 # rates-desk decision_log/market_regime/strategy-lab; never re-derives risk math. Every
 # response carries ts+stale, fail-CLOSED honest-unavailable, GET-only/advisory.
 app.include_router(cockpit.router)
-# CMO Editorial Layer (flow B review surface) — list/approve/reject drafts at /api/cmo/drafts/*.
-# Draft store is advisory/read-write; no auto-publish. Owner approves via POST /approve.
-app.include_router(cmo.router)
 
 
 # Academy onboarding sub-app (D4: own CORS, own credentials)
