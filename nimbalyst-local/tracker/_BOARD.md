@@ -62,8 +62,6 @@
 ### · in-progress
 - Чистка репо (мёртвый код) фазами  ·  `agent-cleanup.md` · 2026-07-16
 - Q&A бэклог (12 ответов) + видимость задач  ·  `agent-qa-backlog.md` · 2026-07-16
-### · backlog
-- Q4/Q5: числа/нейминг сайта  ·  `agent-site-numbers.md` · 2026-07-16
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
 - Q2: аналитику в analytics_lab/  ·  `agent-analytics-lab.md` · 2026-07-16
@@ -78,6 +76,7 @@
 - Утренний дайджест 9:00  ·  `agent-morning-digest.md` · 2026-07-16
 - Оркестратор — раз в час  ·  `agent-orchestrator-1h.md` · 2026-07-16
 - Owner-gate: безопасный авто-шип сайта  ·  `agent-owner-gate.md` · 2026-07-16
+- Q4/Q5: числа/нейминг сайта  ·  `agent-site-numbers.md` · 2026-07-16
 - Разбор swarm-сессии 11.07 (31 идея)  ·  `agent-swarm-review.md` · 2026-07-16
 - Bootstrap: единая доска карточек + читать историю решений при старте  ·  `agent-task-bootstrap-edinaya-doska-kartochek-chitat.md` · 2026-07-16
 - Q9: git-тег verifier-v1.2  ·  `agent-verifier-tag.md` · 2026-07-16
