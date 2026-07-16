@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from spa_core.paper_trading.regime_segmentation import (
+from spa_core.analytics_lab.regime_segmentation import (
     DEFAULT_THRESHOLD_PCT,
     compute_regime_segmentation,
     generate_regime_segmentation_report,
