@@ -22,7 +22,7 @@ import unittest
 import tempfile
 from pathlib import Path
 
-from spa_core.paper_trading import rachev_ratio as rr_mod
+from spa_core.analytics_lab import rachev_ratio as rr_mod
 from spa_core.paper_trading import drawdown_analytics
 from spa_core.reporting import tear_sheet
 from spa_core.ci import llm_forbidden_lint
@@ -562,7 +562,7 @@ class TestCLI(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             self._seed(d)
             proc = subprocess.run(
-                [sys.executable, "-m", "spa_core.paper_trading.rachev_ratio",
+                [sys.executable, "-m", "spa_core.analytics_lab.rachev_ratio",
                  "--check", "--data-dir", d],
                 cwd=str(_REPO_ROOT), capture_output=True, text=True,
             )
@@ -574,7 +574,7 @@ class TestCLI(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             self._seed(d)
             proc = subprocess.run(
-                [sys.executable, "-m", "spa_core.paper_trading.rachev_ratio",
+                [sys.executable, "-m", "spa_core.analytics_lab.rachev_ratio",
                  "--run", "--data-dir", d],
                 cwd=str(_REPO_ROOT), capture_output=True, text=True,
             )
@@ -586,7 +586,7 @@ class TestCLI(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             (Path(d) / rr_mod.EQUITY_FILENAME).write_text("{bad", encoding="utf-8")
             proc = subprocess.run(
-                [sys.executable, "-m", "spa_core.paper_trading.rachev_ratio",
+                [sys.executable, "-m", "spa_core.analytics_lab.rachev_ratio",
                  "--check", "--data-dir", d],
                 cwd=str(_REPO_ROOT), capture_output=True, text=True,
             )
@@ -621,7 +621,7 @@ class TestImportHygiene(unittest.TestCase):
 
     def test_py_compile_both(self):
         import py_compile
-        for fname in ("paper_trading/rachev_ratio.py",
+        for fname in ("analytics_lab/rachev_ratio.py",
                       "tests/test_rachev_ratio.py"):
             with self.subTest(fname=fname):
                 py_compile.compile(
