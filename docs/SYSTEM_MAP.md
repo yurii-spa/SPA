@@ -52,7 +52,30 @@ proof-gate + owner-gate + numbers-lint + site_freshness + site_content_audit + s
   naming-коллизии `policy` (risk/governance/enforcer/hy/lp); 4 имени Pendle PT; execution помечать `frozen@paper`.
 - ⚠️ **Инвариант #16:** test-only модули НЕ двигать молча — attic = переместить модуль+тест ВМЕСТЕ или подключить.
 
-_Осталось (pass 2+): strategy_lab, swarm, monitoring, api, reporting, telegram, owner_queue, scripts, docs, root._
+### WS-A PASS 2 (strategy_lab · monitoring · api · reporting · telegram · owner_queue · alerts · shadow · scripts, аудит 2026-07-16)
+~294 модуля + ~340 скриптов. ~230 🟢 · ~30 🟡 · ~20 мёртвых модулей + ~64 мёртвых скрипта.
+- 🟢 **Живы:** весь strategy_lab (4 деска + swarm + aggressive_lab), все 23 API-роутера, monitoring-агенты +
+  sensors, telegram-дерево, alerts-ядро, reporting-спайн, owner_queue.
+- 🔴 **Мёртвые модули:** `api/whitelabel_api`; monitoring `{adapter_watchdog, data_trust_monitor, posture,
+  posture_gate, signal, sensors/_multisource}`; reporting HF-остров `{tear_sheet_hf, performance_attributor,
+  benchmark_comparator, investor_report, pnl_attribution}` (MP-1236 дубль-attribution); alerts orphans
+  `{apy_feed_monitors, protocol_report, risk_monitor, run_alerts, email_sender}`; `shadow/{allocator,registry}`;
+  swarm `{leverage_brain, funding_regime}`.
+- 🔴 **scripts/ — 2/3 осадок:** уже в `scripts/archive/` = 594; сверх них ~64 кандидата (push_*.sh ~39 +
+  install_*.sh ~13 + migrate/backfill run-once + `.command` GUI-хелперы + `.plist.disabled`) — 0-ref,
+  вытеснены `push_to_github.py`/`install_all_agents.sh`. Живой surface scripts/ ≈ 90 (59 wrappers + CI-гейты + ops).
+- 🟡 **Дубли/архитектура:** gas-monitor триплет (arbitrum/optimism/unified vs живой base_gas_monitor);
+  reporting HF-стек vs живой tear_sheet-спайн; `shadow/` (MP-106 vs Sprint-A); `command_handler` (вытеснён router);
+  4 модуля «daily report» (alerts/reporting×2/telegram) — легко спутать.
+- ⚠️ **Ловушка:** tuple-import `from routers import (a,b,…)` выглядит как 0-import (наивный grep врёт) — все 23
+  роутера живы. File-contract (JSON verbatim) тоже недосчитывается import-графом — сверять с launchd.
+- ⚠️ **Инвариант #16:** dead-модули с тестами (tear_sheet_hf, pnl_attribution, apy_* …) — двигать модуль+тест ВМЕСТЕ.
+
+**Не проверено (pass 3):** `spa_core/{analytics, tournament, dfb, redteam, riskwire, compliance}`, docs/, root.
+
+_ИТОГ АУДИТА: система полностью откартографирована (агенты · сайт · код). Чистка (attic) — фаза исполнения:
+безопасные скрипты → `scripts/archive/`; модули с тестами → attic вместе с тестом; крупные развязки
+(analytics_lab, реестры, HF-стек) — по greenlight владельца. Ничего не удаляется, всё обратимо._
 
 ## WS-C · Сайт (аудит 2026-07-16)
 **~103 `.astro`-страницы** + 2 генератора (sitemap/rss, детерминированные). noindex через meta: 12
