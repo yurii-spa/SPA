@@ -1,8 +1,8 @@
-"""spa_core/tests/test_cmo_editorial_agent.py — CMO editorial draft agent (AAA step 3).
+"""spa_core/tests/test_cmo_editorial_agent.py — CMO editorial DRAFT runner (the live agent).
 
-Proves the first live product-layer agent: dry changelog facts → richer copy → honesty-gate → DRAFT
-(never published). Fail-CLOSED on no data; every number sourced (gate passes); gate failure → HELD, not
-published; idempotent per source. PURE / no network / no LLM / sandbox dirs only.
+The runner reads the live track facts (ledger + hash-chained refusal log) and delegates to the prior
+CMO pipeline (template_rewriter → honesty_gate → draft_store). It NEVER reimplements the rewrite/gate and
+NEVER publishes. Fail-CLOSED on no data. PURE / no network / no LLM / sandbox dirs only.
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
@@ -10,101 +10,83 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-import pytest
-
 from spa_core.cmo import editorial_agent as E
-from spa_core.cmo import honesty_gate
-
-_ENTRY = {
-    "slug": "changelog-2026-07-16",
-    "date": "2026-07-16",
-    "title": "Track & refusal digest — 2026-07-16",
-    "titleRu": "Дайджест трека и отказов — 2026-07-16",
-    "summary": ("Evidenced paper track: 24/30 days (cumulative +0.46%, max drawdown 0.00%). "
-                "Refusal log: 7 declined of 41 hash-chained decisions. Paper research, advisory."),
-    "summaryRu": ("Evidenced paper-трек: 24/30 дней (кумулятивно +0.46%, макс. просадка 0.00%). "
-                  "Журнал отказов: 7 отклонено из 41 hash-chained решений. Paper-исследование, advisory."),
-    "evidence": "L4 · evidenced track + hash-chained refusal log",
-    "_sig": {"last": "2026-07-16", "n_days": 24, "refusals": 7},
-}
+from spa_core.cmo.draft_store import DraftStore
 
 
 def _dt(day=17):
     return datetime(2026, 7, day, 9, 0, tzinfo=timezone.utc)
 
 
-@pytest.fixture
-def changelog(tmp_path, monkeypatch):
-    p = tmp_path / "changelog.json"
-    p.write_text(json.dumps([_ENTRY]), encoding="utf-8")
-    monkeypatch.setattr(E, "_CHANGELOG", p)
-    return p
+def _seed(tmp_path, *, days=24, cum=0.46, dd=0.0, refusals=7, entries=41):
+    ledger = tmp_path / "track_ledger.json"
+    ledger.write_text(json.dumps({
+        "n_evidenced_days": days, "days_needed": 30,
+        "cumulative_return_pct": cum, "max_drawdown_from_peak_pct": dd,
+    }), encoding="utf-8")
+    dec = tmp_path / "decision_log.jsonl"
+    lines = []
+    for i in range(entries):
+        lines.append(json.dumps({"approved": (i >= refusals)}))  # first `refusals` are declined
+    dec.write_text("\n".join(lines), encoding="utf-8")
+    return ledger, dec
 
 
-def test_build_draft_passes_gate_and_is_draft(changelog):
-    d = E.build_draft(now=_dt())
-    assert d is not None
-    assert d["honesty_gate_passed"] is True
-    assert d["status"] == "draft"
-    assert d["is_advisory"] is True
-    assert d["rewrite"] == "deterministic-template"
+def test_load_source_facts_from_track_and_refusals(tmp_path):
+    ledger, dec = _seed(tmp_path)
+    facts = E.load_source_facts(ledger_path=ledger, decisions_path=dec)
+    assert facts["n_evidenced_days"] == 24
+    assert facts["days_needed"] == 30
+    assert facts["cumulative_return_pct"] == 0.46
+    assert facts["refusal_count"] == 7 and facts["decision_count"] == 41
 
 
-def test_draft_body_only_has_sourced_numbers(changelog):
-    d = E.build_draft(now=_dt())
-    # every number in the rewritten body must appear in the source entry (honesty gate contract)
-    for body in (d["body_en"], d["body_ru"]):
-        r = honesty_gate.check(body, _ENTRY)
-        assert r.unmatched_numbers == [], r.unmatched_numbers
-
-
-def test_draft_carries_all_disclaimers(changelog):
-    d = E.build_draft(now=_dt())
-    r = honesty_gate.check(d["body_en"], _ENTRY)
-    assert r.missing_disclaimers == []
-    assert not r.promissory_hits and not r.solicitation_hits
-
-
-def test_no_source_data_fail_closed(tmp_path, monkeypatch):
-    empty = tmp_path / "none.json"
-    monkeypatch.setattr(E, "_CHANGELOG", empty)   # file does not exist
-    assert E.build_draft(now=_dt()) is None
-    res = E.run(now=_dt(), drafts_dir=tmp_path / "drafts")
+def test_no_source_data_fail_closed(tmp_path):
+    missing_ledger = tmp_path / "none.json"
+    missing_dec = tmp_path / "none.jsonl"
+    assert E.load_source_facts(ledger_path=missing_ledger, decisions_path=missing_dec) is None
+    res = E.run(now=_dt(), drafts_dir=tmp_path / "drafts",
+                ledger_path=missing_ledger, decisions_path=missing_dec)
     assert res["created"] is False and "fail-closed" in res["reason"]
 
 
-def test_run_writes_draft_and_proof(changelog, tmp_path):
+def test_run_creates_draft_via_pipeline(tmp_path):
+    ledger, dec = _seed(tmp_path)
     ddir = tmp_path / "drafts"
-    res = E.run(now=_dt(), drafts_dir=ddir)
-    assert res["created"] is True and res["status"] == "draft"
-    out = ddir / "2026-07-17.json"
-    assert out.exists()
-    doc = json.loads(out.read_text())
-    assert doc["is_advisory"] is True and doc["status"] == "draft"
-    proof = ddir / "cmo_editorial_proof.jsonl"
-    assert proof.exists() and json.loads(proof.read_text().splitlines()[0])["hash"]
+    res = E.run(now=_dt(), drafts_dir=ddir, ledger_path=ledger, decisions_path=dec)
+    assert res["created"] is True
+    assert res["draft_id"]
+    assert res["status"] == "draft"
+    # a draft file was persisted by the prior DraftStore
+    stored = list(ddir.glob("cmo_*.json"))
+    assert stored, "pipeline should have stored a draft via DraftStore"
 
 
-def test_run_idempotent_per_source(changelog, tmp_path):
+def test_stored_draft_is_gated_and_never_published(tmp_path):
+    ledger, dec = _seed(tmp_path)
     ddir = tmp_path / "drafts"
-    E.run(now=_dt(), drafts_dir=ddir)
-    res2 = E.run(now=_dt(), drafts_dir=ddir)   # same source_slug → not recreated
-    assert res2["created"] is False and "unchanged source" in res2["reason"]
+    E.run(now=_dt(), drafts_dir=ddir, ledger_path=ledger, decisions_path=dec)
+    store = DraftStore(ddir)
+    drafts = store.list_drafts()
+    assert drafts
+    # flow B: a fresh draft is status "draft" — never auto "published"
+    assert all(d.status == "draft" for d in drafts)
 
 
-def test_gate_failure_holds_not_publishes(changelog, monkeypatch):
-    # Force the gate to fail on everything → draft must be HELD, never publish-eligible.
-    from spa_core.cmo.honesty_gate import GateResult
-    monkeypatch.setattr(E.honesty_gate, "check",
-                        lambda *a, **k: GateResult(passed=False, reasons=["forced"]))
-    d = E.build_draft(now=_dt())
-    assert d["status"] == "held" and d["honesty_gate_passed"] is False
+def test_check_dry_run_does_not_store(tmp_path):
+    ledger, dec = _seed(tmp_path)
+    ddir = tmp_path / "drafts"
+    res = E.run(now=_dt(), write=False, drafts_dir=ddir, ledger_path=ledger, decisions_path=dec)
+    assert res["created"] is False
+    assert "gate_passed" in res
+    assert not ddir.exists() or not list(ddir.glob("cmo_*.json"))  # nothing persisted
 
 
-def test_check_cli_does_not_write(changelog, tmp_path, monkeypatch, capsys):
-    monkeypatch.setattr(E, "_DRAFTS_DIR", tmp_path / "drafts")
-    rc = E.main(["--check"])
-    assert rc == 0
-    assert not (tmp_path / "drafts").exists()   # --check never writes
-    out = capsys.readouterr().out
-    assert "honesty_gate_passed" in out
+def test_refusal_only_data_still_builds(tmp_path):
+    # ledger missing but refusal log present → refusal-only facts still produce a draft (fail-open on
+    # partial real data, never fabricated).
+    missing_ledger = tmp_path / "none.json"
+    dec = tmp_path / "decision_log.jsonl"
+    dec.write_text("\n".join(json.dumps({"approved": i >= 3}) for i in range(10)), encoding="utf-8")
+    facts = E.load_source_facts(ledger_path=missing_ledger, decisions_path=dec)
+    assert facts is not None and facts["refusal_count"] == 3 and "n_evidenced_days" not in facts
