@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for spa_core.paper_trading.walk_forward_validator (SPA-V428 / MP-128).
+"""Tests for spa_core.analytics_lab.walk_forward_validator (SPA-V428 / MP-128).
 
 Plain unittest; runnable via ``python -m pytest`` or ``python -m unittest``.
 NO network, NO external deps, NO pytest-only features.
