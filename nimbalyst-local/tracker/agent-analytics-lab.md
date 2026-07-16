@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: Q2: аналитику в analytics_lab/
-status: in-progress
+status: done
 source: session-2026-07-16
 created: 2026-07-16
 ---
