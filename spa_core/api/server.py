@@ -158,6 +158,7 @@ app.add_middleware(RateLimitMiddleware)
 # ─── Routers ─────────────────────────────────────────────────────────────────
 # Order preserved from the monolith's definition order so OpenAPI listing is stable.
 from spa_core.api.routers import (  # noqa: E402
+    agents,
     aggressive_lab,
     analytics,
     cmo,
@@ -185,6 +186,10 @@ from spa_core.api.routers import (  # noqa: E402
 
 app.include_router(misc.router)
 app.include_router(analytics.router)
+# Agent registry (fleet management) — read-only surface of the launchd fleet (/api/agents/*):
+# every com.spa.* agent with role/schedule/load-state/pid/reboot-safety/problems. Feeds the
+# internal /admin/agents management dashboard. Fail-safe: missing registry → empty fleet.
+app.include_router(agents.router)
 app.include_router(interest.router)
 app.include_router(fundability.router)
 app.include_router(tier1.router)

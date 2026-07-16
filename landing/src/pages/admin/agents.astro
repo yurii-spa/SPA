@@ -1,0 +1,156 @@
+---
+// /admin/agents — Agent Fleet management console (owner-requested 2026-07-16: "know every agent +
+// a management system + a visual dashboard"). Internal ops view: every com.spa.* launchd agent,
+// grouped by role, with load state, reboot-safety and PROBLEMS surfaced first for action.
+// Live from api.earn-defi.com /api/agents/registry (SSOT: scripts/build_agent_registry.py).
+// admin={true} → noindex/nofollow + slim operator bar. No yield numbers — pure ops. Fail-safe:
+// API offline shows "офлайн" honestly, never a fabricated fleet. Poll ~15s.
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Operator · Agent Fleet" admin={true}>
+  <main class="ag"><div class="ag-wrap">
+    <h1 class="ag-h1">Флот агентов</h1>
+    <p class="ag-sub">Все <code>com.spa.*</code> агенты launchd — по ролям, со статусом, reboot-safety и проблемами. Живые данные из <code>/api/agents/registry</code> (обновление каждые 15с). Только операции, без цифр доходности. Если API офлайн — честно показывается «офлайн».</p>
+
+    <!-- Summary bar -->
+    <div class="ag-bar" id="ag-bar">
+      <div class="ag-kpi"><div class="k">Загружено</div><div class="v" id="ag-loaded">—</div></div>
+      <div class="ag-kpi"><div class="k">Всего известно</div><div class="v" id="ag-known">—</div></div>
+      <div class="ag-kpi problem"><div class="k">Проблемы</div><div class="v" id="ag-problems">—</div></div>
+      <div class="ag-kpi span"><div class="k">По ролям</div><div class="v roles" id="ag-roles">—</div></div>
+    </div>
+    <div class="ag-meta"><span id="ag-state">загрузка…</span> · <span id="ag-gen"></span></div>
+
+    <!-- Problems (actionable) -->
+    <section class="ag-sec" id="ag-prob-sec" hidden>
+      <div class="ag-sec-h">⚠ Проблемы <span class="ag-count" id="ag-prob-count"></span></div>
+      <div class="ag-prob-list" id="ag-prob-list"></div>
+    </section>
+
+    <!-- Fleet by role -->
+    <div id="ag-roles-wrap"></div>
+
+    <div class="ag-offline" id="ag-offline" hidden>API офлайн — реестр агентов сейчас недоступен. Ничего не выдумываем; повторная попытка через 15с.</div>
+  </div></main>
+</Layout>
+
+<script is:inline>
+  (function(){
+    var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8765':'https://api.earn-defi.com';
+    var ROLE_LABEL={infra:'Инфраструктура',allocation:'Аллокация',monitoring:'Мониторинг',reporting:'Отчётность',research:'Исследования',other:'Прочее'};
+    function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+    function badge(a){
+      if(a.retired) return {ico:'⚫',cls:'retired',t:'retired'};
+      if(a.problems&&a.problems.length) return {ico:'🔴',cls:'bad',t:'проблема'};
+      if(a.loaded&&a.pid) return {ico:'🟢',cls:'ok',t:'работает (pid '+a.pid+')'};
+      if(a.loaded) return {ico:'🟡',cls:'idle',t:'загружен (по расписанию)'};
+      return {ico:'🔴',cls:'bad',t:'не загружен'};
+    }
+    function set(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+
+    function render(d){
+      document.getElementById('ag-offline').hidden=true;
+      var agents=(d&&d.agents)||[];
+      set('ag-loaded',(d.total_loaded!=null?d.total_loaded:agents.filter(function(a){return a.loaded;}).length));
+      set('ag-known',(d.total_known!=null?d.total_known:agents.length));
+      var pc=d.problem_count!=null?d.problem_count:agents.filter(function(a){return a.problems&&a.problems.length;}).length;
+      var pEl=document.getElementById('ag-problems');pEl.textContent=pc;
+      document.getElementById('ag-bar').querySelector('.ag-kpi.problem').classList.toggle('hot',pc>0);
+      // roles rollup
+      var byRole=d.by_role||{};
+      var order=(d.roles||['infra','allocation','monitoring','reporting','research','other']);
+      var rollup=order.filter(function(r){return byRole[r];}).map(function(r){return '<span class="rl">'+esc(ROLE_LABEL[r]||r)+' '+byRole[r]+'</span>';}).join('');
+      document.getElementById('ag-roles').innerHTML=rollup||'—';
+      set('ag-state','live');
+      set('ag-gen',d.generated_at?('снимок '+String(d.generated_at).slice(0,16).replace('T',' ')+' UTC'):(d.note||''));
+
+      // Problems section
+      var probs=agents.filter(function(a){return a.problems&&a.problems.length;});
+      var psec=document.getElementById('ag-prob-sec');
+      if(probs.length){
+        psec.hidden=false;
+        document.getElementById('ag-prob-count').textContent=probs.length;
+        document.getElementById('ag-prob-list').innerHTML=probs.map(function(a){
+          return '<div class="ag-prob"><div class="pr-name">'+esc(a.short)+' <span class="pr-role">'+esc(ROLE_LABEL[a.role]||a.role)+'</span></div><div class="pr-txt">'+a.problems.map(esc).join(' · ')+'</div></div>';
+        }).join('');
+      } else { psec.hidden=true; }
+
+      // Fleet grouped by role
+      var wrap=document.getElementById('ag-roles-wrap');
+      var html='';
+      order.forEach(function(role){
+        var list=agents.filter(function(a){return a.role===role;});
+        if(!list.length) return;
+        list.sort(function(a,b){return (a.short||'').localeCompare(b.short||'');});
+        html+='<section class="ag-sec"><div class="ag-sec-h">'+esc(ROLE_LABEL[role]||role)+' <span class="ag-count">'+list.length+'</span></div><div class="ag-grid">';
+        list.forEach(function(a){
+          var b=badge(a);
+          html+='<div class="ag-card '+b.cls+'">'
+            +'<div class="c-top"><span class="c-ico" title="'+esc(b.t)+'">'+b.ico+'</span><span class="c-name">'+esc(a.short)+'</span>'
+            +'<span class="c-rb" title="переживёт reboot">'+(a.reboot_safe?'<span class="rb-ok">✓</span>':'<span class="rb-no">✗</span>')+'</span></div>'
+            +'<div class="c-sched">'+esc(a.schedule||'—')+'</div>'
+            +(a.problems&&a.problems.length?('<div class="c-prob">'+a.problems.map(esc).join(' · ')+'</div>'):'')
+            +'</div>';
+        });
+        html+='</div></section>';
+      });
+      wrap.innerHTML=html;
+    }
+
+    function offline(){
+      set('ag-state','офлайн');
+      set('ag-loaded','—');set('ag-known','—');
+      document.getElementById('ag-problems').textContent='—';
+      document.getElementById('ag-roles').innerHTML='—';
+      document.getElementById('ag-offline').hidden=false;
+      document.getElementById('ag-prob-sec').hidden=true;
+      document.getElementById('ag-roles-wrap').innerHTML='';
+    }
+
+    function tick(){
+      fetch(API+'/api/agents/registry').then(function(r){return r.json();}).then(render).catch(offline);
+    }
+    tick();
+    setInterval(tick,15000);
+  })();
+</script>
+
+<style>
+  .ag{background:var(--bg-base);min-height:calc(100vh - 52px);padding:32px 0 80px}
+  .ag-wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+  .ag-h1{font-size:1.6rem;font-weight:800;color:var(--text-primary);margin:0}
+  .ag-sub{color:var(--text-secondary);font-size:.9375rem;margin:8px 0 24px;max-width:760px}
+  .ag-sub code{font-family:var(--font-mono);font-size:.85em;color:var(--text-primary)}
+  .ag-bar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 2fr;gap:12px;margin-bottom:10px}
+  @media(max-width:820px){.ag-bar{grid-template-columns:1fr 1fr}.ag-kpi.span{grid-column:1 / -1}}
+  .ag-kpi{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px}
+  .ag-kpi .k{font-size:.6875rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em}
+  .ag-kpi .v{font-size:1.5rem;font-weight:800;color:var(--text-primary);margin-top:6px}
+  .ag-kpi.problem .v{color:var(--text-muted)}
+  .ag-kpi.problem.hot{border-color:var(--danger)}
+  .ag-kpi.problem.hot .v{color:var(--danger)}
+  .ag-kpi .v.roles{font-size:.85rem;font-weight:600;display:flex;flex-wrap:wrap;gap:6px}
+  .ag-kpi .rl{background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--r-full);padding:2px 10px;color:var(--text-secondary);font-family:var(--font-mono);font-size:.75rem}
+  .ag-meta{font-size:.75rem;color:var(--text-faint);font-family:var(--font-mono);margin-bottom:26px}
+  .ag-sec{margin-bottom:26px}
+  .ag-sec-h{font-family:var(--font-mono);font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:12px;display:flex;gap:10px;align-items:center}
+  .ag-count{background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--r-full);padding:1px 9px;color:var(--text-secondary);font-size:.7rem}
+  #ag-prob-sec .ag-sec-h{color:var(--danger)}
+  .ag-prob-list{display:grid;gap:8px}
+  .ag-prob{background:var(--bg-surface);border:1px solid var(--danger);border-left-width:3px;border-radius:var(--r-sm);padding:11px 14px}
+  .ag-prob .pr-name{font-weight:700;color:var(--text-primary);font-size:.9rem}
+  .ag-prob .pr-role{font-family:var(--font-mono);font-size:.68rem;color:var(--text-muted);text-transform:uppercase;margin-left:6px}
+  .ag-prob .pr-txt{color:var(--danger);font-size:.82rem;margin-top:3px}
+  .ag-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+  .ag-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 13px}
+  .ag-card.bad{border-color:var(--danger)}
+  .ag-card.retired{opacity:.5}
+  .ag-card .c-top{display:flex;align-items:center;gap:8px}
+  .ag-card .c-ico{font-size:.9rem;line-height:1}
+  .ag-card .c-name{font-weight:700;color:var(--text-primary);font-size:.875rem;font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ag-card .c-rb{margin-left:auto;font-size:.8rem}
+  .ag-card .rb-ok{color:var(--ok)} .ag-card .rb-no{color:var(--warn)}
+  .ag-card .c-sched{color:var(--text-muted);font-size:.75rem;margin-top:5px}
+  .ag-card .c-prob{color:var(--danger);font-size:.72rem;margin-top:5px}
+  .ag-offline{background:var(--bg-surface);border:1px solid var(--warn);border-radius:var(--r-md);padding:16px 18px;color:var(--warn);font-size:.9rem}
+</style>
