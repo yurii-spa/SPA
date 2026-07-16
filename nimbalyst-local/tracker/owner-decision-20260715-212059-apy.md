@@ -4,6 +4,7 @@ trackerStatus:
 title: "Сайт: алерт кастодиана про APY — ложное срабатывание, как чинить?"
 source: telegram
 created: 2026-07-15
+status: needs-owner
 ---
 
 ## Что случилось и почему это важно
