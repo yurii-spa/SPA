@@ -46,6 +46,7 @@ import logging
 import os
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -69,6 +70,14 @@ OFFSET_FILE = DATA_DIR / "tg_bot_v2_offset.json"
 KILL_SWITCH_FILE = DATA_DIR / "kill_switch_active.json"
 
 HTTP_TIMEOUT_S = 35  # long-poll timeout (30) + slack
+# Liveness watchdog (2026-07-16): the poll loop is single-threaded, so a handler that
+# blocks (or a network read that stalls past its own timeout) freezes the whole bot with
+# the PID still alive — invisible to PID-based health checks (the 2026-07-15 ~15h silent
+# hang). A daemon thread force-exits the process if the loop stops stamping its heartbeat,
+# and launchd KeepAlive respawns it. STALL_LIMIT is set above the slowest legit handler
+# (ask_router headless claude, 120s) + one long-poll (35s) so normal work never trips it.
+_WATCHDOG_CHECK_S = 30    # how often the watchdog samples the poll heartbeat
+_STALL_LIMIT_S = 240      # loop silent longer than this → force restart (> 120s + 35s + slack)
 KEYCHAIN_ACCOUNT = "spa"
 TOKEN_SERVICE = "TELEGRAM_BOT_TOKEN_SPA"
 CHAT_ID_SERVICE = "TELEGRAM_CHAT_ID_SPA"
@@ -1134,16 +1143,39 @@ class TelegramBot:
         self.settle_startup()
         # Register commands in Telegram ☰ menu once at startup.
         self.register_commands()
+        # Liveness watchdog: stamp a heartbeat each loop iteration + after each handled
+        # update; a daemon thread force-restarts the process if it goes stale (see the
+        # module constants above). Self-heals ANY silent hang without an external agent.
+        self._last_beat = time.time()
+        self._start_liveness_watchdog()
         try:
             while True:
+                self._last_beat = time.time()
                 try:
                     for upd in self.get_updates():
                         self.handle_update(upd)
+                        self._last_beat = time.time()
                 except Exception as exc:  # noqa: BLE001
                     log.warning("polling error: %s — retry in 5s", exc)
                     time.sleep(5)
         finally:
             self.release_single_instance_lock()
+
+    def _start_liveness_watchdog(self) -> None:
+        """Daemon thread that force-exits the process (→ launchd KeepAlive respawn) if the
+        poll loop stops stamping ``self._last_beat`` for longer than ``_STALL_LIMIT_S``.
+        Catches ANY hang (blocked handler, stalled socket, deadlock) that leaves the PID
+        alive but the poller frozen — the failure mode PID-based health checks miss."""
+        def _watch() -> None:
+            while True:
+                time.sleep(_WATCHDOG_CHECK_S)
+                stalled = time.time() - getattr(self, "_last_beat", time.time())
+                if stalled > _STALL_LIMIT_S:
+                    log.error("poll loop STALLED %.0fs (> %ds) — forcing restart via "
+                              "os._exit(1); launchd KeepAlive will respawn the bot.",
+                              stalled, _STALL_LIMIT_S)
+                    os._exit(1)
+        threading.Thread(target=_watch, name="bot-liveness-watchdog", daemon=True).start()
 
 
 def main(argv: Optional[List[str]] = None) -> int:
