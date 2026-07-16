@@ -104,6 +104,22 @@ def test_empty_copy_is_fail_closed_never_raises():
     assert not r2.passed            # never raises
 
 
+def test_negated_blocklist_terms_are_disclaimers_not_violations():
+    # "not a guarantee", "не оферта", "not risk-free" are honest disclaimers — must NOT trip the gate.
+    ok = ("Realized ~3.3% at 0.0% drawdown, up to 6% (variable), paper track evidenced. "
+          "This is not a guarantee and not risk-free. Не оферта.")
+    r = hg.check(ok, FACTS)
+    assert not r.promissory_hits, r.promissory_hits
+    assert not r.solicitation_hits, r.solicitation_hits
+
+
+def test_affirmative_blocklist_still_caught_after_negation_logic():
+    # Affirmative promise / solicitation (no negator) must still be rejected.
+    bad = "up to 6% paper track, variable, drawdown shown, evidence — returns are guaranteed. Invest now."
+    r = hg.check(bad, FACTS)
+    assert r.promissory_hits and r.solicitation_hits
+
+
 def test_integer_band_matches_percent_token():
     # facts band_max_pct = 6 (int); copy "up to 6%" must match (suffix % ignored for value match).
     r = hg.check("up to 6% net, variable, paper, realized track, drawdown shown", FACTS)
