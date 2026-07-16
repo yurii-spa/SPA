@@ -150,8 +150,35 @@ def _flatten_facts(facts: Any) -> str:
 
 
 def _contains_any(haystack_low: str, needles: Iterable[str]) -> list[str]:
-    """Return every needle (lowercased match) present in the already-lowercased haystack."""
+    """Return every needle present in the already-lowercased haystack (plain substring)."""
     return [n for n in needles if n.lower() in haystack_low]
+
+
+# Negators that turn a blocklisted term into a legitimate disclaimer ("not a guarantee", "не оферта").
+_NEGATOR_RE = re.compile(r"\b(not|no|never|non|без|не|isn'?t|aren'?t|won'?t)\b[\s\w'-]{0,14}$")
+
+
+def _find_blocklist_hits(haystack_low: str, needles: Iterable[str]) -> list[str]:
+    """Return each blocklisted needle that appears in a NON-negated context. A needle immediately
+    preceded (within ~14 chars) by a negator ("not a guarantee", "не оферта", "not risk-free") is a
+    disclaimer, not a violation, and is skipped — so honest negated copy never false-trips the gate."""
+    hits: list[str] = []
+    for n in needles:
+        nl = n.lower()
+        start = 0
+        matched = False
+        while True:
+            i = haystack_low.find(nl, start)
+            if i == -1:
+                break
+            prefix = haystack_low[max(0, i - 20):i]
+            if not _NEGATOR_RE.search(prefix):
+                matched = True
+                break
+            start = i + len(nl)
+        if matched:
+            hits.append(n)
+    return hits
 
 
 # ── Public API ───────────────────────────────────────────────────────────────
@@ -203,13 +230,13 @@ def check(
     if missing:
         reasons.append("missing disclaimer categories: " + ", ".join(missing))
 
-    # 3. no promissory language.
-    promissory = _contains_any(copy_low, PROMISSORY_BLOCKLIST)
+    # 3. no promissory language (negation-aware: "not risk-free" is a disclaimer, not a promise).
+    promissory = _find_blocklist_hits(copy_low, PROMISSORY_BLOCKLIST)
     if promissory:
         reasons.append("promissory language: " + ", ".join(promissory))
 
-    # 4. no solicitation / live-offer framing.
-    solicitation = _contains_any(copy_low, SOLICITATION_BLOCKLIST)
+    # 4. no solicitation / live-offer framing (negation-aware: "не оферта" is a disclaimer).
+    solicitation = _find_blocklist_hits(copy_low, SOLICITATION_BLOCKLIST)
     if solicitation:
         reasons.append("solicitation / live-offer framing: " + ", ".join(solicitation))
 
