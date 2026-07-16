@@ -22,7 +22,7 @@ import unittest
 import tempfile
 from pathlib import Path
 
-from spa_core.paper_trading import upside_potential_ratio as upr_mod
+from spa_core.analytics_lab import upside_potential_ratio as upr_mod
 from spa_core.paper_trading import drawdown_analytics
 from spa_core.reporting import tear_sheet
 from spa_core.ci import llm_forbidden_lint
@@ -669,7 +669,7 @@ class TestCLI(unittest.TestCase):
             self._seed(d)
             proc = subprocess.run(
                 [sys.executable, "-m",
-                 "spa_core.paper_trading.upside_potential_ratio",
+                 "spa_core.analytics_lab.upside_potential_ratio",
                  "--check", "--data-dir", d],
                 cwd=str(_REPO_ROOT), capture_output=True, text=True,
             )
@@ -682,7 +682,7 @@ class TestCLI(unittest.TestCase):
             self._seed(d)
             proc = subprocess.run(
                 [sys.executable, "-m",
-                 "spa_core.paper_trading.upside_potential_ratio",
+                 "spa_core.analytics_lab.upside_potential_ratio",
                  "--run", "--data-dir", d],
                 cwd=str(_REPO_ROOT), capture_output=True, text=True,
             )
@@ -695,7 +695,7 @@ class TestCLI(unittest.TestCase):
             (Path(d) / upr_mod.EQUITY_FILENAME).write_text("{bad", encoding="utf-8")
             proc = subprocess.run(
                 [sys.executable, "-m",
-                 "spa_core.paper_trading.upside_potential_ratio",
+                 "spa_core.analytics_lab.upside_potential_ratio",
                  "--check", "--data-dir", d],
                 cwd=str(_REPO_ROOT), capture_output=True, text=True,
             )
@@ -707,7 +707,7 @@ class TestCLI(unittest.TestCase):
             self._seed(d)
             proc = subprocess.run(
                 [sys.executable, "-m",
-                 "spa_core.paper_trading.upside_potential_ratio",
+                 "spa_core.analytics_lab.upside_potential_ratio",
                  "--check", "--run", "--data-dir", d],
                 cwd=str(_REPO_ROOT), capture_output=True, text=True,
             )
@@ -743,7 +743,7 @@ class TestImportHygiene(unittest.TestCase):
 
     def test_py_compile_both(self):
         import py_compile
-        for fname in ("paper_trading/upside_potential_ratio.py",
+        for fname in ("analytics_lab/upside_potential_ratio.py",
                       "tests/test_upside_potential_ratio.py"):
             with self.subTest(fname=fname):
                 py_compile.compile(
