@@ -18,7 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from spa_core.paper_trading.distribution_normality import (
+from spa_core.analytics_lab.distribution_normality import (
     DEFAULT_CONFIDENCES,
     JB_ALPHA,
     _cornish_fisher,
