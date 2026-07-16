@@ -285,10 +285,23 @@ install_agent \
 #      chain; restart-survival (book restored, not zeroed), idempotent per UTC day, fail-CLOSED.
 #      ADVISORY ONLY: simulates carry, moves no live capital, never touches the go-live track.
 install_agent \
-    "$REPO/scripts/com.spa.aggressive_lab
-com.spa.rates_desk_paper.plist" \
+    "$REPO/scripts/com.spa.aggressive_lab.plist" \
+    "com.spa.aggressive_lab" \
+    "1"
+
+install_agent \
+    "$REPO/scripts/com.spa.rates_desk_paper.plist" \
     "com.spa.rates_desk_paper" \
     "1"
+
+# 22c-swarm: 5 органов SPA-Swarm (ADR-YL-012, advisory/paper) — были загружены, но НЕ в installer
+#   → НЕ переживали reboot (аудит WS-B 2026-07-16). Добавлены, чтобы чистая переустановка делала
+#   весь swarm-слой reboot-safe. (Плиты swarm лежат в launchd/, не scripts/ — рассинхрон путей, в аудите.)
+install_agent "$REPO/launchd/com.spa.swarm_blend.plist"    "com.spa.swarm_blend"    "1"
+install_agent "$REPO/launchd/com.spa.swarm_brain.plist"    "com.spa.swarm_brain"    "1"
+install_agent "$REPO/launchd/com.spa.swarm_regime.plist"   "com.spa.swarm_regime"   "1"
+install_agent "$REPO/launchd/com.spa.swarm_guardian.plist" "com.spa.swarm_guardian" "1"
+install_agent "$REPO/launchd/com.spa.swarm_health.plist"   "com.spa.swarm_health"   "1"
 
 # 22c2. Realized-at-size standing measurement (Edge-at-Scale month-program, Lane B) — daily;
 #       re-runs the realized-at-size KILLER TEST on the freshest books and appends/refreshes ONE
