@@ -1,20 +1,19 @@
-"""spa_core/cmo/editorial_agent.py — CMO editorial DRAFT agent (first live product-layer agent).
+"""spa_core/cmo/editorial_agent.py — CMO editorial DRAFT runner (the live agent).
 
-Turns the dry auto-changelog facts (scripts/generate_research_changelog.py → landing/src/data/changelog.json)
-into "richer than dry" copy, validates it through the deterministic HONESTY-GATE, and stores it as a
-DRAFT (`data/cmo_drafts/<date>.json`, status "draft"). It NEVER publishes — flow B (owner approves → publish)
-is a later step. Deterministic template rewrite for now (no LLM / no key needed); an LLM rewrite drops in
-later behind the SAME gate.
+The prior CMO layer (docs/CMO_EDITORIAL_LAYER.md) built the *library*: template_rewriter → honesty_gate
+→ draft_store, wired end-to-end by `pipeline.run_pipeline`. What was missing was a LIVE runner + launchd
+wiring. THIS module is that runner: it reads the real track facts (data/track_ledger.json + the
+hash-chained refusal log), calls `pipeline.run_pipeline`, and lets the prior pipeline do the honest work
+(rewrite → gate → draft store). It does NOT reimplement the rewrite or the gate.
 
-Hard boundaries (docs/CMO_EDITORIAL_LAYER.md): stdlib · fail-CLOSED (no data → no draft, never fabricate) ·
-no fabricated numbers (every figure comes from the facts, re-checked by honesty_gate) · all disclaimers
-present · never presents paper as live · never a solicitation · never auto-publishes.
+It NEVER publishes — flow B (owner approves a draft via /api/cmo/drafts/{id}/approve → publish) is the
+owner's step. Deterministic · stdlib · fail-CLOSED (no source data → no draft, never fabricated).
 
 CLI::
-    python3 -m spa_core.cmo.editorial_agent            # build today's draft (if new data)
-    python3 -m spa_core.cmo.editorial_agent --check    # dry-run: build + gate, print, do NOT write
+    python3 -m spa_core.cmo.editorial_agent            # build today's draft (if source data present)
+    python3 -m spa_core.cmo.editorial_agent --check    # build via pipeline, print result, do NOT store
 """
-# LLM_FORBIDDEN  (this module is deterministic; the optional LLM rewrite, when added, stays behind honesty_gate)
+# LLM_FORBIDDEN
 from __future__ import annotations
 
 import argparse
@@ -22,157 +21,108 @@ import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
-from spa_core.utils.atomic import atomic_save
-from spa_core.strategy_lab.swarm.common import append_daily_proof
-from spa_core.cmo import honesty_gate
+from spa_core.cmo.pipeline import run_pipeline
+from spa_core.cmo.draft_store import DraftStore
 
 log = logging.getLogger("spa.cmo.editorial_agent")
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_CHANGELOG = _REPO_ROOT / "landing" / "src" / "data" / "changelog.json"
-_DRAFTS_DIR = _REPO_ROOT / "data" / "cmo_drafts"
-
-# The honesty footer — every one of the four disclaimer categories, true and always attached.
-# (paper · not-a-guarantee · tail-shown · evidence-tagged; and explicitly not an offer.)
-_FOOTER_EN = ("Paper research, advisory — variable and not a guarantee; the worst drawdown is shown, "
-              "never hidden; every figure is evidence-tagged. Not an offer.")
-_FOOTER_RU = ("Paper-исследование, advisory — переменная и не гарантия; макс. просадка показана, "
-              "никогда не скрыта; каждое число evidence-tagged. Не оферта.")
+_LEDGER = _REPO_ROOT / "data" / "track_ledger.json"
+_DECISIONS = _REPO_ROOT / "data" / "rates_desk" / "decision_log.jsonl"
 
 
 def _now(now: Optional[datetime] = None) -> datetime:
     return now or datetime.now(timezone.utc)
 
 
-def _load_latest_entry() -> Optional[dict]:
-    """Return the newest dry changelog entry (the facts to rewrite), or None fail-closed."""
+def _load_json(p: Path) -> dict:
     try:
-        data = json.loads(_CHANGELOG.read_text())
+        d = json.loads(p.read_text())
+        return d if isinstance(d, dict) else {}
     except (OSError, ValueError):
-        return None
-    if not isinstance(data, list) or not data:
-        return None
-    return data[0]
+        return {}
 
 
-def _rich_copy(entry: dict) -> tuple[str, str]:
-    """Deterministic "richer than dry" rewrite (EN, RU). Uses ONLY numbers/tokens from ``entry`` and
-    appends the honesty footer, so it passes the gate by construction. No LLM."""
-    sig = entry.get("_sig") or {}
-    n_days = sig.get("n_days")
-    refusals = sig.get("refusals")
-    dry_en = str(entry.get("summary") or "")
-    dry_ru = str(entry.get("summaryRu") or "")
+def _count_refusals(p: Path) -> tuple[Optional[int], Optional[int]]:
+    """(decision_count, refusal_count) from the hash-chained decision log, or (None, None)."""
+    entries = refusals = 0
+    try:
+        for line in p.read_text().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                d = json.loads(line)
+            except ValueError:
+                continue
+            entries += 1
+            if d.get("approved") is False:
+                refusals += 1
+    except OSError:
+        return (None, None)
+    return (entries, refusals)
 
-    # A warmer lede that leads with the differentiator (the refusal log), then the dry facts verbatim.
-    lede_en = "The honest desk, in the open: "
-    lede_ru = "Честный деск, в открытую: "
-    if refusals is not None:
-        lede_en += f"{refusals} yields declined this period, each logged and hash-chained. "
-        lede_ru += f"{refusals} доходностей отклонено за период, каждое в hash-chained журнале. "
+
+def load_source_facts(*, ledger_path: Optional[Path] = None,
+                      decisions_path: Optional[Path] = None) -> Optional[dict[str, Any]]:
+    """Build the honest source-facts dict the pipeline consumes, from the live track + refusal log.
+    Returns None (fail-CLOSED) when neither the ledger nor the refusal log yields real data."""
+    ledger = _load_json(ledger_path or _LEDGER)
+    entries, refusals = _count_refusals(decisions_path or _DECISIONS)
+    n_days = ledger.get("n_evidenced_days")
+    if n_days is None and refusals is None:
+        return None  # no real data → no draft (never fabricate)
+    facts: dict[str, Any] = {}
     if n_days is not None:
-        lede_en += f"{n_days} days of evidenced paper track and counting. "
-        lede_ru += f"{n_days} дней evidenced paper-трека и растёт. "
-
-    body_en = f"{lede_en}\n\n{dry_en}\n\n{_FOOTER_EN}"
-    body_ru = f"{lede_ru}\n\n{dry_ru}\n\n{_FOOTER_RU}"
-    return body_en, body_ru
-
-
-def build_draft(*, now: Optional[datetime] = None) -> Optional[dict]:
-    """Build (but do not store) today's CMO draft from the latest changelog facts, gated. Returns the
-    draft dict, or None fail-closed if there is no source data."""
-    entry = _load_latest_entry()
-    if entry is None:
-        return None
-
-    body_en, body_ru = _rich_copy(entry)
-    # Gate each language against the SAME facts (the dry entry). Fail → fall back to the dry summary,
-    # which is honest by construction, still footered so disclaimers are present.
-    gate_en = honesty_gate.check(body_en, entry)
-    gate_ru = honesty_gate.check(body_ru, entry)
-    gated_ok = gate_en.passed and gate_ru.passed
-    if not gated_ok:
-        dry_en = f"{entry.get('summary','')}\n\n{_FOOTER_EN}"
-        dry_ru = f"{entry.get('summaryRu','')}\n\n{_FOOTER_RU}"
-        # re-gate the dry fallback; if even that fails, hold (return a held draft, never publish-eligible)
-        fen, fru = honesty_gate.check(dry_en, entry), honesty_gate.check(dry_ru, entry)
-        body_en, body_ru = dry_en, dry_ru
-        gated_ok = fen.passed and fru.passed
-        gate_reasons = {"en": fen.reasons, "ru": fru.reasons}
-    else:
-        gate_reasons = {"en": [], "ru": []}
-
-    ts = _now(now)
-    return {
-        "slug": entry.get("slug", f"draft-{ts.strftime('%Y-%m-%d')}"),
-        "date": ts.strftime("%Y-%m-%d"),
-        "source_slug": entry.get("slug"),
-        "title": entry.get("title"),
-        "titleRu": entry.get("titleRu"),
-        "body_en": body_en,
-        "body_ru": body_ru,
-        "evidence": entry.get("evidence"),
-        "rewrite": "deterministic-template",   # LLM rewrite drops in here later (behind the same gate)
-        "honesty_gate_passed": gated_ok,
-        "gate_reasons": gate_reasons,
-        # status is publish-eligible only if the gate passed; otherwise HELD for owner review, never auto.
-        "status": "draft" if gated_ok else "held",
-        "is_advisory": True,
-        "note": "CMO draft — flow B: awaits owner approval, never auto-published.",
-        "generated_at": ts.isoformat(),
-    }
+        facts["n_evidenced_days"] = n_days
+        facts["days_needed"] = ledger.get("days_needed", 30)
+        if ledger.get("cumulative_return_pct") is not None:
+            facts["cumulative_return_pct"] = ledger.get("cumulative_return_pct")
+        if ledger.get("max_drawdown_from_peak_pct") is not None:
+            facts["max_drawdown_from_peak_pct"] = ledger.get("max_drawdown_from_peak_pct")
+    if refusals is not None:
+        facts["refusal_count"] = refusals
+        facts["decision_count"] = entries
+    return facts
 
 
 def run(*, now: Optional[datetime] = None, write: bool = True,
-        drafts_dir: Optional[Path] = None) -> dict:
-    """Build today's draft and (if new) store it to data/cmo_drafts/<date>.json + append proof.
-    Returns a result dict. Never raises; fail-CLOSED (no data → created:False)."""
-    ddir = Path(drafts_dir) if drafts_dir is not None else _DRAFTS_DIR
-    draft = build_draft(now=now)
-    if draft is None:
+        drafts_dir: Optional[Path] = None,
+        ledger_path: Optional[Path] = None,
+        decisions_path: Optional[Path] = None) -> dict:
+    """Build today's draft through the prior CMO pipeline and (if new) store it. Never raises;
+    fail-CLOSED (no data → created:False). The pipeline handles rewrite → honesty_gate → draft_store."""
+    facts = load_source_facts(ledger_path=ledger_path, decisions_path=decisions_path)
+    if facts is None:
         return {"created": False, "reason": "no source data (fail-closed)"}
-    ddir.mkdir(parents=True, exist_ok=True)
-    out = ddir / f"{draft['date']}.json"
-    # idempotent: same date + same source signature → do not rewrite/duplicate
+    date_str = _now(now).strftime("%Y-%m-%d")
+    store = DraftStore(drafts_dir) if drafts_dir is not None else None
+    if not write:
+        # dry-run: run the rewrite+gate without persisting a draft
+        from spa_core.cmo.template_rewriter import rewrite as _rewrite
+        rw = _rewrite(facts, date_str)
+        return {"created": False, "gate_passed": rw["gate_passed"],
+                "violations": rw["gate_result"].violations, "text_used":
+                (rw["draft_text"] if rw["gate_passed"] else rw["fallback_text"])}
     try:
-        existing = json.loads(out.read_text())
-        if existing.get("source_slug") == draft.get("source_slug"):
-            return {"created": False, "reason": "unchanged source — draft exists", "path": str(out)}
-    except (OSError, ValueError):
-        pass
-    if write:
-        atomic_save(draft, str(out))
-        try:
-            append_daily_proof(
-                {"agent": "cmo_editorial", "date": draft["date"], "status": draft["status"]},
-                ddir / "cmo_editorial_proof.jsonl", day=draft["date"],
-            )
-        except Exception:  # noqa: BLE001 — proof best-effort
-            log.warning("cmo_editorial: proof append failed", exc_info=True)
-    return {"created": bool(write), "status": draft["status"],
-            "honesty_gate_passed": draft["honesty_gate_passed"], "path": str(out)}
+        result = run_pipeline(facts, date_str, store=store)
+    except Exception as exc:  # noqa: BLE001 — a draft failure must never crash the agent
+        log.warning("cmo editorial run_pipeline failed: %s", exc)
+        return {"created": False, "reason": f"pipeline error: {exc}"}
+    return {"created": True, "draft_id": result.get("draft_id"),
+            "gate_passed": result.get("gate_passed"), "status": result.get("status")}
 
 
 def main(argv=None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     ap = argparse.ArgumentParser(prog="python3 -m spa_core.cmo.editorial_agent",
-                                 description="CMO editorial DRAFT agent (deterministic, gated, never publishes)")
-    ap.add_argument("--check", action="store_true", help="build + gate + print, do NOT write")
+                                 description="CMO editorial DRAFT runner (delegates to pipeline; never publishes)")
+    ap.add_argument("--check", action="store_true", help="build via pipeline + print, do NOT store")
     args = ap.parse_args(argv)
-    if args.check:
-        draft = build_draft()
-        if draft is None:
-            print("no source data (fail-closed) — no draft")
-            return 0
-        print(json.dumps({"status": draft["status"], "honesty_gate_passed": draft["honesty_gate_passed"],
-                          "gate_reasons": draft["gate_reasons"], "title": draft["title"]},
-                         ensure_ascii=False, indent=2))
-        return 0
-    res = run()
-    print(json.dumps(res, ensure_ascii=False))
+    res = run(write=not args.check)
+    print(json.dumps(res, ensure_ascii=False, indent=2 if args.check else None))
     return 0
 
 
