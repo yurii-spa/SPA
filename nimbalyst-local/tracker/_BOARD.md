@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **56** · ждёт владельца: **3**.
+> Всего карточек: **57** · ждёт владельца: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -55,12 +55,11 @@
 - Сделать названия/ID карточек человекочитаемыми (убрать нечитаемые цифры-буквы)  ·  `inbox-task-readable-card-ids.md` · 2026-07-15
 - Команда /status в Telegram-боте — сводка системы простым языком  ·  `inbox-task-status-command.md` · 2026-07-15
 
-## 🤖 Agent Tasks (что делает агент)  (20)
+## 🤖 Agent Tasks (что делает агент)  (21)
 
 ### · blocked
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
 ### · in-progress
-- Q2: аналитику в analytics_lab/  ·  `agent-analytics-lab.md` · 2026-07-16
 - Чистка репо (мёртвый код) фазами  ·  `agent-cleanup.md` · 2026-07-16
 - Q&A бэклог (12 ответов) + видимость задач  ·  `agent-qa-backlog.md` · 2026-07-16
 ### · backlog
@@ -68,6 +67,7 @@
 - Q4/Q5: числа/нейминг сайта  ·  `agent-site-numbers.md` · 2026-07-16
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
+- Q2: аналитику в analytics_lab/  ·  `agent-analytics-lab.md` · 2026-07-16
 - Аудит всей системы → SYSTEM_MAP  ·  `agent-audit-system.md` · 2026-07-16
 - Починка Telegram-бота (watchdog)  ·  `agent-bot-watchdog.md` · 2026-07-16
 - Дашборд: фиксы + структура + промоушен на живой  ·  `agent-dashboard-work.md` · 2026-07-16
@@ -79,6 +79,7 @@
 - Оркестратор — раз в час  ·  `agent-orchestrator-1h.md` · 2026-07-16
 - Owner-gate: безопасный авто-шип сайта  ·  `agent-owner-gate.md` · 2026-07-16
 - Разбор swarm-сессии 11.07 (31 идея)  ·  `agent-swarm-review.md` · 2026-07-16
+- Bootstrap: единая доска карточек + читать историю решений при старте  ·  `agent-task-bootstrap-edinaya-doska-kartochek-chitat.md` · 2026-07-16
 - Q9: git-тег verifier-v1.2  ·  `agent-verifier-tag.md` · 2026-07-16
 - Q11: разбор ветки yield-lab  ·  `agent-yield-lab-branch.md` · 2026-07-16
 
