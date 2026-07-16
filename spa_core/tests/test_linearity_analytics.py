@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from spa_core.paper_trading.linearity_analytics import (
+from spa_core.analytics_lab.linearity_analytics import (
     ANNUALIZATION_DAYS,
     _linearity_grade,
     _ols_fit,
