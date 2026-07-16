@@ -81,6 +81,9 @@ DIGEST_QUEUE_FILENAME = "digest_queue.json"
 # red_flag         — red-flag CRITICAL (hack/exploit) on a HELD protocol
 # rules_critical   — CRITICAL rule breach (rules_watchdog)
 # golive_ready     — go-live state change NOT-READY → READY (one-shot)
+# pilot_request    — a MATERIAL /pilot lead (B2B/institutional/early-access) — instant per-lead
+#                    ping (owner decision Q-OWN-16 / ADR-OWN-2026-07-lead-pings). Non-material
+#                    leads stay demoted to the digest at the call site (interest.py).
 TIER1_WHITELIST: frozenset[str] = frozenset(
     {
         "kill_switch",
@@ -93,11 +96,18 @@ TIER1_WHITELIST: frozenset[str] = frozenset(
         "red_flag",
         "rules_critical",
         "golive_ready",
+        "pilot_request",
     }
 )
 
 # Keys whose push is gated on hitting a HELD protocol (live capital at risk).
 HELD_SCOPED_KEYS: frozenset[str] = frozenset({"peg_break", "red_flag"})
+
+# One-shot keys: each occurrence is a DISTINCT real event (a new lead), NOT a persistent
+# condition. They bypass the edge-trigger (which would silence the 2nd+ occurrence as
+# "still bad") and instead always push — subject only to the daily ceiling — never recording
+# a persistent bad-state. A material lead today and another tomorrow both ping.
+ONESHOT_KEYS: frozenset[str] = frozenset({"pilot_request"})
 
 DEFAULT_DAILY_CEILING = 10
 
@@ -346,6 +356,41 @@ def _push_critical_impl(
     events = state["events"]
     prev = events.get(event_key) or {}
     prev_state = prev.get("state")
+
+    # ── One-shot path (leads etc.) — bypass edge-trigger, keep the ceiling ────
+    # Each occurrence is a distinct real event; we must NOT silence the 2nd one.
+    # Push immediately if under the daily ceiling; never write a persistent bad-state.
+    if event_key in ONESHOT_KEYS and not resolved:
+        ceil = _ceiling_for_today(state, today)
+        if int(ceil["pushed"]) >= daily_ceiling:
+            # Over the ceiling: coalesce once, then demote further ones to the digest.
+            if not ceil["coalesced_sent"]:
+                coalesced = (
+                    f"⚠️ <b>SPA — more events</b>\n\n"
+                    f"Daily push ceiling ({daily_ceiling}) reached. Further events are "
+                    f"queued — open /alerts for detail.\n\n<i>{ts}</i>"
+                )
+                if send:
+                    _send(coalesced)
+                ceil["coalesced_sent"] = True
+            else:
+                _enqueue_digest(
+                    tg_dir,
+                    {"ts": ts, "event_key": event_key, "severity": severity,
+                     "title": title, "body": body, "reason": "ceiling_exceeded"},
+                )
+            _save_state(tg_dir, state)
+            log.info("push_policy: one-shot %r over ceiling → coalesced/demoted", event_key)
+            return False
+        sent = _send(_format_message(severity, title, body)) if send else True
+        if sent:
+            ceil["pushed"] = int(ceil["pushed"]) + 1
+        # record last_ts only — NO persistent bad-state (so the next lead pushes too)
+        events[event_key] = {"state": _STATE_OK, "last_ts": ts, "oneshot": True}
+        _save_state(tg_dir, state)
+        log.info("push_policy: one-shot %r pushed (sent=%s, ceiling=%d/%d)",
+                 event_key, sent, ceil["pushed"], daily_ceiling)
+        return bool(sent)
 
     # ── Gate 2: edge-trigger ─────────────────────────────────────────────────
     if resolved:
