@@ -4,8 +4,7 @@
 > Живые оперативные цифры — `docs/SYSTEM_BRIEFING.md` (auto, 30 мин). Здесь — фокус,
 > задачи, решения, вопросы. **Максимум ~150 строк.**
 
-_Обновлено: 2026-07-16 (автономный цикл #10: очередь пуста → hardening (диверсификация в `scripts/safe_site_push.py`) — починен РЕАЛЬНЫЙ баг owner-notify пути: `_route_to_owner_card` звал `create_card(card_type=…)` при сигнатуре `tracker_type=…` → `TypeError` на КАЖДОМ gated site-push → owner-карточка НЕ создавалась и owner НЕ уведомлялся (human-in-the-loop инвариант #8 разорван; push всё равно fail-closed); +4 регресс-теста (модуль имел 0), ветка `env-setup-v3`)._
-
+_Обновлено: 2026-07-16 (автономный цикл #11: очередь пуста → hardening — регресс-тесты `spa_core/owner_queue/notify.py` (owner-Telegram, инвариант #8 human-in-the-loop; был покрыт лишь 1 happy-path тест): +9 тестов — dry_run без бота, basename-fallback out-of-repo, HTML-escape, и КЛЮЧЕВОЙ инвариант «уведомление НИКОГДА не роняет оркестратор» (бот бросает/falsy → проглочено). Тесты только, `notify.py` не менял. 9/9 + 64 смежных зелёные. Предыдущий #10: fix owner-notify пути в `safe_site_push.py`)_
 ---
 
 ## 🎯 Текущий фокус
@@ -47,6 +46,18 @@ _Обновлено: 2026-07-16 (автономный цикл #10: очеред
 
 ## 🗂️ Последние решения (одной строкой → ADR)
 
+- **Hardening (автономный цикл, 2026-07-16, #11):** очередь пуста (inbox/owner-done/promotions=0) →
+  диверсифицировал от owner_queue-slug/intake/адаптеров/`safe_site_push` → соседний НЕпокрытый файл того же
+  human-in-the-loop контура: `spa_core/owner_queue/notify.py` (owner-Telegram уведомление, инвариант #8).
+  На origin покрыт лишь ОДНИМ happy-path тестом на `build_message`. +9 регресс-тестов
+  (`spa_core/tests/test_owner_notify.py`, файл новый): `build_message` repo-relative путь + basename-fallback
+  out-of-repo (`ValueError` на `relative_to` → голое имя, без краха) + HTML-escape + amended §2.4 заголовок;
+  и КЛЮЧЕВОЙ инвариант **«уведомление НИКОГДА не роняет оркестратор»** — `notify_needs_owner` проглатывает
+  бросок бота на `send_message` / в `__init__` (нет creds) / falsy-возврат; `dry_run` не трогает бота;
+  happy-path шлёт с `parse_mode="HTML"`. Герметично: фейковый бот через `sys.modules` (реальный Keychain-бот
+  не импортируется). 9/9 + 64 смежных зелёные. Модуль НЕ менял — только тесты (инвариант #16). Пуш кодом,
+  STATE/journal из worktree на origin/main (локаль 969 позади). НЕ трогал risk/kill/трек/site/агентов;
+  owner-done не ставил. Детали — journal `2026-W29.md`.
 - **Hardening (автономный цикл, 2026-07-16, #10):** очередь пуста (inbox/owner-done/promotions=0) →
   диверсифицировал от `owner_queue`/адаптеров → `scripts/safe_site_push.py` (единственный санкционированный
   путь авто-шипа сайта, ADR-OWN-2026-07-autoship; на origin было **0 тестов**). Починен **реальный
