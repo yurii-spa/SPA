@@ -19,8 +19,8 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from spa_core.paper_trading import k_ratio as kr
-from spa_core.paper_trading.k_ratio import (
+from spa_core.analytics_lab import k_ratio as kr
+from spa_core.analytics_lab.k_ratio import (
     build_k_ratio,
     cumulative_log_returns,
     k_ratio,
