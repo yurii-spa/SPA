@@ -20,7 +20,7 @@ import unittest
 import tempfile
 from pathlib import Path
 
-from spa_core.paper_trading import ulcer_index as ui_mod
+from spa_core.analytics_lab import ulcer_index as ui_mod
 from spa_core.paper_trading import drawdown_analytics
 from spa_core.reporting import tear_sheet
 from spa_core.ci import llm_forbidden_lint
@@ -672,7 +672,7 @@ class TestCLI(unittest.TestCase):
 
     def test_subprocess_check(self):
         proc = subprocess.run(
-            [sys.executable, "-m", "spa_core.paper_trading.ulcer_index", "--check"],
+            [sys.executable, "-m", "spa_core.analytics_lab.ulcer_index", "--check"],
             cwd=str(_REPO_ROOT), capture_output=True, text=True,
         )
         self.assertEqual(proc.returncode, 0)
@@ -711,7 +711,7 @@ class TestImportHygiene(unittest.TestCase):
 
     def test_py_compile_both(self):
         import py_compile
-        for fname in ("paper_trading/ulcer_index.py",
+        for fname in ("analytics_lab/ulcer_index.py",
                       "tests/test_ulcer_index.py"):
             with self.subTest(fname=fname):
                 py_compile.compile(
