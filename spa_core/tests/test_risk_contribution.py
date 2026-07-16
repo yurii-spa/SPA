@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for spa_core.paper_trading.risk_contribution (SPA-V437 / MP-118).
+"""Tests for spa_core.analytics_lab.risk_contribution (SPA-V437 / MP-118).
 
 Plain unittest, NO pytest, NO network, ALL persistence in a tempdir. Covers:
 hand-computed 2-asset variance decomposition (wᵀΣw → sigma_p, MCTR, CCTR sum ==
@@ -28,7 +28,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from spa_core.paper_trading import risk_contribution as rc
+from spa_core.analytics_lab import risk_contribution as rc
 from spa_core.reporting.tear_sheet import build_exposure
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -814,7 +814,7 @@ class TestCLI(_TmpBase):
         self._good()
         proc = subprocess.run(
             [sys.executable, "-m",
-             "spa_core.paper_trading.risk_contribution",
+             "spa_core.analytics_lab.risk_contribution",
              "--check", "--data-dir", str(self.data_dir)],
             cwd=str(_REPO_ROOT), capture_output=True, text=True,
         )
@@ -825,7 +825,7 @@ class TestCLI(_TmpBase):
     def test_subprocess_junk_arg_exit0(self):
         proc = subprocess.run(
             [sys.executable, "-m",
-             "spa_core.paper_trading.risk_contribution",
+             "spa_core.analytics_lab.risk_contribution",
              "--no-such-flag"],
             cwd=str(_REPO_ROOT), capture_output=True, text=True,
         )
@@ -838,7 +838,7 @@ class TestCLI(_TmpBase):
         env_args = ["--run", "--data-dir", str(self.data_dir)]
         p1 = subprocess.run(
             [sys.executable, "-m",
-             "spa_core.paper_trading.risk_contribution", *env_args],
+             "spa_core.analytics_lab.risk_contribution", *env_args],
             cwd=str(_REPO_ROOT), capture_output=True, text=True,
         )
         self.assertEqual(p1.returncode, 0)
@@ -846,7 +846,7 @@ class TestCLI(_TmpBase):
         md1 = hashlib.md5(path.read_bytes()).hexdigest()
         p2 = subprocess.run(
             [sys.executable, "-m",
-             "spa_core.paper_trading.risk_contribution", *env_args],
+             "spa_core.analytics_lab.risk_contribution", *env_args],
             cwd=str(_REPO_ROOT), capture_output=True, text=True,
         )
         self.assertEqual(p2.returncode, 0)
@@ -859,7 +859,7 @@ class TestCLI(_TmpBase):
 
 class TestHygiene(unittest.TestCase):
     def _module_source(self):
-        return (_REPO_ROOT / "spa_core" / "paper_trading"
+        return (_REPO_ROOT / "spa_core" / "analytics_lab"
                 / "risk_contribution.py").read_text(encoding="utf-8")
 
     def _test_source(self):
