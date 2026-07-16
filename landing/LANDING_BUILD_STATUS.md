@@ -1,5 +1,5 @@
 # Landing Page Build Status
-## earn-defi.com — SPA Smart Passive Aggregator
+## earn-defi.com — SPA
 
 **Built:** 2026-06-18  
 **Framework:** Astro 4 + Tailwind CSS + React islands  
