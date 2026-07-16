@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from spa_core.paper_trading.rolling_performance import (
+from spa_core.analytics_lab.rolling_performance import (
     DEFAULT_WINDOWS,
     compute_rolling_performance,
     compute_rolling_series,
