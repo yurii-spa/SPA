@@ -25,7 +25,7 @@ import unittest
 import tempfile
 from pathlib import Path
 
-from spa_core.paper_trading import capm_decomposition as capm_mod
+from spa_core.analytics_lab import capm_decomposition as capm_mod
 from spa_core.paper_trading import drawdown_analytics
 from spa_core.reporting import tear_sheet
 from spa_core.ci import llm_forbidden_lint
@@ -824,7 +824,7 @@ class TestCLI(unittest.TestCase):
             self._seed(d)
             proc = subprocess.run(
                 [sys.executable, "-m",
-                 "spa_core.paper_trading.capm_decomposition",
+                 "spa_core.analytics_lab.capm_decomposition",
                  "--check", "--data-dir", d],
                 cwd=str(_REPO_ROOT), capture_output=True, text=True,
             )
@@ -837,7 +837,7 @@ class TestCLI(unittest.TestCase):
             self._seed(d)
             proc = subprocess.run(
                 [sys.executable, "-m",
-                 "spa_core.paper_trading.capm_decomposition",
+                 "spa_core.analytics_lab.capm_decomposition",
                  "--run", "--data-dir", d],
                 cwd=str(_REPO_ROOT), capture_output=True, text=True,
             )
@@ -850,7 +850,7 @@ class TestCLI(unittest.TestCase):
             (Path(d) / capm_mod.EQUITY_FILENAME).write_text("{bad", encoding="utf-8")
             proc = subprocess.run(
                 [sys.executable, "-m",
-                 "spa_core.paper_trading.capm_decomposition",
+                 "spa_core.analytics_lab.capm_decomposition",
                  "--check", "--data-dir", d],
                 cwd=str(_REPO_ROOT), capture_output=True, text=True,
             )
@@ -862,7 +862,7 @@ class TestCLI(unittest.TestCase):
             self._seed(d)
             proc = subprocess.run(
                 [sys.executable, "-m",
-                 "spa_core.paper_trading.capm_decomposition",
+                 "spa_core.analytics_lab.capm_decomposition",
                  "--check", "--run", "--data-dir", d],
                 cwd=str(_REPO_ROOT), capture_output=True, text=True,
             )
@@ -898,7 +898,7 @@ class TestImportHygiene(unittest.TestCase):
 
     def test_py_compile_both(self):
         import py_compile
-        for fname in ("paper_trading/capm_decomposition.py",
+        for fname in ("analytics_lab/capm_decomposition.py",
                       "tests/test_capm_decomposition.py"):
             with self.subTest(fname=fname):
                 py_compile.compile(
