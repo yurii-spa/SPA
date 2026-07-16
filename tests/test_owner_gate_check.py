@@ -90,6 +90,22 @@ def test_dynamic_yield_read_is_clean():
     assert not any(v["klass"] == "B" for v in vs), vs
 
 
+def test_baked_literal_with_dynamic_token_same_line_gates_B():
+    # FAIL-OPEN closer: a hardcoded "30% net APY" must gate even when an UNRELATED
+    # dynamic token sits elsewhere on the same line. The old line-level suppressor let
+    # this ship silently (any {snap.x} on the line killed the Class-B match).
+    vs = _added("landing/src/pages/x.astro",
+                "<p>Fixed 30% net APY — live now: {snap.paper_apy_pct}%</p>")
+    assert any(v["klass"] == "B" for v in vs), vs
+
+
+def test_dynamic_token_adjacent_to_percent_still_exempt():
+    # The exemption still holds when the dynamic read is ADJACENT to the percent — the
+    # span window keeps genuine dynamic reads out of Class B.
+    vs = _added("landing/src/pages/x.astro", "APY up to {snap.max}% net")
+    assert not any(v["klass"] == "B" for v in vs), vs
+
+
 def test_spa_expansion_change_gates_C():
     vs = _added("landing/src/pages/x.astro", "SPA — Super Profit Alliance")
     assert any(v["klass"] == "C" for v in vs), vs
