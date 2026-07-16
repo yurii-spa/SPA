@@ -23,7 +23,7 @@ import unittest
 import tempfile
 from pathlib import Path
 
-from spa_core.paper_trading import sterling_burke_ratio as sb_mod
+from spa_core.analytics_lab import sterling_burke_ratio as sb_mod
 from spa_core.paper_trading import drawdown_analytics
 from spa_core.paper_trading import drawdown_attribution
 from spa_core.reporting import tear_sheet
@@ -756,7 +756,7 @@ class TestCLI(unittest.TestCase):
     def test_subprocess_check(self):
         proc = subprocess.run(
             [sys.executable, "-m",
-             "spa_core.paper_trading.sterling_burke_ratio", "--check"],
+             "spa_core.analytics_lab.sterling_burke_ratio", "--check"],
             cwd=str(_REPO_ROOT), capture_output=True, text=True,
         )
         self.assertEqual(proc.returncode, 0)
@@ -769,7 +769,7 @@ class TestCLI(unittest.TestCase):
 
 class TestImportHygiene(unittest.TestCase):
     _MODULE_PATH = (
-        _REPO_ROOT / "spa_core" / "paper_trading" / "sterling_burke_ratio.py"
+        _REPO_ROOT / "spa_core" / "analytics_lab" / "sterling_burke_ratio.py"
     )
     _FORBIDDEN = frozenset({
         "requests", "httpx", "aiohttp", "urllib3",
@@ -819,7 +819,7 @@ class TestImportHygiene(unittest.TestCase):
 
     def test_py_compile_both(self):
         import py_compile
-        for fname in ("paper_trading/sterling_burke_ratio.py",
+        for fname in ("analytics_lab/sterling_burke_ratio.py",
                       "tests/test_sterling_burke_ratio.py"):
             with self.subTest(fname=fname):
                 py_compile.compile(
