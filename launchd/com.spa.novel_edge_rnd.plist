@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.spa.novel_edge_rnd — «агент-искатель новых возможностей» (owner-requested 2026-07-16).
+  Runs the standing R&D directive ~/.claude/scheduled-tasks/novel-edge-rnd/SKILL.md TWICE A WEEK
+  (Tue + Fri, 04:00 local). Replaces the ad-hoc roadmap-loop (stopped 2026-07-15) with a dedicated,
+  owner-visible scheduler. Arming flag SPA_RND_ARMED=1 (inert without it). bash-wrapper + /tmp logs
+  (invariant #12). All advisory/paper; deploy of any NEW agent stays owner-gated (card).
+  Kill = launchctl bootout gui/$(id -u)/com.spa.novel_edge_rnd (или снять SPA_RND_ARMED).
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.spa.novel_edge_rnd</string>
+
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>/Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_novel_edge_rnd.sh</string>
+	</array>
+
+	<key>WorkingDirectory</key>
+	<string>/Users/yuriikulieshov/Documents/SPA_Claude</string>
+
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>SPA_RND_ARMED</key>
+		<string>1</string>
+	</dict>
+
+	<key>RunAtLoad</key>
+	<false/>
+
+	<!-- Дважды в неделю: вторник (2) и пятница (5), 04:00 local. -->
+	<key>StartCalendarInterval</key>
+	<array>
+		<dict>
+			<key>Weekday</key>
+			<integer>2</integer>
+			<key>Hour</key>
+			<integer>4</integer>
+			<key>Minute</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>Weekday</key>
+			<integer>5</integer>
+			<key>Hour</key>
+			<integer>4</integer>
+			<key>Minute</key>
+			<integer>0</integer>
+		</dict>
+	</array>
+
+	<key>StandardOutPath</key>
+	<string>/tmp/spa_novel_edge_rnd.plist.out.log</string>
+
+	<key>StandardErrorPath</key>
+	<string>/tmp/spa_novel_edge_rnd.plist.err.log</string>
+</dict>
+</plist>
