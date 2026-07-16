@@ -244,9 +244,28 @@ def iter_cards(cards: Iterable[Card]) -> Iterable[Card]:
     return cards
 
 
+# Cyrillic → Latin transliteration so Russian card titles produce READABLE filenames
+# (e.g. "Добавить кнопку наверх" → "dobavit-knopku-naverh") instead of collapsing to the
+# opaque fallback "note". This is for internal card filenames ONLY — NOT site copy, where
+# transliteration is forbidden (.claude/rules/site-copy.md, memory ru-copy-quality-no-translit).
+_CYR_TRANSLIT = {
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e", "ж": "zh",
+    "з": "z", "и": "i", "й": "i", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o",
+    "п": "p", "р": "r", "с": "s", "т": "t", "у": "u", "ф": "f", "х": "h", "ц": "ts",
+    "ч": "ch", "ш": "sh", "щ": "sch", "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu",
+    "я": "ya",
+}
+
+
+def _translit(text: str) -> str:
+    """Best-effort Cyrillic→Latin for readable ASCII slugs. Non-Cyrillic passes through."""
+    return "".join(_CYR_TRANSLIT.get(ch, ch) for ch in text)
+
+
 def _slug(text: str, maxlen: int = 40) -> str:
-    """ASCII-safe slug for a filename; falls back to 'note' if empty (e.g. Cyrillic-only)."""
-    s = re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")
+    """Readable ASCII slug for a filename; transliterates Cyrillic first so Russian
+    titles stay human-readable. Falls back to 'note' only if truly nothing survives."""
+    s = re.sub(r"[^a-z0-9]+", "-", _translit((text or "").lower())).strip("-")
     return (s[:maxlen].strip("-")) or "note"
 
 
@@ -271,8 +290,12 @@ def create_card(
 ) -> Path:
     """Create a new tracker card as a `trackerStatus`-frontmatter markdown file.
 
-    Deterministic given ``now`` (pass one in tests). Filename:
-    ``<tracker_type>-<UTCstamp>-<slug>.md`` in ``tracker_dir`` (default TRACKER_DIR).
+    Deterministic given ``now`` (pass one in tests). Filename is built from a HUMAN
+    slug of the title — ``<tracker_type>-<slug>.md`` (e.g. ``inbox-dobavit-knopku.md``) —
+    so cards are readable; the UTC timestamp is no longer in the name (it lived only to
+    disambiguate, and made IDs opaque — owner feedback inbox-task-readable-card-ids). A
+    short numeric suffix is appended ONLY on collision (``-2``, ``-3`` …). The date is
+    still recorded in the ``created:`` frontmatter field.
     Never sets ``owner-done`` (owner-only) — callers create in an open state.
     """
     if status == OWNER_ONLY_STATUS:
@@ -280,13 +303,12 @@ def create_card(
     d = Path(tracker_dir) if tracker_dir is not None else TRACKER_DIR
     d.mkdir(parents=True, exist_ok=True)
     dt = now or datetime.now(timezone.utc)
-    stamp = dt.strftime("%Y%m%d-%H%M%S")
     date_str = dt.strftime("%Y-%m-%d")
 
-    base = f"{tracker_type}-{stamp}-{_slug(title)}"
+    base = f"{tracker_type}-{_slug(title)}"
     path = d / f"{base}.md"
-    n = 1
-    while path.exists():  # collision guard (same-second cards)
+    n = 2
+    while path.exists():  # collision guard → readable numeric suffix (-2, -3, …)
         path = d / f"{base}-{n}.md"
         n += 1
 
