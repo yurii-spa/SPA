@@ -103,6 +103,13 @@ def run_note_intake(now: datetime | None = None) -> dict:
         except Exception as exc:  # noqa: BLE001 — history-check не должен ронять приём
             log.warning("intake history_check failed for %s: %s — продолжаю как NEW", card.id, exc)
 
+        # PARTIAL (§1a): карточку СОЗДАТЬ, но пометить «похоже на …, проверь» — и в
+        # ТЕЛЕ карточки (её увидит полный цикл), и в Telegram-ответе владельцу.
+        partial_body = (f"\n\n> ⚠️ Проверка истории: похоже на уже существующее — {partial_note}\n"
+                        f"> Проверь: это то же самое или новое?\n" if partial_note else "")
+        partial_tg = (f"\n⚠️ Похоже на уже существующее — проверь: {html.escape(partial_note)}"
+                      if partial_note else "")
+
         try:
             kind, resp = classify_and_answer(body)
         except Exception as exc:  # noqa: BLE001 — карточка ждёт обычного цикла
@@ -114,29 +121,32 @@ def run_note_intake(now: datetime | None = None) -> dict:
                 ideas = _REPO / "docs" / "ideas"
                 ideas.mkdir(parents=True, exist_ok=True)
                 fpath = ideas / f"{dt.strftime('%Y-%m-%d')}-{_slug(card.title)}.md"
-                atomic_save_text(f"# {card.title}\n\n_Из Inbox {dt.strftime('%Y-%m-%d')} (source: {card.fields.get('source','')})._\n\n{body}\n", str(fpath))
+                atomic_save_text(f"# {card.title}\n\n_Из Inbox {dt.strftime('%Y-%m-%d')} (source: {card.fields.get('source','')})._\n{partial_body}\n{body}\n", str(fpath))
                 set_status(card.path, "done")
-                _notify(f"💡 Записал как идею: <b>{html.escape(card.title)}</b>")
+                _notify(f"💡 Записал как идею: <b>{html.escape(card.title)}</b>{partial_tg}")
             elif kind == "unclear":
                 q = resp or "Уточни: это вопрос или задача?"
                 create_card(
                     "owner-decision",
                     f"Уточнение по заметке: {card.title}",
                     body=(f"## Что случилось и почему это важно\nПришло сообщение, непонятно — вопрос это или задача.\n\n"
-                          f"Текст: «{body}»\n\n## Что от тебя нужно\n{q}\n\n"
+                          f"Текст: «{body}»{partial_body}\n\n## Что от тебя нужно\n{q}\n\n"
                           f"## Как понять, что готово\nТы уточнил.\n\n## Что будет после\nОбработаю по твоему ответу."),
                     status="needs-owner", source="intake",
                 )
                 set_status(card.path, "done")
-                _notify(f"❓ Есть вопрос — смотри карточку: {html.escape(q)}")
+                _notify(f"❓ Есть вопрос — смотри карточку: {html.escape(q)}{partial_tg}")
             else:  # task
                 # вписать критерий (полную декомпозицию делает обычный цикл), статус in-progress
+                append = ""
                 if "Как понять, что готово" not in body:
-                    txt = card.path.read_text(encoding="utf-8").rstrip() + \
-                        "\n\n## Как понять, что готово\nЗадача выполнена и проверена (детали — обычный цикл).\n"
+                    append += "\n\n## Как понять, что готово\nЗадача выполнена и проверена (детали — обычный цикл).\n"
+                append += partial_body  # PARTIAL-пометку увидит полный цикл в теле карточки
+                if append:
+                    txt = card.path.read_text(encoding="utf-8").rstrip() + append
                     atomic_save_text(txt, str(card.path))
                 set_status(card.path, "in-progress")
-                _notify(f"📥 Создал задачу: <b>{html.escape(card.title)}</b>")
+                _notify(f"📥 Создал задачу: <b>{html.escape(card.title)}</b>{partial_tg}")
             processed.append(card.id)
         except Exception as exc:  # noqa: BLE001 — карточка остаётся new → обычный цикл
             log.warning("intake route failed for %s: %s — leaving as new", card.id, exc)
