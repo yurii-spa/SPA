@@ -17,7 +17,6 @@ Claude запускается лишь для классификации (ask_ro
 from __future__ import annotations
 
 import logging
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -34,11 +33,6 @@ def _notify(text: str) -> None:
         TelegramBot().send_message(text, parse_mode="HTML")
     except Exception as exc:  # noqa: BLE001 — уведомление не должно ронять интейк
         log.warning("intake notify failed: %s", exc)
-
-
-def _slug(text: str, n: int = 40) -> str:
-    s = re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")
-    return (s[:n].strip("-")) or "note"
 
 
 def _journal_history(dt: datetime, card, verdict: str, response: str) -> None:
@@ -63,6 +57,7 @@ def run_note_intake(now: datetime | None = None) -> dict:
     import html
 
     from spa_core.owner_queue.queue import (
+        _slug,  # каноническая версия с Cyrillic→Latin транслитом (DRY — не дублировать)
         create_card,
         ingest_notes,
         list_cards,
