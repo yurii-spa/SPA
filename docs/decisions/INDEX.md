@@ -16,6 +16,7 @@
 | ADR-YL-012 | SPA Swarm — 5-слойный рой над aggressive-доменом (advisory) | Accepted | [ADR-YL-012](ADR-YL-012-spa-swarm.md) (charter `docs/SWARM_ARCHITECTURE.md`) |
 | ADR-OWN-2026-07 | Пакет закрытых решений владельца (июль 2026) | Accepted | [ADR-OWN-2026-07](ADR-OWN-2026-07-owner-decisions-batch.md) |
 | ADR-OWN-2026-07 (autoship) | Автономный авто-шип сайта под owner-gate (full auto-ship, owner-approved) | Accepted | [ADR-OWN-2026-07-autoship](ADR-OWN-2026-07-autoship.md) |
+| ADR-OWN-2026-07 (lead-pings) | Мгновенный Telegram-пинг о крупных/B2B заявках (Q-OWN-16, one-shot key) | Accepted | [ADR-OWN-2026-07-lead-pings](ADR-OWN-2026-07-lead-pings.md) |
 | ADR-TEST | Smoke-test контура владельца (ENV_SETUP v3, Этап 8) | Accepted | [ADR-TEST](ADR-TEST-smoke-2026-07-15.md) |
 
 ## Соглашения
