@@ -121,15 +121,33 @@ class EthenaSusdeAdapter(BaseAdapter):
     def _get_json(self, url: str) -> Any:
         return _http_get_json(url, self.timeout, opener=self._http_get)
 
-    @staticmethod
-    def _norm_apy(value: Any) -> Optional[float]:
-        """Normalise a raw APY to a decimal. Values > 1.0 are treated as percent."""
-        if not isinstance(value, (int, float)):
+    @classmethod
+    def _norm_apy(cls, value: Any) -> Optional[float]:
+        """Normalise a raw APY to a sane DECIMAL, or ``None`` (fail-CLOSED).
+
+        Values > 1.0 are treated as percent (``/100``). A normalised value that
+        falls outside the adapter's sanity band ``[MIN_APY, MAX_APY]`` is a bad
+        or mis-scaled read — e.g. a percent yield-collapse to <1% that the
+        ``>1.0`` heuristic mis-classifies as an already-decimal 90% — and is
+        REJECTED (``None``) rather than allowed to flow into the silent
+        :meth:`_clamp`, which would fabricate a plausible-looking ~50% APY,
+        defeat the advisory anomaly flag and hide the collapse exactly when it
+        matters. Refusal-first / fail-CLOSED (invariant #2), matching the
+        ``apy_contract`` philosophy: the caller then falls through to the next
+        source / cached-stale instead of publishing a made-up number.
+
+        ``bool``/non-numeric/``NaN``/``inf`` also fail closed. The normal
+        operating band (0–50%) is entirely unaffected.
+        """
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
             return None
         v = float(value)
-        if v != v:  # NaN guard
+        if v != v or v in (float("inf"), float("-inf")):  # NaN / inf guard
             return None
-        return v / 100.0 if v > 1.0 else v
+        v = v / 100.0 if v > 1.0 else v
+        if v < cls.MIN_APY or v > cls.MAX_APY:  # out-of-band → fail-closed
+            return None
+        return v
 
     def _fetch_primary(self) -> Optional[float]:
         """Try the Ethena public APIs. Return APY decimal or None."""
