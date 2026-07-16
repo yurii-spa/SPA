@@ -4,7 +4,7 @@
 > Живые оперативные цифры — `docs/SYSTEM_BRIEFING.md` (auto, 30 мин). Здесь — фокус,
 > задачи, решения, вопросы. **Максимум ~150 строк.**
 
-_Обновлено: 2026-07-16 (автономный цикл #11: очередь пуста → hardening — регресс-тесты `spa_core/owner_queue/notify.py` (owner-Telegram, инвариант #8 human-in-the-loop; был покрыт лишь 1 happy-path тест): +9 тестов — dry_run без бота, basename-fallback out-of-repo, HTML-escape, и КЛЮЧЕВОЙ инвариант «уведомление НИКОГДА не роняет оркестратор» (бот бросает/falsy → проглочено). Тесты только, `notify.py` не менял. 9/9 + 64 смежных зелёные. Предыдущий #10: fix owner-notify пути в `safe_site_push.py`)_
+_Обновлено: 2026-07-16 (автономный цикл #12: очередь пуста → hardening — регресс-тесты `scripts/orchestrator_queue.py` (CLI-обёртка, через которую LaunchAgent-оркестратор дёргает ВЕСЬ протокол list/set-status/create/ingest-notes/promotions/notify; на origin 0 тестов): +17 сквозных `main(argv=…)`-тестов — exit-коды, JSON-контракт, **инвариант #14 owner-done→REFUSED** в set-status И create, create/ingest/promotions/notify (send замокан, бот не тронут). Тесты только, CLI не менял. 17/17 + 75 смежных зелёные. Предыдущий #11: регресс-тесты `owner_queue/notify.py`)_
 ---
 
 ## 🎯 Текущий фокус
@@ -46,6 +46,19 @@ _Обновлено: 2026-07-16 (автономный цикл #11: очеред
 
 ## 🗂️ Последние решения (одной строкой → ADR)
 
+- **Hardening (автономный цикл, 2026-07-16, #12):** очередь пуста (inbox/owner-done/promotions=0; `ingest-notes`
+  без свободных заметок) → диверсифицировал от внутренностей `owner_queue`/адаптеров на уровень **точки входа**:
+  `scripts/orchestrator_queue.py` — детерминированный CLI, через который LaunchAgent-оркестратор
+  (`com.spa.orchestrator`) КАЖДЫЙ цикл дёргает весь протокол (`list`/`set-status`/`create`/`ingest-notes`/
+  `promotions`/`notify`); на origin **0 выделенных тестов**. +17 сквозных `main(argv=…)`-тестов
+  (`spa_core/tests/test_orchestrator_queue_cli.py`, новый): exit-коды, JSON-контракт `_card_dict`, фильтры;
+  **инвариант #14 `owner-done`→REFUSED exit 2** в `set-status` И `create` (карточка не тронута/не создана);
+  `create` (файл+путь+дефолт-статус+`--field`+`--body-file`), `ingest-notes` (пусто / русская заметка→карточка),
+  `promotions` (JSON+human через мок), `notify` (**`--check` НЕ идёт в send-путь** / обычный send «OK» с верным
+  path+dry_run — реальный бот/Keychain НЕ тронут, замокан). Герметично: `queue.TRACKER_DIR`/`INBOX_NOTES_DIR`→tmp,
+  модуль по файловому пути (`importlib`, `scripts/`≠пакет). CLI НЕ менял — только тесты (инвариант #16). 17/17 +
+  75 смежных зелёные. Пуш кодом+STATE+journal на origin. НЕ трогал risk/kill/трек/site/агентов; owner-done не
+  ставил. Детали — journal `2026-W29.md`.
 - **Hardening (автономный цикл, 2026-07-16, #11):** очередь пуста (inbox/owner-done/promotions=0) →
   диверсифицировал от owner_queue-slug/intake/адаптеров/`safe_site_push` → соседний НЕпокрытый файл того же
   human-in-the-loop контура: `spa_core/owner_queue/notify.py` (owner-Telegram уведомление, инвариант #8).
