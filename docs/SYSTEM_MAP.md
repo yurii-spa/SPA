@@ -32,12 +32,27 @@ rtmr_sense, telegram_bot.
 proof-gate + owner-gate + numbers-lint + site_freshness + site_content_audit + spa_alerts. `deploy-landing.yml`
 = НЕ canonical (mirror, dispatch-only). Канонический деплой сайта = CF Pages git-integration (не workflow).
 
-## WS-A · Файлы репозитория (по подсистемам)
-_spa_core/{adapters,risk,governance,paper_trading,strategy_lab,swarm,monitoring,execution,api,reporting,
-telegram,owner_queue} · scripts/ · data/ · docs/ · корень. Инвентарь каждого файла: роль, живой/мёртвый,
-кто использует, дубли/junk._
+## WS-A · Файлы репо (PASS 1: money-path + risk, аудит 2026-07-16)
+Подсистемы pass-1: `adapters`(57) · `risk`(22) · `governance`(6) · `paper_trading`(96) · `execution`(30)
+= **211 модулей**. Метод: import-граф по репо + `-m` entry-points. ~110 🟢 живых · ~40 🟡 · ~60 🔴.
 
-⚪ _ждёт_
+- 🟢 **Инвариант подтверждён:** `risk/policy.py` — единственный hard-гейт RiskPolicy v1.0 («approved=False
+  не переопределяется»); `governance/policy.py` — это authority-table (НЕ конкурирующий гейт, но имя путает).
+  `kill_switch.py`, `ssot.py`, ядро cycle_runner, зарегистрированные адаптеры — живы.
+- 🔴 **Крупнейший жир: ~45 аналитических модулей в `paper_trading/`** (advanced_ratios, deflated_sharpe,
+  tail_risk, monte_carlo_projection … — построены+тестированы, но 0 live-импортов, не подключены к циклу/
+  репортингу/API). → развязать в `spa_core/analytics_lab/` ИЛИ подключить в один tear-sheet.
+- 🔴 **Явно мёртвые (0/0 или помечены REMOVED):** `adapters/{gmx_glp_arbitrum_adapter, radiant_arbitrum_adapter}`
+  (в `__init__` прямо «REMOVED/dead»), `adapters/{config, l2_adapters, base_migration}`,
+  `risk/{position_validator, strategy_stress_ranking}`, `execution/cutover_scorecard`, `governance/cpa_governance_watcher`.
+- 🔴 **Дубли:** `adapters/compound_v3.py` vs `compound_v3_adapter.py` (один рынок); `execution/defillama_apy_feed.py`
+  vs `adapters/defillama_feed.py`.
+- 🟡 **Архитектура:** ТРИ параллельных реестра адаптеров (`__init__.ADAPTER_REGISTRY` / `adapter_registry.py`
+  / `registry.py`) → свести к 1; `risk/policy_enforcer.py` caps сверить с `policy.py` (memory: stale caps);
+  naming-коллизии `policy` (risk/governance/enforcer/hy/lp); 4 имени Pendle PT; execution помечать `frozen@paper`.
+- ⚠️ **Инвариант #16:** test-only модули НЕ двигать молча — attic = переместить модуль+тест ВМЕСТЕ или подключить.
+
+_Осталось (pass 2+): strategy_lab, swarm, monitoring, api, reporting, telegram, owner_queue, scripts, docs, root._
 
 ## WS-C · Сайт (аудит 2026-07-16)
 **~103 `.astro`-страницы** + 2 генератора (sitemap/rss, детерминированные). noindex через meta: 12
