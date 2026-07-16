@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: Q6: уведомления о заявках
-status: backlog
+status: done
 source: session-2026-07-16
 created: 2026-07-16
 ---
