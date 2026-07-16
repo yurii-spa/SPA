@@ -41,6 +41,23 @@ def _slug(text: str, n: int = 40) -> str:
     return (s[:n].strip("-")) or "note"
 
 
+def _journal_history(dt: datetime, card, verdict: str, response: str) -> None:
+    """Дописать результат проверки истории (Шаг 1a) в журнал недели (owner-directive)."""
+    try:
+        from spa_core.utils.atomic import atomic_save_text
+
+        jdir = _REPO / "docs" / "journal"
+        jdir.mkdir(parents=True, exist_ok=True)
+        iso = dt.isocalendar()
+        jf = jdir / f"{iso[0]}-W{iso[1]:02d}.md"
+        prev = jf.read_text(encoding="utf-8") if jf.exists() else f"# Journal · {iso[0]}-W{iso[1]:02d}\n"
+        entry = (f"\n- **История-чек [{verdict}]** для «{card.title}» "
+                 f"(source: {card.fields.get('source','')}): {response[:300]}")
+        atomic_save_text(prev.rstrip() + entry + "\n", str(jf))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("_journal_history failed: %s", exc)
+
+
 def run_note_intake(now: datetime | None = None) -> dict:
     """Разобрать новые inbox-заметки/карточки. Returns {'processed': [...], 'urgent': bool}."""
     import html
@@ -67,6 +84,30 @@ def run_note_intake(now: datetime | None = None) -> dict:
         body = (card.body or card.title).strip()
         if "срочно" in body.lower():
             urgent = True
+
+        # ── Шаг 1a — ПРОВЕРКА ИСТОРИИ (owner-directive 2026-07-16) ──────────────
+        # Не дубль ли это? Уже сделано / в работе / осознанно отклонено → НЕ плодить
+        # карточку, ответить человечески + журнал. PARTIAL → создать, но пометить.
+        partial_note = ""
+        try:
+            from spa_core.owner_queue.history_check import history_check, is_duplicate
+
+            hc = history_check(body)
+            verdict = hc.get("verdict", "NEW")
+            resp_h = hc.get("response", "")
+            if is_duplicate(verdict):
+                icon = {"DONE": "✅", "IN_PROGRESS": "🔧", "REJECTED": "🚫"}.get(verdict, "ℹ️")
+                _notify(f"{icon} {html.escape(resp_h or 'нашёл совпадение в памяти — дубль не создаю')}")
+                _journal_history(dt, card, verdict, resp_h)
+                set_status(card.path, "done")
+                processed.append(card.id)
+                continue
+            if verdict == "PARTIAL" and resp_h:
+                partial_note = resp_h
+                _journal_history(dt, card, "PARTIAL", resp_h)
+        except Exception as exc:  # noqa: BLE001 — history-check не должен ронять приём
+            log.warning("intake history_check failed for %s: %s — продолжаю как NEW", card.id, exc)
+
         try:
             kind, resp = classify_and_answer(body)
         except Exception as exc:  # noqa: BLE001 — карточка ждёт обычного цикла
