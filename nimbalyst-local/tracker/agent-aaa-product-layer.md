@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent-task
 title: 🅰🅰🅰 Продуктовый слой агентов (супер-студия)
-status: blocked
+status: in-progress
 source: session-2026-07-16
 created: 2026-07-16
 ---
