@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Добавить живого человека и рабочую почту на страницу /pilot
-status: needs-owner
+status: ingested
 priority: medium
 owner: yuriycooleshov@gmail.com
 blocks: Доверие и конверсия на /pilot (куда приходят клиенты)
@@ -29,3 +29,6 @@ Cloudflare Email Routing — письма будут форвардиться н
 
 ## Что будет после
 Добавлю человека на /pilot и заменю личный Gmail на рабочий адрес по всему сайту.
+
+## Ответ владельца (2026-07-16, в чате) → инжест
+Отложить: сначала разобраться зачем /pilot, решать после запуска продуктового слоя.

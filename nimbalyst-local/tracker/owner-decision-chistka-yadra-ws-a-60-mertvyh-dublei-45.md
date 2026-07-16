@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Чистка ядра (WS-A): ~60 мёртвых/дублей + 45 аналитич. модулей раздувают paper_trading — greenlight подход"
-status: needs-owner
+status: ingested
 source: audit
 created: 2026-07-16
 ---
@@ -37,3 +37,6 @@ RiskPolicy/kill-switch/цикл не трогаю. Каждый шаг — в м
   shadow allocator/registry) — часть с тестами (двигать модуль+тест вместе, инвариант #16).
 - **Дубли/развязки:** gas-monitor триплет, reporting HF-стек, shadow-пакет — свести/в attic.
 Полная карта — `docs/SYSTEM_MAP.md`. По greenlight (п.1 сразу, п.2 направление) начинаю attic-проход с тестами.
+
+## Ответ владельца (2026-07-16, в чате) → инжест
+Аналитику → analytics_lab (не удалять). → agent-analytics-lab.

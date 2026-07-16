@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Одобрить новый вид дашборда (превью готово) — переносить на живой?
-status: needs-owner
+status: ingested
 priority: medium
 owner: yuriycooleshov@gmail.com
 blocks: Пересборка /dashboard в формат DeBank
@@ -36,3 +36,6 @@ legacy_id: Q-OWN-19
 числа читаются динамически, страница каноническая/индексируемая. Собрано в изолированном worktree
 (build exit 0), запушено, **проверено в браузере на живом https://earn-defi.com/dashboard** — shell,
 KPI, Fleet, пересобранный overview на месте. Ждёт финального owner-done владельца.
+
+## Ответ владельца (2026-07-16, в чате) → инжест
+Промоутлено на живой /dashboard, проверено. Готово.

@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Подтвердить формулировку списка раннего доступа (waitlist)
-status: needs-owner
+status: ingested
 priority: low
 owner: yuriycooleshov@gmail.com
 blocks: Механика раннего доступа (M7)
@@ -27,3 +27,6 @@ legacy_id: Q-OWN-13
 ## Что будет после
 Соберу механику списка ожидания с этой формулировкой — без фейковых чисел и без обещаний раньше
 времени.
+
+## Ответ владельца (2026-07-16, в чате) → инжест
+Формулировку waitlist отложить до продуктового слоя (CMO).

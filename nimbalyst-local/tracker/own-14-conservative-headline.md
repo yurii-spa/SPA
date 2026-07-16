@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Выбрать одно «главное» число доходности Conservative на сайте
-status: needs-owner
+status: ingested
 priority: medium
 owner: yuriycooleshov@gmail.com
 blocks: Доверие к числам на сайте (три разных числа сейчас)
@@ -26,3 +26,6 @@ legacy_id: Q-OWN-14
 
 ## Что будет после
 Приведу все поверхности сайта к одному числу (заголовок), «up to» оставлю как band-контекст.
+
+## Ответ владельца (2026-07-16, в чате) → инжест
+«до 6%» главным + ~3.3% реализовано рядом (честно). → agent-site-numbers.

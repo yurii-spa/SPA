@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Мгновенный Telegram-пинг о заявке или оставить в ежедневном дайджесте?
-status: needs-owner
+status: ingested
 priority: medium
 owner: yuriycooleshov@gmail.com
 blocks: Скорость реакции на лиды с /pilot
@@ -26,3 +26,6 @@ Telegram-власть) и держала CI красным. Заявка не т
 
 ## Что будет после
 Если мгновенный — заведу whitelist-key + ADR, заявки начнут приходить сразу отдельным сообщением.
+
+## Ответ владельца (2026-07-16, в чате) → инжест
+Крупные заявки — мгновенный пинг, остальные в дайджест. → agent-lead-pings.

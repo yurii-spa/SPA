@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Выбрать одну расшифровку названия «SPA» для сайта
-status: needs-owner
+status: ingested
 priority: medium
 owner: yuriycooleshov@gmail.com
 blocks: Единый честный бренд на сайте
@@ -33,3 +33,6 @@ Algorithm» (в разделе FAQ) и «Stablecoin Portfolio Algorithm» (в о
 ## Что будет после
 Приведу все страницы (и английские, и русские) к выбранному имени и зафиксирую решение отдельной
 записью, чтобы расхождение больше не возвращалось.
+
+## Ответ владельца (2026-07-16, в чате) → инжест
+Расшифровку «SPA» на сайте НЕ показывать (просто SPA). → agent-site-numbers.

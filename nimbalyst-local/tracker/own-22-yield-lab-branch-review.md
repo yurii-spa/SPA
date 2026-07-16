@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Ревью ветки yield-lab-scaffolding — мержить или оставить как есть
-status: needs-owner
+status: ingested
 priority: medium
 owner: yuriycooleshov@gmail.com
 blocks: Судьба research-слоя Yield Lab (173 файла)
@@ -41,3 +41,6 @@ CLAUDE.md/.gitignore-extends. Если хочешь часть уже сейча
 ## Что будет после
 Оставить — ветка стоит нетронутой (уже зафиксирована в `MIGRATION_FREEZE.md`). Точечно/мерж —
 исполню под новым протоколом (dedup, без конфликтов, с записью), CLAUDE.md кондснс сохраню.
+
+## Ответ владельца (2026-07-16) → инжест
+Отвечено в интерактивной сессии Q&A; исполняю. Мои задачи видны в трекере Agent Tasks.

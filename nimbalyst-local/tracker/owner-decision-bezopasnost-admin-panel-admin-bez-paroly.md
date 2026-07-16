@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Безопасность: admin-панель /admin без пароля — закрыть за Cloudflare Access"
-status: needs-owner
+status: ingested
 source: audit
 created: 2026-07-16
 ---
@@ -32,3 +32,6 @@ Access»**. То есть `/admin/*` УЖЕ гейтится Cloudflare Access (
 косметика: убрать УСТАРЕВШИЙ коммент в `landing/src/pages/admin/index.astro` («access control = Phase 5,
 no auth yet»), который вводит в заблуждение. Карточку можно закрывать (owner-done) — реального действия
 по доступу не требуется. Извини за ложную тревогу — урок: проверять живое, не только код.
+
+## Ответ владельца (2026-07-16, в чате) → инжест
+Ложная тревога — /admin за Cloudflare Access. Готово.

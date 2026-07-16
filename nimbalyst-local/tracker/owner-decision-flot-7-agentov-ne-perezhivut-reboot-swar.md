@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Флот: 7 агентов не переживут reboot (swarm+DR) — разрешить сделать reboot-safe"
-status: needs-owner
+status: ingested
 source: audit
 created: 2026-07-16
 ---
@@ -25,3 +25,6 @@ golive_freshness/resilience сначала реконструирую их plist
 
 ## Что будет после
 При (а): реконструирую 2 недостающих plist, прогоняю installer через gate, проверяю реестром → 0 проблем.
+
+## Ответ владельца (2026-07-16, в чате) → инжест
+Да, сделано — реестр 0 проблем, все reboot-safe.

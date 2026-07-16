@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Как автоматизировать публичный research-changelog (heartbeat сайта)
-status: needs-owner
+status: ingested
 priority: low
 owner: yuriycooleshov@gmail.com
 blocks: Авто-обновление публичного changelog / RSS
@@ -29,3 +29,6 @@ legacy_id: Q-OWN-20
 
 ## Что будет после
 Соберу по выбранному варианту (код генератора уже готов в любом случае).
+
+## Ответ владельца (2026-07-16, в чате) → инжест
+Отложить — часть CMO-слоя (AAA).

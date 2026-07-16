@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "🅰🅰🅰 Продуктовый слой агентов (Head of Product + R&D продукта + продвижение) — построить"
-status: needs-owner
+status: ingested
 source: owner
 created: 2026-07-16
 ---
@@ -32,3 +32,6 @@ docs/ADR_004_two_layer_agents.md, docs/CMO_EDITORIAL_LAYER.md, docs/{08,09,10}_*
 (builder), `docs/ADR_004_two_layer_agents.md` (архитектор/dev_agents), `docs/CMO_EDITORIAL_LAYER.md` (CMO).
 Доки прямо: «No autonomous agents run in production — architecture only». → AAA = АКТИВИРОВАТЬ спроектированный
 слой (живые агенты из схем, как swarm), не рисовать заново.
+
+## Ответ владельца (2026-07-16, в чате) → инжест
+Записано как AAA (супер-студия), разбор отдельной сессией. → agent-aaa-product-layer.

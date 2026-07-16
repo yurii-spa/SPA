@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Поставить git-тег verifier-v1.2 — неизменяемая ссылка на верификатор
-status: needs-owner
+status: ingested
 priority: low
 owner: yuriycooleshov@gmail.com
 blocks: Immutable-ссылка на публичный верификатор
@@ -29,3 +29,6 @@ git push origin verifier-v1.2
 ## Что будет после
 Перепишу ссылку верификатора на immutable-тег вместо `main`.
 _(Не срочно: main-ссылка + SHA-пин уже дают целостность.)_
+
+## Ответ владельца (2026-07-16, в чате) → инжест
+Да, ставлю тег verifier-v1.2. → agent-verifier-tag.
