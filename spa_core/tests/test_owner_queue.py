@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import textwrap
 from pathlib import Path
 
@@ -130,7 +131,9 @@ def test_create_card_roundtrips(tmp_path):
         tracker_dir=tmp_path, now=dt,
     )
     assert p.exists()
-    assert p.name.startswith("inbox-20260715-134500-")  # cyrillic title → slug 'note'
+    # Readable filename from a transliterated Cyrillic title — no opaque timestamp, no 'note'
+    # fallback (owner feedback inbox-task-readable-card-ids).
+    assert p.name == "inbox-prover-dashbord-na-telefone.md"
     c = load_card(p)
     assert c.tracker_type == "inbox"
     assert c.title == "Проверь дашборд на телефоне"
@@ -141,6 +144,29 @@ def test_create_card_roundtrips(tmp_path):
     # picked up by a type-filtered scan
     got = list_cards(tracker_type="inbox", status="new", tracker_dir=tmp_path)
     assert len(got) == 1 and got[0].id == p.stem
+
+
+def test_create_card_readable_slug_no_timestamp(tmp_path):
+    # Russian title → readable transliterated slug; no 14-digit timestamp in the name.
+    p = create_card("inbox", "Добавить кнопку наверх", tracker_dir=tmp_path)
+    assert p.name == "inbox-dobavit-knopku-naverh.md"
+    assert not re.search(r"\d{8}-\d{6}", p.name)
+
+
+def test_create_card_collision_gets_readable_suffix(tmp_path):
+    # Same title twice → base name, then '-2', '-3' (readable, not a timestamp).
+    p1 = create_card("inbox", "Починить график", tracker_dir=tmp_path)
+    p2 = create_card("inbox", "Починить график", tracker_dir=tmp_path)
+    p3 = create_card("inbox", "Починить график", tracker_dir=tmp_path)
+    assert p1.name == "inbox-pochinit-grafik.md"
+    assert p2.name == "inbox-pochinit-grafik-2.md"
+    assert p3.name == "inbox-pochinit-grafik-3.md"
+
+
+def test_slug_fallback_when_nothing_survives(tmp_path):
+    # A title with no transliterable/ASCII content still yields a valid, unique name.
+    p = create_card("inbox", "★☆✦", tracker_dir=tmp_path)
+    assert p.name == "inbox-note.md"
 
 
 def test_create_card_refuses_owner_done(tmp_path):
