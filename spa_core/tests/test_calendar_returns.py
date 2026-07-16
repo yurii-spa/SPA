@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from spa_core.paper_trading.calendar_returns import (
+from spa_core.analytics_lab.calendar_returns import (
     _compound_pct,
     compute_day_of_week,
     compute_monthly_returns,
