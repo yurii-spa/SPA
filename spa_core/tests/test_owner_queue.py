@@ -154,6 +154,60 @@ def test_create_card_title_with_yaml_chars_is_quoted(tmp_path):
     assert c.title == "fix: the API: broken #now"
 
 
+def test_create_card_without_status_defaults_by_type(tmp_path):
+    # No explicit status → must still be visible in a status-filtered scan (not dead-letter).
+    p_own = create_card("owner-decision", "решение владельца", "тело", tracker_dir=tmp_path)
+    assert load_card(p_own).status == "needs-owner"
+    got = list_cards(tracker_type="owner-decision", status="needs-owner", tracker_dir=tmp_path)
+    assert [c.id for c in got] == [p_own.stem]
+
+    p_in = create_card("inbox", "задача", "тело", tracker_dir=tmp_path)
+    assert load_card(p_in).status == "new"
+
+    # Unknown tracker type falls back to "new", never blank.
+    p_unk = create_card("mystery", "x", tracker_dir=tmp_path)
+    assert load_card(p_unk).status == "new"
+
+
+def test_create_card_always_emits_top_level_status_line(tmp_path):
+    p = create_card("owner-decision", "нет статуса", "тело", tracker_dir=tmp_path)
+    fm = p.read_text(encoding="utf-8").split("---")[1]
+    assert any(ln.strip().startswith("status:") for ln in fm.splitlines())
+
+
+def test_set_status_repairs_status_less_card(tmp_path):
+    # Reproduce a legacy dead-letter card: valid frontmatter but NO status: line.
+    card = tmp_path / "owner-decision-broken.md"
+    card.write_text(
+        textwrap.dedent(
+            """\
+            ---
+            trackerStatus:
+              type: owner-decision
+            title: "сломанная карточка"
+            source: telegram
+            created: 2026-07-15
+            ---
+
+            body
+            """
+        ),
+        encoding="utf-8",
+    )
+    # Invisible until repaired.
+    assert load_card(card).status == ""
+    assert list_cards(tracker_type="owner-decision", status="needs-owner", tracker_dir=tmp_path) == []
+
+    set_status(card, "needs-owner")
+
+    assert load_card(card).status == "needs-owner"
+    got = list_cards(tracker_type="owner-decision", status="needs-owner", tracker_dir=tmp_path)
+    assert [c.id for c in got] == ["owner-decision-broken"]
+    # Repair must never smuggle in the owner-only status.
+    with pytest.raises(OwnerDoneForbidden):
+        set_status(card, "owner-done")
+
+
 def test_ingest_notes(tmp_path):
     notes = tmp_path / "notes"
     track = tmp_path / "track"
