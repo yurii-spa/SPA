@@ -7,3 +7,4 @@
 | Дата | Файл (откуда) | Причина подозрения | Как вернуть |
 |---|---|---|---|
 | 2026-07-16 | com.spa.morning_digest.plist + agent_morning_digest.sh (launchd/, scripts/) | Переиспользовал РЕТАЙРЕННЫЙ лейбл morning_digest (в RETIRED_LABELS) под work-digest → коллизия/drift. Переименован в com.spa.work_digest. | вернуть = git mv назад + re-bootstrap |
+| 2026-07-16 | 49 одноразовых скриптов (push_*.sh, install one-shots, .command, migrate/backfill, .plist.disabled — все 0-ref) → scripts/archive/ | WS-A аудит: вытеснены push_to_github.py/install_all_agents.sh; 594 уже там | git mv назад из scripts/archive/ |
