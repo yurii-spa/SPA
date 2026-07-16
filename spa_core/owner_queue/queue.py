@@ -36,6 +36,12 @@ TRACKER_DIR = Path(os.environ.get("SPA_TRACKER_DIR", _REPO_ROOT / "nimbalyst-loc
 # Owner-only terminal status the agent must never set (CLAUDE.md invariant #14).
 OWNER_ONLY_STATUS = "owner-done"
 
+# Sensible default status per tracker type when a card is created without one.
+# Guards against status-less "dead-letter" cards: a card with no top-level ``status:``
+# line is invisible to every status filter (including the owner's needs-owner queue)
+# AND unfixable by set_status. Any unknown tracker type falls back to "new".
+_DEFAULT_STATUS = {"owner-decision": "needs-owner", "inbox": "new"}
+
 
 class OwnerDoneForbidden(RuntimeError):
     """Raised when code attempts to set a card to ``owner-done`` (owner-only)."""
@@ -200,7 +206,10 @@ def set_status(path: str | Path, new_status: str) -> None:
             replaced = True
             break
     if not replaced:
-        raise ValueError(f"{p}: no top-level 'status:' line found in frontmatter")
+        # Repair a status-less card (dead-letter): insert a top-level 'status:' line as
+        # the last frontmatter entry, right before the closing '---'. Without this, a card
+        # created with no status is invisible to every filter AND unfixable by this tool.
+        lines.insert(end, f"status: {new_status}\n")
 
     atomic_save_text("".join(lines), str(p))
 
@@ -281,9 +290,11 @@ def create_card(
         path = d / f"{base}-{n}.md"
         n += 1
 
+    # Always emit a status line (never a dead-letter card): fall back to the tracker's
+    # default when the caller passes none.
+    effective_status = status or _DEFAULT_STATUS.get(tracker_type, "new")
     lines = ["---", "trackerStatus:", f"  type: {tracker_type}", f"title: {_yaml_escape(title)}"]
-    if status:
-        lines.append(f"status: {status}")
+    lines.append(f"status: {effective_status}")
     if source:
         lines.append(f"source: {source}")
     lines.append(f"created: {date_str}")
