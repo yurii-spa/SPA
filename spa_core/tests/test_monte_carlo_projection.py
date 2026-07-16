@@ -18,7 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from spa_core.paper_trading.monte_carlo_projection import (
+from spa_core.analytics_lab.monte_carlo_projection import (
     DEFAULT_CONFIDENCE_LEVELS,
     compute_monte_carlo_projection,
     generate_monte_carlo_report,
