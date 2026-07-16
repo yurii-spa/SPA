@@ -111,6 +111,12 @@ _RE_DYNAMIC = re.compile(
     r"|\.toFixed\(|fmtPct|fmtUsd|f\.[a-z_]+|props\.",
     re.IGNORECASE,
 )
+# The dynamic-read exemption is applied per MATCH SPAN, not per whole line: only a
+# dynamic token WITHIN this many chars of a baked percent suppresses it. A wider (line-
+# level) suppressor let a hardcoded "30% net APY" ship whenever any unrelated dynamic
+# token ({snap.x}, props.) sat elsewhere on the same line — a fail-OPEN. Kept small so an
+# adjacent `{apy}%` / `.toFixed()%` read is still exempt but a distant literal still gates.
+_DYNAMIC_WINDOW = 6
 # Class C — a "SPA" brand expansion that differs from canon.
 _CANON_SPA_EXPANSION = "smart passive aggregator"
 _RE_SPA_EXPANSION = re.compile(
@@ -342,8 +348,11 @@ def _scan_free_text(
         if sign == "+":
             if _RE_SOLICIT.search(text):
                 out.append(_v(path, line, "A", "solicitation", text.strip(), "added"))
-            if _RE_YIELD_NUMBER.search(text) and not _RE_DYNAMIC.search(text):
-                out.append(_v(path, line, "B", "yield.number.literal", text.strip(), "added"))
+            for m in _RE_YIELD_NUMBER.finditer(text):
+                window = text[max(0, m.start() - _DYNAMIC_WINDOW): m.end() + _DYNAMIC_WINDOW]
+                if not _RE_DYNAMIC.search(window):
+                    out.append(_v(path, line, "B", "yield.number.literal", text.strip(), "added"))
+                    break
             m = _RE_SPA_EXPANSION.search(text)
             if m and " ".join(g for g in m.groups() if g).lower() != _CANON_SPA_EXPANSION:
                 out.append(_v(path, line, "C", "spa.expansion", text.strip(), "added"))
