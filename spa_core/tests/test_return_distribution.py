@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from spa_core.paper_trading.return_distribution import (
+from spa_core.analytics_lab.return_distribution import (
     DEFAULT_BINS,
     DEFAULT_CONFIDENCE_LEVELS,
     compute_return_distribution,
