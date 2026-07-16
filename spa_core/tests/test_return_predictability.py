@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from spa_core.paper_trading.return_predictability import (
+from spa_core.analytics_lab.return_predictability import (
     DEFAULT_EMBED_DIM,
     SAMPEN_M,
     _approx_entropy,
