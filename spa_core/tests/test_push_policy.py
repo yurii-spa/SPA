@@ -210,3 +210,37 @@ def test_send_false_flag_runs_gate_without_transport(tmp_path, sent):
     assert push_policy.push_critical(
         "kill_switch", "CRITICAL", "k", "f", data_dir=str(tmp_path), send=False
     ) is False
+
+
+# ── one-shot keys (leads) — bypass edge-trigger, keep the ceiling ─────────────
+def test_oneshot_lead_pushes_every_occurrence(tmp_path, sent):
+    # pilot_request is a ONESHOT key: each lead is a distinct real event, so unlike the
+    # edge-trigger keys it must push on EVERY occurrence (not go silent on the 2nd).
+    assert "pilot_request" in push_policy.TIER1_WHITELIST
+    assert "pilot_request" in push_policy.ONESHOT_KEYS
+    for i in range(3):
+        assert push_policy.push_critical(
+            "pilot_request", "INFO", f"lead {i}", "b", data_dir=str(tmp_path)
+        ) is True
+    assert len(sent) == 3  # all three pinged (edge-trigger would have sent only 1)
+
+
+def test_oneshot_lead_respects_daily_ceiling(tmp_path, sent):
+    # Under a ceiling of 2, the 1st+2nd leads push, the 3rd coalesces once (single notice),
+    # the 4th is demoted to the digest — the flood guard still applies to one-shot keys.
+    for i in range(4):
+        push_policy.push_critical(
+            "pilot_request", "INFO", f"lead {i}", "b",
+            data_dir=str(tmp_path), daily_ceiling=2, now=_dt(day=2),
+        )
+    # 2 real pushes + 1 coalesced notice = 3 sends; 4th demoted (not sent).
+    assert len(sent) == 3
+    assert "ceiling" in sent[-1].lower()
+    queued = push_policy.drain_digest_queue(data_dir=str(tmp_path), clear=False)
+    assert any(i["reason"] == "ceiling_exceeded" for i in queued)
+
+
+def test_oneshot_lead_never_records_persistent_bad_state(tmp_path, sent):
+    # A one-shot push must NOT leave a persistent "bad" state (that would silence the next lead).
+    push_policy.push_critical("pilot_request", "INFO", "lead", "b", data_dir=str(tmp_path))
+    assert push_policy.current_state("pilot_request", data_dir=str(tmp_path)) == "ok"
