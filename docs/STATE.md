@@ -4,7 +4,7 @@
 > Живые оперативные цифры — `docs/SYSTEM_BRIEFING.md` (auto, 30 мин). Здесь — фокус,
 > задачи, решения, вопросы. **Максимум ~150 строк.**
 
-_Обновлено: 2026-07-15 (ручной снимок при setup среды v3, ветка `env-setup-v3`)._
+_Обновлено: 2026-07-16 (автономный цикл оркестратора: owner-gate hardening, ветка `env-setup-v3`)._
 
 ---
 
@@ -46,6 +46,11 @@ _Обновлено: 2026-07-15 (ручной снимок при setup сред
 
 ## 🗂️ Последние решения (одной строкой → ADR)
 
+- **Hardening (автономный цикл, 2026-07-16):** закрыт **fail-open в owner-gate**
+  (`scripts/check_owner_gate.py`, Class B) — line-level dynamic-suppressor пропускал запечённое число
+  доходности, если на строке был динамический токен (`{snap.x}`); теперь подавление per-span
+  (`_DYNAMIC_WINDOW=6`, строго fail-CLOSED). +2 регресс-теста, 17 зелёных. Пуш кодом (не ADR — правит баг,
+  не меняет решение/пороги). Детали — journal `2026-W29.md`.
 - **Автономный цикл (2026-07-15, inbox-569xl):** исполнена owner-задача из Telegram — написана
   [`docs/CHECKUP_NOTIFICATIONS_SPEC.md`](CHECKUP_NOTIFICATIONS_SPEC.md) (уведомления DeFi Checkup:
   e-mail+Telegram, deeplink по $-материальности, weekly digest, honesty-gated). Дизайн-документ, НЕ код;
