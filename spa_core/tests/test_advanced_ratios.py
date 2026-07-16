@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from spa_core.paper_trading.advanced_ratios import (
+from spa_core.analytics_lab.advanced_ratios import (
     ANNUALIZATION_DAYS,
     TAIL_LOWER_PCT,
     TAIL_UPPER_PCT,
