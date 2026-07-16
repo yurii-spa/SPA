@@ -18,7 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from spa_core.paper_trading.capm_decomposition import (
+from spa_core.analytics_lab.capm_decomposition import (
     period_returns,
     flat_daily_return,
     covariance,
