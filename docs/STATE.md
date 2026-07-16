@@ -4,7 +4,7 @@
 > Живые оперативные цифры — `docs/SYSTEM_BRIEFING.md` (auto, 30 мин). Здесь — фокус,
 > задачи, решения, вопросы. **Максимум ~150 строк.**
 
-_Обновлено: 2026-07-16 (бэклог владельца: **Q2 analytics_lab ЗАВЕРШЁН** — 27 измерительных модулей вынесены из paper_trading в `spa_core/analytics_lab/` (owner-approved, сырьё для будущего продуктового слоя); импорты+пути тестов переписаны только для 27 имён, `collect-only` 102 608/0 ошибок, целевые 821 passed, origin консистентен (27 модулей + 30 тестов + 27 оригиналов удалены, 0 висячих ссылок). **Bootstrap-пункт ЗАВЕРШЁН** — `nimbalyst-local/tracker/_BOARD.md` (обзор всех 57 карточек по типу+статусу, «ждёт владельца» вверху; авто-регенерится `scripts/build_tracker_board.py` + на каждой мутации через orchestrator_queue) + указатели в CLAUDE.md §1 и memory. **Q6 ЗАВЕРШЁН** — крупные/B2B заявки → мгновенный Telegram-пинг (`pilot_request` one-shot Tier-1 key), прочие → дайджест; детерминированный `_is_material_lead` (B2B-домен/early_access/aggressive), daily-ceiling сохранён, ADR-OWN-lead-pings, 92/92 тестов. АКТИВАЦИЯ: apiserver подхватит новый `interest.py` при следующем рестарте (self-heal/reboot). Предыдущий #13: fail-safe тесты ask_router)_
+_Обновлено: 2026-07-16/17 (автономный цикл #15: +34 регресс-теста на `scripts/check_owner_gate.py` — fail-CLOSED интерлок авто-шипа сайта, 0 тестов на origin; модуль не менял, инвариант #16. Ранее: **Q2 analytics_lab ЗАВЕРШЁН** — 27 измерительных модулей вынесены из paper_trading в `spa_core/analytics_lab/` (owner-approved, сырьё для будущего продуктового слоя); импорты+пути тестов переписаны только для 27 имён, `collect-only` 102 608/0 ошибок, целевые 821 passed, origin консистентен (27 модулей + 30 тестов + 27 оригиналов удалены, 0 висячих ссылок). **Bootstrap-пункт ЗАВЕРШЁН** — `nimbalyst-local/tracker/_BOARD.md` (обзор всех 57 карточек по типу+статусу, «ждёт владельца» вверху; авто-регенерится `scripts/build_tracker_board.py` + на каждой мутации через orchestrator_queue) + указатели в CLAUDE.md §1 и memory. **Q6 ЗАВЕРШЁН** — крупные/B2B заявки → мгновенный Telegram-пинг (`pilot_request` one-shot Tier-1 key), прочие → дайджест; детерминированный `_is_material_lead` (B2B-домен/early_access/aggressive), daily-ceiling сохранён, ADR-OWN-lead-pings, 92/92 тестов. АКТИВАЦИЯ: apiserver подхватит новый `interest.py` при следующем рестарте (self-heal/reboot). Предыдущий #13: fail-safe тесты ask_router)_
 ---
 
 ## 🎯 Текущий фокус
@@ -46,6 +46,24 @@ _Обновлено: 2026-07-16 (бэклог владельца: **Q2 analytics
 
 ## 🗂️ Последние решения (одной строкой → ADR)
 
+- **Hardening (автономный цикл, 2026-07-16/17, #15):** очередь пуста (inbox/owner-done/promotions/
+  loose-notes=0) → hardening, диверсифицировал от owner_queue/адаптеров/CLI/router/monitoring →
+  **safety-critical fail-CLOSED gate** `scripts/check_owner_gate.py` (интерлок авто-шипа сайта,
+  ADR-OWN-2026-07-autoship; не даёт автономно уехать owner-gated правке — числа доходности/нейминг
+  тиров/«SPA»/legal/solicitation/удаление honesty-токенов). На origin **0 тестов**, регресс здесь =
+  fail-OPEN (owner-gated число мимо владельца в прод). +34 герметичных теста
+  (`spa_core/tests/test_check_owner_gate.py`, новый): `_changed_paths_and_hunks` (diff-hunk +/-),
+  `_scan_free_text` классы A–E + **КЛЮЧЕВОЙ per-span dynamic-window fail-OPEN регресс** (далёкий
+  `{snap.x}` НЕ подавляет baked «30% net APY»; соседний — exempt), tier_bands/track_snapshot field-diff,
+  custodian-exemption не подделываема (без data→False), **end-to-end через одноразовый git-repo**
+  (git-range: чистая правка→shippable / baked число→GATED / owner-approval bypass только валидным
+  `Owner-Approved: own-NN` при `owner-done`-карточке с покрывающим scope; non-owner-done/без трейлера→нет
+  bypass; `list_cards` замокан, owner-done не пишется — инвариант #14). Модуль НЕ менял (только тесты,
+  инвариант #16). 34/34 зелёные, `--collect-only` чист (90 032). **Наблюдение (НЕ чинил молча):** на
+  origin предсуществующе красны 3 теста `test_orchestrator_queue_cli.py` (`create`→авто-реген `_BOARD.md`
+  пишет в реальный tracker → `FileNotFoundError` в монкипатченном tmp; test-isolation баг цикла #12, не
+  прод) — падают и без моего файла, оставил сигнал будущему циклу. Пуш кодом+STATE+journal, verified на
+  origin. НЕ трогал risk/kill/трек/site/агентов; owner-done не ставил. Детали — journal `2026-W29.md`.
 - **Hardening (автономный цикл, 2026-07-16, #14):** очередь пуста (inbox/owner-done/promotions/loose-notes=0)
   → hardening, диверсифицировал от owner_queue/адаптеров/CLI/router → домен **monitoring**:
   `spa_core/monitoring/data_freshness_monitor.py` — self-детектор устаревания данных site/monitoring-контура
