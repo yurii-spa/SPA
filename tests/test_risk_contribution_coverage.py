@@ -18,7 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from spa_core.paper_trading.risk_contribution import (
+from spa_core.analytics_lab.risk_contribution import (
     _num,
     normalize_protocol,
     _classify_risk,
