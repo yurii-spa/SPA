@@ -18,11 +18,20 @@ SPA — автономный DeFi yield-optimizer на стадии **paper trad
 
 ## 🟢 Протокол сессии (ОБЯЗАТЕЛЬНО)
 
-1. **В начале каждой сессии** прочитать:
-   - `docs/STATE.md` — текущий фокус, активные задачи, последние решения, вопросы владельцу;
-   - `docs/decisions/INDEX.md` — реестр ADR;
-   - `docs/SYSTEM_BRIEFING.md` — живой оперативный статус (auto, 30 мин). Без него нельзя
-     утверждать «всё работает / агенты живы / portfolio в порядке».
+1. **В начале каждой сессии** (и после сжатия контекста / в новом окне) прочитать — чтобы НЕ быть
+   «новым сотрудником без понятия что за агенты и что за dev-слой» (owner-directive 2026-07-16):
+   - **`docs/SYSTEM_MAP.md`** — живая карта ВСЕЙ системы: каждый из 58 агентов (по ролям), страницы сайта,
+     код по подсистемам, ПОЧЕМУ так устроено (+ `data/agent_registry.json` / дашборд `/admin/agents`);
+   - **`nimbalyst-local/tracker/*.md`** — ВСЕ карточки в ОДНОМ месте (чтобы задачи не терялись):
+     `own-*`/`owner-decision-*` = Owner Decisions (ждёт владельца) · `agent-*` = Agent Tasks (что делает
+     агент: backlog/in-progress/blocked/done) · `inbox-*` = задания;
+   - **`docs/OWNER_BACKLOG_<дата>.md`** — свежие решения владельца из Q&A-сессий;
+   - **агент-архитектура (2 слоя):** `docs/ADR_004_two_layer_agents.md` (dev vs product), `docs/10_agent_architecture.md`
+     + `docs/08_ai_investment_os_architecture.md` (16 аналитиков), `docs/CMO_EDITORIAL_LAYER.md` (продвижение) —
+     СПРОЕКТИРОВАНЫ, ждут активации (AAA-таск «продуктовый слой / супер-студия»);
+   - `docs/STATE.md` — фокус, активные задачи, последние решения; `docs/decisions/INDEX.md` — реестр ADR;
+   - `docs/SYSTEM_BRIEFING.md` — живой оперативный статус (auto, 30 мин). Без него нельзя утверждать
+     «всё работает / агенты живы / portfolio в порядке».
 2. **Перед изменением risk-логики** (`spa_core/risk/`, kill-switch, gates) — прочитать
    соответствующий ADR в `docs/decisions/` и правило `.claude/rules/risk-engine.md`.
 3. **В конце цикла оркестратор ОБЯЗАН** обновить `docs/STATE.md` и дописать `docs/journal/<неделя>.md`.
