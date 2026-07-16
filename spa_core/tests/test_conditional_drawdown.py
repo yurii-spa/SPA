@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from spa_core.paper_trading.conditional_drawdown import (
+from spa_core.analytics_lab.conditional_drawdown import (
     DEFAULT_CONFIDENCES,
     compute_conditional_drawdown,
     generate_conditional_drawdown_report,
