@@ -48,7 +48,7 @@ from typing import Any, Dict, List
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT))
 
-from spa_core.paper_trading import apy_dispersion_analytics as ad
+from spa_core.analytics_lab import apy_dispersion_analytics as ad
 from spa_core.reporting import tear_sheet as ts
 
 _MODULE_PATH = Path(ad.__file__)
@@ -994,7 +994,7 @@ class TestCliSubprocess(_TmpBase):
     def _run(self, *args):
         return subprocess.run(
             [sys.executable, "-m",
-             "spa_core.paper_trading.apy_dispersion_analytics", *args],
+             "spa_core.analytics_lab.apy_dispersion_analytics", *args],
             capture_output=True, text=True, cwd=str(_REPO_ROOT),
         )
 
