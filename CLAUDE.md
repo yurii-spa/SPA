@@ -22,7 +22,9 @@ SPA — автономный DeFi yield-optimizer на стадии **paper trad
    «новым сотрудником без понятия что за агенты и что за dev-слой» (owner-directive 2026-07-16):
    - **`docs/SYSTEM_MAP.md`** — живая карта ВСЕЙ системы: каждый из 58 агентов (по ролям), страницы сайта,
      код по подсистемам, ПОЧЕМУ так устроено (+ `data/agent_registry.json` / дашборд `/admin/agents`);
-   - **`nimbalyst-local/tracker/*.md`** — ВСЕ карточки в ОДНОМ месте (чтобы задачи не терялись):
+   - **`nimbalyst-local/tracker/_BOARD.md`** — ЕДИНЫЙ ОБЗОР всех карточек одним взглядом (по типу+статусу,
+     вверху «ждёт владельца»); авто-индекс, регенерится `scripts/build_tracker_board.py` + сам на каждой
+     мутации карточки. Читать ЕГО первым, не открывая 56 файлов. Сами карточки — `nimbalyst-local/tracker/*.md`:
      `own-*`/`owner-decision-*` = Owner Decisions (ждёт владельца) · `agent-*` = Agent Tasks (что делает
      агент: backlog/in-progress/blocked/done) · `inbox-*` = задания;
    - **`docs/OWNER_BACKLOG_<дата>.md`** — свежие решения владельца из Q&A-сессий;
