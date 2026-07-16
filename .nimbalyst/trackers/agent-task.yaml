@@ -1,0 +1,35 @@
+# Agent Tasks tracker — что делает АГЕНТ (в отличие от Owner Decisions = что нужно от владельца).
+# Чтобы владелец видел в Nimbalyst: что в бэклоге, что в работе, что готово. Источник правды — эти
+# markdown-карточки в git (nimbalyst-local/tracker/agent-*.md). Nimbalyst рендерит как kanban.
+type: agent-task
+displayName: Agent Task
+displayNamePlural: Agent Tasks
+icon: robot
+color: "#0891b2"
+
+modes:
+  inline: false
+  fullDocument: true
+
+idPrefix: agent
+idFormat: ulid
+
+fields:
+  - name: title
+    type: string
+    required: true
+  - name: status
+    type: select
+    default: backlog
+    options:
+      - value: backlog
+        label: Backlog
+      - value: in-progress
+        label: In Progress
+      - value: blocked
+        label: Blocked (ждёт владельца)
+      - value: done
+        label: Done
+  - name: source
+    type: string
+    required: false
