@@ -90,18 +90,20 @@ def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> N
     try:
         from spa_core.owner_queue.queue import create_card  # type: ignore
 
-        card = create_card(
-            card_type="owner-decision",
+        # create_card returns the full Path to the new card (queue.py). Pass the FULL
+        # path to notify — a bare basename would not resolve against TRACKER_DIR and
+        # load_card would FileNotFoundError, silently dropping the owner notification.
+        card_path = create_card(
+            tracker_type="owner-decision",
             title="Сайт: автономная правка задела owner-gated область — нужно решение",
             body=body,
             source="orchestrator",
         )
-        path = getattr(card, "path", None) or getattr(card, "name", "")
-        print(f"safe_site_push: routed to owner card {path}", file=sys.stderr)
+        print(f"safe_site_push: routed to owner card {card_path}", file=sys.stderr)
         try:
             subprocess.run(
                 [sys.executable, str(_REPO_ROOT / "scripts" / "orchestrator_queue.py"),
-                 "notify", str(path)],
+                 "notify", str(card_path)],
                 cwd=str(_REPO_ROOT), timeout=30,
             )
         except Exception:
