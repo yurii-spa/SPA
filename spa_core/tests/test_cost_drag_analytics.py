@@ -22,7 +22,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from spa_core.paper_trading import cost_drag_analytics as cda
+from spa_core.analytics_lab import cost_drag_analytics as cda
 from spa_core.reporting import tear_sheet
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -399,7 +399,7 @@ class TestCLI(unittest.TestCase):
 
     def _subprocess(self, args):
         return subprocess.run(
-            [sys.executable, "-m", "spa_core.paper_trading.cost_drag_analytics", *args],
+            [sys.executable, "-m", "spa_core.analytics_lab.cost_drag_analytics", *args],
             cwd=str(_REPO_ROOT), capture_output=True, text=True,
         )
 
@@ -423,7 +423,7 @@ class TestCLI(unittest.TestCase):
 
 class TestImportHygiene(unittest.TestCase):
     def setUp(self):
-        self.src_path = _REPO_ROOT / "spa_core" / "paper_trading" / "cost_drag_analytics.py"
+        self.src_path = _REPO_ROOT / "spa_core" / "analytics_lab" / "cost_drag_analytics.py"
         self.source = self.src_path.read_text(encoding="utf-8")
 
     def test_no_forbidden_imports(self):
