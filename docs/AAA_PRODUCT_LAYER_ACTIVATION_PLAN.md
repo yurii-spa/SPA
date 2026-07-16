@@ -1,5 +1,14 @@
 # AAA Product-Layer Super-Studio — Activation Plan (2026-07-16)
 
+> ⚠️ **ПОПРАВКА 2026-07-17:** скоуп-субагент сканировал ЛОКАЛЬНОЕ дерево и пропустил, что **прошлая
+> сессия УЖЕ построила интегрированный CMO-слой на origin** (`spa_core/cmo/{honesty_gate,draft_store,
+> template_rewriter,pipeline}.py` + `api/routers/cmo.py` approve/reject + server.py). Мои пуши Шага 1/3
+> ошибочно ПЕРЕЗАПИСАЛИ `honesty_gate.py` дублем (сломал `check_draft`, нужный `template_rewriter`).
+> ИСПРАВЛЕНО: восстановил prior `honesty_gate`+тест; `editorial_agent` переписан в тонкий ЖИВОЙ RUNNER,
+> делегирующий в prior `pipeline.run_pipeline` (не дублирует — это недостающие живой агент+launchd).
+> УРОК: ВСЕГДА `git show origin/main:<path>` перед созданием файла (origin > local — дрейф). Шаг 2
+> (investment_os harness) — genuinely new, конфликтов нет.
+
 > Owner AAA-таск: построить ПРОДУКТОВЫЙ слой агентов, который следит за САМИМ продуктом (развитие · R&D ·
 > продвижение), не только за цифрами. «Супер-студия, которая РЕАЛЬНО трудится (не имитирует) и работает
 > С УМОМ». Архитектура уже спроектирована в доках; задача — **АКТИВИРОВАТЬ** её в живых агентов (как
