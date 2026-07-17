@@ -199,7 +199,7 @@ def atomic_write_via_tmp(path: str) -> Iterator[Path]:
         raise
 
 
-def atomic_update(path: str, update_fn: Callable[[Any], Any], default: Optional[Any] = None) -> Any:
+def atomic_update(path: str, update_fn: Callable[[Any], Any], default: Optional[Any] = _MISSING) -> Any:
     """Read-modify-write helper (single-process contexts only).
 
     For concurrent multi-process access use kanban.increment_done (fcntl.flock).
@@ -207,7 +207,8 @@ def atomic_update(path: str, update_fn: Callable[[Any], Any], default: Optional[
     Args:
         path: File path.
         update_fn: Callable(current_data) -> new_data.
-        default: Seed value if the file does not exist (default: {}).
+        default: Seed value if the file does not exist (default: {}). Pass an explicit
+            ``None`` to have *update_fn* receive ``None`` for an absent file instead.
 
     Returns:
         The new data after update_fn is applied.
