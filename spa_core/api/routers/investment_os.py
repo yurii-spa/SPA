@@ -45,6 +45,9 @@ _ANALYSTS = {
                   "Portfolio exit-liquidity posture — exit score, instantly-exitable $, bottlenecks"),
     "protocol-risk": ("investment_os/protocol_risk.json", "protocol_risk",
                       "Protocol risk-tier distribution + stablecoin peg health; can only RAISE concern"),
+    "yield-quality": ("investment_os/yield_quality.json", "yield_quality",
+                      "Advertised vs SUSTAINABLE yield decomposition + incentive-decay risk (the "
+                      "desk's differentiator: real cash-flow over transient incentive)"),
     "chief-investment": ("investment_os/chief_investment.json", "chief_investment",
                          "Head-of-Product house-view synthesis of all analysts — RECOMMENDS only, "
                          "owner-gated; surfaces conflicts, never decides, moves no capital"),
@@ -118,6 +121,11 @@ def liquidity() -> dict:
 @router.get("/api/investment-os/protocol-risk")
 def protocol_risk() -> dict:
     return _serve("protocol-risk")
+
+
+@router.get("/api/investment-os/yield-quality")
+def yield_quality() -> dict:
+    return _serve("yield-quality")
 
 
 @router.get("/api/investment-os/chief-investment")
