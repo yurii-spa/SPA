@@ -4,7 +4,14 @@
 > Живые оперативные цифры — `docs/SYSTEM_BRIEFING.md` (auto, 30 мин). Здесь — фокус,
 > задачи, решения, вопросы. **Максимум ~150 строк.**
 
-_Обновлено: 2026-07-17 (автономный цикл #16: починен ДВОЙНОЙ прод-баг `scripts/orchestrator_queue.py::_rebuild_board` — (1) реген `_BOARD.md` печатал `wrote …` в stdout, ломая machine-readable контракт `create` (path-only) → 3 красных `create`-теста; (2) билдер игнорировал `queue.TRACKER_DIR` → тесты переписывали git-tracked прод-`_BOARD.md`. Фикс: `redirect_stdout` + наведение борд-билдера на активный tracker; тесты НЕ ослаблял (инв. #16) — правил прод-код. 17/17 (было 3 red) + 41 смежный зелёные; пуш кодом, verified на origin. Ранее — цикл #15: +34 регресс-теста на `scripts/check_owner_gate.py` — fail-CLOSED интерлок авто-шипа сайта, 0 тестов на origin; модуль не менял, инвариант #16. Ранее: **Q2 analytics_lab ЗАВЕРШЁН** — 27 измерительных модулей вынесены из paper_trading в `spa_core/analytics_lab/` (owner-approved, сырьё для будущего продуктового слоя); импорты+пути тестов переписаны только для 27 имён, `collect-only` 102 608/0 ошибок, целевые 821 passed, origin консистентен (27 модулей + 30 тестов + 27 оригиналов удалены, 0 висячих ссылок). **Bootstrap-пункт ЗАВЕРШЁН** — `nimbalyst-local/tracker/_BOARD.md` (обзор всех 57 карточек по типу+статусу, «ждёт владельца» вверху; авто-регенерится `scripts/build_tracker_board.py` + на каждой мутации через orchestrator_queue) + указатели в CLAUDE.md §1 и memory. **Q6 ЗАВЕРШЁН** — крупные/B2B заявки → мгновенный Telegram-пинг (`pilot_request` one-shot Tier-1 key), прочие → дайджест; детерминированный `_is_material_lead` (B2B-домен/early_access/aggressive), daily-ceiling сохранён, ADR-OWN-lead-pings, 92/92 тестов. АКТИВАЦИЯ: apiserver подхватит новый `interest.py` при следующем рестарте (self-heal/reboot). Предыдущий #13: fail-safe тесты ask_router)_
+_Обновлено: 2026-07-17 (автономный цикл #17 — **ночной спринт по owner-директиве** «возьми 6ч, действуй»:
+2 запушенных багфикса + 1 карточка владельцу. **Фикс #1** `spa_core/alerts/daily_report.py` — MaxDD раздувался
+×100 в ежедневном Telegram-отчёте (реальный 0.5% DD → «50%»; `summary.max_drawdown_pct` уже percent, убрал
+устаревшую ветку-домножение; +5 регресс-тестов, origin `3d61e04b`). **Фикс #2** `spa_core/monitoring/anomaly_detector.py`
+— `detect_apy_anomalies` пропускал ИСЧЕЗНУВШИЙ адаптер (шёл по `curr`; теперь `union(prev,curr)` → died-adapter
+даёт `apy_zero`; verified НЕ risk-adjacent; +3 теста, origin `d2eecce0`). **Карточка needs-owner** «peg_monitor слеп»
+(fail-open $1.00, живой adapter_status без полей цены → монитор депега не сработает никогда; risk-adjacent, кормит
+threat_reactor kill-switch → НЕ чинил молча). Ранее — цикл #16: починен ДВОЙНОЙ прод-баг `scripts/orchestrator_queue.py::_rebuild_board` — (1) реген `_BOARD.md` печатал `wrote …` в stdout, ломая machine-readable контракт `create` (path-only) → 3 красных `create`-теста; (2) билдер игнорировал `queue.TRACKER_DIR` → тесты переписывали git-tracked прод-`_BOARD.md`. Фикс: `redirect_stdout` + наведение борд-билдера на активный tracker; тесты НЕ ослаблял (инв. #16) — правил прод-код. 17/17 (было 3 red) + 41 смежный зелёные; пуш кодом, verified на origin. Ранее — цикл #15: +34 регресс-теста на `scripts/check_owner_gate.py` — fail-CLOSED интерлок авто-шипа сайта, 0 тестов на origin; модуль не менял, инвариант #16. Ранее: **Q2 analytics_lab ЗАВЕРШЁН** — 27 измерительных модулей вынесены из paper_trading в `spa_core/analytics_lab/` (owner-approved, сырьё для будущего продуктового слоя); импорты+пути тестов переписаны только для 27 имён, `collect-only` 102 608/0 ошибок, целевые 821 passed, origin консистентен (27 модулей + 30 тестов + 27 оригиналов удалены, 0 висячих ссылок). **Bootstrap-пункт ЗАВЕРШЁН** — `nimbalyst-local/tracker/_BOARD.md` (обзор всех 57 карточек по типу+статусу, «ждёт владельца» вверху; авто-регенерится `scripts/build_tracker_board.py` + на каждой мутации через orchestrator_queue) + указатели в CLAUDE.md §1 и memory. **Q6 ЗАВЕРШЁН** — крупные/B2B заявки → мгновенный Telegram-пинг (`pilot_request` one-shot Tier-1 key), прочие → дайджест; детерминированный `_is_material_lead` (B2B-домен/early_access/aggressive), daily-ceiling сохранён, ADR-OWN-lead-pings, 92/92 тестов. АКТИВАЦИЯ: apiserver подхватит новый `interest.py` при следующем рестарте (self-heal/reboot). Предыдущий #13: fail-safe тесты ask_router)_
 ---
 
 ## 🎯 Текущий фокус
@@ -46,6 +53,18 @@ _Обновлено: 2026-07-17 (автономный цикл #16: почине
 
 ## 🗂️ Последние решения (одной строкой → ADR)
 
+- **Ночной спринт по owner-директиве (автономный цикл, 2026-07-17, #17):** голосовая карточка владельца
+  «возьми 6-часовой спринт, действуй, не останавливайся» → мандат «управляемая автономия». Разведка (3
+  суб-агента) → **5 реальных дефектов**; применил «молча фиксить только безопасное+доказанное».
+  **2 запушенных багфикса:** (1) `daily_report.py` MaxDD ×100 (0.5% DD → «50%» в Telegram-отчёте; `_pct`
+  уже percent, убрал fraction-guess; +5 тестов; `3d61e04b`); (2) `anomaly_detector.py::detect_apy_anomalies`
+  пропускал исчезнувший адаптер (`union(prev,curr)`; verified не risk-adjacent — не кормит kill; +3 теста;
+  `d2eecce0`). Оба: тесты честно красные до фикса, прод-код правил, тесты не ослаблял (инв. #16), чистый
+  чекаут origin зелёный. **1 карточка needs-owner** «peg_monitor слеп» (fail-open $1.00, кормит threat_reactor
+  kill-switch → risk-adjacent, не молча). **3 находки задокументированы как сигналы** (red_flag_monitor
+  per-flag source-mislabel [risk-adjacent]; benchmark_comparator pstdev vs sample-stdev [low-conf/public];
+  daily_report pnl_pct guard [неоднозначно]). НЕ трогал risk/kill/трек/site/агентов; owner-done не ставил;
+  ADR не нужен (багфиксы). Детали — journal `2026-W29.md`.
 - **Hardening (автономный цикл, 2026-07-17, #16):** очередь пуста (inbox/owner-done/promotions/loose-notes=0;
   needs-owner own-07/11/13/17/21 + 212059-apy ждут владельца) → взял сигнал цикла #15: 3 красных
   `test_orchestrator_queue_cli.py::create*`. Корень — ДВА реальных прод-бага в `_rebuild_board`
@@ -261,6 +280,10 @@ _Обновлено: 2026-07-17 (автономный цикл #16: почине
 
 ## ❓ Открытые вопросы владельцу (трекер `nimbalyst-local/tracker/own-*.md`, статус `needs-owner`)
 
+- **peg-monitor-слеп** (`owner-decision-monitor-depega-steiblov-slep-net-istochn.md`, #17) — монитор депега
+  стейблов возвращает $1.00 при отсутствии цены, а живой `adapter_status.json` цен не содержит → тревога о
+  депеге не сработает никогда (fail-open, risk-adjacent: кормит kill-switch). Нужно решение: разрешить фикс
+  (честный `UNKNOWN` без ложного kill) + выбрать источник цены (реком. DeFiLlama).
 - **own-07** — включить письма-подтверждения подписки: `RESEND_API_KEY` + `WALLET_REF_SALT` на прод Railway.
 - **own-08** — единая расшифровка «SPA» на сайте (3 варианта, дрейф). Рекомендация: «Smart Passive Aggregator» везде.
 - **own-11** — /pilot «живой человек» (имя/фото/календарь) + рабочая почта (напр. `invest@earn-defi.com`).
