@@ -49,14 +49,33 @@ def _rebuild_board() -> None:
     """Best-effort regen of nimbalyst-local/tracker/_BOARD.md (single-glance card index for bootstrap).
     Never raises — board is a derived index; card mutation must not fail on its account."""
     try:
+        import contextlib
         import importlib.util
+        import io
+
+        from spa_core.owner_queue import queue as _queue
+
         spec = importlib.util.spec_from_file_location(
             "build_tracker_board",
             str(Path(__file__).resolve().parent / "build_tracker_board.py"),
         )
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-        mod.main()
+        # Point the builder at whichever tracker the CLI is actually operating on
+        # (production: the real tracker; tests: a repointed tmp dir). The builder
+        # otherwise hardcodes the real tracker, so without this a test run would
+        # rewrite the git-tracked production _BOARD.md, and any TRACKER_DIR
+        # repoint would silently regenerate the wrong board.
+        tracker_dir = getattr(_queue, "TRACKER_DIR", None)
+        if tracker_dir is not None:
+            mod.TRACKER = Path(tracker_dir)
+            mod.OUT = mod.TRACKER / mod.OUT.name
+        # The builder prints a "wrote _BOARD.md — N cards" status line. The CLI's
+        # stdout is a machine-readable contract (create prints ONLY the card
+        # path; callers read stdout to obtain it), so keep the builder's chatter
+        # off our stdout.
+        with contextlib.redirect_stdout(io.StringIO()):
+            mod.main()
     except Exception:  # noqa: BLE001
         pass
 
