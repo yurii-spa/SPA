@@ -45,9 +45,10 @@ def test_index_lists_all_with_availability(monkeypatch, tmp_path):
     monkeypatch.setattr(SRV, "_DATA_DIR", tmp_path)
     _seed(tmp_path, "reporting.json", {"agent": "reporting", "status": "ok"})
     out = IO.index()
-    assert out["count"] == 3
+    # robust against adding more analysts: count == registry size; core slugs present.
+    assert out["count"] == len(IO._ANALYSTS)
     by_slug = {a["slug"]: a for a in out["analysts"]}
-    assert set(by_slug) == {"stablecoin-yield", "market-regime", "reporting"}
+    assert {"stablecoin-yield", "market-regime", "reporting"} <= set(by_slug)
     assert by_slug["reporting"]["available"] is True
     assert by_slug["stablecoin-yield"]["available"] is False
     assert by_slug["market-regime"]["endpoint"] == "/api/investment-os/market-regime"
