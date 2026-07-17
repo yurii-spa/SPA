@@ -63,6 +63,29 @@ class TestApyAnomalies(unittest.TestCase):
         kinds = sorted(x.kind for x in a)
         self.assertEqual(kinds, sorted([KIND_APY_ZERO, KIND_APY_SPIKE]))
 
+    def test_vanished_protocol_treated_as_zero(self):
+        # A protocol positive last cycle but ABSENT from curr (adapter died
+        # entirely) must fire apy_zero — the strongest failure mode. Mirrors
+        # detect_position_anomalies.test_position_missing_treated_as_zero.
+        a = detect_apy_anomalies({"comp": 5.0}, {})
+        self.assertEqual(len(a), 1)
+        self.assertEqual(a[0].kind, KIND_APY_ZERO)
+        self.assertEqual(a[0].subject, "comp")
+        self.assertEqual(a[0].new_value, 0.0)
+
+    def test_vanished_alongside_present(self):
+        # One protocol vanishes (→ apy_zero) while another spikes (→ apy_spike).
+        a = detect_apy_anomalies({"gone": 6.0, "up": 4.0}, {"up": 9.0})
+        by_subject = {x.subject: x.kind for x in a}
+        self.assertEqual(by_subject.get("gone"), KIND_APY_ZERO)
+        self.assertEqual(by_subject.get("up"), KIND_APY_SPIKE)
+
+    def test_vanished_but_baseline_zero_no_alert(self):
+        # A protocol that was already 0 (or below _MIN) and then vanishes is not
+        # a "drop from positive" — no false apy_zero.
+        a = detect_apy_anomalies({"z": 0.0}, {})
+        self.assertEqual(a, [])
+
 
 class TestPositionAnomalies(unittest.TestCase):
     def test_position_to_zero(self):
