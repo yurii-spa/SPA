@@ -26,7 +26,8 @@ from spa_core.investment_os.harness import ProductAgent, UNKNOWN
 log = logging.getLogger("spa.investment_os.chief_investment")
 
 # The analyst artifacts this synthesiser consumes (produced by the other product agents).
-_INPUTS = ("stablecoin_yield", "market_regime", "reporting", "red_team", "liquidity")
+_INPUTS = ("stablecoin_yield", "market_regime", "reporting", "red_team", "liquidity",
+           "protocol_risk", "yield_quality")
 
 
 class ChiefInvestmentAgent(ProductAgent):
@@ -78,6 +79,10 @@ class ChiefInvestmentAgent(ProductAgent):
                 "exit_liquidity": exitliq,
                 "threat_posture": threat,
                 "regime": regime,
+                "risk_concerns": {
+                    "protocol_risk": (inputs.get("protocol_risk") or {}).get("concern"),
+                    "yield_quality": (inputs.get("yield_quality") or {}).get("concern"),
+                },
             },
             "coverage": {"available": available, "missing_or_unknown": missing,
                          "n_analysts": len(inputs)},
