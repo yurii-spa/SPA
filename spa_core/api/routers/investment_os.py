@@ -93,6 +93,19 @@ def index() -> dict:
     return {"analysts": analysts, "count": len(analysts), "is_advisory": True, "note": _ADVISORY_NOTE}
 
 
+@router.get("/api/investment-os/health")
+def health() -> dict:
+    """Product-layer health — are the analysts producing fresh, real (non-UNKNOWN) artifacts."""
+    raw = read_state("investment_os/_health.json", {})
+    if not raw or not isinstance(raw, dict):
+        return {"available": False, "overall": "UNKNOWN", "is_advisory": True,
+                "unavailable_reason": "_health.json not produced yet (the io_health monitor has not run)",
+                "note": _ADVISORY_NOTE}
+    out = dict(raw)
+    out["available"] = True
+    return out
+
+
 @router.get("/api/investment-os/stablecoin-yield")
 def stablecoin_yield() -> dict:
     return _serve("stablecoin-yield")
