@@ -52,6 +52,8 @@ _ANALYSTS = {
                 "Protocol developer-activity health — active maintained teams vs abandoned/inactive"),
     "quant": ("investment_os/quant.json", "quant",
               "Backtest↔paper rank correlation — does the model predict reality (ρ≥0.70)"),
+    "market-structure": ("investment_os/market_structure.json", "market_structure",
+                         "Cross-asset correlation risk — high correlation = diversification failure (tail)"),
     "chief-investment": ("investment_os/chief_investment.json", "chief_investment",
                          "Head-of-Product house-view synthesis of all analysts — RECOMMENDS only, "
                          "owner-gated; surfaces conflicts, never decides, moves no capital"),
@@ -153,6 +155,11 @@ def onchain() -> dict:
 @router.get("/api/investment-os/quant")
 def quant() -> dict:
     return _serve("quant")
+
+
+@router.get("/api/investment-os/market-structure")
+def market_structure() -> dict:
+    return _serve("market-structure")
 
 
 @router.get("/api/investment-os/chief-investment")
