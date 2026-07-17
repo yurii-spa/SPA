@@ -31,7 +31,7 @@ _DEFAULT_DIR = _REPO_ROOT / "data" / "investment_os"
 # the analysts this layer runs (keep in sync with the router's _ANALYSTS)
 ANALYSTS: tuple[str, ...] = (
     "stablecoin_yield", "market_regime", "reporting", "red_team", "liquidity",
-    "protocol_risk", "yield_quality", "onchain", "chief_investment",
+    "protocol_risk", "yield_quality", "onchain", "quant", "chief_investment",
 )
 _FRESH_AGE_S = 2 * 86400   # an analyst artifact older than this is STALE (daily agents)
 
