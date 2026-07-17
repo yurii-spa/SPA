@@ -1,0 +1,105 @@
+---
+// /admin/cmo-drafts — CMO editorial draft approval board (flow B: draft → owner approves → publish).
+// The owner-requested "Kanban доски для моих апрувов": read each auto-generated draft (already passed the
+// deterministic honesty-gate), then Approve or Reject. Approve moves it to the approved column (publish is
+// a separate, later step — this board NEVER auto-publishes). Live from /api/cmo/drafts (+ POST approve/
+// reject). admin={true} → noindex/nofollow + CF Access. Fail-safe: API offline shows "офлайн" honestly.
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Operator · CMO Drafts" admin={true}>
+  <main class="cm"><div class="cm-wrap">
+    <h1 class="cm-h1">CMO — черновики на апрув</h1>
+    <p class="cm-sub">Авто-черновики из живого трека (прошли детерминированный <b>honesty-gate</b>: числа сверены с фактами, дисклеймеры на месте, без promissory/оферты). Прочитай и <b>одобри</b> или <b>отклони</b>. Апрув НЕ публикует — публикация отдельным шагом (flow B). Живые данные из <code>/api/cmo/drafts</code>. Ничего не выдумываем; API офлайн — честно «офлайн».</p>
+
+    <div class="cm-bar">
+      <div class="cm-kpi"><div class="k">Черновики</div><div class="v" id="cm-draft">—</div></div>
+      <div class="cm-kpi ok"><div class="k">Одобрено</div><div class="v" id="cm-appr">—</div></div>
+      <div class="cm-kpi bad"><div class="k">Отклонено</div><div class="v" id="cm-rej">—</div></div>
+      <div class="cm-kpi"><div class="k">Опубликовано</div><div class="v" id="cm-pub">—</div></div>
+    </div>
+    <div class="cm-meta"><span id="cm-state">загрузка…</span></div>
+
+    <div class="cm-cols">
+      <div class="cm-col"><div class="cm-col-h">📝 Черновик</div><div id="cm-c-draft"></div></div>
+      <div class="cm-col"><div class="cm-col-h">✅ Одобрено</div><div id="cm-c-approved"></div></div>
+      <div class="cm-col"><div class="cm-col-h">🗄 Опубликовано / Отклонено</div><div id="cm-c-done"></div></div>
+    </div>
+
+    <div class="cm-offline" id="cm-offline" hidden>API офлайн — очередь драфтов сейчас недоступна. Повтор через 20с.</div>
+  </div></main>
+</Layout>
+
+<script is:inline>
+  (function(){
+    var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8765':'https://api.earn-defi.com';
+    function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+    function setOffline(o){document.getElementById('cm-offline').hidden=!o;document.getElementById('cm-state').textContent=o?'офлайн':'онлайн';}
+
+    async function act(id, verb){
+      if(!confirm((verb==='approve'?'Одобрить':'Отклонить')+' черновик '+id+'?'))return;
+      try{
+        var r=await fetch(API+'/api/cmo/drafts/'+encodeURIComponent(id)+'/'+verb,{method:'POST',cache:'no-store'});
+        if(!r.ok)throw 0; tick();
+      }catch(e){alert('Не удалось: '+verb+' '+id+' (API?)');}
+    }
+    window.__cmoAct=act;
+
+    function card(d){
+      var text=(d.gate_passed?d.draft_text:d.fallback_text)||d.draft_text||'';
+      var badge=d.gate_passed?'<span class="b ok">gate ✓</span>':'<span class="b warn">gate: fallback</span>';
+      var viol=(d.gate_violations&&d.gate_violations.length)?'<div class="cm-viol">⚠ '+d.gate_violations.map(esc).join('; ')+'</div>':'';
+      var btns=(d.status==='draft')?
+        '<div class="cm-btns"><button class="ap" onclick="__cmoAct(\''+esc(d.id)+'\',\'approve\')">Одобрить</button>'+
+        '<button class="rj" onclick="__cmoAct(\''+esc(d.id)+'\',\'reject\')">Отклонить</button></div>':'';
+      return '<div class="cm-card"><div class="cm-card-h"><span class="id">'+esc(d.id)+'</span>'+badge+'</div>'+
+        '<div class="cm-date">'+esc(d.date||'')+' · '+esc(d.rewrite_method||'')+'</div>'+
+        '<div class="cm-text">'+esc(text)+'</div>'+viol+btns+'</div>';
+    }
+
+    async function tick(){
+      try{
+        var r=await fetch(API+'/api/cmo/drafts',{cache:'no-store'});
+        if(!r.ok)throw 0; var d=await r.json(); setOffline(false);
+        var drafts=d.drafts||[];
+        var byStatus={draft:[],approved:[],rejected:[],published:[]};
+        drafts.forEach(function(x){(byStatus[x.status]||(byStatus[x.status]=[])).push(x);});
+        document.getElementById('cm-draft').textContent=byStatus.draft.length;
+        document.getElementById('cm-appr').textContent=byStatus.approved.length;
+        document.getElementById('cm-rej').textContent=byStatus.rejected.length;
+        document.getElementById('cm-pub').textContent=byStatus.published.length;
+        document.getElementById('cm-c-draft').innerHTML=byStatus.draft.map(card).join('')||'<div class="cm-empty">пусто</div>';
+        document.getElementById('cm-c-approved').innerHTML=byStatus.approved.map(card).join('')||'<div class="cm-empty">пусто</div>';
+        document.getElementById('cm-c-done').innerHTML=(byStatus.published.concat(byStatus.rejected)).map(card).join('')||'<div class="cm-empty">пусто</div>';
+      }catch(e){setOffline(true);}
+    }
+    tick();setInterval(tick,20000);
+  })();
+</script>
+
+<style>
+  .cm{padding:32px 0 64px}.cm-wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+  .cm-h1{font-size:1.6rem;font-weight:700;margin-bottom:8px}
+  .cm-sub{color:var(--text-muted,#8a8f98);font-size:.9rem;line-height:1.5;margin-bottom:22px;max-width:860px}
+  .cm-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:8px}
+  .cm-kpi{background:var(--bg-surface,#16181d);border:1px solid var(--border,#26282e);border-radius:10px;padding:12px}
+  .cm-kpi .k{font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint,#6a6f78)}
+  .cm-kpi .v{font-size:1.3rem;font-weight:700;font-family:var(--font-mono,monospace);margin-top:3px}
+  .cm-kpi.ok .v{color:#34d399}.cm-kpi.bad .v{color:#f87171}
+  .cm-meta{font-size:.75rem;color:var(--text-faint,#6a6f78);margin-bottom:18px}
+  .cm-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+  .cm-col{background:var(--bg-surface,#101216);border:1px solid var(--border,#26282e);border-radius:12px;padding:12px}
+  .cm-col-h{font-size:.82rem;font-weight:600;margin-bottom:10px;color:var(--text-secondary,#c9ced6)}
+  .cm-card{background:var(--bg-surface,#16181d);border:1px solid var(--border,#2a2d34);border-radius:9px;padding:12px;margin-bottom:10px}
+  .cm-card-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:5px}
+  .cm-card-h .id{font-family:var(--font-mono,monospace);font-size:.72rem;color:var(--text-muted,#8a8f98)}
+  .b{font-size:.64rem;padding:2px 6px;border-radius:5px;font-family:var(--font-mono,monospace)}
+  .b.ok{background:#34d39918;color:#34d399}.b.warn{background:#eab30818;color:#eab308}
+  .cm-date{font-size:.7rem;color:var(--text-faint,#6a6f78);margin-bottom:7px}
+  .cm-text{font-size:.82rem;line-height:1.5;white-space:pre-wrap;color:var(--text-primary,#e6e9ee)}
+  .cm-viol{margin-top:7px;font-size:.72rem;color:#eab308}
+  .cm-btns{margin-top:10px;display:flex;gap:8px}
+  .cm-btns button{flex:1;border:none;border-radius:7px;padding:7px;font-size:.78rem;font-weight:600;cursor:pointer}
+  .cm-btns .ap{background:#34d399;color:#08130d}.cm-btns .rj{background:#2a2d34;color:#f87171;border:1px solid #f8717155}
+  .cm-empty{font-size:.75rem;color:var(--text-faint,#6a6f78);padding:8px;text-align:center}
+  .cm-offline{margin-top:18px;padding:14px;border:1px solid #f8717155;border-radius:10px;color:#f87171;font-size:.85rem}
+</style>
