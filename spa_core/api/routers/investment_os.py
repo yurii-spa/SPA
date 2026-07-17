@@ -38,6 +38,9 @@ _ANALYSTS = {
                       "Unified yield-regime + funding-regime view; combined posture = most-cautious"),
     "reporting": ("investment_os/reporting.json", "reporting",
                   "The desk's OWN evidenced paper track + day-30 review readiness (L6)"),
+    "red-team": ("investment_os/red_team.json", "red_team",
+                 "Adversarial threat posture — can only RAISE concern, never approves; missing/stale "
+                 "threat data → UNKNOWN_CAUTIOUS"),
 }
 
 
@@ -93,3 +96,8 @@ def market_regime() -> dict:
 @router.get("/api/investment-os/reporting")
 def reporting() -> dict:
     return _serve("reporting")
+
+
+@router.get("/api/investment-os/red-team")
+def red_team() -> dict:
+    return _serve("red-team")
