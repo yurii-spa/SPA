@@ -48,6 +48,8 @@ _ANALYSTS = {
     "yield-quality": ("investment_os/yield_quality.json", "yield_quality",
                       "Advertised vs SUSTAINABLE yield decomposition + incentive-decay risk (the "
                       "desk's differentiator: real cash-flow over transient incentive)"),
+    "onchain": ("investment_os/onchain.json", "onchain",
+                "Protocol developer-activity health — active maintained teams vs abandoned/inactive"),
     "chief-investment": ("investment_os/chief_investment.json", "chief_investment",
                          "Head-of-Product house-view synthesis of all analysts — RECOMMENDS only, "
                          "owner-gated; surfaces conflicts, never decides, moves no capital"),
@@ -139,6 +141,11 @@ def protocol_risk() -> dict:
 @router.get("/api/investment-os/yield-quality")
 def yield_quality() -> dict:
     return _serve("yield-quality")
+
+
+@router.get("/api/investment-os/onchain")
+def onchain() -> dict:
+    return _serve("onchain")
 
 
 @router.get("/api/investment-os/chief-investment")
