@@ -205,9 +205,11 @@ class DailyReportBuilder:
             raw_dd = portfolio.get("total_drawdown_pct", None) or 0.0
             # total_drawdown_pct is stored as a fraction (e.g. 0.012 = 1.2%)
             max_dd = raw_dd * 100 if abs(raw_dd) <= 1.0 else raw_dd
-        elif abs(max_dd) <= 1.0 and max_dd != 0.0:
-            # advanced_analytics may also store as fraction
-            max_dd = max_dd * 100
+        # else: summary.max_drawdown_pct is already a PERCENT — the sole producer
+        # (analytics.portfolio_stats.portfolio_summary) returns round(fraction*100).
+        # Do NOT re-scale: the old `elif abs(max_dd)<=1.0: *=100` fraction-guess
+        # inflated every real sub-1% drawdown 100x (a genuine 0.5% DD → "50.0%")
+        # in the owner's daily report — a stablecoin strat's DD is ~always <1%.
 
         # ---- go-live -----------------------------------------------
         verdict      = golive.get("verdict", "NOT_READY")
