@@ -151,10 +151,17 @@ def detect_apy_anomalies(
     anomalies: List[Anomaly] = []
     prev = {k: _coerce_float(v) for k, v in (prev_apys or {}).items()}
     curr = {k: _coerce_float(v) for k, v in (curr_apys or {}).items()}
-    for proto, new_v in curr.items():
+    # Iterate the UNION of protocols (sorted → deterministic order). Iterating only
+    # `curr` missed the strongest failure mode: a protocol that had a positive APY
+    # last cycle but VANISHED from the snapshot entirely (adapter died / dropped
+    # out) never got checked, so the KIND_APY_ZERO "possible adapter failure" alert
+    # could not fire for it. A missing-from-curr protocol is treated as 0.0, exactly
+    # like detect_position_anomalies treats a vanished position (curr.get(proto, 0)).
+    for proto in sorted(set(prev) | set(curr)):
         old_v = prev.get(proto)
         if old_v is None:
             continue  # newly added protocol — no baseline to compare
+        new_v = curr.get(proto, 0.0)  # vanished from curr → 0 (adapter failure)
         # spike: positive baseline, new > 2× old
         if old_v >= _MIN_APY_FOR_SPIKE and new_v > APY_SPIKE_MULTIPLE * old_v:
             anomalies.append(Anomaly(
