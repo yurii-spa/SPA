@@ -43,6 +43,9 @@ _ANALYSTS = {
                  "threat data → UNKNOWN_CAUTIOUS"),
     "liquidity": ("investment_os/liquidity.json", "liquidity",
                   "Portfolio exit-liquidity posture — exit score, instantly-exitable $, bottlenecks"),
+    "chief-investment": ("investment_os/chief_investment.json", "chief_investment",
+                         "Head-of-Product house-view synthesis of all analysts — RECOMMENDS only, "
+                         "owner-gated; surfaces conflicts, never decides, moves no capital"),
 }
 
 
@@ -108,3 +111,8 @@ def red_team() -> dict:
 @router.get("/api/investment-os/liquidity")
 def liquidity() -> dict:
     return _serve("liquidity")
+
+
+@router.get("/api/investment-os/chief-investment")
+def chief_investment() -> dict:
+    return _serve("chief-investment")
