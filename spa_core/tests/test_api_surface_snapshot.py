@@ -196,6 +196,21 @@ GOLDEN_ROUTES = {
     ("/api/cmo/drafts/{draft_id}", ("GET",)),
     ("/api/cmo/drafts/{draft_id}/approve", ("POST",)),
     ("/api/cmo/drafts/{draft_id}/reject", ("POST",)),
+    # Added 2026-07-17 (AAA product-layer activation): the agent-fleet registry surface +
+    # the AI Investment OS read-only analyst surface (index + 9 analysts + health). All advisory/
+    # GET-only; the analysts observe + evidence-tag, never allocate, never gate. docs/08.
+    ("/api/agents/registry", ("GET",)),
+    ("/api/investment-os", ("GET",)),
+    ("/api/investment-os/stablecoin-yield", ("GET",)),
+    ("/api/investment-os/market-regime", ("GET",)),
+    ("/api/investment-os/reporting", ("GET",)),
+    ("/api/investment-os/red-team", ("GET",)),
+    ("/api/investment-os/liquidity", ("GET",)),
+    ("/api/investment-os/protocol-risk", ("GET",)),
+    ("/api/investment-os/yield-quality", ("GET",)),
+    ("/api/investment-os/onchain", ("GET",)),
+    ("/api/investment-os/chief-investment", ("GET",)),
+    ("/api/investment-os/health", ("GET",)),
 }
 
 
@@ -261,7 +276,7 @@ def test_route_count_stable():
     surface (/api/underwriting/report + /proof + /full-chain), FLAG-GATED OFF by default
     (SPA_UNDERWRITING_PUBLISH).)
     """
-    assert len(_app_route_table()) == 130
+    assert len(_app_route_table()) == 142
 
 
 def test_openapi_path_count_stable():
@@ -269,7 +284,7 @@ def test_openapi_path_count_stable():
     from fastapi.testclient import TestClient
     with TestClient(server.app) as c:
         paths = c.get("/openapi.json").json()["paths"]
-    assert len(paths) == 129  # HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
+    assert len(paths) == 141  # HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
 
 
 # ── Representative response-shape snapshot (one endpoint per tag group) ──────────
