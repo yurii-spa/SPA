@@ -1,0 +1,131 @@
+---
+// /admin/investment-os — AI Investment OS console (AAA product-layer, docs/08). Internal ops view of the
+// product super-studio: the Head-of-Product house-view, the per-analyst posture/status, and product-layer
+// health. Live from /api/investment-os (+ /health, /chief-investment). admin={true} → noindex/nofollow +
+// slim operator bar. ADVISORY only — the analysts observe + evidence-tag; they never allocate. Fail-safe:
+// API offline shows "офлайн" honestly, never a fabricated view. Poll ~20s.
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Operator · AI Investment OS" admin={true}>
+  <main class="io"><div class="io-wrap">
+    <h1 class="io-h1">AI Investment OS</h1>
+    <p class="io-sub">Продуктовый слой — аналитики наблюдают за продуктом и помечают всё evidence-тегами (L0–L6). <b>Advisory</b>: капитал не двигают, RiskPolicy/kill/трек не трогают. House-view <b>рекомендует</b>, решает владелец. Живые данные из <code>/api/investment-os</code> (обновление ~20с). Если API офлайн — честно «офлайн».</p>
+
+    <!-- Health + house-view bar -->
+    <div class="io-bar">
+      <div class="io-kpi" id="io-health-kpi"><div class="k">Здоровье слоя</div><div class="v" id="io-health">—</div></div>
+      <div class="io-kpi"><div class="k">Аналитиков</div><div class="v" id="io-count">—</div></div>
+      <div class="io-kpi"><div class="k">Общая позиция (house-view)</div><div class="v" id="io-posture">—</div></div>
+      <div class="io-kpi span"><div class="k">Покрытие</div><div class="v" id="io-coverage">—</div></div>
+    </div>
+    <div class="io-meta"><span id="io-state">загрузка…</span> · <span id="io-gen"></span></div>
+
+    <!-- Head of Product house-view -->
+    <section class="io-sec" id="io-hv-sec" hidden>
+      <div class="io-sec-h">🧭 House-view (Head of Product) <span class="io-gate">owner-gated · рекомендация, не решение</span></div>
+      <div class="io-hv" id="io-hv"></div>
+    </section>
+
+    <!-- Analysts -->
+    <div class="io-sec-h" style="margin-top:28px">Аналитики</div>
+    <div class="io-grid" id="io-grid"></div>
+
+    <div class="io-offline" id="io-offline" hidden>API офлайн — продуктовый слой сейчас недоступен. Ничего не выдумываем; повтор через 20с.</div>
+  </div></main>
+</Layout>
+
+<script is:inline>
+  (function(){
+    var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8765':'https://api.earn-defi.com';
+    var POSTURE_TONE={GREEN:'ok',NO_THREAT_OBSERVED:'ok',STABLE:'ok',NEUTRAL:'ok',YELLOW:'warn',THREATS_PRESENT:'warn',COMPRESSION:'warn',RED:'bad',CRITICAL:'bad',STRESS:'bad',UNKNOWN_CAUTIOUS:'muted'};
+    var HEALTH_TONE={HEALTHY:'ok',STALE:'warn',DEGRADED:'bad',UNKNOWN:'muted'};
+    function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+    function tone(map,v){return map[String(v||'').toUpperCase()]||'muted';}
+    function setOffline(off){document.getElementById('io-offline').hidden=!off;document.getElementById('io-state').textContent=off?'офлайн':'онлайн';}
+
+    async function jget(path){var r=await fetch(API+path,{cache:'no-store'});if(!r.ok)throw 0;return r.json();}
+
+    function renderHouseView(hv){
+      if(!hv){document.getElementById('io-hv-sec').hidden=true;return;}
+      document.getElementById('io-hv-sec').hidden=false;
+      var rc=hv.risk_concerns||{};
+      var opps=(hv.top_opportunities||[]).map(function(o){var v=(o&&o.value)||{};return esc(v.protocol||'?')+' <span class="mut">'+esc(v.risk_adjusted_apy!=null?('ra '+v.risk_adjusted_apy+'%'):'')+'</span>';}).join(' · ')||'—';
+      var conf=(hv.conflicts&&hv.conflicts.length)?('<div class="io-conf">⚠ '+hv.conflicts.map(esc).join('<br>')+'</div>'):'';
+      document.getElementById('io-hv').innerHTML=
+        '<div class="io-hv-row"><span class="l">Позиция</span><span class="p '+tone(POSTURE_TONE,hv.overall_posture)+'">'+esc(hv.overall_posture)+'</span></div>'+
+        '<div class="io-hv-row"><span class="l">Режим</span><span>'+esc(hv.regime||'—')+'</span></div>'+
+        '<div class="io-hv-row"><span class="l">Угрозы</span><span class="p '+tone(POSTURE_TONE,hv.threat_posture)+'">'+esc(hv.threat_posture||'—')+'</span></div>'+
+        '<div class="io-hv-row"><span class="l">Риск-флаги</span><span>protocol: '+esc(rc.protocol_risk||'—')+' · yield: '+esc(rc.yield_quality||'—')+'</span></div>'+
+        '<div class="io-hv-row"><span class="l">Возможности</span><span>'+opps+'</span></div>'+conf;
+    }
+
+    function renderGrid(analysts,details){
+      var grid=document.getElementById('io-grid');grid.innerHTML='';
+      analysts.forEach(function(a){
+        var d=details[a.slug]||{};
+        var posture=d.posture||d.overall_posture||d.concern||d.status||'';
+        var av=a.available;
+        var card=document.createElement('div');card.className='io-card'+(av?'':' off');
+        card.innerHTML='<div class="io-card-h"><span class="nm">'+esc(a.agent)+'</span>'+
+          (posture?'<span class="p '+tone(POSTURE_TONE,posture)+'">'+esc(posture)+'</span>':'<span class="p '+(av?'ok':'muted')+'">'+(av?'ok':'нет данных')+'</span>')+'</div>'+
+          '<div class="io-card-d">'+esc(a.description||'')+'</div>';
+        grid.appendChild(card);
+      });
+    }
+
+    async function tick(){
+      try{
+        var idx=await jget('/api/investment-os');
+        setOffline(false);
+        document.getElementById('io-count').textContent=idx.count;
+        // health
+        var health=await jget('/api/investment-os/health').catch(function(){return null;});
+        if(health){var ov=health.overall||'UNKNOWN';document.getElementById('io-health').textContent=ov;
+          document.getElementById('io-health-kpi').className='io-kpi '+tone(HEALTH_TONE,ov);
+          var c=health.counts||{};document.getElementById('io-coverage').textContent=(c.healthy||0)+' ok · '+(c.stale||0)+' stale · '+(c.missing||0)+' нет · '+(c.unknown_or_corrupt||0)+' unknown';}
+        // house-view
+        var chief=await jget('/api/investment-os/chief-investment').catch(function(){return null;});
+        var hv=(chief&&chief.house_view)||null;
+        if(hv){document.getElementById('io-posture').textContent=hv.overall_posture||'—';
+          document.getElementById('io-posture').className='v';}
+        renderHouseView(hv);
+        // per-analyst detail (fetch each endpoint for posture/status)
+        var details={};
+        await Promise.all((idx.analysts||[]).map(async function(a){
+          if(a.slug==='chief-investment'){details[a.slug]=hv||{};return;}
+          try{var dd=await jget(a.endpoint);details[a.slug]=dd;}catch(e){details[a.slug]={};}
+        }));
+        renderGrid(idx.analysts||[],details);
+        document.getElementById('io-gen').textContent='обновлено '+new Date().toLocaleTimeString();
+      }catch(e){setOffline(true);}
+    }
+    tick();setInterval(tick,20000);
+  })();
+</script>
+
+<style>
+  .io{padding:32px 0 64px}.io-wrap{max-width:1100px;margin:0 auto;padding:0 24px}
+  .io-h1{font-size:1.6rem;font-weight:700;margin-bottom:8px}
+  .io-sub{color:var(--text-muted,#8a8f98);font-size:.9rem;line-height:1.5;margin-bottom:24px;max-width:820px}
+  .io-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:10px}
+  .io-kpi{background:var(--bg-surface,#16181d);border:1px solid var(--border,#26282e);border-radius:10px;padding:14px}
+  .io-kpi .k{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint,#6a6f78)}
+  .io-kpi .v{font-size:1.25rem;font-weight:700;font-family:var(--font-mono,monospace);margin-top:4px}
+  .io-kpi.span{grid-column:span 2}.io-kpi.ok .v{color:#34d399}.io-kpi.warn .v{color:#eab308}.io-kpi.bad .v{color:#f87171}.io-kpi.muted .v{color:#8a8f98}
+  .io-meta{font-size:.75rem;color:var(--text-faint,#6a6f78);margin-bottom:20px}
+  .io-sec-h{font-size:.9rem;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+  .io-gate{font-size:.68rem;font-weight:500;color:#eab308;border:1px solid #eab30855;border-radius:6px;padding:2px 7px}
+  .io-hv{background:var(--bg-surface,#16181d);border:1px solid var(--border,#26282e);border-radius:10px;padding:16px}
+  .io-hv-row{display:flex;gap:14px;padding:6px 0;border-bottom:1px solid var(--border,#26282e);font-size:.85rem}
+  .io-hv-row:last-child{border-bottom:none}.io-hv-row .l{min-width:130px;color:var(--text-faint,#6a6f78)}
+  .io-conf{margin-top:8px;color:#eab308;font-size:.8rem}
+  .p{font-family:var(--font-mono,monospace);font-size:.78rem;padding:2px 8px;border-radius:6px}
+  .p.ok{background:#34d39918;color:#34d399}.p.warn{background:#eab30818;color:#eab308}.p.bad{background:#f8717118;color:#f87171}.p.muted{background:#8a8f9818;color:#8a8f98}
+  .io-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+  .io-card{background:var(--bg-surface,#16181d);border:1px solid var(--border,#26282e);border-radius:10px;padding:14px}
+  .io-card.off{opacity:.55}.io-card-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+  .io-card-h .nm{font-weight:600;font-size:.85rem;font-family:var(--font-mono,monospace)}
+  .io-card-d{font-size:.76rem;color:var(--text-muted,#8a8f98);line-height:1.45}
+  .mut{color:var(--text-faint,#6a6f78)}
+  .io-offline{margin-top:20px;padding:14px;border:1px solid #f8717155;border-radius:10px;color:#f87171;font-size:.85rem}
+</style>
