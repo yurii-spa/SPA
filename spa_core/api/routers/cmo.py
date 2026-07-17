@@ -14,13 +14,19 @@ from __future__ import annotations
 import dataclasses
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from spa_core.api.api_security import require_api_key
 from spa_core.cmo.draft_store import DraftStore
 
-router = APIRouter(tags=["cmo"])
+# SEC-HOTFIX-001 (2026-07-17): protect the ENTIRE CMO router at router level with the
+# already-wired, fail-CLOSED require_api_key dependency. With no SPA_API_KEY configured
+# this returns 401 to all callers — closing the confirmed public+unauthenticated exposure
+# of the mutating approve/reject endpoints (SEC-VERIFY-001). Reversible: remove
+# `dependencies=[...]` below. Ref: docs/decisions / SEC-VERIFY-001 containment Option C.
+router = APIRouter(tags=["cmo"], dependencies=[Depends(require_api_key)])
 _store = DraftStore()
 
 
