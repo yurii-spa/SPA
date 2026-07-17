@@ -161,6 +161,7 @@ from spa_core.api.routers import (  # noqa: E402
     agents,
     aggressive_lab,
     analytics,
+    cmo,
     cockpit,
     competitive_watch,
     dfb,
@@ -200,6 +201,7 @@ app.include_router(swarm.router)
 # AI Investment OS (product-layer SURFACE) — read-only advisory analyst artifacts (stablecoin-yield/
 # market-regime/reporting). Advisory/paper-only; observes + evidence-tags, never allocates. docs/08.
 app.include_router(investment_os.router)
+app.include_router(cmo.router)
 app.include_router(rates_desk.router)
 app.include_router(readiness.router)
 app.include_router(optimizer.router)
