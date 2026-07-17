@@ -114,3 +114,28 @@ _ИТОГ АУДИТА: система полностью откартограф
 _Этот файл + PROJECT_CONTROL/ + Claude-memory + Obsidian-зеркало. Как всё связано и ПОЧЕМУ так устроено._
 
 ⚪ _в процессе (этот документ — начало)_
+
+## WS-E · Продуктовый слой «супер-студия» — AI Investment OS + CMO (построен спринтом 2026-07-17)
+🟢 **ЖИВОЙ.** AAA-таск владельца («слой агентов НАД продуктом, не только мониторинг цифр»). Активирован из
+спроектированных доков (`docs/08_ai_investment_os_architecture.md`, `CMO_EDITORIAL_LAYER.md`) по шаблону swarm.
+Полный план: `docs/AAA_PRODUCT_LAYER_ACTIVATION_PLAN.md`.
+
+**Что · зачем · где:**
+- **Harness** `spa_core/investment_os/harness.py` — база всех аналитиков: feed fail-closed→UNKNOWN, evidence
+  L0-L6, LLM за number-gate, advisory emit+proof. НЕ дублирует продюсеров — аналитики RESHAPE существующих фидов.
+- **11 аналитиков** (`spa_core/investment_os/agents/*.py`, каждый = launchd `com.spa.io_*`, daily, reboot-safe):
+  stablecoin_yield · market_regime · reporting · red_team · liquidity · protocol_risk · yield_quality · onchain ·
+  quant · market_structure · **chief_investment (Head of Product — синтез всех в house-view; RECOMMENDS only,
+  owner-gate на allocation; surfaces conflicts не усредняя)**.
+- **health-монитор** `spa_core/investment_os/health.py` (`com.spa.io_health`) → `data/investment_os/_health.json`.
+- **Surface:** `spa_core/api/routers/investment_os.py` → `/api/investment-os` (index + 11 + health, verbatim,
+  fail-closed). Дашборд `landing/src/pages/admin/investment-os.astro`.
+- **CMO editorial** (`spa_core/cmo/{honesty_gate,draft_store,template_rewriter,pipeline,editorial_agent}.py`,
+  `com.spa.cmo_editorial`): dry-факты → honesty-gate (детерминированный: числа сверены, дисклеймеры, без
+  promissory/оферты) → draft-store. Surface `/api/cmo/drafts` + Kanban `landing/src/pages/admin/cmo-drafts.astro`.
+- **ИНВАРИАНТ:** весь слой **advisory** — пишет только `data/investment_os/` + `data/cmo_drafts/`, капитал НЕ
+  двигает, RiskPolicy/kill/трек/execution НЕ трогает. **HARD owner-gate:** публикация CMO-драфтов + allocation-
+  решения из house-view (агенты рекомендуют, решает владелец).
+- **Артефакты в реестре** `data/agent_registry.json` под ролью research/reporting; 13 продуктовых агентов reboot-safe.
+- **⚠️ Дрейф-урок:** прошлая сессия построила CMO-слой на origin (local его не имел) → мой пуш дважды клоббернул
+  (honesty_gate, server.py-cmo). Всегда `git show origin/main:<path>` перед созданием файла в этой области.
