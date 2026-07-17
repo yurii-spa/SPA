@@ -211,6 +211,7 @@ GOLDEN_ROUTES = {
     ("/api/investment-os/onchain", ("GET",)),
     ("/api/investment-os/chief-investment", ("GET",)),
     ("/api/investment-os/health", ("GET",)),
+    ("/api/investment-os/quant", ("GET",)),
 }
 
 
@@ -276,7 +277,7 @@ def test_route_count_stable():
     surface (/api/underwriting/report + /proof + /full-chain), FLAG-GATED OFF by default
     (SPA_UNDERWRITING_PUBLISH).)
     """
-    assert len(_app_route_table()) == 142
+    assert len(_app_route_table()) == 143
 
 
 def test_openapi_path_count_stable():
@@ -284,7 +285,7 @@ def test_openapi_path_count_stable():
     from fastapi.testclient import TestClient
     with TestClient(server.app) as c:
         paths = c.get("/openapi.json").json()["paths"]
-    assert len(paths) == 141  # HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
+    assert len(paths) == 142  # HTTP handlers; /ws/agents is a websocket (not an OpenAPI path)
 
 
 # ── Representative response-shape snapshot (one endpoint per tag group) ──────────
