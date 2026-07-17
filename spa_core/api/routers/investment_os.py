@@ -41,6 +41,8 @@ _ANALYSTS = {
     "red-team": ("investment_os/red_team.json", "red_team",
                  "Adversarial threat posture — can only RAISE concern, never approves; missing/stale "
                  "threat data → UNKNOWN_CAUTIOUS"),
+    "liquidity": ("investment_os/liquidity.json", "liquidity",
+                  "Portfolio exit-liquidity posture — exit score, instantly-exitable $, bottlenecks"),
 }
 
 
@@ -101,3 +103,8 @@ def reporting() -> dict:
 @router.get("/api/investment-os/red-team")
 def red_team() -> dict:
     return _serve("red-team")
+
+
+@router.get("/api/investment-os/liquidity")
+def liquidity() -> dict:
+    return _serve("liquidity")
