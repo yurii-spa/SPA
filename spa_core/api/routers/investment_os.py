@@ -50,6 +50,8 @@ _ANALYSTS = {
                       "desk's differentiator: real cash-flow over transient incentive)"),
     "onchain": ("investment_os/onchain.json", "onchain",
                 "Protocol developer-activity health — active maintained teams vs abandoned/inactive"),
+    "quant": ("investment_os/quant.json", "quant",
+              "Backtest↔paper rank correlation — does the model predict reality (ρ≥0.70)"),
     "chief-investment": ("investment_os/chief_investment.json", "chief_investment",
                          "Head-of-Product house-view synthesis of all analysts — RECOMMENDS only, "
                          "owner-gated; surfaces conflicts, never decides, moves no capital"),
@@ -146,6 +148,11 @@ def yield_quality() -> dict:
 @router.get("/api/investment-os/onchain")
 def onchain() -> dict:
     return _serve("onchain")
+
+
+@router.get("/api/investment-os/quant")
+def quant() -> dict:
+    return _serve("quant")
 
 
 @router.get("/api/investment-os/chief-investment")
