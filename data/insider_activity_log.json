@@ -1987,5 +1987,668 @@
     ],
     "average_risk_score": 21.333333333333332,
     "timestamp": 1784194040.1710033
+  },
+  {
+    "protocols": [],
+    "most_suspicious": null,
+    "cleanest_protocol": null,
+    "flagged_protocols": [],
+    "average_risk_score": 0.0,
+    "timestamp": 1784453414.8662453
+  },
+  {
+    "protocols": [],
+    "most_suspicious": null,
+    "cleanest_protocol": null,
+    "flagged_protocols": [],
+    "average_risk_score": 0.0,
+    "timestamp": 1784453414.8732316
+  },
+  {
+    "protocols": [],
+    "most_suspicious": null,
+    "cleanest_protocol": null,
+    "flagged_protocols": [],
+    "average_risk_score": 0.0,
+    "timestamp": 1784453414.8776643
+  },
+  {
+    "protocols": [],
+    "most_suspicious": null,
+    "cleanest_protocol": null,
+    "flagged_protocols": [],
+    "average_risk_score": 0.0,
+    "timestamp": 1784453414.8816597
+  },
+  {
+    "protocols": [],
+    "most_suspicious": null,
+    "cleanest_protocol": null,
+    "flagged_protocols": [],
+    "average_risk_score": 0.0,
+    "timestamp": 1784453414.8858662
+  },
+  {
+    "protocols": [],
+    "most_suspicious": null,
+    "cleanest_protocol": null,
+    "flagged_protocols": [],
+    "average_risk_score": 0.0,
+    "timestamp": 1784453414.8903754
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "insider_risk_score": 0,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 0,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "TestProto shows no significant insider selling signals."
+      }
+    ],
+    "most_suspicious": "TestProto",
+    "cleanest_protocol": "TestProto",
+    "flagged_protocols": [],
+    "average_risk_score": 0.0,
+    "timestamp": 1784453414.894975
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "insider_risk_score": 0,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 0,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "TestProto shows no significant insider selling signals."
+      }
+    ],
+    "most_suspicious": "TestProto",
+    "cleanest_protocol": "TestProto",
+    "flagged_protocols": [],
+    "average_risk_score": 0.0,
+    "timestamp": 1784453414.8992515
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "insider_risk_score": 0,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 0,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "TestProto shows no significant insider selling signals."
+      }
+    ],
+    "most_suspicious": "TestProto",
+    "cleanest_protocol": "TestProto",
+    "flagged_protocols": [],
+    "average_risk_score": 0.0,
+    "timestamp": 1784453414.9035969
+  },
+  {
+    "protocols": [
+      {
+        "name": "Rug",
+        "insider_risk_score": 100,
+        "risk_label": "EXIT",
+        "outflow_intensity_pct": 100.0,
+        "token_dump_score": 30,
+        "wallet_movement_score": 25,
+        "anomaly_score": 25,
+        "correlation_score": 20,
+        "red_flags": [
+          "Significant governance token sales",
+          "Large treasury-to-team transfers",
+          "High anomalous transaction count",
+          "Recent team token dump",
+          "Selling during price decline"
+        ],
+        "recommendation": "EXIT Rug. Multiple insider red flags. Team selling heavily."
+      }
+    ],
+    "most_suspicious": "Rug",
+    "cleanest_protocol": "Rug",
+    "flagged_protocols": [
+      "Rug"
+    ],
+    "average_risk_score": 100.0,
+    "timestamp": 1784453414.9079702
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "insider_risk_score": 20,
+        "risk_label": "WATCH",
+        "outflow_intensity_pct": 5.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 20,
+        "anomaly_score": 0,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "Minor signals in TestProto. Watch for escalation."
+      }
+    ],
+    "most_suspicious": "TestProto",
+    "cleanest_protocol": "TestProto",
+    "flagged_protocols": [],
+    "average_risk_score": 20.0,
+    "timestamp": 1784453414.912479
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "insider_risk_score": 0,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 0,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "TestProto shows no significant insider selling signals."
+      }
+    ],
+    "most_suspicious": "TestProto",
+    "cleanest_protocol": "TestProto",
+    "flagged_protocols": [],
+    "average_risk_score": 0.0,
+    "timestamp": 1784453414.9167378
+  },
+  {
+    "protocols": [
+      {
+        "name": "Solo",
+        "insider_risk_score": 0,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 0,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "Solo shows no significant insider selling signals."
+      }
+    ],
+    "most_suspicious": "Solo",
+    "cleanest_protocol": "Solo",
+    "flagged_protocols": [],
+    "average_risk_score": 0.0,
+    "timestamp": 1784453414.920991
+  },
+  {
+    "protocols": [
+      {
+        "name": "Clean",
+        "insider_risk_score": 0,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 0,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "Clean shows no significant insider selling signals."
+      },
+      {
+        "name": "Suspicious",
+        "insider_risk_score": 57,
+        "risk_label": "RED_FLAG",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 25,
+        "wallet_movement_score": 0,
+        "anomaly_score": 17,
+        "correlation_score": 15,
+        "red_flags": [
+          "Significant governance token sales",
+          "High anomalous transaction count",
+          "Recent team token dump",
+          "Selling during price decline"
+        ],
+        "recommendation": "HIGH RISK: Insider activity detected in Suspicious. Reduce exposure."
+      },
+      {
+        "name": "Watch",
+        "insider_risk_score": 7,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 7,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "Watch shows no significant insider selling signals."
+      }
+    ],
+    "most_suspicious": "Suspicious",
+    "cleanest_protocol": "Clean",
+    "flagged_protocols": [
+      "Suspicious"
+    ],
+    "average_risk_score": 21.333333333333332,
+    "timestamp": 1784453414.9257982
+  },
+  {
+    "protocols": [
+      {
+        "name": "Clean",
+        "insider_risk_score": 0,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 0,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "Clean shows no significant insider selling signals."
+      },
+      {
+        "name": "Suspicious",
+        "insider_risk_score": 57,
+        "risk_label": "RED_FLAG",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 25,
+        "wallet_movement_score": 0,
+        "anomaly_score": 17,
+        "correlation_score": 15,
+        "red_flags": [
+          "Significant governance token sales",
+          "High anomalous transaction count",
+          "Recent team token dump",
+          "Selling during price decline"
+        ],
+        "recommendation": "HIGH RISK: Insider activity detected in Suspicious. Reduce exposure."
+      },
+      {
+        "name": "Watch",
+        "insider_risk_score": 7,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 7,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "Watch shows no significant insider selling signals."
+      }
+    ],
+    "most_suspicious": "Suspicious",
+    "cleanest_protocol": "Clean",
+    "flagged_protocols": [
+      "Suspicious"
+    ],
+    "average_risk_score": 21.333333333333332,
+    "timestamp": 1784453414.9301615
+  },
+  {
+    "protocols": [
+      {
+        "name": "Clean",
+        "insider_risk_score": 0,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 0,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "Clean shows no significant insider selling signals."
+      },
+      {
+        "name": "Suspicious",
+        "insider_risk_score": 57,
+        "risk_label": "RED_FLAG",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 25,
+        "wallet_movement_score": 0,
+        "anomaly_score": 17,
+        "correlation_score": 15,
+        "red_flags": [
+          "Significant governance token sales",
+          "High anomalous transaction count",
+          "Recent team token dump",
+          "Selling during price decline"
+        ],
+        "recommendation": "HIGH RISK: Insider activity detected in Suspicious. Reduce exposure."
+      },
+      {
+        "name": "Watch",
+        "insider_risk_score": 7,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 7,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "Watch shows no significant insider selling signals."
+      }
+    ],
+    "most_suspicious": "Suspicious",
+    "cleanest_protocol": "Clean",
+    "flagged_protocols": [
+      "Suspicious"
+    ],
+    "average_risk_score": 21.333333333333332,
+    "timestamp": 1784453414.9348578
+  },
+  {
+    "protocols": [
+      {
+        "name": "Clean",
+        "insider_risk_score": 0,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 0,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "Clean shows no significant insider selling signals."
+      },
+      {
+        "name": "Suspicious",
+        "insider_risk_score": 57,
+        "risk_label": "RED_FLAG",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 25,
+        "wallet_movement_score": 0,
+        "anomaly_score": 17,
+        "correlation_score": 15,
+        "red_flags": [
+          "Significant governance token sales",
+          "High anomalous transaction count",
+          "Recent team token dump",
+          "Selling during price decline"
+        ],
+        "recommendation": "HIGH RISK: Insider activity detected in Suspicious. Reduce exposure."
+      },
+      {
+        "name": "Watch",
+        "insider_risk_score": 7,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 7,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "Watch shows no significant insider selling signals."
+      }
+    ],
+    "most_suspicious": "Suspicious",
+    "cleanest_protocol": "Clean",
+    "flagged_protocols": [
+      "Suspicious"
+    ],
+    "average_risk_score": 21.333333333333332,
+    "timestamp": 1784453414.939602
+  },
+  {
+    "protocols": [
+      {
+        "name": "Clean",
+        "insider_risk_score": 0,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 0,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "Clean shows no significant insider selling signals."
+      },
+      {
+        "name": "Suspicious",
+        "insider_risk_score": 57,
+        "risk_label": "RED_FLAG",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 25,
+        "wallet_movement_score": 0,
+        "anomaly_score": 17,
+        "correlation_score": 15,
+        "red_flags": [
+          "Significant governance token sales",
+          "High anomalous transaction count",
+          "Recent team token dump",
+          "Selling during price decline"
+        ],
+        "recommendation": "HIGH RISK: Insider activity detected in Suspicious. Reduce exposure."
+      },
+      {
+        "name": "Watch",
+        "insider_risk_score": 7,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 7,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "Watch shows no significant insider selling signals."
+      }
+    ],
+    "most_suspicious": "Suspicious",
+    "cleanest_protocol": "Clean",
+    "flagged_protocols": [
+      "Suspicious"
+    ],
+    "average_risk_score": 21.333333333333332,
+    "timestamp": 1784453414.944391
+  },
+  {
+    "protocols": [
+      {
+        "name": "Clean",
+        "insider_risk_score": 0,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 0,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "Clean shows no significant insider selling signals."
+      },
+      {
+        "name": "Suspicious",
+        "insider_risk_score": 57,
+        "risk_label": "RED_FLAG",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 25,
+        "wallet_movement_score": 0,
+        "anomaly_score": 17,
+        "correlation_score": 15,
+        "red_flags": [
+          "Significant governance token sales",
+          "High anomalous transaction count",
+          "Recent team token dump",
+          "Selling during price decline"
+        ],
+        "recommendation": "HIGH RISK: Insider activity detected in Suspicious. Reduce exposure."
+      },
+      {
+        "name": "Watch",
+        "insider_risk_score": 7,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 7,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "Watch shows no significant insider selling signals."
+      }
+    ],
+    "most_suspicious": "Suspicious",
+    "cleanest_protocol": "Clean",
+    "flagged_protocols": [
+      "Suspicious"
+    ],
+    "average_risk_score": 21.333333333333332,
+    "timestamp": 1784453414.9496522
+  },
+  {
+    "protocols": [
+      {
+        "name": "Clean",
+        "insider_risk_score": 0,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 0,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "Clean shows no significant insider selling signals."
+      },
+      {
+        "name": "Suspicious",
+        "insider_risk_score": 57,
+        "risk_label": "RED_FLAG",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 25,
+        "wallet_movement_score": 0,
+        "anomaly_score": 17,
+        "correlation_score": 15,
+        "red_flags": [
+          "Significant governance token sales",
+          "High anomalous transaction count",
+          "Recent team token dump",
+          "Selling during price decline"
+        ],
+        "recommendation": "HIGH RISK: Insider activity detected in Suspicious. Reduce exposure."
+      },
+      {
+        "name": "Watch",
+        "insider_risk_score": 7,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 7,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "Watch shows no significant insider selling signals."
+      }
+    ],
+    "most_suspicious": "Suspicious",
+    "cleanest_protocol": "Clean",
+    "flagged_protocols": [
+      "Suspicious"
+    ],
+    "average_risk_score": 21.333333333333332,
+    "timestamp": 1784453414.954505
+  },
+  {
+    "protocols": [
+      {
+        "name": "Clean",
+        "insider_risk_score": 0,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 0,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "Clean shows no significant insider selling signals."
+      },
+      {
+        "name": "Suspicious",
+        "insider_risk_score": 57,
+        "risk_label": "RED_FLAG",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 25,
+        "wallet_movement_score": 0,
+        "anomaly_score": 17,
+        "correlation_score": 15,
+        "red_flags": [
+          "Significant governance token sales",
+          "High anomalous transaction count",
+          "Recent team token dump",
+          "Selling during price decline"
+        ],
+        "recommendation": "HIGH RISK: Insider activity detected in Suspicious. Reduce exposure."
+      },
+      {
+        "name": "Watch",
+        "insider_risk_score": 7,
+        "risk_label": "CLEAN",
+        "outflow_intensity_pct": 0.0,
+        "token_dump_score": 0,
+        "wallet_movement_score": 0,
+        "anomaly_score": 7,
+        "correlation_score": 0,
+        "red_flags": [
+          "No significant red flags detected"
+        ],
+        "recommendation": "Watch shows no significant insider selling signals."
+      }
+    ],
+    "most_suspicious": "Suspicious",
+    "cleanest_protocol": "Clean",
+    "flagged_protocols": [
+      "Suspicious"
+    ],
+    "average_risk_score": 21.333333333333332,
+    "timestamp": 1784453414.9595838
   }
 ]
