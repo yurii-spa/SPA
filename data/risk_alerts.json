@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-19T09:40:44.771688+00:00",
-  "count": 4,
+  "generated_at": "2026-07-20T08:30:10.399463+00:00",
+  "count": 5,
   "status": "critical",
   "alerts": [
     {
@@ -50,6 +50,18 @@
       "hours_since_last_entry": 369.68,
       "created_at": "2026-07-19T08:28:22.330842+00:00",
       "updated_at": "2026-07-19T09:40:44.770676+00:00"
+    },
+    {
+      "severity": "critical",
+      "type": "cycle_gap",
+      "source": "gap_monitor",
+      "protocol": "paper_cycle",
+      "date": "2026-07-20",
+      "message": "\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0439 \u0431\u0430\u0440 392.5\u0447 \u043d\u0430\u0437\u0430\u0434 \u2014 \u0446\u0438\u043a\u043b \u043f\u0440\u043e\u043f\u0443\u0441\u0442\u0438\u043b \u0434\u0435\u043d\u044c",
+      "gap_status": "gap",
+      "hours_since_last_entry": 392.5,
+      "created_at": "2026-07-20T08:26:28.273279+00:00",
+      "updated_at": "2026-07-20T08:30:10.398687+00:00"
     }
   ]
 }
