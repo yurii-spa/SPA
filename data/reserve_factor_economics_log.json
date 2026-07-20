@@ -822,5 +822,61 @@
       "Reserve factor generates ~$6,000,000 of protocol income per year at current borrow levels."
     ],
     "timestamp": 1784451912.4631543
+  },
+  {
+    "name": "TestMarket",
+    "reserve_factor_pct": 10.0,
+    "borrow_apr_pct": 6.0,
+    "utilization_pct": 80.0,
+    "total_borrows_usd": 1000000000.0,
+    "current_reserves_usd": 70000000.0,
+    "bad_debt_usd": 0.0,
+    "supply_apy_pct": 4.3,
+    "reserve_income_annual_usd": 6000000.0,
+    "supplier_apy_drag_pct": 0.48,
+    "reserve_to_borrows_pct": 7.000000000000001,
+    "bad_debt_coverage_ratio": 999.0,
+    "no_bad_debt": true,
+    "reserve_adequacy_score": 100.0,
+    "classification": "WELL_CAPITALIZED",
+    "grade": "A",
+    "flags": [
+      "STRONG_BUFFER",
+      "NO_BAD_DEBT"
+    ],
+    "recommendations": [
+      "Reserves are well capitalised (7.00% of borrows). The market carries a healthy buffer against bad debt.",
+      "No recorded bad debt: the reserve buffer currently faces no claims.",
+      "Reserve factor generates ~$6,000,000 of protocol income per year at current borrow levels."
+    ],
+    "timestamp": 1784537910.1799161
+  },
+  {
+    "name": "TestMarket",
+    "reserve_factor_pct": 10.0,
+    "borrow_apr_pct": 6.0,
+    "utilization_pct": 80.0,
+    "total_borrows_usd": 1000000000.0,
+    "current_reserves_usd": 70000000.0,
+    "bad_debt_usd": 0.0,
+    "supply_apy_pct": 4.3,
+    "reserve_income_annual_usd": 6000000.0,
+    "supplier_apy_drag_pct": 0.48,
+    "reserve_to_borrows_pct": 7.000000000000001,
+    "bad_debt_coverage_ratio": 999.0,
+    "no_bad_debt": true,
+    "reserve_adequacy_score": 100.0,
+    "classification": "WELL_CAPITALIZED",
+    "grade": "A",
+    "flags": [
+      "STRONG_BUFFER",
+      "NO_BAD_DEBT"
+    ],
+    "recommendations": [
+      "Reserves are well capitalised (7.00% of borrows). The market carries a healthy buffer against bad debt.",
+      "No recorded bad debt: the reserve buffer currently faces no claims.",
+      "Reserve factor generates ~$6,000,000 of protocol income per year at current borrow levels."
+    ],
+    "timestamp": 1784537910.4104357
   }
 ]
