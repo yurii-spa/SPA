@@ -1,17 +1,6 @@
 {
-  "generated_at": "2026-07-20T08:27:47.987716Z",
-  "total_pools_fetched": 2,
-  "total_pools_skipped": 10,
-  "chains": {
-    "ethereum": {
-      "chain": "ethereum",
-      "pool_count": 2,
-      "best_apy": 4.5,
-      "avg_apy": 4.15,
-      "pools": [
-        "aave-v3-usdc-ethereum",
-        "compound-v3-usdc-ethereum"
-      ]
-    }
-  }
+  "generated_at": "2026-07-20T09:26:45.695425Z",
+  "total_pools_fetched": 0,
+  "total_pools_skipped": 12,
+  "chains": {}
 }
