@@ -1,45 +1,5 @@
 [
   {
-    "protocol": "euler_v2",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622562.3407168
-  },
-  {
-    "protocol": "maple",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622562.6838858
-  },
-  {
     "protocol": "pendle",
     "version_string": "unknown",
     "days_since_release": 0.0,
@@ -57,7 +17,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622563.0478768
+    "timestamp": 1784622742.287835
   },
   {
     "protocol": "spark_susds",
@@ -77,7 +37,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622563.4190578
+    "timestamp": 1784622742.6563396
   },
   {
     "protocol": "aave_v3",
@@ -97,7 +57,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622566.7422683
+    "timestamp": 1784622745.7622554
   },
   {
     "protocol": "compound_v3",
@@ -117,7 +77,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622567.0979984
+    "timestamp": 1784622746.1389124
   },
   {
     "protocol": "morpho_blue",
@@ -137,7 +97,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622567.4884064
+    "timestamp": 1784622746.5224502
   },
   {
     "protocol": "yearn_v3",
@@ -157,7 +117,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622567.8450606
+    "timestamp": 1784622746.9625618
   },
   {
     "protocol": "euler_v2",
@@ -177,7 +137,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622568.188731
+    "timestamp": 1784622747.3403435
   },
   {
     "protocol": "maple",
@@ -197,7 +157,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622568.5407915
+    "timestamp": 1784622747.7098532
   },
   {
     "protocol": "pendle",
@@ -217,7 +177,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622568.9046547
+    "timestamp": 1784622748.0791075
   },
   {
     "protocol": "spark_susds",
@@ -237,7 +197,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622569.2678707
+    "timestamp": 1784622748.4338887
   },
   {
     "protocol": "aave_v3",
@@ -257,7 +217,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622573.652538
+    "timestamp": 1784622751.4030023
   },
   {
     "protocol": "compound_v3",
@@ -277,7 +237,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622574.0627592
+    "timestamp": 1784622751.7747362
   },
   {
     "protocol": "morpho_blue",
@@ -297,7 +257,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622574.50301
+    "timestamp": 1784622752.1666222
   },
   {
     "protocol": "yearn_v3",
@@ -317,7 +277,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622574.893431
+    "timestamp": 1784622752.5591187
   },
   {
     "protocol": "euler_v2",
@@ -337,7 +297,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622575.301871
+    "timestamp": 1784622752.9903755
   },
   {
     "protocol": "maple",
@@ -357,7 +317,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622575.706965
+    "timestamp": 1784622753.3569143
   },
   {
     "protocol": "pendle",
@@ -377,7 +337,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622576.0834637
+    "timestamp": 1784622753.7303793
   },
   {
     "protocol": "spark_susds",
@@ -397,7 +357,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622577.1375566
+    "timestamp": 1784622754.108663
   },
   {
     "protocol": "aave_v3",
@@ -417,7 +377,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622580.6097028
+    "timestamp": 1784622757.5001416
   },
   {
     "protocol": "compound_v3",
@@ -437,7 +397,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622581.0045264
+    "timestamp": 1784622757.8553987
   },
   {
     "protocol": "morpho_blue",
@@ -457,7 +417,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622581.4067192
+    "timestamp": 1784622762.1246188
   },
   {
     "protocol": "yearn_v3",
@@ -477,7 +437,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622581.7772613
+    "timestamp": 1784622762.5099778
   },
   {
     "protocol": "euler_v2",
@@ -497,7 +457,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622582.1351733
+    "timestamp": 1784622762.902464
   },
   {
     "protocol": "maple",
@@ -517,7 +477,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622582.5164595
+    "timestamp": 1784622763.2740064
   },
   {
     "protocol": "pendle",
@@ -537,7 +497,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622582.9025574
+    "timestamp": 1784622763.620267
   },
   {
     "protocol": "spark_susds",
@@ -557,7 +517,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622583.298958
+    "timestamp": 1784622763.9806902
   },
   {
     "protocol": "aave_v3",
@@ -577,7 +537,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622586.254149
+    "timestamp": 1784622767.109689
   },
   {
     "protocol": "compound_v3",
@@ -597,7 +557,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622586.6212413
+    "timestamp": 1784622767.6829002
   },
   {
     "protocol": "morpho_blue",
@@ -617,7 +577,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622586.996429
+    "timestamp": 1784622768.1043963
   },
   {
     "protocol": "yearn_v3",
@@ -637,7 +597,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622587.34396
+    "timestamp": 1784622768.4934227
   },
   {
     "protocol": "euler_v2",
@@ -657,7 +617,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622587.71419
+    "timestamp": 1784622768.9312713
   },
   {
     "protocol": "maple",
@@ -677,7 +637,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622588.0631626
+    "timestamp": 1784622769.3018234
   },
   {
     "protocol": "pendle",
@@ -697,7 +657,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622588.4265187
+    "timestamp": 1784622769.6486087
   },
   {
     "protocol": "spark_susds",
@@ -717,7 +677,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622588.7944407
+    "timestamp": 1784622770.0005674
   },
   {
     "protocol": "aave_v3",
@@ -737,7 +697,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622592.0629554
+    "timestamp": 1784622773.5441415
   },
   {
     "protocol": "compound_v3",
@@ -757,7 +717,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622592.462776
+    "timestamp": 1784622773.9349928
   },
   {
     "protocol": "morpho_blue",
@@ -777,7 +737,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622592.8403063
+    "timestamp": 1784622774.2990062
   },
   {
     "protocol": "yearn_v3",
@@ -797,7 +757,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622593.2268214
+    "timestamp": 1784622774.6608853
   },
   {
     "protocol": "euler_v2",
@@ -817,7 +777,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622593.5767303
+    "timestamp": 1784622775.029782
   },
   {
     "protocol": "maple",
@@ -837,7 +797,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622593.9287927
+    "timestamp": 1784622775.3907208
   },
   {
     "protocol": "pendle",
@@ -857,7 +817,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622594.3014958
+    "timestamp": 1784622775.766957
   },
   {
     "protocol": "spark_susds",
@@ -877,7 +837,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622594.6826115
+    "timestamp": 1784622776.139621
   },
   {
     "protocol": "aave_v3",
@@ -897,7 +857,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622598.748055
+    "timestamp": 1784622779.126486
   },
   {
     "protocol": "compound_v3",
@@ -917,7 +877,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622599.1311693
+    "timestamp": 1784622779.470506
   },
   {
     "protocol": "morpho_blue",
@@ -937,7 +897,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622599.5196695
+    "timestamp": 1784622779.8334248
   },
   {
     "protocol": "yearn_v3",
@@ -957,7 +917,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622599.900299
+    "timestamp": 1784622780.1902874
   },
   {
     "protocol": "euler_v2",
@@ -977,7 +937,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622600.2676873
+    "timestamp": 1784622780.5654666
   },
   {
     "protocol": "maple",
@@ -997,7 +957,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622600.6301806
+    "timestamp": 1784622780.9352424
   },
   {
     "protocol": "pendle",
@@ -1017,7 +977,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622601.0015275
+    "timestamp": 1784622781.2934878
   },
   {
     "protocol": "spark_susds",
@@ -1037,7 +997,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622601.378408
+    "timestamp": 1784622781.6500483
   },
   {
     "protocol": "aave_v3",
@@ -1057,7 +1017,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622604.636781
+    "timestamp": 1784622785.145415
   },
   {
     "protocol": "compound_v3",
@@ -1077,7 +1037,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622605.0092227
+    "timestamp": 1784622785.5013757
   },
   {
     "protocol": "morpho_blue",
@@ -1097,7 +1057,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622605.4122677
+    "timestamp": 1784622785.8745468
   },
   {
     "protocol": "yearn_v3",
@@ -1117,7 +1077,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622605.7903798
+    "timestamp": 1784622786.23889
   },
   {
     "protocol": "euler_v2",
@@ -1137,7 +1097,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622606.206966
+    "timestamp": 1784622786.5900655
   },
   {
     "protocol": "maple",
@@ -1157,7 +1117,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622606.6790824
+    "timestamp": 1784622786.993922
   },
   {
     "protocol": "pendle",
@@ -1177,7 +1137,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622607.108928
+    "timestamp": 1784622787.3604944
   },
   {
     "protocol": "spark_susds",
@@ -1197,7 +1157,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622607.5492764
+    "timestamp": 1784622787.7228622
   },
   {
     "protocol": "aave_v3",
@@ -1217,7 +1177,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622611.711116
+    "timestamp": 1784622790.758932
   },
   {
     "protocol": "compound_v3",
@@ -1237,7 +1197,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622612.3885546
+    "timestamp": 1784622791.1595535
   },
   {
     "protocol": "morpho_blue",
@@ -1257,7 +1217,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622612.7497404
+    "timestamp": 1784622791.567457
   },
   {
     "protocol": "yearn_v3",
@@ -1277,7 +1237,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622613.111688
+    "timestamp": 1784622791.934207
   },
   {
     "protocol": "euler_v2",
@@ -1297,7 +1257,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622613.4831557
+    "timestamp": 1784622792.2987704
   },
   {
     "protocol": "maple",
@@ -1317,7 +1277,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622613.8641825
+    "timestamp": 1784622792.653034
   },
   {
     "protocol": "pendle",
@@ -1337,7 +1297,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622614.2724102
+    "timestamp": 1784622793.0037584
   },
   {
     "protocol": "spark_susds",
@@ -1357,7 +1317,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622614.6835096
+    "timestamp": 1784622793.3798347
   },
   {
     "protocol": "aave_v3",
@@ -1377,7 +1337,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622618.3175793
+    "timestamp": 1784622797.273176
   },
   {
     "protocol": "compound_v3",
@@ -1397,7 +1357,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622618.7064335
+    "timestamp": 1784622797.668269
   },
   {
     "protocol": "morpho_blue",
@@ -1417,7 +1377,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622619.1333067
+    "timestamp": 1784622798.0456195
   },
   {
     "protocol": "yearn_v3",
@@ -1437,7 +1397,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622619.5110962
+    "timestamp": 1784622798.4087687
   },
   {
     "protocol": "euler_v2",
@@ -1457,7 +1417,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622619.9270525
+    "timestamp": 1784622798.7717988
   },
   {
     "protocol": "maple",
@@ -1477,7 +1437,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622620.3280537
+    "timestamp": 1784622799.1363788
   },
   {
     "protocol": "pendle",
@@ -1497,7 +1457,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622620.7380273
+    "timestamp": 1784622799.503873
   },
   {
     "protocol": "spark_susds",
@@ -1517,7 +1477,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622621.1316774
+    "timestamp": 1784622799.8681698
   },
   {
     "protocol": "aave_v3",
@@ -1537,7 +1497,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622624.2196972
+    "timestamp": 1784622803.0255208
   },
   {
     "protocol": "compound_v3",
@@ -1557,7 +1517,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622624.5732198
+    "timestamp": 1784622803.4159887
   },
   {
     "protocol": "morpho_blue",
@@ -1577,7 +1537,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622624.9366415
+    "timestamp": 1784622803.7962015
   },
   {
     "protocol": "yearn_v3",
@@ -1597,7 +1557,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622625.3149602
+    "timestamp": 1784622804.2338061
   },
   {
     "protocol": "euler_v2",
@@ -1617,7 +1577,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622625.672559
+    "timestamp": 1784622804.6137197
   },
   {
     "protocol": "maple",
@@ -1637,7 +1597,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622626.0681732
+    "timestamp": 1784622805.0122197
   },
   {
     "protocol": "pendle",
@@ -1657,7 +1617,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622626.4563866
+    "timestamp": 1784622805.4591749
   },
   {
     "protocol": "spark_susds",
@@ -1677,7 +1637,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622626.8077343
+    "timestamp": 1784622805.8357902
   },
   {
     "protocol": "aave_v3",
@@ -1697,7 +1657,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622631.2489765
+    "timestamp": 1784622809.1108742
   },
   {
     "protocol": "compound_v3",
@@ -1717,7 +1677,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622631.6449718
+    "timestamp": 1784622809.4834921
   },
   {
     "protocol": "morpho_blue",
@@ -1737,7 +1697,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622632.0146744
+    "timestamp": 1784622809.8495626
   },
   {
     "protocol": "yearn_v3",
@@ -1757,7 +1717,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622632.3696778
+    "timestamp": 1784622810.2148385
   },
   {
     "protocol": "euler_v2",
@@ -1777,7 +1737,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622632.7219484
+    "timestamp": 1784622810.644246
   },
   {
     "protocol": "maple",
@@ -1797,7 +1757,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622633.104873
+    "timestamp": 1784622811.1152253
   },
   {
     "protocol": "pendle",
@@ -1817,7 +1777,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622633.4579966
+    "timestamp": 1784622811.64619
   },
   {
     "protocol": "spark_susds",
@@ -1837,7 +1797,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622633.814957
+    "timestamp": 1784622812.1584978
   },
   {
     "protocol": "aave_v3",
@@ -1857,7 +1817,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622637.2362862
+    "timestamp": 1784622815.9275444
   },
   {
     "protocol": "compound_v3",
@@ -1877,7 +1837,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622637.6109946
+    "timestamp": 1784622816.3317523
   },
   {
     "protocol": "morpho_blue",
@@ -1897,7 +1857,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622637.9592621
+    "timestamp": 1784622816.7065945
   },
   {
     "protocol": "yearn_v3",
@@ -1917,7 +1877,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622638.3258739
+    "timestamp": 1784622817.0771894
   },
   {
     "protocol": "euler_v2",
@@ -1937,7 +1897,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622638.7014155
+    "timestamp": 1784622817.5032704
   },
   {
     "protocol": "maple",
@@ -1957,7 +1917,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622639.6610231
+    "timestamp": 1784622817.8914142
   },
   {
     "protocol": "pendle",
@@ -1977,7 +1937,7 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622640.0764496
+    "timestamp": 1784622818.2377143
   },
   {
     "protocol": "spark_susds",
@@ -1997,6 +1957,46 @@
     },
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784622640.4604511
+    "timestamp": 1784622819.1622996
+  },
+  {
+    "protocol": "aave_v3",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784622822.7295806
+  },
+  {
+    "protocol": "compound_v3",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784622823.095871
   }
 ]
