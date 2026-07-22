@@ -7,100 +7,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:17.866429+00:00"
-  },
-  {
-    "protocol": "morpho_blue",
-    "slashing_exposure_pct": 0.0,
-    "avs_count": 0,
-    "operator_concentration_pct": 0.0,
-    "withdrawal_delay_days": 0.0,
-    "lrt_depeg_pct": 0.0,
-    "components": {
-      "slashing": 0.0,
-      "avs": 0.0,
-      "operator": 0.0,
-      "delay": 0.0,
-      "depeg": 0.0
-    },
-    "restaking_risk_score": 0.0,
-    "label": "LOW",
-    "recommendations": [
-      "Restaking risk within acceptable bounds. Monitor periodically."
-    ],
-    "timestamp": 1784622798.0531309
-  },
-  {
-    "protocol_name": "unknown",
-    "restaked_asset": "unknown",
-    "total_apy_pct": 0.0,
-    "slashing_risk_score": 10.0,
-    "concentration_risk_score": 5.0,
-    "restaking_composite_risk": 7.75,
-    "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:18.241986+00:00"
-  },
-  {
-    "protocol": "yearn_v3",
-    "slashing_exposure_pct": 0.0,
-    "avs_count": 0,
-    "operator_concentration_pct": 0.0,
-    "withdrawal_delay_days": 0.0,
-    "lrt_depeg_pct": 0.0,
-    "components": {
-      "slashing": 0.0,
-      "avs": 0.0,
-      "operator": 0.0,
-      "delay": 0.0,
-      "depeg": 0.0
-    },
-    "restaking_risk_score": 0.0,
-    "label": "LOW",
-    "recommendations": [
-      "Restaking risk within acceptable bounds. Monitor periodically."
-    ],
-    "timestamp": 1784622798.4156158
-  },
-  {
-    "protocol_name": "unknown",
-    "restaked_asset": "unknown",
-    "total_apy_pct": 0.0,
-    "slashing_risk_score": 10.0,
-    "concentration_risk_score": 5.0,
-    "restaking_composite_risk": 7.75,
-    "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:18.593419+00:00"
-  },
-  {
-    "protocol": "euler_v2",
-    "slashing_exposure_pct": 0.0,
-    "avs_count": 0,
-    "operator_concentration_pct": 0.0,
-    "withdrawal_delay_days": 0.0,
-    "lrt_depeg_pct": 0.0,
-    "components": {
-      "slashing": 0.0,
-      "avs": 0.0,
-      "operator": 0.0,
-      "delay": 0.0,
-      "depeg": 0.0
-    },
-    "restaking_risk_score": 0.0,
-    "label": "LOW",
-    "recommendations": [
-      "Restaking risk within acceptable bounds. Monitor periodically."
-    ],
-    "timestamp": 1784622798.7800512
-  },
-  {
-    "protocol_name": "unknown",
-    "restaked_asset": "unknown",
-    "total_apy_pct": 0.0,
-    "slashing_risk_score": 10.0,
-    "concentration_risk_score": 5.0,
-    "restaking_composite_risk": 7.75,
-    "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:18.954041+00:00"
+    "analyzed_at": "2026-07-22T09:53:10.871848+00:00"
   },
   {
     "protocol": "maple",
@@ -121,7 +28,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622799.144069
+    "timestamp": 1784713991.0957093
   },
   {
     "protocol_name": "unknown",
@@ -131,7 +38,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:19.325363+00:00"
+    "analyzed_at": "2026-07-22T09:53:11.298020+00:00"
   },
   {
     "protocol": "pendle",
@@ -152,7 +59,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622799.5125625
+    "timestamp": 1784713991.5159853
   },
   {
     "protocol_name": "unknown",
@@ -162,7 +69,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:19.677189+00:00"
+    "analyzed_at": "2026-07-22T09:53:11.740111+00:00"
   },
   {
     "protocol": "spark_susds",
@@ -183,7 +90,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622799.875347
+    "timestamp": 1784713991.9639792
   },
   {
     "protocol_name": "unknown",
@@ -193,7 +100,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:22.840076+00:00"
+    "analyzed_at": "2026-07-22T09:53:14.833670+00:00"
   },
   {
     "protocol": "aave_v3",
@@ -214,7 +121,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622803.0312192
+    "timestamp": 1784713995.1127698
   },
   {
     "protocol_name": "unknown",
@@ -224,7 +131,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:23.229109+00:00"
+    "analyzed_at": "2026-07-22T09:53:15.359343+00:00"
   },
   {
     "protocol": "compound_v3",
@@ -245,7 +152,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622803.422982
+    "timestamp": 1784713995.5994098
   },
   {
     "protocol_name": "unknown",
@@ -255,7 +162,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:23.613530+00:00"
+    "analyzed_at": "2026-07-22T09:53:15.814914+00:00"
   },
   {
     "protocol": "morpho_blue",
@@ -276,7 +183,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622803.8035495
+    "timestamp": 1784713996.0438
   },
   {
     "protocol_name": "unknown",
@@ -286,7 +193,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:23.986384+00:00"
+    "analyzed_at": "2026-07-22T09:53:16.262712+00:00"
   },
   {
     "protocol": "yearn_v3",
@@ -307,7 +214,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622804.2428796
+    "timestamp": 1784713996.4948575
   },
   {
     "protocol_name": "unknown",
@@ -317,7 +224,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:24.417094+00:00"
+    "analyzed_at": "2026-07-22T09:53:16.720535+00:00"
   },
   {
     "protocol": "euler_v2",
@@ -338,7 +245,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622804.6219075
+    "timestamp": 1784713996.9748774
   },
   {
     "protocol_name": "unknown",
@@ -348,7 +255,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:24.816415+00:00"
+    "analyzed_at": "2026-07-22T09:53:17.201233+00:00"
   },
   {
     "protocol": "maple",
@@ -369,7 +276,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622805.01949
+    "timestamp": 1784713997.4175892
   },
   {
     "protocol_name": "unknown",
@@ -379,7 +286,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:25.206962+00:00"
+    "analyzed_at": "2026-07-22T09:53:17.625443+00:00"
   },
   {
     "protocol": "pendle",
@@ -400,7 +307,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622805.4682903
+    "timestamp": 1784713997.867701
   },
   {
     "protocol_name": "unknown",
@@ -410,7 +317,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:25.646680+00:00"
+    "analyzed_at": "2026-07-22T09:53:18.081919+00:00"
   },
   {
     "protocol": "spark_susds",
@@ -431,7 +338,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622805.8429868
+    "timestamp": 1784713998.295593
   },
   {
     "protocol_name": "unknown",
@@ -441,7 +348,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:28.924417+00:00"
+    "analyzed_at": "2026-07-22T09:53:21.574689+00:00"
   },
   {
     "protocol": "aave_v3",
@@ -462,7 +369,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622809.1175635
+    "timestamp": 1784714001.8334239
   },
   {
     "protocol_name": "unknown",
@@ -472,7 +379,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:29.305013+00:00"
+    "analyzed_at": "2026-07-22T09:53:22.077510+00:00"
   },
   {
     "protocol": "compound_v3",
@@ -493,7 +400,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622809.4912
+    "timestamp": 1784714002.3281658
   },
   {
     "protocol_name": "unknown",
@@ -503,7 +410,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:29.669111+00:00"
+    "analyzed_at": "2026-07-22T09:53:22.574736+00:00"
   },
   {
     "protocol": "morpho_blue",
@@ -524,7 +431,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622809.8565667
+    "timestamp": 1784714002.8045003
   },
   {
     "protocol_name": "unknown",
@@ -534,7 +441,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:30.030372+00:00"
+    "analyzed_at": "2026-07-22T09:53:23.022011+00:00"
   },
   {
     "protocol": "yearn_v3",
@@ -555,7 +462,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622810.2214556
+    "timestamp": 1784714003.2196748
   },
   {
     "protocol_name": "unknown",
@@ -565,7 +472,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:30.406785+00:00"
+    "analyzed_at": "2026-07-22T09:53:23.409000+00:00"
   },
   {
     "protocol": "euler_v2",
@@ -586,7 +493,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622810.6693432
+    "timestamp": 1784714003.619914
   },
   {
     "protocol_name": "unknown",
@@ -596,7 +503,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:30.888194+00:00"
+    "analyzed_at": "2026-07-22T09:53:23.816567+00:00"
   },
   {
     "protocol": "maple",
@@ -617,7 +524,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622811.123649
+    "timestamp": 1784714004.0323327
   },
   {
     "protocol_name": "unknown",
@@ -627,7 +534,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:31.387769+00:00"
+    "analyzed_at": "2026-07-22T09:53:24.231306+00:00"
   },
   {
     "protocol": "pendle",
@@ -648,7 +555,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622811.655235
+    "timestamp": 1784714004.448614
   },
   {
     "protocol_name": "unknown",
@@ -658,7 +565,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:31.874989+00:00"
+    "analyzed_at": "2026-07-22T09:53:24.659564+00:00"
   },
   {
     "protocol": "spark_susds",
@@ -679,7 +586,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622812.1657405
+    "timestamp": 1784714004.864164
   },
   {
     "protocol_name": "unknown",
@@ -689,7 +596,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:35.717190+00:00"
+    "analyzed_at": "2026-07-22T09:53:27.925737+00:00"
   },
   {
     "protocol": "aave_v3",
@@ -710,7 +617,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622815.93551
+    "timestamp": 1784714008.1697059
   },
   {
     "protocol_name": "unknown",
@@ -720,7 +627,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:36.138753+00:00"
+    "analyzed_at": "2026-07-22T09:53:28.385785+00:00"
   },
   {
     "protocol": "compound_v3",
@@ -741,7 +648,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622816.3391702
+    "timestamp": 1784714008.622671
   },
   {
     "protocol_name": "unknown",
@@ -751,7 +658,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:36.517825+00:00"
+    "analyzed_at": "2026-07-22T09:53:28.836342+00:00"
   },
   {
     "protocol": "morpho_blue",
@@ -772,7 +679,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622816.712381
+    "timestamp": 1784714009.0594587
   },
   {
     "protocol_name": "unknown",
@@ -782,7 +689,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:36.889800+00:00"
+    "analyzed_at": "2026-07-22T09:53:29.276953+00:00"
   },
   {
     "protocol": "yearn_v3",
@@ -803,7 +710,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622817.0859337
+    "timestamp": 1784714009.4951394
   },
   {
     "protocol_name": "unknown",
@@ -813,7 +720,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:37.311246+00:00"
+    "analyzed_at": "2026-07-22T09:53:29.699729+00:00"
   },
   {
     "protocol": "euler_v2",
@@ -834,7 +741,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622817.5106418
+    "timestamp": 1784714009.927073
   },
   {
     "protocol_name": "unknown",
@@ -844,7 +751,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:37.719181+00:00"
+    "analyzed_at": "2026-07-22T09:53:30.147020+00:00"
   },
   {
     "protocol": "maple",
@@ -865,7 +772,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622817.8968368
+    "timestamp": 1784714010.3707418
   },
   {
     "protocol_name": "unknown",
@@ -875,7 +782,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:38.067916+00:00"
+    "analyzed_at": "2026-07-22T09:53:30.607727+00:00"
   },
   {
     "protocol": "pendle",
@@ -896,7 +803,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622818.2447307
+    "timestamp": 1784714010.8266406
   },
   {
     "protocol_name": "unknown",
@@ -906,7 +813,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:38.991938+00:00"
+    "analyzed_at": "2026-07-22T09:53:31.027732+00:00"
   },
   {
     "protocol": "spark_susds",
@@ -927,7 +834,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622819.1681225
+    "timestamp": 1784714011.2539096
   },
   {
     "protocol_name": "unknown",
@@ -937,7 +844,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:42.550614+00:00"
+    "analyzed_at": "2026-07-22T09:53:36.531284+00:00"
   },
   {
     "protocol": "aave_v3",
@@ -958,7 +865,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622822.737361
+    "timestamp": 1784714016.7666717
   },
   {
     "protocol_name": "unknown",
@@ -968,7 +875,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:42.924619+00:00"
+    "analyzed_at": "2026-07-22T09:53:36.996415+00:00"
   },
   {
     "protocol": "compound_v3",
@@ -989,7 +896,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622823.1040118
+    "timestamp": 1784714017.227776
   },
   {
     "protocol_name": "unknown",
@@ -999,7 +906,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:43.281512+00:00"
+    "analyzed_at": "2026-07-22T09:53:37.434060+00:00"
   },
   {
     "protocol": "morpho_blue",
@@ -1020,7 +927,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622823.4685633
+    "timestamp": 1784714017.6579697
   },
   {
     "protocol_name": "unknown",
@@ -1030,7 +937,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:43.669304+00:00"
+    "analyzed_at": "2026-07-22T09:53:37.884074+00:00"
   },
   {
     "protocol": "yearn_v3",
@@ -1051,7 +958,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622823.890208
+    "timestamp": 1784714018.1102364
   },
   {
     "protocol_name": "unknown",
@@ -1061,7 +968,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:44.101072+00:00"
+    "analyzed_at": "2026-07-22T09:53:39.128718+00:00"
   },
   {
     "protocol": "euler_v2",
@@ -1082,7 +989,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622824.311918
+    "timestamp": 1784714019.3642902
   },
   {
     "protocol_name": "unknown",
@@ -1092,7 +999,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:44.511241+00:00"
+    "analyzed_at": "2026-07-22T09:53:39.582759+00:00"
   },
   {
     "protocol": "maple",
@@ -1113,7 +1020,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622824.735206
+    "timestamp": 1784714019.8123503
   },
   {
     "protocol_name": "unknown",
@@ -1123,7 +1030,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:44.931057+00:00"
+    "analyzed_at": "2026-07-22T09:53:40.044001+00:00"
   },
   {
     "protocol": "pendle",
@@ -1144,7 +1051,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622825.1531608
+    "timestamp": 1784714020.2724042
   },
   {
     "protocol_name": "unknown",
@@ -1154,7 +1061,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:45.377801+00:00"
+    "analyzed_at": "2026-07-22T09:53:40.494034+00:00"
   },
   {
     "protocol": "spark_susds",
@@ -1175,7 +1082,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622825.591739
+    "timestamp": 1784714020.719523
   },
   {
     "protocol_name": "unknown",
@@ -1185,7 +1092,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:49.508502+00:00"
+    "analyzed_at": "2026-07-22T09:53:43.903023+00:00"
   },
   {
     "protocol": "aave_v3",
@@ -1206,7 +1113,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622829.7043166
+    "timestamp": 1784714024.115035
   },
   {
     "protocol_name": "unknown",
@@ -1216,7 +1123,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:49.884594+00:00"
+    "analyzed_at": "2026-07-22T09:53:44.310595+00:00"
   },
   {
     "protocol": "compound_v3",
@@ -1237,7 +1144,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622830.0822246
+    "timestamp": 1784714024.526622
   },
   {
     "protocol_name": "unknown",
@@ -1247,7 +1154,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:50.271554+00:00"
+    "analyzed_at": "2026-07-22T09:53:44.719078+00:00"
   },
   {
     "protocol": "morpho_blue",
@@ -1268,7 +1175,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622830.4611602
+    "timestamp": 1784714024.9457586
   },
   {
     "protocol_name": "unknown",
@@ -1278,7 +1185,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:50.642780+00:00"
+    "analyzed_at": "2026-07-22T09:53:45.153235+00:00"
   },
   {
     "protocol": "yearn_v3",
@@ -1299,7 +1206,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622830.8408756
+    "timestamp": 1784714025.3578486
   },
   {
     "protocol_name": "unknown",
@@ -1309,7 +1216,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:51.040898+00:00"
+    "analyzed_at": "2026-07-22T09:53:45.552059+00:00"
   },
   {
     "protocol": "euler_v2",
@@ -1330,7 +1237,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622831.2347221
+    "timestamp": 1784714025.7712095
   },
   {
     "protocol_name": "unknown",
@@ -1340,7 +1247,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:51.420218+00:00"
+    "analyzed_at": "2026-07-22T09:53:45.988538+00:00"
   },
   {
     "protocol": "maple",
@@ -1361,7 +1268,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622831.6316485
+    "timestamp": 1784714026.199379
   },
   {
     "protocol_name": "unknown",
@@ -1371,7 +1278,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:51.860827+00:00"
+    "analyzed_at": "2026-07-22T09:53:46.401697+00:00"
   },
   {
     "protocol": "pendle",
@@ -1392,7 +1299,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622832.0645905
+    "timestamp": 1784714026.6198955
   },
   {
     "protocol_name": "unknown",
@@ -1402,7 +1309,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:52.248062+00:00"
+    "analyzed_at": "2026-07-22T09:53:46.810651+00:00"
   },
   {
     "protocol": "spark_susds",
@@ -1423,7 +1330,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622832.4450176
+    "timestamp": 1784714027.0286646
   },
   {
     "protocol_name": "unknown",
@@ -1433,7 +1340,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:55.997888+00:00"
+    "analyzed_at": "2026-07-22T09:53:49.887497+00:00"
   },
   {
     "protocol": "aave_v3",
@@ -1454,7 +1361,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622836.1909866
+    "timestamp": 1784714030.1037972
   },
   {
     "protocol_name": "unknown",
@@ -1464,7 +1371,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:56.394766+00:00"
+    "analyzed_at": "2026-07-22T09:53:50.317964+00:00"
   },
   {
     "protocol": "compound_v3",
@@ -1485,7 +1392,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622836.584327
+    "timestamp": 1784714030.5569525
   },
   {
     "protocol_name": "unknown",
@@ -1495,7 +1402,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:56.806866+00:00"
+    "analyzed_at": "2026-07-22T09:53:50.765391+00:00"
   },
   {
     "protocol": "morpho_blue",
@@ -1516,7 +1423,7 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622837.0109782
+    "timestamp": 1784714030.9821146
   },
   {
     "protocol_name": "unknown",
@@ -1526,7 +1433,7 @@
     "concentration_risk_score": 5.0,
     "restaking_composite_risk": 7.75,
     "label": "CONSERVATIVE_RESTAKING",
-    "analyzed_at": "2026-07-21T08:33:57.191709+00:00"
+    "analyzed_at": "2026-07-22T09:53:51.181426+00:00"
   },
   {
     "protocol": "yearn_v3",
@@ -1547,6 +1454,99 @@
     "recommendations": [
       "Restaking risk within acceptable bounds. Monitor periodically."
     ],
-    "timestamp": 1784622837.3781385
+    "timestamp": 1784714031.3984885
+  },
+  {
+    "protocol_name": "unknown",
+    "restaked_asset": "unknown",
+    "total_apy_pct": 0.0,
+    "slashing_risk_score": 10.0,
+    "concentration_risk_score": 5.0,
+    "restaking_composite_risk": 7.75,
+    "label": "CONSERVATIVE_RESTAKING",
+    "analyzed_at": "2026-07-22T09:53:51.599735+00:00"
+  },
+  {
+    "protocol": "euler_v2",
+    "slashing_exposure_pct": 0.0,
+    "avs_count": 0,
+    "operator_concentration_pct": 0.0,
+    "withdrawal_delay_days": 0.0,
+    "lrt_depeg_pct": 0.0,
+    "components": {
+      "slashing": 0.0,
+      "avs": 0.0,
+      "operator": 0.0,
+      "delay": 0.0,
+      "depeg": 0.0
+    },
+    "restaking_risk_score": 0.0,
+    "label": "LOW",
+    "recommendations": [
+      "Restaking risk within acceptable bounds. Monitor periodically."
+    ],
+    "timestamp": 1784714031.8329363
+  },
+  {
+    "protocol_name": "unknown",
+    "restaked_asset": "unknown",
+    "total_apy_pct": 0.0,
+    "slashing_risk_score": 10.0,
+    "concentration_risk_score": 5.0,
+    "restaking_composite_risk": 7.75,
+    "label": "CONSERVATIVE_RESTAKING",
+    "analyzed_at": "2026-07-22T09:53:52.042158+00:00"
+  },
+  {
+    "protocol": "maple",
+    "slashing_exposure_pct": 0.0,
+    "avs_count": 0,
+    "operator_concentration_pct": 0.0,
+    "withdrawal_delay_days": 0.0,
+    "lrt_depeg_pct": 0.0,
+    "components": {
+      "slashing": 0.0,
+      "avs": 0.0,
+      "operator": 0.0,
+      "delay": 0.0,
+      "depeg": 0.0
+    },
+    "restaking_risk_score": 0.0,
+    "label": "LOW",
+    "recommendations": [
+      "Restaking risk within acceptable bounds. Monitor periodically."
+    ],
+    "timestamp": 1784714032.2611537
+  },
+  {
+    "protocol_name": "unknown",
+    "restaked_asset": "unknown",
+    "total_apy_pct": 0.0,
+    "slashing_risk_score": 10.0,
+    "concentration_risk_score": 5.0,
+    "restaking_composite_risk": 7.75,
+    "label": "CONSERVATIVE_RESTAKING",
+    "analyzed_at": "2026-07-22T09:53:52.463244+00:00"
+  },
+  {
+    "protocol": "pendle",
+    "slashing_exposure_pct": 0.0,
+    "avs_count": 0,
+    "operator_concentration_pct": 0.0,
+    "withdrawal_delay_days": 0.0,
+    "lrt_depeg_pct": 0.0,
+    "components": {
+      "slashing": 0.0,
+      "avs": 0.0,
+      "operator": 0.0,
+      "delay": 0.0,
+      "depeg": 0.0
+    },
+    "restaking_risk_score": 0.0,
+    "label": "LOW",
+    "recommendations": [
+      "Restaking risk within acceptable bounds. Monitor periodically."
+    ],
+    "timestamp": 1784714032.6773245
   }
 ]

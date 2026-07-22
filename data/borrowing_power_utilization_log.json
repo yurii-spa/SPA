@@ -1,68 +1,5 @@
 [
   {
-    "protocol": "aave_v3",
-    "collateral_value_usd": 0.0,
-    "borrowed_value_usd": 0.0,
-    "position_size_usd": 0.0,
-    "current_ltv_pct": 0.0,
-    "max_ltv_pct": 80.0,
-    "liquidation_ltv_pct": 85.0,
-    "asset_volatility_30d_pct": 15.0,
-    "strategy_target_ltv_pct": 0.0,
-    "volatility_adjusted_safe_ltv": 72.25,
-    "optimal_borrow_pct": 65.025,
-    "safety_buffer_pct": 85.0,
-    "risk_adjusted_capacity_usd": 0.0,
-    "utilization_efficiency_score": 10.0,
-    "label": "UNDERUTILIZED",
-    "recommendations": [
-      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
-    ],
-    "timestamp": 1784622757.2856872
-  },
-  {
-    "protocol": "compound_v3",
-    "collateral_value_usd": 0.0,
-    "borrowed_value_usd": 0.0,
-    "position_size_usd": 0.0,
-    "current_ltv_pct": 0.0,
-    "max_ltv_pct": 80.0,
-    "liquidation_ltv_pct": 85.0,
-    "asset_volatility_30d_pct": 15.0,
-    "strategy_target_ltv_pct": 0.0,
-    "volatility_adjusted_safe_ltv": 72.25,
-    "optimal_borrow_pct": 65.025,
-    "safety_buffer_pct": 85.0,
-    "risk_adjusted_capacity_usd": 0.0,
-    "utilization_efficiency_score": 10.0,
-    "label": "UNDERUTILIZED",
-    "recommendations": [
-      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
-    ],
-    "timestamp": 1784622757.6310098
-  },
-  {
-    "protocol": "morpho_blue",
-    "collateral_value_usd": 0.0,
-    "borrowed_value_usd": 0.0,
-    "position_size_usd": 0.0,
-    "current_ltv_pct": 0.0,
-    "max_ltv_pct": 80.0,
-    "liquidation_ltv_pct": 85.0,
-    "asset_volatility_30d_pct": 15.0,
-    "strategy_target_ltv_pct": 0.0,
-    "volatility_adjusted_safe_ltv": 72.25,
-    "optimal_borrow_pct": 65.025,
-    "safety_buffer_pct": 85.0,
-    "risk_adjusted_capacity_usd": 0.0,
-    "utilization_efficiency_score": 10.0,
-    "label": "UNDERUTILIZED",
-    "recommendations": [
-      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
-    ],
-    "timestamp": 1784622757.9932575
-  },
-  {
     "protocol": "yearn_v3",
     "collateral_value_usd": 0.0,
     "borrowed_value_usd": 0.0,
@@ -81,7 +18,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622762.2867942
+    "timestamp": 1784713948.143975
   },
   {
     "protocol": "euler_v2",
@@ -102,7 +39,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622762.6690526
+    "timestamp": 1784713948.576277
   },
   {
     "protocol": "maple",
@@ -123,7 +60,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622763.05081
+    "timestamp": 1784713948.9948702
   },
   {
     "protocol": "pendle",
@@ -144,7 +81,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622763.406069
+    "timestamp": 1784713949.4097645
   },
   {
     "protocol": "spark_susds",
@@ -165,7 +102,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622763.7609644
+    "timestamp": 1784713950.762608
   },
   {
     "protocol": "aave_v3",
@@ -186,7 +123,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622766.8626983
+    "timestamp": 1784713955.413701
   },
   {
     "protocol": "compound_v3",
@@ -207,7 +144,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622767.3481257
+    "timestamp": 1784713955.8609066
   },
   {
     "protocol": "morpho_blue",
@@ -228,7 +165,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622767.843893
+    "timestamp": 1784713956.35808
   },
   {
     "protocol": "yearn_v3",
@@ -249,7 +186,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622768.2501638
+    "timestamp": 1784713956.8371887
   },
   {
     "protocol": "euler_v2",
@@ -270,7 +207,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622768.6757748
+    "timestamp": 1784713957.2821484
   },
   {
     "protocol": "maple",
@@ -291,7 +228,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622769.0854042
+    "timestamp": 1784713957.7014437
   },
   {
     "protocol": "pendle",
@@ -312,7 +249,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622769.4370768
+    "timestamp": 1784713958.1168952
   },
   {
     "protocol": "spark_susds",
@@ -333,7 +270,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622769.7860515
+    "timestamp": 1784713958.540556
   },
   {
     "protocol": "aave_v3",
@@ -354,7 +291,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622773.3037913
+    "timestamp": 1784713961.9951265
   },
   {
     "protocol": "compound_v3",
@@ -375,7 +312,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622773.6987715
+    "timestamp": 1784713962.3955429
   },
   {
     "protocol": "morpho_blue",
@@ -396,7 +333,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622774.070908
+    "timestamp": 1784713962.8043375
   },
   {
     "protocol": "yearn_v3",
@@ -417,7 +354,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622774.439167
+    "timestamp": 1784713963.2438798
   },
   {
     "protocol": "euler_v2",
@@ -438,7 +375,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622774.8012812
+    "timestamp": 1784713963.6821926
   },
   {
     "protocol": "maple",
@@ -459,7 +396,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622775.171681
+    "timestamp": 1784713964.1203113
   },
   {
     "protocol": "pendle",
@@ -480,7 +417,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622775.5359414
+    "timestamp": 1784713964.5539837
   },
   {
     "protocol": "spark_susds",
@@ -501,7 +438,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622775.9135346
+    "timestamp": 1784713964.9792802
   },
   {
     "protocol": "aave_v3",
@@ -522,7 +459,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622778.9035048
+    "timestamp": 1784713968.8123128
   },
   {
     "protocol": "compound_v3",
@@ -543,7 +480,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622779.260096
+    "timestamp": 1784713969.2603412
   },
   {
     "protocol": "morpho_blue",
@@ -564,7 +501,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622779.6128964
+    "timestamp": 1784713969.7021773
   },
   {
     "protocol": "yearn_v3",
@@ -585,7 +522,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622779.9688902
+    "timestamp": 1784713970.1654067
   },
   {
     "protocol": "euler_v2",
@@ -606,7 +543,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622780.3359308
+    "timestamp": 1784713970.5875103
   },
   {
     "protocol": "maple",
@@ -627,7 +564,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622780.7097516
+    "timestamp": 1784713971.012177
   },
   {
     "protocol": "pendle",
@@ -648,7 +585,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622781.0747771
+    "timestamp": 1784713971.4408312
   },
   {
     "protocol": "spark_susds",
@@ -669,7 +606,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622781.4273937
+    "timestamp": 1784713971.9184966
   },
   {
     "protocol": "aave_v3",
@@ -690,7 +627,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622784.9042609
+    "timestamp": 1784713975.5115268
   },
   {
     "protocol": "compound_v3",
@@ -711,7 +648,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622785.2823033
+    "timestamp": 1784713976.016397
   },
   {
     "protocol": "morpho_blue",
@@ -732,7 +669,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622785.6432626
+    "timestamp": 1784713976.4646387
   },
   {
     "protocol": "yearn_v3",
@@ -753,7 +690,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622786.0133855
+    "timestamp": 1784713976.8706245
   },
   {
     "protocol": "euler_v2",
@@ -774,7 +711,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622786.3660853
+    "timestamp": 1784713977.2713652
   },
   {
     "protocol": "maple",
@@ -795,7 +732,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622786.7539241
+    "timestamp": 1784713977.6935074
   },
   {
     "protocol": "pendle",
@@ -816,7 +753,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622787.1423368
+    "timestamp": 1784713978.088842
   },
   {
     "protocol": "spark_susds",
@@ -837,7 +774,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622787.4994488
+    "timestamp": 1784713978.4960592
   },
   {
     "protocol": "aave_v3",
@@ -858,7 +795,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622790.5139046
+    "timestamp": 1784713982.475429
   },
   {
     "protocol": "compound_v3",
@@ -879,7 +816,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622790.908854
+    "timestamp": 1784713982.8869252
   },
   {
     "protocol": "morpho_blue",
@@ -900,7 +837,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622791.32849
+    "timestamp": 1784713983.3077748
   },
   {
     "protocol": "yearn_v3",
@@ -921,7 +858,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622791.7137768
+    "timestamp": 1784713983.7052617
   },
   {
     "protocol": "euler_v2",
@@ -942,7 +879,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622792.0743463
+    "timestamp": 1784713984.0960126
   },
   {
     "protocol": "maple",
@@ -963,7 +900,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622792.4333394
+    "timestamp": 1784713984.51674
   },
   {
     "protocol": "pendle",
@@ -984,7 +921,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622792.7927103
+    "timestamp": 1784713984.941829
   },
   {
     "protocol": "spark_susds",
@@ -1005,7 +942,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622793.1475658
+    "timestamp": 1784713985.3417807
   },
   {
     "protocol": "aave_v3",
@@ -1026,7 +963,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622797.0399673
+    "timestamp": 1784713988.6353316
   },
   {
     "protocol": "compound_v3",
@@ -1047,7 +984,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622797.4157307
+    "timestamp": 1784713989.1233897
   },
   {
     "protocol": "morpho_blue",
@@ -1068,7 +1005,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622797.8194456
+    "timestamp": 1784713989.5291288
   },
   {
     "protocol": "yearn_v3",
@@ -1089,7 +1026,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622798.1828547
+    "timestamp": 1784713989.9368105
   },
   {
     "protocol": "euler_v2",
@@ -1110,7 +1047,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622798.5491605
+    "timestamp": 1784713990.3791924
   },
   {
     "protocol": "maple",
@@ -1131,7 +1068,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622798.909988
+    "timestamp": 1784713990.822561
   },
   {
     "protocol": "pendle",
@@ -1152,7 +1089,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622799.2866745
+    "timestamp": 1784713991.2456353
   },
   {
     "protocol": "spark_susds",
@@ -1173,7 +1110,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622799.6431603
+    "timestamp": 1784713991.686691
   },
   {
     "protocol": "aave_v3",
@@ -1194,7 +1131,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622802.7929237
+    "timestamp": 1784713994.7662148
   },
   {
     "protocol": "compound_v3",
@@ -1215,7 +1152,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622803.169958
+    "timestamp": 1784713995.3088331
   },
   {
     "protocol": "morpho_blue",
@@ -1236,7 +1173,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622803.562403
+    "timestamp": 1784713995.764645
   },
   {
     "protocol": "yearn_v3",
@@ -1257,7 +1194,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622803.948932
+    "timestamp": 1784713996.2110066
   },
   {
     "protocol": "euler_v2",
@@ -1278,7 +1215,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622804.3721426
+    "timestamp": 1784713996.6676178
   },
   {
     "protocol": "maple",
@@ -1299,7 +1236,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622804.7701292
+    "timestamp": 1784713997.1382372
   },
   {
     "protocol": "pendle",
@@ -1320,7 +1257,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622805.157251
+    "timestamp": 1784713997.5704927
   },
   {
     "protocol": "spark_susds",
@@ -1341,7 +1278,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622805.614555
+    "timestamp": 1784713998.0271788
   },
   {
     "protocol": "aave_v3",
@@ -1362,7 +1299,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622808.8758366
+    "timestamp": 1784714001.5084198
   },
   {
     "protocol": "compound_v3",
@@ -1383,7 +1320,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622809.2561023
+    "timestamp": 1784714002.0116544
   },
   {
     "protocol": "morpho_blue",
@@ -1404,7 +1341,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622809.6193306
+    "timestamp": 1784714002.5302527
   },
   {
     "protocol": "yearn_v3",
@@ -1425,7 +1362,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622809.9857025
+    "timestamp": 1784714002.9596002
   },
   {
     "protocol": "euler_v2",
@@ -1446,7 +1383,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622810.3534727
+    "timestamp": 1784714003.363596
   },
   {
     "protocol": "maple",
@@ -1467,7 +1404,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622810.8359241
+    "timestamp": 1784714003.768118
   },
   {
     "protocol": "pendle",
@@ -1488,7 +1425,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622811.3311017
+    "timestamp": 1784714004.1841598
   },
   {
     "protocol": "spark_susds",
@@ -1509,7 +1446,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622811.8124688
+    "timestamp": 1784714004.598585
   },
   {
     "protocol": "aave_v3",
@@ -1530,7 +1467,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622815.6703026
+    "timestamp": 1784714007.858396
   },
   {
     "protocol": "compound_v3",
@@ -1551,7 +1488,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622816.0922318
+    "timestamp": 1784714008.322061
   },
   {
     "protocol": "morpho_blue",
@@ -1572,7 +1509,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622816.47352
+    "timestamp": 1784714008.7828262
   },
   {
     "protocol": "yearn_v3",
@@ -1593,7 +1530,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622816.849112
+    "timestamp": 1784714009.2206764
   },
   {
     "protocol": "euler_v2",
@@ -1614,7 +1551,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622817.258626
+    "timestamp": 1784714009.6461015
   },
   {
     "protocol": "maple",
@@ -1635,7 +1572,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622817.663038
+    "timestamp": 1784714010.0894175
   },
   {
     "protocol": "pendle",
@@ -1656,7 +1593,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622818.0322726
+    "timestamp": 1784714010.5395975
   },
   {
     "protocol": "spark_susds",
@@ -1677,7 +1614,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622818.9460816
+    "timestamp": 1784714010.9815981
   },
   {
     "protocol": "aave_v3",
@@ -1698,7 +1635,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622822.5060816
+    "timestamp": 1784714016.4621744
   },
   {
     "protocol": "compound_v3",
@@ -1719,7 +1656,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622822.876075
+    "timestamp": 1784714016.94418
   },
   {
     "protocol": "morpho_blue",
@@ -1740,7 +1677,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622823.2393825
+    "timestamp": 1784714017.378135
   },
   {
     "protocol": "yearn_v3",
@@ -1761,7 +1698,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622823.6090257
+    "timestamp": 1784714017.8272207
   },
   {
     "protocol": "euler_v2",
@@ -1782,7 +1719,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622824.0524895
+    "timestamp": 1784714018.2729359
   },
   {
     "protocol": "maple",
@@ -1803,7 +1740,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622824.472171
+    "timestamp": 1784714019.534065
   },
   {
     "protocol": "pendle",
@@ -1824,7 +1761,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622824.8873575
+    "timestamp": 1784714019.9874005
   },
   {
     "protocol": "spark_susds",
@@ -1845,7 +1782,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622825.3273995
+    "timestamp": 1784714020.4367068
   },
   {
     "protocol": "aave_v3",
@@ -1866,7 +1803,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622829.4632337
+    "timestamp": 1784714023.8470871
   },
   {
     "protocol": "compound_v3",
@@ -1887,7 +1824,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622829.8406777
+    "timestamp": 1784714024.266982
   },
   {
     "protocol": "morpho_blue",
@@ -1908,7 +1845,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622830.2260547
+    "timestamp": 1784714024.6792874
   },
   {
     "protocol": "yearn_v3",
@@ -1929,7 +1866,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622830.600052
+    "timestamp": 1784714025.099618
   },
   {
     "protocol": "euler_v2",
@@ -1950,7 +1887,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622830.9957304
+    "timestamp": 1784714025.5069647
   },
   {
     "protocol": "maple",
@@ -1971,7 +1908,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622831.3806057
+    "timestamp": 1784714025.9397225
   },
   {
     "protocol": "pendle",
@@ -1992,7 +1929,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622831.8014867
+    "timestamp": 1784714026.3492541
   },
   {
     "protocol": "spark_susds",
@@ -2013,7 +1950,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622832.2004964
+    "timestamp": 1784714026.7643943
   },
   {
     "protocol": "aave_v3",
@@ -2034,7 +1971,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622835.9447281
+    "timestamp": 1784714029.833284
   },
   {
     "protocol": "compound_v3",
@@ -2055,7 +1992,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622836.3438299
+    "timestamp": 1784714030.2650933
   },
   {
     "protocol": "morpho_blue",
@@ -2076,7 +2013,7 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622836.760721
+    "timestamp": 1784714030.7079506
   },
   {
     "protocol": "yearn_v3",
@@ -2097,6 +2034,69 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784622837.1441505
+    "timestamp": 1784714031.1336565
+  },
+  {
+    "protocol": "euler_v2",
+    "collateral_value_usd": 0.0,
+    "borrowed_value_usd": 0.0,
+    "position_size_usd": 0.0,
+    "current_ltv_pct": 0.0,
+    "max_ltv_pct": 80.0,
+    "liquidation_ltv_pct": 85.0,
+    "asset_volatility_30d_pct": 15.0,
+    "strategy_target_ltv_pct": 0.0,
+    "volatility_adjusted_safe_ltv": 72.25,
+    "optimal_borrow_pct": 65.025,
+    "safety_buffer_pct": 85.0,
+    "risk_adjusted_capacity_usd": 0.0,
+    "utilization_efficiency_score": 10.0,
+    "label": "UNDERUTILIZED",
+    "recommendations": [
+      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
+    ],
+    "timestamp": 1784714031.5543342
+  },
+  {
+    "protocol": "maple",
+    "collateral_value_usd": 0.0,
+    "borrowed_value_usd": 0.0,
+    "position_size_usd": 0.0,
+    "current_ltv_pct": 0.0,
+    "max_ltv_pct": 80.0,
+    "liquidation_ltv_pct": 85.0,
+    "asset_volatility_30d_pct": 15.0,
+    "strategy_target_ltv_pct": 0.0,
+    "volatility_adjusted_safe_ltv": 72.25,
+    "optimal_borrow_pct": 65.025,
+    "safety_buffer_pct": 85.0,
+    "risk_adjusted_capacity_usd": 0.0,
+    "utilization_efficiency_score": 10.0,
+    "label": "UNDERUTILIZED",
+    "recommendations": [
+      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
+    ],
+    "timestamp": 1784714031.9884386
+  },
+  {
+    "protocol": "pendle",
+    "collateral_value_usd": 0.0,
+    "borrowed_value_usd": 0.0,
+    "position_size_usd": 0.0,
+    "current_ltv_pct": 0.0,
+    "max_ltv_pct": 80.0,
+    "liquidation_ltv_pct": 85.0,
+    "asset_volatility_30d_pct": 15.0,
+    "strategy_target_ltv_pct": 0.0,
+    "volatility_adjusted_safe_ltv": 72.25,
+    "optimal_borrow_pct": 65.025,
+    "safety_buffer_pct": 85.0,
+    "risk_adjusted_capacity_usd": 0.0,
+    "utilization_efficiency_score": 10.0,
+    "label": "UNDERUTILIZED",
+    "recommendations": [
+      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
+    ],
+    "timestamp": 1784714032.4158852
   }
 ]
