@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-07-23T08:39:41.689265+00:00",
+  "generated_at": "2026-07-23T08:39:51.729696+00:00",
   "generated_by": "adapter_status_generator",
   "live_apy_enabled": false,
   "live_count": 0,
@@ -15,7 +15,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.4,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "compound_v3": {
       "display_name": "Compound V3 (Comet USDC)",
@@ -27,7 +27,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.4,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "spark_susds": {
       "display_name": "Spark sUSDS",
@@ -39,7 +39,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.4,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "morpho_steakhouse": {
       "display_name": "Morpho Steakhouse USDC",
@@ -51,7 +51,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.4,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "aave_arbitrum": {
       "display_name": "Aave V3 Arbitrum",
@@ -63,7 +63,7 @@
       "chain": "arbitrum",
       "per_protocol_cap": 0.4,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "aave_v3_optimism": {
       "display_name": "Aave V3 Optimism",
@@ -75,7 +75,7 @@
       "chain": "optimism",
       "per_protocol_cap": 0.4,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "aave_v3_polygon": {
       "display_name": "Aave V3 Polygon (USDC.e)",
@@ -87,7 +87,7 @@
       "chain": "polygon",
       "per_protocol_cap": 0.4,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "morpho_blue": {
       "display_name": "Morpho Blue",
@@ -99,7 +99,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "yearn_v3": {
       "display_name": "Yearn V3",
@@ -111,7 +111,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "euler_v2": {
       "display_name": "Euler V2",
@@ -123,7 +123,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "maple": {
       "display_name": "Maple Finance",
@@ -135,7 +135,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "pendle": {
       "display_name": "Pendle Finance (PT markets)",
@@ -147,7 +147,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "fluid_fusdc": {
       "display_name": "Fluid fUSDC",
@@ -159,7 +159,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "sfrax": {
       "display_name": "Frax sFRAX",
@@ -171,7 +171,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "wusdm": {
       "display_name": "Mountain Protocol wUSDM (RWA T-bill)",
@@ -183,7 +183,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "scrvusd": {
       "display_name": "Curve Savings scrvUSD",
@@ -195,7 +195,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "stusd": {
       "display_name": "Angle Staked USDA (stUSD)",
@@ -207,7 +207,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "sdai": {
       "display_name": "MakerDAO Savings DAI (sDAI)",
@@ -219,7 +219,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "frax": {
       "display_name": "Frax FraxLend USDC",
@@ -231,7 +231,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "aave_v3_base": {
       "display_name": "Aave V3 Base",
@@ -243,7 +243,7 @@
       "chain": "base",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "morpho_blue_base": {
       "display_name": "Morpho Blue Base",
@@ -255,7 +255,7 @@
       "chain": "base",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "moonwell_base": {
       "display_name": "Moonwell Finance Base",
@@ -267,7 +267,7 @@
       "chain": "base",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "susde": {
       "display_name": "Ethena sUSDe",
@@ -279,7 +279,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.1,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "extra_finance_base": {
       "display_name": "Extra Finance XLend Base",
@@ -291,7 +291,7 @@
       "chain": "base",
       "per_protocol_cap": 0.1,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "fluid_usdc": {
       "display_name": "Fluid Protocol USDC",
@@ -303,7 +303,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.0,
       "active": false,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "notional_v3": {
       "display_name": "Notional V3",
@@ -315,7 +315,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.0,
       "active": false,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "sky_susds": {
       "display_name": "Sky/sUSDS (MakerDAO)",
@@ -327,7 +327,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.0,
       "active": false,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "pendle_pt": {
       "display_name": "Pendle PT REST (fixed-rate)",
@@ -339,7 +339,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": false,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "ethena_susde": {
       "display_name": "Ethena sUSDe (delta-neutral synthetic dollar)",
@@ -351,7 +351,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "ondo_usdy": {
       "display_name": "Ondo Finance USDY (tokenised US T-bill)",
@@ -363,7 +363,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "aave_v3_wsteth": {
       "display_name": "Aave V3 wstETH leverage loop (2x)",
@@ -375,7 +375,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "pendle_yt_susde": {
       "display_name": "Pendle YT sUSDe (yield token, leveraged APY)",
@@ -387,7 +387,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "pendle_pt_susde": {
       "display_name": "Pendle PT sUSDe (fixed-rate principal token)",
@@ -399,7 +399,7 @@
       "chain": "ethereum",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     },
     "aerodrome_usdc_lp": {
       "display_name": "Aerodrome Finance USDC/USDT LP (Base)",
@@ -411,7 +411,7 @@
       "chain": "base",
       "per_protocol_cap": 0.2,
       "active": true,
-      "last_updated": "2026-07-23T08:39:41.689265+00:00"
+      "last_updated": "2026-07-23T08:39:51.729696+00:00"
     }
   },
   "morpho_steakhouse": {
