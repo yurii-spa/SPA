@@ -42,1600 +42,6 @@
       "Bad"
     ],
     "average_ponzi_score": 52.5,
-    "timestamp": 1784453420.6431413
-  },
-  {
-    "protocols": [
-      {
-        "name": "Good",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "Good appears sustainable. 1.05x fee revenue coverage."
-      },
-      {
-        "name": "Bad",
-        "ponzi_risk_score": 95,
-        "risk_classification": "EXIT_SCAM_RISK",
-        "yield_coverage_ratio": 0.005,
-        "emission_dependency_pct": 99.833333,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 0,
-        "emission_risk_score": 30,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Fee revenue covers <30% of yield payouts",
-          "Team takes 40% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing",
-          "Unsustainable headline APY of 300%"
-        ],
-        "recommendation": "IMMEDIATE EXIT. Bad shows multiple exit scam signals. Withdraw now."
-      }
-    ],
-    "highest_risk": "Bad",
-    "safest": "Good",
-    "ponzi_risk_protocols": [
-      "Bad"
-    ],
-    "average_ponzi_score": 52.5,
-    "timestamp": 1784453420.6481497
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 10.0,
-    "timestamp": 1784453420.6533754
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 10.0,
-    "timestamp": 1784453420.658564
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 0,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 0.0,
-        "emission_dependency_pct": 0.0,
-        "new_deposit_reliance_pct": 0.0,
-        "sustainability_score": 40,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 0.00x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 0.0,
-    "timestamp": 1784453420.6639225
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 0,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 0.0,
-        "emission_dependency_pct": 0.0,
-        "new_deposit_reliance_pct": 0.0,
-        "sustainability_score": 40,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 0.00x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 0.0,
-    "timestamp": 1784453420.6692135
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 0,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 0.0,
-        "emission_dependency_pct": 0.0,
-        "new_deposit_reliance_pct": 0.0,
-        "sustainability_score": 40,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 0.00x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 0.0,
-    "timestamp": 1784453420.6742563
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 40,
-        "risk_classification": "YIELD_INFLATED",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 95.0,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 30,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Unsustainable headline APY of 100%"
-        ],
-        "recommendation": "Yield inflated by token emissions. Real yield ~5.0%."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 40.0,
-    "timestamp": 1784453420.6794708
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 40,
-        "risk_classification": "YIELD_INFLATED",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 95.0,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 30,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Unsustainable headline APY of 100%"
-        ],
-        "recommendation": "Yield inflated by token emissions. Real yield ~5.0%."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 40.0,
-    "timestamp": 1784453420.6846557
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 25,
-        "risk_classification": "WATCH",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 15,
-        "warning_signals": [
-          "Team takes 35% of revenue/tokens"
-        ],
-        "recommendation": "Monitor TestProto. Some unsustainable yield characteristics."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 25.0,
-    "timestamp": 1784453420.6898513
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 25,
-        "risk_classification": "WATCH",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 15,
-        "warning_signals": [
-          "Team takes 35% of revenue/tokens"
-        ],
-        "recommendation": "Monitor TestProto. Some unsustainable yield characteristics."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 25.0,
-    "timestamp": 1784453420.6951206
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 20,
-        "risk_classification": "WATCH",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 10,
-        "warning_signals": [
-          "TVL declining >25% in 30d \u2014 capital fleeing"
-        ],
-        "recommendation": "Monitor TestProto. Some unsustainable yield characteristics."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 20.0,
-    "timestamp": 1784453420.7003021
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 20,
-        "risk_classification": "WATCH",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 10,
-        "warning_signals": [
-          "TVL declining >25% in 30d \u2014 capital fleeing"
-        ],
-        "recommendation": "Monitor TestProto. Some unsustainable yield characteristics."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 20.0,
-    "timestamp": 1784453420.7053123
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.0,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 1.00x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 10.0,
-    "timestamp": 1784453420.7106872
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 0,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.6,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 40,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 1.60x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 0.0,
-    "timestamp": 1784453420.7155955
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 35,
-        "risk_classification": "WATCH",
-        "yield_coverage_ratio": 0.25,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 5,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "Fee revenue covers <30% of yield payouts"
-        ],
-        "recommendation": "Monitor TestProto. Some unsustainable yield characteristics."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 35.0,
-    "timestamp": 1784453420.7207594
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 30,
-        "risk_classification": "WATCH",
-        "yield_coverage_ratio": 0.5,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 10,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "Monitor TestProto. Some unsustainable yield characteristics."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 30.0,
-    "timestamp": 1784453420.7256653
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 20,
-        "risk_classification": "WATCH",
-        "yield_coverage_ratio": 0.75,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 20,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "Monitor TestProto. Some unsustainable yield characteristics."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 20.0,
-    "timestamp": 1784453420.7305744
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 40,
-        "risk_classification": "YIELD_INFLATED",
-        "yield_coverage_ratio": 0.1,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 0,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "Fee revenue covers <30% of yield payouts"
-        ],
-        "recommendation": "Yield inflated by token emissions. Real yield ~7.5%."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 40.0,
-    "timestamp": 1784453420.7355185
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 10.0,
-    "timestamp": 1784453420.740649
-  },
-  {
-    "protocols": [
-      {
-        "name": "Scam",
-        "ponzi_risk_score": 95,
-        "risk_classification": "EXIT_SCAM_RISK",
-        "yield_coverage_ratio": 0.005,
-        "emission_dependency_pct": 99.833333,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 0,
-        "emission_risk_score": 30,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Fee revenue covers <30% of yield payouts",
-          "Team takes 40% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing",
-          "Unsustainable headline APY of 300%"
-        ],
-        "recommendation": "IMMEDIATE EXIT. Scam shows multiple exit scam signals. Withdraw now."
-      }
-    ],
-    "highest_risk": "Scam",
-    "safest": "Scam",
-    "ponzi_risk_protocols": [
-      "Scam"
-    ],
-    "average_ponzi_score": 95.0,
-    "timestamp": 1784453420.7456603
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 10.0,
-    "timestamp": 1784453420.7507608
-  },
-  {
-    "protocols": [
-      {
-        "name": "Scam",
-        "ponzi_risk_score": 95,
-        "risk_classification": "EXIT_SCAM_RISK",
-        "yield_coverage_ratio": 0.005,
-        "emission_dependency_pct": 99.833333,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 0,
-        "emission_risk_score": 30,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Fee revenue covers <30% of yield payouts",
-          "Team takes 40% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing",
-          "Unsustainable headline APY of 300%"
-        ],
-        "recommendation": "IMMEDIATE EXIT. Scam shows multiple exit scam signals. Withdraw now."
-      }
-    ],
-    "highest_risk": "Scam",
-    "safest": "Scam",
-    "ponzi_risk_protocols": [
-      "Scam"
-    ],
-    "average_ponzi_score": 95.0,
-    "timestamp": 1784453420.7544656
-  },
-  {
-    "protocols": [],
-    "highest_risk": null,
-    "safest": null,
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 0.0,
-    "timestamp": 1784453420.7597878
-  },
-  {
-    "protocols": [
-      {
-        "name": "MyProtocol",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "MyProtocol appears sustainable. 1.05x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "MyProtocol",
-    "safest": "MyProtocol",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 10.0,
-    "timestamp": 1784453420.7652178
-  },
-  {
-    "protocols": [
-      {
-        "name": "A",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "A appears sustainable. 1.05x fee revenue coverage."
-      },
-      {
-        "name": "B",
-        "ponzi_risk_score": 35,
-        "risk_classification": "WATCH",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Team takes 35% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing"
-        ],
-        "recommendation": "Monitor B. Some unsustainable yield characteristics."
-      },
-      {
-        "name": "C",
-        "ponzi_risk_score": 95,
-        "risk_classification": "EXIT_SCAM_RISK",
-        "yield_coverage_ratio": 0.005,
-        "emission_dependency_pct": 99.833333,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 0,
-        "emission_risk_score": 30,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Fee revenue covers <30% of yield payouts",
-          "Team takes 40% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing",
-          "Unsustainable headline APY of 300%"
-        ],
-        "recommendation": "IMMEDIATE EXIT. C shows multiple exit scam signals. Withdraw now."
-      }
-    ],
-    "highest_risk": "C",
-    "safest": "A",
-    "ponzi_risk_protocols": [
-      "C"
-    ],
-    "average_ponzi_score": 46.666667,
-    "timestamp": 1784453420.7705686
-  },
-  {
-    "protocols": [
-      {
-        "name": "A",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "A appears sustainable. 1.05x fee revenue coverage."
-      },
-      {
-        "name": "B",
-        "ponzi_risk_score": 35,
-        "risk_classification": "WATCH",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Team takes 35% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing"
-        ],
-        "recommendation": "Monitor B. Some unsustainable yield characteristics."
-      },
-      {
-        "name": "C",
-        "ponzi_risk_score": 95,
-        "risk_classification": "EXIT_SCAM_RISK",
-        "yield_coverage_ratio": 0.005,
-        "emission_dependency_pct": 99.833333,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 0,
-        "emission_risk_score": 30,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Fee revenue covers <30% of yield payouts",
-          "Team takes 40% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing",
-          "Unsustainable headline APY of 300%"
-        ],
-        "recommendation": "IMMEDIATE EXIT. C shows multiple exit scam signals. Withdraw now."
-      }
-    ],
-    "highest_risk": "C",
-    "safest": "A",
-    "ponzi_risk_protocols": [
-      "C"
-    ],
-    "average_ponzi_score": 46.666667,
-    "timestamp": 1784453420.7761123
-  },
-  {
-    "protocols": [
-      {
-        "name": "A",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "A appears sustainable. 1.05x fee revenue coverage."
-      },
-      {
-        "name": "B",
-        "ponzi_risk_score": 35,
-        "risk_classification": "WATCH",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Team takes 35% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing"
-        ],
-        "recommendation": "Monitor B. Some unsustainable yield characteristics."
-      },
-      {
-        "name": "C",
-        "ponzi_risk_score": 95,
-        "risk_classification": "EXIT_SCAM_RISK",
-        "yield_coverage_ratio": 0.005,
-        "emission_dependency_pct": 99.833333,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 0,
-        "emission_risk_score": 30,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Fee revenue covers <30% of yield payouts",
-          "Team takes 40% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing",
-          "Unsustainable headline APY of 300%"
-        ],
-        "recommendation": "IMMEDIATE EXIT. C shows multiple exit scam signals. Withdraw now."
-      }
-    ],
-    "highest_risk": "C",
-    "safest": "A",
-    "ponzi_risk_protocols": [
-      "C"
-    ],
-    "average_ponzi_score": 46.666667,
-    "timestamp": 1784453420.7813675
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 26,
-        "risk_classification": "WATCH",
-        "yield_coverage_ratio": 1.0,
-        "emission_dependency_pct": 50.0,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 30,
-        "emission_risk_score": 16,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "Monitor TestProto. Some unsustainable yield characteristics."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 26.0,
-    "timestamp": 1784453420.786791
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 59,
-        "risk_classification": "YIELD_INFLATED",
-        "yield_coverage_ratio": 0.25,
-        "emission_dependency_pct": 70.0,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 5,
-        "emission_risk_score": 24,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "Fee revenue covers <30% of yield payouts"
-        ],
-        "recommendation": "Yield inflated by token emissions. Real yield ~7.5%."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 59.0,
-    "timestamp": 1784453420.7924402
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 10.0,
-    "timestamp": 1784453420.8994296
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 10.0,
-    "timestamp": 1784453420.9065733
-  },
-  {
-    "protocols": [],
-    "highest_risk": null,
-    "safest": null,
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 0.0,
-    "timestamp": 1784453420.912399
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 20,
-        "risk_classification": "WATCH",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 10,
-        "warning_signals": [
-          "TVL declining >25% in 30d \u2014 capital fleeing"
-        ],
-        "recommendation": "Monitor TestProto. Some unsustainable yield characteristics."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 20.0,
-    "timestamp": 1784453420.9181657
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 10.0,
-    "timestamp": 1784453420.9235327
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 10.0,
-    "timestamp": 1784453420.928902
-  },
-  {
-    "protocols": [
-      {
-        "name": "X",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "X appears sustainable. 1.05x fee revenue coverage."
-      },
-      {
-        "name": "X",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "X appears sustainable. 1.05x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "X",
-    "safest": "X",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 10.0,
-    "timestamp": 1784453420.9341695
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 40,
-        "risk_classification": "YIELD_INFLATED",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 99.99,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 30,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Unsustainable headline APY of 10000%"
-        ],
-        "recommendation": "Yield inflated by token emissions. Real yield ~7.5%."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 40.0,
-    "timestamp": 1784453420.9393182
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 10.0,
-    "timestamp": 1784453420.9444735
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 0,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 0.0,
-        "emission_dependency_pct": 0.0,
-        "new_deposit_reliance_pct": 0.0,
-        "sustainability_score": 40,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 0.00x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 0.0,
-    "timestamp": 1784453420.9497397
-  },
-  {
-    "protocols": [],
-    "highest_risk": null,
-    "safest": null,
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 0.0,
-    "timestamp": 1784885378.851359
-  },
-  {
-    "protocols": [],
-    "highest_risk": null,
-    "safest": null,
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 0.0,
-    "timestamp": 1784885378.8572834
-  },
-  {
-    "protocols": [],
-    "highest_risk": null,
-    "safest": null,
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 0.0,
-    "timestamp": 1784885378.8622704
-  },
-  {
-    "protocols": [],
-    "highest_risk": null,
-    "safest": null,
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 0.0,
-    "timestamp": 1784885378.8675175
-  },
-  {
-    "protocols": [],
-    "highest_risk": null,
-    "safest": null,
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 0.0,
-    "timestamp": 1784885378.87351
-  },
-  {
-    "protocols": [],
-    "highest_risk": null,
-    "safest": null,
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 0.0,
-    "timestamp": 1784885378.8792875
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 10.0,
-    "timestamp": 1784885378.8843305
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 10.0,
-    "timestamp": 1784885378.8892562
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 10.0,
-    "timestamp": 1784885378.8953838
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 10.0,
-    "timestamp": 1784885378.9004104
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProto",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
-      }
-    ],
-    "highest_risk": "TestProto",
-    "safest": "TestProto",
-    "ponzi_risk_protocols": [],
-    "average_ponzi_score": 10.0,
-    "timestamp": 1784885378.9056337
-  },
-  {
-    "protocols": [
-      {
-        "name": "Scam",
-        "ponzi_risk_score": 95,
-        "risk_classification": "EXIT_SCAM_RISK",
-        "yield_coverage_ratio": 0.005,
-        "emission_dependency_pct": 99.833333,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 0,
-        "emission_risk_score": 30,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Fee revenue covers <30% of yield payouts",
-          "Team takes 40% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing",
-          "Unsustainable headline APY of 300%"
-        ],
-        "recommendation": "IMMEDIATE EXIT. Scam shows multiple exit scam signals. Withdraw now."
-      }
-    ],
-    "highest_risk": "Scam",
-    "safest": "Scam",
-    "ponzi_risk_protocols": [
-      "Scam"
-    ],
-    "average_ponzi_score": 95.0,
-    "timestamp": 1784885378.9106362
-  },
-  {
-    "protocols": [
-      {
-        "name": "Scam",
-        "ponzi_risk_score": 95,
-        "risk_classification": "EXIT_SCAM_RISK",
-        "yield_coverage_ratio": 0.005,
-        "emission_dependency_pct": 99.833333,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 0,
-        "emission_risk_score": 30,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Fee revenue covers <30% of yield payouts",
-          "Team takes 40% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing",
-          "Unsustainable headline APY of 300%"
-        ],
-        "recommendation": "IMMEDIATE EXIT. Scam shows multiple exit scam signals. Withdraw now."
-      }
-    ],
-    "highest_risk": "Scam",
-    "safest": "Scam",
-    "ponzi_risk_protocols": [
-      "Scam"
-    ],
-    "average_ponzi_score": 95.0,
-    "timestamp": 1784885378.9156
-  },
-  {
-    "protocols": [
-      {
-        "name": "Scam",
-        "ponzi_risk_score": 95,
-        "risk_classification": "EXIT_SCAM_RISK",
-        "yield_coverage_ratio": 0.005,
-        "emission_dependency_pct": 99.833333,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 0,
-        "emission_risk_score": 30,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Fee revenue covers <30% of yield payouts",
-          "Team takes 40% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing",
-          "Unsustainable headline APY of 300%"
-        ],
-        "recommendation": "IMMEDIATE EXIT. Scam shows multiple exit scam signals. Withdraw now."
-      }
-    ],
-    "highest_risk": "Scam",
-    "safest": "Scam",
-    "ponzi_risk_protocols": [
-      "Scam"
-    ],
-    "average_ponzi_score": 95.0,
-    "timestamp": 1784885378.92109
-  },
-  {
-    "protocols": [
-      {
-        "name": "Scam",
-        "ponzi_risk_score": 95,
-        "risk_classification": "EXIT_SCAM_RISK",
-        "yield_coverage_ratio": 0.005,
-        "emission_dependency_pct": 99.833333,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 0,
-        "emission_risk_score": 30,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Fee revenue covers <30% of yield payouts",
-          "Team takes 40% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing",
-          "Unsustainable headline APY of 300%"
-        ],
-        "recommendation": "IMMEDIATE EXIT. Scam shows multiple exit scam signals. Withdraw now."
-      }
-    ],
-    "highest_risk": "Scam",
-    "safest": "Scam",
-    "ponzi_risk_protocols": [
-      "Scam"
-    ],
-    "average_ponzi_score": 95.0,
-    "timestamp": 1784885378.9259875
-  },
-  {
-    "protocols": [
-      {
-        "name": "Scam",
-        "ponzi_risk_score": 95,
-        "risk_classification": "EXIT_SCAM_RISK",
-        "yield_coverage_ratio": 0.005,
-        "emission_dependency_pct": 99.833333,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 0,
-        "emission_risk_score": 30,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Fee revenue covers <30% of yield payouts",
-          "Team takes 40% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing",
-          "Unsustainable headline APY of 300%"
-        ],
-        "recommendation": "IMMEDIATE EXIT. Scam shows multiple exit scam signals. Withdraw now."
-      }
-    ],
-    "highest_risk": "Scam",
-    "safest": "Scam",
-    "ponzi_risk_protocols": [
-      "Scam"
-    ],
-    "average_ponzi_score": 95.0,
-    "timestamp": 1784885378.9309688
-  },
-  {
-    "protocols": [
-      {
-        "name": "Scam",
-        "ponzi_risk_score": 95,
-        "risk_classification": "EXIT_SCAM_RISK",
-        "yield_coverage_ratio": 0.005,
-        "emission_dependency_pct": 99.833333,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 0,
-        "emission_risk_score": 30,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Fee revenue covers <30% of yield payouts",
-          "Team takes 40% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing",
-          "Unsustainable headline APY of 300%"
-        ],
-        "recommendation": "IMMEDIATE EXIT. Scam shows multiple exit scam signals. Withdraw now."
-      }
-    ],
-    "highest_risk": "Scam",
-    "safest": "Scam",
-    "ponzi_risk_protocols": [
-      "Scam"
-    ],
-    "average_ponzi_score": 95.0,
-    "timestamp": 1784885378.9359832
-  },
-  {
-    "protocols": [
-      {
-        "name": "Good",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "Good appears sustainable. 1.05x fee revenue coverage."
-      },
-      {
-        "name": "Bad",
-        "ponzi_risk_score": 95,
-        "risk_classification": "EXIT_SCAM_RISK",
-        "yield_coverage_ratio": 0.005,
-        "emission_dependency_pct": 99.833333,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 0,
-        "emission_risk_score": 30,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Fee revenue covers <30% of yield payouts",
-          "Team takes 40% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing",
-          "Unsustainable headline APY of 300%"
-        ],
-        "recommendation": "IMMEDIATE EXIT. Bad shows multiple exit scam signals. Withdraw now."
-      }
-    ],
-    "highest_risk": "Bad",
-    "safest": "Good",
-    "ponzi_risk_protocols": [
-      "Bad"
-    ],
-    "average_ponzi_score": 52.5,
-    "timestamp": 1784885378.941068
-  },
-  {
-    "protocols": [
-      {
-        "name": "Good",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "Good appears sustainable. 1.05x fee revenue coverage."
-      },
-      {
-        "name": "Bad",
-        "ponzi_risk_score": 95,
-        "risk_classification": "EXIT_SCAM_RISK",
-        "yield_coverage_ratio": 0.005,
-        "emission_dependency_pct": 99.833333,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 0,
-        "emission_risk_score": 30,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Fee revenue covers <30% of yield payouts",
-          "Team takes 40% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing",
-          "Unsustainable headline APY of 300%"
-        ],
-        "recommendation": "IMMEDIATE EXIT. Bad shows multiple exit scam signals. Withdraw now."
-      }
-    ],
-    "highest_risk": "Bad",
-    "safest": "Good",
-    "ponzi_risk_protocols": [
-      "Bad"
-    ],
-    "average_ponzi_score": 52.5,
-    "timestamp": 1784885378.9462357
-  },
-  {
-    "protocols": [
-      {
-        "name": "Good",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "Good appears sustainable. 1.05x fee revenue coverage."
-      },
-      {
-        "name": "Bad",
-        "ponzi_risk_score": 95,
-        "risk_classification": "EXIT_SCAM_RISK",
-        "yield_coverage_ratio": 0.005,
-        "emission_dependency_pct": 99.833333,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 0,
-        "emission_risk_score": 30,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Fee revenue covers <30% of yield payouts",
-          "Team takes 40% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing",
-          "Unsustainable headline APY of 300%"
-        ],
-        "recommendation": "IMMEDIATE EXIT. Bad shows multiple exit scam signals. Withdraw now."
-      }
-    ],
-    "highest_risk": "Bad",
-    "safest": "Good",
-    "ponzi_risk_protocols": [
-      "Bad"
-    ],
-    "average_ponzi_score": 52.5,
-    "timestamp": 1784885378.9512265
-  },
-  {
-    "protocols": [
-      {
-        "name": "Good",
-        "ponzi_risk_score": 10,
-        "risk_classification": "LEGITIMATE",
-        "yield_coverage_ratio": 1.051051,
-        "emission_dependency_pct": 6.25,
-        "new_deposit_reliance_pct": 0.25025,
-        "sustainability_score": 30,
-        "emission_risk_score": 0,
-        "structural_risk_score": 0,
-        "warning_signals": [
-          "No Ponzi risk signals detected"
-        ],
-        "recommendation": "Good appears sustainable. 1.05x fee revenue coverage."
-      },
-      {
-        "name": "Bad",
-        "ponzi_risk_score": 95,
-        "risk_classification": "EXIT_SCAM_RISK",
-        "yield_coverage_ratio": 0.005,
-        "emission_dependency_pct": 99.833333,
-        "new_deposit_reliance_pct": 0.833333,
-        "sustainability_score": 0,
-        "emission_risk_score": 30,
-        "structural_risk_score": 25,
-        "warning_signals": [
-          "Yield >80% from token emissions",
-          "Fee revenue covers <30% of yield payouts",
-          "Team takes 40% of revenue/tokens",
-          "TVL declining >25% in 30d \u2014 capital fleeing",
-          "Unsustainable headline APY of 300%"
-        ],
-        "recommendation": "IMMEDIATE EXIT. Bad shows multiple exit scam signals. Withdraw now."
-      }
-    ],
-    "highest_risk": "Bad",
-    "safest": "Good",
-    "ponzi_risk_protocols": [
-      "Bad"
-    ],
-    "average_ponzi_score": 52.5,
     "timestamp": 1784885378.9558809
   },
   {
@@ -2703,5 +1109,1599 @@
     "ponzi_risk_protocols": [],
     "average_ponzi_score": 0.0,
     "timestamp": 1784885379.22035
+  },
+  {
+    "protocols": [],
+    "highest_risk": null,
+    "safest": null,
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 0.0,
+    "timestamp": 1784885786.374529
+  },
+  {
+    "protocols": [],
+    "highest_risk": null,
+    "safest": null,
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 0.0,
+    "timestamp": 1784885786.3792806
+  },
+  {
+    "protocols": [],
+    "highest_risk": null,
+    "safest": null,
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 0.0,
+    "timestamp": 1784885786.3836665
+  },
+  {
+    "protocols": [],
+    "highest_risk": null,
+    "safest": null,
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 0.0,
+    "timestamp": 1784885786.3885112
+  },
+  {
+    "protocols": [],
+    "highest_risk": null,
+    "safest": null,
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 0.0,
+    "timestamp": 1784885786.3927205
+  },
+  {
+    "protocols": [],
+    "highest_risk": null,
+    "safest": null,
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 0.0,
+    "timestamp": 1784885786.3970842
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 10.0,
+    "timestamp": 1784885786.4013648
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 10.0,
+    "timestamp": 1784885786.405597
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 10.0,
+    "timestamp": 1784885786.4098287
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 10.0,
+    "timestamp": 1784885786.4143238
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 10.0,
+    "timestamp": 1784885786.4188244
+  },
+  {
+    "protocols": [
+      {
+        "name": "Scam",
+        "ponzi_risk_score": 95,
+        "risk_classification": "EXIT_SCAM_RISK",
+        "yield_coverage_ratio": 0.005,
+        "emission_dependency_pct": 99.833333,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 0,
+        "emission_risk_score": 30,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Fee revenue covers <30% of yield payouts",
+          "Team takes 40% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing",
+          "Unsustainable headline APY of 300%"
+        ],
+        "recommendation": "IMMEDIATE EXIT. Scam shows multiple exit scam signals. Withdraw now."
+      }
+    ],
+    "highest_risk": "Scam",
+    "safest": "Scam",
+    "ponzi_risk_protocols": [
+      "Scam"
+    ],
+    "average_ponzi_score": 95.0,
+    "timestamp": 1784885786.4232006
+  },
+  {
+    "protocols": [
+      {
+        "name": "Scam",
+        "ponzi_risk_score": 95,
+        "risk_classification": "EXIT_SCAM_RISK",
+        "yield_coverage_ratio": 0.005,
+        "emission_dependency_pct": 99.833333,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 0,
+        "emission_risk_score": 30,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Fee revenue covers <30% of yield payouts",
+          "Team takes 40% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing",
+          "Unsustainable headline APY of 300%"
+        ],
+        "recommendation": "IMMEDIATE EXIT. Scam shows multiple exit scam signals. Withdraw now."
+      }
+    ],
+    "highest_risk": "Scam",
+    "safest": "Scam",
+    "ponzi_risk_protocols": [
+      "Scam"
+    ],
+    "average_ponzi_score": 95.0,
+    "timestamp": 1784885786.4276435
+  },
+  {
+    "protocols": [
+      {
+        "name": "Scam",
+        "ponzi_risk_score": 95,
+        "risk_classification": "EXIT_SCAM_RISK",
+        "yield_coverage_ratio": 0.005,
+        "emission_dependency_pct": 99.833333,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 0,
+        "emission_risk_score": 30,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Fee revenue covers <30% of yield payouts",
+          "Team takes 40% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing",
+          "Unsustainable headline APY of 300%"
+        ],
+        "recommendation": "IMMEDIATE EXIT. Scam shows multiple exit scam signals. Withdraw now."
+      }
+    ],
+    "highest_risk": "Scam",
+    "safest": "Scam",
+    "ponzi_risk_protocols": [
+      "Scam"
+    ],
+    "average_ponzi_score": 95.0,
+    "timestamp": 1784885786.4319336
+  },
+  {
+    "protocols": [
+      {
+        "name": "Scam",
+        "ponzi_risk_score": 95,
+        "risk_classification": "EXIT_SCAM_RISK",
+        "yield_coverage_ratio": 0.005,
+        "emission_dependency_pct": 99.833333,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 0,
+        "emission_risk_score": 30,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Fee revenue covers <30% of yield payouts",
+          "Team takes 40% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing",
+          "Unsustainable headline APY of 300%"
+        ],
+        "recommendation": "IMMEDIATE EXIT. Scam shows multiple exit scam signals. Withdraw now."
+      }
+    ],
+    "highest_risk": "Scam",
+    "safest": "Scam",
+    "ponzi_risk_protocols": [
+      "Scam"
+    ],
+    "average_ponzi_score": 95.0,
+    "timestamp": 1784885786.4361305
+  },
+  {
+    "protocols": [
+      {
+        "name": "Scam",
+        "ponzi_risk_score": 95,
+        "risk_classification": "EXIT_SCAM_RISK",
+        "yield_coverage_ratio": 0.005,
+        "emission_dependency_pct": 99.833333,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 0,
+        "emission_risk_score": 30,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Fee revenue covers <30% of yield payouts",
+          "Team takes 40% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing",
+          "Unsustainable headline APY of 300%"
+        ],
+        "recommendation": "IMMEDIATE EXIT. Scam shows multiple exit scam signals. Withdraw now."
+      }
+    ],
+    "highest_risk": "Scam",
+    "safest": "Scam",
+    "ponzi_risk_protocols": [
+      "Scam"
+    ],
+    "average_ponzi_score": 95.0,
+    "timestamp": 1784885786.440471
+  },
+  {
+    "protocols": [
+      {
+        "name": "Scam",
+        "ponzi_risk_score": 95,
+        "risk_classification": "EXIT_SCAM_RISK",
+        "yield_coverage_ratio": 0.005,
+        "emission_dependency_pct": 99.833333,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 0,
+        "emission_risk_score": 30,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Fee revenue covers <30% of yield payouts",
+          "Team takes 40% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing",
+          "Unsustainable headline APY of 300%"
+        ],
+        "recommendation": "IMMEDIATE EXIT. Scam shows multiple exit scam signals. Withdraw now."
+      }
+    ],
+    "highest_risk": "Scam",
+    "safest": "Scam",
+    "ponzi_risk_protocols": [
+      "Scam"
+    ],
+    "average_ponzi_score": 95.0,
+    "timestamp": 1784885786.4446523
+  },
+  {
+    "protocols": [
+      {
+        "name": "Good",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "Good appears sustainable. 1.05x fee revenue coverage."
+      },
+      {
+        "name": "Bad",
+        "ponzi_risk_score": 95,
+        "risk_classification": "EXIT_SCAM_RISK",
+        "yield_coverage_ratio": 0.005,
+        "emission_dependency_pct": 99.833333,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 0,
+        "emission_risk_score": 30,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Fee revenue covers <30% of yield payouts",
+          "Team takes 40% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing",
+          "Unsustainable headline APY of 300%"
+        ],
+        "recommendation": "IMMEDIATE EXIT. Bad shows multiple exit scam signals. Withdraw now."
+      }
+    ],
+    "highest_risk": "Bad",
+    "safest": "Good",
+    "ponzi_risk_protocols": [
+      "Bad"
+    ],
+    "average_ponzi_score": 52.5,
+    "timestamp": 1784885786.4494147
+  },
+  {
+    "protocols": [
+      {
+        "name": "Good",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "Good appears sustainable. 1.05x fee revenue coverage."
+      },
+      {
+        "name": "Bad",
+        "ponzi_risk_score": 95,
+        "risk_classification": "EXIT_SCAM_RISK",
+        "yield_coverage_ratio": 0.005,
+        "emission_dependency_pct": 99.833333,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 0,
+        "emission_risk_score": 30,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Fee revenue covers <30% of yield payouts",
+          "Team takes 40% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing",
+          "Unsustainable headline APY of 300%"
+        ],
+        "recommendation": "IMMEDIATE EXIT. Bad shows multiple exit scam signals. Withdraw now."
+      }
+    ],
+    "highest_risk": "Bad",
+    "safest": "Good",
+    "ponzi_risk_protocols": [
+      "Bad"
+    ],
+    "average_ponzi_score": 52.5,
+    "timestamp": 1784885786.453677
+  },
+  {
+    "protocols": [
+      {
+        "name": "Good",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "Good appears sustainable. 1.05x fee revenue coverage."
+      },
+      {
+        "name": "Bad",
+        "ponzi_risk_score": 95,
+        "risk_classification": "EXIT_SCAM_RISK",
+        "yield_coverage_ratio": 0.005,
+        "emission_dependency_pct": 99.833333,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 0,
+        "emission_risk_score": 30,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Fee revenue covers <30% of yield payouts",
+          "Team takes 40% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing",
+          "Unsustainable headline APY of 300%"
+        ],
+        "recommendation": "IMMEDIATE EXIT. Bad shows multiple exit scam signals. Withdraw now."
+      }
+    ],
+    "highest_risk": "Bad",
+    "safest": "Good",
+    "ponzi_risk_protocols": [
+      "Bad"
+    ],
+    "average_ponzi_score": 52.5,
+    "timestamp": 1784885786.4578912
+  },
+  {
+    "protocols": [
+      {
+        "name": "Good",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "Good appears sustainable. 1.05x fee revenue coverage."
+      },
+      {
+        "name": "Bad",
+        "ponzi_risk_score": 95,
+        "risk_classification": "EXIT_SCAM_RISK",
+        "yield_coverage_ratio": 0.005,
+        "emission_dependency_pct": 99.833333,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 0,
+        "emission_risk_score": 30,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Fee revenue covers <30% of yield payouts",
+          "Team takes 40% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing",
+          "Unsustainable headline APY of 300%"
+        ],
+        "recommendation": "IMMEDIATE EXIT. Bad shows multiple exit scam signals. Withdraw now."
+      }
+    ],
+    "highest_risk": "Bad",
+    "safest": "Good",
+    "ponzi_risk_protocols": [
+      "Bad"
+    ],
+    "average_ponzi_score": 52.5,
+    "timestamp": 1784885786.4621313
+  },
+  {
+    "protocols": [
+      {
+        "name": "Good",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "Good appears sustainable. 1.05x fee revenue coverage."
+      },
+      {
+        "name": "Bad",
+        "ponzi_risk_score": 95,
+        "risk_classification": "EXIT_SCAM_RISK",
+        "yield_coverage_ratio": 0.005,
+        "emission_dependency_pct": 99.833333,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 0,
+        "emission_risk_score": 30,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Fee revenue covers <30% of yield payouts",
+          "Team takes 40% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing",
+          "Unsustainable headline APY of 300%"
+        ],
+        "recommendation": "IMMEDIATE EXIT. Bad shows multiple exit scam signals. Withdraw now."
+      }
+    ],
+    "highest_risk": "Bad",
+    "safest": "Good",
+    "ponzi_risk_protocols": [
+      "Bad"
+    ],
+    "average_ponzi_score": 52.5,
+    "timestamp": 1784885786.4663842
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 10.0,
+    "timestamp": 1784885786.4707763
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 10.0,
+    "timestamp": 1784885786.4750426
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 0,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 0.0,
+        "emission_dependency_pct": 0.0,
+        "new_deposit_reliance_pct": 0.0,
+        "sustainability_score": 40,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 0.00x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 0.0,
+    "timestamp": 1784885786.4793646
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 0,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 0.0,
+        "emission_dependency_pct": 0.0,
+        "new_deposit_reliance_pct": 0.0,
+        "sustainability_score": 40,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 0.00x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 0.0,
+    "timestamp": 1784885786.4840615
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 0,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 0.0,
+        "emission_dependency_pct": 0.0,
+        "new_deposit_reliance_pct": 0.0,
+        "sustainability_score": 40,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 0.00x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 0.0,
+    "timestamp": 1784885786.4887512
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 40,
+        "risk_classification": "YIELD_INFLATED",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 95.0,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 30,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Unsustainable headline APY of 100%"
+        ],
+        "recommendation": "Yield inflated by token emissions. Real yield ~5.0%."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 40.0,
+    "timestamp": 1784885786.4933772
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 40,
+        "risk_classification": "YIELD_INFLATED",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 95.0,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 30,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Unsustainable headline APY of 100%"
+        ],
+        "recommendation": "Yield inflated by token emissions. Real yield ~5.0%."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 40.0,
+    "timestamp": 1784885786.4977129
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 25,
+        "risk_classification": "WATCH",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 15,
+        "warning_signals": [
+          "Team takes 35% of revenue/tokens"
+        ],
+        "recommendation": "Monitor TestProto. Some unsustainable yield characteristics."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 25.0,
+    "timestamp": 1784885786.502087
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 25,
+        "risk_classification": "WATCH",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 15,
+        "warning_signals": [
+          "Team takes 35% of revenue/tokens"
+        ],
+        "recommendation": "Monitor TestProto. Some unsustainable yield characteristics."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 25.0,
+    "timestamp": 1784885786.506788
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 20,
+        "risk_classification": "WATCH",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 10,
+        "warning_signals": [
+          "TVL declining >25% in 30d \u2014 capital fleeing"
+        ],
+        "recommendation": "Monitor TestProto. Some unsustainable yield characteristics."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 20.0,
+    "timestamp": 1784885786.5115159
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 20,
+        "risk_classification": "WATCH",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 10,
+        "warning_signals": [
+          "TVL declining >25% in 30d \u2014 capital fleeing"
+        ],
+        "recommendation": "Monitor TestProto. Some unsustainable yield characteristics."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 20.0,
+    "timestamp": 1784885786.5164022
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.0,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 1.00x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 10.0,
+    "timestamp": 1784885786.5210738
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 0,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.6,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 40,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 1.60x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 0.0,
+    "timestamp": 1784885786.526186
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 35,
+        "risk_classification": "WATCH",
+        "yield_coverage_ratio": 0.25,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 5,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "Fee revenue covers <30% of yield payouts"
+        ],
+        "recommendation": "Monitor TestProto. Some unsustainable yield characteristics."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 35.0,
+    "timestamp": 1784885786.5315979
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 30,
+        "risk_classification": "WATCH",
+        "yield_coverage_ratio": 0.5,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 10,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "Monitor TestProto. Some unsustainable yield characteristics."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 30.0,
+    "timestamp": 1784885786.536333
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 20,
+        "risk_classification": "WATCH",
+        "yield_coverage_ratio": 0.75,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 20,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "Monitor TestProto. Some unsustainable yield characteristics."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 20.0,
+    "timestamp": 1784885786.541543
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 40,
+        "risk_classification": "YIELD_INFLATED",
+        "yield_coverage_ratio": 0.1,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 0,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "Fee revenue covers <30% of yield payouts"
+        ],
+        "recommendation": "Yield inflated by token emissions. Real yield ~7.5%."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 40.0,
+    "timestamp": 1784885786.5462406
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 10.0,
+    "timestamp": 1784885786.551361
+  },
+  {
+    "protocols": [
+      {
+        "name": "Scam",
+        "ponzi_risk_score": 95,
+        "risk_classification": "EXIT_SCAM_RISK",
+        "yield_coverage_ratio": 0.005,
+        "emission_dependency_pct": 99.833333,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 0,
+        "emission_risk_score": 30,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Fee revenue covers <30% of yield payouts",
+          "Team takes 40% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing",
+          "Unsustainable headline APY of 300%"
+        ],
+        "recommendation": "IMMEDIATE EXIT. Scam shows multiple exit scam signals. Withdraw now."
+      }
+    ],
+    "highest_risk": "Scam",
+    "safest": "Scam",
+    "ponzi_risk_protocols": [
+      "Scam"
+    ],
+    "average_ponzi_score": 95.0,
+    "timestamp": 1784885786.5558834
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 10.0,
+    "timestamp": 1784885786.5606074
+  },
+  {
+    "protocols": [
+      {
+        "name": "Scam",
+        "ponzi_risk_score": 95,
+        "risk_classification": "EXIT_SCAM_RISK",
+        "yield_coverage_ratio": 0.005,
+        "emission_dependency_pct": 99.833333,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 0,
+        "emission_risk_score": 30,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Fee revenue covers <30% of yield payouts",
+          "Team takes 40% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing",
+          "Unsustainable headline APY of 300%"
+        ],
+        "recommendation": "IMMEDIATE EXIT. Scam shows multiple exit scam signals. Withdraw now."
+      }
+    ],
+    "highest_risk": "Scam",
+    "safest": "Scam",
+    "ponzi_risk_protocols": [
+      "Scam"
+    ],
+    "average_ponzi_score": 95.0,
+    "timestamp": 1784885786.5639284
+  },
+  {
+    "protocols": [],
+    "highest_risk": null,
+    "safest": null,
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 0.0,
+    "timestamp": 1784885786.5690715
+  },
+  {
+    "protocols": [
+      {
+        "name": "MyProtocol",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "MyProtocol appears sustainable. 1.05x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "MyProtocol",
+    "safest": "MyProtocol",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 10.0,
+    "timestamp": 1784885786.5742016
+  },
+  {
+    "protocols": [
+      {
+        "name": "A",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "A appears sustainable. 1.05x fee revenue coverage."
+      },
+      {
+        "name": "B",
+        "ponzi_risk_score": 35,
+        "risk_classification": "WATCH",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Team takes 35% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing"
+        ],
+        "recommendation": "Monitor B. Some unsustainable yield characteristics."
+      },
+      {
+        "name": "C",
+        "ponzi_risk_score": 95,
+        "risk_classification": "EXIT_SCAM_RISK",
+        "yield_coverage_ratio": 0.005,
+        "emission_dependency_pct": 99.833333,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 0,
+        "emission_risk_score": 30,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Fee revenue covers <30% of yield payouts",
+          "Team takes 40% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing",
+          "Unsustainable headline APY of 300%"
+        ],
+        "recommendation": "IMMEDIATE EXIT. C shows multiple exit scam signals. Withdraw now."
+      }
+    ],
+    "highest_risk": "C",
+    "safest": "A",
+    "ponzi_risk_protocols": [
+      "C"
+    ],
+    "average_ponzi_score": 46.666667,
+    "timestamp": 1784885786.5788906
+  },
+  {
+    "protocols": [
+      {
+        "name": "A",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "A appears sustainable. 1.05x fee revenue coverage."
+      },
+      {
+        "name": "B",
+        "ponzi_risk_score": 35,
+        "risk_classification": "WATCH",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Team takes 35% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing"
+        ],
+        "recommendation": "Monitor B. Some unsustainable yield characteristics."
+      },
+      {
+        "name": "C",
+        "ponzi_risk_score": 95,
+        "risk_classification": "EXIT_SCAM_RISK",
+        "yield_coverage_ratio": 0.005,
+        "emission_dependency_pct": 99.833333,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 0,
+        "emission_risk_score": 30,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Fee revenue covers <30% of yield payouts",
+          "Team takes 40% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing",
+          "Unsustainable headline APY of 300%"
+        ],
+        "recommendation": "IMMEDIATE EXIT. C shows multiple exit scam signals. Withdraw now."
+      }
+    ],
+    "highest_risk": "C",
+    "safest": "A",
+    "ponzi_risk_protocols": [
+      "C"
+    ],
+    "average_ponzi_score": 46.666667,
+    "timestamp": 1784885786.5834525
+  },
+  {
+    "protocols": [
+      {
+        "name": "A",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "A appears sustainable. 1.05x fee revenue coverage."
+      },
+      {
+        "name": "B",
+        "ponzi_risk_score": 35,
+        "risk_classification": "WATCH",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Team takes 35% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing"
+        ],
+        "recommendation": "Monitor B. Some unsustainable yield characteristics."
+      },
+      {
+        "name": "C",
+        "ponzi_risk_score": 95,
+        "risk_classification": "EXIT_SCAM_RISK",
+        "yield_coverage_ratio": 0.005,
+        "emission_dependency_pct": 99.833333,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 0,
+        "emission_risk_score": 30,
+        "structural_risk_score": 25,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Fee revenue covers <30% of yield payouts",
+          "Team takes 40% of revenue/tokens",
+          "TVL declining >25% in 30d \u2014 capital fleeing",
+          "Unsustainable headline APY of 300%"
+        ],
+        "recommendation": "IMMEDIATE EXIT. C shows multiple exit scam signals. Withdraw now."
+      }
+    ],
+    "highest_risk": "C",
+    "safest": "A",
+    "ponzi_risk_protocols": [
+      "C"
+    ],
+    "average_ponzi_score": 46.666667,
+    "timestamp": 1784885786.5883546
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 26,
+        "risk_classification": "WATCH",
+        "yield_coverage_ratio": 1.0,
+        "emission_dependency_pct": 50.0,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 30,
+        "emission_risk_score": 16,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "Monitor TestProto. Some unsustainable yield characteristics."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 26.0,
+    "timestamp": 1784885786.5940723
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 59,
+        "risk_classification": "YIELD_INFLATED",
+        "yield_coverage_ratio": 0.25,
+        "emission_dependency_pct": 70.0,
+        "new_deposit_reliance_pct": 0.833333,
+        "sustainability_score": 5,
+        "emission_risk_score": 24,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "Fee revenue covers <30% of yield payouts"
+        ],
+        "recommendation": "Yield inflated by token emissions. Real yield ~7.5%."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 59.0,
+    "timestamp": 1784885786.5991435
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 10.0,
+    "timestamp": 1784885786.6897469
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 10.0,
+    "timestamp": 1784885786.6946876
+  },
+  {
+    "protocols": [],
+    "highest_risk": null,
+    "safest": null,
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 0.0,
+    "timestamp": 1784885786.6997585
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 20,
+        "risk_classification": "WATCH",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 10,
+        "warning_signals": [
+          "TVL declining >25% in 30d \u2014 capital fleeing"
+        ],
+        "recommendation": "Monitor TestProto. Some unsustainable yield characteristics."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 20.0,
+    "timestamp": 1784885786.704603
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 10.0,
+    "timestamp": 1784885786.7095966
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 10.0,
+    "timestamp": 1784885786.7143722
+  },
+  {
+    "protocols": [
+      {
+        "name": "X",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "X appears sustainable. 1.05x fee revenue coverage."
+      },
+      {
+        "name": "X",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "X appears sustainable. 1.05x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "X",
+    "safest": "X",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 10.0,
+    "timestamp": 1784885786.7194629
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 40,
+        "risk_classification": "YIELD_INFLATED",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 99.99,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 30,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "Yield >80% from token emissions",
+          "Unsustainable headline APY of 10000%"
+        ],
+        "recommendation": "Yield inflated by token emissions. Real yield ~7.5%."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 40.0,
+    "timestamp": 1784885786.724197
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 10,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 1.051051,
+        "emission_dependency_pct": 6.25,
+        "new_deposit_reliance_pct": 0.25025,
+        "sustainability_score": 30,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 1.05x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 10.0,
+    "timestamp": 1784885786.7287197
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProto",
+        "ponzi_risk_score": 0,
+        "risk_classification": "LEGITIMATE",
+        "yield_coverage_ratio": 0.0,
+        "emission_dependency_pct": 0.0,
+        "new_deposit_reliance_pct": 0.0,
+        "sustainability_score": 40,
+        "emission_risk_score": 0,
+        "structural_risk_score": 0,
+        "warning_signals": [
+          "No Ponzi risk signals detected"
+        ],
+        "recommendation": "TestProto appears sustainable. 0.00x fee revenue coverage."
+      }
+    ],
+    "highest_risk": "TestProto",
+    "safest": "TestProto",
+    "ponzi_risk_protocols": [],
+    "average_ponzi_score": 0.0,
+    "timestamp": 1784885786.733439
   }
 ]
