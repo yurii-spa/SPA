@@ -30,171 +30,6 @@
     "recommendations": [
       "Insufficient data: no current-price / peg signal or data marked unreliable. Cannot assess the convergence-arbitrage opportunity for this stablecoin."
     ],
-    "timestamp": 1784885479.0052462
-  },
-  {
-    "name": "UNKNOWN",
-    "current_price_usd": 0.0,
-    "target_peg_usd": 1.0,
-    "holding_apr_pct": 0.0,
-    "expected_days_to_repeg": 30.0,
-    "repeg_probability_pct": 50.0,
-    "downside_price_if_fails_usd": 0.0,
-    "position_size_usd": 0.0,
-    "data_quality_ok": true,
-    "discount_to_peg_pct": 100.0,
-    "is_near_peg": false,
-    "convergence_gain_pct": 0.0,
-    "holding_yield_over_horizon_pct": 0.0,
-    "gross_arb_return_if_repeg_pct": 0.0,
-    "annualized_arb_return_if_repeg_pct": 0.0,
-    "downside_loss_if_fails_pct": 0.0,
-    "expected_value_pct": 0.0,
-    "expected_annualized_pct": 0.0,
-    "expected_pnl_usd": 0.0,
-    "risk_reward_ratio": 0.0,
-    "breakeven_repeg_probability_pct": 0.0,
-    "peg_arb_score": 0.0,
-    "classification": "NO_ARB_OPPORTUNITY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no current-price / peg signal or data marked unreliable. Cannot assess the convergence-arbitrage opportunity for this stablecoin."
-    ],
-    "timestamp": 1784885479.424194
-  },
-  {
-    "name": "UNKNOWN",
-    "current_price_usd": 0.0,
-    "target_peg_usd": 1.0,
-    "holding_apr_pct": 0.0,
-    "expected_days_to_repeg": 30.0,
-    "repeg_probability_pct": 50.0,
-    "downside_price_if_fails_usd": 0.0,
-    "position_size_usd": 0.0,
-    "data_quality_ok": true,
-    "discount_to_peg_pct": 100.0,
-    "is_near_peg": false,
-    "convergence_gain_pct": 0.0,
-    "holding_yield_over_horizon_pct": 0.0,
-    "gross_arb_return_if_repeg_pct": 0.0,
-    "annualized_arb_return_if_repeg_pct": 0.0,
-    "downside_loss_if_fails_pct": 0.0,
-    "expected_value_pct": 0.0,
-    "expected_annualized_pct": 0.0,
-    "expected_pnl_usd": 0.0,
-    "risk_reward_ratio": 0.0,
-    "breakeven_repeg_probability_pct": 0.0,
-    "peg_arb_score": 0.0,
-    "classification": "NO_ARB_OPPORTUNITY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no current-price / peg signal or data marked unreliable. Cannot assess the convergence-arbitrage opportunity for this stablecoin."
-    ],
-    "timestamp": 1784885479.822202
-  },
-  {
-    "name": "UNKNOWN",
-    "current_price_usd": 0.0,
-    "target_peg_usd": 1.0,
-    "holding_apr_pct": 0.0,
-    "expected_days_to_repeg": 30.0,
-    "repeg_probability_pct": 50.0,
-    "downside_price_if_fails_usd": 0.0,
-    "position_size_usd": 0.0,
-    "data_quality_ok": true,
-    "discount_to_peg_pct": 100.0,
-    "is_near_peg": false,
-    "convergence_gain_pct": 0.0,
-    "holding_yield_over_horizon_pct": 0.0,
-    "gross_arb_return_if_repeg_pct": 0.0,
-    "annualized_arb_return_if_repeg_pct": 0.0,
-    "downside_loss_if_fails_pct": 0.0,
-    "expected_value_pct": 0.0,
-    "expected_annualized_pct": 0.0,
-    "expected_pnl_usd": 0.0,
-    "risk_reward_ratio": 0.0,
-    "breakeven_repeg_probability_pct": 0.0,
-    "peg_arb_score": 0.0,
-    "classification": "NO_ARB_OPPORTUNITY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no current-price / peg signal or data marked unreliable. Cannot assess the convergence-arbitrage opportunity for this stablecoin."
-    ],
-    "timestamp": 1784885480.21903
-  },
-  {
-    "name": "UNKNOWN",
-    "current_price_usd": 0.0,
-    "target_peg_usd": 1.0,
-    "holding_apr_pct": 0.0,
-    "expected_days_to_repeg": 30.0,
-    "repeg_probability_pct": 50.0,
-    "downside_price_if_fails_usd": 0.0,
-    "position_size_usd": 0.0,
-    "data_quality_ok": true,
-    "discount_to_peg_pct": 100.0,
-    "is_near_peg": false,
-    "convergence_gain_pct": 0.0,
-    "holding_yield_over_horizon_pct": 0.0,
-    "gross_arb_return_if_repeg_pct": 0.0,
-    "annualized_arb_return_if_repeg_pct": 0.0,
-    "downside_loss_if_fails_pct": 0.0,
-    "expected_value_pct": 0.0,
-    "expected_annualized_pct": 0.0,
-    "expected_pnl_usd": 0.0,
-    "risk_reward_ratio": 0.0,
-    "breakeven_repeg_probability_pct": 0.0,
-    "peg_arb_score": 0.0,
-    "classification": "NO_ARB_OPPORTUNITY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no current-price / peg signal or data marked unreliable. Cannot assess the convergence-arbitrage opportunity for this stablecoin."
-    ],
-    "timestamp": 1784885481.8733745
-  },
-  {
-    "name": "UNKNOWN",
-    "current_price_usd": 0.0,
-    "target_peg_usd": 1.0,
-    "holding_apr_pct": 0.0,
-    "expected_days_to_repeg": 30.0,
-    "repeg_probability_pct": 50.0,
-    "downside_price_if_fails_usd": 0.0,
-    "position_size_usd": 0.0,
-    "data_quality_ok": true,
-    "discount_to_peg_pct": 100.0,
-    "is_near_peg": false,
-    "convergence_gain_pct": 0.0,
-    "holding_yield_over_horizon_pct": 0.0,
-    "gross_arb_return_if_repeg_pct": 0.0,
-    "annualized_arb_return_if_repeg_pct": 0.0,
-    "downside_loss_if_fails_pct": 0.0,
-    "expected_value_pct": 0.0,
-    "expected_annualized_pct": 0.0,
-    "expected_pnl_usd": 0.0,
-    "risk_reward_ratio": 0.0,
-    "breakeven_repeg_probability_pct": 0.0,
-    "peg_arb_score": 0.0,
-    "classification": "NO_ARB_OPPORTUNITY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no current-price / peg signal or data marked unreliable. Cannot assess the convergence-arbitrage opportunity for this stablecoin."
-    ],
     "timestamp": 1784885482.2761457
   },
   {
@@ -3298,5 +3133,170 @@
       "Insufficient data: no current-price / peg signal or data marked unreliable. Cannot assess the convergence-arbitrage opportunity for this stablecoin."
     ],
     "timestamp": 1784885558.679518
+  },
+  {
+    "name": "UNKNOWN",
+    "current_price_usd": 0.0,
+    "target_peg_usd": 1.0,
+    "holding_apr_pct": 0.0,
+    "expected_days_to_repeg": 30.0,
+    "repeg_probability_pct": 50.0,
+    "downside_price_if_fails_usd": 0.0,
+    "position_size_usd": 0.0,
+    "data_quality_ok": true,
+    "discount_to_peg_pct": 100.0,
+    "is_near_peg": false,
+    "convergence_gain_pct": 0.0,
+    "holding_yield_over_horizon_pct": 0.0,
+    "gross_arb_return_if_repeg_pct": 0.0,
+    "annualized_arb_return_if_repeg_pct": 0.0,
+    "downside_loss_if_fails_pct": 0.0,
+    "expected_value_pct": 0.0,
+    "expected_annualized_pct": 0.0,
+    "expected_pnl_usd": 0.0,
+    "risk_reward_ratio": 0.0,
+    "breakeven_repeg_probability_pct": 0.0,
+    "peg_arb_score": 0.0,
+    "classification": "NO_ARB_OPPORTUNITY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current-price / peg signal or data marked unreliable. Cannot assess the convergence-arbitrage opportunity for this stablecoin."
+    ],
+    "timestamp": 1784885676.4742267
+  },
+  {
+    "name": "UNKNOWN",
+    "current_price_usd": 0.0,
+    "target_peg_usd": 1.0,
+    "holding_apr_pct": 0.0,
+    "expected_days_to_repeg": 30.0,
+    "repeg_probability_pct": 50.0,
+    "downside_price_if_fails_usd": 0.0,
+    "position_size_usd": 0.0,
+    "data_quality_ok": true,
+    "discount_to_peg_pct": 100.0,
+    "is_near_peg": false,
+    "convergence_gain_pct": 0.0,
+    "holding_yield_over_horizon_pct": 0.0,
+    "gross_arb_return_if_repeg_pct": 0.0,
+    "annualized_arb_return_if_repeg_pct": 0.0,
+    "downside_loss_if_fails_pct": 0.0,
+    "expected_value_pct": 0.0,
+    "expected_annualized_pct": 0.0,
+    "expected_pnl_usd": 0.0,
+    "risk_reward_ratio": 0.0,
+    "breakeven_repeg_probability_pct": 0.0,
+    "peg_arb_score": 0.0,
+    "classification": "NO_ARB_OPPORTUNITY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current-price / peg signal or data marked unreliable. Cannot assess the convergence-arbitrage opportunity for this stablecoin."
+    ],
+    "timestamp": 1784885676.9397938
+  },
+  {
+    "name": "UNKNOWN",
+    "current_price_usd": 0.0,
+    "target_peg_usd": 1.0,
+    "holding_apr_pct": 0.0,
+    "expected_days_to_repeg": 30.0,
+    "repeg_probability_pct": 50.0,
+    "downside_price_if_fails_usd": 0.0,
+    "position_size_usd": 0.0,
+    "data_quality_ok": true,
+    "discount_to_peg_pct": 100.0,
+    "is_near_peg": false,
+    "convergence_gain_pct": 0.0,
+    "holding_yield_over_horizon_pct": 0.0,
+    "gross_arb_return_if_repeg_pct": 0.0,
+    "annualized_arb_return_if_repeg_pct": 0.0,
+    "downside_loss_if_fails_pct": 0.0,
+    "expected_value_pct": 0.0,
+    "expected_annualized_pct": 0.0,
+    "expected_pnl_usd": 0.0,
+    "risk_reward_ratio": 0.0,
+    "breakeven_repeg_probability_pct": 0.0,
+    "peg_arb_score": 0.0,
+    "classification": "NO_ARB_OPPORTUNITY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current-price / peg signal or data marked unreliable. Cannot assess the convergence-arbitrage opportunity for this stablecoin."
+    ],
+    "timestamp": 1784885677.3926985
+  },
+  {
+    "name": "UNKNOWN",
+    "current_price_usd": 0.0,
+    "target_peg_usd": 1.0,
+    "holding_apr_pct": 0.0,
+    "expected_days_to_repeg": 30.0,
+    "repeg_probability_pct": 50.0,
+    "downside_price_if_fails_usd": 0.0,
+    "position_size_usd": 0.0,
+    "data_quality_ok": true,
+    "discount_to_peg_pct": 100.0,
+    "is_near_peg": false,
+    "convergence_gain_pct": 0.0,
+    "holding_yield_over_horizon_pct": 0.0,
+    "gross_arb_return_if_repeg_pct": 0.0,
+    "annualized_arb_return_if_repeg_pct": 0.0,
+    "downside_loss_if_fails_pct": 0.0,
+    "expected_value_pct": 0.0,
+    "expected_annualized_pct": 0.0,
+    "expected_pnl_usd": 0.0,
+    "risk_reward_ratio": 0.0,
+    "breakeven_repeg_probability_pct": 0.0,
+    "peg_arb_score": 0.0,
+    "classification": "NO_ARB_OPPORTUNITY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current-price / peg signal or data marked unreliable. Cannot assess the convergence-arbitrage opportunity for this stablecoin."
+    ],
+    "timestamp": 1784885677.7804406
+  },
+  {
+    "name": "UNKNOWN",
+    "current_price_usd": 0.0,
+    "target_peg_usd": 1.0,
+    "holding_apr_pct": 0.0,
+    "expected_days_to_repeg": 30.0,
+    "repeg_probability_pct": 50.0,
+    "downside_price_if_fails_usd": 0.0,
+    "position_size_usd": 0.0,
+    "data_quality_ok": true,
+    "discount_to_peg_pct": 100.0,
+    "is_near_peg": false,
+    "convergence_gain_pct": 0.0,
+    "holding_yield_over_horizon_pct": 0.0,
+    "gross_arb_return_if_repeg_pct": 0.0,
+    "annualized_arb_return_if_repeg_pct": 0.0,
+    "downside_loss_if_fails_pct": 0.0,
+    "expected_value_pct": 0.0,
+    "expected_annualized_pct": 0.0,
+    "expected_pnl_usd": 0.0,
+    "risk_reward_ratio": 0.0,
+    "breakeven_repeg_probability_pct": 0.0,
+    "peg_arb_score": 0.0,
+    "classification": "NO_ARB_OPPORTUNITY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current-price / peg signal or data marked unreliable. Cannot assess the convergence-arbitrage opportunity for this stablecoin."
+    ],
+    "timestamp": 1784885678.1758566
   }
 ]
