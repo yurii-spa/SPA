@@ -1,20 +1,5 @@
 [
   {
-    "timestamp": 1784885920.7041433,
-    "bridge_name": "unknown",
-    "total_value_bridged_usd": 0.0,
-    "bridge_type": "LOCK_MINT",
-    "daily_volume_usd": 0.0,
-    "incident_count": 0,
-    "incident_penalty": 0.0,
-    "incident_component": 40.0,
-    "audit_score": 0.0,
-    "usage_score": 0.0,
-    "type_score": 4,
-    "total_bridge_score": 44.0,
-    "bridge_tier": "CAUTION"
-  },
-  {
     "timestamp": 1784885920.9773738,
     "bridge_name": "unknown",
     "total_value_bridged_usd": 0.0,
@@ -1486,6 +1471,21 @@
   },
   {
     "timestamp": 1784885969.3047645,
+    "bridge_name": "unknown",
+    "total_value_bridged_usd": 0.0,
+    "bridge_type": "LOCK_MINT",
+    "daily_volume_usd": 0.0,
+    "incident_count": 0,
+    "incident_penalty": 0.0,
+    "incident_component": 40.0,
+    "audit_score": 0.0,
+    "usage_score": 0.0,
+    "type_score": 4,
+    "total_bridge_score": 44.0,
+    "bridge_tier": "CAUTION"
+  },
+  {
+    "timestamp": 1784886262.0358963,
     "bridge_name": "unknown",
     "total_value_bridged_usd": 0.0,
     "bridge_type": "LOCK_MINT",

@@ -12,21 +12,6 @@
     "smoothness_score": 70,
     "missed_compounding_drag_pct": 0.0,
     "smoothing_label": "SMOOTH_DAILY",
-    "timestamp": 1784885920.9772444
-  },
-  {
-    "protocol_name": "UNKNOWN",
-    "observation_count": 0,
-    "payout_frequency_days": 1,
-    "auto_compounds": false,
-    "compounding_frequency_days": 1,
-    "position_size_usd": 0.0,
-    "mean_yield_pct": 0.0,
-    "yield_std_pct": 0.0,
-    "yield_cv": 0.0,
-    "smoothness_score": 70,
-    "missed_compounding_drag_pct": 0.0,
-    "smoothing_label": "SMOOTH_DAILY",
     "timestamp": 1784885921.2176814
   },
   {
@@ -1498,5 +1483,20 @@
     "missed_compounding_drag_pct": 0.0,
     "smoothing_label": "SMOOTH_DAILY",
     "timestamp": 1784885969.5764887
+  },
+  {
+    "protocol_name": "UNKNOWN",
+    "observation_count": 0,
+    "payout_frequency_days": 1,
+    "auto_compounds": false,
+    "compounding_frequency_days": 1,
+    "position_size_usd": 0.0,
+    "mean_yield_pct": 0.0,
+    "yield_std_pct": 0.0,
+    "yield_cv": 0.0,
+    "smoothness_score": 70,
+    "missed_compounding_drag_pct": 0.0,
+    "smoothing_label": "SMOOTH_DAILY",
+    "timestamp": 1784886262.2829628
   }
 ]

@@ -7,16 +7,6 @@
     "net_staking_apy_pct": 0.0,
     "slash_risk_score": 0,
     "risk_label": "NEGLIGIBLE_SLASH_RISK",
-    "analyzed_at": "2026-07-24T09:38:40.828815+00:00"
-  },
-  {
-    "protocol_name": "unknown",
-    "staking_type": "other",
-    "expected_annual_loss_pct": 0.0,
-    "expected_annual_loss_usd": 0.0,
-    "net_staking_apy_pct": 0.0,
-    "slash_risk_score": 0,
-    "risk_label": "NEGLIGIBLE_SLASH_RISK",
     "analyzed_at": "2026-07-24T09:38:41.080680+00:00"
   },
   {
@@ -998,5 +988,15 @@
     "slash_risk_score": 0,
     "risk_label": "NEGLIGIBLE_SLASH_RISK",
     "analyzed_at": "2026-07-24T09:39:29.428136+00:00"
+  },
+  {
+    "protocol_name": "unknown",
+    "staking_type": "other",
+    "expected_annual_loss_pct": 0.0,
+    "expected_annual_loss_usd": 0.0,
+    "net_staking_apy_pct": 0.0,
+    "slash_risk_score": 0,
+    "risk_label": "NEGLIGIBLE_SLASH_RISK",
+    "analyzed_at": "2026-07-24T09:44:22.133751+00:00"
   }
 ]

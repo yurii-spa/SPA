@@ -17,26 +17,6 @@
     "dilution_velocity_score": 0.0,
     "predicted_apy_30d_pct": 0.0,
     "dilution_label": "STABLE_APY",
-    "timestamp": 1784885920.6462626
-  },
-  {
-    "protocol_name": "UNKNOWN",
-    "current_tvl_usd": 0.0,
-    "tvl_7d_ago_usd": 0.0,
-    "tvl_30d_ago_usd": 0.0,
-    "current_reward_emission_usd_per_day": 0.0,
-    "emission_7d_ago_usd_per_day": 0.0,
-    "current_apy_pct": 0.0,
-    "apy_7d_ago_pct": 0.0,
-    "apy_30d_ago_pct": 0.0,
-    "tvl_growth_7d_pct": 0.0,
-    "tvl_growth_30d_pct": 0.0,
-    "emission_change_7d_pct": 0.0,
-    "apy_decay_7d_pct": 0.0,
-    "apy_decay_30d_pct": 0.0,
-    "dilution_velocity_score": 0.0,
-    "predicted_apy_30d_pct": 0.0,
-    "dilution_label": "STABLE_APY",
     "timestamp": 1784885920.7951136
   },
   {
@@ -1998,5 +1978,25 @@
     "predicted_apy_30d_pct": 0.0,
     "dilution_label": "STABLE_APY",
     "timestamp": 1784885969.4016335
+  },
+  {
+    "protocol_name": "UNKNOWN",
+    "current_tvl_usd": 0.0,
+    "tvl_7d_ago_usd": 0.0,
+    "tvl_30d_ago_usd": 0.0,
+    "current_reward_emission_usd_per_day": 0.0,
+    "emission_7d_ago_usd_per_day": 0.0,
+    "current_apy_pct": 0.0,
+    "apy_7d_ago_pct": 0.0,
+    "apy_30d_ago_pct": 0.0,
+    "tvl_growth_7d_pct": 0.0,
+    "tvl_growth_30d_pct": 0.0,
+    "emission_change_7d_pct": 0.0,
+    "apy_decay_7d_pct": 0.0,
+    "apy_decay_30d_pct": 0.0,
+    "dilution_velocity_score": 0.0,
+    "predicted_apy_30d_pct": 0.0,
+    "dilution_label": "STABLE_APY",
+    "timestamp": 1784886262.1229215
   }
 ]
