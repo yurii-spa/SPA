@@ -10,45 +10,6 @@
     "reversion_probability_pct": 15.0,
     "expected_normalized_apy_pct": 0.0,
     "seasonality_label": "STABLE_YIELD",
-    "analyzed_at": "2026-07-24T09:38:50.701693+00:00"
-  },
-  {
-    "protocol_name": "unknown",
-    "yield_type": "trading_fees",
-    "market_condition": "sideways",
-    "apy_vs_30d_ratio": 1.0,
-    "apy_vs_90d_ratio": 1.0,
-    "apy_vs_180d_ratio": 1.0,
-    "is_above_all_averages": false,
-    "reversion_probability_pct": 15.0,
-    "expected_normalized_apy_pct": 0.0,
-    "seasonality_label": "STABLE_YIELD",
-    "analyzed_at": "2026-07-24T09:38:51.061303+00:00"
-  },
-  {
-    "protocol_name": "unknown",
-    "yield_type": "trading_fees",
-    "market_condition": "sideways",
-    "apy_vs_30d_ratio": 1.0,
-    "apy_vs_90d_ratio": 1.0,
-    "apy_vs_180d_ratio": 1.0,
-    "is_above_all_averages": false,
-    "reversion_probability_pct": 15.0,
-    "expected_normalized_apy_pct": 0.0,
-    "seasonality_label": "STABLE_YIELD",
-    "analyzed_at": "2026-07-24T09:38:51.442654+00:00"
-  },
-  {
-    "protocol_name": "unknown",
-    "yield_type": "trading_fees",
-    "market_condition": "sideways",
-    "apy_vs_30d_ratio": 1.0,
-    "apy_vs_90d_ratio": 1.0,
-    "apy_vs_180d_ratio": 1.0,
-    "is_above_all_averages": false,
-    "reversion_probability_pct": 15.0,
-    "expected_normalized_apy_pct": 0.0,
-    "seasonality_label": "STABLE_YIELD",
     "analyzed_at": "2026-07-24T09:38:51.474557+00:00"
   },
   {
@@ -1298,5 +1259,44 @@
     "expected_normalized_apy_pct": 0.0,
     "seasonality_label": "STABLE_YIELD",
     "analyzed_at": "2026-07-24T09:44:39.818460+00:00"
+  },
+  {
+    "protocol_name": "unknown",
+    "yield_type": "trading_fees",
+    "market_condition": "sideways",
+    "apy_vs_30d_ratio": 1.0,
+    "apy_vs_90d_ratio": 1.0,
+    "apy_vs_180d_ratio": 1.0,
+    "is_above_all_averages": false,
+    "reversion_probability_pct": 15.0,
+    "expected_normalized_apy_pct": 0.0,
+    "seasonality_label": "STABLE_YIELD",
+    "analyzed_at": "2026-07-24T09:44:40.248975+00:00"
+  },
+  {
+    "protocol_name": "unknown",
+    "yield_type": "trading_fees",
+    "market_condition": "sideways",
+    "apy_vs_30d_ratio": 1.0,
+    "apy_vs_90d_ratio": 1.0,
+    "apy_vs_180d_ratio": 1.0,
+    "is_above_all_averages": false,
+    "reversion_probability_pct": 15.0,
+    "expected_normalized_apy_pct": 0.0,
+    "seasonality_label": "STABLE_YIELD",
+    "analyzed_at": "2026-07-24T09:44:40.755093+00:00"
+  },
+  {
+    "protocol_name": "unknown",
+    "yield_type": "trading_fees",
+    "market_condition": "sideways",
+    "apy_vs_30d_ratio": 1.0,
+    "apy_vs_90d_ratio": 1.0,
+    "apy_vs_180d_ratio": 1.0,
+    "is_above_all_averages": false,
+    "reversion_probability_pct": 15.0,
+    "expected_normalized_apy_pct": 0.0,
+    "seasonality_label": "STABLE_YIELD",
+    "analyzed_at": "2026-07-24T09:44:41.208440+00:00"
   }
 ]
