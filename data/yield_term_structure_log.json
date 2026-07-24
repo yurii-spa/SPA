@@ -1,545 +1,5 @@
 [
   {
-    "name": "UNKNOWN",
-    "points": [],
-    "point_count": 0,
-    "reinvestment_rate_assumption_pct": 4.0,
-    "data_quality_ok": true,
-    "short_tenor_days": 0.0,
-    "long_tenor_days": 0.0,
-    "short_apr_pct": 0.0,
-    "long_apr_pct": 0.0,
-    "term_spread_pct": 0.0,
-    "curve_slope_pct_per_year": 0.0,
-    "is_inverted": false,
-    "inversion_magnitude_pct": 0.0,
-    "optimal_tenor_days": 0.0,
-    "optimal_tenor_apr_pct": 0.0,
-    "optimal_tenor_carry_pct": 0.0,
-    "pickup_vs_short_pct": 0.0,
-    "term_structure_score": 0.0,
-    "steepness_classification": "FLAT",
-    "classification": "FLAT",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
-    ],
-    "timestamp": 1784884276.8089676
-  },
-  {
-    "name": "UNKNOWN",
-    "points": [],
-    "point_count": 0,
-    "reinvestment_rate_assumption_pct": 4.0,
-    "data_quality_ok": true,
-    "short_tenor_days": 0.0,
-    "long_tenor_days": 0.0,
-    "short_apr_pct": 0.0,
-    "long_apr_pct": 0.0,
-    "term_spread_pct": 0.0,
-    "curve_slope_pct_per_year": 0.0,
-    "is_inverted": false,
-    "inversion_magnitude_pct": 0.0,
-    "optimal_tenor_days": 0.0,
-    "optimal_tenor_apr_pct": 0.0,
-    "optimal_tenor_carry_pct": 0.0,
-    "pickup_vs_short_pct": 0.0,
-    "term_structure_score": 0.0,
-    "steepness_classification": "FLAT",
-    "classification": "FLAT",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
-    ],
-    "timestamp": 1784884277.199595
-  },
-  {
-    "name": "UNKNOWN",
-    "points": [],
-    "point_count": 0,
-    "reinvestment_rate_assumption_pct": 4.0,
-    "data_quality_ok": true,
-    "short_tenor_days": 0.0,
-    "long_tenor_days": 0.0,
-    "short_apr_pct": 0.0,
-    "long_apr_pct": 0.0,
-    "term_spread_pct": 0.0,
-    "curve_slope_pct_per_year": 0.0,
-    "is_inverted": false,
-    "inversion_magnitude_pct": 0.0,
-    "optimal_tenor_days": 0.0,
-    "optimal_tenor_apr_pct": 0.0,
-    "optimal_tenor_carry_pct": 0.0,
-    "pickup_vs_short_pct": 0.0,
-    "term_structure_score": 0.0,
-    "steepness_classification": "FLAT",
-    "classification": "FLAT",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
-    ],
-    "timestamp": 1784884280.963141
-  },
-  {
-    "name": "UNKNOWN",
-    "points": [],
-    "point_count": 0,
-    "reinvestment_rate_assumption_pct": 4.0,
-    "data_quality_ok": true,
-    "short_tenor_days": 0.0,
-    "long_tenor_days": 0.0,
-    "short_apr_pct": 0.0,
-    "long_apr_pct": 0.0,
-    "term_spread_pct": 0.0,
-    "curve_slope_pct_per_year": 0.0,
-    "is_inverted": false,
-    "inversion_magnitude_pct": 0.0,
-    "optimal_tenor_days": 0.0,
-    "optimal_tenor_apr_pct": 0.0,
-    "optimal_tenor_carry_pct": 0.0,
-    "pickup_vs_short_pct": 0.0,
-    "term_structure_score": 0.0,
-    "steepness_classification": "FLAT",
-    "classification": "FLAT",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
-    ],
-    "timestamp": 1784884281.388109
-  },
-  {
-    "name": "UNKNOWN",
-    "points": [],
-    "point_count": 0,
-    "reinvestment_rate_assumption_pct": 4.0,
-    "data_quality_ok": true,
-    "short_tenor_days": 0.0,
-    "long_tenor_days": 0.0,
-    "short_apr_pct": 0.0,
-    "long_apr_pct": 0.0,
-    "term_spread_pct": 0.0,
-    "curve_slope_pct_per_year": 0.0,
-    "is_inverted": false,
-    "inversion_magnitude_pct": 0.0,
-    "optimal_tenor_days": 0.0,
-    "optimal_tenor_apr_pct": 0.0,
-    "optimal_tenor_carry_pct": 0.0,
-    "pickup_vs_short_pct": 0.0,
-    "term_structure_score": 0.0,
-    "steepness_classification": "FLAT",
-    "classification": "FLAT",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
-    ],
-    "timestamp": 1784884281.8098311
-  },
-  {
-    "name": "UNKNOWN",
-    "points": [],
-    "point_count": 0,
-    "reinvestment_rate_assumption_pct": 4.0,
-    "data_quality_ok": true,
-    "short_tenor_days": 0.0,
-    "long_tenor_days": 0.0,
-    "short_apr_pct": 0.0,
-    "long_apr_pct": 0.0,
-    "term_spread_pct": 0.0,
-    "curve_slope_pct_per_year": 0.0,
-    "is_inverted": false,
-    "inversion_magnitude_pct": 0.0,
-    "optimal_tenor_days": 0.0,
-    "optimal_tenor_apr_pct": 0.0,
-    "optimal_tenor_carry_pct": 0.0,
-    "pickup_vs_short_pct": 0.0,
-    "term_structure_score": 0.0,
-    "steepness_classification": "FLAT",
-    "classification": "FLAT",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
-    ],
-    "timestamp": 1784884282.2305186
-  },
-  {
-    "name": "UNKNOWN",
-    "points": [],
-    "point_count": 0,
-    "reinvestment_rate_assumption_pct": 4.0,
-    "data_quality_ok": true,
-    "short_tenor_days": 0.0,
-    "long_tenor_days": 0.0,
-    "short_apr_pct": 0.0,
-    "long_apr_pct": 0.0,
-    "term_spread_pct": 0.0,
-    "curve_slope_pct_per_year": 0.0,
-    "is_inverted": false,
-    "inversion_magnitude_pct": 0.0,
-    "optimal_tenor_days": 0.0,
-    "optimal_tenor_apr_pct": 0.0,
-    "optimal_tenor_carry_pct": 0.0,
-    "pickup_vs_short_pct": 0.0,
-    "term_structure_score": 0.0,
-    "steepness_classification": "FLAT",
-    "classification": "FLAT",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
-    ],
-    "timestamp": 1784884282.6852026
-  },
-  {
-    "name": "UNKNOWN",
-    "points": [],
-    "point_count": 0,
-    "reinvestment_rate_assumption_pct": 4.0,
-    "data_quality_ok": true,
-    "short_tenor_days": 0.0,
-    "long_tenor_days": 0.0,
-    "short_apr_pct": 0.0,
-    "long_apr_pct": 0.0,
-    "term_spread_pct": 0.0,
-    "curve_slope_pct_per_year": 0.0,
-    "is_inverted": false,
-    "inversion_magnitude_pct": 0.0,
-    "optimal_tenor_days": 0.0,
-    "optimal_tenor_apr_pct": 0.0,
-    "optimal_tenor_carry_pct": 0.0,
-    "pickup_vs_short_pct": 0.0,
-    "term_structure_score": 0.0,
-    "steepness_classification": "FLAT",
-    "classification": "FLAT",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
-    ],
-    "timestamp": 1784884283.1314952
-  },
-  {
-    "name": "UNKNOWN",
-    "points": [],
-    "point_count": 0,
-    "reinvestment_rate_assumption_pct": 4.0,
-    "data_quality_ok": true,
-    "short_tenor_days": 0.0,
-    "long_tenor_days": 0.0,
-    "short_apr_pct": 0.0,
-    "long_apr_pct": 0.0,
-    "term_spread_pct": 0.0,
-    "curve_slope_pct_per_year": 0.0,
-    "is_inverted": false,
-    "inversion_magnitude_pct": 0.0,
-    "optimal_tenor_days": 0.0,
-    "optimal_tenor_apr_pct": 0.0,
-    "optimal_tenor_carry_pct": 0.0,
-    "pickup_vs_short_pct": 0.0,
-    "term_structure_score": 0.0,
-    "steepness_classification": "FLAT",
-    "classification": "FLAT",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
-    ],
-    "timestamp": 1784884283.5579045
-  },
-  {
-    "name": "UNKNOWN",
-    "points": [],
-    "point_count": 0,
-    "reinvestment_rate_assumption_pct": 4.0,
-    "data_quality_ok": true,
-    "short_tenor_days": 0.0,
-    "long_tenor_days": 0.0,
-    "short_apr_pct": 0.0,
-    "long_apr_pct": 0.0,
-    "term_spread_pct": 0.0,
-    "curve_slope_pct_per_year": 0.0,
-    "is_inverted": false,
-    "inversion_magnitude_pct": 0.0,
-    "optimal_tenor_days": 0.0,
-    "optimal_tenor_apr_pct": 0.0,
-    "optimal_tenor_carry_pct": 0.0,
-    "pickup_vs_short_pct": 0.0,
-    "term_structure_score": 0.0,
-    "steepness_classification": "FLAT",
-    "classification": "FLAT",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
-    ],
-    "timestamp": 1784884284.019288
-  },
-  {
-    "name": "UNKNOWN",
-    "points": [],
-    "point_count": 0,
-    "reinvestment_rate_assumption_pct": 4.0,
-    "data_quality_ok": true,
-    "short_tenor_days": 0.0,
-    "long_tenor_days": 0.0,
-    "short_apr_pct": 0.0,
-    "long_apr_pct": 0.0,
-    "term_spread_pct": 0.0,
-    "curve_slope_pct_per_year": 0.0,
-    "is_inverted": false,
-    "inversion_magnitude_pct": 0.0,
-    "optimal_tenor_days": 0.0,
-    "optimal_tenor_apr_pct": 0.0,
-    "optimal_tenor_carry_pct": 0.0,
-    "pickup_vs_short_pct": 0.0,
-    "term_structure_score": 0.0,
-    "steepness_classification": "FLAT",
-    "classification": "FLAT",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
-    ],
-    "timestamp": 1784884285.7462099
-  },
-  {
-    "name": "UNKNOWN",
-    "points": [],
-    "point_count": 0,
-    "reinvestment_rate_assumption_pct": 4.0,
-    "data_quality_ok": true,
-    "short_tenor_days": 0.0,
-    "long_tenor_days": 0.0,
-    "short_apr_pct": 0.0,
-    "long_apr_pct": 0.0,
-    "term_spread_pct": 0.0,
-    "curve_slope_pct_per_year": 0.0,
-    "is_inverted": false,
-    "inversion_magnitude_pct": 0.0,
-    "optimal_tenor_days": 0.0,
-    "optimal_tenor_apr_pct": 0.0,
-    "optimal_tenor_carry_pct": 0.0,
-    "pickup_vs_short_pct": 0.0,
-    "term_structure_score": 0.0,
-    "steepness_classification": "FLAT",
-    "classification": "FLAT",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
-    ],
-    "timestamp": 1784884286.2195482
-  },
-  {
-    "name": "UNKNOWN",
-    "points": [],
-    "point_count": 0,
-    "reinvestment_rate_assumption_pct": 4.0,
-    "data_quality_ok": true,
-    "short_tenor_days": 0.0,
-    "long_tenor_days": 0.0,
-    "short_apr_pct": 0.0,
-    "long_apr_pct": 0.0,
-    "term_spread_pct": 0.0,
-    "curve_slope_pct_per_year": 0.0,
-    "is_inverted": false,
-    "inversion_magnitude_pct": 0.0,
-    "optimal_tenor_days": 0.0,
-    "optimal_tenor_apr_pct": 0.0,
-    "optimal_tenor_carry_pct": 0.0,
-    "pickup_vs_short_pct": 0.0,
-    "term_structure_score": 0.0,
-    "steepness_classification": "FLAT",
-    "classification": "FLAT",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
-    ],
-    "timestamp": 1784884286.6302073
-  },
-  {
-    "name": "UNKNOWN",
-    "points": [],
-    "point_count": 0,
-    "reinvestment_rate_assumption_pct": 4.0,
-    "data_quality_ok": true,
-    "short_tenor_days": 0.0,
-    "long_tenor_days": 0.0,
-    "short_apr_pct": 0.0,
-    "long_apr_pct": 0.0,
-    "term_spread_pct": 0.0,
-    "curve_slope_pct_per_year": 0.0,
-    "is_inverted": false,
-    "inversion_magnitude_pct": 0.0,
-    "optimal_tenor_days": 0.0,
-    "optimal_tenor_apr_pct": 0.0,
-    "optimal_tenor_carry_pct": 0.0,
-    "pickup_vs_short_pct": 0.0,
-    "term_structure_score": 0.0,
-    "steepness_classification": "FLAT",
-    "classification": "FLAT",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
-    ],
-    "timestamp": 1784884287.015876
-  },
-  {
-    "name": "UNKNOWN",
-    "points": [],
-    "point_count": 0,
-    "reinvestment_rate_assumption_pct": 4.0,
-    "data_quality_ok": true,
-    "short_tenor_days": 0.0,
-    "long_tenor_days": 0.0,
-    "short_apr_pct": 0.0,
-    "long_apr_pct": 0.0,
-    "term_spread_pct": 0.0,
-    "curve_slope_pct_per_year": 0.0,
-    "is_inverted": false,
-    "inversion_magnitude_pct": 0.0,
-    "optimal_tenor_days": 0.0,
-    "optimal_tenor_apr_pct": 0.0,
-    "optimal_tenor_carry_pct": 0.0,
-    "pickup_vs_short_pct": 0.0,
-    "term_structure_score": 0.0,
-    "steepness_classification": "FLAT",
-    "classification": "FLAT",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
-    ],
-    "timestamp": 1784884287.4107308
-  },
-  {
-    "name": "UNKNOWN",
-    "points": [],
-    "point_count": 0,
-    "reinvestment_rate_assumption_pct": 4.0,
-    "data_quality_ok": true,
-    "short_tenor_days": 0.0,
-    "long_tenor_days": 0.0,
-    "short_apr_pct": 0.0,
-    "long_apr_pct": 0.0,
-    "term_spread_pct": 0.0,
-    "curve_slope_pct_per_year": 0.0,
-    "is_inverted": false,
-    "inversion_magnitude_pct": 0.0,
-    "optimal_tenor_days": 0.0,
-    "optimal_tenor_apr_pct": 0.0,
-    "optimal_tenor_carry_pct": 0.0,
-    "pickup_vs_short_pct": 0.0,
-    "term_structure_score": 0.0,
-    "steepness_classification": "FLAT",
-    "classification": "FLAT",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
-    ],
-    "timestamp": 1784884287.801599
-  },
-  {
-    "name": "UNKNOWN",
-    "points": [],
-    "point_count": 0,
-    "reinvestment_rate_assumption_pct": 4.0,
-    "data_quality_ok": true,
-    "short_tenor_days": 0.0,
-    "long_tenor_days": 0.0,
-    "short_apr_pct": 0.0,
-    "long_apr_pct": 0.0,
-    "term_spread_pct": 0.0,
-    "curve_slope_pct_per_year": 0.0,
-    "is_inverted": false,
-    "inversion_magnitude_pct": 0.0,
-    "optimal_tenor_days": 0.0,
-    "optimal_tenor_apr_pct": 0.0,
-    "optimal_tenor_carry_pct": 0.0,
-    "pickup_vs_short_pct": 0.0,
-    "term_structure_score": 0.0,
-    "steepness_classification": "FLAT",
-    "classification": "FLAT",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
-    ],
-    "timestamp": 1784884288.2006047
-  },
-  {
-    "name": "UNKNOWN",
-    "points": [],
-    "point_count": 0,
-    "reinvestment_rate_assumption_pct": 4.0,
-    "data_quality_ok": true,
-    "short_tenor_days": 0.0,
-    "long_tenor_days": 0.0,
-    "short_apr_pct": 0.0,
-    "long_apr_pct": 0.0,
-    "term_spread_pct": 0.0,
-    "curve_slope_pct_per_year": 0.0,
-    "is_inverted": false,
-    "inversion_magnitude_pct": 0.0,
-    "optimal_tenor_days": 0.0,
-    "optimal_tenor_apr_pct": 0.0,
-    "optimal_tenor_carry_pct": 0.0,
-    "pickup_vs_short_pct": 0.0,
-    "term_structure_score": 0.0,
-    "steepness_classification": "FLAT",
-    "classification": "FLAT",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
-    ],
-    "timestamp": 1784884288.625495
-  },
-  {
     "name": "Pendle-PT (normal, steep)",
     "points": [
       {
@@ -3046,5 +2506,545 @@
       "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
     ],
     "timestamp": 1784885464.84947
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1784885465.2598715
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1784885466.8737729
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1784885467.3044784
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1784885467.7322462
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1784885468.1334965
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1784885468.5626097
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1784885468.9947338
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1784885469.4445856
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1784885469.8650877
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1784885472.7246277
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1784885473.1433785
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1784885473.5417292
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1784885473.961378
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1784885474.3740551
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1784885474.798756
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1784885475.2091806
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1784885475.6378136
+  },
+  {
+    "name": "UNKNOWN",
+    "points": [],
+    "point_count": 0,
+    "reinvestment_rate_assumption_pct": 4.0,
+    "data_quality_ok": true,
+    "short_tenor_days": 0.0,
+    "long_tenor_days": 0.0,
+    "short_apr_pct": 0.0,
+    "long_apr_pct": 0.0,
+    "term_spread_pct": 0.0,
+    "curve_slope_pct_per_year": 0.0,
+    "is_inverted": false,
+    "inversion_magnitude_pct": 0.0,
+    "optimal_tenor_days": 0.0,
+    "optimal_tenor_apr_pct": 0.0,
+    "optimal_tenor_carry_pct": 0.0,
+    "pickup_vs_short_pct": 0.0,
+    "term_structure_score": 0.0,
+    "steepness_classification": "FLAT",
+    "classification": "FLAT",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: fewer than two usable curve points (each needs a positive tenor_days and an apr_pct) or data marked unreliable. Cannot assess the yield term structure for this market."
+    ],
+    "timestamp": 1784885477.3884642
   }
 ]

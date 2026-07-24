@@ -1,509 +1,5 @@
 [
   {
-    "name": "UNKNOWN",
-    "accrued_reward_usd": 0.0,
-    "daily_accrual_usd": 0.0,
-    "claim_gas_cost_usd": 0.0,
-    "reward_token_volatility_pct": 60.0,
-    "reinvestment_apr_pct": 5.0,
-    "days_since_last_claim": 0.0,
-    "target_gas_drag_pct": 2.0,
-    "data_quality_ok": true,
-    "gas_to_accrued_ratio_pct": 0.0,
-    "optimal_claim_threshold_usd": 0.0,
-    "expected_days_to_threshold": 0.0,
-    "recommended_claim_frequency_days": 0.0,
-    "price_risk_haircut_pct": 0.0,
-    "opportunity_cost_usd": 0.0,
-    "net_benefit_of_claiming_now_usd": 0.0,
-    "claim_timing_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
-    ],
-    "timestamp": 1784884276.7604604
-  },
-  {
-    "name": "UNKNOWN",
-    "accrued_reward_usd": 0.0,
-    "daily_accrual_usd": 0.0,
-    "claim_gas_cost_usd": 0.0,
-    "reward_token_volatility_pct": 60.0,
-    "reinvestment_apr_pct": 5.0,
-    "days_since_last_claim": 0.0,
-    "target_gas_drag_pct": 2.0,
-    "data_quality_ok": true,
-    "gas_to_accrued_ratio_pct": 0.0,
-    "optimal_claim_threshold_usd": 0.0,
-    "expected_days_to_threshold": 0.0,
-    "recommended_claim_frequency_days": 0.0,
-    "price_risk_haircut_pct": 0.0,
-    "opportunity_cost_usd": 0.0,
-    "net_benefit_of_claiming_now_usd": 0.0,
-    "claim_timing_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
-    ],
-    "timestamp": 1784884277.137773
-  },
-  {
-    "name": "UNKNOWN",
-    "accrued_reward_usd": 0.0,
-    "daily_accrual_usd": 0.0,
-    "claim_gas_cost_usd": 0.0,
-    "reward_token_volatility_pct": 60.0,
-    "reinvestment_apr_pct": 5.0,
-    "days_since_last_claim": 0.0,
-    "target_gas_drag_pct": 2.0,
-    "data_quality_ok": true,
-    "gas_to_accrued_ratio_pct": 0.0,
-    "optimal_claim_threshold_usd": 0.0,
-    "expected_days_to_threshold": 0.0,
-    "recommended_claim_frequency_days": 0.0,
-    "price_risk_haircut_pct": 0.0,
-    "opportunity_cost_usd": 0.0,
-    "net_benefit_of_claiming_now_usd": 0.0,
-    "claim_timing_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
-    ],
-    "timestamp": 1784884280.9034622
-  },
-  {
-    "name": "UNKNOWN",
-    "accrued_reward_usd": 0.0,
-    "daily_accrual_usd": 0.0,
-    "claim_gas_cost_usd": 0.0,
-    "reward_token_volatility_pct": 60.0,
-    "reinvestment_apr_pct": 5.0,
-    "days_since_last_claim": 0.0,
-    "target_gas_drag_pct": 2.0,
-    "data_quality_ok": true,
-    "gas_to_accrued_ratio_pct": 0.0,
-    "optimal_claim_threshold_usd": 0.0,
-    "expected_days_to_threshold": 0.0,
-    "recommended_claim_frequency_days": 0.0,
-    "price_risk_haircut_pct": 0.0,
-    "opportunity_cost_usd": 0.0,
-    "net_benefit_of_claiming_now_usd": 0.0,
-    "claim_timing_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
-    ],
-    "timestamp": 1784884281.332052
-  },
-  {
-    "name": "UNKNOWN",
-    "accrued_reward_usd": 0.0,
-    "daily_accrual_usd": 0.0,
-    "claim_gas_cost_usd": 0.0,
-    "reward_token_volatility_pct": 60.0,
-    "reinvestment_apr_pct": 5.0,
-    "days_since_last_claim": 0.0,
-    "target_gas_drag_pct": 2.0,
-    "data_quality_ok": true,
-    "gas_to_accrued_ratio_pct": 0.0,
-    "optimal_claim_threshold_usd": 0.0,
-    "expected_days_to_threshold": 0.0,
-    "recommended_claim_frequency_days": 0.0,
-    "price_risk_haircut_pct": 0.0,
-    "opportunity_cost_usd": 0.0,
-    "net_benefit_of_claiming_now_usd": 0.0,
-    "claim_timing_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
-    ],
-    "timestamp": 1784884281.7473543
-  },
-  {
-    "name": "UNKNOWN",
-    "accrued_reward_usd": 0.0,
-    "daily_accrual_usd": 0.0,
-    "claim_gas_cost_usd": 0.0,
-    "reward_token_volatility_pct": 60.0,
-    "reinvestment_apr_pct": 5.0,
-    "days_since_last_claim": 0.0,
-    "target_gas_drag_pct": 2.0,
-    "data_quality_ok": true,
-    "gas_to_accrued_ratio_pct": 0.0,
-    "optimal_claim_threshold_usd": 0.0,
-    "expected_days_to_threshold": 0.0,
-    "recommended_claim_frequency_days": 0.0,
-    "price_risk_haircut_pct": 0.0,
-    "opportunity_cost_usd": 0.0,
-    "net_benefit_of_claiming_now_usd": 0.0,
-    "claim_timing_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
-    ],
-    "timestamp": 1784884282.1773589
-  },
-  {
-    "name": "UNKNOWN",
-    "accrued_reward_usd": 0.0,
-    "daily_accrual_usd": 0.0,
-    "claim_gas_cost_usd": 0.0,
-    "reward_token_volatility_pct": 60.0,
-    "reinvestment_apr_pct": 5.0,
-    "days_since_last_claim": 0.0,
-    "target_gas_drag_pct": 2.0,
-    "data_quality_ok": true,
-    "gas_to_accrued_ratio_pct": 0.0,
-    "optimal_claim_threshold_usd": 0.0,
-    "expected_days_to_threshold": 0.0,
-    "recommended_claim_frequency_days": 0.0,
-    "price_risk_haircut_pct": 0.0,
-    "opportunity_cost_usd": 0.0,
-    "net_benefit_of_claiming_now_usd": 0.0,
-    "claim_timing_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
-    ],
-    "timestamp": 1784884282.6276963
-  },
-  {
-    "name": "UNKNOWN",
-    "accrued_reward_usd": 0.0,
-    "daily_accrual_usd": 0.0,
-    "claim_gas_cost_usd": 0.0,
-    "reward_token_volatility_pct": 60.0,
-    "reinvestment_apr_pct": 5.0,
-    "days_since_last_claim": 0.0,
-    "target_gas_drag_pct": 2.0,
-    "data_quality_ok": true,
-    "gas_to_accrued_ratio_pct": 0.0,
-    "optimal_claim_threshold_usd": 0.0,
-    "expected_days_to_threshold": 0.0,
-    "recommended_claim_frequency_days": 0.0,
-    "price_risk_haircut_pct": 0.0,
-    "opportunity_cost_usd": 0.0,
-    "net_benefit_of_claiming_now_usd": 0.0,
-    "claim_timing_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
-    ],
-    "timestamp": 1784884283.0643775
-  },
-  {
-    "name": "UNKNOWN",
-    "accrued_reward_usd": 0.0,
-    "daily_accrual_usd": 0.0,
-    "claim_gas_cost_usd": 0.0,
-    "reward_token_volatility_pct": 60.0,
-    "reinvestment_apr_pct": 5.0,
-    "days_since_last_claim": 0.0,
-    "target_gas_drag_pct": 2.0,
-    "data_quality_ok": true,
-    "gas_to_accrued_ratio_pct": 0.0,
-    "optimal_claim_threshold_usd": 0.0,
-    "expected_days_to_threshold": 0.0,
-    "recommended_claim_frequency_days": 0.0,
-    "price_risk_haircut_pct": 0.0,
-    "opportunity_cost_usd": 0.0,
-    "net_benefit_of_claiming_now_usd": 0.0,
-    "claim_timing_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
-    ],
-    "timestamp": 1784884283.485179
-  },
-  {
-    "name": "UNKNOWN",
-    "accrued_reward_usd": 0.0,
-    "daily_accrual_usd": 0.0,
-    "claim_gas_cost_usd": 0.0,
-    "reward_token_volatility_pct": 60.0,
-    "reinvestment_apr_pct": 5.0,
-    "days_since_last_claim": 0.0,
-    "target_gas_drag_pct": 2.0,
-    "data_quality_ok": true,
-    "gas_to_accrued_ratio_pct": 0.0,
-    "optimal_claim_threshold_usd": 0.0,
-    "expected_days_to_threshold": 0.0,
-    "recommended_claim_frequency_days": 0.0,
-    "price_risk_haircut_pct": 0.0,
-    "opportunity_cost_usd": 0.0,
-    "net_benefit_of_claiming_now_usd": 0.0,
-    "claim_timing_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
-    ],
-    "timestamp": 1784884283.9828897
-  },
-  {
-    "name": "UNKNOWN",
-    "accrued_reward_usd": 0.0,
-    "daily_accrual_usd": 0.0,
-    "claim_gas_cost_usd": 0.0,
-    "reward_token_volatility_pct": 60.0,
-    "reinvestment_apr_pct": 5.0,
-    "days_since_last_claim": 0.0,
-    "target_gas_drag_pct": 2.0,
-    "data_quality_ok": true,
-    "gas_to_accrued_ratio_pct": 0.0,
-    "optimal_claim_threshold_usd": 0.0,
-    "expected_days_to_threshold": 0.0,
-    "recommended_claim_frequency_days": 0.0,
-    "price_risk_haircut_pct": 0.0,
-    "opportunity_cost_usd": 0.0,
-    "net_benefit_of_claiming_now_usd": 0.0,
-    "claim_timing_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
-    ],
-    "timestamp": 1784884285.6725087
-  },
-  {
-    "name": "UNKNOWN",
-    "accrued_reward_usd": 0.0,
-    "daily_accrual_usd": 0.0,
-    "claim_gas_cost_usd": 0.0,
-    "reward_token_volatility_pct": 60.0,
-    "reinvestment_apr_pct": 5.0,
-    "days_since_last_claim": 0.0,
-    "target_gas_drag_pct": 2.0,
-    "data_quality_ok": true,
-    "gas_to_accrued_ratio_pct": 0.0,
-    "optimal_claim_threshold_usd": 0.0,
-    "expected_days_to_threshold": 0.0,
-    "recommended_claim_frequency_days": 0.0,
-    "price_risk_haircut_pct": 0.0,
-    "opportunity_cost_usd": 0.0,
-    "net_benefit_of_claiming_now_usd": 0.0,
-    "claim_timing_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
-    ],
-    "timestamp": 1784884286.1579263
-  },
-  {
-    "name": "UNKNOWN",
-    "accrued_reward_usd": 0.0,
-    "daily_accrual_usd": 0.0,
-    "claim_gas_cost_usd": 0.0,
-    "reward_token_volatility_pct": 60.0,
-    "reinvestment_apr_pct": 5.0,
-    "days_since_last_claim": 0.0,
-    "target_gas_drag_pct": 2.0,
-    "data_quality_ok": true,
-    "gas_to_accrued_ratio_pct": 0.0,
-    "optimal_claim_threshold_usd": 0.0,
-    "expected_days_to_threshold": 0.0,
-    "recommended_claim_frequency_days": 0.0,
-    "price_risk_haircut_pct": 0.0,
-    "opportunity_cost_usd": 0.0,
-    "net_benefit_of_claiming_now_usd": 0.0,
-    "claim_timing_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
-    ],
-    "timestamp": 1784884286.5737722
-  },
-  {
-    "name": "UNKNOWN",
-    "accrued_reward_usd": 0.0,
-    "daily_accrual_usd": 0.0,
-    "claim_gas_cost_usd": 0.0,
-    "reward_token_volatility_pct": 60.0,
-    "reinvestment_apr_pct": 5.0,
-    "days_since_last_claim": 0.0,
-    "target_gas_drag_pct": 2.0,
-    "data_quality_ok": true,
-    "gas_to_accrued_ratio_pct": 0.0,
-    "optimal_claim_threshold_usd": 0.0,
-    "expected_days_to_threshold": 0.0,
-    "recommended_claim_frequency_days": 0.0,
-    "price_risk_haircut_pct": 0.0,
-    "opportunity_cost_usd": 0.0,
-    "net_benefit_of_claiming_now_usd": 0.0,
-    "claim_timing_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
-    ],
-    "timestamp": 1784884286.9587877
-  },
-  {
-    "name": "UNKNOWN",
-    "accrued_reward_usd": 0.0,
-    "daily_accrual_usd": 0.0,
-    "claim_gas_cost_usd": 0.0,
-    "reward_token_volatility_pct": 60.0,
-    "reinvestment_apr_pct": 5.0,
-    "days_since_last_claim": 0.0,
-    "target_gas_drag_pct": 2.0,
-    "data_quality_ok": true,
-    "gas_to_accrued_ratio_pct": 0.0,
-    "optimal_claim_threshold_usd": 0.0,
-    "expected_days_to_threshold": 0.0,
-    "recommended_claim_frequency_days": 0.0,
-    "price_risk_haircut_pct": 0.0,
-    "opportunity_cost_usd": 0.0,
-    "net_benefit_of_claiming_now_usd": 0.0,
-    "claim_timing_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
-    ],
-    "timestamp": 1784884287.3530962
-  },
-  {
-    "name": "UNKNOWN",
-    "accrued_reward_usd": 0.0,
-    "daily_accrual_usd": 0.0,
-    "claim_gas_cost_usd": 0.0,
-    "reward_token_volatility_pct": 60.0,
-    "reinvestment_apr_pct": 5.0,
-    "days_since_last_claim": 0.0,
-    "target_gas_drag_pct": 2.0,
-    "data_quality_ok": true,
-    "gas_to_accrued_ratio_pct": 0.0,
-    "optimal_claim_threshold_usd": 0.0,
-    "expected_days_to_threshold": 0.0,
-    "recommended_claim_frequency_days": 0.0,
-    "price_risk_haircut_pct": 0.0,
-    "opportunity_cost_usd": 0.0,
-    "net_benefit_of_claiming_now_usd": 0.0,
-    "claim_timing_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
-    ],
-    "timestamp": 1784884287.7705672
-  },
-  {
-    "name": "UNKNOWN",
-    "accrued_reward_usd": 0.0,
-    "daily_accrual_usd": 0.0,
-    "claim_gas_cost_usd": 0.0,
-    "reward_token_volatility_pct": 60.0,
-    "reinvestment_apr_pct": 5.0,
-    "days_since_last_claim": 0.0,
-    "target_gas_drag_pct": 2.0,
-    "data_quality_ok": true,
-    "gas_to_accrued_ratio_pct": 0.0,
-    "optimal_claim_threshold_usd": 0.0,
-    "expected_days_to_threshold": 0.0,
-    "recommended_claim_frequency_days": 0.0,
-    "price_risk_haircut_pct": 0.0,
-    "opportunity_cost_usd": 0.0,
-    "net_benefit_of_claiming_now_usd": 0.0,
-    "claim_timing_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
-    ],
-    "timestamp": 1784884288.1386783
-  },
-  {
-    "name": "UNKNOWN",
-    "accrued_reward_usd": 0.0,
-    "daily_accrual_usd": 0.0,
-    "claim_gas_cost_usd": 0.0,
-    "reward_token_volatility_pct": 60.0,
-    "reinvestment_apr_pct": 5.0,
-    "days_since_last_claim": 0.0,
-    "target_gas_drag_pct": 2.0,
-    "data_quality_ok": true,
-    "gas_to_accrued_ratio_pct": 0.0,
-    "optimal_claim_threshold_usd": 0.0,
-    "expected_days_to_threshold": 0.0,
-    "recommended_claim_frequency_days": 0.0,
-    "price_risk_haircut_pct": 0.0,
-    "opportunity_cost_usd": 0.0,
-    "net_benefit_of_claiming_now_usd": 0.0,
-    "claim_timing_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
-    ],
-    "timestamp": 1784884288.5608704
-  },
-  {
     "name": "CRV-rewards (mature)",
     "accrued_reward_usd": 220.0,
     "daily_accrual_usd": 8.0,
@@ -2804,5 +2300,509 @@
       "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
     ],
     "timestamp": 1784885464.7882922
+  },
+  {
+    "name": "UNKNOWN",
+    "accrued_reward_usd": 0.0,
+    "daily_accrual_usd": 0.0,
+    "claim_gas_cost_usd": 0.0,
+    "reward_token_volatility_pct": 60.0,
+    "reinvestment_apr_pct": 5.0,
+    "days_since_last_claim": 0.0,
+    "target_gas_drag_pct": 2.0,
+    "data_quality_ok": true,
+    "gas_to_accrued_ratio_pct": 0.0,
+    "optimal_claim_threshold_usd": 0.0,
+    "expected_days_to_threshold": 0.0,
+    "recommended_claim_frequency_days": 0.0,
+    "price_risk_haircut_pct": 0.0,
+    "opportunity_cost_usd": 0.0,
+    "net_benefit_of_claiming_now_usd": 0.0,
+    "claim_timing_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
+    ],
+    "timestamp": 1784885465.196795
+  },
+  {
+    "name": "UNKNOWN",
+    "accrued_reward_usd": 0.0,
+    "daily_accrual_usd": 0.0,
+    "claim_gas_cost_usd": 0.0,
+    "reward_token_volatility_pct": 60.0,
+    "reinvestment_apr_pct": 5.0,
+    "days_since_last_claim": 0.0,
+    "target_gas_drag_pct": 2.0,
+    "data_quality_ok": true,
+    "gas_to_accrued_ratio_pct": 0.0,
+    "optimal_claim_threshold_usd": 0.0,
+    "expected_days_to_threshold": 0.0,
+    "recommended_claim_frequency_days": 0.0,
+    "price_risk_haircut_pct": 0.0,
+    "opportunity_cost_usd": 0.0,
+    "net_benefit_of_claiming_now_usd": 0.0,
+    "claim_timing_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
+    ],
+    "timestamp": 1784885466.8224783
+  },
+  {
+    "name": "UNKNOWN",
+    "accrued_reward_usd": 0.0,
+    "daily_accrual_usd": 0.0,
+    "claim_gas_cost_usd": 0.0,
+    "reward_token_volatility_pct": 60.0,
+    "reinvestment_apr_pct": 5.0,
+    "days_since_last_claim": 0.0,
+    "target_gas_drag_pct": 2.0,
+    "data_quality_ok": true,
+    "gas_to_accrued_ratio_pct": 0.0,
+    "optimal_claim_threshold_usd": 0.0,
+    "expected_days_to_threshold": 0.0,
+    "recommended_claim_frequency_days": 0.0,
+    "price_risk_haircut_pct": 0.0,
+    "opportunity_cost_usd": 0.0,
+    "net_benefit_of_claiming_now_usd": 0.0,
+    "claim_timing_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
+    ],
+    "timestamp": 1784885467.2383676
+  },
+  {
+    "name": "UNKNOWN",
+    "accrued_reward_usd": 0.0,
+    "daily_accrual_usd": 0.0,
+    "claim_gas_cost_usd": 0.0,
+    "reward_token_volatility_pct": 60.0,
+    "reinvestment_apr_pct": 5.0,
+    "days_since_last_claim": 0.0,
+    "target_gas_drag_pct": 2.0,
+    "data_quality_ok": true,
+    "gas_to_accrued_ratio_pct": 0.0,
+    "optimal_claim_threshold_usd": 0.0,
+    "expected_days_to_threshold": 0.0,
+    "recommended_claim_frequency_days": 0.0,
+    "price_risk_haircut_pct": 0.0,
+    "opportunity_cost_usd": 0.0,
+    "net_benefit_of_claiming_now_usd": 0.0,
+    "claim_timing_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
+    ],
+    "timestamp": 1784885467.6754644
+  },
+  {
+    "name": "UNKNOWN",
+    "accrued_reward_usd": 0.0,
+    "daily_accrual_usd": 0.0,
+    "claim_gas_cost_usd": 0.0,
+    "reward_token_volatility_pct": 60.0,
+    "reinvestment_apr_pct": 5.0,
+    "days_since_last_claim": 0.0,
+    "target_gas_drag_pct": 2.0,
+    "data_quality_ok": true,
+    "gas_to_accrued_ratio_pct": 0.0,
+    "optimal_claim_threshold_usd": 0.0,
+    "expected_days_to_threshold": 0.0,
+    "recommended_claim_frequency_days": 0.0,
+    "price_risk_haircut_pct": 0.0,
+    "opportunity_cost_usd": 0.0,
+    "net_benefit_of_claiming_now_usd": 0.0,
+    "claim_timing_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
+    ],
+    "timestamp": 1784885468.0772831
+  },
+  {
+    "name": "UNKNOWN",
+    "accrued_reward_usd": 0.0,
+    "daily_accrual_usd": 0.0,
+    "claim_gas_cost_usd": 0.0,
+    "reward_token_volatility_pct": 60.0,
+    "reinvestment_apr_pct": 5.0,
+    "days_since_last_claim": 0.0,
+    "target_gas_drag_pct": 2.0,
+    "data_quality_ok": true,
+    "gas_to_accrued_ratio_pct": 0.0,
+    "optimal_claim_threshold_usd": 0.0,
+    "expected_days_to_threshold": 0.0,
+    "recommended_claim_frequency_days": 0.0,
+    "price_risk_haircut_pct": 0.0,
+    "opportunity_cost_usd": 0.0,
+    "net_benefit_of_claiming_now_usd": 0.0,
+    "claim_timing_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
+    ],
+    "timestamp": 1784885468.4969604
+  },
+  {
+    "name": "UNKNOWN",
+    "accrued_reward_usd": 0.0,
+    "daily_accrual_usd": 0.0,
+    "claim_gas_cost_usd": 0.0,
+    "reward_token_volatility_pct": 60.0,
+    "reinvestment_apr_pct": 5.0,
+    "days_since_last_claim": 0.0,
+    "target_gas_drag_pct": 2.0,
+    "data_quality_ok": true,
+    "gas_to_accrued_ratio_pct": 0.0,
+    "optimal_claim_threshold_usd": 0.0,
+    "expected_days_to_threshold": 0.0,
+    "recommended_claim_frequency_days": 0.0,
+    "price_risk_haircut_pct": 0.0,
+    "opportunity_cost_usd": 0.0,
+    "net_benefit_of_claiming_now_usd": 0.0,
+    "claim_timing_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
+    ],
+    "timestamp": 1784885468.925532
+  },
+  {
+    "name": "UNKNOWN",
+    "accrued_reward_usd": 0.0,
+    "daily_accrual_usd": 0.0,
+    "claim_gas_cost_usd": 0.0,
+    "reward_token_volatility_pct": 60.0,
+    "reinvestment_apr_pct": 5.0,
+    "days_since_last_claim": 0.0,
+    "target_gas_drag_pct": 2.0,
+    "data_quality_ok": true,
+    "gas_to_accrued_ratio_pct": 0.0,
+    "optimal_claim_threshold_usd": 0.0,
+    "expected_days_to_threshold": 0.0,
+    "recommended_claim_frequency_days": 0.0,
+    "price_risk_haircut_pct": 0.0,
+    "opportunity_cost_usd": 0.0,
+    "net_benefit_of_claiming_now_usd": 0.0,
+    "claim_timing_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
+    ],
+    "timestamp": 1784885469.3831372
+  },
+  {
+    "name": "UNKNOWN",
+    "accrued_reward_usd": 0.0,
+    "daily_accrual_usd": 0.0,
+    "claim_gas_cost_usd": 0.0,
+    "reward_token_volatility_pct": 60.0,
+    "reinvestment_apr_pct": 5.0,
+    "days_since_last_claim": 0.0,
+    "target_gas_drag_pct": 2.0,
+    "data_quality_ok": true,
+    "gas_to_accrued_ratio_pct": 0.0,
+    "optimal_claim_threshold_usd": 0.0,
+    "expected_days_to_threshold": 0.0,
+    "recommended_claim_frequency_days": 0.0,
+    "price_risk_haircut_pct": 0.0,
+    "opportunity_cost_usd": 0.0,
+    "net_benefit_of_claiming_now_usd": 0.0,
+    "claim_timing_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
+    ],
+    "timestamp": 1784885469.8157325
+  },
+  {
+    "name": "UNKNOWN",
+    "accrued_reward_usd": 0.0,
+    "daily_accrual_usd": 0.0,
+    "claim_gas_cost_usd": 0.0,
+    "reward_token_volatility_pct": 60.0,
+    "reinvestment_apr_pct": 5.0,
+    "days_since_last_claim": 0.0,
+    "target_gas_drag_pct": 2.0,
+    "data_quality_ok": true,
+    "gas_to_accrued_ratio_pct": 0.0,
+    "optimal_claim_threshold_usd": 0.0,
+    "expected_days_to_threshold": 0.0,
+    "recommended_claim_frequency_days": 0.0,
+    "price_risk_haircut_pct": 0.0,
+    "opportunity_cost_usd": 0.0,
+    "net_benefit_of_claiming_now_usd": 0.0,
+    "claim_timing_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
+    ],
+    "timestamp": 1784885472.6647165
+  },
+  {
+    "name": "UNKNOWN",
+    "accrued_reward_usd": 0.0,
+    "daily_accrual_usd": 0.0,
+    "claim_gas_cost_usd": 0.0,
+    "reward_token_volatility_pct": 60.0,
+    "reinvestment_apr_pct": 5.0,
+    "days_since_last_claim": 0.0,
+    "target_gas_drag_pct": 2.0,
+    "data_quality_ok": true,
+    "gas_to_accrued_ratio_pct": 0.0,
+    "optimal_claim_threshold_usd": 0.0,
+    "expected_days_to_threshold": 0.0,
+    "recommended_claim_frequency_days": 0.0,
+    "price_risk_haircut_pct": 0.0,
+    "opportunity_cost_usd": 0.0,
+    "net_benefit_of_claiming_now_usd": 0.0,
+    "claim_timing_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
+    ],
+    "timestamp": 1784885473.0908093
+  },
+  {
+    "name": "UNKNOWN",
+    "accrued_reward_usd": 0.0,
+    "daily_accrual_usd": 0.0,
+    "claim_gas_cost_usd": 0.0,
+    "reward_token_volatility_pct": 60.0,
+    "reinvestment_apr_pct": 5.0,
+    "days_since_last_claim": 0.0,
+    "target_gas_drag_pct": 2.0,
+    "data_quality_ok": true,
+    "gas_to_accrued_ratio_pct": 0.0,
+    "optimal_claim_threshold_usd": 0.0,
+    "expected_days_to_threshold": 0.0,
+    "recommended_claim_frequency_days": 0.0,
+    "price_risk_haircut_pct": 0.0,
+    "opportunity_cost_usd": 0.0,
+    "net_benefit_of_claiming_now_usd": 0.0,
+    "claim_timing_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
+    ],
+    "timestamp": 1784885473.4868073
+  },
+  {
+    "name": "UNKNOWN",
+    "accrued_reward_usd": 0.0,
+    "daily_accrual_usd": 0.0,
+    "claim_gas_cost_usd": 0.0,
+    "reward_token_volatility_pct": 60.0,
+    "reinvestment_apr_pct": 5.0,
+    "days_since_last_claim": 0.0,
+    "target_gas_drag_pct": 2.0,
+    "data_quality_ok": true,
+    "gas_to_accrued_ratio_pct": 0.0,
+    "optimal_claim_threshold_usd": 0.0,
+    "expected_days_to_threshold": 0.0,
+    "recommended_claim_frequency_days": 0.0,
+    "price_risk_haircut_pct": 0.0,
+    "opportunity_cost_usd": 0.0,
+    "net_benefit_of_claiming_now_usd": 0.0,
+    "claim_timing_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
+    ],
+    "timestamp": 1784885473.9148223
+  },
+  {
+    "name": "UNKNOWN",
+    "accrued_reward_usd": 0.0,
+    "daily_accrual_usd": 0.0,
+    "claim_gas_cost_usd": 0.0,
+    "reward_token_volatility_pct": 60.0,
+    "reinvestment_apr_pct": 5.0,
+    "days_since_last_claim": 0.0,
+    "target_gas_drag_pct": 2.0,
+    "data_quality_ok": true,
+    "gas_to_accrued_ratio_pct": 0.0,
+    "optimal_claim_threshold_usd": 0.0,
+    "expected_days_to_threshold": 0.0,
+    "recommended_claim_frequency_days": 0.0,
+    "price_risk_haircut_pct": 0.0,
+    "opportunity_cost_usd": 0.0,
+    "net_benefit_of_claiming_now_usd": 0.0,
+    "claim_timing_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
+    ],
+    "timestamp": 1784885474.30805
+  },
+  {
+    "name": "UNKNOWN",
+    "accrued_reward_usd": 0.0,
+    "daily_accrual_usd": 0.0,
+    "claim_gas_cost_usd": 0.0,
+    "reward_token_volatility_pct": 60.0,
+    "reinvestment_apr_pct": 5.0,
+    "days_since_last_claim": 0.0,
+    "target_gas_drag_pct": 2.0,
+    "data_quality_ok": true,
+    "gas_to_accrued_ratio_pct": 0.0,
+    "optimal_claim_threshold_usd": 0.0,
+    "expected_days_to_threshold": 0.0,
+    "recommended_claim_frequency_days": 0.0,
+    "price_risk_haircut_pct": 0.0,
+    "opportunity_cost_usd": 0.0,
+    "net_benefit_of_claiming_now_usd": 0.0,
+    "claim_timing_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
+    ],
+    "timestamp": 1784885474.7415612
+  },
+  {
+    "name": "UNKNOWN",
+    "accrued_reward_usd": 0.0,
+    "daily_accrual_usd": 0.0,
+    "claim_gas_cost_usd": 0.0,
+    "reward_token_volatility_pct": 60.0,
+    "reinvestment_apr_pct": 5.0,
+    "days_since_last_claim": 0.0,
+    "target_gas_drag_pct": 2.0,
+    "data_quality_ok": true,
+    "gas_to_accrued_ratio_pct": 0.0,
+    "optimal_claim_threshold_usd": 0.0,
+    "expected_days_to_threshold": 0.0,
+    "recommended_claim_frequency_days": 0.0,
+    "price_risk_haircut_pct": 0.0,
+    "opportunity_cost_usd": 0.0,
+    "net_benefit_of_claiming_now_usd": 0.0,
+    "claim_timing_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
+    ],
+    "timestamp": 1784885475.1507053
+  },
+  {
+    "name": "UNKNOWN",
+    "accrued_reward_usd": 0.0,
+    "daily_accrual_usd": 0.0,
+    "claim_gas_cost_usd": 0.0,
+    "reward_token_volatility_pct": 60.0,
+    "reinvestment_apr_pct": 5.0,
+    "days_since_last_claim": 0.0,
+    "target_gas_drag_pct": 2.0,
+    "data_quality_ok": true,
+    "gas_to_accrued_ratio_pct": 0.0,
+    "optimal_claim_threshold_usd": 0.0,
+    "expected_days_to_threshold": 0.0,
+    "recommended_claim_frequency_days": 0.0,
+    "price_risk_haircut_pct": 0.0,
+    "opportunity_cost_usd": 0.0,
+    "net_benefit_of_claiming_now_usd": 0.0,
+    "claim_timing_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
+    ],
+    "timestamp": 1784885475.5768216
+  },
+  {
+    "name": "UNKNOWN",
+    "accrued_reward_usd": 0.0,
+    "daily_accrual_usd": 0.0,
+    "claim_gas_cost_usd": 0.0,
+    "reward_token_volatility_pct": 60.0,
+    "reinvestment_apr_pct": 5.0,
+    "days_since_last_claim": 0.0,
+    "target_gas_drag_pct": 2.0,
+    "data_quality_ok": true,
+    "gas_to_accrued_ratio_pct": 0.0,
+    "optimal_claim_threshold_usd": 0.0,
+    "expected_days_to_threshold": 0.0,
+    "recommended_claim_frequency_days": 0.0,
+    "price_risk_haircut_pct": 0.0,
+    "opportunity_cost_usd": 0.0,
+    "net_benefit_of_claiming_now_usd": 0.0,
+    "claim_timing_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no accrued-reward / gas signal or data marked unreliable. Cannot assess reward-claim timing for this position."
+    ],
+    "timestamp": 1784885477.3382561
   }
 ]

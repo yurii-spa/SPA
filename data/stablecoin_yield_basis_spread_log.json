@@ -1,437 +1,5 @@
 [
   {
-    "name": "UNKNOWN",
-    "headline_apy_pct": 0.0,
-    "risk_free_rate_pct": 5.0,
-    "protocol_risk_proxy_pct": 3.0,
-    "depeg_probability": 0.02,
-    "depeg_severity_pct": 20.0,
-    "holding_days": 365.0,
-    "data_quality_ok": true,
-    "excess_basis_pct": -5.0,
-    "basis_to_risk_ratio": -1.6666666666666667,
-    "depeg_expected_cost_pct": 0.4,
-    "real_excess_after_depeg_haircut_pct": -5.4,
-    "risk_compensation_score": 0.0,
-    "classification": "NEGATIVE_CARRY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
-    ],
-    "timestamp": 1784884276.7641091
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apy_pct": 0.0,
-    "risk_free_rate_pct": 5.0,
-    "protocol_risk_proxy_pct": 3.0,
-    "depeg_probability": 0.02,
-    "depeg_severity_pct": 20.0,
-    "holding_days": 365.0,
-    "data_quality_ok": true,
-    "excess_basis_pct": -5.0,
-    "basis_to_risk_ratio": -1.6666666666666667,
-    "depeg_expected_cost_pct": 0.4,
-    "real_excess_after_depeg_haircut_pct": -5.4,
-    "risk_compensation_score": 0.0,
-    "classification": "NEGATIVE_CARRY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
-    ],
-    "timestamp": 1784884277.1612246
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apy_pct": 0.0,
-    "risk_free_rate_pct": 5.0,
-    "protocol_risk_proxy_pct": 3.0,
-    "depeg_probability": 0.02,
-    "depeg_severity_pct": 20.0,
-    "holding_days": 365.0,
-    "data_quality_ok": true,
-    "excess_basis_pct": -5.0,
-    "basis_to_risk_ratio": -1.6666666666666667,
-    "depeg_expected_cost_pct": 0.4,
-    "real_excess_after_depeg_haircut_pct": -5.4,
-    "risk_compensation_score": 0.0,
-    "classification": "NEGATIVE_CARRY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
-    ],
-    "timestamp": 1784884280.9224327
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apy_pct": 0.0,
-    "risk_free_rate_pct": 5.0,
-    "protocol_risk_proxy_pct": 3.0,
-    "depeg_probability": 0.02,
-    "depeg_severity_pct": 20.0,
-    "holding_days": 365.0,
-    "data_quality_ok": true,
-    "excess_basis_pct": -5.0,
-    "basis_to_risk_ratio": -1.6666666666666667,
-    "depeg_expected_cost_pct": 0.4,
-    "real_excess_after_depeg_haircut_pct": -5.4,
-    "risk_compensation_score": 0.0,
-    "classification": "NEGATIVE_CARRY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
-    ],
-    "timestamp": 1784884281.3460045
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apy_pct": 0.0,
-    "risk_free_rate_pct": 5.0,
-    "protocol_risk_proxy_pct": 3.0,
-    "depeg_probability": 0.02,
-    "depeg_severity_pct": 20.0,
-    "holding_days": 365.0,
-    "data_quality_ok": true,
-    "excess_basis_pct": -5.0,
-    "basis_to_risk_ratio": -1.6666666666666667,
-    "depeg_expected_cost_pct": 0.4,
-    "real_excess_after_depeg_haircut_pct": -5.4,
-    "risk_compensation_score": 0.0,
-    "classification": "NEGATIVE_CARRY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
-    ],
-    "timestamp": 1784884281.7550955
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apy_pct": 0.0,
-    "risk_free_rate_pct": 5.0,
-    "protocol_risk_proxy_pct": 3.0,
-    "depeg_probability": 0.02,
-    "depeg_severity_pct": 20.0,
-    "holding_days": 365.0,
-    "data_quality_ok": true,
-    "excess_basis_pct": -5.0,
-    "basis_to_risk_ratio": -1.6666666666666667,
-    "depeg_expected_cost_pct": 0.4,
-    "real_excess_after_depeg_haircut_pct": -5.4,
-    "risk_compensation_score": 0.0,
-    "classification": "NEGATIVE_CARRY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
-    ],
-    "timestamp": 1784884282.1851587
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apy_pct": 0.0,
-    "risk_free_rate_pct": 5.0,
-    "protocol_risk_proxy_pct": 3.0,
-    "depeg_probability": 0.02,
-    "depeg_severity_pct": 20.0,
-    "holding_days": 365.0,
-    "data_quality_ok": true,
-    "excess_basis_pct": -5.0,
-    "basis_to_risk_ratio": -1.6666666666666667,
-    "depeg_expected_cost_pct": 0.4,
-    "real_excess_after_depeg_haircut_pct": -5.4,
-    "risk_compensation_score": 0.0,
-    "classification": "NEGATIVE_CARRY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
-    ],
-    "timestamp": 1784884282.641047
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apy_pct": 0.0,
-    "risk_free_rate_pct": 5.0,
-    "protocol_risk_proxy_pct": 3.0,
-    "depeg_probability": 0.02,
-    "depeg_severity_pct": 20.0,
-    "holding_days": 365.0,
-    "data_quality_ok": true,
-    "excess_basis_pct": -5.0,
-    "basis_to_risk_ratio": -1.6666666666666667,
-    "depeg_expected_cost_pct": 0.4,
-    "real_excess_after_depeg_haircut_pct": -5.4,
-    "risk_compensation_score": 0.0,
-    "classification": "NEGATIVE_CARRY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
-    ],
-    "timestamp": 1784884283.0813415
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apy_pct": 0.0,
-    "risk_free_rate_pct": 5.0,
-    "protocol_risk_proxy_pct": 3.0,
-    "depeg_probability": 0.02,
-    "depeg_severity_pct": 20.0,
-    "holding_days": 365.0,
-    "data_quality_ok": true,
-    "excess_basis_pct": -5.0,
-    "basis_to_risk_ratio": -1.6666666666666667,
-    "depeg_expected_cost_pct": 0.4,
-    "real_excess_after_depeg_haircut_pct": -5.4,
-    "risk_compensation_score": 0.0,
-    "classification": "NEGATIVE_CARRY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
-    ],
-    "timestamp": 1784884283.5516524
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apy_pct": 0.0,
-    "risk_free_rate_pct": 5.0,
-    "protocol_risk_proxy_pct": 3.0,
-    "depeg_probability": 0.02,
-    "depeg_severity_pct": 20.0,
-    "holding_days": 365.0,
-    "data_quality_ok": true,
-    "excess_basis_pct": -5.0,
-    "basis_to_risk_ratio": -1.6666666666666667,
-    "depeg_expected_cost_pct": 0.4,
-    "real_excess_after_depeg_haircut_pct": -5.4,
-    "risk_compensation_score": 0.0,
-    "classification": "NEGATIVE_CARRY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
-    ],
-    "timestamp": 1784884283.96922
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apy_pct": 0.0,
-    "risk_free_rate_pct": 5.0,
-    "protocol_risk_proxy_pct": 3.0,
-    "depeg_probability": 0.02,
-    "depeg_severity_pct": 20.0,
-    "holding_days": 365.0,
-    "data_quality_ok": true,
-    "excess_basis_pct": -5.0,
-    "basis_to_risk_ratio": -1.6666666666666667,
-    "depeg_expected_cost_pct": 0.4,
-    "real_excess_after_depeg_haircut_pct": -5.4,
-    "risk_compensation_score": 0.0,
-    "classification": "NEGATIVE_CARRY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
-    ],
-    "timestamp": 1784884285.6989405
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apy_pct": 0.0,
-    "risk_free_rate_pct": 5.0,
-    "protocol_risk_proxy_pct": 3.0,
-    "depeg_probability": 0.02,
-    "depeg_severity_pct": 20.0,
-    "holding_days": 365.0,
-    "data_quality_ok": true,
-    "excess_basis_pct": -5.0,
-    "basis_to_risk_ratio": -1.6666666666666667,
-    "depeg_expected_cost_pct": 0.4,
-    "real_excess_after_depeg_haircut_pct": -5.4,
-    "risk_compensation_score": 0.0,
-    "classification": "NEGATIVE_CARRY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
-    ],
-    "timestamp": 1784884286.1819339
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apy_pct": 0.0,
-    "risk_free_rate_pct": 5.0,
-    "protocol_risk_proxy_pct": 3.0,
-    "depeg_probability": 0.02,
-    "depeg_severity_pct": 20.0,
-    "holding_days": 365.0,
-    "data_quality_ok": true,
-    "excess_basis_pct": -5.0,
-    "basis_to_risk_ratio": -1.6666666666666667,
-    "depeg_expected_cost_pct": 0.4,
-    "real_excess_after_depeg_haircut_pct": -5.4,
-    "risk_compensation_score": 0.0,
-    "classification": "NEGATIVE_CARRY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
-    ],
-    "timestamp": 1784884286.5906863
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apy_pct": 0.0,
-    "risk_free_rate_pct": 5.0,
-    "protocol_risk_proxy_pct": 3.0,
-    "depeg_probability": 0.02,
-    "depeg_severity_pct": 20.0,
-    "holding_days": 365.0,
-    "data_quality_ok": true,
-    "excess_basis_pct": -5.0,
-    "basis_to_risk_ratio": -1.6666666666666667,
-    "depeg_expected_cost_pct": 0.4,
-    "real_excess_after_depeg_haircut_pct": -5.4,
-    "risk_compensation_score": 0.0,
-    "classification": "NEGATIVE_CARRY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
-    ],
-    "timestamp": 1784884286.9868374
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apy_pct": 0.0,
-    "risk_free_rate_pct": 5.0,
-    "protocol_risk_proxy_pct": 3.0,
-    "depeg_probability": 0.02,
-    "depeg_severity_pct": 20.0,
-    "holding_days": 365.0,
-    "data_quality_ok": true,
-    "excess_basis_pct": -5.0,
-    "basis_to_risk_ratio": -1.6666666666666667,
-    "depeg_expected_cost_pct": 0.4,
-    "real_excess_after_depeg_haircut_pct": -5.4,
-    "risk_compensation_score": 0.0,
-    "classification": "NEGATIVE_CARRY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
-    ],
-    "timestamp": 1784884287.36665
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apy_pct": 0.0,
-    "risk_free_rate_pct": 5.0,
-    "protocol_risk_proxy_pct": 3.0,
-    "depeg_probability": 0.02,
-    "depeg_severity_pct": 20.0,
-    "holding_days": 365.0,
-    "data_quality_ok": true,
-    "excess_basis_pct": -5.0,
-    "basis_to_risk_ratio": -1.6666666666666667,
-    "depeg_expected_cost_pct": 0.4,
-    "real_excess_after_depeg_haircut_pct": -5.4,
-    "risk_compensation_score": 0.0,
-    "classification": "NEGATIVE_CARRY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
-    ],
-    "timestamp": 1784884287.7682142
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apy_pct": 0.0,
-    "risk_free_rate_pct": 5.0,
-    "protocol_risk_proxy_pct": 3.0,
-    "depeg_probability": 0.02,
-    "depeg_severity_pct": 20.0,
-    "holding_days": 365.0,
-    "data_quality_ok": true,
-    "excess_basis_pct": -5.0,
-    "basis_to_risk_ratio": -1.6666666666666667,
-    "depeg_expected_cost_pct": 0.4,
-    "real_excess_after_depeg_haircut_pct": -5.4,
-    "risk_compensation_score": 0.0,
-    "classification": "NEGATIVE_CARRY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
-    ],
-    "timestamp": 1784884288.1651013
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apy_pct": 0.0,
-    "risk_free_rate_pct": 5.0,
-    "protocol_risk_proxy_pct": 3.0,
-    "depeg_probability": 0.02,
-    "depeg_severity_pct": 20.0,
-    "holding_days": 365.0,
-    "data_quality_ok": true,
-    "excess_basis_pct": -5.0,
-    "basis_to_risk_ratio": -1.6666666666666667,
-    "depeg_expected_cost_pct": 0.4,
-    "real_excess_after_depeg_haircut_pct": -5.4,
-    "risk_compensation_score": 0.0,
-    "classification": "NEGATIVE_CARRY",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
-    ],
-    "timestamp": 1784884288.5785782
-  },
-  {
     "name": "USDC-vault (thin spread)",
     "headline_apy_pct": 6.0,
     "risk_free_rate_pct": 5.0,
@@ -2401,5 +1969,437 @@
       "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
     ],
     "timestamp": 1784885464.8076854
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1784885465.2277865
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1784885466.8408365
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1784885467.2696939
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1784885467.6960785
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1784885468.0958495
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1784885468.517319
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1784885468.945825
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1784885469.3999157
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1784885469.8227801
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1784885472.676614
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1784885473.10837
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1784885473.4964116
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1784885473.9287956
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1784885474.3276777
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1784885474.7529676
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1784885475.1708229
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1784885475.5871058
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apy_pct": 0.0,
+    "risk_free_rate_pct": 5.0,
+    "protocol_risk_proxy_pct": 3.0,
+    "depeg_probability": 0.02,
+    "depeg_severity_pct": 20.0,
+    "holding_days": 365.0,
+    "data_quality_ok": true,
+    "excess_basis_pct": -5.0,
+    "basis_to_risk_ratio": -1.6666666666666667,
+    "depeg_expected_cost_pct": 0.4,
+    "real_excess_after_depeg_haircut_pct": -5.4,
+    "risk_compensation_score": 0.0,
+    "classification": "NEGATIVE_CARRY",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APY/risk-free signal or data marked unreliable. Cannot assess the excess-basis compensation for this position."
+    ],
+    "timestamp": 1784885477.3512156
   }
 ]
