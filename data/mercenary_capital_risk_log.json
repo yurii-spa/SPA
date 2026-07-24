@@ -27,66 +27,6 @@
     "recommendations": [
       "Insufficient data: total_tvl_usd <= 0. Cannot assess mercenary-capital risk for this protocol."
     ],
-    "timestamp": 1784884235.5718086
-  },
-  {
-    "name": "UNKNOWN",
-    "total_tvl_usd": 0.0,
-    "incentivized_tvl_usd": 0.0,
-    "incentive_apr_pct": 0.0,
-    "base_organic_apr_pct": 0.0,
-    "avg_deposit_age_days": 0.0,
-    "tvl_inflow_30d_usd": 0.0,
-    "tvl_outflow_30d_usd": 0.0,
-    "reward_token_emissions_usd_per_day": 0.0,
-    "protocol_revenue_usd_per_day": 0.0,
-    "incentive_apr_premium_pct": 0.0,
-    "incentivized_share_pct": 0.0,
-    "mercenary_tvl_pct": 0.0,
-    "sticky_tvl_pct": 100.0,
-    "tvl_churn_rate_pct": 0.0,
-    "incentive_cost_coverage_ratio": 999.0,
-    "no_emissions": true,
-    "projected_tvl_retention_pct": 100.0,
-    "mercenary_risk_score": 0.0,
-    "classification": "STICKY",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: total_tvl_usd <= 0. Cannot assess mercenary-capital risk for this protocol."
-    ],
-    "timestamp": 1784884236.0327225
-  },
-  {
-    "name": "UNKNOWN",
-    "total_tvl_usd": 0.0,
-    "incentivized_tvl_usd": 0.0,
-    "incentive_apr_pct": 0.0,
-    "base_organic_apr_pct": 0.0,
-    "avg_deposit_age_days": 0.0,
-    "tvl_inflow_30d_usd": 0.0,
-    "tvl_outflow_30d_usd": 0.0,
-    "reward_token_emissions_usd_per_day": 0.0,
-    "protocol_revenue_usd_per_day": 0.0,
-    "incentive_apr_premium_pct": 0.0,
-    "incentivized_share_pct": 0.0,
-    "mercenary_tvl_pct": 0.0,
-    "sticky_tvl_pct": 100.0,
-    "tvl_churn_rate_pct": 0.0,
-    "incentive_cost_coverage_ratio": 999.0,
-    "no_emissions": true,
-    "projected_tvl_retention_pct": 100.0,
-    "mercenary_risk_score": 0.0,
-    "classification": "STICKY",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: total_tvl_usd <= 0. Cannot assess mercenary-capital risk for this protocol."
-    ],
     "timestamp": 1784884236.4550679
   },
   {
@@ -2998,5 +2938,71 @@
       "Insufficient data: total_tvl_usd <= 0. Cannot assess mercenary-capital risk for this protocol."
     ],
     "timestamp": 1784885273.712724
+  },
+  {
+    "name": "TestProtocol",
+    "total_tvl_usd": 100000000.0,
+    "incentivized_tvl_usd": 40000000.0,
+    "incentive_apr_pct": 8.0,
+    "base_organic_apr_pct": 4.0,
+    "avg_deposit_age_days": 90.0,
+    "tvl_inflow_30d_usd": 10000000.0,
+    "tvl_outflow_30d_usd": 8000000.0,
+    "reward_token_emissions_usd_per_day": 20000.0,
+    "protocol_revenue_usd_per_day": 30000.0,
+    "incentive_apr_premium_pct": 4.0,
+    "incentivized_share_pct": 40.0,
+    "mercenary_tvl_pct": 14.533333333333333,
+    "sticky_tvl_pct": 85.46666666666667,
+    "tvl_churn_rate_pct": 8.0,
+    "incentive_cost_coverage_ratio": 1.5,
+    "no_emissions": false,
+    "projected_tvl_retention_pct": 91.46666666666667,
+    "mercenary_risk_score": 10.486666666666666,
+    "classification": "STICKY",
+    "grade": "B",
+    "flags": [
+      "STICKY_BASE",
+      "ORGANIC_YIELD_STRONG"
+    ],
+    "recommendations": [
+      "Sticky base: ~85% of TVL is non-mercenary. Liquidity is unlikely to flee on an emission cut.",
+      "Sticky base intact (~85% non-mercenary): the core liquidity should survive an emission reduction.",
+      "Organic yield is strong on its own, which improves the odds that depositors stay even without incentives."
+    ],
+    "timestamp": 1784885354.0148633
+  },
+  {
+    "name": "TestProtocol",
+    "total_tvl_usd": 100000000.0,
+    "incentivized_tvl_usd": 40000000.0,
+    "incentive_apr_pct": 8.0,
+    "base_organic_apr_pct": 4.0,
+    "avg_deposit_age_days": 90.0,
+    "tvl_inflow_30d_usd": 10000000.0,
+    "tvl_outflow_30d_usd": 8000000.0,
+    "reward_token_emissions_usd_per_day": 20000.0,
+    "protocol_revenue_usd_per_day": 30000.0,
+    "incentive_apr_premium_pct": 4.0,
+    "incentivized_share_pct": 40.0,
+    "mercenary_tvl_pct": 14.533333333333333,
+    "sticky_tvl_pct": 85.46666666666667,
+    "tvl_churn_rate_pct": 8.0,
+    "incentive_cost_coverage_ratio": 1.5,
+    "no_emissions": false,
+    "projected_tvl_retention_pct": 91.46666666666667,
+    "mercenary_risk_score": 10.486666666666666,
+    "classification": "STICKY",
+    "grade": "B",
+    "flags": [
+      "STICKY_BASE",
+      "ORGANIC_YIELD_STRONG"
+    ],
+    "recommendations": [
+      "Sticky base: ~85% of TVL is non-mercenary. Liquidity is unlikely to flee on an emission cut.",
+      "Sticky base intact (~85% non-mercenary): the core liquidity should survive an emission reduction.",
+      "Organic yield is strong on its own, which improves the odds that depositors stay even without incentives."
+    ],
+    "timestamp": 1784885354.4039874
   }
 ]
