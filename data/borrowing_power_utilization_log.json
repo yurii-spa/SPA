@@ -18,174 +18,6 @@
     "recommendations": [
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
-    "timestamp": 1784885488.8466675
-  },
-  {
-    "protocol": "maple",
-    "collateral_value_usd": 0.0,
-    "borrowed_value_usd": 0.0,
-    "position_size_usd": 0.0,
-    "current_ltv_pct": 0.0,
-    "max_ltv_pct": 80.0,
-    "liquidation_ltv_pct": 85.0,
-    "asset_volatility_30d_pct": 15.0,
-    "strategy_target_ltv_pct": 0.0,
-    "volatility_adjusted_safe_ltv": 72.25,
-    "optimal_borrow_pct": 65.025,
-    "safety_buffer_pct": 85.0,
-    "risk_adjusted_capacity_usd": 0.0,
-    "utilization_efficiency_score": 10.0,
-    "label": "UNDERUTILIZED",
-    "recommendations": [
-      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
-    ],
-    "timestamp": 1784885489.2578316
-  },
-  {
-    "protocol": "pendle",
-    "collateral_value_usd": 0.0,
-    "borrowed_value_usd": 0.0,
-    "position_size_usd": 0.0,
-    "current_ltv_pct": 0.0,
-    "max_ltv_pct": 80.0,
-    "liquidation_ltv_pct": 85.0,
-    "asset_volatility_30d_pct": 15.0,
-    "strategy_target_ltv_pct": 0.0,
-    "volatility_adjusted_safe_ltv": 72.25,
-    "optimal_borrow_pct": 65.025,
-    "safety_buffer_pct": 85.0,
-    "risk_adjusted_capacity_usd": 0.0,
-    "utilization_efficiency_score": 10.0,
-    "label": "UNDERUTILIZED",
-    "recommendations": [
-      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
-    ],
-    "timestamp": 1784885489.6346579
-  },
-  {
-    "protocol": "spark_susds",
-    "collateral_value_usd": 0.0,
-    "borrowed_value_usd": 0.0,
-    "position_size_usd": 0.0,
-    "current_ltv_pct": 0.0,
-    "max_ltv_pct": 80.0,
-    "liquidation_ltv_pct": 85.0,
-    "asset_volatility_30d_pct": 15.0,
-    "strategy_target_ltv_pct": 0.0,
-    "volatility_adjusted_safe_ltv": 72.25,
-    "optimal_borrow_pct": 65.025,
-    "safety_buffer_pct": 85.0,
-    "risk_adjusted_capacity_usd": 0.0,
-    "utilization_efficiency_score": 10.0,
-    "label": "UNDERUTILIZED",
-    "recommendations": [
-      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
-    ],
-    "timestamp": 1784885490.0262218
-  },
-  {
-    "protocol": "aave_v3",
-    "collateral_value_usd": 0.0,
-    "borrowed_value_usd": 0.0,
-    "position_size_usd": 0.0,
-    "current_ltv_pct": 0.0,
-    "max_ltv_pct": 80.0,
-    "liquidation_ltv_pct": 85.0,
-    "asset_volatility_30d_pct": 15.0,
-    "strategy_target_ltv_pct": 0.0,
-    "volatility_adjusted_safe_ltv": 72.25,
-    "optimal_borrow_pct": 65.025,
-    "safety_buffer_pct": 85.0,
-    "risk_adjusted_capacity_usd": 0.0,
-    "utilization_efficiency_score": 10.0,
-    "label": "UNDERUTILIZED",
-    "recommendations": [
-      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
-    ],
-    "timestamp": 1784885492.8078241
-  },
-  {
-    "protocol": "compound_v3",
-    "collateral_value_usd": 0.0,
-    "borrowed_value_usd": 0.0,
-    "position_size_usd": 0.0,
-    "current_ltv_pct": 0.0,
-    "max_ltv_pct": 80.0,
-    "liquidation_ltv_pct": 85.0,
-    "asset_volatility_30d_pct": 15.0,
-    "strategy_target_ltv_pct": 0.0,
-    "volatility_adjusted_safe_ltv": 72.25,
-    "optimal_borrow_pct": 65.025,
-    "safety_buffer_pct": 85.0,
-    "risk_adjusted_capacity_usd": 0.0,
-    "utilization_efficiency_score": 10.0,
-    "label": "UNDERUTILIZED",
-    "recommendations": [
-      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
-    ],
-    "timestamp": 1784885493.223949
-  },
-  {
-    "protocol": "morpho_blue",
-    "collateral_value_usd": 0.0,
-    "borrowed_value_usd": 0.0,
-    "position_size_usd": 0.0,
-    "current_ltv_pct": 0.0,
-    "max_ltv_pct": 80.0,
-    "liquidation_ltv_pct": 85.0,
-    "asset_volatility_30d_pct": 15.0,
-    "strategy_target_ltv_pct": 0.0,
-    "volatility_adjusted_safe_ltv": 72.25,
-    "optimal_borrow_pct": 65.025,
-    "safety_buffer_pct": 85.0,
-    "risk_adjusted_capacity_usd": 0.0,
-    "utilization_efficiency_score": 10.0,
-    "label": "UNDERUTILIZED",
-    "recommendations": [
-      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
-    ],
-    "timestamp": 1784885493.6503055
-  },
-  {
-    "protocol": "yearn_v3",
-    "collateral_value_usd": 0.0,
-    "borrowed_value_usd": 0.0,
-    "position_size_usd": 0.0,
-    "current_ltv_pct": 0.0,
-    "max_ltv_pct": 80.0,
-    "liquidation_ltv_pct": 85.0,
-    "asset_volatility_30d_pct": 15.0,
-    "strategy_target_ltv_pct": 0.0,
-    "volatility_adjusted_safe_ltv": 72.25,
-    "optimal_borrow_pct": 65.025,
-    "safety_buffer_pct": 85.0,
-    "risk_adjusted_capacity_usd": 0.0,
-    "utilization_efficiency_score": 10.0,
-    "label": "UNDERUTILIZED",
-    "recommendations": [
-      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
-    ],
-    "timestamp": 1784885494.117121
-  },
-  {
-    "protocol": "euler_v2",
-    "collateral_value_usd": 0.0,
-    "borrowed_value_usd": 0.0,
-    "position_size_usd": 0.0,
-    "current_ltv_pct": 0.0,
-    "max_ltv_pct": 80.0,
-    "liquidation_ltv_pct": 85.0,
-    "asset_volatility_30d_pct": 15.0,
-    "strategy_target_ltv_pct": 0.0,
-    "volatility_adjusted_safe_ltv": 72.25,
-    "optimal_borrow_pct": 65.025,
-    "safety_buffer_pct": 85.0,
-    "risk_adjusted_capacity_usd": 0.0,
-    "utilization_efficiency_score": 10.0,
-    "label": "UNDERUTILIZED",
-    "recommendations": [
-      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
-    ],
     "timestamp": 1784885494.5690196
   },
   {
@@ -2098,5 +1930,173 @@
       "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
     ],
     "timestamp": 1784885683.7417517
+  },
+  {
+    "protocol": "aave_v3",
+    "collateral_value_usd": 0.0,
+    "borrowed_value_usd": 0.0,
+    "position_size_usd": 0.0,
+    "current_ltv_pct": 0.0,
+    "max_ltv_pct": 80.0,
+    "liquidation_ltv_pct": 85.0,
+    "asset_volatility_30d_pct": 15.0,
+    "strategy_target_ltv_pct": 0.0,
+    "volatility_adjusted_safe_ltv": 72.25,
+    "optimal_borrow_pct": 65.025,
+    "safety_buffer_pct": 85.0,
+    "risk_adjusted_capacity_usd": 0.0,
+    "utilization_efficiency_score": 10.0,
+    "label": "UNDERUTILIZED",
+    "recommendations": [
+      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
+    ],
+    "timestamp": 1784885833.9927657
+  },
+  {
+    "protocol": "compound_v3",
+    "collateral_value_usd": 0.0,
+    "borrowed_value_usd": 0.0,
+    "position_size_usd": 0.0,
+    "current_ltv_pct": 0.0,
+    "max_ltv_pct": 80.0,
+    "liquidation_ltv_pct": 85.0,
+    "asset_volatility_30d_pct": 15.0,
+    "strategy_target_ltv_pct": 0.0,
+    "volatility_adjusted_safe_ltv": 72.25,
+    "optimal_borrow_pct": 65.025,
+    "safety_buffer_pct": 85.0,
+    "risk_adjusted_capacity_usd": 0.0,
+    "utilization_efficiency_score": 10.0,
+    "label": "UNDERUTILIZED",
+    "recommendations": [
+      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
+    ],
+    "timestamp": 1784885834.4255528
+  },
+  {
+    "protocol": "morpho_blue",
+    "collateral_value_usd": 0.0,
+    "borrowed_value_usd": 0.0,
+    "position_size_usd": 0.0,
+    "current_ltv_pct": 0.0,
+    "max_ltv_pct": 80.0,
+    "liquidation_ltv_pct": 85.0,
+    "asset_volatility_30d_pct": 15.0,
+    "strategy_target_ltv_pct": 0.0,
+    "volatility_adjusted_safe_ltv": 72.25,
+    "optimal_borrow_pct": 65.025,
+    "safety_buffer_pct": 85.0,
+    "risk_adjusted_capacity_usd": 0.0,
+    "utilization_efficiency_score": 10.0,
+    "label": "UNDERUTILIZED",
+    "recommendations": [
+      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
+    ],
+    "timestamp": 1784885834.8424613
+  },
+  {
+    "protocol": "yearn_v3",
+    "collateral_value_usd": 0.0,
+    "borrowed_value_usd": 0.0,
+    "position_size_usd": 0.0,
+    "current_ltv_pct": 0.0,
+    "max_ltv_pct": 80.0,
+    "liquidation_ltv_pct": 85.0,
+    "asset_volatility_30d_pct": 15.0,
+    "strategy_target_ltv_pct": 0.0,
+    "volatility_adjusted_safe_ltv": 72.25,
+    "optimal_borrow_pct": 65.025,
+    "safety_buffer_pct": 85.0,
+    "risk_adjusted_capacity_usd": 0.0,
+    "utilization_efficiency_score": 10.0,
+    "label": "UNDERUTILIZED",
+    "recommendations": [
+      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
+    ],
+    "timestamp": 1784885835.3035157
+  },
+  {
+    "protocol": "euler_v2",
+    "collateral_value_usd": 0.0,
+    "borrowed_value_usd": 0.0,
+    "position_size_usd": 0.0,
+    "current_ltv_pct": 0.0,
+    "max_ltv_pct": 80.0,
+    "liquidation_ltv_pct": 85.0,
+    "asset_volatility_30d_pct": 15.0,
+    "strategy_target_ltv_pct": 0.0,
+    "volatility_adjusted_safe_ltv": 72.25,
+    "optimal_borrow_pct": 65.025,
+    "safety_buffer_pct": 85.0,
+    "risk_adjusted_capacity_usd": 0.0,
+    "utilization_efficiency_score": 10.0,
+    "label": "UNDERUTILIZED",
+    "recommendations": [
+      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
+    ],
+    "timestamp": 1784885835.7415702
+  },
+  {
+    "protocol": "maple",
+    "collateral_value_usd": 0.0,
+    "borrowed_value_usd": 0.0,
+    "position_size_usd": 0.0,
+    "current_ltv_pct": 0.0,
+    "max_ltv_pct": 80.0,
+    "liquidation_ltv_pct": 85.0,
+    "asset_volatility_30d_pct": 15.0,
+    "strategy_target_ltv_pct": 0.0,
+    "volatility_adjusted_safe_ltv": 72.25,
+    "optimal_borrow_pct": 65.025,
+    "safety_buffer_pct": 85.0,
+    "risk_adjusted_capacity_usd": 0.0,
+    "utilization_efficiency_score": 10.0,
+    "label": "UNDERUTILIZED",
+    "recommendations": [
+      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
+    ],
+    "timestamp": 1784885836.1854284
+  },
+  {
+    "protocol": "pendle",
+    "collateral_value_usd": 0.0,
+    "borrowed_value_usd": 0.0,
+    "position_size_usd": 0.0,
+    "current_ltv_pct": 0.0,
+    "max_ltv_pct": 80.0,
+    "liquidation_ltv_pct": 85.0,
+    "asset_volatility_30d_pct": 15.0,
+    "strategy_target_ltv_pct": 0.0,
+    "volatility_adjusted_safe_ltv": 72.25,
+    "optimal_borrow_pct": 65.025,
+    "safety_buffer_pct": 85.0,
+    "risk_adjusted_capacity_usd": 0.0,
+    "utilization_efficiency_score": 10.0,
+    "label": "UNDERUTILIZED",
+    "recommendations": [
+      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
+    ],
+    "timestamp": 1784885836.591065
+  },
+  {
+    "protocol": "spark_susds",
+    "collateral_value_usd": 0.0,
+    "borrowed_value_usd": 0.0,
+    "position_size_usd": 0.0,
+    "current_ltv_pct": 0.0,
+    "max_ltv_pct": 80.0,
+    "liquidation_ltv_pct": 85.0,
+    "asset_volatility_30d_pct": 15.0,
+    "strategy_target_ltv_pct": 0.0,
+    "volatility_adjusted_safe_ltv": 72.25,
+    "optimal_borrow_pct": 65.025,
+    "safety_buffer_pct": 85.0,
+    "risk_adjusted_capacity_usd": 0.0,
+    "utilization_efficiency_score": 10.0,
+    "label": "UNDERUTILIZED",
+    "recommendations": [
+      "Significant borrowing capacity unused (LTV 0.0% vs advisory optimal 65.0%).  Consider deploying idle capital for additional yield."
+    ],
+    "timestamp": 1784885836.992074
   }
 ]
