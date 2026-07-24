@@ -23,422 +23,6 @@
     "recommendations": [
       "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
     ],
-    "timestamp": 1784885272.9524183
-  },
-  {
-    "name": "UNKNOWN",
-    "symbol": "UNKNOWN",
-    "wrapped_supply": 0.0,
-    "reserve_balance": 0.0,
-    "custodian_count": 0,
-    "largest_custodian_share_pct": 0.0,
-    "attestation_age_days": 0.0,
-    "can_redeem": true,
-    "redemption_fee_pct": 0.0,
-    "is_audited": false,
-    "backing_ratio_pct": 0.0,
-    "collateral_shortfall_pct": 100.0,
-    "custodian_concentration_score": 40.0,
-    "attestation_freshness_score": 100.0,
-    "backing_risk_score": 100.0,
-    "classification": "CRITICAL_SHORTFALL",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
-    ],
-    "timestamp": 1784885273.3522522
-  },
-  {
-    "name": "UNKNOWN",
-    "symbol": "UNKNOWN",
-    "wrapped_supply": 0.0,
-    "reserve_balance": 0.0,
-    "custodian_count": 0,
-    "largest_custodian_share_pct": 0.0,
-    "attestation_age_days": 0.0,
-    "can_redeem": true,
-    "redemption_fee_pct": 0.0,
-    "is_audited": false,
-    "backing_ratio_pct": 0.0,
-    "collateral_shortfall_pct": 100.0,
-    "custodian_concentration_score": 40.0,
-    "attestation_freshness_score": 100.0,
-    "backing_risk_score": 100.0,
-    "classification": "CRITICAL_SHORTFALL",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
-    ],
-    "timestamp": 1784885273.7381768
-  },
-  {
-    "name": "Wrapped BTC",
-    "symbol": "wBTC",
-    "wrapped_supply": 1000.0,
-    "reserve_balance": 1000.0,
-    "custodian_count": 3,
-    "largest_custodian_share_pct": 40.0,
-    "attestation_age_days": 5.0,
-    "can_redeem": true,
-    "redemption_fee_pct": 0.0,
-    "is_audited": true,
-    "backing_ratio_pct": 100.0,
-    "collateral_shortfall_pct": 0.0,
-    "custodian_concentration_score": 37.333333333333336,
-    "attestation_freshness_score": 94.44444444444444,
-    "backing_risk_score": 8.3,
-    "classification": "FULLY_BACKED",
-    "grade": "A",
-    "flags": [
-      "FULLY_BACKED"
-    ],
-    "recommendations": [
-      "Fully backed: backing ratio 100.0% covers circulating wrapped supply. Backing risk is minimal."
-    ],
-    "timestamp": 1784885363.8282886
-  },
-  {
-    "name": "UNKNOWN",
-    "symbol": "UNKNOWN",
-    "wrapped_supply": 0.0,
-    "reserve_balance": 0.0,
-    "custodian_count": 0,
-    "largest_custodian_share_pct": 0.0,
-    "attestation_age_days": 0.0,
-    "can_redeem": true,
-    "redemption_fee_pct": 0.0,
-    "is_audited": false,
-    "backing_ratio_pct": 0.0,
-    "collateral_shortfall_pct": 100.0,
-    "custodian_concentration_score": 40.0,
-    "attestation_freshness_score": 100.0,
-    "backing_risk_score": 100.0,
-    "classification": "CRITICAL_SHORTFALL",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
-    ],
-    "timestamp": 1784885428.535142
-  },
-  {
-    "name": "UNKNOWN",
-    "symbol": "UNKNOWN",
-    "wrapped_supply": 0.0,
-    "reserve_balance": 0.0,
-    "custodian_count": 0,
-    "largest_custodian_share_pct": 0.0,
-    "attestation_age_days": 0.0,
-    "can_redeem": true,
-    "redemption_fee_pct": 0.0,
-    "is_audited": false,
-    "backing_ratio_pct": 0.0,
-    "collateral_shortfall_pct": 100.0,
-    "custodian_concentration_score": 40.0,
-    "attestation_freshness_score": 100.0,
-    "backing_risk_score": 100.0,
-    "classification": "CRITICAL_SHORTFALL",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
-    ],
-    "timestamp": 1784885428.9355984
-  },
-  {
-    "name": "UNKNOWN",
-    "symbol": "UNKNOWN",
-    "wrapped_supply": 0.0,
-    "reserve_balance": 0.0,
-    "custodian_count": 0,
-    "largest_custodian_share_pct": 0.0,
-    "attestation_age_days": 0.0,
-    "can_redeem": true,
-    "redemption_fee_pct": 0.0,
-    "is_audited": false,
-    "backing_ratio_pct": 0.0,
-    "collateral_shortfall_pct": 100.0,
-    "custodian_concentration_score": 40.0,
-    "attestation_freshness_score": 100.0,
-    "backing_risk_score": 100.0,
-    "classification": "CRITICAL_SHORTFALL",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
-    ],
-    "timestamp": 1784885429.3522432
-  },
-  {
-    "name": "UNKNOWN",
-    "symbol": "UNKNOWN",
-    "wrapped_supply": 0.0,
-    "reserve_balance": 0.0,
-    "custodian_count": 0,
-    "largest_custodian_share_pct": 0.0,
-    "attestation_age_days": 0.0,
-    "can_redeem": true,
-    "redemption_fee_pct": 0.0,
-    "is_audited": false,
-    "backing_ratio_pct": 0.0,
-    "collateral_shortfall_pct": 100.0,
-    "custodian_concentration_score": 40.0,
-    "attestation_freshness_score": 100.0,
-    "backing_risk_score": 100.0,
-    "classification": "CRITICAL_SHORTFALL",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
-    ],
-    "timestamp": 1784885429.8142545
-  },
-  {
-    "name": "UNKNOWN",
-    "symbol": "UNKNOWN",
-    "wrapped_supply": 0.0,
-    "reserve_balance": 0.0,
-    "custodian_count": 0,
-    "largest_custodian_share_pct": 0.0,
-    "attestation_age_days": 0.0,
-    "can_redeem": true,
-    "redemption_fee_pct": 0.0,
-    "is_audited": false,
-    "backing_ratio_pct": 0.0,
-    "collateral_shortfall_pct": 100.0,
-    "custodian_concentration_score": 40.0,
-    "attestation_freshness_score": 100.0,
-    "backing_risk_score": 100.0,
-    "classification": "CRITICAL_SHORTFALL",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
-    ],
-    "timestamp": 1784885430.223532
-  },
-  {
-    "name": "UNKNOWN",
-    "symbol": "UNKNOWN",
-    "wrapped_supply": 0.0,
-    "reserve_balance": 0.0,
-    "custodian_count": 0,
-    "largest_custodian_share_pct": 0.0,
-    "attestation_age_days": 0.0,
-    "can_redeem": true,
-    "redemption_fee_pct": 0.0,
-    "is_audited": false,
-    "backing_ratio_pct": 0.0,
-    "collateral_shortfall_pct": 100.0,
-    "custodian_concentration_score": 40.0,
-    "attestation_freshness_score": 100.0,
-    "backing_risk_score": 100.0,
-    "classification": "CRITICAL_SHORTFALL",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
-    ],
-    "timestamp": 1784885430.6894872
-  },
-  {
-    "name": "UNKNOWN",
-    "symbol": "UNKNOWN",
-    "wrapped_supply": 0.0,
-    "reserve_balance": 0.0,
-    "custodian_count": 0,
-    "largest_custodian_share_pct": 0.0,
-    "attestation_age_days": 0.0,
-    "can_redeem": true,
-    "redemption_fee_pct": 0.0,
-    "is_audited": false,
-    "backing_ratio_pct": 0.0,
-    "collateral_shortfall_pct": 100.0,
-    "custodian_concentration_score": 40.0,
-    "attestation_freshness_score": 100.0,
-    "backing_risk_score": 100.0,
-    "classification": "CRITICAL_SHORTFALL",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
-    ],
-    "timestamp": 1784885431.1213562
-  },
-  {
-    "name": "UNKNOWN",
-    "symbol": "UNKNOWN",
-    "wrapped_supply": 0.0,
-    "reserve_balance": 0.0,
-    "custodian_count": 0,
-    "largest_custodian_share_pct": 0.0,
-    "attestation_age_days": 0.0,
-    "can_redeem": true,
-    "redemption_fee_pct": 0.0,
-    "is_audited": false,
-    "backing_ratio_pct": 0.0,
-    "collateral_shortfall_pct": 100.0,
-    "custodian_concentration_score": 40.0,
-    "attestation_freshness_score": 100.0,
-    "backing_risk_score": 100.0,
-    "classification": "CRITICAL_SHORTFALL",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
-    ],
-    "timestamp": 1784885431.559793
-  },
-  {
-    "name": "UNKNOWN",
-    "symbol": "UNKNOWN",
-    "wrapped_supply": 0.0,
-    "reserve_balance": 0.0,
-    "custodian_count": 0,
-    "largest_custodian_share_pct": 0.0,
-    "attestation_age_days": 0.0,
-    "can_redeem": true,
-    "redemption_fee_pct": 0.0,
-    "is_audited": false,
-    "backing_ratio_pct": 0.0,
-    "collateral_shortfall_pct": 100.0,
-    "custodian_concentration_score": 40.0,
-    "attestation_freshness_score": 100.0,
-    "backing_risk_score": 100.0,
-    "classification": "CRITICAL_SHORTFALL",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
-    ],
-    "timestamp": 1784885433.2344842
-  },
-  {
-    "name": "UNKNOWN",
-    "symbol": "UNKNOWN",
-    "wrapped_supply": 0.0,
-    "reserve_balance": 0.0,
-    "custodian_count": 0,
-    "largest_custodian_share_pct": 0.0,
-    "attestation_age_days": 0.0,
-    "can_redeem": true,
-    "redemption_fee_pct": 0.0,
-    "is_audited": false,
-    "backing_ratio_pct": 0.0,
-    "collateral_shortfall_pct": 100.0,
-    "custodian_concentration_score": 40.0,
-    "attestation_freshness_score": 100.0,
-    "backing_risk_score": 100.0,
-    "classification": "CRITICAL_SHORTFALL",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
-    ],
-    "timestamp": 1784885433.6883316
-  },
-  {
-    "name": "UNKNOWN",
-    "symbol": "UNKNOWN",
-    "wrapped_supply": 0.0,
-    "reserve_balance": 0.0,
-    "custodian_count": 0,
-    "largest_custodian_share_pct": 0.0,
-    "attestation_age_days": 0.0,
-    "can_redeem": true,
-    "redemption_fee_pct": 0.0,
-    "is_audited": false,
-    "backing_ratio_pct": 0.0,
-    "collateral_shortfall_pct": 100.0,
-    "custodian_concentration_score": 40.0,
-    "attestation_freshness_score": 100.0,
-    "backing_risk_score": 100.0,
-    "classification": "CRITICAL_SHORTFALL",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
-    ],
-    "timestamp": 1784885434.122277
-  },
-  {
-    "name": "UNKNOWN",
-    "symbol": "UNKNOWN",
-    "wrapped_supply": 0.0,
-    "reserve_balance": 0.0,
-    "custodian_count": 0,
-    "largest_custodian_share_pct": 0.0,
-    "attestation_age_days": 0.0,
-    "can_redeem": true,
-    "redemption_fee_pct": 0.0,
-    "is_audited": false,
-    "backing_ratio_pct": 0.0,
-    "collateral_shortfall_pct": 100.0,
-    "custodian_concentration_score": 40.0,
-    "attestation_freshness_score": 100.0,
-    "backing_risk_score": 100.0,
-    "classification": "CRITICAL_SHORTFALL",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
-    ],
-    "timestamp": 1784885434.556451
-  },
-  {
-    "name": "UNKNOWN",
-    "symbol": "UNKNOWN",
-    "wrapped_supply": 0.0,
-    "reserve_balance": 0.0,
-    "custodian_count": 0,
-    "largest_custodian_share_pct": 0.0,
-    "attestation_age_days": 0.0,
-    "can_redeem": true,
-    "redemption_fee_pct": 0.0,
-    "is_audited": false,
-    "backing_ratio_pct": 0.0,
-    "collateral_shortfall_pct": 100.0,
-    "custodian_concentration_score": 40.0,
-    "attestation_freshness_score": 100.0,
-    "backing_risk_score": 100.0,
-    "classification": "CRITICAL_SHORTFALL",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
-    ],
     "timestamp": 1784885435.0198112
   },
   {
@@ -2598,5 +2182,421 @@
       "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
     ],
     "timestamp": 1784885484.972092
+  },
+  {
+    "name": "UNKNOWN",
+    "symbol": "UNKNOWN",
+    "wrapped_supply": 0.0,
+    "reserve_balance": 0.0,
+    "custodian_count": 0,
+    "largest_custodian_share_pct": 0.0,
+    "attestation_age_days": 0.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": false,
+    "backing_ratio_pct": 0.0,
+    "collateral_shortfall_pct": 100.0,
+    "custodian_concentration_score": 40.0,
+    "attestation_freshness_score": 100.0,
+    "backing_risk_score": 100.0,
+    "classification": "CRITICAL_SHORTFALL",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
+    ],
+    "timestamp": 1784885487.481346
+  },
+  {
+    "name": "UNKNOWN",
+    "symbol": "UNKNOWN",
+    "wrapped_supply": 0.0,
+    "reserve_balance": 0.0,
+    "custodian_count": 0,
+    "largest_custodian_share_pct": 0.0,
+    "attestation_age_days": 0.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": false,
+    "backing_ratio_pct": 0.0,
+    "collateral_shortfall_pct": 100.0,
+    "custodian_concentration_score": 40.0,
+    "attestation_freshness_score": 100.0,
+    "backing_risk_score": 100.0,
+    "classification": "CRITICAL_SHORTFALL",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
+    ],
+    "timestamp": 1784885487.8815703
+  },
+  {
+    "name": "UNKNOWN",
+    "symbol": "UNKNOWN",
+    "wrapped_supply": 0.0,
+    "reserve_balance": 0.0,
+    "custodian_count": 0,
+    "largest_custodian_share_pct": 0.0,
+    "attestation_age_days": 0.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": false,
+    "backing_ratio_pct": 0.0,
+    "collateral_shortfall_pct": 100.0,
+    "custodian_concentration_score": 40.0,
+    "attestation_freshness_score": 100.0,
+    "backing_risk_score": 100.0,
+    "classification": "CRITICAL_SHORTFALL",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
+    ],
+    "timestamp": 1784885488.2636836
+  },
+  {
+    "name": "UNKNOWN",
+    "symbol": "UNKNOWN",
+    "wrapped_supply": 0.0,
+    "reserve_balance": 0.0,
+    "custodian_count": 0,
+    "largest_custodian_share_pct": 0.0,
+    "attestation_age_days": 0.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": false,
+    "backing_ratio_pct": 0.0,
+    "collateral_shortfall_pct": 100.0,
+    "custodian_concentration_score": 40.0,
+    "attestation_freshness_score": 100.0,
+    "backing_risk_score": 100.0,
+    "classification": "CRITICAL_SHORTFALL",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
+    ],
+    "timestamp": 1784885488.6583855
+  },
+  {
+    "name": "UNKNOWN",
+    "symbol": "UNKNOWN",
+    "wrapped_supply": 0.0,
+    "reserve_balance": 0.0,
+    "custodian_count": 0,
+    "largest_custodian_share_pct": 0.0,
+    "attestation_age_days": 0.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": false,
+    "backing_ratio_pct": 0.0,
+    "collateral_shortfall_pct": 100.0,
+    "custodian_concentration_score": 40.0,
+    "attestation_freshness_score": 100.0,
+    "backing_risk_score": 100.0,
+    "classification": "CRITICAL_SHORTFALL",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
+    ],
+    "timestamp": 1784885489.0628865
+  },
+  {
+    "name": "UNKNOWN",
+    "symbol": "UNKNOWN",
+    "wrapped_supply": 0.0,
+    "reserve_balance": 0.0,
+    "custodian_count": 0,
+    "largest_custodian_share_pct": 0.0,
+    "attestation_age_days": 0.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": false,
+    "backing_ratio_pct": 0.0,
+    "collateral_shortfall_pct": 100.0,
+    "custodian_concentration_score": 40.0,
+    "attestation_freshness_score": 100.0,
+    "backing_risk_score": 100.0,
+    "classification": "CRITICAL_SHORTFALL",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
+    ],
+    "timestamp": 1784885489.4487062
+  },
+  {
+    "name": "UNKNOWN",
+    "symbol": "UNKNOWN",
+    "wrapped_supply": 0.0,
+    "reserve_balance": 0.0,
+    "custodian_count": 0,
+    "largest_custodian_share_pct": 0.0,
+    "attestation_age_days": 0.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": false,
+    "backing_ratio_pct": 0.0,
+    "collateral_shortfall_pct": 100.0,
+    "custodian_concentration_score": 40.0,
+    "attestation_freshness_score": 100.0,
+    "backing_risk_score": 100.0,
+    "classification": "CRITICAL_SHORTFALL",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
+    ],
+    "timestamp": 1784885489.8394885
+  },
+  {
+    "name": "UNKNOWN",
+    "symbol": "UNKNOWN",
+    "wrapped_supply": 0.0,
+    "reserve_balance": 0.0,
+    "custodian_count": 0,
+    "largest_custodian_share_pct": 0.0,
+    "attestation_age_days": 0.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": false,
+    "backing_ratio_pct": 0.0,
+    "collateral_shortfall_pct": 100.0,
+    "custodian_concentration_score": 40.0,
+    "attestation_freshness_score": 100.0,
+    "backing_risk_score": 100.0,
+    "classification": "CRITICAL_SHORTFALL",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
+    ],
+    "timestamp": 1784885490.2230425
+  },
+  {
+    "name": "UNKNOWN",
+    "symbol": "UNKNOWN",
+    "wrapped_supply": 0.0,
+    "reserve_balance": 0.0,
+    "custodian_count": 0,
+    "largest_custodian_share_pct": 0.0,
+    "attestation_age_days": 0.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": false,
+    "backing_ratio_pct": 0.0,
+    "collateral_shortfall_pct": 100.0,
+    "custodian_concentration_score": 40.0,
+    "attestation_freshness_score": 100.0,
+    "backing_risk_score": 100.0,
+    "classification": "CRITICAL_SHORTFALL",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
+    ],
+    "timestamp": 1784885493.0201218
+  },
+  {
+    "name": "UNKNOWN",
+    "symbol": "UNKNOWN",
+    "wrapped_supply": 0.0,
+    "reserve_balance": 0.0,
+    "custodian_count": 0,
+    "largest_custodian_share_pct": 0.0,
+    "attestation_age_days": 0.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": false,
+    "backing_ratio_pct": 0.0,
+    "collateral_shortfall_pct": 100.0,
+    "custodian_concentration_score": 40.0,
+    "attestation_freshness_score": 100.0,
+    "backing_risk_score": 100.0,
+    "classification": "CRITICAL_SHORTFALL",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
+    ],
+    "timestamp": 1784885493.4563825
+  },
+  {
+    "name": "UNKNOWN",
+    "symbol": "UNKNOWN",
+    "wrapped_supply": 0.0,
+    "reserve_balance": 0.0,
+    "custodian_count": 0,
+    "largest_custodian_share_pct": 0.0,
+    "attestation_age_days": 0.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": false,
+    "backing_ratio_pct": 0.0,
+    "collateral_shortfall_pct": 100.0,
+    "custodian_concentration_score": 40.0,
+    "attestation_freshness_score": 100.0,
+    "backing_risk_score": 100.0,
+    "classification": "CRITICAL_SHORTFALL",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
+    ],
+    "timestamp": 1784885493.8775375
+  },
+  {
+    "name": "UNKNOWN",
+    "symbol": "UNKNOWN",
+    "wrapped_supply": 0.0,
+    "reserve_balance": 0.0,
+    "custodian_count": 0,
+    "largest_custodian_share_pct": 0.0,
+    "attestation_age_days": 0.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": false,
+    "backing_ratio_pct": 0.0,
+    "collateral_shortfall_pct": 100.0,
+    "custodian_concentration_score": 40.0,
+    "attestation_freshness_score": 100.0,
+    "backing_risk_score": 100.0,
+    "classification": "CRITICAL_SHORTFALL",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
+    ],
+    "timestamp": 1784885494.3539932
+  },
+  {
+    "name": "UNKNOWN",
+    "symbol": "UNKNOWN",
+    "wrapped_supply": 0.0,
+    "reserve_balance": 0.0,
+    "custodian_count": 0,
+    "largest_custodian_share_pct": 0.0,
+    "attestation_age_days": 0.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": false,
+    "backing_ratio_pct": 0.0,
+    "collateral_shortfall_pct": 100.0,
+    "custodian_concentration_score": 40.0,
+    "attestation_freshness_score": 100.0,
+    "backing_risk_score": 100.0,
+    "classification": "CRITICAL_SHORTFALL",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
+    ],
+    "timestamp": 1784885494.7894006
+  },
+  {
+    "name": "UNKNOWN",
+    "symbol": "UNKNOWN",
+    "wrapped_supply": 0.0,
+    "reserve_balance": 0.0,
+    "custodian_count": 0,
+    "largest_custodian_share_pct": 0.0,
+    "attestation_age_days": 0.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": false,
+    "backing_ratio_pct": 0.0,
+    "collateral_shortfall_pct": 100.0,
+    "custodian_concentration_score": 40.0,
+    "attestation_freshness_score": 100.0,
+    "backing_risk_score": 100.0,
+    "classification": "CRITICAL_SHORTFALL",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
+    ],
+    "timestamp": 1784885495.201736
+  },
+  {
+    "name": "UNKNOWN",
+    "symbol": "UNKNOWN",
+    "wrapped_supply": 0.0,
+    "reserve_balance": 0.0,
+    "custodian_count": 0,
+    "largest_custodian_share_pct": 0.0,
+    "attestation_age_days": 0.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": false,
+    "backing_ratio_pct": 0.0,
+    "collateral_shortfall_pct": 100.0,
+    "custodian_concentration_score": 40.0,
+    "attestation_freshness_score": 100.0,
+    "backing_risk_score": 100.0,
+    "classification": "CRITICAL_SHORTFALL",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
+    ],
+    "timestamp": 1784885495.6340082
+  },
+  {
+    "name": "UNKNOWN",
+    "symbol": "UNKNOWN",
+    "wrapped_supply": 0.0,
+    "reserve_balance": 0.0,
+    "custodian_count": 0,
+    "largest_custodian_share_pct": 0.0,
+    "attestation_age_days": 0.0,
+    "can_redeem": true,
+    "redemption_fee_pct": 0.0,
+    "is_audited": false,
+    "backing_ratio_pct": 0.0,
+    "collateral_shortfall_pct": 100.0,
+    "custodian_concentration_score": 40.0,
+    "attestation_freshness_score": 100.0,
+    "backing_risk_score": 100.0,
+    "classification": "CRITICAL_SHORTFALL",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: wrapped supply and/or reserve balance are missing or invalid. Backing cannot be verified."
+    ],
+    "timestamp": 1784885496.0652816
   }
 ]
