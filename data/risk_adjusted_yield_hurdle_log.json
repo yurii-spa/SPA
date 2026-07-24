@@ -1,386 +1,5 @@
 [
   {
-    "name": "Blue-chip stable lending (safe)",
-    "offered_apr_pct": 9.0,
-    "risk_free_apr_pct": 4.0,
-    "annual_loss_probability_pct": 1.0,
-    "loss_given_event_pct": 50.0,
-    "data_quality_ok": true,
-    "expected_annual_loss_pct": 0.5,
-    "risk_adjusted_apr_pct": 8.5,
-    "required_hurdle_apr_pct": 4.5,
-    "excess_over_hurdle_pct": 4.5,
-    "risk_premium_earned_pct": 5.0,
-    "risk_premium_coverage_ratio": 10.0,
-    "clears_hurdle": true,
-    "hurdle_clearance_score": 95.0,
-    "classification": "ADEQUATE",
-    "grade": "A",
-    "flags": [
-      "CLEARS_HURDLE"
-    ],
-    "recommendations": [
-      "Adequate premium: the offered ~9.00% clears the ~4.50% hurdle by ~4.50pp. The yield covers risk-free plus expected loss with room to spare."
-    ],
-    "timestamp": 1784884326.2129784
-  },
-  {
-    "name": "Blue-chip stable lending (safe)",
-    "offered_apr_pct": 9.0,
-    "risk_free_apr_pct": 4.0,
-    "annual_loss_probability_pct": 1.0,
-    "loss_given_event_pct": 50.0,
-    "data_quality_ok": true,
-    "expected_annual_loss_pct": 0.5,
-    "risk_adjusted_apr_pct": 8.5,
-    "required_hurdle_apr_pct": 4.5,
-    "excess_over_hurdle_pct": 4.5,
-    "risk_premium_earned_pct": 5.0,
-    "risk_premium_coverage_ratio": 10.0,
-    "clears_hurdle": true,
-    "hurdle_clearance_score": 95.0,
-    "classification": "ADEQUATE",
-    "grade": "A",
-    "flags": [
-      "CLEARS_HURDLE"
-    ],
-    "recommendations": [
-      "Adequate premium: the offered ~9.00% clears the ~4.50% hurdle by ~4.50pp. The yield covers risk-free plus expected loss with room to spare."
-    ],
-    "timestamp": 1784884326.2218862
-  },
-  {
-    "name": "Exotic farm (risky)",
-    "offered_apr_pct": 14.0,
-    "risk_free_apr_pct": 4.0,
-    "annual_loss_probability_pct": 15.0,
-    "loss_given_event_pct": 100.0,
-    "data_quality_ok": true,
-    "expected_annual_loss_pct": 15.0,
-    "risk_adjusted_apr_pct": -1.0,
-    "required_hurdle_apr_pct": 19.0,
-    "excess_over_hurdle_pct": -5.0,
-    "risk_premium_earned_pct": 10.0,
-    "risk_premium_coverage_ratio": 0.6666666666666666,
-    "clears_hurdle": false,
-    "hurdle_clearance_score": 6.666666666666666,
-    "classification": "INADEQUATE",
-    "grade": "F",
-    "flags": [
-      "BELOW_HURDLE",
-      "NEGATIVE_RISK_ADJUSTED_YIELD",
-      "HIGH_LOSS_PROBABILITY",
-      "TOTAL_LOSS_GIVEN_EVENT"
-    ],
-    "recommendations": [
-      "Inadequate premium: the offered ~14.00% falls ~5.00pp short of the ~19.00% risk-adjusted hurdle. You are not paid enough for the priced risk.",
-      "Negative risk-adjusted yield: after the expected annual loss of ~15.00pp the yield is ~-1.00% \u2014 expected loss exceeds the offered APR.",
-      "High loss probability: the implied annual chance of a loss event is elevated; small errors in the probability estimate move the hurdle materially. Demand extra premium or size down.",
-      "Total loss given event: a loss event is assumed to wipe out (nearly) the full principal, so the hurdle is driven entirely by the event probability."
-    ],
-    "timestamp": 1784884326.2252083
-  },
-  {
-    "name": "UNKNOWN",
-    "offered_apr_pct": 0.0,
-    "risk_free_apr_pct": 4.0,
-    "annual_loss_probability_pct": 0.0,
-    "loss_given_event_pct": 100.0,
-    "data_quality_ok": true,
-    "expected_annual_loss_pct": 0.0,
-    "risk_adjusted_apr_pct": 0.0,
-    "required_hurdle_apr_pct": 4.0,
-    "excess_over_hurdle_pct": -4.0,
-    "risk_premium_earned_pct": -4.0,
-    "risk_premium_coverage_ratio": 0.0,
-    "clears_hurdle": false,
-    "hurdle_clearance_score": 0.0,
-    "classification": "NEGATIVE_PREMIUM",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
-    ],
-    "timestamp": 1784885266.3984501
-  },
-  {
-    "name": "UNKNOWN",
-    "offered_apr_pct": 0.0,
-    "risk_free_apr_pct": 4.0,
-    "annual_loss_probability_pct": 0.0,
-    "loss_given_event_pct": 100.0,
-    "data_quality_ok": true,
-    "expected_annual_loss_pct": 0.0,
-    "risk_adjusted_apr_pct": 0.0,
-    "required_hurdle_apr_pct": 4.0,
-    "excess_over_hurdle_pct": -4.0,
-    "risk_premium_earned_pct": -4.0,
-    "risk_premium_coverage_ratio": 0.0,
-    "clears_hurdle": false,
-    "hurdle_clearance_score": 0.0,
-    "classification": "NEGATIVE_PREMIUM",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
-    ],
-    "timestamp": 1784885266.825027
-  },
-  {
-    "name": "UNKNOWN",
-    "offered_apr_pct": 0.0,
-    "risk_free_apr_pct": 4.0,
-    "annual_loss_probability_pct": 0.0,
-    "loss_given_event_pct": 100.0,
-    "data_quality_ok": true,
-    "expected_annual_loss_pct": 0.0,
-    "risk_adjusted_apr_pct": 0.0,
-    "required_hurdle_apr_pct": 4.0,
-    "excess_over_hurdle_pct": -4.0,
-    "risk_premium_earned_pct": -4.0,
-    "risk_premium_coverage_ratio": 0.0,
-    "clears_hurdle": false,
-    "hurdle_clearance_score": 0.0,
-    "classification": "NEGATIVE_PREMIUM",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
-    ],
-    "timestamp": 1784885267.2658415
-  },
-  {
-    "name": "UNKNOWN",
-    "offered_apr_pct": 0.0,
-    "risk_free_apr_pct": 4.0,
-    "annual_loss_probability_pct": 0.0,
-    "loss_given_event_pct": 100.0,
-    "data_quality_ok": true,
-    "expected_annual_loss_pct": 0.0,
-    "risk_adjusted_apr_pct": 0.0,
-    "required_hurdle_apr_pct": 4.0,
-    "excess_over_hurdle_pct": -4.0,
-    "risk_premium_earned_pct": -4.0,
-    "risk_premium_coverage_ratio": 0.0,
-    "clears_hurdle": false,
-    "hurdle_clearance_score": 0.0,
-    "classification": "NEGATIVE_PREMIUM",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
-    ],
-    "timestamp": 1784885267.6605592
-  },
-  {
-    "name": "UNKNOWN",
-    "offered_apr_pct": 0.0,
-    "risk_free_apr_pct": 4.0,
-    "annual_loss_probability_pct": 0.0,
-    "loss_given_event_pct": 100.0,
-    "data_quality_ok": true,
-    "expected_annual_loss_pct": 0.0,
-    "risk_adjusted_apr_pct": 0.0,
-    "required_hurdle_apr_pct": 4.0,
-    "excess_over_hurdle_pct": -4.0,
-    "risk_premium_earned_pct": -4.0,
-    "risk_premium_coverage_ratio": 0.0,
-    "clears_hurdle": false,
-    "hurdle_clearance_score": 0.0,
-    "classification": "NEGATIVE_PREMIUM",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
-    ],
-    "timestamp": 1784885268.0422726
-  },
-  {
-    "name": "UNKNOWN",
-    "offered_apr_pct": 0.0,
-    "risk_free_apr_pct": 4.0,
-    "annual_loss_probability_pct": 0.0,
-    "loss_given_event_pct": 100.0,
-    "data_quality_ok": true,
-    "expected_annual_loss_pct": 0.0,
-    "risk_adjusted_apr_pct": 0.0,
-    "required_hurdle_apr_pct": 4.0,
-    "excess_over_hurdle_pct": -4.0,
-    "risk_premium_earned_pct": -4.0,
-    "risk_premium_coverage_ratio": 0.0,
-    "clears_hurdle": false,
-    "hurdle_clearance_score": 0.0,
-    "classification": "NEGATIVE_PREMIUM",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
-    ],
-    "timestamp": 1784885268.4508836
-  },
-  {
-    "name": "UNKNOWN",
-    "offered_apr_pct": 0.0,
-    "risk_free_apr_pct": 4.0,
-    "annual_loss_probability_pct": 0.0,
-    "loss_given_event_pct": 100.0,
-    "data_quality_ok": true,
-    "expected_annual_loss_pct": 0.0,
-    "risk_adjusted_apr_pct": 0.0,
-    "required_hurdle_apr_pct": 4.0,
-    "excess_over_hurdle_pct": -4.0,
-    "risk_premium_earned_pct": -4.0,
-    "risk_premium_coverage_ratio": 0.0,
-    "clears_hurdle": false,
-    "hurdle_clearance_score": 0.0,
-    "classification": "NEGATIVE_PREMIUM",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
-    ],
-    "timestamp": 1784885268.8409812
-  },
-  {
-    "name": "UNKNOWN",
-    "offered_apr_pct": 0.0,
-    "risk_free_apr_pct": 4.0,
-    "annual_loss_probability_pct": 0.0,
-    "loss_given_event_pct": 100.0,
-    "data_quality_ok": true,
-    "expected_annual_loss_pct": 0.0,
-    "risk_adjusted_apr_pct": 0.0,
-    "required_hurdle_apr_pct": 4.0,
-    "excess_over_hurdle_pct": -4.0,
-    "risk_premium_earned_pct": -4.0,
-    "risk_premium_coverage_ratio": 0.0,
-    "clears_hurdle": false,
-    "hurdle_clearance_score": 0.0,
-    "classification": "NEGATIVE_PREMIUM",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
-    ],
-    "timestamp": 1784885269.2741299
-  },
-  {
-    "name": "UNKNOWN",
-    "offered_apr_pct": 0.0,
-    "risk_free_apr_pct": 4.0,
-    "annual_loss_probability_pct": 0.0,
-    "loss_given_event_pct": 100.0,
-    "data_quality_ok": true,
-    "expected_annual_loss_pct": 0.0,
-    "risk_adjusted_apr_pct": 0.0,
-    "required_hurdle_apr_pct": 4.0,
-    "excess_over_hurdle_pct": -4.0,
-    "risk_premium_earned_pct": -4.0,
-    "risk_premium_coverage_ratio": 0.0,
-    "clears_hurdle": false,
-    "hurdle_clearance_score": 0.0,
-    "classification": "NEGATIVE_PREMIUM",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
-    ],
-    "timestamp": 1784885270.8673024
-  },
-  {
-    "name": "UNKNOWN",
-    "offered_apr_pct": 0.0,
-    "risk_free_apr_pct": 4.0,
-    "annual_loss_probability_pct": 0.0,
-    "loss_given_event_pct": 100.0,
-    "data_quality_ok": true,
-    "expected_annual_loss_pct": 0.0,
-    "risk_adjusted_apr_pct": 0.0,
-    "required_hurdle_apr_pct": 4.0,
-    "excess_over_hurdle_pct": -4.0,
-    "risk_premium_earned_pct": -4.0,
-    "risk_premium_coverage_ratio": 0.0,
-    "clears_hurdle": false,
-    "hurdle_clearance_score": 0.0,
-    "classification": "NEGATIVE_PREMIUM",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
-    ],
-    "timestamp": 1784885271.2838664
-  },
-  {
-    "name": "UNKNOWN",
-    "offered_apr_pct": 0.0,
-    "risk_free_apr_pct": 4.0,
-    "annual_loss_probability_pct": 0.0,
-    "loss_given_event_pct": 100.0,
-    "data_quality_ok": true,
-    "expected_annual_loss_pct": 0.0,
-    "risk_adjusted_apr_pct": 0.0,
-    "required_hurdle_apr_pct": 4.0,
-    "excess_over_hurdle_pct": -4.0,
-    "risk_premium_earned_pct": -4.0,
-    "risk_premium_coverage_ratio": 0.0,
-    "clears_hurdle": false,
-    "hurdle_clearance_score": 0.0,
-    "classification": "NEGATIVE_PREMIUM",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
-    ],
-    "timestamp": 1784885271.6475372
-  },
-  {
-    "name": "UNKNOWN",
-    "offered_apr_pct": 0.0,
-    "risk_free_apr_pct": 4.0,
-    "annual_loss_probability_pct": 0.0,
-    "loss_given_event_pct": 100.0,
-    "data_quality_ok": true,
-    "expected_annual_loss_pct": 0.0,
-    "risk_adjusted_apr_pct": 0.0,
-    "required_hurdle_apr_pct": 4.0,
-    "excess_over_hurdle_pct": -4.0,
-    "risk_premium_earned_pct": -4.0,
-    "risk_premium_coverage_ratio": 0.0,
-    "clears_hurdle": false,
-    "hurdle_clearance_score": 0.0,
-    "classification": "NEGATIVE_PREMIUM",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
-    ],
-    "timestamp": 1784885272.0444164
-  },
-  {
     "name": "UNKNOWN",
     "offered_apr_pct": 0.0,
     "risk_free_apr_pct": 4.0,
@@ -2504,5 +2123,380 @@
       "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
     ],
     "timestamp": 1784885477.3433363
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1784885477.7807653
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1784885478.1746247
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1784885478.6053617
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1784885478.9983485
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1784885479.4078398
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1784885479.8091369
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1784885480.235728
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1784885481.859633
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1784885482.2812047
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1784885482.6824107
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1784885483.1395576
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1784885483.5815094
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1784885483.991253
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1784885484.396852
+  },
+  {
+    "name": "UNKNOWN",
+    "offered_apr_pct": 0.0,
+    "risk_free_apr_pct": 4.0,
+    "annual_loss_probability_pct": 0.0,
+    "loss_given_event_pct": 100.0,
+    "data_quality_ok": true,
+    "expected_annual_loss_pct": 0.0,
+    "risk_adjusted_apr_pct": 0.0,
+    "required_hurdle_apr_pct": 4.0,
+    "excess_over_hurdle_pct": -4.0,
+    "risk_premium_earned_pct": -4.0,
+    "risk_premium_coverage_ratio": 0.0,
+    "clears_hurdle": false,
+    "hurdle_clearance_score": 0.0,
+    "classification": "NEGATIVE_PREMIUM",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no offered-APR signal or data marked unreliable. Cannot assess whether the yield clears its risk-adjusted hurdle."
+    ],
+    "timestamp": 1784885484.8168666
   }
 ]

@@ -1,467 +1,5 @@
 [
   {
-    "name": "FARM-pool (incentive-heavy, small)",
-    "current_tvl_usd": 500000.0,
-    "current_apr_pct": 40.0,
-    "incentive_apr_pct": 36.0,
-    "base_apr_pct": 4.0,
-    "your_deposit_usd": 250000.0,
-    "projected_external_inflow_usd": 500000.0,
-    "data_quality_ok": true,
-    "incentive_share_of_apr_pct": 90.0,
-    "fixed_reward_flow_usd_per_year": 180000.0,
-    "post_deposit_tvl_usd": 1250000.0,
-    "projected_incentive_apr_pct": 14.399999999999999,
-    "projected_apr_pct": 18.4,
-    "self_dilution_pct": 12.0,
-    "external_dilution_pct": 9.600000000000001,
-    "total_apr_compression_pct": 21.6,
-    "compression_share_of_apr_pct": 54.0,
-    "yield_elasticity": -0.36000000000000004,
-    "elasticity_score": 33.4,
-    "classification": "HIGH_COMPRESSION",
-    "grade": "D",
-    "flags": [
-      "INCENTIVE_DOMINATED",
-      "LARGE_SELF_DILUTION",
-      "HIGH_EXTERNAL_INFLOW_RISK"
-    ],
-    "recommendations": [
-      "High compression: the APR compresses by ~21.60pp to ~18.40% after the TVL change. Size in carefully and re-check the realised yield.",
-      "Incentive-dominated: ~90.0% of the APR is dilutable incentive flow. Expect this part to fall as TVL rises or incentives wind down.",
-      "Large self-dilution: your own deposit alone cuts the APR by ~12.00pp. You are crowding the very yield you are chasing; size down or split entry.",
-      "High external-inflow risk: projected outside capital adds ~9.60pp of further dilution. The realised APR depends heavily on how much others pile in."
-    ],
-    "timestamp": 1784884332.0480292
-  },
-  {
-    "name": "FARM-pool (incentive-heavy, small)",
-    "current_tvl_usd": 500000.0,
-    "current_apr_pct": 40.0,
-    "incentive_apr_pct": 36.0,
-    "base_apr_pct": 4.0,
-    "your_deposit_usd": 250000.0,
-    "projected_external_inflow_usd": 500000.0,
-    "data_quality_ok": true,
-    "incentive_share_of_apr_pct": 90.0,
-    "fixed_reward_flow_usd_per_year": 180000.0,
-    "post_deposit_tvl_usd": 1250000.0,
-    "projected_incentive_apr_pct": 14.399999999999999,
-    "projected_apr_pct": 18.4,
-    "self_dilution_pct": 12.0,
-    "external_dilution_pct": 9.600000000000001,
-    "total_apr_compression_pct": 21.6,
-    "compression_share_of_apr_pct": 54.0,
-    "yield_elasticity": -0.36000000000000004,
-    "elasticity_score": 33.4,
-    "classification": "HIGH_COMPRESSION",
-    "grade": "D",
-    "flags": [
-      "INCENTIVE_DOMINATED",
-      "LARGE_SELF_DILUTION",
-      "HIGH_EXTERNAL_INFLOW_RISK"
-    ],
-    "recommendations": [
-      "High compression: the APR compresses by ~21.60pp to ~18.40% after the TVL change. Size in carefully and re-check the realised yield.",
-      "Incentive-dominated: ~90.0% of the APR is dilutable incentive flow. Expect this part to fall as TVL rises or incentives wind down.",
-      "Large self-dilution: your own deposit alone cuts the APR by ~12.00pp. You are crowding the very yield you are chasing; size down or split entry.",
-      "High external-inflow risk: projected outside capital adds ~9.60pp of further dilution. The realised APR depends heavily on how much others pile in."
-    ],
-    "timestamp": 1784884332.0527341
-  },
-  {
-    "name": "stETH (base-heavy, deep)",
-    "current_tvl_usd": 50000000.0,
-    "current_apr_pct": 4.0,
-    "incentive_apr_pct": 0.5,
-    "base_apr_pct": 3.5,
-    "your_deposit_usd": 100000.0,
-    "projected_external_inflow_usd": 0.0,
-    "data_quality_ok": true,
-    "incentive_share_of_apr_pct": 12.5,
-    "fixed_reward_flow_usd_per_year": 250000.0,
-    "post_deposit_tvl_usd": 50100000.0,
-    "projected_incentive_apr_pct": 0.499001996007984,
-    "projected_apr_pct": 3.999001996007984,
-    "self_dilution_pct": 0.0009980039920159944,
-    "external_dilution_pct": 0.0,
-    "total_apr_compression_pct": 0.0009980039920161055,
-    "compression_share_of_apr_pct": 0.024950099800402636,
-    "yield_elasticity": -0.12475049900201318,
-    "elasticity_score": 95.60878243512974,
-    "classification": "STICKY_YIELD",
-    "grade": "A",
-    "flags": [
-      "BASE_YIELD_STICKY",
-      "STICKY_YIELD"
-    ],
-    "recommendations": [
-      "Sticky yield: APR barely moves (~0.00pp) to ~4.00% even as TVL grows. The yield resists dilution well.",
-      "Sticky base: a large share of the APR is base (non-incentive) yield that does not dilute with TVL. This part is more durable."
-    ],
-    "timestamp": 1784884332.0562527
-  },
-  {
-    "name": "UNKNOWN",
-    "current_tvl_usd": 0.0,
-    "current_apr_pct": 0.0,
-    "incentive_apr_pct": 0.0,
-    "base_apr_pct": 0.0,
-    "your_deposit_usd": 0.0,
-    "projected_external_inflow_usd": 0.0,
-    "data_quality_ok": true,
-    "incentive_share_of_apr_pct": 0.0,
-    "fixed_reward_flow_usd_per_year": 0.0,
-    "post_deposit_tvl_usd": 0.0,
-    "projected_incentive_apr_pct": 0.0,
-    "projected_apr_pct": 0.0,
-    "self_dilution_pct": 0.0,
-    "external_dilution_pct": 0.0,
-    "total_apr_compression_pct": 0.0,
-    "compression_share_of_apr_pct": 0.0,
-    "yield_elasticity": 0.0,
-    "elasticity_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
-    ],
-    "timestamp": 1784885266.4433496
-  },
-  {
-    "name": "UNKNOWN",
-    "current_tvl_usd": 0.0,
-    "current_apr_pct": 0.0,
-    "incentive_apr_pct": 0.0,
-    "base_apr_pct": 0.0,
-    "your_deposit_usd": 0.0,
-    "projected_external_inflow_usd": 0.0,
-    "data_quality_ok": true,
-    "incentive_share_of_apr_pct": 0.0,
-    "fixed_reward_flow_usd_per_year": 0.0,
-    "post_deposit_tvl_usd": 0.0,
-    "projected_incentive_apr_pct": 0.0,
-    "projected_apr_pct": 0.0,
-    "self_dilution_pct": 0.0,
-    "external_dilution_pct": 0.0,
-    "total_apr_compression_pct": 0.0,
-    "compression_share_of_apr_pct": 0.0,
-    "yield_elasticity": 0.0,
-    "elasticity_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
-    ],
-    "timestamp": 1784885266.8682652
-  },
-  {
-    "name": "UNKNOWN",
-    "current_tvl_usd": 0.0,
-    "current_apr_pct": 0.0,
-    "incentive_apr_pct": 0.0,
-    "base_apr_pct": 0.0,
-    "your_deposit_usd": 0.0,
-    "projected_external_inflow_usd": 0.0,
-    "data_quality_ok": true,
-    "incentive_share_of_apr_pct": 0.0,
-    "fixed_reward_flow_usd_per_year": 0.0,
-    "post_deposit_tvl_usd": 0.0,
-    "projected_incentive_apr_pct": 0.0,
-    "projected_apr_pct": 0.0,
-    "self_dilution_pct": 0.0,
-    "external_dilution_pct": 0.0,
-    "total_apr_compression_pct": 0.0,
-    "compression_share_of_apr_pct": 0.0,
-    "yield_elasticity": 0.0,
-    "elasticity_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
-    ],
-    "timestamp": 1784885267.285572
-  },
-  {
-    "name": "UNKNOWN",
-    "current_tvl_usd": 0.0,
-    "current_apr_pct": 0.0,
-    "incentive_apr_pct": 0.0,
-    "base_apr_pct": 0.0,
-    "your_deposit_usd": 0.0,
-    "projected_external_inflow_usd": 0.0,
-    "data_quality_ok": true,
-    "incentive_share_of_apr_pct": 0.0,
-    "fixed_reward_flow_usd_per_year": 0.0,
-    "post_deposit_tvl_usd": 0.0,
-    "projected_incentive_apr_pct": 0.0,
-    "projected_apr_pct": 0.0,
-    "self_dilution_pct": 0.0,
-    "external_dilution_pct": 0.0,
-    "total_apr_compression_pct": 0.0,
-    "compression_share_of_apr_pct": 0.0,
-    "yield_elasticity": 0.0,
-    "elasticity_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
-    ],
-    "timestamp": 1784885267.692516
-  },
-  {
-    "name": "UNKNOWN",
-    "current_tvl_usd": 0.0,
-    "current_apr_pct": 0.0,
-    "incentive_apr_pct": 0.0,
-    "base_apr_pct": 0.0,
-    "your_deposit_usd": 0.0,
-    "projected_external_inflow_usd": 0.0,
-    "data_quality_ok": true,
-    "incentive_share_of_apr_pct": 0.0,
-    "fixed_reward_flow_usd_per_year": 0.0,
-    "post_deposit_tvl_usd": 0.0,
-    "projected_incentive_apr_pct": 0.0,
-    "projected_apr_pct": 0.0,
-    "self_dilution_pct": 0.0,
-    "external_dilution_pct": 0.0,
-    "total_apr_compression_pct": 0.0,
-    "compression_share_of_apr_pct": 0.0,
-    "yield_elasticity": 0.0,
-    "elasticity_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
-    ],
-    "timestamp": 1784885268.0756314
-  },
-  {
-    "name": "UNKNOWN",
-    "current_tvl_usd": 0.0,
-    "current_apr_pct": 0.0,
-    "incentive_apr_pct": 0.0,
-    "base_apr_pct": 0.0,
-    "your_deposit_usd": 0.0,
-    "projected_external_inflow_usd": 0.0,
-    "data_quality_ok": true,
-    "incentive_share_of_apr_pct": 0.0,
-    "fixed_reward_flow_usd_per_year": 0.0,
-    "post_deposit_tvl_usd": 0.0,
-    "projected_incentive_apr_pct": 0.0,
-    "projected_apr_pct": 0.0,
-    "self_dilution_pct": 0.0,
-    "external_dilution_pct": 0.0,
-    "total_apr_compression_pct": 0.0,
-    "compression_share_of_apr_pct": 0.0,
-    "yield_elasticity": 0.0,
-    "elasticity_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
-    ],
-    "timestamp": 1784885268.482236
-  },
-  {
-    "name": "UNKNOWN",
-    "current_tvl_usd": 0.0,
-    "current_apr_pct": 0.0,
-    "incentive_apr_pct": 0.0,
-    "base_apr_pct": 0.0,
-    "your_deposit_usd": 0.0,
-    "projected_external_inflow_usd": 0.0,
-    "data_quality_ok": true,
-    "incentive_share_of_apr_pct": 0.0,
-    "fixed_reward_flow_usd_per_year": 0.0,
-    "post_deposit_tvl_usd": 0.0,
-    "projected_incentive_apr_pct": 0.0,
-    "projected_apr_pct": 0.0,
-    "self_dilution_pct": 0.0,
-    "external_dilution_pct": 0.0,
-    "total_apr_compression_pct": 0.0,
-    "compression_share_of_apr_pct": 0.0,
-    "yield_elasticity": 0.0,
-    "elasticity_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
-    ],
-    "timestamp": 1784885268.8738346
-  },
-  {
-    "name": "UNKNOWN",
-    "current_tvl_usd": 0.0,
-    "current_apr_pct": 0.0,
-    "incentive_apr_pct": 0.0,
-    "base_apr_pct": 0.0,
-    "your_deposit_usd": 0.0,
-    "projected_external_inflow_usd": 0.0,
-    "data_quality_ok": true,
-    "incentive_share_of_apr_pct": 0.0,
-    "fixed_reward_flow_usd_per_year": 0.0,
-    "post_deposit_tvl_usd": 0.0,
-    "projected_incentive_apr_pct": 0.0,
-    "projected_apr_pct": 0.0,
-    "self_dilution_pct": 0.0,
-    "external_dilution_pct": 0.0,
-    "total_apr_compression_pct": 0.0,
-    "compression_share_of_apr_pct": 0.0,
-    "yield_elasticity": 0.0,
-    "elasticity_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
-    ],
-    "timestamp": 1784885269.3186448
-  },
-  {
-    "name": "UNKNOWN",
-    "current_tvl_usd": 0.0,
-    "current_apr_pct": 0.0,
-    "incentive_apr_pct": 0.0,
-    "base_apr_pct": 0.0,
-    "your_deposit_usd": 0.0,
-    "projected_external_inflow_usd": 0.0,
-    "data_quality_ok": true,
-    "incentive_share_of_apr_pct": 0.0,
-    "fixed_reward_flow_usd_per_year": 0.0,
-    "post_deposit_tvl_usd": 0.0,
-    "projected_incentive_apr_pct": 0.0,
-    "projected_apr_pct": 0.0,
-    "self_dilution_pct": 0.0,
-    "external_dilution_pct": 0.0,
-    "total_apr_compression_pct": 0.0,
-    "compression_share_of_apr_pct": 0.0,
-    "yield_elasticity": 0.0,
-    "elasticity_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
-    ],
-    "timestamp": 1784885270.8968241
-  },
-  {
-    "name": "UNKNOWN",
-    "current_tvl_usd": 0.0,
-    "current_apr_pct": 0.0,
-    "incentive_apr_pct": 0.0,
-    "base_apr_pct": 0.0,
-    "your_deposit_usd": 0.0,
-    "projected_external_inflow_usd": 0.0,
-    "data_quality_ok": true,
-    "incentive_share_of_apr_pct": 0.0,
-    "fixed_reward_flow_usd_per_year": 0.0,
-    "post_deposit_tvl_usd": 0.0,
-    "projected_incentive_apr_pct": 0.0,
-    "projected_apr_pct": 0.0,
-    "self_dilution_pct": 0.0,
-    "external_dilution_pct": 0.0,
-    "total_apr_compression_pct": 0.0,
-    "compression_share_of_apr_pct": 0.0,
-    "yield_elasticity": 0.0,
-    "elasticity_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
-    ],
-    "timestamp": 1784885271.3043087
-  },
-  {
-    "name": "UNKNOWN",
-    "current_tvl_usd": 0.0,
-    "current_apr_pct": 0.0,
-    "incentive_apr_pct": 0.0,
-    "base_apr_pct": 0.0,
-    "your_deposit_usd": 0.0,
-    "projected_external_inflow_usd": 0.0,
-    "data_quality_ok": true,
-    "incentive_share_of_apr_pct": 0.0,
-    "fixed_reward_flow_usd_per_year": 0.0,
-    "post_deposit_tvl_usd": 0.0,
-    "projected_incentive_apr_pct": 0.0,
-    "projected_apr_pct": 0.0,
-    "self_dilution_pct": 0.0,
-    "external_dilution_pct": 0.0,
-    "total_apr_compression_pct": 0.0,
-    "compression_share_of_apr_pct": 0.0,
-    "yield_elasticity": 0.0,
-    "elasticity_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
-    ],
-    "timestamp": 1784885271.6758022
-  },
-  {
-    "name": "UNKNOWN",
-    "current_tvl_usd": 0.0,
-    "current_apr_pct": 0.0,
-    "incentive_apr_pct": 0.0,
-    "base_apr_pct": 0.0,
-    "your_deposit_usd": 0.0,
-    "projected_external_inflow_usd": 0.0,
-    "data_quality_ok": true,
-    "incentive_share_of_apr_pct": 0.0,
-    "fixed_reward_flow_usd_per_year": 0.0,
-    "post_deposit_tvl_usd": 0.0,
-    "projected_incentive_apr_pct": 0.0,
-    "projected_apr_pct": 0.0,
-    "self_dilution_pct": 0.0,
-    "external_dilution_pct": 0.0,
-    "total_apr_compression_pct": 0.0,
-    "compression_share_of_apr_pct": 0.0,
-    "yield_elasticity": 0.0,
-    "elasticity_score": 0.0,
-    "classification": "INSUFFICIENT_DATA",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
-    ],
-    "timestamp": 1784885272.0718226
-  },
-  {
     "name": "UNKNOWN",
     "current_tvl_usd": 0.0,
     "current_apr_pct": 0.0,
@@ -3010,5 +2548,455 @@
       "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
     ],
     "timestamp": 1784885477.3747754
+  },
+  {
+    "name": "UNKNOWN",
+    "current_tvl_usd": 0.0,
+    "current_apr_pct": 0.0,
+    "incentive_apr_pct": 0.0,
+    "base_apr_pct": 0.0,
+    "your_deposit_usd": 0.0,
+    "projected_external_inflow_usd": 0.0,
+    "data_quality_ok": true,
+    "incentive_share_of_apr_pct": 0.0,
+    "fixed_reward_flow_usd_per_year": 0.0,
+    "post_deposit_tvl_usd": 0.0,
+    "projected_incentive_apr_pct": 0.0,
+    "projected_apr_pct": 0.0,
+    "self_dilution_pct": 0.0,
+    "external_dilution_pct": 0.0,
+    "total_apr_compression_pct": 0.0,
+    "compression_share_of_apr_pct": 0.0,
+    "yield_elasticity": 0.0,
+    "elasticity_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
+    ],
+    "timestamp": 1784885477.8175294
+  },
+  {
+    "name": "UNKNOWN",
+    "current_tvl_usd": 0.0,
+    "current_apr_pct": 0.0,
+    "incentive_apr_pct": 0.0,
+    "base_apr_pct": 0.0,
+    "your_deposit_usd": 0.0,
+    "projected_external_inflow_usd": 0.0,
+    "data_quality_ok": true,
+    "incentive_share_of_apr_pct": 0.0,
+    "fixed_reward_flow_usd_per_year": 0.0,
+    "post_deposit_tvl_usd": 0.0,
+    "projected_incentive_apr_pct": 0.0,
+    "projected_apr_pct": 0.0,
+    "self_dilution_pct": 0.0,
+    "external_dilution_pct": 0.0,
+    "total_apr_compression_pct": 0.0,
+    "compression_share_of_apr_pct": 0.0,
+    "yield_elasticity": 0.0,
+    "elasticity_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
+    ],
+    "timestamp": 1784885478.2029724
+  },
+  {
+    "name": "UNKNOWN",
+    "current_tvl_usd": 0.0,
+    "current_apr_pct": 0.0,
+    "incentive_apr_pct": 0.0,
+    "base_apr_pct": 0.0,
+    "your_deposit_usd": 0.0,
+    "projected_external_inflow_usd": 0.0,
+    "data_quality_ok": true,
+    "incentive_share_of_apr_pct": 0.0,
+    "fixed_reward_flow_usd_per_year": 0.0,
+    "post_deposit_tvl_usd": 0.0,
+    "projected_incentive_apr_pct": 0.0,
+    "projected_apr_pct": 0.0,
+    "self_dilution_pct": 0.0,
+    "external_dilution_pct": 0.0,
+    "total_apr_compression_pct": 0.0,
+    "compression_share_of_apr_pct": 0.0,
+    "yield_elasticity": 0.0,
+    "elasticity_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
+    ],
+    "timestamp": 1784885478.6317353
+  },
+  {
+    "name": "UNKNOWN",
+    "current_tvl_usd": 0.0,
+    "current_apr_pct": 0.0,
+    "incentive_apr_pct": 0.0,
+    "base_apr_pct": 0.0,
+    "your_deposit_usd": 0.0,
+    "projected_external_inflow_usd": 0.0,
+    "data_quality_ok": true,
+    "incentive_share_of_apr_pct": 0.0,
+    "fixed_reward_flow_usd_per_year": 0.0,
+    "post_deposit_tvl_usd": 0.0,
+    "projected_incentive_apr_pct": 0.0,
+    "projected_apr_pct": 0.0,
+    "self_dilution_pct": 0.0,
+    "external_dilution_pct": 0.0,
+    "total_apr_compression_pct": 0.0,
+    "compression_share_of_apr_pct": 0.0,
+    "yield_elasticity": 0.0,
+    "elasticity_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
+    ],
+    "timestamp": 1784885479.0406196
+  },
+  {
+    "name": "UNKNOWN",
+    "current_tvl_usd": 0.0,
+    "current_apr_pct": 0.0,
+    "incentive_apr_pct": 0.0,
+    "base_apr_pct": 0.0,
+    "your_deposit_usd": 0.0,
+    "projected_external_inflow_usd": 0.0,
+    "data_quality_ok": true,
+    "incentive_share_of_apr_pct": 0.0,
+    "fixed_reward_flow_usd_per_year": 0.0,
+    "post_deposit_tvl_usd": 0.0,
+    "projected_incentive_apr_pct": 0.0,
+    "projected_apr_pct": 0.0,
+    "self_dilution_pct": 0.0,
+    "external_dilution_pct": 0.0,
+    "total_apr_compression_pct": 0.0,
+    "compression_share_of_apr_pct": 0.0,
+    "yield_elasticity": 0.0,
+    "elasticity_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
+    ],
+    "timestamp": 1784885479.4474366
+  },
+  {
+    "name": "UNKNOWN",
+    "current_tvl_usd": 0.0,
+    "current_apr_pct": 0.0,
+    "incentive_apr_pct": 0.0,
+    "base_apr_pct": 0.0,
+    "your_deposit_usd": 0.0,
+    "projected_external_inflow_usd": 0.0,
+    "data_quality_ok": true,
+    "incentive_share_of_apr_pct": 0.0,
+    "fixed_reward_flow_usd_per_year": 0.0,
+    "post_deposit_tvl_usd": 0.0,
+    "projected_incentive_apr_pct": 0.0,
+    "projected_apr_pct": 0.0,
+    "self_dilution_pct": 0.0,
+    "external_dilution_pct": 0.0,
+    "total_apr_compression_pct": 0.0,
+    "compression_share_of_apr_pct": 0.0,
+    "yield_elasticity": 0.0,
+    "elasticity_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
+    ],
+    "timestamp": 1784885479.8449633
+  },
+  {
+    "name": "UNKNOWN",
+    "current_tvl_usd": 0.0,
+    "current_apr_pct": 0.0,
+    "incentive_apr_pct": 0.0,
+    "base_apr_pct": 0.0,
+    "your_deposit_usd": 0.0,
+    "projected_external_inflow_usd": 0.0,
+    "data_quality_ok": true,
+    "incentive_share_of_apr_pct": 0.0,
+    "fixed_reward_flow_usd_per_year": 0.0,
+    "post_deposit_tvl_usd": 0.0,
+    "projected_incentive_apr_pct": 0.0,
+    "projected_apr_pct": 0.0,
+    "self_dilution_pct": 0.0,
+    "external_dilution_pct": 0.0,
+    "total_apr_compression_pct": 0.0,
+    "compression_share_of_apr_pct": 0.0,
+    "yield_elasticity": 0.0,
+    "elasticity_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
+    ],
+    "timestamp": 1784885480.256229
+  },
+  {
+    "name": "UNKNOWN",
+    "current_tvl_usd": 0.0,
+    "current_apr_pct": 0.0,
+    "incentive_apr_pct": 0.0,
+    "base_apr_pct": 0.0,
+    "your_deposit_usd": 0.0,
+    "projected_external_inflow_usd": 0.0,
+    "data_quality_ok": true,
+    "incentive_share_of_apr_pct": 0.0,
+    "fixed_reward_flow_usd_per_year": 0.0,
+    "post_deposit_tvl_usd": 0.0,
+    "projected_incentive_apr_pct": 0.0,
+    "projected_apr_pct": 0.0,
+    "self_dilution_pct": 0.0,
+    "external_dilution_pct": 0.0,
+    "total_apr_compression_pct": 0.0,
+    "compression_share_of_apr_pct": 0.0,
+    "yield_elasticity": 0.0,
+    "elasticity_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
+    ],
+    "timestamp": 1784885481.8953238
+  },
+  {
+    "name": "UNKNOWN",
+    "current_tvl_usd": 0.0,
+    "current_apr_pct": 0.0,
+    "incentive_apr_pct": 0.0,
+    "base_apr_pct": 0.0,
+    "your_deposit_usd": 0.0,
+    "projected_external_inflow_usd": 0.0,
+    "data_quality_ok": true,
+    "incentive_share_of_apr_pct": 0.0,
+    "fixed_reward_flow_usd_per_year": 0.0,
+    "post_deposit_tvl_usd": 0.0,
+    "projected_incentive_apr_pct": 0.0,
+    "projected_apr_pct": 0.0,
+    "self_dilution_pct": 0.0,
+    "external_dilution_pct": 0.0,
+    "total_apr_compression_pct": 0.0,
+    "compression_share_of_apr_pct": 0.0,
+    "yield_elasticity": 0.0,
+    "elasticity_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
+    ],
+    "timestamp": 1784885482.3102393
+  },
+  {
+    "name": "UNKNOWN",
+    "current_tvl_usd": 0.0,
+    "current_apr_pct": 0.0,
+    "incentive_apr_pct": 0.0,
+    "base_apr_pct": 0.0,
+    "your_deposit_usd": 0.0,
+    "projected_external_inflow_usd": 0.0,
+    "data_quality_ok": true,
+    "incentive_share_of_apr_pct": 0.0,
+    "fixed_reward_flow_usd_per_year": 0.0,
+    "post_deposit_tvl_usd": 0.0,
+    "projected_incentive_apr_pct": 0.0,
+    "projected_apr_pct": 0.0,
+    "self_dilution_pct": 0.0,
+    "external_dilution_pct": 0.0,
+    "total_apr_compression_pct": 0.0,
+    "compression_share_of_apr_pct": 0.0,
+    "yield_elasticity": 0.0,
+    "elasticity_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
+    ],
+    "timestamp": 1784885482.718288
+  },
+  {
+    "name": "UNKNOWN",
+    "current_tvl_usd": 0.0,
+    "current_apr_pct": 0.0,
+    "incentive_apr_pct": 0.0,
+    "base_apr_pct": 0.0,
+    "your_deposit_usd": 0.0,
+    "projected_external_inflow_usd": 0.0,
+    "data_quality_ok": true,
+    "incentive_share_of_apr_pct": 0.0,
+    "fixed_reward_flow_usd_per_year": 0.0,
+    "post_deposit_tvl_usd": 0.0,
+    "projected_incentive_apr_pct": 0.0,
+    "projected_apr_pct": 0.0,
+    "self_dilution_pct": 0.0,
+    "external_dilution_pct": 0.0,
+    "total_apr_compression_pct": 0.0,
+    "compression_share_of_apr_pct": 0.0,
+    "yield_elasticity": 0.0,
+    "elasticity_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
+    ],
+    "timestamp": 1784885483.1745338
+  },
+  {
+    "name": "UNKNOWN",
+    "current_tvl_usd": 0.0,
+    "current_apr_pct": 0.0,
+    "incentive_apr_pct": 0.0,
+    "base_apr_pct": 0.0,
+    "your_deposit_usd": 0.0,
+    "projected_external_inflow_usd": 0.0,
+    "data_quality_ok": true,
+    "incentive_share_of_apr_pct": 0.0,
+    "fixed_reward_flow_usd_per_year": 0.0,
+    "post_deposit_tvl_usd": 0.0,
+    "projected_incentive_apr_pct": 0.0,
+    "projected_apr_pct": 0.0,
+    "self_dilution_pct": 0.0,
+    "external_dilution_pct": 0.0,
+    "total_apr_compression_pct": 0.0,
+    "compression_share_of_apr_pct": 0.0,
+    "yield_elasticity": 0.0,
+    "elasticity_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
+    ],
+    "timestamp": 1784885483.6171482
+  },
+  {
+    "name": "UNKNOWN",
+    "current_tvl_usd": 0.0,
+    "current_apr_pct": 0.0,
+    "incentive_apr_pct": 0.0,
+    "base_apr_pct": 0.0,
+    "your_deposit_usd": 0.0,
+    "projected_external_inflow_usd": 0.0,
+    "data_quality_ok": true,
+    "incentive_share_of_apr_pct": 0.0,
+    "fixed_reward_flow_usd_per_year": 0.0,
+    "post_deposit_tvl_usd": 0.0,
+    "projected_incentive_apr_pct": 0.0,
+    "projected_apr_pct": 0.0,
+    "self_dilution_pct": 0.0,
+    "external_dilution_pct": 0.0,
+    "total_apr_compression_pct": 0.0,
+    "compression_share_of_apr_pct": 0.0,
+    "yield_elasticity": 0.0,
+    "elasticity_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
+    ],
+    "timestamp": 1784885484.023
+  },
+  {
+    "name": "UNKNOWN",
+    "current_tvl_usd": 0.0,
+    "current_apr_pct": 0.0,
+    "incentive_apr_pct": 0.0,
+    "base_apr_pct": 0.0,
+    "your_deposit_usd": 0.0,
+    "projected_external_inflow_usd": 0.0,
+    "data_quality_ok": true,
+    "incentive_share_of_apr_pct": 0.0,
+    "fixed_reward_flow_usd_per_year": 0.0,
+    "post_deposit_tvl_usd": 0.0,
+    "projected_incentive_apr_pct": 0.0,
+    "projected_apr_pct": 0.0,
+    "self_dilution_pct": 0.0,
+    "external_dilution_pct": 0.0,
+    "total_apr_compression_pct": 0.0,
+    "compression_share_of_apr_pct": 0.0,
+    "yield_elasticity": 0.0,
+    "elasticity_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
+    ],
+    "timestamp": 1784885484.4338005
+  },
+  {
+    "name": "UNKNOWN",
+    "current_tvl_usd": 0.0,
+    "current_apr_pct": 0.0,
+    "incentive_apr_pct": 0.0,
+    "base_apr_pct": 0.0,
+    "your_deposit_usd": 0.0,
+    "projected_external_inflow_usd": 0.0,
+    "data_quality_ok": true,
+    "incentive_share_of_apr_pct": 0.0,
+    "fixed_reward_flow_usd_per_year": 0.0,
+    "post_deposit_tvl_usd": 0.0,
+    "projected_incentive_apr_pct": 0.0,
+    "projected_apr_pct": 0.0,
+    "self_dilution_pct": 0.0,
+    "external_dilution_pct": 0.0,
+    "total_apr_compression_pct": 0.0,
+    "compression_share_of_apr_pct": 0.0,
+    "yield_elasticity": 0.0,
+    "elasticity_score": 0.0,
+    "classification": "INSUFFICIENT_DATA",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no current TVL / APR signal or data marked unreliable. Cannot assess TVL-yield elasticity for this market."
+    ],
+    "timestamp": 1784885484.848352
   }
 ]

@@ -1,357 +1,5 @@
 [
   {
-    "name": "USDC-farm (frequent harvest, top rate)",
-    "headline_apr_pct": 12.0,
-    "marginal_tax_rate_pct": 37.0,
-    "long_term_rate_pct": 20.0,
-    "holding_days": 30.0,
-    "harvests_per_year": 52.0,
-    "long_term_income_share": 0.0,
-    "data_quality_ok": true,
-    "effective_tax_rate_pct": 37.0,
-    "after_tax_apr_pct": 7.5600000000000005,
-    "tax_drag_pct": 36.99999999999999,
-    "after_tax_efficiency_score": 62.800000000000004,
-    "classification": "HEAVY",
-    "grade": "C",
-    "flags": [
-      "HIGH_MARGINAL_RATE",
-      "FREQUENT_TAXABLE_EVENTS"
-    ],
-    "recommendations": [
-      "Heavy tax drag: ~37.0% of the yield goes to tax; after-tax APR is ~7.56%. Consider longer holds or fewer harvests to reduce the drag. (Not tax advice.)",
-      "High marginal rate: most income is taxed at the top ordinary rate. Holding to qualify for the long-term rate would cut the effective rate substantially. (Not tax advice.)",
-      "Frequent taxable events: ~52 harvests/year each realise income short-term, blocking long-term treatment. Harvest less often or auto-compound without realising. (Not tax advice.)"
-    ],
-    "timestamp": 1784884356.822353
-  },
-  {
-    "name": "USDC-farm (frequent harvest, top rate)",
-    "headline_apr_pct": 12.0,
-    "marginal_tax_rate_pct": 37.0,
-    "long_term_rate_pct": 20.0,
-    "holding_days": 30.0,
-    "harvests_per_year": 52.0,
-    "long_term_income_share": 0.0,
-    "data_quality_ok": true,
-    "effective_tax_rate_pct": 37.0,
-    "after_tax_apr_pct": 7.5600000000000005,
-    "tax_drag_pct": 36.99999999999999,
-    "after_tax_efficiency_score": 62.800000000000004,
-    "classification": "HEAVY",
-    "grade": "C",
-    "flags": [
-      "HIGH_MARGINAL_RATE",
-      "FREQUENT_TAXABLE_EVENTS"
-    ],
-    "recommendations": [
-      "Heavy tax drag: ~37.0% of the yield goes to tax; after-tax APR is ~7.56%. Consider longer holds or fewer harvests to reduce the drag. (Not tax advice.)",
-      "High marginal rate: most income is taxed at the top ordinary rate. Holding to qualify for the long-term rate would cut the effective rate substantially. (Not tax advice.)",
-      "Frequent taxable events: ~52 harvests/year each realise income short-term, blocking long-term treatment. Harvest less often or auto-compound without realising. (Not tax advice.)"
-    ],
-    "timestamp": 1784884356.8281767
-  },
-  {
-    "name": "stETH (long hold, no harvests)",
-    "headline_apr_pct": 4.0,
-    "marginal_tax_rate_pct": 24.0,
-    "long_term_rate_pct": 15.0,
-    "holding_days": 730.0,
-    "harvests_per_year": 0.0,
-    "long_term_income_share": 1.0,
-    "data_quality_ok": true,
-    "effective_tax_rate_pct": 15.0,
-    "after_tax_apr_pct": 3.4,
-    "tax_drag_pct": 15.000000000000002,
-    "after_tax_efficiency_score": 91.0,
-    "classification": "LIGHT",
-    "grade": "A",
-    "flags": [
-      "QUALIFIES_LONG_TERM"
-    ],
-    "recommendations": [
-      "Light tax drag: after-tax APR ~3.40% retains most of the headline yield. (Not tax advice.)",
-      "Qualifies long-term: a meaningful share of income is taxed at the preferential long-term rate, lowering the blended effective rate. (Not tax advice.)"
-    ],
-    "timestamp": 1784884356.83083
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apr_pct": 0.0,
-    "marginal_tax_rate_pct": 37.0,
-    "long_term_rate_pct": 20.0,
-    "holding_days": 30.0,
-    "harvests_per_year": 12.0,
-    "long_term_income_share": 0.0,
-    "data_quality_ok": true,
-    "effective_tax_rate_pct": 37.0,
-    "after_tax_apr_pct": 0.0,
-    "tax_drag_pct": 0.0,
-    "after_tax_efficiency_score": 0.0,
-    "classification": "SEVERE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
-    ],
-    "timestamp": 1784885266.4377196
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apr_pct": 0.0,
-    "marginal_tax_rate_pct": 37.0,
-    "long_term_rate_pct": 20.0,
-    "holding_days": 30.0,
-    "harvests_per_year": 12.0,
-    "long_term_income_share": 0.0,
-    "data_quality_ok": true,
-    "effective_tax_rate_pct": 37.0,
-    "after_tax_apr_pct": 0.0,
-    "tax_drag_pct": 0.0,
-    "after_tax_efficiency_score": 0.0,
-    "classification": "SEVERE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
-    ],
-    "timestamp": 1784885266.875426
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apr_pct": 0.0,
-    "marginal_tax_rate_pct": 37.0,
-    "long_term_rate_pct": 20.0,
-    "holding_days": 30.0,
-    "harvests_per_year": 12.0,
-    "long_term_income_share": 0.0,
-    "data_quality_ok": true,
-    "effective_tax_rate_pct": 37.0,
-    "after_tax_apr_pct": 0.0,
-    "tax_drag_pct": 0.0,
-    "after_tax_efficiency_score": 0.0,
-    "classification": "SEVERE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
-    ],
-    "timestamp": 1784885267.3018909
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apr_pct": 0.0,
-    "marginal_tax_rate_pct": 37.0,
-    "long_term_rate_pct": 20.0,
-    "holding_days": 30.0,
-    "harvests_per_year": 12.0,
-    "long_term_income_share": 0.0,
-    "data_quality_ok": true,
-    "effective_tax_rate_pct": 37.0,
-    "after_tax_apr_pct": 0.0,
-    "tax_drag_pct": 0.0,
-    "after_tax_efficiency_score": 0.0,
-    "classification": "SEVERE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
-    ],
-    "timestamp": 1784885267.7004697
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apr_pct": 0.0,
-    "marginal_tax_rate_pct": 37.0,
-    "long_term_rate_pct": 20.0,
-    "holding_days": 30.0,
-    "harvests_per_year": 12.0,
-    "long_term_income_share": 0.0,
-    "data_quality_ok": true,
-    "effective_tax_rate_pct": 37.0,
-    "after_tax_apr_pct": 0.0,
-    "tax_drag_pct": 0.0,
-    "after_tax_efficiency_score": 0.0,
-    "classification": "SEVERE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
-    ],
-    "timestamp": 1784885268.0852454
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apr_pct": 0.0,
-    "marginal_tax_rate_pct": 37.0,
-    "long_term_rate_pct": 20.0,
-    "holding_days": 30.0,
-    "harvests_per_year": 12.0,
-    "long_term_income_share": 0.0,
-    "data_quality_ok": true,
-    "effective_tax_rate_pct": 37.0,
-    "after_tax_apr_pct": 0.0,
-    "tax_drag_pct": 0.0,
-    "after_tax_efficiency_score": 0.0,
-    "classification": "SEVERE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
-    ],
-    "timestamp": 1784885268.485239
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apr_pct": 0.0,
-    "marginal_tax_rate_pct": 37.0,
-    "long_term_rate_pct": 20.0,
-    "holding_days": 30.0,
-    "harvests_per_year": 12.0,
-    "long_term_income_share": 0.0,
-    "data_quality_ok": true,
-    "effective_tax_rate_pct": 37.0,
-    "after_tax_apr_pct": 0.0,
-    "tax_drag_pct": 0.0,
-    "after_tax_efficiency_score": 0.0,
-    "classification": "SEVERE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
-    ],
-    "timestamp": 1784885268.8815305
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apr_pct": 0.0,
-    "marginal_tax_rate_pct": 37.0,
-    "long_term_rate_pct": 20.0,
-    "holding_days": 30.0,
-    "harvests_per_year": 12.0,
-    "long_term_income_share": 0.0,
-    "data_quality_ok": true,
-    "effective_tax_rate_pct": 37.0,
-    "after_tax_apr_pct": 0.0,
-    "tax_drag_pct": 0.0,
-    "after_tax_efficiency_score": 0.0,
-    "classification": "SEVERE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
-    ],
-    "timestamp": 1784885269.3241858
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apr_pct": 0.0,
-    "marginal_tax_rate_pct": 37.0,
-    "long_term_rate_pct": 20.0,
-    "holding_days": 30.0,
-    "harvests_per_year": 12.0,
-    "long_term_income_share": 0.0,
-    "data_quality_ok": true,
-    "effective_tax_rate_pct": 37.0,
-    "after_tax_apr_pct": 0.0,
-    "tax_drag_pct": 0.0,
-    "after_tax_efficiency_score": 0.0,
-    "classification": "SEVERE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
-    ],
-    "timestamp": 1784885270.9034903
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apr_pct": 0.0,
-    "marginal_tax_rate_pct": 37.0,
-    "long_term_rate_pct": 20.0,
-    "holding_days": 30.0,
-    "harvests_per_year": 12.0,
-    "long_term_income_share": 0.0,
-    "data_quality_ok": true,
-    "effective_tax_rate_pct": 37.0,
-    "after_tax_apr_pct": 0.0,
-    "tax_drag_pct": 0.0,
-    "after_tax_efficiency_score": 0.0,
-    "classification": "SEVERE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
-    ],
-    "timestamp": 1784885271.3118045
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apr_pct": 0.0,
-    "marginal_tax_rate_pct": 37.0,
-    "long_term_rate_pct": 20.0,
-    "holding_days": 30.0,
-    "harvests_per_year": 12.0,
-    "long_term_income_share": 0.0,
-    "data_quality_ok": true,
-    "effective_tax_rate_pct": 37.0,
-    "after_tax_apr_pct": 0.0,
-    "tax_drag_pct": 0.0,
-    "after_tax_efficiency_score": 0.0,
-    "classification": "SEVERE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
-    ],
-    "timestamp": 1784885271.682748
-  },
-  {
-    "name": "UNKNOWN",
-    "headline_apr_pct": 0.0,
-    "marginal_tax_rate_pct": 37.0,
-    "long_term_rate_pct": 20.0,
-    "holding_days": 30.0,
-    "harvests_per_year": 12.0,
-    "long_term_income_share": 0.0,
-    "data_quality_ok": true,
-    "effective_tax_rate_pct": 37.0,
-    "after_tax_apr_pct": 0.0,
-    "tax_drag_pct": 0.0,
-    "after_tax_efficiency_score": 0.0,
-    "classification": "SEVERE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
-    ],
-    "timestamp": 1784885272.0821097
-  },
-  {
     "name": "UNKNOWN",
     "headline_apr_pct": 0.0,
     "marginal_tax_rate_pct": 37.0,
@@ -2305,5 +1953,350 @@
       "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
     ],
     "timestamp": 1784885477.3705397
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apr_pct": 0.0,
+    "marginal_tax_rate_pct": 37.0,
+    "long_term_rate_pct": 20.0,
+    "holding_days": 30.0,
+    "harvests_per_year": 12.0,
+    "long_term_income_share": 0.0,
+    "data_quality_ok": true,
+    "effective_tax_rate_pct": 37.0,
+    "after_tax_apr_pct": 0.0,
+    "tax_drag_pct": 0.0,
+    "after_tax_efficiency_score": 0.0,
+    "classification": "SEVERE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
+    ],
+    "timestamp": 1784885477.8265872
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apr_pct": 0.0,
+    "marginal_tax_rate_pct": 37.0,
+    "long_term_rate_pct": 20.0,
+    "holding_days": 30.0,
+    "harvests_per_year": 12.0,
+    "long_term_income_share": 0.0,
+    "data_quality_ok": true,
+    "effective_tax_rate_pct": 37.0,
+    "after_tax_apr_pct": 0.0,
+    "tax_drag_pct": 0.0,
+    "after_tax_efficiency_score": 0.0,
+    "classification": "SEVERE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
+    ],
+    "timestamp": 1784885478.2063599
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apr_pct": 0.0,
+    "marginal_tax_rate_pct": 37.0,
+    "long_term_rate_pct": 20.0,
+    "holding_days": 30.0,
+    "harvests_per_year": 12.0,
+    "long_term_income_share": 0.0,
+    "data_quality_ok": true,
+    "effective_tax_rate_pct": 37.0,
+    "after_tax_apr_pct": 0.0,
+    "tax_drag_pct": 0.0,
+    "after_tax_efficiency_score": 0.0,
+    "classification": "SEVERE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
+    ],
+    "timestamp": 1784885478.641373
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apr_pct": 0.0,
+    "marginal_tax_rate_pct": 37.0,
+    "long_term_rate_pct": 20.0,
+    "holding_days": 30.0,
+    "harvests_per_year": 12.0,
+    "long_term_income_share": 0.0,
+    "data_quality_ok": true,
+    "effective_tax_rate_pct": 37.0,
+    "after_tax_apr_pct": 0.0,
+    "tax_drag_pct": 0.0,
+    "after_tax_efficiency_score": 0.0,
+    "classification": "SEVERE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
+    ],
+    "timestamp": 1784885479.0476418
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apr_pct": 0.0,
+    "marginal_tax_rate_pct": 37.0,
+    "long_term_rate_pct": 20.0,
+    "holding_days": 30.0,
+    "harvests_per_year": 12.0,
+    "long_term_income_share": 0.0,
+    "data_quality_ok": true,
+    "effective_tax_rate_pct": 37.0,
+    "after_tax_apr_pct": 0.0,
+    "tax_drag_pct": 0.0,
+    "after_tax_efficiency_score": 0.0,
+    "classification": "SEVERE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
+    ],
+    "timestamp": 1784885479.4504821
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apr_pct": 0.0,
+    "marginal_tax_rate_pct": 37.0,
+    "long_term_rate_pct": 20.0,
+    "holding_days": 30.0,
+    "harvests_per_year": 12.0,
+    "long_term_income_share": 0.0,
+    "data_quality_ok": true,
+    "effective_tax_rate_pct": 37.0,
+    "after_tax_apr_pct": 0.0,
+    "tax_drag_pct": 0.0,
+    "after_tax_efficiency_score": 0.0,
+    "classification": "SEVERE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
+    ],
+    "timestamp": 1784885479.8530195
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apr_pct": 0.0,
+    "marginal_tax_rate_pct": 37.0,
+    "long_term_rate_pct": 20.0,
+    "holding_days": 30.0,
+    "harvests_per_year": 12.0,
+    "long_term_income_share": 0.0,
+    "data_quality_ok": true,
+    "effective_tax_rate_pct": 37.0,
+    "after_tax_apr_pct": 0.0,
+    "tax_drag_pct": 0.0,
+    "after_tax_efficiency_score": 0.0,
+    "classification": "SEVERE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
+    ],
+    "timestamp": 1784885480.2683747
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apr_pct": 0.0,
+    "marginal_tax_rate_pct": 37.0,
+    "long_term_rate_pct": 20.0,
+    "holding_days": 30.0,
+    "harvests_per_year": 12.0,
+    "long_term_income_share": 0.0,
+    "data_quality_ok": true,
+    "effective_tax_rate_pct": 37.0,
+    "after_tax_apr_pct": 0.0,
+    "tax_drag_pct": 0.0,
+    "after_tax_efficiency_score": 0.0,
+    "classification": "SEVERE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
+    ],
+    "timestamp": 1784885481.8996296
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apr_pct": 0.0,
+    "marginal_tax_rate_pct": 37.0,
+    "long_term_rate_pct": 20.0,
+    "holding_days": 30.0,
+    "harvests_per_year": 12.0,
+    "long_term_income_share": 0.0,
+    "data_quality_ok": true,
+    "effective_tax_rate_pct": 37.0,
+    "after_tax_apr_pct": 0.0,
+    "tax_drag_pct": 0.0,
+    "after_tax_efficiency_score": 0.0,
+    "classification": "SEVERE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
+    ],
+    "timestamp": 1784885482.3085542
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apr_pct": 0.0,
+    "marginal_tax_rate_pct": 37.0,
+    "long_term_rate_pct": 20.0,
+    "holding_days": 30.0,
+    "harvests_per_year": 12.0,
+    "long_term_income_share": 0.0,
+    "data_quality_ok": true,
+    "effective_tax_rate_pct": 37.0,
+    "after_tax_apr_pct": 0.0,
+    "tax_drag_pct": 0.0,
+    "after_tax_efficiency_score": 0.0,
+    "classification": "SEVERE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
+    ],
+    "timestamp": 1784885482.7312074
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apr_pct": 0.0,
+    "marginal_tax_rate_pct": 37.0,
+    "long_term_rate_pct": 20.0,
+    "holding_days": 30.0,
+    "harvests_per_year": 12.0,
+    "long_term_income_share": 0.0,
+    "data_quality_ok": true,
+    "effective_tax_rate_pct": 37.0,
+    "after_tax_apr_pct": 0.0,
+    "tax_drag_pct": 0.0,
+    "after_tax_efficiency_score": 0.0,
+    "classification": "SEVERE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
+    ],
+    "timestamp": 1784885483.182357
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apr_pct": 0.0,
+    "marginal_tax_rate_pct": 37.0,
+    "long_term_rate_pct": 20.0,
+    "holding_days": 30.0,
+    "harvests_per_year": 12.0,
+    "long_term_income_share": 0.0,
+    "data_quality_ok": true,
+    "effective_tax_rate_pct": 37.0,
+    "after_tax_apr_pct": 0.0,
+    "tax_drag_pct": 0.0,
+    "after_tax_efficiency_score": 0.0,
+    "classification": "SEVERE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
+    ],
+    "timestamp": 1784885483.624076
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apr_pct": 0.0,
+    "marginal_tax_rate_pct": 37.0,
+    "long_term_rate_pct": 20.0,
+    "holding_days": 30.0,
+    "harvests_per_year": 12.0,
+    "long_term_income_share": 0.0,
+    "data_quality_ok": true,
+    "effective_tax_rate_pct": 37.0,
+    "after_tax_apr_pct": 0.0,
+    "tax_drag_pct": 0.0,
+    "after_tax_efficiency_score": 0.0,
+    "classification": "SEVERE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
+    ],
+    "timestamp": 1784885484.0419896
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apr_pct": 0.0,
+    "marginal_tax_rate_pct": 37.0,
+    "long_term_rate_pct": 20.0,
+    "holding_days": 30.0,
+    "harvests_per_year": 12.0,
+    "long_term_income_share": 0.0,
+    "data_quality_ok": true,
+    "effective_tax_rate_pct": 37.0,
+    "after_tax_apr_pct": 0.0,
+    "tax_drag_pct": 0.0,
+    "after_tax_efficiency_score": 0.0,
+    "classification": "SEVERE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
+    ],
+    "timestamp": 1784885484.4449618
+  },
+  {
+    "name": "UNKNOWN",
+    "headline_apr_pct": 0.0,
+    "marginal_tax_rate_pct": 37.0,
+    "long_term_rate_pct": 20.0,
+    "holding_days": 30.0,
+    "harvests_per_year": 12.0,
+    "long_term_income_share": 0.0,
+    "data_quality_ok": true,
+    "effective_tax_rate_pct": 37.0,
+    "after_tax_apr_pct": 0.0,
+    "tax_drag_pct": 0.0,
+    "after_tax_efficiency_score": 0.0,
+    "classification": "SEVERE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no headline-APR signal or data marked unreliable. Cannot assess the tax drag for this position. (Advisory only - not tax advice.)"
+    ],
+    "timestamp": 1784885484.8539557
   }
 ]
