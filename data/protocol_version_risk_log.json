@@ -1,365 +1,5 @@
 [
   {
-    "protocol": "maple",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784968946.897068
-  },
-  {
-    "protocol": "pendle",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784968947.323621
-  },
-  {
-    "protocol": "spark_susds",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784968947.717737
-  },
-  {
-    "protocol": "aave_v3",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784968950.5262146
-  },
-  {
-    "protocol": "compound_v3",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784968950.9370265
-  },
-  {
-    "protocol": "morpho_blue",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784968951.3609736
-  },
-  {
-    "protocol": "yearn_v3",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784968951.7644646
-  },
-  {
-    "protocol": "euler_v2",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784968952.15981
-  },
-  {
-    "protocol": "maple",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784968953.186074
-  },
-  {
-    "protocol": "pendle",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784968953.593941
-  },
-  {
-    "protocol": "spark_susds",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784968954.0004191
-  },
-  {
-    "protocol": "aave_v3",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784968956.5414886
-  },
-  {
-    "protocol": "compound_v3",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784968956.92715
-  },
-  {
-    "protocol": "morpho_blue",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784968957.3312404
-  },
-  {
-    "protocol": "yearn_v3",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784968957.7184212
-  },
-  {
-    "protocol": "euler_v2",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784968958.1049974
-  },
-  {
-    "protocol": "maple",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784968958.4956188
-  },
-  {
-    "protocol": "pendle",
-    "version_string": "unknown",
-    "days_since_release": 0.0,
-    "total_value_secured_usd": 0.0,
-    "known_vulnerabilities": 0,
-    "audit_count": 0,
-    "last_audit_days_ago": 9999.0,
-    "score_breakdown": {
-      "maturity_score": 0.0,
-      "security_score": 0.0,
-      "adoption_score": 0.0,
-      "raw_score": 0.0,
-      "vuln_penalty": 0.0,
-      "total_version_score": 0.0
-    },
-    "total_version_score": 0.0,
-    "risk_tier": "EXPERIMENTAL",
-    "timestamp": 1784968958.8690636
-  },
-  {
     "protocol": "spark_susds",
     "version_string": "unknown",
     "days_since_release": 0.0,
@@ -1998,5 +1638,365 @@
     "total_version_score": 0.0,
     "risk_tier": "EXPERIMENTAL",
     "timestamp": 1784969016.8885
+  },
+  {
+    "protocol": "compound_v3",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784969017.332557
+  },
+  {
+    "protocol": "morpho_blue",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784969017.7524037
+  },
+  {
+    "protocol": "yearn_v3",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784969018.1903777
+  },
+  {
+    "protocol": "euler_v2",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784969018.6068063
+  },
+  {
+    "protocol": "maple",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784969019.0076728
+  },
+  {
+    "protocol": "pendle",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784969019.424106
+  },
+  {
+    "protocol": "spark_susds",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784969019.913294
+  },
+  {
+    "protocol": "aave_v3",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784969022.5546045
+  },
+  {
+    "protocol": "compound_v3",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784969022.9814851
+  },
+  {
+    "protocol": "morpho_blue",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784969023.4067204
+  },
+  {
+    "protocol": "yearn_v3",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784969023.8627899
+  },
+  {
+    "protocol": "euler_v2",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784969024.2799451
+  },
+  {
+    "protocol": "maple",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784969024.7065835
+  },
+  {
+    "protocol": "pendle",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784969025.1210544
+  },
+  {
+    "protocol": "spark_susds",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784969025.5481503
+  },
+  {
+    "protocol": "aave_v3",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784969028.2619216
+  },
+  {
+    "protocol": "compound_v3",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784969028.6587918
+  },
+  {
+    "protocol": "morpho_blue",
+    "version_string": "unknown",
+    "days_since_release": 0.0,
+    "total_value_secured_usd": 0.0,
+    "known_vulnerabilities": 0,
+    "audit_count": 0,
+    "last_audit_days_ago": 9999.0,
+    "score_breakdown": {
+      "maturity_score": 0.0,
+      "security_score": 0.0,
+      "adoption_score": 0.0,
+      "raw_score": 0.0,
+      "vuln_penalty": 0.0,
+      "total_version_score": 0.0
+    },
+    "total_version_score": 0.0,
+    "risk_tier": "EXPERIMENTAL",
+    "timestamp": 1784969029.0612683
   }
 ]
