@@ -24,114 +24,6 @@
     "recommendations": [
       "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
     ],
-    "timestamp": 1784969820.3527448
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
-    "timestamp": 1784969820.7855222
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
-    "timestamp": 1784969821.1907732
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
-    "timestamp": 1784969821.5776315
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
     "timestamp": 1784969823.2409818
   },
   {
@@ -2698,5 +2590,129 @@
       "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
     ],
     "timestamp": 1784969879.8590498
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 6.0,
+    "current_floating_apr_pct": 4.0,
+    "expected_floating_apr_pct": 4.0,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": 2.0,
+    "fixed_vs_expected_spread_pct": 2.0,
+    "breakeven_avg_floating_apr_pct": 6.0,
+    "fixed_total_return_pct": 6.0,
+    "expected_floating_total_return_pct": 4.0,
+    "advantage_of_fixed_pct": 2.0,
+    "probability_floating_beats_fixed_pct": 0.0,
+    "decision_score": 87.5,
+    "classification": "STRONG_LOCK",
+    "recommendation": "LOCK_FIXED",
+    "grade": "B",
+    "flags": [
+      "LOCK_FIXED",
+      "FIXED_LIKELY_WINS"
+    ],
+    "recommendations": [
+      "Lock fixed: at ~6.00% the fixed leg has a ~2.00pp expected total-return edge over floating, and floating only wins with ~0% probability. Locking removes rate risk at a favourable level.",
+      "Fixed likely wins: only ~0% chance floating beats fixed; the fixed rate is the safer expected outcome."
+    ],
+    "timestamp": 1784969902.7107208
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 6.0,
+    "current_floating_apr_pct": 4.0,
+    "expected_floating_apr_pct": 4.0,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": 2.0,
+    "fixed_vs_expected_spread_pct": 2.0,
+    "breakeven_avg_floating_apr_pct": 6.0,
+    "fixed_total_return_pct": 6.0,
+    "expected_floating_total_return_pct": 4.0,
+    "advantage_of_fixed_pct": 2.0,
+    "probability_floating_beats_fixed_pct": 0.0,
+    "decision_score": 87.5,
+    "classification": "STRONG_LOCK",
+    "recommendation": "LOCK_FIXED",
+    "grade": "B",
+    "flags": [
+      "LOCK_FIXED",
+      "FIXED_LIKELY_WINS"
+    ],
+    "recommendations": [
+      "Lock fixed: at ~6.00% the fixed leg has a ~2.00pp expected total-return edge over floating, and floating only wins with ~0% probability. Locking removes rate risk at a favourable level.",
+      "Fixed likely wins: only ~0% chance floating beats fixed; the fixed rate is the safer expected outcome."
+    ],
+    "timestamp": 1784969902.7191632
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": -3.0,
+    "current_floating_apr_pct": 10.0,
+    "expected_floating_apr_pct": 10.0,
+    "floating_apr_volatility_pct": 20.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": -13.0,
+    "fixed_vs_expected_spread_pct": -13.0,
+    "breakeven_avg_floating_apr_pct": -3.0,
+    "fixed_total_return_pct": -3.0,
+    "expected_floating_total_return_pct": 10.0,
+    "advantage_of_fixed_pct": -13.0,
+    "probability_floating_beats_fixed_pct": 74.21538891941353,
+    "decision_score": 9.024613878205265,
+    "classification": "STRONG_FLOAT",
+    "recommendation": "STAY_FLOATING",
+    "grade": "B",
+    "flags": [
+      "STAY_FLOATING",
+      "FIXED_BELOW_CURRENT_FLOATING",
+      "HIGH_FLOATING_VOLATILITY",
+      "FLOATING_LIKELY_WINS"
+    ],
+    "recommendations": [
+      "Stay floating: the expected average floating rate is above the ~-3.00% fixed rate (floating wins with ~74% probability). Keep the upside rather than lock in below your forward expectation.",
+      "Fixed below current floating: locking now crystallises a rate below what floating pays today. Only lock if you expect floating to fall meaningfully over the horizon.",
+      "High floating volatility: the floating rate is uncertain, so the probability estimate is wide. Locking fixed has extra value as insurance against that volatility.",
+      "Floating likely wins: ~74% chance the average floating rate exceeds the fixed rate over the horizon."
+    ],
+    "timestamp": 1784969902.7222998
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 0.0,
+    "current_floating_apr_pct": 0.001,
+    "expected_floating_apr_pct": 0.001,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": -0.001,
+    "fixed_vs_expected_spread_pct": -0.001,
+    "breakeven_avg_floating_apr_pct": 0.0,
+    "fixed_total_return_pct": 0.0,
+    "expected_floating_total_return_pct": 0.001,
+    "advantage_of_fixed_pct": -0.001,
+    "probability_floating_beats_fixed_pct": 100.0,
+    "decision_score": 24.99375,
+    "classification": "STRONG_FLOAT",
+    "recommendation": "STAY_FLOATING",
+    "grade": "C",
+    "flags": [
+      "STAY_FLOATING",
+      "FIXED_BELOW_CURRENT_FLOATING",
+      "FLOATING_LIKELY_WINS",
+      "NEAR_INDIFFERENT"
+    ],
+    "recommendations": [
+      "Stay floating: the expected average floating rate is above the ~0.00% fixed rate (floating wins with ~100% probability). Keep the upside rather than lock in below your forward expectation.",
+      "Fixed below current floating: locking now crystallises a rate below what floating pays today. Only lock if you expect floating to fall meaningfully over the horizon.",
+      "Floating likely wins: ~100% chance the average floating rate exceeds the fixed rate over the horizon.",
+      "Near-indifferent: the fixed and expected-floating returns are within a fraction of a point. Either leg is defensible; prefer fixed if you value certainty."
+    ],
+    "timestamp": 1784969902.7252548
   }
 ]
