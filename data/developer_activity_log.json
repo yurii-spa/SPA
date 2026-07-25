@@ -32,706 +32,6 @@
       "InactiveProto"
     ],
     "average_activity_score": 46.5,
-    "timestamp": 1781968369.969603
-  },
-  {
-    "protocols": [
-      {
-        "name": "ActiveProto",
-        "activity_score": 93,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 30,
-        "team_health_score": 18,
-        "maintenance_score": 25,
-        "security_investment_score": 20,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 12 contributors, 55 commits in 30d."
-      },
-      {
-        "name": "InactiveProto",
-        "activity_score": 0,
-        "activity_level": "INACTIVE",
-        "commit_momentum_score": 0,
-        "team_health_score": 0,
-        "maintenance_score": 0,
-        "security_investment_score": 0,
-        "velocity_trend": "STAGNANT",
-        "issue_resolution_rate": 0.0,
-        "summary": "Protocol appears inactive. 400 days since last commit."
-      }
-    ],
-    "most_active": "ActiveProto",
-    "least_active": "InactiveProto",
-    "inactive_protocols": [
-      "InactiveProto"
-    ],
-    "average_activity_score": 46.5,
-    "timestamp": 1781968369.9701738
-  },
-  {
-    "protocols": [
-      {
-        "name": "ActiveProto",
-        "activity_score": 93,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 30,
-        "team_health_score": 18,
-        "maintenance_score": 25,
-        "security_investment_score": 20,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 12 contributors, 55 commits in 30d."
-      },
-      {
-        "name": "InactiveProto",
-        "activity_score": 0,
-        "activity_level": "INACTIVE",
-        "commit_momentum_score": 0,
-        "team_health_score": 0,
-        "maintenance_score": 0,
-        "security_investment_score": 0,
-        "velocity_trend": "STAGNANT",
-        "issue_resolution_rate": 0.0,
-        "summary": "Protocol appears inactive. 400 days since last commit."
-      }
-    ],
-    "most_active": "ActiveProto",
-    "least_active": "InactiveProto",
-    "inactive_protocols": [
-      "InactiveProto"
-    ],
-    "average_activity_score": 46.5,
-    "timestamp": 1781968369.970913
-  },
-  {
-    "protocols": [
-      {
-        "name": "ActiveProto",
-        "activity_score": 93,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 30,
-        "team_health_score": 18,
-        "maintenance_score": 25,
-        "security_investment_score": 20,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 12 contributors, 55 commits in 30d."
-      },
-      {
-        "name": "InactiveProto",
-        "activity_score": 0,
-        "activity_level": "INACTIVE",
-        "commit_momentum_score": 0,
-        "team_health_score": 0,
-        "maintenance_score": 0,
-        "security_investment_score": 0,
-        "velocity_trend": "STAGNANT",
-        "issue_resolution_rate": 0.0,
-        "summary": "Protocol appears inactive. 400 days since last commit."
-      }
-    ],
-    "most_active": "ActiveProto",
-    "least_active": "InactiveProto",
-    "inactive_protocols": [
-      "InactiveProto"
-    ],
-    "average_activity_score": 46.5,
-    "timestamp": 1781968369.971505
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProtocol",
-        "activity_score": 82,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 25,
-        "team_health_score": 15,
-        "maintenance_score": 25,
-        "security_investment_score": 17,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 5 contributors, 20 commits in 30d."
-      }
-    ],
-    "most_active": "TestProtocol",
-    "least_active": "TestProtocol",
-    "inactive_protocols": [],
-    "average_activity_score": 82.0,
-    "timestamp": 1781968369.972173
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProtocol",
-        "activity_score": 82,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 25,
-        "team_health_score": 15,
-        "maintenance_score": 25,
-        "security_investment_score": 17,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 5 contributors, 20 commits in 30d."
-      }
-    ],
-    "most_active": "TestProtocol",
-    "least_active": "TestProtocol",
-    "inactive_protocols": [],
-    "average_activity_score": 82.0,
-    "timestamp": 1781968369.972808
-  },
-  {
-    "protocols": [
-      {
-        "name": "FastGrowing",
-        "activity_score": 87,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 30,
-        "team_health_score": 15,
-        "maintenance_score": 25,
-        "security_investment_score": 17,
-        "velocity_trend": "ACCELERATING",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 5 contributors, 50 commits in 30d."
-      }
-    ],
-    "most_active": "FastGrowing",
-    "least_active": "FastGrowing",
-    "inactive_protocols": [],
-    "average_activity_score": 87.0,
-    "timestamp": 1781968369.973501
-  },
-  {
-    "protocols": [
-      {
-        "name": "SlowingDown",
-        "activity_score": 72,
-        "activity_level": "ACTIVE",
-        "commit_momentum_score": 15,
-        "team_health_score": 15,
-        "maintenance_score": 25,
-        "security_investment_score": 17,
-        "velocity_trend": "DECELERATING",
-        "issue_resolution_rate": 0.5,
-        "summary": "Active development. 5 commits, 3d since last commit."
-      }
-    ],
-    "most_active": "SlowingDown",
-    "least_active": "SlowingDown",
-    "inactive_protocols": [],
-    "average_activity_score": 72.0,
-    "timestamp": 1781968369.974306
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProtocol",
-        "activity_score": 82,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 25,
-        "team_health_score": 15,
-        "maintenance_score": 25,
-        "security_investment_score": 17,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 5 contributors, 20 commits in 30d."
-      }
-    ],
-    "most_active": "TestProtocol",
-    "least_active": "TestProtocol",
-    "inactive_protocols": [],
-    "average_activity_score": 82.0,
-    "timestamp": 1781968369.975206
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProtocol",
-        "activity_score": 82,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 25,
-        "team_health_score": 15,
-        "maintenance_score": 25,
-        "security_investment_score": 17,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 1.0,
-        "summary": "Highly active team with 5 contributors, 20 commits in 30d."
-      }
-    ],
-    "most_active": "TestProtocol",
-    "least_active": "TestProtocol",
-    "inactive_protocols": [],
-    "average_activity_score": 82.0,
-    "timestamp": 1781968369.975928
-  },
-  {
-    "protocols": [],
-    "most_active": null,
-    "least_active": null,
-    "inactive_protocols": [],
-    "average_activity_score": 0.0,
-    "timestamp": 1784021248.5788906
-  },
-  {
-    "protocols": [],
-    "most_active": null,
-    "least_active": null,
-    "inactive_protocols": [],
-    "average_activity_score": 0.0,
-    "timestamp": 1784021248.5822005
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "activity_score": 93,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 30,
-        "team_health_score": 18,
-        "maintenance_score": 25,
-        "security_investment_score": 20,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
-      }
-    ],
-    "most_active": "Aave",
-    "least_active": "Aave",
-    "inactive_protocols": [],
-    "average_activity_score": 93.0,
-    "timestamp": 1784021248.585141
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "activity_score": 93,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 30,
-        "team_health_score": 18,
-        "maintenance_score": 25,
-        "security_investment_score": 20,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
-      }
-    ],
-    "most_active": "Aave",
-    "least_active": "Aave",
-    "inactive_protocols": [],
-    "average_activity_score": 93.0,
-    "timestamp": 1784021248.587744
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "activity_score": 93,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 30,
-        "team_health_score": 18,
-        "maintenance_score": 25,
-        "security_investment_score": 20,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
-      }
-    ],
-    "most_active": "Aave",
-    "least_active": "Aave",
-    "inactive_protocols": [],
-    "average_activity_score": 93.0,
-    "timestamp": 1784021248.5903432
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "activity_score": 93,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 30,
-        "team_health_score": 18,
-        "maintenance_score": 25,
-        "security_investment_score": 20,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
-      }
-    ],
-    "most_active": "Aave",
-    "least_active": "Aave",
-    "inactive_protocols": [],
-    "average_activity_score": 93.0,
-    "timestamp": 1784021248.5930326
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "activity_score": 93,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 30,
-        "team_health_score": 18,
-        "maintenance_score": 25,
-        "security_investment_score": 20,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
-      }
-    ],
-    "most_active": "Aave",
-    "least_active": "Aave",
-    "inactive_protocols": [],
-    "average_activity_score": 93.0,
-    "timestamp": 1784021248.5957325
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "activity_score": 93,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 30,
-        "team_health_score": 18,
-        "maintenance_score": 25,
-        "security_investment_score": 20,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
-      }
-    ],
-    "most_active": "Aave",
-    "least_active": "Aave",
-    "inactive_protocols": [],
-    "average_activity_score": 93.0,
-    "timestamp": 1784021248.5983658
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "activity_score": 93,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 30,
-        "team_health_score": 18,
-        "maintenance_score": 25,
-        "security_investment_score": 20,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
-      }
-    ],
-    "most_active": "Aave",
-    "least_active": "Aave",
-    "inactive_protocols": [],
-    "average_activity_score": 93.0,
-    "timestamp": 1784021248.6011572
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "activity_score": 93,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 30,
-        "team_health_score": 18,
-        "maintenance_score": 25,
-        "security_investment_score": 20,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
-      }
-    ],
-    "most_active": "Aave",
-    "least_active": "Aave",
-    "inactive_protocols": [],
-    "average_activity_score": 93.0,
-    "timestamp": 1784021248.603897
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "activity_score": 93,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 30,
-        "team_health_score": 18,
-        "maintenance_score": 25,
-        "security_investment_score": 20,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
-      }
-    ],
-    "most_active": "Aave",
-    "least_active": "Aave",
-    "inactive_protocols": [],
-    "average_activity_score": 93.0,
-    "timestamp": 1784021248.6066322
-  },
-  {
-    "protocols": [
-      {
-        "name": "Aave",
-        "activity_score": 93,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 30,
-        "team_health_score": 18,
-        "maintenance_score": 25,
-        "security_investment_score": 20,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
-      }
-    ],
-    "most_active": "Aave",
-    "least_active": "Aave",
-    "inactive_protocols": [],
-    "average_activity_score": 93.0,
-    "timestamp": 1784021248.6091783
-  },
-  {
-    "protocols": [
-      {
-        "name": "DeadProtocol",
-        "activity_score": 0,
-        "activity_level": "INACTIVE",
-        "commit_momentum_score": 0,
-        "team_health_score": 0,
-        "maintenance_score": 0,
-        "security_investment_score": 0,
-        "velocity_trend": "STAGNANT",
-        "issue_resolution_rate": 0.0,
-        "summary": "Protocol appears inactive. 500 days since last commit."
-      }
-    ],
-    "most_active": "DeadProtocol",
-    "least_active": "DeadProtocol",
-    "inactive_protocols": [
-      "DeadProtocol"
-    ],
-    "average_activity_score": 0.0,
-    "timestamp": 1784021248.6120481
-  },
-  {
-    "protocols": [
-      {
-        "name": "DeadProtocol",
-        "activity_score": 0,
-        "activity_level": "INACTIVE",
-        "commit_momentum_score": 0,
-        "team_health_score": 0,
-        "maintenance_score": 0,
-        "security_investment_score": 0,
-        "velocity_trend": "STAGNANT",
-        "issue_resolution_rate": 0.0,
-        "summary": "Protocol appears inactive. 500 days since last commit."
-      }
-    ],
-    "most_active": "DeadProtocol",
-    "least_active": "DeadProtocol",
-    "inactive_protocols": [
-      "DeadProtocol"
-    ],
-    "average_activity_score": 0.0,
-    "timestamp": 1784021248.6149325
-  },
-  {
-    "protocols": [
-      {
-        "name": "DeadProtocol",
-        "activity_score": 0,
-        "activity_level": "INACTIVE",
-        "commit_momentum_score": 0,
-        "team_health_score": 0,
-        "maintenance_score": 0,
-        "security_investment_score": 0,
-        "velocity_trend": "STAGNANT",
-        "issue_resolution_rate": 0.0,
-        "summary": "Protocol appears inactive. 500 days since last commit."
-      }
-    ],
-    "most_active": "DeadProtocol",
-    "least_active": "DeadProtocol",
-    "inactive_protocols": [
-      "DeadProtocol"
-    ],
-    "average_activity_score": 0.0,
-    "timestamp": 1784021248.6176956
-  },
-  {
-    "protocols": [
-      {
-        "name": "DeadProtocol",
-        "activity_score": 0,
-        "activity_level": "INACTIVE",
-        "commit_momentum_score": 0,
-        "team_health_score": 0,
-        "maintenance_score": 0,
-        "security_investment_score": 0,
-        "velocity_trend": "STAGNANT",
-        "issue_resolution_rate": 0.0,
-        "summary": "Protocol appears inactive. 500 days since last commit."
-      }
-    ],
-    "most_active": "DeadProtocol",
-    "least_active": "DeadProtocol",
-    "inactive_protocols": [
-      "DeadProtocol"
-    ],
-    "average_activity_score": 0.0,
-    "timestamp": 1784021248.6205769
-  },
-  {
-    "protocols": [
-      {
-        "name": "DeadProtocol",
-        "activity_score": 0,
-        "activity_level": "INACTIVE",
-        "commit_momentum_score": 0,
-        "team_health_score": 0,
-        "maintenance_score": 0,
-        "security_investment_score": 0,
-        "velocity_trend": "STAGNANT",
-        "issue_resolution_rate": 0.0,
-        "summary": "Protocol appears inactive. 500 days since last commit."
-      }
-    ],
-    "most_active": "DeadProtocol",
-    "least_active": "DeadProtocol",
-    "inactive_protocols": [
-      "DeadProtocol"
-    ],
-    "average_activity_score": 0.0,
-    "timestamp": 1784021248.6234844
-  },
-  {
-    "protocols": [
-      {
-        "name": "DeadProtocol",
-        "activity_score": 0,
-        "activity_level": "INACTIVE",
-        "commit_momentum_score": 0,
-        "team_health_score": 0,
-        "maintenance_score": 0,
-        "security_investment_score": 0,
-        "velocity_trend": "STAGNANT",
-        "issue_resolution_rate": 0.0,
-        "summary": "Protocol appears inactive. 500 days since last commit."
-      }
-    ],
-    "most_active": "DeadProtocol",
-    "least_active": "DeadProtocol",
-    "inactive_protocols": [
-      "DeadProtocol"
-    ],
-    "average_activity_score": 0.0,
-    "timestamp": 1784021248.6263757
-  },
-  {
-    "protocols": [
-      {
-        "name": "ActiveProto",
-        "activity_score": 93,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 30,
-        "team_health_score": 18,
-        "maintenance_score": 25,
-        "security_investment_score": 20,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 12 contributors, 55 commits in 30d."
-      },
-      {
-        "name": "InactiveProto",
-        "activity_score": 0,
-        "activity_level": "INACTIVE",
-        "commit_momentum_score": 0,
-        "team_health_score": 0,
-        "maintenance_score": 0,
-        "security_investment_score": 0,
-        "velocity_trend": "STAGNANT",
-        "issue_resolution_rate": 0.0,
-        "summary": "Protocol appears inactive. 400 days since last commit."
-      }
-    ],
-    "most_active": "ActiveProto",
-    "least_active": "InactiveProto",
-    "inactive_protocols": [
-      "InactiveProto"
-    ],
-    "average_activity_score": 46.5,
-    "timestamp": 1784021248.6293397
-  },
-  {
-    "protocols": [
-      {
-        "name": "ActiveProto",
-        "activity_score": 93,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 30,
-        "team_health_score": 18,
-        "maintenance_score": 25,
-        "security_investment_score": 20,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 12 contributors, 55 commits in 30d."
-      },
-      {
-        "name": "InactiveProto",
-        "activity_score": 0,
-        "activity_level": "INACTIVE",
-        "commit_momentum_score": 0,
-        "team_health_score": 0,
-        "maintenance_score": 0,
-        "security_investment_score": 0,
-        "velocity_trend": "STAGNANT",
-        "issue_resolution_rate": 0.0,
-        "summary": "Protocol appears inactive. 400 days since last commit."
-      }
-    ],
-    "most_active": "ActiveProto",
-    "least_active": "InactiveProto",
-    "inactive_protocols": [
-      "InactiveProto"
-    ],
-    "average_activity_score": 46.5,
-    "timestamp": 1784021248.6323876
-  },
-  {
-    "protocols": [
-      {
-        "name": "ActiveProto",
-        "activity_score": 93,
-        "activity_level": "VERY_ACTIVE",
-        "commit_momentum_score": 30,
-        "team_health_score": 18,
-        "maintenance_score": 25,
-        "security_investment_score": 20,
-        "velocity_trend": "STABLE",
-        "issue_resolution_rate": 0.5,
-        "summary": "Highly active team with 12 contributors, 55 commits in 30d."
-      },
-      {
-        "name": "InactiveProto",
-        "activity_score": 0,
-        "activity_level": "INACTIVE",
-        "commit_momentum_score": 0,
-        "team_health_score": 0,
-        "maintenance_score": 0,
-        "security_investment_score": 0,
-        "velocity_trend": "STAGNANT",
-        "issue_resolution_rate": 0.0,
-        "summary": "Protocol appears inactive. 400 days since last commit."
-      }
-    ],
-    "most_active": "ActiveProto",
-    "least_active": "InactiveProto",
-    "inactive_protocols": [
-      "InactiveProto"
-    ],
-    "average_activity_score": 46.5,
     "timestamp": 1784021248.635425
   },
   {
@@ -2364,5 +1664,705 @@
     "inactive_protocols": [],
     "average_activity_score": 82.0,
     "timestamp": 1784453404.968572
+  },
+  {
+    "protocols": [],
+    "most_active": null,
+    "least_active": null,
+    "inactive_protocols": [],
+    "average_activity_score": 0.0,
+    "timestamp": 1784971311.9586687
+  },
+  {
+    "protocols": [],
+    "most_active": null,
+    "least_active": null,
+    "inactive_protocols": [],
+    "average_activity_score": 0.0,
+    "timestamp": 1784971311.9630964
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "activity_score": 93,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 30,
+        "team_health_score": 18,
+        "maintenance_score": 25,
+        "security_investment_score": 20,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
+      }
+    ],
+    "most_active": "Aave",
+    "least_active": "Aave",
+    "inactive_protocols": [],
+    "average_activity_score": 93.0,
+    "timestamp": 1784971311.967025
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "activity_score": 93,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 30,
+        "team_health_score": 18,
+        "maintenance_score": 25,
+        "security_investment_score": 20,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
+      }
+    ],
+    "most_active": "Aave",
+    "least_active": "Aave",
+    "inactive_protocols": [],
+    "average_activity_score": 93.0,
+    "timestamp": 1784971311.97094
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "activity_score": 93,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 30,
+        "team_health_score": 18,
+        "maintenance_score": 25,
+        "security_investment_score": 20,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
+      }
+    ],
+    "most_active": "Aave",
+    "least_active": "Aave",
+    "inactive_protocols": [],
+    "average_activity_score": 93.0,
+    "timestamp": 1784971311.9745753
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "activity_score": 93,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 30,
+        "team_health_score": 18,
+        "maintenance_score": 25,
+        "security_investment_score": 20,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
+      }
+    ],
+    "most_active": "Aave",
+    "least_active": "Aave",
+    "inactive_protocols": [],
+    "average_activity_score": 93.0,
+    "timestamp": 1784971311.9794753
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "activity_score": 93,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 30,
+        "team_health_score": 18,
+        "maintenance_score": 25,
+        "security_investment_score": 20,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
+      }
+    ],
+    "most_active": "Aave",
+    "least_active": "Aave",
+    "inactive_protocols": [],
+    "average_activity_score": 93.0,
+    "timestamp": 1784971311.983827
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "activity_score": 93,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 30,
+        "team_health_score": 18,
+        "maintenance_score": 25,
+        "security_investment_score": 20,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
+      }
+    ],
+    "most_active": "Aave",
+    "least_active": "Aave",
+    "inactive_protocols": [],
+    "average_activity_score": 93.0,
+    "timestamp": 1784971311.9876885
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "activity_score": 93,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 30,
+        "team_health_score": 18,
+        "maintenance_score": 25,
+        "security_investment_score": 20,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
+      }
+    ],
+    "most_active": "Aave",
+    "least_active": "Aave",
+    "inactive_protocols": [],
+    "average_activity_score": 93.0,
+    "timestamp": 1784971311.9912758
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "activity_score": 93,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 30,
+        "team_health_score": 18,
+        "maintenance_score": 25,
+        "security_investment_score": 20,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
+      }
+    ],
+    "most_active": "Aave",
+    "least_active": "Aave",
+    "inactive_protocols": [],
+    "average_activity_score": 93.0,
+    "timestamp": 1784971311.9950628
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "activity_score": 93,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 30,
+        "team_health_score": 18,
+        "maintenance_score": 25,
+        "security_investment_score": 20,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
+      }
+    ],
+    "most_active": "Aave",
+    "least_active": "Aave",
+    "inactive_protocols": [],
+    "average_activity_score": 93.0,
+    "timestamp": 1784971311.9989407
+  },
+  {
+    "protocols": [
+      {
+        "name": "Aave",
+        "activity_score": 93,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 30,
+        "team_health_score": 18,
+        "maintenance_score": 25,
+        "security_investment_score": 20,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 15 contributors, 60 commits in 30d."
+      }
+    ],
+    "most_active": "Aave",
+    "least_active": "Aave",
+    "inactive_protocols": [],
+    "average_activity_score": 93.0,
+    "timestamp": 1784971312.0024683
+  },
+  {
+    "protocols": [
+      {
+        "name": "DeadProtocol",
+        "activity_score": 0,
+        "activity_level": "INACTIVE",
+        "commit_momentum_score": 0,
+        "team_health_score": 0,
+        "maintenance_score": 0,
+        "security_investment_score": 0,
+        "velocity_trend": "STAGNANT",
+        "issue_resolution_rate": 0.0,
+        "summary": "Protocol appears inactive. 500 days since last commit."
+      }
+    ],
+    "most_active": "DeadProtocol",
+    "least_active": "DeadProtocol",
+    "inactive_protocols": [
+      "DeadProtocol"
+    ],
+    "average_activity_score": 0.0,
+    "timestamp": 1784971312.0063438
+  },
+  {
+    "protocols": [
+      {
+        "name": "DeadProtocol",
+        "activity_score": 0,
+        "activity_level": "INACTIVE",
+        "commit_momentum_score": 0,
+        "team_health_score": 0,
+        "maintenance_score": 0,
+        "security_investment_score": 0,
+        "velocity_trend": "STAGNANT",
+        "issue_resolution_rate": 0.0,
+        "summary": "Protocol appears inactive. 500 days since last commit."
+      }
+    ],
+    "most_active": "DeadProtocol",
+    "least_active": "DeadProtocol",
+    "inactive_protocols": [
+      "DeadProtocol"
+    ],
+    "average_activity_score": 0.0,
+    "timestamp": 1784971312.0100744
+  },
+  {
+    "protocols": [
+      {
+        "name": "DeadProtocol",
+        "activity_score": 0,
+        "activity_level": "INACTIVE",
+        "commit_momentum_score": 0,
+        "team_health_score": 0,
+        "maintenance_score": 0,
+        "security_investment_score": 0,
+        "velocity_trend": "STAGNANT",
+        "issue_resolution_rate": 0.0,
+        "summary": "Protocol appears inactive. 500 days since last commit."
+      }
+    ],
+    "most_active": "DeadProtocol",
+    "least_active": "DeadProtocol",
+    "inactive_protocols": [
+      "DeadProtocol"
+    ],
+    "average_activity_score": 0.0,
+    "timestamp": 1784971312.0137966
+  },
+  {
+    "protocols": [
+      {
+        "name": "DeadProtocol",
+        "activity_score": 0,
+        "activity_level": "INACTIVE",
+        "commit_momentum_score": 0,
+        "team_health_score": 0,
+        "maintenance_score": 0,
+        "security_investment_score": 0,
+        "velocity_trend": "STAGNANT",
+        "issue_resolution_rate": 0.0,
+        "summary": "Protocol appears inactive. 500 days since last commit."
+      }
+    ],
+    "most_active": "DeadProtocol",
+    "least_active": "DeadProtocol",
+    "inactive_protocols": [
+      "DeadProtocol"
+    ],
+    "average_activity_score": 0.0,
+    "timestamp": 1784971312.0178795
+  },
+  {
+    "protocols": [
+      {
+        "name": "DeadProtocol",
+        "activity_score": 0,
+        "activity_level": "INACTIVE",
+        "commit_momentum_score": 0,
+        "team_health_score": 0,
+        "maintenance_score": 0,
+        "security_investment_score": 0,
+        "velocity_trend": "STAGNANT",
+        "issue_resolution_rate": 0.0,
+        "summary": "Protocol appears inactive. 500 days since last commit."
+      }
+    ],
+    "most_active": "DeadProtocol",
+    "least_active": "DeadProtocol",
+    "inactive_protocols": [
+      "DeadProtocol"
+    ],
+    "average_activity_score": 0.0,
+    "timestamp": 1784971312.0217412
+  },
+  {
+    "protocols": [
+      {
+        "name": "DeadProtocol",
+        "activity_score": 0,
+        "activity_level": "INACTIVE",
+        "commit_momentum_score": 0,
+        "team_health_score": 0,
+        "maintenance_score": 0,
+        "security_investment_score": 0,
+        "velocity_trend": "STAGNANT",
+        "issue_resolution_rate": 0.0,
+        "summary": "Protocol appears inactive. 500 days since last commit."
+      }
+    ],
+    "most_active": "DeadProtocol",
+    "least_active": "DeadProtocol",
+    "inactive_protocols": [
+      "DeadProtocol"
+    ],
+    "average_activity_score": 0.0,
+    "timestamp": 1784971312.025393
+  },
+  {
+    "protocols": [
+      {
+        "name": "ActiveProto",
+        "activity_score": 93,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 30,
+        "team_health_score": 18,
+        "maintenance_score": 25,
+        "security_investment_score": 20,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 12 contributors, 55 commits in 30d."
+      },
+      {
+        "name": "InactiveProto",
+        "activity_score": 0,
+        "activity_level": "INACTIVE",
+        "commit_momentum_score": 0,
+        "team_health_score": 0,
+        "maintenance_score": 0,
+        "security_investment_score": 0,
+        "velocity_trend": "STAGNANT",
+        "issue_resolution_rate": 0.0,
+        "summary": "Protocol appears inactive. 400 days since last commit."
+      }
+    ],
+    "most_active": "ActiveProto",
+    "least_active": "InactiveProto",
+    "inactive_protocols": [
+      "InactiveProto"
+    ],
+    "average_activity_score": 46.5,
+    "timestamp": 1784971312.0290747
+  },
+  {
+    "protocols": [
+      {
+        "name": "ActiveProto",
+        "activity_score": 93,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 30,
+        "team_health_score": 18,
+        "maintenance_score": 25,
+        "security_investment_score": 20,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 12 contributors, 55 commits in 30d."
+      },
+      {
+        "name": "InactiveProto",
+        "activity_score": 0,
+        "activity_level": "INACTIVE",
+        "commit_momentum_score": 0,
+        "team_health_score": 0,
+        "maintenance_score": 0,
+        "security_investment_score": 0,
+        "velocity_trend": "STAGNANT",
+        "issue_resolution_rate": 0.0,
+        "summary": "Protocol appears inactive. 400 days since last commit."
+      }
+    ],
+    "most_active": "ActiveProto",
+    "least_active": "InactiveProto",
+    "inactive_protocols": [
+      "InactiveProto"
+    ],
+    "average_activity_score": 46.5,
+    "timestamp": 1784971312.033273
+  },
+  {
+    "protocols": [
+      {
+        "name": "ActiveProto",
+        "activity_score": 93,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 30,
+        "team_health_score": 18,
+        "maintenance_score": 25,
+        "security_investment_score": 20,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 12 contributors, 55 commits in 30d."
+      },
+      {
+        "name": "InactiveProto",
+        "activity_score": 0,
+        "activity_level": "INACTIVE",
+        "commit_momentum_score": 0,
+        "team_health_score": 0,
+        "maintenance_score": 0,
+        "security_investment_score": 0,
+        "velocity_trend": "STAGNANT",
+        "issue_resolution_rate": 0.0,
+        "summary": "Protocol appears inactive. 400 days since last commit."
+      }
+    ],
+    "most_active": "ActiveProto",
+    "least_active": "InactiveProto",
+    "inactive_protocols": [
+      "InactiveProto"
+    ],
+    "average_activity_score": 46.5,
+    "timestamp": 1784971312.036931
+  },
+  {
+    "protocols": [
+      {
+        "name": "ActiveProto",
+        "activity_score": 93,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 30,
+        "team_health_score": 18,
+        "maintenance_score": 25,
+        "security_investment_score": 20,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 12 contributors, 55 commits in 30d."
+      },
+      {
+        "name": "InactiveProto",
+        "activity_score": 0,
+        "activity_level": "INACTIVE",
+        "commit_momentum_score": 0,
+        "team_health_score": 0,
+        "maintenance_score": 0,
+        "security_investment_score": 0,
+        "velocity_trend": "STAGNANT",
+        "issue_resolution_rate": 0.0,
+        "summary": "Protocol appears inactive. 400 days since last commit."
+      }
+    ],
+    "most_active": "ActiveProto",
+    "least_active": "InactiveProto",
+    "inactive_protocols": [
+      "InactiveProto"
+    ],
+    "average_activity_score": 46.5,
+    "timestamp": 1784971312.0405443
+  },
+  {
+    "protocols": [
+      {
+        "name": "ActiveProto",
+        "activity_score": 93,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 30,
+        "team_health_score": 18,
+        "maintenance_score": 25,
+        "security_investment_score": 20,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 12 contributors, 55 commits in 30d."
+      },
+      {
+        "name": "InactiveProto",
+        "activity_score": 0,
+        "activity_level": "INACTIVE",
+        "commit_momentum_score": 0,
+        "team_health_score": 0,
+        "maintenance_score": 0,
+        "security_investment_score": 0,
+        "velocity_trend": "STAGNANT",
+        "issue_resolution_rate": 0.0,
+        "summary": "Protocol appears inactive. 400 days since last commit."
+      }
+    ],
+    "most_active": "ActiveProto",
+    "least_active": "InactiveProto",
+    "inactive_protocols": [
+      "InactiveProto"
+    ],
+    "average_activity_score": 46.5,
+    "timestamp": 1784971312.0440376
+  },
+  {
+    "protocols": [
+      {
+        "name": "ActiveProto",
+        "activity_score": 93,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 30,
+        "team_health_score": 18,
+        "maintenance_score": 25,
+        "security_investment_score": 20,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 12 contributors, 55 commits in 30d."
+      },
+      {
+        "name": "InactiveProto",
+        "activity_score": 0,
+        "activity_level": "INACTIVE",
+        "commit_momentum_score": 0,
+        "team_health_score": 0,
+        "maintenance_score": 0,
+        "security_investment_score": 0,
+        "velocity_trend": "STAGNANT",
+        "issue_resolution_rate": 0.0,
+        "summary": "Protocol appears inactive. 400 days since last commit."
+      }
+    ],
+    "most_active": "ActiveProto",
+    "least_active": "InactiveProto",
+    "inactive_protocols": [
+      "InactiveProto"
+    ],
+    "average_activity_score": 46.5,
+    "timestamp": 1784971312.047749
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProtocol",
+        "activity_score": 82,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 25,
+        "team_health_score": 15,
+        "maintenance_score": 25,
+        "security_investment_score": 17,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 5 contributors, 20 commits in 30d."
+      }
+    ],
+    "most_active": "TestProtocol",
+    "least_active": "TestProtocol",
+    "inactive_protocols": [],
+    "average_activity_score": 82.0,
+    "timestamp": 1784971312.0518596
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProtocol",
+        "activity_score": 82,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 25,
+        "team_health_score": 15,
+        "maintenance_score": 25,
+        "security_investment_score": 17,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 5 contributors, 20 commits in 30d."
+      }
+    ],
+    "most_active": "TestProtocol",
+    "least_active": "TestProtocol",
+    "inactive_protocols": [],
+    "average_activity_score": 82.0,
+    "timestamp": 1784971312.0553756
+  },
+  {
+    "protocols": [
+      {
+        "name": "FastGrowing",
+        "activity_score": 87,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 30,
+        "team_health_score": 15,
+        "maintenance_score": 25,
+        "security_investment_score": 17,
+        "velocity_trend": "ACCELERATING",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 5 contributors, 50 commits in 30d."
+      }
+    ],
+    "most_active": "FastGrowing",
+    "least_active": "FastGrowing",
+    "inactive_protocols": [],
+    "average_activity_score": 87.0,
+    "timestamp": 1784971312.0590596
+  },
+  {
+    "protocols": [
+      {
+        "name": "SlowingDown",
+        "activity_score": 72,
+        "activity_level": "ACTIVE",
+        "commit_momentum_score": 15,
+        "team_health_score": 15,
+        "maintenance_score": 25,
+        "security_investment_score": 17,
+        "velocity_trend": "DECELERATING",
+        "issue_resolution_rate": 0.5,
+        "summary": "Active development. 5 commits, 3d since last commit."
+      }
+    ],
+    "most_active": "SlowingDown",
+    "least_active": "SlowingDown",
+    "inactive_protocols": [],
+    "average_activity_score": 72.0,
+    "timestamp": 1784971312.0626488
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProtocol",
+        "activity_score": 82,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 25,
+        "team_health_score": 15,
+        "maintenance_score": 25,
+        "security_investment_score": 17,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 0.5,
+        "summary": "Highly active team with 5 contributors, 20 commits in 30d."
+      }
+    ],
+    "most_active": "TestProtocol",
+    "least_active": "TestProtocol",
+    "inactive_protocols": [],
+    "average_activity_score": 82.0,
+    "timestamp": 1784971312.0666432
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProtocol",
+        "activity_score": 82,
+        "activity_level": "VERY_ACTIVE",
+        "commit_momentum_score": 25,
+        "team_health_score": 15,
+        "maintenance_score": 25,
+        "security_investment_score": 17,
+        "velocity_trend": "STABLE",
+        "issue_resolution_rate": 1.0,
+        "summary": "Highly active team with 5 contributors, 20 commits in 30d."
+      }
+    ],
+    "most_active": "TestProtocol",
+    "least_active": "TestProtocol",
+    "inactive_protocols": [],
+    "average_activity_score": 82.0,
+    "timestamp": 1784971312.0701334
   }
 ]
