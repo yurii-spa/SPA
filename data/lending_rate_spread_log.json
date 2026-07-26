@@ -1,1403 +1,5 @@
 [
   {
-    "ts": 1784451902.533311,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.5391548,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 10.0
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 10.0
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 34.75
-      },
-      "avg_spread_pct": 10.0,
-      "avg_efficiency_score": 34.75,
-      "inefficient_count": 1,
-      "wide_spread_count": 0,
-      "tight_count": 0,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.544763,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.0
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.0
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 47.5
-      },
-      "avg_spread_pct": 2.0,
-      "avg_efficiency_score": 47.5,
-      "inefficient_count": 1,
-      "wide_spread_count": 0,
-      "tight_count": 0,
-      "high_utilization_risk_count": 1
-    }
-  },
-  {
-    "ts": 1784451902.550356,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.5561736,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": -1.2
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": -1.2
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 93.25
-      },
-      "avg_spread_pct": -1.2,
-      "avg_efficiency_score": 93.25,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.5618973,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.5675874,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 65.0
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 65.0,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.5731907,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.5790172,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.5846548,
-    "market_count": 5,
-    "aggregates": {
-      "market_count": 5,
-      "tightest_spread": {
-        "name": "M0",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "M0",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "M0",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 5,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.590334,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Aave-USDC",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Aave-USDC",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Aave-USDC",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.596549,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 4.0
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 4.0
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 57.5
-      },
-      "avg_spread_pct": 4.0,
-      "avg_efficiency_score": 57.5,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 0,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.6023817,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": -2.7
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": -2.7
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 93.25
-      },
-      "avg_spread_pct": -2.7,
-      "avg_efficiency_score": 93.25,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.6081607,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.6163268,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 3.0
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 3.0
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 3.0,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 0,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.6240106,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.6318057,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 1.5
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 1.5
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 86.75
-      },
-      "avg_spread_pct": 1.5,
-      "avg_efficiency_score": 86.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.6374497,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 1.2
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 1.2
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 86.75
-      },
-      "avg_spread_pct": 1.2,
-      "avg_efficiency_score": 86.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.6447334,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.6509998,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 7.0
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 7.0
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 44.5
-      },
-      "avg_spread_pct": 7.0,
-      "avg_efficiency_score": 44.5,
-      "inefficient_count": 0,
-      "wide_spread_count": 1,
-      "tight_count": 0,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.6567748,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 6.0
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 6.0
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 44.5
-      },
-      "avg_spread_pct": 6.0,
-      "avg_efficiency_score": 44.5,
-      "inefficient_count": 0,
-      "wide_spread_count": 1,
-      "tight_count": 0,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.664248,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.6701815,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 51.0
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 51.0,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.6759472,
-    "market_count": 4,
-    "aggregates": {
-      "market_count": 4,
-      "tightest_spread": {
-        "name": "M0",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "M0",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "M0",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 4,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.6817217,
-    "market_count": 2,
-    "aggregates": {
-      "market_count": 2,
-      "tightest_spread": {
-        "name": "M1",
-        "gross_spread_pct": 2.0
-      },
-      "widest_spread": {
-        "name": "M2",
-        "gross_spread_pct": 4.0
-      },
-      "most_efficient_market": {
-        "name": "M1",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 3.0,
-      "avg_efficiency_score": 65.62,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.687331,
-    "market_count": 3,
-    "aggregates": {
-      "market_count": 3,
-      "tightest_spread": {
-        "name": "H1",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "H1",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "OK",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 62.08,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 3,
-      "high_utilization_risk_count": 2
-    }
-  },
-  {
-    "ts": 1784451902.6929638,
-    "market_count": 3,
-    "aggregates": {
-      "market_count": 3,
-      "tightest_spread": {
-        "name": "Bad2",
-        "gross_spread_pct": 2.0
-      },
-      "widest_spread": {
-        "name": "Bad1",
-        "gross_spread_pct": 10.0
-      },
-      "most_efficient_market": {
-        "name": "Good",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 4.8333,
-      "avg_efficiency_score": 52.0,
-      "inefficient_count": 2,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 1
-    }
-  },
-  {
-    "ts": 1784451902.6986933,
-    "market_count": 2,
-    "aggregates": {
-      "market_count": 2,
-      "tightest_spread": {
-        "name": "Eff",
-        "gross_spread_pct": 1.2
-      },
-      "widest_spread": {
-        "name": "Ineff",
-        "gross_spread_pct": 10.0
-      },
-      "most_efficient_market": {
-        "name": "Eff",
-        "spread_efficiency_score": 86.75
-      },
-      "avg_spread_pct": 5.6,
-      "avg_efficiency_score": 56.38,
-      "inefficient_count": 1,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.7046552,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.7126539,
-    "market_count": 3,
-    "aggregates": {
-      "market_count": 3,
-      "tightest_spread": {
-        "name": "T1",
-        "gross_spread_pct": 1.2
-      },
-      "widest_spread": {
-        "name": "N1",
-        "gross_spread_pct": 4.0
-      },
-      "most_efficient_market": {
-        "name": "T1",
-        "spread_efficiency_score": 86.75
-      },
-      "avg_spread_pct": 2.4,
-      "avg_efficiency_score": 69.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 2,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.7210844,
-    "market_count": 2,
-    "aggregates": {
-      "market_count": 2,
-      "tightest_spread": {
-        "name": "Tight",
-        "gross_spread_pct": 1.0
-      },
-      "widest_spread": {
-        "name": "Wide",
-        "gross_spread_pct": 9.0
-      },
-      "most_efficient_market": {
-        "name": "Tight",
-        "spread_efficiency_score": 86.75
-      },
-      "avg_spread_pct": 5.0,
-      "avg_efficiency_score": 60.75,
-      "inefficient_count": 1,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.7303014,
-    "market_count": 2,
-    "aggregates": {
-      "market_count": 2,
-      "tightest_spread": {
-        "name": "Tight",
-        "gross_spread_pct": 1.0
-      },
-      "widest_spread": {
-        "name": "Wide",
-        "gross_spread_pct": 9.0
-      },
-      "most_efficient_market": {
-        "name": "Tight",
-        "spread_efficiency_score": 86.75
-      },
-      "avg_spread_pct": 5.0,
-      "avg_efficiency_score": 60.75,
-      "inefficient_count": 1,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.7700613,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": -2.0
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": -2.0
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 93.25
-      },
-      "avg_spread_pct": -2.0,
-      "avg_efficiency_score": 93.25,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.7803342,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 1.5
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 1.5
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 86.75
-      },
-      "avg_spread_pct": 1.5,
-      "avg_efficiency_score": 86.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.78614,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.0
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.0
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.0,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.7931635,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.7991717,
-    "market_count": 20,
-    "aggregates": {
-      "market_count": 20,
-      "tightest_spread": {
-        "name": "M0",
-        "gross_spread_pct": 1.5
-      },
-      "widest_spread": {
-        "name": "M19",
-        "gross_spread_pct": 11.0
-      },
-      "most_efficient_market": {
-        "name": "M0",
-        "spread_efficiency_score": 86.75
-      },
-      "avg_spread_pct": 6.25,
-      "avg_efficiency_score": 50.67,
-      "inefficient_count": 6,
-      "wide_spread_count": 6,
-      "tight_count": 3,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.8048944,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Minimal",
-        "gross_spread_pct": 2.0
-      },
-      "widest_spread": {
-        "name": "Minimal",
-        "gross_spread_pct": 2.0
-      },
-      "most_efficient_market": {
-        "name": "Minimal",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.0,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.8123088,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.817848,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.823626,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1784451902.829196,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 5.0
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 5.0
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 57.5
-      },
-      "avg_spread_pct": 5.0,
-      "avg_efficiency_score": 57.5,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 0,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "markets": [],
-    "by_asset": {},
-    "best_supply_market": null,
-    "cheapest_borrow_market": null,
-    "average_spread_pct": 0.0,
-    "timestamp": 1785056279.0132027
-  },
-  {
-    "markets": [],
-    "by_asset": {},
-    "best_supply_market": null,
-    "cheapest_borrow_market": null,
-    "average_spread_pct": 0.0,
-    "timestamp": 1785056279.0194926
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 1.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 5.0,
-        "spread_efficiency": 16.666666666666664,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "POOR",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 38,
-        "flags": [
-          "LOW_SUPPLY_APY"
-        ]
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 1.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 5.0,
-    "timestamp": 1785056279.0248396
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.0303762
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.035584
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.0408442
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.0463212
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.051645
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.0568469
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.0619955
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.0676405
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.0726273
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.0775301
-  },
-  {
     "markets": [
       {
         "protocol": "Aave",
@@ -3127,5 +1729,1380 @@
     "cheapest_borrow_market": "Aave:USDC",
     "average_spread_pct": 26.0,
     "timestamp": 1785056279.3854022
+  },
+  {
+    "ts": 1785056296.445584,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.4503558,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.4548035,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.4593067,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 3.0
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 3.0
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 3.0,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 0,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.4636378,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.4681618,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.5
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.5
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 65.0
+      },
+      "avg_spread_pct": 2.5,
+      "avg_efficiency_score": 65.0,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.472649,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.476907,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 28.0
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 28.0
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 8.5
+      },
+      "avg_spread_pct": 28.0,
+      "avg_efficiency_score": 8.5,
+      "inefficient_count": 1,
+      "wide_spread_count": 0,
+      "tight_count": 0,
+      "high_utilization_risk_count": 1
+    }
+  },
+  {
+    "ts": 1785056296.4814007,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 3.0
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 3.0
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 3.0,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 0,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.4858403,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 3.0
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 3.0
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 3.0,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 0,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.4890912,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 3.0
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 3.0
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 3.0,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 0,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.493407,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 56.25
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 56.25,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 1
+    }
+  },
+  {
+    "ts": 1785056296.4976616,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.502441,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.5071318,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 10.0
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 10.0
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 34.75
+      },
+      "avg_spread_pct": 10.0,
+      "avg_efficiency_score": 34.75,
+      "inefficient_count": 1,
+      "wide_spread_count": 0,
+      "tight_count": 0,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.5130072,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.0
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.0
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 47.5
+      },
+      "avg_spread_pct": 2.0,
+      "avg_efficiency_score": 47.5,
+      "inefficient_count": 1,
+      "wide_spread_count": 0,
+      "tight_count": 0,
+      "high_utilization_risk_count": 1
+    }
+  },
+  {
+    "ts": 1785056296.5182576,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.5227263,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": -1.2
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": -1.2
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 93.25
+      },
+      "avg_spread_pct": -1.2,
+      "avg_efficiency_score": 93.25,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.5270274,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.5313585,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 65.0
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 65.0,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.5356684,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.539913,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.5443425,
+    "market_count": 5,
+    "aggregates": {
+      "market_count": 5,
+      "tightest_spread": {
+        "name": "M0",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "M0",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "M0",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 5,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.5486057,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Aave-USDC",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Aave-USDC",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Aave-USDC",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.552962,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 4.0
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 4.0
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 57.5
+      },
+      "avg_spread_pct": 4.0,
+      "avg_efficiency_score": 57.5,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 0,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.5574312,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": -2.7
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": -2.7
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 93.25
+      },
+      "avg_spread_pct": -2.7,
+      "avg_efficiency_score": 93.25,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.5617504,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.5660305,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 3.0
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 3.0
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 3.0,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 0,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.571627,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.5759447,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 1.5
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 1.5
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 86.75
+      },
+      "avg_spread_pct": 1.5,
+      "avg_efficiency_score": 86.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.5802195,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 1.2
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 1.2
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 86.75
+      },
+      "avg_spread_pct": 1.2,
+      "avg_efficiency_score": 86.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.5845134,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.5887146,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 7.0
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 7.0
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 44.5
+      },
+      "avg_spread_pct": 7.0,
+      "avg_efficiency_score": 44.5,
+      "inefficient_count": 0,
+      "wide_spread_count": 1,
+      "tight_count": 0,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.5932186,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 6.0
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 6.0
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 44.5
+      },
+      "avg_spread_pct": 6.0,
+      "avg_efficiency_score": 44.5,
+      "inefficient_count": 0,
+      "wide_spread_count": 1,
+      "tight_count": 0,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.5975058,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.601719,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 51.0
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 51.0,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.606157,
+    "market_count": 4,
+    "aggregates": {
+      "market_count": 4,
+      "tightest_spread": {
+        "name": "M0",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "M0",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "M0",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 4,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.6105685,
+    "market_count": 2,
+    "aggregates": {
+      "market_count": 2,
+      "tightest_spread": {
+        "name": "M1",
+        "gross_spread_pct": 2.0
+      },
+      "widest_spread": {
+        "name": "M2",
+        "gross_spread_pct": 4.0
+      },
+      "most_efficient_market": {
+        "name": "M1",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 3.0,
+      "avg_efficiency_score": 65.62,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.6148105,
+    "market_count": 3,
+    "aggregates": {
+      "market_count": 3,
+      "tightest_spread": {
+        "name": "H1",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "H1",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "OK",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 62.08,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 3,
+      "high_utilization_risk_count": 2
+    }
+  },
+  {
+    "ts": 1785056296.618995,
+    "market_count": 3,
+    "aggregates": {
+      "market_count": 3,
+      "tightest_spread": {
+        "name": "Bad2",
+        "gross_spread_pct": 2.0
+      },
+      "widest_spread": {
+        "name": "Bad1",
+        "gross_spread_pct": 10.0
+      },
+      "most_efficient_market": {
+        "name": "Good",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 4.8333,
+      "avg_efficiency_score": 52.0,
+      "inefficient_count": 2,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 1
+    }
+  },
+  {
+    "ts": 1785056296.6234095,
+    "market_count": 2,
+    "aggregates": {
+      "market_count": 2,
+      "tightest_spread": {
+        "name": "Eff",
+        "gross_spread_pct": 1.2
+      },
+      "widest_spread": {
+        "name": "Ineff",
+        "gross_spread_pct": 10.0
+      },
+      "most_efficient_market": {
+        "name": "Eff",
+        "spread_efficiency_score": 86.75
+      },
+      "avg_spread_pct": 5.6,
+      "avg_efficiency_score": 56.38,
+      "inefficient_count": 1,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.6276705,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.6321597,
+    "market_count": 3,
+    "aggregates": {
+      "market_count": 3,
+      "tightest_spread": {
+        "name": "T1",
+        "gross_spread_pct": 1.2
+      },
+      "widest_spread": {
+        "name": "N1",
+        "gross_spread_pct": 4.0
+      },
+      "most_efficient_market": {
+        "name": "T1",
+        "spread_efficiency_score": 86.75
+      },
+      "avg_spread_pct": 2.4,
+      "avg_efficiency_score": 69.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 2,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.6364677,
+    "market_count": 2,
+    "aggregates": {
+      "market_count": 2,
+      "tightest_spread": {
+        "name": "Tight",
+        "gross_spread_pct": 1.0
+      },
+      "widest_spread": {
+        "name": "Wide",
+        "gross_spread_pct": 9.0
+      },
+      "most_efficient_market": {
+        "name": "Tight",
+        "spread_efficiency_score": 86.75
+      },
+      "avg_spread_pct": 5.0,
+      "avg_efficiency_score": 60.75,
+      "inefficient_count": 1,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.640622,
+    "market_count": 2,
+    "aggregates": {
+      "market_count": 2,
+      "tightest_spread": {
+        "name": "Tight",
+        "gross_spread_pct": 1.0
+      },
+      "widest_spread": {
+        "name": "Wide",
+        "gross_spread_pct": 9.0
+      },
+      "most_efficient_market": {
+        "name": "Tight",
+        "spread_efficiency_score": 86.75
+      },
+      "avg_spread_pct": 5.0,
+      "avg_efficiency_score": 60.75,
+      "inefficient_count": 1,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.6581576,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": -2.0
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": -2.0
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 93.25
+      },
+      "avg_spread_pct": -2.0,
+      "avg_efficiency_score": 93.25,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.662739,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 1.5
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 1.5
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 86.75
+      },
+      "avg_spread_pct": 1.5,
+      "avg_efficiency_score": 86.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.6673303,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.0
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.0
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.0,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.6714888,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.6758273,
+    "market_count": 20,
+    "aggregates": {
+      "market_count": 20,
+      "tightest_spread": {
+        "name": "M0",
+        "gross_spread_pct": 1.5
+      },
+      "widest_spread": {
+        "name": "M19",
+        "gross_spread_pct": 11.0
+      },
+      "most_efficient_market": {
+        "name": "M0",
+        "spread_efficiency_score": 86.75
+      },
+      "avg_spread_pct": 6.25,
+      "avg_efficiency_score": 50.67,
+      "inefficient_count": 6,
+      "wide_spread_count": 6,
+      "tight_count": 3,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.6802151,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Minimal",
+        "gross_spread_pct": 2.0
+      },
+      "widest_spread": {
+        "name": "Minimal",
+        "gross_spread_pct": 2.0
+      },
+      "most_efficient_market": {
+        "name": "Minimal",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.0,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.6845179,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.6887698,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.6930313,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 2.3
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 73.75
+      },
+      "avg_spread_pct": 2.3,
+      "avg_efficiency_score": 73.75,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 1,
+      "high_utilization_risk_count": 0
+    }
+  },
+  {
+    "ts": 1785056296.697509,
+    "market_count": 1,
+    "aggregates": {
+      "market_count": 1,
+      "tightest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 5.0
+      },
+      "widest_spread": {
+        "name": "Test-Market",
+        "gross_spread_pct": 5.0
+      },
+      "most_efficient_market": {
+        "name": "Test-Market",
+        "spread_efficiency_score": 57.5
+      },
+      "avg_spread_pct": 5.0,
+      "avg_efficiency_score": 57.5,
+      "inefficient_count": 0,
+      "wide_spread_count": 0,
+      "tight_count": 0,
+      "high_utilization_risk_count": 0
+    }
   }
 ]
