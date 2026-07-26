@@ -1,14 +1,5 @@
 [
   {
-    "ts": "2026-07-26T09:27:25.776256+00:00",
-    "protocol_name": "unknown",
-    "estimated_wait_days": 0.0,
-    "withdrawal_label": "NO_QUEUE",
-    "withdrawal_risk_score": 0,
-    "wait_vs_sell_decision": "WAIT_FOR_WITHDRAWAL",
-    "my_position_usd": 0.0
-  },
-  {
     "ts": "2026-07-26T09:27:25.976734+00:00",
     "protocol_name": "unknown",
     "estimated_wait_days": 0.0,
@@ -892,6 +883,15 @@
   },
   {
     "ts": "2026-07-26T09:28:14.323125+00:00",
+    "protocol_name": "unknown",
+    "estimated_wait_days": 0.0,
+    "withdrawal_label": "NO_QUEUE",
+    "withdrawal_risk_score": 0,
+    "wait_vs_sell_decision": "WAIT_FOR_WITHDRAWAL",
+    "my_position_usd": 0.0
+  },
+  {
+    "ts": "2026-07-26T09:28:14.648379+00:00",
     "protocol_name": "unknown",
     "estimated_wait_days": 0.0,
     "withdrawal_label": "NO_QUEUE",
