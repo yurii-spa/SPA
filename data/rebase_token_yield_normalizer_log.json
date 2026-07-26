@@ -23,555 +23,6 @@
     "recommendations": [
       "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
     ],
-    "timestamp": 1785056302.4548345
-  },
-  {
-    "name": "TestToken",
-    "advertised_apy_pct": 5.0,
-    "rebase_frequency_per_day": 1.0,
-    "backing_value_growth_pct": 5.0,
-    "supply_growth_pct": 0.5,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 5.126749646744733,
-    "real_economic_yield_pct": 4.5,
-    "dilution_drag_pct": 0.5,
-    "cosmetic_rebase_ratio": 0.09090909090909091,
-    "purchasing_power_yield_pct": 4.5,
-    "normalization_gap_pct": 0.5,
-    "rebase_quality_score": 90.22727272727272,
-    "classification": "REAL_YIELD",
-    "grade": "A",
-    "flags": [
-      "STRONG_REAL_YIELD",
-      "BACKING_OUTPACES_SUPPLY"
-    ],
-    "recommendations": [
-      "Real yield: the 5.00% headline is backed by genuine backing growth (real economic yield ~4.50%). Minimal dilution.",
-      "Strong real yield: even after stripping out dilution the economic yield is healthy on its own.",
-      "Backing value grows faster than supply: the rebase is accretive rather than dilutive for holders."
-    ],
-    "timestamp": 1785056302.4928916
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056302.7834494
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056303.1004527
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056306.00399
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056306.339774
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056306.6591446
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056306.9815612
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056307.329977
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056307.6797175
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056308.024472
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056308.3944085
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056310.6550252
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056310.9727364
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056311.28891
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056311.6231272
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056311.936893
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056312.295818
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056312.6190479
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056312.994379
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
-    "timestamp": 1785056315.5108628
-  },
-  {
-    "name": "UNKNOWN",
-    "advertised_apy_pct": 0.0,
-    "rebase_frequency_per_day": 0.0,
-    "backing_value_growth_pct": 0.0,
-    "supply_growth_pct": 0.0,
-    "token_price_change_pct": 0.0,
-    "holder_share_pct": 100.0,
-    "data_quality_ok": true,
-    "effective_compounding_apy_pct": 0.0,
-    "real_economic_yield_pct": 0.0,
-    "dilution_drag_pct": 0.0,
-    "cosmetic_rebase_ratio": 0.0,
-    "purchasing_power_yield_pct": 0.0,
-    "normalization_gap_pct": 0.0,
-    "rebase_quality_score": 0.0,
-    "classification": "REAL_YIELD",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
-    ],
     "timestamp": 1785056315.8600452
   },
   {
@@ -2601,5 +2052,551 @@
       "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
     ],
     "timestamp": 1785056361.96678
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056364.4953122
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056364.8644118
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056365.2563813
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056365.6284573
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056366.0030549
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056366.3540785
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056366.7010505
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056367.05548
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056370.2345262
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056370.6371598
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056370.9949222
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056371.3561976
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056371.7092974
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056372.0594807
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056372.4149928
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056372.7607188
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056374.8807995
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056375.2239907
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056375.5993595
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056375.9581583
+  },
+  {
+    "name": "UNKNOWN",
+    "advertised_apy_pct": 0.0,
+    "rebase_frequency_per_day": 0.0,
+    "backing_value_growth_pct": 0.0,
+    "supply_growth_pct": 0.0,
+    "token_price_change_pct": 0.0,
+    "holder_share_pct": 100.0,
+    "data_quality_ok": true,
+    "effective_compounding_apy_pct": 0.0,
+    "real_economic_yield_pct": 0.0,
+    "dilution_drag_pct": 0.0,
+    "cosmetic_rebase_ratio": 0.0,
+    "purchasing_power_yield_pct": 0.0,
+    "normalization_gap_pct": 0.0,
+    "rebase_quality_score": 0.0,
+    "classification": "REAL_YIELD",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no advertised_apy_pct and no backing/supply growth supplied. Cannot normalise rebase yield for this token."
+    ],
+    "timestamp": 1785056376.3454676
   }
 ]
