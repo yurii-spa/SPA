@@ -12,576 +12,6 @@
     "recommendations": [
       "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
     ],
-    "timestamp": 1785057490.4071116
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057490.7646642
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057491.097779
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057491.4386897
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057491.7914128
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057492.121551
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057492.468617
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057492.8137093
-  },
-  {
-    "yield_source_name": "TestYield",
-    "dependency_chain": [
-      {
-        "name": "Proto",
-        "type": "protocol",
-        "failure_probability_pct": 5.0,
-        "tvl_usd": 100000000.0,
-        "is_centralized": false
-      }
-    ],
-    "max_chain_depth": 0,
-    "effective_depth": 1,
-    "total_failure_probability_pct": 5.000000000000004,
-    "weakest_link": {
-      "name": "Proto",
-      "type": "protocol",
-      "failure_probability_pct": 5.0,
-      "tvl_usd": 100000000.0,
-      "is_centralized": false
-    },
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0526315789473684,
-    "label": "SIMPLE_DEPENDENCY",
-    "recommendations": [
-      "Single dependency, low failure probability (5.0%). Well within acceptable risk tolerance for most strategies.",
-      "Weakest link: 'Proto' with 5.0% individual failure probability. Prioritise monitoring this dependency."
-    ],
-    "timestamp": 1785057571.5168004
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057623.4498265
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057623.818042
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057624.1638477
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057624.5334654
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057624.8665469
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057625.211734
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057625.5413797
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057625.8964245
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057627.195589
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057627.5729108
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057627.9467742
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057628.3381689
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057628.7125127
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057629.0731328
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057629.430569
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057629.7712817
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057631.2403495
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057631.58491
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057631.9188805
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057632.2637777
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057632.5797868
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057632.915005
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057633.260488
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057633.5910912
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057634.9381807
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057635.3004572
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057635.6438458
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
-    "timestamp": 1785057636.0553787
-  },
-  {
-    "yield_source_name": "UNKNOWN",
-    "dependency_chain": [],
-    "max_chain_depth": 0,
-    "effective_depth": 0,
-    "total_failure_probability_pct": 0.0,
-    "weakest_link": {},
-    "chain_centralization_score": 0.0,
-    "effective_yield_risk_multiplier": 1.0,
-    "label": "ATOMIC_YIELD",
-    "recommendations": [
-      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
-    ],
     "timestamp": 1785057636.3919952
   },
   {
@@ -1513,5 +943,560 @@
       "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
     ],
     "timestamp": 1785057666.2286332
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057667.4419
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057667.8040783
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057668.195395
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057668.555568
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057668.9160986
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057670.2602637
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057670.5983574
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057670.948433
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057671.3082726
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057671.6387353
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057671.982259
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057672.3526125
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057672.6810677
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057674.3497584
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057674.7276967
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057675.0869706
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057675.4585276
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057675.8071868
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057676.1527328
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057676.512234
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057676.8736796
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057678.1781614
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057678.5247917
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057678.8550732
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057679.2138717
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057679.5497413
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057679.899975
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057680.235094
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057680.5742602
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057682.987132
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057683.3458314
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057683.6893895
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057684.0224826
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057684.3456442
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057684.6797333
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057685.0121636
+  },
+  {
+    "yield_source_name": "UNKNOWN",
+    "dependency_chain": [],
+    "max_chain_depth": 0,
+    "effective_depth": 0,
+    "total_failure_probability_pct": 0.0,
+    "weakest_link": {},
+    "chain_centralization_score": 0.0,
+    "effective_yield_risk_multiplier": 1.0,
+    "label": "ATOMIC_YIELD",
+    "recommendations": [
+      "Yield source has no external dependencies. Structural risk is minimal \u2014 only smart-contract risk applies."
+    ],
+    "timestamp": 1785057685.3481715
   }
 ]
