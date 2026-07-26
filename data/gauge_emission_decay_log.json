@@ -27,66 +27,6 @@
     "recommendations": [
       "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
     ],
-    "timestamp": 1785056607.8429692
-  },
-  {
-    "name": "UNKNOWN",
-    "current_emission_tokens_per_week": 0.0,
-    "emission_decay_pct_per_week": 0.0,
-    "reward_token_price_usd": 0.0,
-    "lp_tvl_usd": 0.0,
-    "base_yield_apr_pct": 0.0,
-    "weeks_horizon": 52.0,
-    "gauge_share_pct": 100.0,
-    "emission_floor_tokens_per_week": 0.0,
-    "projected_emission_tokens_at_horizon": 0.0,
-    "current_incentive_apr_pct": 0.0,
-    "projected_incentive_apr_at_horizon_pct": 0.0,
-    "incentive_apr_half_life_weeks": 9999.0,
-    "total_apr_now_pct": 0.0,
-    "total_apr_at_horizon_pct": 0.0,
-    "incentive_dependence_pct": 0.0,
-    "weeks_until_incentive_below_base": 0.0,
-    "incentive_apr_drop_pct": 0.0,
-    "apr_cliff_severity_score": 0.0,
-    "classification": "STABLE",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
-    ],
-    "timestamp": 1785056608.191682
-  },
-  {
-    "name": "UNKNOWN",
-    "current_emission_tokens_per_week": 0.0,
-    "emission_decay_pct_per_week": 0.0,
-    "reward_token_price_usd": 0.0,
-    "lp_tvl_usd": 0.0,
-    "base_yield_apr_pct": 0.0,
-    "weeks_horizon": 52.0,
-    "gauge_share_pct": 100.0,
-    "emission_floor_tokens_per_week": 0.0,
-    "projected_emission_tokens_at_horizon": 0.0,
-    "current_incentive_apr_pct": 0.0,
-    "projected_incentive_apr_at_horizon_pct": 0.0,
-    "incentive_apr_half_life_weeks": 9999.0,
-    "total_apr_now_pct": 0.0,
-    "total_apr_at_horizon_pct": 0.0,
-    "incentive_dependence_pct": 0.0,
-    "weeks_until_incentive_below_base": 0.0,
-    "incentive_apr_drop_pct": 0.0,
-    "apr_cliff_severity_score": 0.0,
-    "classification": "STABLE",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
-    ],
     "timestamp": 1785056608.5531104
   },
   {
@@ -2998,5 +2938,67 @@
       "Insufficient data: lp_tvl_usd <= 0 or no emissions supplied. Cannot forecast gauge emission decay for this position."
     ],
     "timestamp": 1785056662.0738115
+  },
+  {
+    "name": "TestGauge",
+    "current_emission_tokens_per_week": 100000.0,
+    "emission_decay_pct_per_week": 1.5,
+    "reward_token_price_usd": 0.5,
+    "lp_tvl_usd": 2000000.0,
+    "base_yield_apr_pct": 3.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 45570.52016582567,
+    "current_incentive_apr_pct": 130.0,
+    "projected_incentive_apr_at_horizon_pct": 59.24167621557338,
+    "incentive_apr_half_life_weeks": 45.862365452420185,
+    "total_apr_now_pct": 133.0,
+    "total_apr_at_horizon_pct": 62.24167621557338,
+    "incentive_dependence_pct": 97.74436090225564,
+    "weeks_until_incentive_below_base": 249.37226954596824,
+    "incentive_apr_drop_pct": 54.42947983417432,
+    "apr_cliff_severity_score": 70.20511431944584,
+    "classification": "MODERATE_DECAY",
+    "grade": "F",
+    "flags": [
+      "HIGH_INCENTIVE_DEPENDENCE"
+    ],
+    "recommendations": [
+      "Moderate emission decay: incentive APR declines from 130.00% to 59.24% over the horizon. Monitor emissions and re-underwrite periodically.",
+      "High incentive dependence (98% of total APR): yield relies on emissions and is exposed to their decay."
+    ],
+    "timestamp": 1785056685.1236129
+  },
+  {
+    "name": "TestGauge",
+    "current_emission_tokens_per_week": 100000.0,
+    "emission_decay_pct_per_week": 1.5,
+    "reward_token_price_usd": 0.5,
+    "lp_tvl_usd": 2000000.0,
+    "base_yield_apr_pct": 3.0,
+    "weeks_horizon": 52.0,
+    "gauge_share_pct": 100.0,
+    "emission_floor_tokens_per_week": 0.0,
+    "projected_emission_tokens_at_horizon": 45570.52016582567,
+    "current_incentive_apr_pct": 130.0,
+    "projected_incentive_apr_at_horizon_pct": 59.24167621557338,
+    "incentive_apr_half_life_weeks": 45.862365452420185,
+    "total_apr_now_pct": 133.0,
+    "total_apr_at_horizon_pct": 62.24167621557338,
+    "incentive_dependence_pct": 97.74436090225564,
+    "weeks_until_incentive_below_base": 249.37226954596824,
+    "incentive_apr_drop_pct": 54.42947983417432,
+    "apr_cliff_severity_score": 70.20511431944584,
+    "classification": "MODERATE_DECAY",
+    "grade": "F",
+    "flags": [
+      "HIGH_INCENTIVE_DEPENDENCE"
+    ],
+    "recommendations": [
+      "Moderate emission decay: incentive APR declines from 130.00% to 59.24% over the horizon. Monitor emissions and re-underwrite periodically.",
+      "High incentive dependence (98% of total APR): yield relies on emissions and is exposed to their decay."
+    ],
+    "timestamp": 1785056685.438977
   }
 ]
