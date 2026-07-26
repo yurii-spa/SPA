@@ -1,2061 +1,5 @@
 [
   {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.0823367
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.087135
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.091942
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.0967295
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.5,
-        "borrow_apy_pct": 5.2,
-        "spread_pct": 1.7000000000000002,
-        "spread_efficiency": 67.3076923076923,
-        "utilization_rate_pct": 67.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 64,
-        "flags": []
-      },
-      {
-        "protocol": "Compound",
-        "asset": "USDC",
-        "supply_apy_pct": 4.8,
-        "borrow_apy_pct": 6.1,
-        "spread_pct": 1.2999999999999998,
-        "spread_efficiency": 78.68852459016394,
-        "utilization_rate_pct": 79.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 72,
-        "flags": []
-      },
-      {
-        "protocol": "Morpho",
-        "asset": "ETH",
-        "supply_apy_pct": 2.1,
-        "borrow_apy_pct": 4.0,
-        "spread_pct": 1.9,
-        "spread_efficiency": 52.5,
-        "utilization_rate_pct": 55.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "FAIR",
-        "borrower_cost_label": "CHEAP",
-        "market_score": 54,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.8,
-        "lowest_borrow_apy": 5.2,
-        "market_count": 2
-      },
-      "ETH": {
-        "best_supply_apy": 2.1,
-        "lowest_borrow_apy": 4.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Compound:USDC",
-    "cheapest_borrow_market": "Morpho:ETH",
-    "average_spread_pct": 1.6333333333333335,
-    "timestamp": 1785056279.1017435
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.5,
-        "borrow_apy_pct": 5.2,
-        "spread_pct": 1.7000000000000002,
-        "spread_efficiency": 67.3076923076923,
-        "utilization_rate_pct": 67.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 64,
-        "flags": []
-      },
-      {
-        "protocol": "Compound",
-        "asset": "USDC",
-        "supply_apy_pct": 4.8,
-        "borrow_apy_pct": 6.1,
-        "spread_pct": 1.2999999999999998,
-        "spread_efficiency": 78.68852459016394,
-        "utilization_rate_pct": 79.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 72,
-        "flags": []
-      },
-      {
-        "protocol": "Morpho",
-        "asset": "ETH",
-        "supply_apy_pct": 2.1,
-        "borrow_apy_pct": 4.0,
-        "spread_pct": 1.9,
-        "spread_efficiency": 52.5,
-        "utilization_rate_pct": 55.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "FAIR",
-        "borrower_cost_label": "CHEAP",
-        "market_score": 54,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.8,
-        "lowest_borrow_apy": 5.2,
-        "market_count": 2
-      },
-      "ETH": {
-        "best_supply_apy": 2.1,
-        "lowest_borrow_apy": 4.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Compound:USDC",
-    "cheapest_borrow_market": "Morpho:ETH",
-    "average_spread_pct": 1.6333333333333335,
-    "timestamp": 1785056279.106665
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.5,
-        "borrow_apy_pct": 5.2,
-        "spread_pct": 1.7000000000000002,
-        "spread_efficiency": 67.3076923076923,
-        "utilization_rate_pct": 67.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 64,
-        "flags": []
-      },
-      {
-        "protocol": "Compound",
-        "asset": "USDC",
-        "supply_apy_pct": 4.8,
-        "borrow_apy_pct": 6.1,
-        "spread_pct": 1.2999999999999998,
-        "spread_efficiency": 78.68852459016394,
-        "utilization_rate_pct": 79.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 72,
-        "flags": []
-      },
-      {
-        "protocol": "Morpho",
-        "asset": "ETH",
-        "supply_apy_pct": 2.1,
-        "borrow_apy_pct": 4.0,
-        "spread_pct": 1.9,
-        "spread_efficiency": 52.5,
-        "utilization_rate_pct": 55.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "FAIR",
-        "borrower_cost_label": "CHEAP",
-        "market_score": 54,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.8,
-        "lowest_borrow_apy": 5.2,
-        "market_count": 2
-      },
-      "ETH": {
-        "best_supply_apy": 2.1,
-        "lowest_borrow_apy": 4.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Compound:USDC",
-    "cheapest_borrow_market": "Morpho:ETH",
-    "average_spread_pct": 1.6333333333333335,
-    "timestamp": 1785056279.1115549
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.5,
-        "borrow_apy_pct": 5.2,
-        "spread_pct": 1.7000000000000002,
-        "spread_efficiency": 67.3076923076923,
-        "utilization_rate_pct": 67.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 64,
-        "flags": []
-      },
-      {
-        "protocol": "Compound",
-        "asset": "USDC",
-        "supply_apy_pct": 4.8,
-        "borrow_apy_pct": 6.1,
-        "spread_pct": 1.2999999999999998,
-        "spread_efficiency": 78.68852459016394,
-        "utilization_rate_pct": 79.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 72,
-        "flags": []
-      },
-      {
-        "protocol": "Morpho",
-        "asset": "ETH",
-        "supply_apy_pct": 2.1,
-        "borrow_apy_pct": 4.0,
-        "spread_pct": 1.9,
-        "spread_efficiency": 52.5,
-        "utilization_rate_pct": 55.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "FAIR",
-        "borrower_cost_label": "CHEAP",
-        "market_score": 54,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.8,
-        "lowest_borrow_apy": 5.2,
-        "market_count": 2
-      },
-      "ETH": {
-        "best_supply_apy": 2.1,
-        "lowest_borrow_apy": 4.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Compound:USDC",
-    "cheapest_borrow_market": "Morpho:ETH",
-    "average_spread_pct": 1.6333333333333335,
-    "timestamp": 1785056279.1168983
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.5,
-        "borrow_apy_pct": 5.2,
-        "spread_pct": 1.7000000000000002,
-        "spread_efficiency": 67.3076923076923,
-        "utilization_rate_pct": 67.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 64,
-        "flags": []
-      },
-      {
-        "protocol": "Compound",
-        "asset": "USDC",
-        "supply_apy_pct": 4.8,
-        "borrow_apy_pct": 6.1,
-        "spread_pct": 1.2999999999999998,
-        "spread_efficiency": 78.68852459016394,
-        "utilization_rate_pct": 79.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 72,
-        "flags": []
-      },
-      {
-        "protocol": "Morpho",
-        "asset": "ETH",
-        "supply_apy_pct": 2.1,
-        "borrow_apy_pct": 4.0,
-        "spread_pct": 1.9,
-        "spread_efficiency": 52.5,
-        "utilization_rate_pct": 55.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "FAIR",
-        "borrower_cost_label": "CHEAP",
-        "market_score": 54,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.8,
-        "lowest_borrow_apy": 5.2,
-        "market_count": 2
-      },
-      "ETH": {
-        "best_supply_apy": 2.1,
-        "lowest_borrow_apy": 4.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Compound:USDC",
-    "cheapest_borrow_market": "Morpho:ETH",
-    "average_spread_pct": 1.6333333333333335,
-    "timestamp": 1785056279.1219697
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.5,
-        "borrow_apy_pct": 5.2,
-        "spread_pct": 1.7000000000000002,
-        "spread_efficiency": 67.3076923076923,
-        "utilization_rate_pct": 67.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 64,
-        "flags": []
-      },
-      {
-        "protocol": "Compound",
-        "asset": "USDC",
-        "supply_apy_pct": 4.8,
-        "borrow_apy_pct": 6.1,
-        "spread_pct": 1.2999999999999998,
-        "spread_efficiency": 78.68852459016394,
-        "utilization_rate_pct": 79.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 72,
-        "flags": []
-      },
-      {
-        "protocol": "Morpho",
-        "asset": "ETH",
-        "supply_apy_pct": 2.1,
-        "borrow_apy_pct": 4.0,
-        "spread_pct": 1.9,
-        "spread_efficiency": 52.5,
-        "utilization_rate_pct": 55.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "FAIR",
-        "borrower_cost_label": "CHEAP",
-        "market_score": 54,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.8,
-        "lowest_borrow_apy": 5.2,
-        "market_count": 2
-      },
-      "ETH": {
-        "best_supply_apy": 2.1,
-        "lowest_borrow_apy": 4.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Compound:USDC",
-    "cheapest_borrow_market": "Morpho:ETH",
-    "average_spread_pct": 1.6333333333333335,
-    "timestamp": 1785056279.127128
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.5,
-        "borrow_apy_pct": 5.2,
-        "spread_pct": 1.7000000000000002,
-        "spread_efficiency": 67.3076923076923,
-        "utilization_rate_pct": 67.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 64,
-        "flags": []
-      },
-      {
-        "protocol": "Compound",
-        "asset": "USDC",
-        "supply_apy_pct": 4.8,
-        "borrow_apy_pct": 6.1,
-        "spread_pct": 1.2999999999999998,
-        "spread_efficiency": 78.68852459016394,
-        "utilization_rate_pct": 79.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 72,
-        "flags": []
-      },
-      {
-        "protocol": "Morpho",
-        "asset": "ETH",
-        "supply_apy_pct": 2.1,
-        "borrow_apy_pct": 4.0,
-        "spread_pct": 1.9,
-        "spread_efficiency": 52.5,
-        "utilization_rate_pct": 55.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "FAIR",
-        "borrower_cost_label": "CHEAP",
-        "market_score": 54,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.8,
-        "lowest_borrow_apy": 5.2,
-        "market_count": 2
-      },
-      "ETH": {
-        "best_supply_apy": 2.1,
-        "lowest_borrow_apy": 4.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Compound:USDC",
-    "cheapest_borrow_market": "Morpho:ETH",
-    "average_spread_pct": 1.6333333333333335,
-    "timestamp": 1785056279.132306
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.5,
-        "borrow_apy_pct": 5.2,
-        "spread_pct": 1.7000000000000002,
-        "spread_efficiency": 67.3076923076923,
-        "utilization_rate_pct": 67.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 64,
-        "flags": []
-      },
-      {
-        "protocol": "Compound",
-        "asset": "USDC",
-        "supply_apy_pct": 4.8,
-        "borrow_apy_pct": 6.1,
-        "spread_pct": 1.2999999999999998,
-        "spread_efficiency": 78.68852459016394,
-        "utilization_rate_pct": 79.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 72,
-        "flags": []
-      },
-      {
-        "protocol": "Morpho",
-        "asset": "ETH",
-        "supply_apy_pct": 2.1,
-        "borrow_apy_pct": 4.0,
-        "spread_pct": 1.9,
-        "spread_efficiency": 52.5,
-        "utilization_rate_pct": 55.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "FAIR",
-        "borrower_cost_label": "CHEAP",
-        "market_score": 54,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.8,
-        "lowest_borrow_apy": 5.2,
-        "market_count": 2
-      },
-      "ETH": {
-        "best_supply_apy": 2.1,
-        "lowest_borrow_apy": 4.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Compound:USDC",
-    "cheapest_borrow_market": "Morpho:ETH",
-    "average_spread_pct": 1.6333333333333335,
-    "timestamp": 1785056279.137702
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.5,
-        "borrow_apy_pct": 5.2,
-        "spread_pct": 1.7000000000000002,
-        "spread_efficiency": 67.3076923076923,
-        "utilization_rate_pct": 67.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 64,
-        "flags": []
-      },
-      {
-        "protocol": "Compound",
-        "asset": "USDC",
-        "supply_apy_pct": 4.8,
-        "borrow_apy_pct": 6.1,
-        "spread_pct": 1.2999999999999998,
-        "spread_efficiency": 78.68852459016394,
-        "utilization_rate_pct": 79.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 72,
-        "flags": []
-      },
-      {
-        "protocol": "Morpho",
-        "asset": "ETH",
-        "supply_apy_pct": 2.1,
-        "borrow_apy_pct": 4.0,
-        "spread_pct": 1.9,
-        "spread_efficiency": 52.5,
-        "utilization_rate_pct": 55.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "FAIR",
-        "borrower_cost_label": "CHEAP",
-        "market_score": 54,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.8,
-        "lowest_borrow_apy": 5.2,
-        "market_count": 2
-      },
-      "ETH": {
-        "best_supply_apy": 2.1,
-        "lowest_borrow_apy": 4.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Compound:USDC",
-    "cheapest_borrow_market": "Morpho:ETH",
-    "average_spread_pct": 1.6333333333333335,
-    "timestamp": 1785056279.1647537
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.0,
-        "borrow_apy_pct": 0.0,
-        "spread_pct": -3.0,
-        "spread_efficiency": 100.0,
-        "utilization_rate_pct": 5.0,
-        "utilization_label": "IDLE",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "CHEAP",
-        "market_score": 48,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 3.0,
-        "lowest_borrow_apy": 0.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": null,
-    "average_spread_pct": -3.0,
-    "timestamp": 1785056279.1702728
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.0,
-        "borrow_apy_pct": 0.0,
-        "spread_pct": -3.0,
-        "spread_efficiency": 100.0,
-        "utilization_rate_pct": 5.0,
-        "utilization_label": "IDLE",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "CHEAP",
-        "market_score": 48,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 3.0,
-        "lowest_borrow_apy": 0.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": null,
-    "average_spread_pct": -3.0,
-    "timestamp": 1785056279.1754467
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.0,
-        "borrow_apy_pct": 0.0,
-        "spread_pct": -3.0,
-        "spread_efficiency": 100.0,
-        "utilization_rate_pct": 5.0,
-        "utilization_label": "IDLE",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "CHEAP",
-        "market_score": 48,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 3.0,
-        "lowest_borrow_apy": 0.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": null,
-    "average_spread_pct": -3.0,
-    "timestamp": 1785056279.1811073
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.0,
-        "borrow_apy_pct": 0.0,
-        "spread_pct": -3.0,
-        "spread_efficiency": 100.0,
-        "utilization_rate_pct": 5.0,
-        "utilization_label": "IDLE",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "CHEAP",
-        "market_score": 48,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 3.0,
-        "lowest_borrow_apy": 0.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": null,
-    "average_spread_pct": -3.0,
-    "timestamp": 1785056279.1863582
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.0,
-        "borrow_apy_pct": 0.0,
-        "spread_pct": -3.0,
-        "spread_efficiency": 100.0,
-        "utilization_rate_pct": 5.0,
-        "utilization_label": "IDLE",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "CHEAP",
-        "market_score": 48,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 3.0,
-        "lowest_borrow_apy": 0.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": null,
-    "average_spread_pct": -3.0,
-    "timestamp": 1785056279.1916409
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 0.0,
-        "borrow_apy_pct": 0.0,
-        "spread_pct": 0.0,
-        "spread_efficiency": 100.0,
-        "utilization_rate_pct": 0.0,
-        "utilization_label": "IDLE",
-        "reserve_capture_pct": 0.0,
-        "lender_rate_quality": "POOR",
-        "borrower_cost_label": "CHEAP",
-        "market_score": 36,
-        "flags": [
-          "LOW_SUPPLY_APY"
-        ]
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 0.0,
-        "lowest_borrow_apy": 0.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": null,
-    "average_spread_pct": 0.0,
-    "timestamp": 1785056279.1969955
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 5.0,
-        "borrow_apy_pct": 5.0,
-        "spread_pct": 0.0,
-        "spread_efficiency": 100.0,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "EXCELLENT",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 80,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 5.0,
-        "lowest_borrow_apy": 5.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 0.0,
-    "timestamp": 1785056279.2032368
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 3.0,
-        "spread_efficiency": 50.0,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 57,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 3.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 3.0,
-    "timestamp": 1785056279.2085686
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 7.0,
-        "borrow_apy_pct": 5.0,
-        "spread_pct": -2.0,
-        "spread_efficiency": 140.0,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "EXCELLENT",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 88,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 7.0,
-        "lowest_borrow_apy": 5.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": -2.0,
-    "timestamp": 1785056279.2140129
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 10.0,
-        "spread_pct": 6.0,
-        "spread_efficiency": 40.0,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "EXPENSIVE",
-        "market_score": 58,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 10.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 6.0,
-    "timestamp": 1785056279.2194273
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 10.0,
-        "spread_pct": 6.0,
-        "spread_efficiency": 40.0,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "EXPENSIVE",
-        "market_score": 58,
-        "flags": [
-          "HIGH_BORROW_APY"
-        ]
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 10.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 6.0,
-    "timestamp": 1785056279.2250452
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 3.0,
-        "spread_efficiency": 50.0,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 57,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 3.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 3.0,
-    "timestamp": 1785056279.2309985
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 3.0,
-        "spread_efficiency": 50.0,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 57,
-        "flags": [
-          "LOW_SUPPLY_APY"
-        ]
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 3.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 3.0,
-    "timestamp": 1785056279.2364218
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.2418218
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.2472696
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.2525902
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.2578845
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.2629957
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 85.0,
-        "utilization_label": "HIGH",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 56,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.3111002
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 86.0,
-        "utilization_label": "HIGH",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 56,
-        "flags": [
-          "NEAR_MAX_UTILIZATION"
-        ]
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.3165195
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 90.0,
-        "utilization_label": "CRITICAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 44,
-        "flags": [
-          "NEAR_MAX_UTILIZATION"
-        ]
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.321705
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 99.0,
-        "utilization_label": "CRITICAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 44,
-        "flags": [
-          "NEAR_MAX_UTILIZATION"
-        ]
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.32695
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 20.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.3325784
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 21.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": [
-          "HIGH_RESERVE_CAPTURE"
-        ]
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.33782
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 66.66666666666666,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 15.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 65,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.3431432
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.0,
-        "borrow_apy_pct": 5.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 60.0,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 60,
-        "flags": []
-      },
-      {
-        "protocol": "Aave",
-        "asset": "DAI",
-        "supply_apy_pct": 3.2,
-        "borrow_apy_pct": 4.8,
-        "spread_pct": 1.5999999999999996,
-        "spread_efficiency": 66.66666666666667,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "CHEAP",
-        "market_score": 62,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 3.0,
-        "lowest_borrow_apy": 5.0,
-        "market_count": 1
-      },
-      "DAI": {
-        "best_supply_apy": 3.2,
-        "lowest_borrow_apy": 4.8,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:DAI",
-    "cheapest_borrow_market": "Aave:DAI",
-    "average_spread_pct": 1.7999999999999998,
-    "timestamp": 1785056279.3486192
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 0.0,
-        "spread_pct": -4.0,
-        "spread_efficiency": 100.0,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "CHEAP",
-        "market_score": 76,
-        "flags": []
-      },
-      {
-        "protocol": "Compound",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 5.0,
-        "spread_pct": 1.0,
-        "spread_efficiency": 80.0,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 70,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 5.0,
-        "market_count": 2
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Compound:USDC",
-    "average_spread_pct": -1.5,
-    "timestamp": 1785056279.3540168
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 3.0,
-        "borrow_apy_pct": 5.0,
-        "spread_pct": 2.0,
-        "spread_efficiency": 60.0,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 60,
-        "flags": []
-      },
-      {
-        "protocol": "Compound",
-        "asset": "USDC",
-        "supply_apy_pct": 4.5,
-        "borrow_apy_pct": 6.5,
-        "spread_pct": 2.0,
-        "spread_efficiency": 69.23076923076923,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 68,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.5,
-        "lowest_borrow_apy": 5.0,
-        "market_count": 2
-      }
-    },
-    "best_supply_market": "Compound:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 2.0,
-    "timestamp": 1785056279.359401
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 10.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": -4.0,
-        "spread_efficiency": 166.66666666666669,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "EXCELLENT",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 100,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 10.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": -4.0,
-    "timestamp": 1785056279.3656552
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 5.0,
-        "borrow_apy_pct": 6.0,
-        "spread_pct": 1.0,
-        "spread_efficiency": 83.33333333333334,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "EXCELLENT",
-        "borrower_cost_label": "MODERATE",
-        "market_score": 74,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 5.0,
-        "lowest_borrow_apy": 6.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 1.0,
-    "timestamp": 1785056279.3717127
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 15.0,
-        "spread_pct": 11.0,
-        "spread_efficiency": 26.666666666666668,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "VERY_EXPENSIVE",
-        "market_score": 53,
-        "flags": []
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 15.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 11.0,
-    "timestamp": 1785056279.3781412
-  },
-  {
-    "markets": [
-      {
-        "protocol": "Aave",
-        "asset": "USDC",
-        "supply_apy_pct": 4.0,
-        "borrow_apy_pct": 30.0,
-        "spread_pct": 26.0,
-        "spread_efficiency": 13.333333333333334,
-        "utilization_rate_pct": 65.0,
-        "utilization_label": "OPTIMAL",
-        "reserve_capture_pct": 10.0,
-        "lender_rate_quality": "GOOD",
-        "borrower_cost_label": "VERY_EXPENSIVE",
-        "market_score": 49,
-        "flags": [
-          "HIGH_BORROW_APY"
-        ]
-      }
-    ],
-    "by_asset": {
-      "USDC": {
-        "best_supply_apy": 4.0,
-        "lowest_borrow_apy": 30.0,
-        "market_count": 1
-      }
-    },
-    "best_supply_market": "Aave:USDC",
-    "cheapest_borrow_market": "Aave:USDC",
-    "average_spread_pct": 26.0,
-    "timestamp": 1785056279.3854022
-  },
-  {
-    "ts": 1785056296.445584,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1785056296.4503558,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1785056296.4548035,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1785056296.4593067,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 3.0
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 3.0
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 3.0,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 0,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1785056296.4636378,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1785056296.4681618,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.5
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.5
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 65.0
-      },
-      "avg_spread_pct": 2.5,
-      "avg_efficiency_score": 65.0,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1785056296.472649,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1785056296.476907,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 28.0
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 28.0
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 8.5
-      },
-      "avg_spread_pct": 28.0,
-      "avg_efficiency_score": 8.5,
-      "inefficient_count": 1,
-      "wide_spread_count": 0,
-      "tight_count": 0,
-      "high_utilization_risk_count": 1
-    }
-  },
-  {
-    "ts": 1785056296.4814007,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 3.0
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 3.0
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 3.0,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 0,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1785056296.4858403,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 3.0
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 3.0
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 3.0,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 0,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1785056296.4890912,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 3.0
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 3.0
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 3.0,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 0,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
-    "ts": 1785056296.493407,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 56.25
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 56.25,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 1
-    }
-  },
-  {
-    "ts": 1785056296.4976616,
-    "market_count": 1,
-    "aggregates": {
-      "market_count": 1,
-      "tightest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "widest_spread": {
-        "name": "Test-Market",
-        "gross_spread_pct": 2.3
-      },
-      "most_efficient_market": {
-        "name": "Test-Market",
-        "spread_efficiency_score": 73.75
-      },
-      "avg_spread_pct": 2.3,
-      "avg_efficiency_score": 73.75,
-      "inefficient_count": 0,
-      "wide_spread_count": 0,
-      "tight_count": 1,
-      "high_utilization_risk_count": 0
-    }
-  },
-  {
     "ts": 1785056296.502441,
     "market_count": 1,
     "aggregates": {
@@ -3104,5 +1048,2084 @@
       "tight_count": 0,
       "high_utilization_risk_count": 0
     }
+  },
+  {
+    "markets": [],
+    "by_asset": {},
+    "best_supply_market": null,
+    "cheapest_borrow_market": null,
+    "average_spread_pct": 0.0,
+    "timestamp": 1785056670.3888023
+  },
+  {
+    "markets": [],
+    "by_asset": {},
+    "best_supply_market": null,
+    "cheapest_borrow_market": null,
+    "average_spread_pct": 0.0,
+    "timestamp": 1785056670.3949351
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 1.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 5.0,
+        "spread_efficiency": 16.666666666666664,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "POOR",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 38,
+        "flags": [
+          "LOW_SUPPLY_APY"
+        ]
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 1.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 5.0,
+    "timestamp": 1785056670.4005911
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.406293
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.411962
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.4174852
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.4226964
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.4278686
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.4328446
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.437961
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.4429448
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.4480004
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.4529397
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.4580266
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.4629695
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.4679782
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.4728112
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.5,
+        "borrow_apy_pct": 5.2,
+        "spread_pct": 1.7000000000000002,
+        "spread_efficiency": 67.3076923076923,
+        "utilization_rate_pct": 67.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 64,
+        "flags": []
+      },
+      {
+        "protocol": "Compound",
+        "asset": "USDC",
+        "supply_apy_pct": 4.8,
+        "borrow_apy_pct": 6.1,
+        "spread_pct": 1.2999999999999998,
+        "spread_efficiency": 78.68852459016394,
+        "utilization_rate_pct": 79.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 72,
+        "flags": []
+      },
+      {
+        "protocol": "Morpho",
+        "asset": "ETH",
+        "supply_apy_pct": 2.1,
+        "borrow_apy_pct": 4.0,
+        "spread_pct": 1.9,
+        "spread_efficiency": 52.5,
+        "utilization_rate_pct": 55.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "FAIR",
+        "borrower_cost_label": "CHEAP",
+        "market_score": 54,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.8,
+        "lowest_borrow_apy": 5.2,
+        "market_count": 2
+      },
+      "ETH": {
+        "best_supply_apy": 2.1,
+        "lowest_borrow_apy": 4.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Compound:USDC",
+    "cheapest_borrow_market": "Morpho:ETH",
+    "average_spread_pct": 1.6333333333333335,
+    "timestamp": 1785056670.477823
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.5,
+        "borrow_apy_pct": 5.2,
+        "spread_pct": 1.7000000000000002,
+        "spread_efficiency": 67.3076923076923,
+        "utilization_rate_pct": 67.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 64,
+        "flags": []
+      },
+      {
+        "protocol": "Compound",
+        "asset": "USDC",
+        "supply_apy_pct": 4.8,
+        "borrow_apy_pct": 6.1,
+        "spread_pct": 1.2999999999999998,
+        "spread_efficiency": 78.68852459016394,
+        "utilization_rate_pct": 79.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 72,
+        "flags": []
+      },
+      {
+        "protocol": "Morpho",
+        "asset": "ETH",
+        "supply_apy_pct": 2.1,
+        "borrow_apy_pct": 4.0,
+        "spread_pct": 1.9,
+        "spread_efficiency": 52.5,
+        "utilization_rate_pct": 55.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "FAIR",
+        "borrower_cost_label": "CHEAP",
+        "market_score": 54,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.8,
+        "lowest_borrow_apy": 5.2,
+        "market_count": 2
+      },
+      "ETH": {
+        "best_supply_apy": 2.1,
+        "lowest_borrow_apy": 4.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Compound:USDC",
+    "cheapest_borrow_market": "Morpho:ETH",
+    "average_spread_pct": 1.6333333333333335,
+    "timestamp": 1785056670.4828467
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.5,
+        "borrow_apy_pct": 5.2,
+        "spread_pct": 1.7000000000000002,
+        "spread_efficiency": 67.3076923076923,
+        "utilization_rate_pct": 67.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 64,
+        "flags": []
+      },
+      {
+        "protocol": "Compound",
+        "asset": "USDC",
+        "supply_apy_pct": 4.8,
+        "borrow_apy_pct": 6.1,
+        "spread_pct": 1.2999999999999998,
+        "spread_efficiency": 78.68852459016394,
+        "utilization_rate_pct": 79.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 72,
+        "flags": []
+      },
+      {
+        "protocol": "Morpho",
+        "asset": "ETH",
+        "supply_apy_pct": 2.1,
+        "borrow_apy_pct": 4.0,
+        "spread_pct": 1.9,
+        "spread_efficiency": 52.5,
+        "utilization_rate_pct": 55.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "FAIR",
+        "borrower_cost_label": "CHEAP",
+        "market_score": 54,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.8,
+        "lowest_borrow_apy": 5.2,
+        "market_count": 2
+      },
+      "ETH": {
+        "best_supply_apy": 2.1,
+        "lowest_borrow_apy": 4.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Compound:USDC",
+    "cheapest_borrow_market": "Morpho:ETH",
+    "average_spread_pct": 1.6333333333333335,
+    "timestamp": 1785056670.48785
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.5,
+        "borrow_apy_pct": 5.2,
+        "spread_pct": 1.7000000000000002,
+        "spread_efficiency": 67.3076923076923,
+        "utilization_rate_pct": 67.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 64,
+        "flags": []
+      },
+      {
+        "protocol": "Compound",
+        "asset": "USDC",
+        "supply_apy_pct": 4.8,
+        "borrow_apy_pct": 6.1,
+        "spread_pct": 1.2999999999999998,
+        "spread_efficiency": 78.68852459016394,
+        "utilization_rate_pct": 79.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 72,
+        "flags": []
+      },
+      {
+        "protocol": "Morpho",
+        "asset": "ETH",
+        "supply_apy_pct": 2.1,
+        "borrow_apy_pct": 4.0,
+        "spread_pct": 1.9,
+        "spread_efficiency": 52.5,
+        "utilization_rate_pct": 55.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "FAIR",
+        "borrower_cost_label": "CHEAP",
+        "market_score": 54,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.8,
+        "lowest_borrow_apy": 5.2,
+        "market_count": 2
+      },
+      "ETH": {
+        "best_supply_apy": 2.1,
+        "lowest_borrow_apy": 4.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Compound:USDC",
+    "cheapest_borrow_market": "Morpho:ETH",
+    "average_spread_pct": 1.6333333333333335,
+    "timestamp": 1785056670.4931161
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.5,
+        "borrow_apy_pct": 5.2,
+        "spread_pct": 1.7000000000000002,
+        "spread_efficiency": 67.3076923076923,
+        "utilization_rate_pct": 67.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 64,
+        "flags": []
+      },
+      {
+        "protocol": "Compound",
+        "asset": "USDC",
+        "supply_apy_pct": 4.8,
+        "borrow_apy_pct": 6.1,
+        "spread_pct": 1.2999999999999998,
+        "spread_efficiency": 78.68852459016394,
+        "utilization_rate_pct": 79.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 72,
+        "flags": []
+      },
+      {
+        "protocol": "Morpho",
+        "asset": "ETH",
+        "supply_apy_pct": 2.1,
+        "borrow_apy_pct": 4.0,
+        "spread_pct": 1.9,
+        "spread_efficiency": 52.5,
+        "utilization_rate_pct": 55.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "FAIR",
+        "borrower_cost_label": "CHEAP",
+        "market_score": 54,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.8,
+        "lowest_borrow_apy": 5.2,
+        "market_count": 2
+      },
+      "ETH": {
+        "best_supply_apy": 2.1,
+        "lowest_borrow_apy": 4.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Compound:USDC",
+    "cheapest_borrow_market": "Morpho:ETH",
+    "average_spread_pct": 1.6333333333333335,
+    "timestamp": 1785056670.4983003
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.5,
+        "borrow_apy_pct": 5.2,
+        "spread_pct": 1.7000000000000002,
+        "spread_efficiency": 67.3076923076923,
+        "utilization_rate_pct": 67.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 64,
+        "flags": []
+      },
+      {
+        "protocol": "Compound",
+        "asset": "USDC",
+        "supply_apy_pct": 4.8,
+        "borrow_apy_pct": 6.1,
+        "spread_pct": 1.2999999999999998,
+        "spread_efficiency": 78.68852459016394,
+        "utilization_rate_pct": 79.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 72,
+        "flags": []
+      },
+      {
+        "protocol": "Morpho",
+        "asset": "ETH",
+        "supply_apy_pct": 2.1,
+        "borrow_apy_pct": 4.0,
+        "spread_pct": 1.9,
+        "spread_efficiency": 52.5,
+        "utilization_rate_pct": 55.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "FAIR",
+        "borrower_cost_label": "CHEAP",
+        "market_score": 54,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.8,
+        "lowest_borrow_apy": 5.2,
+        "market_count": 2
+      },
+      "ETH": {
+        "best_supply_apy": 2.1,
+        "lowest_borrow_apy": 4.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Compound:USDC",
+    "cheapest_borrow_market": "Morpho:ETH",
+    "average_spread_pct": 1.6333333333333335,
+    "timestamp": 1785056670.504064
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.5,
+        "borrow_apy_pct": 5.2,
+        "spread_pct": 1.7000000000000002,
+        "spread_efficiency": 67.3076923076923,
+        "utilization_rate_pct": 67.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 64,
+        "flags": []
+      },
+      {
+        "protocol": "Compound",
+        "asset": "USDC",
+        "supply_apy_pct": 4.8,
+        "borrow_apy_pct": 6.1,
+        "spread_pct": 1.2999999999999998,
+        "spread_efficiency": 78.68852459016394,
+        "utilization_rate_pct": 79.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 72,
+        "flags": []
+      },
+      {
+        "protocol": "Morpho",
+        "asset": "ETH",
+        "supply_apy_pct": 2.1,
+        "borrow_apy_pct": 4.0,
+        "spread_pct": 1.9,
+        "spread_efficiency": 52.5,
+        "utilization_rate_pct": 55.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "FAIR",
+        "borrower_cost_label": "CHEAP",
+        "market_score": 54,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.8,
+        "lowest_borrow_apy": 5.2,
+        "market_count": 2
+      },
+      "ETH": {
+        "best_supply_apy": 2.1,
+        "lowest_borrow_apy": 4.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Compound:USDC",
+    "cheapest_borrow_market": "Morpho:ETH",
+    "average_spread_pct": 1.6333333333333335,
+    "timestamp": 1785056670.5096645
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.5,
+        "borrow_apy_pct": 5.2,
+        "spread_pct": 1.7000000000000002,
+        "spread_efficiency": 67.3076923076923,
+        "utilization_rate_pct": 67.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 64,
+        "flags": []
+      },
+      {
+        "protocol": "Compound",
+        "asset": "USDC",
+        "supply_apy_pct": 4.8,
+        "borrow_apy_pct": 6.1,
+        "spread_pct": 1.2999999999999998,
+        "spread_efficiency": 78.68852459016394,
+        "utilization_rate_pct": 79.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 72,
+        "flags": []
+      },
+      {
+        "protocol": "Morpho",
+        "asset": "ETH",
+        "supply_apy_pct": 2.1,
+        "borrow_apy_pct": 4.0,
+        "spread_pct": 1.9,
+        "spread_efficiency": 52.5,
+        "utilization_rate_pct": 55.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "FAIR",
+        "borrower_cost_label": "CHEAP",
+        "market_score": 54,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.8,
+        "lowest_borrow_apy": 5.2,
+        "market_count": 2
+      },
+      "ETH": {
+        "best_supply_apy": 2.1,
+        "lowest_borrow_apy": 4.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Compound:USDC",
+    "cheapest_borrow_market": "Morpho:ETH",
+    "average_spread_pct": 1.6333333333333335,
+    "timestamp": 1785056670.5150414
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.5,
+        "borrow_apy_pct": 5.2,
+        "spread_pct": 1.7000000000000002,
+        "spread_efficiency": 67.3076923076923,
+        "utilization_rate_pct": 67.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 64,
+        "flags": []
+      },
+      {
+        "protocol": "Compound",
+        "asset": "USDC",
+        "supply_apy_pct": 4.8,
+        "borrow_apy_pct": 6.1,
+        "spread_pct": 1.2999999999999998,
+        "spread_efficiency": 78.68852459016394,
+        "utilization_rate_pct": 79.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 72,
+        "flags": []
+      },
+      {
+        "protocol": "Morpho",
+        "asset": "ETH",
+        "supply_apy_pct": 2.1,
+        "borrow_apy_pct": 4.0,
+        "spread_pct": 1.9,
+        "spread_efficiency": 52.5,
+        "utilization_rate_pct": 55.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "FAIR",
+        "borrower_cost_label": "CHEAP",
+        "market_score": 54,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.8,
+        "lowest_borrow_apy": 5.2,
+        "market_count": 2
+      },
+      "ETH": {
+        "best_supply_apy": 2.1,
+        "lowest_borrow_apy": 4.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Compound:USDC",
+    "cheapest_borrow_market": "Morpho:ETH",
+    "average_spread_pct": 1.6333333333333335,
+    "timestamp": 1785056670.5202174
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.0,
+        "borrow_apy_pct": 0.0,
+        "spread_pct": -3.0,
+        "spread_efficiency": 100.0,
+        "utilization_rate_pct": 5.0,
+        "utilization_label": "IDLE",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "CHEAP",
+        "market_score": 48,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 3.0,
+        "lowest_borrow_apy": 0.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": null,
+    "average_spread_pct": -3.0,
+    "timestamp": 1785056670.5257223
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.0,
+        "borrow_apy_pct": 0.0,
+        "spread_pct": -3.0,
+        "spread_efficiency": 100.0,
+        "utilization_rate_pct": 5.0,
+        "utilization_label": "IDLE",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "CHEAP",
+        "market_score": 48,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 3.0,
+        "lowest_borrow_apy": 0.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": null,
+    "average_spread_pct": -3.0,
+    "timestamp": 1785056670.531002
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.0,
+        "borrow_apy_pct": 0.0,
+        "spread_pct": -3.0,
+        "spread_efficiency": 100.0,
+        "utilization_rate_pct": 5.0,
+        "utilization_label": "IDLE",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "CHEAP",
+        "market_score": 48,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 3.0,
+        "lowest_borrow_apy": 0.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": null,
+    "average_spread_pct": -3.0,
+    "timestamp": 1785056670.5364308
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.0,
+        "borrow_apy_pct": 0.0,
+        "spread_pct": -3.0,
+        "spread_efficiency": 100.0,
+        "utilization_rate_pct": 5.0,
+        "utilization_label": "IDLE",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "CHEAP",
+        "market_score": 48,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 3.0,
+        "lowest_borrow_apy": 0.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": null,
+    "average_spread_pct": -3.0,
+    "timestamp": 1785056670.541697
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.0,
+        "borrow_apy_pct": 0.0,
+        "spread_pct": -3.0,
+        "spread_efficiency": 100.0,
+        "utilization_rate_pct": 5.0,
+        "utilization_label": "IDLE",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "CHEAP",
+        "market_score": 48,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 3.0,
+        "lowest_borrow_apy": 0.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": null,
+    "average_spread_pct": -3.0,
+    "timestamp": 1785056670.5469544
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 0.0,
+        "borrow_apy_pct": 0.0,
+        "spread_pct": 0.0,
+        "spread_efficiency": 100.0,
+        "utilization_rate_pct": 0.0,
+        "utilization_label": "IDLE",
+        "reserve_capture_pct": 0.0,
+        "lender_rate_quality": "POOR",
+        "borrower_cost_label": "CHEAP",
+        "market_score": 36,
+        "flags": [
+          "LOW_SUPPLY_APY"
+        ]
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 0.0,
+        "lowest_borrow_apy": 0.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": null,
+    "average_spread_pct": 0.0,
+    "timestamp": 1785056670.5523658
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 5.0,
+        "borrow_apy_pct": 5.0,
+        "spread_pct": 0.0,
+        "spread_efficiency": 100.0,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "EXCELLENT",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 80,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 5.0,
+        "lowest_borrow_apy": 5.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 0.0,
+    "timestamp": 1785056670.5580459
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 3.0,
+        "spread_efficiency": 50.0,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 57,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 3.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 3.0,
+    "timestamp": 1785056670.5633588
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 7.0,
+        "borrow_apy_pct": 5.0,
+        "spread_pct": -2.0,
+        "spread_efficiency": 140.0,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "EXCELLENT",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 88,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 7.0,
+        "lowest_borrow_apy": 5.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": -2.0,
+    "timestamp": 1785056670.5688252
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 10.0,
+        "spread_pct": 6.0,
+        "spread_efficiency": 40.0,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "EXPENSIVE",
+        "market_score": 58,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 10.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 6.0,
+    "timestamp": 1785056670.5751646
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 10.0,
+        "spread_pct": 6.0,
+        "spread_efficiency": 40.0,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "EXPENSIVE",
+        "market_score": 58,
+        "flags": [
+          "HIGH_BORROW_APY"
+        ]
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 10.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 6.0,
+    "timestamp": 1785056670.5806088
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 3.0,
+        "spread_efficiency": 50.0,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 57,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 3.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 3.0,
+    "timestamp": 1785056670.5858698
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 3.0,
+        "spread_efficiency": 50.0,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 57,
+        "flags": [
+          "LOW_SUPPLY_APY"
+        ]
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 3.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 3.0,
+    "timestamp": 1785056670.5911071
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.5964348
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.6019304
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.6071005
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.6124482
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.6178117
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 85.0,
+        "utilization_label": "HIGH",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 56,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.660466
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 86.0,
+        "utilization_label": "HIGH",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 56,
+        "flags": [
+          "NEAR_MAX_UTILIZATION"
+        ]
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.6659896
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 90.0,
+        "utilization_label": "CRITICAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 44,
+        "flags": [
+          "NEAR_MAX_UTILIZATION"
+        ]
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.6712193
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 99.0,
+        "utilization_label": "CRITICAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 44,
+        "flags": [
+          "NEAR_MAX_UTILIZATION"
+        ]
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.6764467
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 20.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.6819453
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 21.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": [
+          "HIGH_RESERVE_CAPTURE"
+        ]
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.6871583
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 66.66666666666666,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 15.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 65,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.6924527
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.0,
+        "borrow_apy_pct": 5.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 60.0,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 60,
+        "flags": []
+      },
+      {
+        "protocol": "Aave",
+        "asset": "DAI",
+        "supply_apy_pct": 3.2,
+        "borrow_apy_pct": 4.8,
+        "spread_pct": 1.5999999999999996,
+        "spread_efficiency": 66.66666666666667,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "CHEAP",
+        "market_score": 62,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 3.0,
+        "lowest_borrow_apy": 5.0,
+        "market_count": 1
+      },
+      "DAI": {
+        "best_supply_apy": 3.2,
+        "lowest_borrow_apy": 4.8,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:DAI",
+    "cheapest_borrow_market": "Aave:DAI",
+    "average_spread_pct": 1.7999999999999998,
+    "timestamp": 1785056670.697888
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 0.0,
+        "spread_pct": -4.0,
+        "spread_efficiency": 100.0,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "CHEAP",
+        "market_score": 76,
+        "flags": []
+      },
+      {
+        "protocol": "Compound",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 5.0,
+        "spread_pct": 1.0,
+        "spread_efficiency": 80.0,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 70,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 5.0,
+        "market_count": 2
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Compound:USDC",
+    "average_spread_pct": -1.5,
+    "timestamp": 1785056670.7034154
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 3.0,
+        "borrow_apy_pct": 5.0,
+        "spread_pct": 2.0,
+        "spread_efficiency": 60.0,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 60,
+        "flags": []
+      },
+      {
+        "protocol": "Compound",
+        "asset": "USDC",
+        "supply_apy_pct": 4.5,
+        "borrow_apy_pct": 6.5,
+        "spread_pct": 2.0,
+        "spread_efficiency": 69.23076923076923,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 68,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.5,
+        "lowest_borrow_apy": 5.0,
+        "market_count": 2
+      }
+    },
+    "best_supply_market": "Compound:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 2.0,
+    "timestamp": 1785056670.7088432
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 10.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": -4.0,
+        "spread_efficiency": 166.66666666666669,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "EXCELLENT",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 100,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 10.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": -4.0,
+    "timestamp": 1785056670.7148123
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 5.0,
+        "borrow_apy_pct": 6.0,
+        "spread_pct": 1.0,
+        "spread_efficiency": 83.33333333333334,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "EXCELLENT",
+        "borrower_cost_label": "MODERATE",
+        "market_score": 74,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 5.0,
+        "lowest_borrow_apy": 6.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 1.0,
+    "timestamp": 1785056670.7206736
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 15.0,
+        "spread_pct": 11.0,
+        "spread_efficiency": 26.666666666666668,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "VERY_EXPENSIVE",
+        "market_score": 53,
+        "flags": []
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 15.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 11.0,
+    "timestamp": 1785056670.7262156
+  },
+  {
+    "markets": [
+      {
+        "protocol": "Aave",
+        "asset": "USDC",
+        "supply_apy_pct": 4.0,
+        "borrow_apy_pct": 30.0,
+        "spread_pct": 26.0,
+        "spread_efficiency": 13.333333333333334,
+        "utilization_rate_pct": 65.0,
+        "utilization_label": "OPTIMAL",
+        "reserve_capture_pct": 10.0,
+        "lender_rate_quality": "GOOD",
+        "borrower_cost_label": "VERY_EXPENSIVE",
+        "market_score": 49,
+        "flags": [
+          "HIGH_BORROW_APY"
+        ]
+      }
+    ],
+    "by_asset": {
+      "USDC": {
+        "best_supply_apy": 4.0,
+        "lowest_borrow_apy": 30.0,
+        "market_count": 1
+      }
+    },
+    "best_supply_market": "Aave:USDC",
+    "cheapest_borrow_market": "Aave:USDC",
+    "average_spread_pct": 26.0,
+    "timestamp": 1785056670.7316613
   }
 ]
