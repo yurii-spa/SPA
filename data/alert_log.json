@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "source": "alert_dispatcher",
-  "updated_at": "2026-07-20T08:26:05.605118+00:00",
-  "count": 12,
+  "updated_at": "2026-07-26T08:35:54.481185+00:00",
+  "count": 16,
   "max_entries": 100,
   "entries": [
     {
@@ -111,6 +111,42 @@
       "timestamp": "2026-07-20T08:26:05.605048+00:00",
       "source": "alert_rules",
       "logged_at": "2026-07-20T08:26:05.605114+00:00",
+      "sent_via": "dry_run"
+    },
+    {
+      "severity": "WARNING",
+      "title": "Adapter health grade degraded: F",
+      "body": "Overall adapter orchestrator health grade is 'F' (below 'B'). Investigate adapter status before relying on APY feeds.",
+      "timestamp": "2026-07-26T08:29:07.702561+00:00",
+      "source": "alert_rules",
+      "logged_at": "2026-07-26T08:29:07.702991+00:00",
+      "sent_via": "dry_run"
+    },
+    {
+      "severity": "WARNING",
+      "title": "Adapter health grade degraded: F",
+      "body": "Overall adapter orchestrator health grade is 'F' (below 'B'). Investigate adapter status before relying on APY feeds.",
+      "timestamp": "2026-07-26T08:29:07.706629+00:00",
+      "source": "alert_rules",
+      "logged_at": "2026-07-26T08:29:07.706754+00:00",
+      "sent_via": "dry_run"
+    },
+    {
+      "severity": "WARNING",
+      "title": "Adapter health grade degraded: F",
+      "body": "Overall adapter orchestrator health grade is 'F' (below 'B'). Investigate adapter status before relying on APY feeds.",
+      "timestamp": "2026-07-26T08:35:54.478893+00:00",
+      "source": "alert_rules",
+      "logged_at": "2026-07-26T08:35:54.478980+00:00",
+      "sent_via": "dry_run"
+    },
+    {
+      "severity": "WARNING",
+      "title": "Adapter health grade degraded: F",
+      "body": "Overall adapter orchestrator health grade is 'F' (below 'B'). Investigate adapter status before relying on APY feeds.",
+      "timestamp": "2026-07-26T08:35:54.481108+00:00",
+      "source": "alert_rules",
+      "logged_at": "2026-07-26T08:35:54.481182+00:00",
       "sent_via": "dry_run"
     }
   ]
