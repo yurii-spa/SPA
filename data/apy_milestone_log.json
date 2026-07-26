@@ -25,7 +25,7 @@
     },
     {
       "date": "2026-06-11",
-      "apy_pct": 2.1229,
+      "apy_pct": 1.4004,
       "strategy_id": "s7_pendle_yt"
     },
     {
@@ -40,7 +40,7 @@
     },
     {
       "date": "2026-06-12",
-      "apy_pct": 10.115,
+      "apy_pct": 1.6329,
       "strategy_id": "s7_pendle_yt"
     },
     {
@@ -84,19 +84,19 @@
       "level": 1,
       "name": "Baseline beat",
       "target_pct": 5.0,
-      "first_reached_date": "2026-06-12"
+      "first_reached_date": "2026-06-15"
     },
     {
       "level": 2,
       "name": "Target entry",
       "target_pct": 7.0,
-      "first_reached_date": "2026-06-12"
+      "first_reached_date": "2026-06-15"
     },
     {
       "level": 3,
       "name": "Target mid",
       "target_pct": 10.0,
-      "first_reached_date": "2026-06-12"
+      "first_reached_date": "2026-06-15"
     }
   ]
 }
