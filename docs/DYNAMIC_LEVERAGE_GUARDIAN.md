@@ -1199,6 +1199,110 @@ oracle/liquidity на кворуме источников, `reaction.py` де-р
   на реальных данных с ненулевой calm-волатильностью.**
 
   **СТАТУС РЕЕСТРА:** #1✅ #2❌ #3✅(дефолт) #4⚠️ #5✅ #6✅ #7✅ #8✅ #9✅ #10✅ #11✅ #12✅ #13✅
-  #14⚠️ #15✅(Calmar-лидер) #16❌ #17❌ #18❌ #19✅ #20✅ **#21⚠️(ECDR: MARGINAL — равен KODS #15
+  #14⚠️ #15✅(Calmar-лидер) #16❌ #17❌ #18❌ #19✅ #20✅ #21⚠️(ECDR: MARGINAL — равен KODS #15
   4.55 bt; 0 ложных сигналов в fixture; структурный инсайт: MA-crossover = Kelly на front-loaded
-  данных; FP-rate неизвестен на реальных данных; не заменяет KODS).**
+  данных; FP-rate неизвестен на реальных данных; не заменяет KODS).
+
+---
+
+### Идея #22 — VTST: Volatility Term Structure Trigger (2026-07-28)
+
+**Идея:** Использовать ФОРМУ (slope) волатильности по двум горизонтам как сигнал перехода в DEFEND/INVEST,
+вместо уровня μ_rolling (KODS #15) или EMA/SMA тренда (ECDR #21). Если short-горизонт vol выше
+long-горизонт vol (инверсия vol-кривой) → режим DEFEND. После того как σ_short опускается ниже σ_long
+(slope < threshold) → режим INVEST.
+
+**Скрипт:** `scripts/edge_vol_term_structure.py` (stdlib-only, детерминированный, advisory)
+
+**Формула сигнала:**
+```
+VTS_slope(t) = (σ_short(t) - σ_long(t)) / max(σ_long(t), ε)
+Если slope > threshold → DEFEND (f_active = 0%): всё в rates/RWA
+Если slope ≤ threshold → INVEST (f_active = max_risky): стандартный портфель
+```
+Портфель идентичен KODS: f_active в sUSDe, оставшееся → rates (2/3) + RWA (1/3).
+
+**Гипотеза об ускоренном re-entry vs KODS-10:**
+В синтетической фикстуре σ_short (5d) падает до ~0 примерно через 5 дней после того, как геометрические
+потери перестают превышать дневной drift (~0.03%). Для KODS-10 нужно ждать 10 дней, пока кризис «выйдет»
+из окна Kelly. VTS slope → INVEST раньше: день 7 USDe-unwind (r = −0.04%, slope = −0.286) vs KODS ~день 10.
+
+**Динамика slope во время USDe-unwind 2025-10 (best config slb=5, llb=20, thr=0.0):**
+| Дата | Дневная доходность | VTS slope | Состояние |
+|---|---|---|---|
+| 2025-10-01 | −4.47% | +0.006 | DEFEND |
+| 2025-10-02 | −2.22% | +0.835 | DEFEND |
+| 2025-10-05 | −0.25% | +0.473 | DEFEND |
+| 2025-10-07 | −0.04% | **−0.286** | **INVEST** ← re-entry |
+| 2025-10-09 | +0.013% | −0.821 | INVEST |
+| 2025-10-12 | +0.028% | −0.978 | INVEST |
+
+**Результаты bt (backtest / synthetic fixture / evidence L0):**
+
+Baselines для сравнения:
+- static #3 (25/50/25 дефолт): APY=4.264%, maxDD=2.105%, Calmar=2.03
+- KODS #15 (реестр-лидер): APY=5.048%, maxDD=1.109%, Calmar=4.55
+- ECDR #21 (EMA/SMA): APY=5.04%, maxDD=1.109%, Calmar=4.55
+
+Параметрический sweep (54 конфигурации, slb∈{3,5,7}, llb∈{15,20,30}, thr∈{0.0,0.5,1.0}, mrk∈{0.25,0.35}):
+
+| Конфиг | APY% | maxDD% | Calmar (bt) | OOS Calmar | Switches |
+|---|---|---|---|---|---|
+| slb=5 llb=20 thr=0.0 mrk=0.25 | **5.068** | **0.359** | **14.12** | 3604 ⚠️ | 119 |
+| slb=5 llb=30 thr=0.5 mrk=0.25 | 5.059 | 1.109 | 4.56 | 4.14 | 14 |
+| slb=7 llb=30 thr=0.5 mrk=0.25 | 5.085 | 1.109 | **4.59** | 4.18 | 10 |
+| slb=7 llb=30 thr=0.5 mrk=0.35 | 5.415 | 1.557 | 3.48 | 3.07 | 10 |
+| KODS #15 (референс) | 5.048 | 1.109 | 4.55 | — | — |
+
+**Per-crisis DD (best config slb=5, llb=20, thr=0.0, mrk=0.25 vs static #3):**
+| Кризисное окно | static #3 DD | VTST DD | Saved |
+|---|---|---|---|
+| eth_crash_2024_08 | 0.645% | 0.359% | +0.286pp |
+| usde_unwind_2025_10 | 2.105% | 0.002% | +2.104pp |
+| rseth_depeg_2026_04 | 0.170% | 0.000% | +0.170pp |
+
+**КРИТИЧЕСКИЙ АНАЛИЗ — FIXTURE ARTIFACT (обязательно читать перед любым forward-paper):**
+
+Конфиг thr=0.0 показывает Calmar=14.12 и OOS_Calmar=3604 — ЭТО АРТЕФАКТ ФИКСТУРЫ, а не реальный сигнал:
+1. **σ≈0 в calm periods:** В синтетической фикстуре вне кризисных окон drift детерминированный и постоянный
+   (~0.03%/day) → ежедневная доходность практически константа → σ_short ≈ σ_long ≈ 0 → slope ≈ 0/ε.
+   При threshold=0.0 любое ε-отклонение тригерит INVEST/DEFEND → 119 false signals в calm.
+   В реальных DeFi данных yield drip, funding rate wobbles и smart contract noise дают постоянные
+   малые флуктуации → slope=0.0 тригерит DEFEND на каждом мелком шуме → 100+ false positives.
+2. **119 switches в 699 днях** = 1 switch каждые ~6 дней. Transaction costs уничтожат преимущество.
+3. **OOS_Calmar=3604 — degenerate ratio:** maxDD_OOS ≈ 0.002% → знаменатель → 0 → ratio → ∞.
+   Артефакт нулевой просадки в OOS, не качества стратегии.
+
+**РЕАЛИСТИЧНЫЕ КОНФИГИ (threshold=0.5, 10-14 switches):**
+- slb=7, llb=30, thr=0.5, mrk=0.25: APY=5.085%, maxDD=1.109%, Calmar=**4.59**, OOS_Cal=4.18, Switches=10
+- slb=5, llb=30, thr=0.5, mrk=0.25: APY=5.059%, maxDD=1.109%, Calmar=4.56, OOS_Cal=4.14, Switches=14
+- Vs KODS #15: Calmar 4.55 → VTST-реалистичный +0.01–0.04pp — **МАРГИНАЛЬНЫЙ ПРИРОСТ**
+- 10 switches в 699 днях (1 switch/~70 days) — операционно реалистично
+
+**Механистический инсайт (валиден за пределами фикстуры):**
+VTS slope концептуально ОТЛИЧАЕТСЯ от KODS (μ_rolling/σ²) и ECDR (NAV EMA/SMA crossover):
+он измеряет ФОРМУ (инверсию) vol-кривой по двум горизонтам одновременно. При ненулевом шуме в реальных
+данных slope с threshold ≥ 0.5 фильтрует мелкий шум. Структурно новая точка зрения на de-risk сигнал.
+
+**Честные оговорки:**
+(а) thr=0.0 результаты (Calmar 14.12, OOS 3604) — **FIXTURE ARTIFACT**, публиковать только с этой меткой.
+(б) Реалистичный прирост vs KODS: +0.04pp Calmar — статистически незначим на 699 точках.
+(в) Нужны реальные yield-данные с micro-noise: DeFiLlama / Pendle history (не в cloud checkout).
+(г) 119 switches при thr=0.0 транзакционно неприемлемо; threshold ≥ 0.5 + slb=7, llb=30 = минимум.
+(д) OOS Calmar 4.14-4.18 при thr=0.5 надёжнее, но кризисы присутствуют в train и test (overlap).
+(е) Evidence level: **L0** (backtest/synthetic). НИКОГДА не выдавать за realized returns.
+
+**ИТОГОВЫЙ ЧЕСТНЫЙ ВЕРДИКТ #22:**
+VTST — структурно новая vol-shape идея (первый term-structure сигнал в реестре), механистически
+отличная от KODS (#15) и ECDR (#21). Однако σ≈0-артефакт фикстуры делает thr=0.0 числа (Calmar 14.12)
+бессмысленными. Реалистичные конфиги (thr=0.5): Calmar 4.56-4.59 — маргинальный прирост над KODS 4.55,
+статистически незначимый на 699 синтетических точках.
+**Статус: ⚠️ АРТЕФАКТ-ЗАГРЯЗНЕНО (thr=0.0); МАРГИНАЛЬНО на реалистичных параметрах (thr=0.5, +0.04pp vs KODS).
+Требует реальных yield-данных с micro-noise. Остаётся в реестре как заготовка для real-data теста.
+Не выдвигать на forward-paper до real-data validation.**
+
+  **СТАТУС РЕЕСТРА:** #1✅ #2❌ #3✅(дефолт) #4⚠️ #5✅ #6✅ #7✅ #8✅ #9✅ #10✅ #11✅ #12✅ #13✅
+  #14⚠️ #15✅(Calmar-лидер) #16❌ #17❌ #18❌ #19✅(EWVM) #20✅(CACH) #21⚠️(ECDR: MA-crossover=Kelly
+  на fixture; Calmar 4.55=KODS; FP-rate неизвестен на реальных данных) **#22⚠️(VTST: vol term
+  structure trigger — thr=0.0 Calmar 14.12=FIXTURE ARTIFACT; реалистичный thr=0.5 Calmar 4.59=
+  маргинальный +0.04pp vs KODS; требует real yield micro-noise данных до forward-paper)**.
