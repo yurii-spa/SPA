@@ -24,8 +24,14 @@ _SLUGS = {"aave_v3": "aave-v3", "compound_v3": "compound-v3", "morpho_blue": "mo
 
 
 def depth_providers(scope_slugs: dict | None = None) -> dict:
-    """{scope: {name: callable()->pool_depth_usd}} — DeFiLlama TVL as the conservative depth proxy."""
-    scope_slugs = scope_slugs or _SLUGS
+    """{scope: {name: callable()->pool_depth_usd}} — DeFiLlama TVL as the conservative depth proxy.
+
+    An EMPTY dict must stay empty (holding nothing → nothing to depth-check): `{} or _SLUGS`
+    would resurrect all 7 default scopes with NO position sizes → 7 permanent critical
+    "unknown position size" signals → portfolio stuck DEFENSIVE forever (incident 2026-07:
+    the all-cash de-risk itself manufactured the "degraded" evidence that sustained it)."""
+    if scope_slugs is None:
+        scope_slugs = _SLUGS
     return {scope: tvl_current_providers(slug) for scope, slug in scope_slugs.items()}
 
 
