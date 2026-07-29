@@ -1066,13 +1066,19 @@ class GoLiveReadinessReport(BaseAnalytics):
         if pg.get("expanded_universe_verification_status") == "STRICT_BLOCKED":
             return "BLOCKED"
 
-        # BLOCKED: no backtest gate pass (gate_status score < 25)
-        gate_cat = next((c for c in cats if c.name == "gate_status"), None)
-        if gate_cat is not None and gate_cat.score < 25.0:
+        # BLOCKED: no backtest gate pass. Checked against the gate FILE directly — the old
+        # category-score proxy looked up name "gate_status", which v10.41 renamed to "gates"
+        # (different scale, max 20), so the rule silently never fired (card 2026-07-17).
+        bg = self._read_json(self.backtest_dir / "pre_paper_backtest_gate.json")
+        if bg and bg.get("status") != "PASS":
             return "BLOCKED"
 
+        # ADR-OWN-2026-07-readiness-truth (вариант А, owner 2026-07-29): the public surface may
+        # NEVER say READY while the real go-live gate refuses. Scores measure progress; the gate
+        # decides readiness. READY requires BOTH: golive_status.json ready==True AND score ≥ 80.
         score = self.total_score()
-        if score >= 80.0:
+        gs = self._read_json(self.data_dir / "golive_status.json")
+        if score >= 80.0 and gs.get("ready") is True:
             return "READY"
         return "NOT_READY"
 
