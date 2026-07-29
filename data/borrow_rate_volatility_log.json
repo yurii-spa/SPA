@@ -26,499 +26,6 @@
     "recommendations": [
       "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
     ],
-    "timestamp": 1785318350.7569857
-  },
-  {
-    "name": "UNKNOWN",
-    "current_borrow_apr_pct": 0.0,
-    "current_utilization_pct": 0.0,
-    "utilization_volatility_pct": 10.0,
-    "kink_utilization_pct": 80.0,
-    "slope1_pct": 4.0,
-    "slope2_pct": 60.0,
-    "farm_apr_pct": 0.0,
-    "horizon_days": 30.0,
-    "data_quality_ok": true,
-    "rate_sensitivity_factor": 0.05,
-    "forecast_borrow_apr_vol_pct": 0.5,
-    "borrow_apr_p95_pct": 0.8225,
-    "borrow_apr_p05_pct": 0.0,
-    "net_carry_now_pct": 0.0,
-    "net_carry_at_p95_borrow_pct": -0.8225,
-    "carry_wipeout_probability_pct": 50.0,
-    "rate_stability_score": 0.0,
-    "classification": "VERY_STABLE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
-    ],
-    "timestamp": 1785318351.266539
-  },
-  {
-    "name": "UNKNOWN",
-    "current_borrow_apr_pct": 0.0,
-    "current_utilization_pct": 0.0,
-    "utilization_volatility_pct": 10.0,
-    "kink_utilization_pct": 80.0,
-    "slope1_pct": 4.0,
-    "slope2_pct": 60.0,
-    "farm_apr_pct": 0.0,
-    "horizon_days": 30.0,
-    "data_quality_ok": true,
-    "rate_sensitivity_factor": 0.05,
-    "forecast_borrow_apr_vol_pct": 0.5,
-    "borrow_apr_p95_pct": 0.8225,
-    "borrow_apr_p05_pct": 0.0,
-    "net_carry_now_pct": 0.0,
-    "net_carry_at_p95_borrow_pct": -0.8225,
-    "carry_wipeout_probability_pct": 50.0,
-    "rate_stability_score": 0.0,
-    "classification": "VERY_STABLE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
-    ],
-    "timestamp": 1785318351.7678306
-  },
-  {
-    "name": "UNKNOWN",
-    "current_borrow_apr_pct": 0.0,
-    "current_utilization_pct": 0.0,
-    "utilization_volatility_pct": 10.0,
-    "kink_utilization_pct": 80.0,
-    "slope1_pct": 4.0,
-    "slope2_pct": 60.0,
-    "farm_apr_pct": 0.0,
-    "horizon_days": 30.0,
-    "data_quality_ok": true,
-    "rate_sensitivity_factor": 0.05,
-    "forecast_borrow_apr_vol_pct": 0.5,
-    "borrow_apr_p95_pct": 0.8225,
-    "borrow_apr_p05_pct": 0.0,
-    "net_carry_now_pct": 0.0,
-    "net_carry_at_p95_borrow_pct": -0.8225,
-    "carry_wipeout_probability_pct": 50.0,
-    "rate_stability_score": 0.0,
-    "classification": "VERY_STABLE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
-    ],
-    "timestamp": 1785318352.2836704
-  },
-  {
-    "name": "UNKNOWN",
-    "current_borrow_apr_pct": 0.0,
-    "current_utilization_pct": 0.0,
-    "utilization_volatility_pct": 10.0,
-    "kink_utilization_pct": 80.0,
-    "slope1_pct": 4.0,
-    "slope2_pct": 60.0,
-    "farm_apr_pct": 0.0,
-    "horizon_days": 30.0,
-    "data_quality_ok": true,
-    "rate_sensitivity_factor": 0.05,
-    "forecast_borrow_apr_vol_pct": 0.5,
-    "borrow_apr_p95_pct": 0.8225,
-    "borrow_apr_p05_pct": 0.0,
-    "net_carry_now_pct": 0.0,
-    "net_carry_at_p95_borrow_pct": -0.8225,
-    "carry_wipeout_probability_pct": 50.0,
-    "rate_stability_score": 0.0,
-    "classification": "VERY_STABLE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
-    ],
-    "timestamp": 1785318352.8285222
-  },
-  {
-    "name": "UNKNOWN",
-    "current_borrow_apr_pct": 0.0,
-    "current_utilization_pct": 0.0,
-    "utilization_volatility_pct": 10.0,
-    "kink_utilization_pct": 80.0,
-    "slope1_pct": 4.0,
-    "slope2_pct": 60.0,
-    "farm_apr_pct": 0.0,
-    "horizon_days": 30.0,
-    "data_quality_ok": true,
-    "rate_sensitivity_factor": 0.05,
-    "forecast_borrow_apr_vol_pct": 0.5,
-    "borrow_apr_p95_pct": 0.8225,
-    "borrow_apr_p05_pct": 0.0,
-    "net_carry_now_pct": 0.0,
-    "net_carry_at_p95_borrow_pct": -0.8225,
-    "carry_wipeout_probability_pct": 50.0,
-    "rate_stability_score": 0.0,
-    "classification": "VERY_STABLE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
-    ],
-    "timestamp": 1785318355.8071551
-  },
-  {
-    "name": "UNKNOWN",
-    "current_borrow_apr_pct": 0.0,
-    "current_utilization_pct": 0.0,
-    "utilization_volatility_pct": 10.0,
-    "kink_utilization_pct": 80.0,
-    "slope1_pct": 4.0,
-    "slope2_pct": 60.0,
-    "farm_apr_pct": 0.0,
-    "horizon_days": 30.0,
-    "data_quality_ok": true,
-    "rate_sensitivity_factor": 0.05,
-    "forecast_borrow_apr_vol_pct": 0.5,
-    "borrow_apr_p95_pct": 0.8225,
-    "borrow_apr_p05_pct": 0.0,
-    "net_carry_now_pct": 0.0,
-    "net_carry_at_p95_borrow_pct": -0.8225,
-    "carry_wipeout_probability_pct": 50.0,
-    "rate_stability_score": 0.0,
-    "classification": "VERY_STABLE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
-    ],
-    "timestamp": 1785318356.2843435
-  },
-  {
-    "name": "UNKNOWN",
-    "current_borrow_apr_pct": 0.0,
-    "current_utilization_pct": 0.0,
-    "utilization_volatility_pct": 10.0,
-    "kink_utilization_pct": 80.0,
-    "slope1_pct": 4.0,
-    "slope2_pct": 60.0,
-    "farm_apr_pct": 0.0,
-    "horizon_days": 30.0,
-    "data_quality_ok": true,
-    "rate_sensitivity_factor": 0.05,
-    "forecast_borrow_apr_vol_pct": 0.5,
-    "borrow_apr_p95_pct": 0.8225,
-    "borrow_apr_p05_pct": 0.0,
-    "net_carry_now_pct": 0.0,
-    "net_carry_at_p95_borrow_pct": -0.8225,
-    "carry_wipeout_probability_pct": 50.0,
-    "rate_stability_score": 0.0,
-    "classification": "VERY_STABLE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
-    ],
-    "timestamp": 1785318356.793959
-  },
-  {
-    "name": "UNKNOWN",
-    "current_borrow_apr_pct": 0.0,
-    "current_utilization_pct": 0.0,
-    "utilization_volatility_pct": 10.0,
-    "kink_utilization_pct": 80.0,
-    "slope1_pct": 4.0,
-    "slope2_pct": 60.0,
-    "farm_apr_pct": 0.0,
-    "horizon_days": 30.0,
-    "data_quality_ok": true,
-    "rate_sensitivity_factor": 0.05,
-    "forecast_borrow_apr_vol_pct": 0.5,
-    "borrow_apr_p95_pct": 0.8225,
-    "borrow_apr_p05_pct": 0.0,
-    "net_carry_now_pct": 0.0,
-    "net_carry_at_p95_borrow_pct": -0.8225,
-    "carry_wipeout_probability_pct": 50.0,
-    "rate_stability_score": 0.0,
-    "classification": "VERY_STABLE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
-    ],
-    "timestamp": 1785318357.2603414
-  },
-  {
-    "name": "UNKNOWN",
-    "current_borrow_apr_pct": 0.0,
-    "current_utilization_pct": 0.0,
-    "utilization_volatility_pct": 10.0,
-    "kink_utilization_pct": 80.0,
-    "slope1_pct": 4.0,
-    "slope2_pct": 60.0,
-    "farm_apr_pct": 0.0,
-    "horizon_days": 30.0,
-    "data_quality_ok": true,
-    "rate_sensitivity_factor": 0.05,
-    "forecast_borrow_apr_vol_pct": 0.5,
-    "borrow_apr_p95_pct": 0.8225,
-    "borrow_apr_p05_pct": 0.0,
-    "net_carry_now_pct": 0.0,
-    "net_carry_at_p95_borrow_pct": -0.8225,
-    "carry_wipeout_probability_pct": 50.0,
-    "rate_stability_score": 0.0,
-    "classification": "VERY_STABLE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
-    ],
-    "timestamp": 1785318357.719077
-  },
-  {
-    "name": "UNKNOWN",
-    "current_borrow_apr_pct": 0.0,
-    "current_utilization_pct": 0.0,
-    "utilization_volatility_pct": 10.0,
-    "kink_utilization_pct": 80.0,
-    "slope1_pct": 4.0,
-    "slope2_pct": 60.0,
-    "farm_apr_pct": 0.0,
-    "horizon_days": 30.0,
-    "data_quality_ok": true,
-    "rate_sensitivity_factor": 0.05,
-    "forecast_borrow_apr_vol_pct": 0.5,
-    "borrow_apr_p95_pct": 0.8225,
-    "borrow_apr_p05_pct": 0.0,
-    "net_carry_now_pct": 0.0,
-    "net_carry_at_p95_borrow_pct": -0.8225,
-    "carry_wipeout_probability_pct": 50.0,
-    "rate_stability_score": 0.0,
-    "classification": "VERY_STABLE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
-    ],
-    "timestamp": 1785318358.187379
-  },
-  {
-    "name": "UNKNOWN",
-    "current_borrow_apr_pct": 0.0,
-    "current_utilization_pct": 0.0,
-    "utilization_volatility_pct": 10.0,
-    "kink_utilization_pct": 80.0,
-    "slope1_pct": 4.0,
-    "slope2_pct": 60.0,
-    "farm_apr_pct": 0.0,
-    "horizon_days": 30.0,
-    "data_quality_ok": true,
-    "rate_sensitivity_factor": 0.05,
-    "forecast_borrow_apr_vol_pct": 0.5,
-    "borrow_apr_p95_pct": 0.8225,
-    "borrow_apr_p05_pct": 0.0,
-    "net_carry_now_pct": 0.0,
-    "net_carry_at_p95_borrow_pct": -0.8225,
-    "carry_wipeout_probability_pct": 50.0,
-    "rate_stability_score": 0.0,
-    "classification": "VERY_STABLE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
-    ],
-    "timestamp": 1785318358.637511
-  },
-  {
-    "name": "UNKNOWN",
-    "current_borrow_apr_pct": 0.0,
-    "current_utilization_pct": 0.0,
-    "utilization_volatility_pct": 10.0,
-    "kink_utilization_pct": 80.0,
-    "slope1_pct": 4.0,
-    "slope2_pct": 60.0,
-    "farm_apr_pct": 0.0,
-    "horizon_days": 30.0,
-    "data_quality_ok": true,
-    "rate_sensitivity_factor": 0.05,
-    "forecast_borrow_apr_vol_pct": 0.5,
-    "borrow_apr_p95_pct": 0.8225,
-    "borrow_apr_p05_pct": 0.0,
-    "net_carry_now_pct": 0.0,
-    "net_carry_at_p95_borrow_pct": -0.8225,
-    "carry_wipeout_probability_pct": 50.0,
-    "rate_stability_score": 0.0,
-    "classification": "VERY_STABLE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
-    ],
-    "timestamp": 1785318359.1084611
-  },
-  {
-    "name": "UNKNOWN",
-    "current_borrow_apr_pct": 0.0,
-    "current_utilization_pct": 0.0,
-    "utilization_volatility_pct": 10.0,
-    "kink_utilization_pct": 80.0,
-    "slope1_pct": 4.0,
-    "slope2_pct": 60.0,
-    "farm_apr_pct": 0.0,
-    "horizon_days": 30.0,
-    "data_quality_ok": true,
-    "rate_sensitivity_factor": 0.05,
-    "forecast_borrow_apr_vol_pct": 0.5,
-    "borrow_apr_p95_pct": 0.8225,
-    "borrow_apr_p05_pct": 0.0,
-    "net_carry_now_pct": 0.0,
-    "net_carry_at_p95_borrow_pct": -0.8225,
-    "carry_wipeout_probability_pct": 50.0,
-    "rate_stability_score": 0.0,
-    "classification": "VERY_STABLE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
-    ],
-    "timestamp": 1785318362.9671893
-  },
-  {
-    "name": "UNKNOWN",
-    "current_borrow_apr_pct": 0.0,
-    "current_utilization_pct": 0.0,
-    "utilization_volatility_pct": 10.0,
-    "kink_utilization_pct": 80.0,
-    "slope1_pct": 4.0,
-    "slope2_pct": 60.0,
-    "farm_apr_pct": 0.0,
-    "horizon_days": 30.0,
-    "data_quality_ok": true,
-    "rate_sensitivity_factor": 0.05,
-    "forecast_borrow_apr_vol_pct": 0.5,
-    "borrow_apr_p95_pct": 0.8225,
-    "borrow_apr_p05_pct": 0.0,
-    "net_carry_now_pct": 0.0,
-    "net_carry_at_p95_borrow_pct": -0.8225,
-    "carry_wipeout_probability_pct": 50.0,
-    "rate_stability_score": 0.0,
-    "classification": "VERY_STABLE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
-    ],
-    "timestamp": 1785318363.4459336
-  },
-  {
-    "name": "UNKNOWN",
-    "current_borrow_apr_pct": 0.0,
-    "current_utilization_pct": 0.0,
-    "utilization_volatility_pct": 10.0,
-    "kink_utilization_pct": 80.0,
-    "slope1_pct": 4.0,
-    "slope2_pct": 60.0,
-    "farm_apr_pct": 0.0,
-    "horizon_days": 30.0,
-    "data_quality_ok": true,
-    "rate_sensitivity_factor": 0.05,
-    "forecast_borrow_apr_vol_pct": 0.5,
-    "borrow_apr_p95_pct": 0.8225,
-    "borrow_apr_p05_pct": 0.0,
-    "net_carry_now_pct": 0.0,
-    "net_carry_at_p95_borrow_pct": -0.8225,
-    "carry_wipeout_probability_pct": 50.0,
-    "rate_stability_score": 0.0,
-    "classification": "VERY_STABLE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
-    ],
-    "timestamp": 1785318363.8694887
-  },
-  {
-    "name": "UNKNOWN",
-    "current_borrow_apr_pct": 0.0,
-    "current_utilization_pct": 0.0,
-    "utilization_volatility_pct": 10.0,
-    "kink_utilization_pct": 80.0,
-    "slope1_pct": 4.0,
-    "slope2_pct": 60.0,
-    "farm_apr_pct": 0.0,
-    "horizon_days": 30.0,
-    "data_quality_ok": true,
-    "rate_sensitivity_factor": 0.05,
-    "forecast_borrow_apr_vol_pct": 0.5,
-    "borrow_apr_p95_pct": 0.8225,
-    "borrow_apr_p05_pct": 0.0,
-    "net_carry_now_pct": 0.0,
-    "net_carry_at_p95_borrow_pct": -0.8225,
-    "carry_wipeout_probability_pct": 50.0,
-    "rate_stability_score": 0.0,
-    "classification": "VERY_STABLE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
-    ],
-    "timestamp": 1785318364.3418214
-  },
-  {
-    "name": "UNKNOWN",
-    "current_borrow_apr_pct": 0.0,
-    "current_utilization_pct": 0.0,
-    "utilization_volatility_pct": 10.0,
-    "kink_utilization_pct": 80.0,
-    "slope1_pct": 4.0,
-    "slope2_pct": 60.0,
-    "farm_apr_pct": 0.0,
-    "horizon_days": 30.0,
-    "data_quality_ok": true,
-    "rate_sensitivity_factor": 0.05,
-    "forecast_borrow_apr_vol_pct": 0.5,
-    "borrow_apr_p95_pct": 0.8225,
-    "borrow_apr_p05_pct": 0.0,
-    "net_carry_now_pct": 0.0,
-    "net_carry_at_p95_borrow_pct": -0.8225,
-    "carry_wipeout_probability_pct": 50.0,
-    "rate_stability_score": 0.0,
-    "classification": "VERY_STABLE",
-    "grade": "F",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
-    ],
     "timestamp": 1785318364.768997
   },
   {
@@ -2898,5 +2405,498 @@
       "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
     ],
     "timestamp": 1785318432.7144313
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1785318433.159928
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1785318435.9770496
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1785318436.4962702
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1785318436.985024
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1785318437.456332
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1785318437.9550462
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1785318438.4566789
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1785318438.9358912
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1785318439.4397168
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1785318442.4102385
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1785318442.8695989
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1785318443.3365827
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1785318443.8750849
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1785318444.3672342
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1785318444.8500361
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1785318445.3154266
+  },
+  {
+    "name": "UNKNOWN",
+    "current_borrow_apr_pct": 0.0,
+    "current_utilization_pct": 0.0,
+    "utilization_volatility_pct": 10.0,
+    "kink_utilization_pct": 80.0,
+    "slope1_pct": 4.0,
+    "slope2_pct": 60.0,
+    "farm_apr_pct": 0.0,
+    "horizon_days": 30.0,
+    "data_quality_ok": true,
+    "rate_sensitivity_factor": 0.05,
+    "forecast_borrow_apr_vol_pct": 0.5,
+    "borrow_apr_p95_pct": 0.8225,
+    "borrow_apr_p05_pct": 0.0,
+    "net_carry_now_pct": 0.0,
+    "net_carry_at_p95_borrow_pct": -0.8225,
+    "carry_wipeout_probability_pct": 50.0,
+    "rate_stability_score": 0.0,
+    "classification": "VERY_STABLE",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no borrow-rate / utilization signal and/or data marked unreliable. Cannot forecast borrow-rate volatility for this market."
+    ],
+    "timestamp": 1785318445.7971115
   }
 ]
