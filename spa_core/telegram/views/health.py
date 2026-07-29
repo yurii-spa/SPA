@@ -89,7 +89,11 @@ def render_system(arg: str = "", lang: str = "en", page: int = 0,
     icon = {"OK": "✅", "INFO": "ℹ️", "WARNING": "⚠️", "CRITICAL": "⛔", "SKIPPED": "⏭"}
     for dname, dval in domains.items():
         st = dval.get("status", "?") if isinstance(dval, dict) else "?"
-        body.append(" {} {}".format(icon.get(st, "•"), dname))
+        # An `unchecked` domain measured nothing (e.g. it blew its time budget).
+        # Say so in words — a bare ⚠️ next to the name reads like a verdict.
+        mark = (" ({})".format(t("w.not_checked", lang))
+                if isinstance(dval, dict) and dval.get("unchecked") else "")
+        body.append(" {} {}{}".format(icon.get(st, "•"), dname, mark))
     footer = "run {} · fingerprint {}".format(sh.get("run_id", "—"), sh.get("fingerprint", "—"))
     text = B.screen("health.system", "monitor · 7 domains", body, footer, lang)
     return text, menus.standard_keyboard("health.system", lang)
