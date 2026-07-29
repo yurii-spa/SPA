@@ -157,7 +157,11 @@ def test_daily_ceiling_caps_pushes_and_coalesces_once(tmp_path, sent):
     # Exactly `ceiling` genuine entry pushes…
     assert pushed == ceiling
     # …plus EXACTLY ONE coalesced "more events" notice.
-    coalesced = [t for t in sent if "more critical events" in t]
+    # Copy is now Russian (owner task «алерты простым языком», 2026-07-20/27):
+    # the coalesced notice reads «Ещё критические события…». The assertion still
+    # checks the SAME property — exactly one overflow notice — only the expected
+    # user-facing wording follows the intentional copy change (journal 2026-W31).
+    coalesced = [t for t in sent if "Ещё критические события" in t]
     assert len(coalesced) == 1
     # Total transmissions = ceiling entries + 1 coalesced.
     assert len(sent) == ceiling + 1
@@ -235,7 +239,9 @@ def test_oneshot_lead_respects_daily_ceiling(tmp_path, sent):
         )
     # 2 real pushes + 1 coalesced notice = 3 sends; 4th demoted (not sent).
     assert len(sent) == 3
-    assert "ceiling" in sent[-1].lower()
+    # Same property (the last send IS the coalesced ceiling notice); only the
+    # expected wording follows the intentional RU copy change (journal 2026-W31).
+    assert "лимит уведомлений" in sent[-1].lower()
     queued = push_policy.drain_digest_queue(data_dir=str(tmp_path), clear=False)
     assert any(i["reason"] == "ceiling_exceeded" for i in queued)
 
