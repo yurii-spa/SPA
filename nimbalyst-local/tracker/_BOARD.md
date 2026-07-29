@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **78** · ждёт владельца: **7**.
+> Всего карточек: **79** · ждёт владельца: **8**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -12,9 +12,10 @@
 - **Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)**  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md`
 - **Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить** · _medium_  ·  `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam.md`
 - **Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять**  ·  `owner-decision-publichnaya-stranitsa-prover-nas-pokazyv.md`
+- **Сторож правил не видит стоп-кран — смотрит в файл, которого нет (выбери, как чинить)** · _high_  ·  `owner-decision-storozh-pravil-ne-vidit-stop-kran-smotri.md`
 - **В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями** · _high_  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (31)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (32)
 
 ### · needs-owner
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -23,6 +24,7 @@
 - Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md` · 2026-07-29
 - Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить  ·  `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam.md` · 2026-07-29
 - Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять  ·  `owner-decision-publichnaya-stranitsa-prover-nas-pokazyv.md` · 2026-07-29
+- Сторож правил не видит стоп-кран — смотрит в файл, которого нет (выбери, как чинить)  ·  `owner-decision-storozh-pravil-ne-vidit-stop-kran-smotri.md` · 2026-07-29
 - В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md` · 2026-07-29
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
