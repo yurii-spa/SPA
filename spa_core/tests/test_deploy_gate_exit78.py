@@ -47,6 +47,39 @@ _DOCS_LOG = """<?xml version="1.0" encoding="UTF-8"?>
 """ % _SCRIPTS
 
 
+def _gate_repo_root() -> str:
+    """The repo root the GATE itself resolves — it is a hardcoded constant in the shell script.
+
+    The gate does not derive its root from ``cwd`` or from its own location: it pins
+    ``REPO_ROOT="/Users/yuriikulieshov/Documents/SPA_Claude"`` (so the canonical-track hash guard
+    can never be pointed at a decoy tree). These two tests write their antipattern plist into
+    ``<this checkout>/scripts/`` — which the gate only finds when this checkout IS that canonical
+    root. From any other checkout (worktree, CI, a clone) the gate answers "plist not found" and
+    the test fails on a path mismatch instead of on the property it means to prove.
+    """
+    try:
+        with open(_GATE, encoding="utf-8") as fh:
+            for line in fh:
+                if line.startswith("REPO_ROOT="):
+                    return line.split("=", 1)[1].strip().strip('"').strip("'")
+    except OSError:
+        return ""
+    return ""
+
+
+_GATE_ROOT = _gate_repo_root()
+# Gate on the real precondition instead of on "am I in CI": the reason is then true wherever it
+# fires, and inside the canonical checkout the tests genuinely EXECUTE. Writing the fixture plist
+# into the canonical tree from a foreign checkout is NOT an option — a test must not mutate
+# another working tree's scripts/.
+_needs_canonical_checkout = pytest.mark.skipif(
+    _REPO != _GATE_ROOT,
+    reason=(f"the deploy gate hardcodes REPO_ROOT={_GATE_ROOT!r}; this checkout is {_REPO!r}, so the "
+            "gate cannot see a fixture plist written here (it would report 'plist not found' rather "
+            "than exercising the exit-78 refusal)"),
+)
+
+
 def _run_gate(name: str) -> subprocess.CompletedProcess:
     env = dict(os.environ, CHECK_ONLY="1")
     return subprocess.run(
@@ -56,7 +89,7 @@ def _run_gate(name: str) -> subprocess.CompletedProcess:
 
 
 @pytest.mark.skipif(not os.path.exists("/bin/bash"), reason="needs bash")
-@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/env-dependent (needs committed data/ or the Mac host); runs locally, skipped in the data-less GitHub CI")
+@_needs_canonical_checkout
 def test_gate_fails_closed_on_direct_python():
     """Antipattern 1: direct miniconda-python in ProgramArguments → fail-closed before load."""
     plist = os.path.join(_SCRIPTS, "com.spa.gatetest_directpy.plist")
@@ -72,7 +105,7 @@ def test_gate_fails_closed_on_direct_python():
 
 
 @pytest.mark.skipif(not os.path.exists("/bin/bash"), reason="needs bash")
-@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/env-dependent (needs committed data/ or the Mac host); runs locally, skipped in the data-less GitHub CI")
+@_needs_canonical_checkout
 def test_gate_fails_closed_on_documents_log_path():
     """Antipattern 2: a log path under ~/Documents → TCC exit-78 → fail-closed before load."""
     plist = os.path.join(_SCRIPTS, "com.spa.gatetest_docslog.plist")
