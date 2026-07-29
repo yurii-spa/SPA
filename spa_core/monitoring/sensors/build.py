@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from spa_core.monitoring.sensors.peg import PegSensor
 from spa_core.monitoring.sensors.providers import price_providers_for, supported_assets
+from spa_core.utils.errors import SourceError
 
 # stablecoins with ENOUGH keyless price sources for a real quorum (>= min_quorum).
 # USDE/SUSDE have too few CEX listings for a price quorum → monitor them ON-CHAIN via the
@@ -67,7 +68,10 @@ def build_liquidity_sensor():
         # sense-loop's "sensor produced no signal" stale guard every tick → scope "liquidity"
         # FROZEN → portfolio can never leave DEFENSIVE (incident 2026-07). The register loop
         # logs this skip; the sensor re-arms on the next service start after redeploy.
-        raise RuntimeError("no held positions (all-cash) — liquidity sensor intentionally not registered")
+        # SPAError family (MP-1467: 100% adoption in spa_core/) — the register loop below
+        # catches broad Exception, so control flow is byte-identical to the previous
+        # RuntimeError; only the type/message envelope changes.
+        raise SourceError("rtmr_liquidity", "no held positions (all-cash) — liquidity sensor intentionally not registered")
     return LiquiditySensor(depth, sizes)
 
 
