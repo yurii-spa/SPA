@@ -15,10 +15,8 @@ Total: 30 tests
 stdlib unittest + pytest compatible
 """
 from __future__ import annotations
-import pytest
 
 import json
-import os
 import sys
 import tempfile
 import unittest
@@ -32,6 +30,16 @@ from spa_core.analytics.golive_readiness_report import (
     CategoryScore,
     GoLiveReadinessReport,
 )
+
+# The live-repo gates score can only clear 16/20 when the backtest gate artefact is present:
+# `pre_paper_backtest_gate.json` alone is worth +6 of the 20 (assess_gates §1), so without it
+# the live score is 12/20 by arithmetic, not by regression. That file is a runtime artefact —
+# `data/**/*.json` is git-ignored — so it is absent on every clean checkout, CI included.
+# Guard on it directly (autonomous cycle #32, 2026-07-29): the previous pair of markers named
+# `data/gate_status.json` (committed → guard always passed) plus `GITHUB_ACTIONS == "true"`,
+# so the test stayed red on any clean local checkout while claiming to be a CI-only concern.
+_PRE_PAPER_GATE = _REPO_ROOT / "data" / "backtest" / "pre_paper_backtest_gate.json"
+_GATE_REQUIRED = f"requires runtime artefact {_PRE_PAPER_GATE} (git-ignored; absent on a clean checkout)"
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -431,11 +439,7 @@ class TestGenerateReportAndRegression(unittest.TestCase):
         for key in ("total_score", "overall_status", "categories", "blocking_items"):
             self.assertIn(key, report, f"Missing key: {key}")
 
-    @unittest.skipUnless(
-        (_REPO_ROOT / "data" / "gate_status.json").exists(),
-        "live data/gate_status.json absent (clean checkout)",
-    )
-    @pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/state-dependent (needs real evidenced track / gates data); runs locally, skipped in data-less CI)")
+    @unittest.skipUnless(_PRE_PAPER_GATE.exists(), _GATE_REQUIRED)
     def test_30_production_gates_score_gte_16(self):
         """Live repo gates score must be ≥ 16/20 (regression guard)."""
         live_r = GoLiveReadinessReport(base_dir=str(_REPO_ROOT))
