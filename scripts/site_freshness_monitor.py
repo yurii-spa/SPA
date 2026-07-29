@@ -253,6 +253,14 @@ def _alert(report):
     if report.get("degrade_triggered"):
         lines.append(f"  ⛔ KILL-RULE: site set to DEGRADED ({report['degrade_reason']})")
     msg = "\n".join(lines)
+    # Владельцу — простым русским (owner-задание 2026-07-20). Перевод чисто текстовый:
+    # нераспознанная строка проходит вербатим, технический detail сохраняется,
+    # сбой перевода отдаёт исходный текст (алерт обязан дойти).
+    try:
+        from spa_core.telegram.humanize import humanize_body
+        msg = humanize_body(msg)
+    except Exception:  # noqa: BLE001 — доставка важнее оформления
+        pass
     # 1. SPA telegram_manager (dedup/cooldown-aware). Only treat as delivered if it RETURNS truthy —
     #    it returns False (not raises) when its cooldown/creds gate suppresses the send.
     try:
