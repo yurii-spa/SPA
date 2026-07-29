@@ -8,10 +8,10 @@ output shape or contract changes in a way that silently breaks a downstream
 consumer — which per-module unit tests miss.
 
 Cross-module invariants enforced here:
-  • gate.eligible_for_paper  == verdict.validated set        (gate consistency)
+  • gate.eligible_for_paper  == validated set OF THE VERDICT THE GATE READ  (gate consistency)
   • packages offered strategies ⊆ gate.eligible_for_paper    (packages ⊆ eligible)
   • correlation.packages keys present (conservative/balanced/aggressive)
-  • status.health ∈ {OK, ATTENTION}; ATTENTION ⇒ problems non-empty
+  • status.health ∈ {OK, ATTENTION}; ATTENTION ⇒ problems non-empty; OK ⇒ nothing unchecked
   • monte_carlo / var / attribution / benchmark build_report structurally valid
     over the validated set
   • run_manifest.build_manifest has a manifest_hash and is DETERMINISTIC
@@ -22,7 +22,8 @@ Pure stdlib + pytest. Deterministic. Read-only (write=False). LLM-forbidden.
 # LLM_FORBIDDEN
 from __future__ import annotations
 
-import os
+import json
+
 import pytest
 
 from spa_core.backtesting.tier1 import evaluator
@@ -39,13 +40,36 @@ from spa_core.backtesting.tier1 import run_manifest as manifest_mod
 
 # ---------------------------------------------------------------------------
 # Session-scoped fixtures: run each stage ONCE against real data, write=False.
-# The verdict/gate/packages/correlation reads on-disk Tier-1 JSON (verdict, corr)
-# which the live pipeline maintains; we don't rewrite them. We DERIVE the
-# in-memory verdict from evaluate(write=False) for the cross-module assertions.
+#
+# TWO DIFFERENT VERDICTS — do not mix them up (this was the file's core defect):
+#   `verdict`          — a FRESH evaluator.evaluate(write=False) recompute. Use it
+#                        only to assert the evaluator's own output is self-consistent.
+#   `verdict_snapshot` — data/tier1_verdict.json, the file EVERY downstream module
+#                        (gate, packages, correlation, monte_carlo, var, attribution,
+#                        benchmark, status) actually reads. Use it for every
+#                        cross-module count/set assertion.
+# Deriving cross-module expectations from the recompute compared an input the
+# pipeline never used: the assertions were green only while snapshot ≡ recompute and
+# went red — for a reason unrelated to integration — the moment the strategy registry
+# moved after the snapshot was taken. Snapshot STALENESS is a real, separate question
+# (no Tier-1 module publishes the age of its verdict input); it is recorded as a
+# signal for the owner rather than asserted away here.
 # ---------------------------------------------------------------------------
 @pytest.fixture(scope="module")
 def verdict():
     return evaluator.evaluate(write=False)
+
+
+@pytest.fixture(scope="module")
+def verdict_snapshot():
+    """The on-disk verdict the downstream modules read ({} when the pipeline never ran)."""
+    if not gate_mod._VERDICT.exists():
+        return {}
+    return json.loads(gate_mod._VERDICT.read_text())
+
+
+def _validated_ids(verdict_obj: dict) -> set:
+    return {r["id"] for r in verdict_obj.get("leaderboard_tier1", []) if r.get("validated")}
 
 
 @pytest.fixture(scope="module")
@@ -89,25 +113,40 @@ def test_evaluator_verdict_shape(verdict):
 
 
 # ---------------------------------------------------------------------------
-# 2. gate.eligible set == verdict validated set  (cross-module consistency)
+# 2. gate.eligible set == validated set of the verdict the gate ACTUALLY READ
 #
-# The gate reads the ON-DISK verdict; we cross-check it against a FRESH
-# evaluate(write=False) verdict. The set of eligible_for_paper ids must equal
-# the set of validated ids — gate._block_reason returns None iff validated.
+# `build_gate` recomputes nothing: it loads the verdict SNAPSHOT the pipeline last
+# wrote (gate_mod._VERDICT). Deriving the expectation from a fresh
+# evaluate(write=False) compared TWO DIFFERENT INPUTS and so failed whenever the
+# strategy registry moved after the snapshot was taken — saying nothing about the
+# gate's own consistency while hiding it. Same correction as
+# test_tier1_backtest::test_gate_eligible_subset_of_validated (cycle #34); the
+# property is unchanged, only the input is now the right one (invariant #16).
+# Snapshot STALENESS is a real and separate question — the gate publishes no age
+# for its input — recorded as a signal for the owner, not asserted away here.
 # ---------------------------------------------------------------------------
-def test_gate_eligible_equals_validated(gate, verdict):
+@pytest.mark.skipif(
+    not gate_mod._VERDICT.exists(),
+    reason=(f"the gate reads its verdict from {gate_mod._VERDICT} (a git-ignored artifact the "
+            "live Tier-1 pipeline maintains); with no verdict there is no partition to check"),
+)
+def test_gate_eligible_equals_validated(gate, verdict_snapshot):
+    board = verdict_snapshot.get("leaderboard_tier1", [])
     eligible = set(gate["eligible_for_paper"])
-    validated_ids = {r["id"] for r in verdict["leaderboard_tier1"] if r["validated"]}
+    validated_ids = _validated_ids(verdict_snapshot)
     assert eligible == validated_ids, (
-        f"gate eligible {eligible} != verdict validated {validated_ids} — "
-        "integration drift between gate.py and evaluator.py"
+        f"gate eligible {eligible} != validated {validated_ids} of the verdict snapshot the "
+        "gate read — integration drift between gate.py and evaluator.py"
     )
     assert gate["eligible_count"] == len(eligible)
     # every blocked strategy has a non-empty reason string
     for sid, reason in gate["blocked"].items():
         assert isinstance(reason, str) and reason
-    # eligible and blocked partition the leaderboard
-    assert eligible.isdisjoint(set(gate["blocked"].keys()))
+    # eligible ∪ blocked partition the board exactly — nothing silently dropped
+    blocked = set(gate["blocked"].keys())
+    assert eligible.isdisjoint(blocked)
+    assert eligible | blocked == {r["id"] for r in board}
+    assert gate["eligible_count"] + gate["blocked_count"] == len(board)
 
 
 # ---------------------------------------------------------------------------
@@ -152,15 +191,39 @@ def test_correlation_package_keys(correlation):
 
 
 # ---------------------------------------------------------------------------
-# 5. status.build → health in {OK, ATTENTION}; ATTENTION ⇒ problems non-empty
+# 5. status.build → health in {OK, ATTENTION}; ATTENTION ⇒ problems non-empty;
+#    OK ⇒ both detectors actually ran (`unchecked` empty).
+#
+# The previous marker skipped this on GITHUB_ACTIONS with "runs locally" — it did
+# not run locally either: on a clean checkout it FAILED, because the three-tier
+# assertion below needs the git-ignored tier1_packages.json that only the live
+# pipeline writes. Gated on that artifact instead (invariant #16 — the property is
+# not weakened, the precondition is now stated truthfully; with the artifact
+# present the test executes and asserts strictly more than before).
+#
+# The unchecked/health part is asserted UNCONDITIONALLY in the hermetic
+# test_tier1_status_honesty.py, which injects its own data dir.
 # ---------------------------------------------------------------------------
-@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/env-dependent (needs committed data/ or the Mac host); runs locally, skipped in the data-less GitHub CI")
+_PACKAGES_ARTIFACT = status_mod._DATA / "tier1_packages.json"
+
+
+@pytest.mark.skipif(
+    not _PACKAGES_ARTIFACT.exists(),
+    reason=(f"the rollup summarises {_PACKAGES_ARTIFACT} (a git-ignored artifact the live Tier-1 "
+            "pipeline writes); with no packages file there are no tiers to roll up"),
+)
 def test_status_health_invariant(status):
     assert status["health"] in ("OK", "ATTENTION")
     if status["health"] == "ATTENTION":
         assert status["problems"], "health=ATTENTION but problems list is empty"
     else:
         assert status["problems"] == []
+        # refusal-first: OK may never mean "no detector fired" (invariant #2)
+        assert status["unchecked"] == [], (
+            f"health=OK while {status['unchecked']} was never measured")
+    # anything unchecked must be visible in problems — the alert reads problems only
+    for reason in status["unchecked"]:
+        assert reason in status["problems"]
     # packages summary carries the three tiers
     assert set(status["packages"].keys()) == {"conservative", "balanced", "aggressive"}
 
@@ -168,10 +231,14 @@ def test_status_health_invariant(status):
 # ---------------------------------------------------------------------------
 # 6. monte_carlo / var / attribution / benchmark build_report (write=False) —
 #    structurally valid over the validated set.
+#
+# All four read the VERDICT SNAPSHOT (each module has its own `_VERDICT` pointing at
+# data/tier1_verdict.json), so the expected counts come from `verdict_snapshot`, not
+# from a fresh recompute.
 # ---------------------------------------------------------------------------
-def test_monte_carlo_report(verdict):
+def test_monte_carlo_report(verdict_snapshot):
     rep = mc_mod.build_report(write=False, n_paths=200)  # fewer paths → fast, still deterministic
-    n_validated = verdict["validated_count"]
+    n_validated = len(_validated_ids(verdict_snapshot))
     assert rep["validated_count"] == n_validated
     assert rep["seed"] == 42
     assert len(rep["strategies"]) == n_validated
@@ -185,9 +252,9 @@ def test_monte_carlo_report(verdict):
             assert mc["maxdd_p5"] >= 0.0
 
 
-def test_var_report(verdict):
+def test_var_report(verdict_snapshot):
     rep = var_mod.build_report(write=False)
-    n_validated = verdict["validated_count"]
+    n_validated = len(_validated_ids(verdict_snapshot))
     assert rep["validated_count"] == n_validated
     assert len(rep["strategies"]) == n_validated
     for row in rep["strategies"]:
@@ -201,9 +268,9 @@ def test_var_report(verdict):
         assert risk["combined_annual_risk_pct"] == risk["principal_var_99"]
 
 
-def test_attribution_report(verdict):
+def test_attribution_report(verdict_snapshot):
     rep = attribution_mod.build_report(write=False)
-    n_validated = verdict["validated_count"]
+    n_validated = len(_validated_ids(verdict_snapshot))
     assert rep["n_validated"] == n_validated
     assert len(rep["strategies"]) == n_validated
     for sid, row in rep["strategies"].items():
@@ -216,7 +283,8 @@ def test_attribution_report(verdict):
                 assert abs(sum(shares) - 100.0) < 1.0
 
 
-def test_benchmark_report(verdict):
+def test_benchmark_report():
+    # no verdict fixture: this one asserts only the report's internal consistency
     rep = benchmark_mod.build_report(write=False)
     assert isinstance(rep["results"], list)
     assert rep["n_strategies"] == len(rep["results"])
@@ -255,7 +323,7 @@ def test_run_manifest_deterministic():
 # 8. WHOLE-CHAIN smoke: run every stage in order without exception and assert
 #    the top-level cross-module invariants (eligible ⊆ validated, packages ⊆ eligible).
 # ---------------------------------------------------------------------------
-def test_full_pipeline_chain_runs():
+def test_full_pipeline_chain_runs(verdict_snapshot):
     v = evaluator.evaluate(write=False)
     g = gate_mod.build_gate(write=False)
     p = packages_mod.build(write=False)
@@ -267,17 +335,21 @@ def test_full_pipeline_chain_runs():
     bench = benchmark_mod.build_report(write=False)
     man = manifest_mod.build_manifest(write=False)
 
-    validated_ids = {r["id"] for r in v["leaderboard_tier1"] if r["validated"]}
+    # eligible/offered come from the SNAPSHOT-reading modules, so the validated set must
+    # come from the snapshot too — `v` above only proves the evaluator still runs.
+    validated_ids = _validated_ids(verdict_snapshot)
     eligible = set(g["eligible_for_paper"])
     offered = {m["id"] for pkg in p["packages"].values() for m in pkg["strategies"]}
 
     # the two headline integration invariants
     assert eligible <= validated_ids       # eligible ⊆ validated
     assert offered <= eligible             # packages ⊆ eligible
+    assert isinstance(v["leaderboard_tier1"], list)   # the recompute itself still produces a board
 
     # nothing returned a degenerate/empty structure
     assert set(c["packages"].keys()) == {"conservative", "balanced", "aggressive"}
     assert s["health"] in ("OK", "ATTENTION")
+    assert (s["health"] == "ATTENTION") == bool(s["problems"])
     assert mc["seed"] == 42
     assert var_rep["model"] == "tier1_var"
     assert attr["model"] == "tier1_attribution"
