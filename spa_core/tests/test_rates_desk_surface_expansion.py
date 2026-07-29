@@ -25,6 +25,7 @@ import os
 import pytest
 
 from spa_core.strategy_lab.rates_desk import config, feeds
+from spa_core.strategy_lab.rates_desk import pendle_pt_history as _pph
 from spa_core.strategy_lab.rates_desk import validation as rd_validation
 from spa_core.strategy_lab.rates_desk.contracts import RateVenue, UnderlyingKind
 
@@ -167,10 +168,24 @@ def test_extended_lending_targets_expanded_and_well_formed():
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
 # C1 — REFUSAL no-regression: the gate STILL fires 100% on the known-toxic LRT histories
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
-@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/env-dependent (needs committed data/ or the Mac host); runs locally, skipped in the data-less GitHub CI")
+@pytest.mark.skipif(
+    not _pph._OUT.exists(),
+    reason=(f"deep Pendle PT implied-yield history not built at {_pph._OUT} — this assertion "
+            "replays the REAL toxic-LRT histories (no fixture); run "
+            "`python3 -m spa_core.strategy_lab.rates_desk.pendle_pt_history` to run it"),
+)
 def test_refusal_still_100pct_on_toxic_after_expansion():
     """The whole edge: after widening the surface coverage, the refusal-first gate must STILL refuse
-    every toxic LRT book on EVERY day of its real history — economics never rescues a tail-vetoed book."""
+    every toxic LRT book on EVERY day of its real history — economics never rescues a tail-vetoed book.
+
+    Gated on the ARTIFACT, not on "am I in CI". Unlike its neighbours in this file, this test injects
+    nothing: it calls ``assertion1_deep_refusal()`` against the real deep history, which fail-CLOSES
+    to ``{"status": "deep history absent: …", "VERDICT_assertion1_deep": None}`` when the git-ignored
+    dataset is missing — so on a clean checkout the test died with ``KeyError`` instead of skipping.
+    The old "runs locally, skipped in the data-less CI" marker was false in both directions: locally
+    it did not run either unless the deep fetch had been done, and with the dataset present it now
+    genuinely EXECUTES (verified). A refusal property must never be reported green off a missing file.
+    """
     deep = rd_validation.assertion1_deep_refusal()
     assert deep["all_toxic_books_refused_every_day"] is True
     assert deep["any_toxic_day_approved"] is False
