@@ -44,6 +44,26 @@ if [ "${SPA_RND_ARMED:-0}" != "1" ]; then
     exit 0
 fi
 
+# ── ANTI-DRIFT: registry truth lives in origin/main, not in the working copy ──
+# Incident 2026-07-29: the 20.07 `freeze-main-phase0` ruleset stranded R&D in PRs, so the
+# working copy's registry lagged main by 7 ideas. Two sessions then picked the SAME free
+# number (#21) and one re-tested an idea already answered in a stranded PR (ALK, PR #8 →
+# closed without merge, folded into #27). Fix: fetch origin (read-only — never touch the
+# shared working tree, other sessions write here) and hand the session the next free idea
+# number computed from origin/main. Fail-OPEN with an explicit UNKNOWN marker: the prompt
+# then orders the session to derive the number itself from origin/main before writing.
+git fetch origin main --quiet >> "$LOG" 2>&1 \
+    || echo "[$(ts)] WARN: git fetch origin main failed — number may be stale" >> "$LOG"
+
+LAST_IDEA="$(git show origin/main:docs/DYNAMIC_LEVERAGE_GUARDIAN.md 2>/dev/null \
+    | grep -oE '^(- \*\*#|### Идея #)[0-9]+' | grep -oE '[0-9]+' | sort -n | tail -1)"
+if [ -n "$LAST_IDEA" ]; then
+    NEXT_IDEA="$((LAST_IDEA + 1))"
+else
+    NEXT_IDEA="UNKNOWN"
+fi
+echo "[$(ts)] registry on origin/main ends at #${LAST_IDEA:-?} → next free idea number: #$NEXT_IDEA" >> "$LOG"
+
 # ── ARMED: run one headless R&D iteration per the standing SKILL directive ───
 PROMPT="Исполни ОДНУ автономную R&D-итерацию SPA строго по директиве \
 ~/.claude/scheduled-tasks/novel-edge-rnd/SKILL.md — прочитай её ПЕРВОЙ и следуй ей полностью, \
@@ -56,7 +76,14 @@ docs/decisions/INDEX.md + docs/SYSTEM_BRIEFING.md + реестр docs/DYNAMIC_LE
 fail-closed, hash-chain, тесты) и КАРТОЧКА владельцу на деплой нового агента (НЕ деплой молча). \
 Всё advisory/paper/OUTSIDE_RISKPOLICY: go-live трек и RiskPolicy v1.0 НЕ трогать, живой cycle_runner \
 против data/ НЕ запускать. Тесты зелёные до пуша; пуш через push_to_github_batch.py. По завершении — \
-краткий отчёт: какие гипотезы, вердикты, что запушено, что отвергнуто и почему."
+краткий отчёт: какие гипотезы, вердикты, что запушено, что отвергнуто и почему. \
+ВАЖНО (анти-дрейф, инцидент 29.07): реестр читать ИЗ ORIGIN, а не из рабочей копии — она отстаёт, \
+пока другие сессии пушат: \`git show origin/main:docs/DYNAMIC_LEVERAGE_GUARDIAN.md\`. Следующий \
+СВОБОДНЫЙ номер идеи = #$NEXT_IDEA (вычислен из origin/main перед стартом; если тут UNKNOWN — \
+вычисли сам тем же способом). Прежде чем тестировать гипотезу, проверь по ORIGIN-реестру, что она \
+там ещё не отвечена. Пушить НАПРЯМУЮ в main (bypass admin включён владельцем 29.07) — PR не \
+создавать; если пуш вернул HTTP 422 'must be made through a pull request', значит правило вернули: \
+НЕ обходить его ветками молча, а завести карточку владельцу и сообщить в отчёте."
 
 echo "[$(ts)] ARMED: invoking headless Claude (novel-edge R&D, skip-permissions)" >> "$LOG"
 "$CLAUDE_BIN" -p "$PROMPT" --dangerously-skip-permissions >> "$LOG" 2>&1
