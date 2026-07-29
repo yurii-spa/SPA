@@ -29,7 +29,12 @@ TESTS = REPO / "tests"
 
 RUNNER_SH = SCRIPTS / "run_daily_paper_cycle.sh"
 PLIST_FILE = SCRIPTS / "com.spa.daily_cycle.plist"
-INSTALL_SH = SCRIPTS / "install_daily_cycle.sh"
+# Canonical fleet installer (CLAUDE.md → «Переустановить агентов: bash scripts/install_all_agents.sh»).
+# The daily-cycle-only installer `scripts/install_daily_cycle.sh` was retired to
+# `scripts/archive/` by the repo-cleanup task; T22–T25 below follow the live installer
+# instead of the archived one — see the class docstring for the per-assert rationale.
+INSTALL_SH = SCRIPTS / "install_all_agents.sh"
+DAILY_CYCLE_LABEL = "com.spa.daily_cycle"
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -162,14 +167,34 @@ class TestLaunchdPlist:
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# Group 3: install_daily_cycle.sh
+# Group 3: the installer that actually installs the daily cycle
 # ════════════════════════════════════════════════════════════════════════════
 
 class TestInstallScript:
-    """Tests for scripts/install_daily_cycle.sh"""
+    """Tests for the installer of the daily-cycle LaunchAgent.
+
+    Repointed 2026-07-29 (autonomous cycle #32), NOT weakened — justification per
+    invariant #16, full entry in `docs/journal/2026-W31.md`:
+
+    T22–T25 used to read `scripts/install_daily_cycle.sh`. That single-agent
+    installer was retired to `scripts/archive/install_daily_cycle.sh` by the
+    repo-cleanup task, so all four asserts failed with FileNotFoundError on every
+    clean checkout and in CI — they were guarding a file, not a property. The
+    property they exist for ("the daily cycle really gets installed into launchd")
+    now lives in the canonical fleet installer `scripts/install_all_agents.sh`
+    (CLAUDE.md § Команды), which is what T22–T24 assert against.
+
+    T25 ("chmod +x on the runner") is replaced rather than kept: the plist runs
+    `/bin/bash <runner>` (see T16), so the runner needs no exec bit — it is mode
+    644 in git and the canonical installer deliberately does not chmod anything.
+    Asserting a chmod that must not exist would be a fiction. The substantive
+    replacement is stronger than the string it drops: the fleet installer must
+    actually cover THIS agent (label + plist path), which is exactly what would
+    break if the daily cycle were dropped from the fleet install.
+    """
 
     def test_install_exists(self):
-        """T22: install_daily_cycle.sh exists"""
+        """T22: the canonical installer exists"""
         assert INSTALL_SH.exists(), f"Missing: {INSTALL_SH}"
 
     def test_install_loads_launchd(self):
@@ -182,7 +207,13 @@ class TestInstallScript:
         content = INSTALL_SH.read_text()
         assert "LaunchAgents" in content
 
-    def test_install_makes_runner_executable(self):
-        """T25: install script calls chmod +x on runner"""
+    def test_install_covers_daily_cycle_agent(self):
+        """T25: the installer installs THIS agent — label + its plist"""
         content = INSTALL_SH.read_text()
-        assert "chmod +x" in content
+        assert DAILY_CYCLE_LABEL in content, (
+            f"{INSTALL_SH.name} no longer installs {DAILY_CYCLE_LABEL} — "
+            "the daily paper-trading cycle would silently stop being deployed"
+        )
+        assert PLIST_FILE.name in content, (
+            f"{INSTALL_SH.name} does not reference {PLIST_FILE.name}"
+        )
