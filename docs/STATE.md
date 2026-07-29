@@ -4,33 +4,38 @@
 > Живые оперативные цифры — `docs/SYSTEM_BRIEFING.md` (auto, 30 мин). Здесь — фокус,
 > задачи, решения, вопросы. **Максимум ~150 строк.**
 
-_Обновлено: 2026-07-17 (СПРИНТ owner 6ч — **AI Investment OS продуктовый слой ПОСТРОЕН И ЖИВОЙ**: 10 advisory-аналитиков (stablecoin_yield/market_regime/reporting/red_team/liquidity/protocol_risk/yield_quality/onchain/quant/chief_investment=Head of Product синтез) + CMO editorial + health-монитор + /admin/investment-os дашборд + /api/investment-os (12 эндпоинтов). Все на harness, evidence L0-L6, fail-closed, капитал НЕ двигают, RiskPolicy/kill/трек НЕ трогают. Реестр ~70/0 reboot-safe, ~85 тестов. Chief Investment RECOMMENDS only — allocation-решения + CMO-публикация = HARD owner-gate (ждут владельца). Поймал+починил 2 своих дрейф-клоббера (honesty_gate, server.py-cmo). Детали — docs/AAA_PRODUCT_LAYER_ACTIVATION_PLAN.md + journal 2026-W29)_
+_Обновлено: 2026-07-29 (ИНЦИДЕНТ-РАЗБОР с владельцем — **два инцидента найдены и закрыты**: (1) ruleset
+`freeze-main-phase0` с 20.07 молча блокировал ВСЕ пуши в main → сайт заморожен 9 дней, R&D в 5 зависших PR
+(разобраны, реестр перенумерован #21–#27); (2) RTMR держал портфель в DEFENSIVE/all-cash с 26.07 — ЧЕТЫРЕ
+бага цепочки восстановления (binance 0.0-цена, `{} or _SLUGS`, страж пустого сенсора, несохраняемые
+recover-счётчики) + 2 процесса-сироты. Посадка NORMAL, редеплой циклом 30.07. Autopush восстановлен →
+гейт 28/29. Отчёт готовности больше не врёт READY (вариант А). Всё в журнале **2026-W31** + ADR
+`repo-freeze-incident` / `readiness-truth`. **Трек ДОБРАН: 36/30 evidenced.**)_
 ---
 
 ## 🎯 Текущий фокус
 
-- **ENV_SETUP_BRIEF_v3 — ЗАВЕРШЁН + запушен в origin** (все 8 этапов + smoke-test). Files-first
-  контур владельца живой: Owner Decisions + Inbox трекеры, протокол оркестратора, наблюдение :4455,
-  Obsidian-база знаний, Telegram `/task`+`/status`+голос.
-- **Автономный цикл `com.spa.orchestrator` ВКЛЮЧЁН** (governed autonomy, **каждый час** — owner 2026-07-16
-  «чаще → больше работы»; было 3ч. Live: plist `StartInterval=3600`, агент `run interval=3600s`).
-- **Agent cleanup сделан:** roadmap-loop остановлен, novel-edge переподчинён, 3 retired выгружены (fleet 54).
-- **Go-live трек** — идёт фоном: ~24/30 evidenced дней (anchor 2026-06-22, target ~2026-07-21).
-  Осталось просто дождать честных трек-дней. Кодом чинить нечего.
+- **ПОСТ-ИНЦИДЕНТНОЕ ВОССТАНОВЛЕНИЕ (29.07):** ждём редеплой портфеля штатным циклом 06:00 UTC 30.07
+  (RiskPolicy одобряет ~80% deploy). После него уйдёт последний GoLive-блокер `apy_above_floor` → 29/29.
+- **Трек ДОБРАН (36/30 evidenced)** → следующая фаза = план после paper-теста (карточка владельца
+  `inbox-zadacha-produmat-plan-deistvii-posle-tog` — отдельная стратегическая сессия).
+- **⚠️ `com.spa.orchestrator` ВЫКЛЮЧЕН с 16.07 10:04** (`.disabled` без записи — кто/зачем неизвестно).
+  Intake-классификация и авто-регенерация доски стояли с 22.07 (доска перегенерена вручную 29.07).
+  Повторное вооружение — вопрос владельцу (задан 29.07). Правило впредь: любые изменения настроек
+  репо/launchd — только через карточку (ADR-OWN-2026-07-repo-freeze-incident).
 
 ## 📊 Оперативный снимок (дрейфует — истина в SYSTEM_BRIEFING)
 
 | Поле | Значение |
 |---|---|
-| GoLive | ⛔ **26/29 pass** — NOT READY (time-gated блокеры) |
-| Трек | **25/30** evidenced (anchor 2026-06-22, target ~2026-07-21) |
-| Portfolio | ~$100,456 (+0.46%/24d), deployed 80% / cash 20%, ✅ policy-compliant |
-| Аллокация | T1 45% · T2 35% · cash 20% · expected APY ~8.35% |
-| Агенты | 54 загружено (`launchctl`, после чистки), agent_health nominal |
-| KANBAN | v12.80 · done 1358 · 65 стратегий · 33 адаптера |
+| GoLive | ⛔ **28/29 pass** — остался `apy_above_floor` (уйдёт после редеплоя 30.07) |
+| Трек | **36/30 evidenced — ДОБРАН** (anchor 2026-06-22; дни 19.07/27.07 — честные refusal-гэпы) |
+| Portfolio | $100,628.61 (+0.63%), 29.07 ещё 100% cash (инцидент), редеплой 30.07 06:00 UTC |
+| RTMR | ✅ portfolio NORMAL, entries {} (после 4 фиксов + kill сирот, 29.07 ~12:10) |
+| Агенты | 68 загружено; autopush восстановлен; orchestrator выключен (вопрос владельцу) |
+| GitHub | ✅ прямые пуши работают (bypass admin, 29.07); PR #2–#5, #7 закрыты |
 
-**GoLive блокеры (только ожидание, не баги):** `gap_monitor_30d`, `min_track_days_30` — оба
-= 24/30 evidenced трек-дней, ждать ещё 6.
+**GoLive блокер один:** `apy_above_floor` — следствие принудительного all-cash, уйдёт сам.
 
 ## 📋 Активные задачи
 
@@ -45,6 +50,16 @@ _Обновлено: 2026-07-17 (СПРИНТ owner 6ч — **AI Investment OS �
 «есть вопрос — смотри карточку». Детали — journal `2026-W29.md`.
 
 ## 🗂️ Последние решения (одной строкой → ADR)
+
+- **Novel-edge R&D (2026-07-29, реестр #21+#22, ADR не требуется — ничего не включается):** на РЕАЛЬНЫХ
+  сериях (ETH spot + perp funding + 10-книжная панель, 2024-06..2026-06) **фальсифицирована предпосылка
+  идеи #20 (CACH)**: у реальных carry-книг нет кризисной ко-движимости с ETH (в худшие 10% дней ETH они
+  в ПЛЮСЕ), пассивный short-ETH хедж не снижает, а увеличивает просадку (0.005%→0.78% при h=2%) — числа
+  #20 (Calmar до 11.53) читать как свойство фикстуры, **не переносить на портфель**. Идея #22: гейт по
+  funding-режиму статистически значим (+10.2pp lift), но экономический бюджет **1.1 bps/переключение**
+  против реальных 5–20 bps → `funding_regime` = описательный сигнал, **не торговый ON/OFF-триггер**.
+  Честный потолок дельта-нейтрального funding-carry: **5.83%/год (bt), 3.57% OOS** до basis-риска —
+  держать рядом с любой публичной APY-претензией по DN-ноге. Детали: `docs/DYNAMIC_LEVERAGE_GUARDIAN.md`.
 
 - **Hardening (автономный цикл, 2026-07-17, #21):** очередь пуста (inbox/owner-done/promotions/loose-notes=0;
   needs-owner own-07 + capacity/fundability + агенты-инвентаризация + peg-monitor + golive-readiness ждут
