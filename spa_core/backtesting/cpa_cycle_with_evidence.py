@@ -182,7 +182,10 @@ class CPACycleWithEvidence:
         pt_section = sections.get("paper_trading_status", {})
         ev_section = sections.get("evidence_update", {})
 
-        nav = float(pt_section.get("nav", ev_section.get("equity", 0.0)))
+        # evidence_update carries the equity under "current_equity" (not "equity") — the old
+        # fallback chain missed it and wrote nav=0.00 into every paper_trading_records row
+        nav = float(pt_section.get("nav",
+            ev_section.get("current_equity", ev_section.get("equity", 0.0))))
         daily_pnl = float(
             pt_section.get("daily_pnl",
                 ev_section.get("daily_yield_usd", 0.0))
