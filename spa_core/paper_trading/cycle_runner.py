@@ -1781,7 +1781,10 @@ def run_cycle(
         def _pos_apy_source(p: str) -> str:
             src = _apy_sources_map.get(p)
             if src in ("live", "fallback_stale"):
-                return src
+                # ``str(...)`` — не приведение, а сужение типа: ветка достижима
+                # только для этих двух строковых литералов (карта приходит из
+                # JSON-снимка, поэтому её значения для mypy — Any).
+                return str(src)
             return "fallback_stale" if p in _fallback_apy_pools else "unknown"
 
         _positions_detail = {
@@ -1995,7 +1998,12 @@ def main(argv: list[str] | None = None) -> int:
     if not args.dry_run and datetime.now().weekday() == 6:  # Sunday
         try:
             from spa_core.tuner.allocation_tuner import run_allocation_tuner
-            _suggestion = run_allocation_tuner(data_dir=_eff_data_dir)
+            # ``_eff_dir`` (Path), НЕ ``_eff_data_dir`` (str): тюнер делает
+            # ``ddir / "tuner_suggestion.json"`` — строка роняла его TypeError'ом,
+            # который съедала fail-safe-обёртка ниже. С момента появления этой
+            # ветки (17.07, write-interlock) она не отработала ни разу: живой
+            # ``data/tuner_suggestion.json`` заморожен на 21.06.
+            _suggestion = run_allocation_tuner(data_dir=_eff_dir)
             log.info(
                 "MP-207 Tuner suggestion: expected APY %.2f%%, Sharpe %.3f, "
                 "improvements: %s",
