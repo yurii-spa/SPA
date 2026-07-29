@@ -62,6 +62,12 @@ def build_liquidity_sensor():
     from spa_core.monitoring.sensors.liquidity import LiquiditySensor
     from spa_core.monitoring.sensors.liquidity_providers import liquidity_inputs
     depth, sizes = liquidity_inputs()
+    if not depth:
+        # All-cash book → nothing to depth-watch. Registering an empty sensor would trip the
+        # sense-loop's "sensor produced no signal" stale guard every tick → scope "liquidity"
+        # FROZEN → portfolio can never leave DEFENSIVE (incident 2026-07). The register loop
+        # logs this skip; the sensor re-arms on the next service start after redeploy.
+        raise RuntimeError("no held positions (all-cash) — liquidity sensor intentionally not registered")
     return LiquiditySensor(depth, sizes)
 
 
