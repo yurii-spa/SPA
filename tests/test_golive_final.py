@@ -16,10 +16,8 @@ Total: 20 tests
 stdlib unittest + pytest compatible
 """
 from __future__ import annotations
-import pytest
 
 import json
-import os
 import sys
 import tempfile
 import unittest
@@ -312,7 +310,17 @@ class TestProgressReportExists(unittest.TestCase):
 # GROUP 6 — Gates ≥ 16/20 не регрессирует (tests 16–17)
 # ══════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data-dependent (needs committed data/ backtest gate + golive state); runs locally, skipped in the data-less CI)")
+# Guard on the ARTEFACT that actually decides the score, not on `GITHUB_ACTIONS == "true"`
+# (autonomous cycle #32, 2026-07-29). `pre_paper_backtest_gate.json` is worth +6 of the 20
+# points in assess_gates §1, so without it the live score is 12/20 by arithmetic — not by the
+# regression this class guards. The file is a runtime artefact (`data/**/*.json` is git-ignored)
+# and is therefore absent on every clean checkout, CI included: same skip set as the env-keyed
+# marker, but honest about the cause and green on a clean local checkout.
+_PRE_PAPER_GATE = _REPO_ROOT / "data" / "backtest" / "pre_paper_backtest_gate.json"
+_GATE_REQUIRED = f"requires runtime artefact {_PRE_PAPER_GATE} (git-ignored; absent on a clean checkout)"
+
+
+@unittest.skipUnless(_PRE_PAPER_GATE.exists(), _GATE_REQUIRED)
 class TestGatesRegression(unittest.TestCase):
 
     def test_16_production_gates_not_below_16(self):
