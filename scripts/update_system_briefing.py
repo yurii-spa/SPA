@@ -376,7 +376,10 @@ def build_system_health_section() -> str:
     if problem_domains:
         lines.append("\n**Problem domains:**")
         for domain, info in problem_domains.items():
-            lines.append(f"- ⚠️ `{domain}`: {info.get('status')}")
+            # "unchecked" (no check in the domain produced a real status — e.g. the
+            # domain blew its time budget) must never read like a measured verdict.
+            suffix = " — **NOT CHECKED** (no check ran)" if info.get("unchecked") else ""
+            lines.append(f"- ⚠️ `{domain}`: {info.get('status')}{suffix}")
     return "\n".join(lines) + "\n"
 
 
