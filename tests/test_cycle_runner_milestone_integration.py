@@ -10,10 +10,10 @@ Verifies:
   6. Несколько вызовов record_day() не ломают друг друга
   7. record_day() с APY 5.0% достигает только L1
   8. record_day() с APY 15.5% достигает все 5 уровней
-  9. Блок в cycle_runner.py присутствует (grep-тест)
- 10. Fallback 10.115 используется при отсутствии apy_today_pct
+  9. Блок MP-512 присутствует в цикле и fail-safe (падение трекера не роняет цикл)
+ 10. Недоступный APY = отказ записать день (никаких подстановок), убыток пишется как есть
 
-Total: 10 tests
+Total: 11 tests
 """
 import importlib
 import json
@@ -197,18 +197,52 @@ class TestCycleRunnerIntegration:
         assert "MP-512" in source, "Метка MP-512 не найдена"
         assert "apy_milestone_tracker" in source, "Импорт модуля не найден"
 
-    def test_mp512_block_inside_try_except(self):
-        """Блок MP-512 должен быть обёрнут в try/except (новое расположение)."""
+    def test_mp512_recording_is_fail_safe(self):
+        """Запись вехи MP-512 НИКОГДА не роняет дневной цикл.
+
+        Переписан 2026-07-29 (автономный цикл #32), НЕ ослаблен — обоснование по
+        инварианту #16, запись в `docs/journal/2026-W31.md`:
+
+        раньше тест искал подстроку ``except Exception`` в 1200 символах после
+        метки «MP-512» в исходнике. Цикл #30 вынес блок в функцию
+        ``_record_apy_milestone`` (try/except уехал за границу окна), и тест стал
+        красным, хотя свойство — «падение трекера не роняет цикл» — сохранилось.
+        Прокси по тексту заменён на ПОВЕДЕНЧЕСКУЮ проверку того же свойства:
+        трекер, который взрывается, не должен пробить наружу. Такой тест не
+        зависит от расположения кода и ловит настоящую регрессию (снятый
+        try/except), которую grep-версия пропустила бы при любом рефакторинге.
+        """
+        from spa_core.analytics import apy_milestone_tracker as amt_mod
+        from spa_core.paper_trading import cycle_reporting
+
+        class _ExplodingTracker:
+            def __init__(self, *a, **kw):
+                raise RuntimeError("apy_milestone_tracker exploded")
+
+        original = amt_mod.ApyMilestoneTracker
+        amt_mod.ApyMilestoneTracker = _ExplodingTracker
+        try:
+            class FakeResult:
+                apy_today_pct = 4.2
+                best_strategy_id = "s7_pendle_yt"
+
+            # Должно вернуться нормально: исключение съедается внутри.
+            assert cycle_reporting._record_apy_milestone(
+                result=FakeResult(), today="2026-07-29"
+            ) is None
+        finally:
+            amt_mod.ApyMilestoneTracker = original
+
+    def test_mp512_still_wired_into_the_advisory_tail(self):
+        """Блок MP-512 должен вызываться из post-cycle advisory tail."""
         reporting_path = (
             Path(__file__).resolve().parents[1]
             / "spa_core" / "paper_trading" / "cycle_reporting.py"
         )
         source = reporting_path.read_text(encoding="utf-8")
-        # Найдём позицию блока и убедимся что рядом есть except
-        idx = source.find("MP-512")
-        assert idx != -1
-        snippet = source[idx: idx + 1200]
-        assert "except Exception" in snippet, "Блок MP-512 не обёрнут в try/except"
+        assert "_record_apy_milestone(result=result" in source, (
+            "вызов записи вехи MP-512 пропал из дневного цикла"
+        )
 
 
 # ===========================================================================
@@ -234,19 +268,57 @@ class TestFallbackBehavior:
         data = json.loads((tmp_path / "apy_milestone_log.json").read_text())
         assert data["daily_log"][0]["strategy_id"] == "s7_pendle_yt"
 
-    def test_fallback_apy_when_invalid(self, tmp_path):
-        """Если apy_today_pct <= 0, fallback 10.115 используется."""
-        tracker = make_tracker(tmp_path)
+    def test_unavailable_apy_is_refused_not_fabricated(self):
+        """Недоступный APY = ОТКАЗ записывать день, а не подстановка числа.
 
-        class FakeResult:
-            apy_today_pct = -1.0  # невалидное значение
+        Переписан 2026-07-29 (автономный цикл #32), НЕ ослаблен — обоснование по
+        инварианту #16, запись в `docs/journal/2026-W31.md`:
 
-        fake = FakeResult()
-        apy = (
-            fake.apy_today_pct
-            if hasattr(fake, "apy_today_pct")
-            and isinstance(fake.apy_today_pct, (int, float))
-            and fake.apy_today_pct > 0
-            else 10.115
-        )
-        assert apy == pytest.approx(10.115, rel=1e-9), "Fallback должен быть 10.115"
+        прежний тест назывался «Если apy_today_pct <= 0, fallback 10.115
+        используется» и УТВЕРЖДАЛ фабрикацию — при этом он был тавтологией: сам
+        воспроизводил у себя в теле выражение с ``else 10.115`` и проверял свою же
+        локальную переменную, продакшн-кода не касаясь вообще. Поэтому он остался
+        зелёным, когда цикл #30 убрал литерал 10.115 (число из БЭКТЕСТА
+        s7_pendle_yt_aggressive) — то есть зелёный тест продолжал документировать
+        поведение, запрещённое инвариантами #2 (fail-CLOSED) и #8 (backtest ≠ live).
+        Заменён на проверку ДЕЙСТВУЮЩЕГО контракта продакшн-кода.
+        """
+        from spa_core.analytics import apy_milestone_tracker as amt_mod
+        from spa_core.paper_trading import cycle_reporting
+
+        constructed: list = []
+        recorded: list = []
+
+        class _SpyTracker:
+            def __init__(self, *a, **kw):
+                constructed.append((a, kw))
+
+            def record_day(self, day, apy, strategy):
+                recorded.append((day, apy, strategy))
+                return {}
+
+        original = amt_mod.ApyMilestoneTracker
+        amt_mod.ApyMilestoneTracker = _SpyTracker
+        try:
+            class NoApy:
+                apy_today_pct = None
+                best_strategy_id = "s7_pendle_yt"
+
+            cycle_reporting._record_apy_milestone(result=NoApy(), today="2026-07-29")
+            assert recorded == [], "недоступный APY не должен записывать день"
+            assert constructed == [], (
+                "в ветке отказа живой трекер не должен даже конструироваться "
+                "(иначе — запись в живой data/apy_milestone_log.json)"
+            )
+
+            # ...а измеренный убыток пишется ВЕРБАТИМ (честный минус, не 10.115).
+            class LossDay:
+                apy_today_pct = -1.0
+                best_strategy_id = "s7_pendle_yt"
+
+            cycle_reporting._record_apy_milestone(result=LossDay(), today="2026-07-29")
+            assert recorded == [("2026-07-29", -1.0, "s7_pendle_yt")], (
+                f"убыток должен записываться как есть, получено: {recorded}"
+            )
+        finally:
+            amt_mod.ApyMilestoneTracker = original
