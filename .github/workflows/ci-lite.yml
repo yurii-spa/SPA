@@ -171,9 +171,16 @@ jobs:
           import importlib, pkgutil, sys, spa_core
           # Optional/heavy deps are not installed in ci-lite — skip those import
           # failures. Deprecated stubs intentionally raise ImportError('DEPRECATED').
+          # 'starlette' / 'pydantic' — СОБСТВЕННЫЕ зависимости FastAPI: модули
+          # веб-слоя импортируют их напрямую (spa_core/api/rate_limit.py,
+          # family_fund/api/*), поэтому без них список был неполон и шаг падал на
+          # ОЖИДАЕМОМ отсутствии необязательной зависимости, а не на реальной
+          # поломке импорта. Проверка не ослаблена: настоящая ошибка импорта
+          # (любая другая) по-прежнему валит гейт (цикл #33, инвариант #16).
           OPTIONAL = (
               'reportlab', 'numpy', 'pandas', 'requests', 'aiohttp',
-              'fastapi', 'uvicorn', 'jwt', 'bcrypt', 'anthropic', 'openai',
+              'fastapi', 'starlette', 'pydantic',
+              'uvicorn', 'jwt', 'bcrypt', 'anthropic', 'openai',
           )
           ok = depr = opt = 0
           real = []
