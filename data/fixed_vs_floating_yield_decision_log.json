@@ -24,438 +24,6 @@
     "recommendations": [
       "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
     ],
-    "timestamp": 1785317991.39285
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
-    "timestamp": 1785317991.867967
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
-    "timestamp": 1785317992.2936544
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
-    "timestamp": 1785317992.7288394
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
-    "timestamp": 1785317995.5872495
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
-    "timestamp": 1785317996.114107
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
-    "timestamp": 1785317996.6292326
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
-    "timestamp": 1785317997.1481917
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
-    "timestamp": 1785317997.644659
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
-    "timestamp": 1785317998.1305203
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
-    "timestamp": 1785317998.6353946
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
-    "timestamp": 1785317999.127656
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
-    "timestamp": 1785318002.3745701
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
-    "timestamp": 1785318002.7928433
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
-    "timestamp": 1785318003.2078362
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
-    "timestamp": 1785318003.6508956
-  },
-  {
-    "name": "UNKNOWN",
-    "fixed_apr_pct": 0.0,
-    "current_floating_apr_pct": 0.0,
-    "expected_floating_apr_pct": 0.0,
-    "floating_apr_volatility_pct": 0.0,
-    "horizon_days": 365.0,
-    "data_quality_ok": true,
-    "fixed_minus_current_floating_spread_pct": 0.0,
-    "fixed_vs_expected_spread_pct": 0.0,
-    "breakeven_avg_floating_apr_pct": 0.0,
-    "fixed_total_return_pct": 0.0,
-    "expected_floating_total_return_pct": 0.0,
-    "advantage_of_fixed_pct": 0.0,
-    "probability_floating_beats_fixed_pct": 50.0,
-    "decision_score": 0.0,
-    "classification": "NEUTRAL",
-    "recommendation": "NEUTRAL",
-    "grade": "A",
-    "flags": [
-      "INSUFFICIENT_DATA"
-    ],
-    "recommendations": [
-      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
-    ],
     "timestamp": 1785318004.1132135
   },
   {
@@ -2698,5 +2266,437 @@
       "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
     ],
     "timestamp": 1785318069.2920952
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 0.0,
+    "current_floating_apr_pct": 0.0,
+    "expected_floating_apr_pct": 0.0,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": 0.0,
+    "fixed_vs_expected_spread_pct": 0.0,
+    "breakeven_avg_floating_apr_pct": 0.0,
+    "fixed_total_return_pct": 0.0,
+    "expected_floating_total_return_pct": 0.0,
+    "advantage_of_fixed_pct": 0.0,
+    "probability_floating_beats_fixed_pct": 50.0,
+    "decision_score": 0.0,
+    "classification": "NEUTRAL",
+    "recommendation": "NEUTRAL",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
+    ],
+    "timestamp": 1785318072.8333576
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 0.0,
+    "current_floating_apr_pct": 0.0,
+    "expected_floating_apr_pct": 0.0,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": 0.0,
+    "fixed_vs_expected_spread_pct": 0.0,
+    "breakeven_avg_floating_apr_pct": 0.0,
+    "fixed_total_return_pct": 0.0,
+    "expected_floating_total_return_pct": 0.0,
+    "advantage_of_fixed_pct": 0.0,
+    "probability_floating_beats_fixed_pct": 50.0,
+    "decision_score": 0.0,
+    "classification": "NEUTRAL",
+    "recommendation": "NEUTRAL",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
+    ],
+    "timestamp": 1785318073.273458
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 0.0,
+    "current_floating_apr_pct": 0.0,
+    "expected_floating_apr_pct": 0.0,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": 0.0,
+    "fixed_vs_expected_spread_pct": 0.0,
+    "breakeven_avg_floating_apr_pct": 0.0,
+    "fixed_total_return_pct": 0.0,
+    "expected_floating_total_return_pct": 0.0,
+    "advantage_of_fixed_pct": 0.0,
+    "probability_floating_beats_fixed_pct": 50.0,
+    "decision_score": 0.0,
+    "classification": "NEUTRAL",
+    "recommendation": "NEUTRAL",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
+    ],
+    "timestamp": 1785318073.7503433
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 0.0,
+    "current_floating_apr_pct": 0.0,
+    "expected_floating_apr_pct": 0.0,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": 0.0,
+    "fixed_vs_expected_spread_pct": 0.0,
+    "breakeven_avg_floating_apr_pct": 0.0,
+    "fixed_total_return_pct": 0.0,
+    "expected_floating_total_return_pct": 0.0,
+    "advantage_of_fixed_pct": 0.0,
+    "probability_floating_beats_fixed_pct": 50.0,
+    "decision_score": 0.0,
+    "classification": "NEUTRAL",
+    "recommendation": "NEUTRAL",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
+    ],
+    "timestamp": 1785318074.2044487
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 0.0,
+    "current_floating_apr_pct": 0.0,
+    "expected_floating_apr_pct": 0.0,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": 0.0,
+    "fixed_vs_expected_spread_pct": 0.0,
+    "breakeven_avg_floating_apr_pct": 0.0,
+    "fixed_total_return_pct": 0.0,
+    "expected_floating_total_return_pct": 0.0,
+    "advantage_of_fixed_pct": 0.0,
+    "probability_floating_beats_fixed_pct": 50.0,
+    "decision_score": 0.0,
+    "classification": "NEUTRAL",
+    "recommendation": "NEUTRAL",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
+    ],
+    "timestamp": 1785318074.6493886
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 0.0,
+    "current_floating_apr_pct": 0.0,
+    "expected_floating_apr_pct": 0.0,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": 0.0,
+    "fixed_vs_expected_spread_pct": 0.0,
+    "breakeven_avg_floating_apr_pct": 0.0,
+    "fixed_total_return_pct": 0.0,
+    "expected_floating_total_return_pct": 0.0,
+    "advantage_of_fixed_pct": 0.0,
+    "probability_floating_beats_fixed_pct": 50.0,
+    "decision_score": 0.0,
+    "classification": "NEUTRAL",
+    "recommendation": "NEUTRAL",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
+    ],
+    "timestamp": 1785318075.1077552
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 0.0,
+    "current_floating_apr_pct": 0.0,
+    "expected_floating_apr_pct": 0.0,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": 0.0,
+    "fixed_vs_expected_spread_pct": 0.0,
+    "breakeven_avg_floating_apr_pct": 0.0,
+    "fixed_total_return_pct": 0.0,
+    "expected_floating_total_return_pct": 0.0,
+    "advantage_of_fixed_pct": 0.0,
+    "probability_floating_beats_fixed_pct": 50.0,
+    "decision_score": 0.0,
+    "classification": "NEUTRAL",
+    "recommendation": "NEUTRAL",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
+    ],
+    "timestamp": 1785318075.5691235
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 0.0,
+    "current_floating_apr_pct": 0.0,
+    "expected_floating_apr_pct": 0.0,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": 0.0,
+    "fixed_vs_expected_spread_pct": 0.0,
+    "breakeven_avg_floating_apr_pct": 0.0,
+    "fixed_total_return_pct": 0.0,
+    "expected_floating_total_return_pct": 0.0,
+    "advantage_of_fixed_pct": 0.0,
+    "probability_floating_beats_fixed_pct": 50.0,
+    "decision_score": 0.0,
+    "classification": "NEUTRAL",
+    "recommendation": "NEUTRAL",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
+    ],
+    "timestamp": 1785318076.03421
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 0.0,
+    "current_floating_apr_pct": 0.0,
+    "expected_floating_apr_pct": 0.0,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": 0.0,
+    "fixed_vs_expected_spread_pct": 0.0,
+    "breakeven_avg_floating_apr_pct": 0.0,
+    "fixed_total_return_pct": 0.0,
+    "expected_floating_total_return_pct": 0.0,
+    "advantage_of_fixed_pct": 0.0,
+    "probability_floating_beats_fixed_pct": 50.0,
+    "decision_score": 0.0,
+    "classification": "NEUTRAL",
+    "recommendation": "NEUTRAL",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
+    ],
+    "timestamp": 1785318078.8776278
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 0.0,
+    "current_floating_apr_pct": 0.0,
+    "expected_floating_apr_pct": 0.0,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": 0.0,
+    "fixed_vs_expected_spread_pct": 0.0,
+    "breakeven_avg_floating_apr_pct": 0.0,
+    "fixed_total_return_pct": 0.0,
+    "expected_floating_total_return_pct": 0.0,
+    "advantage_of_fixed_pct": 0.0,
+    "probability_floating_beats_fixed_pct": 50.0,
+    "decision_score": 0.0,
+    "classification": "NEUTRAL",
+    "recommendation": "NEUTRAL",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
+    ],
+    "timestamp": 1785318079.3911562
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 0.0,
+    "current_floating_apr_pct": 0.0,
+    "expected_floating_apr_pct": 0.0,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": 0.0,
+    "fixed_vs_expected_spread_pct": 0.0,
+    "breakeven_avg_floating_apr_pct": 0.0,
+    "fixed_total_return_pct": 0.0,
+    "expected_floating_total_return_pct": 0.0,
+    "advantage_of_fixed_pct": 0.0,
+    "probability_floating_beats_fixed_pct": 50.0,
+    "decision_score": 0.0,
+    "classification": "NEUTRAL",
+    "recommendation": "NEUTRAL",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
+    ],
+    "timestamp": 1785318079.8687742
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 0.0,
+    "current_floating_apr_pct": 0.0,
+    "expected_floating_apr_pct": 0.0,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": 0.0,
+    "fixed_vs_expected_spread_pct": 0.0,
+    "breakeven_avg_floating_apr_pct": 0.0,
+    "fixed_total_return_pct": 0.0,
+    "expected_floating_total_return_pct": 0.0,
+    "advantage_of_fixed_pct": 0.0,
+    "probability_floating_beats_fixed_pct": 50.0,
+    "decision_score": 0.0,
+    "classification": "NEUTRAL",
+    "recommendation": "NEUTRAL",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
+    ],
+    "timestamp": 1785318080.3508933
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 0.0,
+    "current_floating_apr_pct": 0.0,
+    "expected_floating_apr_pct": 0.0,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": 0.0,
+    "fixed_vs_expected_spread_pct": 0.0,
+    "breakeven_avg_floating_apr_pct": 0.0,
+    "fixed_total_return_pct": 0.0,
+    "expected_floating_total_return_pct": 0.0,
+    "advantage_of_fixed_pct": 0.0,
+    "probability_floating_beats_fixed_pct": 50.0,
+    "decision_score": 0.0,
+    "classification": "NEUTRAL",
+    "recommendation": "NEUTRAL",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
+    ],
+    "timestamp": 1785318080.792243
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 0.0,
+    "current_floating_apr_pct": 0.0,
+    "expected_floating_apr_pct": 0.0,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": 0.0,
+    "fixed_vs_expected_spread_pct": 0.0,
+    "breakeven_avg_floating_apr_pct": 0.0,
+    "fixed_total_return_pct": 0.0,
+    "expected_floating_total_return_pct": 0.0,
+    "advantage_of_fixed_pct": 0.0,
+    "probability_floating_beats_fixed_pct": 50.0,
+    "decision_score": 0.0,
+    "classification": "NEUTRAL",
+    "recommendation": "NEUTRAL",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
+    ],
+    "timestamp": 1785318081.287176
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 0.0,
+    "current_floating_apr_pct": 0.0,
+    "expected_floating_apr_pct": 0.0,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": 0.0,
+    "fixed_vs_expected_spread_pct": 0.0,
+    "breakeven_avg_floating_apr_pct": 0.0,
+    "fixed_total_return_pct": 0.0,
+    "expected_floating_total_return_pct": 0.0,
+    "advantage_of_fixed_pct": 0.0,
+    "probability_floating_beats_fixed_pct": 50.0,
+    "decision_score": 0.0,
+    "classification": "NEUTRAL",
+    "recommendation": "NEUTRAL",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
+    ],
+    "timestamp": 1785318081.7518303
+  },
+  {
+    "name": "UNKNOWN",
+    "fixed_apr_pct": 0.0,
+    "current_floating_apr_pct": 0.0,
+    "expected_floating_apr_pct": 0.0,
+    "floating_apr_volatility_pct": 0.0,
+    "horizon_days": 365.0,
+    "data_quality_ok": true,
+    "fixed_minus_current_floating_spread_pct": 0.0,
+    "fixed_vs_expected_spread_pct": 0.0,
+    "breakeven_avg_floating_apr_pct": 0.0,
+    "fixed_total_return_pct": 0.0,
+    "expected_floating_total_return_pct": 0.0,
+    "advantage_of_fixed_pct": 0.0,
+    "probability_floating_beats_fixed_pct": 50.0,
+    "decision_score": 0.0,
+    "classification": "NEUTRAL",
+    "recommendation": "NEUTRAL",
+    "grade": "A",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: no fixed or floating APR signal, or data marked unreliable. Cannot make a lock-vs-float recommendation."
+    ],
+    "timestamp": 1785318082.241465
   }
 ]
