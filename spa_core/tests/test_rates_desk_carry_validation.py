@@ -23,8 +23,12 @@ import os
 import pytest
 
 from spa_core.strategy_lab.rates_desk import pendle_pt_history as pph
+from spa_core.strategy_lab.rates_desk import retro as _retro
 from spa_core.strategy_lab.rates_desk import validation as V
 from spa_core.strategy_lab.rates_desk.contracts import RatePolicyParams
+
+# git-ignored deep-fetch artifact consumed by the carry path (see the note on the gated test below)
+_FUNDING_DEEP = _retro._RD / "funding_deep.json"
 
 
 # ── implied yield from price (the DERIVED cross-check method) ────────────────────────────────────
@@ -203,8 +207,28 @@ def _build_deep_fixture(tmp_path: Path) -> Path:
     return out
 
 
-@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/env-dependent (needs committed data/ or the Mac host); runs locally, skipped in the data-less GitHub CI")
+@pytest.mark.skipif(
+    not _FUNDING_DEEP.exists(),
+    reason=(f"deep 5-venue funding history not built at {_FUNDING_DEEP} — this test injects the PT "
+            "history but the deep carry path also consumes the REAL funding series; run the deep "
+            "funding fetch to run it"),
+)
 def test_assertion2_carry_validation_runs_deterministically(tmp_path, monkeypatch):
+    """NOTE on the gate above (invariant #16 — nothing weakened, the reason is now TRUE).
+
+    This test looks hermetic — it builds a PT fixture and points ``pph._OUT`` at it — but it is only
+    HALF injected: ``assertion2_survivor_beats_floor`` first calls ``retro.load_funding()``, which
+    reads the git-ignored deep funding artifact, and fail-CLOSES to
+    ``{"status": "no funding data: …", "VERDICT_assertion2": None}`` when it is absent. On a clean
+    checkout the test therefore died with ``KeyError: 'data_source'`` while claiming to be
+    CI-only-skipped. Gating on the artifact makes the reason true wherever it fires, and with the
+    artifact present the test EXECUTES (verified).
+
+    The remaining real input is deliberately NOT replaced by a synthetic series: funding feeds
+    ``_funding_neg_frac`` — a RISK input to the entry gate — so a made-up benign funding history
+    would make the gate more permissive than reality and turn "the carry book beat the floor" into a
+    property of the fixture instead of a measurement. A skip that says so beats a green that lies.
+    """
     out = _build_deep_fixture(tmp_path)
     monkeypatch.setattr(pph, "_OUT", out)
     monkeypatch.setattr(V.pph, "_OUT", out)
