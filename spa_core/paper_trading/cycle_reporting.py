@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -433,6 +434,112 @@ def _save_cycle_snapshot_safe(
         log.warning("dashboard snapshot failed (%s) — cycle continues", exc)
 
 
+# ─── MP-416 / MP-512: daily APY evidence records ─────────────────────────────
+
+
+def _honest_apy_pct(raw: object) -> "float | None":
+    """The day's honest APY for an evidence record, or ``None`` when unknown.
+
+    Refusal-first (invariant #2) + never pass modelled numbers off as live
+    (invariant #8). A real measurement is recorded VERBATIM — including an
+    honest ``0.0`` (a 100 %-cash day earns 0 %) and a negative day (a real
+    loss). Anything that is not a finite real number — missing field, ``None``,
+    ``bool``, ``NaN``/``inf``, a string — means "unknown", and unknown is
+    REFUSED, never substituted with a backtest/default APY.
+    """
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        return None
+    value = float(raw)
+    if not math.isfinite(value):
+        return None
+    return value
+
+
+def _record_paper_evidence(
+    *,
+    ddir: Path,
+    result: "CycleResult",
+    now_dt: "datetime",
+    today,
+) -> None:
+    """Record one day of paper-trading evidence (fail-safe, advisory).
+
+    Writes ``data/paper_evidence.json`` (git-tracked evidence artefact). Never
+    raises — evidence tracking must never crash the main cycle. When the day's
+    APY is unavailable the day is NOT recorded (a refusal gap is honest; a
+    fabricated number is not).
+    """
+    try:
+        from spa_core.paper_trading.paper_evidence_tracker import (
+            PaperEvidenceTracker as _PET,
+        )
+        _et_raw = getattr(result, "apy_today_pct", None)
+        _et_apy = _honest_apy_pct(_et_raw)
+        if _et_apy is None:
+            log.warning(
+                "MP-416 evidence NOT recorded for %s — apy_today_pct unavailable "
+                "(%r); refusing to fabricate an APY (invariants #2/#8)",
+                today,
+                _et_raw,
+            )
+            return
+        _et = _PET(evidence_file=str(ddir / "paper_evidence.json"))
+        _et.record_day(
+            trade_date=now_dt.date(),
+            apy_pct=_et_apy,
+            equity_value=result.current_equity,
+            strategy_id="S7",
+            notes="auto-recorded by cycle_runner v4.73",
+        )
+        log.info(
+            "MP-416 evidence recorded: date=%s apy=%.4f%% equity=%.2f",
+            today,
+            _et_apy,
+            result.current_equity,
+        )
+    except Exception as _et_exc:  # noqa: BLE001 — must never crash the cycle
+        log.warning(
+            "paper_evidence_tracker failed (%s) — cycle continues", _et_exc
+        )
+
+
+def _record_apy_milestone(*, result: "CycleResult", today) -> None:
+    """Record the day's APY against the milestone ladder (fail-safe, advisory).
+
+    Writes ``data/apy_milestone_log.json``, which feeds the owner's weekly
+    evidence report. Same honesty contract as ``_record_paper_evidence``: an
+    unavailable APY is a refusal gap, never a modelled substitute — a
+    fabricated value here would additionally trip a milestone level ("Target
+    mid ≥ 10 %") the portfolio never actually reached. Never raises.
+    """
+    try:
+        from spa_core.analytics.apy_milestone_tracker import (
+            ApyMilestoneTracker as _AMTracker,
+        )
+        _amt_raw = getattr(result, "apy_today_pct", None)
+        _apy_for_milestone = _honest_apy_pct(_amt_raw)
+        if _apy_for_milestone is None:
+            log.warning(
+                "MP-512 milestone NOT recorded for %s — apy_today_pct unavailable "
+                "(%r); refusing to fabricate an APY (invariants #2/#8)",
+                today,
+                _amt_raw,
+            )
+            return
+        _strategy_for_milestone = getattr(result, "best_strategy_id", None) or "s7_pendle_yt"
+        _AMTracker().record_day(today, _apy_for_milestone, _strategy_for_milestone)
+        log.info(
+            "MP-512 milestone recorded: date=%s apy=%.4f%% strategy=%s",
+            today,
+            _apy_for_milestone,
+            _strategy_for_milestone,
+        )
+    except Exception as _amt_exc:  # noqa: BLE001 — must never crash the cycle
+        log.warning(
+            "apy_milestone_tracker failed (%s) — cycle continues", _amt_exc
+        )
+
+
 # ─── Post-cycle advisory tail (N12 decomposition) ────────────────────────────
 
 
@@ -776,64 +883,7 @@ def run_post_cycle_advisory(
         log.warning("decision_audit failed (%s) — cycle continues", _ae_exc)
 
     # ── MP-416: Record daily paper trading evidence ────────────────────
-    # Fail-safe: evidence tracking must never crash the main cycle.
-    try:
-        from spa_core.paper_trading.paper_evidence_tracker import (
-            PaperEvidenceTracker as _PET,
-        )
-        _et = _PET(evidence_file=str(ddir / "paper_evidence.json"))
-        # Use the actual portfolio APY for the day; fall back to S7 default.
-        _et_apy = (
-            result.apy_today_pct
-            if isinstance(result.apy_today_pct, (int, float))
-            and result.apy_today_pct > 0
-            else 10.115
-        )
-        _et.record_day(
-            trade_date=now_dt.date(),
-            apy_pct=_et_apy,
-            equity_value=result.current_equity,
-            strategy_id="S7",
-            notes="auto-recorded by cycle_runner v4.73",
-        )
-        log.info(
-            "MP-416 evidence recorded: date=%s apy=%.4f%% equity=%.2f",
-            today,
-            _et_apy,
-            result.current_equity,
-        )
-    except Exception as _et_exc:
-        log.warning(
-            "paper_evidence_tracker failed (%s) — cycle continues", _et_exc
-        )
+    _record_paper_evidence(ddir=ddir, result=result, now_dt=now_dt, today=today)
 
     # ── MP-512: APY Milestone Tracker ────────────────────────────────
-    # Fail-safe: milestone tracking must never crash the main cycle.
-    try:
-        from spa_core.analytics.apy_milestone_tracker import (
-            ApyMilestoneTracker as _AMTracker,
-        )
-        _amt = _AMTracker()
-        _apy_for_milestone = (
-            result.apy_today_pct
-            if hasattr(result, "apy_today_pct")
-            and isinstance(result.apy_today_pct, (int, float))
-            and result.apy_today_pct > 0
-            else 10.115
-        )
-        _strategy_for_milestone = (
-            result.best_strategy_id
-            if hasattr(result, "best_strategy_id")
-            else "s7_pendle_yt"
-        )
-        _amt.record_day(today, _apy_for_milestone, _strategy_for_milestone)
-        log.info(
-            "MP-512 milestone recorded: date=%s apy=%.4f%% strategy=%s",
-            today,
-            _apy_for_milestone,
-            _strategy_for_milestone,
-        )
-    except Exception as _amt_exc:
-        log.warning(
-            "apy_milestone_tracker failed (%s) — cycle continues", _amt_exc
-        )
+    _record_apy_milestone(result=result, today=today)
