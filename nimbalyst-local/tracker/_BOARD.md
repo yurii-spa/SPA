@@ -2,22 +2,20 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **59** · ждёт владельца: **4**.
+> Всего карточек: **71** · ждёт владельца: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Включить письма-подтверждения для подписки — добавить два ключа на сервер** · _medium_  ·  `own-07-retention-secrets.md`
 - **Какое capacity-число сделать заголовочным на /fundability** · _low_  ·  `own-17-fundability-capacity-framing.md`
 - **Навести порядок в агентах — реши по каждому пункту (сводка инвентаризации)** · _high_  ·  `own-21-agent-cleanup-decisions.md`
-- **Монитор депега стейблов слеп — нет источника цены (чинить нельзя молча: связан со стоп-краном)** · _high_  ·  `owner-decision-monitor-depega-steiblov-slep-net-istochn.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (24)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (27)
 
 ### · needs-owner
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
 - Какое capacity-число сделать заголовочным на /fundability  ·  `own-17-fundability-capacity-framing.md` · 2026-07-15
 - Навести порядок в агентах — реши по каждому пункту (сводка инвентаризации)  ·  `own-21-agent-cleanup-decisions.md` · 2026-07-15
-- Монитор депега стейблов слеп — нет источника цены (чинить нельзя молча: связан со стоп-краном)  ·  `owner-decision-monitor-depega-steiblov-slep-net-istochn.md` · 2026-07-17
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Выбрать одну расшифровку названия «SPA» для сайта  ·  `own-08-spa-naming.md` · 2026-07-15
@@ -30,6 +28,7 @@
 - Как автоматизировать публичный research-changelog (heartbeat сайта)  ·  `own-20-research-changelog-automation.md` · 2026-07-15
 - Ревью ветки yield-lab-scaffolding — мержить или оставить как есть  ·  `own-22-yield-lab-branch-review.md` · 2026-07-15
 - Через 2 дня (~17.07) — пересмотреть, как часто работает автономный цикл  ·  `own-23-autonomy-cadence-recheck.md` · 2026-07-15
+- Пуш в main закрыт правилом — результаты R&D ждут в PR, и висят 4 старых PR  ·  `own-24-pushi-v-main-tolko-cherez-pr.md` · 2026-07-29
 - ТЕСТ: подтверди, что очередь работает — переведи в Owner Done  ·  `owner-decision-20260715-124956-owner-done.md` · 2026-07-15T00:00:00.000Z
 - Сайт: алерт кастодиана про APY — ложное срабатывание, как чинить?  ·  `owner-decision-20260715-212059-apy.md` · 2026-07-15
 - Живой пилот k на пакет 1 (~22 июля) — запускать? + сверщик живое/бумага  ·  `owner-decision-20260716-082215-k-1-22.md` · 2026-07-16
@@ -38,10 +37,15 @@
 - Чистка: разрешить удалять мёртвые МОДУЛИ из ядра (не только скрипты)?  ·  `owner-decision-chistka-razreshit-udalyat-mertvye-moduli.md` · 2026-07-16
 - Чистка ядра (WS-A): ~60 мёртвых/дублей + 45 аналитич. модулей раздувают paper_trading — greenlight подход  ·  `owner-decision-chistka-yadra-ws-a-60-mertvyh-dublei-45.md` · 2026-07-16
 - Флот: 7 агентов не переживут reboot (swarm+DR) — разрешить сделать reboot-safe  ·  `owner-decision-flot-7-agentov-ne-perezhivut-reboot-swar.md` · 2026-07-16
+- Монитор депега стейблов слеп — нет источника цены (чинить нельзя молча: связан со стоп-краном)  ·  `owner-decision-monitor-depega-steiblov-slep-net-istochn.md` · 2026-07-17
+- Отчёт готовности говорит «ГОТОВЫ», хотя трек не добран (26/30) — публичный API противоречит сам себе  ·  `owner-decision-otchet-gotovnosti-govorit-gotovy-hotya-t.md` · 2026-07-17
 - 🅰🅰🅰 Продуктовый слой агентов (Head of Product + R&D продукта + продвижение) — построить  ·  `owner-decision-produktovyi-sloi-agentov-head-of-product.md` · 2026-07-16
+- Уточнение по заметке: Давай так и сделаем  ·  `owner-decision-utochnenie-po-zametke-davai-tak-i-sdelae.md` · 2026-07-22
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (14)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (23)
 
+### · in-progress
+- Задача  (перевести формат алертов Site Custodian на человеческий русский).  ·  `inbox-zadacha-perevesti-format-alertov-site-cu.md` · 2026-07-20
 ### · done
 - Проверь связь это тестовое сообщение.  ·  `inbox-20260715-123528-note.md` · 2026-07-15
 - Слушай, а можешь проверить связь какую-нибудь сделать?  ·  `inbox-20260715-125835-note.md` · 2026-07-15
@@ -53,10 +57,19 @@
 - Спека уведомлений DeFi Checkup (e-mail + Telegram, диплинк по 569Xlматериальности)  ·  `inbox-20260715-212210-defi-checkup-e-mail-telegram-569xl.md` · 2026-07-15
 - Утренний Telegram-дайджест «что сделано за день» (простым языком)  ·  `inbox-20260716-075934-telegram.md` · 2026-07-16
 - автономный аркестратор должен был быть раз в 1 час а не раз в 3 часа  ·  `inbox-avtonomnyi-arkestrator-dolzhen-byl-byt-r.md` · 2026-07-16
+- Давай так и сделаем  ·  `inbox-davai-tak-i-sdelaem.md` · 2026-07-20
+- Проверь систему, сделай аудит, все ли ок?  ·  `inbox-prover-sistemu-sdelai-audit-vse-li-ok.md` · 2026-07-26
 - Доделать ВНУТРИ дашборда — полный DeBank-вид на широкую сетку (preview)  ·  `inbox-task-dashboard-debank-inside.md` · 2026-07-15
 - Сделать названия/ID карточек человекочитаемыми (убрать нечитаемые цифры-буквы)  ·  `inbox-task-readable-card-ids.md` · 2026-07-15
 - Команда /status в Telegram-боте — сводка системы простым языком  ·  `inbox-task-status-command.md` · 2026-07-15
 - Я хочу, чтобы ты взял 6 часов спринта. Сейчас у нас 3 часа ночи по Испании до 9…  ·  `inbox-ya-hochu-chtoby-ty-vzyal-6-chasov-sprint.md` · 2026-07-17
+- я просил тебя до этого узнать какой статус и были выполнены мои задачи и ты ска…  ·  `inbox-ya-prosil-tebya-do-etogo-uznat-kakoi-sta.md` · 2026-07-27
+- Задача 1- разобраться с алентами которые мне приходят в телегам :  ·  `inbox-zadacha-1-razobratsya-s-alentami-kotorye.md` · 2026-07-27
+- Задача проверить на сайте на всех больницах тест показывает правильные количест…  ·  `inbox-zadacha-proverit-na-saite-na-vseh-bolnit.md` · 2026-07-27
+- Задача разобраться почему нет свежих данных почему Pepper Тест не обновился хот…  ·  `inbox-zadacha-razobratsya-pochemu-net-svezhih.md` · 2026-07-23
+### · new
+- Задача 2  - алерты в телеграм присылать простым языком, сейчас приходит плохо в…  ·  `inbox-zadacha-2-alerty-v-telegram-prisylat-pro.md` · 2026-07-27
+- Задача продумать план действий после того как закончился Payper Тест  ·  `inbox-zadacha-produmat-plan-deistvii-posle-tog.md` · 2026-07-27
 
 ## 🤖 Agent Tasks (что делает агент)  (21)
 
