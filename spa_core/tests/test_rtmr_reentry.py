@@ -44,5 +44,36 @@ class TestReconcile(unittest.TestCase):
         self.assertEqual(pos["portfolio"], P.NORMAL)
 
 
+class TestReconcilePersistence(unittest.TestCase):
+    """Incident 2026-07: rtmr_service saved the posture only `if cleared`, but clearing needs
+    recover_count to ACCUMULATE across ticks — and the counter lives in the posture file that is
+    re-loaded every tick. Unsaved bumps were discarded, every tick restarted from count=None, and
+    self-clear was unreachable: the portfolio stayed DEFENSIVE forever. The service must persist
+    the posture on EVERY reconcile change (reconcile_and_persist)."""
+
+    def _run_ticks(self, n: int) -> list:
+        import tempfile
+        from pathlib import Path
+        from unittest import mock
+        from spa_core.monitoring import rtmr_service as R
+        cleared_all: list = []
+        with tempfile.TemporaryDirectory() as td:
+            with mock.patch.object(P, "_POSTURE_PATH", Path(td) / "risk_posture.json"):
+                seed = P.set_entry(dict(P._EMPTY, entries={}), scope="tvl", state=P.FROZEN,
+                                   now_ts=0, until_ts=None, reason="stale/blind tvl sensor")
+                P.save_posture(seed, now_ts=0)
+                for i in range(1, n + 1):
+                    cleared_all += R.reconcile_and_persist({}, now_ts=i,
+                                                           cfg={"peg": {"reentry_periods": 4}})
+        return cleared_all
+
+    def test_counters_persist_across_ticks_and_clear(self) -> None:
+        # 4 clean ticks with NO in-memory state carried between calls → must clear via the FILE
+        self.assertIn("tvl", self._run_ticks(4))
+
+    def test_no_clear_before_reentry_periods(self) -> None:
+        self.assertEqual(self._run_ticks(3), [])
+
+
 if __name__ == "__main__":
     unittest.main()
