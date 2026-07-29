@@ -30,6 +30,8 @@ import pytest
 from spa_core.strategy_lab.rates_desk import calibrate as CAL
 from spa_core.strategy_lab.rates_desk import levered_stress as LS
 from spa_core.strategy_lab.rates_desk import config
+from spa_core.strategy_lab.rates_desk import pendle_pt_history as _pph
+from spa_core.strategy_lab.rates_desk import retro as _retro
 from spa_core.strategy_lab.rates_desk.contracts import (
     KillState,
     Opportunity,
@@ -42,6 +44,31 @@ from spa_core.strategy_lab.rates_desk.contracts import (
 )
 from spa_core.strategy_lab.rates_desk.fair_value_engine import FairValueEngine
 from spa_core.strategy_lab.rates_desk.rate_policy import evaluate_entry
+
+# The sweep replays the REAL deep-fetched history — git-ignored BUILD ARTIFACTS, absent on a
+# fresh checkout and in CI, where the loaders fail-CLOSED with FileNotFoundError. Gate on the
+# artifacts themselves rather than on "am I in CI": the reason is then true wherever it fires,
+# and on a host that HAS the datasets these tests actually EXECUTE instead of being skipped as
+# "CI-only" (verified empirically — with the artifacts present all three pass).
+#
+# The set is the full closure the sweep loads, not just the Pendle file: `calibrate` replays the
+# PT implied-yield history AND scores each candidate day through `retro.load_funding()` /
+# `load_ratios()` (the 5-venue funding series + deep prices). Gating on the PT file alone made
+# the skip a half-truth — a host with only that file got a FileNotFoundError from `retro`, not
+# a skip.
+_DEEP_ARTIFACTS = {
+    "deep Pendle PT implied-yield history": _pph._OUT,
+    "deep 5-venue funding history": _retro._RD / "funding_deep.json",
+    "deep price history": _retro._RD / "prices_deep.json",
+}
+_MISSING_DEEP = sorted(f"{label} ({path})"
+                       for label, path in _DEEP_ARTIFACTS.items() if not path.exists())
+_needs_deep_pt = pytest.mark.skipif(
+    bool(_MISSING_DEEP),
+    reason=("deep history not built: " + "; ".join(_MISSING_DEEP) + " — run "
+            "`python3 -m spa_core.strategy_lab.rates_desk.pendle_pt_history` (and the deep "
+            "price/funding fetch) to run this test"),
+)
 
 
 # ── shared fixtures: a toxic rsETH book vs a healthy sUSDe book ─────────────────────────────────────
@@ -110,7 +137,7 @@ def test_toxic_haircut_strictly_above_threshold_above_healthy():
     assert healthy.total_haircut < p.max_total_haircut < tox.total_haircut
 
 
-@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/env-dependent (needs committed data/ or the Mac host); runs locally, skipped in the data-less GitHub CI")
+@_needs_deep_pt
 def test_sweep_is_deterministic_and_chosen_is_admissible():
     """The sweep is a pure deterministic grid (same data → same chosen point), and the chosen point is
     admissible: 100% toxic coverage + every stress event refused."""
@@ -127,7 +154,7 @@ def test_sweep_is_deterministic_and_chosen_is_admissible():
     assert ch["survivor_beats_floor"] is True
 
 
-@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/env-dependent (needs committed data/ or the Mac host); runs locally, skipped in the data-less GitHub CI")
+@_needs_deep_pt
 def test_sweep_chosen_is_robust_center_not_loose_edge():
     """The robust objective picks a point with POSITIVE margin to BOTH cliffs (it sits inside the band,
     not one grid-step below the toxic leak)."""
@@ -140,7 +167,7 @@ def test_sweep_chosen_is_robust_center_not_loose_edge():
     assert ch["healthy_strangle_margin"] > 0.0
 
 
-@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/env-dependent (needs committed data/ or the Mac host); runs locally, skipped in the data-less GitHub CI")
+@_needs_deep_pt
 def test_sweep_confirms_defaults_are_optimal():
     """Honest 'defaults confirmed' outcome: the chosen point equals the current config defaults. After
     the red-team FAIL #1 fix the swept cliff is max_structural_haircut (the size-INDEPENDENT toxicity
