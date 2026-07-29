@@ -603,14 +603,50 @@ def test_overall_status_strict_blocked_returns_blocked(report, tmp_path):
     assert report.overall_status() == "BLOCKED"
 
 
-def test_overall_status_ready_at_80(report):
-    """80.0 is inclusive — the documented rule is ">= 80"."""
+def _write_golive(report, ready: bool) -> None:
+    (report.data_dir).mkdir(parents=True, exist_ok=True)
+    (report.data_dir / "golive_status.json").write_text(
+        json.dumps({"ready": ready}), encoding="utf-8")
+
+
+def test_overall_status_ready_at_80_with_real_gate(report):
+    """80.0 is inclusive — AND the real gate must agree (вариант А, owner 2026-07-29).
+
+    INTENTIONAL CONTRACT CHANGE (rule #16, journal 2026-W31): the old test pinned
+    score-only READY, which let the public API say READY while golive_status.json said
+    ready:false (card owner-decision-otchet-gotovnosti…). READY now requires BOTH."""
     report._categories_cache = [CategoryScore("gates", 80.0, 100.0, [], [])]
+    _write_golive(report, ready=True)
     assert report.overall_status() == "READY"
+
+
+def test_overall_status_score_alone_is_not_ready(report):
+    """96/100 by score but the real gate refuses → NOT_READY (never contradict the gate)."""
+    report._categories_cache = [CategoryScore("gates", 96.0, 100.0, [], [])]
+    _write_golive(report, ready=False)
+    assert report.overall_status() == "NOT_READY"
+
+
+def test_overall_status_gate_ready_but_low_score_is_not_ready(report):
+    report._categories_cache = [CategoryScore("gates", 50.0, 100.0, [], [])]
+    _write_golive(report, ready=True)
+    assert report.overall_status() == "NOT_READY"
+
+
+def test_overall_status_blocked_when_backtest_gate_fails(report):
+    """The BLOCKED rule now reads the gate FILE directly — the old category-score proxy
+    looked up the pre-v10.41 name "gate_status" and silently never fired."""
+    report._categories_cache = [CategoryScore("gates", 100.0, 100.0, [], [])]
+    _write_golive(report, ready=True)
+    report.backtest_dir.mkdir(parents=True, exist_ok=True)
+    (report.backtest_dir / "pre_paper_backtest_gate.json").write_text(
+        json.dumps({"status": "FAIL"}), encoding="utf-8")
+    assert report.overall_status() == "BLOCKED"
 
 
 def test_overall_status_below_80_is_not_ready(report):
     report._categories_cache = [CategoryScore("gates", 79.9, 100.0, [], [])]
+    _write_golive(report, ready=True)
     assert report.overall_status() == "NOT_READY"
 
 
@@ -755,9 +791,10 @@ def test_to_markdown_renders_status_score_and_sections(report):
         CategoryScore("gates", 18.0, 20.0, ["done thing"], ["pending thing"],
                       notes="18/20 pts"),
     ]
+    _write_golive(report, ready=True)  # вариант А: READY needs the real gate too
     md = report.to_markdown()
     assert "# Go-Live Readiness Report" in md
-    assert "**Overall Status:** `READY`" in md   # 18/20 = 90 ≥ 80
+    assert "**Overall Status:** `READY`" in md   # 18/20 = 90 ≥ 80 AND gate ready
     assert "**Total Score:** 90.0 / 100" in md
     assert "| gates | 18 | 20 | 90% | ✅ |" in md
     assert "- done thing" in md and "- pending thing" in md
