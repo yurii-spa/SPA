@@ -19,6 +19,7 @@ import json
 import logging
 import math
 import os
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -130,7 +131,13 @@ def _default_live_apy_provider() -> dict[str, float]:
     if _os.environ.get("PYTEST_CURRENT_TEST"):
         return {}
     try:
-        from . import config as _cfg
+        # ``spa_core.adapters.config`` — НАСТОЯЩИЙ дом флага (тот же модуль читают
+        # сами фиды `defillama_feed` / `sky_susds_feed`). Раньше здесь стояло
+        # ``from . import config``, а в пакете ``spa_core.allocator`` модуля
+        # ``config`` нет ⇒ ImportError глотался except'ом ниже и выключатель
+        # DEFILLAMA_ENABLED=false для этого пути НЕ РАБОТАЛ (при выключенном
+        # фиде аллокатор всё равно шёл в сеть). Импорт ленивый — цикла нет.
+        from spa_core.adapters import config as _cfg
         if not getattr(_cfg, "DEFILLAMA_ENABLED", True):
             return {}
     except Exception:  # noqa: BLE001
@@ -286,7 +293,13 @@ class StrategyAllocator:
         comparison_path: str | os.PathLike | None = None,
         strategies_dir: str | os.PathLike | None = None,
         registry_path: str | os.PathLike | None = None,
-        live_apy_provider=None,
+        # WS1.1-контракт (см. ``_get_live_apy_map``): None → дефолтный фид,
+        # mapping → готовая карта, zero-arg callable → карта по вызову,
+        # ``False`` → live-подстановка выключена (легаси-путь на литералах).
+        # Любое иное значение ⇒ fail-CLOSED пустая карта.
+        live_apy_provider: (
+            dict[str, float] | Callable[[], dict[str, float]] | bool | None
+        ) = None,
         objective: str | float | None = None,
     ):
         self.status_path = Path(status_path) if status_path else _STATUS_PATH
