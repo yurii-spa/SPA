@@ -130,6 +130,9 @@ _STRINGS: Dict[str, Dict[str, str]] = {
     "w.verdict": {"en": "verdict", "ru": "вердикт"},
     "w.tap_open": {"en": "tap to open", "ru": "нажмите чтобы открыть"},
     "w.overall": {"en": "overall", "ru": "итого"},
+    # A domain the monitor could not measure (e.g. it blew its time budget).
+    # Must read as "we don't know", never as a verdict about the system.
+    "w.not_checked": {"en": "not checked", "ru": "не проверялся"},
     "w.no_active": {"en": "No active warnings.", "ru": "Нет активных предупреждений."},
     "w.not_muted": {"en": "not muted", "ru": "без mute"},
     "w.active": {"en": "active", "ru": "активно"},
