@@ -67,11 +67,26 @@ def test_summary_counts_consistent():
     assert summary["current"]["regime"] in reg.REGIME_LABELS
 
 
-@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/env-dependent (needs committed data/ or the Mac host); runs locally, skipped in the data-less GitHub CI")
+def _inject_series(monkeypatch, values):
+    """Point build_report at a CONTROLLED history.
+
+    build_report() sources its data through ``oos_mod.load_protocol_series()``, NOT through
+    ``reg._DATA`` — so monkeypatching ``_DATA`` alone (as this test used to do) left the run
+    reading the live ``data/`` tree: the test called itself hermetic while silently depending
+    on the host's artifacts, and passed on the Mac host while failing on every clean checkout.
+    Patching the real loader makes the isolation genuine and the outcome deterministic.
+    """
+    series = _synthetic(values)
+    monkeypatch.setattr(reg.oos_mod, "load_protocol_series", lambda *a, **k: {"aave": series})
+    monkeypatch.setattr(reg, "aggregate_rate_series", lambda *a, **k: series)
+    return series
+
+
 def test_build_report_atomic_and_shape(tmp_path, monkeypatch):
     out_file = tmp_path / "tier1_regime.json"
     monkeypatch.setattr(reg, "_DATA", tmp_path)
     monkeypatch.setattr(reg, "_OUT", out_file)
+    _inject_series(monkeypatch, [5.0 + 0.01 * i for i in range(120)])
     rep = reg.build_report(write=True)
     assert rep["model"] == "tier1_regime"
     assert rep["llm_forbidden"] is True
@@ -82,6 +97,41 @@ def test_build_report_atomic_and_shape(tmp_path, monkeypatch):
     # no leftover temp files
     leftovers = [p for p in tmp_path.iterdir() if p.name.startswith(".tier1regime_")]
     assert not leftovers
+
+
+def test_build_report_survives_empty_history(tmp_path, monkeypatch):
+    """No history ⇒ an honest empty report, NOT a crash.
+
+    Regression: ``regime_summary`` returned a SHORTER dict on the empty branch (no
+    ``n_transitions``) than on the populated one, while ``build_report`` reads that key
+    unconditionally — so the first run on a host without rate history died with
+    ``KeyError: 'n_transitions'``. Refusing to report is allowed; blowing up is not.
+    """
+    out_file = tmp_path / "tier1_regime.json"
+    monkeypatch.setattr(reg, "_DATA", tmp_path)
+    monkeypatch.setattr(reg, "_OUT", out_file)
+    monkeypatch.setattr(reg.oos_mod, "load_protocol_series", lambda *a, **k: {})
+    monkeypatch.setattr(reg, "aggregate_rate_series", lambda *a, **k: [])
+
+    rep = reg.build_report(write=True)
+
+    assert rep["n_transitions"] == 0
+    assert rep["recent_transitions"] == []
+    assert rep["n_days"] == 0
+    assert rep["regime_counts"] == {}
+    assert rep["per_regime_yield"] == {}
+    assert rep["axis_start"] is None and rep["axis_end"] is None
+    assert rep["current"]["regime"] in reg.REGIME_LABELS
+    import json
+    assert json.loads(out_file.read_text())["n_transitions"] == 0
+
+
+def test_regime_summary_key_set_is_branch_independent():
+    """Both branches of regime_summary must publish the SAME keys — the populated/empty
+    key-set drift is exactly what broke build_report."""
+    populated = reg.regime_summary(_synthetic([5.0] * 60), window=30)
+    empty = reg.regime_summary([], window=30)
+    assert set(empty) == set(populated)
 
 
 # ---------------------------------------------------------------------------
