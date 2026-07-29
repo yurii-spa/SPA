@@ -209,6 +209,37 @@ def test_body_without_title_keeps_its_own_header():
     assert out.startswith("Проверка агентов")
 
 
+# ─── 3b. Site Custodian (карточка владельца 2026-07-20) ──────────────────────
+CUSTODIAN_MSG = (
+    "🛡️ SITE CUSTODIAN — 2 FAIL(s) @ 2026-07-29T10:00:00Z\n"
+    "  [CRITICAL] OVERSTATED_METRIC: home shows APY 8.0% > live API 3.3% (+0.2pp tol)\n"
+    "  [FAIL] STALE_SNAPSHOT: snapshot as_of 2026-07-25 is 96.0h old (> 24h)\n"
+    "  ⛔ KILL-RULE: site set to DEGRADED (SNAPSHOT_OVERSTATED)"
+)
+
+
+def test_site_custodian_alert_becomes_readable_without_losing_detail():
+    out = H.humanize_body(CUSTODIAN_MSG)
+    assert "Сайт-сторож: нашёл проблем — 2" in out
+    assert "сайт показывает доходность ВЫШЕ реальной" in out
+    assert "снимок данных для сайта устарел" in out
+    assert "правило защиты" in out and "SNAPSHOT_OVERSTATED" in out
+    # Технический detail (числа и пороги) обязан дожить до владельца целиком.
+    assert "home shows APY 8.0% > live API 3.3% (+0.2pp tol)" in out
+    assert "snapshot as_of 2026-07-25 is 96.0h old (> 24h)" in out
+
+
+def test_site_custodian_indentation_is_preserved():
+    out = H.humanize_body(CUSTODIAN_MSG).split("\n")
+    assert out[1].startswith("  ["), "отступ — часть структуры сообщения"
+
+
+def test_unknown_custodian_code_keeps_the_code_itself():
+    # Новый код появится раньше словаря — владелец должен увидеть хотя бы код.
+    out = H.humanize_body("  [FAIL] BRAND_NEW_CODE: something happened")
+    assert "BRAND_NEW_CODE" in out and "something happened" in out
+
+
 # ─── 4. Fail-safe: алерт обязан дойти ────────────────────────────────────────
 @pytest.mark.parametrize("bad", [None, "", 0])
 def test_falsy_inputs_are_returned_unchanged(bad):
