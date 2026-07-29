@@ -60,10 +60,24 @@ _TITLE_PREFIXES: tuple[tuple[str, str], ...] = (
 
 SEVERITY_RU: dict[str, str] = {
     "CRITICAL": "критично",
+    "FAIL": "проблема",
     "WARNING": "предупреждение",
     "WARN": "предупреждение",
     "INFO": "к сведению",
     "OK": "норма",
+}
+
+# Коды Site Custodian (`scripts/site_freshness_monitor.py`) — что это значит
+# человеку. Технический detail-хвост в алерте СОХРАНЯЕТСЯ как есть.
+SITE_CUSTODIAN_CODES: dict[str, str] = {
+    "MISSING_ASOF": "нет даты актуальности данных",
+    "STALE_SNAPSHOT": "снимок данных для сайта устарел",
+    "STALE_API": "данные API устарели",
+    "SITE_BEHIND_SNAPSHOT": "на сайте старые числа — свежий снимок ещё не доехал",
+    "SNAPSHOT_BEHIND_API": "снимок отстал от API — его не перегенерировали после цикла",
+    "OVERSTATED_METRIC": "сайт показывает доходность ВЫШЕ реальной",
+    "UNAVAILABLE": "страница недоступна",
+    "VERIFIER_PIN_MISMATCH": "верификатор на сайте не совпадает с зафиксированной версией",
 }
 
 _AGENT_RU: dict[str, str] = {
@@ -79,7 +93,7 @@ _AGENT_RU: dict[str, str] = {
 
 # ── Утилиты ──────────────────────────────────────────────────────────────────
 _TAG_RE = re.compile(r"</?[a-zA-Z][^>]*>")
-_LEAD_ICON_RE = re.compile(r"^(\s*(?:[🚨⚠️❌✅🔴🟡🔵ℹ️•\-–—]+\s*)+)")
+_LEAD_ICON_RE = re.compile(r"^(\s*(?:[🚨⚠️❌✅🔴🟡🔵ℹ️🛡️⛔•\-–—]+\s*)+)")
 _AGE_RE = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)\s*(min|h|d)\b")
 
 
@@ -188,6 +202,16 @@ _RULES: tuple[_Rule, ...] = (
     (re.compile(r"^tournament data-trust ALERT — (.+) \(human review\)$"),
      lambda m: f"турнирным данным нельзя доверять: {m.group(1)} — нужен человек"),
 
+    # --- Site Custodian (ADR-YL-011) ---
+    (re.compile(r"^SITE CUSTODIAN — (\d+) FAIL\(s\) @ (.+)$"),
+     lambda m: f"Сайт-сторож: нашёл проблем — {m.group(1)} ({m.group(2)})"),
+    (re.compile(r"^\[(\w+)\]\s+([A-Z_]+):\s*(.+)$"),
+     lambda m: f"[{SEVERITY_RU.get(m.group(1).upper(), m.group(1))}] "
+               f"{SITE_CUSTODIAN_CODES.get(m.group(2), m.group(2))} — {m.group(3)}"),
+    (re.compile(r"^KILL-RULE: site set to DEGRADED \((.+)\)$"),
+     lambda m: f"сработало правило защиты: сайт переведён в режим «данные "
+               f"устарели» (причина: {m.group(1)})"),
+
     # --- эффективность капитала ---
     (re.compile(r"^capital-efficiency LAZY: ([\d.]+)% deployable capital idle at 0%"
                 r"(?: — ~(\d+(?:\.\d+)?)bps/yr forgone)? "
@@ -224,25 +248,27 @@ def _humanize_line(line: str) -> str:
     нераспознанное проходит вербатим."""
     if not line.strip():
         return line
-    icon_m = _LEAD_ICON_RE.match(line)
+    stripped = line.lstrip()
+    indent = line[: len(line) - len(stripped)]  # отступ — часть структуры, храним
+    icon_m = _LEAD_ICON_RE.match(stripped)
     icon = icon_m.group(1) if icon_m else ""
-    rest = line[len(icon):]
+    rest = stripped[len(icon):]
     core = _TAG_RE.sub("", rest).strip()
 
     if _is_known_title(core):
-        return f"{icon}{humanize_title(core)}"
+        return f"{indent}{icon}{humanize_title(core)}"
 
     labelled = _LABELLED_RE.match(core)
     if labelled:
         issue_ru = _humanize_issue(labelled.group("issue").strip())
         if issue_ru is None:
             return line
-        return f"{icon}{_agent_ru(labelled.group('label'))} — {issue_ru}"
+        return f"{indent}{icon}{_agent_ru(labelled.group('label'))} — {issue_ru}"
 
     ru = _humanize_issue(core)
     if ru is None:
         return line
-    return f"{icon}{ru}"
+    return f"{indent}{icon}{ru}"
 
 
 # ── Публичный API ────────────────────────────────────────────────────────────
