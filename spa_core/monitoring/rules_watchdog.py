@@ -18,6 +18,12 @@ Checks:
 Алерт: Telegram при любом критическом нарушении
 Exit code: 1 если есть критические нарушения, 0 иначе
 
+Честность отчёта (инвариант #2, refusal-first): статус `SKIPPED` означает «НЕ ИЗМЕРЕНО», а не
+«прошло». Такие проверки собираются в `unchecked`/`unchecked_count`, и `overall` равен `"OK"`
+ТОЛЬКО когда все правила действительно были вычислены и прошли; иначе — `"UNCHECKED"`.
+Ни один порог/правило здесь не живёт: авторитетный гейт — `spa_core/risk/policy.py`,
+лестница kill-switch — `spa_core/governance/kill_switch.py`.
+
 Использование:
     python3 -m spa_core.monitoring.rules_watchdog
     python3 -m spa_core.monitoring.rules_watchdog --once  # один прогон
@@ -118,6 +124,33 @@ def _load_json(path: Path, default: Any = None) -> Any:
         return default
 
 
+def _read_doc(path: Path) -> tuple:
+    """Read a JSON state file, distinguishing WHY it produced nothing.
+
+    Returns ``(state, payload)`` where state is one of:
+      - ``"ok"``          → payload is the parsed document (may itself be empty/any type);
+      - ``"missing"``     → payload is ``None``; the file does not exist;
+      - ``"unreadable"``  → payload is the error string; the file exists but could not be parsed.
+
+    Honesty primitive (invariant #2, refusal-first). ``_load_json`` collapses all three cases
+    into one falsy value, so every caller that wrote ``if not doc: ...`` was unable to tell
+    "I read it and it said nothing" from "I never managed to read it" — and then reported OK
+    about data it had never seen. Same defect class as the RISKWIRE / d2_connectivity /
+    tier1-status fail-OPENs (cycles #29 / #31 / #35).
+    """
+    try:
+        exists = path.exists()
+    except OSError as e:  # unreadable parent dir, permission denied on stat, …
+        return "unreadable", str(e)
+    if not exists:
+        return "missing", None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return "ok", json.load(f)
+    except Exception as e:  # noqa: BLE001 — any read/parse failure is "unreadable"
+        return "unreadable", str(e)
+
+
 def _atomic_write(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
@@ -136,10 +169,17 @@ def _atomic_write(path: Path, data: Any) -> None:
 # ── Check result ──────────────────────────────────────────────────────────
 
 class CheckResult:
+    """Outcome of one watchdog rule check.
+
+    ``SKIPPED`` means **NOT MEASURED** — the check could not obtain the input it needs and
+    therefore asserts nothing. It is not a pass: ``run_watchdog`` must never fold it into
+    ``overall: "OK"`` (that is precisely the bug this class of fix removes).
+    """
+
     def __init__(
         self,
         name: str,
-        status: str,        # "OK" | "WARNING" | "CRITICAL" | "SKIPPED"
+        status: str,        # "OK" | "WARNING" | "CRITICAL" | "SKIPPED" (= not measured)
         message: str,
         detail: Optional[Dict] = None,
     ):
@@ -160,20 +200,44 @@ class CheckResult:
     def is_critical(self) -> bool:
         return self.status == "CRITICAL"
 
+    @property
+    def is_unchecked(self) -> bool:
+        """True when the rule was NOT measured (missing / unreadable / insufficient input)."""
+        return self.status == "SKIPPED"
+
+
+def _finite_float(raw: Any) -> Optional[float]:
+    """Return ``raw`` as a finite float, or ``None`` when it is not a usable number.
+
+    ``bool`` is rejected on purpose: ``float(True) == 1.0`` would turn a flag into a
+    measurement (the fabrication edge closed in the cycle-runner APY honesty fix).
+    """
+    if isinstance(raw, bool) or raw is None:
+        return None
+    try:
+        val = float(raw)
+    except (TypeError, ValueError):
+        return None
+    if val != val or val in (float("inf"), float("-inf")):  # NaN / ±inf
+        return None
+    return val
+
 
 # ── Individual checks ──────────────────────────────────────────────────────
 
 def check_position_limits() -> CheckResult:
     """Verify current_positions.json satisfies max_protocols and per-protocol cap."""
-    doc = _load_json(_POSITIONS_PATH)
-    if not doc or not isinstance(doc.get("positions"), dict):
+    state, doc = _read_doc(_POSITIONS_PATH)
+    if state != "ok" or not isinstance(doc, dict) or not isinstance(doc.get("positions"), dict):
         return CheckResult(
             "position_limits", "CRITICAL",
-            "current_positions.json missing or invalid",
+            "current_positions.json {}".format(
+                "unreadable: {}".format(doc) if state == "unreadable"
+                else "missing" if state == "missing" else "invalid (no positions object)"
+            ),
         )
 
     positions = doc["positions"]
-    capital = float(doc.get("capital_usd", 100000) or 100000)
     num = len(positions)
 
     from spa_core.risk.policy_enforcer import RULES as _RULES  # single-source (reconciled to policy.py)
@@ -182,9 +246,34 @@ def check_position_limits() -> CheckResult:
     if num > 8:
         violations.append("too_many_protocols: {} > 8".format(num))
 
+    # The per-protocol cap is a PERCENTAGE — without a real denominator it cannot be evaluated.
+    # The previous `doc.get("capital_usd", 100000) or 100000` invented $100k when the field was
+    # absent/zero/garbage, so every position share was measured against a number nobody wrote.
+    capital = _finite_float(doc.get("capital_usd"))
+    if capital is None or capital <= 0:
+        if violations:  # the protocol-count breach stands on its own — report it
+            return CheckResult(
+                "position_limits", "CRITICAL",
+                "Position limit violations: {}".format("; ".join(violations)),
+                {"violations": violations, "num_protocols": num},
+            )
+        return CheckResult(
+            "position_limits", "SKIPPED",
+            "Per-protocol cap NOT CHECKED: current_positions.json has no usable capital_usd "
+            "(got {!r}); {} protocols, count is within the max of 8".format(
+                doc.get("capital_usd"), num),
+            {"num_protocols": num, "unchecked_reason": "no usable capital_usd"},
+        )
+
     per_max = float(_RULES["per_protocol_max_pct"])  # 40% (policy.max_single_protocol), was stale 25%
+    unpriced = []
     for proto, usd in positions.items():
-        pct = float(usd or 0) / capital * 100
+        val = _finite_float(usd)
+        if val is None:
+            # An unusable position size is not a zero — say so instead of counting it as compliant.
+            unpriced.append("{}={!r}".format(proto, usd))
+            continue
+        pct = val / capital * 100
         if pct > per_max:
             violations.append("{} = {:.1f}% > {}%".format(proto, pct, per_max))
 
@@ -193,6 +282,14 @@ def check_position_limits() -> CheckResult:
             "position_limits", "CRITICAL",
             "Position limit violations: {}".format("; ".join(violations)),
             {"violations": violations, "num_protocols": num},
+        )
+    if unpriced:
+        return CheckResult(
+            "position_limits", "SKIPPED",
+            "Per-protocol cap NOT CHECKED for {}: unusable position size(s)".format(
+                ", ".join(unpriced)),
+            {"num_protocols": num, "unchecked_reason": "unusable position sizes",
+             "unpriced": unpriced},
         )
     return CheckResult(
         "position_limits", "OK",
@@ -210,16 +307,28 @@ def check_t1_concentration() -> CheckResult:
     future ADR re-introduces a T1 floor in RiskConfig)."""
     from spa_core.risk.policy_enforcer import T1_ADAPTERS, T3_ADAPTERS, RULES as _RULES
 
-    doc = _load_json(_POSITIONS_PATH)
-    if not doc or not isinstance(doc.get("positions"), dict):
+    state, doc = _read_doc(_POSITIONS_PATH)
+    if state != "ok" or not isinstance(doc, dict) or not isinstance(doc.get("positions"), dict):
         return CheckResult(
             "t1_concentration", "CRITICAL",
-            "current_positions.json missing",
+            "current_positions.json {}".format(
+                "unreadable: {}".format(doc) if state == "unreadable"
+                else "missing" if state == "missing" else "invalid (no positions object)"
+            ),
         )
 
     positions = doc["positions"]
-    capital = float(doc.get("capital_usd", 100000) or 100000)
-    t1_usd = sum(float(v or 0) for k, v in positions.items() if k in T1_ADAPTERS)
+    # Same invented-denominator defect as check_position_limits: a T1 percentage computed
+    # against an assumed $100k is a fabricated number, and it is published in `detail`.
+    capital = _finite_float(doc.get("capital_usd"))
+    if capital is None or capital <= 0:
+        return CheckResult(
+            "t1_concentration", "SKIPPED",
+            "T1 share NOT CHECKED: current_positions.json has no usable capital_usd "
+            "(got {!r})".format(doc.get("capital_usd")),
+            {"unchecked_reason": "no usable capital_usd"},
+        )
+    t1_usd = sum(_finite_float(v) or 0.0 for k, v in positions.items() if k in T1_ADAPTERS)
     t1_pct = t1_usd / capital * 100
     t1_min = float(_RULES["t1_min_pct"])  # 0.0 — policy.py has no T1 floor (reconciled 2026-07-08)
 
@@ -238,14 +347,22 @@ def check_t1_concentration() -> CheckResult:
 
 def check_adapter_status() -> CheckResult:
     """Verify adapter_status.json is fresh and has active T1 adapters."""
-    doc = _load_json(_ADAPTER_PATH)
-    if not doc:
+    state, doc = _read_doc(_ADAPTER_PATH)
+    if state != "ok" or not isinstance(doc, dict):
         return CheckResult(
             "adapter_status", "CRITICAL",
-            "adapter_status.json missing",
+            "adapter_status.json {}".format(
+                "unreadable: {}".format(doc) if state == "unreadable"
+                else "missing" if state == "missing" else "is not an object"
+            ),
         )
 
     adapters = doc.get("adapters", {})
+    if not isinstance(adapters, dict):
+        return CheckResult(
+            "adapter_status", "CRITICAL",
+            "adapter_status.json 'adapters' is not an object",
+        )
     if not adapters:
         return CheckResult(
             "adapter_status", "CRITICAL",
@@ -253,7 +370,29 @@ def check_adapter_status() -> CheckResult:
         )
 
     from spa_core.risk.policy_enforcer import T1_ADAPTERS
-    t1_active = [k for k in T1_ADAPTERS if k in adapters and adapters[k].get("active", True)]
+    t1_active = []
+    t1_malformed = []
+    for k in T1_ADAPTERS:
+        if k not in adapters:
+            continue
+        entry = adapters[k]
+        if not isinstance(entry, dict):
+            # A T1 entry we cannot interpret is neither active nor inactive — never silently
+            # treated as one or the other. (Before, `entry.get` raised and the runner turned
+            # the AttributeError into a CRITICAL with a misleading message.)
+            t1_malformed.append("{}={!r}".format(k, entry))
+            continue
+        if entry.get("active", True):
+            t1_active.append(k)
+
+    if t1_malformed:
+        return CheckResult(
+            "adapter_status", "SKIPPED",
+            "T1 adapter availability NOT CHECKED: malformed entries {}".format(
+                ", ".join(t1_malformed)),
+            {"unchecked_reason": "malformed adapter entries", "malformed": t1_malformed,
+             "t1_active_count": len(t1_active)},
+        )
 
     if len(t1_active) < 3:
         return CheckResult(
@@ -262,54 +401,113 @@ def check_adapter_status() -> CheckResult:
             {"t1_active": t1_active},
         )
 
-    # Freshness check
-    generated_at = doc.get("generated_at", "")
-    if generated_at:
+    # Freshness check. A stamp we cannot read is NOT a fresh file: the old code swallowed both
+    # the missing field and the parse error and fell through to "OK — N T1 adapters active",
+    # i.e. it reported a freshness verdict it had never computed.
+    generated_at = doc.get("generated_at")
+    age_h = None
+    if not generated_at or not isinstance(generated_at, str):
+        stamp_problem = "adapter_status.json carries no generated_at"
+    else:
         try:
-            from datetime import timedelta
             ts = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
             age_h = (datetime.now(timezone.utc) - ts).total_seconds() / 3600
-            if age_h > 48:
-                return CheckResult(
-                    "adapter_status", "WARNING",
-                    "adapter_status.json is {:.0f}h old (>48h)".format(age_h),
-                    {"age_hours": round(age_h, 1)},
-                )
-        except Exception:
-            pass
+            stamp_problem = None
+        except Exception as e:  # noqa: BLE001
+            stamp_problem = "unparseable generated_at {!r} ({})".format(generated_at, e)
+
+    if stamp_problem is not None:
+        return CheckResult(
+            "adapter_status", "SKIPPED",
+            "{} T1 adapters active, but freshness NOT CHECKED: {}".format(
+                len(t1_active), stamp_problem),
+            {"t1_active_count": len(t1_active), "unchecked_reason": stamp_problem},
+        )
+
+    if age_h is not None and age_h > 48:
+        return CheckResult(
+            "adapter_status", "WARNING",
+            "adapter_status.json is {:.0f}h old (>48h)".format(age_h),
+            {"age_hours": round(age_h, 1)},
+        )
 
     return CheckResult(
         "adapter_status", "OK",
         "{} T1 adapters active".format(len(t1_active)),
-        {"t1_active_count": len(t1_active)},
+        {"t1_active_count": len(t1_active), "age_hours": round(age_h, 1)},
     )
 
 
 def check_circuit_breaker() -> CheckResult:
-    """Check if kill switch is active (drawdown >= 5%)."""
-    doc = _load_json(_KILL_SWITCH_PATH)
-    if doc and doc.get("active"):
-        reason = doc.get("reason", "unknown")
-        return CheckResult(
-            "circuit_breaker", "CRITICAL",
-            "Kill switch ACTIVE: {}".format(reason),
-            {"kill_switch": True, "reason": reason},
-        )
+    """Report the kill-switch / drawdown posture — or refuse when it was NOT measured.
 
-    # Also check paper_trading_status for drawdown
-    pts = _load_json(_PAPER_PATH)
-    if pts:
-        drawdown = float(pts.get("max_drawdown_pct", 0) or 0)
-        if drawdown >= 5.0:
+    This check owns no thresholds: the authoritative ladder lives in
+    ``spa_core/governance/kill_switch.py`` (SOFT −5% / HARD −10%, ADR-034/048) and is not
+    touched here. What it owns is the honesty of its own verdict — it must never answer
+    "drawdown within limits" about a number it never read (invariant #2, refusal-first).
+
+    Absence of ``data/kill_switch.json`` is the documented off-state (the file exists only
+    while the switch is armed); an *unreadable* one is not — a corrupt file must never be
+    read as "the switch is off".
+    """
+    unchecked: List[str] = []
+
+    ks_state, ks_doc = _read_doc(_KILL_SWITCH_PATH)
+    if ks_state == "unreadable":
+        unchecked.append("kill_switch.json unreadable ({})".format(ks_doc))
+    elif ks_state == "ok":
+        if not isinstance(ks_doc, dict):
+            unchecked.append("kill_switch.json is not an object")
+        elif ks_doc.get("active"):
+            reason = ks_doc.get("reason", "unknown")
             return CheckResult(
                 "circuit_breaker", "CRITICAL",
-                "Drawdown {:.1f}% >= 5% kill-switch threshold".format(drawdown),
-                {"drawdown_pct": drawdown},
+                "Kill switch ACTIVE: {}".format(reason),
+                {"kill_switch": True, "reason": reason},
             )
+
+    # Also check paper_trading_status for drawdown
+    drawdown = None
+    pts_state, pts = _read_doc(_PAPER_PATH)
+    if pts_state == "unreadable":
+        unchecked.append("paper_trading_status.json unreadable ({})".format(pts))
+    elif pts_state == "missing":
+        unchecked.append("paper_trading_status.json missing — no drawdown to read")
+    elif not isinstance(pts, dict):
+        unchecked.append("paper_trading_status.json is not an object")
+    elif "max_drawdown_pct" not in pts:
+        # NOT a zero. `pts.get("max_drawdown_pct", 0) or 0` used to invent one, which is how
+        # this check reported "drawdown within limits" on every live run without ever having
+        # seen a drawdown figure.
+        unchecked.append("paper_trading_status.json carries no max_drawdown_pct")
+    else:
+        drawdown = _finite_float(pts.get("max_drawdown_pct"))
+        if drawdown is None:
+            unchecked.append(
+                "max_drawdown_pct is not a usable number ({!r})".format(
+                    pts.get("max_drawdown_pct")))
+
+    if drawdown is not None and drawdown >= 5.0:
+        return CheckResult(
+            "circuit_breaker", "CRITICAL",
+            "Drawdown {:.1f}% >= 5% kill-switch threshold".format(drawdown),
+            {"drawdown_pct": drawdown},
+        )
+
+    if unchecked:
+        return CheckResult(
+            "circuit_breaker", "SKIPPED",
+            "Kill-switch posture NOT CHECKED: {}".format("; ".join(unchecked)),
+            {"unchecked_reason": "; ".join(unchecked), "unchecked": unchecked,
+             "drawdown_pct": drawdown},
+        )
 
     return CheckResult(
         "circuit_breaker", "OK",
-        "No kill switch active, drawdown within limits",
+        "No kill switch active, drawdown {:.1f}% < 5%".format(drawdown),
+        {"drawdown_pct": drawdown},
     )
 
 
@@ -382,6 +580,8 @@ def check_llm_forbidden_violations() -> CheckResult:
     forbidden_call_patterns = [_c, "anthropic.Anthropic(", "openai.OpenAI("]
 
     violations_found = []
+    unscanned: List[str] = []
+    scanned_files = 0
     _self = Path(__file__).name  # skip this file (contains pattern strings)
 
     # Explicit exclusions: files that intentionally use LLM under controlled conditions.
@@ -396,12 +596,22 @@ def check_llm_forbidden_violations() -> CheckResult:
     for module_dir in ["spa_core/risk", "spa_core/execution", "spa_core/monitoring"]:
         full_path = _REPO / module_dir
         if not full_path.exists():
+            # A domain we never opened cannot support the claim "no LLM usage in it".
+            unscanned.append("{} does not exist".format(module_dir))
             continue
-        for py_file in full_path.glob("*.py"):
+        # rglob, not glob: the top-level-only scan silently skipped every subpackage of the
+        # three forbidden domains (spa_core/risk/versions, spa_core/execution/adapters,
+        # spa_core/monitoring/sensors — 20 files) while still reporting "No LLM usage in
+        # risk/execution/monitoring domains". The CI linter (scripts/lint_llm_forbidden.py)
+        # has always walked recursively; the runtime watchdog had not.
+        for py_file in sorted(full_path.rglob("*.py")):
+            if "__pycache__" in py_file.parts:
+                continue
             if py_file.name == _self:
                 continue  # skip self to avoid false positive on pattern strings
             if py_file.name in _KNOWN_EXCEPTIONS:
                 continue  # skip known-exception files (advisory LLM usage only)
+            scanned_files += 1
             try:
                 lines = py_file.read_text(encoding="utf-8", errors="ignore").splitlines()
                 for lineno, line in enumerate(lines, 1):
@@ -423,19 +633,33 @@ def check_llm_forbidden_violations() -> CheckResult:
                             violations_found.append(
                                 "{}:{}: contains '{}'".format(py_file.name, lineno, pat)
                             )
-            except Exception:
-                pass
+            except Exception as e:  # noqa: BLE001
+                # A file we could not read is a hole in the scan, not a clean file.
+                scanned_files -= 1
+                unscanned.append("{} unreadable ({})".format(py_file.name, e))
 
     if violations_found:
         return CheckResult(
             "llm_forbidden_violations", "CRITICAL",
             "LLM usage detected in forbidden domains: {}".format(violations_found[:3]),
-            {"violations": violations_found},
+            {"violations": violations_found, "files_scanned": scanned_files,
+             "unscanned": unscanned},
+        )
+
+    if unscanned:
+        return CheckResult(
+            "llm_forbidden_violations", "SKIPPED",
+            "LLM-forbidden invariant NOT FULLY CHECKED ({} file(s) scanned): {}".format(
+                scanned_files, "; ".join(unscanned[:5])),
+            {"files_scanned": scanned_files, "unscanned": unscanned,
+             "unchecked_reason": "not every file in the forbidden domains could be scanned"},
         )
 
     return CheckResult(
         "llm_forbidden_violations", "OK",
-        "No LLM usage in risk/execution/monitoring domains",
+        "No LLM usage in risk/execution/monitoring domains ({} files scanned)".format(
+            scanned_files),
+        {"files_scanned": scanned_files},
     )
 
 
@@ -470,12 +694,31 @@ def run_watchdog(write: bool = True, send_alert: bool = True) -> int:
 
     critical = [r for r in results if r.is_critical]
     warnings = [r for r in results if r.status == "WARNING"]
+    unchecked = [r for r in results if r.is_unchecked]
+
+    # `overall: "OK"` now means "every rule was actually evaluated and passed". Before, a
+    # check that could not run at all (SKIPPED) was invisible here and the report published
+    # a clean bill of health for rules nobody had verified — the same fail-OPEN shape as
+    # d2_connectivity (#31) and the Tier-1 status summary (#35).
+    if critical:
+        overall = "CRITICAL"
+    elif warnings:
+        overall = "WARNING"
+    elif unchecked:
+        overall = "UNCHECKED"
+    else:
+        overall = "OK"
 
     report = {
         "checked_at": ts,
-        "overall": "CRITICAL" if critical else ("WARNING" if warnings else "OK"),
+        "overall": overall,
         "critical_count": len(critical),
         "warning_count": len(warnings),
+        "unchecked_count": len(unchecked),
+        "unchecked": [
+            {"check": r.name, "reason": r.detail.get("unchecked_reason") or r.message}
+            for r in unchecked
+        ],
         "checks": [r.to_dict() for r in results],
     }
 
@@ -503,8 +746,15 @@ def run_watchdog(write: bool = True, send_alert: bool = True) -> int:
             # Escape dynamic content — messages contain '<'/'>' (e.g. "T1 < 55%")
             # which would break parse_mode=HTML and return 400 Bad Request.
             lines.append("❌ [{}] {}".format(html.escape(r.name), html.escape(r.message)))
+        for r in unchecked:
+            # Only ever sent alongside a breach that is already paging the owner — an
+            # unchecked rule on its own must not turn a 5-minute watchdog into alert spam.
+            lines.append("❔ [{}] не проверено: {}".format(
+                html.escape(r.name), html.escape(r.detail.get("unchecked_reason") or r.message)))
         _send_telegram("\n".join(lines))
 
+    # Exit code semantics are unchanged on purpose: 1 == rule BREACH (launchd reports it as a
+    # failed run). "Not measured" is reported in the file, not by failing the agent.
     return 1 if critical else 0
 
 
