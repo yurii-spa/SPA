@@ -281,3 +281,81 @@ def test_apy_out_of_bounds_excluded():
 
     assert risky_w < 1e-4, f"risky_pool (APY=999%) должен быть исключён, вес={risky_w:.4f}"
     assert zero_w  < 1e-4, f"zero_pool (APY=0.1%) должен быть исключён, вес={zero_w:.4f}"
+
+
+# ─── Тест 14-16: MP-207 — вход data_dir строкой (живой вызов cycle_runner) ────
+#
+# Регресс на реальный дефект: `cycle_runner.main()` держит эффективную
+# data-директорию СТРОКОЙ (`_eff_data_dir = str(_eff_dir)`, back-compat API) и
+# передавал её в тюнер, а тот делал `ddir / "tuner_suggestion.json"` ⇒
+# `TypeError: unsupported operand type(s) for /: 'str' and 'str'`. Исключение
+# съедала fail-safe-обёртка воскресной ветки (`except Exception → log.warning`),
+# поэтому предложение тюнера не писалось НИ РАЗУ и никто этого не видел.
+
+_ORCH_STATUS_FIXTURE = {
+    "adapters": [
+        {"protocol": "aave_v3",     "status": "ok", "apy_pct": 3.13,
+         "tvl_usd": 209_000_000.0, "tier": "T1"},
+        {"protocol": "compound_v3", "status": "ok", "apy_pct": 3.18,
+         "tvl_usd": 48_000_000.0,  "tier": "T1"},
+        {"protocol": "yearn_v3",    "status": "ok", "apy_pct": 3.18,
+         "tvl_usd": 26_000_000.0,  "tier": "T2"},
+    ]
+}
+
+
+def _seed_data_dir(tmp_path: Path) -> Path:
+    """Кладёт в tmp-директорию снимок адаптеров в формате оркестратора."""
+    import json as _json
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "adapter_orchestrator_status.json").write_text(
+        _json.dumps(_ORCH_STATUS_FIXTURE), encoding="utf-8"
+    )
+    return tmp_path
+
+
+def test_run_allocation_tuner_accepts_str_data_dir(tmp_path):
+    """`run_allocation_tuner(data_dir="<str>")` — ровно как зовёт cycle_runner.
+
+    До фикса падало TypeError'ом. Проверяем и отсутствие исключения, и то, что
+    предложение РЕАЛЬНО записано в переданную директорию (симптом бага —
+    отсутствующий tuner_suggestion.json).
+    """
+    ddir = _seed_data_dir(tmp_path)
+
+    result = run_allocation_tuner(data_dir=str(ddir))   # str, не Path — как в проде
+
+    assert isinstance(result, TunerResult)
+    out = ddir / "tuner_suggestion.json"
+    assert out.exists(), "воскресный прогон обязан записать tuner_suggestion.json"
+
+    import json as _json
+    payload = _json.loads(out.read_text(encoding="utf-8"))
+    assert payload.get("generated_at"), "в предложении должна быть метка времени"
+    assert "note" in payload, "предложение остаётся advisory (применяется вручную)"
+
+
+def test_run_allocation_tuner_str_and_path_agree(tmp_path):
+    """str и Path дают одинаковый результат — нормализация не меняет поведение."""
+    d_str = _seed_data_dir(tmp_path / "as_str")
+    d_path = _seed_data_dir(tmp_path / "as_path")
+
+    r_str = run_allocation_tuner(data_dir=str(d_str))
+    r_path = run_allocation_tuner(data_dir=d_path)
+
+    assert (d_str / "tuner_suggestion.json").exists()
+    assert (d_path / "tuner_suggestion.json").exists()
+    assert set(r_str.optimal_weights) == set(r_path.optimal_weights)
+
+
+def test_run_allocation_tuner_writes_only_inside_given_dir(tmp_path):
+    """Герметичность: запись идёт в переданную директорию, а не в живой data/."""
+    ddir = _seed_data_dir(tmp_path)
+    from spa_core.tuner import allocation_tuner as _mod
+    live_out = _mod._TUNER_OUT
+    live_before = live_out.read_bytes() if live_out.exists() else None
+
+    run_allocation_tuner(data_dir=str(ddir))
+
+    live_after = live_out.read_bytes() if live_out.exists() else None
+    assert live_after == live_before, "живой data/tuner_suggestion.json не должен трогаться"
