@@ -1663,22 +1663,50 @@ class SystemHealthMonitor:
         for short, dname, method in domain_methods:
             d_start = _now()
             budget = _DOMAIN_BUDGET.get(short, 30)
+            timed_out = False
             try:
-                with ThreadPoolExecutor(max_workers=1) as ex:
+                # The worker is ABANDONED on timeout, not awaited: `with
+                # ThreadPoolExecutor(...)` joins on __exit__, so the old code paid
+                # the full unbounded cost AND discarded the answer (an observed run:
+                # d2 budget 20s, real ms=158971). shutdown(wait=False) makes the
+                # budget mean what it says. Safe to abandon: check methods only READ
+                # self — every shared attribute is populated by _prelude() above.
+                ex = ThreadPoolExecutor(max_workers=1)
+                try:
                     results = ex.submit(method).result(timeout=budget)
+                finally:
+                    ex.shutdown(wait=False)
             except FuturesTimeout:
-                results = [CheckResult(f"{short}.budget", dname, SKIPPED,
-                                       f"{dname} exceeded {budget}s budget",
-                                       skipped_reason="budget")]
+                # Fail-CLOSED (invariant #2 refusal-first): a domain that did not run
+                # is UNKNOWN, never healthy. This used to be SKIPPED — which _worst()
+                # excludes from the roll-up — so the domain was published as OK and
+                # SYSTEM_BRIEFING (it lists only status not in OK/INFO) hid the fact
+                # that connectivity had never been checked at all.
+                timed_out = True
+                results = [CheckResult(f"{short}.budget", dname, WARNING,
+                                       f"{dname} NOT CHECKED: exceeded {budget}s budget "
+                                       f"(unknown, not healthy)",
+                                       value=budget)]
             except Exception as exc:       # noqa: BLE001
                 results = [CheckResult(f"{short}.error", dname, WARNING,
                                        f"{dname} raised", error=repr(exc))]
             ms = int((_now() - d_start).total_seconds() * 1000)
             checks.extend(results)
-            domains[dname] = {"status": _worst([r.status for r in results]), "ms": ms}
+            # A domain whose every check was SKIPPED measured nothing — _worst()
+            # would fall back to OK. Publish it as WARNING + an explicit `unchecked`
+            # flag so downstream surfaces (briefing, /health) cannot read "no data"
+            # as "healthy".
+            unchecked = timed_out or not any(r.status in _SEV for r in results)
+            entry = {"status": WARNING if unchecked else _worst([r.status for r in results]),
+                     "ms": ms}
+            if unchecked:
+                entry["unchecked"] = True
+            domains[dname] = entry
 
-        # roll-up
-        overall = _worst([c.status for c in checks])
+        # roll-up. Same fail-CLOSED rule at run level: if not a single check produced
+        # a real status, the run measured nothing and must not report OK.
+        overall = WARNING if not any(c.status in _SEV for c in checks) \
+            else _worst([c.status for c in checks])
         counts = {CRITICAL: 0, WARNING: 0, INFO: 0, SKIPPED: 0, OK: 0}
         for c in checks:
             counts[c.status] = counts.get(c.status, 0) + 1
