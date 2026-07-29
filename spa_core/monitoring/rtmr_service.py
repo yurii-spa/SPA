@@ -59,18 +59,30 @@ def _debounce_stale(signals, cfg: dict):
     return out
 
 
-def tick(cfg: dict, now_ts: int) -> list:
+def reconcile_and_persist(severity_by_scope: dict, *, now_ts: int, cfg: dict) -> list:
+    """Re-entry / self-clear step (§5.2) with counter PERSISTENCE.
+
+    recover_count / _portfolio_recover live in the posture FILE and are re-loaded every tick, so
+    they must be saved on EVERY change — not only when something already cleared. The original
+    `if cleared: save` discarded each tick's counter bump (disk always had count=None → next tick
+    started from 0 again), so no scope could ever accumulate the N clean ticks needed to clear:
+    self-clear was unreachable by construction (incident 2026-07: portfolio stuck DEFENSIVE)."""
     from spa_core.monitoring import posture as P
+    reentry = int((cfg.get("peg", {}) or {}).get("reentry_periods", 4))
+    pos = P.load_posture()
+    new_pos, cleared = P.reconcile_recovered(pos, severity_by_scope, now_ts=now_ts,
+                                             reentry_periods=reentry)
+    if cleared or new_pos != pos:
+        P.save_posture(new_pos, now_ts=now_ts)
+    return cleared
+
+
+def tick(cfg: dict, now_ts: int) -> list:
     signals = SL.run_tick(cfg=cfg, now_ts=now_ts)          # sense + persist RAW + heartbeat
     debounced = _debounce_stale(signals, cfg)              # staleness hysteresis (ignore transient stale)
     A.react_and_apply(debounced, now_ts=now_ts, cfg=cfg, notify=True)  # emergency-path (PAPER): add de-risks
     # re-entry / self-clear: drop postures whose scope has recovered for N clean ticks (§5.2)
-    reentry = int((cfg.get("peg", {}) or {}).get("reentry_periods", 4))
-    pos = P.load_posture()
-    new_pos, cleared = P.reconcile_recovered(pos, _worst_by_scope(debounced), now_ts=now_ts,
-                                             reentry_periods=reentry)
-    if cleared:
-        P.save_posture(new_pos, now_ts=now_ts)
+    reconcile_and_persist(_worst_by_scope(debounced), now_ts=now_ts, cfg=cfg)
     return signals
 
 
