@@ -1,5 +1,6 @@
 import os
 """Tests for the Tier-1 parallel backtest-validation layer (deterministic, stdlib)."""
+import json
 import math
 
 from spa_core.backtesting.tier1 import deflated_sharpe as ds
@@ -117,14 +118,36 @@ def test_evaluator_oos_gates_validation():
                 assert s["capacity_ok"] is not False  # capacity-failed cannot be validated
 
 
-@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/env-dependent (needs committed data/ or the Mac host); runs locally, skipped in the data-less GitHub CI")
+@pytest.mark.skipif(
+    not gate_mod._VERDICT.exists(),
+    reason=(f"the gate reads its verdict from {gate_mod._VERDICT} (a git-ignored artifact the live "
+            "Tier-1 pipeline maintains); with no verdict there is no partition to check"),
+)
 def test_gate_eligible_subset_of_validated():
-    """The gate's eligible set must equal the verdict's validated set."""
-    v = evaluator.evaluate(write=False)
+    """The gate's eligible set must equal the validated set OF THE VERDICT THE GATE ACTUALLY READ,
+    and eligible ∪ blocked must partition that verdict's board — every strategy is either promoted
+    or blocked with a reason, none silently dropped.
+
+    The comparison is deliberately against ``gate._VERDICT`` on disk rather than a fresh
+    ``evaluator.evaluate(write=False)`` (invariant #16 — the property is unchanged, the input is now
+    the right one). ``build_gate`` does not recompute: it loads the verdict SNAPSHOT the pipeline
+    last wrote. Re-deriving the expected sets from a live re-evaluation compared two different
+    inputs, so the test failed whenever the registry moved after the snapshot was taken — on the
+    live host it read 63 strategies from the snapshot against 60 recomputed, and on a clean checkout
+    the missing file made the gate report 0 eligible / 0 blocked against a 60-strategy board. Neither
+    failure said anything about the gate's partition; both hid it. Snapshot staleness is a REAL and
+    separate question (the gate publishes no age for its input) — recorded as a signal for the owner,
+    not silently asserted away here.
+    """
+    verdict_used = json.loads(gate_mod._VERDICT.read_text())
+    board = verdict_used.get("leaderboard_tier1", [])
     g = gate_mod.build_gate(write=False)
-    validated_ids = {s["id"] for s in v["leaderboard_tier1"] if s["validated"]}
+    validated_ids = {s["id"] for s in board if s.get("validated")}
     assert set(g["eligible_for_paper"]) == validated_ids
-    assert g["eligible_count"] + g["blocked_count"] == len(v["leaderboard_tier1"])
+    assert g["eligible_count"] + g["blocked_count"] == len(board)
+    # nothing may be dropped: the two sets are disjoint and cover the board exactly
+    assert set(g["eligible_for_paper"]) | set(g["blocked"]) == {s["id"] for s in board}
+    assert not (set(g["eligible_for_paper"]) & set(g["blocked"]))
 
 
 def test_gate_blocked_have_reasons():
