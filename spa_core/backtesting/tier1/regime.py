@@ -208,8 +208,11 @@ def regime_summary(series: Optional[List[Tuple[str, float]]] = None,
     if series is None:
         series = aggregate_rate_series()
     if not series:
+        # Same KEY SET as the populated branch below — build_report() reads
+        # summary["n_transitions"] unconditionally, so an empty-history run used to
+        # die with KeyError instead of emitting an honest "no data" report.
         return {"regime_counts": {}, "current": current_regime(series, window),
-                "transitions": [], "n_days": 0}
+                "transitions": [], "n_transitions": 0, "n_days": 0}
     labels = classify_regimes(series, window)
     counts: Dict[str, int] = {lbl: 0 for lbl in REGIME_LABELS}
     for _, r in labels:
