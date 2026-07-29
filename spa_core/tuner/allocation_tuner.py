@@ -587,7 +587,7 @@ def run_allocation_tuner(
     adapter_data: Optional[List[dict]] = None,
     current_weights: Optional[Dict[str, float]] = None,
     constraints: Optional[TunerConstraints] = None,
-    data_dir: Optional[Path] = None,
+    data_dir: Optional[str | os.PathLike] = None,
     save: bool = True,
 ) -> TunerResult:
     """Основная точка входа. Запускает оптимизатор и сохраняет результат.
@@ -598,13 +598,18 @@ def run_allocation_tuner(
         current_weights:  Текущие веса {protocol_id: float 0..1}.
                           None → читается из data/current_positions.json.
         constraints:      Ограничения (None → defaults из TunerConstraints).
-        data_dir:         Путь к data/ директории (None → авто).
+        data_dir:         Путь к data/ директории — ``str`` или ``Path``
+                          (None → авто). Нормализуется здесь: живой вызывающий
+                          (``cycle_runner``) держит эффективную data-директорию
+                          строкой ради back-compat API, и до MP-207-фикса это
+                          роняло тюнер на ``str / str`` внутри (TypeError съедался
+                          fail-safe-обёрткой ⇒ воскресный прогон не отрабатывал).
         save:             Сохранять ли результат в data/tuner_suggestion.json.
 
     Returns:
         TunerResult с оптимальными весами.
     """
-    ddir = data_dir or _DEFAULT_DATA_DIR
+    ddir = Path(data_dir) if data_dir else _DEFAULT_DATA_DIR
 
     if adapter_data is None:
         adapter_data = _load_adapter_data(ddir)
