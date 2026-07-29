@@ -20,6 +20,16 @@ class TestLiquidityProviders(unittest.TestCase):
         # every depth-scope must have a position size (sensor requires both)
         self.assertEqual(set(depth.keys()), set(sizes.keys()))
 
+    def test_empty_holdings_yield_empty_depth(self) -> None:
+        """Incident 2026-07: all-cash portfolio → held={} → `{} or _SLUGS` resurrected all 7
+        default scopes with no sizes → 7 permanent critical 'unknown position size' signals →
+        portfolio could never leave DEFENSIVE. Holding nothing must mean NO liquidity scopes."""
+        self.assertEqual(L.depth_providers({}), {})
+
+    def test_none_still_defaults_to_slugs(self) -> None:
+        provs = L.depth_providers(None)
+        self.assertGreaterEqual(len(provs), 5)  # explicit None keeps the default watchlist
+
 
 if __name__ == "__main__":
     unittest.main()
