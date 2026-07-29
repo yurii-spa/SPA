@@ -59,11 +59,29 @@ def test_three_families_present(report):
 
 @pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="data/env-dependent (needs committed data/ or the Mac host); runs locally, skipped in the data-less GitHub CI")
 def test_each_family_above_floor_identity(report):
-    """Per family: above_floor_usd_per_yr == deployable · max(0, net_apy − floor)/100."""
+    """Per family: above_floor_usd_per_yr == deployable · max(0, net_apy − floor)/100.
+
+    The tolerance is DERIVED from publication rounding, not a magic constant. The model
+    computes above-floor at full Decimal precision and only then rounds each field for
+    publication (`net_apy_pct` to 4 dp, dollars to 2 dp) — deliberately, so a family row stays
+    byte-consistent with that family's own report instead of being re-derived off rounded
+    inputs (see `_family_row`). Re-deriving the identity from the PUBLISHED 4-dp APY therefore
+    carries an unavoidable error of deployable · 0.5e-4/100 dollars: on the stable-engines book
+    the exact blend is 570000/130000 = 4.384615…% → published 4.3846%, and the identity lands
+    2¢ away from the exact $1280.00. The old flat `< 1e-2` bound made the assertion a coin flip
+    on whether the live HY/LP blend happened to terminate at 4 dp — it failed on a $130k book at
+    2¢ and 3¢ while the model was exactly right. This bound still catches any REAL identity
+    break (a wrong factor, a dropped max(0, ·), a units slip) — those miss by dollars, not cents.
+    """
     floor = report["rwa_floor_pct"]
     for f in report["families"]:
         expect = f["deployable_usd"] * max(0.0, f["net_apy_pct"] - floor) / 100.0
-        assert abs(f["above_floor_usd_per_yr"] - round(expect, 2)) < 1e-2
+        # half-ulp of the published 4-dp APY, carried onto the book size, plus the 1¢ each
+        # from rounding both the published and the re-derived dollar figures.
+        tol = f["deployable_usd"] * (0.5e-4 / 100.0) + 0.02
+        assert abs(f["above_floor_usd_per_yr"] - round(expect, 2)) <= tol, (
+            f"{f['family']}: published {f['above_floor_usd_per_yr']} vs identity "
+            f"{round(expect, 2)} (tolerance {tol:.4f})")
 
 
 def test_rwa_floor_family_is_at_floor(report):
