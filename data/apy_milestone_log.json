@@ -1,7 +1,7 @@
 {
   "start_date": "2026-06-18",
   "last_updated": "2026-07-29",
-  "days_recorded": 16,
+  "days_recorded": 17,
   "daily_log": [
     {
       "date": "2026-06-18",
@@ -10,7 +10,7 @@
     },
     {
       "date": "2026-06-10",
-      "apy_pct": 3.02,
+      "apy_pct": 2.57,
       "strategy_id": "s7_pendle_yt"
     },
     {
@@ -80,6 +80,11 @@
     },
     {
       "date": "2026-07-28",
+      "apy_pct": 3.32,
+      "strategy_id": "s7_pendle_yt"
+    },
+    {
+      "date": "2026-07-29",
       "apy_pct": 3.32,
       "strategy_id": "s7_pendle_yt"
     }
