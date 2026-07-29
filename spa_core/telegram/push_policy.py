@@ -226,9 +226,25 @@ def _send(text: str) -> bool:
         return False
 
 
+def _humanize(title: str, body: str) -> tuple[str, str]:
+    """Перевести заголовок/тело алерта на простой русский (owner-задание 2026-07-20/27).
+
+    Чистый текстовый слой (``spa_core.telegram.humanize``): нераспознанное проходит
+    вербатим, ничего не выдумывается, ошибок не бросает. Гейт (whitelist /
+    edge-trigger / ceiling / held-scoping) НЕ затрагивается — это только рендер.
+    """
+    try:
+        from spa_core.telegram.humanize import humanize
+        return humanize(title, body)
+    except Exception as exc:  # noqa: BLE001 — алерт обязан дойти даже «сырым»
+        log.warning("push_policy: humanize failed (%s) — sending raw text", exc)
+        return title, body
+
+
 def _format_message(severity: str, title: str, body: str,
                     *, resolved: bool = False) -> str:
     icon = "✅" if resolved else ("🚨" if str(severity).upper() == "CRITICAL" else "⚠️")
+    title, body = _humanize(title, body)
     head = f"{icon} <b>{title}</b>"
     parts = [head]
     if body:
@@ -366,9 +382,10 @@ def _push_critical_impl(
             # Over the ceiling: coalesce once, then demote further ones to the digest.
             if not ceil["coalesced_sent"]:
                 coalesced = (
-                    f"⚠️ <b>SPA — more events</b>\n\n"
-                    f"Daily push ceiling ({daily_ceiling}) reached. Further events are "
-                    f"queued — open /alerts for detail.\n\n<i>{ts}</i>"
+                    f"⚠️ <b>Ещё события — их пока не показываю</b>\n\n"
+                    f"Достигнут дневной лимит уведомлений ({daily_ceiling}). Остальные "
+                    f"события копятся в очереди — открой /alerts, чтобы посмотреть."
+                    f"\n\n<i>{ts}</i>"
                 )
                 if send:
                     _send(coalesced)
@@ -424,10 +441,10 @@ def _push_critical_impl(
         events[event_key] = {"state": _STATE_BAD, "last_ts": ts, "entry_pushed": False}
         if not ceil["coalesced_sent"]:
             coalesced = (
-                f"⚠️ <b>SPA — more critical events</b>\n\n"
-                f"Daily push ceiling ({daily_ceiling}) reached. "
-                f"Further critical events are queued — open /alerts for detail.\n\n"
-                f"<i>{ts}</i>"
+                f"⚠️ <b>Ещё критические события — их пока не показываю</b>\n\n"
+                f"Достигнут дневной лимит уведомлений ({daily_ceiling}). Остальные "
+                f"критические события копятся в очереди — открой /alerts, чтобы "
+                f"посмотреть.\n\n<i>{ts}</i>"
             )
             if send:
                 _send(coalesced)
