@@ -23,7 +23,6 @@ Run:
 
 from __future__ import annotations
 
-import pytest
 
 import json
 import os
@@ -50,13 +49,20 @@ _SCENARIO_PATH  = os.path.join(_REPO_ROOT, "spa_core", "backtesting", "research_
 
 # ─── real gate-file dir ───────────────────────────────────────────────────────
 _REAL_BACKTEST_DIR = os.path.join(_REPO_ROOT, "data", "backtest")
+_PRE_PAPER_GATE = os.path.join(_REAL_BACKTEST_DIR, "pre_paper_backtest_gate.json")
+# Guard on the ARTEFACT, not on `GITHUB_ACTIONS == "true"` (autonomous cycle #32, 2026-07-29).
+# `data/**/*.json` is git-ignored, so the gate file exists on the host that runs the cycle and
+# is absent on every clean checkout — CI included. The env-keyed marker skipped exactly the same
+# tests in CI but left them RED on a clean local checkout while claiming a CI-only cause. Same
+# skip set, honest reason; and they start running anywhere the artefact is actually present.
+_GATE_REQUIRED = f"requires runtime artefact {_PRE_PAPER_GATE} (git-ignored; absent on a clean checkout)"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. Whitelist + Gate integration
 # ══════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="CPA whitelist-gate status is data/state-derived (returns UNKNOWN without committed data/); runs locally, skipped in the data-less CI")
+@unittest.skipUnless(os.path.exists(_PRE_PAPER_GATE), _GATE_REQUIRED)
 class TestCPAWhitelistGateIntegration(unittest.TestCase):
     """Tests the whitelist → gate chain (tests 1-13)."""
 
