@@ -100,8 +100,29 @@ class TestGetAddress:
 
 # ─── 2. sign_transaction ──────────────────────────────────────────────────────
 
-@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="execution-layer signing needs the exec-armed gate (SPA_EXEC_ARMED); not armed in the read-only CI — runs locally")
 class TestSignTransaction:
+    """Signing correctness of the capital primitive.
+
+    WS-5.1 put a STRUCTURAL arming assertion inside ``sign_transaction`` itself
+    (``assert_live_armed`` → hard-raise unless ``SPA_EXEC_ARMED``). That refactor updated the
+    sibling suites (test_money_path_failure_modes / test_mev_wiring / test_mev_protection all
+    arm via ``monkeypatch.setenv``) but MISSED this file, so all 8 tests below raised
+    ``LiveTradingForbiddenError``. They were then marked "not armed in the read-only CI — runs
+    locally" — but locally they did not run either, they FAILED: the marker hid the breakage
+    instead of gating it, and signing correctness went unverified everywhere.
+
+    Arming here follows the established sibling pattern exactly: ``monkeypatch.setenv`` is
+    process-local and auto-reverted after each test, so the owner-gated go-live flag itself is
+    never flipped — no file, no ``data/``, no broadcast, and the keys below are the publicly
+    known Hardhat dev keys. The unarmed-refusal property is NOT weakened by this: it is owned
+    by test_execution_guard_coverage.py, which asserts these same primitives hard-raise when
+    unarmed (``test_eth_signer_sign_transaction_raises``).
+    """
+
+    @pytest.fixture(autouse=True)
+    def _armed(self, monkeypatch):
+        monkeypatch.setenv("SPA_EXEC_ARMED", "1")
+
     def test_returns_bytes(self):
         from spa_core.execution.eth_signer import sign_transaction
         raw = sign_transaction(_PK1_NO_PREFIX, _SAMPLE_TX)
