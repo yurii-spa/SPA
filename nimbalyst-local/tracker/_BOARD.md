@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **74** · ждёт владельца: **6**.
+> Всего карточек: **77** · ждёт владельца: **7**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -10,16 +10,18 @@
 - **Какое capacity-число сделать заголовочным на /fundability** · _low_  ·  `own-17-fundability-capacity-framing.md`
 - **Навести порядок в агентах — реши по каждому пункту (сводка инвентаризации)** · _high_  ·  `own-21-agent-cleanup-decisions.md`
 - **Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)**  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md`
+- **Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить** · _medium_  ·  `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam.md`
 - **Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять**  ·  `owner-decision-publichnaya-stranitsa-prover-nas-pokazyv.md`
 - **В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями** · _high_  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (30)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (31)
 
 ### · needs-owner
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
 - Какое capacity-число сделать заголовочным на /fundability  ·  `own-17-fundability-capacity-framing.md` · 2026-07-15
 - Навести порядок в агентах — реши по каждому пункту (сводка инвентаризации)  ·  `own-21-agent-cleanup-decisions.md` · 2026-07-15
 - Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md` · 2026-07-29
+- Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить  ·  `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam.md` · 2026-07-29
 - Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять  ·  `owner-decision-publichnaya-stranitsa-prover-nas-pokazyv.md` · 2026-07-29
 - В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md` · 2026-07-29
 ### · ingested
@@ -75,12 +77,15 @@
 - Задача проверить на сайте на всех больницах тест показывает правильные количест…  ·  `inbox-zadacha-proverit-na-saite-na-vseh-bolnit.md` · 2026-07-27
 - Задача разобраться почему нет свежих данных почему Pepper Тест не обновился хот…  ·  `inbox-zadacha-razobratsya-pochemu-net-svezhih.md` · 2026-07-23
 
-## 🤖 Agent Tasks (что делает агент)  (21)
+## 🤖 Agent Tasks (что делает агент)  (23)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
+- CI красный на main — 14 тестов зависят от git-ignored файлов data/  ·  `agent-ci-data-dependent-red-tests.md` · 2026-07-29
 - Чистка репо (мёртвый код) фазами  ·  `agent-cleanup.md` · 2026-07-16
 - Q&A бэклог (12 ответов) + видимость задач  ·  `agent-qa-backlog.md` · 2026-07-16
+### · backlog
+- Воскресный тюнер аллокации (MP-207) молча падает — str вместо Path  ·  `agent-tuner-str-path-sunday-dead.md` · 2026-07-29
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
 - Q2: аналитику в analytics_lab/  ·  `agent-analytics-lab.md` · 2026-07-16
