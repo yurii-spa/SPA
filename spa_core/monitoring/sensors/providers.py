@@ -46,16 +46,23 @@ def _get_json(url: str):
 
 
 # ── parse functions (pure, unit-testable) ───────────────────────────────────────────
+def _pos(price: float) -> float | None:
+    """price ≤ 0 is a dead/halted source (e.g. Binance DAIUSDT quotes 0.00000000), not a price —
+    return None so the quorum drops the source instead of exploding the cross-source spread
+    (incident 2026-07: DAI spread 1.0 → permanent critical → portfolio stuck DEFENSIVE)."""
+    return price if price > 0 else None
+
+
 def parse_coingecko(payload: dict, cg_id: str) -> float | None:
     try:
-        return float(payload[cg_id]["usd"])
+        return _pos(float(payload[cg_id]["usd"]))
     except Exception:  # noqa: BLE001
         return None
 
 
 def parse_coinbase(payload: dict) -> float | None:
     try:
-        return float(payload["data"]["amount"])
+        return _pos(float(payload["data"]["amount"]))
     except Exception:  # noqa: BLE001
         return None
 
@@ -63,7 +70,7 @@ def parse_coinbase(payload: dict) -> float | None:
 def parse_binance(payload: dict) -> float | None:
     # symbol is vs USDT (≈USD for a stable's USD peg proxy)
     try:
-        return float(payload["price"])
+        return _pos(float(payload["price"]))
     except Exception:  # noqa: BLE001
         return None
 
@@ -72,14 +79,14 @@ def parse_kraken(payload: dict) -> float | None:
     try:
         result = payload["result"]
         pair = next(iter(result))
-        return float(result[pair]["c"][0])  # last-trade close
+        return _pos(float(result[pair]["c"][0]))  # last-trade close
     except Exception:  # noqa: BLE001
         return None
 
 
 def parse_llama(payload: dict, cg_id: str) -> float | None:
     try:
-        return float(payload["coins"][f"coingecko:{cg_id}"]["price"])
+        return _pos(float(payload["coins"][f"coingecko:{cg_id}"]["price"]))
     except Exception:  # noqa: BLE001
         return None
 
