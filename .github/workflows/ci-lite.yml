@@ -68,7 +68,7 @@ jobs:
           import sys
           # Core imports
           from spa_core.base import BaseAnalytics, BaseReport, BaseAdapter
-          from spa_core.utils.errors import SpaError
+          from spa_core.utils.errors import SPAError
           print('spa_core.base OK')
 
           # Strategy registry (both)
