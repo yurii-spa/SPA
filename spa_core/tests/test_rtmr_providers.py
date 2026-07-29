@@ -55,5 +55,34 @@ class TestLiveSmoke(unittest.TestCase):
             self.assertAlmostEqual(r.value, 1.0, delta=0.03)
 
 
+class TestZeroPriceIsNotAPrice(unittest.TestCase):
+    """Incident 2026-07: Binance quoted DAIUSDT at 0.00000000 (dead pair). 0.0 parsed as a real
+    price exploded the cross-source spread to ~1.0 → permanent critical → DAI FROZEN → portfolio
+    stuck DEFENSIVE (all-cash). Contract (module docstring): a provider returns a price or None on
+    ANY failure — a non-positive price IS a failure, the quorum must drop the source."""
+
+    def test_binance_zero_price_is_none(self) -> None:
+        self.assertIsNone(PR.parse_binance({"symbol": "DAIUSDT", "price": "0.00000000"}))
+
+    def test_binance_negative_price_is_none(self) -> None:
+        self.assertIsNone(PR.parse_binance({"price": "-1"}))
+
+    def test_coingecko_zero_is_none(self) -> None:
+        self.assertIsNone(PR.parse_coingecko({"dai": {"usd": 0.0}}, "dai"))
+
+    def test_coinbase_zero_is_none(self) -> None:
+        self.assertIsNone(PR.parse_coinbase({"data": {"amount": "0"}}))
+
+    def test_kraken_zero_is_none(self) -> None:
+        self.assertIsNone(PR.parse_kraken({"result": {"DAIUSD": {"c": ["0.0", "1"]}}}))
+
+    def test_llama_zero_is_none(self) -> None:
+        self.assertIsNone(PR.parse_llama({"coins": {"coingecko:dai": {"price": 0.0}}}, "dai"))
+
+    def test_positive_price_still_parses(self) -> None:
+        self.assertAlmostEqual(PR.parse_binance({"price": "0.9995"}), 0.9995)
+        self.assertAlmostEqual(PR.parse_kraken({"result": {"DAIUSD": {"c": ["0.9999", "1"]}}}), 0.9999)
+
+
 if __name__ == "__main__":
     unittest.main()
