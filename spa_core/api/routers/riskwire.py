@@ -8,8 +8,15 @@ SAME pattern the DFB / underwriting / rates-desk proof surfaces publish.
 
   • GET /api/riskwire/proof        — a machine-readable index: for EACH artifact (measurements,
     day30_review) the wrapper metadata + head_hash + artifact_hash + a LIVE verify_artifact result +
-    the reproduce block. The verdict is computed by the SAME proof code the standalone verifier mirrors,
-    so the server never claims a verification it cannot reproduce.
+    a FRESHNESS verdict (age_hours / stale / fresh_within_hours) + the reproduce block. The verdict is
+    computed by the SAME proof code the standalone verifier mirrors, so the server never claims a
+    verification it cannot reproduce.
+
+TWO INDEPENDENT VERDICTS, never conflated: `verified` = the hash chain re-derives (integrity);
+`stale` = the artifact is older than the SAME budget `d_riskwire.*` grades it with in
+system_health_monitor (currency). A perfectly-verified snapshot can be weeks old — saying only
+"verified" would let an outsider read an old measurement as today's risk, so the index also publishes
+`any_stale`. fail-CLOSED both ways: missing/unparseable `generated_at` ⇒ stale:true.
   • GET /api/riskwire/proof/{artifact}  — the complete artifact (measurements | day30_review) served
     VERBATIM (the full row chain, uncapped) for offline re-derivation.
 
@@ -44,8 +51,40 @@ _CANONICAL_JSON_RULE = "json.dumps(obj, sort_keys=True, separators=(',',':'), de
 _DISCLAIMER = (
     "RISKWIRE proof surface — read-only. Every artifact is served VERBATIM so a third party can "
     "re-derive every row_hash + head_hash + artifact_hash with zero spa_core import. Advisory; moves "
-    "no capital, never touches the go-live track."
+    "no capital, never touches the go-live track. "
+    "`verified` means the hash chain re-derives — it does NOT mean the artifact is CURRENT: read "
+    "`generated_at` / `age_hours` / `stale` for that. A stale artifact is a faithfully-hashed "
+    "snapshot of an OLD measurement, not today's risk."
 )
+
+
+def _fresh_within_hours(name: str) -> float:
+    """Staleness budget (hours) for an artifact — the SAME constants the health monitor grades with.
+
+    Imported, never re-declared: `d_riskwire.measurements.fresh` / `d_riskwire.day30.fresh` and this
+    surface must call the same artifact stale at the same moment, or the public "check us" page and
+    the internal health report would disagree about the same file.
+    """
+    from spa_core.monitoring.system_health_monitor import (
+        RISKWIRE_DAY30_FRESH_D,
+        RISKWIRE_MEASUREMENTS_FRESH_H,
+    )
+
+    return RISKWIRE_DAY30_FRESH_D * 24.0 if name == "day30_review" else RISKWIRE_MEASUREMENTS_FRESH_H
+
+
+def _freshness(name: str, doc: dict) -> dict:
+    """age_hours + stale for one artifact. fail-CLOSED: an absent/unparseable `generated_at` reads
+    STALE (we cannot prove it is current, so we never claim it is)."""
+    from spa_core.monitoring.system_health_monitor import _age_hours
+
+    budget = _fresh_within_hours(name)
+    age = _age_hours(doc.get("generated_at"))
+    return {
+        "age_hours": None if age is None else round(age, 1),
+        "stale": True if age is None else bool(age > budget),
+        "fresh_within_hours": budget,
+    }
 
 
 def _reproduce_block(files: list, note: str) -> dict:
@@ -77,17 +116,23 @@ def get_riskwire_proof():
 
     Runs spa_core.riskwire.proof.verify_artifact over each published artifact (the SAME recipe
     verify_riskwire.py reproduces), so the server's `verified` flag is the honest re-derivation, not a
-    stored claim. fail-CLOSED: a missing artifact reads present:false / verified:false."""
+    stored claim. Each artifact additionally carries `age_hours` / `stale` / `fresh_within_hours`
+    (the health monitor's own budgets) so integrity is never mistaken for currency.
+    fail-CLOSED: a missing artifact reads present:false / verified:false / stale:true."""
     from spa_core.riskwire import proof as rw_proof
 
     artifacts = {}
     all_verified = True
+    any_stale = False
     for name, (rel, kind) in _ARTIFACTS.items():
         doc = _read_artifact(rel)
         if doc is None:
             artifacts[name] = {"present": False, "verified": False,
+                               "age_hours": None, "stale": True,
+                               "fresh_within_hours": _fresh_within_hours(name),
                                "note": f"{rel} missing/corrupt (fail-CLOSED)"}
             all_verified = False
+            any_stale = True          # absent cannot be current — fail-CLOSED
             continue
         # each deliverable is verified with ITS OWN published scheme (measurements: row-chain +
         # head + artifact_hash; day30: WS1.3's review_hash).
@@ -106,12 +151,16 @@ def get_riskwire_proof():
             "broken_at": res.get("broken_at"),
             "note": res.get("note"),
         }
+        fresh = _freshness(name, doc)
+        artifacts[name].update(fresh)
         all_verified = all_verified and bool(res["valid"])
+        any_stale = any_stale or fresh["stale"]
 
     body = {
         "model": "riskwire_proof_index",
         "is_advisory": True,
         "all_verified": all_verified,
+        "any_stale": any_stale,
         "artifacts": artifacts,
         "disclaimer": _DISCLAIMER,
         "reproduce": _reproduce_block(
