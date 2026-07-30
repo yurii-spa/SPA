@@ -99,6 +99,7 @@ from spa_core.monitoring.cycle_health_monitor import (
     STALE_ADAPTER_HOURS,
     STALE_REGIME_HOURS,
     STALE_TOURNAMENT_HOURS,
+    UNCHECKED,
     WARNING,
     CycleHealthMonitor,
     _now_epoch,
@@ -287,16 +288,30 @@ class TestCheckEquityAnomaly(unittest.TestCase):
         self.assertEqual(result["status"], WARNING)
         self.assertLess(result["today_change_pct"], -5.0)
 
+    # NOTE (cycle #40, 2026-07-30) — invariant #16, deliberate assert change,
+    # justified. T20/T21/T25 asserted status == OK for inputs on which the
+    # anomaly check performs NO computation at all (fewer than two entries,
+    # unusable prev_equity). Cycle #37 replaced that label with UNCHECKED in the
+    # module (invariant #2, refusal-first) and updated the TWIN copy of these
+    # tests in spa_core/tests/test_cycle_health_monitor.py, but missed this
+    # copy — leaving main CI red (this directory is what ci.yml/test.yml run).
+    # The property under test is unchanged ("no anomaly is reported"); only the
+    # label for "could not measure" moved OK → UNCHECKED, and each test now also
+    # pins that a reason is stated. Strengthened, not weakened.
+    # Recorded in docs/journal/2026-W31.md.
+
     # T20
-    def test_equity_anomaly_ok_single_entry(self):
+    def test_equity_anomaly_single_entry_is_unchecked_not_ok(self):
         history = [{"equity": 100_000.0}]
         result = self.monitor.check_equity_anomaly(history)
-        self.assertEqual(result["status"], OK)
+        self.assertEqual(result["status"], UNCHECKED)
+        self.assertIn("insufficient", result.get("detail", ""))
 
     # T21
-    def test_equity_anomaly_ok_empty_history(self):
+    def test_equity_anomaly_empty_history_is_unchecked_not_ok(self):
         result = self.monitor.check_equity_anomaly([])
-        self.assertEqual(result["status"], OK)
+        self.assertEqual(result["status"], UNCHECKED)
+        self.assertIn("insufficient", result.get("detail", ""))
 
     # T22
     def test_equity_anomaly_change_pct_none_for_single_entry(self):
@@ -319,8 +334,11 @@ class TestCheckEquityAnomaly(unittest.TestCase):
     def test_equity_anomaly_prev_equity_zero_no_crash(self):
         history = [{"equity": 0.0}, {"equity": 100_000.0}]
         result = self.monitor.check_equity_anomaly(history)
-        # Must not raise; status stays OK
-        self.assertEqual(result["status"], OK)
+        # Must not raise. prev_equity == 0 makes the percentage change
+        # uncomputable, so the honest label is UNCHECKED, not OK (see the NOTE
+        # above; the no-crash property this test exists for is unchanged).
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result["status"], UNCHECKED)
 
     # T26
     def test_equity_anomaly_large_gain_positive_change_pct(self):
