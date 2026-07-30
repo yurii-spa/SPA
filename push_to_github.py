@@ -31,6 +31,95 @@ API_BASE = "https://api.github.com"
 PROJECT_ROOT = Path("/Users/yuriikulieshov/Documents/SPA_Claude")
 
 
+class RepoPathError(ValueError):
+    """Локальный путь не удалось отобразить в путь ВНУТРИ целевого репозитория.
+
+    Раньше этот случай молча превращался в ``local.name`` — файл уезжал в КОРЕНЬ
+    репо под своим basename, а инструмент печатал ``OK`` с настоящей sha
+    (цикл #40: 6 файлов из worktree легли в корень). Теперь это жёсткая ошибка:
+    fail-CLOSED, инвариант #2 — лучше отказать, чем доставить не туда.
+    """
+
+
+def _git_out(args: list, cwd) -> Optional[str]:
+    """Один `git -C <cwd> <args>`; None на любой сбой (нет git / не репо / ошибка).
+
+    Никогда не бросает: отсутствие git в PATH (launchd-окружение autopush!) —
+    штатный сценарий, вызывающий код падает обратно на PROJECT_ROOT.
+    """
+    try:
+        r = subprocess.run(["git", "-C", str(cwd), *args],
+                           capture_output=True, text=True, timeout=10)
+    except Exception:
+        return None
+    if r.returncode != 0:
+        return None
+    return r.stdout.strip() or None
+
+
+def _common_git_dir(start) -> Optional[Path]:
+    """Разрешённый *общий* .git-каталог репозитория, содержащего ``start``.
+
+    Все linked worktrees одного репозитория делят ОДИН common dir, поэтому это
+    точный признак «тот же самый репозиторий», а не «просто какой-то git-репо».
+    """
+    out = _git_out(["rev-parse", "--git-common-dir"], start)
+    if not out:
+        return None
+    p = Path(out)
+    if not p.is_absolute():          # git отдаёт ".git" относительно cwd
+        p = Path(start) / p
+    try:
+        return p.resolve()
+    except OSError:
+        return None
+
+
+def repo_relative_path(local: Path, project_root: Optional[Path] = None) -> str:
+    """Путь файла ВНУТРИ репозитория. Fail-CLOSED: никогда не возвращает basename.
+
+    Корень определяется ПО ФАКТУ (`git rev-parse --show-toplevel`), а не по
+    константе — поэтому файл из изолированного worktree (`/tmp/spa_wt_*/...`),
+    в котором протокол оркестратора ОБЯЗЫВАЕТ работать (§3.4), релятивизируется
+    правильно. Порядок:
+
+      1. worktree/checkout, содержащий файл, принадлежит ТОМУ ЖЕ репозиторию,
+         что и ``project_root`` (сверка по common git dir) → путь от его toplevel;
+      2. иначе (git недоступен / не репо / сверку не провести) → путь от
+         ``project_root``, как было исторически;
+      3. иначе → :class:`RepoPathError`.
+
+    Чужой репозиторий и путь вне любого репо дают ошибку, а не догадку.
+    ``project_root=None`` берёт модульный :data:`PROJECT_ROOT` в момент ВЫЗОВА
+    (а не в момент определения функции) — иначе константу нельзя подменить в тестах.
+    """
+    if project_root is None:
+        project_root = PROJECT_ROOT
+    local_res = Path(local).resolve()
+    root_res = Path(project_root).resolve()
+
+    parent = Path(local).parent
+    top = _git_out(["rev-parse", "--show-toplevel"], parent) if parent.exists() else None
+    if top:
+        mine, theirs = _common_git_dir(parent), _common_git_dir(project_root)
+        if mine is not None and theirs is not None and mine == theirs:
+            try:
+                return str(local_res.relative_to(Path(top).resolve()))
+            except ValueError:
+                pass  # ниже — попытка от project_root, затем честная ошибка
+
+    try:
+        return str(local_res.relative_to(root_res))
+    except ValueError:
+        raise RepoPathError(
+            f"не могу определить путь внутри репозитория для {local}: путь вне "
+            f"{project_root} и не принадлежит рабочей копии ЭТОГО же репозитория. "
+            f"Пуш отменён (fail-CLOSED) — раньше здесь молча бралось имя файла и "
+            f"файл уезжал в КОРЕНЬ репо. Передай путь внутри {project_root} либо "
+            f"сделай worktree через `git worktree add`."
+        )
+
+
 def get_pat() -> str:
     """Читает PAT (никогда из hardcode).
 
@@ -127,11 +216,12 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
     if not local.exists():
         return {"ok": False, "error": f"Файл не найден: {local_path}", "path": local_path}
 
-    # Relative path in repo
+    # Путь внутри репо. Fail-CLOSED: не удалось определить → честный FAIL,
+    # а НЕ basename в корень репо (см. repo_relative_path).
     try:
-        repo_path = str(local.relative_to(PROJECT_ROOT))
-    except ValueError:
-        repo_path = local.name
+        repo_path = repo_relative_path(local)
+    except RepoPathError as e:
+        return {"ok": False, "error": str(e), "path": local_path}
 
     local_bytes = local.read_bytes()
     local_blob_sha = git_blob_sha(local_bytes)
