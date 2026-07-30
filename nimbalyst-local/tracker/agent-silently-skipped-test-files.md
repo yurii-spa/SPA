@@ -20,7 +20,7 @@ rewrite for new interface")`. Импорт падал потому, что бл�
 
 | Файл | Тестов скрыто | Модуль-цель существует? | Причина в коде |
 |---|---|---|---|
-| `spa_core/tests/test_adapter_watchdog.py` | 136 | ✅ `spa_core/scheduler/adapter_watchdog.py` | «adapter_watchdog API refactored — tests need rewrite» |
+| ~~`spa_core/tests/test_adapter_watchdog.py`~~ | ~~136~~ | ❌ **НЕТ — колонка была неверна** | ✅ **закрыто, заход 1 (цикл #38)** |
 | `spa_core/tests/test_pendle_pt_adapter_v2.py` | 95 | ✅ `spa_core/adapters/pendle_pt_adapter.py` | «pendle_pt_adapter API refactored — tests need rewrite» |
 | `spa_core/tests/test_pendle_pt_adapter.py` | 95 | ✅ то же | то же |
 | `spa_core/tests/test_walk_forward_validator.py` | 78 | ✅ `spa_core/backtesting/walk_forward_validator.py` | «walk_forward_validator API refactored (class-based)» |
@@ -49,6 +49,44 @@ rewrite for new interface")`. Импорт падал потому, что бл�
 5. Любое намеренное изменение/удаление ассерта — с обоснованием в теле + запись в
    `docs/journal/<неделя>.md` (инвариант #16).
 6. Работа порезана на заходы по 1–2 файла (как в #34/#35), чтобы каждый заход доходил до пуша.
+
+## Ход работы
+
+### ✅ Заход 1 (цикл #38, 2026-07-30) — `test_adapter_watchdog.py` закрыт
+
+**Гипотеза карточки про этот файл оказалась НЕВЕРНОЙ.** Колонка «модуль-цель существует» ставила
+✅ на `spa_core/scheduler/adapter_watchdog.py` — это **коллизия имён**, а не цель. Тесты написаны
+на класс-API **MP-596** (`AdapterWatchdog` / `AdapterHealth` / `WatchdogReport` / `RING_BUFFER_MAX`),
+который **ретирован** в `attic/modules/monitoring/adapter_watchdog.py` (надгробие,
+первый оператор — `raise ImportError`). Импорт когда-то перенаправили на одноимённый, но
+**ДРУГОЙ** модуль **MP-311** (функциональный: `check_adapter_health` / `attempt_adapter_restart` /
+`run_watchdog_cycle`), где этих символов нет и не было ⇒ `ImportError` ⇒ file-level `pytestmark`.
+
+**Настоящее следствие, которого карточка не видела:** MP-311 зовётся **из дневного цикла**
+(`cycle_reporting.py:111` и `:855`, дважды за прогон) и **не имел ни одного теста**.
+
+Сделано:
+- скип **сужен с файла до 19 классов** MP-596, причина переписана на правду (модуль ретирован,
+  а не «API отрефакторен»); `TestAtomicWriteJson` **оживлён** против живого хелпера MP-311 →
+  **0 passed / 136 skipped → 4 passed / 132 честно скипнутых**;
+- покрытие живого MP-311 заведено отдельным файлом `test_adapter_watchdog_honesty.py`
+  (**+57 герметичных тестов, 27 красных ДО фикса**);
+- в самом модуле починены 3 дефекта: fail-OPEN «не прочитал ⇒ всё здорово» (→ `status:"unchecked"`
+  + `unchecked[]`), критерий свежести не читал ключ `last_updated`, который единственный и пишет
+  живой продюсер (⇒ срабатывал ВСЕГДА), и рассинхрон докстринга с кодом по `"partial"`.
+  Порогов не трогал; на живых данных вердикт не изменился.
+
+Коммит `a07cd166b`. Удаление ретированных тестов MP-596 осталось решением владельца — файл на месте.
+
+**Урок для оставшихся заходов:** колонку «модуль-цель существует» в таблице выше проверять
+ИМПОРТОМ СИМВОЛОВ, а не наличием файла с похожим именем.
+
+### Осталось (заходы 2–3)
+
+`test_pendle_pt_adapter.py` + `test_pendle_pt_adapter_v2.py` (95+95, почти дубли друг друга,
+целятся в `spa_core.execution.adapters.pendle_pt_adapter`; предварительно: из 7 импортируемых
+символов там есть только `PendlePTAdapter`, а `spa_core/adapters/pendle_pt_adapter.py` —
+такое же надгробие `raise ImportError`), затем `test_walk_forward_validator.py` (78).
 
 ## Что НЕ делать
 
