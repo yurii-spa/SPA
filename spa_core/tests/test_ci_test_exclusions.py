@@ -194,8 +194,14 @@ def collect_exclusions(files: dict[str, str]) -> list[Exclusion]:
     found: list[Exclusion] = []
     for name, text in sorted(files.items()):
         for block in _run_blocks(text):
+            # Каждый шаг ``run:`` — новая оболочка из корня workspace, поэтому cwd
+            # сбрасывается на каждом блоке: без этого ``cd spa_core`` из предыдущего
+            # шага сделал бы мёртвый путь следующего шага «живым» — то есть гейт
+            # промолчал бы ровно о той находке, ради которой создан.
             cwd = ""
             for command in block:
+                if command.lstrip().startswith("#"):
+                    continue  # закомментированный вызов ничего не выключает
                 cd_match = _CD_RE.match(command)
                 if cd_match:
                     cwd = _normalize_cwd(cwd, cd_match.group(1))
@@ -408,3 +414,54 @@ def test_real_workflows_contain_expected_suites() -> None:
     assert any("spa_core/tests" in c or "cd spa_core" in c or "tests/" in c for c in commands), (
         "в workflow'ах не найдено ни одного прогона известных сюит — проверьте разбор"
     )
+
+
+def test_golive_checker_tests_are_not_excluded_anywhere() -> None:
+    """Точечный пин находки цикла #46: гейт go-live не исключается ни в одном workflow.
+
+    Именно эти 43 теста были невидимо выключены в обеих сюитах, а гейт публикует
+    «29/29 READY» наружу — регрессия здесь не должна проходить CI молча.
+    """
+    excluded = [e for e in _EXCLUSIONS if "test_golive_checker" in e.value]
+    assert not excluded, (
+        "тесты гейта готовности снова исключены из CI:\n"
+        + "\n".join(f"  {e.workflow}: {e.flag}={e.value}" for e in excluded)
+    )
+
+
+def test_cwd_does_not_leak_between_run_steps() -> None:
+    """Каждый шаг ``run:`` стартует из корня workspace, а не там, где кончился прошлый.
+
+    Без сброса `cd` мёртвый путь второго шага `ci.yml` выглядел бы живым.
+    """
+    text = (
+        "        run: |\n"
+        "          cd spa_core\n"
+        "          python -m pytest tests/ --ignore=tests/x.py\n"
+        "        run: |\n"
+        "          python -m pytest tests/ --ignore=tests/y.py\n"
+    )
+    found = collect_exclusions({"synthetic.yml": text})
+    assert [(e.value, e.cwd) for e in found] == [("tests/x.py", "spa_core"), ("tests/y.py", "")]
+
+
+def test_parser_ignores_positive_selectors() -> None:
+    """Точечный прогон (`-k "head"` в живом `proof-gate.yml`) — законная форма, не находка."""
+    text = '        run: python3 -m pytest spa_core/tests/test_dd_pack.py -k "head" -q\n'
+    assert collect_exclusions({"synthetic.yml": text}) == []
+
+
+def test_parser_does_not_match_yaml_paths_ignore_key() -> None:
+    """``paths-ignore:`` — ключ триггера workflow, а не флаг pytest."""
+    text = "on:\n  push:\n    paths-ignore:\n      - 'docs/**'\n      - '**.md'\n"
+    assert collect_exclusions({"synthetic.yml": text}) == []
+
+
+def test_parser_skips_commented_out_invocations() -> None:
+    """Закомментированная команда ничего не выключает — находкой быть не должна."""
+    text = (
+        "        run: |\n"
+        "          # python -m pytest tests/ --ignore=tests/x.py   # старый вариант\n"
+        "          python -m pytest tests/ -q\n"
+    )
+    assert collect_exclusions({"synthetic.yml": text}) == []
