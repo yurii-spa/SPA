@@ -43,7 +43,7 @@ failed** (в #46 было 90 293 ⇒ дельта **ровно +8**); mypy на 
 этого требовала): ветка `ci-verify-c47` от `3f83cd43c` + `workflow_dispatch`, run `30569621700` —
 **py3.11 (та самая платформа, где main был красный) 90 295 passed / 0 failed**, `tests/` 12 749
 passed, pre-deploy passed; **py3.12 — те же 90 295 / 0 failed**; `lint` success; во всём логе
-py3.11 **ноль строк FAILED**. Ветка удалена после проверки. **НЕ делал:** RiskPolicy/kill-switch/пороги/гейты, живой
+py3.11 **ноль строк FAILED**. Ветка удалена после проверки. **После доставки подтверждено на самом `main`** (run `30572846418`, коммит `b140c76e9` — фикс + новые тесты): `test (3.11)` все шаги success (`tests/` 12 749, `spa_core/tests/` **90 295 / 0 failed**, pre-deploy passed), `lint` success, `test (3.12)` `spa_core` success; предыдущий прогон `main` (`660b06c3`) был **failure** ⇒ красный CI на main закрыт. **НЕ делал:** RiskPolicy/kill-switch/пороги/гейты, живой
 трек (`md5` `equity_curve_daily.json` не менялся, mtime 08:00 от штатного цикла), launchd/деплой —
 не трогал; `data/**` не публиковал (47 файлов, изменённых прогоном тестов В WORKTREE, и
 `spa_core/database/spa.db` / `tests/fixtures/*` остались непушенными); `landing/**` в цикле не было
