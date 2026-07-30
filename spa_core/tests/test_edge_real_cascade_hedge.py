@@ -194,3 +194,85 @@ def test_downside_beta_is_zero_for_an_uncorrelated_flat_book():
 
 def test_downside_beta_failclosed_on_short_series():
     assert mod.downside_beta([0.1, -0.1], [0.1, -0.1]) == (0.0, 0.0)
+
+
+# ── degenerate variance: a FLAT worst decile has no beta, and must not invent one ────────────────
+# Cycle #47, card agent-downside-beta-degenerate-variance.  These are additive — no assert above
+# was changed.  The old code guarded with `var > 0`, which cannot tell "the decile is flat" from
+# "the decile has dispersion": with a flat decile the mean is not bit-exact, so `var` is the SQUARE
+# of that rounding error and `cov / var` is one rounding over another.  How big that noise comes
+# out is interpreter-dependent (CPython 3.12 made `sum()` compensated), which is why CI was red on
+# Linux/py3.11 and green on py3.12 for the SAME input.  The flat values below (±0.23) are chosen so
+# that `sum([v] * 10) / 10 != v` under BOTH naive and compensated summation — the degeneracy
+# reproduces on every interpreter, not by luck.
+
+
+def _flat_decile_series(x_value, y_value, n=100):
+    """n-day series whose worst decile is exactly `x_value` on every one of its 10 days."""
+    x = [x_value if i < 10 else 0.01 for i in range(n)]
+    y = [y_value] * n
+    return x, y
+
+
+def test_downside_beta_refuses_a_flat_decile_instead_of_dividing_two_roundings():
+    # Pre-guard this exact input returned beta = -1.000 — a full-strength crisis co-movement
+    # conjured out of floating-point dust, on a book that never moved at all.
+    x, y = _flat_decile_series(-0.23, 0.23)
+    beta, mean_y = mod.downside_beta(x, y)
+    assert beta == 0.0
+    assert math.isclose(mean_y, 0.23, rel_tol=1e-12)
+
+
+def test_downside_beta_refuses_a_flat_decile_for_every_flat_book_value():
+    # The noise ratio depends on the ulps of x and y, so a single pair proves little: sweep.
+    x_flat = -0.23
+    for y_flat in (0.0005, 0.01, 0.07, 0.1, 0.123456789, 0.23, 1.0 / 3.0, -0.23):
+        x, y = _flat_decile_series(x_flat, y_flat)
+        beta, mean_y = mod.downside_beta(x, y)
+        assert beta == 0.0, f"invented beta {beta!r} from a flat book y={y_flat!r}"
+        assert math.isclose(mean_y, y_flat, rel_tol=1e-12)
+
+
+def test_downside_beta_refuses_an_all_zero_decile():
+    x, y = _flat_decile_series(0.0, 0.0005)
+    assert mod.downside_beta(x, y)[0] == 0.0
+
+
+def test_downside_beta_still_measures_a_decile_that_really_does_disperse():
+    # Guard against over-clamping: a planted co-movement with REAL dispersion inside the worst
+    # decile must still come back as the true beta, exactly.
+    x = [-0.10 - 0.001 * i if i < 10 else 0.01 for i in range(100)]
+    y = [2.0 * v for v in x]
+    beta, mean_y = mod.downside_beta(x, y)
+    assert math.isclose(beta, 2.0, rel_tol=1e-12)
+    assert mean_y < 0
+
+
+def test_downside_beta_does_not_clamp_dispersion_that_is_small_but_real():
+    # Relative std here is ~4e-5 of the data scale — six orders above rounding noise and four
+    # below the 1e-9 refusal threshold, i.e. squarely inside "real signal".
+    x = [-0.10 - 1e-5 * i if i < 10 else 0.01 for i in range(100)]
+    y = [2.0 * v for v in x]
+    beta, _ = mod.downside_beta(x, y)
+    assert math.isclose(beta, 2.0, rel_tol=1e-9)
+
+
+def test_downside_beta_refusal_threshold_is_relative_not_absolute():
+    # Scaling the whole problem down must not turn a real measurement into a refusal: an absolute
+    # variance threshold would swallow this, a relative one does not.
+    x = [1e-9 * (-0.10 - 0.001 * i) if i < 10 else 1e-9 * 0.01 for i in range(100)]
+    y = [2.0 * v for v in x]
+    beta, _ = mod.downside_beta(x, y)
+    assert math.isclose(beta, 2.0, rel_tol=1e-9)
+
+
+def test_ols_beta_shares_the_same_refusal():
+    # main()'s β(all days) column used to carry its own inline copy of the `var > 0` guard; it is
+    # the same helper now, so the same flat sample must refuse there too.
+    assert mod.ols_beta([-0.23] * 40, [0.23] * 40)[0] == 0.0
+    xs = [-0.10 - 0.001 * i for i in range(40)]
+    assert math.isclose(mod.ols_beta(xs, [2.0 * v for v in xs])[0], 2.0, rel_tol=1e-12)
+
+
+def test_ols_beta_failclosed_on_empty_sample():
+    assert mod.ols_beta([], []) == (0.0, 0.0)
