@@ -220,6 +220,38 @@ def run_overlay(grid, core_rets, eth_steps, fund_steps, h, mode, funding, fee_bp
 
 
 # ── premise diagnostics ──────────────────────────────────────────────────────────────────────────
+# Relative standard deviation below which the worst decile counts as FLAT — i.e. it carries no
+# variance to regress on, only floating-point rounding.  Double precision puts rounding noise at
+# ~1e-16 of the data scale; genuine day-to-day dispersion inside a decile of real returns is
+# >= ~1e-4 of it.  1e-9 sits ~7 orders above the noise and ~5 below any real signal.
+_DEGENERATE_REL_STD = 1e-9
+
+
+def ols_beta(xs, ys):
+    """Beta of ys on xs, refusing (0.0) when xs carries no dispersion.  Returns (beta, mean_y).
+
+    A FLAT sample (every x the same value) has TRUE variance zero and no beta.  A bare
+    ``var > 0`` cannot see that: ``sum(xs) / m`` is not bit-exact, so ``var`` comes out as the
+    SQUARE of the mean's rounding error (~1e-34) and ``cov / var`` is one rounding divided by
+    another — pure noise, and noise of a size that looks like a real answer.  Measured on this
+    code before the guard: a completely flat book (x = -0.23 on every day of the sample,
+    y = 0.23) returned beta = -1.000, and the hermetic test in CI returned 2**-7 = 0.0078125 on
+    Linux/py3.11 while macOS/py3.12+ returned 0.0 (CPython 3.12 made ``sum()`` compensated, so
+    the same input rounds differently per interpreter).  Compare against the SCALE of the data
+    instead and fail CLOSED to 0.0, like the short-series branch of ``downside_beta``.
+    """
+    m = len(xs)
+    if m == 0:
+        return 0.0, 0.0
+    mx, my = sum(xs) / m, sum(ys) / m
+    cov = sum((a - mx) * (b - my) for a, b in zip(xs, ys)) / m
+    var = sum((a - mx) ** 2 for a in xs) / m
+    scale = max(abs(a) for a in xs)
+    if var <= (_DEGENERATE_REL_STD * scale) ** 2:
+        return 0.0, my
+    return cov / var, my
+
+
 def downside_beta(x, y):
     """Beta of y on x restricted to the worst-decile x days (crisis co-movement)."""
     n = len(x)
@@ -228,11 +260,7 @@ def downside_beta(x, y):
     thr = sorted(x)[max(0, int(0.10 * n) - 1)]
     xs = [a for a in x if a <= thr]
     ys = [b for a, b in zip(x, y) if a <= thr]
-    m = len(xs)
-    mx, my = sum(xs) / m, sum(ys) / m
-    cov = sum((a - mx) * (b - my) for a, b in zip(xs, ys)) / m
-    var = sum((a - mx) ** 2 for a in xs) / m
-    return (cov / var if var > 0 else 0.0), my
+    return ols_beta(xs, ys)
 
 
 def main() -> None:
@@ -279,11 +307,8 @@ def main() -> None:
     for name in ("susde_dn", "susde_spot", "points_farm", "lrt_neutral",
                  "pendle_pt_levered", "eth_directional"):
         y = [book_steps[name][i] for i in idx1]
-        n = len(y)
-        mx, my = sum(eth1) / n, sum(y) / n
-        cov = sum((a - mx) * (b - my) for a, b in zip(eth1, y)) / n
-        var = sum((a - mx) ** 2 for a in eth1) / n
-        beta = cov / var if var > 0 else 0.0
+        # same degeneracy guard as the decile beta — a flat x sample has no beta (see ols_beta)
+        beta, _ = ols_beta(eth1, y)
         dbeta, dmean = downside_beta(eth1, y)
         print(f"   {name:22s} {beta:+8.3f} {dbeta:+18.3f} {dmean*100:+23.3f}%/d")
 
