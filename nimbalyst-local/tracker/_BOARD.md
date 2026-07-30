@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **83** · ждёт владельца: **10**.
+> Всего карточек: **87** · ждёт владельца: **11**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -14,10 +14,11 @@
 - **Гейт готовности зелёный по адаптеру, который невозможно загрузить — проверяется только синтаксис файла (выбери, как чинить)** · _high_  ·  `owner-decision-geit-gotovnosti-zelenyi-po-adapteru-koto.md`
 - **Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять**  ·  `owner-decision-publichnaya-stranitsa-prover-nas-pokazyv.md`
 - **Сторож правил не видит стоп-кран — смотрит в файл, которого нет (выбери, как чинить)** · _high_  ·  `owner-decision-storozh-pravil-ne-vidit-stop-kran-smotri.md`
+- **Сторож пропущенного цикла молчит до 10:00 UTC, хотя цикл стартует в 06:00 UTC — опустить порог?**  ·  `owner-decision-storozh-propuschennogo-tsikla-molchit-do.md`
 - **Стратегия S23 никогда не видит живой Pendle — адаптер «похоронен», ошибка глотается молча (выбери, как чинить)** · _medium_  ·  `owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p.md`
 - **В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями** · _high_  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (34)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (35)
 
 ### · needs-owner
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -28,6 +29,7 @@
 - Гейт готовности зелёный по адаптеру, который невозможно загрузить — проверяется только синтаксис файла (выбери, как чинить)  ·  `owner-decision-geit-gotovnosti-zelenyi-po-adapteru-koto.md` · 2026-07-30
 - Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять  ·  `owner-decision-publichnaya-stranitsa-prover-nas-pokazyv.md` · 2026-07-29
 - Сторож правил не видит стоп-кран — смотрит в файл, которого нет (выбери, как чинить)  ·  `owner-decision-storozh-pravil-ne-vidit-stop-kran-smotri.md` · 2026-07-29
+- Сторож пропущенного цикла молчит до 10:00 UTC, хотя цикл стартует в 06:00 UTC — опустить порог?  ·  `owner-decision-storozh-propuschennogo-tsikla-molchit-do.md` · 2026-07-30
 - Стратегия S23 никогда не видит живой Pendle — адаптер «похоронен», ошибка глотается молча (выбери, как чинить)  ·  `owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p.md` · 2026-07-30
 - В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md` · 2026-07-29
 ### · ingested
@@ -56,7 +58,7 @@
 - 🅰🅰🅰 Продуктовый слой агентов (Head of Product + R&D продукта + продвижение) — построить  ·  `owner-decision-produktovyi-sloi-agentov-head-of-product.md` · 2026-07-16
 - Уточнение по заметке: Давай так и сделаем  ·  `owner-decision-utochnenie-po-zametke-davai-tak-i-sdelae.md` · 2026-07-22
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (23)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (24)
 
 ### · done
 - Проверь связь это тестовое сообщение.  ·  `inbox-20260715-123528-note.md` · 2026-07-15
@@ -82,15 +84,17 @@
 - Задача продумать план действий после того как закончился Payper Тест  ·  `inbox-zadacha-produmat-plan-deistvii-posle-tog.md` · 2026-07-27
 - Задача проверить на сайте на всех больницах тест показывает правильные количест…  ·  `inbox-zadacha-proverit-na-saite-na-vseh-bolnit.md` · 2026-07-27
 - Задача разобраться почему нет свежих данных почему Pepper Тест не обновился хот…  ·  `inbox-zadacha-razobratsya-pochemu-net-svezhih.md` · 2026-07-23
+- Задача решить проблему 🚨 Пропущен ежедневный цикл  ·  `inbox-zadacha-reshit-problemu-propuschen-ezhed.md` · 2026-07-30
 
-## 🤖 Agent Tasks (что делает агент)  (26)
+## 🤖 Agent Tasks (что делает агент)  (28)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
 - Чистка репо (мёртвый код) фазами  ·  `agent-cleanup.md` · 2026-07-16
 - Q&A бэклог (12 ответов) + видимость задач  ·  `agent-qa-backlog.md` · 2026-07-16
 ### · backlog
-- push_to_github.py молча роняет worktree-пути в basename → файлы уезжают в корень репо  ·  `agent-push-worktree-path-collapse.md` · 2026-07-30
+- CI исключает 43 теста гейта go-live (--ignore в test.yml), а второй игнор указывает на несуществующий файл  ·  `agent-ci-ignores-golive-gate-tests.md` · 2026-07-30
+- Работа сессии, объявленная в session_changes, не доезжает до origin — нужна детерминированная проверка «объявил → доставил»  ·  `agent-undelivered-work-guard.md` · 2026-07-30
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
 - Q2: аналитику в analytics_lab/  ·  `agent-analytics-lab.md` · 2026-07-16
@@ -106,6 +110,7 @@
 - Утренний дайджест 9:00  ·  `agent-morning-digest.md` · 2026-07-16
 - Оркестратор — раз в час  ·  `agent-orchestrator-1h.md` · 2026-07-16
 - Owner-gate: безопасный авто-шип сайта  ·  `agent-owner-gate.md` · 2026-07-16
+- push_to_github.py молча роняет worktree-пути в basename → файлы уезжают в корень репо  ·  `agent-push-worktree-path-collapse.md` · 2026-07-30
 - 404 теста живых модулей молча выключены file-level pytestmark с шаблонной отпиской  ·  `agent-silently-skipped-test-files.md` · 2026-07-30
 - Q4/Q5: числа/нейминг сайта  ·  `agent-site-numbers.md` · 2026-07-16
 - 19 тестов spa_core/tests красны на main (предсуществующие, никем не отслеживались)  ·  `agent-spa-core-tests-red-on-main.md` · 2026-07-29
