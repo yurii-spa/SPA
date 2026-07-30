@@ -193,6 +193,19 @@ class TestPush409Retry(unittest.TestCase):
         self.fpath = os.path.join(self.tmp, "sample.txt")
         with open(self.fpath, "wb") as fh:
             fh.write(b"changed content\n")
+        # Эти тесты про ПОВЕДЕНИЕ ПРИ 409 (re-fetch sha → retry), а не про
+        # определение пути внутри репо. Файл из tempfile лежит ВНЕ репозитория,
+        # и раньше фикстура молча опиралась на fail-silent fallback (путь →
+        # basename, цикл #40: файлы уезжали в КОРЕНЬ репо). Fallback заменён на
+        # fail-CLOSED (цикл #41/#42), поэтому допущение «этот файл лежит в корне
+        # проекта» объявляется ЯВНО, вместо того чтобы держаться на дефекте.
+        # Ни один ассерт НЕ изменён и НЕ ослаблен — проверки put_calls==2,
+        # re-fetch sha и «409 в тексте ошибки» ниже те же самые. Намеренная
+        # правка чужого теста, инвариант #16 (обоснование здесь + запись в
+        # docs/journal/2026-W31.md, цикл #44).
+        _pr = mock.patch.object(ptg, "PROJECT_ROOT", Path(self.tmp))
+        _pr.start()
+        self.addCleanup(_pr.stop)
 
     def test_409_retries_with_fresh_sha_and_succeeds(self):
         fake = _FakeHTTP409Then200()
