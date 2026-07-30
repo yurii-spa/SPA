@@ -412,6 +412,18 @@ def test_run_once_api_down_sends_api_alert(monkeypatch, no_telegram):
 
 
 def test_run_once_all_ok_sends_pulse_then_silent(monkeypatch, no_telegram):
+    """A green pulse requires that every check actually RAN.
+
+    Fixture strengthened (invariant #16 — justified, not weakened): the original
+    stub carried ``domains: {}`` and no go-live baseline, i.e. two checks that
+    could not run, and still demanded "✅ OK". Since the watcher now separates
+    "nothing wrong" from "nothing measured" (see
+    spa_core/tests/test_dashboard_watcher_honesty.py), the fixture was moved to
+    the shape the live API actually serves — a populated ``domains`` map (live:
+    9 entries) and a baseline on record (live: /tmp/spa_dw_golive_last). The
+    asserted property is unchanged and now stricter: all-measured + all-healthy
+    → one green pulse, then silence inside the 6 h window.
+    """
     def fake_fetch(path, timeout=10):
         if path == dw.PING_PATH:
             return {"ok": True}
@@ -421,10 +433,13 @@ def test_run_once_all_ok_sends_pulse_then_silent(monkeypatch, no_telegram):
             return {"portfolio_state": {"equity": 100134.0, "is_demo": False,
                                         "apy_today": 4.81}}
         if path == dw.SYSTEM_PATH:
-            return {"system_health": {"overall_status": "OK", "domains": {}},
+            return {"system_health": {"overall_status": "OK",
+                                      "domains": {"d1_data_pipeline":
+                                                  {"status": "OK", "ms": 5}}},
                     "golive_status": {"passed": 26, "total": 29}}
         return None
     monkeypatch.setattr(dw, "fetch_json", fake_fetch)
+    dw._write_golive_last(26)  # baseline on record, as on the live host
 
     dw.run_once()  # pulse due (no file) → sends
     assert len(no_telegram) == 1
