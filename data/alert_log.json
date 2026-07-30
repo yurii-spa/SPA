@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "source": "alert_dispatcher",
-  "updated_at": "2026-07-26T08:35:54.481185+00:00",
-  "count": 16,
+  "updated_at": "2026-07-30T08:40:04.654009+00:00",
+  "count": 18,
   "max_entries": 100,
   "entries": [
     {
@@ -147,6 +147,24 @@
       "timestamp": "2026-07-26T08:35:54.481108+00:00",
       "source": "alert_rules",
       "logged_at": "2026-07-26T08:35:54.481182+00:00",
+      "sent_via": "dry_run"
+    },
+    {
+      "severity": "WARNING",
+      "title": "Adapter health grade degraded: F",
+      "body": "Overall adapter orchestrator health grade is 'F' (below 'B'). Investigate adapter status before relying on APY feeds.",
+      "timestamp": "2026-07-30T08:40:04.651129+00:00",
+      "source": "alert_rules",
+      "logged_at": "2026-07-30T08:40:04.651334+00:00",
+      "sent_via": "dry_run"
+    },
+    {
+      "severity": "WARNING",
+      "title": "Adapter health grade degraded: F",
+      "body": "Overall adapter orchestrator health grade is 'F' (below 'B'). Investigate adapter status before relying on APY feeds.",
+      "timestamp": "2026-07-30T08:40:04.653914+00:00",
+      "source": "alert_rules",
+      "logged_at": "2026-07-30T08:40:04.654003+00:00",
       "sent_via": "dry_run"
     }
   ]
