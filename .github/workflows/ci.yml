@@ -50,6 +50,16 @@ jobs:
       #   -p no:randomly    disables pytest-randomly if ever installed (no-op
       #                     when absent → stable filesystem collection order).
       # Do NOT remove without re-proving identical collection order.
+      #
+      # NOTE (цикл #46, 2026-07-30): из ОБОИХ шагов ниже убран
+      # `--ignore=tests/test_golive_checker.py`. Он приехал 2026-07-17 вместе с самим
+      # файлом workflow, без записанной причины, и безобидным дублем не был: под
+      # `cd spa_core` он реально выключал все 43 теста гейта go-live (источник
+      # публичного «29/29 READY»), а в шаге от корня такого пути нет вовсе — pytest
+      # принимает несуществующий `--ignore` МОЛЧА (exit 0), поэтому мёртвый флаг
+      # ничем себя не выдавал. Возврат тестов проверен реальным прогоном Actions
+      # (+43 passed ровно, py3.11 и py3.12). Новые сужения набора тестов гейтит
+      # spa_core/tests/test_ci_test_exclusions.py — карточка agent-ci-ignores-golive-gate-tests.
       - name: Run spa_core/tests (unit)
         run: |
           cd spa_core
