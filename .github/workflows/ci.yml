@@ -53,14 +53,14 @@ jobs:
       - name: Run spa_core/tests (unit)
         run: |
           cd spa_core
-          python -m pytest tests/ -q --tb=short -p no:randomly --ignore=tests/test_golive_checker.py
+          python -m pytest tests/ -q --tb=short -p no:randomly
         env:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
 
       - name: Run tests/ root (integration)
         run: |
-          python -m pytest tests/ -q --tb=short -x -p no:randomly --ignore=tests/test_golive_checker.py
+          python -m pytest tests/ -q --tb=short -x -p no:randomly
         env:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
