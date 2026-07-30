@@ -61,6 +61,12 @@ WARNING = "WARNING"
 CRITICAL = "CRITICAL"
 STALE = "STALE"
 HEALTHY = "HEALTHY"
+# "I could not measure this" — distinct from "I measured it and it is fine".
+# Invariant #2 (refusal-first): a check that did not run must never be reported
+# as a clean verdict. Deliberately NOT escalated to CRITICAL: the exit code and
+# alert surface stay as they were; what changes is that the report stops
+# claiming a result it does not have.
+UNCHECKED = "UNCHECKED"
 
 
 # ---------------------------------------------------------------------------
@@ -118,14 +124,15 @@ class CycleHealthMonitor:
             "status":          "OK" | "WARNING" | "CRITICAL",
             "last_cycle_at":   ISO string | None,
             "hours_since":     float | None,
-            "threshold_hours": 2.0,
+            "threshold_hours": MAX_CYCLE_GAP_HOURS,
         }
 
-        Thresholds:
-          < 2 h  → OK
-          2–4 h  → WARNING
-          > 4 h  → CRITICAL
-          empty  → CRITICAL (last_cycle_at: None, hours_since: None)
+        Thresholds (the module constants — the daily cycle runs once a day):
+          < MAX_CYCLE_GAP_HOURS (26 h)                  → OK
+          MAX…CRITICAL_CYCLE_GAP_HOURS (26–30 h)        → WARNING
+          > CRITICAL_CYCLE_GAP_HOURS (30 h)             → CRITICAL
+          empty / unparseable                           → CRITICAL
+                                                          (last_cycle_at: None)
         """
         result: dict[str, Any] = {
             "status": CRITICAL,
@@ -192,7 +199,7 @@ class CycleHealthMonitor:
         Returns
         -------
         {
-            "status":             "OK" | "WARNING",
+            "status":             "OK" | "WARNING" | "UNCHECKED",
             "today_change_pct":   float | None,   # positive = gain, negative = loss
             "max_drop_threshold": 5.0,
             "prev_equity":        float | None,
@@ -200,7 +207,11 @@ class CycleHealthMonitor:
         }
 
         WARNING if today_change_pct < -5.0 %.
-        OK if only one (or zero) entry or drop is within threshold.
+        OK only when the change was actually computed and is within threshold.
+        UNCHECKED (with ``detail``) when the drop could NOT be computed at all —
+        fewer than two entries, unreadable equity values, or a zero denominator.
+        Reporting those as OK would be a clean verdict about a measurement that
+        never happened (invariant #2, refusal-first).
         """
         result: dict[str, Any] = {
             "status": OK,
@@ -211,6 +222,7 @@ class CycleHealthMonitor:
         }
 
         if len(equity_history) < 2:
+            result["status"] = UNCHECKED
             result["detail"] = "insufficient history for anomaly detection"
             return result
 
@@ -218,6 +230,7 @@ class CycleHealthMonitor:
             prev_equity = float(equity_history[-2]["equity"])
             curr_equity = float(equity_history[-1]["equity"])
         except (KeyError, TypeError, ValueError) as exc:
+            result["status"] = UNCHECKED
             result["detail"] = f"cannot read equity values: {exc}"
             return result
 
@@ -225,6 +238,7 @@ class CycleHealthMonitor:
         result["curr_equity"] = curr_equity
 
         if prev_equity == 0.0:
+            result["status"] = UNCHECKED
             result["detail"] = "prev_equity is 0, cannot compute change_pct"
             return result
 
@@ -254,13 +268,20 @@ class CycleHealthMonitor:
           adapter_status.json   → > 24 h → STALE
           tournament_ranking.json → > 168 h (7 d) → STALE
 
+        A file whose mtime could not be read (absent, or an OSError) is NOT
+        fresh — its age is unknown. Such files land in ``unchecked`` (and, for
+        back-compat with existing readers, keep their entry in
+        ``missing_files``), and the verdict degrades to UNCHECKED rather than
+        claiming OK about files that were never measured.
+
         Returns
         -------
         {
-            "status":       "OK" | "STALE",
+            "status":       "OK" | "STALE" | "UNCHECKED",
             "stale_files":  [{"file": str, "age_hours": float, "threshold_hours": float}, ...],
             "fresh_files":  [{"file": str, "age_hours": float, "threshold_hours": float}, ...],
             "missing_files": [str, ...],
+            "unchecked":    [{"file": str, "reason": str}, ...],
         }
         """
         result: dict[str, Any] = {
@@ -268,6 +289,7 @@ class CycleHealthMonitor:
             "stale_files": [],
             "fresh_files": [],
             "missing_files": [],
+            "unchecked": [],
         }
 
         data_path = Path(data_dir)
@@ -279,9 +301,15 @@ class CycleHealthMonitor:
                 mtime = os.path.getmtime(str(filepath))
             except FileNotFoundError:
                 result["missing_files"].append(filename)
+                result["unchecked"].append(
+                    {"file": filename, "reason": "file not found — age unknown"}
+                )
                 continue
             except OSError as exc:
                 result["missing_files"].append(f"{filename} (OSError: {exc})")
+                result["unchecked"].append(
+                    {"file": filename, "reason": f"unreadable — age unknown (OSError: {exc})"}
+                )
                 continue
 
             age_hours = (now_epoch - mtime) / 3600.0
@@ -295,6 +323,12 @@ class CycleHealthMonitor:
                 result["status"] = STALE
             else:
                 result["fresh_files"].append(entry)
+
+        # A real staleness finding outranks "could not measure"; but with no
+        # stale finding and at least one unmeasured file, OK would be a claim
+        # about files never read.
+        if result["status"] == OK and result["unchecked"]:
+            result["status"] = UNCHECKED
 
         return result
 
@@ -311,12 +345,13 @@ class CycleHealthMonitor:
         Returns
         -------
         {
-            "overall": "HEALTHY" | "WARNING" | "CRITICAL",
+            "overall": "HEALTHY" | "WARNING" | "CRITICAL" | "UNCHECKED",
             "checks": {
                 "cycle_gap":       {...},
                 "equity_anomaly":  {...},
                 "data_freshness":  {...},
             },
+            "unchecked": [{"check": str, "reason": str}, ...],
             "checked_at": ISO string (UTC),
             "recommendations": [str, ...],
         }
@@ -324,7 +359,10 @@ class CycleHealthMonitor:
         Priority:
           - CRITICAL  → overall CRITICAL  (any check is CRITICAL)
           - WARNING / STALE → overall WARNING  (no CRITICAL present)
-          - All OK/HEALTHY  → overall HEALTHY
+          - UNCHECKED → overall UNCHECKED  (nothing wrong was found, but at
+            least one check could not run — HEALTHY would be a clean verdict
+            about a measurement that never happened, invariant #2)
+          - All checks actually ran clean → overall HEALTHY
         """
         checked_at = datetime.now(tz=timezone.utc).isoformat()
 
@@ -343,6 +381,21 @@ class CycleHealthMonitor:
             "data_freshness": data_freshness,
         }
 
+        # Collect the checks that could NOT be computed, with their reason.
+        unchecked: list[dict[str, str]] = []
+        for name, chk in checks.items():
+            if chk.get("status") == UNCHECKED:
+                unchecked.append(
+                    {"check": name, "reason": str(chk.get("detail") or "not measured")}
+                )
+        for entry in data_freshness.get("unchecked", []):
+            unchecked.append(
+                {
+                    "check": f"data_freshness:{entry.get('file')}",
+                    "reason": str(entry.get("reason") or "not measured"),
+                }
+            )
+
         # Determine overall status
         statuses = {
             cycle_gap["status"],
@@ -354,6 +407,9 @@ class CycleHealthMonitor:
             overall = CRITICAL
         elif WARNING in statuses or STALE in statuses:
             overall = WARNING
+        elif unchecked:
+            # Nothing wrong was found, but something was never looked at.
+            overall = UNCHECKED
         else:
             overall = HEALTHY
 
@@ -362,12 +418,15 @@ class CycleHealthMonitor:
 
         if cycle_gap["status"] == CRITICAL:
             recommendations.append(
-                "CRITICAL: Cycle has not run for over 4 hours. "
-                "Check launchd com.spa.daily_cycle and /tmp/spa_cycle_err.log."
+                f"CRITICAL: Cycle has not run for over "
+                f"{CRITICAL_CYCLE_GAP_HOURS:.0f} hours (or its timestamp is "
+                f"unreadable). Check launchd com.spa.daily_cycle and "
+                f"/tmp/spa_cycle_err.log."
             )
         elif cycle_gap["status"] == WARNING:
             recommendations.append(
-                "WARNING: Cycle gap is between 2–4 hours. "
+                f"WARNING: Cycle gap is between {MAX_CYCLE_GAP_HOURS:.0f} and "
+                f"{CRITICAL_CYCLE_GAP_HOURS:.0f} hours. "
                 "Verify launchd schedule and network connectivity."
             )
 
@@ -391,12 +450,19 @@ class CycleHealthMonitor:
                 "Ensure cycle has run at least once."
             )
 
+        if unchecked:
+            recommendations.append(
+                "NOT CHECKED (no verdict — these did not run): "
+                + "; ".join(f"{u['check']} — {u['reason']}" for u in unchecked)
+            )
+
         if overall == HEALTHY:
             recommendations.append("All checks passed. Cycle is healthy.")
 
         return {
             "overall": overall,
             "checks": checks,
+            "unchecked": unchecked,
             "checked_at": checked_at,
             "recommendations": recommendations,
         }
@@ -569,7 +635,10 @@ def main(argv: list[str] | None = None) -> int:
         hours_str = f" (age={hours:.2f}h)" if hours is not None else ""
         stale = chk.get("stale_files", [])
         stale_str = f" stale={[e['file'] for e in stale]}" if stale else ""
-        print(f"  [{status:8s}] {name}{hours_str}{stale_str} {detail}")
+        print(f"  [{status:9s}] {name}{hours_str}{stale_str} {detail}")
+
+    for item in report.get("unchecked", []):
+        print(f"  [NOT CHECKED] {item['check']} — {item['reason']}")
 
     if report["recommendations"]:
         print("\nRecommendations:")
