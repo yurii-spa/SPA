@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **89** · ждёт владельца: **11**.
+> Всего карточек: **90** · ждёт владельца: **11**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -86,7 +86,7 @@
 - Задача разобраться почему нет свежих данных почему Pepper Тест не обновился хот…  ·  `inbox-zadacha-razobratsya-pochemu-net-svezhih.md` · 2026-07-23
 - Задача решить проблему 🚨 Пропущен ежедневный цикл  ·  `inbox-zadacha-reshit-problemu-propuschen-ezhed.md` · 2026-07-30
 
-## 🤖 Agent Tasks (что делает агент)  (30)
+## 🤖 Agent Tasks (что делает агент)  (31)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -94,6 +94,7 @@
 - Q&A бэклог (12 ответов) + видимость задач  ·  `agent-qa-backlog.md` · 2026-07-16
 - Q9: git-тег verifier-v1.2  ·  `agent-verifier-tag.md` · 2026-07-16
 ### · backlog
+- Две автономные сессии взяли ОДНУ карточку одновременно — занятость карточки ничем не проверяется  ·  `agent-card-claim-collision-guard.md` · 2026-07-30
 - CI на main красный: downside_beta делит на дисперсию-шум — герметичный тест падает на Linux/py3.11 и проходит на py3.12  ·  `agent-downside-beta-degenerate-variance.md` · 2026-07-30
 - Идентификатор сессии в announce-логе не переживает саму команду — активность сессии измерить нечем  ·  `agent-durable-session-id.md` · 2026-07-30
 ### · done
