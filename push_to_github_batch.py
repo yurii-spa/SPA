@@ -39,6 +39,27 @@ REPO = "yurii-spa/SPA"
 API_BASE = "https://api.github.com"
 PROJECT_ROOT = Path("/Users/yuriikulieshov/Documents/SPA_Claude")
 
+# ── Определение пути внутри репо — ОДНА реализация на оба пушера ────────────────
+# Историю см. в push_to_github.py::repo_relative_path: копия этой логики здесь
+# молча роняла worktree-путь в basename, и файл уезжал в КОРЕНЬ репо (для
+# landing/** это значит, что страница сайта НЕ менялась, а в корне появлялся
+# стрэй). Второй копии больше нет — грузим канонический модуль по явному пути
+# (не через sys.path: launchd-окружение не гарантирует cwd). Не загрузился →
+# падаем сразу, а не работаем со старой ловушкой.
+import importlib.util as _ilu
+
+_spec = _ilu.spec_from_file_location(
+    "_push_to_github_root", Path(__file__).resolve().parent / "push_to_github.py")
+if _spec is None or _spec.loader is None:
+    raise RuntimeError(
+        "рядом с push_to_github_batch.py не найден канонический push_to_github.py — "
+        "определение пути внутри репо живёт только там. Пуш невозможен (fail-CLOSED)."
+    )
+_root_push = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_root_push)
+repo_relative_path = _root_push.repo_relative_path
+RepoPathError = _root_push.RepoPathError
+
 
 def get_pat() -> str:
     """Читает PAT (никогда из hardcode). Идентично push_to_github.py."""
@@ -115,9 +136,9 @@ def resolve_files(file_args: list) -> list:
         if not local.is_file():
             raise RuntimeError(f"Не файл (директории не поддерживаются): {fa}")
         try:
-            repo_path = str(local.relative_to(PROJECT_ROOT))
-        except ValueError:
-            repo_path = local.name
+            repo_path = repo_relative_path(local)
+        except RepoPathError as e:
+            raise RuntimeError(str(e))   # fail-CLOSED: весь батч не уезжает
         resolved.append((repo_path, local))
     return resolved
 
