@@ -34,6 +34,9 @@ STATUS_ORDER = [
 ]
 # статусы, означающие «ждёт владельца» — выносим наверх
 WAITING_OWNER = {"needs-owner"}
+# статусы, при которых работа закрыта ⇒ забытый claimed_by не считается занятостью
+# (та же таблица, что в scripts/check_card_claim.py — карточку никто не «держит» после done)
+TERMINAL_STATUSES = {"done", "ingested", "owner-done"}
 
 
 def parse_frontmatter(text: str) -> dict:
@@ -109,13 +112,19 @@ def main() -> int:
         except Exception:
             continue
         meta = parse_frontmatter(text)
+        status = meta.get("status", "?")
+        holder = (meta.get("claimed_by") or "").strip()
         cards.append({
             "file": p.name,
             "type": card_type(meta, p.name),
             "title": meta.get("title", p.stem),
-            "status": meta.get("status", "?"),
+            "status": status,
             "created": meta.get("created", ""),
             "priority": meta.get("priority", ""),
+            # Занятость видна прямо на доске: две сессии 30.07 взяли одну карточку, потому что
+            # «кто её держит» не было видно нигде (карточка agent-card-claim-collision-guard).
+            "claimed_by": holder if status not in TERMINAL_STATUSES else "",
+            "claimed_at": (meta.get("claimed_at", "") or "").strip(),
         })
 
     by_type: dict[str, list] = {}
@@ -123,6 +132,7 @@ def main() -> int:
         by_type.setdefault(c["type"], []).append(c)
 
     waiting = [c for c in cards if c["status"] in WAITING_OWNER]
+    claimed = [c for c in cards if c["claimed_by"]]
 
     lines = []
     lines.append("# 📋 TRACKER BOARD — все карточки одним взглядом")
@@ -131,7 +141,7 @@ def main() -> int:
                  "НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).")
     lines.append(f">")
     lines.append(f"> Всего карточек: **{len(cards)}** · "
-                 f"ждёт владельца: **{len(waiting)}**.")
+                 f"ждёт владельца: **{len(waiting)}** · занято сессиями: **{len(claimed)}**.")
     lines.append("")
 
     # секция «ждёт владельца» наверх
@@ -144,6 +154,20 @@ def main() -> int:
     else:
         lines.append("_Пусто — открытых решений на владельце нет._")
     lines.append("")
+
+    # занятые карточки — чтобы «эту уже кто-то взял» было видно ДО начала работы.
+    # Ниже секции владельца: его очередь всегда первая, занятость — служебный слой агентов.
+    if claimed:
+        lines.append("## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)")
+        lines.append("")
+        lines.append("> Ставится `scripts/check_card_claim.py claim`, снимается `release` "
+                     "(и не действует после `done`/`ingested`). Перед взятием карточки — "
+                     "`check_card_claim.py check <карточка>`.")
+        lines.append("")
+        for c in sorted(claimed, key=lambda x: x["file"]):
+            when = f" · с {c['claimed_at']}" if c["claimed_at"] else ""
+            lines.append(f"- **{c['title']}** — держит `{c['claimed_by']}`{when}  ·  `{c['file']}`")
+        lines.append("")
 
     # по типам
     ordered_types = TYPE_ORDER + [t for t in by_type if t not in TYPE_ORDER]
@@ -160,12 +184,14 @@ def main() -> int:
                 cur_status = c["status"]
                 lines.append(f"### · {cur_status}")
             when = f" · {c['created']}" if c["created"] else ""
-            lines.append(f"- {c['title']}  ·  `{c['file']}`{when}")
+            lock = f" · 🔒 `{c['claimed_by']}`" if c["claimed_by"] else ""
+            lines.append(f"- {c['title']}  ·  `{c['file']}`{when}{lock}")
         lines.append("")
 
     content = "\n".join(lines) + "\n"
     atomic_write(OUT, content)
-    print(f"wrote {OUT.relative_to(REPO)} — {len(cards)} cards, {len(waiting)} waiting-owner")
+    print(f"wrote {OUT.relative_to(REPO)} — {len(cards)} cards, "
+          f"{len(waiting)} waiting-owner, {len(claimed)} claimed")
     return 0
 
 
