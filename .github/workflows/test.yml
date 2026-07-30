@@ -62,6 +62,11 @@ jobs:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
 
+      # NOTE (цикл #46, 2026-07-30): отсюда убран
+      # `--ignore=spa_core/tests/test_golive_checker.py` — 43 теста гейта go-live не
+      # выполнялись в CI ни разу с 2026-07-17, причина исключения нигде не записана.
+      # Возврат подтверждён реальным прогоном Actions (+43 passed ровно, 3.11 и 3.12).
+      # Новые сужения набора тестов гейтит spa_core/tests/test_ci_test_exclusions.py.
       - name: Run spa_core unit tests
         run: |
           python -m pytest spa_core/tests/ -q --tb=short -p no:randomly \
