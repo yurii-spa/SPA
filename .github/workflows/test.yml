@@ -65,8 +65,7 @@ jobs:
       - name: Run spa_core unit tests
         run: |
           python -m pytest spa_core/tests/ -q --tb=short -p no:randomly \
-            --timeout=180 --timeout-method=thread \
-            --ignore=spa_core/tests/test_golive_checker.py
+            --timeout=180 --timeout-method=thread
         env:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'
