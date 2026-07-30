@@ -1,9 +1,18 @@
 """
-Тесты для spa_core.adapters.pendle_pt_adapter (MP-354).
+Тесты для spa_core.adapters.pendle_pt_adapter (MP-354) — модуль РЕТИРОВАН.
 
-Все тесты используют mock urllib.request.urlopen — реальных сетевых запросов нет.
-Проверяются: fetch_markets, find_best_usdc_market, get_apy, get_maturity,
-allocate, withdraw, health_check, to_dict.
+⚠️ ЭТОТ ФАЙЛ — ПОБАЙТОВЫЙ ДУБЛЬ `test_pendle_pt_adapter.py` (замерено в цикле #39:
+`diff` двух файлов = ОДНА строка, лишний неиспользуемый `from io import BytesIO`
+ниже). Те же 95 тестов, те же имена классов, то же содержимое — суффикс «_v2»
+не означает второй версии API, это копия. Дополнительного покрытия файл не даёт;
+удаление дубля — решение владельца (инвариант #16), не молчаливая чистка.
+
+Полный разбор причины скипа (что за модуль, почему прежняя отписка «API
+refactored» неверна, почему скип осознанно file-level, и почему переписывать
+тесты на живой MP-201 `spa_core/adapters/pendle_pt.py` значило бы дублировать
+уже существующее зелёное покрытие) — в докстринге
+`spa_core/tests/test_pendle_pt_adapter.py`. Здесь не дублируется намеренно:
+источник правды один.
 """
 from __future__ import annotations
 
@@ -15,7 +24,9 @@ from unittest import mock
 import pytest
 
 try:
-    from spa_core.execution.adapters.pendle_pt_adapter import (
+    # Настоящая цель этих тестов (MP-354). Модуль ретирован и поднимает
+    # ImportError первым же оператором.
+    from spa_core.adapters.pendle_pt_adapter import (
         FALLBACK_APY,
         PENDLE_API_BASE,
         PendlePTAdapter,
@@ -26,7 +37,12 @@ try:
     )
 except ImportError:
     pytestmark = pytest.mark.skip(
-        reason="pendle_pt_adapter API refactored — tests need rewrite for new interface"
+        reason=(
+            "target module spa_core.adapters.pendle_pt_adapter (MP-354) is RETIRED "
+            "(raises ImportError by design); this file is additionally a byte-for-byte "
+            "duplicate of test_pendle_pt_adapter.py — see that file's docstring. "
+            "Deleting either is an owner decision (invariant #16)."
+        )
     )
 
 
