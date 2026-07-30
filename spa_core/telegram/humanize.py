@@ -44,6 +44,10 @@ _TITLES: dict[str, str] = {
     "SPA Agent Health Alert": "Проверка агентов",
     "SPA System Health — CRITICAL": "Здоровье системы: критическая проблема",
     "SPA — Cycle Gap Detected": "Пропущен ежедневный цикл",
+    # Отдельный заголовок для случая «возраст последнего цикла НЕ измерен»
+    # (cycle_gap_monitor, 2026-07-30): раньше такой случай уезжал под
+    # «Пропущен ежедневный цикл» — утверждение, которого никто не проверял.
+    "SPA — Cycle Age NOT MEASURED": "Не удалось проверить, был ли сегодня цикл",
     "SPA FAIL-SAFE: safety check error": "Аварийный отказ: сбой проверки безопасности",
     "SPA Rules Watchdog — CRITICAL breach": "Нарушены правила портфеля (критично)",
     "SPA Threat Reactor — Kill Switch": "Сработал аварийный стоп (kill-switch)",
