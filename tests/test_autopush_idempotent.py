@@ -75,6 +75,18 @@ class TestPushFileIdempotency(unittest.TestCase):
         with open(self.fpath, "wb") as fh:
             fh.write(b"current content\n")
         self.local_sha = ptg.git_blob_sha(b"current content\n")
+        # Эти тесты про ИДЕМПОТЕНТНОСТЬ (skip vs PUT), а не про определение пути
+        # в репо. Файл из tempfile лежит ВНЕ репозитория, и раньше фикстура
+        # молча опиралась на убранный fail-silent fallback (путь → basename,
+        # цикл #40: файлы уезжали в КОРЕНЬ репо). Fallback заменён на
+        # fail-CLOSED (цикл #41), поэтому допущение «этот файл лежит в корне
+        # проекта» объявляется ЯВНО, вместо того чтобы держаться на дефекте.
+        # Ни один ассерт НЕ изменён и НЕ ослаблен — проверки skip/PUT/fail-CLOSED
+        # ниже те же самые. Намеренная правка чужого теста, инвариант #16
+        # (обоснование здесь + запись в docs/journal/2026-W31.md).
+        _pr = mock.patch.object(ptg, "PROJECT_ROOT", Path(self.tmpdir))
+        _pr.start()
+        self.addCleanup(_pr.stop)
 
     def _patch_remote(self, remote_sha):
         """Patch get_file_sha to return a fixed remote sha (mocked remote)."""
