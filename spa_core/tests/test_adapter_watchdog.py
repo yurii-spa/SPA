@@ -3,6 +3,36 @@ test_adapter_watchdog.py — MP-596 tests for AdapterWatchdog.
 
 90+ unit tests. All tests use in-memory / tempdir mock data.
 Run: python3 -m unittest spa_core.tests.test_adapter_watchdog -v
+
+⚠️  ЧТО ЗДЕСЬ НА САМОМ ДЕЛЕ (разобрано в цикле #38, карточка
+``agent-silently-skipped-test-files``).
+
+Этот файл написан на **класс-API MP-596** (``AdapterWatchdog`` / ``AdapterHealth``
+/ ``WatchdogReport`` / ``RING_BUFFER_MAX``), который **ретирован**: модуль лежит
+надгробием в ``attic/modules/monitoring/adapter_watchdog.py`` — его первый
+исполняемый оператор ``raise ImportError("DEPRECATED: use
+spa_core.scheduler.adapter_watchdog instead")``.
+
+Импорт когда-то перенаправили на ``spa_core.scheduler.adapter_watchdog`` —
+**одноимённый, но ДРУГОЙ модуль** (MP-311, функциональный:
+``check_adapter_health`` / ``attempt_adapter_restart`` / ``run_watchdog_cycle``;
+класса ``AdapterWatchdog`` там нет и никогда не было). Импорт падал, а
+``pytestmark`` стоял на УРОВНЕ ФАЙЛА с отпиской «API refactored — tests need
+rewrite», поэтому все 136 тестов молча не выполнялись, и то же самое сообщение
+слово в слово стоит ещё в трёх файлах — то есть проверенной эту формулировку
+считать нельзя.
+
+Что сделано в цикле #38:
+  * скип **сужен с файла до классов** MP-596 и его причина переписана на правду
+    (модуль ретирован, а не «API отрефакторен»);
+  * ``TestAtomicWriteJson`` **оживлён**: он проверяет общий контракт
+    ``_atomic_write_json``, который есть и в живом MP-311, и импортируется
+    оттуда нормально;
+  * покрытие ЖИВОГО MP-311 (его зовёт дневной цикл, а тестов у него не было
+    вообще) заведено отдельным файлом ``test_adapter_watchdog_honesty.py``.
+
+Удаление этого файла — решение владельца, а не агента (инвариант #16), поэтому
+тесты MP-596 остаются на месте под честным скипом.
 """
 from __future__ import annotations
 
@@ -14,18 +44,34 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-try:
-    from spa_core.scheduler.adapter_watchdog import (
+
+# Живой модуль MP-311 — импортируется нормально, скипа не требует.
+from spa_core.scheduler.adapter_watchdog import _atomic_write_json
+
+_RETIRED_REASON = (
+    "MP-596 AdapterWatchdog retired to attic/modules/monitoring/adapter_watchdog.py "
+    "(tombstone raises ImportError). The class API tested here has no live home: "
+    "spa_core.scheduler.adapter_watchdog is a different, function-based module "
+    "(MP-311) covered by test_adapter_watchdog_honesty.py. Deleting these tests "
+    "is an owner decision — see tracker card agent-silently-skipped-test-files."
+)
+
+try:  # pragma: no cover - the retired class API is expected to be absent
+    from attic.modules.monitoring.adapter_watchdog import (  # type: ignore[import-not-found]
         RING_BUFFER_MAX,
         AdapterHealth,
         AdapterWatchdog,
         WatchdogReport,
-        _atomic_write_json,
     )
-except ImportError:
-    pytestmark = pytest.mark.skip(
-        reason="adapter_watchdog API refactored — tests need rewrite for new interface"
-    )
+    _RETIRED_AVAILABLE = True
+except Exception:  # ImportError from the tombstone, or the file is gone entirely
+    _RETIRED_AVAILABLE = False
+    RING_BUFFER_MAX = None  # type: ignore[assignment]
+    AdapterHealth = AdapterWatchdog = WatchdogReport = None  # type: ignore[assignment]
+
+# Скип НИКОГДА не file-level: он применяется точечно к классам, которым нужен
+# ретированный API, и не гасит тесты, чей импорт успешен.
+retired_api = pytest.mark.skipif(not _RETIRED_AVAILABLE, reason=_RETIRED_REASON)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -96,6 +142,7 @@ def _make_watchdog(tmpdir: str) -> AdapterWatchdog:
 # TestAdapterHealth
 # ===========================================================================
 
+@retired_api
 class TestAdapterHealth(unittest.TestCase):
     """10 tests — AdapterHealth dataclass."""
 
@@ -160,6 +207,7 @@ class TestAdapterHealth(unittest.TestCase):
 # TestWatchdogReport
 # ===========================================================================
 
+@retired_api
 class TestWatchdogReport(unittest.TestCase):
     """8 tests — WatchdogReport dataclass."""
 
@@ -217,6 +265,7 @@ class TestWatchdogReport(unittest.TestCase):
 # TestLoadCurrentStatus
 # ===========================================================================
 
+@retired_api
 class TestLoadCurrentStatus(unittest.TestCase):
     """10 tests — load_current_status."""
 
@@ -299,6 +348,7 @@ class TestLoadCurrentStatus(unittest.TestCase):
 # TestLoadPreviousSnapshot
 # ===========================================================================
 
+@retired_api
 class TestLoadPreviousSnapshot(unittest.TestCase):
     """8 tests — load_previous_snapshot."""
 
@@ -366,6 +416,7 @@ class TestLoadPreviousSnapshot(unittest.TestCase):
 # TestClassifyAdapter
 # ===========================================================================
 
+@retired_api
 class TestClassifyAdapter(unittest.TestCase):
     """20 tests — classify_adapter."""
 
@@ -478,6 +529,7 @@ class TestClassifyAdapter(unittest.TestCase):
 # TestCreateAlerts
 # ===========================================================================
 
+@retired_api
 class TestCreateAlerts(unittest.TestCase):
     """10 tests — create_alerts."""
 
@@ -564,6 +616,7 @@ class TestCreateAlerts(unittest.TestCase):
 # TestRunCheck
 # ===========================================================================
 
+@retired_api
 class TestRunCheck(unittest.TestCase):
     """10 tests — run_check."""
 
@@ -661,6 +714,7 @@ class TestRunCheck(unittest.TestCase):
 # TestGetReport
 # ===========================================================================
 
+@retired_api
 class TestGetReport(unittest.TestCase):
     """6 tests — get_report (no side effects)."""
 
@@ -712,6 +766,7 @@ class TestGetReport(unittest.TestCase):
 # TestToDict
 # ===========================================================================
 
+@retired_api
 class TestToDict(unittest.TestCase):
     """4 tests — to_dict / JSON-serialisable."""
 
@@ -759,6 +814,7 @@ class TestToDict(unittest.TestCase):
 # TestFormatSummary
 # ===========================================================================
 
+@retired_api
 class TestFormatSummary(unittest.TestCase):
     """4 tests — format_summary."""
 
@@ -798,6 +854,7 @@ class TestFormatSummary(unittest.TestCase):
 # Additional edge-case tests (total ≥ 90)
 # ===========================================================================
 
+@retired_api
 class TestAdapterHealthToDict(unittest.TestCase):
     """5 tests — AdapterHealth.to_dict."""
 
@@ -834,6 +891,7 @@ class TestAdapterHealthToDict(unittest.TestCase):
         self.assertIs(h.to_dict()["is_healthy"], False)
 
 
+@retired_api
 class TestWatchdogReportToDict(unittest.TestCase):
     """5 tests — WatchdogReport.to_dict."""
 
@@ -866,6 +924,7 @@ class TestWatchdogReportToDict(unittest.TestCase):
         self.assertEqual(d["healthy"], 1)
 
 
+@retired_api
 class TestExtractAdapterIds(unittest.TestCase):
     """5 tests — _extract_adapter_ids."""
 
@@ -895,6 +954,7 @@ class TestExtractAdapterIds(unittest.TestCase):
         self.assertEqual(result, [])
 
 
+@retired_api
 class TestExtractApy(unittest.TestCase):
     """5 tests — _extract_apy static method."""
 
@@ -915,6 +975,7 @@ class TestExtractApy(unittest.TestCase):
         self.assertAlmostEqual(AdapterWatchdog._extract_apy({"apy_pct": 0}), 0.0)
 
 
+@retired_api
 class TestBuildPrevApyIndex(unittest.TestCase):
     """5 tests — _build_prev_apy_index."""
 
@@ -946,6 +1007,7 @@ class TestBuildPrevApyIndex(unittest.TestCase):
         self.assertAlmostEqual(result["a2"], 6.0)
 
 
+@retired_api
 class TestClassifyLevel(unittest.TestCase):
     """6 extra edge-case tests for _classify_level."""
 
@@ -1008,6 +1070,7 @@ class TestAtomicWriteJson(unittest.TestCase):
         self.assertTrue(path.exists())
 
 
+@retired_api
 class TestWatchdogDefaultPath(unittest.TestCase):
     """3 tests — default data_path behaviour."""
 
@@ -1024,6 +1087,7 @@ class TestWatchdogDefaultPath(unittest.TestCase):
         self.assertFalse(wd._use_alert_dispatcher)
 
 
+@retired_api
 class TestExtractChain(unittest.TestCase):
     """4 tests — _extract_chain static method."""
 
@@ -1043,6 +1107,7 @@ class TestExtractChain(unittest.TestCase):
         self.assertEqual(AdapterWatchdog._extract_chain({}), "ethereum")
 
 
+@retired_api
 class TestExtractRiskScore(unittest.TestCase):
     """4 tests — _extract_risk_score static method."""
 
