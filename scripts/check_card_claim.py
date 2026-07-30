@@ -328,6 +328,18 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                             "session": session, "ts": _fmt_ts(ts), "files": shared,
                             "summary": str(entry.get("summary") or "")[:160]})
         for session, ts, strength, detail in latest.values():
+            if report["card_status"] in TERMINAL_STATUSES:
+                # Закрытую карточку взять нельзя по определению ⇒ «занятость» по ней —
+                # шум, который учит игнорировать вердикт. Снятие захвата объявлением
+                # (`card_state: done`) работает только для ТОЙ ЖЕ сессии, а идентификатор
+                # сессии сегодня не переживает CLI-команду (agent-durable-session-id) —
+                # без этой ветки собственная закрытая карточка осталась бы «занятой».
+                report["history"].append({
+                    "source": "announce-log", "session": session, "ts": _fmt_ts(ts),
+                    "state": "released", "strength": strength,
+                    "detail": f"{detail}; захват не действует: статус карточки "
+                              f"`{report['card_status']}` — работа закрыта"})
+                continue
             _classify(session, ts, "announce-log", strength, detail)
 
     # 3. вердикт ─────────────────────────────────────────────────────────────
