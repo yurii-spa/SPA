@@ -18,495 +18,6 @@
       "Bug bounty program active",
       "Team identity verified"
     ],
-    "timestamp": 1784021260.5173862
-  },
-  {
-    "protocol": "P",
-    "components": {
-      "age_score": 20,
-      "audit_score": 15,
-      "incident_score": 25,
-      "team_score": 15,
-      "activity_score": 8
-    },
-    "total_score": 83,
-    "maturity_tier": "BATTLE_TESTED",
-    "max_recommended_allocation_pct": 50.0,
-    "key_risks": [],
-    "key_strengths": [
-      "3 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
-    "timestamp": 1784021260.5214193
-  },
-  {
-    "protocol": "P",
-    "components": {
-      "age_score": 20,
-      "audit_score": 15,
-      "incident_score": 25,
-      "team_score": 15,
-      "activity_score": 8
-    },
-    "total_score": 83,
-    "maturity_tier": "BATTLE_TESTED",
-    "max_recommended_allocation_pct": 50.0,
-    "key_risks": [],
-    "key_strengths": [
-      "3 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
-    "timestamp": 1784021260.5252717
-  },
-  {
-    "protocol": "Bare",
-    "components": {
-      "age_score": 5,
-      "audit_score": 0,
-      "incident_score": 25,
-      "team_score": 0,
-      "activity_score": 0
-    },
-    "total_score": 30,
-    "maturity_tier": "EMERGING",
-    "max_recommended_allocation_pct": 15.0,
-    "key_risks": [
-      "No security audit",
-      "Protocol less than 90 days old",
-      "Anonymous team"
-    ],
-    "key_strengths": [
-      "No security incidents"
-    ],
-    "timestamp": 1784021260.5288632
-  },
-  {
-    "protocol": "MyProto",
-    "components": {
-      "age_score": 20,
-      "audit_score": 15,
-      "incident_score": 25,
-      "team_score": 15,
-      "activity_score": 8
-    },
-    "total_score": 83,
-    "maturity_tier": "BATTLE_TESTED",
-    "max_recommended_allocation_pct": 50.0,
-    "key_risks": [],
-    "key_strengths": [
-      "3 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
-    "timestamp": 1784021260.5316613
-  },
-  {
-    "protocol": "Aave",
-    "components": {
-      "age_score": 20,
-      "audit_score": 15,
-      "incident_score": 25,
-      "team_score": 15,
-      "activity_score": 8
-    },
-    "total_score": 83,
-    "maturity_tier": "BATTLE_TESTED",
-    "max_recommended_allocation_pct": 50.0,
-    "key_risks": [],
-    "key_strengths": [
-      "3 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
-    "timestamp": 1784021260.5346107
-  },
-  {
-    "protocol": "P",
-    "components": {
-      "age_score": 20,
-      "audit_score": 15,
-      "incident_score": 25,
-      "team_score": 15,
-      "activity_score": 8
-    },
-    "total_score": 83,
-    "maturity_tier": "BATTLE_TESTED",
-    "max_recommended_allocation_pct": 50.0,
-    "key_risks": [],
-    "key_strengths": [
-      "3 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
-    "timestamp": 1784021260.5372717
-  },
-  {
-    "protocol": "P",
-    "components": {
-      "age_score": 20,
-      "audit_score": 15,
-      "incident_score": 25,
-      "team_score": 15,
-      "activity_score": 8
-    },
-    "total_score": 83,
-    "maturity_tier": "BATTLE_TESTED",
-    "max_recommended_allocation_pct": 50.0,
-    "key_risks": [],
-    "key_strengths": [
-      "3 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
-    "timestamp": 1784021260.5400877
-  },
-  {
-    "protocol": "BadProto",
-    "components": {
-      "age_score": 5,
-      "audit_score": 0,
-      "incident_score": 0,
-      "team_score": 0,
-      "activity_score": 0
-    },
-    "total_score": 5,
-    "maturity_tier": "EXPERIMENTAL",
-    "max_recommended_allocation_pct": 5.0,
-    "key_risks": [
-      "No security audit",
-      "4 security incident(s) on record",
-      "Protocol less than 90 days old",
-      "Anonymous team"
-    ],
-    "key_strengths": [],
-    "timestamp": 1784194042.6839492
-  },
-  {
-    "protocol": "BattleTested",
-    "components": {
-      "age_score": 25,
-      "audit_score": 25,
-      "incident_score": 25,
-      "team_score": 15,
-      "activity_score": 10
-    },
-    "total_score": 100,
-    "maturity_tier": "BATTLE_TESTED",
-    "max_recommended_allocation_pct": 50.0,
-    "key_risks": [],
-    "key_strengths": [
-      "730+ days live",
-      "5 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
-    "timestamp": 1784194042.6866586
-  },
-  {
-    "protocol": "Proto",
-    "components": {
-      "age_score": 20,
-      "audit_score": 15,
-      "incident_score": 25,
-      "team_score": 15,
-      "activity_score": 8
-    },
-    "total_score": 83,
-    "maturity_tier": "BATTLE_TESTED",
-    "max_recommended_allocation_pct": 50.0,
-    "key_risks": [],
-    "key_strengths": [
-      "3 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
-    "timestamp": 1784194042.6900434
-  },
-  {
-    "protocol": "Proto",
-    "components": {
-      "age_score": 20,
-      "audit_score": 15,
-      "incident_score": 25,
-      "team_score": 15,
-      "activity_score": 8
-    },
-    "total_score": 83,
-    "maturity_tier": "BATTLE_TESTED",
-    "max_recommended_allocation_pct": 50.0,
-    "key_risks": [],
-    "key_strengths": [
-      "3 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
-    "timestamp": 1784194042.6925719
-  },
-  {
-    "protocol": "Worst",
-    "components": {
-      "age_score": 5,
-      "audit_score": 0,
-      "incident_score": 0,
-      "team_score": 0,
-      "activity_score": 0
-    },
-    "total_score": 5,
-    "maturity_tier": "EXPERIMENTAL",
-    "max_recommended_allocation_pct": 5.0,
-    "key_risks": [
-      "No security audit",
-      "No audit in past year",
-      "10 security incident(s) on record",
-      "Protocol less than 90 days old",
-      "Anonymous team"
-    ],
-    "key_strengths": [],
-    "timestamp": 1784194042.6947815
-  },
-  {
-    "protocol": "Proto",
-    "components": {
-      "age_score": 20,
-      "audit_score": 15,
-      "incident_score": 25,
-      "team_score": 15,
-      "activity_score": 8
-    },
-    "total_score": 83,
-    "maturity_tier": "BATTLE_TESTED",
-    "max_recommended_allocation_pct": 50.0,
-    "key_risks": [],
-    "key_strengths": [
-      "3 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
-    "timestamp": 1784194042.6970315
-  },
-  {
-    "protocol": "Proto",
-    "components": {
-      "age_score": 20,
-      "audit_score": 15,
-      "incident_score": 25,
-      "team_score": 15,
-      "activity_score": 8
-    },
-    "total_score": 83,
-    "maturity_tier": "BATTLE_TESTED",
-    "max_recommended_allocation_pct": 50.0,
-    "key_risks": [],
-    "key_strengths": [
-      "3 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
-    "timestamp": 1784194042.6991975
-  },
-  {
-    "protocol": "BT",
-    "components": {
-      "age_score": 25,
-      "audit_score": 25,
-      "incident_score": 25,
-      "team_score": 15,
-      "activity_score": 10
-    },
-    "total_score": 100,
-    "maturity_tier": "BATTLE_TESTED",
-    "max_recommended_allocation_pct": 50.0,
-    "key_risks": [],
-    "key_strengths": [
-      "730+ days live",
-      "5 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
-    "timestamp": 1784194042.701483
-  },
-  {
-    "protocol": "Proto",
-    "components": {
-      "age_score": 20,
-      "audit_score": 15,
-      "incident_score": 25,
-      "team_score": 15,
-      "activity_score": 8
-    },
-    "total_score": 83,
-    "maturity_tier": "BATTLE_TESTED",
-    "max_recommended_allocation_pct": 50.0,
-    "key_risks": [],
-    "key_strengths": [
-      "3 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
-    "timestamp": 1784194042.7036219
-  },
-  {
-    "protocol": "Proto",
-    "components": {
-      "age_score": 20,
-      "audit_score": 15,
-      "incident_score": 25,
-      "team_score": 15,
-      "activity_score": 8
-    },
-    "total_score": 83,
-    "maturity_tier": "BATTLE_TESTED",
-    "max_recommended_allocation_pct": 50.0,
-    "key_risks": [],
-    "key_strengths": [
-      "3 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
-    "timestamp": 1784194042.7057846
-  },
-  {
-    "protocol": "Exp",
-    "components": {
-      "age_score": 5,
-      "audit_score": 0,
-      "incident_score": 25,
-      "team_score": 0,
-      "activity_score": 0
-    },
-    "total_score": 30,
-    "maturity_tier": "EMERGING",
-    "max_recommended_allocation_pct": 15.0,
-    "key_risks": [
-      "No security audit",
-      "Protocol less than 90 days old",
-      "Anonymous team"
-    ],
-    "key_strengths": [
-      "No security incidents"
-    ],
-    "timestamp": 1784194042.7080822
-  },
-  {
-    "protocol": "P",
-    "components": {
-      "age_score": 25,
-      "audit_score": 15,
-      "incident_score": 25,
-      "team_score": 15,
-      "activity_score": 8
-    },
-    "total_score": 88,
-    "maturity_tier": "BATTLE_TESTED",
-    "max_recommended_allocation_pct": 50.0,
-    "key_risks": [],
-    "key_strengths": [
-      "730+ days live",
-      "3 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
-    "timestamp": 1784194042.733938
-  },
-  {
-    "protocol": "P",
-    "components": {
-      "age_score": 20,
-      "audit_score": 15,
-      "incident_score": 25,
-      "team_score": 15,
-      "activity_score": 8
-    },
-    "total_score": 83,
-    "maturity_tier": "BATTLE_TESTED",
-    "max_recommended_allocation_pct": 50.0,
-    "key_risks": [],
-    "key_strengths": [
-      "3 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
-    "timestamp": 1784194042.7366846
-  },
-  {
-    "protocol": "P",
-    "components": {
-      "age_score": 20,
-      "audit_score": 15,
-      "incident_score": 25,
-      "team_score": 15,
-      "activity_score": 8
-    },
-    "total_score": 83,
-    "maturity_tier": "BATTLE_TESTED",
-    "max_recommended_allocation_pct": 50.0,
-    "key_risks": [],
-    "key_strengths": [
-      "3 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
-    "timestamp": 1784194042.7391057
-  },
-  {
-    "protocol": "P",
-    "components": {
-      "age_score": 20,
-      "audit_score": 15,
-      "incident_score": 25,
-      "team_score": 10,
-      "activity_score": 8
-    },
-    "total_score": 78,
-    "maturity_tier": "ESTABLISHED",
-    "max_recommended_allocation_pct": 30.0,
-    "key_risks": [],
-    "key_strengths": [
-      "3 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
-    "timestamp": 1784194042.7414305
-  },
-  {
-    "protocol": "P",
-    "components": {
-      "age_score": 20,
-      "audit_score": 15,
-      "incident_score": 25,
-      "team_score": 15,
-      "activity_score": 8
-    },
-    "total_score": 83,
-    "maturity_tier": "BATTLE_TESTED",
-    "max_recommended_allocation_pct": 50.0,
-    "key_risks": [],
-    "key_strengths": [
-      "3 security audits completed",
-      "No security incidents",
-      "Bug bounty program active",
-      "Team identity verified"
-    ],
     "timestamp": 1784194042.7436903
   },
   {
@@ -2123,5 +1634,494 @@
       "Team identity verified"
     ],
     "timestamp": 1785057968.7122781
+  },
+  {
+    "protocol": "BadProto",
+    "components": {
+      "age_score": 5,
+      "audit_score": 0,
+      "incident_score": 0,
+      "team_score": 0,
+      "activity_score": 0
+    },
+    "total_score": 5,
+    "maturity_tier": "EXPERIMENTAL",
+    "max_recommended_allocation_pct": 5.0,
+    "key_risks": [
+      "No security audit",
+      "4 security incident(s) on record",
+      "Protocol less than 90 days old",
+      "Anonymous team"
+    ],
+    "key_strengths": [],
+    "timestamp": 1785404259.7796726
+  },
+  {
+    "protocol": "BattleTested",
+    "components": {
+      "age_score": 25,
+      "audit_score": 25,
+      "incident_score": 25,
+      "team_score": 15,
+      "activity_score": 10
+    },
+    "total_score": 100,
+    "maturity_tier": "BATTLE_TESTED",
+    "max_recommended_allocation_pct": 50.0,
+    "key_risks": [],
+    "key_strengths": [
+      "730+ days live",
+      "5 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.7857027
+  },
+  {
+    "protocol": "Proto",
+    "components": {
+      "age_score": 20,
+      "audit_score": 15,
+      "incident_score": 25,
+      "team_score": 15,
+      "activity_score": 8
+    },
+    "total_score": 83,
+    "maturity_tier": "BATTLE_TESTED",
+    "max_recommended_allocation_pct": 50.0,
+    "key_risks": [],
+    "key_strengths": [
+      "3 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.7890322
+  },
+  {
+    "protocol": "Proto",
+    "components": {
+      "age_score": 20,
+      "audit_score": 15,
+      "incident_score": 25,
+      "team_score": 15,
+      "activity_score": 8
+    },
+    "total_score": 83,
+    "maturity_tier": "BATTLE_TESTED",
+    "max_recommended_allocation_pct": 50.0,
+    "key_risks": [],
+    "key_strengths": [
+      "3 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.792173
+  },
+  {
+    "protocol": "Worst",
+    "components": {
+      "age_score": 5,
+      "audit_score": 0,
+      "incident_score": 0,
+      "team_score": 0,
+      "activity_score": 0
+    },
+    "total_score": 5,
+    "maturity_tier": "EXPERIMENTAL",
+    "max_recommended_allocation_pct": 5.0,
+    "key_risks": [
+      "No security audit",
+      "No audit in past year",
+      "10 security incident(s) on record",
+      "Protocol less than 90 days old",
+      "Anonymous team"
+    ],
+    "key_strengths": [],
+    "timestamp": 1785404259.7952428
+  },
+  {
+    "protocol": "Proto",
+    "components": {
+      "age_score": 20,
+      "audit_score": 15,
+      "incident_score": 25,
+      "team_score": 15,
+      "activity_score": 8
+    },
+    "total_score": 83,
+    "maturity_tier": "BATTLE_TESTED",
+    "max_recommended_allocation_pct": 50.0,
+    "key_risks": [],
+    "key_strengths": [
+      "3 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.7983906
+  },
+  {
+    "protocol": "Proto",
+    "components": {
+      "age_score": 20,
+      "audit_score": 15,
+      "incident_score": 25,
+      "team_score": 15,
+      "activity_score": 8
+    },
+    "total_score": 83,
+    "maturity_tier": "BATTLE_TESTED",
+    "max_recommended_allocation_pct": 50.0,
+    "key_risks": [],
+    "key_strengths": [
+      "3 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.8014884
+  },
+  {
+    "protocol": "BT",
+    "components": {
+      "age_score": 25,
+      "audit_score": 25,
+      "incident_score": 25,
+      "team_score": 15,
+      "activity_score": 10
+    },
+    "total_score": 100,
+    "maturity_tier": "BATTLE_TESTED",
+    "max_recommended_allocation_pct": 50.0,
+    "key_risks": [],
+    "key_strengths": [
+      "730+ days live",
+      "5 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.8044684
+  },
+  {
+    "protocol": "Proto",
+    "components": {
+      "age_score": 20,
+      "audit_score": 15,
+      "incident_score": 25,
+      "team_score": 15,
+      "activity_score": 8
+    },
+    "total_score": 83,
+    "maturity_tier": "BATTLE_TESTED",
+    "max_recommended_allocation_pct": 50.0,
+    "key_risks": [],
+    "key_strengths": [
+      "3 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.8073876
+  },
+  {
+    "protocol": "Proto",
+    "components": {
+      "age_score": 20,
+      "audit_score": 15,
+      "incident_score": 25,
+      "team_score": 15,
+      "activity_score": 8
+    },
+    "total_score": 83,
+    "maturity_tier": "BATTLE_TESTED",
+    "max_recommended_allocation_pct": 50.0,
+    "key_risks": [],
+    "key_strengths": [
+      "3 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.8104239
+  },
+  {
+    "protocol": "Exp",
+    "components": {
+      "age_score": 5,
+      "audit_score": 0,
+      "incident_score": 25,
+      "team_score": 0,
+      "activity_score": 0
+    },
+    "total_score": 30,
+    "maturity_tier": "EMERGING",
+    "max_recommended_allocation_pct": 15.0,
+    "key_risks": [
+      "No security audit",
+      "Protocol less than 90 days old",
+      "Anonymous team"
+    ],
+    "key_strengths": [
+      "No security incidents"
+    ],
+    "timestamp": 1785404259.8133905
+  },
+  {
+    "protocol": "P",
+    "components": {
+      "age_score": 25,
+      "audit_score": 15,
+      "incident_score": 25,
+      "team_score": 15,
+      "activity_score": 8
+    },
+    "total_score": 88,
+    "maturity_tier": "BATTLE_TESTED",
+    "max_recommended_allocation_pct": 50.0,
+    "key_risks": [],
+    "key_strengths": [
+      "730+ days live",
+      "3 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.8420792
+  },
+  {
+    "protocol": "P",
+    "components": {
+      "age_score": 20,
+      "audit_score": 15,
+      "incident_score": 25,
+      "team_score": 15,
+      "activity_score": 8
+    },
+    "total_score": 83,
+    "maturity_tier": "BATTLE_TESTED",
+    "max_recommended_allocation_pct": 50.0,
+    "key_risks": [],
+    "key_strengths": [
+      "3 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.846348
+  },
+  {
+    "protocol": "P",
+    "components": {
+      "age_score": 20,
+      "audit_score": 15,
+      "incident_score": 25,
+      "team_score": 15,
+      "activity_score": 8
+    },
+    "total_score": 83,
+    "maturity_tier": "BATTLE_TESTED",
+    "max_recommended_allocation_pct": 50.0,
+    "key_risks": [],
+    "key_strengths": [
+      "3 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.849475
+  },
+  {
+    "protocol": "P",
+    "components": {
+      "age_score": 20,
+      "audit_score": 15,
+      "incident_score": 25,
+      "team_score": 10,
+      "activity_score": 8
+    },
+    "total_score": 78,
+    "maturity_tier": "ESTABLISHED",
+    "max_recommended_allocation_pct": 30.0,
+    "key_risks": [],
+    "key_strengths": [
+      "3 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.852414
+  },
+  {
+    "protocol": "P",
+    "components": {
+      "age_score": 20,
+      "audit_score": 15,
+      "incident_score": 25,
+      "team_score": 15,
+      "activity_score": 8
+    },
+    "total_score": 83,
+    "maturity_tier": "BATTLE_TESTED",
+    "max_recommended_allocation_pct": 50.0,
+    "key_risks": [],
+    "key_strengths": [
+      "3 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.8555017
+  },
+  {
+    "protocol": "P",
+    "components": {
+      "age_score": 20,
+      "audit_score": 15,
+      "incident_score": 25,
+      "team_score": 15,
+      "activity_score": 8
+    },
+    "total_score": 83,
+    "maturity_tier": "BATTLE_TESTED",
+    "max_recommended_allocation_pct": 50.0,
+    "key_risks": [],
+    "key_strengths": [
+      "3 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.8584642
+  },
+  {
+    "protocol": "P",
+    "components": {
+      "age_score": 20,
+      "audit_score": 15,
+      "incident_score": 25,
+      "team_score": 15,
+      "activity_score": 8
+    },
+    "total_score": 83,
+    "maturity_tier": "BATTLE_TESTED",
+    "max_recommended_allocation_pct": 50.0,
+    "key_risks": [],
+    "key_strengths": [
+      "3 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.8615155
+  },
+  {
+    "protocol": "Bare",
+    "components": {
+      "age_score": 5,
+      "audit_score": 0,
+      "incident_score": 25,
+      "team_score": 0,
+      "activity_score": 0
+    },
+    "total_score": 30,
+    "maturity_tier": "EMERGING",
+    "max_recommended_allocation_pct": 15.0,
+    "key_risks": [
+      "No security audit",
+      "Protocol less than 90 days old",
+      "Anonymous team"
+    ],
+    "key_strengths": [
+      "No security incidents"
+    ],
+    "timestamp": 1785404259.8646753
+  },
+  {
+    "protocol": "MyProto",
+    "components": {
+      "age_score": 20,
+      "audit_score": 15,
+      "incident_score": 25,
+      "team_score": 15,
+      "activity_score": 8
+    },
+    "total_score": 83,
+    "maturity_tier": "BATTLE_TESTED",
+    "max_recommended_allocation_pct": 50.0,
+    "key_risks": [],
+    "key_strengths": [
+      "3 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.8677316
+  },
+  {
+    "protocol": "Aave",
+    "components": {
+      "age_score": 20,
+      "audit_score": 15,
+      "incident_score": 25,
+      "team_score": 15,
+      "activity_score": 8
+    },
+    "total_score": 83,
+    "maturity_tier": "BATTLE_TESTED",
+    "max_recommended_allocation_pct": 50.0,
+    "key_risks": [],
+    "key_strengths": [
+      "3 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.870672
+  },
+  {
+    "protocol": "P",
+    "components": {
+      "age_score": 20,
+      "audit_score": 15,
+      "incident_score": 25,
+      "team_score": 15,
+      "activity_score": 8
+    },
+    "total_score": 83,
+    "maturity_tier": "BATTLE_TESTED",
+    "max_recommended_allocation_pct": 50.0,
+    "key_risks": [],
+    "key_strengths": [
+      "3 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.8737917
+  },
+  {
+    "protocol": "P",
+    "components": {
+      "age_score": 20,
+      "audit_score": 15,
+      "incident_score": 25,
+      "team_score": 15,
+      "activity_score": 8
+    },
+    "total_score": 83,
+    "maturity_tier": "BATTLE_TESTED",
+    "max_recommended_allocation_pct": 50.0,
+    "key_risks": [],
+    "key_strengths": [
+      "3 security audits completed",
+      "No security incidents",
+      "Bug bounty program active",
+      "Team identity verified"
+    ],
+    "timestamp": 1785404259.8766932
   }
 ]
