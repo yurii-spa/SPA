@@ -1,9 +1,42 @@
 """
-Тесты для spa_core.adapters.pendle_pt_adapter (MP-354).
+Тесты для spa_core.adapters.pendle_pt_adapter (MP-354) — модуль РЕТИРОВАН.
 
 Все тесты используют mock urllib.request.urlopen — реальных сетевых запросов нет.
 Проверяются: fetch_markets, find_best_usdc_market, get_apy, get_maturity,
 allocate, withdraw, health_check, to_dict.
+
+────────────────────────────────────────────────────────────────────────────────
+ПОЧЕМУ ВЕСЬ ФАЙЛ СКИПАЕТСЯ (проверено прогоном, цикл #39, карточка
+`agent-silently-skipped-test-files`, заход 2 — НЕ по тексту прежней отписки):
+
+1. Цель этих тестов — API MP-354 (`fetch_markets` / `find_best_usdc_market` /
+   `get_apy` / `get_maturity` / `allocate` / `withdraw` / `health_check` /
+   `to_dict` / `_raw_cache`), который существует ТОЛЬКО в
+   `spa_core/adapters/pendle_pt_adapter.py`. Этот модуль **ретирован**:
+   его первый оператор — `raise ImportError("DEPRECATED: …")`.
+2. Прежняя отписка «API refactored — tests need rewrite» **неверна**: API не
+   отрефакторен, модуль выведен из строя целиком. Импорт при этом был
+   перенаправлен на `spa_core.execution.adapters.pendle_pt_adapter` — это
+   **ДРУГОЙ** модуль (Sprint v3.28, on-chain execution: `supply` /
+   `get_supply_apy` / `get_position`), из 7 импортируемых здесь символов у него
+   есть ровно один (`PendlePTAdapter`), и read-only коду импортировать
+   `spa_core/execution/` запрещено инвариантом #6. Поэтому импорт возвращён на
+   настоящую цель — так сообщение ImportError само называет причину скипа.
+3. Живой read-only родственник — MP-201 `spa_core/adapters/pendle_pt.py`
+   (в `ADAPTER_REGISTRY` через `pendle_adapter.py`), но у него ДРУГОЙ публичный
+   API (`get_top_markets` / `get_best_market` / `to_adapter_format` /
+   `get_pendle_apy`) и он уже покрыт зелёными тестами (`test_pendle_pt.py`,
+   `test_pendle_adapter.py`) — переписывать эти 95 тестов на него значило бы
+   дублировать существующее покрытие, а не добавлять его.
+4. Скип оставлен **file-level осознанно**: ни один тест в файле не может
+   импортироваться (все 95 зависят от ретированных символов, а фикстура
+   `adapter` вызывает `PendlePTAdapter(..., retries=…)` — параметра, которого
+   нет ни в одном живом одноимённом классе). Сужать скип до классов, как это
+   сделано в `test_adapter_watchdog.py`, здесь нечего.
+
+Файл НЕ удалён: удаление ретированных тестов — решение владельца (инвариант #16),
+см. карточку `owner-decision-*` про S23/MP-354.
+────────────────────────────────────────────────────────────────────────────────
 """
 from __future__ import annotations
 
@@ -14,7 +47,9 @@ from unittest import mock
 import pytest
 
 try:
-    from spa_core.execution.adapters.pendle_pt_adapter import (
+    # Настоящая цель этих тестов (MP-354). Модуль ретирован и поднимает
+    # ImportError первым же оператором — см. блок «ПОЧЕМУ» выше.
+    from spa_core.adapters.pendle_pt_adapter import (
         FALLBACK_APY,
         PENDLE_API_BASE,
         PendlePTAdapter,
@@ -25,7 +60,13 @@ try:
     )
 except ImportError:
     pytestmark = pytest.mark.skip(
-        reason="pendle_pt_adapter API refactored — tests need rewrite for new interface"
+        reason=(
+            "target module spa_core.adapters.pendle_pt_adapter (MP-354) is RETIRED "
+            "(raises ImportError by design); its API exists nowhere live — the live "
+            "read-only sibling MP-201 spa_core.adapters.pendle_pt has a different "
+            "public API and is already covered by test_pendle_pt.py. Deleting these "
+            "tests is an owner decision (invariant #16), not a silent cleanup."
+        )
     )
 
 
