@@ -4,9 +4,17 @@ Monitors adapter health from ``adapter_orchestrator_status.json`` and fires
 a restart trigger for unhealthy adapters.
 
 An adapter is considered **unhealthy** if any of:
-  * ``status`` field != "ok"
+  * ``status`` field is not one of ``HEALTHY_STATUSES`` (``"ok"`` / ``"partial"``)
   * ``apy_pct`` is 0 (or missing / None)
-  * last successful fetch timestamp is more than 2 hours ago
+  * the last-fetch timestamp (any of ``_TIMESTAMP_KEYS``) is older than
+    ``STALE_FETCH_HOURS``, is missing, or cannot be parsed (fail-CLOSED)
+
+**"Not measured" is never reported as health** (invariant #2, refusal-first).
+If the status source is missing / unreadable / not an object, carries no
+``adapters`` list, or contains no entry that can be identified, the cycle
+summary is ``status: "unchecked"`` with a per-source reason in ``unchecked``
+— never ``"ok"`` with zero unhealthy adapters.  ``adapters_checked`` counts
+entries that were actually evaluated, not raw list length.
 
 On detecting an unhealthy adapter the watchdog:
   1. Checks the per-adapter restart count in ``data/watchdog_state.json``
@@ -38,6 +46,8 @@ run_watchdog_cycle(
 ) -> dict
     Full watchdog pass: read status, detect unhealthy, attempt restarts.
     Returns a summary dict written atomically to ``data/watchdog_cycle_result.json``.
+    ``status`` is ``"ok"`` only when at least one adapter was really evaluated,
+    ``"unchecked"`` when nothing could be measured, ``"error"`` on an exception.
 """
 from __future__ import annotations
 
@@ -63,8 +73,20 @@ WATCHDOG_CYCLE_RESULT_FILENAME = "watchdog_cycle_result.json"
 ORCH_STATUS_FILENAME = "adapter_orchestrator_status.json"
 
 MAX_RESTARTS_PER_HOUR = 3
-STALE_FETCH_HOURS = 2.0   # adapter is unhealthy if last fetch > 2 h ago
+STALE_FETCH_HOURS = 2.0   # adapter is unhealthy if last fetch is older than this
 MAX_LOG_ENTRIES = 200     # ring-buffer for watchdog_log.json
+
+# Statuses the watchdog accepts as "adapter is serving data".  Anything else
+# (error / timeout / degraded / missing) counts as unhealthy.  Kept as a
+# constant so the docstrings and the published reasons cannot drift from the
+# code (the drift fixed in cycle #38: the docstring claimed ``!= "ok"``).
+HEALTHY_STATUSES = ("ok", "partial")
+
+# Timestamp keys accepted from the status producer, most specific first.
+# ``last_updated`` is what ``adapter_orchestrator_status.json`` actually
+# writes — it was missing here, so criterion 3 fired for EVERY adapter on
+# every pass and freshness was never really measured (fixed in cycle #38).
+_TIMESTAMP_KEYS = ("fetched_at", "last_fetch_ts", "last_updated", "timestamp")
 
 
 # ─── Atomic IO ───────────────────────────────────────────────────────────────
@@ -81,6 +103,23 @@ def _read_json(path: Path, default: Any) -> Any:
     except (ValueError, OSError) as exc:
         log.warning("%s unreadable (%s) — using default", path.name, exc)
         return default
+
+
+def _read_json_measured(path: Path) -> tuple[Any, str | None]:
+    """Read *path*, distinguishing "read it" from "could not read it".
+
+    Returns ``(document, None)`` on success and ``(None, reason)`` when the
+    file is absent or unreadable.  ``_read_json`` collapses both cases into a
+    default value, which is exactly how "nothing was measured" used to be
+    published as "nothing is wrong".
+    """
+    if not path.exists():
+        return None, f"{path.name} missing"
+    try:
+        return json.loads(path.read_text(encoding="utf-8")), None
+    except (ValueError, OSError) as exc:
+        log.warning("%s unreadable (%s)", path.name, exc)
+        return None, f"{path.name} unreadable: {type(exc).__name__}: {exc}"
 
 
 def _ddir(data_dir: str | None) -> Path:
@@ -136,6 +175,72 @@ def _increment_restart_count(state: dict, adapter_name: str, hour_key: str) -> d
 # ─── Public API ───────────────────────────────────────────────────────────────
 
 
+def _classify_adapter(entry: dict) -> list[str]:
+    """Return the reasons *entry* is unhealthy (empty list → healthy).
+
+    Reason strings are built from the module constants so the published
+    verdict can never disagree with the thresholds actually applied.
+    """
+    reasons: list[str] = []
+
+    # Criterion 1: status must be one of HEALTHY_STATUSES
+    status = str(entry.get("status") or "").lower()
+    if status not in HEALTHY_STATUSES:
+        shown = status or "<missing>"
+        reasons.append(f"status={shown!r} not in {list(HEALTHY_STATUSES)}")
+
+    # Criterion 2: apy_pct == 0 (or None / missing)
+    apy = entry.get("apy_pct")
+    if apy is None or (isinstance(apy, (int, float)) and float(apy) == 0.0):
+        reasons.append("apy_pct is zero or missing")
+
+    # Criterion 3: last fetch timestamp stale / absent / unparseable
+    fetch_ts = None
+    for key in _TIMESTAMP_KEYS:
+        if entry.get(key):
+            fetch_ts = entry.get(key)
+            break
+    if _is_stale_fetch(fetch_ts):
+        if fetch_ts:
+            reasons.append(f"last fetch {fetch_ts} older than {STALE_FETCH_HOURS}h (or unparseable)")
+        else:
+            reasons.append(
+                f"no fetch timestamp in {list(_TIMESTAMP_KEYS)} — treated as older "
+                f"than {STALE_FETCH_HOURS}h (fail-CLOSED)"
+            )
+
+    return reasons
+
+
+def _evaluate_adapters(adapters: object) -> tuple[int, list[str], dict[str, list[str]]]:
+    """Evaluate an ``adapters`` list.
+
+    Returns ``(checked, unhealthy_names, reasons_by_name)`` where *checked* is
+    the number of entries that could actually be identified and evaluated —
+    NOT the raw list length.  Entries that are not dicts or carry no name are
+    skipped and therefore contribute nothing to a health claim.
+    """
+    if not isinstance(adapters, list):
+        return 0, [], {}
+
+    checked = 0
+    unhealthy: list[str] = []
+    reasons: dict[str, list[str]] = {}
+    for a in adapters:
+        if not isinstance(a, dict):
+            continue
+        name = str(a.get("protocol") or a.get("name") or "")
+        if not name:
+            continue
+        checked += 1
+        entry_reasons = _classify_adapter(a)
+        if entry_reasons:
+            unhealthy.append(name)
+            reasons[name] = entry_reasons
+
+    return checked, unhealthy, reasons
+
+
 def check_adapter_health(adapter_status: dict) -> list[str]:
     """Return a list of unhealthy adapter names from *adapter_status*.
 
@@ -145,43 +250,21 @@ def check_adapter_health(adapter_status: dict) -> list[str]:
         The content of ``adapter_orchestrator_status.json`` or similar
         structure with an ``"adapters"`` list of per-adapter dicts, each
         containing at minimum ``"protocol"``, ``"status"``, ``"apy_pct"``,
-        and optionally ``"fetched_at"`` / ``"last_fetch_ts"``.
+        and a timestamp under one of ``_TIMESTAMP_KEYS``.
 
     Returns
     -------
     list[str]
-        Protocol names that are unhealthy.  Empty list → all healthy.
+        Protocol names that are unhealthy.  Empty list → every adapter that
+        could be evaluated is healthy.  **An empty list is not by itself
+        evidence of health** — it is also what an unreadable / empty input
+        produces.  Callers that publish a verdict must use
+        ``_evaluate_adapters`` (or ``run_watchdog_cycle``) to tell the two
+        apart; that distinction is what ``status: "unchecked"`` exists for.
     """
     if not isinstance(adapter_status, dict):
         return []
-    adapters = adapter_status.get("adapters") or []
-    unhealthy: list[str] = []
-    for a in adapters:
-        if not isinstance(a, dict):
-            continue
-        name = str(a.get("protocol") or a.get("name") or "")
-        if not name:
-            continue
-
-        is_bad = False
-        # Criterion 1: status not "ok"
-        status = str(a.get("status") or "").lower()
-        if status not in ("ok", "partial"):
-            is_bad = True
-
-        # Criterion 2: apy_pct == 0 (or None / missing)
-        apy = a.get("apy_pct")
-        if apy is None or (isinstance(apy, (int, float)) and float(apy) == 0.0):
-            is_bad = True
-
-        # Criterion 3: last fetch timestamp is stale (>2h)
-        fetch_ts = a.get("fetched_at") or a.get("last_fetch_ts") or a.get("timestamp")
-        if _is_stale_fetch(fetch_ts):
-            is_bad = True
-
-        if is_bad:
-            unhealthy.append(name)
-
+    _, unhealthy, _ = _evaluate_adapters(adapter_status.get("adapters") or [])
     return unhealthy
 
 
@@ -283,12 +366,36 @@ def run_watchdog_cycle(
         ts = datetime.now(timezone.utc).isoformat()
 
         status_path = Path(adapter_status_path) if adapter_status_path else dd / ORCH_STATUS_FILENAME
-        adapter_status = _read_json(status_path, {})
+        adapter_status, read_reason = _read_json_measured(status_path)
 
-        adapters_list = (adapter_status.get("adapters") or []) if isinstance(adapter_status, dict) else []
-        adapters_checked = len(adapters_list)
+        # "Could not measure" must never fall through to "nothing is wrong".
+        unchecked: list[dict] = []
+        if read_reason is not None:
+            unchecked.append({"source": status_path.name, "reason": read_reason})
+            adapters_raw: object = []
+        elif not isinstance(adapter_status, dict):
+            unchecked.append({
+                "source": status_path.name,
+                "reason": f"not a JSON object (got {type(adapter_status).__name__})",
+            })
+            adapters_raw = []
+        elif not isinstance(adapter_status.get("adapters"), list):
+            got = type(adapter_status.get("adapters")).__name__
+            unchecked.append({
+                "source": status_path.name,
+                "reason": f"no 'adapters' list (got {got})",
+            })
+            adapters_raw = []
+        else:
+            adapters_raw = adapter_status["adapters"]
 
-        unhealthy = check_adapter_health(adapter_status)
+        adapters_checked, unhealthy, unhealthy_reasons = _evaluate_adapters(adapters_raw)
+        if adapters_checked == 0 and not unchecked:
+            unchecked.append({
+                "source": status_path.name,
+                "reason": "no identifiable adapter entries — nothing was evaluated",
+            })
+
         restarts_attempted = 0
         restarts_succeeded = 0
         restarts_rate_limited = 0
@@ -304,11 +411,14 @@ def run_watchdog_cycle(
             restart_details.append({"adapter": name, **result})
 
         summary = {
-            "status": "ok",
+            # "ok" only when at least one adapter was really evaluated.
+            "status": "ok" if adapters_checked > 0 else "unchecked",
             "ts": ts,
             "adapters_checked": adapters_checked,
             "adapters_unhealthy": len(unhealthy),
             "unhealthy_adapters": unhealthy,
+            "unhealthy_reasons": unhealthy_reasons,
+            "unchecked": unchecked,
             "restarts_attempted": restarts_attempted,
             "restarts_succeeded": restarts_succeeded,
             "restarts_rate_limited": restarts_rate_limited,
