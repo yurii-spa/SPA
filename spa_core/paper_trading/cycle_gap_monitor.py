@@ -9,6 +9,14 @@ at most once per calendar day — deduplication tracked in
 Fallback: if ``last_cycle_ts`` is null/missing, tries ``data/cycle_log.json``
 for the last entry's ``ts`` field.
 
+**Measured vs not measured (2026-07-30, owner card «Пропущен ежедневный цикл»):**
+when neither source yields a parseable timestamp the monitor has measured
+NOTHING.  It still alerts (fail-CLOSED — an unverifiable cycle is not a verified
+one) but under a different title, with the reason quoted verbatim and WITHOUT an
+age: the old text published ``Last cycle: unknown (999.0h ago)`` together with
+"Today's cycle appears to have MISSED", i.e. a specific claim about a
+measurement that never happened.  ``999.0`` remains an internal sentinel only.
+
 **Heartbeat guarantee (AGENT-P0-006 fix):** ``data/cycle_gap_state.json`` is
 written on EVERY run (unless ``dry_run=True``).  Even when no gap is detected
 the file is updated with ``last_check_ts``, ``gap_detected``, ``hours_since``
@@ -49,10 +57,31 @@ GAP_STATE_FILENAME = "cycle_gap_state.json"
 
 # Gap threshold: expected 24h cycle + 2h tolerance
 GAP_THRESHOLD_HOURS: float = 26.0
-# Only alert if current UTC hour >= this value (08:00 expected + 2h)
+# Only alert if current UTC hour >= this value.
+# NOTE (2026-07-30): the "08:00 expected + 2h" rationale this constant was
+# written with is stale — launchd runs the cycle at 08:00 **local**
+# (= 06:00 UTC in summer), so alerting only opens ~4h after the expected start
+# rather than 2h.  The threshold is deliberately NOT changed here (moving it
+# changes the alerting surface, which is owner territory) — but the published
+# text no longer repeats the wrong premise.  See EXPECTED_CYCLE_LOCAL_HOUR.
 GAP_ALERT_AFTER_UTC_HOUR: int = 10
-# Sentinel hours_since value when last_cycle_ts is unknown
+# Sentinel hours_since value when last_cycle_ts is unknown.  It means
+# "not measured" — it is NEVER published to the owner as an age.
 _UNKNOWN_HOURS = 999.0
+
+# The daily cycle is scheduled by launchd (``com.spa.daily_cycle``,
+# StartCalendarInterval Hour=8) in LOCAL time — not UTC.  Every schedule claim
+# in the alert is derived from this constant so the message cannot drift away
+# from what the scheduler actually promises.
+EXPECTED_CYCLE_LOCAL_HOUR: int = 8
+CYCLE_AGENT_LABEL: str = "com.spa.daily_cycle"
+
+# Titles handed to push_policy.  The measured one is unchanged (push_policy
+# dedup key and the plain-Russian mapping in spa_core/telegram/humanize.py both
+# key off it); the unmeasured one is distinct because "a gap was detected" and
+# "the age could not be measured" are different statements.
+GAP_ALERT_TITLE: str = "SPA — Cycle Gap Detected"
+UNMEASURED_ALERT_TITLE: str = "SPA — Cycle Age NOT MEASURED"
 
 # Go-live decision date (for message formatting)
 _GOLIVE_DATE = datetime(2026, 7, 15, tzinfo=timezone.utc)
@@ -76,31 +105,95 @@ def _read_json(path: Path, default: Any) -> Any:
 def _atomic_write_json(path: Path, obj: Any) -> None:
     """Shim — delegates to spa_core.utils.atomic.atomic_save."""
     atomic_save(obj, path)
-def _get_last_cycle_ts(data_dir: Path) -> str | None:
-    """Resolve the last cycle timestamp from status or cycle_log.
+_UNREADABLE = object()  # sentinel: file exists but could not be parsed
+
+
+def _read_json_measured(path: Path) -> Any:
+    """Like :func:`_read_json` but distinguishes "absent" from "unreadable".
+
+    Returns ``None`` when the file does not exist, the ``_UNREADABLE`` sentinel
+    when it exists but cannot be parsed, and the parsed document otherwise.
+    Needed so the alert can name the REASON a timestamp is missing instead of
+    collapsing every failure into a bare ``None``.
+    """
+    path = Path(path)
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError) as exc:
+        log.warning("%s unreadable (%s)", path.name, exc)
+        return _UNREADABLE
+
+
+def _resolve_last_cycle_ts(data_dir: Path) -> tuple[str | None, str | None]:
+    """Resolve the last cycle timestamp **and** why it is missing when it is.
 
     Priority:
     1. ``data/paper_trading_status.json`` → ``last_cycle_ts``
     2. ``data/cycle_log.json`` → last entry's ``ts`` / ``timestamp``
 
-    Returns an ISO-8601 string, or ``None`` if unavailable.
+    Returns
+    -------
+    (ts, unknown_reason)
+        ``ts`` is an ISO-8601 string when resolved, else ``None``.  When ``ts``
+        is ``None``, ``unknown_reason`` is a short human-readable string naming
+        the file and the failure — unfamiliar values are quoted VERBATIM, never
+        summarised, so the owner sees what the monitor actually saw.
     """
-    status = _read_json(data_dir / STATUS_FILENAME, {})
-    if isinstance(status, dict):
+    reasons: list[str] = []
+
+    status = _read_json_measured(data_dir / STATUS_FILENAME)
+    if status is None:
+        reasons.append(f"{STATUS_FILENAME} not found")
+    elif status is _UNREADABLE:
+        reasons.append(f"{STATUS_FILENAME} exists but is not readable JSON")
+    elif not isinstance(status, dict):
+        reasons.append(
+            f"{STATUS_FILENAME} is not a JSON object (got {type(status).__name__})"
+        )
+    else:
         ts = status.get("last_cycle_ts")
         if ts and isinstance(ts, str):
-            return ts
+            return ts, None
+        reasons.append(
+            f"no usable 'last_cycle_ts' in {STATUS_FILENAME} (value: {ts!r})"
+        )
 
     # Fallback: cycle_log.json
-    cycle_log = _read_json(data_dir / CYCLE_LOG_FILENAME, [])
-    if isinstance(cycle_log, list) and cycle_log:
+    cycle_log = _read_json_measured(data_dir / CYCLE_LOG_FILENAME)
+    if cycle_log is None:
+        reasons.append(f"{CYCLE_LOG_FILENAME} not found")
+    elif cycle_log is _UNREADABLE:
+        reasons.append(f"{CYCLE_LOG_FILENAME} exists but is not readable JSON")
+    elif not isinstance(cycle_log, list) or not cycle_log:
+        reasons.append(f"{CYCLE_LOG_FILENAME} holds no entries")
+    else:
         last_entry = cycle_log[-1]
         if isinstance(last_entry, dict):
             ts = last_entry.get("ts") or last_entry.get("timestamp")
             if ts and isinstance(ts, str):
-                return ts
+                return ts, None
+            reasons.append(
+                f"last {CYCLE_LOG_FILENAME} entry has no 'ts'/'timestamp' "
+                f"(keys: {sorted(last_entry)!r})"
+            )
+        else:
+            reasons.append(
+                f"last {CYCLE_LOG_FILENAME} entry is not an object "
+                f"(got {type(last_entry).__name__})"
+            )
 
-    return None
+    return None, "; ".join(reasons)
+
+
+def _get_last_cycle_ts(data_dir: Path) -> str | None:
+    """Resolve the last cycle timestamp from status or cycle_log.
+
+    Thin wrapper over :func:`_resolve_last_cycle_ts` kept for callers that only
+    need the timestamp.  Returns an ISO-8601 string, or ``None`` if unavailable.
+    """
+    return _resolve_last_cycle_ts(Path(data_dir))[0]
 
 
 def _parse_iso(ts_str: str) -> datetime | None:
@@ -181,6 +274,7 @@ def _build_heartbeat_state(
     hours_since: float,
     alert_sent: bool,
     now_ts: str,
+    unknown_reason: str | None = None,
 ) -> dict:
     """Build a heartbeat state dict for writing on every run.
 
@@ -211,10 +305,43 @@ def _build_heartbeat_state(
     state["gap_detected"] = gap_detected
     state["hours_since"] = round(hours_since, 2)
     state["alert_sent"] = alert_sent
+    # Additive (2026-07-30): ``hours_since`` alone cannot tell a reader whether
+    # 999.0 is an age or a sentinel.  ``measured`` says which, ``unknown_reason``
+    # says why not.  Existing keys are untouched for existing consumers.
+    state["measured"] = unknown_reason is None and hours_since < _UNKNOWN_HOURS
+    state["unknown_reason"] = unknown_reason
     return state
 
 
 # ─── Message formatting ───────────────────────────────────────────────────────
+
+
+def _track_line(paper_days: int, days_to_golive: int) -> str | None:
+    """Render the track line, or ``None`` when there is nothing measured to say.
+
+    ``paper_days`` counts CALENDAR days since the paper start date — it is NOT
+    the evidenced track the go-live gate counts (on 2026-07-30: 51 calendar vs
+    37 evidenced).  Publishing it as "Track record" overstated the track by two
+    weeks, so the label now says what the number is.  ``paper_days <= 0`` means
+    the start date was not resolvable → the line is omitted rather than
+    defaulted.  A non-positive ``days_to_golive`` means the hard-coded decision
+    date has passed → no countdown is invented.
+    """
+    parts: list[str] = []
+    if paper_days > 0:
+        parts.append(f"Day {paper_days} (calendar days since paper start; "
+                     f"evidenced days are counted by the go-live gate)")
+    if days_to_golive > 0:
+        parts.append(f"go-live {days_to_golive}d")
+    return " / ".join(parts) if parts else None
+
+
+def _schedule_line() -> str:
+    """The expected-schedule line, derived from the launchd reality."""
+    return (
+        f"🕐 Expected: daily ~{EXPECTED_CYCLE_LOCAL_HOUR:02d}:00 local time "
+        f"(launchd {CYCLE_AGENT_LABEL}, StartCalendarInterval — local, not UTC)"
+    )
 
 
 def _format_alert_message(
@@ -222,37 +349,87 @@ def _format_alert_message(
     hours_since: float,
     paper_days: int,
     days_to_golive: int,
+    *,
+    unknown_reason: str | None = None,
 ) -> str:
-    """Return the HTML Telegram message for a detected cycle gap."""
-    last_display = last_cycle_ts if last_cycle_ts else "unknown"
-    lines = [
-        "⚠️ <b>SPA — Cycle Gap Detected</b>",
-        "",
-        f"📅 Last cycle: {last_display} ({hours_since:.1f}h ago)",
-        "🕐 Expected: daily ~08:00 UTC",
-        "❌ Today's cycle appears to have MISSED",
-        "",
-        f"Track record: Day {paper_days} / go-live {days_to_golive}d",
-        "⚡ Action: check launchd com.spa.daily_cycle status",
-    ]
+    """Return the HTML Telegram message for a cycle-gap event.
+
+    Two distinct messages, because they are two distinct statements:
+
+    * **measured** — the age of the last cycle was actually computed, so the
+      alert may say the cycle looks missed and print the age;
+    * **not measured** (``unknown_reason`` given, or ``hours_since`` is the
+      ``_UNKNOWN_HOURS`` sentinel) — nothing was computed.  The alert still
+      fires (fail-CLOSED: an unverifiable cycle is not a healthy cycle) but it
+      says so, names the reason verbatim, and prints NO fabricated age.  The
+      old text published ``unknown (999.0h ago)`` plus "appears to have
+      MISSED" — an assertion about a measurement that never happened.
+    """
+    measured = unknown_reason is None and hours_since < _UNKNOWN_HOURS
+    track = _track_line(paper_days, days_to_golive)
+
+    if measured:
+        lines = [
+            f"⚠️ <b>{GAP_ALERT_TITLE}</b>",
+            "",
+            f"📅 Last cycle: {last_cycle_ts} ({hours_since:.1f}h ago)",
+            _schedule_line(),
+            "❌ Today's cycle appears to have MISSED",
+        ]
+        action = f"⚡ Action: check launchd {CYCLE_AGENT_LABEL} status"
+    else:
+        reason = unknown_reason or "last cycle timestamp could not be resolved"
+        lines = [
+            f"⚠️ <b>{UNMEASURED_ALERT_TITLE}</b>",
+            "",
+            "📅 Last cycle: NOT MEASURED — the age of the last cycle could not "
+            "be computed, so this alert does NOT claim the cycle was missed.",
+            f"🔎 Reason: {reason}",
+            _schedule_line(),
+            "❓ Treated as a gap (fail-CLOSED): an unverifiable cycle is not a "
+            "verified one.",
+        ]
+        action = (
+            f"⚡ Action: check data/{STATUS_FILENAME} first (that is what could "
+            f"not be read), then launchd {CYCLE_AGENT_LABEL} status"
+        )
+
+    if track:
+        lines += ["", track]
+    lines.append(action)
     return "\n".join(lines)
 
 
 def _compute_paper_days(status: dict, now: datetime) -> int:
-    """Compute paper trading days from the status document."""
-    paper_start = status.get("paper_start_date", "2026-05-20")
-    try:
-        d0 = datetime.strptime(paper_start, "%Y-%m-%d").date()
-        return max(1, (now.date() - d0).days + 1)
-    except (ValueError, TypeError):
-        days_running = status.get("days_running")
-        if isinstance(days_running, int) and days_running > 0:
-            return days_running
-        return 1
+    """Compute CALENDAR paper-trading days from the status document.
+
+    Returns ``0`` when the start date cannot be resolved — the previous
+    behaviour substituted a hard-coded ``2026-05-20`` for a missing
+    ``paper_start_date`` (and ``1`` as a last resort), i.e. it published an
+    invented day count for a status document that never stated one.  Callers
+    must treat ``0`` as "unknown" and omit the number.
+    """
+    paper_start = status.get("paper_start_date")
+    if isinstance(paper_start, str):
+        try:
+            d0 = datetime.strptime(paper_start, "%Y-%m-%d").date()
+            return max(1, (now.date() - d0).days + 1)
+        except (ValueError, TypeError):
+            pass
+    days_running = status.get("days_running")
+    if isinstance(days_running, int) and not isinstance(days_running, bool) and days_running > 0:
+        return days_running
+    return 0
 
 
 def _compute_days_to_golive(now: datetime) -> int:
-    """Return calendar days until the go-live decision date (2026-07-21)."""
+    """Return calendar days until the go-live decision date (2026-07-15).
+
+    ``0`` once that date has passed — callers must then print no countdown
+    rather than a meaningless ``go-live 0d`` (the docstring previously claimed
+    2026-07-21 while ``_GOLIVE_DATE`` said 2026-07-15; the constant is the
+    owner's date and was not changed).
+    """
     try:
         delta = _GOLIVE_DATE - now
         return max(0, delta.days)
@@ -263,7 +440,7 @@ def _compute_days_to_golive(now: datetime) -> int:
 # ─── Telegram delivery ────────────────────────────────────────────────────────
 
 
-def _send_telegram_alert(message: str) -> bool:
+def _send_telegram_alert(message: str, title: str = GAP_ALERT_TITLE) -> bool:
     """Route the cycle-gap alert through the SINGLE push authority (Tier-1).
 
     Phase-1 rewire: cycle_gap_monitor no longer POSTs to Telegram directly. It
@@ -280,7 +457,7 @@ def _send_telegram_alert(message: str) -> bool:
             push_policy.push_critical(
                 "cycle_gap",
                 "CRITICAL",
-                "SPA — Cycle Gap Detected",
+                title,
                 message,
             )
         )
@@ -377,8 +554,12 @@ def run_cycle_gap_monitor(
     -------
     dict with:
         ``gap_detected``  – ``bool`` — ``True`` if a cycle gap was detected.
-        ``hours_since``   – ``float`` — hours since last cycle (999.0 if unknown).
+        ``hours_since``   – ``float`` — hours since last cycle (999.0 sentinel
+                            if unknown — check ``measured`` before reading it).
         ``alert_sent``    – ``bool`` — ``True`` if a Telegram alert was sent.
+        ``measured``      – ``bool`` — ``True`` only when the age was actually
+                            computed from a parseable timestamp.
+        ``unknown_reason``– ``str | None`` — why it could not be computed.
 
     Never raises. All exceptions are caught and logged as ``log.warning``.
     """
@@ -386,6 +567,10 @@ def run_cycle_gap_monitor(
         "gap_detected": False,
         "hours_since": 0.0,
         "alert_sent": False,
+        # Until Step 1 runs, nothing has been measured — say so rather than
+        # letting a caller read the 0.0 above as "0 hours since last cycle".
+        "measured": False,
+        "unknown_reason": "monitor did not reach timestamp resolution",
     }
     try:
         ddir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
@@ -428,13 +613,23 @@ def run_cycle_gap_monitor(
                     _heal_exc,
                 )
 
-        # ── Step 1: resolve last cycle timestamp ──────────────────────────
-        last_cycle_ts = _get_last_cycle_ts(ddir)
+        # ── Step 1: resolve last cycle timestamp (with a REASON if missing) ──
+        last_cycle_ts, unknown_reason = _resolve_last_cycle_ts(ddir)
+        if last_cycle_ts is not None and _parse_iso(last_cycle_ts) is None:
+            # Present but garbage: quote what was actually there, verbatim.
+            unknown_reason = (
+                f"'last_cycle_ts' is not a parseable ISO-8601 timestamp: "
+                f"{last_cycle_ts!r}"
+            )
 
         # ── Step 2: gap detection ─────────────────────────────────────────
         gap_detected, hours_since = detect_gap(last_cycle_ts, now=now_dt)
         result["gap_detected"] = gap_detected
         result["hours_since"] = round(hours_since, 2)
+        # "measured" separates a real age from the _UNKNOWN_HOURS sentinel so
+        # neither the alert nor a downstream reader can mistake 999.0 for 999h.
+        result["measured"] = unknown_reason is None and hours_since < _UNKNOWN_HOURS
+        result["unknown_reason"] = unknown_reason
 
         # ── Always load existing state (for dedup preservation + heartbeat) ──
         gap_state = _read_json(ddir / GAP_STATE_FILENAME, {})
@@ -469,13 +664,15 @@ def run_cycle_gap_monitor(
                     hours_since=hours_since,
                     alert_sent=False,
                     now_ts=now_ts,
+                    unknown_reason=unknown_reason,
                 )
                 _atomic_write_json(ddir / GAP_STATE_FILENAME, heartbeat)
             return result
 
         log.warning(
-            "cycle_gap_monitor: GAP DETECTED — %.1fh since last cycle "
+            "cycle_gap_monitor: GAP %s — %.1fh since last cycle "
             "(threshold=%.0fh, today=%s)",
+            "DETECTED" if result["measured"] else "NOT MEASURED (fail-CLOSED)",
             hours_since,
             GAP_THRESHOLD_HOURS,
             today,
@@ -495,6 +692,7 @@ def run_cycle_gap_monitor(
                     hours_since=hours_since,
                     alert_sent=False,
                     now_ts=now_ts,
+                    unknown_reason=unknown_reason,
                 )
                 _atomic_write_json(ddir / GAP_STATE_FILENAME, heartbeat)
             return result
@@ -510,10 +708,16 @@ def run_cycle_gap_monitor(
         paper_days = _compute_paper_days(status, now_dt)
         days_to_golive = _compute_days_to_golive(now_dt)
         message = _format_alert_message(
-            last_cycle_ts, hours_since, paper_days, days_to_golive
+            last_cycle_ts, hours_since, paper_days, days_to_golive,
+            unknown_reason=unknown_reason,
         )
 
-        sent = _send_telegram_alert(message)
+        # Two statements, two titles: "the cycle looks missed" vs "the age could
+        # not be measured".  push_policy keys dedup off ``cycle_gap`` either way.
+        sent = _send_telegram_alert(
+            message,
+            GAP_ALERT_TITLE if result["measured"] else UNMEASURED_ALERT_TITLE,
+        )
         result["alert_sent"] = sent
 
         if sent:
@@ -537,11 +741,14 @@ def run_cycle_gap_monitor(
             hours_since=hours_since,
             alert_sent=sent,
             now_ts=now_ts,
+            unknown_reason=unknown_reason,
         )
         _atomic_write_json(ddir / GAP_STATE_FILENAME, heartbeat)
 
     except Exception as exc:  # noqa: BLE001 — must never crash the caller
         log.warning("cycle_gap_monitor: unexpected error: %s", exc)
+        result["measured"] = False
+        result["unknown_reason"] = "monitor raised: " + repr(exc)
 
     return result
 
@@ -552,15 +759,20 @@ def run_cycle_gap_monitor(
 def _cli_check(data_dir: Path) -> None:
     """Print gap status without sending alerts or writing any files."""
     now_dt = datetime.now(timezone.utc)
-    last_cycle_ts = _get_last_cycle_ts(data_dir)
+    last_cycle_ts, unknown_reason = _resolve_last_cycle_ts(data_dir)
+    if last_cycle_ts is not None and _parse_iso(last_cycle_ts) is None:
+        unknown_reason = (
+            f"'last_cycle_ts' is not a parseable ISO-8601 timestamp: "
+            f"{last_cycle_ts!r}"
+        )
     gap_detected, hours_since = detect_gap(last_cycle_ts, now=now_dt)
 
     print(
         f"Cycle Gap Monitor — {now_dt.strftime('%Y-%m-%dT%H:%M:%S UTC')}"
     )
     print(f"  Last cycle ts  : {last_cycle_ts or 'NOT FOUND'}")
-    if hours_since >= _UNKNOWN_HOURS:
-        print("  Hours since    : unknown")
+    if unknown_reason:
+        print(f"  Hours since    : NOT MEASURED ({unknown_reason})")
     else:
         print(f"  Hours since    : {hours_since:.1f}h")
     print(f"  Threshold      : {GAP_THRESHOLD_HOURS:.0f}h")
@@ -568,7 +780,10 @@ def _cli_check(data_dir: Path) -> None:
         f"  UTC hour check : {now_dt.hour:02d}:xx "
         f"(gap alerts enabled after {GAP_ALERT_AFTER_UTC_HOUR:02d}:00)"
     )
-    print(f"  Gap detected   : {'YES ⚠️' if gap_detected else 'NO ✅'}")
+    if gap_detected and unknown_reason:
+        print("  Gap detected   : NOT MEASURED — treated as a gap (fail-CLOSED)")
+    else:
+        print(f"  Gap detected   : {'YES ⚠️' if gap_detected else 'NO ✅'}")
 
     if gap_detected:
         gap_state = _read_json(data_dir / GAP_STATE_FILENAME, {})
@@ -584,7 +799,8 @@ def _cli_check(data_dir: Path) -> None:
             paper_days = _compute_paper_days(status, now_dt)
             days_to_golive = _compute_days_to_golive(now_dt)
             msg = _format_alert_message(
-                last_cycle_ts, hours_since, paper_days, days_to_golive
+                last_cycle_ts, hours_since, paper_days, days_to_golive,
+                unknown_reason=unknown_reason,
             )
             print()
             print("--- Message preview (dry-run — NOT sent) ---")
