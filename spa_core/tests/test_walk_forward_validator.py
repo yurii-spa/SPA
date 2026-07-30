@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """Tests for spa_core.analytics_lab.walk_forward_validator (SPA-V428 / MP-128).
 
+⚠️ Целевой модуль MP-128 РЕТИРОВАН (raise ImportError) — 12 из 13 классов ниже
+скипаются гейтом по возможности `_NEEDS_RETIRED_MP128_API`; подробный разбор
+причины — в комментарии над этим гейтом. `TestASTLint` работает против ЖИВОГО
+модуля MP-1495 `spa_core.backtesting.walk_forward_validator` и выполняется.
+
 Plain unittest; runnable via ``python -m pytest`` or ``python -m unittest``.
 NO network, NO external deps, NO pytest-only features.
 
@@ -38,13 +43,40 @@ from spa_core.backtesting import walk_forward_validator as wfv
 
 _MODULE_PATH = Path(wfv.__file__)
 
-# Guard: the backtesting module was refactored to a class-based API (WalkForwardValidator).
-# These tests were written for the old function-based API (compute_metric, run_walk_forward, etc.)
-# Skip them until they are rewritten for the new class-based interface.
-if not hasattr(wfv, 'compute_metric'):
-    pytestmark = pytest.mark.skip(
-        reason="walk_forward_validator API refactored (class-based) — tests need rewrite"
-    )
+# ── Почему часть этого файла скипается (цикл #39, карточка
+# `agent-silently-skipped-test-files`, заход 3 — установлено прогоном и импортом
+# символов, а НЕ по тексту прежней отписки) ────────────────────────────────────
+#
+# Цель этих тестов — функциональный API MP-128 (`compute_metric`,
+# `run_walk_forward`, `detect_overfitting`, `summarize_best_params`), который
+# жил в `spa_core/analytics_lab/walk_forward_validator.py`. Тот модуль
+# **РЕТИРОВАН**: его первый оператор — `raise ImportError("DEPRECATED: …")`.
+# Импорт здесь когда-то перенаправили на одноимённый, но **ДРУГОЙ** модуль
+# MP-1495 `spa_core/backtesting/walk_forward_validator.py` — класс-based
+# (`WalkForwardValidator.run()`), ни одной из четырёх функций там нет и не было.
+# Прежняя отписка «API refactored (class-based) — tests need rewrite» описывала
+# отношение между двумя РАЗНЫМИ модулями как рефакторинг одного.
+#
+# Ключевое следствие (то же, что в заходах 1–2): скип был **file-level**, поэтому
+# вместе с 77 тестами ретированного API гасился `TestASTLint` — единственный тест
+# файла, который работает против ЖИВОГО модуля MP-1495 и пиннит инвариант #4
+# (только stdlib: ни requests/web3/pandas/numpy, ни anthropic/openai). Он оживлён.
+#
+# Скип сужен с файла до 12 классов, зависящих от ретированного API, и остаётся
+# ГЕЙТОМ ПО ВОЗМОЖНОСТИ (`hasattr`), а не безусловным: если функциональный API
+# когда-нибудь вернётся в живой модуль, тесты включатся сами.
+# Удаление ретированных тестов — решение владельца (инвариант #16).
+_NEEDS_RETIRED_MP128_API = pytest.mark.skipif(
+    not hasattr(wfv, "compute_metric"),
+    reason=(
+        "needs the RETIRED function-based MP-128 API (compute_metric / "
+        "run_walk_forward / detect_overfitting / summarize_best_params) that lived in "
+        "spa_core.analytics_lab.walk_forward_validator — that module raises ImportError "
+        "by design; the live spa_core.backtesting.walk_forward_validator (MP-1495) is a "
+        "different, class-based module (WalkForwardValidator.run), not a refactor of it. "
+        "Deleting these tests is an owner decision (invariant #16)."
+    ),
+)
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -82,6 +114,7 @@ def _params(values: List[float]) -> List[Dict]:
 # 1. compute_metric — edge cases
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@_NEEDS_RETIRED_MP128_API
 class TestComputeMetricEdgeCases(unittest.TestCase):
 
     def test_empty_slice_sharpe(self):
@@ -123,6 +156,7 @@ class TestComputeMetricEdgeCases(unittest.TestCase):
 # 2. compute_metric — total_return
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@_NEEDS_RETIRED_MP128_API
 class TestComputeMetricTotalReturn(unittest.TestCase):
 
     def test_positive_return(self):
@@ -142,6 +176,7 @@ class TestComputeMetricTotalReturn(unittest.TestCase):
 # 3. compute_metric — sharpe
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@_NEEDS_RETIRED_MP128_API
 class TestComputeMetricSharpe(unittest.TestCase):
 
     def test_positive_sharpe_trending(self):
@@ -195,6 +230,7 @@ class TestComputeMetricSharpe(unittest.TestCase):
 # 4. compute_metric — sortino
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@_NEEDS_RETIRED_MP128_API
 class TestComputeMetricSortino(unittest.TestCase):
 
     def test_no_negative_returns_is_zero(self):
@@ -242,6 +278,7 @@ class TestComputeMetricSortino(unittest.TestCase):
 # 5. compute_metric — calmar
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@_NEEDS_RETIRED_MP128_API
 class TestComputeMetricCalmar(unittest.TestCase):
 
     def test_calmar_with_known_drawdown(self):
@@ -268,6 +305,7 @@ class TestComputeMetricCalmar(unittest.TestCase):
 # 6. run_walk_forward — edge cases
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@_NEEDS_RETIRED_MP128_API
 class TestRunWalkForwardEdgeCases(unittest.TestCase):
 
     def test_too_few_bars_returns_empty_windows(self):
@@ -311,6 +349,7 @@ class TestRunWalkForwardEdgeCases(unittest.TestCase):
 # 7. run_walk_forward — window mechanics
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@_NEEDS_RETIRED_MP128_API
 class TestRunWalkForwardWindowMechanics(unittest.TestCase):
 
     def setUp(self):
@@ -376,6 +415,7 @@ class TestRunWalkForwardWindowMechanics(unittest.TestCase):
 # 8. run_walk_forward — OOS rank & robustness
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@_NEEDS_RETIRED_MP128_API
 class TestRunWalkForwardOOSRank(unittest.TestCase):
 
     def test_single_param_oos_rank_always_one(self):
@@ -432,6 +472,7 @@ class TestRunWalkForwardOOSRank(unittest.TestCase):
 # 9. run_walk_forward — metric selection
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@_NEEDS_RETIRED_MP128_API
 class TestRunWalkForwardMetricSelection(unittest.TestCase):
 
     def _run(self, metric: str) -> Dict:
@@ -459,6 +500,7 @@ class TestRunWalkForwardMetricSelection(unittest.TestCase):
 # 10. detect_overfitting
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@_NEEDS_RETIRED_MP128_API
 class TestDetectOverfitting(unittest.TestCase):
 
     @staticmethod
@@ -522,6 +564,7 @@ class TestDetectOverfitting(unittest.TestCase):
 # 11. summarize_best_params
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@_NEEDS_RETIRED_MP128_API
 class TestSummarizeBestParams(unittest.TestCase):
 
     @staticmethod
@@ -601,6 +644,7 @@ class TestASTLint(unittest.TestCase):
 # 13. Integration tests
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@_NEEDS_RETIRED_MP128_API
 class TestIntegration(unittest.TestCase):
 
     def test_full_pipeline_trending(self):
