@@ -1,10 +1,40 @@
 from __future__ import annotations
 
-# DEPRECATED — orphaned module. Canonical: spa_core.execution.adapters.pendle_pt_adapter
-# No active imports point here. TODO: remove in next cleanup.
-# This file is kept for git history only.
+# DEPRECATED (MP-354) — модуль выведен из строя: см. точные факты ниже.
+#
+# ⚠️ ДВА УТВЕРЖДЕНИЯ ПРЕЖНЕГО КОММЕНТАРИЯ БЫЛИ НЕВЕРНЫ (замерено в цикле #39):
+#
+# 1. «No active imports point here» — НЕВЕРНО. Здесь есть живой импортёр:
+#    `spa_core/strategies/s23_pendle_pt_fixed.py::_load_adapters` (строка ~146)
+#    делает `from spa_core.adapters.pendle_pt_adapter import PendlePTAdapter`
+#    внутри `except Exception: pass`. ImportError глотается молча ⇒ у стратегии
+#    S23 адаптер `pendle_pt` НИКОГДА не загружается ⇒ `get_pt_apy()` всегда
+#    возвращает `MOCK_PT_APY` (7.0), а `pendle_pt_live` — постоянный False, т.е.
+#    заявленный в докстринге S23 «live Pendle markets API» путь структурно мёртв.
+#    S23 — advisory (реестры стратегий + турнир), капитал не двигает.
+#
+# 2. «Canonical: spa_core.execution.adapters.pendle_pt_adapter» — вводит в
+#    заблуждение. Тот модуль НЕ замена этому: другой домен (on-chain execution,
+#    Sprint v3.28) и другой API (`supply` / `get_supply_apy` / `get_position`);
+#    из 7 публичных символов MP-354 у него есть один. Более того, read-only коду
+#    (а S23 — read-only/advisory) импортировать `spa_core/execution/` ЗАПРЕЩЕНО
+#    инвариантом #6, так что для S23 это не вариант в принципе.
+#    Ближайший живой read-only родственник — MP-201
+#    `spa_core/adapters/pendle_pt.py` (в `ADAPTER_REGISTRY` через
+#    `pendle_adapter.py`), но и у него ДРУГОЙ публичный API.
+#
+# Что с этим делать (репоинт S23 на MP-201 / расретировать MP-354 / снять с S23
+# заявку на live-PT) — вопрос владельца: меняет числа турнира. Карточка:
+# `owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p`.
+# Тесты MP-354 (`spa_core/tests/test_pendle_pt_adapter{,_v2}.py`, 95+95, скипаются
+# честно) НЕ удалены — удаление ретированных тестов решает владелец (инв. #16).
+#
+# Поведение файла НЕ изменено: он по-прежнему отказывается импортироваться.
 raise ImportError(
-    "DEPRECATED: use spa_core.execution.adapters.pendle_pt_adapter instead"
+    "DEPRECATED (MP-354): retired module. NOT interchangeable with "
+    "spa_core.execution.adapters.pendle_pt_adapter (different domain + API; "
+    "read-only code must not import spa_core/execution — invariant #6). "
+    "Live read-only sibling with a different API: spa_core.adapters.pendle_pt (MP-201)."
 )
 
 """
