@@ -280,6 +280,29 @@ class TestAnnounceLink:
         assert r["verdict"] == guard.FREE
         assert any(h["state"] == "released" for h in r["history"])
 
+    def test_terminal_card_status_neutralises_log_claims(self, guard, sibling, tracker, log,
+                                                         ps_dead):
+        """Закрытую карточку взять нельзя по определению — «занятость» по ней только учит
+        игнорировать вердикт. Найдено dogfood-прогоном на живом журнале: снятие захвата
+        объявлением работает лишь для ТОЙ ЖЕ сессии, а идентификатор сессии не переживает
+        CLI-команду (agent-durable-session-id) ⇒ своя же закрытая карточка «занята»."""
+        write_card(tracker, "agent-x", status="done")
+        write_log(log, [announce("pid999", NOW - timedelta(minutes=5), card="agent-x")])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.FREE
+        assert r["history"] and r["history"][0]["state"] == "released"
+        assert "работа закрыта" in r["history"][0]["detail"]
+
+    def test_terminal_status_does_not_hide_file_overlap(self, guard, sibling, tracker, log,
+                                                        ps_dead):
+        """Контроль: пересечение по ФАЙЛАМ — про файлы, а не про карточку, и остаётся находкой."""
+        write_card(tracker, "agent-x", status="done")
+        write_log(log, [announce("pid999", NOW - timedelta(minutes=5), card="agent-x",
+                                 files=["/repo/scripts/a.py"])])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling,
+                planned_files=["/repo/scripts/a.py"])
+        assert r["verdict"] == guard.CLAIMED and r["overlaps"]
+
     def test_reclaim_after_done_blocks_again(self, guard, sibling, tracker, log, ps_dead):
         write_card(tracker, "agent-x")
         write_log(log, [
