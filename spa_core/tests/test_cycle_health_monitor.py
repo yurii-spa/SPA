@@ -1,5 +1,21 @@
 """
-Tests for spa_core.analytics.cycle_health_monitor (MP-631).
+Tests for the cycle-health monitors.
+
+This file holds TWO independent sections:
+
+  1. ``spa_core.analytics.cycle_health_monitor`` (MP-631) — a DEPRECATED
+     tombstone: the module's first statement is ``raise ImportError`` and it is
+     "kept for git history only". Its tests can never run and are skipped with
+     that as the stated reason (see ``_ANALYTICS_SKIP`` below).
+  2. ``spa_core.monitoring.cycle_health_monitor`` — the LIVE module behind the
+     ``com.spa.cycle_health`` agent. These tests DO run.
+
+History (cycle #37, 2026-07-30): section 1's import block had been repointed at
+the *monitoring* module, which does not export the analytics API. The resulting
+ImportError set a **file-level** ``pytestmark``, so all 88 tests — including the
+41 live-module tests of section 2, whose own import succeeds — were silently
+skipped. The skip reason ("API refactored — tests need rewrite") described
+neither module. The skip is now scoped to section 1 only and states the truth.
 
 Coverage: 38 unit tests across:
   - TestCycleHealthEntryDataclass     (6)
@@ -28,8 +44,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 import pytest
+
+# --- Section 1: the DEPRECATED analytics module ----------------------------
+# Import from its real home. The module is an intentional tombstone whose first
+# statement raises ImportError, so this is expected to fail on every checkout;
+# the skip below therefore applies to section 1 ONLY. It must NOT be a
+# file-level pytestmark — that would take the live-module tests of section 2
+# down with it (which is exactly the defect this file carried until 2026-07-30).
+_ANALYTICS_IMPORT_ERROR: "str | None" = None
 try:
-    from spa_core.monitoring.cycle_health_monitor import (
+    from spa_core.analytics.cycle_health_monitor import (  # type: ignore[attr-defined]
         STATUS_DEGRADED,
         STATUS_FAILED,
         STATUS_OK,
@@ -38,10 +62,16 @@ try:
         _HEALTH_LOG_FILE,
         _RING_BUFFER_MAX,
     )
-except ImportError:
-    pytestmark = pytest.mark.skip(
-        reason="cycle_health_monitor API refactored — tests need rewrite for new interface"
-    )
+except ImportError as _exc:  # pragma: no cover - deprecation path
+    _ANALYTICS_IMPORT_ERROR = str(_exc)
+
+_ANALYTICS_SKIP = unittest.skipIf(
+    _ANALYTICS_IMPORT_ERROR is not None,
+    f"spa_core.analytics.cycle_health_monitor is a deprecated tombstone "
+    f"(kept for git history only, raises on import): {_ANALYTICS_IMPORT_ERROR}. "
+    f"The live module is spa_core.monitoring.cycle_health_monitor — covered by "
+    f"section 2 of this file and by test_cycle_health_honesty.py.",
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -74,6 +104,7 @@ def _record(
 # TestCycleHealthEntryDataclass
 # ---------------------------------------------------------------------------
 
+@_ANALYTICS_SKIP
 class TestCycleHealthEntryDataclass(unittest.TestCase):
     """6 tests."""
 
@@ -145,6 +176,7 @@ class TestCycleHealthEntryDataclass(unittest.TestCase):
 # TestComputeStatus
 # ---------------------------------------------------------------------------
 
+@_ANALYTICS_SKIP
 class TestComputeStatus(unittest.TestCase):
     """8 tests for _compute_status via record_cycle."""
 
@@ -196,6 +228,7 @@ class TestComputeStatus(unittest.TestCase):
 # TestRecordCycle
 # ---------------------------------------------------------------------------
 
+@_ANALYTICS_SKIP
 class TestRecordCycle(unittest.TestCase):
     """6 tests."""
 
@@ -237,6 +270,7 @@ class TestRecordCycle(unittest.TestCase):
 # TestGetRecentCycles
 # ---------------------------------------------------------------------------
 
+@_ANALYTICS_SKIP
 class TestGetRecentCycles(unittest.TestCase):
     """5 tests."""
 
@@ -278,6 +312,7 @@ class TestGetRecentCycles(unittest.TestCase):
 # TestComputeHealthScore
 # ---------------------------------------------------------------------------
 
+@_ANALYTICS_SKIP
 class TestComputeHealthScore(unittest.TestCase):
     """6 tests."""
 
@@ -332,6 +367,7 @@ class TestComputeHealthScore(unittest.TestCase):
 # TestGetErrorFrequency
 # ---------------------------------------------------------------------------
 
+@_ANALYTICS_SKIP
 class TestGetErrorFrequency(unittest.TestCase):
     """4 tests."""
 
@@ -376,6 +412,7 @@ class TestGetErrorFrequency(unittest.TestCase):
 # TestIsSystemHealthy
 # ---------------------------------------------------------------------------
 
+@_ANALYTICS_SKIP
 class TestIsSystemHealthy(unittest.TestCase):
     """3 tests."""
 
@@ -404,6 +441,7 @@ class TestIsSystemHealthy(unittest.TestCase):
 # TestGenerateReport
 # ---------------------------------------------------------------------------
 
+@_ANALYTICS_SKIP
 class TestGenerateReport(unittest.TestCase):
     """5 tests."""
 
@@ -456,6 +494,7 @@ class TestGenerateReport(unittest.TestCase):
 # TestRingBuffer
 # ---------------------------------------------------------------------------
 
+@_ANALYTICS_SKIP
 class TestRingBuffer(unittest.TestCase):
     """2 tests."""
 
@@ -481,6 +520,7 @@ class TestRingBuffer(unittest.TestCase):
 # TestAtomicWrite
 # ---------------------------------------------------------------------------
 
+@_ANALYTICS_SKIP
 class TestAtomicWrite(unittest.TestCase):
     """2 tests."""
 
@@ -507,6 +547,7 @@ class TestAtomicWrite(unittest.TestCase):
 # TestComputeStatusEdgeCases (bonus tests to exceed 35)
 # ---------------------------------------------------------------------------
 
+@_ANALYTICS_SKIP
 class TestComputeStatusEdgeCases(unittest.TestCase):
     """5 bonus tests — total test count now 47."""
 
@@ -588,6 +629,7 @@ try:
         MAX_CYCLE_GAP_HOURS,
         CRITICAL_CYCLE_GAP_HOURS,
         MAX_EQUITY_DROP_PCT,
+        UNCHECKED as MON_UNCHECKED,
     )
 except ImportError:
     pass  # already marked skip via pytestmark above
@@ -841,14 +883,29 @@ class TestMonCheckEquityAnomaly(unittest.TestCase):
         self.assertEqual(result["status"], MON_WARNING)
         self.assertLess(result["today_change_pct"], -MAX_EQUITY_DROP_PCT)
 
-    def test_single_entry_insufficient(self):
-        result = self.m.check_equity_anomaly([{"equity": 100000.0}])
-        self.assertEqual(result["status"], MON_OK)
-        self.assertIn("insufficient", result.get("detail", ""))
+    # NOTE (cycle #37, 2026-07-30) — invariant #16, deliberate assert change,
+    # justified: the two tests below asserted status == OK for inputs on which
+    # the anomaly check performs NO computation at all (fewer than two
+    # entries). That is a clean verdict about a measurement that never
+    # happened, and it propagated: run_all_checks folded that OK into
+    # overall == "HEALTHY". The property under test is unchanged — "no anomaly
+    # is reported" — only the label for "could not measure" moved from OK to
+    # UNCHECKED (invariant #2, refusal-first). The tests are strengthened, not
+    # weakened: each now also pins that the reason is stated. Neither test ever
+    # actually ran before this cycle (the whole file was skipped), so no
+    # previously-passing guarantee is being dropped. Recorded in
+    # docs/journal/2026-W31.md.
 
-    def test_empty_history_ok_with_detail(self):
+    def test_single_entry_is_unchecked_not_ok(self):
+        result = self.m.check_equity_anomaly([{"equity": 100000.0}])
+        self.assertEqual(result["status"], MON_UNCHECKED)
+        self.assertIn("insufficient", result.get("detail", ""))
+        self.assertIsNone(result["today_change_pct"])
+
+    def test_empty_history_is_unchecked_not_ok(self):
         result = self.m.check_equity_anomaly([])
-        self.assertEqual(result["status"], MON_OK)
+        self.assertEqual(result["status"], MON_UNCHECKED)
+        self.assertIn("insufficient", result.get("detail", ""))
 
     def test_zero_prev_equity_no_crash(self):
         result = self.m.check_equity_anomaly(
