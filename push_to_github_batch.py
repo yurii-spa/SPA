@@ -83,6 +83,22 @@ TreeModeError = _root_push.TreeModeError
 BLOB_MODE = _root_push.BLOB_MODE
 EXEC_MODE = _root_push.EXEC_MODE
 
+# Страж перезаписи — тоже ОДНА реализация на оба CLI (карточка
+# `agent-shared-doc-whole-file-push-overwrites`): под этим файлом стоит
+# `safe_site_push.py`, и «доставка целыми файлами стирает чужую правку»
+# чинится в одном месте, а не в двух.
+create_blob_from_bytes = _root_push.create_blob_from_bytes
+build_entries = _root_push.build_entries
+guard_overwrite = _root_push.guard_overwrite
+divergence_verdict = _root_push.divergence_verdict
+rebase_append = _root_push.rebase_append
+base_version = _root_push.base_version
+get_file_content = _root_push.get_file_content
+DivergenceRefused = _root_push.DivergenceRefused
+DIVERGENCE_SAFE = _root_push.DIVERGENCE_SAFE
+DIVERGENCE_DIVERGED = _root_push.DIVERGENCE_DIVERGED
+DIVERGENCE_UNMEASURED = _root_push.DIVERGENCE_UNMEASURED
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -97,7 +113,12 @@ def main():
     parser.add_argument("--branch", default="main", help="Ветка (default: main)")
     parser.add_argument("--dry-run", action="store_true", help="Шаги 1-2 + что закоммитили бы (без записи)")
     parser.add_argument("--pat", help="GitHub PAT (переопределяет Keychain/env/файл)")
+    parser.add_argument("--allow-overwrite", action="store_true",
+                        help="ОСОЗНАННО стереть правку, появившуюся на remote после нашей базы")
     args = parser.parse_args()
+
+    allow_overwrite = bool(args.allow_overwrite) or \
+        os.environ.get("SPA_PUSH_ALLOW_OVERWRITE") == "1"
 
     all_files: list = []
     if args.files_pos:
@@ -145,11 +166,14 @@ def main():
 
     try:
         result = batch_push(pat, all_files, message, args.repo, args.branch,
-                            dry_run=args.dry_run)
+                            dry_run=args.dry_run, allow_overwrite=allow_overwrite)
     except urllib.error.HTTPError as e:
         body = e.read().decode(errors="replace")
         print(f"\nFAIL HTTP {e.code}: {body[:500]}")
         sys.exit(1)
+    except DivergenceRefused as e:
+        print(f"\nОТКАЗ (страж перезаписи): {e}", file=sys.stderr)
+        sys.exit(4)
     except Exception as e:
         print(f"\nFAIL: {e}")
         sys.exit(1)

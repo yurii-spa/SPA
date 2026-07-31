@@ -321,14 +321,20 @@ def test_missing_file_aborts_the_whole_batch(wired, repo):
 def _run_main(ptg, monkeypatch, argv, batch_stub=None, push_file_stub=None):
     calls = {"batch": [], "push_file": []}
 
-    def fake_batch(pat, files, message, repo, branch, dry_run=False):
+    # `**_kw` добавлен циклом #51 ОСОЗНАННО (инвариант #16): пушер получил
+    # параметр `allow_overwrite` (страж перезаписи, карточка
+    # `agent-shared-doc-whole-file-push-overwrites`), и дублёры с жёстко
+    # зафиксированной сигнатурой падали TypeError'ом на ВЫЗОВЕ, не дойдя до
+    # своих проверок. Изменены только сигнатуры дублёров — ни один ассерт
+    # ниже не тронут, набор проверок не сужен. Запись: docs/journal/2026-W31.md.
+    def fake_batch(pat, files, message, repo, branch, dry_run=False, **_kw):
         calls["batch"].append(list(files))
         if batch_stub:
             return batch_stub(files)
         return {"ok": True, "count": len(files), "commit": "c" * 40,
                 "skipped": 0, "files": files, "skipped_files": []}
 
-    def fake_push_file(pat, f, message, repo, dry_run=False, branch="main"):
+    def fake_push_file(pat, f, message, repo, dry_run=False, branch="main", **_kw):
         calls["push_file"].append(f)
         if push_file_stub:
             return push_file_stub(f)

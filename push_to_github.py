@@ -15,7 +15,12 @@ push_to_github.py — универсальный пуш файлов в GitHub.
     отказ; файлы НЕ дошлются по одному молча.
   * неизменённые файлы пропускаются на обоих путях (пустых коммитов нет);
   * режим (x-бит) существующего файла сохраняется — снятый x-бит с
-    bash-обёртки launchd = агент exit-78 (инвариант #12).
+    bash-обёртки launchd = агент exit-78 (инвариант #12);
+  * СТРАЖ ПЕРЕЗАПИСИ: если на remote путь изменился после базы рабочей копии,
+    пуш либо накладывает нашу добавку на свежий remote (чистое дописывание),
+    либо ОТКАЗЫВАЕТ — чужая правка не стирается молча (карточка
+    `agent-shared-doc-whole-file-push-overwrites`). Осознанная перезапись —
+    флаг `--allow-overwrite` / `SPA_PUSH_ALLOW_OVERWRITE=1`.
 
 Использование:
   # Positional files (новый стиль):
@@ -218,8 +223,225 @@ def get_file_sha(pat: str, repo: str, repo_path: str, branch: str = "main") -> O
         return None
 
 
+def get_file_content(pat: str, repo: str, repo_path: str, branch: str = "main") -> Optional[bytes]:
+    """Содержимое файла на GitHub. None — если прочитать не удалось.
+
+    Нужно ТОЛЬКО для пере-базы дописывания (см. :func:`rebase_append`): чтобы
+    наложить нашу добавку на свежий remote, свежий remote надо иметь. Contents
+    API не отдаёт `content` для файлов >1 МБ — это `None`, а не пустота, и
+    пере-база тогда не делается (отказ вместо догадки).
+    """
+    url = f"{API_BASE}/repos/{repo}/contents/{repo_path}?ref={branch}"
+    req = urllib.request.Request(url, headers={
+        "Authorization": f"Bearer {pat}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    })
+    try:
+        with urllib.request.urlopen(req) as resp:
+            data = json.loads(resp.read())
+        if data.get("encoding") != "base64" or not isinstance(data.get("content"), str):
+            return None
+        return base64.b64decode(data["content"])
+    except Exception:
+        return None
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# СТРАЖ ПЕРЕЗАПИСИ: доставка целыми файлами ≠ право стереть чужую правку
+#
+# ЗАЧЕМ (карточка `agent-shared-doc-whole-file-push-overwrites`, найдено #50):
+# пушер отправляет СОДЕРЖИМОЕ файла и коммитит поверх текущего `main` — слияния
+# нет. Для файлов, которые ДОПИСЫВАЮТ (недельный журнал, `docs/STATE.md`,
+# `_BOARD.md`), это «последний писатель побеждает»: сессия с более старой базой
+# молча сносит запись той, что успела запушить раньше. Протокол ОБЯЗЫВАЕТ
+# каждый цикл дописывать ровно эти файлы (§«Шаг 3 — обновить память»), то есть
+# пересечение неизбежно в КАЖДОМ цикле, а поймать потерю нечем: шаг 0b на общие
+# документы работать не может (иначе занята любая карточка), шаг 0a увидит
+# расхождение только СЛЕДУЮЩИМ циклом и без атрибуции, а пушер честно скажет
+# `OK` — он доставил ровно то, что ему дали.
+#
+# ЧТО ДЕЛАЕМ. Перед PUT сравниваем ТРИ версии: база рабочей копии (`HEAD:<путь>`)
+# · наша локальная · та, что сейчас на remote.
+#   * remote == база                 → терять нечего, пуш как раньше;
+#   * обе стороны — чистое ДОПИСЫВАНИЕ → наша добавка накладывается на свежий
+#     remote (пере-база), обе записи выживают;
+#   * иначе                          → ОТКАЗ (fail-CLOSED, инвариант #2).
+# Содержимое «по смыслу» не сливается никогда — только дописывание либо отказ.
+#
+# ГРАНИЦА ПРИМЕНИМОСТИ измеряется, а не предполагается: база достоверна лишь
+# если HEAD рабочей копии — предок ветки доставки (`refs/remotes/origin/<ветка>`).
+# Так страж включается ровно в изолированных worktree протокола (§3.4) и НЕ
+# трогает исторические пути доставки: autopush и дневной цикл пушат из хост-репо,
+# который висит на своей ветке (на 30.07 — `env-setup-v3`, 23 441 коммит от
+# `origin/main`) ⇒ база не устанавливается ⇒ поведение прежнее.
+# ══════════════════════════════════════════════════════════════════════════════
+
+DIVERGENCE_SAFE = "safe"
+DIVERGENCE_DIVERGED = "diverged"
+DIVERGENCE_UNMEASURED = "unmeasured"
+
+
+class DivergenceRefused(RuntimeError):
+    """Пуш стёр бы правку, которой нет в нашей базе. Отказ вместо перезаписи."""
+
+
+def _git_rc(args: list, cwd) -> Optional[int]:
+    """Код возврата `git -C <cwd> <args>`; None — git вообще не запустился."""
+    try:
+        r = subprocess.run(["git", "-C", str(cwd), *args],
+                           capture_output=True, timeout=10)
+    except Exception:
+        return None
+    return r.returncode
+
+
+def _git_bytes(args: list, cwd) -> Optional[bytes]:
+    """stdout как БАЙТЫ (`cat-file blob` бинарно-безопасен); None на любом сбое."""
+    try:
+        r = subprocess.run(["git", "-C", str(cwd), *args],
+                           capture_output=True, timeout=10)
+    except Exception:
+        return None
+    if r.returncode != 0:
+        return None
+    return r.stdout
+
+
+def base_version(abs_path, repo_path: str, branch: str = "main") -> tuple:
+    """Версия пути в БАЗЕ рабочей копии → ``(state, blob_bytes, reason)``.
+
+    ``state``:
+      * ``"measured"``       — база прочитана, ``blob_bytes`` заполнен;
+      * ``"absent_in_base"`` — база достоверна, но этого пути в ней НЕТ (новый файл);
+      * ``"unmeasured"``     — базу установить нечем (нет git / не рабочая копия /
+        HEAD не является предком ветки доставки). Это НЕ «всё в порядке».
+    """
+    parent = Path(abs_path).parent
+    if not parent.exists():
+        return "unmeasured", None, f"каталога {parent} нет"
+    if _git_out(["rev-parse", "--verify", "HEAD"], parent) is None:
+        return "unmeasured", None, "git недоступен или это не рабочая копия git"
+    ref = f"refs/remotes/origin/{branch}"
+    rc = _git_rc(["merge-base", "--is-ancestor", "HEAD", ref], parent)
+    if rc is None:
+        return "unmeasured", None, "git не запустился"
+    if rc != 0:
+        return "unmeasured", None, (
+            f"HEAD рабочей копии не является предком {ref} — копия не основана на "
+            f"ветке доставки, сравнивать не с чем")
+    blob = _git_bytes(["cat-file", "blob", f"HEAD:{repo_path}"], parent)
+    if blob is None:
+        return "absent_in_base", None, f"пути {repo_path} нет в базовом коммите"
+    return "measured", blob, ""
+
+
+def divergence_verdict(abs_path, repo_path: str, remote_sha: Optional[str],
+                       branch: str = "main") -> dict:
+    """Что случится с ЧУЖИМИ правками, если запушить наш файл как есть."""
+    state, base, reason = base_version(abs_path, repo_path, branch)
+    if state == "unmeasured":
+        return {"state": DIVERGENCE_UNMEASURED, "reason": reason, "base": None}
+    if state == "absent_in_base":
+        if remote_sha is None:
+            return {"state": DIVERGENCE_SAFE, "base": None,
+                    "reason": "файла нет ни в базе, ни на remote — он новый"}
+        return {"state": DIVERGENCE_DIVERGED, "base": None,
+                "reason": (f"пути нет в базе рабочей копии, но на remote он ЕСТЬ "
+                           f"(sha {remote_sha[:8]}) — его завёл кто-то другой")}
+    if remote_sha is None:
+        # sha=None у get_file_sha значит и «нового файла нет», и «сеть отвалилась»,
+        # и «файл удалили» — различить нельзя, поэтому «не измерено», а не «ок».
+        return {"state": DIVERGENCE_UNMEASURED, "base": base,
+                "reason": "sha файла на remote не прочитан — сравнивать не с чем"}
+    base_sha = git_blob_sha(base)
+    if base_sha == remote_sha:
+        return {"state": DIVERGENCE_SAFE, "base": base,
+                "reason": "remote совпадает с базой рабочей копии — терять нечего"}
+    return {"state": DIVERGENCE_DIVERGED, "base": base,
+            "reason": (f"содержимое {repo_path} на remote изменилось после нашей базы "
+                       f"(база {base_sha[:8]} → remote {remote_sha[:8]}): наша копия "
+                       f"стёрла бы чужую правку")}
+
+
+def rebase_append(base: Optional[bytes], local: Optional[bytes],
+                  remote: Optional[bytes]) -> Optional[bytes]:
+    """Наложить НАШУ добавку на свежий remote. ``None`` — если это не дописывание.
+
+    Дописывание распознаётся побайтово: и наша версия, и версия remote начинаются
+    с общей базы. Тогда результат = remote + наш хвост, и обе записи выживают.
+    Любая правка в СЕРЕДИНЕ (так меняется `docs/STATE.md`) ломает префикс — и
+    функция честно отдаёт ``None``, чтобы вызывающий отказал. Слияния «по смыслу»
+    здесь нет и быть не должно (карточка прямо это исключает).
+    """
+    if base is None or local is None or remote is None:
+        return None
+    if not local.startswith(base) or not remote.startswith(base):
+        return None
+    tail = local[len(base):]
+    if not tail:
+        return None
+    return remote + tail
+
+
+def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
+                    local_bytes: bytes, remote_sha: Optional[str],
+                    allow_overwrite: bool = False,
+                    strict_unmeasured: bool = False) -> tuple:
+    """``(content_to_push, note)``; :class:`DivergenceRefused` — если пушить нельзя.
+
+    «Не измерено» по умолчанию НЕ блокирует — но и не выдаётся за «всё в порядке»:
+    печатается явная строка «расхождение НЕ ИЗМЕРЕНО» с причиной. Направление
+    выбрано намеренно и по измерению, а не из осторожности: базу можно установить
+    только для копии, основанной на ветке доставки, а исторические пути доставки
+    (autopush, дневной цикл, кастодиан сайта) пушат из ХОСТ-репо, который сидит на
+    своей ветке. Блокировать их значило бы остановить живую доставку ради проверки,
+    которая для них неприменима по построению — это домен владельца, не автономной
+    правки. Защита действует там, где база ЕСТЬ, — в worktree протокола (§3.4).
+
+    ``strict_unmeasured=True`` — явный опт-ин вызывающего: «работаю только там, где
+    перезапись отслеживается». Ни от какой переменной окружения не зависит, чтобы
+    поведение пушера не менялось от того, кто его запустил.
+    """
+    verdict = divergence_verdict(abs_path, repo_path, remote_sha, branch)
+    state = verdict["state"]
+
+    if state == DIVERGENCE_SAFE:
+        return local_bytes, ""
+
+    if state == DIVERGENCE_UNMEASURED:
+        note = f"⚠️  расхождение НЕ ИЗМЕРЕНО для {repo_path}: {verdict['reason']}"
+        if strict_unmeasured and not allow_overwrite:
+            raise DivergenceRefused(
+                f"{note}\nВызывающий потребовал измеримой базы (strict_unmeasured): "
+                f"без неё перезапись чужой правки не отслеживается. "
+                f"Пуш отменён (fail-CLOSED).")
+        return local_bytes, note
+
+    # DIVERGENCE_DIVERGED
+    if allow_overwrite:
+        return local_bytes, (f"⚠️  ПЕРЕЗАПИСЬ РАЗРЕШЕНА ЯВНО для {repo_path}: "
+                             f"{verdict['reason']}")
+
+    remote_bytes = get_file_content(pat, repo, repo_path, branch)
+    rebased = rebase_append(verdict.get("base"), local_bytes, remote_bytes)
+    if rebased is not None:
+        return rebased, (f"🔀 пере-база {repo_path}: наша добавка наложена на свежее "
+                         f"содержимое remote (обе записи сохранены)")
+
+    raise DivergenceRefused(
+        f"{verdict['reason']}.\n"
+        f"Чистым дописыванием это не разрешается (правка в середине файла либо "
+        f"содержимое remote не прочитано), а сливать по смыслу пушер не будет. "
+        f"Пуш отменён (fail-CLOSED, инвариант #2).\n"
+        f"Что делать: перечитать {repo_path} со свежего `origin/{branch}`, перенести "
+        f"свою правку на него и запушить снова; осознанная перезапись — "
+        f"`--allow-overwrite`.")
+
+
 def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool = False,
-              branch: str = "main", _stale_retries: int = 2) -> dict:
+              branch: str = "main", _stale_retries: int = 2,
+              allow_overwrite: bool = False) -> dict:
     """Пушит один файл через GitHub Contents API.
 
     409 stale-sha auto-retry: если параллельный писатель обновил файл между нашим
@@ -252,9 +474,9 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
         if sha is not None and sha == local_blob_sha:
             return {"ok": True, "dry_run": True, "path": repo_path, "action": "skip"}
         action = "update" if sha else "create"
-        return {"ok": True, "dry_run": True, "path": repo_path, "action": action}
+        return {"ok": True, "dry_run": True, "path": repo_path, "action": action,
+                "divergence": divergence_verdict(local, repo_path, sha, branch)["state"]}
 
-    content_b64 = base64.b64encode(local_bytes).decode()
     sha = get_file_sha(pat, repo, repo_path, branch)
 
     # Idempotency guard (fail-CLOSED): пропускаем PUT, только если remote SHA
@@ -264,6 +486,19 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
     # создаёт пустой коммит в Contents API — именно его мы и устраняем.
     if sha is not None and sha == local_blob_sha:
         return {"ok": True, "skipped": True, "path": repo_path, "sha": sha[:8]}
+
+    # Страж перезаписи: доставка целыми файлами не даёт права стереть чужую
+    # правку. Либо пуш безопасен, либо наша добавка ложится на свежий remote,
+    # либо честный отказ (см. guard_overwrite).
+    try:
+        content_bytes, note = guard_overwrite(
+            pat, repo, branch, repo_path, local, local_bytes, sha,
+            allow_overwrite=allow_overwrite)
+    except DivergenceRefused as e:
+        return {"ok": False, "error": str(e), "path": repo_path, "diverged": True}
+    if note:
+        print(f"  {note}")
+    content_b64 = base64.b64encode(content_bytes).decode()
 
     payload: dict = {
         "message": message,
@@ -291,14 +526,16 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
         if e.code in (429, 403) and "rate limit" in body.lower():
             print(f"  Rate limit — ждём 60с...")
             time.sleep(60)
-            return push_file(pat, local_path, message, repo, dry_run, branch, _stale_retries)
+            return push_file(pat, local_path, message, repo, dry_run, branch,
+                             _stale_retries, allow_overwrite)
         # 409 stale-sha: параллельный писатель сдвинул HEAD. Перечитываем свежий
         # remote sha и повторяем PUT (bounded). 422 тоже может означать рассинхрон
         # sha ("does not match") — обрабатываем так же.
         if (e.code == 409 or (e.code == 422 and "sha" in body.lower())) and _stale_retries > 0:
             print(f"  409 stale-sha — перечитываю remote sha и повторяю ({_stale_retries} осталось)...")
             time.sleep(0.5)
-            return push_file(pat, local_path, message, repo, dry_run, branch, _stale_retries - 1)
+            return push_file(pat, local_path, message, repo, dry_run, branch,
+                             _stale_retries - 1, allow_overwrite)
         return {"ok": False, "error": f"HTTP {e.code}: {body[:300]}", "path": repo_path}
     except Exception as e:
         return {"ok": False, "error": str(e), "path": repo_path}
@@ -410,12 +647,21 @@ def tree_entry_mode(repo_path: str, abs_path: Path, modes: dict, truncated: bool
     return EXEC_MODE if os.access(abs_path, os.X_OK) else BLOB_MODE
 
 
+def create_blob_from_bytes(pat: str, repo: str, data: bytes) -> str:
+    """Шаг 3: создать blob из БАЙТОВ (base64, безопасно для бинарных и текстовых).
+
+    Отдельно от :func:`create_blob`, потому что пере-база дописывания (страж
+    перезаписи) отправляет не содержимое файла с диска, а «свежий remote + наш
+    хвост»; читать это обратно из файла было бы неоткуда.
+    """
+    blob = _api(pat, "POST", f"/repos/{repo}/git/blobs",
+                {"content": base64.b64encode(data).decode(), "encoding": "base64"})
+    return str(blob["sha"])
+
+
 def create_blob(pat: str, repo: str, abs_path: Path) -> str:
     """Шаг 3: создать blob из файла (base64, безопасно для бинарных и текстовых)."""
-    content_b64 = base64.b64encode(Path(abs_path).read_bytes()).decode()
-    blob = _api(pat, "POST", f"/repos/{repo}/git/blobs",
-                {"content": content_b64, "encoding": "base64"})
-    return str(blob["sha"])
+    return create_blob_from_bytes(pat, repo, Path(abs_path).read_bytes())
 
 
 def create_tree(pat: str, repo: str, base_tree_sha: str, entries: list) -> str:
@@ -445,6 +691,10 @@ def split_unchanged(pat: str, repo: str, branch: str, files: list) -> tuple:
     ошибки: пропускаем ТОЛЬКО при точном совпадении remote sha с локальным
     blob-SHA; любая неопределённость (sha=None — новый файл ИЛИ сетевая
     ошибка) → файл считается изменённым и уезжает. Реальные правки не теряются.
+
+    ``changed`` — тройки ``(repo_path, abs_path, remote_sha)``: sha remote нужен
+    стражу перезаписи ниже, и второй раз за ним в сеть ходить незачем
+    (``remote_sha`` может быть ``None`` — новый файл либо сбой чтения).
     """
     changed, unchanged = [], []
     for repo_path, abs_path in files:
@@ -453,16 +703,41 @@ def split_unchanged(pat: str, repo: str, branch: str, files: list) -> tuple:
         if remote_sha is not None and remote_sha == local_sha:
             unchanged.append((repo_path, abs_path, remote_sha))
         else:
-            changed.append((repo_path, abs_path))
+            changed.append((repo_path, abs_path, remote_sha))
     return changed, unchanged
 
 
+def build_entries(pat: str, repo: str, branch: str, changed: list,
+                  modes: dict, truncated: bool, allow_overwrite: bool = False) -> list:
+    """``changed`` → записи дерева, каждая через стража перезаписи.
+
+    Отдельной функцией, потому что на ретрае «база сдвинулась» (HTTP 409/422)
+    записи надо собрать ЗАНОВО: свежая база могла получить чужую правку ровно в
+    наших путях, и повторное использование старых blob'ов молча стёрло бы её —
+    тот же дефект, что и в основном пути, только этажом ниже.
+    :class:`DivergenceRefused` роняет ВЕСЬ батч (fail-CLOSED, как resolve_files).
+    """
+    entries = []
+    for repo_path, abs_path, remote_sha in changed:
+        mode = tree_entry_mode(repo_path, abs_path, modes, truncated)
+        content, note = guard_overwrite(pat, repo, branch, repo_path, abs_path,
+                                        Path(abs_path).read_bytes(), remote_sha,
+                                        allow_overwrite=allow_overwrite)
+        if note:
+            print(f"  {note}")
+        blob_sha = create_blob_from_bytes(pat, repo, content)
+        print(f"  blob {blob_sha[:8]}  {repo_path}"
+              f"{'  (exec)' if mode == EXEC_MODE else ''}")
+        entries.append({"path": repo_path, "mode": mode, "type": "blob", "sha": blob_sha})
+    return entries
+
+
 def batch_push(pat: str, file_args: list, message: str, repo: str, branch: str,
-               dry_run: bool = False) -> dict:
+               dry_run: bool = False, allow_overwrite: bool = False) -> dict:
     """Собрать N файлов в ОДИН коммит через Git Data API.
 
-    Порядок: разрешить пути (fail-CLOSED) → отсеять неизменённые →
-    blobs → tree (с сохранением режимов) → commit → move ref.
+    Порядок: разрешить пути (fail-CLOSED) → отсеять неизменённые → страж
+    перезаписи → blobs → tree (с сохранением режимов) → commit → move ref.
     Ничего не изменилось → коммита НЕТ вовсе (пустые коммиты не создаются).
     """
     files = resolve_files(file_args)
@@ -488,19 +763,9 @@ def batch_push(pat: str, file_args: list, message: str, repo: str, branch: str,
 
     modes, truncated = remote_tree_modes(pat, repo, base_tree_sha)
 
-    # Шаг 3: blobs (+ режим существующего файла сохраняется как есть)
-    entries = []
-    for repo_path, abs_path in changed:
-        mode = tree_entry_mode(repo_path, abs_path, modes, truncated)
-        blob_sha = create_blob(pat, repo, abs_path)
-        print(f"  blob {blob_sha[:8]}  {repo_path}"
-              f"{'  (exec)' if mode == EXEC_MODE else ''}")
-        entries.append({
-            "path": repo_path,
-            "mode": mode,
-            "type": "blob",
-            "sha": blob_sha,
-        })
+    # Шаг 3: blobs (+ режим существующего файла сохраняется как есть,
+    # + страж перезаписи: чужая правка не стирается молча)
+    entries = build_entries(pat, repo, branch, changed, modes, truncated, allow_overwrite)
 
     # Шаг 4: tree
     new_tree_sha = create_tree(pat, repo, base_tree_sha, entries)
@@ -525,9 +790,12 @@ def batch_push(pat: str, file_args: list, message: str, repo: str, branch: str,
             # перечитываем на СВЕЖЕМ дереве: параллельный писатель мог менять и их.
             fresh_base_commit, fresh_base_tree = get_base_ref(pat, repo, branch)
             fresh_modes, fresh_truncated = remote_tree_modes(pat, repo, fresh_base_tree)
-            for entry, (repo_path, abs_path) in zip(entries, changed):
-                entry["mode"] = tree_entry_mode(repo_path, abs_path,
-                                                fresh_modes, fresh_truncated)
+            # Содержимое пересобираем ТОЖЕ: параллельный писатель мог тронуть
+            # наши пути, и старые blob'ы стёрли бы его правку (страж внутри).
+            fresh_changed = [(rp, ap, get_file_sha(pat, repo, rp, branch))
+                             for rp, ap, _ in changed]
+            entries = build_entries(pat, repo, branch, fresh_changed,
+                                    fresh_modes, fresh_truncated, allow_overwrite)
             new_tree_sha = create_tree(pat, repo, fresh_base_tree, entries)
             new_commit_sha = create_commit(pat, repo, message, new_tree_sha, fresh_base_commit)
             print(f"  recommit {new_commit_sha[:8]} (parent {fresh_base_commit[:8]})")
@@ -537,7 +805,7 @@ def batch_push(pat: str, file_args: list, message: str, repo: str, branch: str,
 
     return {"ok": True, "count": len(changed), "commit": new_commit_sha,
             "tree": new_tree_sha, "skipped": len(unchanged),
-            "files": [p for p, _ in changed],
+            "files": [p for p, _, _ in changed],
             "skipped_files": [p for p, _, _ in unchanged]}
 
 
@@ -557,7 +825,13 @@ def main():
     parser.add_argument("--branch", default="main", help="Целевая ветка (default: main)")
     parser.add_argument("--dry-run", action="store_true", help="Проверить без пуша")
     parser.add_argument("--pat", help="GitHub PAT (переопределяет Keychain/env/файл)")
+    parser.add_argument("--allow-overwrite", action="store_true",
+                        help="ОСОЗНАННО стереть правку, появившуюся на remote после нашей базы "
+                             "(по умолчанию такой пуш отклоняется)")
     args = parser.parse_args()
+
+    allow_overwrite = bool(args.allow_overwrite) or \
+        os.environ.get("SPA_PUSH_ALLOW_OVERWRITE") == "1"
 
     # Собираем все файлы из всех источников
     all_files: list = []
@@ -618,13 +892,17 @@ def main():
     # недоступен → честный отказ, а не тихий возврат к рваной доставке.
     if len(all_files) > 1 and not args.dry_run:
         try:
-            result = batch_push(pat, all_files, message, args.repo, args.branch)
+            result = batch_push(pat, all_files, message, args.repo, args.branch,
+                                allow_overwrite=allow_overwrite)
         except urllib.error.HTTPError as e:
             body = e.read().decode(errors="replace")
             print(f"\nFAIL HTTP {e.code}: {body[:500]}")
             print("Файлы НЕ досылались по одному: рваный набор на main — то, "
                   "что этот путь и устраняет (fail-CLOSED).", file=sys.stderr)
             sys.exit(1)
+        except DivergenceRefused as e:
+            print(f"\nОТКАЗ (страж перезаписи): {e}", file=sys.stderr)
+            sys.exit(4)
         except Exception as e:
             print(f"\nFAIL: {e}")
             print("Файлы НЕ досылались по одному: рваный набор на main — то, "
@@ -639,7 +917,8 @@ def main():
 
     results = []
     for f in all_files:
-        r = push_file(pat, f, message, args.repo, dry_run=args.dry_run, branch=args.branch)
+        r = push_file(pat, f, message, args.repo, dry_run=args.dry_run, branch=args.branch,
+                      allow_overwrite=allow_overwrite)
         results.append(r)
         if r.get("ok"):
             if r.get("dry_run"):
