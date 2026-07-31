@@ -798,3 +798,150 @@ class TestRealCollision:
                          sibling=sibling, self_session="pid1",
                          now=first + timedelta(days=1), ps=lambda pid: (1, ""))
         assert r["verdict"] == guard.STALE
+
+
+# ── старое СЛАБОЕ упоминание при НЕИЗМЕРИМОЙ активности ──────────────────────
+
+class TestWeakMentionAgesOutEvenWhenActivityUnmeasurable:
+    """Карточка `agent-weak-mention-locks-card-forever` (цикл #61).
+
+    Докстринг инструмента объявляет обязательным: «слабый признак (упоминание в тексте)
+    блокирует только пока свеж … иначе любая когда-либо тронутая карточка была бы занята
+    навсегда». Ветка `state == UNKNOWN` стояла РАНЬШЕ проверки силы признака, поэтому для
+    сессии с идентификатором без pid правило не работало вообще: `session_state` отдаёт
+    `UNKNOWN` для такого id **детерминированно и необратимо**, старение не наступало
+    никогда, и одно упоминание в свободном тексте запирало карточку навсегда.
+
+    Так на 19+ часов выпали из очереди `agent-durable-session-id` и
+    `agent-idea21-verdict-data-drift`: обе упомянуты циклом #49 (`cycle49`, id без pid)
+    В ОТРИЦАНИИ — «обе НЕ беру». Циклы #50/#51/#53/#54 каждый раз фиксировали «2 не
+    измерено (id cycle49 без pid)» и брали другую карточку.
+
+    Ниже — репро, и рядом положительные контроли: fail-CLOSED для СИЛЬНЫХ признаков и
+    блокировка свежего слабого упоминания сохранены.
+    """
+
+    # ── корень: почему старение не наступало никогда ──────────────────────────
+
+    def test_pidless_session_is_unmeasurable_at_any_age(self, sibling):
+        """Пин корня: возраст записи не влияет — `UNKNOWN` необратим, ждать бесполезно."""
+        for age in (timedelta(minutes=1), timedelta(days=1), timedelta(days=3650)):
+            state, why = sibling.session_state(
+                {"session": "cycle49", "ts": _fmt(NOW - age)}, "pid1", ps=lambda pid: (1, ""))
+            assert state == sibling.UNKNOWN
+            assert "не содержит pid" in why
+
+    # ── репро дефекта (красные до правки) ────────────────────────────────────
+
+    def test_old_weak_mention_by_pidless_session_is_history_not_unchecked(
+            self, guard, sibling, tracker, log, ps_dead):
+        write_card(tracker, "agent-durable-session-id")
+        write_log(log, [announce(
+            "cycle49", NOW - timedelta(hours=18, minutes=54),
+            summary=("Шаг 0b: agent-durable-session-id = ЗАНЯТА, "
+                     "agent-idea21-verdict-data-drift = СТАРЫЙ ЗАХВАТ ⇒ обе НЕ беру. "
+                     "Беру СВОБОДНУЮ: agent-push-batch-per-file-commits"))])
+        r = run(guard, tracker, log, "agent-durable-session-id", ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.FREE
+        assert guard.exit_code(r) == 0
+        assert not r["unmeasured"]
+        assert r["history"] and r["history"][0]["state"] == "history"
+        assert r["history"][0]["strength"] == guard.WEAK
+
+    def test_old_weak_mention_when_ps_broken_is_history_not_unchecked(
+            self, guard, sibling, tracker, log, ps_broken):
+        """Второй маршрут в `UNKNOWN`: id с pid есть, но сам `ps` не отработал."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("pid999", NOW - timedelta(days=6),
+                                 summary="раньше трогали agent-x")])
+        r = run(guard, tracker, log, "agent-x", ps=ps_broken, sibling=sibling)
+        assert r["verdict"] == guard.FREE
+        assert not r["unmeasured"]
+
+    def test_history_record_keeps_the_unmeasured_reason_verbatim(
+            self, guard, sibling, tracker, log, ps_dead):
+        """Не «замолчали», а «измерили и признали несущественным»: причина видна вербатим."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("cycle49", NOW - timedelta(days=2),
+                                 summary="упоминали agent-x")])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.FREE
+        assert "не содержит pid" in r["history"][0]["unmeasured_activity"]
+
+    def test_both_starved_cards_become_bookable_again(
+            self, guard, sibling, tracker, log, ps_dead):
+        """Обе реально заблокированные карточки при ОДНОМ и том же журнале."""
+        write_log(log, [
+            announce("cycle49", NOW - timedelta(hours=18, minutes=54),
+                     summary=("agent-durable-session-id = ЗАНЯТА, "
+                              "agent-idea21-verdict-data-drift = СТАРЫЙ ЗАХВАТ ⇒ обе НЕ беру"),
+                     card="agent-push-batch-per-file-commits"),
+            announce("cycle49", NOW - timedelta(hours=18, minutes=5),
+                     summary="ЦИКЛ #49 ЗАВЕРШЁН И ДОСТАВЛЕН",
+                     card="agent-push-batch-per-file-commits", card_state="done")])
+        for cid in ("agent-durable-session-id", "agent-idea21-verdict-data-drift"):
+            write_card(tracker, cid)
+            r = run(guard, tracker, log, cid, ps=ps_dead, sibling=sibling)
+            assert r["verdict"] == guard.FREE, cid
+            assert guard.exit_code(r) == 0, cid
+
+    # ── положительные контроли: ничего не ослаблено ──────────────────────────
+
+    def test_fresh_weak_mention_by_pidless_session_still_blocks(
+            self, guard, sibling, tracker, log, ps_dead):
+        """В пределах окна свежести слабое упоминание блокирует, как и раньше."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("cycle49", NOW - timedelta(minutes=30),
+                                 summary="беру карточку agent-x")])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.CLAIMED
+        assert guard.exit_code(r) == 1
+
+    def test_old_strong_card_field_by_pidless_session_stays_unchecked(
+            self, guard, sibling, tracker, log, ps_dead):
+        """fail-CLOSED НЕ ослаблен: заявленный захват — не обмолвка в тексте."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("cycle49", NOW - timedelta(hours=9), card="agent-x")])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.UNCHECKED
+        assert guard.exit_code(r) == 2
+
+    def test_old_strong_file_ownership_by_pidless_session_stays_unchecked(
+            self, guard, sibling, tracker, log, ps_dead):
+        """Второй сильный признак — файл карточки в объявленном владении."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce(
+            "cycle49", NOW - timedelta(hours=9),
+            files=["/repo/nimbalyst-local/tracker/agent-x.md"])])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.UNCHECKED
+
+    def test_old_strong_frontmatter_claim_by_pidless_session_stays_unchecked(
+            self, guard, sibling, tracker, log, ps_dead):
+        """Третий сильный признак — `claimed_by` во frontmatter самой карточки."""
+        write_card(tracker, "agent-x", claimed_by="cycle49",
+                   claimed_at=_fmt(NOW - timedelta(hours=9)))
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.UNCHECKED
+
+    def test_old_weak_mention_does_not_mask_a_strong_claim_in_the_same_log(
+            self, guard, sibling, tracker, log, ps_dead):
+        """Состаренное слабое не «съедает» находку: сильный захват рядом остаётся."""
+        write_card(tracker, "agent-x")
+        write_log(log, [
+            announce("cycle49", NOW - timedelta(days=2), summary="упоминали agent-x"),
+            announce("pid999", NOW - timedelta(minutes=20), card="agent-x")])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.CLAIMED
+        assert any(c["strength"] == guard.STRONG for c in r["claims"])
+
+    def test_old_weak_mention_does_not_suppress_file_overlap(
+            self, guard, sibling, tracker, log, ps_dead):
+        """Пересечение по файлам — независимое измерение, оно не зависит от старения."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("cycle49", NOW - timedelta(minutes=20),
+                                 summary="работаю",
+                                 files=["/repo/scripts/check_card_claim.py"])])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead,
+                planned_files=["/repo/scripts/check_card_claim.py"], sibling=sibling)
+        assert r["overlaps"]
