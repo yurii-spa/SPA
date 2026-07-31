@@ -308,8 +308,15 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
     def _unmeasured(source, reason):
         report["unmeasured"].append({"source": source, "reason": reason})
 
-    def _classify(session, ts, source, strength, detail):
-        """Захват → находка / история / «не измерено». Одинаково для карточки и журнала."""
+    def _classify(session, ts, source, strength, detail, process=None):
+        """Захват → находка / история / «не измерено». Одинаково для карточки и журнала.
+
+        `process` — поля долгоживущего процесса ИЗ ТОЙ ЖЕ записи журнала (`session_pid` /
+        `session_pid_start`). Запись сюда приходит разобранной на (session, ts), поэтому без
+        явной передачи основной критерий активности (карточка `agent-durable-session-id`) до
+        шага 0b просто не доехал бы — ровно тот способ «починить одного близнеца из двух»,
+        которым цикл #37 оставил CI красным. У захвата из frontmatter такого процесса нет
+        (в карточке лежит только идентификатор сессии) — там всё как раньше."""
         rec = {"source": source, "session": session, "strength": strength, "detail": detail,
                "ts": _fmt_ts(ts) if ts else None}
         if session and session == self_session:
@@ -317,8 +324,8 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
             rec["session_state"] = "это текущая сессия"
             report["self_claims"].append(rec)
             return
-        state, why = sibling.session_state({"session": session, "ts": rec["ts"]},
-                                           self_session, ps=ps)
+        state, why = sibling.session_state({"session": session, "ts": rec["ts"],
+                                            **(process or {})}, self_session, ps=ps)
         rec["session_state"] = why
         age = (now - ts).total_seconds() / 3600.0 if ts else None
         rec["age_hours"] = round(age, 2) if age is not None else None
@@ -404,7 +411,8 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                         "state": "released", "strength": strength,
                         "detail": "объявление `card_state: done` — захват снят"})
                 else:
-                    latest[session] = (session, ts, strength, detail)
+                    latest[session] = (session, ts, strength, detail,
+                                       sibling.durable_fields(entry))
             # пересечение по файлам — отдельное измерение, не зависит от карточки
             if planned_files and session and session != self_session and ts is not None:
                 if (now - ts) <= grace:
@@ -426,7 +434,7 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                             report["overlaps"].append({
                                 "session": session, "ts": _fmt_ts(ts), "files": shared,
                                 "summary": str(entry.get("summary") or "")[:160]})
-        for session, ts, strength, detail in latest.values():
+        for session, ts, strength, detail, process in latest.values():
             if report["card_status"] in TERMINAL_STATUSES:
                 # Закрытую карточку взять нельзя по определению ⇒ «занятость» по ней —
                 # шум, который учит игнорировать вердикт. Снятие захвата объявлением
@@ -439,7 +447,7 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                     "detail": f"{detail}; захват не действует: статус карточки "
                               f"`{report['card_status']}` — работа закрыта"})
                 continue
-            _classify(session, ts, "announce-log", strength, detail)
+            _classify(session, ts, "announce-log", strength, detail, process)
 
     # 3. вердикт ─────────────────────────────────────────────────────────────
     verdict = FREE

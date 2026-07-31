@@ -23,11 +23,19 @@
    `origin/main`, ни в его истории для этого пути → ``differs``;
 4. печатает находки и **отдельно** всё, что измерить не удалось.
 
-**Почему окно ожидания, а не только `ps`.** `log_session_change.py` пишет
-`pid<os.getpid()>` **однократного CLI-процесса** (`SPA_SESSION_ID` в проде не выставляется),
-поэтому «процесса нет» НЕ доказывает, что сессия умерла, — этот вывод здесь и не делается.
-Отсутствие процесса лишь снимает подтверждение активности; решает возраст объявления. Отсюда
-формулировка находки: «объявлено N часов назад, на origin этого нет» — проверяемый факт.
+**Почему окно ожидания, а не только `ps`.** По умолчанию `log_session_change.py` пишет
+`pid<os.getpid()>` **однократного CLI-процесса**, поэтому «процесса нет» НЕ доказывает, что
+сессия умерла, — этот вывод здесь и не делается. Отсутствие процесса лишь снимает подтверждение
+активности; решает возраст объявления. Отсюда формулировка находки: «объявлено N часов назад,
+на origin этого нет» — проверяемый факт.
+
+**Основной критерий, когда он есть — долгоживущий процесс сессии** (`session_pid` +
+`session_pid_start`, карточка `agent-durable-session-id`): сессия, у которой такой процесс
+есть (`scripts/agent_orchestrator.sh` — его оболочка ждёт весь цикл), объявляет его
+`SPA_SESSION_PID`, и тогда активность именно ИЗМЕРЯЕТСЯ — включая идентификаторы без pid
+(`cycle49`, `cycle61`), которые до этого не измерялись НИКОГДА. Совпадение времени старта —
+проверка личности процесса (переиспользованный pid не читается как живая сессия). Окно
+ожидания остаётся запасным критерием для записей без этих полей — а их большинство.
 
 **fail-CLOSED (инв. #2).** «Не смог измерить» никогда не сворачивается в «всё доставлено»:
 нет `git` / нет базового ref / `ps` не отработал / путь вне репозитория / битая метка времени →
@@ -151,12 +159,81 @@ def _parse_lstart(value: str):
 
 # ── жива ли сессия ───────────────────────────────────────────────────────────
 
+DURABLE_KEYS = ("session_pid", "session_pid_start")
+
+
+def durable_fields(entry):
+    """Подмножество ключей записи, описывающих долгоживущий процесс сессии (может быть пусто).
+
+    Нужно тем, кто строит СИНТЕТИЧЕСКУЮ запись для `session_state` (шаг 0b собирает её из
+    (session, ts)): без этих полей улучшение до них просто не доезжает."""
+    return {k: entry[k] for k in DURABLE_KEYS if isinstance(entry, dict) and k in entry}
+
+
+def _durable_state(entry, ts, ps):
+    """None — сессия долгоживущего процесса не объявляла; иначе (state, измерение словами).
+
+    **Основной критерий активности** (карточка `agent-durable-session-id`). `session` по
+    умолчанию — pid ОДНОКРАТНОЙ CLI-команды, умирающий вместе с ней, поэтому `ps` по нему
+    бессодержателен для ЛЮБОЙ записи, а id без pid (`cycle49`, `cycle61`) не измерялся вовсе.
+    `session_pid` пишет `log_session_change.durable_process` только когда процесс подтверждён
+    в момент записи, вместе с его временем старта.
+
+    Совпадение старта — это проверка ЛИЧНОСТИ процесса: без неё переиспользованный ОС pid
+    читался бы как живая сессия (ложный ACTIVE ⇒ шаг 0a молча пропустил бы недоставленную
+    работу). Расхождение старта — не «не измерено», а измеренный факт «это другой процесс»."""
+    if not isinstance(entry, dict) or "session_pid" not in entry:
+        return None
+    raw = entry.get("session_pid")
+    pid = raw if isinstance(raw, int) and not isinstance(raw, bool) else None
+    if pid is None and isinstance(raw, str) and raw.strip().isdigit():
+        pid = int(raw.strip())
+    if pid is None or pid <= 1:
+        return UNKNOWN, (f"session_pid={raw!r} не разобран как pid процесса — "
+                         "активность не измерена")
+
+    rc, out = ps(pid)
+    if rc == 1:
+        return NOT_CONFIRMED, (f"долгоживущий процесс сессии pid{pid} завершился "
+                               "(активность не подтверждена)")
+    if rc != 0:
+        return UNKNOWN, f"`ps -p {pid}` не отработал (rc={rc}) — активность не измерена"
+    if not str(out).strip():
+        return UNKNOWN, f"`ps -p {pid}` вернул пустой ответ — активность не измерена"
+    started = _parse_lstart(out)
+    if started is None:
+        return UNKNOWN, (f"pid{pid} существует, но время старта не разобрано: "
+                         f"{str(out).strip()!r} — активность не измерена")
+
+    recorded_raw = entry.get("session_pid_start")
+    if recorded_raw is None:
+        # Долгоживущий pid без записанного старта: сверяемся с объявлением, как для pid-id.
+        if started > ts + CLOCK_SKEW:
+            return NOT_CONFIRMED, (f"pid{pid} занят ДРУГИМ процессом: старт "
+                                   f"{started.isoformat()} позже объявления {ts.isoformat()}")
+        return ACTIVE, f"долгоживущий процесс сессии pid{pid} жив (старт {started.isoformat()})"
+    recorded = _parse_lstart(str(recorded_raw))
+    if recorded is None:
+        return UNKNOWN, (f"записанное время старта pid{pid} не разобрано: "
+                         f"{str(recorded_raw)!r} — активность не измерена")
+    if abs((started - recorded).total_seconds()) > CLOCK_SKEW.total_seconds():
+        return NOT_CONFIRMED, (f"pid{pid} занят ДРУГИМ процессом: старт {started.isoformat()} "
+                               f"вместо записанного {recorded.isoformat()}")
+    return ACTIVE, (f"долгоживущий процесс сессии pid{pid} жив — тот же процесс "
+                    f"(старт {started.isoformat()})")
+
+
 def session_state(entry, self_session, ps=_ps_lstart):
     """(ACTIVE|NOT_CONFIRMED|UNKNOWN, измерение словами).
 
-    ACTIVE — активность ПОДТВЕРЖДЕНА (это мы сами либо живой процесс, стартовавший до
-    объявления). NOT_CONFIRMED — подтверждения нет; это НЕ вывод «сессия умерла»
-    (см. докстринг модуля), решает возраст объявления. UNKNOWN — измерить не смогли.
+    ACTIVE — активность ПОДТВЕРЖДЕНА (это мы сами; объявленный сессией долгоживущий процесс
+    жив; либо живой процесс из pid-идентификатора, стартовавший до объявления).
+    NOT_CONFIRMED — подтверждения нет; это НЕ вывод «сессия умерла» (см. докстринг модуля),
+    решает возраст объявления. UNKNOWN — измерить не смогли.
+
+    Порядок: своя сессия → долгоживущий процесс записи (**основной критерий**) → pid из
+    идентификатора (как раньше, для записей без новых полей). Окно ожидания у вызывающих
+    остаётся запасным критерием и не трогается.
     """
     session = str(entry.get("session") or "")
     if session and session == self_session:
@@ -166,6 +243,10 @@ def session_state(entry, self_session, ps=_ps_lstart):
     if ts is None:
         return UNKNOWN, (f"метка времени записи не разобрана: {entry.get('ts')!r} — "
                          "возраст объявления не измерен")
+
+    durable = _durable_state(entry, ts, ps)
+    if durable is not None:
+        return durable
 
     m = _PID_RE.match(session)
     if not m:

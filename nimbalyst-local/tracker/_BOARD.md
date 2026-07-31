@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **104** · ждёт владельца: **12** · занято сессиями: **0**.
+> Всего карточек: **105** · ждёт владельца: **13** · занято сессиями: **0**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -13,13 +13,14 @@
 - **Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить** · _medium_  ·  `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam.md`
 - **Гейт готовности зелёный по адаптеру, который невозможно загрузить — проверяется только синтаксис файла (выбери, как чинить)** · _high_  ·  `owner-decision-geit-gotovnosti-zelenyi-po-adapteru-koto.md`
 - **Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять**  ·  `owner-decision-publichnaya-stranitsa-prover-nas-pokazyv.md`
+- **Рабочая копия проекта на маке отстала от GitHub на 345 коммитов — из-за этого очередь заданий показывает старое** · _medium_  ·  `owner-decision-rabochaya-kopiya-proekta-na-make-otstala.md`
 - **Сторож правил не видит стоп-кран — смотрит в файл, которого нет (выбери, как чинить)** · _high_  ·  `owner-decision-storozh-pravil-ne-vidit-stop-kran-smotri.md`
 - **Сторож пропущенного цикла молчит до 10:00 UTC, хотя цикл стартует в 06:00 UTC — опустить порог?**  ·  `owner-decision-storozh-propuschennogo-tsikla-molchit-do.md`
 - **Стратегия S23 никогда не видит живой Pendle — адаптер «похоронен», ошибка глотается молча (выбери, как чинить)** · _medium_  ·  `owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p.md`
 - **Тревога о стоп-кране до тебя больше не дойдёт — событие застряло в «плохо» с 4 июля (выбери, как чинить)** · _high_  ·  `owner-decision-trevoga-o-stop-krane-do-tebya-bolshe-ne.md`
 - **В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями** · _high_  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (36)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (37)
 
 ### · needs-owner
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -29,6 +30,7 @@
 - Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить  ·  `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam.md` · 2026-07-29
 - Гейт готовности зелёный по адаптеру, который невозможно загрузить — проверяется только синтаксис файла (выбери, как чинить)  ·  `owner-decision-geit-gotovnosti-zelenyi-po-adapteru-koto.md` · 2026-07-30
 - Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять  ·  `owner-decision-publichnaya-stranitsa-prover-nas-pokazyv.md` · 2026-07-29
+- Рабочая копия проекта на маке отстала от GitHub на 345 коммитов — из-за этого очередь заданий показывает старое  ·  `owner-decision-rabochaya-kopiya-proekta-na-make-otstala.md` · 2026-07-31
 - Сторож правил не видит стоп-кран — смотрит в файл, которого нет (выбери, как чинить)  ·  `owner-decision-storozh-pravil-ne-vidit-stop-kran-smotri.md` · 2026-07-29
 - Сторож пропущенного цикла молчит до 10:00 UTC, хотя цикл стартует в 06:00 UTC — опустить порог?  ·  `owner-decision-storozh-propuschennogo-tsikla-molchit-do.md` · 2026-07-30
 - Стратегия S23 никогда не видит живой Pendle — адаптер «похоронен», ошибка глотается молча (выбери, как чинить)  ·  `owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p.md` · 2026-07-30
@@ -97,7 +99,6 @@
 - Q&A бэклог (12 ответов) + видимость задач  ·  `agent-qa-backlog.md` · 2026-07-16
 - Q9: git-тег verifier-v1.2  ·  `agent-verifier-tag.md` · 2026-07-16
 ### · backlog
-- Идентификатор сессии в announce-логе не переживает саму команду — активность сессии измерить нечем  ·  `agent-durable-session-id.md` · 2026-07-30
 - Опубликованный вердикт идеи #21 разошёлся с сегодняшними данными — строка CORE-A поменяла знак вывода  ·  `agent-idea21-verdict-data-drift.md` · 2026-07-30
 - CI на main красный с 06:23Z — сканер мёртвого кода не укладывается в 30-секундный бюджет на раннере (локально укладывается)  ·  `agent-task-ci-na-main-krasnyi-s-06-23z-skaner-mertv.md` · 2026-07-31
 - Верификация длиннее бюджета цикла ⇒ работа осиротевает по построению  ·  `agent-verification-outlives-cycle-budget.md` · 2026-07-31
@@ -114,6 +115,7 @@
 - Дашборд: фиксы + структура + промоушен на живой  ·  `agent-dashboard-work.md` · 2026-07-16
 - Дедуп карточек (разовый скан)  ·  `agent-dedup-cards.md` · 2026-07-16
 - CI на main красный: downside_beta делит на дисперсию-шум — герметичный тест падает на Linux/py3.11 и проходит на py3.12  ·  `agent-downside-beta-degenerate-variance.md` · 2026-07-30
+- Идентификатор сессии в announce-логе не переживает саму команду — активность сессии измерить нечем  ·  `agent-durable-session-id.md` · 2026-07-30
 - ENV_SETUP v3 — контур владельца (все этапы)  ·  `agent-env-setup.md` · 2026-07-16
 - Q1: флот reboot-safe (7 агентов)  ·  `agent-fleet-reboot.md` · 2026-07-16
 - Проверка истории (дедуп перед карточкой)  ·  `agent-history-check.md` · 2026-07-16

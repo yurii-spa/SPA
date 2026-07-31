@@ -52,6 +52,16 @@ fi
 # by scripts/safe_site_push.py, never auto-shipped). Kill = unset SPA_ORCHESTRATOR_ARMED.
 export SPA_AUTONOMOUS=1
 
+# ── DURABLE SESSION IDENTITY (card agent-durable-session-id) ────────────────
+# THIS shell is the cycle's long-lived process: it waits for claude below and exits with it.
+# Announcing it makes "is that session still working?" a measurement instead of a guess —
+# scripts/log_session_change.py records session_pid + its start time, and steps 0a/0b use them
+# as the primary criterion (the announcement's age stays the fallback). Without this, every
+# entry carried the pid of a one-shot CLI process that was already dead when written, so `ps`
+# said "no such process" for every cycle, alive or orphaned.
+export SPA_SESSION_PID=$$
+export SPA_SESSION_ID="${SPA_SESSION_ID:-cycle-$$}"
+
 # ── ARMED: run one headless GOVERNED-AUTONOMY cycle ─────────────────────────
 PROMPT="Ты — оркестратор SPA под НОВЫМ протоколом «управляемая автономия» (owner-approved 2026-07-15). \
 Исполни ПОЛНОСТЬЮ docs/ORCHESTRATOR_PROTOCOL.md за один цикл, включая раздел «Автономный рабочий мандат»: \
