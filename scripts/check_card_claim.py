@@ -184,6 +184,34 @@ def paths_overlap(a, b) -> bool:
     return _tail2(a) == _tail2(b)
 
 
+def is_release(entry) -> bool:
+    """Объявление «работа по карточке закрыта» (`--card-state done`).
+
+    Единственное место, где это читается: и снятие захвата карточки, и пересечение по
+    файлам должны понимать терминальность ОДИНАКОВО — расхождение двух ответов на один
+    вопрос и есть дефект, который чинит эта карточка."""
+    return str(entry.get("card_state") or "").strip() == "done"
+
+
+def releases_by_session(entries, parse_ts) -> dict:
+    """Сессия → время её ПОСЛЕДНЕГО объявления `card_state: done`.
+
+    Нужен именно максимум: сессия могла закрыть одну карточку и тут же взять следующую
+    (`done` в 10:00, `claim` в 10:05) — тогда более позднее взятие остаётся живым.
+    `parse_ts` — разбор времени шага 0a (та же семантика, логика не копируется)."""
+    out: dict = {}
+    for entry in entries or []:
+        if not is_release(entry):
+            continue
+        session = str(entry.get("session") or "")
+        ts = parse_ts(entry.get("ts"))
+        if not session or ts is None:
+            continue
+        if session not in out or ts > out[session]:
+            out[session] = ts
+    return out
+
+
 def entry_hit(entry, cid) -> tuple:
     """(сила, чем именно) — относится ли объявление к этой карточке. ("", "") — нет."""
     card_field = str(entry.get("card") or "").strip()
@@ -300,6 +328,9 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                         f"{malformed_lines} нечитаемых строк журнала — часть объявлений "
                         f"не разобрана")
         latest = {}          # сессия → последний захват этой карточки
+        # Сессия, объявившая `card_state: done`, работу закончила — её файлы больше не
+        # «держатся» до конца окна свежести (карточка agent-card-claim-file-overlap-ignores-done).
+        released_at = releases_by_session(rows, sibling._parse_ts)
         for entry in rows:
             session = str(entry.get("session") or "")
             strength, detail = entry_hit(entry, cid)
@@ -310,7 +341,7 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                                 f"{session or '?'}: запись относится к карточке "
                                 f"({detail}), но метка времени не разобрана: "
                                 f"{entry.get('ts')!r} — возраст захвата не измерен")
-                elif str(entry.get("card_state") or "").strip() == "done":
+                elif is_release(entry):
                     latest.pop(session, None)
                     report["history"].append({
                         "source": "announce-log", "session": session, "ts": _fmt_ts(ts),
@@ -324,9 +355,21 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                     shared = sorted({str(f) for f in (entry.get("files") or [])
                                      for mine in planned_files if paths_overlap(f, mine)})
                     if shared:
-                        report["overlaps"].append({
-                            "session": session, "ts": _fmt_ts(ts), "files": shared,
-                            "summary": str(entry.get("summary") or "")[:160]})
+                        done_at = released_at.get(session)
+                        if done_at is not None and done_at >= ts:
+                            # Сессия объявила `done` не раньше этой записи ⇒ она закончила, а
+                            # не «держит файлы ещё три часа». Ложная занятость учит игнорировать
+                            # вердикт — ровно то, от чего шаг 0b и защищает.
+                            report["history"].append({
+                                "source": "announce-log-files", "session": session,
+                                "ts": _fmt_ts(ts), "state": "released", "strength": WEAK,
+                                "detail": f"пересечение по файлам ({', '.join(shared)}) не "
+                                          f"считается: сессия объявила `card_state: done` "
+                                          f"в {_fmt_ts(done_at)} — работа закрыта"})
+                        else:
+                            report["overlaps"].append({
+                                "session": session, "ts": _fmt_ts(ts), "files": shared,
+                                "summary": str(entry.get("summary") or "")[:160]})
         for session, ts, strength, detail in latest.values():
             if report["card_status"] in TERMINAL_STATUSES:
                 # Закрытую карточку взять нельзя по определению ⇒ «занятость» по ней —

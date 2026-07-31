@@ -380,6 +380,149 @@ class TestFileOverlap:
         assert r["overlaps"] == []
 
 
+# ── завершённая сессия не «держит» свои файлы (agent-card-claim-file-overlap-ignores-done) ──
+
+class TestReleasedSessionDoesNotHoldFiles:
+    """Захват КАРТОЧКИ снимался объявлением `card_state: done`, а пересечение по ФАЙЛАМ —
+    нет: оно смотрело только на возраст записи, поэтому завершённая сессия ещё три часа
+    блокировала любую карточку, которой касались её файлы (цикл #49). Ложная занятость
+    безопаснее ложной свободы, но она учит игнорировать вердикт — от чего шаг 0b и защищает."""
+
+    def test_done_announcement_does_not_hold_files(self, guard, sibling, tracker, log, ps_dead):
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("pid999", NOW - timedelta(minutes=20), card="agent-other",
+                                 card_state="done", files=["/repo/scripts/tool.py"],
+                                 summary="ЦИКЛ #48 ЗАВЕРШЁН И ДОСТАВЛЕН")])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling,
+                planned_files=["/repo/scripts/tool.py"])
+        assert r["overlaps"] == []
+        assert r["verdict"] == guard.FREE and guard.exit_code(r) == 0
+
+    def test_live_announcement_still_holds_files(self, guard, sibling, tracker, log, ps_dead):
+        """Положительный контроль: живое (не-`done`) объявление по-прежнему блокирует."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("pid999", NOW - timedelta(minutes=20), card="agent-other",
+                                 card_state="claim", files=["/repo/scripts/tool.py"])])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling,
+                planned_files=["/repo/scripts/tool.py"])
+        assert r["verdict"] == guard.CLAIMED and r["overlaps"]
+
+    def test_announcement_without_card_state_still_holds_files(self, guard, sibling, tracker,
+                                                               log, ps_dead):
+        """Положительный контроль: объявление без карточки вообще — не «done», держит файлы."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("pid999", NOW - timedelta(minutes=20),
+                                 files=["/repo/scripts/tool.py"])])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling,
+                planned_files=["/repo/scripts/tool.py"])
+        assert r["verdict"] == guard.CLAIMED and r["overlaps"]
+
+    def test_claim_then_done_releases_the_earlier_entry(self, guard, sibling, tracker, log,
+                                                        ps_dead):
+        """Файлы объявлены при взятии, а `done` пришёл отдельной записью — обе свежие."""
+        write_card(tracker, "agent-x")
+        write_log(log, [
+            announce("pid999", NOW - timedelta(hours=2), card="agent-other",
+                     files=["/repo/scripts/tool.py"]),
+            announce("pid999", NOW - timedelta(hours=1), card="agent-other",
+                     card_state="done", files=["/repo/scripts/tool.py"]),
+        ])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling,
+                planned_files=["/repo/scripts/tool.py"])
+        assert r["overlaps"] == [] and r["verdict"] == guard.FREE
+
+    def test_done_then_new_claim_still_holds_files(self, guard, sibling, tracker, log, ps_dead):
+        """Сессия закрыла одну карточку и взялась за следующую — более позднее взятие живое."""
+        write_card(tracker, "agent-x")
+        write_log(log, [
+            announce("pid999", NOW - timedelta(hours=2), card="agent-other",
+                     card_state="done", files=["/repo/scripts/tool.py"]),
+            announce("pid999", NOW - timedelta(minutes=30), card="agent-next",
+                     files=["/repo/scripts/tool.py"]),
+        ])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling,
+                planned_files=["/repo/scripts/tool.py"])
+        assert r["verdict"] == guard.CLAIMED
+        assert r["overlaps"][0]["ts"] == _fmt(NOW - timedelta(minutes=30))
+
+    def test_done_by_another_session_does_not_release_my_overlap(self, guard, sibling, tracker,
+                                                                 log, ps_dead):
+        """Контроль: `done` снимает файлы ТОЛЬКО объявившей сессии, а не всем сразу."""
+        write_card(tracker, "agent-x")
+        write_log(log, [
+            announce("pid999", NOW - timedelta(minutes=20), files=["/repo/scripts/tool.py"]),
+            announce("pid888", NOW - timedelta(minutes=10), card="agent-other",
+                     card_state="done", files=["/repo/scripts/tool.py"]),
+        ])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling,
+                planned_files=["/repo/scripts/tool.py"])
+        assert r["verdict"] == guard.CLAIMED
+        assert [o["session"] for o in r["overlaps"]] == ["pid999"]
+
+    def test_unparsable_release_ts_does_not_release(self, guard, sibling, tracker, log, ps_dead):
+        """fail-CLOSED: если время `done` не разобрано, снятие НЕ засчитывается."""
+        write_card(tracker, "agent-x")
+        broken = announce("pid999", NOW - timedelta(minutes=10), card="agent-other",
+                          card_state="done", files=["/repo/scripts/tool.py"])
+        broken["ts"] = "вчера"
+        write_log(log, [announce("pid999", NOW - timedelta(minutes=20),
+                                 files=["/repo/scripts/tool.py"]), broken])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling,
+                planned_files=["/repo/scripts/tool.py"])
+        assert r["verdict"] == guard.CLAIMED and r["overlaps"]
+
+    def test_history_names_the_files_and_the_release_time(self, guard, sibling, tracker, log,
+                                                          ps_dead):
+        """Снятое пересечение не исчезает молча — оно видно в «истории» с причиной."""
+        done_at = NOW - timedelta(minutes=20)
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("pid999", done_at, card="agent-other", card_state="done",
+                                 files=["/repo/scripts/tool.py"])])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling,
+                planned_files=["/repo/scripts/tool.py"])
+        hist = [h for h in r["history"] if h["source"] == "announce-log-files"]
+        assert len(hist) == 1
+        assert "/repo/scripts/tool.py" in hist[0]["detail"]
+        assert _fmt(done_at) in hist[0]["detail"]
+        assert "/repo/scripts/tool.py" in guard.render(r)
+
+    def test_is_release_reads_only_the_terminal_state(self, guard):
+        assert guard.is_release({"card_state": "done"})
+        assert guard.is_release({"card_state": " done "})
+        assert not guard.is_release({"card_state": "claim"})
+        assert not guard.is_release({})
+
+    def test_releases_by_session_keeps_the_latest(self, guard, sibling):
+        early, late = NOW - timedelta(hours=5), NOW - timedelta(hours=1)
+        rows = [announce("pid999", early, card="a", card_state="done"),
+                announce("pid999", late, card="b", card_state="done"),
+                announce("pid888", late, card="c")]
+        got = guard.releases_by_session(rows, sibling._parse_ts)
+        assert set(got) == {"pid999"} and got["pid999"] == late
+
+
+# ── воспроизведение ложной занятости цикла #49 ───────────────────────────────
+
+class TestCycle49FalseBusy:
+    def test_finished_cycle48_no_longer_blocks_the_next_card(self, guard, sibling, tracker, log):
+        """Дословно цикл #49: завершённое объявление #48 (`card_state: done`, файл
+        `scripts/log_session_change.py`) делало `agent-durable-session-id` «занятой»."""
+        write_card(tracker, "agent-durable-session-id")
+        done_ts = datetime(2026, 7, 30, 21, 27, 36, tzinfo=timezone.utc)
+        now = datetime(2026, 7, 30, 23, 50, 0, tzinfo=timezone.utc)
+        write_log(log, [announce(
+            "pid83584", done_ts, card="agent-card-claim-collision-guard", card_state="done",
+            summary="ЦИКЛ #48 ЗАВЕРШЁН И ДОСТАВЛЕН",
+            files=["/Users/y/SPA/scripts/log_session_change.py",
+                   "/Users/y/SPA/scripts/check_card_claim.py"])])
+        r = guard.gather("agent-durable-session-id", log=log, tracker_dir=tracker,
+                         sibling=sibling, self_session="cycle50", now=now,
+                         planned_files=["/Users/y/SPA/scripts/log_session_change.py"],
+                         ps=lambda pid: (1, ""))
+        assert r["overlaps"] == []
+        assert r["verdict"] == guard.FREE and guard.exit_code(r) == 0
+
+
 # ── взятие / освобождение карточки ───────────────────────────────────────────
 
 class TestClaimAndRelease:
