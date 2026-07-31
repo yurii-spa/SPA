@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **95** · ждёт владельца: **11** · занято сессиями: **0**.
+> Всего карточек: **96** · ждёт владельца: **11** · занято сессиями: **0**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -86,7 +86,7 @@
 - Задача разобраться почему нет свежих данных почему Pepper Тест не обновился хот…  ·  `inbox-zadacha-razobratsya-pochemu-net-svezhih.md` · 2026-07-23
 - Задача решить проблему 🚨 Пропущен ежедневный цикл  ·  `inbox-zadacha-reshit-problemu-propuschen-ezhed.md` · 2026-07-30
 
-## 🤖 Agent Tasks (что делает агент)  (36)
+## 🤖 Agent Tasks (что делает агент)  (37)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -94,9 +94,9 @@
 - Q&A бэклог (12 ответов) + видимость задач  ·  `agent-qa-backlog.md` · 2026-07-16
 - Q9: git-тег verifier-v1.2  ·  `agent-verifier-tag.md` · 2026-07-16
 ### · backlog
+- Сессия может захватить карточку, НЕ объявив владение — и её работа невидима для шага 0a  ·  `agent-claim-without-announce-is-invisible.md` · 2026-07-31
 - Идентификатор сессии в announce-логе не переживает саму команду — активность сессии измерить нечем  ·  `agent-durable-session-id.md` · 2026-07-30
 - Опубликованный вердикт идеи #21 разошёлся с сегодняшними данными — строка CORE-A поменяла знак вывода  ·  `agent-idea21-verdict-data-drift.md` · 2026-07-30
-- Потолок «неиспользуемых импортов» упёрся В САМЫЙ предел — следующий новый модуль красит CI  ·  `agent-unused-import-ceiling-at-its-limit.md` · 2026-07-31
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
 - Q2: аналитику в analytics_lab/  ·  `agent-analytics-lab.md` · 2026-07-16
@@ -126,5 +126,6 @@
 - Bootstrap: единая доска карточек + читать историю решений при старте  ·  `agent-task-bootstrap-edinaya-doska-kartochek-chitat.md` · 2026-07-16
 - Воскресный тюнер аллокации (MP-207) молча падает — str вместо Path  ·  `agent-tuner-str-path-sunday-dead.md` · 2026-07-29
 - Работа сессии, объявленная в session_changes, не доезжает до origin — нужна детерминированная проверка «объявил → доставил»  ·  `agent-undelivered-work-guard.md` · 2026-07-30
+- Потолок «неиспользуемых импортов» упёрся В САМЫЙ предел — следующий новый модуль красит CI  ·  `agent-unused-import-ceiling-at-its-limit.md` · 2026-07-31
 - Q11: разбор ветки yield-lab  ·  `agent-yield-lab-branch.md` · 2026-07-16
 
