@@ -134,13 +134,24 @@ python3 -m pytest spa_core/tests/ -v
 launchctl list | grep spa    ·    bash scripts/verify_fleet_after_reboot.sh
 # Переустановить агентов:
 bash scripts/install_all_agents.sh
-# Push (ABSOLUTE пути, PAT из Keychain GITHUB_PAT_SPA):
-python3 push_to_github.py --files /abs/path/file.py --message "vX.XX: desc"
+# Push (ABSOLUTE пути, PAT из Keychain GITHUB_PAT_SPA).
+# ПУШЕР БЕРЁТСЯ ИЗ ТОГО ЖЕ ДЕРЕВА, которое ты собрал и протестировал:
+python3 /abs/path/<твоё-дерево>/push_to_github.py --files /abs/path/file.py --message "vX.XX: desc"
 ```
 
 Python: `/Users/yuriikulieshov/miniconda3/bin/python3` (всегда). Секреты:
 `security find-generic-password -s GITHUB_PAT_SPA -w` (и `TELEGRAM_BOT_TOKEN_SPA` /
 `TELEGRAM_CHAT_ID_SPA`).
+
+**Почему путь к пушеру абсолютный и из СВОЕГО дерева.** Хост-копия репо дрейфует от `origin`
+по построению (пуши идут прямо в origin через API), и 31.07 она отставала на 574 строки —
+без `batch_push` вовсе: относительный вызов из корня хост-репо доставлял набор **N файлов =
+N коммитов** (цикл #53 — 8 коммитов вместо одного, промежуточный `main` мог быть красным).
+Теперь пушер сам сверяет свою копию инструмента доставки (`push_to_github*.py`,
+`scripts/push_to_github.py`, `safe_site_push.py`, `check_owner_gate.py`) с копией в дереве
+отправляемых файлов и при расхождении **ОТКАЗЫВАЕТ** (fail-CLOSED, код возврата 5;
+осознанный обход — `--allow-toolchain-mismatch`). Пуш сайта — по-прежнему только
+`scripts/safe_site_push.py` из своего дерева.
 
 ---
 

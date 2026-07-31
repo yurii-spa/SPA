@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **102** · ждёт владельца: **12** · занято сессиями: **0**.
+> Всего карточек: **103** · ждёт владельца: **12** · занято сессиями: **0**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -89,7 +89,7 @@
 - Задача разобраться почему нет свежих данных почему Pepper Тест не обновился хот…  ·  `inbox-zadacha-razobratsya-pochemu-net-svezhih.md` · 2026-07-23
 - Задача решить проблему 🚨 Пропущен ежедневный цикл  ·  `inbox-zadacha-reshit-problemu-propuschen-ezhed.md` · 2026-07-30
 
-## 🤖 Agent Tasks (что делает агент)  (41)
+## 🤖 Agent Tasks (что делает агент)  (42)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -98,8 +98,8 @@
 - Q9: git-тег verifier-v1.2  ·  `agent-verifier-tag.md` · 2026-07-16
 ### · backlog
 - Идентификатор сессии в announce-логе не переживает саму команду — активность сессии измерить нечем  ·  `agent-durable-session-id.md` · 2026-07-30
-- Копия пушера в хост-репо отстала на 574 строки — команда из CLAUDE.md доставляет по-старому  ·  `agent-host-pusher-copy-is-stale.md` · 2026-07-31
 - Опубликованный вердикт идеи #21 разошёлся с сегодняшними данными — строка CORE-A поменяла знак вывода  ·  `agent-idea21-verdict-data-drift.md` · 2026-07-30
+- CI на main красный с 06:23Z — сканер мёртвого кода не укладывается в 30-секундный бюджет на раннере (локально укладывается)  ·  `agent-task-ci-na-main-krasnyi-s-06-23z-skaner-mertv.md` · 2026-07-31
 - Верификация длиннее бюджета цикла ⇒ работа осиротевает по построению  ·  `agent-verification-outlives-cycle-budget.md` · 2026-07-31
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
@@ -117,6 +117,7 @@
 - ENV_SETUP v3 — контур владельца (все этапы)  ·  `agent-env-setup.md` · 2026-07-16
 - Q1: флот reboot-safe (7 агентов)  ·  `agent-fleet-reboot.md` · 2026-07-16
 - Проверка истории (дедуп перед карточкой)  ·  `agent-history-check.md` · 2026-07-16
+- Копия пушера в хост-репо отстала на 574 строки — команда из CLAUDE.md доставляет по-старому  ·  `agent-host-pusher-copy-is-stale.md` · 2026-07-31
 - Тест пути стоп-крана пытается написать владельцу в живой Telegram — страж цикла #55 краснит CI на main  ·  `agent-killswitch-test-messages-owner-chat.md` · 2026-07-31
 - Q6: уведомления о заявках  ·  `agent-lead-pings.md` · 2026-07-16
 - Утренний дайджест 9:00  ·  `agent-morning-digest.md` · 2026-07-16

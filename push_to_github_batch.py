@@ -99,6 +99,14 @@ DIVERGENCE_SAFE = _root_push.DIVERGENCE_SAFE
 DIVERGENCE_DIVERGED = _root_push.DIVERGENCE_DIVERGED
 DIVERGENCE_UNMEASURED = _root_push.DIVERGENCE_UNMEASURED
 
+# Сверка инструмента доставки (карточка `agent-host-pusher-copy-is-stale`) —
+# тоже ОДНА реализация: копия пушера в хост-репо отстала на 574 строки и без
+# сверки молча доставляла по-старому.
+enforce_delivery_toolchain = _root_push.enforce_delivery_toolchain
+toolchain_verdict = _root_push.toolchain_verdict
+ToolchainMismatch = _root_push.ToolchainMismatch
+TOOLCHAIN_FILES = _root_push.TOOLCHAIN_FILES
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -115,10 +123,15 @@ def main():
     parser.add_argument("--pat", help="GitHub PAT (переопределяет Keychain/env/файл)")
     parser.add_argument("--allow-overwrite", action="store_true",
                         help="ОСОЗНАННО стереть правку, появившуюся на remote после нашей базы")
+    parser.add_argument("--allow-toolchain-mismatch", action="store_true",
+                        help="ОСОЗНАННО пушить инструментом, который разошёлся с копией в дереве "
+                             "отправляемых файлов")
     args = parser.parse_args()
 
     allow_overwrite = bool(args.allow_overwrite) or \
         os.environ.get("SPA_PUSH_ALLOW_OVERWRITE") == "1"
+    allow_toolchain = bool(args.allow_toolchain_mismatch) or \
+        os.environ.get("SPA_PUSH_ALLOW_TOOLCHAIN_MISMATCH") == "1"
 
     all_files: list = []
     if args.files_pos:
@@ -132,6 +145,15 @@ def main():
         parser.error("Укажи файлы (positional) или --file / --files")
 
     message = args.message or f"chore: batch push {len(all_files)} file(s) in one commit"
+
+    # ── СВЕРКА ИНСТРУМЕНТА ДОСТАВКИ (карточка `agent-host-pusher-copy-is-stale`) ──
+    # Реализация — одна, в каноническом модуле; здесь только вызов. Про `__file__`:
+    # сверять надо дерево ЗАПУЩЕННОГО batch-CLI, а не канонического модуля,
+    # который он загрузил (они всегда рядом, но подмена в тестах не должна врать).
+    try:
+        enforce_delivery_toolchain(all_files, allow=allow_toolchain, runner_file=__file__)
+    except ToolchainMismatch:
+        sys.exit(5)
 
     # ── OWNER-GATE INTERLOCK (ADR-OWN-2026-07) — autonomous context ONLY ──────────
     # Same guard as push_to_github.py: in the autonomous orchestrator (SPA_AUTONOMOUS=1)

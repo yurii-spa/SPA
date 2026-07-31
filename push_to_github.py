@@ -146,6 +146,151 @@ def repo_relative_path(local: Path, project_root: Optional[Path] = None) -> str:
         )
 
 
+# ── СВЕРКА ИНСТРУМЕНТА ДОСТАВКИ (карточка `agent-host-pusher-copy-is-stale`) ──
+# Файлы этого репозитория, которые ВМЕСТЕ образуют доставку: пушер, batch-CLI,
+# шим и owner-gate сайта. Копии всех пяти лежат в КАЖДОМ рабочем дереве, а
+# протокол оркестратора ОБЯЗЫВАЕТ работать в изолированном worktree (§3.4) —
+# значит «какую копию я сейчас запустил» перестаёт быть риторическим вопросом.
+TOOLCHAIN_FILES = (
+    "push_to_github.py",
+    "push_to_github_batch.py",
+    "scripts/push_to_github.py",
+    "scripts/safe_site_push.py",
+    "scripts/check_owner_gate.py",
+)
+
+
+class ToolchainMismatch(RuntimeError):
+    """Запущенный инструмент доставки НЕ тот, что лежит в дереве отправляемых файлов.
+
+    Измерено 2026-07-31 (цикл #53 → #59): копия пушера в хост-репо отстала на
+    574 строки и не содержала `batch_push` вовсе, поэтому сессия, вызвавшая
+    пушер СТРОКОЙ ИЗ `CLAUDE.md` (`python3 push_to_github.py --files ...`),
+    получала до-#49 доставку — набор лёг на `main` ВОСЕМЬЮ коммитами вместо
+    одного, и промежуточные состояния `main` могли быть красными. Хост-дерево
+    дрейфует от `origin` ПО ПОСТРОЕНИЮ (пуши идут прямо в origin через API),
+    поэтому разовая синхронизация лечит симптом, а не причину.
+
+    Отказ — fail-CLOSED (инвариант #2): доставить не тем инструментом хуже, чем
+    не доставить и получить внятную причину.
+    """
+
+
+def _tree_top(path) -> Optional[Path]:
+    """Toplevel рабочего дерева, которому принадлежит путь (или None)."""
+    parent = Path(path).parent
+    if not parent.exists():
+        return None
+    top = _git_out(["rev-parse", "--show-toplevel"], parent)
+    return Path(top).resolve() if top else None
+
+
+def toolchain_verdict(runner_file, file_args: list) -> dict:
+    """Сверить инструмент доставки, который РАБОТАЕТ, с копией в дереве файлов.
+
+    Возвращает ``{"mismatch": [...], "unchecked": [...], "runner_top": Path|None,
+    "trees": [Path, ...]}``. Ничего не печатает и не пушит — решение принимает
+    вызывающий (:func:`enforce_delivery_toolchain`).
+
+    Устройство измерения:
+
+    * файлы из ТОГО ЖЕ дерева, что и запущенный пушер, сверять не с чем —
+      расхождение невозможно по построению (``trees`` тогда пуст);
+    * для каждого ЧУЖОГО дерева сверяются побайтово все файлы
+      :data:`TOOLCHAIN_FILES`, существующие в ОБОИХ деревьях;
+    * файл есть только с одной стороны / дерево не определяется / файл нечитаем
+      → это **не измерено**, а не «совпало»: попадает в ``unchecked``
+      вербатим-причиной. Молчаливого «всё в порядке» о непроверенном здесь нет
+      (класс дефектов #29/#31/#35–#38/#40), но и отказа тоже — отказ только по
+      ИЗМЕРЕННОМУ расхождению.
+    """
+    out: dict = {"mismatch": [], "unchecked": [], "runner_top": None, "trees": []}
+    runner_top = _tree_top(runner_file)
+    if runner_top is None:
+        out["unchecked"].append(
+            f"рабочее дерево запущенного пушера не определяется ({runner_file}) — "
+            f"git недоступен или это не рабочая копия")
+        return out
+    out["runner_top"] = runner_top
+
+    tops: list = []
+    for f in file_args:
+        top = _tree_top(f)
+        if top is None:
+            out["unchecked"].append(f"дерево файла не определяется: {f}")
+            continue
+        if top != runner_top and top not in tops:
+            tops.append(top)
+    out["trees"] = tops
+
+    for top in tops:
+        for rel in TOOLCHAIN_FILES:
+            mine, theirs = runner_top / rel, top / rel
+            if not mine.exists() or not theirs.exists():
+                missing = mine if not mine.exists() else theirs
+                out["unchecked"].append(f"{rel}: нечего сравнивать — нет {missing}")
+                continue
+            try:
+                a, b = mine.read_bytes(), theirs.read_bytes()
+            except OSError as e:
+                out["unchecked"].append(f"{rel}: нечитаем ({e})")
+                continue
+            if a != b:
+                out["mismatch"].append({
+                    "rel": rel,
+                    "runner": str(mine), "runner_sha": git_blob_sha(a),
+                    "runner_lines": a.count(b"\n"),
+                    "tree": str(theirs), "tree_sha": git_blob_sha(b),
+                    "tree_lines": b.count(b"\n"),
+                })
+    return out
+
+
+def enforce_delivery_toolchain(file_args: list, allow: bool = False,
+                               runner_file: Optional[str] = None) -> dict:
+    """Отказать, если запущенный инструмент доставки разошёлся с деревом файлов.
+
+    Печатает в stderr и бросает :class:`ToolchainMismatch` при ИЗМЕРЕННОМ
+    расхождении; «не измерено» печатается честной строкой и пуш продолжается
+    (см. :func:`toolchain_verdict`). ``allow=True`` — осознанное продолжение.
+    """
+    verdict = toolchain_verdict(runner_file or __file__, file_args)
+    if verdict["unchecked"] and verdict["trees"]:
+        print("сверка инструмента доставки: НЕ ИЗМЕРЕНО "
+              f"({len(verdict['unchecked'])}): " + "; ".join(verdict["unchecked"][:3]),
+              file=sys.stderr)
+    if not verdict["mismatch"]:
+        return verdict
+
+    lines = [
+        "",
+        "ОТКАЗ (сверка инструмента доставки): работает копия из "
+        f"{verdict['runner_top']}, а файлы едут из "
+        + ", ".join(str(t) for t in verdict["trees"]) + " — и инструмент там ДРУГОЙ:",
+    ]
+    for m in verdict["mismatch"]:
+        lines.append(
+            f"  · {m['rel']}: {m['runner']} ({m['runner_lines']} строк, "
+            f"{m['runner_sha'][:8]}) ≠ {m['tree']} ({m['tree_lines']} строк, "
+            f"{m['tree_sha'][:8]})")
+    tree = verdict["trees"][0]
+    lines += [
+        "Зови инструмент ИЗ ТОГО ЖЕ дерева, которое ты собрал и протестировал:",
+        f'  python3 {tree}/push_to_github.py --files <абс. пути> --message "..."',
+        "Так цикл #53 доставил набор ВОСЕМЬЮ коммитами вместо одного: копия в "
+        "хост-репо отстала на 574 строки и не знала batch-пути (карточка "
+        "`agent-host-pusher-copy-is-stale`).",
+        "Осознанно продолжить: --allow-toolchain-mismatch (или "
+        "SPA_PUSH_ALLOW_TOOLCHAIN_MISMATCH=1).",
+    ]
+    msg = "\n".join(lines)
+    if allow:
+        print(msg + "\n(продолжаю: расхождение разрешено явно)", file=sys.stderr)
+        return verdict
+    print(msg, file=sys.stderr)
+    raise ToolchainMismatch(msg)
+
+
 def get_pat() -> str:
     """Читает PAT (никогда из hardcode).
 
@@ -828,10 +973,15 @@ def main():
     parser.add_argument("--allow-overwrite", action="store_true",
                         help="ОСОЗНАННО стереть правку, появившуюся на remote после нашей базы "
                              "(по умолчанию такой пуш отклоняется)")
+    parser.add_argument("--allow-toolchain-mismatch", action="store_true",
+                        help="ОСОЗНАННО пушить инструментом, который разошёлся с копией в дереве "
+                             "отправляемых файлов (по умолчанию такой пуш отклоняется)")
     args = parser.parse_args()
 
     allow_overwrite = bool(args.allow_overwrite) or \
         os.environ.get("SPA_PUSH_ALLOW_OVERWRITE") == "1"
+    allow_toolchain = bool(args.allow_toolchain_mismatch) or \
+        os.environ.get("SPA_PUSH_ALLOW_TOOLCHAIN_MISMATCH") == "1"
 
     # Собираем все файлы из всех источников
     all_files: list = []
@@ -847,6 +997,16 @@ def main():
 
     # Авто-сообщение если не указано
     message = args.message or f"chore: push {len(all_files)} file(s) via push_to_github.py"
+
+    # ── СВЕРКА ИНСТРУМЕНТА ДОСТАВКИ — ДО owner-gate и до сети ────────────────
+    # Стоит первой намеренно: owner-gate ниже зовёт `check_owner_gate.py`,
+    # лежащий РЯДОМ с запущенным пушером, поэтому устаревший инструмент — это
+    # ещё и устаревший гейт. Проверка идёт и в `--dry-run`: превью обязано
+    # показывать тот же отказ, что и настоящий пуш.
+    try:
+        enforce_delivery_toolchain(all_files, allow=allow_toolchain)
+    except ToolchainMismatch:
+        sys.exit(5)
 
     # ── OWNER-GATE INTERLOCK (ADR-OWN-2026-07) — autonomous context ONLY ──────────
     # In the autonomous orchestrator (SPA_AUTONOMOUS=1) any push touching landing/ MUST
