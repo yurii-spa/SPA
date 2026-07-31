@@ -21,17 +21,53 @@ two sessions took `agent-ci-ignores-golive-gate-tests` an hour apart and did the
 (card `agent-card-claim-collision-guard`). ``scripts/check_card_claim.py`` reads the field
 deterministically; ``--card-state done`` releases the claim. Both fields are optional — entries
 written without them keep parsing exactly as before.
+
+**The log always lives in the MAIN working tree** (see ``_shared_log``): announcing from an
+isolated worktree — which the protocol REQUIRES (§3.4) — used to write into that worktree's own
+gitignored ``data/``, so the announcement died with the tree and every reader was blind to it.
 """
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-_LOG = Path(__file__).resolve().parents[1] / "data" / "session_changes.jsonl"
+_HERE_LOG = Path(__file__).resolve().parents[1] / "data" / "session_changes.jsonl"
+_RESOLVER = Path(__file__).resolve().parent / "check_undelivered_work.py"
+
+
+def _shared_log(default: Path) -> Path:
+    """The announce log in the MAIN working tree — never in a disposable worktree.
+
+    The protocol REQUIRES autonomous cycles to work in an isolated git worktree (§3.4) and
+    ``data/`` is gitignored, so a worktree has no ``data/session_changes.jsonl``: announcing
+    from there creates a private one that dies with the tree. Measured 2026-07-31 on orphaned
+    cycle #52 — it *did* announce ownership, into
+    ``/private/tmp/spa_wt_c52/data/session_changes.jsonl``; the host log never saw it, so both
+    step 0a and step 0b were blind to a whole cycle's work (card
+    ``agent-claim-without-announce-is-invisible``).
+
+    Resolution lives in ``check_undelivered_work.main_worktree`` — one answer to "where is the
+    shared state", not two. Unresolvable (no git, not a repo, tests) → the old path, which is
+    correct in the host repo and merely empty elsewhere: readers then say "NOT MEASURED"
+    rather than "nothing to report" (fail-CLOSED)."""
+    try:
+        spec = importlib.util.spec_from_file_location("_lsc_resolver", _RESOLVER)
+        if spec is None or spec.loader is None:
+            return default
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        path, _ = mod.shared_log()
+        return Path(path)
+    except (OSError, ImportError, SyntaxError, AttributeError, ValueError, TypeError):
+        return default
+
+
+_LOG = _shared_log(_HERE_LOG)
 
 
 def _session_id() -> str:
@@ -43,10 +79,17 @@ CARD_STATES = ("claim", "done")
 
 
 def record(summary: str, files: list, verified: str,
-           card: str = "", card_state: str = "") -> dict:
+           card: str = "", card_state: str = "", log=None, session: str = "") -> dict:
+    """Append ONE announce entry. ``log`` overrides the shared journal (tests, explicit --log);
+    ``session`` overrides the writer's own id (a caller announcing on behalf of a session whose
+    id it was given — otherwise the entry would carry this process's pid instead).
+
+    Kept as the single writer of this schema: ``check_card_claim.claim`` announces through it
+    so a claim can never exist without an announcement (card
+    ``agent-claim-without-announce-is-invisible``)."""
     entry = {
         "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "session": _session_id(),
+        "session": str(session).strip() or _session_id(),
         "summary": summary.strip(),
         "files": [str(f) for f in files],
         "verified": (verified or "").strip(),
@@ -56,9 +99,10 @@ def record(summary: str, files: list, verified: str,
         entry["card"] = str(card).strip()
         entry["card_state"] = (card_state or "claim").strip()
     line = json.dumps(entry, ensure_ascii=False) + "\n"
-    _LOG.parent.mkdir(parents=True, exist_ok=True)
+    target = Path(log) if log else _LOG
+    target.parent.mkdir(parents=True, exist_ok=True)
     # O_APPEND: atomic for a single sub-PIPE_BUF write → safe under concurrent sessions.
-    with open(_LOG, "a", encoding="utf-8") as fh:
+    with open(target, "a", encoding="utf-8") as fh:
         fh.write(line)
     return entry
 

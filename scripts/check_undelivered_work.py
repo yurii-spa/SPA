@@ -48,6 +48,10 @@
   ложную тишину — направление ошибки выбрано намеренно.
 Никакой авто-доставки чужой работы здесь нет и не будет.
 
+**Журнал берётся из ГЛАВНОГО рабочего дерева** (`main_worktree` / `shared_log`, цикл #54): `data/`
+в `.gitignore`, поэтому запущенная из обязательного по §3.4 worktree проверка читала СВОЙ пустой
+журнал и отвечала «НЕ ИЗМЕРЕНО» о любой сессии. Явный `--log`/`--root` по-прежнему главнее.
+
     python3 scripts/check_undelivered_work.py                 # последние 20 записей
     python3 scripts/check_undelivered_work.py --all --json
     python3 scripts/check_undelivered_work.py --base 299b3c871 --all   # исторический разбор
@@ -196,6 +200,46 @@ def _git_common_dir(cwd, git=_git):
         return None
     p = Path(out.strip())
     return (p if p.is_absolute() else Path(cwd) / p).resolve()
+
+
+def main_worktree(start=ROOT, git=_git):
+    """(корень ГЛАВНОГО рабочего дерева, None) либо (None, причина).
+
+    **Зачем.** Протокол ОБЯЗЫВАЕТ автономный цикл работать в изолированном worktree (§3.4), а
+    `data/` лежит в `.gitignore` ⇒ внутри worktree общего состояния сессий НЕТ: журнал
+    объявлений там либо отсутствует, либо это свежесозданный пустой файл. Значит и запись, и
+    чтение «кто чем занят» из worktree попадают в одноразовое дерево и исчезают вместе с ним.
+    Измерено 31.07 на осиротевшем цикле #52: сессия объявила владение ПО ПРОТОКОЛУ, но запись
+    легла в `/private/tmp/spa_wt_c52/data/session_changes.jsonl`, а хост-журнал её не видел
+    (карточка `agent-claim-without-announce-is-invisible` диагностировала это как «сессия не
+    объявила» — объявление БЫЛО, невидимым его сделал путь).
+
+    `git worktree list --porcelain` перечисляет главное дерево ПЕРВЫМ (документированный
+    порядок), линкованные worktree — после него. Главное дерево и есть общий корень.
+    """
+    rc, out, err = git(start, "worktree", "list", "--porcelain")
+    if rc != 0:
+        return None, (f"`git worktree list` завершился rc={rc}: {err.strip()[:200]!r} — "
+                      f"главное рабочее дерево не определено")
+    for line in out.splitlines():
+        if line.startswith("worktree "):
+            p = Path(line.split(" ", 1)[1].strip())
+            if not p.is_dir():
+                return None, f"главного рабочего дерева нет на диске: {p}"
+            return p.resolve(), None
+    return None, "`git worktree list` не назвал ни одного рабочего дерева"
+
+
+def shared_log(start=ROOT, git=_git):
+    """(путь к ОБЩЕМУ журналу объявлений, причина-если-не-разрешилось).
+
+    Не разрешилось → путь относительно этого файла, как было раньше: в хост-репо он верный, а
+    в worktree даёт пустой журнал, и оба шага честно скажут «НЕ ИЗМЕРЕНО» (fail-CLOSED). То
+    есть неудача резолва никогда не превращается в «всё доставлено» / «карточка свободна»."""
+    root, err = main_worktree(start, git)
+    if root is None:
+        return DEFAULT_LOG, err
+    return root / "data" / "session_changes.jsonl", None
 
 
 def resolve_rel(path_str, root, git=_git):
@@ -497,8 +541,11 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
         description="Read-only проверка: объявленная в session_changes.jsonl работа "
                     "мёртвых сессий — доехала ли она до origin. Сети не касается.")
-    ap.add_argument("--log", default=str(DEFAULT_LOG), help="журнал объявлений (JSONL)")
-    ap.add_argument("--root", default=str(ROOT), help="корень репозитория для сверки")
+    # Умолчания разрешаются в ГЛАВНОЕ рабочее дерево, а не в дерево этого файла: запущенный
+    # из worktree (а протокол §3.4 обязывает работать именно там) шаг 0a иначе читает пустой
+    # журнал и отвечает «НЕ ИЗМЕРЕНО» о ЛЮБОЙ сессии. Явный флаг по-прежнему главнее.
+    ap.add_argument("--log", default=None, help="журнал объявлений (JSONL)")
+    ap.add_argument("--root", default=None, help="корень репозитория для сверки")
     ap.add_argument("--base", default=DEFAULT_BASE, help=f"базовый ref (по умолчанию {DEFAULT_BASE})")
     ap.add_argument("--last", type=int, default=DEFAULT_LAST, help="сколько последних записей")
     ap.add_argument("--all", action="store_true", help="проверить весь журнал")
@@ -508,21 +555,26 @@ def main(argv=None) -> int:
     ap.add_argument("--json", action="store_true", help="машинный вывод")
     args = ap.parse_args(argv)
 
-    log_path = Path(args.log)
+    shared_root, root_error = main_worktree()
+    log_path = Path(args.log) if args.log else shared_log()[0]
+    root = args.root or (str(shared_root) if shared_root else str(ROOT))
+
     if not log_path.exists():
         payload = {"base_ref": args.base, "base_sha": None, "log": str(log_path),
                    "grace_hours": args.grace_hours, "entries_checked": 0,
                    "sessions_active": 0, "sessions_checked": 0, "findings": [], "fresh": [],
                    "stale_copies": [],
                    "unmeasured": [{"session": None, "path": str(log_path),
-                                   "reason": "журнала объявлений нет — сверка НЕ ВЫПОЛНЕНА"}],
+                                   "reason": "журнала объявлений нет — сверка НЕ ВЫПОЛНЕНА"
+                                             + (f"; главное рабочее дерево не определено: "
+                                                f"{root_error}" if root_error else "")}],
                    "exit_code": 2}
         print(json.dumps(payload, ensure_ascii=False, indent=2) if args.json else render(payload))
         return 2
 
     entries, malformed = read_entries(log_path, None if args.all else args.last)
     self_session = os.environ.get("SPA_SESSION_ID") or f"pid{os.getpid()}"
-    report = build_report(entries=entries, root=args.root, base_ref=args.base,
+    report = build_report(entries=entries, root=root, base_ref=args.base,
                           self_session=self_session, ps=_ps_lstart, git=_git,
                           malformed_lines=malformed, log_path=log_path,
                           grace_hours=args.grace_hours)

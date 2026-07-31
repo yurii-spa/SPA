@@ -47,6 +47,15 @@
 - направление ошибки выбрано намеренно: ложная занятость стоит одной карточки (взять следующую),
   ложная свобода стоит цикла работы и рискует потерей чужой правки.
 
+**Общее состояние — в ГЛАВНОМ рабочем дереве, не в worktree (31.07, карточка
+`agent-claim-without-announce-is-invisible`).** Протокол ОБЯЗЫВАЕТ работать в изолированном
+worktree (§3.4), а `data/` в `.gitignore` ⇒ журнал объявлений внутри worktree свой и пустой:
+запущенный оттуда шаг 0b отвечал «НЕ ИЗМЕРЕНО» о ЛЮБОЙ карточке. Поэтому умолчание `--log`
+разрешается в главное дерево (`check_undelivered_work.shared_log`). А сам захват теперь ВСЕГДА
+сопровождается записью в этом журнале (`announce_claim`): `claimed_by` во frontmatter лежит в
+дереве сессии и до пуша не виден никому, запись же видна отовсюду сразу — «взял, но не
+объявил» перестало быть возможным состоянием.
+
     python3 scripts/check_card_claim.py check agent-card-claim-collision-guard
     python3 scripts/check_card_claim.py check <карточка> --files /abs/a.py /abs/b.py --json
     python3 scripts/check_card_claim.py check <карточка> --session pid72474   # моё объявление
@@ -60,6 +69,7 @@ import argparse
 import importlib.util
 import json
 import os
+import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -68,6 +78,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LOG = ROOT / "data" / "session_changes.jsonl"
 DEFAULT_TRACKER = ROOT / "nimbalyst-local" / "tracker"
 SIBLING = ROOT / "scripts" / "check_undelivered_work.py"
+ANNOUNCER = ROOT / "scripts" / "log_session_change.py"
 
 DEFAULT_GRACE_HOURS = 3.0          # то же окно, что у шага 0a — одна семантика «свежести»
 LOCK_STALE_SEC = 300               # старше — считаем брошенным, но НЕ удаляем молча
@@ -87,6 +98,10 @@ class ClaimError(RuntimeError):
     """Захват не выполнен (карточку держит другой / идёт чужая запись). Fail-CLOSED."""
 
 
+class AnnounceError(ClaimError):
+    """Захват не объявлен в общем журнале ⇒ карточка НЕ взята (см. `announce_claim`)."""
+
+
 # ── общий код со шагом 0a (единственный источник правды про активность сессии) ──
 
 def load_sibling(path=SIBLING):
@@ -102,9 +117,28 @@ def load_sibling(path=SIBLING):
         raise ImportError(f"не удалось загрузить {p}")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    for attr in ("session_state", "read_entries", "_parse_ts", "ACTIVE", "UNKNOWN"):
+    for attr in ("session_state", "read_entries", "_parse_ts", "ACTIVE", "UNKNOWN",
+                 "shared_log"):
         if not hasattr(mod, attr):
             raise ImportError(f"{p}: нет ожидаемого символа {attr!r}")
+    return mod
+
+
+def load_announcer(path=ANNOUNCER):
+    """Модуль `log_session_change` — ЕДИНСТВЕННЫЙ писатель журнала объявлений.
+
+    Схему записи не копируем: два расходящихся формата одного журнала читались бы вразнобой.
+    Не загрузился — захват не выполняется (см. `announce_claim`), а не выполняется молча."""
+    p = Path(path)
+    if not p.exists():
+        raise ImportError(f"нет модуля объявлений: {p}")
+    spec = importlib.util.spec_from_file_location("_card_claim_announcer", p)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"не удалось загрузить {p}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    if not hasattr(mod, "record"):
+        raise ImportError(f"{p}: нет ожидаемого символа 'record'")
     return mod
 
 
@@ -561,9 +595,60 @@ def _release_lock(fd, lock: Path) -> None:
         pass
 
 
+def announce_claim(cid, path, session, state, log, announcer=None, summary=""):
+    """Записать захват/освобождение в ОБЩИЙ журнал объявлений. Не смог — бросить.
+
+    **Зачем.** Захват (`claimed_by` во frontmatter) живёт в файле карточки, а файл карточки —
+    в рабочем дереве сессии. Пока сессия не запушила, с origin и из хост-репо карточка выглядит
+    СВОБОДНОЙ, и следующий цикл честно проходит шаг 0b, получает `free` и делает ту же работу
+    второй раз (ровно столкновение #46, только с другого входа). Журнал же живёт в главном
+    дереве (`log_session_change._shared_log`) — запись в нём видна отовсюду немедленно, без
+    пуша, и её читает `entry_hit` как СИЛЬНЫЙ признак (поле `card:`).
+
+    **Почему это делается ДО правки карточки.** Если упасть между двумя записями, безопасное
+    направление — «в журнале захват есть, во frontmatter нет»: следующая сессия увидит
+    занятость и возьмёт другую карточку. Обратный порядок дал бы захват, о котором не знает
+    никто, — то самое состояние, которое эта функция и закрывает."""
+    announcer = announcer or load_announcer()
+    announcer.record(
+        summary=summary or (f"[check_card_claim] захват карточки {cid}" if state == "claim"
+                            else f"[check_card_claim] захват карточки {cid} снят"),
+        files=[str(path)], verified="", card=cid, card_state=state, log=log,
+        session=session)
+
+
+def _unannounce_claim(cid, path, session, log, announcer=None):
+    """Снять УЖЕ объявленный захват, если сама карточка взята не была.
+
+    **Зачем.** Объявление идёт ДО правки карточки (см. `announce_claim`) — это защита от смерти
+    посередине. Но если правка потом отказала (карточку успела взять другая сессия), в общем
+    журнале остаётся запись «cycle NNN держит карточку» о карточке, которой сессия НЕ владеет:
+    следующий цикл пропустит СВОБОДНУЮ карточку по ложной занятости. Направление ошибки
+    безопасное (ложная занятость дешевле ложной свободы), но это ровно тот класс, который
+    проект и вычищает, — утверждение о состоянии, которого нет. Компенсируем `card_state: done`
+    (в схеме журнала — «захват снят»).
+
+    Не смогли компенсировать — молчать нельзя, но и отказ по этой причине не усиливаем: вызов
+    и так завершается отказом, а ложная занятость сама истечёт по окну свежести. Причина
+    дописывается в предупреждение на stderr, чтобы её было видно в логе цикла."""
+    try:
+        announce_claim(cid, path, session, "done", log, announcer,
+                       summary=f"[check_card_claim] захват карточки {cid} НЕ состоялся "
+                               f"(карточку держит другая сессия) — объявленный захват снят")
+    except (ImportError, OSError, SyntaxError, AttributeError, TypeError, ValueError) as exc:
+        print(f"⚠️  захват {cid} объявлен, но отказ не компенсирован в журнале ({log}): "
+              f"{exc.__class__.__name__}: {exc}. До конца окна свежести карточка будет "
+              f"читаться занятой сессией {session}.", file=sys.stderr)
+
+
 def claim_card(card, *, session=None, tracker_dir=DEFAULT_TRACKER, now=None,
-               grace_hours=DEFAULT_GRACE_HOURS, sibling=None, log=DEFAULT_LOG, ps=None):
-    """Взять карточку. Отказ, если её держит другая сессия или занятость не измерена."""
+               grace_hours=DEFAULT_GRACE_HOURS, sibling=None, log=DEFAULT_LOG, ps=None,
+               announcer=None):
+    """Взять карточку. Отказ, если её держит другая сессия или занятость не измерена.
+
+    Захват всегда сопровождается записью в общем журнале объявлений: «взял, но не объявил» —
+    состояние, из-за которого работа цикла #52 была невидима, — здесь невозможно по
+    построению. Не удалось объявить ⇒ карточка НЕ берётся (fail-CLOSED, инв. #2)."""
     sibling = sibling or load_sibling()
     session = session or self_session_id()
     now = now or datetime.now(timezone.utc)
@@ -577,13 +662,29 @@ def claim_card(card, *, session=None, tracker_dir=DEFAULT_TRACKER, now=None,
         raise ClaimError(f"вердикт `{report['verdict']}` — карточка не взята.\n"
                          + render(report))
 
+    try:
+        announce_claim(card_id(path), path, session, "claim", log, announcer)
+    except (ImportError, OSError, SyntaxError, AttributeError, TypeError, ValueError) as exc:
+        raise AnnounceError(
+            f"захват НЕ объявлен в журнале ({log}): {exc.__class__.__name__}: {exc}. "
+            f"Карточка не взята — необъявленный захват невидим для следующего цикла "
+            f"(это и есть дефект, который правило закрывает).") from exc
+
     fd, lock = _acquire_lock(path)
     try:
         text = path.read_text(encoding="utf-8")
         meta = frontmatter(text)
         holder = str(meta.get("claimed_by") or "").strip()
+        # Правило «держит ли кто-то карточку» здесь ДОЛЖНО совпадать с вердиктом `gather`:
+        # на карточке в терминальном статусе захват не действует (это уже действующее правило,
+        # цикл #50 — `TERMINAL_STATUSES`). Иначе одна функция противоречит сама себе: вердикт
+        # говорит «СВОБОДНА», а запись отказывает «успела взять» — измерено 31.07 на этой самой
+        # карточке (status `done`, `claimed_by` умершей pid94637).
+        if str(meta.get("status") or "").strip() in TERMINAL_STATUSES:
+            holder = ""
         if holder and holder != session:
             # Гонка: захват появился между проверкой и правкой.
+            _unannounce_claim(card_id(path), path, session, log, announcer)
             raise ClaimError(f"карточку успела взять сессия {holder} — не перезаписываю")
         new = _set_claim_fields(text, {"claimed_by": session, "claimed_at": _fmt_ts(now)})
         _atomic_write(path, new)
@@ -593,8 +694,15 @@ def claim_card(card, *, session=None, tracker_dir=DEFAULT_TRACKER, now=None,
             "claimed_at": _fmt_ts(now)}
 
 
-def release_card(card, *, session=None, tracker_dir=DEFAULT_TRACKER, force=False):
-    """Отпустить карточку. Чужой захват без `--force` не снимается."""
+def release_card(card, *, session=None, tracker_dir=DEFAULT_TRACKER, force=False,
+                 log=DEFAULT_LOG, announcer=None):
+    """Отпустить карточку. Чужой захват без `--force` не снимается.
+
+    Освобождение тоже объявляется (`card_state: done` — в схеме журнала это и означает
+    «захват снят», см. докстринг `log_session_change`): иначе снятый захват остался бы в
+    журнале живым до конца окна свежести и карточка выглядела бы занятой после release.
+    Порядок здесь обратный захвату — сначала карточка, потом журнал: направление ошибки при
+    падении посередине то же самое (карточка выглядит занятой, а не свободной)."""
     session = session or self_session_id()
     path = card_path(card, tracker_dir)
     if not path.exists():
@@ -613,6 +721,16 @@ def release_card(card, *, session=None, tracker_dir=DEFAULT_TRACKER, force=False
         _atomic_write(path, _set_claim_fields(text, None))
     finally:
         _release_lock(fd, lock)
+    try:
+        announce_claim(card_id(path), path, holder, "done", log, announcer)
+    except (ImportError, OSError, SyntaxError, AttributeError, TypeError, ValueError) as exc:
+        # Карточка уже отпущена; не объявленным осталось только снятие ⇒ в журнале захват
+        # доживёт окно свежести и карточка будет выглядеть ЗАНЯТОЙ. Направление безопасное,
+        # но молчать об этом нельзя — иначе следующая сессия не поймёт, почему `claimed`.
+        raise AnnounceError(
+            f"карточка {card_id(path)} ОТПУЩЕНА, но снятие захвата не объявлено в журнале "
+            f"({log}): {exc.__class__.__name__}: {exc}. До конца окна свежести она будет "
+            f"читаться занятой — объяви `--card-state done` вручную.") from exc
     return {"card": card_id(path), "path": str(path), "released": True, "was": holder}
 
 
@@ -642,7 +760,10 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
         description="Шаг 0b: занята ли карточка другой сессией (детерминированно, read-only).")
     ap.add_argument("--tracker-dir", default=str(DEFAULT_TRACKER))
-    ap.add_argument("--log", default=str(DEFAULT_LOG), help="журнал объявлений (JSONL)")
+    # Умолчание разрешается в ГЛАВНОЕ рабочее дерево (`shared_log`), а не в дерево этого файла:
+    # запущенный из worktree — а протокол §3.4 обязывает работать именно там — шаг 0b иначе
+    # читает свой пустой журнал и отвечает «НЕ ИЗМЕРЕНО» о ЛЮБОЙ карточке. Явный флаг главнее.
+    ap.add_argument("--log", default=None, help="журнал объявлений (JSONL)")
     ap.add_argument("--json", action="store_true", help="машинный вывод")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
@@ -694,8 +815,10 @@ def main(argv=None) -> int:
               else f"❓ НЕ ИЗМЕРЕНО — не загрузился {SIBLING}: {exc}")
         return 2
 
+    log = Path(args.log) if args.log else sibling.shared_log()[0]
+
     if args.cmd == "check":
-        report = gather(args.card, log=args.log, tracker_dir=args.tracker_dir,
+        report = gather(args.card, log=log, tracker_dir=args.tracker_dir,
                         sibling=sibling, self_session=args.session,
                         grace_hours=args.grace_hours,
                         planned_files=args.files, last=args.last)
@@ -705,12 +828,12 @@ def main(argv=None) -> int:
     try:
         if args.cmd == "claim":
             res = claim_card(args.card, session=args.session, tracker_dir=args.tracker_dir,
-                             grace_hours=args.grace_hours, sibling=sibling, log=args.log)
+                             grace_hours=args.grace_hours, sibling=sibling, log=log)
             print(json.dumps(res, ensure_ascii=False) if args.json
                   else f"взята: {res['card']} → {res['claimed_by']} ({res['claimed_at']})")
         else:
             res = release_card(args.card, session=args.session,
-                               tracker_dir=args.tracker_dir, force=args.force)
+                               tracker_dir=args.tracker_dir, force=args.force, log=log)
             print(json.dumps(res, ensure_ascii=False) if args.json
                   else (f"отпущена: {res['card']}" if res.get("released")
                         else f"{res['card']}: {res['detail']}"))
