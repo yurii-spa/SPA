@@ -43,7 +43,7 @@ worktree. Радиус после этой правки стал бы ШИРЕ (
 90 359 ⇒ дельта **ровно +33**); срез CI
 `tests/` **12 749 passed / 1 failed** (`test_evidence_seeded` — предсуществующее, воспроизведено на
 чистом origin: 1 failed / 13 passed); mypy на обоих пушерах 4 ошибки → **1** (предсуществующая);
-`lint_llm_forbidden` 163/0. **НЕ делал:** RiskPolicy / kill-switch / пороги / risk-логику, живой
+`lint_llm_forbidden` 163/0. **Подтверждено РЕАЛЬНЫМ Actions на самом `main`** (коммит `989122e02`): `SPA Tests` — `test (3.11)`, `test (3.12)`, `lint` все **success**; `SPA CI` — **success**; `SPA Proof Gate` — **success**; `SPA Lint — LLM forbidden` — **success**. **Промежуточных состояний не было вовсе:** все 9 файлов цикла приземлились ОДНИМ коммитом (раньше это были бы 9 коммитов и до 8 несогласованных состояний дерева). **НЕ делал:** RiskPolicy / kill-switch / пороги / risk-логику, живой
 трек `data/equity_curve_daily.json`, launchd/деплой — не трогал; `data/**` (47 файлов, изменённых
 прогонами тестов В WORKTREE), `spa.db` и `tests/fixtures/*` не публиковал; `landing/**` в цикле не
 было ⇒ `safe_site_push.py` не требовался. **Сигнал → карточка
