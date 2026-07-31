@@ -25,6 +25,18 @@ written without them keep parsing exactly as before.
 **The log always lives in the MAIN working tree** (see ``_shared_log``): announcing from an
 isolated worktree — which the protocol REQUIRES (§3.4) — used to write into that worktree's own
 gitignored ``data/``, so the announcement died with the tree and every reader was blind to it.
+
+**A session's activity is measurable only if the session says which process to look at**
+(``durable_process``, card ``agent-durable-session-id``). The ``session`` id defaults to the pid of
+this ONE-SHOT CLI process, which is dead the moment the command returns, so ``ps -p`` answered
+"no such process" for every entry ever written — including one made a second ago by the session
+asking. Steps 0a/0b therefore fell back to the announcement's AGE, and ids that carry no pid at
+all (``cycle49``, ``cycle61`` …) were "NOT MEASURED" **for ever**, which on 2026-07-31 locked two
+backlog cards out of the queue for 19h+ (card ``agent-weak-mention-locks-card-forever``).
+A session that owns a long-lived process — ``scripts/agent_orchestrator.sh`` is one: that shell
+waits for the whole cycle — exports ``SPA_SESSION_PID`` (and usually ``SPA_SESSION_ID``), and
+every entry then carries ``session_pid`` + ``session_pid_start``, i.e. a process that can actually
+be measured. Both keys are only ever ADDED; entries written without them parse exactly as before.
 """
 from __future__ import annotations
 
@@ -38,6 +50,30 @@ from pathlib import Path
 
 _HERE_LOG = Path(__file__).resolve().parents[1] / "data" / "session_changes.jsonl"
 _RESOLVER = Path(__file__).resolve().parent / "check_undelivered_work.py"
+_UNSET = object()
+_RESOLVER_MOD = _UNSET
+
+
+def _load_resolver():
+    """The sibling module (``check_undelivered_work``) or None — loaded once, never twice.
+
+    It owns ``ps``/``lstart`` parsing and the "where is the shared state" answer; re-implementing
+    either here would create the twin that cycle #47 had to hunt down (one copy fixed, the other
+    left lying). None (no file / broken import) is a measurement too: callers degrade to the old
+    behaviour instead of guessing."""
+    global _RESOLVER_MOD
+    if _RESOLVER_MOD is _UNSET:
+        try:
+            spec = importlib.util.spec_from_file_location("_lsc_resolver", _RESOLVER)
+            if spec is None or spec.loader is None:
+                _RESOLVER_MOD = None
+            else:
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                _RESOLVER_MOD = mod
+        except (OSError, ImportError, SyntaxError, AttributeError, ValueError, TypeError):
+            _RESOLVER_MOD = None
+    return _RESOLVER_MOD
 
 
 def _shared_log(default: Path) -> Path:
@@ -55,15 +91,13 @@ def _shared_log(default: Path) -> Path:
     shared state", not two. Unresolvable (no git, not a repo, tests) → the old path, which is
     correct in the host repo and merely empty elsewhere: readers then say "NOT MEASURED"
     rather than "nothing to report" (fail-CLOSED)."""
+    mod = _load_resolver()
+    if mod is None:
+        return default
     try:
-        spec = importlib.util.spec_from_file_location("_lsc_resolver", _RESOLVER)
-        if spec is None or spec.loader is None:
-            return default
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
         path, _ = mod.shared_log()
         return Path(path)
-    except (OSError, ImportError, SyntaxError, AttributeError, ValueError, TypeError):
+    except (OSError, AttributeError, ValueError, TypeError):
         return default
 
 
@@ -75,14 +109,59 @@ def _session_id() -> str:
     return os.environ.get("SPA_SESSION_ID") or f"pid{os.getpid()}"
 
 
+def durable_process(env=None, ps=None):
+    """``({"session_pid": N, "session_pid_start": "<ps lstart>"} , "")`` or ``({}, reason)``.
+
+    The pid comes ONLY from an explicit ``SPA_SESSION_PID`` — never from ``os.getppid()``, and
+    that is a deliberate choice, not an omission. The parent of this one-shot command is whatever
+    shell happened to run it; for anyone working from a terminal (or a tmux pane) that shell
+    outlives the work by days, so a ppid-derived "durable process" would report ACTIVE forever
+    and step 0a — whose entire job is to notice work that never reached origin — would go quiet
+    about it. That is the fail-OPEN direction (a claim of measurement nobody made, the class of
+    #29/#31/#35–#38/#40), so only a session that *declares* its own long-lived process gets one.
+
+    The start time is measured HERE, at write time, and stored verbatim. Without it a later
+    reader can only ask "is some process holding this pid?", and a recycled pid would read as a
+    live session; with it, "same pid AND same start" is an identity check.
+
+    Returns ``({}, reason)`` — never a half-written pair — whenever the declared pid is not a
+    process we can see right now: recording a pid we could not confirm would be exactly the
+    plausible-looking number this repo keeps having to delete."""
+    env = os.environ if env is None else env
+    raw = str(env.get("SPA_SESSION_PID") or "").strip()
+    if not raw:
+        return {}, "SPA_SESSION_PID не задан — долгоживущего процесса сессия не объявила"
+    if not raw.isdigit():
+        return {}, f"SPA_SESSION_PID={raw!r} — не число, долгоживущий процесс не записан"
+    pid = int(raw)
+    if pid <= 1:
+        # pid 1 — init/launchd: живёт всегда и не принадлежит сессии ⇒ вечный ложный ACTIVE.
+        return {}, f"SPA_SESSION_PID={pid} — это не процесс сессии, долгоживущий процесс не записан"
+
+    mod = _load_resolver()
+    probe = ps or (getattr(mod, "_ps_lstart", None) if mod else None)
+    if probe is None:
+        return {}, "измерить старт процесса нечем (`check_undelivered_work` не загружен)"
+    try:
+        rc, out = probe(pid)
+    except (OSError, ValueError, TypeError) as exc:                     # pragma: no cover
+        return {}, f"`ps -p {pid}` не отработал: {exc.__class__.__name__}"
+    if rc != 0 or not str(out).strip():
+        return {}, (f"процесса pid{pid} сейчас нет (rc={rc}) — объявленный долгоживущий "
+                    f"процесс не подтверждён, поле не записано")
+    return {"session_pid": pid, "session_pid_start": str(out).strip()}, ""
+
+
 CARD_STATES = ("claim", "done")
 
 
 def record(summary: str, files: list, verified: str,
-           card: str = "", card_state: str = "", log=None, session: str = "") -> dict:
+           card: str = "", card_state: str = "", log=None, session: str = "",
+           process=None) -> dict:
     """Append ONE announce entry. ``log`` overrides the shared journal (tests, explicit --log);
     ``session`` overrides the writer's own id (a caller announcing on behalf of a session whose
-    id it was given — otherwise the entry would carry this process's pid instead).
+    id it was given — otherwise the entry would carry this process's pid instead); ``process``
+    overrides the durable-process probe (tests).
 
     Kept as the single writer of this schema: ``check_card_claim.claim`` announces through it
     so a claim can never exist without an announcement (card
@@ -98,6 +177,8 @@ def record(summary: str, files: list, verified: str,
     if card:
         entry["card"] = str(card).strip()
         entry["card_state"] = (card_state or "claim").strip()
+    proc, _why = durable_process() if process is None else process
+    entry.update(proc)
     line = json.dumps(entry, ensure_ascii=False) + "\n"
     target = Path(log) if log else _LOG
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -147,9 +228,17 @@ def main(argv=None) -> int:
 
     if not args.summary:
         ap.error("provide --summary (and --files/--verified), or --tail to read")
-    e = record(args.summary, args.files, args.verified, args.card, args.card_state)
+    proc, why = durable_process()
+    e = record(args.summary, args.files, args.verified, args.card, args.card_state,
+               process=(proc, why))
     card = f" card={e['card']}({e['card_state']})" if e.get("card") else ""
     print(f"announced: {e['ts']} [{e['session']}]{card} {e['summary']}")
+    if proc:
+        print(f"    долгоживущий процесс: pid{proc['session_pid']} "
+              f"(старт {proc['session_pid_start']}) — активность сессии измерима")
+    elif os.environ.get("SPA_SESSION_PID"):
+        # Заявлен, но не подтверждён — молчать нельзя: сессия думает, что её видно.
+        print(f"    ⚠️  долгоживущий процесс НЕ записан: {why}", file=sys.stderr)
     return 0
 
 
