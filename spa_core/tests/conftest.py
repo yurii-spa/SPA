@@ -419,3 +419,47 @@ def patch_defillama_http(mock_defillama_response):
     """Patches urllib.request.urlopen to return the DeFiLlama mock response."""
     with patch("urllib.request.urlopen", return_value=mock_defillama_response) as p:
         yield p
+
+
+# ---------------------------------------------------------------------------
+# No test may message the owner's real Telegram chat (2026-07-31).
+#
+# The owner was getting the production cycle-gap alert several times an hour
+# while the production watchdog was healthy and silent — the sender was this
+# suite (test_cycle_gap_monitor called run_cycle_gap_monitor with dry_run=False
+# and no stubbed sender, so the call reached api.telegram.org for real).
+# The guard intercepts urllib.request.urlopen for api.telegram.org only,
+# delegates every other URL to the real one, and — because production senders
+# are deliberately fail-safe and swallow exceptions — ALSO records the attempt
+# so the autouse fixture below can fail the test from the outside.
+# Rationale + design: spa_core/tests/telegram_guard.py.
+# ---------------------------------------------------------------------------
+import importlib.util as _ilu
+
+# ONE module object, shared by both conftests.  A repo-root `pytest` run loads
+# both of them; if each exec'd its own copy there would be two _ATTEMPTS lists
+# and two urlopen wrappers — the outer one would record into ITS list while the
+# other conftest's fixture checked the empty one, i.e. a guard that reports
+# nothing.  That is the very failure class this guard exists to stop, so the
+# module is looked up in sys.modules first and only exec'd if absent.
+_GUARD_PATH = Path(__file__).resolve().parent / "telegram_guard.py"
+telegram_guard = sys.modules.get("spa_telegram_guard")
+if telegram_guard is None:
+    _guard_spec = _ilu.spec_from_file_location("spa_telegram_guard", _GUARD_PATH)
+    telegram_guard = _ilu.module_from_spec(_guard_spec)      # type: ignore[arg-type]
+    _guard_spec.loader.exec_module(telegram_guard)           # type: ignore[union-attr]
+    sys.modules["spa_telegram_guard"] = telegram_guard
+telegram_guard.install()
+
+
+@pytest.fixture(autouse=True)
+def _no_live_telegram(request):
+    """Fail any test that tried to reach the live Telegram Bot API.
+
+    Fail-CLOSED and non-swallowable: the check runs AFTER the test body, so an
+    attempt is reported even when the exception raised at the call site was
+    caught by the fail-safe production sender under test.
+    """
+    telegram_guard.reset()
+    yield
+    telegram_guard.assert_no_live_telegram(request.node.nodeid)

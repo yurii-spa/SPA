@@ -206,7 +206,14 @@ def test_main_returns_one_on_internal_failure(monkeypatch):
     assert um.main(argv=[]) == 1
 
 
-def test_main_smoke_real_run():
-    """End-to-end: main() against the real repo must return 0 and not raise."""
+def test_main_smoke_real_run(monkeypatch):
+    """End-to-end: main() against the real repo must return 0 and not raise.
+
+    Runs against the LIVE repo, so it sees the real launchd fleet and — before
+    2026-07-31 — fired real "agent down" pushes into the owner's Telegram on
+    every run.  The sender is stubbed; the assertion below is unchanged, and
+    the down-alert path itself is covered by the dedicated tests above.
+    """
+    monkeypatch.setattr(um, "_send_agent_alert", lambda *a, **kw: False)
     rc = um.main(argv=[])
     assert rc == 0

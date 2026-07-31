@@ -31,6 +31,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 # ── Repo root on sys.path ─────────────────────────────────────────────────────
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -885,14 +886,26 @@ class TestLeadTracker(unittest.TestCase):
 
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp()
+        # ``add_lead`` ends with the instant lead-ping (ADR-OWN-2026-07-lead-pings).
+        # An empty telegram_token only skips the Keychain lookup — the POST is
+        # still built and attempted, so these tests reached the live Telegram
+        # transport (2026-07-31 incident class; the suite-wide backstop is
+        # spa_core/tests/telegram_guard.py). Stub the transport; every assertion
+        # below is unchanged.
+        from spa_core.family_fund.lead_tracker import LeadTracker
+        self._tg_patcher = patch.object(
+            LeadTracker, "_post_telegram", return_value=None
+        )
+        self._tg_patcher.start()
 
     def tearDown(self):
+        self._tg_patcher.stop()
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def _tracker(self):
         from spa_core.family_fund.lead_tracker import LeadTracker
         path = os.path.join(self.tmpdir, "leads.json")
-        # telegram_token="" suppresses keychain lookup; still returns False gracefully
+        # telegram_token="" suppresses keychain lookup; delivery is stubbed in setUp
         return LeadTracker(path, telegram_token="", telegram_chat_id="")
 
     # test_81

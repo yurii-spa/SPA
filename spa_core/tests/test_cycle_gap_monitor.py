@@ -50,6 +50,51 @@ from spa_core.paper_trading.cycle_gap_monitor import (
 )
 
 
+# ─── Hermetic delivery (2026-07-31) ───────────────────────────────────────────
+#
+# Several tests in this file call ``run_cycle_gap_monitor`` / ``main`` with
+# ``dry_run=False`` and no stubbed sender, so the alert travelled the real path
+# (``_send_telegram_alert → push_policy → telegram_client._post_message``) and
+# was DELIVERED to the owner's chat.  That is how the production text
+# «🚨 Не удалось проверить, был ли сегодня цикл» reached the owner several
+# times an hour on 2026-07-31 while the production watchdog was healthy and
+# silent (``push_state.json`` never left ``cycle_gap: ok``).  Only some of the
+# unstubbed tests actually delivered: push_policy is edge-triggered, so once one
+# test pushed the gap, the next ones were swallowed until another test resolved
+# it — the suppression was an accident of ordering, not a property of the tests.
+#
+# Stubbing both senders for the whole module makes delivery impossible here.
+# NOTHING ELSE CHANGES: no assertion is touched, and tests that install their
+# own ``patch`` on these names still get their own mock (the inner patch simply
+# layers over this one), so ``mock_send.assert_not_called()`` still means what
+# it meant.  The suite-wide backstop lives in spa_core/tests/telegram_guard.py.
+_MODULE_PATCHERS: list = []
+
+
+def setUpModule():  # noqa: N802 — unittest hook name
+    """Make live Telegram delivery unreachable from this module."""
+    global _MODULE_PATCHERS
+    _MODULE_PATCHERS = [
+        # False = "nothing was sent", which is what the real fail-safe sender
+        # returns when it cannot deliver; the alert-dedup state then stays
+        # untouched, exactly as in the offline case the tests describe.
+        patch(
+            "spa_core.paper_trading.cycle_gap_monitor._send_telegram_alert",
+            return_value=False,
+        ),
+        # The healthy path emits an edge-triggered "cycle recovered" push.
+        patch("spa_core.paper_trading.cycle_gap_monitor._resolve_cycle_gap"),
+    ]
+    for p in _MODULE_PATCHERS:
+        p.start()
+
+
+def tearDownModule():  # noqa: N802 — unittest hook name
+    for p in _MODULE_PATCHERS:
+        p.stop()
+    _MODULE_PATCHERS.clear()
+
+
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _utc(year, month, day, hour=12, minute=0, second=0) -> datetime:

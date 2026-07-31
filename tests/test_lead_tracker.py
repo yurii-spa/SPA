@@ -31,6 +31,36 @@ from spa_core.family_fund.lead_tracker import (
 )
 
 
+# ─── Hermetic delivery (2026-07-31) ───────────────────────────────────────────
+#
+# ``add_lead`` ends with ``send_telegram_notification`` (the instant lead-ping of
+# ADR-OWN-2026-07-lead-pings), and most tests here call ``add_lead`` without
+# stubbing it — so every run POSTed a fake "🔔 Новый лид" to the owner's real
+# chat.  Same class as the cycle-gap alert found on 2026-07-31; the suite-wide
+# backstop is spa_core/tests/telegram_guard.py, this makes the module hermetic
+# on its own.
+#
+# The stub is installed on the CLASS.  The three tests that exercise the
+# notification itself patch ``_post_telegram`` on their INSTANCE, which takes
+# precedence, so their behaviour — and every assertion in this file — is
+# unchanged.
+_MODULE_PATCHERS: list = []
+
+
+def setUpModule():  # noqa: N802 — unittest hook name
+    """Make live Telegram delivery unreachable from this module."""
+    global _MODULE_PATCHERS
+    _MODULE_PATCHERS = [patch.object(LeadTracker, "_post_telegram", return_value=None)]
+    for _p in _MODULE_PATCHERS:
+        _p.start()
+
+
+def tearDownModule():  # noqa: N802 — unittest hook name
+    for _p in _MODULE_PATCHERS:
+        _p.stop()
+    _MODULE_PATCHERS.clear()
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

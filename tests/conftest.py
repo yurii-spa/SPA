@@ -144,3 +144,41 @@ def _isolate_data_dir(request, tmp_path, monkeypatch):
     d = tmp_path / "_spa_isolated_data"
     d.mkdir(exist_ok=True)
     monkeypatch.setenv("SPA_DATA_DIR", str(d))
+
+
+# ---------------------------------------------------------------------------
+# No test may message the owner's real Telegram chat (2026-07-31).
+#
+# Same guard as spa_core/tests/conftest.py — the two test roots are collected
+# separately by CI (`pytest tests/` runs after `cd spa_core` in one workflow),
+# so the guard has to be installed from BOTH or one root stays unprotected.
+# The implementation is loaded by absolute path from a single source of truth
+# (spa_core/tests/telegram_guard.py) rather than duplicated, so the two roots
+# can never drift apart. Rationale: that module's docstring.
+# ---------------------------------------------------------------------------
+import importlib.util as _ilu
+
+# ONE module object, shared with spa_core/tests/conftest.py — see the note
+# there: two copies would mean two _ATTEMPTS lists and a guard that records in
+# one and reports from the other.
+_TG_GUARD_PATH = _ROOT / "spa_core" / "tests" / "telegram_guard.py"
+telegram_guard = sys.modules.get("spa_telegram_guard")
+if telegram_guard is None:
+    _tg_spec = _ilu.spec_from_file_location("spa_telegram_guard", _TG_GUARD_PATH)
+    telegram_guard = _ilu.module_from_spec(_tg_spec)         # type: ignore[arg-type]
+    _tg_spec.loader.exec_module(telegram_guard)              # type: ignore[union-attr]
+    sys.modules["spa_telegram_guard"] = telegram_guard
+telegram_guard.install()
+
+
+@_pytest.fixture(autouse=True)
+def _no_live_telegram(request):
+    """Fail any test that tried to reach the live Telegram Bot API.
+
+    Fail-CLOSED and non-swallowable: the check runs AFTER the test body, so an
+    attempt is reported even when the exception raised at the call site was
+    caught by the fail-safe production sender under test.
+    """
+    telegram_guard.reset()
+    yield
+    telegram_guard.assert_no_live_telegram(request.node.nodeid)
