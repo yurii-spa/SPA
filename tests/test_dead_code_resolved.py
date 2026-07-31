@@ -184,7 +184,66 @@ class TestScannerImprovement:
             assert count <= 15, f"TODO/FIXME count выросло: {count} > 15 (baseline)"
 
     def test_16_unused_imports_decreased(self, scanner_output):
-        """Unused import count must not exceed the Session XIII ceiling (4050).
+        """Unused import count must not exceed the cycle-#52 ceiling (2284).
+
+        ── 2026-07-31, cycle #52 — the ceiling was LOWERED 4050 → 2284 ──────────
+        This is a TIGHTENING, not a relaxation (invariant #16 forbids the latter),
+        and the number moved because the *measurement* was fixed, not the bar.
+
+        Why it had to be done (card ``agent-unused-import-ceiling-at-its-limit``):
+        the margin had shrunk to exactly ONE (observed 4049, ceiling < 4050), so
+        any next module — test, adapter, script — turned CI red regardless of
+        whether it contained a single dead import. Cycle #51 hit exactly that: the
+        offending "unused import" was ``from __future__ import annotations``, a
+        compiler directive that can never appear as a referenced name.
+
+        So the heuristic in ``scripts/dead_code_scanner.py`` was corrected instead
+        of the ceiling being nudged. Four classes that are NOT dead code stopped
+        being counted; the whole 4049 was decomposed first, deterministically:
+
+          * 1753 (43%) — ``from __future__ import ...`` (compiler directive)
+          *  137       — names re-exported through ``__all__`` (pyflakes does the
+                         same; ``scripts/tests/test_unused_import_ratchet.py``
+                         documents the identical convention for its own ceiling)
+          *    4       — names used from STRING forward-ref annotations
+          *    1       — an import inside ``if TYPE_CHECKING:``
+          = 1895 removed, 4049 → 2154, and **zero items added** — the change can
+            only drop a false positive, never invent a finding.
+
+        Behaviour is pinned in both directions by 22 hermetic tests in
+        ``tests/test_dead_code_scanner_imports.py`` (16 of them red on the
+        pre-fix scanner, 6 are positive controls green either way, including a
+        50-import mass injection still producing 50 findings).
+
+        New anchor: 2154 observed (2026-07-31) + 130 buffer — the same buffer size
+        Sessions XI–XIII used. The buffer is now real headroom rather than a
+        rounding error: organic growth no longer costs ~1 count per new module.
+
+        History of the ceiling (it tracks organic, repo-wide module growth — the
+        scanner counts every module including analytics/reporting/api workstreams):
+          * v10 baseline:  2909
+          * Session VIII: +~363 analytics/reporting modules → 3272
+          * Session IX:   ceiling 3380 (3272 + 108 buffer)
+          * Session X:    observed 3437 → ceiling 3550 (3437 + 113 buffer)
+          * Session XI (2026-06-27): observed 3624 → ceiling 3750 (3624 + 126
+            buffer). Growth (+~542 vs HEAD's 3082) is spread across ~510 new
+            modules from this session — new tests (~182), strategies, adapters,
+            strategy_lab/rates_desk, backtesting/tier1, monitoring — i.e. ~1
+            apparent unused import per new module from the scanner's heuristic,
+            NOT a concentrated/accidental mass import in any single module.
+          * Session XII (2026-07-01): observed 3778 → ceiling 3904 (3778 + 126
+            buffer). +154 vs Session XI, spread across the dfb/riskwire planes
+            and their tests — again ~1 apparent unused import per new module
+            from the scanner heuristic, no concentrated mass import.
+          * Session XIII (2026-07-12): observed 3920 → ceiling 4050 (3920 + 130
+            buffer). +142 vs Session XII, spread across the swarm immune layer,
+            rates_desk/{n_book_capacity,refusal_value}, and their tests — again
+            ~1 apparent unused import per new module, no concentrated mass import.
+          * Cycle #52 (2026-07-31): heuristic corrected, observed 4049 → 2154 →
+            ceiling 2284 (2154 + 130 buffer). NOTE for future re-anchoring: the
+            "~1 per new module" pattern the Session XI–XIII notes above kept
+            observing WAS the ``__future__`` artefact. It should not recur; if it
+            does, that is a signal to re-decompose the count, not to raise the bar.
 
         History of the ceiling (it tracks organic, repo-wide module growth — the
         scanner counts every module including analytics/reporting/api workstreams):
@@ -214,9 +273,9 @@ class TestScannerImprovement:
         match = re.search(r"Unused Imports \((\d+)\)", scanner_output)
         if match:
             count = int(match.group(1))
-            # Session XIII anchor: 3920 observed (2026-07-12) + 130 buffer
-            assert count < 4050, \
-                f"Unused imports count grew above the Session XIII ceiling: {count} (expected < 4050)"
+            # Cycle #52 anchor: 2154 observed (2026-07-31) + 130 buffer
+            assert count < 2284, \
+                f"Unused imports count grew above the cycle-#52 ceiling: {count} (expected < 2284)"
 
     def test_17_no_new_fixme_in_changed_files(self, scanner_output):
         """Изменённые файлы не должны получить новых FIXME."""
