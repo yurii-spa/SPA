@@ -9,801 +9,6 @@
     "filtered_out": [
       "Aave"
     ],
-    "timestamp": 1785054970.0998175,
-    "viable_markets_count": 0
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785054970.1031911,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": null,
-    "cheapest_rate": null,
-    "most_flexible": null,
-    "filtered_out": [
-      "Aave"
-    ],
-    "timestamp": 1785054970.1066298,
-    "viable_markets_count": 0
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Cheap",
-    "cheapest_rate": "Cheap",
-    "most_flexible": "Cheap",
-    "filtered_out": [],
-    "timestamp": 1785054970.110324,
-    "viable_markets_count": 3
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 10000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "MidRate",
-    "cheapest_rate": "LowRate",
-    "most_flexible": "MidRate",
-    "filtered_out": [],
-    "timestamp": 1785054970.1132376,
-    "viable_markets_count": 2
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Cheap",
-    "cheapest_rate": "Cheap",
-    "most_flexible": "Cheap",
-    "filtered_out": [],
-    "timestamp": 1785054970.1155457,
-    "viable_markets_count": 3
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": null,
-    "cheapest_rate": null,
-    "most_flexible": null,
-    "filtered_out": [],
-    "timestamp": 1785054970.1180208,
-    "viable_markets_count": 0
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 10000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "LowRatio",
-    "cheapest_rate": "LowRatio",
-    "most_flexible": "LowRatio",
-    "filtered_out": [],
-    "timestamp": 1785054970.1203415,
-    "viable_markets_count": 2
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "A",
-    "cheapest_rate": "A",
-    "most_flexible": "B",
-    "filtered_out": [],
-    "timestamp": 1785054970.122653,
-    "viable_markets_count": 2
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": null,
-    "cheapest_rate": null,
-    "most_flexible": null,
-    "filtered_out": [],
-    "timestamp": 1785054970.1250305,
-    "viable_markets_count": 0
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": null,
-    "cheapest_rate": null,
-    "most_flexible": null,
-    "filtered_out": [
-      "Aave"
-    ],
-    "timestamp": 1785054970.1272826,
-    "viable_markets_count": 0
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": null,
-    "cheapest_rate": null,
-    "most_flexible": null,
-    "filtered_out": [
-      "Aave"
-    ],
-    "timestamp": 1785054970.1296816,
-    "viable_markets_count": 0
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Cheap",
-    "cheapest_rate": "Cheap",
-    "most_flexible": "Cheap",
-    "filtered_out": [],
-    "timestamp": 1785054970.1319802,
-    "viable_markets_count": 3
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Cheap",
-    "cheapest_rate": "Cheap",
-    "most_flexible": "Cheap",
-    "filtered_out": [],
-    "timestamp": 1785054970.1347787,
-    "viable_markets_count": 3
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785054970.1382263,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "A",
-    "cheapest_rate": "A",
-    "most_flexible": "A",
-    "filtered_out": [],
-    "timestamp": 1785054970.1409032,
-    "viable_markets_count": 3
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785054970.1433372,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785054970.145651,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "A",
-    "cheapest_rate": "A",
-    "most_flexible": "A",
-    "filtered_out": [],
-    "timestamp": 1785054970.1478963,
-    "viable_markets_count": 2
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "OK",
-    "cheapest_rate": "OK",
-    "most_flexible": "OK",
-    "filtered_out": [
-      "FILTERED"
-    ],
-    "timestamp": 1785054970.1501975,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 10000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785054970.1525414,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785054970.1551979,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 1000000.0,
-    "collateral_usd": 10000000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785054970.157579,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "A",
-    "cheapest_rate": "A",
-    "most_flexible": "A",
-    "filtered_out": [],
-    "timestamp": 1785054970.1599758,
-    "viable_markets_count": 2
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": null,
-    "cheapest_rate": null,
-    "most_flexible": null,
-    "filtered_out": [
-      "Aave"
-    ],
-    "timestamp": 1785054970.1623237,
-    "viable_markets_count": 0
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785054970.1646614,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "My Protocol XYZ",
-    "cheapest_rate": "My Protocol XYZ",
-    "most_flexible": "My Protocol XYZ",
-    "filtered_out": [],
-    "timestamp": 1785054970.1671507,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785054970.1695356,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 0.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785054970.1718926,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 10000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785054970.17442,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 12345.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.2917337,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "DAI",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.294438,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 999.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.29676,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.2990813,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3016102,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.303925,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.306176,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3084865,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3107917,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3129818,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.315318,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3177493,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.32007,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3224914,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3247123,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3270576,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.329328,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3316717,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3338923,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3361845,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3385284,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3407562,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 150000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3431816,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 10000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3453658,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 10000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3486757,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 10000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.351173,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 10000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3534825,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 10000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3548388,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 150000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.357065,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 10000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3593616,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 10000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3616247,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 10000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3639052,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3661296,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3684428,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": null,
-    "cheapest_rate": null,
-    "most_flexible": null,
-    "filtered_out": [
-      "Aave"
-    ],
-    "timestamp": 1785400823.3708687,
-    "viable_markets_count": 0
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": null,
-    "cheapest_rate": null,
-    "most_flexible": null,
-    "filtered_out": [
-      "Compound"
-    ],
-    "timestamp": 1785400823.3731291,
-    "viable_markets_count": 0
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 10000.0,
-    "best_market": null,
-    "cheapest_rate": null,
-    "most_flexible": null,
-    "filtered_out": [
-      "Aave"
-    ],
-    "timestamp": 1785400823.3753839,
-    "viable_markets_count": 0
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Good",
-    "cheapest_rate": "Good",
-    "most_flexible": "Good",
-    "filtered_out": [
-      "Bad"
-    ],
-    "timestamp": 1785400823.3776617,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": null,
-    "cheapest_rate": null,
-    "most_flexible": null,
-    "filtered_out": [
-      "A",
-      "B",
-      "C",
-      "D"
-    ],
-    "timestamp": 1785400823.3800094,
-    "viable_markets_count": 0
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": "Aave",
-    "cheapest_rate": "Aave",
-    "most_flexible": "Aave",
-    "filtered_out": [],
-    "timestamp": 1785400823.3822978,
-    "viable_markets_count": 1
-  },
-  {
-    "asset": "USDC",
-    "amount_requested_usd": 50000.0,
-    "collateral_usd": 100000.0,
-    "best_market": null,
-    "cheapest_rate": null,
-    "most_flexible": null,
-    "filtered_out": [
-      "Aave"
-    ],
     "timestamp": 1785400823.384715,
     "viable_markets_count": 0
   },
@@ -1134,6 +339,801 @@
     "most_flexible": "Aave",
     "filtered_out": [],
     "timestamp": 1785400823.4525173,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 12345.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0006192,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "DAI",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.003663,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 999.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0058804,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0081666,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.010351,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0126371,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0148528,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0170052,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.019267,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0214484,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0236936,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0259867,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0284517,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0307593,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.032898,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0353687,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0375173,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0397146,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0418642,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0440583,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0461993,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0483732,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 150000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0507329,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 10000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0528667,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 10000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0559423,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 10000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0583754,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 10000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0606725,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 10000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0619142,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 150000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.064142,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 10000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.066409,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 10000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0686748,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 10000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.071045,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0732088,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0753944,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": null,
+    "cheapest_rate": null,
+    "most_flexible": null,
+    "filtered_out": [
+      "Aave"
+    ],
+    "timestamp": 1785486395.0777535,
+    "viable_markets_count": 0
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": null,
+    "cheapest_rate": null,
+    "most_flexible": null,
+    "filtered_out": [
+      "Compound"
+    ],
+    "timestamp": 1785486395.0799513,
+    "viable_markets_count": 0
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 10000.0,
+    "best_market": null,
+    "cheapest_rate": null,
+    "most_flexible": null,
+    "filtered_out": [
+      "Aave"
+    ],
+    "timestamp": 1785486395.0821261,
+    "viable_markets_count": 0
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Good",
+    "cheapest_rate": "Good",
+    "most_flexible": "Good",
+    "filtered_out": [
+      "Bad"
+    ],
+    "timestamp": 1785486395.0843737,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": null,
+    "cheapest_rate": null,
+    "most_flexible": null,
+    "filtered_out": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "timestamp": 1785486395.0866566,
+    "viable_markets_count": 0
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0888097,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": null,
+    "cheapest_rate": null,
+    "most_flexible": null,
+    "filtered_out": [
+      "Aave"
+    ],
+    "timestamp": 1785486395.0912654,
+    "viable_markets_count": 0
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.0933907,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": null,
+    "cheapest_rate": null,
+    "most_flexible": null,
+    "filtered_out": [
+      "Aave"
+    ],
+    "timestamp": 1785486395.095593,
+    "viable_markets_count": 0
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Cheap",
+    "cheapest_rate": "Cheap",
+    "most_flexible": "Cheap",
+    "filtered_out": [],
+    "timestamp": 1785486395.0979273,
+    "viable_markets_count": 3
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 10000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "MidRate",
+    "cheapest_rate": "LowRate",
+    "most_flexible": "MidRate",
+    "filtered_out": [],
+    "timestamp": 1785486395.1002238,
+    "viable_markets_count": 2
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Cheap",
+    "cheapest_rate": "Cheap",
+    "most_flexible": "Cheap",
+    "filtered_out": [],
+    "timestamp": 1785486395.1024072,
+    "viable_markets_count": 3
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": null,
+    "cheapest_rate": null,
+    "most_flexible": null,
+    "filtered_out": [],
+    "timestamp": 1785486395.1047962,
+    "viable_markets_count": 0
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 10000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "LowRatio",
+    "cheapest_rate": "LowRatio",
+    "most_flexible": "LowRatio",
+    "filtered_out": [],
+    "timestamp": 1785486395.1069958,
+    "viable_markets_count": 2
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "A",
+    "cheapest_rate": "A",
+    "most_flexible": "B",
+    "filtered_out": [],
+    "timestamp": 1785486395.1092267,
+    "viable_markets_count": 2
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": null,
+    "cheapest_rate": null,
+    "most_flexible": null,
+    "filtered_out": [],
+    "timestamp": 1785486395.1115737,
+    "viable_markets_count": 0
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": null,
+    "cheapest_rate": null,
+    "most_flexible": null,
+    "filtered_out": [
+      "Aave"
+    ],
+    "timestamp": 1785486395.1137745,
+    "viable_markets_count": 0
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": null,
+    "cheapest_rate": null,
+    "most_flexible": null,
+    "filtered_out": [
+      "Aave"
+    ],
+    "timestamp": 1785486395.1161382,
+    "viable_markets_count": 0
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Cheap",
+    "cheapest_rate": "Cheap",
+    "most_flexible": "Cheap",
+    "filtered_out": [],
+    "timestamp": 1785486395.118342,
+    "viable_markets_count": 3
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Cheap",
+    "cheapest_rate": "Cheap",
+    "most_flexible": "Cheap",
+    "filtered_out": [],
+    "timestamp": 1785486395.1206386,
+    "viable_markets_count": 3
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.122979,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "A",
+    "cheapest_rate": "A",
+    "most_flexible": "A",
+    "filtered_out": [],
+    "timestamp": 1785486395.12548,
+    "viable_markets_count": 3
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.1280696,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.1309488,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "A",
+    "cheapest_rate": "A",
+    "most_flexible": "A",
+    "filtered_out": [],
+    "timestamp": 1785486395.133892,
+    "viable_markets_count": 2
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "OK",
+    "cheapest_rate": "OK",
+    "most_flexible": "OK",
+    "filtered_out": [
+      "FILTERED"
+    ],
+    "timestamp": 1785486395.136272,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 10000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.1384742,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.140744,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 1000000.0,
+    "collateral_usd": 10000000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.1429858,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "A",
+    "cheapest_rate": "A",
+    "most_flexible": "A",
+    "filtered_out": [],
+    "timestamp": 1785486395.1453185,
+    "viable_markets_count": 2
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": null,
+    "cheapest_rate": null,
+    "most_flexible": null,
+    "filtered_out": [
+      "Aave"
+    ],
+    "timestamp": 1785486395.147546,
+    "viable_markets_count": 0
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.1497,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "My Protocol XYZ",
+    "cheapest_rate": "My Protocol XYZ",
+    "most_flexible": "My Protocol XYZ",
+    "filtered_out": [],
+    "timestamp": 1785486395.1520464,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 50000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.1542628,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 0.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.1566365,
+    "viable_markets_count": 1
+  },
+  {
+    "asset": "USDC",
+    "amount_requested_usd": 10000.0,
+    "collateral_usd": 100000.0,
+    "best_market": "Aave",
+    "cheapest_rate": "Aave",
+    "most_flexible": "Aave",
+    "filtered_out": [],
+    "timestamp": 1785486395.158931,
     "viable_markets_count": 1
   }
 ]
