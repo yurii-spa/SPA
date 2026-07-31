@@ -9,9 +9,11 @@ run_day(), get_info(), edge cases.
     python3 tests/test_s12_base_layer_yield.py -v
     python3 -m pytest tests/test_s12_base_layer_yield.py -v
 """
+import datetime
 import unittest
 import sys
 import os
+from unittest import mock
 
 # Добавляем корень проекта в sys.path
 sys.path.insert(0, os.path.expanduser("~/Documents/SPA_Claude"))
@@ -104,12 +106,70 @@ class TestS12Weights(unittest.TestCase):
         self.assertAlmostEqual(sum(GAS_KILL_WEIGHTS.values()), 1.0, places=5)
 
 
+def _phase2_active_on(iso_date: str) -> bool:
+    """``_is_phase2_active()`` так, как оно ответило бы в день ``iso_date``.
+
+    Подменяется ТОЛЬКО имя ``datetime`` внутри модуля стратегии и только на
+    время вызова; продакшн-код не меняется. Стандартная библиотека, без
+    зависимостей (инвариант #4).
+    """
+    import spa_core.strategies.s12_base_layer_yield as s12
+
+    class _FrozenDate(datetime.date):
+        @classmethod
+        def today(cls):
+            return datetime.date.fromisoformat(iso_date)
+
+    class _FrozenDatetime:
+        date = _FrozenDate
+
+    with mock.patch.object(s12, "datetime", _FrozenDatetime):
+        return s12._is_phase2_active()
+
+
 class TestS12PhaseGating(unittest.TestCase):
     """Тест 15–16: Phase gating."""
 
-    def test_phase1_active_currently(self):
-        """Сегодня (2026-06-12) должна быть Phase 1 (до 2026-08-01)."""
-        self.assertFalse(_is_phase2_active())
+    def test_phase_gate_is_before_the_boundary(self):
+        """До BASE_PHASE_2_DATE фаза 2 НЕ активна — при явно заданной дате.
+
+        ── 2026-08-01, цикл #64 — тест УСИЛЕН, а не ослаблен (инвариант #16) ────
+        Было: ``test_phase1_active_currently`` — «Сегодня (2026-06-12) должна
+        быть Phase 1», то есть голое ``assertFalse(_is_phase2_active())`` без
+        какой-либо даты. Такой тест проверяет КАЛЕНДАРЬ, а не код: он был
+        истинным ровно до 2026-08-01 и с этого дня красит CI навсегда
+        (``AssertionError: 'phase2' != 'phase1'`` у близнеца в S13; здесь —
+        ``True is not false``). Причём проверял он всегда ровно одну ветку — ту,
+        которую случайно выбрало сегодняшнее число.
+
+        Стало: обе ветки границы проверяются явно и детерминированно, поэтому
+        покрытие СТРОГО больше прежнего, а результат не зависит от того, когда
+        запущен прогон. Продакшн-код не менялся ни строкой: дата подставляется
+        подменой ``datetime`` в модуле стратегии (``_is_phase2_active`` читает
+        ``datetime.date.today()``), сама константа ``BASE_PHASE_2_DATE`` не
+        тронута — двигать её значит менять замысел, и это вопрос владельца
+        (карточка ``owner-decision-nastupila-faza-2-1-avgusta-vklyuchaem-sd``).
+
+        Замечание про часы: функция берёт ЛОКАЛЬНУЮ дату, не UTC — поэтому
+        машина в UTC+2 переходит границу на два часа раньше раннера в UTC.
+        """
+        self.assertFalse(_phase2_active_on("2026-07-31"))
+        self.assertFalse(_phase2_active_on("2026-06-12"))
+
+    def test_phase_gate_is_on_and_after_the_boundary(self):
+        """В день BASE_PHASE_2_DATE и позже фаза 2 активна (граница включающая)."""
+        self.assertTrue(_phase2_active_on(BASE_PHASE_2_DATE))
+        self.assertTrue(_phase2_active_on("2026-08-01"))
+        self.assertTrue(_phase2_active_on("2026-12-31"))
+
+    def test_phase_gate_reads_the_real_clock_by_default(self):
+        """Контроль на подменяльщик: без подмены функция берёт настоящую дату.
+
+        Без этого оба теста выше можно было бы удовлетворить заглушкой, которая
+        вообще не смотрит на часы.
+        """
+        today = datetime.date.today().isoformat()
+        self.assertEqual(_is_phase2_active(), today >= BASE_PHASE_2_DATE)
 
     def test_phase1_weights_when_phase1(self):
         """В Phase 1 get_target_weights() возвращает PHASE1_WEIGHTS."""

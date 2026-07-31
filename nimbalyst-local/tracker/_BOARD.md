@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **105** · ждёт владельца: **13** · занято сессиями: **0**.
+> Всего карточек: **107** · ждёт владельца: **14** · занято сессиями: **0**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -12,6 +12,7 @@
 - **Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)**  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md`
 - **Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить** · _medium_  ·  `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam.md`
 - **Гейт готовности зелёный по адаптеру, который невозможно загрузить — проверяется только синтаксис файла (выбери, как чинить)** · _high_  ·  `owner-decision-geit-gotovnosti-zelenyi-po-adapteru-koto.md`
+- **Наступила Фаза 2 (1 августа) — включаем, сдвигаем или осознанно откладываем?**  ·  `owner-decision-nastupila-faza-2-1-avgusta-vklyuchaem-sd.md`
 - **Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять**  ·  `owner-decision-publichnaya-stranitsa-prover-nas-pokazyv.md`
 - **Рабочая копия проекта на маке отстала от GitHub на 345 коммитов — из-за этого очередь заданий показывает старое** · _medium_  ·  `owner-decision-rabochaya-kopiya-proekta-na-make-otstala.md`
 - **Сторож правил не видит стоп-кран — смотрит в файл, которого нет (выбери, как чинить)** · _high_  ·  `owner-decision-storozh-pravil-ne-vidit-stop-kran-smotri.md`
@@ -20,7 +21,7 @@
 - **Тревога о стоп-кране до тебя больше не дойдёт — событие застряло в «плохо» с 4 июля (выбери, как чинить)** · _high_  ·  `owner-decision-trevoga-o-stop-krane-do-tebya-bolshe-ne.md`
 - **В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями** · _high_  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (37)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (38)
 
 ### · needs-owner
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -29,6 +30,7 @@
 - Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md` · 2026-07-29
 - Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить  ·  `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam.md` · 2026-07-29
 - Гейт готовности зелёный по адаптеру, который невозможно загрузить — проверяется только синтаксис файла (выбери, как чинить)  ·  `owner-decision-geit-gotovnosti-zelenyi-po-adapteru-koto.md` · 2026-07-30
+- Наступила Фаза 2 (1 августа) — включаем, сдвигаем или осознанно откладываем?  ·  `owner-decision-nastupila-faza-2-1-avgusta-vklyuchaem-sd.md` · 2026-07-31
 - Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять  ·  `owner-decision-publichnaya-stranitsa-prover-nas-pokazyv.md` · 2026-07-29
 - Рабочая копия проекта на маке отстала от GitHub на 345 коммитов — из-за этого очередь заданий показывает старое  ·  `owner-decision-rabochaya-kopiya-proekta-na-make-otstala.md` · 2026-07-31
 - Сторож правил не видит стоп-кран — смотрит в файл, которого нет (выбери, как чинить)  ·  `owner-decision-storozh-pravil-ne-vidit-stop-kran-smotri.md` · 2026-07-29
@@ -91,7 +93,7 @@
 - Задача разобраться почему нет свежих данных почему Pepper Тест не обновился хот…  ·  `inbox-zadacha-razobratsya-pochemu-net-svezhih.md` · 2026-07-23
 - Задача решить проблему 🚨 Пропущен ежедневный цикл  ·  `inbox-zadacha-reshit-problemu-propuschen-ezhed.md` · 2026-07-30
 
-## 🤖 Agent Tasks (что делает агент)  (43)
+## 🤖 Agent Tasks (что делает агент)  (44)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -100,7 +102,6 @@
 - Q9: git-тег verifier-v1.2  ·  `agent-verifier-tag.md` · 2026-07-16
 ### · backlog
 - Опубликованный вердикт идеи #21 разошёлся с сегодняшними данными — строка CORE-A поменяла знак вывода  ·  `agent-idea21-verdict-data-drift.md` · 2026-07-30
-- CI на main красный с 06:23Z — сканер мёртвого кода не укладывается в 30-секундный бюджет на раннере (локально укладывается)  ·  `agent-task-ci-na-main-krasnyi-s-06-23z-skaner-mertv.md` · 2026-07-31
 - Верификация длиннее бюджета цикла ⇒ работа осиротевает по построению  ·  `agent-verification-outlives-cycle-budget.md` · 2026-07-31
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
@@ -125,6 +126,7 @@
 - Утренний дайджест 9:00  ·  `agent-morning-digest.md` · 2026-07-16
 - Оркестратор — раз в час  ·  `agent-orchestrator-1h.md` · 2026-07-16
 - Owner-gate: безопасный авто-шип сайта  ·  `agent-owner-gate.md` · 2026-07-16
+- Два теста краснят CI на main с 2026-08-01: они проверяют календарь, а не код (S12/S13 phase-gating)  ·  `agent-phase-gating-tests-measure-the-calendar.md` · 2026-08-01
 - Пуш батча идёт по одному файлу за коммит — main краснеет на промежуточных состояниях  ·  `agent-push-batch-per-file-commits.md` · 2026-07-30
 - push_to_github.py молча роняет worktree-пути в basename → файлы уезжают в корень репо  ·  `agent-push-worktree-path-collapse.md` · 2026-07-30
 - Общие документы (STATE, недельный журнал) уезжают ЦЕЛИКОМ — параллельная сессия молча затирает чужую запись  ·  `agent-shared-doc-whole-file-push-overwrites.md` · 2026-07-31
@@ -133,6 +135,7 @@
 - 19 тестов spa_core/tests красны на main (предсуществующие, никем не отслеживались)  ·  `agent-spa-core-tests-red-on-main.md` · 2026-07-29
 - Разбор swarm-сессии 11.07 (31 идея)  ·  `agent-swarm-review.md` · 2026-07-16
 - Bootstrap: единая доска карточек + читать историю решений при старте  ·  `agent-task-bootstrap-edinaya-doska-kartochek-chitat.md` · 2026-07-16
+- CI на main красный с 06:23Z — сканер мёртвого кода не укладывается в 30-секундный бюджет на раннере (локально укладывается)  ·  `agent-task-ci-na-main-krasnyi-s-06-23z-skaner-mertv.md` · 2026-07-31
 - Тесты шлют боевые Telegram-алерты владельцу (cycle_gap)  ·  `agent-tests-send-live-telegram-alerts.md` · 2026-07-31
 - Воскресный тюнер аллокации (MP-207) молча падает — str вместо Path  ·  `agent-tuner-str-path-sunday-dead.md` · 2026-07-29
 - Работа сессии, объявленная в session_changes, не доезжает до origin — нужна детерминированная проверка «объявил → доставил»  ·  `agent-undelivered-work-guard.md` · 2026-07-30

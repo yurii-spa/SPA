@@ -33,8 +33,9 @@ import json
 import os
 import re
 import sys
-from dataclasses import dataclass, asdict
-from typing import Dict, List, Optional, Set
+from collections import deque
+from dataclasses import dataclass, asdict, field
+from typing import Dict, List, Optional, Set, Tuple
 
 _DEFAULT_SAVE_PATH = "data/dead_code_report.json"
 _SPA_DIR = "spa_core"
@@ -91,25 +92,7 @@ def _collect_exported_names(tree: ast.AST) -> Set[str]:
     (see ``scripts/tests/test_unused_import_ratchet.py`` — the money-path
     ratchet built on pyflakes relies on exactly this convention).
     """
-    exported: Set[str] = set()
-    for node in ast.walk(tree):
-        targets = []
-        if isinstance(node, ast.Assign):
-            targets = node.targets
-        elif isinstance(node, ast.AugAssign):
-            targets = [node.target]
-        elif isinstance(node, ast.AnnAssign):
-            targets = [node.target]
-        else:
-            continue
-        if not any(isinstance(t, ast.Name) and t.id == "__all__" for t in targets):
-            continue
-        value = getattr(node, "value", None)
-        if isinstance(value, (ast.List, ast.Tuple, ast.Set)):
-            for elt in value.elts:
-                if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
-                    exported.add(elt.value)
-    return exported
+    return _collect_file_facts(tree).exported
 
 
 def _harvest_annotation_strings(node: ast.AST, out: Set[str]) -> None:
@@ -148,13 +131,7 @@ def _collect_string_annotation_names(tree: ast.AST) -> Set[str]:
     Only annotation positions are inspected; arbitrary docstrings are NOT, because
     a name mentioned in prose is a coincidence, not a use.
     """
-    found: Set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.AnnAssign, ast.arg)) and node.annotation is not None:
-            _harvest_annotation_strings(node.annotation, found)
-        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.returns is not None:
-            _harvest_annotation_strings(node.returns, found)
-    return found
+    return _collect_file_facts(tree).annotation_names
 
 
 def _collect_type_checking_imports(tree: ast.AST) -> Set[str]:
@@ -165,39 +142,116 @@ def _collect_type_checking_imports(tree: ast.AST) -> Set[str]:
     to be referenced only from annotations. The module docstring has always
     claimed these are skipped — this makes the claim true.
     """
-    names: Set[str] = set()
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.If):
-            continue
-        test = node.test
-        guarded = (
-            (isinstance(test, ast.Name) and test.id == "TYPE_CHECKING")
-            or (isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING")
-        )
-        if not guarded:
-            continue
-        for sub in ast.walk(node):
-            if isinstance(sub, ast.Import):
-                names.update(_extract_import_names(sub))
-            elif isinstance(sub, ast.ImportFrom):
-                names.update(_extract_from_import_names(sub))
-    return names
+    return _collect_file_facts(tree).type_checking
 
 
 def _collect_names_used(tree: ast.AST, imported_names: List[str]) -> Set[str]:
     """Collect all Name / Attribute nodes to find which imports are referenced."""
-    used: Set[str] = set()
-    for node in ast.walk(tree):
+    return _collect_file_facts(tree).used
+
+
+# ---------------------------------------------------------------------------
+# One traversal per file (was: five)
+# ---------------------------------------------------------------------------
+
+def _is_type_checking_guard(test: ast.AST) -> bool:
+    """True for ``if TYPE_CHECKING:`` / ``if typing.TYPE_CHECKING:`` tests."""
+    return (
+        (isinstance(test, ast.Name) and test.id == "TYPE_CHECKING")
+        or (isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING")
+    )
+
+
+def _imported_names_in(node: ast.AST) -> Set[str]:
+    """Local names bound by any import statement in ``node``'s subtree."""
+    names: Set[str] = set()
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Import):
+            names.update(_extract_import_names(sub))
+        elif isinstance(sub, ast.ImportFrom):
+            names.update(_extract_from_import_names(sub))
+    return names
+
+
+@dataclass
+class _FileFacts:
+    """Everything the unused-import heuristic needs from one module's AST."""
+
+    imports: List[Tuple[int, str]] = field(default_factory=list)  # (lineno, local name)
+    type_checking: Set[str] = field(default_factory=set)
+    used: Set[str] = field(default_factory=set)
+    exported: Set[str] = field(default_factory=set)
+    annotation_names: Set[str] = field(default_factory=set)
+
+
+def _collect_file_facts(tree: ast.AST) -> _FileFacts:
+    """Gather every fact the import heuristic needs in a SINGLE tree traversal.
+
+    ── 2026-07-31, cycle #60 — a speed fix, NOT a semantics change ─────────────
+    The heuristic used to walk each file five times (``TYPE_CHECKING`` imports,
+    import statements, referenced names, ``__all__``, string annotations). At
+    3006 files under ``spa_core`` those walks measured **10.95s of the scanner's
+    15.47s** on the host — and on a GitHub runner (~2x slower) the whole scan
+    ran past the ``timeout=30`` of ``tests/test_dead_code_resolved.py``, which
+    left ``main`` red for five cycles (card
+    ``agent-task-ci-na-main-krasnyi-s-06-23z-skaner-mertv``).
+
+    The traversal below is deliberately ``ast.walk``'s own algorithm — a FIFO
+    queue, i.e. breadth-first — so the *order* in which imports are reported is
+    byte-for-byte what five separate ``ast.walk`` calls produced. Nothing is
+    counted, skipped, or ranked differently: the four exclusions documented in
+    ``scan_unused_imports`` are computed from exactly the same nodes as before.
+    The single-name helpers above are kept as thin wrappers over this function
+    rather than as second copies of the logic — a twin implementation is how
+    cycle #37 left a fixed bug alive in a sibling.
+    """
+    facts = _FileFacts()
+    todo: deque = deque([tree])
+    while todo:
+        node = todo.popleft()
+        todo.extend(ast.iter_child_nodes(node))
+
+        # --- import statements + `if TYPE_CHECKING:` blocks ------------------
+        if isinstance(node, ast.Import):
+            for name in _extract_import_names(node):
+                facts.imports.append((node.lineno, name))
+        elif isinstance(node, ast.ImportFrom):
+            if node.module != "__future__":  # compiler directive — never a name
+                for name in _extract_from_import_names(node):
+                    facts.imports.append((node.lineno, name))
+        elif isinstance(node, ast.If) and _is_type_checking_guard(node.test):
+            facts.type_checking |= _imported_names_in(node)
+
+        # --- referenced names -------------------------------------------------
         if isinstance(node, ast.Name):
-            used.add(node.id)
+            facts.used.add(node.id)
         elif isinstance(node, ast.Attribute):
             # Catch dotted access like `os.path`
-            root = node
+            root: ast.AST = node
             while isinstance(root, ast.Attribute):
                 root = root.value
             if isinstance(root, ast.Name):
-                used.add(root.id)
-    return used
+                facts.used.add(root.id)
+
+        # --- module-level `__all__` re-exports ---------------------------------
+        if isinstance(node, (ast.Assign, ast.AugAssign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            if any(isinstance(t, ast.Name) and t.id == "__all__" for t in targets):
+                value = getattr(node, "value", None)
+                if isinstance(value, (ast.List, ast.Tuple, ast.Set)):
+                    for elt in value.elts:
+                        if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                            facts.exported.add(elt.value)
+
+        # --- names hiding inside STRING annotations (forward refs) -------------
+        if isinstance(node, (ast.AnnAssign, ast.arg)):
+            if node.annotation is not None:
+                _harvest_annotation_strings(node.annotation, facts.annotation_names)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if node.returns is not None:
+                _harvest_annotation_strings(node.returns, facts.annotation_names)
+
+    return facts
 
 
 # ---------------------------------------------------------------------------
@@ -246,29 +300,17 @@ class DeadCodeScanner:
         except (SyntaxError, OSError):
             return []
 
-        import_nodes: List[tuple] = []  # (line, name)
+        facts = _collect_file_facts(tree)
 
-        type_checking_only = _collect_type_checking_imports(tree)
-
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                for name in _extract_import_names(node):
-                    if name not in type_checking_only:
-                        import_nodes.append((node.lineno, name))
-            elif isinstance(node, ast.ImportFrom):
-                if node.module == "__future__":
-                    continue  # compiler directive — cannot be "referenced"
-                for name in _extract_from_import_names(node):
-                    if name not in type_checking_only:
-                        import_nodes.append((node.lineno, name))
+        import_nodes: List[tuple] = [
+            (line, name) for (line, name) in facts.imports
+            if name not in facts.type_checking
+        ]
 
         if not import_nodes:
             return []
 
-        imported_names = [n for _, n in import_nodes]
-        used = _collect_names_used(tree, imported_names)
-        used |= _collect_exported_names(tree)
-        used |= _collect_string_annotation_names(tree)
+        used = facts.used | facts.exported | facts.annotation_names
 
         items = []
         for (line, name) in import_nodes:

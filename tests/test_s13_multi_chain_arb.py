@@ -109,11 +109,38 @@ class TestS13GetPhase(unittest.TestCase):
         """Дата после 2026-08-01 → phase2."""
         self.assertEqual(self.strategy.get_phase("2026-12-01"), "phase2")
 
-    def test_phase_default_is_phase1_today(self):
-        """Сегодня (2026-06-12) без аргумента → phase1 (до go-live)."""
-        # Сегодня 2026-06-12, PHASE2_DATE = 2026-08-01 → phase1
-        result = self.strategy.get_phase()
-        self.assertEqual(result, "phase1")
+    def test_phase_boundary_is_explicit_and_inclusive(self):
+        """`get_phase(date)` — phase1 строго до PHASE2_DATE, phase2 начиная с неё.
+
+        ── 2026-08-01, цикл #64 — тест УСИЛЕН, а не ослаблен (инвариант #16) ────
+        Было: ``test_phase_default_is_phase1_today`` — «Сегодня (2026-06-12) без
+        аргумента → phase1», то есть ``assertEqual(get_phase(), "phase1")``.
+        Этот тест проверял КАЛЕНДАРЬ, а не код: он был истинным ровно до
+        2026-08-01 и с этого дня падает навсегда
+        (``AssertionError: 'phase2' != 'phase1'``). При этом он всегда покрывал
+        одну ветку — ту, которую выбрало сегодняшнее число.
+
+        Стало: обе ветки и сама граница проверяются явной датой — покрытие
+        СТРОГО больше, результат не зависит от дня прогона. Продакшн-код не
+        менялся: параметр ``date`` у ``get_phase`` существовал изначально.
+        ``PHASE2_DATE`` не тронут — сдвиг даты это смена замысла и вопрос
+        владельца (``owner-decision-nastupila-faza-2-1-avgusta-vklyuchaem-sd``).
+        """
+        self.assertEqual(self.strategy.get_phase("2026-06-12"), "phase1")
+        self.assertEqual(self.strategy.get_phase("2026-07-31"), "phase1")
+        self.assertEqual(self.strategy.get_phase(PHASE2_DATE), "phase2")
+        self.assertEqual(self.strategy.get_phase("2026-12-31"), "phase2")
+
+    def test_phase_without_argument_uses_the_real_clock(self):
+        """Контроль: без аргумента метод берёт настоящую сегодняшнюю дату.
+
+        Без этого тест выше можно было бы удовлетворить реализацией, которая
+        игнорирует часы вовсе.
+        """
+        import datetime
+        today = datetime.date.today().isoformat()
+        expected = "phase2" if today >= PHASE2_DATE else "phase1"
+        self.assertEqual(self.strategy.get_phase(), expected)
 
 
 # ─── Блок 3: compute_chain_yields (5 тестов) ─────────────────────────────────
