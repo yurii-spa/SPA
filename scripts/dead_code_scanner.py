@@ -6,6 +6,9 @@ Scans for dead code patterns in the SPA codebase.
 
 Dead code categories:
 1. unused_import   — imports defined but not referenced in the same file
+                     (NOT counted: `__future__` directives, `__all__` re-exports,
+                      string forward-ref annotations, `if TYPE_CHECKING:` imports
+                      — see scan_unused_imports)
 2. no_tests        — spa_core modules with no corresponding test file
 3. todo_stale      — TODO/FIXME/HACK/XXX comments
 4. stub_module     — files with < 50 lines of non-empty code (likely stubs)
@@ -78,6 +81,109 @@ def _extract_from_import_names(node: ast.ImportFrom) -> List[str]:
     return names
 
 
+def _collect_exported_names(tree: ast.AST) -> Set[str]:
+    """
+    Return names listed in a module-level ``__all__``.
+
+    A re-export IS a use: ``from .x import Y`` + ``__all__ = ["Y"]`` is the
+    documented way to publish ``Y`` as part of the package API. This mirrors
+    pyflakes, which suppresses F401 for names present in ``__all__``
+    (see ``scripts/tests/test_unused_import_ratchet.py`` — the money-path
+    ratchet built on pyflakes relies on exactly this convention).
+    """
+    exported: Set[str] = set()
+    for node in ast.walk(tree):
+        targets = []
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, ast.AugAssign):
+            targets = [node.target]
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+        else:
+            continue
+        if not any(isinstance(t, ast.Name) and t.id == "__all__" for t in targets):
+            continue
+        value = getattr(node, "value", None)
+        if isinstance(value, (ast.List, ast.Tuple, ast.Set)):
+            for elt in value.elts:
+                if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                    exported.add(elt.value)
+    return exported
+
+
+def _harvest_annotation_strings(node: ast.AST, out: Set[str]) -> None:
+    """Recursively pull names out of STRING parts of an annotation expression."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        try:
+            sub = ast.parse(node.value, mode="eval")
+        except (SyntaxError, ValueError):
+            return
+        for inner in ast.walk(sub):
+            if isinstance(inner, ast.Name):
+                out.add(inner.id)
+            elif isinstance(inner, ast.Attribute):
+                root: ast.AST = inner
+                while isinstance(root, ast.Attribute):
+                    root = root.value
+                if isinstance(root, ast.Name):
+                    out.add(root.id)
+    elif isinstance(node, ast.Subscript):
+        _harvest_annotation_strings(node.value, out)
+        _harvest_annotation_strings(node.slice, out)
+    elif isinstance(node, (ast.Tuple, ast.List)):
+        for elt in node.elts:
+            _harvest_annotation_strings(elt, out)
+    elif isinstance(node, ast.BinOp):
+        _harvest_annotation_strings(node.left, out)
+        _harvest_annotation_strings(node.right, out)
+
+
+def _collect_string_annotation_names(tree: ast.AST) -> Set[str]:
+    """
+    Return names referenced from STRING annotations (PEP 484 forward references).
+
+    ``def f() -> "Foo": ...`` parses the annotation as a str *constant*, so plain
+    ``ast.Name`` collection never sees ``Foo`` — yet the import of ``Foo`` is used.
+    Only annotation positions are inspected; arbitrary docstrings are NOT, because
+    a name mentioned in prose is a coincidence, not a use.
+    """
+    found: Set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.AnnAssign, ast.arg)) and node.annotation is not None:
+            _harvest_annotation_strings(node.annotation, found)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.returns is not None:
+            _harvest_annotation_strings(node.returns, found)
+    return found
+
+
+def _collect_type_checking_imports(tree: ast.AST) -> Set[str]:
+    """
+    Return local names imported inside an ``if TYPE_CHECKING:`` block.
+
+    Such imports exist purely for type checkers and are, by construction, meant
+    to be referenced only from annotations. The module docstring has always
+    claimed these are skipped — this makes the claim true.
+    """
+    names: Set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.If):
+            continue
+        test = node.test
+        guarded = (
+            (isinstance(test, ast.Name) and test.id == "TYPE_CHECKING")
+            or (isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING")
+        )
+        if not guarded:
+            continue
+        for sub in ast.walk(node):
+            if isinstance(sub, ast.Import):
+                names.update(_extract_import_names(sub))
+            elif isinstance(sub, ast.ImportFrom):
+                names.update(_extract_from_import_names(sub))
+    return names
+
+
 def _collect_names_used(tree: ast.AST, imported_names: List[str]) -> Set[str]:
     """Collect all Name / Attribute nodes to find which imports are referenced."""
     used: Set[str] = set()
@@ -113,7 +219,25 @@ class DeadCodeScanner:
         """
         Find imports that aren't referenced in the file.
         Handles: `import X`, `import X as Y`, `from X import Y`, `from X import Y as Z`.
-        Skips `from X import *` and TYPE_CHECKING blocks (best-effort).
+        Skips `from X import *`.
+
+        Four things are deliberately NOT counted, because in each of them the
+        import is used (or cannot possibly be "referenced") — counting them made
+        the number mean something other than what it promises (2026-07-31, cycle
+        #52, card ``agent-unused-import-ceiling-at-its-limit``; measured shares of
+        the then-current 4049: `__future__` 1753, `__all__` 137, string
+        annotations 4, TYPE_CHECKING 1 — 1895 in total, 4049 → 2154, with zero
+        items ADDED, i.e. this can only ever drop a false positive):
+
+          * ``from __future__ import ...`` — a compiler directive, never a name
+            the code can mention. It was 43% of the whole count, and it grew by
+            one with every new module that opted into modern annotations.
+          * names listed in ``__all__`` — a re-export IS the use (pyflakes does
+            the same, see ``_collect_exported_names``).
+          * names referenced from STRING annotations (forward refs) — the AST
+            holds them as str constants, not ``ast.Name``.
+          * imports inside ``if TYPE_CHECKING:`` — existed only for annotations;
+            the docstring already claimed they were skipped, now they are.
         """
         try:
             with open(filepath, "r", encoding="utf-8", errors="replace") as f:
@@ -124,19 +248,27 @@ class DeadCodeScanner:
 
         import_nodes: List[tuple] = []  # (line, name)
 
+        type_checking_only = _collect_type_checking_imports(tree)
+
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for name in _extract_import_names(node):
-                    import_nodes.append((node.lineno, name))
+                    if name not in type_checking_only:
+                        import_nodes.append((node.lineno, name))
             elif isinstance(node, ast.ImportFrom):
+                if node.module == "__future__":
+                    continue  # compiler directive — cannot be "referenced"
                 for name in _extract_from_import_names(node):
-                    import_nodes.append((node.lineno, name))
+                    if name not in type_checking_only:
+                        import_nodes.append((node.lineno, name))
 
         if not import_nodes:
             return []
 
         imported_names = [n for _, n in import_nodes]
         used = _collect_names_used(tree, imported_names)
+        used |= _collect_exported_names(tree)
+        used |= _collect_string_annotation_names(tree)
 
         items = []
         for (line, name) in import_nodes:
