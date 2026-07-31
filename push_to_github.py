@@ -1,9 +1,21 @@
 #!/usr/bin/env python3
 """
-push_to_github.py — универсальный пуш файлов в GitHub через Contents API.
+push_to_github.py — универсальный пуш файлов в GitHub.
 Читает PAT из переменной окружения GITHUB_PAT, файла ~/.spa_pat
 или macOS Keychain (сервис GITHUB_PAT_SPA).
 НЕ содержит hardcoded secrets.
+
+ДОСТАВКА (что уезжает и как):
+  * ОДИН файл  → Contents API, один PUT = один коммит (как было);
+  * НЕСКОЛЬКО  → Git Data API (blobs → tree → commit → ref): весь набор
+    приземляется ОДНИМ коммитом. Contents API принимает по одному файлу за
+    вызов, поэтому раньше набор из N взаимозависимых файлов давал N коммитов
+    и промежуточные состояния `main` были КРАСНЫМИ (карточка
+    `agent-push-batch-per-file-commits`). Git Data API недоступен → честный
+    отказ; файлы НЕ дошлются по одному молча.
+  * неизменённые файлы пропускаются на обоих путях (пустых коммитов нет);
+  * режим (x-бит) существующего файла сохраняется — снятый x-бит с
+    bash-обёртки launchd = агент exit-78 (инвариант #12).
 
 Использование:
   # Positional files (новый стиль):
@@ -23,12 +35,21 @@ import hashlib
 import argparse
 import subprocess
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Optional
 
 REPO = "yurii-spa/SPA"
 API_BASE = "https://api.github.com"
 PROJECT_ROOT = Path("/Users/yuriikulieshov/Documents/SPA_Claude")
+
+# Режимы записей дерева. Git различает обычный файл и исполняемый; в этом репо
+# 27 файлов — 100755, и среди них bash-обёртки launchd (`scripts/auto_push.sh`,
+# `scripts/install_agents.sh`, …). Потерянный x-бит = агент падает exit-78
+# (инвариант #12), поэтому режим существующего файла НИКОГДА не выдумывается.
+BLOB_MODE = "100644"
+EXEC_MODE = "100755"
 
 
 class RepoPathError(ValueError):
@@ -283,6 +304,243 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
         return {"ok": False, "error": str(e), "path": repo_path}
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Git Data API: N файлов = ОДИН коммит
+#
+# ЗАЧЕМ (карточка `agent-push-batch-per-file-commits`, найдено циклом #48):
+# Contents API принимает по ОДНОМУ файлу за вызов, поэтому набор из N
+# взаимозависимых файлов приземлялся N последовательными коммитами — и
+# промежуточные состояния дерева НЕСОГЛАСОВАНЫ. Измерено на реальных прогонах
+# Actions: из пяти коммитов одного пуша ДВА промежуточных дали `SPA Tests` /
+# `SPA CI` = failure (тесты уже на `main`, а правки, которые они проверяют, —
+# ещё нет). Регулярный «нормальный» красный main учит игнорировать сигнал
+# (инвариант #16), ломает `git bisect` и отправляет следующую сессию искать
+# несуществующий дефект (ровно этим занимался цикл #47).
+#
+# Реализация ОДНА на оба CLI: `push_to_github_batch.py` импортирует эти функции
+# отсюда, своих копий не держит (близнец такой же логики — механизм, которым
+# цикл #37 оставил CI красным, а цикл #40 разослал файлы в корень репо).
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class TreeModeError(RuntimeError):
+    """Режим (x-бит) файла, уже лежащего на remote, определить не удалось.
+
+    Fail-CLOSED: молча поставить `100644` значит СНЯТЬ исполняемый бит с
+    bash-обёртки launchd — агент после такого падает exit-78 (инвариант #12),
+    и увидеть это можно только по мёртвому агенту. Лучше отказать в пуше.
+    """
+
+
+def _api(pat: str, method: str, path: str, payload: Optional[dict] = None) -> dict:
+    """Один вызов GitHub API. Бросает urllib.error.HTTPError (с телом) на ошибке."""
+    url = f"{API_BASE}{path}"
+    data_bytes = json.dumps(payload).encode() if payload is not None else None
+    req = urllib.request.Request(url, data=data_bytes, method=method, headers={
+        "Authorization": f"Bearer {pat}",
+        "Accept": "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    })
+    with urllib.request.urlopen(req) as resp:
+        body = resp.read()
+        return json.loads(body) if body else {}
+
+
+def get_base_ref(pat: str, repo: str, branch: str) -> tuple:
+    """Шаги 1-2: вернуть (base_commit_sha, base_tree_sha)."""
+    ref = _api(pat, "GET", f"/repos/{repo}/git/ref/heads/{branch}")
+    base_commit_sha = str(ref["object"]["sha"])
+    commit = _api(pat, "GET", f"/repos/{repo}/git/commits/{base_commit_sha}")
+    base_tree_sha = str(commit["tree"]["sha"])
+    return base_commit_sha, base_tree_sha
+
+
+def resolve_files(file_args: list) -> list:
+    """Преобразовать пути в [(repo_relative_path, abs_path)]. Бросает на отсутствующий файл."""
+    resolved = []
+    for fa in file_args:
+        local = Path(fa)
+        if not local.is_absolute():
+            local = PROJECT_ROOT / local
+        if not local.exists():
+            raise RuntimeError(f"Файл не найден: {fa}")
+        if not local.is_file():
+            raise RuntimeError(f"Не файл (директории не поддерживаются): {fa}")
+        try:
+            repo_path = repo_relative_path(local)
+        except RepoPathError as e:
+            raise RuntimeError(str(e))   # fail-CLOSED: весь батч не уезжает
+        resolved.append((repo_path, local))
+    return resolved
+
+
+def remote_tree_modes(pat: str, repo: str, tree_sha: str) -> tuple:
+    """Карта `путь → режим` ветки. Вернуть (modes, truncated).
+
+    Один рекурсивный GET на всё дерево. GitHub усекает ответ на очень больших
+    деревьях и честно помечает это флагом ``truncated`` — тогда карта неполная,
+    и ОТСУТСТВИЕ пути в ней уже НЕ значит «файла на remote нет» (см.
+    :func:`tree_entry_mode`, который в этом случае отказывает, а не угадывает).
+    """
+    data = _api(pat, "GET", f"/repos/{repo}/git/trees/{tree_sha}?recursive=1")
+    modes = {e["path"]: e["mode"] for e in data.get("tree", [])
+             if e.get("type") == "blob" and e.get("path") and e.get("mode")}
+    return modes, bool(data.get("truncated"))
+
+
+def tree_entry_mode(repo_path: str, abs_path: Path, modes: dict, truncated: bool) -> str:
+    """Режим записи дерева для файла.
+
+    - файл уже есть на remote → его СОБСТВЕННЫЙ режим (x-бит сохраняется);
+    - карта полная и пути в ней нет → файл новый, режим по правилу git:
+      исполняемый локально → ``100755``, иначе ``100644``;
+    - карта усечена и пути в ней нет → существование НЕ ИЗМЕРЕНО →
+      :class:`TreeModeError` (fail-CLOSED, не догадка).
+    """
+    existing = modes.get(repo_path)
+    if existing:
+        return str(existing)
+    if truncated:
+        raise TreeModeError(
+            f"дерево ветки пришло усечённым (GitHub `truncated: true`), и для "
+            f"{repo_path} режим файла не измерен: если файл на remote исполняемый, "
+            f"пуш снял бы x-бит молча. Пуш отменён (fail-CLOSED)."
+        )
+    return EXEC_MODE if os.access(abs_path, os.X_OK) else BLOB_MODE
+
+
+def create_blob(pat: str, repo: str, abs_path: Path) -> str:
+    """Шаг 3: создать blob из файла (base64, безопасно для бинарных и текстовых)."""
+    content_b64 = base64.b64encode(Path(abs_path).read_bytes()).decode()
+    blob = _api(pat, "POST", f"/repos/{repo}/git/blobs",
+                {"content": content_b64, "encoding": "base64"})
+    return str(blob["sha"])
+
+
+def create_tree(pat: str, repo: str, base_tree_sha: str, entries: list) -> str:
+    """Шаг 4: новое дерево = base_tree + по записи на файл."""
+    tree = _api(pat, "POST", f"/repos/{repo}/git/trees",
+                {"base_tree": base_tree_sha, "tree": entries})
+    return str(tree["sha"])
+
+
+def create_commit(pat: str, repo: str, message: str, tree_sha: str, parent_sha: str) -> str:
+    """Шаг 5: один коммит со всеми изменениями."""
+    commit = _api(pat, "POST", f"/repos/{repo}/git/commits",
+                  {"message": message, "tree": tree_sha, "parents": [parent_sha]})
+    return str(commit["sha"])
+
+
+def update_ref(pat: str, repo: str, branch: str, commit_sha: str, force: bool = False) -> dict:
+    """Шаг 6: переместить ветку на новый коммит."""
+    return _api(pat, "PATCH", f"/repos/{repo}/git/refs/heads/{branch}",
+                {"sha": commit_sha, "force": force})
+
+
+def split_unchanged(pat: str, repo: str, branch: str, files: list) -> tuple:
+    """Разделить [(repo_path, abs)] на (changed, unchanged) по git-blob-SHA.
+
+    Та же идемпотентность, что у :func:`push_file`, и с тем же направлением
+    ошибки: пропускаем ТОЛЬКО при точном совпадении remote sha с локальным
+    blob-SHA; любая неопределённость (sha=None — новый файл ИЛИ сетевая
+    ошибка) → файл считается изменённым и уезжает. Реальные правки не теряются.
+    """
+    changed, unchanged = [], []
+    for repo_path, abs_path in files:
+        local_sha = git_blob_sha(Path(abs_path).read_bytes())
+        remote_sha = get_file_sha(pat, repo, repo_path, branch)
+        if remote_sha is not None and remote_sha == local_sha:
+            unchanged.append((repo_path, abs_path, remote_sha))
+        else:
+            changed.append((repo_path, abs_path))
+    return changed, unchanged
+
+
+def batch_push(pat: str, file_args: list, message: str, repo: str, branch: str,
+               dry_run: bool = False) -> dict:
+    """Собрать N файлов в ОДИН коммит через Git Data API.
+
+    Порядок: разрешить пути (fail-CLOSED) → отсеять неизменённые →
+    blobs → tree (с сохранением режимов) → commit → move ref.
+    Ничего не изменилось → коммита НЕТ вовсе (пустые коммиты не создаются).
+    """
+    files = resolve_files(file_args)
+
+    # Шаги 1-2: база
+    base_commit_sha, base_tree_sha = get_base_ref(pat, repo, branch)
+    print(f"  base commit: {base_commit_sha[:8]}  base tree: {base_tree_sha[:8]}")
+
+    if dry_run:
+        print(f"DRY RUN — закоммитил бы {len(files)} файл(ов) ОДНИМ коммитом:")
+        for repo_path, _ in files:
+            print(f"    + {repo_path}")
+        return {"ok": True, "dry_run": True, "count": len(files),
+                "base_commit": base_commit_sha}
+
+    changed, unchanged = split_unchanged(pat, repo, branch, files)
+    for repo_path, _, remote_sha in unchanged:
+        print(f"  SKIP {repo_path} (unchanged, sha: {remote_sha[:8]})")
+    if not changed:
+        print("  всё содержимое уже на remote — коммит не создаётся")
+        return {"ok": True, "count": 0, "commit": None, "skipped": len(unchanged),
+                "files": [], "skipped_files": [p for p, _, _ in unchanged]}
+
+    modes, truncated = remote_tree_modes(pat, repo, base_tree_sha)
+
+    # Шаг 3: blobs (+ режим существующего файла сохраняется как есть)
+    entries = []
+    for repo_path, abs_path in changed:
+        mode = tree_entry_mode(repo_path, abs_path, modes, truncated)
+        blob_sha = create_blob(pat, repo, abs_path)
+        print(f"  blob {blob_sha[:8]}  {repo_path}"
+              f"{'  (exec)' if mode == EXEC_MODE else ''}")
+        entries.append({
+            "path": repo_path,
+            "mode": mode,
+            "type": "blob",
+            "sha": blob_sha,
+        })
+
+    # Шаг 4: tree
+    new_tree_sha = create_tree(pat, repo, base_tree_sha, entries)
+    print(f"  tree {new_tree_sha[:8]}")
+
+    # Шаг 5: commit
+    new_commit_sha = create_commit(pat, repo, message, new_tree_sha, base_commit_sha)
+    print(f"  commit {new_commit_sha[:8]}")
+
+    # Шаг 6: move ref, с одним ретраем на устаревшую базу.
+    # Коды: 409 (conflict) И 422 — GitHub отвечает именно 422 «Update is not a
+    # fast forward», когда параллельный писатель сдвинул ветку между нашим
+    # чтением базы и PATCH (в этом репо такой писатель есть: autopush + дневной
+    # цикл). Ветка только на 409 не срабатывала бы на реальном коде ошибки.
+    try:
+        update_ref(pat, repo, branch, new_commit_sha)
+    except urllib.error.HTTPError as e:
+        if e.code in (409, 422):
+            body = e.read().decode(errors="replace")
+            print(f"  HTTP {e.code} stale ref: {body[:200]} — пересобираю на свежей базе...")
+            # Пересобираем коммит поверх свежего HEAD (база сдвинулась). Режимы
+            # перечитываем на СВЕЖЕМ дереве: параллельный писатель мог менять и их.
+            fresh_base_commit, fresh_base_tree = get_base_ref(pat, repo, branch)
+            fresh_modes, fresh_truncated = remote_tree_modes(pat, repo, fresh_base_tree)
+            for entry, (repo_path, abs_path) in zip(entries, changed):
+                entry["mode"] = tree_entry_mode(repo_path, abs_path,
+                                                fresh_modes, fresh_truncated)
+            new_tree_sha = create_tree(pat, repo, fresh_base_tree, entries)
+            new_commit_sha = create_commit(pat, repo, message, new_tree_sha, fresh_base_commit)
+            print(f"  recommit {new_commit_sha[:8]} (parent {fresh_base_commit[:8]})")
+            update_ref(pat, repo, branch, new_commit_sha)
+        else:
+            raise
+
+    return {"ok": True, "count": len(changed), "commit": new_commit_sha,
+            "tree": new_tree_sha, "skipped": len(unchanged),
+            "files": [p for p, _ in changed],
+            "skipped_files": [p for p, _, _ in unchanged]}
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Пуш файлов в GitHub без hardcoded PAT",
@@ -346,8 +604,38 @@ def main():
 
     if args.dry_run:
         print(f"DRY RUN — репо: {args.repo}, ветка: {args.branch}, файлов: {len(all_files)}")
+        if len(all_files) > 1:
+            print("  (реальный пуш уложил бы изменённые файлы в ОДИН коммит)")
     else:
         print(f"Пушу {len(all_files)} файл(ов) в {args.repo} ({args.branch})...")
+
+    # ── НАБОР ФАЙЛОВ = ОДИН КОММИТ ───────────────────────────────────────────
+    # Contents API берёт по одному файлу за вызов ⇒ N взаимозависимых файлов
+    # приземлялись N коммитами, и промежуточные состояния `main` были красными
+    # (измерено на реальных прогонах Actions, цикл #48). Набор уезжает атомарно.
+    # Одиночный файл — прежним путём: один PUT = один коммит, менять нечего.
+    # Отката «дошлю по одному» НЕТ по требованию карточки: Git Data API
+    # недоступен → честный отказ, а не тихий возврат к рваной доставке.
+    if len(all_files) > 1 and not args.dry_run:
+        try:
+            result = batch_push(pat, all_files, message, args.repo, args.branch)
+        except urllib.error.HTTPError as e:
+            body = e.read().decode(errors="replace")
+            print(f"\nFAIL HTTP {e.code}: {body[:500]}")
+            print("Файлы НЕ досылались по одному: рваный набор на main — то, "
+                  "что этот путь и устраняет (fail-CLOSED).", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"\nFAIL: {e}")
+            print("Файлы НЕ досылались по одному: рваный набор на main — то, "
+                  "что этот путь и устраняет (fail-CLOSED).", file=sys.stderr)
+            sys.exit(1)
+        if result["count"] == 0:
+            print(f"\nOK: {result['skipped']} файл(ов) уже на remote — коммита не потребовалось")
+        else:
+            print(f"\nOK: 1 коммит {result['commit'][:8]} — {result['count']} файл(ов) "
+                  f"(skipped={result['skipped']})")
+        sys.exit(0)
 
     results = []
     for f in all_files:

@@ -226,8 +226,23 @@ def test_pushers_have_no_silent_basename_fallback(filename):
     assert "repo_path = local.name" not in src, (
         f"{filename}: вернулся молчаливый fallback в basename — файлы поедут в корень репо"
     )
-    assert "repo_relative_path(" in src, (
-        f"{filename}: пушер обязан считать путь общим repo_relative_path, а не своей копией"
+    # НАМЕРЕННОЕ ИЗМЕНЕНИЕ ПРОВЕРКИ (инвариант #16, цикл #49 — обоснование здесь
+    # и в docs/journal/2026-W31.md). Было: `assert "repo_relative_path(" in src`
+    # — текстовый признак «в файле есть ВЫЗОВ общей функции». После переноса
+    # resolve_files в канонический push_to_github.py batch-CLI больше не зовёт её
+    # сам (он делегирует ВСЮ доставку), поэтому подстроки в тексте нет, хотя
+    # проверяемое свойство стало СИЛЬНЕЕ. Проверка не ослаблена, а переведена с
+    # текста на ПОВЕДЕНИЕ: символ модуля обязан быть той самой канонической
+    # функцией (по файлу её кода). Своя копия — даже байт-в-байт совпадающая —
+    # такую проверку краснит, а старую текстовую проходила бы.
+    mod = _load(f"_test_pt_fallback_{filename}", filename)
+    resolver = getattr(mod, "repo_relative_path", None)
+    assert resolver is not None, (
+        f"{filename}: пушер не выставляет repo_relative_path вовсе"
+    )
+    assert Path(resolver.__code__.co_filename).name == "push_to_github.py", (
+        f"{filename}: пушер обязан считать путь общим repo_relative_path, а не своей "
+        f"копией (сейчас код идёт из {resolver.__code__.co_filename})"
     )
 
 
