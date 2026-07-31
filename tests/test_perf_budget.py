@@ -28,6 +28,37 @@ for _p in (str(_REPO_ROOT), str(_REPO_ROOT / "scripts")):
 from scripts import perf_budget  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _capture_owner_pushes(monkeypatch):
+    """Transport-only stub for the benched cycle's Tier-1 pushes (cycle #58).
+
+    ``run_budget`` benches the REAL cycle, which reaches
+    ``push_policy.push_critical`` with no ``data_dir`` — so this module's
+    hermetic claim above held for ``data/`` but not for alerting: on clean
+    ``origin/main`` this file raises ``LiveTelegramSendAttempted: 2 live
+    Telegram API call(s)`` at teardown, i.e. a *benchmark* was telling the owner
+    "SPA Milestone" in his real chat.
+
+    Only ``push_policy._send`` (the transport) is replaced — the whitelist /
+    edge-trigger / ceiling logic still runs and no assertion is relaxed
+    (invariant #16).  Why this was invisible until now: the push is
+    edge-triggered, so leftover ``bad`` state in the live
+    ``data/telegram/push_state.json`` silenced it in some runs — cycle #57's
+    slice never saw it.  ``push_state_guard`` (conftest) sandboxes that state
+    per test, which is what made this deterministic.
+    """
+    from spa_core.telegram import push_policy
+
+    sent: list[str] = []
+
+    def _capture(text: str) -> bool:
+        sent.append(text)
+        return True
+
+    monkeypatch.setattr(push_policy, "_send", _capture)
+    return sent
+
+
 def test_perf_budget_all_surfaces_under_budget():
     """Every benched surface (cycle / allocator / reconcile / key endpoints) is
     under its documented latency budget. A small iteration count keeps the test

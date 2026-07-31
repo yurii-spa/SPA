@@ -463,3 +463,38 @@ def _no_live_telegram(request):
     telegram_guard.reset()
     yield
     telegram_guard.assert_no_live_telegram(request.node.nodeid)
+
+
+# ---------------------------------------------------------------------------
+# No test may write the owner's LIVE alert state (2026-07-31, cycle #58).
+#
+# The #55 guard above stops a test from MESSAGING the owner. It does not stop a
+# test from writing data/telegram/push_state.json — the edge-trigger state that
+# decides whether the owner is ever messaged at all. push_policy resolves that
+# path from its own __file__ (not from SPA_DATA_DIR), so the per-test data-dir
+# isolation does not cover it, and ~19 production senders call push_critical()
+# with no data_dir. A test that leaves `kill_switch: bad` there makes the next
+# REAL firing take the "still bad → silent" branch. Rationale + measurements:
+# spa_core/tests/push_state_guard.py.
+# ---------------------------------------------------------------------------
+_PUSH_GUARD_PATH = Path(__file__).resolve().parent / "push_state_guard.py"
+push_state_guard = sys.modules.get("spa_push_state_guard")
+if push_state_guard is None:
+    _push_spec = _ilu.spec_from_file_location("spa_push_state_guard", _PUSH_GUARD_PATH)
+    push_state_guard = _ilu.module_from_spec(_push_spec)     # type: ignore[arg-type]
+    _push_spec.loader.exec_module(push_state_guard)          # type: ignore[union-attr]
+    sys.modules["spa_push_state_guard"] = push_state_guard
+push_state_guard.install()
+
+
+@pytest.fixture(autouse=True)
+def _no_live_push_state():
+    """Sandbox push_policy's default state dir, fresh for every test.
+
+    Not a mock: the whole policy (whitelist / edge-trigger / ceiling / digest)
+    still runs — only the state's location changes. Clearing it per test also
+    removes the order-dependence that made the live-Telegram guard fire in a
+    file run but not in a single-test run.
+    """
+    push_state_guard.reset()
+    yield

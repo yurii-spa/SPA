@@ -221,10 +221,22 @@ class TestThreatReactorHeldScoping(unittest.TestCase):
         self._orig_status = tr._STATUS
         tr._DATA = self.data_dir
         tr._STATUS = self.data_dir / "threat_reactor_status.json"
+        # Transport-only stub (2026-07-31, cycle #58). Activating the switch
+        # ends in `_send_telegram → push_policy.push_critical → HTTPS POST` to
+        # the OWNER'S REAL CHAT: on clean origin/main this class raised
+        # `LiveTelegramSendAttempted: 2 live Telegram API call(s)` at teardown
+        # and made `SPA Tests` red on main. Only the notification transport is
+        # replaced — detection, activation, scoping and idempotency below run
+        # exactly as before, and no assertion is relaxed (invariant #16). Sends
+        # are captured rather than dropped so the alert stays observable.
+        self.sent_alerts: list[str] = []
+        self._orig_send = tr._send_telegram
+        tr._send_telegram = self.sent_alerts.append  # type: ignore[assignment]
 
     def tearDown(self) -> None:
         self._tr._DATA = self._orig_data
         self._tr._STATUS = self._orig_status
+        self._tr._send_telegram = self._orig_send
         self._tmp.cleanup()
 
     def _hold(self, *protocols: str) -> None:
@@ -273,6 +285,26 @@ class TestThreatReactorHeldScoping(unittest.TestCase):
             equity_curve=[]
         )
         self.assertTrue(active, "switch must be active after the reactor fires")
+
+    def test_reactor_notifies_exactly_once_on_activation(self) -> None:
+        """Control for the cycle-#58 transport stub: the notification is
+        REDIRECTED, not removed.
+
+        Added with the stub, deliberately: a stub that silently swallowed the
+        alert would let a regression in the reactor's own alerting pass unseen —
+        the "claim about a check that never ran" class. This asserts the reactor
+        still emits exactly one owner notification naming the activation.
+        """
+        self._hold("aave_v3")
+        self._critical_flag("aave_v3")
+        self._tr._kickstart_cycle = lambda: None  # type: ignore[assignment]
+        report = self._tr.run_reactor(dry_run=False)
+        self.assertTrue(report["acted"], f"reactor must act: {report}")
+        self.assertEqual(
+            len(self.sent_alerts), 1,
+            f"activation must notify exactly once, got: {self.sent_alerts}",
+        )
+        self.assertIn("KILL-SWITCH ACTIVATED", self.sent_alerts[0])
 
     def test_reactor_noop_for_external_threat(self) -> None:
         """External CRITICAL flag → reactor does NOT activate the switch."""

@@ -80,6 +80,38 @@ _ANCHOR = date(2026, 6, 10)  # PAPER_REAL_START — bars on/after this are evide
 _NOW = datetime(2026, 6, 18, 8, 0, tzinfo=timezone.utc)
 
 
+@pytest.fixture(autouse=True)
+def _capture_owner_pushes(monkeypatch):
+    """Transport-only stub for the cycle's Tier-1 pushes (2026-07-31, cycle #58).
+
+    The sandbox guarantee in this module's docstring covers ``data_dir`` — it did
+    NOT cover alerting: ``run_cycle`` reaches ``push_policy.push_critical`` with
+    no ``data_dir``, so on clean ``origin/main``
+    ``test_d1t1_alloc002_redistribution_preserves_no_increase`` raised
+    ``LiveTelegramSendAttempted: 2 live Telegram API call(s)`` at teardown (red
+    ``SPA Tests`` on main) — an alert about a *simulated* de-risk heading for the
+    owner's real chat.
+
+    Only ``push_policy._send`` (the transport) is replaced; the whitelist,
+    edge-trigger, ceiling and digest logic still run, the cycle behaves
+    identically, and not one assertion below is relaxed (invariant #16).  The
+    state those gates read is sandboxed per test by ``push_state_guard`` in
+    ``conftest.py`` — without that, whether this fixture is even reached depends
+    on leftover ``bad`` state in the live repo, which is exactly why the failure
+    looked flaky (whole file: error; this test alone: pass).
+    """
+    from spa_core.telegram import push_policy
+
+    sent: list[str] = []
+
+    def _capture(text: str) -> bool:
+        sent.append(text)
+        return True
+
+    monkeypatch.setattr(push_policy, "_send", _capture)
+    return sent
+
+
 # ── Hermetic fakes ────────────────────────────────────────────────────────────
 
 
