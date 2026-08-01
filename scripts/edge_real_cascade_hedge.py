@@ -263,6 +263,114 @@ def downside_beta(x, y):
     return ols_beta(xs, ys)
 
 
+# How many standard errors below chance the conditional mean must sit before the REVERSE premise
+# check is allowed to call co-movement real.  2.0 ≈ 2.3% one-sided under normality — the usual bar,
+# and far stricter than the bare threshold it replaces (see `conditional_mean_z`).
+_SELECTION_Z = 2.0
+# Economic bar kept from the original check: even a statistically real concentration of ETH losses
+# is not worth hedging if it is tiny.  BOTH bars must clear.
+_HEDGE_PAYS_THRESHOLD = -0.005
+
+
+def conditional_mean_z(values, selected):
+    """Is the mean of ``values`` over ``selected`` days distinguishable from a RANDOM pick?
+
+    Returns ``(observed_mean, unconditional_mean, z, measured)``.  ``measured`` is False when the
+    question cannot be answered at all (empty/degenerate input) — the caller must then refuse,
+    never fall back to a number.
+
+    **Why this exists.** The reverse premise check ("when the CORE has its worst days, is ETH
+    falling too?") ranks days by the core's own return and averages ETH over the worst decile.
+    That is only a measurement if ranking by the core actually selects distinctive days.  For a
+    delta-neutral carry book it does not: measured on the real panel 2024-06-01..2026-06-24,
+    CORE-A's daily dispersion is 0.0076%/d against ETH's 3.92%/d — a factor of ~500 — so the
+    "worst decile" is ranked by what is effectively noise, and the ETH days it collects are close
+    to a random 42-of-427 draw.
+
+    The old test compared the resulting average against a flat -0.5%/d and printed
+    "hedge CAN pay" / "CANNOT pay".  Two things are wrong with that, both measured:
+      1. the null is not zero — ETH DRIFTED -0.231%/d over this window, so any random subset
+         averages -0.231%/d before any co-movement exists;
+      2. the spread of a 42-day average is huge (se ~0.60%/d), so a random draw clears the
+         -0.5%/d bar **32.1% of the time** (200k-draw permutation check, seed 20260801).
+    A verdict that fires on a third of random inputs is not a measurement.  Between the registry
+    run (2026-07-29) and 2026-08-01 that coin landed the other way — -0.077%/d became -0.810%/d
+    and the printed verdict flipped from "CANNOT pay" to "CAN pay" — with no change in the
+    aligned grid (591 points both times).  Card `agent-idea21-verdict-data-drift`.
+
+    So compare against the right null instead: under a random draw of k days out of n WITHOUT
+    replacement the sample mean has mean = the unconditional mean and standard error
+    ``sd/sqrt(k) * sqrt((n-k)/(n-1))`` (finite-population correction).  The z that falls out is
+    exact, deterministic and needs no RNG — it reproduces the 200k-draw permutation percentile to
+    a tenth of a point (CORE-A: z = -1.01 ⇒ 15.7th percentile; permutation gave 15.7%).
+
+    Note this refuses in the SAME direction as the rest of the file: `ols_beta` fails closed on a
+    flat regressor, `downside_beta` on a short series, and this on a selection that carries no
+    information.  A near-zero z is not "no co-movement" — it is "this input cannot tell".
+    """
+    n = len(values)
+    k = len(selected)
+    if n < 2 or k == 0 or k >= n:
+        return 0.0, 0.0, 0.0, False
+    uncond = sum(values) / n
+    obs = sum(values[i] for i in selected) / k
+    var = sum((v - uncond) ** 2 for v in values) / n
+    # A perfectly flat series (points_farm is exactly this on the real panel) has no sampling
+    # spread, so no z exists.  Refuse rather than divide by zero.
+    scale = max(abs(v) for v in values) or 1.0
+    if var <= (_DEGENERATE_REL_STD * scale) ** 2:
+        return obs, uncond, 0.0, False
+    se = (var / k) ** 0.5 * (((n - k) / (n - 1)) ** 0.5)
+    return obs, uncond, (obs - uncond) / se, True
+
+
+def hedge_can_pay(values, selected):
+    """(verdict, detail) for the reverse premise check — three-valued, fail-CLOSED.
+
+    ``verdict`` is True / False / None, where **None means NOT MEASURED** and must never be
+    rendered as "no co-movement": the two are different claims and conflating them is exactly the
+    fail-OPEN class this repo keeps finding (a plausible number published about a check that never
+    ran).  True requires BOTH bars: statistically below chance (z <= -2) AND economically material
+    (< -0.5%/d).
+    """
+    obs, uncond, z, measured = conditional_mean_z(values, selected)
+    if not measured:
+        return None, {"observed_pct": obs * 100.0, "unconditional_pct": uncond * 100.0,
+                      "z": None, "reason": "selection carries no dispersion — no z exists"}
+    detail = {"observed_pct": obs * 100.0, "unconditional_pct": uncond * 100.0, "z": z,
+              "reason": ""}
+    if z > -_SELECTION_Z:
+        detail["reason"] = (f"indistinguishable from a random draw of the same size "
+                            f"(z={z:+.2f}, needs <= {-_SELECTION_Z:.1f})")
+        return None, detail
+    if obs >= _HEDGE_PAYS_THRESHOLD:
+        detail["reason"] = (f"concentration is real (z={z:+.2f}) but immaterial "
+                            f"({obs*100:+.3f}%/d vs bar {_HEDGE_PAYS_THRESHOLD*100:+.3f}%/d)")
+        return False, detail
+    detail["reason"] = f"ETH losses concentrate on the core's worst days (z={z:+.2f})"
+    return True, detail
+
+
+def series_fingerprint(mapping):
+    """sha256 over a date→value series, so two runs can be compared EXACTLY.
+
+    **Why a hash and not just the date bounds.** Card `agent-idea21-verdict-data-drift` assumed the
+    books had simply grown longer.  They had not — the aligned grid was identical (591 points,
+    2024-06-01..2026-06-24) while the numbers moved anyway.  Diffing the live books against the
+    2026-07-25 full-repo backup showed why: `susde_dn`'s realized series is REGENERATED, not
+    appended — all 853 historical rows changed, by up to -9.70% (2026-07-05: 163150.97 → 147322.68),
+    and `lrt_neutral`'s 761 of 853 (up to -1.34%); the other four books were byte-identical.
+    Bounds and row counts are blind to that; a content hash is not.  Printing it makes every run
+    of this script comparable to every other one, which is the reproducibility criterion the card
+    asked for.
+    """
+    import hashlib
+    h = hashlib.sha256()
+    for d in sorted(mapping):
+        h.update(f"{d}={mapping[d]!r}\n".encode())
+    return h.hexdigest()[:16]
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--fee-bps", type=float, default=5.0, help="per-unit-turnover cost, bps")
@@ -297,6 +405,19 @@ def main() -> None:
     print(f"ETH ann vol (1-day steps only, n={len(daily)}): "
           f"{statistics.pstdev([r for r, _ in daily])*(365**0.5)*100:.1f}%")
 
+    # ── PROVENANCE — makes this run comparable to any other one (see series_fingerprint) ───────
+    provenance = {"eth_prices": {"sha": series_fingerprint(prices), "rows": len(prices),
+                                 "first": min(prices), "last": max(prices)},
+                  "eth_funding": {"sha": series_fingerprint(funding), "rows": len(funding),
+                                  "first": min(funding), "last": max(funding)}}
+    for n_ in book_names:
+        provenance[n_] = {"sha": series_fingerprint(books[n_]), "rows": len(books[n_]),
+                          "first": min(books[n_]), "last": max(books[n_])}
+    print("\ninput series (sha256[:16] of date=value — a rerun that prints different shas is")
+    print("NOT comparable to this one, even when the aligned grid is identical):")
+    for n_, p in provenance.items():
+        print(f"   {n_:22s} {p['sha']}  rows {p['rows']:4d}  {p['first']}..{p['last']}")
+
     # ── 1. PREMISE TEST (1-day steps only — clean co-movement measurement) ────────────────────
     idx1 = [i for i in range(len(dts)) if dts[i] == 1]
     eth1 = [eth_steps[i] for i in idx1]
@@ -319,12 +440,20 @@ def main() -> None:
         dbeta, dmean = downside_beta(eth1, core1)
         print(f"   {'CORE-'+kind:22s} {'':8s} {dbeta:+18.3f} {dmean*100:+23.3f}%/d")
         worst = sorted(range(len(core1)), key=lambda i: core1[i])[:max(1, int(0.10 * len(core1)))]
-        eth_on_core_worst = sum(eth1[i] for i in worst) / len(worst)
-        can_pay = eth_on_core_worst < -0.005
+        can_pay, det = hedge_can_pay(eth1, worst)
+        eth_on_core_worst = det["observed_pct"] / 100.0
         premise[kind] = {"down_beta": dbeta, "core_mean_on_eth_worst_pct": dmean * 100.0,
-                         "eth_on_core_worst_pct": eth_on_core_worst * 100.0, "hedge_can_pay": can_pay}
+                         "eth_on_core_worst_pct": det["observed_pct"],
+                         "eth_unconditional_pct": det["unconditional_pct"],
+                         "selection_z": det["z"], "hedge_can_pay": can_pay,
+                         "core_daily_sd_pct": statistics.pstdev(core1) * 100.0}
+        label = ({True: "hedge CAN pay", False: "hedge CANNOT pay"}[can_pay]
+                 if can_pay is not None else "NOT MEASURED")
         print(f"   {'  ↳ ETH on CORE-'+kind+' worst 10% days':38s} {eth_on_core_worst*100:+.3f}%/d "
-              f"({'hedge CAN pay' if can_pay else 'hedge CANNOT pay — no crisis co-movement'})")
+              f"({label} — {det['reason']})")
+        print(f"   {'     vs ETH unconditional':38s} {det['unconditional_pct']:+.3f}%/d   "
+              f"core daily sd {statistics.pstdev(core1)*100:.4f}%/d vs ETH "
+              f"{statistics.pstdev(eth1)*100:.4f}%/d")
 
     # ── 2/3. REAL-COST + FUNDING-CONDITIONAL SIZING ───────────────────────────────────────────
     results = []
@@ -389,7 +518,8 @@ def main() -> None:
     if args.json:
         print("\nJSON_RESULT " + json.dumps(
             {"grid_points": len(grid), "first": grid[0], "last": grid[-1],
-             "oos_split": OOS_SPLIT, "premise": premise, "results": results}, sort_keys=True))
+             "oos_split": OOS_SPLIT, "premise": premise, "results": results,
+             "provenance": provenance}, sort_keys=True))
 
 
 if __name__ == "__main__":
