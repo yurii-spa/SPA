@@ -61,6 +61,13 @@
   по ЛЮБОМУ признаку, включая слабый. И главное: **пересечение по объявленным файлам
   (`--files`) — независимое измерение, оно по-прежнему даёт `claimed`**, а это и есть защита
   от сессии, взявшей карточку в обход инструмента (работая над карточкой, она объявляет файлы);
+- **личность сессии — это измерение, а не ярлык** (01.08, `agent-self-claim-blocked-by-own-second-identity`).
+  Идентификатор в журнале выдаётся из pid ОДНОКРАТНОЙ CLI-команды, поэтому у `claim` и
+  `release` одной сессии он разный, и сессия отказывала сама себе. «Моё ли это объявление»
+  решает совпадение долгоживущего процесса (`session_pid` + `session_pid_start`) —
+  подтверждённая пара, а не самозаявление; чужой якорь (или его отсутствие) блокирует как
+  прежде. Дешёвая профилактика остаётся главной: выставить `SPA_SESSION_ID` и
+  `SPA_SESSION_PID` ДО первого объявления (`scripts/agent_orchestrator.sh` это делает сам);
 - «объявленный файл» ≠ «файл, который сессия реально изменила» (владение объявляется авансом),
   поэтому пересечение по файлам — сигнал к сверке, а не доказательство конфликта;
 - направление ошибки выбрано намеренно: ложная занятость стоит одной карточки (взять следующую),
@@ -111,6 +118,10 @@ _SEVERITY = {FREE: 0, STALE: 1, CLAIMED: 2, UNCHECKED: 3}
 TERMINAL_STATUSES = {"done", "ingested", "owner-done"}
 
 _CLAIM_KEYS = ("claimed_by", "claimed_at")
+
+# «Якорь не передан» ≠ «якоря нет»: умолчание меряет свой долгоживущий процесс из окружения,
+# явный None выключает опознание собственных объявлений (герметичные тесты). См. `self_identities`.
+_ENV_ANCHOR = object()
 
 
 class ClaimError(RuntimeError):
@@ -290,17 +301,26 @@ def _fmt_ts(dt: datetime) -> str:
 def build_report(cid, path, entries, self_session, sibling, *, now=None,
                  grace_hours=DEFAULT_GRACE_HOURS, ps=None, planned_files=(),
                  log_path=None, log_error=None, malformed_lines=0, card_meta=None,
-                 card_error=None):
-    """Полный отчёт о занятости карточки. Чистая функция: ни git, ни файлов — всё на входе."""
+                 card_error=None, self_anchor=None):
+    """Полный отчёт о занятости карточки. Чистая функция: ни git, ни файлов — всё на входе.
+
+    `self_anchor` — пара (`session_pid`, `session_pid_start`) МОЕГО долгоживящего процесса или
+    None. Через неё записи, сделанные этой же сессией под другими ярлыками, опознаются как свои
+    (`self_identities`); None ⇒ «своей» считается ровно одна строка, как было до 01.08."""
     now = now or datetime.now(timezone.utc)
     grace = timedelta(hours=grace_hours)
     ps = ps or getattr(sibling, "_ps_lstart")
+    # Считается ОДИН раз и по ВСЕМУ журналу: и захваты, и пересечение по файлам должны отвечать
+    # на «моё ли это?» одинаково — иначе собственное второе объявление, не блокируя как захват,
+    # блокировало бы как пересечение по файлам (один дефект, починенный наполовину).
+    selves = self_identities(entries, self_session, self_anchor)
 
     report = {
         "card": cid,
         "card_path": str(path) if path else None,
         "card_status": None,
         "self_session": self_session,
+        "self_sessions": sorted(selves),
         "grace_hours": grace_hours,
         "now": _fmt_ts(now),
         "log": str(log_path) if log_path else None,
@@ -327,9 +347,11 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
         (в карточке лежит только идентификатор сессии) — там всё как раньше."""
         rec = {"source": source, "session": session, "strength": strength, "detail": detail,
                "ts": _fmt_ts(ts) if ts else None}
-        if session and session == self_session:
+        if session and session in selves:
             rec["state"] = "self"
-            rec["session_state"] = "это текущая сессия"
+            rec["session_state"] = ("это текущая сессия" if session == self_session else
+                                    f"это текущая сессия под другим ярлыком "
+                                    f"(тот же долгоживущий процесс, что у {self_session})")
             report["self_claims"].append(rec)
             return
         state, why = sibling.session_state({"session": session, "ts": rec["ts"],
@@ -442,7 +464,7 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                     latest[session] = (session, ts, strength, detail,
                                        sibling.durable_fields(entry))
             # пересечение по файлам — отдельное измерение, не зависит от карточки
-            if planned_files and session and session != self_session and ts is not None:
+            if planned_files and session and session not in selves and ts is not None:
                 if (now - ts) <= grace:
                     shared = sorted({str(f) for f in (entry.get("files") or [])
                                      for mine in planned_files if paths_overlap(f, mine)})
@@ -533,6 +555,15 @@ def render(report) -> str:
         for u in report["unmeasured"]:
             out.append(f"  - [{u['source']}] {u['reason']}")
 
+    others = [s for s in report.get("self_sessions", []) if s != report["self_session"]]
+    if others:
+        # Опознание чужого ЯРЛЫКА как своего — не находка, но и не молчаливая поблажка:
+        # по какому измерению это решено, должно быть видно в отчёте.
+        out.append("")
+        out.append(f"ℹ️  мои же объявления под другими ярлыками ({len(others)}) — опознаны по "
+                   f"совпадению долгоживущего процесса (pid + время старта): "
+                   f"{', '.join(others)}")
+
     if report["self_claims"]:
         out.append("")
         out.append("ℹ️  собственные захваты (не находки):")
@@ -553,10 +584,113 @@ def self_session_id() -> str:
     return os.environ.get("SPA_SESSION_ID") or f"pid{os.getpid()}"
 
 
+def anchor_of(entry):
+    """``(pid, «старт verbatim»)`` или None — ИЗМЕРЕННАЯ личность процесса, написавшего запись.
+
+    Требуются ОБА поля. `session_pid` без `session_pid_start` личностью не считается: pid
+    переиспользуется операционной системой, поэтому «тот же номер» без времени старта — не
+    «тот же процесс», а совпадение числа. Той же парой шаг 0a (`_durable_state`) отличает живую
+    сессию от чужого процесса, занявшего её pid; здесь она отвечает на другой вопрос — «эта
+    запись моя?» — но тем же измерением, а не новой эвристикой."""
+    if not isinstance(entry, dict):
+        return None
+    raw, start = entry.get("session_pid"), entry.get("session_pid_start")
+    if raw is None or start is None:
+        return None
+    pid = raw if isinstance(raw, int) and not isinstance(raw, bool) else None
+    if pid is None and isinstance(raw, str) and raw.strip().isdigit():
+        pid = int(raw.strip())
+    if pid is None or pid <= 1:
+        return None
+    start = str(start).strip()
+    return (pid, start) if start else None
+
+
+def measure_self_anchor(announcer=None, env=None):
+    """Мой собственный якорь или None. Меряет ТОТ ЖЕ код, что пишет его в журнал.
+
+    `log_session_change.durable_process` отдаёт пару только когда объявленный `SPA_SESSION_PID`
+    — процесс, существующий В МОМЕНТ ВЫЗОВА, и записывает его время старта вербатим. Не
+    объявлен / не подтверждён / модуль не загрузился ⇒ None, и всё поведение остаётся ровно
+    прежним: «наверное, это я» здесь не появляется ни в одной ветке."""
+    try:
+        announcer = announcer or load_announcer()
+        proc, _why = announcer.durable_process(env)
+    except (ImportError, OSError, SyntaxError, AttributeError, TypeError, ValueError):
+        return None
+    return anchor_of(proc)
+
+
+def self_identities(entries, self_session, anchor):
+    """Все идентификаторы, под которыми объявлялась ЭТА ЖЕ сессия (множество, ≥1 элемент).
+
+    **Дефект, который это закрывает** (карточка `agent-self-claim-blocked-by-own-second-identity`,
+    найден догфудом цикла #67, независимо воспроизведён циклом #70). Идентификатор сессии — это
+    ЯРЛЫК: без `SPA_SESSION_ID` его выдаёт `log_session_change._session_id()` из pid ОДНОКРАТНОЙ
+    CLI-команды, поэтому у каждой команды одной и той же сессии он свой. «Своей» же признавалась
+    ровно одна строка (`session == self_session`), и любое второе объявление той же сессии
+    читалось как ЧУЖОЙ захват. Замерено дословно:
+
+    * `claim … --session cycle67` → отказ по захвату `pid72203` **(это тоже я)**;
+      `claim … --session pid72203` → отказ по захвату `cycle67` **(и это я)** — круговая
+      блокировка, из которой нет выхода флагом: у `claim` нет `--force`;
+    * штатной пары `claim` … `release` (её предписывает протокол) достаточно и без двух
+      объявлений: это две разные CLI-команды ⇒ два разных ярлыка (цикл #70: взял `pid15267`,
+      снять пытался `pid17106` — «снять чужой захват можно только с --force»).
+
+    **Решение — не самозаявление, а измерение.** Ярлык нестабилен, а долгоживущий процесс
+    сессии — нет: пара (`session_pid`, `session_pid_start`) записывается только после того, как
+    процесс подтверждён, и время старта делает её личностью, а не номером. Две записи с
+    ОДИНАКОВЫМ якорем написаны одним и тем же процессом — это факт, а не допущение, поэтому
+    ярлыки таких записей — мои.
+
+    **Почему это не ослабляет защиту от коллизии #46** (положительные контроли — в тестах):
+    чужая запись несёт ДРУГОЙ якорь либо не несёт его вовсе ⇒ блокирует как прежде; тот же pid
+    с другим временем старта (переиспользованный номер) — НЕ я; без подтверждённого
+    `SPA_SESSION_PID` якоря нет, и поведение побайтово прежнее. Присвоить себе чужой ярлык можно
+    было бы только объявив ЧУЖОЙ живой процесс своим — то есть солгав в `SPA_SESSION_PID`; это
+    тот же уровень доверия, что и существующий `release --force`, и он ничего не обходит молча:
+    все распознанные ярлыки печатаются в отчёте (`self_sessions`).
+
+    Дешёвая профилактика при этом остаётся главной: выставить `SPA_SESSION_ID` и
+    `SPA_SESSION_PID` ДО первого объявления (это делает `scripts/agent_orchestrator.sh`) —
+    тогда ярлык один и якорь есть у каждой записи цикла."""
+    selves = {str(self_session)} if self_session else set()
+    if not anchor:
+        return selves
+    for entry in entries or ():
+        if anchor_of(entry) == anchor:
+            label = str((entry or {}).get("session") or "").strip()
+            if label:
+                selves.add(label)
+    return selves
+
+
+def _log_entries(log, sibling=None, last=None):
+    """Записи журнала или `[]` — тем же читателем, что и `gather`.
+
+    `[]` при любой неудаче чтения — это НЕ «журнал пуст»: единственный потребитель
+    (`release_card`) от этого лишь теряет дополнительные ярлыки и остаётся при прежнем,
+    отказывающем поведении. Направление fail-CLOSED."""
+    try:
+        sibling = sibling or load_sibling()
+        path = Path(log)
+        if not path.exists():
+            return []
+        entries, _malformed = sibling.read_entries(path, last)
+        return entries
+    except (ImportError, OSError, SyntaxError, AttributeError, TypeError, ValueError):
+        return []
+
+
 def gather(card, *, log=DEFAULT_LOG, tracker_dir=DEFAULT_TRACKER, sibling=None,
            self_session=None, now=None, grace_hours=DEFAULT_GRACE_HOURS,
-           planned_files=(), last=None, ps=None):
-    """Прочитать карточку + журнал и собрать отчёт (файловый слой над `build_report`)."""
+           planned_files=(), last=None, ps=None, self_anchor=_ENV_ANCHOR):
+    """Прочитать карточку + журнал и собрать отчёт (файловый слой над `build_report`).
+
+    `self_anchor` — мой долгоживущий процесс (`anchor_of`-пара) для опознания собственных
+    объявлений под другими ярлыками; умолчание меряет его из окружения
+    (`measure_self_anchor`), `None` отключает опознание (герметичные тесты)."""
     sibling = sibling or load_sibling()
     path = card_path(card, tracker_dir)
     meta, card_error = read_card(path)
@@ -571,12 +705,15 @@ def gather(card, *, log=DEFAULT_LOG, tracker_dir=DEFAULT_TRACKER, sibling=None,
         except OSError as exc:
             log_error = f"{log_path}: журнал нечитаем ({exc.__class__.__name__})"
 
+    if self_anchor is _ENV_ANCHOR:
+        self_anchor = measure_self_anchor()
+
     return build_report(card_id(path), path, entries,
                         self_session or self_session_id(), sibling,
                         now=now, grace_hours=grace_hours, ps=ps,
                         planned_files=planned_files, log_path=log_path,
                         log_error=log_error, malformed_lines=malformed,
-                        card_meta=meta, card_error=card_error)
+                        card_meta=meta, card_error=card_error, self_anchor=self_anchor)
 
 
 # ── взятие / освобождение карточки ───────────────────────────────────────────
@@ -701,7 +838,7 @@ def _unannounce_claim(cid, path, session, log, announcer=None):
 
 def claim_card(card, *, session=None, tracker_dir=DEFAULT_TRACKER, now=None,
                grace_hours=DEFAULT_GRACE_HOURS, sibling=None, log=DEFAULT_LOG, ps=None,
-               announcer=None):
+               announcer=None, self_anchor=_ENV_ANCHOR):
     """Взять карточку. Отказ, если её держит другая сессия или занятость не измерена.
 
     Захват всегда сопровождается записью в общем журнале объявлений: «взял, но не объявил» —
@@ -715,7 +852,9 @@ def claim_card(card, *, session=None, tracker_dir=DEFAULT_TRACKER, now=None,
         raise ClaimError(f"карточки нет: {path}")
 
     report = gather(card, log=log, tracker_dir=tracker_dir, sibling=sibling,
-                    self_session=session, now=now, grace_hours=grace_hours, ps=ps)
+                    self_session=session, now=now, grace_hours=grace_hours, ps=ps,
+                    self_anchor=self_anchor)
+    selves = set(report.get("self_sessions") or [session])
     if report["verdict"] in (CLAIMED, UNCHECKED, STALE):
         raise ClaimError(f"вердикт `{report['verdict']}` — карточка не взята.\n"
                          + render(report))
@@ -740,8 +879,10 @@ def claim_card(card, *, session=None, tracker_dir=DEFAULT_TRACKER, now=None,
         # карточке (status `done`, `claimed_by` умершей pid94637).
         if str(meta.get("status") or "").strip() in TERMINAL_STATUSES:
             holder = ""
-        if holder and holder != session:
-            # Гонка: захват появился между проверкой и правкой.
+        if holder and holder not in selves:
+            # Гонка: захват появился между проверкой и правкой. `selves` — не только мой
+            # текущий ярлык: карточку могла взять ЭТА ЖЕ сессия предыдущей командой под другим
+            # ярлыком (`self_identities`), и тогда это не гонка, а собственный захват.
             _unannounce_claim(card_id(path), path, session, log, announcer)
             raise ClaimError(f"карточку успела взять сессия {holder} — не перезаписываю")
         new = _set_claim_fields(text, {"claimed_by": session, "claimed_at": _fmt_ts(now)})
@@ -753,8 +894,14 @@ def claim_card(card, *, session=None, tracker_dir=DEFAULT_TRACKER, now=None,
 
 
 def release_card(card, *, session=None, tracker_dir=DEFAULT_TRACKER, force=False,
-                 log=DEFAULT_LOG, announcer=None):
+                 log=DEFAULT_LOG, announcer=None, sibling=None, self_anchor=_ENV_ANCHOR):
     """Отпустить карточку. Чужой захват без `--force` не снимается.
+
+    «Чужой» решается по `self_identities`, а не по одному ярлыку: `claim` и `release` — ДВЕ
+    разные CLI-команды, поэтому без `SPA_SESSION_ID` у них разные ярлыки, и сессия отказывала
+    сама себе (цикл #70: взял `pid15267`, снять пытался `pid17106`). Обход существовал —
+    `--force`, — но он снимает и НАСТОЯЩИЙ чужой захват, то есть «просто пользоваться --force»
+    обесценивает саму проверку. Журнал не прочитался ⇒ ярлык остаётся один и отказ прежний.
 
     Освобождение тоже объявляется (`card_state: done` — в схеме журнала это и означает
     «захват снят», см. докстринг `log_session_change`): иначе снятый захват остался бы в
@@ -765,6 +912,12 @@ def release_card(card, *, session=None, tracker_dir=DEFAULT_TRACKER, force=False
     path = card_path(card, tracker_dir)
     if not path.exists():
         raise ClaimError(f"карточки нет: {path}")
+    if self_anchor is _ENV_ANCHOR:
+        self_anchor = measure_self_anchor()
+    # Без якоря журнал не читается ВООБЩЕ: опознавать нечем, а лишнее чтение общего файла
+    # сделало бы поведение `release` зависящим от чужих записей. Нет якоря ⇒ ровно старый путь.
+    selves = ({session} if not self_anchor
+              else self_identities(_log_entries(log, sibling), session, self_anchor))
     fd, lock = _acquire_lock(path)
     try:
         text = path.read_text(encoding="utf-8")
@@ -773,7 +926,7 @@ def release_card(card, *, session=None, tracker_dir=DEFAULT_TRACKER, force=False
         if not holder:
             return {"card": card_id(path), "path": str(path), "released": False,
                     "detail": "захвата не было"}
-        if holder != session and not force:
+        if holder not in selves and not force:
             raise ClaimError(f"карточку держит {holder}, а не {session}; "
                              f"снять чужой захват можно только с --force")
         _atomic_write(path, _set_claim_fields(text, None))

@@ -114,10 +114,14 @@ def announce(session, ts, *, summary="работа", files=(), card=None, card_s
 
 
 def run(guard, tracker, log, card, *, session="pid1", ps=None, now=NOW,
-        grace_hours=3.0, planned_files=(), sibling=None):
+        grace_hours=3.0, planned_files=(), sibling=None, self_anchor=None):
+    # `self_anchor=None` по умолчанию — герметичность: иначе умолчание `gather` измеряло бы
+    # долгоживущий процесс из ОКРУЖЕНИЯ прогона (`SPA_SESSION_PID`), и результат зависел бы от
+    # того, запущен pytest внутри цикла оркестратора или нет. Проверки опознания подают якорь
+    # явно (`TestSelfIdentityByDurableProcess`).
     return guard.gather(card, log=log, tracker_dir=tracker, sibling=sibling,
                         self_session=session, now=now, grace_hours=grace_hours,
-                        planned_files=planned_files, ps=ps)
+                        planned_files=planned_files, ps=ps, self_anchor=self_anchor)
 
 
 # ── базовая семантика вердикта ───────────────────────────────────────────────
@@ -1164,3 +1168,259 @@ class TestFileOverlapStillBlocksWithoutStrongSignal:
         r = run(guard, tracker, log, "agent-x", ps=ps_dead,
                 planned_files=["/repo/scripts/check_card_claim.py"], sibling=sibling)
         assert r["verdict"] == guard.FREE
+
+
+# ── личность сессии = измерение, а не ярлык (agent-self-claim-blocked-by-own-second-identity) ──
+
+MY_ANCHOR = (41721, "Sat Aug  1 13:37:28 2026")
+
+
+def anchored(entry, anchor):
+    """Дописать в запись журнала поля долгоживущего процесса (как это делает
+    `log_session_change.durable_process` — только после подтверждения процесса)."""
+    e = dict(entry)
+    if anchor is not None:
+        e["session_pid"], e["session_pid_start"] = anchor[0], anchor[1]
+    return e
+
+
+class TestSelfIdentityByDurableProcess:
+    """Ярлык сессии нестабилен, её долгоживущий процесс — нет.
+
+    **Дефект** (карточка `agent-self-claim-blocked-by-own-second-identity`; догфуд цикла #67,
+    независимо воспроизведён циклом #70). Без `SPA_SESSION_ID` идентификатор в журнале — pid
+    ОДНОКРАТНОЙ CLI-команды, поэтому у каждой команды одной сессии он свой, а «своей»
+    признавалась ровно одна строка (`session == self_session`). Следствия, замеренные дословно:
+    `claim --session cycle67` отказывал по захвату `pid72203` (это тоже я), `claim --session
+    pid72203` — по захвату `cycle67` (и это я); круговая блокировка без выхода (`claim` не
+    имеет `--force`). Двух объявлений даже не требуется: штатная пара `claim` … `release`, ту
+    самую предписывает протокол, — это две команды, то есть два ярлыка (цикл #70: взял
+    `pid15267`, снять пытался `pid17106`).
+
+    **Опознание — по измерению.** Пара (`session_pid`, `session_pid_start`) пишется только
+    после подтверждения процесса, а время старта отличает процесс от переиспользованного
+    номера. Совпал якорь ⇒ записи написаны одним процессом ⇒ ярлыки мои.
+
+    Каждая проверка ниже идёт с положительным контролем: чужой якорь, тот же pid с другим
+    стартом, запись без якоря и половина якоря — блокируют как прежде.
+    """
+
+    # ── чистая арифметика якоря ──────────────────────────────────────────────
+    def test_anchor_needs_both_pid_and_start(self, guard):
+        assert guard.anchor_of({"session_pid": 7, "session_pid_start": "S"}) == (7, "S")
+        # половина якоря — не якорь: pid без времени старта переиспользуется ОС
+        assert guard.anchor_of({"session_pid": 7}) is None
+        assert guard.anchor_of({"session_pid_start": "S"}) is None
+        assert guard.anchor_of({"session_pid": 7, "session_pid_start": "   "}) is None
+
+    def test_anchor_rejects_non_process_pids(self, guard):
+        assert guard.anchor_of({"session_pid": "7", "session_pid_start": "S"}) == (7, "S")
+        assert guard.anchor_of({"session_pid": True, "session_pid_start": "S"}) is None
+        assert guard.anchor_of({"session_pid": 1, "session_pid_start": "S"}) is None
+        assert guard.anchor_of({"session_pid": "не число", "session_pid_start": "S"}) is None
+        assert guard.anchor_of("не запись") is None
+
+    def test_identities_without_anchor_are_just_the_label(self, guard):
+        rows = [anchored(announce("pid100", NOW), MY_ANCHOR)]
+        assert guard.self_identities(rows, "cycle72", None) == {"cycle72"}
+
+    def test_identities_collect_labels_sharing_the_anchor(self, guard):
+        rows = [anchored(announce("pid100", NOW), MY_ANCHOR),
+                anchored(announce("pid101", NOW), MY_ANCHOR),
+                anchored(announce("чужая", NOW), (999, "другой старт")),
+                announce("без якоря", NOW)]
+        assert guard.self_identities(rows, "cycle72", MY_ANCHOR) == {
+            "cycle72", "pid100", "pid101"}
+
+    # ── захват карточки ──────────────────────────────────────────────────────
+    def test_my_own_second_label_is_not_a_claim(self, guard, sibling, tracker, log, ps_dead):
+        """Главный случай карточки: моё же объявление под другим ярлыком не блокирует меня."""
+        write_card(tracker, "agent-x")
+        write_log(log, [anchored(announce("pid100", NOW - timedelta(minutes=5),
+                                          card="agent-x"), MY_ANCHOR)])
+        r = run(guard, tracker, log, "agent-x", session="cycle72", ps=ps_dead,
+                sibling=sibling, self_anchor=MY_ANCHOR)
+        assert r["verdict"] == guard.FREE and guard.exit_code(r) == 0
+        assert r["claims"] == [] and r["self_claims"]
+        assert r["self_sessions"] == ["cycle72", "pid100"]
+
+    def test_the_same_case_blocks_without_the_anchor(self, guard, sibling, tracker, log,
+                                                     ps_dead):
+        """Тот же вход БЕЗ якоря — прежнее (дефектное) поведение. Анти-тавтология: без этого
+        первый тест был бы зелёным и на нечиненом коде."""
+        write_card(tracker, "agent-x")
+        write_log(log, [anchored(announce("pid100", NOW - timedelta(minutes=5),
+                                          card="agent-x"), MY_ANCHOR)])
+        r = run(guard, tracker, log, "agent-x", session="cycle72", ps=ps_dead,
+                sibling=sibling, self_anchor=None)
+        assert r["verdict"] == guard.CLAIMED and r["claims"]
+
+    def test_foreign_session_with_its_own_anchor_still_blocks(self, guard, sibling, tracker,
+                                                              log, ps_dead):
+        """Положительный контроль: чужой процесс — чужой захват (коллизия #46 не ослаблена)."""
+        write_card(tracker, "agent-x")
+        write_log(log, [anchored(announce("cycle71", NOW - timedelta(minutes=5),
+                                          card="agent-x"), (999, "Fri Jul 31 10:00:00 2026"))])
+        r = run(guard, tracker, log, "agent-x", session="cycle72", ps=ps_dead,
+                sibling=sibling, self_anchor=MY_ANCHOR)
+        assert r["verdict"] == guard.CLAIMED and r["claims"]
+
+    def test_recycled_pid_is_not_me(self, guard, sibling, tracker, log, ps_dead):
+        """Положительный контроль: ТОТ ЖЕ pid с другим временем старта — другой процесс.
+        Без времени старта опознание вырождалось бы в «совпал номер» — ровно fail-OPEN."""
+        write_card(tracker, "agent-x")
+        write_log(log, [anchored(announce("pid100", NOW - timedelta(minutes=5), card="agent-x"),
+                                 (MY_ANCHOR[0], "Thu Jul 30 09:00:00 2026"))])
+        r = run(guard, tracker, log, "agent-x", session="cycle72", ps=ps_dead,
+                sibling=sibling, self_anchor=MY_ANCHOR)
+        assert r["verdict"] == guard.CLAIMED and r["claims"]
+
+    def test_entry_without_an_anchor_is_never_absorbed(self, guard, sibling, tracker, log,
+                                                       ps_dead):
+        """Положительный контроль: запись без долгоживущего процесса остаётся чужой.
+        Так ведёт себя ВЕСЬ существующий журнал — старое поведение сохранено байт-в-байт."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("pid100", NOW - timedelta(minutes=5), card="agent-x")])
+        r = run(guard, tracker, log, "agent-x", session="cycle72", ps=ps_dead,
+                sibling=sibling, self_anchor=MY_ANCHOR)
+        assert r["verdict"] == guard.CLAIMED and r["claims"]
+
+    def test_half_an_anchor_does_not_absorb(self, guard, sibling, tracker, log, ps_dead):
+        """Положительный контроль: `session_pid` без `session_pid_start` — не личность."""
+        write_card(tracker, "agent-x")
+        e = announce("pid100", NOW - timedelta(minutes=5), card="agent-x")
+        e["session_pid"] = MY_ANCHOR[0]
+        write_log(log, [e])
+        r = run(guard, tracker, log, "agent-x", session="cycle72", ps=ps_dead,
+                sibling=sibling, self_anchor=MY_ANCHOR)
+        assert r["verdict"] == guard.CLAIMED
+
+    def test_frontmatter_claim_by_my_other_label_is_mine(self, guard, sibling, tracker, log,
+                                                         ps_dead):
+        """Захват в самой карточке тоже опознаётся: `claim` пишет туда ярлык той команды."""
+        write_card(tracker, "agent-x", claimed_by="pid100",
+                   claimed_at=_fmt(NOW - timedelta(minutes=5)))
+        write_log(log, [anchored(announce("pid100", NOW - timedelta(minutes=6),
+                                          card="agent-x"), MY_ANCHOR)])
+        r = run(guard, tracker, log, "agent-x", session="cycle72", ps=ps_dead,
+                sibling=sibling, self_anchor=MY_ANCHOR)
+        assert r["verdict"] == guard.FREE
+        assert [c["source"] for c in r["self_claims"]].count("frontmatter") == 1
+
+    # ── пересечение по файлам ────────────────────────────────────────────────
+    def test_my_other_label_does_not_overlap_with_me(self, guard, sibling, tracker, log,
+                                                     ps_dead):
+        """Одно измерение — один ответ: иначе собственное объявление, не блокируя как захват,
+        блокировало бы как пересечение по файлам (дефект, починенный наполовину)."""
+        write_card(tracker, "agent-x")
+        write_log(log, [anchored(announce("pid100", NOW - timedelta(minutes=10),
+                                          files=["/repo/scripts/check_card_claim.py"]),
+                                 MY_ANCHOR)])
+        r = run(guard, tracker, log, "agent-x", session="cycle72", ps=ps_dead, sibling=sibling,
+                planned_files=["/repo/scripts/check_card_claim.py"], self_anchor=MY_ANCHOR)
+        assert r["overlaps"] == [] and r["verdict"] == guard.FREE
+
+    def test_foreign_overlap_still_blocks(self, guard, sibling, tracker, log, ps_dead):
+        """Положительный контроль к предыдущему: чужие файлы держат карточку как прежде."""
+        write_card(tracker, "agent-x")
+        write_log(log, [anchored(announce("cycle71", NOW - timedelta(minutes=10),
+                                          files=["/repo/scripts/check_card_claim.py"]),
+                                 (999, "Fri Jul 31 10:00:00 2026"))])
+        r = run(guard, tracker, log, "agent-x", session="cycle72", ps=ps_dead, sibling=sibling,
+                planned_files=["/repo/scripts/check_card_claim.py"], self_anchor=MY_ANCHOR)
+        assert r["verdict"] == guard.CLAIMED and r["overlaps"]
+
+    # ── claim / release одной и той же сессией ───────────────────────────────
+    def test_claim_takes_over_from_my_other_label(self, guard, sibling, tracker, log):
+        """Сквозной случай #67: карточку держит мой прежний ярлык — беру, а не отказываю."""
+        write_card(tracker, "agent-x", claimed_by="pid100",
+                   claimed_at=_fmt(NOW - timedelta(minutes=5)))
+        write_log(log, [anchored(announce("pid100", NOW - timedelta(minutes=5),
+                                          card="agent-x"), MY_ANCHOR)])
+        res = guard.claim_card("agent-x", session="cycle72", tracker_dir=tracker, now=NOW,
+                               sibling=sibling, log=log, ps=lambda pid: (1, ""),
+                               self_anchor=MY_ANCHOR)
+        assert res["claimed_by"] == "cycle72"
+        assert guard.frontmatter((tracker / "agent-x.md").read_text(
+            encoding="utf-8"))["claimed_by"] == "cycle72"
+
+    def test_claim_still_refuses_a_foreign_holder(self, guard, sibling, tracker, log):
+        """Положительный контроль: чужой захват не перезаписывается и с якорем."""
+        write_card(tracker, "agent-x", claimed_by="cycle71",
+                   claimed_at=_fmt(NOW - timedelta(minutes=5)))
+        write_log(log, [anchored(announce("cycle71", NOW - timedelta(minutes=5),
+                                          card="agent-x"), (999, "Fri Jul 31 10:00:00 2026"))])
+        with pytest.raises(guard.ClaimError):
+            guard.claim_card("agent-x", session="cycle72", tracker_dir=tracker, now=NOW,
+                             sibling=sibling, log=log, ps=lambda pid: (1, ""),
+                             self_anchor=MY_ANCHOR)
+
+    def test_release_recognises_the_claim_of_my_other_label(self, guard, sibling, tracker, log):
+        """Сквозной случай #70: взял одной командой (`pid15267`), снимаю другой (`pid17106`).
+        Раньше здесь был отказ «снять чужой захват можно только с --force»."""
+        p = write_card(tracker, "agent-x")
+        before = p.read_text(encoding="utf-8")
+        guard.claim_card("agent-x", session="pid15267", tracker_dir=tracker, now=NOW,
+                         sibling=sibling, log=log, ps=lambda pid: (1, ""),
+                         self_anchor=MY_ANCHOR)
+        # тот же процесс, следующая команда — другой ярлык
+        write_log(log, [anchored(announce("pid15267", NOW - timedelta(minutes=1),
+                                          card="agent-x"), MY_ANCHOR)])
+        res = guard.release_card("agent-x", session="pid17106", tracker_dir=tracker, log=log,
+                                 sibling=sibling, self_anchor=MY_ANCHOR)
+        assert res["released"] and res["was"] == "pid15267"
+        assert p.read_text(encoding="utf-8") == before
+
+    def test_release_still_refuses_a_foreign_claim(self, guard, sibling, tracker, log):
+        """Положительный контроль: `--force` НЕ обесценен — чужой захват по-прежнему держит."""
+        write_card(tracker, "agent-x", claimed_by="cycle71", claimed_at=_fmt(NOW))
+        write_log(log, [anchored(announce("cycle71", NOW - timedelta(minutes=1),
+                                          card="agent-x"), (999, "Fri Jul 31 10:00:00 2026"))])
+        with pytest.raises(guard.ClaimError):
+            guard.release_card("agent-x", session="cycle72", tracker_dir=tracker, log=log,
+                               sibling=sibling, self_anchor=MY_ANCHOR)
+
+    def test_release_without_an_anchor_does_not_read_the_log(self, guard, tracker, log):
+        """Нет якоря ⇒ журнал не читается ВООБЩЕ и поведение ровно прежнее: опознавать нечем,
+        а лишнее чтение общего файла сделало бы `release` зависящим от чужих записей.
+
+        Журнал здесь СУЩЕСТВУЕТ (фикстура `log` создаёт файл) — иначе `_log_entries` вышел бы
+        на проверке существования и подставной читатель не вызывался бы никогда: первая версия
+        этого теста проходила и с убранным коротким замыканием, то есть не проверяла ничего."""
+        write_card(tracker, "agent-x", claimed_by="pid999", claimed_at=_fmt(NOW))
+        write_log(log, [announce("pid999", NOW - timedelta(minutes=1), card="agent-x")])
+
+        def _explode(*a, **k):
+            raise AssertionError("журнал прочитан, хотя якоря нет")
+
+        with pytest.raises(guard.ClaimError):
+            guard.release_card("agent-x", session="pid1", tracker_dir=tracker, log=log,
+                               sibling=type("S", (), {"read_entries": staticmethod(_explode)}),
+                               self_anchor=None)
+
+    # ── измерение своего якоря из окружения ──────────────────────────────────
+    def test_measure_self_anchor_uses_the_announcer(self, guard):
+        """Меряет ТОТ ЖЕ код, что пишет якорь в журнал, — близнеца арифметики нет."""
+        ok = type("A", (), {"durable_process": staticmethod(
+            lambda env=None: ({"session_pid": 7, "session_pid_start": "S"}, ""))})
+        assert guard.measure_self_anchor(announcer=ok) == (7, "S")
+
+    def test_measure_self_anchor_is_none_when_the_process_is_not_confirmed(self, guard):
+        """Не подтверждён процесс ⇒ якоря нет ⇒ поведение прежнее (никакого «наверное, я»)."""
+        no = type("A", (), {"durable_process": staticmethod(lambda env=None: ({}, "нет pid"))})
+        assert guard.measure_self_anchor(announcer=no) is None
+
+    def test_measure_self_anchor_survives_a_broken_announcer(self, guard):
+        """Модуль-объявитель не загрузился — это не падение шага 0b, а отсутствие якоря."""
+        bad = type("A", (), {"durable_process": staticmethod(
+            lambda env=None: (_ for _ in ()).throw(OSError("нет файла")))})
+        assert guard.measure_self_anchor(announcer=bad) is None
+
+    def test_render_names_the_other_labels(self, guard, sibling, tracker, log, ps_dead):
+        """Опознание чужого ЯРЛЫКА как своего видно в отчёте — не молчаливая поблажка."""
+        write_card(tracker, "agent-x")
+        write_log(log, [anchored(announce("pid100", NOW - timedelta(minutes=5),
+                                          card="agent-x"), MY_ANCHOR)])
+        text = guard.render(run(guard, tracker, log, "agent-x", session="cycle72", ps=ps_dead,
+                                sibling=sibling, self_anchor=MY_ANCHOR))
+        assert "pid100" in text and "долгоживущего процесса" in text
