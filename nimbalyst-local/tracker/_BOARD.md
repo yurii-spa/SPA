@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **120** · ждёт владельца: **20** · занято сессиями: **0**.
+> Всего карточек: **122** · ждёт владельца: **21** · занято сессиями: **0**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -25,9 +25,10 @@
 - **Сторож расхождения флота не запускался 21 день — его никто не зовёт**  ·  `owner-decision-storozh-rashozhdeniya-flota-ne-zapuskals.md`
 - **Стратегия S23 никогда не видит живой Pendle — адаптер «похоронен», ошибка глотается молча (выбери, как чинить)** · _medium_  ·  `owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p.md`
 - **Тревога о стоп-кране до тебя больше не дойдёт — событие застряло в «плохо» с 4 июля (выбери, как чинить)** · _high_  ·  `owner-decision-trevoga-o-stop-krane-do-tebya-bolshe-ne.md`
+- **Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать** · _medium_  ·  `owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema.md`
 - **В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями** · _high_  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (44)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (45)
 
 ### · needs-owner
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -49,6 +50,7 @@
 - Сторож расхождения флота не запускался 21 день — его никто не зовёт  ·  `owner-decision-storozh-rashozhdeniya-flota-ne-zapuskals.md` · 2026-08-01
 - Стратегия S23 никогда не видит живой Pendle — адаптер «похоронен», ошибка глотается молча (выбери, как чинить)  ·  `owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p.md` · 2026-07-30
 - Тревога о стоп-кране до тебя больше не дойдёт — событие застряло в «плохо» с 4 июля (выбери, как чинить)  ·  `owner-decision-trevoga-o-stop-krane-do-tebya-bolshe-ne.md` · 2026-07-31
+- Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать  ·  `owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema.md` · 2026-08-01
 - В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md` · 2026-07-29
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
@@ -105,7 +107,7 @@
 - Задача разобраться почему нет свежих данных почему Pepper Тест не обновился хот…  ·  `inbox-zadacha-razobratsya-pochemu-net-svezhih.md` · 2026-07-23
 - Задача решить проблему 🚨 Пропущен ежедневный цикл  ·  `inbox-zadacha-reshit-problemu-propuschen-ezhed.md` · 2026-07-30
 
-## 🤖 Agent Tasks (что делает агент)  (51)
+## 🤖 Agent Tasks (что делает агент)  (52)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -138,6 +140,7 @@
 - Опубликованный вердикт идеи #21 разошёлся с сегодняшними данными — строка CORE-A поменяла знак вывода  ·  `agent-idea21-verdict-data-drift.md` · 2026-07-30
 - Тест пути стоп-крана пытается написать владельцу в живой Telegram — страж цикла #55 краснит CI на main  ·  `agent-killswitch-test-messages-owner-chat.md` · 2026-07-31
 - Q6: уведомления о заявках  ·  `agent-lead-pings.md` · 2026-07-16
+- Утренний дайджест отчитывается «отправлено» о сообщении, которое не ушло — и называет «тихим» день, чьи источники не смог прочитать  ·  `agent-morning-digest-claims-delivery-it-never-made.md` · 2026-08-01
 - Утренний дайджест 9:00  ·  `agent-morning-digest.md` · 2026-07-16
 - Оркестратор — раз в час  ·  `agent-orchestrator-1h.md` · 2026-07-16
 - Owner-gate: безопасный авто-шип сайта  ·  `agent-owner-gate.md` · 2026-07-16
