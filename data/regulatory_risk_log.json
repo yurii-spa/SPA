@@ -19,628 +19,6 @@
     "lowest_regulatory_risk": "TestProtocol",
     "high_risk_count": 0,
     "average_risk_score": 27.0,
-    "timestamp": 1784453421.3710074
-  },
-  {
-    "protocols": [
-      {
-        "name": "A",
-        "regulatory_risk_score": 27,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 12,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "Accessible to US users without restriction"
-        ],
-        "recommendation": "Some regulatory risk. A has 0 centralized components."
-      },
-      {
-        "name": "B",
-        "regulatory_risk_score": 27,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 12,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "Accessible to US users without restriction"
-        ],
-        "recommendation": "Some regulatory risk. B has 0 centralized components."
-      }
-    ],
-    "highest_regulatory_risk": "A",
-    "lowest_regulatory_risk": "A",
-    "high_risk_count": 0,
-    "average_risk_score": 27.0,
-    "timestamp": 1784453421.375004
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProtocol",
-        "regulatory_risk_score": 13,
-        "risk_level": "LOW",
-        "jurisdiction_score": 5,
-        "enforcement_exposure_score": 0,
-        "token_risk_score": 8,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "No significant regulatory flags"
-        ],
-        "recommendation": "TestProtocol has manageable regulatory profile."
-      }
-    ],
-    "highest_regulatory_risk": "TestProtocol",
-    "lowest_regulatory_risk": "TestProtocol",
-    "high_risk_count": 0,
-    "average_risk_score": 13.0,
-    "timestamp": 1784453421.3790698
-  },
-  {
-    "protocols": [
-      {
-        "name": "A",
-        "regulatory_risk_score": 95,
-        "risk_level": "CRITICAL",
-        "jurisdiction_score": 20,
-        "enforcement_exposure_score": 35,
-        "token_risk_score": 25,
-        "structural_risk_score": 15,
-        "regulatory_flags": [
-          "Active SEC investigation/subpoena",
-          "Token may be classified as security",
-          "US-based without KYC \u2014 high enforcement risk",
-          "Accessible to US users without restriction",
-          "5 centralized components \u2014 regulatory attack surface",
-          "Large TVL protocol without legal wrapper"
-        ],
-        "recommendation": "CRITICAL: A faces high enforcement risk. Reduce exposure."
-      },
-      {
-        "name": "B",
-        "regulatory_risk_score": 16,
-        "risk_level": "LOW",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 0,
-        "token_risk_score": 8,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "No significant regulatory flags"
-        ],
-        "recommendation": "B has manageable regulatory profile."
-      }
-    ],
-    "highest_regulatory_risk": "A",
-    "lowest_regulatory_risk": "B",
-    "high_risk_count": 1,
-    "average_risk_score": 55.5,
-    "timestamp": 1784453421.383149
-  },
-  {
-    "protocols": [
-      {
-        "name": "LowRisk",
-        "regulatory_risk_score": 13,
-        "risk_level": "LOW",
-        "jurisdiction_score": 5,
-        "enforcement_exposure_score": 0,
-        "token_risk_score": 8,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "No significant regulatory flags"
-        ],
-        "recommendation": "LowRisk has manageable regulatory profile."
-      },
-      {
-        "name": "HighRisk",
-        "regulatory_risk_score": 95,
-        "risk_level": "CRITICAL",
-        "jurisdiction_score": 20,
-        "enforcement_exposure_score": 35,
-        "token_risk_score": 25,
-        "structural_risk_score": 15,
-        "regulatory_flags": [
-          "Active SEC investigation/subpoena",
-          "Token may be classified as security",
-          "US-based without KYC \u2014 high enforcement risk",
-          "Accessible to US users without restriction",
-          "5 centralized components \u2014 regulatory attack surface",
-          "Large TVL protocol without legal wrapper"
-        ],
-        "recommendation": "CRITICAL: HighRisk faces high enforcement risk. Reduce exposure."
-      }
-    ],
-    "highest_regulatory_risk": "HighRisk",
-    "lowest_regulatory_risk": "LowRisk",
-    "high_risk_count": 1,
-    "average_risk_score": 54.0,
-    "timestamp": 1784453421.38726
-  },
-  {
-    "protocols": [
-      {
-        "name": "LowRisk",
-        "regulatory_risk_score": 13,
-        "risk_level": "LOW",
-        "jurisdiction_score": 5,
-        "enforcement_exposure_score": 0,
-        "token_risk_score": 8,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "No significant regulatory flags"
-        ],
-        "recommendation": "LowRisk has manageable regulatory profile."
-      },
-      {
-        "name": "HighRisk",
-        "regulatory_risk_score": 95,
-        "risk_level": "CRITICAL",
-        "jurisdiction_score": 20,
-        "enforcement_exposure_score": 35,
-        "token_risk_score": 25,
-        "structural_risk_score": 15,
-        "regulatory_flags": [
-          "Active SEC investigation/subpoena",
-          "Token may be classified as security",
-          "US-based without KYC \u2014 high enforcement risk",
-          "Accessible to US users without restriction",
-          "5 centralized components \u2014 regulatory attack surface",
-          "Large TVL protocol without legal wrapper"
-        ],
-        "recommendation": "CRITICAL: HighRisk faces high enforcement risk. Reduce exposure."
-      }
-    ],
-    "highest_regulatory_risk": "HighRisk",
-    "lowest_regulatory_risk": "LowRisk",
-    "high_risk_count": 1,
-    "average_risk_score": 54.0,
-    "timestamp": 1784453421.3916237
-  },
-  {
-    "protocols": [
-      {
-        "name": "OnlyOne",
-        "regulatory_risk_score": 27,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 12,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "Accessible to US users without restriction"
-        ],
-        "recommendation": "Some regulatory risk. OnlyOne has 0 centralized components."
-      }
-    ],
-    "highest_regulatory_risk": "OnlyOne",
-    "lowest_regulatory_risk": "OnlyOne",
-    "high_risk_count": 0,
-    "average_risk_score": 27.0,
-    "timestamp": 1784453421.395855
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProtocol",
-        "regulatory_risk_score": 27,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 12,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "Accessible to US users without restriction"
-        ],
-        "recommendation": "Some regulatory risk. TestProtocol has 0 centralized components."
-      }
-    ],
-    "highest_regulatory_risk": "TestProtocol",
-    "lowest_regulatory_risk": "TestProtocol",
-    "high_risk_count": 0,
-    "average_risk_score": 27.0,
-    "timestamp": 1784453421.400477
-  },
-  {
-    "protocols": [
-      {
-        "name": "Pure DeFi",
-        "regulatory_risk_score": 20,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 5,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 8,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "No significant regulatory flags"
-        ],
-        "recommendation": "Some regulatory risk. Pure DeFi has 0 centralized components."
-      }
-    ],
-    "highest_regulatory_risk": "Pure DeFi",
-    "lowest_regulatory_risk": "Pure DeFi",
-    "high_risk_count": 0,
-    "average_risk_score": 20.0,
-    "timestamp": 1784453421.4046047
-  },
-  {
-    "protocols": [
-      {
-        "name": "MaxRisk",
-        "regulatory_risk_score": 95,
-        "risk_level": "CRITICAL",
-        "jurisdiction_score": 20,
-        "enforcement_exposure_score": 35,
-        "token_risk_score": 25,
-        "structural_risk_score": 15,
-        "regulatory_flags": [
-          "Active SEC investigation/subpoena",
-          "Token may be classified as security",
-          "US-based without KYC \u2014 high enforcement risk",
-          "Accessible to US users without restriction",
-          "5 centralized components \u2014 regulatory attack surface",
-          "Large TVL protocol without legal wrapper"
-        ],
-        "recommendation": "CRITICAL: MaxRisk faces high enforcement risk. Reduce exposure."
-      }
-    ],
-    "highest_regulatory_risk": "MaxRisk",
-    "lowest_regulatory_risk": "MaxRisk",
-    "high_risk_count": 1,
-    "average_risk_score": 95.0,
-    "timestamp": 1784453421.4087923
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProtocol",
-        "regulatory_risk_score": 95,
-        "risk_level": "CRITICAL",
-        "jurisdiction_score": 20,
-        "enforcement_exposure_score": 35,
-        "token_risk_score": 25,
-        "structural_risk_score": 15,
-        "regulatory_flags": [
-          "Active SEC investigation/subpoena",
-          "Token may be classified as security",
-          "US-based without KYC \u2014 high enforcement risk",
-          "Accessible to US users without restriction",
-          "5 centralized components \u2014 regulatory attack surface",
-          "Large TVL protocol without legal wrapper"
-        ],
-        "recommendation": "CRITICAL: TestProtocol faces high enforcement risk. Reduce exposure."
-      }
-    ],
-    "highest_regulatory_risk": "TestProtocol",
-    "lowest_regulatory_risk": "TestProtocol",
-    "high_risk_count": 1,
-    "average_risk_score": 95.0,
-    "timestamp": 1784453421.6069107
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProtocol",
-        "regulatory_risk_score": 13,
-        "risk_level": "LOW",
-        "jurisdiction_score": 5,
-        "enforcement_exposure_score": 0,
-        "token_risk_score": 8,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "No significant regulatory flags"
-        ],
-        "recommendation": "TestProtocol has manageable regulatory profile."
-      }
-    ],
-    "highest_regulatory_risk": "TestProtocol",
-    "lowest_regulatory_risk": "TestProtocol",
-    "high_risk_count": 0,
-    "average_risk_score": 13.0,
-    "timestamp": 1784453421.6114707
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProtocol",
-        "regulatory_risk_score": 13,
-        "risk_level": "LOW",
-        "jurisdiction_score": 5,
-        "enforcement_exposure_score": 0,
-        "token_risk_score": 8,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "No significant regulatory flags"
-        ],
-        "recommendation": "TestProtocol has manageable regulatory profile."
-      }
-    ],
-    "highest_regulatory_risk": "TestProtocol",
-    "lowest_regulatory_risk": "TestProtocol",
-    "high_risk_count": 0,
-    "average_risk_score": 13.0,
-    "timestamp": 1784453421.6171405
-  },
-  {
-    "protocols": [
-      {
-        "name": "P0",
-        "regulatory_risk_score": 27,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 12,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "Accessible to US users without restriction"
-        ],
-        "recommendation": "Some regulatory risk. P0 has 0 centralized components."
-      },
-      {
-        "name": "P1",
-        "regulatory_risk_score": 27,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 12,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "Accessible to US users without restriction"
-        ],
-        "recommendation": "Some regulatory risk. P1 has 0 centralized components."
-      },
-      {
-        "name": "P2",
-        "regulatory_risk_score": 27,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 12,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "Accessible to US users without restriction"
-        ],
-        "recommendation": "Some regulatory risk. P2 has 0 centralized components."
-      },
-      {
-        "name": "P3",
-        "regulatory_risk_score": 27,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 12,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "Accessible to US users without restriction"
-        ],
-        "recommendation": "Some regulatory risk. P3 has 0 centralized components."
-      },
-      {
-        "name": "P4",
-        "regulatory_risk_score": 27,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 12,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "Accessible to US users without restriction"
-        ],
-        "recommendation": "Some regulatory risk. P4 has 0 centralized components."
-      },
-      {
-        "name": "P5",
-        "regulatory_risk_score": 27,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 12,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "Accessible to US users without restriction"
-        ],
-        "recommendation": "Some regulatory risk. P5 has 0 centralized components."
-      },
-      {
-        "name": "P6",
-        "regulatory_risk_score": 27,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 12,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "Accessible to US users without restriction"
-        ],
-        "recommendation": "Some regulatory risk. P6 has 0 centralized components."
-      }
-    ],
-    "highest_regulatory_risk": "P0",
-    "lowest_regulatory_risk": "P0",
-    "high_risk_count": 0,
-    "average_risk_score": 27.0,
-    "timestamp": 1784453421.6217237
-  },
-  {
-    "protocols": [
-      {
-        "name": "SpecialName",
-        "regulatory_risk_score": 27,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 12,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "Accessible to US users without restriction"
-        ],
-        "recommendation": "Some regulatory risk. SpecialName has 0 centralized components."
-      }
-    ],
-    "highest_regulatory_risk": "SpecialName",
-    "lowest_regulatory_risk": "SpecialName",
-    "high_risk_count": 0,
-    "average_risk_score": 27.0,
-    "timestamp": 1784453421.6264393
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProtocol",
-        "regulatory_risk_score": 95,
-        "risk_level": "CRITICAL",
-        "jurisdiction_score": 20,
-        "enforcement_exposure_score": 35,
-        "token_risk_score": 25,
-        "structural_risk_score": 15,
-        "regulatory_flags": [
-          "Active SEC investigation/subpoena",
-          "Token may be classified as security",
-          "US-based without KYC \u2014 high enforcement risk",
-          "Accessible to US users without restriction",
-          "10 centralized components \u2014 regulatory attack surface",
-          "Large TVL protocol without legal wrapper"
-        ],
-        "recommendation": "CRITICAL: TestProtocol faces high enforcement risk. Reduce exposure."
-      }
-    ],
-    "highest_regulatory_risk": "TestProtocol",
-    "lowest_regulatory_risk": "TestProtocol",
-    "high_risk_count": 1,
-    "average_risk_score": 95.0,
-    "timestamp": 1784453421.6310663
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProtocol",
-        "regulatory_risk_score": 27,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 12,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "Accessible to US users without restriction"
-        ],
-        "recommendation": "Some regulatory risk. TestProtocol has 0 centralized components."
-      }
-    ],
-    "highest_regulatory_risk": "TestProtocol",
-    "lowest_regulatory_risk": "TestProtocol",
-    "high_risk_count": 0,
-    "average_risk_score": 27.0,
-    "timestamp": 1785057582.4923248
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProtocol",
-        "regulatory_risk_score": 27,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 12,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "Accessible to US users without restriction"
-        ],
-        "recommendation": "Some regulatory risk. TestProtocol has 0 centralized components."
-      }
-    ],
-    "highest_regulatory_risk": "TestProtocol",
-    "lowest_regulatory_risk": "TestProtocol",
-    "high_risk_count": 0,
-    "average_risk_score": 27.0,
-    "timestamp": 1785057582.4970233
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProtocol",
-        "regulatory_risk_score": 27,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 12,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "Accessible to US users without restriction"
-        ],
-        "recommendation": "Some regulatory risk. TestProtocol has 0 centralized components."
-      }
-    ],
-    "highest_regulatory_risk": "TestProtocol",
-    "lowest_regulatory_risk": "TestProtocol",
-    "high_risk_count": 0,
-    "average_risk_score": 27.0,
-    "timestamp": 1785057582.501017
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProtocol",
-        "regulatory_risk_score": 27,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 12,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "Accessible to US users without restriction"
-        ],
-        "recommendation": "Some regulatory risk. TestProtocol has 0 centralized components."
-      }
-    ],
-    "highest_regulatory_risk": "TestProtocol",
-    "lowest_regulatory_risk": "TestProtocol",
-    "high_risk_count": 0,
-    "average_risk_score": 27.0,
-    "timestamp": 1785057582.5050828
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProtocol",
-        "regulatory_risk_score": 27,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 12,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "Accessible to US users without restriction"
-        ],
-        "recommendation": "Some regulatory risk. TestProtocol has 0 centralized components."
-      }
-    ],
-    "highest_regulatory_risk": "TestProtocol",
-    "lowest_regulatory_risk": "TestProtocol",
-    "high_risk_count": 0,
-    "average_risk_score": 27.0,
-    "timestamp": 1785057582.5089025
-  },
-  {
-    "protocols": [
-      {
-        "name": "TestProtocol",
-        "regulatory_risk_score": 27,
-        "risk_level": "MODERATE",
-        "jurisdiction_score": 8,
-        "enforcement_exposure_score": 7,
-        "token_risk_score": 12,
-        "structural_risk_score": 0,
-        "regulatory_flags": [
-          "Accessible to US users without restriction"
-        ],
-        "recommendation": "Some regulatory risk. TestProtocol has 0 centralized components."
-      }
-    ],
-    "highest_regulatory_risk": "TestProtocol",
-    "lowest_regulatory_risk": "TestProtocol",
-    "high_risk_count": 0,
-    "average_risk_score": 27.0,
     "timestamp": 1785057582.5126312
   },
   {
@@ -2998,5 +2376,627 @@
     "high_risk_count": 1,
     "average_risk_score": 95.0,
     "timestamp": 1785489938.2119977
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProtocol",
+        "regulatory_risk_score": 27,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "Accessible to US users without restriction"
+        ],
+        "recommendation": "Some regulatory risk. TestProtocol has 0 centralized components."
+      }
+    ],
+    "highest_regulatory_risk": "TestProtocol",
+    "lowest_regulatory_risk": "TestProtocol",
+    "high_risk_count": 0,
+    "average_risk_score": 27.0,
+    "timestamp": 1785575968.3732636
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProtocol",
+        "regulatory_risk_score": 27,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "Accessible to US users without restriction"
+        ],
+        "recommendation": "Some regulatory risk. TestProtocol has 0 centralized components."
+      }
+    ],
+    "highest_regulatory_risk": "TestProtocol",
+    "lowest_regulatory_risk": "TestProtocol",
+    "high_risk_count": 0,
+    "average_risk_score": 27.0,
+    "timestamp": 1785575968.380735
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProtocol",
+        "regulatory_risk_score": 27,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "Accessible to US users without restriction"
+        ],
+        "recommendation": "Some regulatory risk. TestProtocol has 0 centralized components."
+      }
+    ],
+    "highest_regulatory_risk": "TestProtocol",
+    "lowest_regulatory_risk": "TestProtocol",
+    "high_risk_count": 0,
+    "average_risk_score": 27.0,
+    "timestamp": 1785575968.3849633
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProtocol",
+        "regulatory_risk_score": 27,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "Accessible to US users without restriction"
+        ],
+        "recommendation": "Some regulatory risk. TestProtocol has 0 centralized components."
+      }
+    ],
+    "highest_regulatory_risk": "TestProtocol",
+    "lowest_regulatory_risk": "TestProtocol",
+    "high_risk_count": 0,
+    "average_risk_score": 27.0,
+    "timestamp": 1785575968.3890035
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProtocol",
+        "regulatory_risk_score": 27,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "Accessible to US users without restriction"
+        ],
+        "recommendation": "Some regulatory risk. TestProtocol has 0 centralized components."
+      }
+    ],
+    "highest_regulatory_risk": "TestProtocol",
+    "lowest_regulatory_risk": "TestProtocol",
+    "high_risk_count": 0,
+    "average_risk_score": 27.0,
+    "timestamp": 1785575968.393106
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProtocol",
+        "regulatory_risk_score": 27,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "Accessible to US users without restriction"
+        ],
+        "recommendation": "Some regulatory risk. TestProtocol has 0 centralized components."
+      }
+    ],
+    "highest_regulatory_risk": "TestProtocol",
+    "lowest_regulatory_risk": "TestProtocol",
+    "high_risk_count": 0,
+    "average_risk_score": 27.0,
+    "timestamp": 1785575968.3970382
+  },
+  {
+    "protocols": [
+      {
+        "name": "A",
+        "regulatory_risk_score": 27,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "Accessible to US users without restriction"
+        ],
+        "recommendation": "Some regulatory risk. A has 0 centralized components."
+      },
+      {
+        "name": "B",
+        "regulatory_risk_score": 27,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "Accessible to US users without restriction"
+        ],
+        "recommendation": "Some regulatory risk. B has 0 centralized components."
+      }
+    ],
+    "highest_regulatory_risk": "A",
+    "lowest_regulatory_risk": "A",
+    "high_risk_count": 0,
+    "average_risk_score": 27.0,
+    "timestamp": 1785575968.4011898
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProtocol",
+        "regulatory_risk_score": 13,
+        "risk_level": "LOW",
+        "jurisdiction_score": 5,
+        "enforcement_exposure_score": 0,
+        "token_risk_score": 8,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "No significant regulatory flags"
+        ],
+        "recommendation": "TestProtocol has manageable regulatory profile."
+      }
+    ],
+    "highest_regulatory_risk": "TestProtocol",
+    "lowest_regulatory_risk": "TestProtocol",
+    "high_risk_count": 0,
+    "average_risk_score": 13.0,
+    "timestamp": 1785575968.4052649
+  },
+  {
+    "protocols": [
+      {
+        "name": "A",
+        "regulatory_risk_score": 95,
+        "risk_level": "CRITICAL",
+        "jurisdiction_score": 20,
+        "enforcement_exposure_score": 35,
+        "token_risk_score": 25,
+        "structural_risk_score": 15,
+        "regulatory_flags": [
+          "Active SEC investigation/subpoena",
+          "Token may be classified as security",
+          "US-based without KYC \u2014 high enforcement risk",
+          "Accessible to US users without restriction",
+          "5 centralized components \u2014 regulatory attack surface",
+          "Large TVL protocol without legal wrapper"
+        ],
+        "recommendation": "CRITICAL: A faces high enforcement risk. Reduce exposure."
+      },
+      {
+        "name": "B",
+        "regulatory_risk_score": 16,
+        "risk_level": "LOW",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 0,
+        "token_risk_score": 8,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "No significant regulatory flags"
+        ],
+        "recommendation": "B has manageable regulatory profile."
+      }
+    ],
+    "highest_regulatory_risk": "A",
+    "lowest_regulatory_risk": "B",
+    "high_risk_count": 1,
+    "average_risk_score": 55.5,
+    "timestamp": 1785575968.409159
+  },
+  {
+    "protocols": [
+      {
+        "name": "LowRisk",
+        "regulatory_risk_score": 13,
+        "risk_level": "LOW",
+        "jurisdiction_score": 5,
+        "enforcement_exposure_score": 0,
+        "token_risk_score": 8,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "No significant regulatory flags"
+        ],
+        "recommendation": "LowRisk has manageable regulatory profile."
+      },
+      {
+        "name": "HighRisk",
+        "regulatory_risk_score": 95,
+        "risk_level": "CRITICAL",
+        "jurisdiction_score": 20,
+        "enforcement_exposure_score": 35,
+        "token_risk_score": 25,
+        "structural_risk_score": 15,
+        "regulatory_flags": [
+          "Active SEC investigation/subpoena",
+          "Token may be classified as security",
+          "US-based without KYC \u2014 high enforcement risk",
+          "Accessible to US users without restriction",
+          "5 centralized components \u2014 regulatory attack surface",
+          "Large TVL protocol without legal wrapper"
+        ],
+        "recommendation": "CRITICAL: HighRisk faces high enforcement risk. Reduce exposure."
+      }
+    ],
+    "highest_regulatory_risk": "HighRisk",
+    "lowest_regulatory_risk": "LowRisk",
+    "high_risk_count": 1,
+    "average_risk_score": 54.0,
+    "timestamp": 1785575968.4132178
+  },
+  {
+    "protocols": [
+      {
+        "name": "LowRisk",
+        "regulatory_risk_score": 13,
+        "risk_level": "LOW",
+        "jurisdiction_score": 5,
+        "enforcement_exposure_score": 0,
+        "token_risk_score": 8,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "No significant regulatory flags"
+        ],
+        "recommendation": "LowRisk has manageable regulatory profile."
+      },
+      {
+        "name": "HighRisk",
+        "regulatory_risk_score": 95,
+        "risk_level": "CRITICAL",
+        "jurisdiction_score": 20,
+        "enforcement_exposure_score": 35,
+        "token_risk_score": 25,
+        "structural_risk_score": 15,
+        "regulatory_flags": [
+          "Active SEC investigation/subpoena",
+          "Token may be classified as security",
+          "US-based without KYC \u2014 high enforcement risk",
+          "Accessible to US users without restriction",
+          "5 centralized components \u2014 regulatory attack surface",
+          "Large TVL protocol without legal wrapper"
+        ],
+        "recommendation": "CRITICAL: HighRisk faces high enforcement risk. Reduce exposure."
+      }
+    ],
+    "highest_regulatory_risk": "HighRisk",
+    "lowest_regulatory_risk": "LowRisk",
+    "high_risk_count": 1,
+    "average_risk_score": 54.0,
+    "timestamp": 1785575968.417517
+  },
+  {
+    "protocols": [
+      {
+        "name": "OnlyOne",
+        "regulatory_risk_score": 27,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "Accessible to US users without restriction"
+        ],
+        "recommendation": "Some regulatory risk. OnlyOne has 0 centralized components."
+      }
+    ],
+    "highest_regulatory_risk": "OnlyOne",
+    "lowest_regulatory_risk": "OnlyOne",
+    "high_risk_count": 0,
+    "average_risk_score": 27.0,
+    "timestamp": 1785575968.4218488
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProtocol",
+        "regulatory_risk_score": 27,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "Accessible to US users without restriction"
+        ],
+        "recommendation": "Some regulatory risk. TestProtocol has 0 centralized components."
+      }
+    ],
+    "highest_regulatory_risk": "TestProtocol",
+    "lowest_regulatory_risk": "TestProtocol",
+    "high_risk_count": 0,
+    "average_risk_score": 27.0,
+    "timestamp": 1785575968.4259312
+  },
+  {
+    "protocols": [
+      {
+        "name": "Pure DeFi",
+        "regulatory_risk_score": 20,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 5,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 8,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "No significant regulatory flags"
+        ],
+        "recommendation": "Some regulatory risk. Pure DeFi has 0 centralized components."
+      }
+    ],
+    "highest_regulatory_risk": "Pure DeFi",
+    "lowest_regulatory_risk": "Pure DeFi",
+    "high_risk_count": 0,
+    "average_risk_score": 20.0,
+    "timestamp": 1785575968.4300752
+  },
+  {
+    "protocols": [
+      {
+        "name": "MaxRisk",
+        "regulatory_risk_score": 95,
+        "risk_level": "CRITICAL",
+        "jurisdiction_score": 20,
+        "enforcement_exposure_score": 35,
+        "token_risk_score": 25,
+        "structural_risk_score": 15,
+        "regulatory_flags": [
+          "Active SEC investigation/subpoena",
+          "Token may be classified as security",
+          "US-based without KYC \u2014 high enforcement risk",
+          "Accessible to US users without restriction",
+          "5 centralized components \u2014 regulatory attack surface",
+          "Large TVL protocol without legal wrapper"
+        ],
+        "recommendation": "CRITICAL: MaxRisk faces high enforcement risk. Reduce exposure."
+      }
+    ],
+    "highest_regulatory_risk": "MaxRisk",
+    "lowest_regulatory_risk": "MaxRisk",
+    "high_risk_count": 1,
+    "average_risk_score": 95.0,
+    "timestamp": 1785575968.434227
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProtocol",
+        "regulatory_risk_score": 95,
+        "risk_level": "CRITICAL",
+        "jurisdiction_score": 20,
+        "enforcement_exposure_score": 35,
+        "token_risk_score": 25,
+        "structural_risk_score": 15,
+        "regulatory_flags": [
+          "Active SEC investigation/subpoena",
+          "Token may be classified as security",
+          "US-based without KYC \u2014 high enforcement risk",
+          "Accessible to US users without restriction",
+          "5 centralized components \u2014 regulatory attack surface",
+          "Large TVL protocol without legal wrapper"
+        ],
+        "recommendation": "CRITICAL: TestProtocol faces high enforcement risk. Reduce exposure."
+      }
+    ],
+    "highest_regulatory_risk": "TestProtocol",
+    "lowest_regulatory_risk": "TestProtocol",
+    "high_risk_count": 1,
+    "average_risk_score": 95.0,
+    "timestamp": 1785575968.572164
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProtocol",
+        "regulatory_risk_score": 13,
+        "risk_level": "LOW",
+        "jurisdiction_score": 5,
+        "enforcement_exposure_score": 0,
+        "token_risk_score": 8,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "No significant regulatory flags"
+        ],
+        "recommendation": "TestProtocol has manageable regulatory profile."
+      }
+    ],
+    "highest_regulatory_risk": "TestProtocol",
+    "lowest_regulatory_risk": "TestProtocol",
+    "high_risk_count": 0,
+    "average_risk_score": 13.0,
+    "timestamp": 1785575968.57675
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProtocol",
+        "regulatory_risk_score": 13,
+        "risk_level": "LOW",
+        "jurisdiction_score": 5,
+        "enforcement_exposure_score": 0,
+        "token_risk_score": 8,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "No significant regulatory flags"
+        ],
+        "recommendation": "TestProtocol has manageable regulatory profile."
+      }
+    ],
+    "highest_regulatory_risk": "TestProtocol",
+    "lowest_regulatory_risk": "TestProtocol",
+    "high_risk_count": 0,
+    "average_risk_score": 13.0,
+    "timestamp": 1785575968.5819695
+  },
+  {
+    "protocols": [
+      {
+        "name": "P0",
+        "regulatory_risk_score": 27,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "Accessible to US users without restriction"
+        ],
+        "recommendation": "Some regulatory risk. P0 has 0 centralized components."
+      },
+      {
+        "name": "P1",
+        "regulatory_risk_score": 27,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "Accessible to US users without restriction"
+        ],
+        "recommendation": "Some regulatory risk. P1 has 0 centralized components."
+      },
+      {
+        "name": "P2",
+        "regulatory_risk_score": 27,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "Accessible to US users without restriction"
+        ],
+        "recommendation": "Some regulatory risk. P2 has 0 centralized components."
+      },
+      {
+        "name": "P3",
+        "regulatory_risk_score": 27,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "Accessible to US users without restriction"
+        ],
+        "recommendation": "Some regulatory risk. P3 has 0 centralized components."
+      },
+      {
+        "name": "P4",
+        "regulatory_risk_score": 27,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "Accessible to US users without restriction"
+        ],
+        "recommendation": "Some regulatory risk. P4 has 0 centralized components."
+      },
+      {
+        "name": "P5",
+        "regulatory_risk_score": 27,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "Accessible to US users without restriction"
+        ],
+        "recommendation": "Some regulatory risk. P5 has 0 centralized components."
+      },
+      {
+        "name": "P6",
+        "regulatory_risk_score": 27,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "Accessible to US users without restriction"
+        ],
+        "recommendation": "Some regulatory risk. P6 has 0 centralized components."
+      }
+    ],
+    "highest_regulatory_risk": "P0",
+    "lowest_regulatory_risk": "P0",
+    "high_risk_count": 0,
+    "average_risk_score": 27.0,
+    "timestamp": 1785575968.586134
+  },
+  {
+    "protocols": [
+      {
+        "name": "SpecialName",
+        "regulatory_risk_score": 27,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 8,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 0,
+        "regulatory_flags": [
+          "Accessible to US users without restriction"
+        ],
+        "recommendation": "Some regulatory risk. SpecialName has 0 centralized components."
+      }
+    ],
+    "highest_regulatory_risk": "SpecialName",
+    "lowest_regulatory_risk": "SpecialName",
+    "high_risk_count": 0,
+    "average_risk_score": 27.0,
+    "timestamp": 1785575968.5903046
+  },
+  {
+    "protocols": [
+      {
+        "name": "TestProtocol",
+        "regulatory_risk_score": 95,
+        "risk_level": "CRITICAL",
+        "jurisdiction_score": 20,
+        "enforcement_exposure_score": 35,
+        "token_risk_score": 25,
+        "structural_risk_score": 15,
+        "regulatory_flags": [
+          "Active SEC investigation/subpoena",
+          "Token may be classified as security",
+          "US-based without KYC \u2014 high enforcement risk",
+          "Accessible to US users without restriction",
+          "10 centralized components \u2014 regulatory attack surface",
+          "Large TVL protocol without legal wrapper"
+        ],
+        "recommendation": "CRITICAL: TestProtocol faces high enforcement risk. Reduce exposure."
+      }
+    ],
+    "highest_regulatory_risk": "TestProtocol",
+    "lowest_regulatory_risk": "TestProtocol",
+    "high_risk_count": 1,
+    "average_risk_score": 95.0,
+    "timestamp": 1785575968.5944839
   }
 ]
