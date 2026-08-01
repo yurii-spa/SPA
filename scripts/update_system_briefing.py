@@ -184,6 +184,16 @@ def build_agents_section() -> str:
     Fail-honest: if the snapshot is missing or stale (> AGENT_SNAPSHOT_STALE_MIN),
     the briefing SAYS SO instead of presenting a number that may no longer reflect
     the live fleet.
+
+    Reason contract (cycle #75): the section renders BOTH kinds of reason the
+    snapshot carries — per-agent problems AND ``system_issues`` (fleet parity,
+    capital efficiency, …), each verbatim. The nominal reassurance
+    "_All agents nominal_" is reachable ONLY when overall == OK; any non-OK
+    verdict with nothing to quote is published as "cause NOT STATED". Before this,
+    the section read d["agents"] alone, so a fleet of all-OK agents under a
+    system-driven WARNING printed "_All agents nominal_" directly beneath the
+    WARNING and named no cause — which is how "fleet parity stale 507.9h"
+    (~21 days) stayed invisible in the one file every session is obliged to read.
     """
     d = read_json("agent_health.json")
     state, age_min = agent_snapshot_state(d)
@@ -228,8 +238,37 @@ def build_agents_section() -> str:
             icon2 = "🔴" if a.get("status") == "CRITICAL" else "⚠️"
             issue = a.get("issue", "")
             lines.append(f"- {icon2} `{a['label']}` — {issue}")
-    else:
-        lines.append("_All agents nominal_")
+
+    # System-level reasons. agent_health_monitor.build_report derives
+    # overall = _worst(system_status, *[per-agent statuses]), and system_status is
+    # raised BY system_issues — so a fleet where every agent is OK can still be
+    # WARNING. Rendering only d["agents"] made those verdicts unexplainable: the
+    # live briefing showed "WARNING — 70 OK / 0 WARN / 0 CRIT" above
+    # "_All agents nominal_" while the snapshot named "fleet parity stale 507.9h"
+    # (~21 days) right there in system_issues. Quote them VERBATIM — a paraphrase
+    # drops the number that makes the issue actionable.
+    raw_issues = d.get("system_issues", [])
+    if not isinstance(raw_issues, list):  # fail-honest: never take the briefing down
+        raw_issues = []
+    sys_issues = [str(s).strip() for s in raw_issues if str(s).strip()]
+    if sys_issues:
+        lines.append("\n**System-level issues (verbatim from agent_health.json):**")
+        for s in sys_issues:
+            lines.append(f"- ⚠️ {s}")
+
+    if not problems and not sys_issues:
+        # fail-CLOSED: the nominal reassurance is reachable ONLY under an OK
+        # verdict. A non-OK verdict with nothing to quote is reported as exactly
+        # that — an unexplained verdict is still not a healthy fleet.
+        if overall == "OK":
+            lines.append("_All agents nominal_")
+        else:
+            lines.append(
+                f"_Verdict **{overall}**, but the snapshot names no reason "
+                "(no per-agent problem and no `system_issues`) — cause NOT STATED, "
+                "not 'nominal'. Run "
+                "`python3 -m spa_core.monitoring.agent_health_monitor --check`._"
+            )
     return "\n".join(lines) + "\n"
 
 
