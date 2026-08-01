@@ -9,11 +9,21 @@ Fires Telegram alert on NEW EXCELLENT opportunity (transition from non-EXCELLENT
 
 Atomic writes: tmp-file + os.replace. stdlib only.
 Never raises exceptions outward (fail-safe).
+
+Honesty contract (cycle #78). The funding payload is read through
+`spa_core.feeds.funding_schema`, which knows the shape the producer actually writes
+(`assets` / `fetched_at`) and still accepts the legacy shape (`rates` / `generated_at`).
+Before that, this monitor asked only for the legacy keys, found nothing 96 times a day,
+and published `status: "ok", errors: [], 0 opportunities` — a verdict about a file it
+had never read. Now `status` is "ok" ONLY when the scan actually happened; otherwise it
+is "unchecked" and `unchecked[]` carries the verbatim reason. Thresholds
+(STALE_AFTER_S, ALERT_COOLDOWN_S), the alert transport and the ranking are unchanged.
 """
 from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -25,6 +35,7 @@ from spa_core.analytics.basis_trade_analyzer import (
     BasisTradeInput,
     BasisTradeResult,
 )
+from spa_core.feeds.funding_schema import feed_age_seconds, read_rates
 from spa_core.utils.atomic import atomic_save, atomic_load
 
 log = logging.getLogger("spa.monitoring.bts_monitor")
@@ -45,6 +56,65 @@ TOP_N = 5
 
 STALE_AFTER_S = 1800
 ALERT_COOLDOWN_S = 3600
+
+# Verdict vocabulary. "ok" is reserved for a scan that actually happened: before #78 it
+# was published whenever no exception was raised, including the 96 runs a day in which
+# the monitor read nothing at all.
+STATUS_OK = "ok"
+STATUS_UNCHECKED = "unchecked"
+STATUS_ERROR = "error"
+
+# Owner-armed Telegram transport (cycle #78). This monitor's alert path had never fired
+# once: it could not read the feed, so it never found an opportunity to alert about.
+# Repointing it at the real schema makes it live again — and a read-only smoke on a COPY
+# of production data showed the FIRST run would send three "BTS EXCELLENT … Annual PnL
+# $N" messages, because EXCELLENT is >=100bps net against a hardcoded 5% spot baseline
+# and any non-negative funding clears it. Switching on a dormant owner-facing claim from
+# an unvalidated model is not an autonomous call (ORCHESTRATOR_PROTOCOL, "запрещено
+# автономно"), so the transport stays disarmed until the owner arms it, while the
+# artifacts below are written honestly and completely either way. The suppression is
+# recorded verbatim in the status file — it is never silent.
+BTS_ALERTS_ARMED_ENV = "SPA_BTS_ALERTS_ARMED"
+
+
+def _alerts_armed() -> bool:
+    return os.environ.get(BTS_ALERTS_ARMED_ENV, "").strip().lower() in {"1", "true", "yes"}
+
+
+def _verdict(errors: List[str], unchecked: List[str]) -> str:
+    """An error outranks an unmeasured check; both outrank "ok"."""
+    if errors:
+        return STATUS_ERROR
+    if unchecked:
+        return STATUS_UNCHECKED
+    return STATUS_OK
+
+
+@dataclass
+class FundingLoad:
+    """Outcome of loading the funding payload.
+
+    `data` is None whenever the payload must not be scanned. `stale` describes the
+    FEED (not the number of opportunities). `unchecked` is a verbatim reason something
+    could not be measured; `refusal` is a verbatim reason the payload was rejected.
+    """
+
+    data: Optional[dict]
+    stale: bool
+    unchecked: Optional[str] = None
+    refusal: Optional[str] = None
+
+
+@dataclass
+class BTSScan:
+    """Result of one scan: what was found, whether the FEED was stale, and what was
+    not measured (verbatim). An empty `opportunities` list means "measured, nothing
+    qualified" only when `unchecked` is empty."""
+
+    opportunities: List["BTSOpportunity"]
+    stale_feed: bool
+    unchecked: List[str]
+    refusal: Optional[str] = None
 
 
 @dataclass
@@ -113,27 +183,53 @@ class BTSMonitor:
         return self._dispatcher
 
     def _load_funding_data(self) -> Optional[dict]:
+        """Back-compat wrapper: the payload only, verdict discarded."""
+        return self._load_funding_verdict().data
+
+    def _load_funding_verdict(self) -> "FundingLoad":
+        """Load the funding payload AND say why it is unusable when it is.
+
+        The staleness threshold (STALE_AFTER_S) and the "feed says stale" rule are
+        unchanged; what is new is that an age which could not be computed is reported
+        as NOT MEASURED instead of silently passing for fresh (the pre-#78 code asked
+        for `generated_at`, a key the live feed never writes, so the age check never
+        ran once in production).
+        """
         try:
             data = atomic_load(str(self._funding_path), default=None)
-            if not data:
-                return None
-            gen_at = data.get("generated_at", "")
-            if isinstance(gen_at, str) and gen_at:
-                try:
-                    dt = datetime.fromisoformat(gen_at.replace("Z", "+00:00"))
-                    age_s = (datetime.now(timezone.utc) - dt).total_seconds()
-                    if age_s > STALE_AFTER_S:
-                        log.info("Funding data stale (age %.0fs > %ds)", age_s, STALE_AFTER_S)
-                        return None
-                except (ValueError, TypeError):
-                    pass
-            if data.get("stale", False):
-                log.info("Funding data marked stale by feed")
-                return None
-            return data
         except Exception as exc:
-            log.warning("Failed to load funding data: %s", exc)
-            return None
+            return FundingLoad(None, True, f"funding file unreadable: {exc}")
+        if not data:
+            return FundingLoad(
+                None, True, None, refusal=f"no funding data at {self._funding_path.name}"
+            )
+
+        unchecked: Optional[str] = None
+        age = feed_age_seconds(data)
+        if age.measured and age.age_seconds is not None:
+            if age.age_seconds > STALE_AFTER_S:
+                log.info(
+                    "Funding data stale (age %.0fs > %ds)", age.age_seconds, STALE_AFTER_S
+                )
+                return FundingLoad(
+                    None,
+                    True,
+                    None,
+                    refusal=(
+                        f"feed age {age.age_seconds:.0f}s exceeds {STALE_AFTER_S}s "
+                        f"(from {age.source_key!r})"
+                    ),
+                )
+        else:
+            unchecked = f"feed age NOT MEASURED — {age.unchecked}"
+            log.info("Funding age not measured: %s", age.unchecked)
+
+        if data.get("stale", False):
+            log.info("Funding data marked stale by feed")
+            return FundingLoad(
+                None, True, unchecked, refusal="feed marked its own payload stale"
+            )
+        return FundingLoad(data, False, unchecked)
 
     def _load_adapter_status(self) -> dict:
         try:
@@ -166,18 +262,46 @@ class BTSMonitor:
         return best_yield
 
     def scan(self) -> List[BTSOpportunity]:
-        funding_data = self._load_funding_data()
+        """Ranked opportunities only. See `scan_with_reasons` for what was NOT measured."""
+        return self.scan_with_reasons().opportunities
+
+    def scan_with_reasons(self) -> "BTSScan":
+        """Scan the feed and report, verbatim, everything that could not be measured.
+
+        An empty result now carries its reason: "the feed said there are no assets" and
+        "the file was in a shape this monitor cannot read" are different facts, and
+        before #78 both were published identically as `status: ok, 0 opportunities`.
+        """
+        unchecked: List[str] = []
+
+        load = self._load_funding_verdict()
+        if load.unchecked:
+            unchecked.append(load.unchecked)
+        funding_data = load.data
         if funding_data is None:
-            log.info("No valid funding data — returning empty opportunities")
-            return []
+            reason = load.refusal or "no valid funding data"
+            log.info("No valid funding data — returning empty opportunities (%s)", reason)
+            # A refused payload means NO scan happened. "0 opportunities" is then a
+            # non-statement, and publishing it as `status: ok` is the defect this file
+            # exists to prevent — so the refusal is carried as an unchecked reason too.
+            unchecked.append(f"scan NOT PERFORMED — {reason}")
+            return BTSScan([], load.stale, unchecked, refusal=reason)
 
         adapter_status = self._load_adapter_status()
         spot_yield = self._get_spot_yield(adapter_status)
 
-        rates = funding_data.get("rates", {})
+        rates_read = read_rates(funding_data)
+        if not rates_read.measured:
+            log.info("Funding rates NOT MEASURED: %s", rates_read.unchecked)
+            unchecked.append(f"funding rates NOT MEASURED — {rates_read.unchecked}")
+            return BTSScan([], load.stale, unchecked)
+        rates = rates_read.rates
         if not rates:
-            log.info("No rates in funding data")
-            return []
+            log.info(
+                "No rates in funding data (feed reported an empty %r map)",
+                rates_read.source_key,
+            )
+            return BTSScan([], load.stale, unchecked)
 
         inputs = []
         for asset in TRACKED_ASSETS:
@@ -200,8 +324,12 @@ class BTSMonitor:
             ))
 
         if not inputs:
-            log.info("No valid inputs built from funding data")
-            return []
+            log.info(
+                "No valid inputs built from funding data (tracked %s; feed offered %s)",
+                list(TRACKED_ASSETS),
+                sorted(str(k) for k in rates.keys()),
+            )
+            return BTSScan([], load.stale, unchecked)
 
         results = self._analyzer.analyze_batch(inputs)
         top = self._analyzer.top_opportunities(results, n=TOP_N)
@@ -220,7 +348,7 @@ class BTSMonitor:
                 capital_usd=r.capital_usd,
             ))
 
-        return opportunities
+        return BTSScan(opportunities, load.stale, unchecked)
 
     def _load_previous_excellent(self) -> Set[str]:
         try:
@@ -283,20 +411,24 @@ class BTSMonitor:
         self,
         opps: List[BTSOpportunity],
         stale: bool,
+        unchecked: Optional[List[str]] = None,
     ) -> None:
         now_iso = datetime.now(timezone.utc).isoformat()
         excellent_count = sum(1 for o in opps if o.edge_quality == "EXCELLENT")
         enter_count = sum(1 for o in opps if o.recommended_action == "ENTER")
+        unchecked = list(unchecked or [])
 
         payload = {
             "timestamp": now_iso,
             "generated_at": time.time(),
             "stale_feed": stale,
             "opportunities": [o.to_dict() for o in opps],
+            "unchecked": unchecked,
             "summary": {
                 "excellent_count": excellent_count,
                 "enter_count": enter_count,
                 "total_analyzed": len(opps),
+                "measured": not unchecked,
             },
         }
         try:
@@ -309,14 +441,20 @@ class BTSMonitor:
         opps: List[BTSOpportunity],
         new_excellent_count: int,
         errors: List[str],
+        unchecked: Optional[List[str]] = None,
+        suppressed: Optional[List[str]] = None,
     ) -> None:
         now_iso = datetime.now(timezone.utc).isoformat()
+        unchecked = list(unchecked or [])
+        suppressed = list(suppressed or [])
         payload = {
             "last_run": now_iso,
             "opportunities_found": len(opps),
             "new_excellent": new_excellent_count,
-            "status": "ok" if not errors else "error",
+            "status": _verdict(errors, unchecked),
             "errors": errors,
+            "unchecked": unchecked,
+            "suppressed_alerts": suppressed,
         }
         try:
             atomic_save(payload, str(self._status_path))
@@ -325,34 +463,52 @@ class BTSMonitor:
 
     def run(self) -> dict:
         errors: List[str] = []
+        unchecked: List[str] = []
+        suppressed: List[str] = []
         opps: List[BTSOpportunity] = []
         new_excellent_count = 0
 
         try:
-            new_excellent = self._detect_new_excellent([])
-            opps = self.scan()
-            stale = len(opps) == 0
+            scan = self.scan_with_reasons()
+            opps = scan.opportunities
+            unchecked = list(scan.unchecked)
+            # `stale` describes the FEED. Before #78 it was `len(opps) == 0`, i.e. the
+            # monitor published "the feed is stale" whenever nothing qualified — a claim
+            # about a file, derived from something else entirely.
+            stale = scan.stale_feed
 
             if opps:
                 new_excellent = self._detect_new_excellent(opps)
                 new_excellent_count = len(new_excellent)
                 if new_excellent:
-                    self._create_alerts(new_excellent)
+                    if _alerts_armed():
+                        self._create_alerts(new_excellent)
+                    else:
+                        assets = ", ".join(o.asset for o in new_excellent)
+                        note = (
+                            f"{len(new_excellent)} new EXCELLENT ({assets}) NOT sent to "
+                            f"Telegram: transport disarmed pending owner review "
+                            f"(set {BTS_ALERTS_ARMED_ENV}=1 to arm)"
+                        )
+                        log.info(note)
+                        suppressed.append(note)
 
-            self._save_opportunities(opps, stale)
+            self._save_opportunities(opps, stale, unchecked)
 
         except Exception as exc:
             log.error("BTS monitor scan failed: %s", exc)
             errors.append(str(exc))
-            self._save_opportunities([], True)
+            self._save_opportunities([], True, unchecked)
 
-        self._save_status(opps, new_excellent_count, errors)
+        self._save_status(opps, new_excellent_count, errors, unchecked, suppressed)
 
         report = {
             "opportunities": len(opps),
             "new_excellent": new_excellent_count,
             "errors": errors,
-            "status": "ok" if not errors else "error",
+            "unchecked": unchecked,
+            "suppressed_alerts": suppressed,
+            "status": _verdict(errors, unchecked),
         }
         log.info("BTS monitor run complete: %s", report)
         return report

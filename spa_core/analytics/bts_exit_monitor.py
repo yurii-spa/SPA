@@ -12,6 +12,15 @@ Exit conditions:
 
 Atomic writes: tmp-file + os.replace. stdlib only.
 Never raises exceptions outward (fail-safe).
+
+Honesty contract (cycle #78). The funding payload is read through
+`spa_core.feeds.funding_schema` — the same reader `bts_monitor` uses, deliberately in
+one place, because these two modules carried an identical defect and fixing one would
+have left its twin alive. Before that, both asked for `rates` / `generated_at`, keys the
+producer never writes, so this monitor published `clear: True, 0 signals` about exit
+conditions it had not evaluated once. Now: an unmeasurable check is listed verbatim in
+`unchecked[]` (never promoted to a signal — severities and thresholds are untouched),
+and a crashed run publishes `clear: null`, not `clear: True`.
 """
 from __future__ import annotations
 
@@ -21,13 +30,14 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from spa_core.analytics.basis_trade_analyzer import (
     BasisTradeAnalyzer,
     BasisTradeInput,
     BasisTradeResult,
 )
+from spa_core.feeds.funding_schema import feed_age_seconds, read_rates
 from spa_core.utils.atomic import atomic_save, atomic_load
 
 log = logging.getLogger("spa.analytics.bts_exit_monitor")
@@ -85,15 +95,35 @@ class BTSExitMonitor:
         self._analyzer = analyzer or BasisTradeAnalyzer()
 
     def _kill_switch_active(self) -> bool:
+        """Back-compat wrapper: the flag only, the "could not read it" reason discarded."""
+        return self._kill_switch_read()[0]
+
+    def _kill_switch_read(self) -> Tuple[bool, Optional[str]]:
+        """(active, unchecked reason).
+
+        An ABSENT file means "not armed" — that is the documented semantics of this
+        BTS-local manual flag and it stays exactly as it was. A file that exists but
+        cannot be read, or holds something other than a mapping, is NOT "off": that is
+        an unmeasured check and it is now said out loud. This does not touch the global
+        two-tier kill-switch (`spa_core/governance/kill_switch.py`) in any way.
+        """
+        if not self._kill_switch_path.exists():
+            return False, None
         try:
             data = atomic_load(str(self._kill_switch_path), default=None)
-            if data is None:
-                return False
-            if isinstance(data, dict):
-                return bool(data.get("active", False))
-            return False
-        except Exception:
-            return False
+        except Exception as exc:
+            return False, f"BTS kill-switch file unreadable: {exc}"
+        if data is None:
+            return False, (
+                f"BTS kill-switch file {self._kill_switch_path.name} exists but read "
+                f"back as nothing"
+            )
+        if isinstance(data, dict):
+            return bool(data.get("active", False)), None
+        return False, (
+            f"BTS kill-switch file holds {type(data).__name__}, not a mapping — "
+            f"'active' NOT MEASURED"
+        )
 
     def _load_funding_data(self) -> Optional[dict]:
         try:
@@ -105,19 +135,27 @@ class BTSExitMonitor:
             return None
 
     def _is_funding_stale(self, funding_data: Optional[dict]) -> bool:
+        """Back-compat wrapper: the verdict only, the "could not read it" reason discarded."""
+        return self._funding_stale_read(funding_data)[0]
+
+    def _funding_stale_read(
+        self, funding_data: Optional[dict]
+    ) -> Tuple[bool, Optional[str]]:
+        """(stale, unchecked reason). Threshold STALE_AFTER_S is unchanged.
+
+        Pre-#78 this asked for `generated_at`, which the live feed never writes, so the
+        age arm never ran and every live payload came back "fresh" by default. Now the
+        age is read from what the producer actually writes, and an age that cannot be
+        computed is reported instead of passing for fresh.
+        """
         if funding_data is None:
-            return True
+            return True, None
         if funding_data.get("stale", False):
-            return True
-        gen_at = funding_data.get("generated_at", "")
-        if isinstance(gen_at, str) and gen_at:
-            try:
-                dt = datetime.fromisoformat(gen_at.replace("Z", "+00:00"))
-                age_s = (datetime.now(timezone.utc) - dt).total_seconds()
-                return age_s > STALE_AFTER_S
-            except (ValueError, TypeError):
-                pass
-        return False
+            return True, None
+        age = feed_age_seconds(funding_data)
+        if age.measured and age.age_seconds is not None:
+            return age.age_seconds > STALE_AFTER_S, None
+        return False, f"feed age NOT MEASURED — {age.unchecked}"
 
     def _load_active_trades(self) -> List[dict]:
         try:
@@ -136,9 +174,25 @@ class BTSExitMonitor:
         self,
         funding_data: Optional[dict],
     ) -> List[BTSExitSignal]:
-        signals: List[BTSExitSignal] = []
+        """Exit signals only. See `evaluate_with_reasons` for what was NOT measured."""
+        return self.evaluate_with_reasons(funding_data)[0]
 
-        kill_active = self._kill_switch_active()
+    def evaluate_with_reasons(
+        self,
+        funding_data: Optional[dict],
+    ) -> Tuple[List[BTSExitSignal], List[str]]:
+        """(signals, verbatim reasons for checks that could not be performed).
+
+        Severities and thresholds are untouched: an unmeasured check never becomes a
+        signal here. It is reported alongside, so "no exit signals" can no longer be
+        read as "everything was checked and is fine".
+        """
+        signals: List[BTSExitSignal] = []
+        unchecked: List[str] = []
+
+        kill_active, kill_unchecked = self._kill_switch_read()
+        if kill_unchecked:
+            unchecked.append(kill_unchecked)
         if kill_active:
             signals.append(BTSExitSignal(
                 asset="ALL",
@@ -148,7 +202,9 @@ class BTSExitMonitor:
                 severity="CRITICAL",
             ))
 
-        is_stale = self._is_funding_stale(funding_data)
+        is_stale, stale_unchecked = self._funding_stale_read(funding_data)
+        if stale_unchecked:
+            unchecked.append(stale_unchecked)
         if is_stale:
             signals.append(BTSExitSignal(
                 asset="ALL",
@@ -157,12 +213,19 @@ class BTSExitMonitor:
                 current_net_spread_bps=0.0,
                 severity="HIGH",
             ))
-            return signals
+            return signals, unchecked
 
         if funding_data is None:
-            return signals
+            return signals, unchecked
 
-        rates = funding_data.get("rates", {})
+        rates_read = read_rates(funding_data)
+        if not rates_read.measured:
+            log.info("Exit conditions NOT MEASURED: %s", rates_read.unchecked)
+            unchecked.append(
+                f"per-asset exit conditions NOT MEASURED — {rates_read.unchecked}"
+            )
+            return signals, unchecked
+        rates = rates_read.rates
         tracked = ("ETH", "BTC", "SOL")
 
         for asset in tracked:
@@ -220,17 +283,27 @@ class BTSExitMonitor:
                     severity="HIGH" if not already_has else "MEDIUM",
                 ))
 
-        return signals
+        return signals, unchecked
 
-    def _save_exit_signals(self, signals: List[BTSExitSignal]) -> None:
+    def _save_exit_signals(
+        self,
+        signals: List[BTSExitSignal],
+        unchecked: Optional[List[str]] = None,
+        measured: bool = True,
+    ) -> None:
         now_iso = datetime.now(timezone.utc).isoformat()
-        is_clear = len(signals) == 0
+        unchecked = list(unchecked or [])
+        # `clear` is a claim: "checked, nothing says exit". When the check did not run
+        # (a crash), there is no such claim to make — None, never True.
+        is_clear: Optional[bool] = (len(signals) == 0) if measured else None
 
         payload = {
             "timestamp": now_iso,
             "active_signals": [s.to_dict() for s in signals],
             "clear": is_clear,
             "signal_count": len(signals),
+            "unchecked": unchecked,
+            "measured": measured,
         }
         try:
             atomic_save(payload, str(self._exit_path))
@@ -240,25 +313,31 @@ class BTSExitMonitor:
     def run(self) -> dict:
         try:
             funding_data = self._load_funding_data()
-            signals = self.evaluate_conditions(funding_data)
-            self._save_exit_signals(signals)
+            signals, unchecked = self.evaluate_with_reasons(funding_data)
+            self._save_exit_signals(signals, unchecked)
 
             report = {
                 "signal_count": len(signals),
                 "clear": len(signals) == 0,
                 "signals": [s.to_dict() for s in signals],
-                "status": "ok",
+                "unchecked": unchecked,
+                "status": "unchecked" if unchecked else "ok",
             }
-            log.info("BTS exit monitor: %d signals", len(signals))
+            log.info(
+                "BTS exit monitor: %d signals, %d unchecked", len(signals), len(unchecked)
+            )
             return report
 
         except Exception as exc:
             log.error("BTS exit monitor failed: %s", exc)
-            self._save_exit_signals([])
+            # A crashed run used to publish `clear: True` — "no reason to exit" about a
+            # check that never finished. It now refuses (fail-CLOSED, invariant #2).
+            self._save_exit_signals([], [f"exit check crashed: {exc}"], measured=False)
             return {
                 "signal_count": 0,
-                "clear": True,
+                "clear": None,
                 "signals": [],
+                "unchecked": [f"exit check crashed: {exc}"],
                 "status": "error",
                 "error": str(exc),
             }
