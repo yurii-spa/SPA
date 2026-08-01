@@ -1,7 +1,24 @@
 """
 Governance Watcher — FEAT-MON-002 (Sprint v3.18).
 
-Monitors active governance proposals for SPA whitelist protocols.
+Monitors active governance proposals for the protocols that have a governance
+source **configured below** (``SNAPSHOT_SPACES`` / ``TALLY_GOVERNORS``).
+
+.. warning::
+
+   That set is **not** the SPA whitelist and never has been.  This docstring
+   used to claim "monitors ... for SPA whitelist protocols", which was false:
+   the configured spaces and ``ADAPTER_REGISTRY`` overlap only partly, so a
+   whitelisted protocol can have **no governance source at all** and this
+   module will still report a clean scan (``snapshot_spaces_ok=N``,
+   ``snapshot_spaces_failed=0``, ``last_error=null``).
+
+   Coverage is therefore accounted for explicitly and published in the output
+   under ``coverage`` — see :func:`coverage_report`.  A protocol with no
+   source is reported as **unchecked**, never as "no active proposals".
+   When coverage itself cannot be measured (registry unreadable), the report
+   says so instead of claiming full coverage (fail-CLOSED, invariant #2).
+
 Data sources:
   * **Snapshot** (free GraphQL API) — most DeFi governance proposals
   * **Tally** (free REST API) — on-chain governors (Compound, Uniswap, etc.)
@@ -137,6 +154,150 @@ _CATEGORY_KEYWORDS: dict[str, list[str]] = {
 
 # Risk-trigger categories that warrant score recalculation
 RISK_TRIGGER_CATEGORIES = frozenset({"risk_param", "upgrade", "emergency"})
+
+
+# ---------------------------------------------------------------------------
+# Coverage accounting — "what did we NOT look at?"
+# ---------------------------------------------------------------------------
+#
+# The counters above (snapshot_spaces_ok / _failed) describe the *transport*:
+# did the configured spaces answer?  They say nothing about whether the
+# configured spaces are the protocols we actually care about.  Measured on
+# live production data 2026-08-01: 8 spaces answered, 0 failed, last_error
+# null — and the intersection with the live portfolio was EMPTY.  The three
+# sets below keep those two questions apart.
+
+UNCHECKED = "unchecked"
+_STATE_ACTIVE_HIGH = "active_high"
+_STATE_NONE = "none"
+
+
+def _normalise_protocol_key(key: str) -> str:
+    """Fold ``aave-v3`` / ``aave_v3`` / ``Aave V3`` onto one comparable form."""
+    return "".join(ch for ch in str(key).strip().lower() if ch.isalnum())
+
+
+def monitored_protocol_keys() -> set[str]:
+    """Protocol keys that have a governance source configured in this module."""
+    return set(SNAPSHOT_SPACES) | set(TALLY_GOVERNORS)
+
+
+def whitelisted_protocol_keys() -> Optional[list[str]]:
+    """
+    Investable-protocol keys, read from the single registry
+    (``spa_core.adapters.ADAPTER_REGISTRY``) rather than duplicated here — a
+    second hand-maintained list is exactly the drift that produced this bug.
+
+    Returns ``None`` when the registry cannot be read or yields nothing.  The
+    caller MUST treat ``None`` as *not measured*, never as "fully covered"
+    (fail-CLOSED, invariant #2).  NEVER raises.
+    """
+    try:
+        from spa_core.adapters import ADAPTER_REGISTRY  # local: avoid import cost/cycles
+    except Exception as exc:  # pragma: no cover - exercised via monkeypatch
+        log.warning("whitelist unreadable (ADAPTER_REGISTRY import failed): %s", exc)
+        return None
+    try:
+        keys: list[str] = []
+        entries = (
+            ADAPTER_REGISTRY.keys()
+            if isinstance(ADAPTER_REGISTRY, dict)
+            else ADAPTER_REGISTRY
+        )
+        for entry in entries:
+            if isinstance(entry, str):
+                keys.append(entry)
+            elif isinstance(entry, (tuple, list)) and entry:
+                keys.append(str(entry[0]))
+        keys = sorted({k for k in keys if k})
+        return keys or None
+    except Exception as exc:
+        log.warning("whitelist unreadable (ADAPTER_REGISTRY malformed): %s", exc)
+        return None
+
+
+def coverage_report(*, scan_status: Optional[dict[str, str]] = None) -> dict:
+    """
+    Answer "which investable protocols does this watcher not look at?".
+
+    ``scan_status`` — optional per-protocol outcome of the most recent scan
+    (``{protocol_key: "ok" | "failed"}``).  A configured protocol whose source
+    ERRORED this run is reported as unchecked too: it was not measured, and the
+    aggregate ``snapshot_spaces_failed`` counter cannot say which one it was.
+
+    Keys
+    ----
+    ``measured``                  — False when the whitelist could not be read
+    ``reason``                    — verbatim cause when ``measured`` is False
+    ``monitored_protocols``       — have a governance source configured
+    ``covered_protocols``         — whitelisted AND monitored AND not failed
+    ``unchecked_protocols``       — whitelisted with NO usable source this run
+    ``monitored_not_whitelisted`` — a source exists, but it is not investable
+    ``failed_this_scan``          — configured, but the source errored this run
+
+    Matching is **normalised key equality**, nothing cleverer.  Where the two
+    sides spell a protocol differently (space ``yearn`` vs registry
+    ``yearn_v3``) the keys do not match and the registry entry is reported as
+    unchecked.  That errs toward *under*-claiming coverage, which is the safe
+    direction; inventing an alias table here would be a second hand-maintained
+    mapping — the exact drift that produced this bug.  Aligning the keys is a
+    configuration decision, not something to guess at silently.
+
+    NEVER raises.
+    """
+    monitored = monitored_protocol_keys()
+    failed = sorted(k for k, v in (scan_status or {}).items() if v != "ok")
+    base = {
+        "monitored_protocols": sorted(monitored),
+        "failed_this_scan": failed,
+    }
+    try:
+        whitelist = whitelisted_protocol_keys()
+        if whitelist is None:
+            return {
+                **base,
+                "measured": False,
+                "reason": "ADAPTER_REGISTRY unreadable — coverage NOT MEASURED",
+                "whitelist_size": None,
+                "covered_protocols": [],
+                "unchecked_protocols": [],
+                "monitored_not_whitelisted": [],
+            }
+
+        mon_norm = {_normalise_protocol_key(k): k for k in monitored}
+        failed_norm = {_normalise_protocol_key(k) for k in failed}
+        wl_norm = {_normalise_protocol_key(k) for k in whitelist}
+
+        covered, unchecked = [], []
+        for key in whitelist:
+            n = _normalise_protocol_key(key)
+            if n in mon_norm and n not in failed_norm:
+                covered.append(key)
+            else:
+                unchecked.append(key)
+        not_whitelisted = sorted(
+            orig for n, orig in mon_norm.items() if n not in wl_norm
+        )
+        return {
+            **base,
+            "measured": True,
+            "reason": None,
+            "whitelist_size": len(whitelist),
+            "covered_protocols": sorted(covered),
+            "unchecked_protocols": sorted(unchecked),
+            "monitored_not_whitelisted": not_whitelisted,
+        }
+    except Exception as exc:
+        log.error("coverage_report failed: %s", exc)
+        return {
+            **base,
+            "measured": False,
+            "reason": f"coverage computation failed: {exc}",
+            "whitelist_size": None,
+            "covered_protocols": [],
+            "unchecked_protocols": [],
+            "monitored_not_whitelisted": [],
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -645,6 +806,10 @@ class GovernanceWatcher:
         self._snapshot_spaces_failed: int = 0
         self._last_live_fetch: Optional[str] = None
         self._last_error: Optional[str] = None
+        # Per-protocol scan outcome ({key: "ok" | "failed"}).  The aggregate
+        # spaces_ok/spaces_failed counters cannot name WHICH protocol went
+        # unscanned; coverage accounting needs the names.
+        self._scan_status: dict[str, str] = {}
 
     # ------------------------------------------------------------------ #
     # Public API                                                           #
@@ -664,6 +829,7 @@ class GovernanceWatcher:
             self._snapshot_spaces_ok = 0
             self._snapshot_spaces_failed = 0
             self._last_error = None
+            self._scan_status = {}
 
             if offline:
                 log.info("Offline mode — returning bootstrap proposals")
@@ -688,13 +854,16 @@ class GovernanceWatcher:
                     ok, active = _fetch_snapshot_proposals(protocol_key, space, state="active")
                     if ok:
                         self._snapshot_spaces_ok += 1
+                        self._scan_status[protocol_key] = "ok"
                         proposals.extend(active)
                         log.debug("Snapshot %s: ok, %d active proposals",
                                   protocol_key, len(active))
                     else:
                         self._snapshot_spaces_failed += 1
+                        self._scan_status[protocol_key] = "failed"
                 except Exception as exc:
                     self._snapshot_spaces_failed += 1
+                    self._scan_status[protocol_key] = "failed"
                     self._last_error = f"snapshot:{protocol_key}: {exc}"
                     log.warning("Snapshot scan error %s: %s", protocol_key, exc)
 
@@ -707,9 +876,13 @@ class GovernanceWatcher:
                     ok, tally_props = _fetch_tally_proposals(protocol_key, gov_id)
                     if ok:
                         self._tally_ok = True
+                        self._scan_status[protocol_key] = "ok"
                         proposals.extend(tally_props)
                         log.debug("Tally %s: ok, %d proposals", protocol_key, len(tally_props))
+                    else:
+                        self._scan_status.setdefault(protocol_key, "failed")
                 except Exception as exc:
+                    self._scan_status.setdefault(protocol_key, "failed")
                     log.debug("Tally error %s: %s", protocol_key, exc)
 
             # ── Fallback decision ──
@@ -783,6 +956,22 @@ class GovernanceWatcher:
                 if not sources:  # offline path or edge case
                     sources = ["bootstrap"]
 
+            # Coverage is about WHAT WE LOOKED AT, not whether the transport
+            # answered.  In fallback/offline mode nothing live was measured at
+            # all, so no protocol counts as covered.
+            coverage = coverage_report(
+                scan_status=None if self._fallback_used else self._scan_status
+            )
+            if self._fallback_used and coverage.get("measured"):
+                coverage["covered_protocols"] = []
+                coverage["unchecked_protocols"] = sorted(
+                    whitelisted_protocol_keys() or []
+                )
+                coverage["reason"] = (
+                    "bootstrap fallback — no live governance source responded; "
+                    "nothing was measured this run"
+                )
+
             result = {
                 "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "watcher_version": "1.1",
@@ -796,9 +985,17 @@ class GovernanceWatcher:
                 "snapshot_spaces_failed": self._snapshot_spaces_failed,
                 "last_live_fetch": self._last_live_fetch,
                 "last_error": self._last_error,
+                # ── coverage: which investable protocols were NOT looked at ──
+                "coverage": coverage,
                 "proposals": [p.to_dict() for p in proposals],
                 "summary": {
                     "total_proposals": len(proposals),
+                    # None (not 0) when coverage itself is not measured — an
+                    # unmeasured gap must never read as "no gap".
+                    "unchecked_protocol_count": (
+                        len(coverage["unchecked_protocols"])
+                        if coverage.get("measured") else None
+                    ),
                     "active_count":    sum(1 for p in proposals if p.state == "active"),
                     "by_category":     by_category,
                     "by_severity":     by_severity,
@@ -841,6 +1038,14 @@ class GovernanceWatcher:
         Return True if *protocol_key* has any active HIGH-severity proposal.
         Useful for quick checks in the scheduler.
         NEVER raises.
+
+        .. warning::
+
+           ``False`` here does NOT mean "checked, nothing found".  A protocol
+           with no configured governance source — most of the SPA whitelist —
+           also returns ``False``.  Behaviour is kept as-is for existing
+           callers; use :meth:`risk_proposal_state` when the difference between
+           "clean" and "never looked" matters.
         """
         try:
             return any(
@@ -849,6 +1054,43 @@ class GovernanceWatcher:
             )
         except Exception:
             return False
+
+    def risk_proposal_state(self, protocol_key: str, *, offline: bool = False) -> str:
+        """
+        Tri-state answer to "does *protocol_key* have an active HIGH proposal?".
+
+        ``"active_high"`` · ``"none"`` · ``"unchecked"``
+
+        :meth:`has_active_risk_proposals` returns a bool and therefore cannot
+        tell "we checked and found nothing" apart from "we never look at this
+        protocol" — for every protocol without a configured source it answers
+        ``False``, which is a claim about a check that never ran.  This method
+        exists so callers can refuse instead of guessing (fail-CLOSED).
+
+        ``unchecked`` is returned when the protocol has no configured source,
+        when its source errored during this scan, or when the scan fell back to
+        bootstrap seed data (nothing live was measured).  NEVER raises.
+        """
+        try:
+            proposals = self.scan_all(offline=offline)
+            if self._fallback_used:
+                return UNCHECKED
+            norm = _normalise_protocol_key(protocol_key)
+            monitored = {_normalise_protocol_key(k) for k in monitored_protocol_keys()}
+            if norm not in monitored:
+                return UNCHECKED
+            if self._scan_status.get(protocol_key, "ok") != "ok":
+                return UNCHECKED
+            hit = any(
+                _normalise_protocol_key(p.protocol) == norm
+                and p.severity == "HIGH"
+                and p.state == "active"
+                for p in proposals
+            )
+            return _STATE_ACTIVE_HIGH if hit else _STATE_NONE
+        except Exception as exc:
+            log.error("risk_proposal_state failed for %s: %s", protocol_key, exc)
+            return UNCHECKED
 
 
 # ---------------------------------------------------------------------------
@@ -869,6 +1111,53 @@ def get_watcher() -> GovernanceWatcher:
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
+def _print_report(result: dict) -> None:
+    """
+    Render the human-readable report.  Extracted from the ``__main__`` block so
+    the operator-facing text is testable — the coverage lines below are the
+    whole point of the fix and must not be able to silently regress.
+    """
+    proposals = result.get("proposals", [])
+    summary   = result.get("summary", {})
+    print("\n=== SPA Governance Watcher ===")
+    print(f"Total proposals:  {summary.get('total_proposals', 0)}")
+    print(f"Active:           {summary.get('active_count', 0)}")
+    print(f"HIGH severity:    {summary.get('high_severity_count', 0)}")
+    print(f"Risk triggers:    {len(summary.get('risk_triggers', []))}")
+    print(f"Fetch method:     {result.get('fetch_method', '?')}")
+    print(f"Snapshot OK:      {result.get('snapshot_ok', False)} "
+          f"({result.get('snapshot_spaces_ok', 0)} ok / "
+          f"{result.get('snapshot_spaces_failed', 0)} failed)"
+          "   [transport only — see Coverage]")
+    print(f"Tally OK:         {result.get('tally_ok', False)}")
+    print(f"Fallback used:    {result.get('fallback_used', False)}")
+    if result.get("last_error"):
+        print(f"Last error:       {result.get('last_error')}")
+
+    # Coverage — the transport counters above say a source ANSWERED, not that
+    # the protocols we hold were looked at.  Print the gap by name.
+    cov = result.get("coverage") or {}
+    if not cov.get("measured"):
+        print(f"Coverage:         NOT MEASURED — {cov.get('reason', 'no reason recorded')}")
+    else:
+        total = cov.get("whitelist_size")
+        unchecked = cov.get("unchecked_protocols") or []
+        covered = cov.get("covered_protocols") or []
+        print(f"Coverage:         {len(covered)}/{total} whitelisted protocols have a "
+              f"governance source")
+        if unchecked:
+            print(f"NOT CHECKED ({len(unchecked)}): {', '.join(unchecked)}")
+        stray = cov.get("monitored_not_whitelisted") or []
+        if stray:
+            print(f"Watched but not investable: {', '.join(stray)}")
+    print()
+    print(f"{'Sev':<7} {'State':<8} {'Protocol':<16} {'Category':<18} Title")
+    print("-" * 100)
+    for p in proposals:
+        print(f"{p['severity']:<7} {p['state']:<8} {p['protocol']:<16} "
+              f"{p['category']:<18} {p['title'][:50]}")
+
 
 if __name__ == "__main__":
     import argparse
@@ -891,23 +1180,4 @@ if __name__ == "__main__":
         print(json.dumps(result, indent=2))
         sys.exit(0)
 
-    proposals = result.get("proposals", [])
-    summary   = result.get("summary", {})
-    print(f"\n=== SPA Governance Watcher ===")
-    print(f"Total proposals:  {summary.get('total_proposals', 0)}")
-    print(f"Active:           {summary.get('active_count', 0)}")
-    print(f"HIGH severity:    {summary.get('high_severity_count', 0)}")
-    print(f"Risk triggers:    {len(summary.get('risk_triggers', []))}")
-    print(f"Fetch method:     {result.get('fetch_method', '?')}")
-    print(f"Snapshot OK:      {result.get('snapshot_ok', False)} "
-          f"({result.get('snapshot_spaces_ok', 0)} ok / "
-          f"{result.get('snapshot_spaces_failed', 0)} failed)")
-    print(f"Tally OK:         {result.get('tally_ok', False)}")
-    print(f"Fallback used:    {result.get('fallback_used', False)}")
-    if result.get("last_error"):
-        print(f"Last error:       {result.get('last_error')}")
-    print()
-    print(f"{'Sev':<7} {'State':<8} {'Protocol':<16} {'Category':<18} Title")
-    print("-" * 100)
-    for p in proposals:
-        print(f"{p['severity']:<7} {p['state']:<8} {p['protocol']:<16} {p['category']:<18} {p['title'][:50]}")
+    _print_report(result)
