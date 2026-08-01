@@ -3,9 +3,23 @@ spa_core/strategy_lab/aggressive_lab/harness.py — the SHARED real-data harness
 (live paper + historical backtest) that PRODUCE Lane 1's realized_series.jsonl + meta.json.
 
 This is Lane 1 (the producer). It writes, per aggressive strategy, into data/aggressive_lab/<id>/:
-    realized_series.jsonl   — proof-chained, append-only, one {date,equity_usd,phase,...} per line,
+    realized_series.jsonl   — proof-chained, one {date,equity_usd,phase,...} per line,
     meta.json               — the strategy's honest self-description (risk_class/shape/source).
 Lane 2 (loader/risk/scorecard) consumes exactly these — the data contract documented in __init__.py.
+
+THE SERIES FILE IS **NOT APPEND-ONLY** (it said so here until 2026-08-01, and that was wrong —
+card ``agent-aggressive-lab-books-are-regenerated``). Only the paper path appends;
+:func:`run_backtest` REWRITES the whole file from scratch, so a replay both re-derives every past
+backtest row from TODAY's feed data and DESTROYS any forward points already accumulated. Two
+consequences a reader must not be surprised by:
+  • a number published off these books is not reproducible after the fact — the same script on the
+    same date grid gives a different answer once an upstream history moves. Measured on the live
+    books against the 2026-07-25 repository backup: ``susde_dn`` 853 of 853 rows changed, max
+    −9.70% (2026-07-05: 163150.97 → 147322.68); ``lrt_neutral`` 761 rows; the other four books 0.
+  • the proof chain is re-chained along with the rewrite, so it stays formally valid — it attests
+    the integrity of the NEW history, never that the history did not change.
+Pinned by ``spa_core/tests/test_aggressive_lab_series_rewrite.py``; if the file is ever made truly
+append-only, that contract is the deliberate place to change it.
 
 TWO PRODUCERS, ONE HARNESS (so forward + backtest are apples-to-apples):
   • PaperService.tick()  — advance every roster book ONE day on the LATEST live snapshot, append a
@@ -267,10 +281,15 @@ def run_backtest(
     snaps: List[MarketSnapshot] = feeds.historical_snapshots(start, end)  # fail-closed if empty
     strats = build_roster(config, notional_usd=notional_usd)
 
-    # fresh backtest series: clear ONLY this lab's per-strategy files of any prior backtest points,
-    # by rewriting from scratch (the forward points, if any, are produced by the paper service in a
-    # separate phase; for a clean replay we write a backtest-only file). We keep this simple and
-    # deterministic: the backtest fully owns the file it writes here.
+    # fresh backtest series: rewrite each per-strategy file FROM SCRATCH. The backtest fully owns
+    # the file it writes here — which also means it DELETES whatever was in it, including forward
+    # points a paper tick had already accumulated. That is intended for a clean replay and is fine
+    # for an on-demand run; it is NOT fine on a daily schedule, because then the forward track can
+    # never be longer than the one point the tick that follows appends (this is exactly what the
+    # live books show, and why `com.spa.aggressive_lab` — which means to run `paper` but reaches
+    # the module with no argument at all, so `main` falls through to mode "both" — keeps the higher
+    # tiers permanently at `warming_up` / `trustworthy: false`; owner card, see the module
+    # docstring). Callers who want to keep the forward track must pass mode "paper".
     summary = {}
     for sid, strat in strats.items():
         series: List[dict] = []

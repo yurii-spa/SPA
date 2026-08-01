@@ -100,6 +100,12 @@ def run_daily(as_of: Optional[str] = None) -> dict:
 def main(argv=None) -> int:
     socket.setdefaulttimeout(30)
     argv = list(sys.argv[1:] if argv is None else argv)
+    # NOTE: no argument ⇒ "both", and "both" REWRITES every book's realized_series.jsonl from
+    # scratch (harness.run_backtest), destroying the accumulated forward track. A caller that only
+    # means to advance the paper track MUST pass "paper" explicitly — and must make sure it really
+    # arrives: `export MODULE_ARGS=(paper)` in a launchd wrapper does NOT survive the hop into
+    # agent_template.sh (bash arrays are not exported), which is how the live agent has been
+    # running "both" nightly. Pinned by spa_core/tests/test_aggressive_lab_series_rewrite.py.
     mode = argv[0] if argv else "both"
     out = {}
     if mode in ("backtest", "both"):

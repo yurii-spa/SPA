@@ -2,13 +2,14 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **114** · ждёт владельца: **17** · занято сессиями: **0**.
+> Всего карточек: **115** · ждёт владельца: **18** · занято сессиями: **0**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Включить письма-подтверждения для подписки — добавить два ключа на сервер** · _medium_  ·  `own-07-retention-secrets.md`
 - **Какое capacity-число сделать заголовочным на /fundability** · _low_  ·  `own-17-fundability-capacity-framing.md`
 - **Навести порядок в агентах — реши по каждому пункту (сводка инвентаризации)** · _high_  ·  `own-21-agent-cleanup-decisions.md`
+- **Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда** · _high_  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md`
 - **Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)**  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md`
 - **Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить** · _medium_  ·  `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam.md`
 - **Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет** · _high_  ·  `owner-decision-dva-tsikla-orkestratora-rabotali-odnovre.md`
@@ -24,12 +25,13 @@
 - **Тревога о стоп-кране до тебя больше не дойдёт — событие застряло в «плохо» с 4 июля (выбери, как чинить)** · _high_  ·  `owner-decision-trevoga-o-stop-krane-do-tebya-bolshe-ne.md`
 - **В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями** · _high_  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (41)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (42)
 
 ### · needs-owner
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
 - Какое capacity-число сделать заголовочным на /fundability  ·  `own-17-fundability-capacity-framing.md` · 2026-07-15
 - Навести порядок в агентах — реши по каждому пункту (сводка инвентаризации)  ·  `own-21-agent-cleanup-decisions.md` · 2026-07-15
+- Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md` · 2026-08-01
 - Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md` · 2026-07-29
 - Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить  ·  `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam.md` · 2026-07-29
 - Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет  ·  `owner-decision-dva-tsikla-orkestratora-rabotali-odnovre.md` · 2026-08-01
@@ -107,10 +109,10 @@
 - Q&A бэклог (12 ответов) + видимость задач  ·  `agent-qa-backlog.md` · 2026-07-16
 - Q9: git-тег verifier-v1.2  ·  `agent-verifier-tag.md` · 2026-07-16
 ### · backlog
-- Книги aggressive_lab документированы как append-only, но история пересоздаётся — susde_dn сдвинулась на −9.7%  ·  `agent-aggressive-lab-books-are-regenerated.md` · 2026-08-01
 - Правка чужой карточки запирает её на 3 часа — даже когда сессия прямо назвала в объявлении ДРУГУЮ карточку  ·  `agent-card-file-in-ownership-locks-a-card-it-doesnt-claim.md` · 2026-08-01
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
+- Книги aggressive_lab документированы как append-only, но история пересоздаётся — susde_dn сдвинулась на −9.7%  ·  `agent-aggressive-lab-books-are-regenerated.md` · 2026-08-01
 - Q2: аналитику в analytics_lab/  ·  `agent-analytics-lab.md` · 2026-07-16
 - Аудит всей системы → SYSTEM_MAP  ·  `agent-audit-system.md` · 2026-07-16
 - Починка Telegram-бота (watchdog)  ·  `agent-bot-watchdog.md` · 2026-07-16
