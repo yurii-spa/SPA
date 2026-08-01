@@ -246,13 +246,32 @@ class TestAnnounceLink:
         assert r["verdict"] == guard.CLAIMED
         assert r["claims"][0]["strength"] == guard.STRONG
 
-    def test_text_mention_blocks_only_while_fresh(self, guard, sibling, tracker, log, ps_dead):
+    def test_text_mention_blocks_only_while_the_session_is_alive(
+            self, guard, sibling, tracker, log, ps_alive):
+        """ИЗМЕНЁН НАМЕРЕННО (цикл #67, `agent-fresh-weak-mention-deadlocks-queue`), инв. #16.
+
+        Раньше назывался `test_text_mention_blocks_only_while_fresh` и требовал `CLAIMED`
+        при `ps_dead`: свежесть записи считалась достаточной. Замер 01.08 показал, что окно
+        свежести перезаряжают сами отчёты шага 0b (циклы обязаны называть карточки поимённо,
+        идут раз в час, окно — 3ч) ⇒ «только пока свеж» не наступает никогда, и очередь
+        встала целиком. Условие заменено на измеримое: блокирует ЖИВАЯ сессия.
+        Полный разбор и остальные контроли — `TestFreshWeakMentionDoesNotDeadlockTheQueue`."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("pid999", NOW - timedelta(minutes=30),
+                                 summary="беру карточку agent-x")])
+        r = run(guard, tracker, log, "agent-x", ps=ps_alive, sibling=sibling)
+        assert r["verdict"] == guard.CLAIMED
+        assert r["claims"][0]["strength"] == guard.WEAK
+
+    def test_text_mention_by_a_dead_session_does_not_block(
+            self, guard, sibling, tracker, log, ps_dead):
+        """Обратная сторона той же границы (добавлено #67): мёртвая сессия не держит карточку."""
         write_card(tracker, "agent-x")
         write_log(log, [announce("pid999", NOW - timedelta(minutes=30),
                                  summary="беру карточку agent-x")])
         r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
-        assert r["verdict"] == guard.CLAIMED
-        assert r["claims"][0]["strength"] == guard.WEAK
+        assert r["verdict"] == guard.FREE
+        assert r["history"] and r["history"][0]["strength"] == guard.WEAK
 
     def test_old_text_mention_is_history_not_finding(self, guard, sibling, tracker, log, ps_dead):
         """Иначе любая когда-либо тронутая карточка занята навсегда; старое НЕдоставленное —
@@ -887,15 +906,54 @@ class TestWeakMentionAgesOutEvenWhenActivityUnmeasurable:
 
     # ── положительные контроли: ничего не ослаблено ──────────────────────────
 
-    def test_fresh_weak_mention_by_pidless_session_still_blocks(
+    def test_fresh_weak_mention_by_unmeasurable_session_no_longer_blocks(
             self, guard, sibling, tracker, log, ps_dead):
-        """В пределах окна свежести слабое упоминание блокирует, как и раньше."""
+        """ИЗМЕНЁН НАМЕРЕННО (цикл #67, карточка `agent-fresh-weak-mention-deadlocks-queue`).
+
+        Инвариант #16 — изменение объявлено явно, а не сделано молча.
+
+        **Что этот тест утверждал раньше и почему это отменено.** Тест назывался
+        `test_fresh_weak_mention_by_pidless_session_still_blocks` и пиннил осознанное
+        решение цикла #61: свежее слабое упоминание блокирует. Под ним лежало допущение
+        «окно свежести в 3 часа само сольётся».
+
+        **Замер 2026-08-01 показал, что не сольётся: окно перезаряжает сам отчёт.**
+        Шаг 0b обязывает называть карточки поимённо, циклы идут раз в час, окно — 3ч.
+        `cycle66` (01:55Z) написал «карточку agent-verification-outlives-cycle-budget НЕ беру»,
+        `cycle66i` (03:31Z) — «обе backlog-карточки ЗАНЯТЫ ⇒ НЕ беру ни одну»; каждая такая
+        фраза содержит идентификатор и засчитывалась как захват. Обе оставшиеся карточки
+        бэклога оказались заперты, автономная очередь встала целиком — тот же исход, против
+        которого написан весь класс выше, только через свежий признак вместо старого.
+
+        **Ассерт не ослаблен, а перенацелен на измеренную границу.** Ниже — строго более
+        сильный положительный контроль: подтверждённо ЖИВАЯ сессия блокирует по слабому
+        признаку по-прежнему. Плюс `TestFileOverlapStillBlocksWithoutStrongSignal` пиннит,
+        что защита от сессии в обход инструмента не снята (`--files`).
+        """
         write_card(tracker, "agent-x")
         write_log(log, [announce("cycle49", NOW - timedelta(minutes=30),
                                  summary="беру карточку agent-x")])
         r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.FREE
+        assert guard.exit_code(r) == 0
+        assert not r["unmeasured"]
+        # не «замолчали»: упоминание видно в истории вербатим
+        assert r["history"] and r["history"][0]["strength"] == guard.WEAK
+
+    def test_fresh_weak_mention_by_a_measurably_ALIVE_session_still_blocks(
+            self, guard, sibling, tracker, log, ps_alive):
+        """Положительный контроль взамен изменённого: живая сессия блокирует ЛЮБЫМ признаком.
+
+        Это и есть та часть решения #61, которая имеет доказательную силу: пока процесс
+        сессии реально жив, её обмолвка о карточке — повод не лезть. Она сохранена
+        полностью и здесь пиннится."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("pid4242", NOW - timedelta(minutes=30),
+                                 summary="беру карточку agent-x")])
+        r = run(guard, tracker, log, "agent-x", ps=ps_alive, sibling=sibling)
         assert r["verdict"] == guard.CLAIMED
         assert guard.exit_code(r) == 1
+        assert r["claims"][0]["strength"] == guard.WEAK
 
     def test_old_strong_card_field_by_pidless_session_stays_unchecked(
             self, guard, sibling, tracker, log, ps_dead):
@@ -945,3 +1003,164 @@ class TestWeakMentionAgesOutEvenWhenActivityUnmeasurable:
         r = run(guard, tracker, log, "agent-x", ps=ps_dead,
                 planned_files=["/repo/scripts/check_card_claim.py"], sibling=sibling)
         assert r["overlaps"]
+
+
+# ── СВЕЖЕЕ слабое упоминание: окно свежести перезаряжает сам отчёт ───────────
+
+class TestFreshWeakMentionDoesNotDeadlockTheQueue:
+    """Карточка `agent-fresh-weak-mention-deadlocks-queue` (цикл #67, замер 2026-08-01).
+
+    Цикл #61 состарил СТАРОЕ слабое упоминание и осознанно оставил свежее блокирующим —
+    под допущением «окно в 3 часа само сольётся». Замер показал обратное: **окно
+    перезаряжает сам отчёт**. Шаг 0b обязывает называть карточки поимённо, циклы идут раз
+    в час, окно — 3ч, поэтому каждый честный доклад «карточка X занята, не беру» продлевает
+    замок ещё на 3 часа. 01.08 так встала ВСЯ автономная очередь: обе (и единственные)
+    оставшиеся карточки бэклога читались как занятые.
+
+    Ниже — репро живого дедлока дословно по `data/session_changes.jsonl` и положительные
+    контроли того, что fail-CLOSED не ослаблен ни в одном сильном пути.
+    """
+
+    # ── репро (красное до правки) ────────────────────────────────────────────
+
+    def test_report_that_a_card_is_taken_does_not_itself_take_it(
+            self, guard, sibling, tracker, log, ps_dead):
+        """Ядро дефекта: фраза «карточку X НЕ беру» засчитывалась как захват X."""
+        write_card(tracker, "agent-verification-outlives-cycle-budget")
+        write_log(log, [announce(
+            "cycle66i", NOW - timedelta(hours=1, minutes=9),
+            summary=("Обе backlog-карточки ЗАНЯТЫ (agent-idea21-verdict-data-drift — cycle66, "
+                     "свежее окно; agent-verification-outlives-cycle-budget — cycle65, работа "
+                     "осиротела) ⇒ по шагу 0b НЕ беру ни одну. Прод-код не трогаю."))])
+        r = run(guard, tracker, log, "agent-verification-outlives-cycle-budget",
+                ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.FREE
+        assert guard.exit_code(r) == 0
+        assert r["history"] and r["history"][0]["strength"] == guard.WEAK
+
+    def test_the_live_deadlock_of_2026_08_01_is_gone(
+            self, guard, sibling, tracker, log, ps_dead):
+        """Живой журнал 01.08: два отчёта подряд заперли ОБЕ карточки бэклога.
+
+        Здесь воспроизведён именно каскад: `cycle66` докладывает об одной карточке и берёт
+        другую, `cycle66i` докладывает об ОБЕИХ. До правки — `claimed` на обеих, брать
+        нечего. Настоящий захват в этом же журнале (`cycle66` взяла idea21 полем `card:`)
+        обязан продолжать блокировать — он и блокирует, но уже как СИЛЬНЫЙ признак."""
+        entries = [
+            announce("cycle66", NOW - timedelta(hours=2, minutes=49),
+                     summary=("Карточку agent-verification-outlives-cycle-budget НЕ беру: "
+                              "шаг 0b даёт claimed => беру следующую. "
+                              "Беру agent-idea21-verdict-data-drift."),
+                     card="agent-idea21-verdict-data-drift"),
+            announce("cycle66i", NOW - timedelta(hours=1, minutes=9),
+                     summary=("Обе backlog-карточки ЗАНЯТЫ "
+                              "(agent-idea21-verdict-data-drift, "
+                              "agent-verification-outlives-cycle-budget) ⇒ НЕ беру ни одну.")),
+        ]
+        write_log(log, entries)
+
+        # карточка, которую НИКТО не захватывал — только называли в отчётах
+        write_card(tracker, "agent-verification-outlives-cycle-budget")
+        r = run(guard, tracker, log, "agent-verification-outlives-cycle-budget",
+                ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.FREE, "отчёт о занятости не должен запирать карточку"
+
+        # карточка с НАСТОЯЩИМ свежим захватом (поле `card:`) — по-прежнему занята
+        write_card(tracker, "agent-idea21-verdict-data-drift")
+        r2 = run(guard, tracker, log, "agent-idea21-verdict-data-drift",
+                 ps=ps_dead, sibling=sibling)
+        assert r2["verdict"] == guard.CLAIMED
+        assert any(c["strength"] == guard.STRONG for c in r2["claims"])
+
+    def test_stale_strong_claim_is_not_masked_by_a_fresh_weak_mention(
+            self, guard, sibling, tracker, log, ps_dead):
+        """Точный вердикт осиротевшей работы: `stale`, а не `claimed` и не `free`.
+
+        Это и есть цена дефекта: `stale` означает «кандидат на ручной подъём» (шаг 0a),
+        а свежая обмолвка перекрывала его в `claimed` — «не трогай», из-за чего сирота
+        оставалась лежать.
+
+        Идентификатор захватчика взят pid-образным намеренно: только тогда активность
+        ИЗМЕРИМА и старый сильный захват даёт `stale`. У id без pid тот же случай честно
+        остаётся `unchecked` (код 2) — это отдельный контроль
+        `test_old_strong_signal_with_unmeasurable_activity_stays_unchecked`, и правка #67
+        его не касается."""
+        write_card(tracker, "agent-x")
+        write_log(log, [
+            announce("pid29435", NOW - timedelta(hours=4, minutes=19), card="agent-x"),
+            announce("cycle66i", NOW - timedelta(hours=1), summary="agent-x занята, не беру"),
+        ])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.STALE
+        assert guard.exit_code(r) == 1
+
+    # ── положительные контроли: fail-CLOSED не ослаблен ──────────────────────
+
+    def test_fresh_strong_card_field_still_blocks(
+            self, guard, sibling, tracker, log, ps_dead):
+        """Свежий СИЛЬНЫЙ признак — поведение не изменилось ни на бит."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("cycle99", NOW - timedelta(minutes=30), card="agent-x")])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.CLAIMED
+
+    def test_fresh_strong_file_ownership_still_blocks(
+            self, guard, sibling, tracker, log, ps_dead):
+        """Второй сильный признак — файл карточки в объявленном владении."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce(
+            "cycle99", NOW - timedelta(minutes=30),
+            files=["/repo/nimbalyst-local/tracker/agent-x.md"])])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.CLAIMED
+
+    def test_fresh_frontmatter_claim_still_blocks(
+            self, guard, sibling, tracker, log, ps_dead):
+        """Третий сильный признак — `claimed_by` в самой карточке."""
+        write_card(tracker, "agent-x", claimed_by="cycle99",
+                   claimed_at=_fmt(NOW - timedelta(minutes=30)))
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.CLAIMED
+
+    def test_old_strong_signal_with_unmeasurable_activity_stays_unchecked(
+            self, guard, sibling, tracker, log, ps_dead):
+        """fail-CLOSED на сильном признаке не тронут: «не измерено» (код 2), не «свободна»."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce("cycle49", NOW - timedelta(hours=9), card="agent-x")])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead, sibling=sibling)
+        assert r["verdict"] == guard.UNCHECKED
+        assert guard.exit_code(r) == 2
+
+
+class TestFileOverlapStillBlocksWithoutStrongSignal:
+    """Настоящая защита от сессии, работающей в обход инструмента, — НЕ снята.
+
+    Остаточный риск правки #67 назван прямо: сессия, которая взяла карточку без `claim`,
+    и назвала её только в прозе, теперь читается как `free`. Смягчение — это измерение:
+    работая над карточкой, сессия объявляет владение файлами, а пересечение по файлам
+    даёт `claimed` независимо от силы признака по самой карточке."""
+
+    def test_fresh_file_overlap_blocks_even_when_the_card_signal_is_only_weak(
+            self, guard, sibling, tracker, log, ps_dead):
+        write_card(tracker, "agent-x")
+        write_log(log, [announce(
+            "cycle49", NOW - timedelta(minutes=20),
+            summary="ковыряю agent-x",
+            files=["/repo/scripts/check_card_claim.py"])])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead,
+                planned_files=["/repo/scripts/check_card_claim.py"], sibling=sibling)
+        assert r["verdict"] == guard.CLAIMED
+        assert guard.exit_code(r) == 1
+        assert r["overlaps"]
+
+    def test_mention_without_file_overlap_is_free(
+            self, guard, sibling, tracker, log, ps_dead):
+        """Граница измерена с обеих сторон: без пересечения файлов — свободна."""
+        write_card(tracker, "agent-x")
+        write_log(log, [announce(
+            "cycle49", NOW - timedelta(minutes=20),
+            summary="ковыряю agent-x",
+            files=["/repo/docs/STATE.md"])])
+        r = run(guard, tracker, log, "agent-x", ps=ps_dead,
+                planned_files=["/repo/scripts/check_card_claim.py"], sibling=sibling)
+        assert r["verdict"] == guard.FREE
