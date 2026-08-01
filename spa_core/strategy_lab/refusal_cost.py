@@ -46,7 +46,7 @@ import datetime
 import math
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from spa_core.utils.atomic import atomic_load, atomic_save
 

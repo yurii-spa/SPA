@@ -50,7 +50,7 @@ from __future__ import annotations
 
 import os
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from spa_core.strategy_lab.rates_desk import books as rd_books
 from spa_core.strategy_lab.rates_desk import config as rd_config

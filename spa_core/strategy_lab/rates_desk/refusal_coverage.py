@@ -38,7 +38,7 @@ from __future__ import annotations
 import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from spa_core.strategy_lab.rates_desk import config as C
 from spa_core.strategy_lab.rates_desk import validation as rd_validation

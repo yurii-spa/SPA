@@ -22,7 +22,7 @@ reject/park a book that violates its assigned tier band.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 # RiskPolicy version this rulebook composes UNDER (Conservative delegates to it). Imported lazily in the

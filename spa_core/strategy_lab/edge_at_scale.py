@@ -61,7 +61,6 @@ from spa_core.utils.atomic import atomic_save
 from spa_core.risk import capacity_limits as cap
 from spa_core.strategy_lab.realized_ab import (
     DATA_DIR,
-    EQUITY_CURVE,
     build_universe,
     latest_live_universe,
     load_registry_apy,

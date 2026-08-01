@@ -24,7 +24,7 @@ stdlib only, deterministic, LLM-forbidden. No network here — pure config.
 # LLM_FORBIDDEN
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 # Standard marketing NAV per share for a tokenized money-market / T-bill fund.

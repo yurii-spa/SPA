@@ -36,7 +36,7 @@ fail-CLOSED. LLM FORBIDDEN.
 from __future__ import annotations
 
 import datetime
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence
 
 from spa_core.strategy_lab import metrics
 from spa_core.strategy_lab import track_integrity as ti

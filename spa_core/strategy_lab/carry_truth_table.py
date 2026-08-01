@@ -218,7 +218,6 @@ def build_carry_truth_table(
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    import json
     p = argparse.ArgumentParser(description="Carry truth-table (WS-1.4).")
     p.add_argument("--dry-run", action="store_true")
     args = p.parse_args(argv)

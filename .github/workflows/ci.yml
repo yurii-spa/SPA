@@ -30,7 +30,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pytest pytest-asyncio pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt  # option-A full test-dep set (runtime stays stdlib-only)
+          pip install pytest pytest-asyncio pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt pyflakes  # option-A full test-dep set (runtime stays stdlib-only). pyflakes = the unused-import ratchet in scripts/tests/ shells out to it (цикл #74).
 
       - name: Smoke test — import spa_core
         run: |
@@ -71,6 +71,24 @@ jobs:
       - name: Run tests/ root (integration)
         run: |
           python -m pytest tests/ -q --tb=short -x -p no:randomly
+        env:
+          SPA_ENV: ci
+          PYTHONHASHSEED: '0'
+
+      # NOTE (цикл #74, 2026-08-01): каталог `scripts/tests/` добавлен в CI впервые —
+      # до этого его не запускал НИ ОДИН workflow, т.е. 191 тест (репетиция стоп-крана,
+      # страж инварианта #3, гейт деплоя агентов инв. #12, преflight go-live и сам ратчет
+      # неиспользуемых импортов) не выполнялся никогда. Класс тот же, что у цикла #46,
+      # механизм другой: там тесты выключали `--ignore`, здесь их ни разу не включали,
+      # поэтому гейт #46 (test_ci_test_exclusions.py) их не видел по построению.
+      # Рецидив КЛАССА гейтит spa_core/tests/test_ci_covers_every_test_dir.py.
+      # Карточка: agent-ci-never-runs-scripts-tests-dir.
+      # Тем же измерением нашлись ещё два невидимых каталога — оба ЗЕЛЁНЫЕ и быстрые:
+      # spa_core/analytics/gross_of/ (295 тестов, 0.2с) и research/cards/ (7).
+      - name: Run scripts/ gate tests + colocated suites
+        run: |
+          python -m pytest scripts/tests/ spa_core/analytics/gross_of/ research/cards/ \
+            -q --tb=short -p no:randomly
         env:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'

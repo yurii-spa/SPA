@@ -57,7 +57,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from spa_core.utils.atomic import atomic_load, atomic_save
 from spa_core.strategy_lab import metrics
-from spa_core.strategy_lab import track_integrity as ti
 from spa_core.strategy_lab import decorrelation
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]  # …/SPA_Claude
@@ -328,7 +327,6 @@ def build_report(
 
 
 def main() -> int:
-    import json
     import socket
     socket.setdefaulttimeout(20)
     rep = build_report(write=True)

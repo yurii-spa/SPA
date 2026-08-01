@@ -14,6 +14,22 @@ actually moves capital (cycle/allocator/risk/api-routers/strategy-lab/alerts).
 
 ─── Pinned count history ─────────────────────────────────────────────────────
   * 2026-06-27 (Sprint T10): cleaned 126 → 36. Ceiling pinned at **36**.
+  * 2026-08-01 (цикл #74): count had drifted to **70** and this test was RED — but
+    nobody saw it, because no workflow ran ``scripts/tests/`` at all (both ran only
+    ``tests/`` and ``spa_core/tests/``). Cleaned back to **70 → 36**; CEILING was NOT
+    touched — the observed count was brought back to what this docstring already
+    promised, which is the only direction invariant #16 allows. The 34 extra split
+    into: 28 genuinely dead imports (unused ``typing`` names, ``json``, ``math``,
+    ``decimal.Decimal``, ``dataclasses.field``, and 6 unused module/name imports) —
+    removed after checking, for each, that no other module pulls it and that the
+    imported module has no import-time side effects; plus 6 in
+    ``spa_core/strategy_lab/underwriting/__init__.py`` — a DELIBERATE re-export that
+    carried only ``# noqa: F401``, which flake8 honours and pyflakes (what this test
+    actually runs) does not; it now also declares ``__all__``, the same convention
+    the list below names. The directory is now run by both workflows, so this ratchet
+    finally bites; recurrence of the class is gated by
+    ``spa_core/tests/test_ci_covers_every_test_dir.py``.
+    Карточка: ``agent-ci-never-runs-scripts-tests-dir``.
 
 Why the floor is 36 and not 0 — every remaining warning is a DELIBERATE,
 documented re-export / back-compat surface that MUST stay (removing it would

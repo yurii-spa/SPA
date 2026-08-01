@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from spa_core.audit import hash_chain
-from spa_core.utils.atomic import atomic_load, atomic_save
+from spa_core.utils.atomic import atomic_save
 from spa_core.strategy_lab import metrics
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]  # …/SPA_Claude

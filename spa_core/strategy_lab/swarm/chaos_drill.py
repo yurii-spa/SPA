@@ -25,7 +25,7 @@ import shutil
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import List, Optional
 
 from spa_core.strategy_lab.swarm import swarm_health as sh
 from spa_core.utils.atomic import atomic_save

@@ -57,7 +57,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
 from spa_core.strategy_lab.rates_desk.books import Book
 

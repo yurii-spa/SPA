@@ -22,3 +22,19 @@ from spa_core.strategy_lab.underwriting.report import (  # noqa: F401
     is_publish_enabled,
     write_report,
 )
+
+# Deliberate package-level re-export surface: callers/tests do
+# ``from spa_core.strategy_lab.underwriting import build_report``. The ``# noqa: F401``
+# above states that intent for flake8, but pyflakes — which the unused-import ratchet
+# (``scripts/tests/test_unused_import_ratchet.py``) actually runs — does not honour noqa,
+# so the six names read as dead imports there. ``__all__`` says the same thing in the form
+# pyflakes understands, and is the convention the ratchet's own docstring names for
+# re-exports. Same set, same order: `from … import *` behaviour is unchanged.
+__all__ = [
+    "IS_ADVISORY",
+    "PUBLISH_FLAG_ENV",
+    "UNDERWRITING_EVENT_TYPE",
+    "build_report",
+    "is_publish_enabled",
+    "write_report",
+]

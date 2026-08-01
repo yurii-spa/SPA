@@ -42,7 +42,6 @@ import re
 from datetime import date as _date
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 from spa_core.paper_trading._cycle_io import (
     CAPITAL_USD,

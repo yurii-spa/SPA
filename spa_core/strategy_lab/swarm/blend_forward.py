@@ -29,7 +29,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from spa_core.strategy_lab.swarm.common import append_daily_proof, apy_pct, max_drawdown_pct
 from spa_core.strategy_lab.aggressive_lab.guardian import stdev

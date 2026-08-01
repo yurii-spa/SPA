@@ -31,7 +31,7 @@ from __future__ import annotations
 import json
 import urllib.request
 from dataclasses import dataclass
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 # ── 4-byte function selectors (keccak256(signature)[:4]) ────────────────────────────────────────
 # Standard, well-known ERC-20 / ERC-4626 selectors. Hard-coded constants (no keccak in stdlib).

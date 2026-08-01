@@ -8,7 +8,6 @@ OpenAPI tag grouping. All payloads + the hash-chain verification are byte-identi
 
 from __future__ import annotations
 
-import json
 import logging
 
 from fastapi import APIRouter, Query

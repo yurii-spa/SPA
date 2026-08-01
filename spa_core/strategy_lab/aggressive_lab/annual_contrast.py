@@ -85,7 +85,6 @@ from spa_core.strategy_lab.aggressive_lab import (
     STRESS_WINDOWS,
 )
 from spa_core.strategy_lab.aggressive_lab import loader as ld
-from spa_core.strategy_lab.aggressive_lab import tail_overlay as tov
 from spa_core.strategy_lab import metrics
 from spa_core.strategy_lab import track_integrity as ti
 

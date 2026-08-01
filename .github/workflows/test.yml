@@ -43,7 +43,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Install test dependencies
-        run: pip install pytest pytest-asyncio pytest-timeout pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt  # option-A full test-dep set (runtime stays stdlib-only). pytest-timeout = a per-test wedge backstop so a hung test fails-fast + NAMED, never wedging the runner 30min.
+        run: pip install pytest pytest-asyncio pytest-timeout pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt pyflakes  # option-A full test-dep set (runtime stays stdlib-only). pytest-timeout = a per-test wedge backstop so a hung test fails-fast + NAMED, never wedging the runner 30min. pyflakes = the unused-import ratchet in scripts/tests/ shells out to it (цикл #74).
 
       # --- Deterministic test execution (Architect N11) ---------------------
       # Two CI runs MUST produce an IDENTICAL collection order + pass/fail set
@@ -71,6 +71,25 @@ jobs:
         run: |
           python -m pytest spa_core/tests/ -q --tb=short -p no:randomly \
             --timeout=180 --timeout-method=thread
+        env:
+          SPA_ENV: ci
+          PYTHONHASHSEED: '0'
+
+      # NOTE (цикл #74, 2026-08-01): каталог `scripts/tests/` добавлен в CI впервые —
+      # до этого он не запускался НИ ОДНИМ workflow, то есть 191 тест (репетиция
+      # стоп-крана, страж инварианта #3 «LLM запрещён», гейт деплоя агентов инв. #12,
+      # преflight go-live и сам ратчет неиспользуемых импортов) не выполнялся никогда.
+      # Это тот же класс, что цикл #46, но другим механизмом: там тесты выключали
+      # `--ignore`, здесь их просто ни разу не включали, поэтому гейт #46
+      # (spa_core/tests/test_ci_test_exclusions.py) их не видел по построению.
+      # Рецидив КЛАССА гейтит spa_core/tests/test_ci_covers_every_test_dir.py.
+      # Карточка: agent-ci-never-runs-scripts-tests-dir.
+      # Тем же измерением нашлись ещё два невидимых каталога — оба ЗЕЛЁНЫЕ и быстрые:
+      # spa_core/analytics/gross_of/ (295 тестов, 0.2с) и research/cards/ (7).
+      - name: Run scripts/ gate tests + colocated suites
+        run: |
+          python -m pytest scripts/tests/ spa_core/analytics/gross_of/ research/cards/ \
+            -q --tb=short -p no:randomly --timeout=180 --timeout-method=thread
         env:
           SPA_ENV: ci
           PYTHONHASHSEED: '0'

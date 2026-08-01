@@ -29,7 +29,6 @@ Deterministic given the feed series, stdlib-only. LLM FORBIDDEN.
 # LLM_FORBIDDEN
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, Optional

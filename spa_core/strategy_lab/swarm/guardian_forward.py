@@ -41,7 +41,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Sequence
 
-from spa_core.strategy_lab.aggressive_lab.guardian import apply_guardian_vol, stdev
+from spa_core.strategy_lab.aggressive_lab.guardian import stdev
 from spa_core.strategy_lab.swarm.common import (
     GENESIS_HASH,
     append_daily_proof,
@@ -50,7 +50,12 @@ from spa_core.strategy_lab.swarm.common import (
 )
 from spa_core.utils.atomic import atomic_save
 
-__all__ = ["vol_guardian_trace", "run_forward_guardian", "GUARDIAN_PARAMS"]
+# GENESIS_HASH — re-export, not a dead import: the proof-chain test reads it THROUGH this
+# module (``gf.GENESIS_HASH``, spa_core/tests/test_swarm_guardian_forward.py), so the name is
+# part of this module's surface. It was missing from ``__all__``, which is why the unused-import
+# ratchet counted it; adding it says the intent in the form pyflakes reads (цикл #74,
+# карточка agent-ci-never-runs-scripts-tests-dir).
+__all__ = ["vol_guardian_trace", "run_forward_guardian", "GUARDIAN_PARAMS", "GENESIS_HASH"]
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 AGGRESSIVE_LAB_DIR = REPO_ROOT / "data" / "aggressive_lab"

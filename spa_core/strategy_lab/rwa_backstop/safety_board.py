@@ -32,7 +32,7 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from spa_core.strategy_lab.rwa_backstop import collateral_registry as reg
 from spa_core.strategy_lab.rwa_backstop.liquidation_nav import (

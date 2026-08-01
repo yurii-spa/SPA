@@ -20,7 +20,7 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from spa_core.strategy_lab.base import StrategyMetrics
 from spa_core.strategy_lab.metrics import compare_table

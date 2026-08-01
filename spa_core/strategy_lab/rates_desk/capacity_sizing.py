@@ -45,7 +45,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Optional
 
 from spa_core.strategy_lab.rates_desk.contracts import D0, D1, RatePolicyParams
 from spa_core.strategy_lab.rates_desk.fair_value_engine import _safe_decimal
