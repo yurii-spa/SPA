@@ -2,12 +2,20 @@
 trackerStatus:
   type: agent
 title: Закрыть дыры покрытия policy_enforcer — добавить проверки T2-per-protocol + chain-caps (зеркало policy.py)
-status: backlog
+status: in-progress
 source: owner-decision-2026-07-23 (Решение 4, пере-скоуп)
 created: 2026-07-23
 priority: high
 domain: money-path (значения RiskPolicy НЕ меняем; pre_cutover_gate + ADR)
 ---
+
+> **РЕАЛИЗОВАНО 2026-08-02 (ADR-062), ждёт go на пуш.** Все четыре кэпа закрыты, значения из
+> `RiskConfig` (parity-тест пинует). Вскрылось сверх скоупа: аварийный портфель держал 93 % на
+> Ethereum при лимите 90 % — починено (кэш 7 %→11 %); он же финансирует `spark_susds` вопреки
+> GSM-гейту → карточка `agent-safe-fallback-bypasses-adapter-gates.md`. Остаточная дыра
+> (незарегистрированный протокол) заявлена открыто → `agent-funded-protocol-not-in-registry.md`.
+> Проверка: 14 новых тестов, ни один существующий не изменён, 3584 passed / 0 failed,
+> pre_cutover_gate 16/16.
 
 ## Что случилось (разбор 2026-07-23)
 

@@ -187,8 +187,21 @@ def _build_safe_fallback_positions(
     if base_capital <= 0:
         return {}, capital_usd
 
-    # If base was designed for a different capital, scale proportionally
-    scale = (capital_usd - capital_usd * 0.07) / base_capital  # keep 7% cash
+    # ADR-062 (W4.1): cash reserve raised 7% → 11%.
+    #
+    # Every protocol in _SAFE_FALLBACK_POSITIONS is on Ethereum L1, so a 7% reserve
+    # deployed 93% onto ONE chain — over policy.max_single_chain_allocation (90%).
+    # policy.py refuses such a trade per-position, but the enforcer never checked
+    # chain caps on a whole portfolio, so this last-resort book has been silently
+    # non-compliant. It matters: _compliant_target adopts it when the rebalancer
+    # cannot produce a book, i.e. exactly when the cycle is already degraded.
+    #
+    # Fix is the conservative direction — hold MORE cash, not add new chains/
+    # protocols to a hardcoded emergency book: 11% cash ⇒ 89% on Ethereum, inside
+    # the 90% cap with a margin. Tier/protocol proportions are untouched, so the
+    # book's risk profile is unchanged apart from being slightly less deployed.
+    _FALLBACK_CASH_FRAC = 0.11
+    scale = (capital_usd - capital_usd * _FALLBACK_CASH_FRAC) / base_capital
     positions = {k: round(v * scale, 2) for k, v in base.items()}
     cash_usd = round(capital_usd - sum(positions.values()), 2)
     return positions, cash_usd
