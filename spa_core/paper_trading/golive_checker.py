@@ -243,6 +243,30 @@ def _check_file_syntax(path: Path) -> tuple[bool, str]:
         return False, f"{path.name}: read error — {exc}"
 
 
+def _check_adapter_importable(repo_root: Path, filename: str) -> tuple[bool, str]:
+    """Return (ok, detail) — the adapter module exists AND actually IMPORTS.
+
+    OWNER DECISION 2026-07-23 (Variant Б, card owner-decision-geit-gotovnosti, ADR-057):
+    ``compile()``-only was a false-green — a file can be syntactically perfect yet fail to load
+    (e.g. a RETIRED module whose first line raises ``ImportError``, like MP-354
+    ``pendle_pt_adapter``). The go-live gate we lean on to sanction real capital must verify the
+    module is LOADABLE, not just parseable. Imported by dotted path so package-relative imports
+    resolve (a standalone file-load would false-fail healthy adapters).
+    """
+    path = repo_root / "spa_core" / "adapters" / filename
+    if not path.is_file():
+        return False, f"{filename}: file not found"
+    import importlib
+    dotted = f"spa_core.adapters.{path.stem}"
+    try:
+        importlib.import_module(dotted)
+        return True, f"{filename}: exists + imports OK"
+    except SyntaxError as exc:
+        return False, f"{filename}: syntax error — {exc}"
+    except Exception as exc:  # noqa: BLE001 — ImportError/RuntimeError/… = module cannot load
+        return False, f"{filename}: import failed — {type(exc).__name__}: {exc}"
+
+
 # ─── Checker ─────────────────────────────────────────────────────────────────
 
 
@@ -463,33 +487,28 @@ class GoLiveChecker:
     # ══════════════════════════════════════════════════════════════════════════
 
     def _check_compound_v3_adapter(self, blockers: list[str]) -> bool:
-        ok, detail = _check_file_syntax(
-            self.repo_root / "spa_core" / "adapters" / "compound_v3_adapter.py"
-        )
+        ok, detail = _check_adapter_importable(self.repo_root, "compound_v3_adapter.py")
         if not ok:
             blockers.append(detail)
         return ok
 
     def _check_morpho_steakhouse_adapter(self, blockers: list[str]) -> bool:
-        ok, detail = _check_file_syntax(
-            self.repo_root / "spa_core" / "adapters" / "morpho_steakhouse_adapter.py"
-        )
+        ok, detail = _check_adapter_importable(self.repo_root, "morpho_steakhouse_adapter.py")
         if not ok:
             blockers.append(detail)
         return ok
 
     def _check_aave_arbitrum_adapter(self, blockers: list[str]) -> bool:
-        ok, detail = _check_file_syntax(
-            self.repo_root / "spa_core" / "adapters" / "aave_arbitrum_adapter.py"
-        )
+        ok, detail = _check_adapter_importable(self.repo_root, "aave_arbitrum_adapter.py")
         if not ok:
             blockers.append(detail)
         return ok
 
     def _check_pendle_pt_adapter(self, blockers: list[str]) -> bool:
-        ok, detail = _check_file_syntax(
-            self.repo_root / "spa_core" / "adapters" / "pendle_pt_adapter.py"
-        )
+        # Variant Б: honestly RED until the S23 decision re-points this criterion at the live
+        # canonical Pendle adapter (MP-201 `pendle_pt`). MP-354 `pendle_pt_adapter` is retired
+        # (raises ImportError on import) → this criterion fails honestly (27/29), by design.
+        ok, detail = _check_adapter_importable(self.repo_root, "pendle_pt_adapter.py")
         if not ok:
             blockers.append(detail)
         return ok

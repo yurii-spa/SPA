@@ -215,12 +215,27 @@ def _full_checker(tmp_path: Path, now: datetime = NOW, **data_overrides) -> GoLi
 
     Uses the real repo_root (so adapter/component file checks pass)
     and a fake home_dir with autopush plist installed.
+
+    ADR-057 (owner Variant Б 2026-07-23): the adapter criteria are now IMPORT-based, and the real
+    ``pendle_pt_adapter`` (MP-354) is retired → imports-fail. To keep testing the all-READY path,
+    this fixture simulates the post-S23 canonical Pendle adapter as importable. The REAL dead-module
+    behaviour is asserted separately by ``test_dead_pendle_adapter_fails_import_check``.
     """
+    from unittest.mock import patch
+    import spa_core.paper_trading.golive_checker as _gc
     ddir = _make_full_data_dir(tmp_path, now=now, **data_overrides)
     home = _fake_home_with_autopush(tmp_path)
-    return GoLiveChecker(
-        data_dir=ddir, now=now, home_dir=home, paper_start=EARLY_PAPER_START
-    ).check(write=False)
+    _real = _gc._check_adapter_importable
+
+    def _healthy(repo_root, filename):
+        if filename == "pendle_pt_adapter.py":
+            return True, "pendle_pt_adapter.py: exists + imports OK (fixture: post-S23 canonical)"
+        return _real(repo_root, filename)
+
+    with patch.object(_gc, "_check_adapter_importable", _healthy):
+        return GoLiveChecker(
+            data_dir=ddir, now=now, home_dir=home, paper_start=EARLY_PAPER_START
+        ).check(write=False)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -248,12 +263,30 @@ def test_all_checks_present(tmp_path):
 
 
 def test_all_pass_with_full_fixture(tmp_path):
-    """All 29 criteria pass when the full fixture is provided."""
+    """All 29 criteria pass when the full fixture is provided (pendle simulated post-S23)."""
     result = _full_checker(tmp_path)
     failing = [name for name, ok in result.checks.items() if not ok]
     assert failing == [], f"Expected 29/29 PASS; still failing: {failing}"
     assert result.ready is True
     assert result.blockers == []
+
+
+def test_dead_pendle_adapter_fails_import_check(tmp_path):
+    """ADR-057 (owner Variant Б): the go-live gate must IMPORT adapters, not just compile() them.
+    The real MP-354 pendle_pt_adapter is retired (raises ImportError) → the criterion must be RED
+    with an 'import failed' blocker (was a false-green under compile-only). Cleared after S23
+    re-points the criterion at the live MP-201 `pendle_pt`. Guards against reverting to compile()."""
+    # No patch here — run against the REAL repo adapter files.
+    ddir = _make_full_data_dir(tmp_path)
+    home = _fake_home_with_autopush(tmp_path)
+    result = GoLiveChecker(
+        data_dir=ddir, now=NOW, home_dir=home, paper_start=EARLY_PAPER_START
+    ).check(write=False)
+    assert result.checks["pendle_pt_adapter"] is False, "retired pendle adapter must fail import"
+    assert any("pendle_pt_adapter.py: import failed" in b for b in result.blockers)
+    # the healthy adapters still pass (import-based check does not false-fail them)
+    assert result.checks["compound_v3_adapter"] is True
+    assert result.checks["aave_arbitrum_adapter"] is True
 
 
 def test_no_equity_curve(tmp_path):
