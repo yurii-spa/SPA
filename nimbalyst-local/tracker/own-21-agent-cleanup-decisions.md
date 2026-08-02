@@ -2,13 +2,24 @@
 trackerStatus:
   type: owner-decision
 title: Навести порядок в агентах — реши по каждому пункту (сводка инвентаризации)
-status: needs-owner
+status: ingested
 priority: high
 owner: yuriycooleshov@gmail.com
 blocks: Чистота агентского контура
 created: 2026-07-15
 legacy_id: AGENT-CLEANUP
 ---
+
+> **РЕШЕНИЯ ВЛАДЕЛЬЦА (2026-07-23) — карта закрыта, п.4 расширен в новую задачу:**
+> - **`checkpoint-7day` — ВЫГРУЖЕН** (spent one-shot): `launchctl bootout gui/501` + plist →
+>   `data/retired_plists_backup/` + добавлен в `RETIRED_LABELS` (agent_health_monitor.py) +
+>   закомментирован в `install_all_agents.sh`. Проверено: нет в `launchctl list`.
+> - **roadmap-loop — НЕ возобновляем** (подтверждено). Остаток durably в `docs/ROADMAP_2MONTH_EISENHOWER_v2.md`.
+> - **П.1 (3 retired) / П.2 (novel-edge-rnd)** — сделаны ранее (15.07), подтверждено.
+> - **П.4 расширен:** флот вырос 54→**73** за 8 дней ⇒ заведена свежая полная инвентаризация всех 73
+>   агентов как задача этапа D → `agent-fleet-inventory-73.md`.
+>
+> В `owner-done` переводит только владелец (инвариант #14).
 
 ## ✅ Оркестратор: выполнено 2026-07-15 (по ответу владельца)
 - **П.1 — 3 retired ВЫГРУЖЕНЫ:** `digest_weekly`, `tier1_digest`, `weekly_backup` → `launchctl bootout`

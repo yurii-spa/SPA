@@ -2,61 +2,47 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **132** · ждёт владельца: **24** · занято сессиями: **0**.
+> Всего карточек: **142** · ждёт владельца: **17** · занято сессиями: **0**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Включить письма-подтверждения для подписки — добавить два ключа на сервер** · _medium_  ·  `own-07-retention-secrets.md`
 - **Какое capacity-число сделать заголовочным на /fundability** · _low_  ·  `own-17-fundability-capacity-framing.md`
-- **Навести порядок в агентах — реши по каждому пункту (сводка инвентаризации)** · _high_  ·  `own-21-agent-cleanup-decisions.md`
 - **Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда** · _high_  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md`
 - **Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)**  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md`
-- **Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить** · _medium_  ·  `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam.md`
 - **Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет** · _high_  ·  `owner-decision-dva-tsikla-orkestratora-rabotali-odnovre.md`
-- **Гейт готовности зелёный по адаптеру, который невозможно загрузить — проверяется только синтаксис файла (выбери, как чинить)** · _high_  ·  `owner-decision-geit-gotovnosti-zelenyi-po-adapteru-koto.md`
 - **Книги aggressive_lab переписывают свою историю — и это отложенно заденет числа на сайте** · _high_  ·  `owner-decision-knigi-aggressive-lab-perepisyvayut-svoyu.md`
 - **Наступила Фаза 2 (1 августа) — включаем, сдвигаем или осознанно откладываем?**  ·  `owner-decision-nastupila-faza-2-1-avgusta-vklyuchaem-sd.md`
 - **Отчёт «эту карточку я НЕ беру» больше не считается захватом — подтверди или откати** · _medium_  ·  `owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc.md`
 - **Перезапустить сторожа реального времени, чтобы починка начала работать (одна команда)** · _medium_  ·  `owner-decision-perezapustit-storozha-realnogo-vremeni-c.md`
-- **Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять**  ·  `owner-decision-publichnaya-stranitsa-prover-nas-pokazyv.md`
 - **Рабочая копия проекта на маке отстала от GitHub на 345 коммитов — из-за этого очередь заданий показывает старое** · _medium_  ·  `owner-decision-rabochaya-kopiya-proekta-na-make-otstala.md`
 - **Сторож базисной сделки ожил и хочет слать тебе «отличная возможность» — включаем эти сообщения или нет** · _medium_  ·  `owner-decision-storozh-bazisnoi-sdelki-ozhil-i-hochet-s.md`
 - **Сторож голосований следит за чужими протоколами, а за нашими — нет: выбери, добавлять источники или убрать лишние** · _high_  ·  `owner-decision-storozh-golosovanii-sledit-za-chuzhimi-p.md`
-- **Сторож правил не видит стоп-кран — смотрит в файл, которого нет (выбери, как чинить)** · _high_  ·  `owner-decision-storozh-pravil-ne-vidit-stop-kran-smotri.md`
-- **Сторож пропущенного цикла молчит до 10:00 UTC, хотя цикл стартует в 06:00 UTC — опустить порог?**  ·  `owner-decision-storozh-propuschennogo-tsikla-molchit-do.md`
 - **Сторож расхождения флота не запускался 21 день — его никто не зовёт**  ·  `owner-decision-storozh-rashozhdeniya-flota-ne-zapuskals.md`
-- **Стратегия S23 никогда не видит живой Pendle — адаптер «похоронен», ошибка глотается молча (выбери, как чинить)** · _medium_  ·  `owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p.md`
 - **Тревога о стоп-кране до тебя больше не дойдёт — событие застряло в «плохо» с 4 июля (выбери, как чинить)** · _high_  ·  `owner-decision-trevoga-o-stop-krane-do-tebya-bolshe-ne.md`
+- **Твои решения от 23 июля 11 дней не лежали в git — доставил, подтверди что в силе** · _high_  ·  `owner-decision-tvoi-resheniya-ot-23-iyulya-11-dnei-ne-l.md`
 - **Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать** · _medium_  ·  `owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema.md`
-- **В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями** · _high_  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md`
 - **Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта**  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (48)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (49)
 
 ### · needs-owner
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
 - Какое capacity-число сделать заголовочным на /fundability  ·  `own-17-fundability-capacity-framing.md` · 2026-07-15
-- Навести порядок в агентах — реши по каждому пункту (сводка инвентаризации)  ·  `own-21-agent-cleanup-decisions.md` · 2026-07-15
 - Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md` · 2026-08-01
 - Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md` · 2026-07-29
-- Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить  ·  `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam.md` · 2026-07-29
 - Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет  ·  `owner-decision-dva-tsikla-orkestratora-rabotali-odnovre.md` · 2026-08-01
-- Гейт готовности зелёный по адаптеру, который невозможно загрузить — проверяется только синтаксис файла (выбери, как чинить)  ·  `owner-decision-geit-gotovnosti-zelenyi-po-adapteru-koto.md` · 2026-07-30
 - Книги aggressive_lab переписывают свою историю — и это отложенно заденет числа на сайте  ·  `owner-decision-knigi-aggressive-lab-perepisyvayut-svoyu.md` · 2026-08-01
 - Наступила Фаза 2 (1 августа) — включаем, сдвигаем или осознанно откладываем?  ·  `owner-decision-nastupila-faza-2-1-avgusta-vklyuchaem-sd.md` · 2026-07-31
 - Отчёт «эту карточку я НЕ беру» больше не считается захватом — подтверди или откати  ·  `owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc.md` · 2026-08-01
 - Перезапустить сторожа реального времени, чтобы починка начала работать (одна команда)  ·  `owner-decision-perezapustit-storozha-realnogo-vremeni-c.md` · 2026-08-02
-- Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять  ·  `owner-decision-publichnaya-stranitsa-prover-nas-pokazyv.md` · 2026-07-29
 - Рабочая копия проекта на маке отстала от GitHub на 345 коммитов — из-за этого очередь заданий показывает старое  ·  `owner-decision-rabochaya-kopiya-proekta-na-make-otstala.md` · 2026-07-31
 - Сторож базисной сделки ожил и хочет слать тебе «отличная возможность» — включаем эти сообщения или нет  ·  `owner-decision-storozh-bazisnoi-sdelki-ozhil-i-hochet-s.md` · 2026-08-01
 - Сторож голосований следит за чужими протоколами, а за нашими — нет: выбери, добавлять источники или убрать лишние  ·  `owner-decision-storozh-golosovanii-sledit-za-chuzhimi-p.md` · 2026-08-01
-- Сторож правил не видит стоп-кран — смотрит в файл, которого нет (выбери, как чинить)  ·  `owner-decision-storozh-pravil-ne-vidit-stop-kran-smotri.md` · 2026-07-29
-- Сторож пропущенного цикла молчит до 10:00 UTC, хотя цикл стартует в 06:00 UTC — опустить порог?  ·  `owner-decision-storozh-propuschennogo-tsikla-molchit-do.md` · 2026-07-30
 - Сторож расхождения флота не запускался 21 день — его никто не зовёт  ·  `owner-decision-storozh-rashozhdeniya-flota-ne-zapuskals.md` · 2026-08-01
-- Стратегия S23 никогда не видит живой Pendle — адаптер «похоронен», ошибка глотается молча (выбери, как чинить)  ·  `owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p.md` · 2026-07-30
 - Тревога о стоп-кране до тебя больше не дойдёт — событие застряло в «плохо» с 4 июля (выбери, как чинить)  ·  `owner-decision-trevoga-o-stop-krane-do-tebya-bolshe-ne.md` · 2026-07-31
+- Твои решения от 23 июля 11 дней не лежали в git — доставил, подтверди что в силе  ·  `owner-decision-tvoi-resheniya-ot-23-iyulya-11-dnei-ne-l.md` · 2026-08-02
 - Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать  ·  `owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema.md` · 2026-08-01
-- В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md` · 2026-07-29
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
@@ -68,6 +54,7 @@
 - Мгновенный Telegram-пинг о заявке или оставить в ежедневном дайджесте?  ·  `own-16-instant-lead-ping.md` · 2026-07-15
 - Одобрить новый вид дашборда (превью готово) — переносить на живой?  ·  `own-19-dashboard-preview-verdict.md` · 2026-07-15
 - Как автоматизировать публичный research-changelog (heartbeat сайта)  ·  `own-20-research-changelog-automation.md` · 2026-07-15
+- Навести порядок в агентах — реши по каждому пункту (сводка инвентаризации)  ·  `own-21-agent-cleanup-decisions.md` · 2026-07-15
 - Ревью ветки yield-lab-scaffolding — мержить или оставить как есть  ·  `own-22-yield-lab-branch-review.md` · 2026-07-15
 - Через 2 дня (~17.07) — пересмотреть, как часто работает автономный цикл  ·  `own-23-autonomy-cadence-recheck.md` · 2026-07-15
 - Пуш в main закрыт правилом — результаты R&D ждут в PR, и висят 4 старых PR  ·  `own-24-pushi-v-main-tolko-cherez-pr.md` · 2026-07-29
@@ -78,11 +65,18 @@
 - Безопасность: admin-панель /admin без пароля — закрыть за Cloudflare Access  ·  `owner-decision-bezopasnost-admin-panel-admin-bez-paroly.md` · 2026-07-16
 - Чистка: разрешить удалять мёртвые МОДУЛИ из ядра (не только скрипты)?  ·  `owner-decision-chistka-razreshit-udalyat-mertvye-moduli.md` · 2026-07-16
 - Чистка ядра (WS-A): ~60 мёртвых/дублей + 45 аналитич. модулей раздувают paper_trading — greenlight подход  ·  `owner-decision-chistka-yadra-ws-a-60-mertvyh-dublei-45.md` · 2026-07-16
+- Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить  ·  `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam.md` · 2026-07-29
 - Флот: 7 агентов не переживут reboot (swarm+DR) — разрешить сделать reboot-safe  ·  `owner-decision-flot-7-agentov-ne-perezhivut-reboot-swar.md` · 2026-07-16
+- Гейт готовности зелёный по адаптеру, который невозможно загрузить — проверяется только синтаксис файла (выбери, как чинить)  ·  `owner-decision-geit-gotovnosti-zelenyi-po-adapteru-koto.md` · 2026-07-30
 - Монитор депега стейблов слеп — нет источника цены (чинить нельзя молча: связан со стоп-краном)  ·  `owner-decision-monitor-depega-steiblov-slep-net-istochn.md` · 2026-07-17
 - Отчёт готовности говорит «ГОТОВЫ», хотя трек не добран (26/30) — публичный API противоречит сам себе  ·  `owner-decision-otchet-gotovnosti-govorit-gotovy-hotya-t.md` · 2026-07-17
 - 🅰🅰🅰 Продуктовый слой агентов (Head of Product + R&D продукта + продвижение) — построить  ·  `owner-decision-produktovyi-sloi-agentov-head-of-product.md` · 2026-07-16
+- Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять  ·  `owner-decision-publichnaya-stranitsa-prover-nas-pokazyv.md` · 2026-07-29
+- Сторож правил не видит стоп-кран — смотрит в файл, которого нет (выбери, как чинить)  ·  `owner-decision-storozh-pravil-ne-vidit-stop-kran-smotri.md` · 2026-07-29
+- Сторож пропущенного цикла молчит до 10:00 UTC, хотя цикл стартует в 06:00 UTC — опустить порог?  ·  `owner-decision-storozh-propuschennogo-tsikla-molchit-do.md` · 2026-07-30
+- Стратегия S23 никогда не видит живой Pendle — адаптер «похоронен», ошибка глотается молча (выбери, как чинить)  ·  `owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p.md` · 2026-07-30
 - Уточнение по заметке: Давай так и сделаем  ·  `owner-decision-utochnenie-po-zametke-davai-tak-i-sdelae.md` · 2026-07-22
+- В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md` · 2026-07-29
 
 ## 📥 Inbox (задания: Telegram / заметки / голос)  (25)
 
@@ -119,7 +113,6 @@
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
 - Чистка репо (мёртвый код) фазами  ·  `agent-cleanup.md` · 2026-07-16
 - Q&A бэклог (12 ответов) + видимость задач  ·  `agent-qa-backlog.md` · 2026-07-16
-- Q9: git-тег verifier-v1.2  ·  `agent-verifier-tag.md` · 2026-07-16
 ### · backlog
 - Правка чужой карточки запирает её на 3 часа — даже когда сессия прямо назвала в объявлении ДРУГУЮ карточку  ·  `agent-card-file-in-ownership-locks-a-card-it-doesnt-claim.md` · 2026-08-01
 - Шаг 0b держит карточку занятой по файлам сессии, чей pid измеримо мёртв  ·  `agent-dead-pid-still-holds-files-for-3h.md` · 2026-08-02
@@ -174,7 +167,21 @@
 - Работа сессии, объявленная в session_changes, не доезжает до origin — нужна детерминированная проверка «объявил → доставил»  ·  `agent-undelivered-work-guard.md` · 2026-07-30
 - Потолок «неиспользуемых импортов» упёрся В САМЫЙ предел — следующий новый модуль красит CI  ·  `agent-unused-import-ceiling-at-its-limit.md` · 2026-07-31
 - Верификация длиннее бюджета цикла ⇒ работа осиротевает по построению  ·  `agent-verification-outlives-cycle-budget.md` · 2026-07-31
+- Q9: git-тег verifier-v1.2  ·  `agent-verifier-tag.md` · 2026-07-16
 - Сторож сторожей записывает «предупредил» о сообщении, доставку которого не измеряет — и молчит уже 16 дней  ·  `agent-watchdog-alert-delivery-unmeasured.md` · 2026-08-02
 - Упоминание карточки в тексте объявления запирает её НАВСЕГДА — шаг 0b отвечает «не измерено» и после старения  ·  `agent-weak-mention-locks-card-forever.md` · 2026-07-31
 - Q11: разбор ветки yield-lab  ·  `agent-yield-lab-branch.md` · 2026-07-16
+
+## agent  (9)
+
+### · backlog
+- Advisory / сигнальный трек (вариант C) — отложен владельцем, держать в бэклоге  ·  `agent-advisory-signals-track-c.md` · 2026-07-23
+- Аллокатор заморожен на неоптимальной доходности — ребаланс только по нарушению, нет триггера «заработать больше»  ·  `agent-allocator-yield-frozen-rootcause.md` · 2026-07-23
+- Закрыть дыры покрытия policy_enforcer — добавить проверки T2-per-protocol + chain-caps (зеркало policy.py)  ·  `agent-enforcer-coverage-gaps.md` · 2026-07-23
+- Свежая полная инвентаризация флота (73 агента) — что делает / жив ли / нужен ли / расход  ·  `agent-fleet-inventory-73.md` · 2026-07-23
+- GO-LIVE — внутридневной контроль просадки (частый, не раз в сутки)  ·  `agent-golive-intraday-drawdown-monitor.md` · 2026-07-23
+- Guard — стратегия не должна молча падать на mock, если заявленный живой адаптер не грузится  ·  `agent-guard-no-silent-mock-in-tournament.md` · 2026-07-23
+- Построить слой инвест-агентов «Head of Investment» (кураторы тиров + капитал-по-тирам + максимизаторы + решающий)  ·  `agent-head-of-investment-layer.md` · 2026-07-23
+- Сделать турнир стратегий ДОВЕРЯЕМЫМ — ранжировать по net-of-cost APY на реальных исторических данных (не Sharpe на mock)  ·  `agent-tournament-trustworthy-real-apy.md` · 2026-07-23
+- Guard — track-данные в git не должны молча протухать / молча пропускаться в CI  ·  `agent-track-data-git-durability-guard.md` · 2026-07-23
 
