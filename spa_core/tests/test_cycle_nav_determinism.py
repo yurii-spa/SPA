@@ -80,6 +80,7 @@ def _make_orch(apy_by_proto: dict[str, float]):
                 "id": proto,
                 "apy_pct": apy_by_proto[proto],
                 "tvl_usd": 1e8,
+                "tvl_source": "live",
                 "tier": tier,
                 "status": "ok",
             }

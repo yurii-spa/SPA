@@ -125,6 +125,7 @@ def _make_orch(universe):
                 "id": p,
                 "apy_pct": 4.0,
                 "tvl_usd": 1e8,
+                "tvl_source": "live",
                 "tier": t,
                 "status": "ok",
                 "chain": f"chain_{p}",  # per-pool chain → no false single-chain cap

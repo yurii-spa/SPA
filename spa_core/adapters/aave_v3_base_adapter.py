@@ -250,8 +250,13 @@ class AaveV3BaseAdapter(BaseAdapter):
 
         return best
 
-    def _fetch_live_apy(self) -> Optional[float]:
-        """Возвращает живой APY (%) из DeFiLlama или None при ошибке."""
+    def _fetch_live_pool(self) -> Optional[dict]:
+        """Возвращает лучший живой USDC-пул (dict DeFiLlama) или None при ошибке.
+
+        ADR-053 follow-up: единая точка выборки — и APY, и tvlUsd берутся из
+        ОДНОГО живого пула, выбранного ``_find_best_usdc_pool`` (его tvlUsd
+        раньше выбрасывался, а YieldInfo репортил committed-константу TVL_USD).
+        """
         pools = self._fetch_pools_raw()
         if pools is None:
             return None
@@ -261,14 +266,20 @@ class AaveV3BaseAdapter(BaseAdapter):
                 "aave_v3_base: подходящий USDC-пул на Base не найден в DeFiLlama"
             )
             return None
-        apy = float(best.get("apy", 0.0))
         logger.info(
             "aave_v3_base: live APY=%.3f%% из пула %s (TVL=%.0f)",
-            apy,
+            float(best.get("apy", 0.0)),
             best.get("pool", "?"),
             best.get("tvlUsd", 0),
         )
-        return apy
+        return best
+
+    def _fetch_live_apy(self) -> Optional[float]:
+        """Возвращает живой APY (%) из DeFiLlama или None при ошибке."""
+        best = self._fetch_live_pool()
+        if best is None:
+            return None
+        return float(best.get("apy", 0.0))
 
     # ------------------------------------------------------------------ #
     # Публичные методы (BaseAdapter interface)                             #
@@ -296,16 +307,30 @@ class AaveV3BaseAdapter(BaseAdapter):
         """Возвращает нормализованный YieldInfo для оркестратора.
 
         YieldInfo.apy — decimal (0.045 для 4.5%).
+
+        ADR-053 follow-up: tvl_usd — живой ``tvlUsd`` выбранного пула
+        (``tvl_source="live"``); при сбое фида — committed-константа TVL_USD,
+        честно помеченная ``"static"`` (floor её не пропустит, never stamp
+        "live" on a constant).
         """
-        apy_pct = self.get_apy()
+        best = self._fetch_live_pool()
+        live_tvl = (
+            float(best["tvlUsd"])
+            if best is not None and isinstance(best.get("tvlUsd"), (int, float))
+            else None
+        )
+        apy_pct = (
+            float(best.get("apy", 0.0)) if best is not None else self.APY_FALLBACK
+        )
         return YieldInfo(
             protocol=self.PROTOCOL,
             asset=self.asset,
             apy=apy_pct / 100.0,
-            tvl_usd=float(self.TVL_USD),
+            tvl_usd=live_tvl if live_tvl is not None else float(self.TVL_USD),
             tier=self.tier,
             risk_score=self.RISK_SCORE,
             exit_latency_hours=self.EXIT_LATENCY_HOURS,
+            tvl_source="live" if live_tvl is not None else "static",
         )
 
     # ------------------------------------------------------------------ #

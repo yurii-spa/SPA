@@ -448,10 +448,18 @@ class TestExtraFinanceBaseYieldInfo(unittest.TestCase):
         self.assertAlmostEqual(yi["apy_pct"], 9.0, places=5)
 
     def test_get_yield_info_tvl_usd(self):
-        """tvl_usd == 135_000_000."""
+        """ADR-053: tvl_usd — живой tvlUsd пула из фида (15M), НЕ константа."""
         yi = self._yield_info()
         self.assertIn("tvl_usd", yi)
+        self.assertAlmostEqual(yi["tvl_usd"], 15_000_000.0, places=0)
+        self.assertEqual(yi["tvl_source"], "live")
+
+    def test_get_yield_info_tvl_static_fallback_when_feed_down(self):
+        """ADR-053: фид недоступен → константа TVL_USD, помеченная static."""
+        with _patch_urlopen_error(urllib.error.URLError("timeout")):
+            yi = self.adapter.get_yield_info()
         self.assertAlmostEqual(yi["tvl_usd"], 135_000_000.0, places=0)
+        self.assertEqual(yi["tvl_source"], "static")
 
     def test_get_yield_info_protocol_name(self):
         """protocol_name == 'Extra Finance XLend'."""

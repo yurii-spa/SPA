@@ -441,13 +441,50 @@ def _drill_riskpolicy_block(ddir: Path) -> dict:
     # A single position at 90% of capital — far above the 40% T1 / 20% T2 caps.
     target = {"aave_v3": 90_000.0}
     adapters = [{"protocol": "aave_v3", "tier": "T1", "apy_pct": 4.0,
-                 "tvl_usd": 50_000_000.0, "chain": "ethereum"}]
+                 "tvl_usd": 50_000_000.0, "tvl_source": "live",
+                 "chain": "ethereum"}]
     out = _apply_risk_policy_gate(target, 100_000.0, adapters, ddir=ddir)
     blocked = (not out["approved"]) and bool(out["violations"])
     return _result(
         gate, "over-concentration target → RiskPolicy approved=False",
         f"approved={out['approved']}", blocked,
         detail="; ".join(out["violations"])[:300],
+    )
+
+
+def _drill_tvl_unverified_freeze(ddir: Path) -> dict:
+    gate = "TVL_UNVERIFIED_FREEZE"
+    # ADR-053: three unverifiable-TVL shapes must all be refused fresh capital —
+    # (a) live feed lost (tvl_usd=None) on a HELD pool → capped at held;
+    # (b) static committed constant (tvl_source="static") → no fresh capital;
+    # (c) unknown pool with no adapter meta at all and nothing held → dropped.
+    # No fabricated TVL may let any of them pass the $5M floor.
+    target = {"aave_v3": 30_000.0, "compound_v3": 20_000.0, "mystery_pool": 10_000.0}
+    adapters = [
+        {"protocol": "aave_v3", "tier": "T1", "apy_pct": 4.0,
+         "tvl_usd": None, "tvl_source": None, "chain": "ethereum"},
+        {"protocol": "compound_v3", "tier": "T1", "apy_pct": 3.5,
+         "tvl_usd": 1_500_000_000.0, "tvl_source": "static", "chain": "ethereum"},
+    ]
+    held = {"aave_v3": 12_000.0}
+    out = _apply_risk_policy_gate(
+        target, 100_000.0, adapters, ddir=ddir, current_positions=held,
+    )
+    t = out["target_usd"]
+    capped_at_held = t.get("aave_v3") == 12_000.0
+    static_dropped = "compound_v3" not in t
+    unknown_dropped = "mystery_pool" not in t
+    all_flagged = set(out.get("tvl_unverified") or []) == {
+        "aave_v3", "compound_v3", "mystery_pool"
+    }
+    ok = capped_at_held and static_dropped and unknown_dropped and all_flagged
+    return _result(
+        gate,
+        "unverified TVL → fail-closed: held pool capped, static/unknown dropped",
+        f"capped_at_held={capped_at_held} static_dropped={static_dropped} "
+        f"unknown_dropped={unknown_dropped} flagged={sorted(out.get('tvl_unverified') or [])}",
+        ok,
+        detail="; ".join(out["warnings"])[:300],
     )
 
 
@@ -704,6 +741,7 @@ _DRILLS: tuple[tuple[str, Callable[[Path], dict]], ...] = (
     ("DL01_DAILY_LOSS", _drill_dl01_daily_loss),
     ("DL02_DEFERS_TO_KILL", _drill_dl02_defers_to_kill),
     ("RISKPOLICY_BLOCK", _drill_riskpolicy_block),
+    ("TVL_UNVERIFIED_FREEZE", _drill_tvl_unverified_freeze),
     ("ANALYTICS_BLOCK", _drill_analytics_block),
     ("BASE_GAS_BLOCK", _drill_base_gas_block),
     ("NAV_RECONCILE", _drill_nav_reconcile),

@@ -1342,7 +1342,12 @@ def run_cycle(
     )
 
     # ── Step 2b (MP-005): deterministic RiskPolicy gate before any trade ──
-    gate = _apply_risk_policy_gate(target_usd, capital_usd, adapters, ddir=ddir)
+    # ADR-053: current_positions let the gate freeze unverified-TVL pools at
+    # their held amount (no fresh capital) instead of fabricating a TVL.
+    gate = _apply_risk_policy_gate(
+        target_usd, capital_usd, adapters, ddir=ddir,
+        current_positions=current_positions,
+    )
     policy_checked = gate["error"] is None
     policy_blocked = False
 
@@ -1358,6 +1363,8 @@ def run_cycle(
                 "violations": list(gate.get("violations") or []),
                 "warnings": list(gate.get("warnings") or []),
                 "trimmed": gate.get("trimmed", False),
+                # ADR-053: pools frozen fail-closed (no live TVL → no fresh capital)
+                "tvl_unverified": list(gate.get("tvl_unverified") or []),
                 "gate_error": gate.get("error"),
             },
             prev_event_id=_audit_proposal_id,
@@ -1377,11 +1384,20 @@ def run_cycle(
         )
         _mark_safety_failure(f"risk_policy_gate_error: {gate['error']}")
     else:
-        if gate["trimmed"]:
+        _tvl_frozen_pools = list(gate.get("tvl_unverified") or [])
+        if gate["trimmed"] or _tvl_frozen_pools:
             target_usd = dict(gate["target_usd"])
+        if gate["trimmed"]:
             notes.append(
                 "risk_policy: target trimmed to respect the min-cash buffer "
                 f"(deployed capped at ${sum(target_usd.values()):,.0f})."
+            )
+        if _tvl_frozen_pools:
+            # ADR-053: pools whose TVL could not be verified live received no
+            # fresh capital (capped at held / excluded) — auditable in notes.
+            notes.append(
+                "risk_policy: TVL unverified (fail-closed, no fresh allocation): "
+                + ", ".join(_tvl_frozen_pools)
             )
         if not gate["approved"]:
             policy_blocked = True

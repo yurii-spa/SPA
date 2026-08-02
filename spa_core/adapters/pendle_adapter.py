@@ -237,6 +237,7 @@ class PendleAdapter(BaseAdapter):
             tier=tier,
             risk_score=self.RISK_SCORE,
             exit_latency_hours=self.EXIT_LATENCY_HOURS,
+            tvl_source="live" if isinstance(tvl, (int, float)) else None,
         )
 
     # ── Extra public methods ──────────────────────────────────────────────────

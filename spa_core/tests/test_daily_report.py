@@ -176,6 +176,7 @@ def test_cycle_runner_writes_daily_report(tmp_path):
                     "protocol": p,
                     "apy_pct": a,
                     "tvl_usd": 1e7,
+                    "tvl_source": "live",
                     "tier": "T1" if p == "aave_v3" else "T2",
                     "status": "ok",
                 }
@@ -226,7 +227,7 @@ def test_cycle_runner_report_failure_is_failsafe(tmp_path, monkeypatch, caplog):
         return SimpleNamespace(
             adapters=[
                 {"protocol": "aave_v3", "apy_pct": 4.0, "tvl_usd": 1e7,
-                 "tier": "T1", "status": "ok"}
+                 "tvl_source": "live", "tier": "T1", "status": "ok"}
             ],
             status="ok",
         )

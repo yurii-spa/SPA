@@ -320,3 +320,33 @@ def test_s40_simulate_and_to_dict():
     d = s.to_dict()
     assert d["strategy_id"] == "S40"
     assert d["rotation_target"] == "aave_v3"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADR-053: TVL provenance — live tvlUsd → "live", feed down → constant "static"
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_usdc_yield_info_tvl_live_provenance():
+    info = usdc(apy=12.0, tvl=77_000_000.0).get_yield_info()
+    assert info.tvl_usd == 77_000_000.0
+    assert info.tvl_source == "live"
+
+
+def test_usdc_yield_info_tvl_static_fallback():
+    a = usdc(apy=None, tvl=None)
+    info = a.get_yield_info()
+    assert info.tvl_usd == float(a.TVL_USD)
+    assert info.tvl_source == "static"
+
+
+def test_susde_yield_info_tvl_live_provenance():
+    info = susde(apy=12.0, tvl=88_000_000.0).get_yield_info()
+    assert info.tvl_usd == 88_000_000.0
+    assert info.tvl_source == "live"
+
+
+def test_susde_yield_info_tvl_static_fallback():
+    a = susde(apy=None, tvl=None)
+    info = a.get_yield_info()
+    assert info.tvl_usd == float(a.TVL_USD)
+    assert info.tvl_source == "static"

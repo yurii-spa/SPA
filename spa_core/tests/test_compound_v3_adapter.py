@@ -34,8 +34,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from spa_core.adapters.base_adapter import BaseAdapter, YieldInfo
 from spa_core.adapters.compound_v3_adapter import CompoundV3Adapter
+from spa_core.adapters.defillama_feed import DeFiLlamaFeed
 
 _COMET = "0xc3d688B66703497DAA19211EEdff47f25384cdc3"
+
+# ADR-053 follow-up: адаптер получил живой TVL-фид; тесты этого файла пинят
+# static-путь (константа TVL_USD) и обязаны быть герметичными → фид выключен.
+_OFFLINE_FEED = DeFiLlamaFeed(enabled=False)
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -54,7 +59,9 @@ def _make_adapter(
     missing_file      → adapter_status.json не существует
     """
     if missing_file:
-        return CompoundV3Adapter(data_dir="/nonexistent_spa_test_compound_xyz")
+        return CompoundV3Adapter(
+            data_dir="/nonexistent_spa_test_compound_xyz", feed=_OFFLINE_FEED
+        )
 
     tmp = tempfile.mkdtemp()
     if missing_section:
@@ -70,7 +77,7 @@ def _make_adapter(
     (Path(tmp) / "adapter_status.json").write_text(
         json.dumps(content), encoding="utf-8"
     )
-    return CompoundV3Adapter(data_dir=tmp)
+    return CompoundV3Adapter(data_dir=tmp, feed=_OFFLINE_FEED)
 
 
 def _default() -> CompoundV3Adapter:

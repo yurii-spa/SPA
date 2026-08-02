@@ -29,6 +29,13 @@ from spa_core.adapters.compound_v3_adapter import CompoundV3Adapter
 from spa_core.adapters.base_adapter import YieldInfo
 
 
+@pytest.fixture(autouse=True)
+def _offline_tvl_feed(monkeypatch):
+    """ADR-053 follow-up: тесты этого файла пинят static-путь (константа
+    TVL_USD) и обязаны быть герметичными — живой TVL-фид отключён."""
+    monkeypatch.setattr(CompoundV3Adapter, "get_live_tvl", lambda self: None)
+
+
 # ---------------------------------------------------------------------------
 # Вспомогательные функции для создания временных data-директорий
 # ---------------------------------------------------------------------------

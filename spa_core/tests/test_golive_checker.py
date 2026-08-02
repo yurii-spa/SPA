@@ -613,7 +613,7 @@ def test_summary_shows_group_headers(tmp_path):
 def _run_cycle(tmp_path, **kw):
     """One minimal real cycle with fakes (mirrors test_cycle_runner.py)."""
     adapters = [
-        {"protocol": "aave_v3", "apy_pct": 4.0, "tvl_usd": 1e7, "tier": "T1", "status": "ok"}
+        {"protocol": "aave_v3", "apy_pct": 4.0, "tvl_usd": 1e7, "tvl_source": "live", "tier": "T1", "status": "ok"}
     ]
     orch = SimpleNamespace(adapters=adapters, status="ok")
     allocator = SimpleNamespace(

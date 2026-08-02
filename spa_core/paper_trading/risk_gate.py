@@ -135,6 +135,7 @@ def _apply_risk_policy_gate(
     capital_usd: float,
     adapters: list[dict],
     ddir: "Path | None" = None,
+    current_positions: "dict[str, float] | None" = None,
 ) -> dict:
     """Validate the allocator's target against ``RiskPolicy`` (MP-005).
 
@@ -146,14 +147,24 @@ def _apply_risk_policy_gate(
     min-cash handling: a target that deploys past ``1 - min_cash_pct`` of
     capital is trimmed proportionally instead of blocked (per MP-005 spec).
 
+    TVL-floor verification (ADR-053, fail-CLOSED): the $5M TVL floor is only
+    checked against a TVL the adapter snapshot DECLARED live
+    (``tvl_source == "live"`` and a finite positive value). A pool whose TVL is
+    missing, zero, or a static/committed constant cannot verify the floor →
+    it receives NO fresh capital: its target is capped at the currently-held
+    amount (hold + reduce stay allowed) and it is dropped from the target when
+    not held. The pre-ADR-053 behaviour — substituting a fabricated $20M that
+    always passed the floor — is removed; no TVL value is ever invented.
+
     Returns a dict::
 
-        approved    bool — False → the rebalance trade must NOT be recorded
-        violations  list[str] — blocking violations ("<pool>: <reason>")
-        warnings    list[str] — non-blocking policy warnings
-        trimmed     bool — target was scaled down to the min-cash buffer
-        target_usd  dict — the (possibly trimmed) allocation to use downstream
-        error       str | None — the gate itself failed → fail-closed (FIX-P0)
+        approved       bool — False → the rebalance trade must NOT be recorded
+        violations     list[str] — blocking violations ("<pool>: <reason>")
+        warnings       list[str] — non-blocking policy warnings
+        trimmed        bool — target was scaled down to the min-cash buffer
+        target_usd     dict — the (possibly trimmed/TVL-capped) allocation
+        tvl_unverified list[str] — pools frozen fail-closed (no live TVL)
+        error          str | None — the gate itself failed → fail-closed (FIX-P0)
 
     Never raises: any unexpected exception is captured into ``error`` so a
     broken gate degrades to a logged WARNING and a BLOCKED trade (fail-closed).
@@ -165,6 +176,7 @@ def _apply_risk_policy_gate(
         "warnings": [],
         "trimmed": False,
         "target_usd": dict(target_usd),
+        "tvl_unverified": [],
         "error": None,
     }
     try:
@@ -178,15 +190,15 @@ def _apply_risk_policy_gate(
             if isinstance(a, dict) and a.get("protocol"):
                 meta[str(a["protocol"])] = a
 
-        # ── MP-1180: load adapter_registry.json fallbacks ────────────────────
-        # When live orchestrator returns apy=None/tvl=None (network errors),
-        # the gate sees APY=0%/TVL=$0 → policy_blocked=True → 0 trades.
-        # We resolve this by loading researched fallback values from the
-        # registry (keyed by snake_case adapter name, matching target_usd keys).
-        # fallback_apy is stored as decimal fraction (0.035 = 3.5%) and must
-        # be converted to percentage units for RiskPolicy.check_new_position().
-        # TVL is not stored in registry → use conservative safe minimum $20M
-        # (safely above the policy floor of $5M for all whitelisted protocols).
+        # ── MP-1180: load adapter_registry.json fallbacks (APY only) ────────
+        # When the live orchestrator returns apy=None (network errors), the
+        # gate sees APY=0% → policy_blocked=True → 0 trades. We resolve this by
+        # loading researched fallback APY values from the registry (keyed by
+        # snake_case adapter name, matching target_usd keys). fallback_apy is a
+        # decimal fraction (0.035 = 3.5%) converted to percentage units for
+        # RiskPolicy.check_new_position(). TVL is NOT taken from the registry
+        # (ADR-053): a registry literal cannot verify the $5M floor — a pool
+        # without a live TVL is frozen fail-closed below, never given $20M.
         _reg_fallbacks: dict[str, dict] = {}
         if ddir is not None:
             try:
@@ -223,6 +235,54 @@ def _apply_risk_policy_gate(
             and not math.isfinite(float(v))
         ]
 
+        # ── ADR-053: TVL-floor verification (fail-CLOSED per pool) ───────────
+        # A pool may satisfy the $5M floor ONLY with a TVL the adapter snapshot
+        # declared live (tvl_source == "live", finite, > 0). Missing / zero /
+        # static-constant TVL cannot be verified → the pool gets NO fresh
+        # capital: target capped at the currently-held amount (hold + reduce
+        # stay allowed), dropped entirely when not held. A PRESENT non-finite
+        # TVL is left to the replay loop below, which records it as a blocking
+        # violation (corrupt feed ≠ merely missing feed).
+        _held_map: dict[str, float] = {
+            str(k): float(v)
+            for k, v in (current_positions or {}).items()
+            if isinstance(v, (int, float)) and not isinstance(v, bool)
+            and math.isfinite(float(v)) and float(v) > 0
+        }
+        _tvl_frozen: set[str] = set()
+        warnings: list[str] = []
+        for pool in sorted(adjusted):
+            m = meta.get(pool, {})
+            tvl_probe = _coerce_feed_value(m.get("tvl_usd"))
+            if not math.isfinite(tvl_probe):
+                continue  # present-but-corrupt → blocking violation in the loop
+            tvl_is_live = (
+                m.get("tvl_source") == "live" and tvl_probe > 0
+            )
+            if tvl_is_live:
+                continue
+            src = m.get("tvl_source") or ("missing" if tvl_probe == 0.0 else "static")
+            held = _held_map.get(pool, 0.0)
+            capped = min(adjusted[pool], held)
+            _tvl_frozen.add(pool)
+            if capped > 0:
+                adjusted[pool] = capped
+                warnings.append(
+                    f"{pool}: TVL unverified ({src}) — fail-closed: no fresh "
+                    f"allocation, target capped at held ${capped:,.0f}"
+                )
+            else:
+                del adjusted[pool]
+                warnings.append(
+                    f"{pool}: TVL unverified ({src}) — fail-closed: excluded "
+                    "from fresh allocation (not held)"
+                )
+        if _tvl_frozen:
+            log.warning(
+                "ADR-053: TVL unverified for %s — fail-closed, no fresh capital",
+                sorted(_tvl_frozen),
+            )
+
         # min_cash: trim to the deployable maximum, do not block (MP-005 spec).
         # floor() keeps the trimmed total strictly ≤ the cap despite rounding.
         max_deploy = capital_usd * (1.0 - cfg.min_cash_pct)
@@ -236,7 +296,6 @@ def _apply_risk_policy_gate(
 
         state = PortfolioState(total_capital_usd=capital_usd, positions=[])
         violations: list[str] = []
-        warnings: list[str] = []
         for _p in non_finite_amounts:
             violations.append(f"{_p}: non-finite target amount refused (fail-closed)")
         for pool, usd in sorted(adjusted.items(), key=lambda kv: (-kv[1], kv[0])):
@@ -261,11 +320,14 @@ def _apply_risk_policy_gate(
             # from falsely lumping every pool onto "ethereum".
             chain = str(m.get("chain") or f"unknown:{pool}")
 
-            # ── MP-1180: registry fallback when live data is missing ──────────
-            # Live orchestrator returns None→0 for APY/TVL on network errors.
-            # Prefer registry fallback over blocking the rebalance entirely.
-            # Live values (apy>0 or tvl>0) are never overwritten.
-            if (apy == 0.0 or tvl == 0.0) and pool in _reg_fallbacks:
+            # ── MP-1180: registry fallback when live APY is missing ───────────
+            # Live orchestrator returns None→0 for APY on network errors.
+            # Prefer registry APY fallback over blocking the rebalance entirely.
+            # Live values (apy>0) are never overwritten. TVL is NEVER filled
+            # from the registry (ADR-053) — the $20M fabrication that made the
+            # floor decorative is removed; unverified-TVL pools were already
+            # frozen (capped at held / dropped) before this loop.
+            if pool in _reg_fallbacks:
                 _fb = _reg_fallbacks[pool]
                 if apy == 0.0:
                     # registry stores fraction (0.035); gate expects pct (3.5)
@@ -278,39 +340,34 @@ def _apply_risk_policy_gate(
                             pool,
                             apy,
                         )
-                if tvl == 0.0:
-                    # registry has no tvl_usd → conservative safe minimum
-                    # $20M is above the policy floor of $5M for all whitelisted
-                    # protocols, and below any real deployed TVL.
-                    _fb_tvl = _fb.get("tvl_usd")
-                    tvl = (
-                        float(_fb_tvl)
-                        if isinstance(_fb_tvl, (int, float)) and _fb_tvl > 0
-                        else 20_000_000.0
-                    )
-                    log.warning(
-                        "MP-1180 %s: live tvl missing → fallback tvl=$%.0f",
-                        pool,
-                        tvl,
-                    )
-                # also fill tier/chain from registry when meta was empty
+                # fill tier/chain from registry when meta was empty
                 if not m.get("tier") and _fb.get("tier") is not None:
                     _t = _fb["tier"]
                     tier = f"T{_t}".upper() if isinstance(_t, int) else str(_t).upper()
                 if chain.startswith("unknown:") and _fb.get("chain"):
                     chain = str(_fb["chain"])
-            res = policy.check_new_position(
-                state,
-                protocol_key=pool,
-                tier=tier,
-                amount_usd=usd,
-                current_apy=apy,
-                tvl_usd=tvl,
-                chain=chain,
-            )
-            warnings.extend(res.warnings)
-            if not res.approved:
-                violations.extend(f"{pool}: {v}" for v in res.violations)
+            if pool in _tvl_frozen:
+                # ADR-053: TVL cannot be verified live → the amount here is
+                # already capped at the currently-held USD (a holdover, not a
+                # fresh allocation). Running check_new_position with tvl=0
+                # would fabricate a floor violation over a holdover; instead
+                # the pool is recorded (warning above) and still appended to
+                # ``state`` below so the cumulative T2/concentration limits
+                # account for the held capital.
+                pass
+            else:
+                res = policy.check_new_position(
+                    state,
+                    protocol_key=pool,
+                    tier=tier,
+                    amount_usd=usd,
+                    current_apy=apy,
+                    tvl_usd=tvl,
+                    chain=chain,
+                )
+                warnings.extend(res.warnings)
+                if not res.approved:
+                    violations.extend(f"{pool}: {v}" for v in res.violations)
             # Add the position regardless of the verdict so cumulative limits
             # (T2 total, concentration) are evaluated over the full target.
             state.positions.append(
@@ -329,6 +386,7 @@ def _apply_risk_policy_gate(
         out["warnings"] = warnings
         out["approved"] = not violations
         out["target_usd"] = adjusted
+        out["tvl_unverified"] = sorted(_tvl_frozen)
     except Exception as exc:  # gate must never crash the cycle (MP-005 spec)
         # FIX-P0 (fail-closed): any exception inside the gate BLOCKS the trade.
         # Previously this was fail-open (approved=True on exception), which is

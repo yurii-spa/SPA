@@ -189,14 +189,18 @@ class BtcLendingAdapter(BaseAdapter):
 
     def get_yield_info(self) -> YieldInfo:
         """Normalized :class:`YieldInfo` (decimal APY, may be ``None``)."""
+        tvl = self.get_tvl()
         return YieldInfo(
             protocol=self.PROTOCOL,
             asset=self.asset,
             apy=self.get_apy(),
-            tvl_usd=self.get_tvl(),
+            tvl_usd=tvl,
             tier=self.TIER,
             risk_score=self.RISK_SCORE,
             exit_latency_hours=self.EXIT_LATENCY_HOURS,
+            # ADR-053: get_tvl() is a live DeFiLlama read (None on failure) —
+            # a present value is genuinely live; absent → no provenance claim.
+            tvl_source="live" if tvl is not None else None,
         )
 
     def to_dict(self) -> dict:

@@ -217,7 +217,13 @@ class AerodromeUsdcAdapter(BaseAdapter):
                 best = pool
         return best
 
-    def _fetch_live_apy(self) -> Optional[float]:
+    def _fetch_live_pool(self) -> Optional[dict]:
+        """Возвращает лучший живой USDC-USDT пул (dict DeFiLlama) или None при ошибке.
+
+        ADR-053 follow-up: единая точка выборки — и APY, и tvlUsd берутся из
+        ОДНОГО живого пула (его tvlUsd раньше выбрасывался, а YieldInfo
+        репортил committed-константу TVL_USD).
+        """
         pools = self._fetch_pools_raw()
         if pools is None:
             return None
@@ -239,7 +245,14 @@ class AerodromeUsdcAdapter(BaseAdapter):
         depth = self.pool_depth_check(tvl)
         if depth["thin_pool"]:
             logger.warning("aerodrome_base: %s", depth["warning"])
-        return apy
+        return best
+
+    def _fetch_live_apy(self) -> Optional[float]:
+        """Возвращает живой APY (%) из DeFiLlama или None при ошибке."""
+        best = self._fetch_live_pool()
+        if best is None:
+            return None
+        return float(best.get("apy", 0.0))
 
     # ------------------------------------------------------------------ #
     # Публичные методы                                                     #
@@ -313,15 +326,30 @@ class AerodromeUsdcAdapter(BaseAdapter):
         }
 
     def get_yield_info(self) -> YieldInfo:
-        apy_pct = self.get_apy()
+        """Возвращает нормализованный YieldInfo (apy — decimal).
+
+        ADR-053 follow-up: tvl_usd — живой ``tvlUsd`` выбранного пула
+        (``tvl_source="live"``); при сбое фида — committed-константа TVL_USD,
+        честно помеченная ``"static"`` (never stamp "live" on a constant).
+        """
+        best = self._fetch_live_pool()
+        live_tvl = (
+            float(best["tvlUsd"])
+            if best is not None and isinstance(best.get("tvlUsd"), (int, float))
+            else None
+        )
+        apy_pct = (
+            float(best.get("apy", 0.0)) if best is not None else self.APY_FALLBACK
+        )
         return YieldInfo(
             protocol=self.PROTOCOL,
             asset=self.asset,
             apy=apy_pct / 100.0,
-            tvl_usd=float(self.TVL_USD),
+            tvl_usd=live_tvl if live_tvl is not None else float(self.TVL_USD),
             tier=self.tier,
             risk_score=self.RISK_SCORE,
             exit_latency_hours=self.EXIT_LATENCY_HOURS,
+            tvl_source="live" if live_tvl is not None else "static",
         )
 
     # ------------------------------------------------------------------ #

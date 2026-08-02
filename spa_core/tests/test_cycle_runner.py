@@ -24,6 +24,7 @@ def _fake_orch_result(apy_map, status="ok"):
             "protocol": p,
             "apy_pct": a,
             "tvl_usd": 1e7,
+            "tvl_source": "live",
             "tier": "T1" if p == "aave_v3" else "T2",
             "status": "ok",
         }
@@ -443,6 +444,7 @@ def _overdiv_orch_fn(apy_map):
                 "protocol": p,
                 "apy_pct": apy_map[p],
                 "tvl_usd": 5e8,
+                "tvl_source": "live",
                 "tier": "T1" if p in _OVERDIV_T1 else "T2",
                 "chain": "ethereum:{}".format(p),
                 "status": "ok",

@@ -165,8 +165,13 @@ class PendlePTSusdeAdapter(BaseAdapter):
         """fetch_apy() clamped to [MIN_APY, MAX_APY] as a decimal."""
         return max(self.MIN_APY, min(self.fetch_apy(), self.MAX_APY))
 
-    def fetch_tvl(self) -> float:
-        """Live TVL in USD for the matched pool, or TVL_USD fallback."""
+    def _fetch_live_tvl(self) -> Optional[float]:
+        """Live tvlUsd of the matched pool, or ``None`` — NEVER the constant.
+
+        ADR-053: провенанс-версия ``fetch_tvl()`` — отделяет живое значение
+        от committed-фолбэка TVL_USD, чтобы константу нельзя было принять
+        за живой TVL (never stamp "live" on a constant).
+        """
         try:
             pool = self._find_pool()
             if pool is not None:
@@ -175,7 +180,12 @@ class PendlePTSusdeAdapter(BaseAdapter):
                     return float(tvl)
         except Exception as exc:  # noqa: BLE001
             logger.debug("%s: fetch_tvl failed: %s", self.PROTOCOL, exc)
-        return self.TVL_USD
+        return None
+
+    def fetch_tvl(self) -> float:
+        """Live TVL in USD for the matched pool, or TVL_USD fallback."""
+        live = self._fetch_live_tvl()
+        return live if live is not None else self.TVL_USD
 
     def get_apy(self) -> Optional[float]:
         """Effective APY (decimal) the allocator should use.
@@ -218,14 +228,18 @@ class PendlePTSusdeAdapter(BaseAdapter):
 
     def get_yield_info(self) -> YieldInfo:
         """Return normalized YieldInfo for the orchestrator (effective APY)."""
+        live_tvl = self._fetch_live_tvl()
         return YieldInfo(
             protocol=self.PROTOCOL,
             asset=self.asset,
             apy=self.get_apy(),
-            tvl_usd=self.fetch_tvl(),
+            # ADR-053: живой tvlUsd → "live"; при сбое фида — константа
+            # TVL_USD, честно помеченная "static" (floor её не пропустит).
+            tvl_usd=live_tvl if live_tvl is not None else float(self.TVL_USD),
             tier=self.TIER,
             risk_score=self.RISK_SCORE,
             exit_latency_hours=self.EXIT_LATENCY_HOURS,
+            tvl_source="live" if live_tvl is not None else "static",
         )
 
     def to_dict(self) -> dict:

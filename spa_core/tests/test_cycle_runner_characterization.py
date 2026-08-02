@@ -48,6 +48,7 @@ def _orch_fn(apy_map, status="ok"):
                 "protocol": p,
                 "apy_pct": a,
                 "tvl_usd": 1e7,
+                "tvl_source": "live",
                 "tier": "T1" if p == "aave_v3" else "T2",
                 "status": "ok",
                 "chain": "ethereum",

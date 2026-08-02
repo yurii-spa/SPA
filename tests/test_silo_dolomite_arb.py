@@ -157,6 +157,19 @@ class TestSiloArbitrum(unittest.TestCase):
         self.assertEqual(info.tier, "T2")
         self.assertEqual(info.protocol, "silo_arbitrum")
 
+    def test_09b_yield_info_tvl_provenance(self):
+        # ADR-053: живой tvlUsd пула → "live"; фид down → константа + "static"
+        a = SiloArbitrumUSDCAdapter()
+        pools = [_pool("silo-v2", "USDC", "Arbitrum", apy=5.0, tvl=7_700_000.0)]
+        with _patch_pools(_SILO_MOD, pools):
+            info = a.get_yield_info()
+        self.assertAlmostEqual(info.tvl_usd, 7_700_000.0, places=0)
+        self.assertEqual(info.tvl_source, "live")
+        with _patch_error(_SILO_MOD, urllib.error.URLError("down")):
+            info = a.get_yield_info()
+        self.assertAlmostEqual(info.tvl_usd, float(a.TVL_USD), places=0)
+        self.assertEqual(info.tvl_source, "static")
+
     def test_10_health_and_writestate(self):
         a = SiloArbitrumUSDCAdapter()
         h = a.health_check()

@@ -224,11 +224,20 @@ class TestAaveV3BaseAdapterGetYieldInfo(unittest.TestCase):
         self.assertAlmostEqual(info.apy, 0.05, places=5)
 
     def test_17_get_yield_info_tvl_usd(self):
-        """YieldInfo.tvl_usd должен быть 400_000_000."""
+        """ADR-053: tvl_usd — живой tvlUsd пула из фида, помечен "live"."""
         adapter = AaveV3BaseAdapter()
-        with _patch_urlopen([_make_pool(apy=4.5)]):
+        with _patch_urlopen([_make_pool(apy=4.5, tvl=123_456_789.0)]):
+            info = adapter.get_yield_info()
+        self.assertEqual(info.tvl_usd, 123_456_789.0)
+        self.assertEqual(info.tvl_source, "live")
+
+    def test_17b_get_yield_info_tvl_static_fallback(self):
+        """ADR-053: фид недоступен → константа TVL_USD, помеченная "static"."""
+        adapter = AaveV3BaseAdapter()
+        with _patch_urlopen_error(urllib.error.URLError("timeout")):
             info = adapter.get_yield_info()
         self.assertEqual(info.tvl_usd, 400_000_000.0)
+        self.assertEqual(info.tvl_source, "static")
 
     def test_18_get_yield_info_tier(self):
         """YieldInfo.tier должен быть 'T2'."""

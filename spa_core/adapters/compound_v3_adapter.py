@@ -39,6 +39,8 @@ from .base_adapter import BaseAdapter, YieldInfo
 # ADR-063 (D1): единый читатель схемы adapter_status.json — адаптер больше не
 # знает форму файла и не может прочитать не то место.
 from spa_core.adapters.status_reader import read_live_apy_pct, read_status_block
+from .defillama_feed import DeFiLlamaFeed
+from spa_core.utils.errors import safe_call
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +140,11 @@ class CompoundV3Adapter(BaseAdapter):
     CHAIN    = "ethereum"
     CHAIN_ID = 1
 
+    # ── live TVL feed (ADR-053 follow-up) ────────────────────────────────────
+    DEFILLAMA_PROJECT = "compound-v3"
+    DEFILLAMA_SYMBOL  = "USDC"
+    DEFILLAMA_CHAIN   = "Ethereum"
+
     # ──────────────────────────────────────────────────────────────────────────
     # Инициализация
     # ──────────────────────────────────────────────────────────────────────────
@@ -146,6 +153,7 @@ class CompoundV3Adapter(BaseAdapter):
         self,
         asset: str = "USDC",
         data_dir: Optional[str | Path] = None,
+        feed: Optional[DeFiLlamaFeed] = None,
     ) -> None:
         super().__init__(asset)
         # Переопределяем tier (BaseAdapter по умолчанию ставит T2)
@@ -157,8 +165,29 @@ class CompoundV3Adapter(BaseAdapter):
         else:
             self._data_dir = Path(data_dir)
 
+        # ADR-053 follow-up: живой TVL-фид (инжектируемый для офлайн-тестов).
+        self.feed = feed if feed is not None else DeFiLlamaFeed()
+
         # Виртуальная позиция для paper-trading симуляции
         self._allocated: float = 0.0
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Live TVL (ADR-053 follow-up)
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def get_live_tvl(self) -> Optional[float]:
+        """Живой TVL Comet USDC (Ethereum) из DeFiLlama, или ``None`` при сбое.
+
+        Никогда не возвращает константу: ``None`` означает «живого TVL нет»,
+        и потребитель обязан fail-close'иться (константа TVL_USD остаётся
+        отдельным, честно помеченным static-фолбэком).
+        """
+        tvl = safe_call(
+            self.feed.get_tvl,
+            self.DEFILLAMA_PROJECT, self.DEFILLAMA_SYMBOL, self.DEFILLAMA_CHAIN,
+            default=None, log_error=False,
+        )
+        return float(tvl) if isinstance(tvl, (int, float)) else None
 
     # ──────────────────────────────────────────────────────────────────────────
     # Внутреннее чтение JSON
@@ -249,15 +278,21 @@ class CompoundV3Adapter(BaseAdapter):
         чтобы сфабрикованный доход не попал в go-live трек.
         """
         apy_pct = self.get_apy()
+        live_tvl = self.get_live_tvl()
         return YieldInfo(
             protocol=self.PROTOCOL,
             asset=self.asset,
             # N2: None пробрасывается как None — оркестратор трактует как no-live-data.
             apy=(apy_pct / 100.0) if apy_pct is not None else None,
-            tvl_usd=float(self.TVL_USD),
+            # ADR-053 follow-up: TVL берётся из живого DeFiLlama-фида в ЭТОМ
+            # вызове → "live". При сбое фида — честный фолбэк на committed-
+            # константу TVL_USD с меткой "static": гейт её floor'ом не пропустит
+            # (пул заморожен без свежего капитала), но дашборды видят масштаб.
+            tvl_usd=live_tvl if live_tvl is not None else float(self.TVL_USD),
             tier=self.tier,
             risk_score=self.RISK_SCORE,
             exit_latency_hours=self.EXIT_LATENCY_HOURS,
+            tvl_source="live" if live_tvl is not None else "static",
         )
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -512,6 +547,8 @@ class CompoundV3Adapter(BaseAdapter):
         # source honestly so a fallback value is never mistaken for live data.
         apy_pct = self._apy_for_simulation()
         apy_in_range = self.MIN_APY_PCT <= apy_pct <= self.MAX_APY_PCT
+        live_tvl = self.get_live_tvl()
+        tvl_usd = live_tvl if live_tvl is not None else self.TVL_USD
 
         return {
             "protocol": self.PROTOCOL,
@@ -522,8 +559,9 @@ class CompoundV3Adapter(BaseAdapter):
             "live_data": apy_from_file is not None,
             "apy_source": "adapter_status" if apy_from_file is not None else "fallback",
             "tier": self.TIER,
-            "tvl_usd": self.TVL_USD,
-            "tvl_floor_ok": self.TVL_USD >= 5_000_000,
+            "tvl_usd": tvl_usd,
+            "tvl_source": "live" if live_tvl is not None else "static",
+            "tvl_floor_ok": tvl_usd >= 5_000_000,
             "exit_latency_hours": self.EXIT_LATENCY_HOURS,
             "peg_healthy": self.is_peg_healthy(),
             "eligible": self.is_eligible(),
@@ -555,6 +593,7 @@ class CompoundV3Adapter(BaseAdapter):
         """
         live_apy = self.get_apy()
         apy_pct = self._apy_for_simulation()
+        live_tvl = self.get_live_tvl()
         return {
             "protocol": self.PROTOCOL,
             "pool_id": self.pool_id,
@@ -566,7 +605,8 @@ class CompoundV3Adapter(BaseAdapter):
             "comet_address": self.COMET_ADDRESS,
             "asset": self.asset,
             "apy_pct": apy_pct,
-            "tvl_usd": self.TVL_USD,
+            "tvl_usd": live_tvl if live_tvl is not None else self.TVL_USD,
+            "tvl_source": "live" if live_tvl is not None else "static",
             "risk_score": self.RISK_SCORE,
             "t1_cap": self.T1_CAP,
             "exit_latency_hours": self.EXIT_LATENCY_HOURS,

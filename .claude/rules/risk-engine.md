@@ -12,6 +12,10 @@
   `check_drawdown_trigger` и `drawdown_tier` должны оставаться согласованными (`>=` на 10%).
 - **Пороги RiskPolicy:** TVL floor ≥ $5M/пул · per-protocol cap 40% T1 / 20% T2 · T2 total ≤ 50% ·
   APY-границы 1%…30% · min cash buffer ≥ 5%.
+- **TVL-floor проверяется ТОЛЬКО живым TVL** (ADR-053): `tvl_source == "live"` в снимке
+  оркестратора. Static-константы адаптеров / registry-литералы floor НЕ проходят; пул без
+  живого TVL замораживается per-pool (cap-at-held / drop, без forced-sell), никакой
+  подстановки $20M/$50M. Never stamp `"live"` on a constant.
 - **Advisory-слой (Risk Scoring v2, дески, рой) НИКОГДА не гейтит исполнение** и не двигает капитал.
 - Тесты обязательны до закрытия любой risk-задачи; прогонять полный `spa_core/tests/`.
 - Изменения money-path проверять через `spa_core/paper_trading/pre_cutover_gate.py` (inert readiness gate).

@@ -16,10 +16,10 @@ from spa_core.shadow.shadow_tracker import INITIAL_CAPITAL, SHADOW_FILENAME
 
 # Orchestrator-form adapters (protocol/apy_pct), as run_cycle passes them.
 ADAPTERS = [
-    {"protocol": "aave_v3", "apy_pct": 4.0, "tier": "T1", "tvl_usd": 5e9, "status": "ok"},
-    {"protocol": "compound_v3", "apy_pct": 3.5, "tier": "T1", "tvl_usd": 2e9, "status": "ok"},
-    {"protocol": "morpho_blue", "apy_pct": 6.0, "tier": "T2", "tvl_usd": 1e9, "status": "ok"},
-    {"protocol": "yearn_v3", "apy_pct": 5.0, "tier": "T2", "tvl_usd": 5e8, "status": "partial"},
+    {"protocol": "aave_v3", "apy_pct": 4.0, "tier": "T1", "tvl_usd": 5e9, "tvl_source": "live", "status": "ok"},
+    {"protocol": "compound_v3", "apy_pct": 3.5, "tier": "T1", "tvl_usd": 2e9, "tvl_source": "live", "status": "ok"},
+    {"protocol": "morpho_blue", "apy_pct": 6.0, "tier": "T2", "tvl_usd": 1e9, "tvl_source": "live", "status": "ok"},
+    {"protocol": "yearn_v3", "apy_pct": 5.0, "tier": "T2", "tvl_usd": 5e8, "tvl_source": "live", "status": "partial"},
     # error-status adapter must be ignored by every strategy
     {"protocol": "maple", "apy_pct": 9.0, "tier": "T2", "tvl_usd": 1e8, "status": "error"},
 ]

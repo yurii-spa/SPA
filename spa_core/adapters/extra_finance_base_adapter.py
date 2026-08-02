@@ -268,8 +268,13 @@ class ExtraFinanceBaseAdapter(BaseAdapter):
 
         return best
 
-    def _fetch_live_apy(self) -> Optional[float]:
-        """Возвращает живой APY (%) из DeFiLlama или None при ошибке."""
+    def _fetch_live_pool(self) -> Optional[dict]:
+        """Возвращает лучший живой USDC-пул (dict DeFiLlama) или None при ошибке.
+
+        ADR-053 follow-up: единая точка выборки — и APY, и tvlUsd берутся из
+        ОДНОГО живого пула (его tvlUsd раньше выбрасывался, а get_yield_info
+        репортил committed-константу TVL_USD).
+        """
         pools = self._fetch_pools_raw()
         if pools is None:
             return None
@@ -280,14 +285,20 @@ class ExtraFinanceBaseAdapter(BaseAdapter):
                 "не найден в DeFiLlama"
             )
             return None
-        apy = float(best.get("apy", 0.0))
         logger.info(
             "extra_finance_base: live APY=%.3f%% из пула %s (TVL=%.0f)",
-            apy,
+            float(best.get("apy", 0.0)),
             best.get("pool", "?"),
             best.get("tvlUsd", 0),
         )
-        return apy
+        return best
+
+    def _fetch_live_apy(self) -> Optional[float]:
+        """Возвращает живой APY (%) из DeFiLlama или None при ошибке."""
+        best = self._fetch_live_pool()
+        if best is None:
+            return None
+        return float(best.get("apy", 0.0))
 
     # ------------------------------------------------------------------ #
     # Публичные методы (BaseAdapter interface)                             #
@@ -321,12 +332,24 @@ class ExtraFinanceBaseAdapter(BaseAdapter):
             apy_pct, tvl_usd, tvl_usdc_lending, protocol_name, tier,
             risk_score, chain, audits, bug_bounty.
         """
-        apy_pct = self.get_apy()
+        # ADR-053: живой tvlUsd выбранного пула → "live"; при сбое фида —
+        # committed-константа TVL_USD, помеченная "static".
+        best = self._fetch_live_pool()
+        live_tvl = (
+            float(best["tvlUsd"])
+            if best is not None and isinstance(best.get("tvlUsd"), (int, float))
+            else None
+        )
+        apy_pct = (
+            float(best.get("apy", 0.0)) if best is not None
+            else float(self.APY_FALLBACK)
+        )
         return {
             "adapter_id": ADAPTER_ID,
             "protocol_name": PROTOCOL_NAME,
             "apy_pct": apy_pct,
-            "tvl_usd": float(TVL_USD),
+            "tvl_usd": live_tvl if live_tvl is not None else float(TVL_USD),
+            "tvl_source": "live" if live_tvl is not None else "static",
             "tvl_usdc_lending": float(TVL_USDC_LENDING),
             "tier": TIER,
             "risk_score": RISK_SCORE,

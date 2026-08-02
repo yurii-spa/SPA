@@ -77,6 +77,9 @@ def _orch_fn(data_dir):
             "protocol": p,
             "apy_pct": a,
             "tvl_usd": 1e7,
+            # ADR-053: sandbox симулирует ЖИВОЙ фид — декларируем провенанс,
+            # иначе гейт честно заморозит все пулы и цикл не сделает ни трейда.
+            "tvl_source": "live",
             "tier": "T1" if p == "aave_v3" else "T2",
             "status": "ok",
             "chain": "ethereum",

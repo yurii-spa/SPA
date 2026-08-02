@@ -395,9 +395,9 @@ class _FakeOrchResult:
     def __init__(self):
         self.adapters = [
             {"protocol": "aave-v3", "status": "ok", "apy_pct": 3.5,
-             "tvl_usd": 1e9, "tier": "T1", "chain": "ethereum"},
+             "tvl_usd": 1e9, "tvl_source": "live", "tier": "T1", "chain": "ethereum"},
             {"protocol": "compound-v3", "status": "ok", "apy_pct": 4.8,
-             "tvl_usd": 8e8, "tier": "T1", "chain": "ethereum"},
+             "tvl_usd": 8e8, "tvl_source": "live", "tier": "T1", "chain": "ethereum"},
         ]
         self.status = "ok"
 

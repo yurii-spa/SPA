@@ -577,6 +577,7 @@ def _clean_orch(data_dir):
             "protocol": p,
             "apy_pct": 4.0,
             "tvl_usd": 1e7,
+            "tvl_source": "live",
             "tier": "T1" if p == "aave_v3" else "T2",
             "status": "ok",
         }

@@ -28,11 +28,14 @@ from spa_core.paper_trading import cycle_runner as cr
 
 
 def _adapter(protocol, tier="T2", apy=4.0, tvl=1e7, status="ok", **extra):
+    # ADR-053: fixtures model a LIVE orchestrator snapshot — the TVL floor is
+    # only checked against live-declared TVL; undeclared TVL freezes the pool.
     return {
         "protocol": protocol,
         "tier": tier,
         "apy_pct": apy,
         "tvl_usd": tvl,
+        "tvl_source": "live",
         "status": status,
         **extra,
     }

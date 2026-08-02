@@ -202,6 +202,9 @@ class CompoundV3Adapter:
             tier=self.ORCHESTRATOR_TIER,
             risk_score=self.RISK_SCORE,
             exit_latency_hours=self.EXIT_LATENCY_HOURS,
+            # ADR-053: TVL действительно получен из живого фида в этом вызове;
+            # при сбое фида tvl_usd=None → провенанс не декларируется.
+            tvl_source="live" if tvl_usd is not None else None,
         )
 
     # end of class

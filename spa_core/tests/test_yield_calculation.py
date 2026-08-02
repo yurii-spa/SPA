@@ -36,6 +36,7 @@ def _orch_fn(apy_map: dict[str, float], *, tvl: float = 2e7):
                 "protocol": p,
                 "apy_pct": a,
                 "tvl_usd": tvl,
+                "tvl_source": "live",
                 "tier": "T1" if p in ("aave_v3", "compound_v3", "morpho_steakhouse") else "T2",
                 "status": "ok",
                 "id": p,

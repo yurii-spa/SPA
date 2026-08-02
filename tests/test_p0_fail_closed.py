@@ -123,13 +123,25 @@ def test_gate_with_zero_capital():
 # 4. TVL-below-floor → gate BLOCKS
 # ---------------------------------------------------------------------------
 def test_gate_blocks_low_tvl():
-    """Position in a pool with TVL < $5M must be blocked."""
+    """ADR-053: LIVE TVL < $5M — blocking violation (floor реален)."""
     target = {"tiny_pool": 10_000.0}
     adapters = [{"protocol": "tiny_pool", "apy_pct": 5.0,
-                 "tvl_usd": 1_000_000.0, "tier": "T1"}]
+                 "tvl_usd": 1_000_000.0, "tvl_source": "live", "tier": "T1"}]
     result = _apply_risk_policy_gate(target, 100_000.0, adapters)
     assert result["approved"] is False
     assert any("tiny_pool" in v for v in result["violations"])
+
+
+def test_gate_freezes_unverified_tvl_per_pool():
+    """ADR-053: TVL без live-провенанса → per-pool freeze (no fresh capital),
+    НЕ block-all: пул исключается из target'а, свежий капитал не выдаётся."""
+    target = {"tiny_pool": 10_000.0}
+    adapters = [{"protocol": "tiny_pool", "apy_pct": 5.0,
+                 "tvl_usd": 1_000_000.0, "tier": "T1"}]  # нет tvl_source → static
+    result = _apply_risk_policy_gate(target, 100_000.0, adapters)
+    assert result["approved"] is True
+    assert result["target_usd"].get("tiny_pool", 0.0) == 0.0
+    assert "tiny_pool" in result.get("tvl_unverified", [])
 
 
 # ---------------------------------------------------------------------------
@@ -139,7 +151,7 @@ def test_gate_blocks_t1_over_cap():
     """A T1 position > 40% of capital must be blocked."""
     target = {"aave_v3": 50_000.0}  # 50% of 100k — over 40% T1 cap
     adapters = [{"protocol": "aave_v3", "apy_pct": 3.5,
-                 "tvl_usd": 50_000_000.0, "tier": "T1"}]
+                 "tvl_usd": 50_000_000.0, "tvl_source": "live", "tier": "T1"}]
     result = _apply_risk_policy_gate(target, 100_000.0, adapters)
     assert result["approved"] is False
 
@@ -152,7 +164,7 @@ def test_gate_trims_when_over_cash_buffer():
     # 96k deployed out of 100k — over 95% limit
     target = {"aave_v3": 96_000.0}
     adapters = [{"protocol": "aave_v3", "apy_pct": 3.5,
-                 "tvl_usd": 50_000_000.0, "tier": "T1"}]
+                 "tvl_usd": 50_000_000.0, "tvl_source": "live", "tier": "T1"}]
     result = _apply_risk_policy_gate(target, 100_000.0, adapters)
     # Should be trimmed to ≤95k but still T1-cap compliant (40% = 40k)
     # Actually 40% T1 cap may also fire here — depends on implementation

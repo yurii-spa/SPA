@@ -130,6 +130,12 @@ def _run_one_adapter(
         "warning": None,
         # SPA-V398: True only when the adapter returned a live APY from the feed.
         "live_data": False,
+        # ADR-053: TVL provenance — "live" only when the adapter DECLARED its
+        # TVL as fetched from the live feed (YieldInfo.tvl_source == "live").
+        # A numeric TVL without that declaration is a committed constant →
+        # "static" (fail-closed: the RiskPolicy gate will not let it satisfy
+        # the TVL floor). No TVL at all → None.
+        "tvl_source": None,
     }
     try:
         adapter = adapter_cls()
@@ -140,6 +146,9 @@ def _run_one_adapter(
         record["protocol"] = getattr(info, "protocol", protocol_key) or protocol_key
         record["tier"] = getattr(info, "tier", tier) or tier
         record["tvl_usd"] = tvl_usd
+        if tvl_usd is not None:
+            _declared = getattr(info, "tvl_source", None)
+            record["tvl_source"] = "live" if _declared == "live" else "static"
 
         if not isinstance(raw_apy, (int, float)):
             # SPA-V398: no live APY → honest "no live data" error, never a mock.
@@ -198,6 +207,7 @@ def _collect_adapter_statuses(
                     "error": f"timeout after {timeout}s",
                     "warning": None,
                     "live_data": False,
+                    "tvl_source": None,
                 }
                 record["health_score"] = compute_health_score(record, now=now)
                 results.append(record)
@@ -213,6 +223,7 @@ def _collect_adapter_statuses(
                     "error": f"{type(exc).__name__}: {exc}",
                     "warning": None,
                     "live_data": False,
+                    "tvl_source": None,
                 }
                 record["health_score"] = compute_health_score(record, now=now)
                 results.append(record)

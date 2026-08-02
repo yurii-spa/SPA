@@ -45,6 +45,7 @@ def _orch_fn(apy_map=APY):
             "protocol": p,
             "apy_pct": a,
             "tvl_usd": 1e8,
+            "tvl_source": "live",
             "tier": "T1" if p in T1_PROTOCOLS else "T2",
             "status": "ok",
         }

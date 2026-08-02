@@ -42,6 +42,7 @@ ADR-файлы хранятся в двух местах: `docs/adr/` (осно�
 | [ADR-047-site-privacy-hardening.md](ADR-047-site-privacy-hardening.md) | ADR-047: Site Privacy Hardening (earn-defi.com) |
 | [ADR_001_initial_risk_policy.md](ADR_001_initial_risk_policy.md) | ADR-001: Initial Risk Policy v1.0 — Stable Lending Core |
 | [ADR_002_pendle_pt_integration.md](ADR_002_pendle_pt_integration.md) | ADR-002: Pendle PT Integration |
+| [ADR-053-tvl-floor-fail-closed.md](ADR-053-tvl-floor-fail-closed.md) | ADR-053: TVL-floor становится fail-CLOSED (провенанс TVL + отмена $20M-фабрикации) |
 | [ADR_009_capacity_limits.md](ADR_009_capacity_limits.md) | ADR-009 — Capacity Limits Enforcement (MP-209) |
 | [ADR_TEMPLATE.md](ADR_TEMPLATE.md) | ADR-XXX: [Short Decision Title] |
 

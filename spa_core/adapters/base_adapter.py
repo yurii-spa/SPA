@@ -28,6 +28,14 @@ class YieldInfo:
     value means a withdrawal queue (e.g. Maple's epoch-based redemption). It is
     declarative metadata only — this module never moves capital. A value of
     ``None`` means the adapter has not declared a profile.
+
+    ``tvl_source`` (ADR-053) is the TVL provenance contract: ``"live"`` means
+    ``tvl_usd`` was fetched from the live feed during THIS call; ``"static"``
+    means it is a committed class constant (e.g. ``TVL_USD``) that cannot verify
+    the RiskPolicy TVL floor. The default is ``None`` and consumers treat any
+    value other than ``"live"`` as static/unverified — an adapter that does not
+    explicitly prove its TVL is live fails CLOSED at the RiskPolicy gate (no
+    fresh capital), by design. Never stamp ``"live"`` on a constant.
     """
 
     protocol: str
@@ -40,6 +48,9 @@ class YieldInfo:
     # Optional with a default so the field is strictly additive — existing
     # YieldInfo(...) call sites that omit it keep working unchanged.
     exit_latency_hours: Optional[float] = None
+    # ADR-053: TVL provenance — "live" (fetched this call) | "static" (committed
+    # constant) | None (undeclared → treated as static/unverified, fail-closed).
+    tvl_source: Optional[str] = None
 
 
 class BaseAdapter(ABC):

@@ -81,14 +81,16 @@ class MorphoBlueAdapter(BaseAdapter):
     def get_yield_info(self) -> YieldInfo:
         data = self.fetch()
         tvl = data.get("tvl")
+        _tvl_live = isinstance(tvl, (int, float))
         return YieldInfo(
             protocol=self.PROTOCOL,
             asset=self.asset,
             apy=data.get("apy"),
-            tvl_usd=float(tvl) if isinstance(tvl, (int, float)) else None,
+            tvl_usd=float(tvl) if _tvl_live else None,
             tier=self.tier,
             risk_score=self.RISK_SCORE,
             exit_latency_hours=self.EXIT_LATENCY_HOURS,
+            tvl_source="live" if _tvl_live else None,
         )
 
     # end of class
