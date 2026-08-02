@@ -457,11 +457,13 @@ install_agent \
     "com.spa.analytics_tier_c" \
     "1"
 
-# 39. 7-day checkpoint
-install_agent \
-    "$REPO/scripts/com.spa.checkpoint-7day.plist" \
-    "com.spa.checkpoint-7day" \
-    "1"
+# 39. 7-day checkpoint — RETIRED (own-21, owner-approved 2026-07-23): SPENT one-shot (Month:6 Day:19
+#     fired once 2026-06-19, next fire only next June). Unloaded, plist in data/retired_plists_backup/,
+#     added to RETIRED_LABELS. REVERSIBLE: uncomment + restore plist to revive.
+# install_agent \
+#     "$REPO/scripts/com.spa.checkpoint-7day.plist" \
+#     "com.spa.checkpoint-7day" \
+#     "1"
 
 # 40. Weekly backup — RETIRED (Q3-1): coarse whole-tree tar to a LOCAL folder, same-host (SPOF) and
 #     redundant with com.spa.daily_backup (DB snapshot + dr_offsite_copy offsite) + source already in git.

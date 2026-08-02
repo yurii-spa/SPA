@@ -173,6 +173,11 @@ RETIRED_LABELS = frozenset({
     # all-OK. REVERSIBLE: remove this line + re-add to install_all_agents.sh to revive. OWNER: unload the
     # lingering plist on the prod host (`launchctl bootout gui/$(id -u)/com.spa.weekly_backup`).
     "com.spa.weekly_backup",
+    # own-21 (owner-approved 2026-07-23): checkpoint-7day is a SPENT one-shot — schedule Month:6 Day:19
+    # fired once on 2026-06-19 and will not fire again until next June. Left loaded = dead weight.
+    # Unloaded + plist moved to data/retired_plists_backup/. REVERSIBLE: remove this line + re-add to
+    # install_all_agents.sh + restore plist to revive.
+    "com.spa.checkpoint-7day",
 })
 
 

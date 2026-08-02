@@ -251,8 +251,9 @@ class TestMeasuredPathUnchanged(_TmpData):
         self.assertIn("30.0h ago", captured["message"])
 
     def test_before_alert_hour_still_no_alert(self):
-        """The hour>=10 UTC condition is untouched by this change."""
-        now = _utc(2026, 6, 12, 9)
+        """The hour>=8 UTC condition holds — before it, no alert.
+        Updated 2026-07-23 (owner Variant B): threshold 10→8; test hour 9→7 (still < threshold)."""
+        now = _utc(2026, 6, 12, 7)
         result, captured = self._run_capturing_alert(now)
         self.assertFalse(result["gap_detected"])
         self.assertNotIn("message", captured)

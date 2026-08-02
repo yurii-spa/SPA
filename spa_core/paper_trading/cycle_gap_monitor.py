@@ -58,13 +58,15 @@ GAP_STATE_FILENAME = "cycle_gap_state.json"
 # Gap threshold: expected 24h cycle + 2h tolerance
 GAP_THRESHOLD_HOURS: float = 26.0
 # Only alert if current UTC hour >= this value.
-# NOTE (2026-07-30): the "08:00 expected + 2h" rationale this constant was
-# written with is stale — launchd runs the cycle at 08:00 **local**
-# (= 06:00 UTC in summer), so alerting only opens ~4h after the expected start
-# rather than 2h.  The threshold is deliberately NOT changed here (moving it
-# changes the alerting surface, which is owner territory) — but the published
-# text no longer repeats the wrong premise.  See EXPECTED_CYCLE_LOCAL_HOUR.
-GAP_ALERT_AFTER_UTC_HOUR: int = 10
+# OWNER DECISION 2026-07-23 (Variant B, card owner-decision-storozh-propuschennogo-tsikla):
+# restored to the author's ORIGINAL intent "expected UTC start + 2h buffer", computed from the
+# REAL start. The cycle runs at 08:00 **local** = 06:00 UTC (summer) → 06:00 + 2h = 08:00 UTC.
+# Was 10 (built on a false "08:00 UTC start" premise) → alerted ~2h late. Now 8.
+# Variant C (auto-derive from plist w/ DST) was REJECTED: it adds a DST/plist-parse failure
+# surface in the ALERT path (fail-open risk). Kept as a simple constant, pinned by a test
+# (see test_cycle_gap_monitor: expected UTC start + GAP_ALERT_BUFFER_H == threshold).
+GAP_ALERT_BUFFER_H: int = 2
+GAP_ALERT_AFTER_UTC_HOUR: int = 8
 # Sentinel hours_since value when last_cycle_ts is unknown.  It means
 # "not measured" — it is NEVER published to the owner as an age.
 _UNKNOWN_HOURS = 999.0
@@ -223,7 +225,7 @@ def detect_gap(
 
     A gap is detected when **both** conditions hold:
     * ``hours_since_last > GAP_THRESHOLD_HOURS`` (26h)
-    * current UTC hour >= ``GAP_ALERT_AFTER_UTC_HOUR`` (10)
+    * current UTC hour >= ``GAP_ALERT_AFTER_UTC_HOUR`` (8)
 
     If ``last_cycle_ts`` is ``None`` or unparseable, ``hours_since`` is set
     to the sentinel value ``999.0``.
