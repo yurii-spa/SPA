@@ -55,6 +55,9 @@ def sandbox(tmp_path, monkeypatch):
         "_PAPER_PATH": data / "paper_trading_status.json",
         "_WATCHDOG_PATH": data / "watchdog_report.json",
         "_KILL_SWITCH_PATH": data / "kill_switch.json",
+        # OWNER Variant A 2026-07-23 (ADR-056): the real cycle-written kill-switch state files.
+        "_KILL_SWITCH_STATUS_PATH": data / "kill_switch_status.json",
+        "_DERISK_STATUS_PATH": data / "derisk_status.json",
     }
     for name, value in paths.items():
         monkeypatch.setattr(w, name, value)
@@ -127,92 +130,96 @@ class TestFiniteFloat:
 # ── circuit breaker: the check whose live OK verdict was fabricated ─────────
 
 class TestCircuitBreakerHonesty:
+    """OWNER Variant A 2026-07-23 (ADR-056): rewritten from the old (dead) kill_switch.json +
+    max_drawdown_pct model to the REAL cycle-written files kill_switch_status.json (`triggered`)
+    and derisk_status.json (`active`/`tier`/`reason`) + a 26h freshness → missed-cycle rule.
+    The fail-CLOSED honesty intent is preserved: unreadable/missing/stamp-less → NOT CHECKED,
+    never 'off'; an active posture or a stale (blind) file → CRITICAL."""
 
-    def test_missing_drawdown_key_is_not_within_limits(self, sandbox):
-        """The live defect: paper_trading_status.json has no max_drawdown_pct at all."""
-        _write(sandbox.paper_path, {"is_demo": True, "current_equity": 100628.61,
-                                    "total_return_pct": 0.63})
+    def _fresh(self, sandbox, ks=None, ds=None, hours_ago=1.0):
+        _write(sandbox.kill_switch_status_path,
+               {"generated_at": _now_iso(hours_ago), "triggered": False, **(ks or {})})
+        _write(sandbox.derisk_status_path,
+               {"generated_at": _now_iso(hours_ago), "active": False, **(ds or {})})
+
+    def test_triggered_kill_switch_is_critical(self, sandbox):
+        self._fresh(sandbox, ks={"triggered": True, "reason": "HARD_KILL drawdown 11%"})
         res = w.check_circuit_breaker()
-        assert res.status == "SKIPPED", (
-            "no drawdown figure was read, so 'within limits' is a claim about nothing: "
-            + res.message)
-        assert "max_drawdown_pct" in res.message
-        assert "within limits" not in res.message
-        assert res.detail["drawdown_pct"] is None
+        assert res.status == "CRITICAL" and res.is_critical
+        assert "HARD_KILL" in res.message
 
-    def test_missing_status_file_is_not_within_limits(self, sandbox):
+    def test_active_derisk_is_critical_with_tier(self, sandbox):
+        self._fresh(sandbox, ds={"active": True, "tier": "SOFT_DERISK", "reason": "drawdown 6%"})
+        res = w.check_circuit_breaker()
+        assert res.status == "CRITICAL"
+        assert "SOFT_DERISK" in res.message
+
+    def test_fresh_inactive_posture_is_ok(self, sandbox):
+        self._fresh(sandbox)
+        res = w.check_circuit_breaker()
+        assert res.status == "OK"
+        assert res.detail["kill_switch"] is False and res.detail["derisk_active"] is False
+
+    def test_unreadable_kill_switch_status_never_reads_as_off(self, sandbox):
+        self._fresh(sandbox)
+        sandbox.kill_switch_status_path.write_text("{corrupt", encoding="utf-8")
+        res = w.check_circuit_breaker()
+        assert res.status == "SKIPPED", "a corrupt kill-switch file is not proof the switch is off"
+        assert "kill_switch_status.json unreadable" in res.message
+
+    def test_unreadable_derisk_status_never_reads_as_off(self, sandbox):
+        self._fresh(sandbox)
+        sandbox.derisk_status_path.write_text("{corrupt", encoding="utf-8")
+        res = w.check_circuit_breaker()
+        assert res.status == "SKIPPED"
+        assert "derisk_status.json unreadable" in res.message
+
+    def test_missing_status_files_are_not_within_limits(self, sandbox):
         res = w.check_circuit_breaker()
         assert res.status == "SKIPPED"
         assert res.is_unchecked
 
-    def test_unreadable_kill_switch_never_reads_as_off(self, sandbox):
-        sandbox.kill_switch_path.write_text("{corrupt", encoding="utf-8")
-        _write(sandbox.paper_path, {"max_drawdown_pct": 0.0})
-        res = w.check_circuit_breaker()
-        assert res.status == "SKIPPED", "a corrupt kill-switch file is not proof the switch is off"
-        assert "kill_switch.json unreadable" in res.message
-
-    def test_absent_kill_switch_file_is_the_documented_off_state(self, sandbox):
-        _write(sandbox.paper_path, {"max_drawdown_pct": 1.2})
-        res = w.check_circuit_breaker()
-        assert res.status == "OK"
-        assert res.detail["drawdown_pct"] == 1.2
-        assert "1.2%" in res.message
-
-    def test_active_kill_switch_is_critical(self, sandbox):
-        _write(sandbox.kill_switch_path, {"active": True, "reason": "HARD_KILL drawdown 11%"})
-        _write(sandbox.paper_path, {"max_drawdown_pct": 11.0})
+    def test_stale_status_file_is_missed_cycle_critical(self, sandbox):
+        # 27h old → daily cycle likely did not run → posture BLIND → CRITICAL, NOT a silent skip.
+        self._fresh(sandbox, hours_ago=27.0)
         res = w.check_circuit_breaker()
         assert res.status == "CRITICAL"
-        assert res.is_critical
-        assert "HARD_KILL" in res.message
+        assert "Missed cycle" in res.message
+        assert res.detail["missed_cycle"] is True
 
-    def test_drawdown_at_threshold_is_critical(self, sandbox):
-        _write(sandbox.paper_path, {"max_drawdown_pct": 5.0})
+    def test_fresh_boundary_just_under_26h_is_ok(self, sandbox):
+        self._fresh(sandbox, hours_ago=25.5)
+        assert w.check_circuit_breaker().status == "OK"
+
+    def test_triggered_wins_over_unreadable_derisk(self, sandbox):
+        _write(sandbox.kill_switch_status_path,
+               {"generated_at": _now_iso(1.0), "triggered": True, "reason": "HARD_KILL"})
+        sandbox.derisk_status_path.write_text("nope", encoding="utf-8")
         res = w.check_circuit_breaker()
-        assert res.status == "CRITICAL", "5.0% is inclusive (SOFT_DERISK floor)"
+        assert res.status == "CRITICAL", "a real trigger must not be downgraded to 'not measured'"
 
-    def test_drawdown_below_threshold_is_ok_and_quotes_the_number(self, sandbox):
-        _write(sandbox.paper_path, {"max_drawdown_pct": 4.9})
+    def test_active_wins_over_staleness(self, sandbox):
+        # an ACTIVE de-risk that is also stale must still page as CRITICAL-active, not be missed.
+        _write(sandbox.kill_switch_status_path, {"generated_at": _now_iso(30.0), "triggered": False})
+        _write(sandbox.derisk_status_path,
+               {"generated_at": _now_iso(30.0), "active": True, "tier": "HARD_KILL", "reason": "x"})
         res = w.check_circuit_breaker()
-        assert res.status == "OK"
-        assert "4.9" in res.message
+        assert res.status == "CRITICAL"
 
-    def test_breach_wins_over_unreadable_kill_switch(self, sandbox):
-        sandbox.kill_switch_path.write_text("nope", encoding="utf-8")
-        _write(sandbox.paper_path, {"max_drawdown_pct": 9.0})
+    def test_stampless_status_file_is_unchecked_not_fresh(self, sandbox):
+        # a status doc with no usable generated_at cannot be declared fresh.
+        _write(sandbox.kill_switch_status_path, {"triggered": False})
+        _write(sandbox.derisk_status_path, {"generated_at": _now_iso(1.0), "active": False})
         res = w.check_circuit_breaker()
-        assert res.status == "CRITICAL", "a real breach must not be downgraded to 'not measured'"
-
-    @pytest.mark.parametrize("bad", ["n/a", None, True, [], {}])
-    def test_unusable_drawdown_value_is_unchecked(self, sandbox, bad):
-        _write(sandbox.paper_path, {"max_drawdown_pct": bad})
-        res = w.check_circuit_breaker()
-        assert res.status == "SKIPPED", "{!r} is not a drawdown reading".format(bad)
-
-    def test_nan_drawdown_is_unchecked(self, sandbox):
-        # json.load accepts the NaN literal, and NaN >= 5.0 is False — so an unguarded
-        # comparison would silently read as "within limits".
-        sandbox.paper_path.write_text('{"max_drawdown_pct": NaN}', encoding="utf-8")
-        assert w.check_circuit_breaker().status == "SKIPPED"
+        assert res.status == "SKIPPED"
+        assert "generated_at" in res.message
 
     def test_non_object_status_file_is_unchecked(self, sandbox):
-        _write(sandbox.paper_path, [1, 2, 3])
+        _write(sandbox.kill_switch_status_path, [1, 2, 3])
+        _write(sandbox.derisk_status_path, {"generated_at": _now_iso(1.0), "active": False})
         res = w.check_circuit_breaker()
+        # a JSON list is state "ok" but not a dict → not triggered, and _doc_age_hours flags it.
         assert res.status == "SKIPPED"
-        assert "not an object" in res.message
-
-    def test_non_object_kill_switch_is_unchecked(self, sandbox):
-        _write(sandbox.kill_switch_path, ["armed"])
-        _write(sandbox.paper_path, {"max_drawdown_pct": 0.0})
-        res = w.check_circuit_breaker()
-        assert res.status == "SKIPPED"
-
-    def test_zero_drawdown_is_reported_verbatim(self, sandbox):
-        _write(sandbox.paper_path, {"max_drawdown_pct": 0.0})
-        res = w.check_circuit_breaker()
-        assert res.status == "OK"
-        assert res.detail["drawdown_pct"] == 0.0, "an honest measured zero is still a measurement"
 
 
 # ── adapter status: freshness must not be claimed when not computed ─────────
@@ -570,6 +577,9 @@ class TestEndToEndOnSandboxState:
             "positions": {names[0]: 30000.0, names[1]: 30000.0, names[2]: 20000.0},
         })
         _write(sandbox.paper_path, {"max_drawdown_pct": 0.4})
+        # Variant A: circuit_breaker now reads the cycle-written kill/de-risk status files.
+        _write(sandbox.kill_switch_status_path, {"generated_at": _now_iso(1.0), "triggered": False})
+        _write(sandbox.derisk_status_path, {"generated_at": _now_iso(1.0), "active": False})
         w.run_watchdog(write=True, send_alert=False)
         report = json.loads(sandbox.watchdog_path.read_text())[-1]
         by_name = {c["check"]: c for c in report["checks"]}
@@ -580,13 +590,16 @@ class TestEndToEndOnSandboxState:
         # real tree. Both are covered by their own tests above.
         assert report["overall"] in ("OK", "UNCHECKED")
 
-    def test_live_shaped_status_file_is_reported_unchecked(self, sandbox):
-        """Exactly the shape of the live paper_trading_status.json (no max_drawdown_pct)."""
-        _write(sandbox.paper_path, {
-            "is_demo": False, "days_running": 40, "current_equity": 100628.61,
-            "total_return_pct": 0.63, "kill_switch_active": False,
-            "last_cycle_status": "success",
+    def test_live_shaped_status_files_report_ok(self, sandbox):
+        """Variant A: the real live-shaped kill/de-risk status files (fresh, inactive) → OK."""
+        _write(sandbox.kill_switch_status_path, {
+            "generated_at": _now_iso(2.0), "triggered": False,
+            "reason": "", "allocation": {},
+        })
+        _write(sandbox.derisk_status_path, {
+            "generated_at": _now_iso(2.0), "active": False, "tier": None,
+            "reason": "", "policy": {},
         })
         res = w.check_circuit_breaker()
-        assert res.status == "SKIPPED"
-        assert res.detail["drawdown_pct"] is None
+        assert res.status == "OK"
+        assert res.detail["kill_switch"] is False

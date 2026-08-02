@@ -23,7 +23,11 @@ priority: high
 > живых фидов каждые N минут. Вынесено отдельной картой (см. `agent-golive-intraday-drawdown-monitor.md`),
 > обязательна к go-live. Сегодняшняя правка сторожа её НЕ покрывает и НЕ должна притворяться, что покрывает.
 >
-> Карточку в `owner-done` переводит ТОЛЬКО владелец (инвариант #14).
+> **РЕАЛИЗОВАНО (2026-07-23, ADR-056):** `check_circuit_breaker` переключён на реальные файлы
+> (`kill_switch_status.json.triggered` / `derisk_status.json.active`), свежесть 26h → CRITICAL
+> «missed cycle», fail-CLOSED. Тесты переписаны (75 passed / 93 с self_heal), ADR-056 заведён, журнал
+> 2026-W31. Смоук на живых данных: OK (не triggered, файлы свежие). Осталось: закоммитить + go-live
+> intraday-drawdown (отдельная карта). В `owner-done` переводит ТОЛЬКО владелец (инвариант #14).
 
 ## Что случилось и почему это важно
 

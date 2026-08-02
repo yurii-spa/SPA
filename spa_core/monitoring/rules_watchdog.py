@@ -51,7 +51,17 @@ _ADAPTER_PATH    = _DATA_DIR / "adapter_status.json"
 _GOLIVE_PATH     = _DATA_DIR / "golive_status.json"
 _PAPER_PATH      = _DATA_DIR / "paper_trading_status.json"
 _WATCHDOG_PATH   = _DATA_DIR / "watchdog_report.json"
-_KILL_SWITCH_PATH = _DATA_DIR / "kill_switch.json"
+# OWNER DECISION 2026-07-23 (Variant A, card owner-decision-storozh-pravil-ne-vidit-stop-kran):
+# the circuit-breaker check now reads the REAL cycle-written kill-switch state files. The old
+# `kill_switch.json` name existed NOWHERE else in the repo (dead) and `max_drawdown_pct` was
+# never written — so the check reported "within limits" about numbers it never saw. Authoritative
+# state lives in these two files (written by the daily cycle ~06:00 UTC):
+_KILL_SWITCH_STATUS_PATH = _DATA_DIR / "kill_switch_status.json"   # field: triggered
+_DERISK_STATUS_PATH      = _DATA_DIR / "derisk_status.json"        # fields: active, tier, reason
+# A cycle-written status file older than this = the daily cycle likely did NOT run → the
+# kill-switch posture is BLIND → treated as CRITICAL "missed cycle" (not a silent skip).
+CIRCUIT_FRESH_H = 26.0
+_KILL_SWITCH_PATH = _DATA_DIR / "kill_switch.json"  # retained (legacy/off-state doc); not authoritative
 
 _WATCHDOG_HISTORY_CAP = 500
 _HTTP_TIMEOUT = 10
@@ -149,6 +159,25 @@ def _read_doc(path: Path) -> tuple:
             return "ok", json.load(f)
     except Exception as e:  # noqa: BLE001 — any read/parse failure is "unreadable"
         return "unreadable", str(e)
+
+
+def _doc_age_hours(doc: Any) -> tuple:
+    """Age (hours) of a doc's ``generated_at``. Returns (age_hours, problem).
+
+    fail-CLOSED: a missing/unparseable stamp yields (None, reason) — never a fresh verdict.
+    """
+    if not isinstance(doc, dict):
+        return None, "document is not an object"
+    generated_at = doc.get("generated_at")
+    if not generated_at or not isinstance(generated_at, str):
+        return None, "no usable generated_at"
+    try:
+        ts = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - ts).total_seconds() / 3600.0, None
+    except Exception as e:  # noqa: BLE001
+        return None, "unparseable generated_at {!r} ({})".format(generated_at, e)
 
 
 def _atomic_write(path: Path, data: Any) -> None:
@@ -446,68 +475,73 @@ def check_circuit_breaker() -> CheckResult:
     This check owns no thresholds: the authoritative ladder lives in
     ``spa_core/governance/kill_switch.py`` (SOFT −5% / HARD −10%, ADR-034/048) and is not
     touched here. What it owns is the honesty of its own verdict — it must never answer
-    "drawdown within limits" about a number it never read (invariant #2, refusal-first).
+    "within limits" about a number it never read (invariant #2, refusal-first).
 
-    Absence of ``data/kill_switch.json`` is the documented off-state (the file exists only
-    while the switch is armed); an *unreadable* one is not — a corrupt file must never be
-    read as "the switch is off".
+    OWNER DECISION 2026-07-23 (Variant A, ADR-056): reads the REAL cycle-written state files
+    ``data/kill_switch_status.json`` (``triggered``) and ``data/derisk_status.json``
+    (``active``/``tier``/``reason``). ``triggered``/``active`` → CRITICAL immediately. A status
+    file older than ``CIRCUIT_FRESH_H`` (26h) → CRITICAL "missed cycle" (the daily cycle likely
+    did not run → posture BLIND). Unreadable/missing → NOT CHECKED (fail-CLOSED), never "off".
     """
     unchecked: List[str] = []
 
-    ks_state, ks_doc = _read_doc(_KILL_SWITCH_PATH)
+    ks_state, ks_doc = _read_doc(_KILL_SWITCH_STATUS_PATH)
+    ds_state, ds_doc = _read_doc(_DERISK_STATUS_PATH)
+
+    # (1) fail-CLOSED: a corrupt file must NEVER be read as "the switch is off".
     if ks_state == "unreadable":
-        unchecked.append("kill_switch.json unreadable ({})".format(ks_doc))
-    elif ks_state == "ok":
-        if not isinstance(ks_doc, dict):
-            unchecked.append("kill_switch.json is not an object")
-        elif ks_doc.get("active"):
-            reason = ks_doc.get("reason", "unknown")
-            return CheckResult(
-                "circuit_breaker", "CRITICAL",
-                "Kill switch ACTIVE: {}".format(reason),
-                {"kill_switch": True, "reason": reason},
-            )
+        unchecked.append("kill_switch_status.json unreadable ({})".format(ks_doc))
+    if ds_state == "unreadable":
+        unchecked.append("derisk_status.json unreadable ({})".format(ds_doc))
 
-    # Also check paper_trading_status for drawdown
-    drawdown = None
-    pts_state, pts = _read_doc(_PAPER_PATH)
-    if pts_state == "unreadable":
-        unchecked.append("paper_trading_status.json unreadable ({})".format(pts))
-    elif pts_state == "missing":
-        unchecked.append("paper_trading_status.json missing — no drawdown to read")
-    elif not isinstance(pts, dict):
-        unchecked.append("paper_trading_status.json is not an object")
-    elif "max_drawdown_pct" not in pts:
-        # NOT a zero. `pts.get("max_drawdown_pct", 0) or 0` used to invent one, which is how
-        # this check reported "drawdown within limits" on every live run without ever having
-        # seen a drawdown figure.
-        unchecked.append("paper_trading_status.json carries no max_drawdown_pct")
-    else:
-        drawdown = _finite_float(pts.get("max_drawdown_pct"))
-        if drawdown is None:
-            unchecked.append(
-                "max_drawdown_pct is not a usable number ({!r})".format(
-                    pts.get("max_drawdown_pct")))
-
-    if drawdown is not None and drawdown >= 5.0:
+    # (2) ACTIVE posture → CRITICAL immediately (fast redundant delivery, even if set earlier).
+    if ks_state == "ok" and isinstance(ks_doc, dict) and ks_doc.get("triggered"):
+        reason = ks_doc.get("reason", "unknown")
         return CheckResult(
             "circuit_breaker", "CRITICAL",
-            "Drawdown {:.1f}% >= 5% kill-switch threshold".format(drawdown),
-            {"drawdown_pct": drawdown},
+            "Kill switch TRIGGERED: {}".format(reason),
+            {"kill_switch": True, "reason": reason},
         )
+    if ds_state == "ok" and isinstance(ds_doc, dict) and ds_doc.get("active"):
+        tier = ds_doc.get("tier", "?")
+        reason = ds_doc.get("reason", "unknown")
+        return CheckResult(
+            "circuit_breaker", "CRITICAL",
+            "De-risk ACTIVE (tier {}): {}".format(tier, reason),
+            {"derisk_active": True, "tier": tier, "reason": reason},
+        )
+
+    # (3) freshness: a stale cycle-written status file = the daily cycle likely did NOT run →
+    # kill-switch posture is BLIND → CRITICAL "missed cycle" (owner Variant A, NOT a silent skip).
+    for name, state, doc in (
+        ("kill_switch_status", ks_state, ks_doc),
+        ("derisk_status", ds_state, ds_doc),
+    ):
+        if state == "ok":
+            age_h, stamp_problem = _doc_age_hours(doc)
+            if stamp_problem is not None:
+                unchecked.append("{}.json {}".format(name, stamp_problem))
+            elif age_h > CIRCUIT_FRESH_H:
+                return CheckResult(
+                    "circuit_breaker", "CRITICAL",
+                    "Missed cycle: {}.json is {:.0f}h old (> {:.0f}h) — daily cycle may not have "
+                    "run; kill-switch posture is BLIND".format(name, age_h, CIRCUIT_FRESH_H),
+                    {"missed_cycle": True, "stale_file": name, "age_hours": round(age_h, 1)},
+                )
+        elif state == "missing":
+            unchecked.append("{}.json missing — cannot confirm kill-switch posture".format(name))
 
     if unchecked:
         return CheckResult(
             "circuit_breaker", "SKIPPED",
             "Kill-switch posture NOT CHECKED: {}".format("; ".join(unchecked)),
-            {"unchecked_reason": "; ".join(unchecked), "unchecked": unchecked,
-             "drawdown_pct": drawdown},
+            {"unchecked_reason": "; ".join(unchecked), "unchecked": unchecked},
         )
 
     return CheckResult(
         "circuit_breaker", "OK",
-        "No kill switch active, drawdown {:.1f}% < 5%".format(drawdown),
-        {"drawdown_pct": drawdown},
+        "No kill switch / de-risk active; both status files fresh (< {:.0f}h)".format(CIRCUIT_FRESH_H),
+        {"kill_switch": False, "derisk_active": False},
     )
 
 
