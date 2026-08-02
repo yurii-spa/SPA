@@ -77,12 +77,53 @@ def reconcile_and_persist(severity_by_scope: dict, *, now_ts: int, cfg: dict) ->
     return cleared
 
 
+def _report_stage_failure(stage: str, exc: BaseException) -> None:
+    """Print a tick-stage failure so it actually REACHES the log file.
+
+    ``flush=True`` is load-bearing, not decoration. This service's stdout is redirected to
+    ``/tmp/spa_rtmr_sense.log``, so Python block-buffers it (8 KB), and the process never exits —
+    nothing flushes the buffer. Measured on the host: 50 failure lines, process alive, log = 8
+    bytes (only the flushed startup banner); then SIGKILL — exactly what ``launchctl`` does when it
+    restarts a KeepAlive agent — and the log is STILL 8 bytes. Every failure message was lost.
+    At a 45s interval that hid the first report for ~1.5h of continuous failure, and an agent
+    restart erased even that.
+    """
+    print(f"rtmr_service: stage {stage} failed ({exc!r})", flush=True)
+
+
 def tick(cfg: dict, now_ts: int) -> list:
-    signals = SL.run_tick(cfg=cfg, now_ts=now_ts)          # sense + persist RAW + heartbeat
+    """One service tick: sense → react → self-clear, each stage reported independently.
+
+    The three stages used to share one ``try`` in ``main()``, which cost twice: a failure in the
+    reaction ladder ALSO skipped the re-entry step (the only path out of DEFENSIVE — and
+    ``rtmr_posture_gate`` clamps every target to 0 while DEFENSIVE holds), and the single opaque
+    message covered three different breakages. Stage 1 still propagates: if sensing itself dies no
+    heartbeat is written at all, and going stale is the correct fail-CLOSED signal for that.
+    """
+    signals = SL.run_tick(cfg=cfg, now_ts=now_ts)          # stage 1: sense + persist RAW + heartbeat
     debounced = _debounce_stale(signals, cfg)              # staleness hysteresis (ignore transient stale)
-    A.react_and_apply(debounced, now_ts=now_ts, cfg=cfg, notify=True)  # emergency-path (PAPER): add de-risks
-    # re-entry / self-clear: drop postures whose scope has recovered for N clean ticks (§5.2)
-    reconcile_and_persist(_worst_by_scope(debounced), now_ts=now_ts, cfg=cfg)
+
+    stages_ok = ["sense"]
+    failed_stages: list = []
+    last_error = None
+
+    def _stage(name: str, fn) -> None:
+        nonlocal last_error
+        try:
+            fn()
+        except Exception as exc:  # noqa: BLE001 — one dead stage must not take the others with it
+            failed_stages.append(name)
+            last_error = f"{name}: {exc!r}"[:300]
+            _report_stage_failure(name, exc)
+        else:
+            stages_ok.append(name)
+
+    # stage 2 — emergency path (PAPER): add de-risks. Never moves capital (§13.3).
+    _stage("react", lambda: A.react_and_apply(debounced, now_ts=now_ts, cfg=cfg, notify=True))
+    # stage 3 — re-entry / self-clear: drop postures whose scope has recovered for N clean ticks (§5.2)
+    _stage("reconcile", lambda: reconcile_and_persist(_worst_by_scope(debounced), now_ts=now_ts, cfg=cfg))
+
+    SL.annotate_heartbeat(stages_ok=stages_ok, failed_stages=failed_stages, last_error=last_error)
     return signals
 
 
@@ -95,7 +136,7 @@ def main() -> int:  # pragma: no cover — long-running service
         try:
             tick(cfg, int(time.time()))
         except Exception as exc:  # noqa: BLE001 — never die silently; the dead-man switch also guards
-            print(f"rtmr_service: tick failed ({exc!r})")
+            _report_stage_failure("sense", exc)
         time.sleep(interval)
     return 0
 

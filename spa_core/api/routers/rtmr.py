@@ -13,6 +13,8 @@ from pathlib import Path
 
 from fastapi import APIRouter
 
+from spa_core.monitoring import sense_loop as SL
+
 router = APIRouter(tags=["rtmr"])
 
 _MON = Path(__file__).resolve().parents[3] / "data" / "monitoring"
@@ -39,9 +41,19 @@ def rtmr_status() -> dict:
     for s in latest.get("signals", []):
         sources.setdefault(s.get("source"), {"scopes": 0, "worst": "info"})
         sources[s["source"]]["scopes"] += 1
+    # `alive` was freshness ONLY: a tick whose reaction/self-clear stage failed every time still
+    # refreshed the heartbeat, so this surface reported alive=true for a half-dead service. Fix the
+    # twin, not just the source (the #37/#47 lesson). A heartbeat with no stage report is UNCHECKED,
+    # never "failed" — the live service keeps the old format until its next restart, and restarts
+    # are owner-gated, so escalating on a missing key would manufacture a false alarm for days.
+    stages = SL.stage_health(hb if isinstance(hb, dict) else None)
+    fresh = bool(hb_age is not None and hb_age < 180)
     return {
         "mode": "paper",
-        "alive": bool(hb_age is not None and hb_age < 180),
+        "alive": fresh and stages["alive"] is not False,
+        "heartbeat_fresh": fresh,
+        "stages_measured": stages["measured"],
+        "failed_stages": stages["failed_stages"],
         "heartbeat_age_sec": hb_age,
         "last_tick_ts": latest.get("ts"),
         "max_severity": latest.get("max_severity", "info"),

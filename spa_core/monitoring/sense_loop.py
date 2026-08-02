@@ -128,6 +128,54 @@ def _heartbeat(now_ts: int, n_sensors: int) -> None:
     _atomic_write(_HEARTBEAT, {"ts": int(now_ts), "sensors": int(n_sensors), "alive": True})
 
 
+def annotate_heartbeat(*, stages_ok: list, failed_stages: list, last_error: str | None) -> None:
+    """Re-stamp the heartbeat with what actually ran AFTER sensing (rtmr_service tick stages).
+
+    ``_heartbeat`` is written at the end of ``run_tick`` — i.e. after stage 1 of 3. It literally
+    says ``alive: true``, so a failure in the LATER stages (the reaction ladder, and the posture
+    self-clear that is the only way out of DEFENSIVE) left a fresh ``alive: true`` on disk and no
+    other trace: the service claimed liveness for work it never did (class #29/#31/#35–#38/#40).
+
+    This does NOT re-stamp ``ts``/``sensors``: sensing really did happen at that moment, and
+    ``heartbeat_age_sec`` (whose consumer is the dead-man/API path) must keep meaning exactly what
+    it meant before. Only the *claim* changes — ``alive`` is now the conjunction of every stage.
+    """
+    hb = {}
+    try:
+        with open(_HEARTBEAT, encoding="utf-8") as fh:
+            loaded = json.load(fh)
+        if isinstance(loaded, dict):
+            hb = loaded
+    except Exception:  # noqa: BLE001 — unreadable heartbeat must not silence the stage report
+        hb = {}
+    hb["stages_ok"] = list(stages_ok)
+    hb["failed_stages"] = list(failed_stages)
+    hb["last_error"] = last_error
+    hb["alive"] = not failed_stages
+    _atomic_write(_HEARTBEAT, hb)
+
+
+def stage_health(hb: dict | None = None) -> dict:
+    """``{"measured": bool, "alive": bool|None, "failed_stages": list}`` from the heartbeat file.
+
+    ``measured`` is False for a heartbeat written before stage reporting existed (or by a service
+    process still running the old code after a deploy — launchd restarts are owner-gated, so that
+    window is real and can last days). Such a heartbeat is reported as **UNCHECKED, not failed**:
+    inventing a failure nobody measured is the same lie as inventing an OK, just in the loud
+    direction (memory: fix fail-OPEN with UNCHECKED, never with escalation).
+    """
+    if hb is None:
+        try:
+            with open(_HEARTBEAT, encoding="utf-8") as fh:
+                hb = json.load(fh)
+        except Exception:  # noqa: BLE001
+            hb = None
+    if not isinstance(hb, dict) or "failed_stages" not in hb:
+        return {"measured": False, "alive": None, "failed_stages": []}
+    failed = hb.get("failed_stages") or []
+    return {"measured": True, "alive": not failed, "failed_stages": list(failed)}
+
+
 def heartbeat_age_sec(now_ts: int) -> float | None:
     """Seconds since the last heartbeat, or None if never/unreadable (caller treats None as stale)."""
     try:

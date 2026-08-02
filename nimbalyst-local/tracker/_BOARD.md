@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **129** · ждёт владельца: **23** · занято сессиями: **0**.
+> Всего карточек: **131** · ждёт владельца: **23** · занято сессиями: **0**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -111,7 +111,7 @@
 - Задача разобраться почему нет свежих данных почему Pepper Тест не обновился хот…  ·  `inbox-zadacha-razobratsya-pochemu-net-svezhih.md` · 2026-07-23
 - Задача решить проблему 🚨 Пропущен ежедневный цикл  ·  `inbox-zadacha-reshit-problemu-propuschen-ezhed.md` · 2026-07-30
 
-## 🤖 Agent Tasks (что делает агент)  (57)
+## 🤖 Agent Tasks (что делает агент)  (59)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -121,6 +121,7 @@
 ### · backlog
 - Правка чужой карточки запирает её на 3 часа — даже когда сессия прямо назвала в объявлении ДРУГУЮ карточку  ·  `agent-card-file-in-ownership-locks-a-card-it-doesnt-claim.md` · 2026-08-01
 - Шаг 0b держит карточку занятой по файлам сессии, чей pid измеримо мёртв  ·  `agent-dead-pid-still-holds-files-for-3h.md` · 2026-08-02
+- Числа идей #16/#17 реестра посчитаны на склеенной панели — один приклеенный forward-день читается как обвал −31…−84%  ·  `agent-idea16-17-phase-glue-contamination.md` · 2026-08-02
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
 - Книги aggressive_lab документированы как append-only, но история пересоздаётся — susde_dn сдвинулась на −9.7%  ·  `agent-aggressive-lab-books-are-regenerated.md` · 2026-08-01
@@ -155,6 +156,7 @@
 - Два теста краснят CI на main с 2026-08-01: они проверяют календарь, а не код (S12/S13 phase-gating)  ·  `agent-phase-gating-tests-measure-the-calendar.md` · 2026-08-01
 - Пуш батча идёт по одному файлу за коммит — main краснеет на промежуточных состояниях  ·  `agent-push-batch-per-file-commits.md` · 2026-07-30
 - push_to_github.py молча роняет worktree-пути в basename → файлы уезжают в корень репо  ·  `agent-push-worktree-path-collapse.md` · 2026-07-30
+- RTMR-сервис отчитывается «alive» после первой из трёх стадий, а сообщения об отказе двух остальных теряются в буфере навсегда  ·  `agent-rtmr-tick-failures-are-invisible.md` · 2026-08-02
 - Сессия не может взять СВОЮ карточку, если объявилась под двумя идентификаторами — каждый блокирует другой  ·  `agent-self-claim-blocked-by-own-second-identity.md` · 2026-08-01
 - Общие документы (STATE, недельный журнал) уезжают ЦЕЛИКОМ — параллельная сессия молча затирает чужую запись  ·  `agent-shared-doc-whole-file-push-overwrites.md` · 2026-07-31
 - 404 теста живых модулей молча выключены file-level pytestmark с шаблонной отпиской  ·  `agent-silently-skipped-test-files.md` · 2026-07-30
