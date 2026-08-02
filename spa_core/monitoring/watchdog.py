@@ -16,6 +16,17 @@ Rule (deterministic, stdlib only, LLM FORBIDDEN), for each guardian in GUARDIANS
 Runs every 10 min via com.spa.watchdog — OFFSET from self_heal's 5 min so the two never
 fight over the same launchd operation. Fail-safe: a guardian-heal attempt never crashes the
 watchdog. Atomic writes (tmp + os.replace) → data/watchdog_status.json.
+
+HONESTY (class #29/#31/#35–#38/#40 — never publish a verdict about a check that did not run):
+  * `launchctl list` that could not be MEASURED (exception / non-zero / unparseable output)
+    is NOT read as "the guardian is not loaded". Such a guardian is reported `unchecked`,
+    no launchd action is taken against an unmeasured launchd, and the run is not `healthy`.
+  * The Telegram escalation records what actually happened to it. ``push_critical`` is
+    documented as returning ``sent?`` and the return value used to be discarded, so a refused
+    push (``core_agent_down`` is edge-triggered — a persistent bad state returns False and is
+    dropped without even reaching the digest) was booked as "the owner was warned" and the
+    flood window was spent on it. Delivery is now tri-state: delivered / refused-by-policy /
+    NOT MEASURED, and a push that was never attempted does not spend the flood window.
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
@@ -54,21 +65,36 @@ def _run(args: List[str]) -> subprocess.CompletedProcess:
     return subprocess.run(args, capture_output=True, text=True, timeout=SUBPROC_TIMEOUT)
 
 
-def _loaded_labels() -> Dict[str, int]:
-    """label -> pid (0 if loaded but not running) for every loaded com.spa.* job."""
-    out: Dict[str, int] = {}
+def _loaded_labels() -> Dict[str, int] | None:
+    """label -> pid (0 if loaded but not running) for every loaded com.spa.* job.
+
+    Returns ``None`` when launchd could not be MEASURED at all — the call raised, exited
+    non-zero, or produced output this parser does not recognise. ``None`` is not ``{}``:
+    an empty mapping means "measured, nothing of ours is loaded", while ``None`` means
+    "we do not know", and the caller must not turn "do not know" into "not loaded".
+    """
     try:
         r = _run(["launchctl", "list"])
-        for line in r.stdout.splitlines():
-            parts = line.split("\t")
-            if len(parts) >= 3 and parts[2].startswith("com.spa."):
-                try:
-                    pid = int(parts[0])
-                except ValueError:
-                    pid = 0
-                out[parts[2]] = pid
     except Exception:
-        pass
+        return None
+    if r.returncode != 0:
+        return None
+    out: Dict[str, int] = {}
+    parsed_any = False
+    for line in r.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 3:
+            continue
+        parsed_any = True
+        if parts[2].startswith("com.spa."):
+            try:
+                pid = int(parts[0])
+            except ValueError:
+                pid = 0
+            out[parts[2]] = pid
+    if not parsed_any:
+        # Output we could not parse into a single row is not evidence of an empty launchd.
+        return None
     return out
 
 
@@ -108,19 +134,33 @@ def _status_age_minutes(status_file: Path) -> float | None:
         return None
 
 
-def _send_telegram(msg: str) -> None:
+def _send_telegram(msg: str) -> bool | None:
     """Route watchdog escalation through the SINGLE push authority (Tier-1).
 
     Phase-1 rewire: a core agent down/escalation is a genuine interrupt →
     push_policy ``core_agent_down`` (edge-triggered). Never raises.
+
+    Tri-state, because "we tried" is not "the owner was told":
+      * ``True``  — the push authority reports the message was sent;
+      * ``False`` — the push authority REFUSED it (measured): the edge-trigger is still in
+        ``bad``, the daily ceiling is spent, … The owner did not get it either way, but we
+        know that on purpose rather than by accident;
+      * ``None``  — NOT MEASURED: the authority could not even be reached (import/transport
+        blew up), or it answered something that is not a bool. Never reported as delivered.
     """
     try:
         from spa_core.telegram import push_policy
-        push_policy.push_critical(
+    except Exception:  # noqa: BLE001 — a broken import must not crash the guardian
+        return None
+    try:
+        result = push_policy.push_critical(
             "core_agent_down", "CRITICAL", "SPA Watchdog", msg,
         )
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception:  # noqa: BLE001 — documented as never raising; do not trust that blindly
+        return None
+    if isinstance(result, bool):
+        return result
+    return None
 
 
 def _flood_history() -> dict:
@@ -158,22 +198,40 @@ def run_watchdog(dry_run: bool = False) -> dict:
     now_epoch = time.time()
     actions: List[str] = []
     failures: List[str] = []
+    unchecked: List[str] = []
     guardian_state: Dict[str, dict] = {}
-    alerts: List[str] = []  # (label, message) flattened into lines for the flood-guarded send
+    alerts: List[tuple] = []  # (label, message) flattened into lines for the flood-guarded send
 
     loaded = _loaded_labels()
     flood = _flood_history()
 
     for label, status_file in GUARDIANS.items():
-        is_loaded = label in loaded
         age_min = _status_age_minutes(status_file)
         stale = (age_min is None) or (age_min > STALE_MINUTES)
 
-        state = {
+        if loaded is None:
+            # launchd itself is unmeasured. "Not loaded" would be a claim we cannot make, and
+            # every remedy here is a launchctl operation against that same unmeasured launchd.
+            # Say so, act on nothing, and do not let the run call itself healthy.
+            guardian_state[label] = {
+                "loaded": None,
+                "status_age_min": round(age_min, 2) if age_min is not None else None,
+                "stale": stale,
+                "action": None,
+                "alert": None,
+                "unchecked": "launchctl list не измерен — загруженность стража неизвестна",
+            }
+            unchecked.append(label)
+            continue
+
+        is_loaded = label in loaded
+
+        state: Dict[str, object] = {
             "loaded": is_loaded,
             "status_age_min": round(age_min, 2) if age_min is not None else None,
             "stale": stale,
             "action": None,
+            "alert": None,
         }
 
         if not is_loaded:
@@ -204,27 +262,27 @@ def run_watchdog(dry_run: bool = False) -> dict:
 
         guardian_state[label] = state
 
-    healthy = not actions and not failures
+    # A run that could not measure a guardian has not established that the plane is healthy.
+    healthy = not actions and not failures and not unchecked
 
-    report = {
-        "ts": now_iso,
-        "guardians": guardian_state,
-        "actions": actions,
-        "failures": failures,
-        "healthy": healthy,
-        "stale_minutes_threshold": STALE_MINUTES,
-        "LLM_FORBIDDEN": True,
-    }
+    attempted: List[str] = []
+    delivered: List[str] = []
+    undelivered: List[str] = []
+    delivery_unmeasured: List[str] = []
 
     if not dry_run:
-        _save(report)
         # Flood-guarded Telegram: only alert for a guardian not alerted within FLOOD_WINDOW.
         send_lines: List[str] = []
+        send_labels: List[str] = []
         for label, msg in alerts:
             last = flood.get(label, 0)
-            if now_epoch - (last if isinstance(last, (int, float)) else 0) >= FLOOD_WINDOW:
+            if isinstance(last, bool) or not isinstance(last, (int, float)):
+                last = 0
+            if now_epoch - last >= FLOOD_WINDOW:
                 send_lines.append(msg)
-                flood[label] = now_epoch
+                send_labels.append(label)
+            else:
+                guardian_state[label]["alert"] = "flood_suppressed"
         if send_lines:
             lines = ["🛡️ <b>SPA Watchdog</b> (guardian-of-guardians)"]
             for m in send_lines:
@@ -233,8 +291,54 @@ def run_watchdog(dry_run: bool = False) -> dict:
                 lines.append(f"✅ {a}")
             for f in failures:
                 lines.append(f"❌ {f}")
-            _send_telegram("\n".join(lines))
+
+            attempted = list(send_labels)
+            outcome = _send_telegram("\n".join(lines))
+
+            if outcome is True:
+                delivered = list(send_labels)
+                verdict = "delivered"
+            elif outcome is False:
+                # Measured refusal by the push authority (edge-trigger still `bad`, daily
+                # ceiling spent, …). The owner did NOT get it — say so instead of booking it
+                # as a warning that was given. The flood window is still spent on purpose:
+                # some refusal paths (ceiling_exceeded) queue into the digest, so retrying
+                # every 10 min would trade a silent lie for a noisy one. Making the guardian
+                # audibly reachable again is an alert-policy decision → owner card.
+                undelivered = list(send_labels)
+                verdict = "refused_by_push_policy"
+            else:
+                # Never even reached the push authority ⇒ nothing was attempted downstream,
+                # so recording "warned" would be a pure fabrication and retrying costs the
+                # owner nothing. Do not spend the flood window.
+                delivery_unmeasured = list(send_labels)
+                verdict = "not_measured"
+
+            for label in send_labels:
+                guardian_state[label]["alert"] = verdict
+            if outcome is not None:
+                for label in send_labels:
+                    flood[label] = now_epoch
+
         _save_flood_history(flood)
+
+    report = {
+        "ts": now_iso,
+        "guardians": guardian_state,
+        "actions": actions,
+        "failures": failures,
+        "unchecked": unchecked,
+        "healthy": healthy,
+        "alerts_attempted": attempted,
+        "alerts_delivered": delivered,
+        "alerts_undelivered": undelivered,
+        "alerts_delivery_unmeasured": delivery_unmeasured,
+        "stale_minutes_threshold": STALE_MINUTES,
+        "LLM_FORBIDDEN": True,
+    }
+
+    if not dry_run:
+        _save(report)
 
     return report
 
