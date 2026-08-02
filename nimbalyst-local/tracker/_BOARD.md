@@ -2,17 +2,17 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **142** · ждёт владельца: **17** · занято сессиями: **0**.
+> Всего карточек: **159** · ждёт владельца: **17** · занято сессиями: **0**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
-- **Включить письма-подтверждения для подписки — добавить два ключа на сервер** · _medium_  ·  `own-07-retention-secrets.md`
-- **Какое capacity-число сделать заголовочным на /fundability** · _low_  ·  `own-17-fundability-capacity-framing.md`
+- **Секрет входа в кабинет засветился в переписке — сменить его (ротация SIWE_SESSION_SECRET)** · _high_  ·  `own-25-siwe-secret-exposed-rotate.md`
 - **Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда** · _high_  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md`
-- **Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)**  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md`
+- **Числа трека на сайте не подтверждаются ничем в git — канон замёрз 17 июля, и сторож краснеет каждый день** · _high_  ·  `owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts.md`
 - **Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет** · _high_  ·  `owner-decision-dva-tsikla-orkestratora-rabotali-odnovre.md`
 - **Книги aggressive_lab переписывают свою историю — и это отложенно заденет числа на сайте** · _high_  ·  `owner-decision-knigi-aggressive-lab-perepisyvayut-svoyu.md`
 - **Наступила Фаза 2 (1 августа) — включаем, сдвигаем или осознанно откладываем?**  ·  `owner-decision-nastupila-faza-2-1-avgusta-vklyuchaem-sd.md`
+- **Общая память проекта стирается пушем из рабочей копии на маке — сегодня так пропало 1729 строк истории** · _high_  ·  `owner-decision-obschaya-pamyat-stiraetsya-pushem-iz-rabo.md`
 - **Отчёт «эту карточку я НЕ беру» больше не считается захватом — подтверди или откати** · _medium_  ·  `owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc.md`
 - **Перезапустить сторожа реального времени, чтобы починка начала работать (одна команда)** · _medium_  ·  `owner-decision-perezapustit-storozha-realnogo-vremeni-c.md`
 - **Рабочая копия проекта на маке отстала от GitHub на 345 коммитов — из-за этого очередь заданий показывает старое** · _medium_  ·  `owner-decision-rabochaya-kopiya-proekta-na-make-otstala.md`
@@ -24,16 +24,16 @@
 - **Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать** · _medium_  ·  `owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema.md`
 - **Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта**  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (49)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (53)
 
 ### · needs-owner
-- Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
-- Какое capacity-число сделать заголовочным на /fundability  ·  `own-17-fundability-capacity-framing.md` · 2026-07-15
+- Секрет входа в кабинет засветился в переписке — сменить его (ротация SIWE_SESSION_SECRET)  ·  `own-25-siwe-secret-exposed-rotate.md` · 2026-08-02
 - Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md` · 2026-08-01
-- Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md` · 2026-07-29
+- Числа трека на сайте не подтверждаются ничем в git — канон замёрз 17 июля, и сторож краснеет каждый день  ·  `owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts.md` · 2026-08-02
 - Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет  ·  `owner-decision-dva-tsikla-orkestratora-rabotali-odnovre.md` · 2026-08-01
 - Книги aggressive_lab переписывают свою историю — и это отложенно заденет числа на сайте  ·  `owner-decision-knigi-aggressive-lab-perepisyvayut-svoyu.md` · 2026-08-01
 - Наступила Фаза 2 (1 августа) — включаем, сдвигаем или осознанно откладываем?  ·  `owner-decision-nastupila-faza-2-1-avgusta-vklyuchaem-sd.md` · 2026-07-31
+- Общая память проекта стирается пушем из рабочей копии на маке — сегодня так пропало 1729 строк истории  ·  `owner-decision-obschaya-pamyat-stiraetsya-pushem-iz-rabo.md` · 2026-08-02
 - Отчёт «эту карточку я НЕ беру» больше не считается захватом — подтверди или откати  ·  `owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc.md` · 2026-08-01
 - Перезапустить сторожа реального времени, чтобы починка начала работать (одна команда)  ·  `owner-decision-perezapustit-storozha-realnogo-vremeni-c.md` · 2026-08-02
 - Рабочая копия проекта на маке отстала от GitHub на 345 коммитов — из-за этого очередь заданий показывает старое  ·  `owner-decision-rabochaya-kopiya-proekta-na-make-otstala.md` · 2026-07-31
@@ -46,23 +46,27 @@
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
+- Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
 - Выбрать одну расшифровку названия «SPA» для сайта  ·  `own-08-spa-naming.md` · 2026-07-15
 - Добавить живого человека и рабочую почту на страницу /pilot  ·  `own-11-pilot-human-mailbox.md` · 2026-07-15
 - Подтвердить формулировку списка раннего доступа (waitlist)  ·  `own-13-early-access-framing.md` · 2026-07-15
 - Выбрать одно «главное» число доходности Conservative на сайте  ·  `own-14-conservative-headline.md` · 2026-07-15
 - Поставить git-тег verifier-v1.2 — неизменяемая ссылка на верификатор  ·  `own-15-verifier-git-tag.md` · 2026-07-15
 - Мгновенный Telegram-пинг о заявке или оставить в ежедневном дайджесте?  ·  `own-16-instant-lead-ping.md` · 2026-07-15
+- Какое capacity-число сделать заголовочным на /fundability  ·  `own-17-fundability-capacity-framing.md` · 2026-07-15
 - Одобрить новый вид дашборда (превью готово) — переносить на живой?  ·  `own-19-dashboard-preview-verdict.md` · 2026-07-15
 - Как автоматизировать публичный research-changelog (heartbeat сайта)  ·  `own-20-research-changelog-automation.md` · 2026-07-15
 - Навести порядок в агентах — реши по каждому пункту (сводка инвентаризации)  ·  `own-21-agent-cleanup-decisions.md` · 2026-07-15
 - Ревью ветки yield-lab-scaffolding — мержить или оставить как есть  ·  `own-22-yield-lab-branch-review.md` · 2026-07-15
 - Через 2 дня (~17.07) — пересмотреть, как часто работает автономный цикл  ·  `own-23-autonomy-cadence-recheck.md` · 2026-07-15
 - Пуш в main закрыт правилом — результаты R&D ждут в PR, и висят 4 старых PR  ·  `own-24-pushi-v-main-tolko-cherez-pr.md` · 2026-07-29
+- Письма уходят с чужого адреса onboarding@resend.dev — подтвердить домен earn-defi.com в Resend  ·  `own-26-resend-domain-verification.md` · 2026-08-02
 - ТЕСТ: подтверди, что очередь работает — переведи в Owner Done  ·  `owner-decision-20260715-124956-owner-done.md` · 2026-07-15T00:00:00.000Z
 - Сайт: алерт кастодиана про APY — ложное срабатывание, как чинить?  ·  `owner-decision-20260715-212059-apy.md` · 2026-07-15
 - Живой пилот k на пакет 1 (~22 июля) — запускать? + сверщик живое/бумага  ·  `owner-decision-20260716-082215-k-1-22.md` · 2026-07-16
 - Программа аудита системы + архитектурной памяти («швейцарские часы») — утвердить приоритет  ·  `owner-decision-20260716-084859-note.md` · 2026-07-16
 - Безопасность: admin-панель /admin без пароля — закрыть за Cloudflare Access  ·  `owner-decision-bezopasnost-admin-panel-admin-bez-paroly.md` · 2026-07-16
+- Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md` · 2026-07-29
 - Чистка: разрешить удалять мёртвые МОДУЛИ из ядра (не только скрипты)?  ·  `owner-decision-chistka-razreshit-udalyat-mertvye-moduli.md` · 2026-07-16
 - Чистка ядра (WS-A): ~60 мёртвых/дублей + 45 аналитич. модулей раздувают paper_trading — greenlight подход  ·  `owner-decision-chistka-yadra-ws-a-60-mertvyh-dublei-45.md` · 2026-07-16
 - Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить  ·  `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam.md` · 2026-07-29
@@ -107,7 +111,7 @@
 - Задача разобраться почему нет свежих данных почему Pepper Тест не обновился хот…  ·  `inbox-zadacha-razobratsya-pochemu-net-svezhih.md` · 2026-07-23
 - Задача решить проблему 🚨 Пропущен ежедневный цикл  ·  `inbox-zadacha-reshit-problemu-propuschen-ezhed.md` · 2026-07-30
 
-## 🤖 Agent Tasks (что делает агент)  (59)
+## 🤖 Agent Tasks (что делает агент)  (62)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -117,6 +121,8 @@
 - Правка чужой карточки запирает её на 3 часа — даже когда сессия прямо назвала в объявлении ДРУГУЮ карточку  ·  `agent-card-file-in-ownership-locks-a-card-it-doesnt-claim.md` · 2026-08-01
 - Шаг 0b держит карточку занятой по файлам сессии, чей pid измеримо мёртв  ·  `agent-dead-pid-still-holds-files-for-3h.md` · 2026-08-02
 - Числа идей #16/#17 реестра посчитаны на склеенной панели — один приклеенный forward-день читается как обвал −31…−84%  ·  `agent-idea16-17-phase-glue-contamination.md` · 2026-08-02
+- Панель идеи #17 на 6 книгах из 10 состоит из неподвижных марок — кросс-секцию на ней измерить нельзя  ·  `agent-idea17-needs-a-panel-with-daily-marks.md` · 2026-08-02
+- После починки протокольной слепоты аналитики 4 теста tier-сигналов красные на main — CI снова красный  ·  `agent-signal-aggregator-tier-tests-red-after-blindness-fix.md` · 2026-08-02
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
 - Книги aggressive_lab документированы как append-only, но история пересоздаётся — susde_dn сдвинулась на −9.7%  ·  `agent-aggressive-lab-books-are-regenerated.md` · 2026-08-01
@@ -138,6 +144,7 @@
 - ENV_SETUP v3 — контур владельца (все этапы)  ·  `agent-env-setup.md` · 2026-07-16
 - Q1: флот reboot-safe (7 агентов)  ·  `agent-fleet-reboot.md` · 2026-07-16
 - Свежее упоминание карточки в тексте запирает её на 3 часа — а отчёты циклов пересоздают упоминание каждый час, поэтому окно не истекает никогда  ·  `agent-fresh-weak-mention-deadlocks-queue.md` · 2026-08-01
+- Тест gap-монитора ДО СИХ ПОР идёт в боевой Telegram — карточка про это закрыта `done`, а вызов не поправлен  ·  `agent-gap-monitor-test-still-reaches-live-telegram.md` · 2026-08-02
 - Проверка истории (дедуп перед карточкой)  ·  `agent-history-check.md` · 2026-07-16
 - Копия пушера в хост-репо отстала на 574 строки — команда из CLAUDE.md доставляет по-старому  ·  `agent-host-pusher-copy-is-stale.md` · 2026-07-31
 - Опубликованный вердикт идеи #21 разошёлся с сегодняшними данными — строка CORE-A поменяла знак вывода  ·  `agent-idea21-verdict-data-drift.md` · 2026-07-30
@@ -172,16 +179,29 @@
 - Упоминание карточки в тексте объявления запирает её НАВСЕГДА — шаг 0b отвечает «не измерено» и после старения  ·  `agent-weak-mention-locks-card-forever.md` · 2026-07-31
 - Q11: разбор ветки yield-lab  ·  `agent-yield-lab-branch.md` · 2026-07-16
 
-## agent  (9)
+## agent  (19)
 
+### · in-progress
+- Аллокатор заморожен на неоптимальной доходности — ребаланс только по нарушению, нет триггера «заработать больше»  ·  `agent-allocator-yield-frozen-rootcause.md` · 2026-07-23
+- Аллокатор ранжирует капитал по зашитым константам, помеченным как «live» — честный провенанс APY (D1+D2)  ·  `agent-apy-evidence-provenance.md` · 2026-08-02
+- Портфель нарушает два инварианта прямо сейчас — 15% в advisory-протоколах и 5% в Sky/spark при запрете (D3+D4)  ·  `agent-book-violations-advisory-and-sky.md` · 2026-08-02
+- Закрыть дыры покрытия policy_enforcer — добавить проверки T2-per-protocol + chain-caps (зеркало policy.py)  ·  `agent-enforcer-coverage-gaps.md` · 2026-07-23
 ### · backlog
 - Advisory / сигнальный трек (вариант C) — отложен владельцем, держать в бэклоге  ·  `agent-advisory-signals-track-c.md` · 2026-07-23
-- Аллокатор заморожен на неоптимальной доходности — ребаланс только по нарушению, нет триггера «заработать больше»  ·  `agent-allocator-yield-frozen-rootcause.md` · 2026-07-23
-- Закрыть дыры покрытия policy_enforcer — добавить проверки T2-per-protocol + chain-caps (зеркало policy.py)  ·  `agent-enforcer-coverage-gaps.md` · 2026-07-23
+- Подписка checkup отвечает ok:true, даже если письмо не отправилось — поломка жила незамеченной с июля  ·  `agent-checkup-waitlist-fail-open-ok-true.md` · 2026-08-02
 - Свежая полная инвентаризация флота (73 агента) — что делает / жив ли / нужен ли / расход  ·  `agent-fleet-inventory-73.md` · 2026-07-23
+- Нет сторожа «профинансирован протокол, которого нет в реестре» — остаточная дыра кэпов по цепочкам  ·  `agent-funded-protocol-not-in-registry.md` · 2026-08-02
 - GO-LIVE — внутридневной контроль просадки (частый, не раз в сутки)  ·  `agent-golive-intraday-drawdown-monitor.md` · 2026-07-23
+- Завести производителя gsm_hours (on-chain GSM Pause Delay) — чтобы GSM-гейт перестал быть вечным замком  ·  `agent-gsm-hours-producer.md` · 2026-08-02
 - Guard — стратегия не должна молча падать на mock, если заявленный живой адаптер не грузится  ·  `agent-guard-no-silent-mock-in-tournament.md` · 2026-07-23
 - Построить слой инвест-агентов «Head of Investment» (кураторы тиров + капитал-по-тирам + максимизаторы + решающий)  ·  `agent-head-of-investment-layer.md` · 2026-07-23
+- Аварийный портфель обходит гейты адаптеров — финансирует spark_susds, который запрещён инвариантом 10  ·  `agent-safe-fallback-bypasses-adapter-gates.md` · 2026-08-02
+- Тесты ходят в живую сеть (Telegram + аналитика) — полный набор не проходит целиком, когда сеть медленная  ·  `agent-tests-do-live-network-io.md` · 2026-08-02
 - Сделать турнир стратегий ДОВЕРЯЕМЫМ — ранжировать по net-of-cost APY на реальных исторических данных (не Sharpe на mock)  ·  `agent-tournament-trustworthy-real-apy.md` · 2026-07-23
 - Guard — track-данные в git не должны молча протухать / молча пропускаться в CI  ·  `agent-track-data-git-durability-guard.md` · 2026-07-23
+- Constraints тюнера не зеркалят RiskPolicy + расхождение фидов по pendle (D5+D6)  ·  `agent-tuner-constraints-drift-and-feed-divergence.md` · 2026-08-02
+### · ingested
+- Поле gsm_hours не производит ни один агент — GSM-гейт двух адаптеров невозможно пройти в принципе  ·  `agent-gsm-hours-never-produced.md` · 2026-08-02
+### · done
+- Буфер обмена подсунул текст, замаскированный под системные инструкции — разбор и правило  ·  `agent-clipboard-injection-incident-2026-08-02.md` · 2026-08-02
 
