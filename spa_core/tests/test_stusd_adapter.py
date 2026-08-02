@@ -152,26 +152,46 @@ class TestStusdAPY(unittest.TestCase):
         self.assertAlmostEqual(a.get_apy(), 4.2)
 
     def test_apy_fallback_missing_field(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         # apy=None → поле отсутствует → fallback 6.0
         a = _make_adapter(apy=None)
-        self.assertAlmostEqual(a.get_apy(), StusdAdapter.DEFAULT_APY_PCT)
-
+        self.assertIsNone(a.get_apy())
     def test_apy_fallback_missing_section(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         a = _make_adapter(missing_section=True)
-        self.assertAlmostEqual(a.get_apy(), StusdAdapter.DEFAULT_APY_PCT)
-
+        self.assertIsNone(a.get_apy())
     def test_apy_fallback_no_file(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         a = _no_file()
-        self.assertAlmostEqual(a.get_apy(), StusdAdapter.DEFAULT_APY_PCT)
-
+        self.assertIsNone(a.get_apy())
     def test_get_apy_pct_equals_get_apy(self):
         a = _make_adapter(apy=8.1)
         self.assertAlmostEqual(a.get_apy_pct(), a.get_apy())
 
     def test_get_apy_pct_fallback(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         a = _no_file()
-        self.assertAlmostEqual(a.get_apy_pct(), StusdAdapter.DEFAULT_APY_PCT)
-
+        self.assertIsNone(a.get_apy_pct())
     def test_health_check_ok_in_range(self):
         a = _make_adapter(apy=6.0)
         self.assertEqual(a.health_check(), "ok")
@@ -302,9 +322,14 @@ class TestStusdEligibility(unittest.TestCase):
 
     def test_eligible_no_file(self):
         """Нет файла → peg healthy (default), APY=fallback 6.0 → eligible."""
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         a = _no_file()
-        self.assertTrue(a.is_eligible())
-
+        self.assertFalse(a.is_eligible())
     def test_eligible_returns_bool(self):
         a = _make_adapter(apy=6.0)
         self.assertIsInstance(a.is_eligible(), bool)
@@ -395,9 +420,14 @@ class TestStusdVsMorpho(unittest.TestCase):
 
     def test_gap_with_fallback_apy(self):
         """Fallback APY=6.0 → gap = 6.5 - 6.0 = +0.5."""
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         a = _no_file()
-        self.assertAlmostEqual(a.vs_morpho_gap(), 0.5)
-
+        self.assertIsNone(a.vs_morpho_gap())
     def test_gap_returns_float(self):
         a = _default()
         self.assertIsInstance(a.vs_morpho_gap(), float)

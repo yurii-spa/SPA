@@ -41,6 +41,9 @@ from pathlib import Path
 from typing import Optional
 
 from .base_adapter import BaseAdapter, YieldInfo
+# ADR-063 (D1): единый читатель схемы adapter_status.json — адаптер больше не
+# знает форму файла и не может прочитать не то место.
+from spa_core.adapters.status_reader import read_live_apy_pct, read_status_block
 
 logger = logging.getLogger(__name__)
 
@@ -104,48 +107,50 @@ class FraxAdapter(BaseAdapter):
     # ── внутреннее чтение JSON ───────────────────────────────────────────
 
     def _read_status(self) -> dict:
-        """Читает frax-секцию из data/adapter_status.json.
+        """Блок протокола из data/adapter_status.json (ADR-063).
 
-        Возвращает dict или {} при любой ошибке. Никогда не бросает исключений.
+        Форму файла знает ``status_reader``: сперва современная секция
+        ``adapters[<protocol>]``, затем легаси-ключи верхнего уровня. Раньше
+        метод искал блок ТОЛЬКО на верхнем уровне и всегда возвращал {} — из-за
+        чего пустыми были и APY, и смежные поля (gsm_hours, цена пега).
+        Никогда не бросает исключений.
         """
-        try:
-            path = self._data_dir / "adapter_status.json"
-            with open(path, encoding="utf-8") as fh:
-                data = json.load(fh)
-            result = data.get("frax", {})
-            return result if isinstance(result, dict) else {}
-        except Exception as exc:  # noqa: BLE001 — graceful fallback
-            logger.debug("frax: не удалось прочитать status JSON: %s", exc)
-        return {}
+        return read_status_block(self.PROTOCOL, self._data_dir)
 
     def _read_apy_from_status(self) -> Optional[float]:
-        """Читает APY (%) из frax.apy. Возвращает float или None."""
-        apy = self._read_status().get("apy")
-        if isinstance(apy, (int, float)) and not isinstance(apy, bool):
-            return float(apy)
-        return None
+        """Наблюдённый APY (%) или ``None`` (ADR-063).
+
+        Читается ``live_apy`` — единственное поле, доказывающее наблюдение.
+        Соседнее ``apy`` не годится: без живого чтения оно повторяет литерал
+        ``fallback_apy``.
+        """
+        return read_live_apy_pct(self.PROTOCOL, self._data_dir)
 
     # ── публичный APY API ────────────────────────────────────────────────
 
-    def get_apy(self) -> float:
+    def get_apy(self) -> Optional[float]:
         """Возвращает APY в процентах (7.5, не 0.075).
 
         Источник: data/adapter_status.json → frax.apy.
         Fallback: DEFAULT_APY_PCT (7.5%).
         """
-        apy = self._read_apy_from_status()
-        return apy if apy is not None else self.DEFAULT_APY_PCT
+        # ADR-063: нет живых данных → None, а не зашитая константа. Раньше
+        # константа уходила потребителям как наблюдение (WS1.1 штамповал её
+        # apy_source="live") и ранжировала капитал.
+        return self._read_apy_from_status()
 
-    def get_apy_pct(self) -> float:
+    def get_apy_pct(self) -> Optional[float]:
         """Возвращает APY в процентах — то же что get_apy() (совместимость с BaseAdapter)."""
         return self.get_apy()
 
     def get_yield_info(self) -> YieldInfo:
         """Возвращает нормализованный YieldInfo для оркестратора."""
+        _apy_pct = self.get_apy()
         return YieldInfo(
             protocol=self.PROTOCOL,
             asset=self.asset,
-            apy=self.get_apy() / 100.0,   # YieldInfo ожидает десятичную дробь
+            # ADR-063: None пробрасывается как None (контракт YieldInfo SPA-V398).
+            apy=(_apy_pct / 100.0) if _apy_pct is not None else None,   # YieldInfo ожидает десятичную дробь
             tvl_usd=self.TVL_USD,
             tier=self.tier,
             risk_score=self.RISK_SCORE,
@@ -179,17 +184,22 @@ class FraxAdapter(BaseAdapter):
         if not self.is_peg_healthy():
             return False
         apy = self.get_apy()
+        if apy is None:
+            return False   # ADR-063: нет наблюдения ⇒ не eligible (fail-CLOSED)
         return self.MIN_APY_PCT <= apy <= self.MAX_APY_PCT
 
     # ── vs Morpho gap ─────────────────────────────────────────────────────
 
-    def vs_morpho_gap(self, morpho_apy: float = 6.5) -> float:
+    def vs_morpho_gap(self, morpho_apy: float = 6.5) -> Optional[float]:
         """Возвращает morpho_apy - frax_apy (отрицательный = Frax лучше).
 
         Args:
             morpho_apy: Morpho APY в процентах. По умолчанию 6.5%.
         """
-        return round(morpho_apy - self.get_apy(), 10)
+        _apy = self.get_apy()
+        if _apy is None:
+            return None   # ADR-063: без наблюдения разрыв не определён
+        return round(morpho_apy - _apy, 10)
 
     # ── simulate deposit/withdraw (paper trading) ─────────────────────────
 
@@ -273,6 +283,8 @@ class FraxAdapter(BaseAdapter):
             "ok" если APY в диапазоне [MIN_APY_PCT, MAX_APY_PCT], "degraded" иначе.
         """
         apy = self.get_apy()
+        if apy is None:
+            return "degraded"   # ADR-063: нет наблюдения ⇒ не "ok"
         if self.MIN_APY_PCT <= apy <= self.MAX_APY_PCT:
             return "ok"
         return "degraded"

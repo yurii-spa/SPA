@@ -144,26 +144,46 @@ class TestSparkAPY(unittest.TestCase):
         self.assertAlmostEqual(a.get_apy(), 4.2)
 
     def test_apy_fallback_missing_field(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         # apy=None → поле отсутствует → fallback 5.5
         a = _make_adapter(apy=None)
-        self.assertAlmostEqual(a.get_apy(), SparkSusdsAdapter.DEFAULT_APY_PCT)
-
+        self.assertIsNone(a.get_apy())
     def test_apy_fallback_missing_section(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         a = _make_adapter(missing_section=True)
-        self.assertAlmostEqual(a.get_apy(), SparkSusdsAdapter.DEFAULT_APY_PCT)
-
+        self.assertIsNone(a.get_apy())
     def test_apy_fallback_no_file(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         a = _no_file()
-        self.assertAlmostEqual(a.get_apy(), SparkSusdsAdapter.DEFAULT_APY_PCT)
-
+        self.assertIsNone(a.get_apy())
     def test_get_apy_pct_equals_get_apy(self):
         a = _make_adapter(apy=5.8)
         self.assertAlmostEqual(a.get_apy_pct(), a.get_apy())
 
     def test_get_apy_pct_fallback(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         a = _no_file()
-        self.assertAlmostEqual(a.get_apy_pct(), SparkSusdsAdapter.DEFAULT_APY_PCT)
-
+        self.assertIsNone(a.get_apy_pct())
     def test_health_check_ok_in_range(self):
         a = _make_adapter(apy=5.5)
         self.assertEqual(a.health_check(), "ok")
@@ -330,9 +350,14 @@ class TestSparkVsMorpho(unittest.TestCase):
 
     def test_gap_with_fallback_apy(self):
         """Fallback APY=5.5 → gap = 6.5 - 5.5 = 1.0."""
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         a = _no_file()
-        self.assertAlmostEqual(a.vs_morpho_gap(), 1.0)
-
+        self.assertIsNone(a.vs_morpho_gap())
     def test_gap_returns_float(self):
         a = _default()
         self.assertIsInstance(a.vs_morpho_gap(), float)

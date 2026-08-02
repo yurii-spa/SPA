@@ -37,6 +37,9 @@ from pathlib import Path
 from typing import Optional
 
 from .base_adapter import BaseAdapter, YieldInfo
+# ADR-063 (D1): единый читатель схемы adapter_status.json — адаптер больше не
+# знает форму файла и не может прочитать не то место.
+from spa_core.adapters.status_reader import read_live_apy_pct, read_status_block
 
 logger = logging.getLogger(__name__)
 
@@ -186,26 +189,24 @@ class AaveV3PolygonAdapter(BaseAdapter):
     # ──────────────────────────────────────────────────────────────────────────
 
     def _read_status(self) -> dict:
-        """Читает aave_v3_polygon-секцию из data/adapter_status.json.
+        """Блок протокола из data/adapter_status.json (ADR-063).
 
-        Возвращает dict или {} при любой ошибке. Никогда не бросает исключений.
+        Форму файла знает ``status_reader``: сперва современная секция
+        ``adapters[<protocol>]``, затем легаси-ключи верхнего уровня. Раньше
+        метод искал блок ТОЛЬКО на верхнем уровне и всегда возвращал {} — из-за
+        чего пустыми были и APY, и смежные поля (gsm_hours, цена пега).
+        Никогда не бросает исключений.
         """
-        try:
-            path = self._data_dir / "adapter_status.json"
-            with open(path, encoding="utf-8") as fh:
-                data = json.load(fh)
-            result = data.get(_APY_STATUS_KEY, {})
-            return result if isinstance(result, dict) else {}
-        except Exception as exc:  # noqa: BLE001 — graceful fallback
-            logger.debug("aave_v3_polygon: не удалось прочитать status JSON: %s", exc)
-        return {}
+        return read_status_block(self.PROTOCOL, self._data_dir)
 
     def _read_apy_from_status(self) -> Optional[float]:
-        """Читает APY (%) из aave_v3_polygon.apy. Возвращает float или None."""
-        apy = self._read_status().get("apy")
-        if isinstance(apy, (int, float)) and not isinstance(apy, bool):
-            return float(apy)
-        return None
+        """Наблюдённый APY (%) или ``None`` (ADR-063).
+
+        Читается ``live_apy`` — единственное поле, доказывающее наблюдение.
+        Соседнее ``apy`` не годится: без живого чтения оно повторяет литерал
+        ``fallback_apy``.
+        """
+        return read_live_apy_pct(self.PROTOCOL, self._data_dir)
 
     def _load_protocol_apy(self, key: str, fallback: float) -> float:
         """Читает APY протокола по ключу из adapter_status.json.
@@ -229,16 +230,18 @@ class AaveV3PolygonAdapter(BaseAdapter):
     # Публичный APY API
     # ──────────────────────────────────────────────────────────────────────────
 
-    def get_apy(self) -> float:
+    def get_apy(self) -> Optional[float]:
         """Возвращает APY в процентах (5.1, не 0.051).
 
         Источник: data/adapter_status.json → aave_v3_polygon.apy.
         Fallback: DEFAULT_APY_PCT (5.1%).
         """
-        apy = self._read_apy_from_status()
-        return apy if apy is not None else self.DEFAULT_APY_PCT
+        # ADR-063: нет живых данных → None, а не зашитая константа. Раньше
+        # константа уходила потребителям как наблюдение (WS1.1 штамповал её
+        # apy_source="live") и ранжировала капитал.
+        return self._read_apy_from_status()
 
-    def get_apy_pct(self) -> float:
+    def get_apy_pct(self) -> Optional[float]:
         """Синоним get_apy() — APY в процентах (совместимость с BaseAdapter-family)."""
         return self.get_apy()
 
@@ -251,7 +254,8 @@ class AaveV3PolygonAdapter(BaseAdapter):
         return YieldInfo(
             protocol=self.PROTOCOL,
             asset=self.asset,
-            apy=apy_pct / 100.0,   # YieldInfo ожидает десятичную дробь
+            # ADR-063: None пробрасывается как None (контракт YieldInfo SPA-V398).
+            apy=(apy_pct / 100.0) if apy_pct is not None else None,
             tvl_usd=float(self.TVL_USD),
             tier=self.tier,
             risk_score=self.RISK_SCORE,
@@ -290,6 +294,8 @@ class AaveV3PolygonAdapter(BaseAdapter):
         if not self.is_peg_healthy():
             return False
         apy = self.get_apy()
+        if apy is None:
+            return False   # ADR-063: нет наблюдения ⇒ не eligible (fail-CLOSED)
         return self.MIN_APY_PCT <= apy <= self.MAX_APY_PCT
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -496,7 +502,10 @@ class AaveV3PolygonAdapter(BaseAdapter):
         """
         apy_pct = self.get_apy()
         apy_from_file = self._read_apy_from_status()
-        apy_in_range = self.MIN_APY_PCT <= apy_pct <= self.MAX_APY_PCT
+        # ADR-063: нет наблюдения ⇒ вне диапазона (fail-CLOSED), а не падение.
+        apy_in_range = (
+            apy_pct is not None and self.MIN_APY_PCT <= apy_pct <= self.MAX_APY_PCT
+        )
 
         return {
             "protocol": self.PROTOCOL,

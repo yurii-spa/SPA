@@ -154,14 +154,29 @@ class TestAPY(unittest.TestCase):
     """15 тестов — get_apy, fallback, JSON override."""
 
     def test_fallback_no_file(self):
-        self.assertAlmostEqual(_no_file().get_apy(), 4.8)
-
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
+        self.assertIsNone(_no_file().get_apy())
     def test_fallback_no_section(self):
-        self.assertAlmostEqual(_no_section().get_apy(), 4.8)
-
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
+        self.assertIsNone(_no_section().get_apy())
     def test_fallback_no_apy_field(self):
-        self.assertAlmostEqual(_make_adapter(apy=None).get_apy(), 4.8)
-
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
+        self.assertIsNone(_make_adapter(apy=None).get_apy())
     def test_json_override(self):
         self.assertAlmostEqual(_make_adapter(apy=5.5).get_apy(), 5.5)
 
@@ -180,21 +195,31 @@ class TestAPY(unittest.TestCase):
 
     def test_bool_apy_ignored(self):
         """bool subclass of int — должен быть отклонён как невалидный APY."""
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         tmp = tempfile.mkdtemp()
         (Path(tmp) / "adapter_status.json").write_text(
             json.dumps({"aave_v3_optimism": {"apy": True}}), encoding="utf-8"
         )
         a = AaveV3OptimismAdapter(data_dir=tmp)
-        self.assertAlmostEqual(a.get_apy(), 4.8)  # fallback
-
+        self.assertIsNone(a.get_apy())
     def test_string_apy_ignored(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         tmp = tempfile.mkdtemp()
         (Path(tmp) / "adapter_status.json").write_text(
             json.dumps({"aave_v3_optimism": {"apy": "4.8"}}), encoding="utf-8"
         )
         a = AaveV3OptimismAdapter(data_dir=tmp)
-        self.assertAlmostEqual(a.get_apy(), 4.8)  # fallback
-
+        self.assertIsNone(a.get_apy())
     def test_zero_apy_accepted(self):
         self.assertAlmostEqual(_make_adapter(apy=0.0).get_apy(), 0.0)
 
@@ -209,14 +234,19 @@ class TestAPY(unittest.TestCase):
         self.assertAlmostEqual(AaveV3OptimismAdapter.MAX_APY_PCT, 30.0)
 
     def test_corrupted_json_uses_fallback(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         tmp = tempfile.mkdtemp()
         (Path(tmp) / "adapter_status.json").write_text("NOT JSON", encoding="utf-8")
         a = AaveV3OptimismAdapter(data_dir=tmp)
-        self.assertAlmostEqual(a.get_apy(), 4.8)
+        self.assertIsNone(a.get_apy())
 
 
 # ─── TestPeg ─────────────────────────────────────────────────────────────────
-
 class TestPeg(unittest.TestCase):
     """14 тестов — is_peg_healthy."""
 
@@ -318,8 +348,13 @@ class TestEligibility(unittest.TestCase):
 
     def test_no_file_uses_fallback_eligible(self):
         """Без файла → apy=4.8 (fallback), peg=True → eligible."""
-        self.assertTrue(_no_file().is_eligible())
-
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
+        self.assertFalse(_no_file().is_eligible())
     def test_eligible_true_means_both_conditions(self):
         a = _default()
         self.assertTrue(a.is_peg_healthy())

@@ -36,6 +36,9 @@ from pathlib import Path
 from typing import Optional
 
 from .base_adapter import BaseAdapter, YieldInfo
+# ADR-063 (D1): единый читатель схемы adapter_status.json — адаптер больше не
+# знает форму файла и не может прочитать не то место.
+from spa_core.adapters.status_reader import read_live_apy_pct, read_status_block
 
 logger = logging.getLogger(__name__)
 
@@ -162,26 +165,24 @@ class CompoundV3Adapter(BaseAdapter):
     # ──────────────────────────────────────────────────────────────────────────
 
     def _read_status(self) -> dict:
-        """Читает compound_v3_adapter-секцию из data/adapter_status.json.
+        """Блок протокола из data/adapter_status.json (ADR-063).
 
-        Возвращает dict или {} при любой ошибке. Никогда не бросает исключений.
+        Форму файла знает ``status_reader``: сперва современная секция
+        ``adapters[<protocol>]``, затем легаси-ключи верхнего уровня. Раньше
+        метод искал блок ТОЛЬКО на верхнем уровне и всегда возвращал {} — из-за
+        чего пустыми были и APY, и смежные поля (gsm_hours, цена пега).
+        Никогда не бросает исключений.
         """
-        try:
-            path = self._data_dir / "adapter_status.json"
-            with open(path, encoding="utf-8") as fh:
-                data = json.load(fh)
-            result = data.get(_APY_STATUS_KEY, {})
-            return result if isinstance(result, dict) else {}
-        except Exception as exc:  # noqa: BLE001 — graceful fallback
-            logger.debug("compound_v3_adapter: не удалось прочитать status JSON: %s", exc)
-        return {}
+        return read_status_block(self.PROTOCOL, self._data_dir)
 
     def _read_apy_from_status(self) -> Optional[float]:
-        """Читает APY (%) из compound_v3_adapter.apy. Возвращает float или None."""
-        apy = self._read_status().get("apy")
-        if isinstance(apy, (int, float)) and not isinstance(apy, bool):
-            return float(apy)
-        return None
+        """Наблюдённый APY (%) или ``None`` (ADR-063).
+
+        Читается ``live_apy`` — единственное поле, доказывающее наблюдение.
+        Соседнее ``apy`` не годится: без живого чтения оно повторяет литерал
+        ``fallback_apy``.
+        """
+        return read_live_apy_pct(self.PROTOCOL, self._data_dir)
 
     def _load_protocol_apy(self, key: str, fallback: float) -> float:
         """Читает APY протокола по ключу из adapter_status.json.
@@ -231,6 +232,11 @@ class CompoundV3Adapter(BaseAdapter):
         честный ``None`` без живых данных), эти методы — read-only/advisory
         симуляция и НЕ влияют на трек. Здесь допустим committed-литерал
         DEFAULT_APY_PCT, чтобы симуляция оставалась детерминированной.
+
+        ADR-063 НЕ трогает этот метод намеренно: литерал здесь — осознанный выбор
+        (детерминированная advisory-симуляция), а не маскировка отсутствия данных.
+        Запрет на fake-fallback касается ``get_apy()`` — канонического источника,
+        по которому ранжируется капитал и считается трек.
         """
         apy = self._read_apy_from_status()
         return apy if apy is not None else self.DEFAULT_APY_PCT

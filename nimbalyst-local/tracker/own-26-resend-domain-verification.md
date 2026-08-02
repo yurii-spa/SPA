@@ -2,12 +2,18 @@
 trackerStatus:
   type: owner-decision
 title: Письма уходят с чужого адреса onboarding@resend.dev — подтвердить домен earn-defi.com в Resend
-status: needs-owner
+status: ingested
 priority: high
 owner: yuriycooleshov@gmail.com
 blocks: Подписка «следить за кошельком» для РЕАЛЬНЫХ пользователей (own-07)
 created: 2026-08-02
 ---
+
+> **ВЫПОЛНЕНО ВЛАДЕЛЬЦЕМ 2026-08-02: домен `earn-defi.com` — Verified.** Три DNS-записи
+> добавлены в Cloudflare (проверены независимо через `dig` у авторитативных серверов),
+> Resend подтвердил с первой попытки. Остаток — агентский: выставить `RESEND_FROM` на
+> адрес подтверждённого домена и передеплоить. `needs-owner` → `ingested`;
+> в `owner-done` переводит только владелец (инвариант 14).
 
 ## Что случилось и почему это важно
 

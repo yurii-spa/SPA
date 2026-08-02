@@ -120,9 +120,14 @@ class TestFraxAdapterInit(unittest.TestCase):
 class TestFraxAdapterAPY(unittest.TestCase):
 
     def test_11_default_apy_fallback(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         a = _adapter_default()
-        self.assertAlmostEqual(a.get_apy(), 7.5)
-
+        self.assertIsNone(a.get_apy())
     def test_12_apy_from_status(self):
         a = _adapter_with_status({"apy": 9.2})
         self.assertAlmostEqual(a.get_apy(), 9.2)
@@ -132,21 +137,41 @@ class TestFraxAdapterAPY(unittest.TestCase):
         self.assertAlmostEqual(a.get_apy(), 8.0)
 
     def test_14_apy_no_file_fallback(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         a = _adapter_no_file()
-        self.assertAlmostEqual(a.get_apy(), 7.5)
-
+        self.assertIsNone(a.get_apy())
     def test_15_apy_none_in_status_fallback(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         a = _adapter_with_status({"apy": None})
-        self.assertAlmostEqual(a.get_apy(), 7.5)
-
+        self.assertIsNone(a.get_apy())
     def test_16_apy_string_in_status_fallback(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         a = _adapter_with_status({"apy": "high"})
-        self.assertAlmostEqual(a.get_apy(), 7.5)
-
+        self.assertIsNone(a.get_apy())
     def test_17_apy_bool_in_status_fallback(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         a = _adapter_with_status({"apy": True})
-        self.assertAlmostEqual(a.get_apy(), 7.5)
-
+        self.assertIsNone(a.get_apy())
     def test_18_get_apy_pct_equals_get_apy(self):
         a = _adapter_with_status({"apy": 10.0})
         self.assertAlmostEqual(a.get_apy_pct(), a.get_apy())
@@ -290,10 +315,15 @@ class TestFraxAdapterEligibility(unittest.TestCase):
         self.assertFalse(a.is_eligible())
 
     def test_48_eligible_fallback_apy(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         # DEFAULT_APY = 7.5, peg отсутствует → safe healthy → eligible
         a = _adapter_empty_status()
-        self.assertTrue(a.is_eligible())
-
+        self.assertFalse(a.is_eligible())
     def test_49_not_eligible_peg_only(self):
         # peg broken, apy ok
         a = _adapter_with_status({"apy": 8.0, "frax_price": 0.993})
@@ -364,13 +394,21 @@ class TestFraxAdapterVsMorphoGap(unittest.TestCase):
         self.assertAlmostEqual(a.vs_morpho_gap(morpho_apy=10.0), 2.0)
 
     def test_62_vs_morpho_fallback_apy(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         a = _adapter_default()
         # 6.5 - 7.5 = -1.0
-        self.assertAlmostEqual(a.vs_morpho_gap(), -1.0)
-
-    def test_63_vs_morpho_returns_float(self):
+        self.assertIsNone(a.vs_morpho_gap())
+    def test_63_vs_morpho_returns_none_without_observation(self):
+        # ADR-063: без наблюдения адаптер отдаёт None, а не литерал ⇒ разрыв
+        # не определён, а health честно "degraded". Проверка та же, ожидание
+        # честное. Изменение одобрено владельцем 2026-08-02 (инвариант 16).
         a = _adapter_default()
-        self.assertIsInstance(a.vs_morpho_gap(), float)
+        self.assertIsNone(a.vs_morpho_gap())
 
     def test_64_vs_morpho_zero_morpho_apy(self):
         a = _adapter_with_status({"apy": 7.5})
@@ -535,10 +573,12 @@ class TestFraxAdapterGetHealth(unittest.TestCase):
         a = _adapter_with_status({"apy": 7.5})
         self.assertEqual(a.health_check(), a.get_health())
 
-    def test_92_health_ok_fallback(self):
-        # DEFAULT_APY_PCT = 7.5 ∈ [3.0, 15.0]
+    def test_92_health_degraded_without_observation(self):
+        # ADR-063: без наблюдения адаптер отдаёт None, а не литерал ⇒ разрыв
+        # не определён, а health честно "degraded". Проверка та же, ожидание
+        # честное. Изменение одобрено владельцем 2026-08-02 (инвариант 16).
         a = _adapter_default()
-        self.assertEqual(a.get_health(), "ok")
+        self.assertEqual(a.get_health(), "degraded")
 
     def test_93_health_returns_string(self):
         a = _adapter_default()

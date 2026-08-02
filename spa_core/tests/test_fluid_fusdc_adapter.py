@@ -125,9 +125,14 @@ class TestFluidAPY(unittest.TestCase):
         self.assertAlmostEqual(a.get_raw_apy(), 20.0)
 
     def test_get_raw_apy_fallback_missing_file(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         a = FluidFUSDCAdapter(data_dir=_make_empty_data_dir())
-        self.assertAlmostEqual(a.get_raw_apy(), FluidFUSDCAdapter.DEFAULT_APY_PCT)
-
+        self.assertIsNone(a.get_raw_apy())
     def test_get_raw_apy_fallback_value(self):
         self.assertAlmostEqual(FluidFUSDCAdapter.DEFAULT_APY_PCT, 6.5)
 
@@ -163,14 +168,19 @@ class TestFluidAPY(unittest.TestCase):
         self.assertIsInstance(a.get_apy(), float)
 
     def test_get_apy_fallback_is_float(self):
+        # ADR-063: раньше здесь ожидалась подстановка DEFAULT_APY_PCT при
+        # отсутствии данных. Это прямо противоречило правилу адаптеров
+        # («никаких fake-fallback'ов: нет данных ⇒ None»): выдуманное число
+        # уходило потребителям с меткой live и ранжировало money-path капитал.
+        # Проверка та же — «что будет без данных», ожидание честное.
+        # Изменение теста одобрено владельцем 2026-08-02 (инвариант 16).
         a = FluidFUSDCAdapter(data_dir=_make_empty_data_dir())
-        self.assertIsInstance(a.get_apy(), float)
+        self.assertIsNone(a.get_apy())
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TestFluidSpike — 12 tests
 # ─────────────────────────────────────────────────────────────────────────────
-
 class TestFluidSpike(unittest.TestCase):
     """is_spike detection: boundary values, explicit apy argument."""
 
