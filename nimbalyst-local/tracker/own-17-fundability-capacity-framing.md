@@ -2,13 +2,18 @@
 trackerStatus:
   type: owner-decision
 title: Какое capacity-число сделать заголовочным на /fundability
-status: needs-owner
+status: ingested
 priority: low
 owner: yuriycooleshov@gmail.com
 blocks: Framing страницы /fundability
 created: 2026-07-15
 legacy_id: Q-OWN-17
 ---
+
+> **ИНЖЕСТ 2026-08-02:** ответ владельца получен и записан («показывать ОБА числа»). Остаток —
+> ЧИСТО агентская работа (починить расписание capacity-агрегатора → свежие числа → показать
+> возраст числа → применить framing). Ничего не ждёт от владельца ⇒ `needs-owner` → `ingested`.
+> В `owner-done` переводит только владелец (инвариант 14).
 
 > **РЕШЕНИЕ ВЛАДЕЛЬЦА (2026-07-23): показывать ОБА числа (комплементарно) + сначала проверить свежесть.**
 > Framing «оба»: единичный рельс имеет низкий потолок (плато ~$5k/год, marginal последней книги ~$9) →

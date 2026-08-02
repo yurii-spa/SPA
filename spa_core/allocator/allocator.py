@@ -45,7 +45,19 @@ _RISK_SCORES_PATH = _REPO_ROOT / "data" / "risk_scores.json"
 _SHADOW_COMPARISON_PATH = _REPO_ROOT / "data" / "strategy_shadow_comparison.json"
 _DEFAULT_OUT = _REPO_ROOT / "data" / "target_allocation.json"
 _REGISTRY_PATH = _REPO_ROOT / "data" / "adapter_registry.json"
+# ADR-061 (D1/D2): the ONLY file that distinguishes an OBSERVED APY from a
+# hardcoded literal — ``adapters[*].live_apy`` is explicitly ``null`` when the
+# producer could not observe the pool. Every other surface (registry
+# ``fallback_apy``, adapter ``DEFAULT_APY_PCT``) is a literal, never evidence.
+_ADAPTER_STATUS_PATH = _REPO_ROOT / "data" / "adapter_status.json"
 _EPS = 1e-12
+
+# ADR-061: below this many evidenced protocols the evidence gate is NOT applied
+# (the evidence source is missing/unreadable). Ranking then falls back to the
+# legacy universe with a loud note instead of silently emptying the book — an
+# all-cash collapse triggered by an unreadable file would itself be a money-path
+# incident. min_protocols is 3, so fewer than 3 could not be allocated anyway.
+_EVIDENCE_MIN_COVERAGE = 3
 
 # MP-REGISTRY: fallback TVL assumption for registry-only adapters (not in orchestrator).
 # These are all established protocols with TVL >> $5M TVL floor; $50M is conservative.
@@ -183,6 +195,166 @@ def _default_live_apy_provider() -> dict[str, float]:
     return out
 
 
+# ─── ADR-061: evidence of an OBSERVED APY (D1/D2) ────────────────────────────
+
+
+def _load_evidenced_apy(
+    orchestrator_path: Path,
+    adapter_status_path: Path | None = None,
+) -> dict[str, tuple[float, str]]:
+    """Return ``{protocol: (apy_decimal, source)}`` for OBSERVED APYs only.
+
+    ADR-061. Two sources, both of which carry an explicit "this was observed"
+    signal, so a hardcoded literal can never masquerade as a live reading:
+
+    1. ``adapter_orchestrator_status.json`` — entries with ``live_data == true``
+       (the orchestrator polled the adapter and got a value).
+    2. ``adapter_status.json`` → ``adapters[*].live_apy`` — non-null means the
+       producer observed the pool; ``null`` means it did not (and its ``apy``
+       field then merely echoes the literal ``fallback_apy``).
+
+    Deliberately NOT evidence: the registry ``fallback_apy`` literal, and the
+    per-adapter ``get_yield_info()`` call — 12 of 35 adapters read
+    ``adapter_status.json`` by an obsolete schema (top level instead of
+    ``adapters``) and silently return their hardcoded ``DEFAULT_APY_PCT``
+    (D1). Until those are fixed, an adapter call cannot prove observation.
+
+    On conflict the FRESHER producer wins (deterministic, by ``generated_at``);
+    both values are logged so a divergence stays visible (D6). Never raises:
+    any unreadable/invalid input contributes nothing.
+    """
+    out: dict[str, tuple[float, str]] = {}
+
+    def _band(v: object) -> float | None:
+        """Percent → decimal, fail-CLOSED outside the live-APY sanity band."""
+        if not isinstance(v, (int, float)) or isinstance(v, bool):
+            return None
+        dec = float(v) / 100.0
+        if not math.isfinite(dec):
+            return None
+        if not (_LIVE_APY_MIN_DECIMAL < dec <= _LIVE_APY_MAX_DECIMAL):
+            return None
+        return dec
+
+    def _read(path: Path) -> dict:
+        try:
+            return json.loads(Path(path).read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001 — evidence is best-effort
+            log.warning("ADR-061: evidence source unreadable %s (%s)", path, exc)
+            return {}
+
+    orch = _read(orchestrator_path)
+    orch_ts = str(orch.get("generated_at") or "")
+    for a in orch.get("adapters", []) or []:
+        if not isinstance(a, dict) or not a.get("live_data"):
+            continue
+        if a.get("status") not in ("ok", "partial", None):
+            continue
+        dec = _band(a.get("apy_pct"))
+        if dec is not None and a.get("protocol"):
+            out[str(a["protocol"])] = (dec, "orchestrator_live")
+
+    if adapter_status_path is None:
+        return out
+
+    st = _read(adapter_status_path)
+    st_ts = str(st.get("generated_at") or "")
+
+    def _parsed(ts: str) -> datetime | None:
+        """ISO-8601 → aware datetime. Never raises; ``None`` when unparseable."""
+        try:
+            dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        except (ValueError, AttributeError):
+            return None
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+    # Compare real instants, not strings: "…Z" vs "…+00:00" sort in the WRONG
+    # order lexicographically ("Z" > "+"), which would silently pick the stale
+    # producer on a money-path tie-break. Unparseable timestamps ⇒ keep the
+    # incumbent (fail-CLOSED: do not switch sources on an unknown).
+    _st_dt, _orch_dt = _parsed(st_ts), _parsed(orch_ts)
+    st_newer = bool(_st_dt and _orch_dt and _st_dt > _orch_dt)
+    for name, entry in (st.get("adapters", {}) or {}).items():
+        if not isinstance(entry, dict):
+            continue
+        dec = _band(entry.get("live_apy"))  # null ⇒ NOT observed ⇒ no evidence
+        if dec is None:
+            continue
+        prev = out.get(str(name))
+        if prev is not None:
+            if abs(prev[0] - dec) > 1e-9:
+                log.info(
+                    "ADR-061 (D6) feed divergence %s: orchestrator=%.4f%% "
+                    "adapter_status=%.4f%% — using %s (fresher)",
+                    name, prev[0] * 100.0, dec * 100.0,
+                    "adapter_status" if st_newer else "orchestrator",
+                )
+            if not st_newer:
+                continue
+        out[str(name)] = (dec, "adapter_status_live")
+
+    return out
+
+
+def _adapter_class_gate(protocol: str) -> tuple[bool, str | None]:
+    """ADR-061 (D3/D4): may ``protocol`` receive capital at all?
+
+    Returns ``(allowed, reason_if_blocked)``. Fail-CLOSED — anything that cannot
+    be evaluated cleanly blocks funding rather than allowing it.
+
+    * ``IS_ADVISORY`` / ``RESEARCH_ONLY`` ⇒ never funded (invariant 9). The live
+      provider already excluded these; the registry-merge path did NOT, which is
+      how two advisory pools came to hold 15 % of the book (D3).
+    * ``is_gsm_compliant() == False`` ⇒ not funded. This is the adapter's own
+      ACTIVATION invariant — for ``spark_susds`` it is invariant 10 (Sky/sUSDS =
+      0 % until the GSM Pause Delay ≥ 48 h is confirmed on-chain), and
+      ``fluid_fusdc`` declares the same gate deliberately ("аналог Spark sUSDS,
+      protects against governance exploits"). Nothing consulted it (D4).
+
+    DELIBERATELY NOT gated on the generic ``is_eligible()``, although the card
+    proposed it: for most adapters ``is_eligible`` is ``gsm ∧ MIN_APY ≤ apy ≤
+    MAX_APY``, and those bands are per-adapter feed-sanity values (e.g. spark
+    4–9 %, fluid 3–10 %), NOT RiskPolicy's 1–30 %. Using it to gate funding would
+    silently install an APY floor that no ADR owns — a policy threshold change by
+    the back door. A first attempt did gate on it and
+    ``test_live_apy_drives_ranking_not_the_stale_literal`` correctly caught it.
+
+    Adapters with no registry entry and no gate are allowed — absence of a class
+    is not, by itself, a disqualification (it is handled by the evidence gate).
+    """
+    try:
+        from spa_core.adapters import ADAPTER_REGISTRY
+    except Exception as exc:  # pragma: no cover — import guard
+        log.warning("ADR-061: ADAPTER_REGISTRY import failed (%s) — gate skipped", exc)
+        return True, None
+
+    cls = None
+    for entry in ADAPTER_REGISTRY:
+        try:
+            if entry[0] == protocol:
+                cls = entry[2]
+                break
+        except Exception:  # noqa: BLE001 — malformed registry row
+            continue
+    if cls is None:
+        return True, None
+
+    if getattr(cls, "IS_ADVISORY", False) or getattr(cls, "RESEARCH_ONLY", False):
+        return False, "advisory"
+
+    if hasattr(cls, "is_gsm_compliant"):
+        try:
+            if not cls().is_gsm_compliant():
+                return False, "gsm_not_confirmed"
+        except Exception as exc:  # noqa: BLE001 — fail-CLOSED on an unusable gate
+            log.warning(
+                "ADR-061: %s.is_gsm_compliant() raised (%s) — blocked", protocol, exc
+            )
+            return False, "gsm_gate_error"
+
+    return True, None
+
+
 @dataclass
 class AllocationResult:
     """Результат расчёта целевого распределения."""
@@ -224,6 +396,12 @@ class AllocationResult:
     apy_sources: dict[str, str] = field(default_factory=dict)
     apy_used: dict[str, float] = field(default_factory=dict)
     feed_coverage: dict = field(default_factory=dict)
+    # ADR-061 (D1–D4): True when funding was restricted to OBSERVED APYs.
+    # ``blocked_protocols`` maps protocol → "advisory" | "gsm_not_confirmed" |
+    # "gsm_gate_error" | "unevidenced" — the audit trail of what could NOT
+    # receive capital this run, and why.
+    evidence_gate_applied: bool = False
+    blocked_protocols: dict[str, str] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -301,6 +479,10 @@ class StrategyAllocator:
             dict[str, float] | Callable[[], dict[str, float]] | bool | None
         ) = None,
         objective: str | float | None = None,
+        # ADR-061: source of OBSERVED APY (``adapters[*].live_apy``). None → the
+        # project default; tests point it at a fixture or inject an explicit
+        # ``live_apy_provider`` (which then acts as the evidence map).
+        adapter_status_path: str | os.PathLike | None = None,
     ):
         self.status_path = Path(status_path) if status_path else _STATUS_PATH
         self.risk_scores_path = (
@@ -341,6 +523,12 @@ class StrategyAllocator:
         self._apy_sources: dict[str, str] = {}
         self._apy_used: dict[str, float] = {}  # protocol → apy_pct actually ranked on
         self._as_of: dict[str, str] = {}       # protocol → ISO ts of the value used
+        # ADR-061: evidence gate state, surfaced on AllocationResult.
+        self._adapter_status_path = (
+            Path(adapter_status_path) if adapter_status_path else _ADAPTER_STATUS_PATH
+        )
+        self._evidence_gate_applied: bool = False
+        self._blocked: dict[str, str] = {}     # protocol → reason it cannot be funded
 
     # ── WS1.1: live point-in-time APY lookup ──────────────────────────────
     def _get_live_apy_map(self) -> dict[str, float]:
@@ -465,8 +653,51 @@ class StrategyAllocator:
         self._apy_sources = {}
         self._apy_used = {}
         self._as_of = {}
+        self._blocked = {}
         live_apy = self._get_live_apy_map()
         now_iso = datetime.now(timezone.utc).isoformat()
+
+        # ── ADR-061: build the EVIDENCE map (observed APY only) ─────────────
+        # Contract: an explicitly injected ``live_apy_provider`` IS the evidence
+        # map (tests stay offline + deterministic and keep full control). With
+        # the default (None) provider evidence is read from the two files that
+        # carry an explicit observation flag. Under pytest the default performs
+        # no file read for the same reason the live provider performs no network
+        # I/O — a test must never rank on the live repo's data/.
+        evidence: dict[str, float] = {}
+        evidence_src: dict[str, str] = {}
+        if self._live_apy_provider is None:
+            if not os.environ.get("PYTEST_CURRENT_TEST"):
+                for _p, (_v, _s) in _load_evidenced_apy(
+                    self.status_path, self._adapter_status_path
+                ).items():
+                    evidence[_p], evidence_src[_p] = _v, _s
+        else:
+            for _p, _v in live_apy.items():
+                evidence[_p], evidence_src[_p] = _v, "injected"
+        # Fail-safe: too little evidence means the SOURCE is broken, not that the
+        # world is unfundable. Ranking then keeps the legacy universe (loudly
+        # noted) instead of collapsing the book to all-cash on an unreadable file.
+        self._evidence_gate_applied = len(evidence) >= _EVIDENCE_MIN_COVERAGE
+        if not self._evidence_gate_applied:
+            log.warning(
+                "ADR-061: only %d evidenced APYs (< %d) — evidence gate NOT applied, "
+                "ranking on the legacy universe",
+                len(evidence), _EVIDENCE_MIN_COVERAGE,
+            )
+
+        def _fundable(protocol: str) -> bool:
+            """ADR-061 gate: class flags (D3/D4) + evidence (D1/D2). Fail-CLOSED."""
+            allowed, reason = _adapter_class_gate(protocol)
+            if not allowed:
+                self._blocked[protocol] = reason or "blocked"
+                return False
+            if self._evidence_gate_applied and protocol not in evidence:
+                # Rule (.claude/rules/risk-engine.md): a stale/unobserved feed
+                # means the protocol is NOT taken into a fresh allocation.
+                self._blocked[protocol] = "unevidenced"
+                return False
+            return True
 
         if self.status_path.exists():
             with open(self.status_path, encoding="utf-8") as fh:
@@ -477,12 +708,20 @@ class StrategyAllocator:
                     continue
                 protocol = str(a["protocol"])
                 seen_protocols.add(protocol)
+                # ADR-061 (D3/D4 + evidence): an advisory / not-eligible /
+                # unobserved protocol is never funded — from EITHER load path.
+                if not _fundable(protocol):
+                    continue
                 # Orchestrator-snapshot adapters already came from the live
                 # get_yield_info() feed → their apy_pct is live by construction.
-                # Prefer the freshly-fetched live reading when present (same feed,
-                # one consistent timestamp); else trust the snapshot value.
+                # ADR-061: rank on the EVIDENCED value when we have one (it is
+                # the observation that won the freshness tie-break), else on the
+                # snapshot value. The pre-ADR-061 path preferred ``live_apy``,
+                # which for 12 adapters is a hardcoded literal (D1).
                 snap_apy = float(a.get("apy_pct", 0.0))
-                if protocol in live_apy:
+                if protocol in evidence:
+                    apy_pct = round(evidence[protocol] * 100.0, 4)
+                elif protocol in live_apy:
                     apy_pct = round(live_apy[protocol] * 100.0, 4)
                 else:
                     apy_pct = snap_apy
@@ -528,13 +767,25 @@ class StrategyAllocator:
                         continue
                     if entry.get("status") not in ("active",):
                         continue
+                    # ADR-061 (D3): the live path already excluded advisory
+                    # adapters — THIS path did not, which is how two advisory
+                    # pools came to hold 15 % of the book. Same gate, both paths.
+                    if not _fundable(name):
+                        continue
                     # Registry stores tier as integer (1/2/3); treat tier≥3 as T2.
                     tier_int = entry.get("tier", 2)
                     tier_str = "T1" if tier_int == 1 else "T2"
                     tvl = float(entry.get("fallback_tvl_usd", _REGISTRY_FALLBACK_TVL_USD))
 
-                    if name in live_apy:
-                        # LIVE WINS. Normalised decimal → pct.
+                    if name in evidence:
+                        # ADR-061: an OBSERVED reading — the only thing that may
+                        # rank a protocol for funding.
+                        apy_pct = round(evidence[name] * 100.0, 4)
+                        apy_source = "live"
+                        as_of = now_iso
+                    elif name in live_apy and not self._evidence_gate_applied:
+                        # Legacy path, reachable only while the evidence source
+                        # is unusable (see _EVIDENCE_MIN_COVERAGE).
                         apy_pct = round(live_apy[name] * 100.0, 4)
                         apy_source = "live"
                         as_of = now_iso
@@ -594,6 +845,10 @@ class StrategyAllocator:
             "apy_sources": dict(self._apy_sources),
             "apy_used_pct": {p: round(v, 4) for p, v in self._apy_used.items()},
             "as_of": dict(self._as_of),
+            # ADR-061: was funding restricted to OBSERVED APYs this run, and who
+            # was blocked (advisory / not_eligible / unevidenced) and why.
+            "evidence_gate_applied": self._evidence_gate_applied,
+            "blocked": dict(self._blocked),
         }
 
     # ── кап'ы по тирам (water-filling) ────────────────────────────────────
@@ -911,6 +1166,8 @@ class StrategyAllocator:
                 apy_sources=dict(self._apy_sources),
                 apy_used=dict(self._apy_used),
                 feed_coverage=self._build_feed_coverage(),
+                evidence_gate_applied=self._evidence_gate_applied,
+                blocked_protocols=dict(self._blocked),
                 notes=notes,
             )
 
@@ -924,6 +1181,24 @@ class StrategyAllocator:
                 live=_cov["live"], total=_cov["total"], stale=_cov["fallback_stale"]
             )
         )
+        # ADR-061: capital that could NOT be deployed must say why — a blocked
+        # protocol is a deliberate, logged refusal, never a silent omission.
+        if self._evidence_gate_applied:
+            _by_reason: dict[str, list[str]] = {}
+            for _p, _r in sorted(self._blocked.items()):
+                _by_reason.setdefault(_r, []).append(_p)
+            notes.append(
+                "ADR-061 evidence gate ON: финансируются только протоколы с "
+                "НАБЛЮДЁННЫМ APY. Не допущены: "
+                + ("; ".join(f"{r} → {ps}" for r, ps in sorted(_by_reason.items()))
+                   or "нет")
+            )
+        else:
+            notes.append(
+                "ADR-061 WARNING: evidence gate НЕ применён (источник наблюдений "
+                "недоступен) — ранжирование на легаси-вселенной, числа могут быть "
+                "литералами. Требуется проверка data/adapter_status.json."
+            )
 
         risk_model_applied = False
         risk_breakdown: dict[str, dict] = {}
@@ -1219,6 +1494,8 @@ class StrategyAllocator:
             apy_sources=dict(self._apy_sources),
             apy_used=dict(self._apy_used),
             feed_coverage=_cov,
+            evidence_gate_applied=self._evidence_gate_applied,
+            blocked_protocols=dict(self._blocked),
             notes=notes,
         )
 
