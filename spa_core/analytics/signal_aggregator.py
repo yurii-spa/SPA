@@ -10,8 +10,18 @@ Tier C (раз в день):  фоновая аналитика  → data/analyt
 * Атомарная запись (tempfile + os.replace).
 * Ring-buffer health-лог 100 записей (data/analytics_health.json).
 * Per-module timeout 3 сек (ThreadPoolExecutor future.result(timeout=)).
-* Fail-open: упавший/таймаутнувший/без-данных модуль ИГНОРИРУЕТСЯ —
-  он не блокирует и не валит цикл, лишь снижает confidence.
+* Fail-open ГРОМКИЙ (audit 2026-08-02): упавший/таймаутнувший/без-данных модуль
+  не валит цикл, но его статус фиксируется явно — unchecked (нет entrypoint,
+  принимающего protocol-контекст) / failed (исключение + detail) / dormant
+  (вернул некоэрсируемый результат) / timeout — в health-логе и в
+  ``_meta.module_status`` выходного JSON. Молчаливого None больше нет.
+* НЕТ no-arg fallback: модуль, который нельзя вызвать с контекстом протокола,
+  считается UNCHECKED и в score не попадает (раньше fn() выполнялся на
+  встроенных demo-данных → протокол-слепая константа для всех протоколов).
+* Протокол-слепые «ok»-модули (дифференциальный аудит 2026-08-02,
+  scripts/audit_protocol_blindness.py → _protocol_blindness.py): принимают
+  контекст, но игнорируют ctx["protocol"] → константный score. В Tier-B не
+  исполняются, статус "blind", исключены из composite и confidence.
 * Python 3.9 совместимость: Optional[...] из typing, без str | None.
 
 Агрегация:
@@ -28,6 +38,7 @@ from __future__ import annotations
 
 import argparse
 import importlib
+import inspect
 import json
 import logging
 import os
@@ -40,6 +51,13 @@ from pathlib import Path
 from typing import Any, Deque, Dict, List, Optional, Tuple
 
 from spa_core.analytics import _module_registry as registry
+
+# Эмпирическая разметка протокол-слепых Tier-B модулей (дифференциальный
+# аудит scripts/audit_protocol_blindness.py). Отсутствие файла = пустой набор.
+try:
+    from spa_core.analytics._protocol_blindness import PROTOCOL_BLIND_MODULES
+except Exception:  # pragma: no cover — разметка ещё не сгенерирована
+    PROTOCOL_BLIND_MODULES = frozenset()
 
 log = logging.getLogger("spa.analytics.signal_aggregator")
 
@@ -74,10 +92,13 @@ _ENTRY_METHODS = (
 )
 # Ключи в dict-результате, где может лежать числовой риск 0-100.
 # Базовые ключи + ключи Tier-C модулей (fix MP-1305).
+# Audit 2026-08-02: generic "value" убран — любой dict с числовым "value"
+# (APY, TVL, что угодно) коэрсился в risk-score; принимаем только ключи,
+# которые семантически являются риском/оценкой.
 _SCORE_KEYS = (
     "risk_score", "score", "composite_risk_0_100", "composite_score",
     "risk", "probability", "depeg_probability", "cascade_risk",
-    "score_0_100", "value",
+    "score_0_100",
     # Tier-C специфичные ключи (обнаружены при сканировании 180 модулей):
     "attractiveness_score", "rate_sensitivity_score", "attack_feasibility_score",
     "protection_score", "hhi_concentration_score", "average_composability_score",
@@ -92,16 +113,22 @@ def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+# Sentinel: у модуля нет entrypoint'а, принимающего protocol-контекст —
+# сигнал НЕ измерен (в отличие от «модуль вернул None»).
+UNCHECKED = object()
+
+
 # ─── Module adapter ────────────────────────────────────────────────────────────
 
 class _ModuleAdapter:
     """Унифицированная обёртка над разнородным аналитическим модулем.
 
-    Импортирует модуль, пытается вызвать один из ``_ENTRY_METHODS`` с гибким
-    контекстом протокола и нормализует выход в ``(score_0_100, ok)``.
+    Импортирует модуль, пытается вызвать один из ``_ENTRY_METHODS`` с
+    protocol-контекстом и нормализует выход в ``(score_0_100, status, detail)``.
 
     Если модуль не удаётся импортировать / вызвать / получить валидный score —
-    возвращает ``(None, False)`` (dormant): сигнал отбрасывается, цикл живёт.
+    score = None и явный status (unchecked/failed/dormant): сигнал
+    отбрасывается, цикл живёт, но провал фиксируется громко.
     """
 
     def __init__(self, module_info: Dict[str, Any]):
@@ -140,14 +167,17 @@ class _ModuleAdapter:
             return max(0.0, min(100.0, v))
         if isinstance(result, dict):
             for key in _SCORE_KEYS:
-                if key in result and isinstance(result[key], (int, float)):
-                    v = float(result[key])
-                    # *_probability ключи → [0,1] → *100
-                    if "probab" in key and 0.0 <= v <= 1.0:
-                        return max(0.0, min(100.0, v * 100.0))
-                    if 0.0 <= v <= 1.0 and key in ("risk", "value"):
-                        return max(0.0, min(100.0, v * 100.0))
-                    return max(0.0, min(100.0, v))
+                v_raw = result.get(key)
+                # bool — подкласс int; {"score": True} не является score
+                if not isinstance(v_raw, (int, float)) or isinstance(v_raw, bool):
+                    continue
+                v = float(v_raw)
+                # *_probability ключи → [0,1] → *100
+                if "probab" in key and 0.0 <= v <= 1.0:
+                    return max(0.0, min(100.0, v * 100.0))
+                if 0.0 <= v <= 1.0 and key == "risk":
+                    return max(0.0, min(100.0, v * 100.0))
+                return max(0.0, min(100.0, v))
             # risk_label → числовая шкала (расширена для Tier-C меток, fix MP-1305)
             label = str(result.get("risk_label") or result.get("label") or "").upper()
             label_map = {
@@ -169,42 +199,64 @@ class _ModuleAdapter:
             # Fallback: сканируем dict на любой ключ вида *_score (fix MP-1305).
             # Tier-C модули возвращают разнородные score-поля — берём первый найденный.
             for k, v in result.items():
-                if k.endswith("_score") and isinstance(v, (int, float)):
+                if (k.endswith("_score") and isinstance(v, (int, float))
+                        and not isinstance(v, bool)):
                     return max(0.0, min(100.0, float(v)))
         return None
 
     def _invoke(self, obj: Any, context: Dict[str, Any]) -> Any:
-        """Найти и вызвать первый подходящий entrypoint с гибкими аргументами."""
+        """Найти и вызвать первый entrypoint, принимающий protocol-контекст.
+
+        Audit 2026-08-02: no-arg fallback ``fn()`` УДАЛЁН — он успешно
+        выполнялся на встроенных demo-данных модуля, никогда не видел
+        ``context["protocol"]`` и давал протокол-слепую константу для всех
+        протоколов. Пригодность сигнатуры проверяется через
+        ``inspect.signature().bind()`` ДО вызова, чтобы TypeError изнутри
+        модуля не глотался как «не та сигнатура», а всплывал как failed.
+        Если ни один entrypoint не принимает контекст → ``UNCHECKED``.
+        """
         for meth_name in _ENTRY_METHODS:
             fn = getattr(obj, meth_name, None)
             if not callable(fn):
                 continue
-            # Пытаемся несколько сигнатур: (context), (), (list, dict)
             for args, kwargs in (
                 ((), {"context": context}),
                 ((context,), {}),
-                ((), {}),
             ):
                 try:
-                    return fn(*args, **kwargs)
-                except TypeError:
+                    inspect.signature(fn).bind(*args, **kwargs)
+                except (TypeError, ValueError):
                     continue
-        return None
+                # Сигнатура совместима — исключения изнутри НЕ глотаем здесь:
+                # они всплывают в run() и фиксируются как status="failed".
+                return fn(*args, **kwargs)
+        return UNCHECKED
 
-    def run(self, protocol: str, context: Dict[str, Any]) -> Tuple[Optional[float], bool]:
-        """Выполнить модуль для протокола. Возвращает (score_0_100, ok)."""
+    def run(self, protocol: str, context: Dict[str, Any]) -> Tuple[Optional[float], str, str]:
+        """Выполнить модуль для протокола. Возвращает (score_0_100, status, detail).
+
+        status: ``ok`` (валидный score) | ``unchecked`` (нет entrypoint,
+        принимающего protocol-контекст — модуль в принципе не может дать
+        протокол-специфичный сигнал) | ``dormant`` (вызвался, но результат
+        не коэрсится в score) | ``failed`` (исключение; detail = тип+текст).
+        Fail-open по-прежнему: не-ok статус не валит цикл, но он ГРОМКИЙ —
+        попадает в health-лог и в _meta.module_status выходного JSON.
+        """
         try:
             obj = self._import_callable()
             ctx = dict(context)
             ctx["protocol"] = protocol
             raw = self._invoke(obj, ctx)
+            if raw is UNCHECKED:
+                return None, "unchecked", "no context-accepting entrypoint"
             score = self._coerce_score(raw)
             if score is None:
-                return None, False
-            return score, True
-        except Exception:
-            # fail-open: любой сбой → dormant
-            return None, False
+                return None, "dormant", (
+                    "result not coercible to score (type=%s)" % type(raw).__name__
+                )
+            return score, "ok", ""
+        except Exception as exc:  # noqa: BLE001 — fail-open, но с диагнозом
+            return None, "failed", f"{type(exc).__name__}: {exc}"
 
 
 # ─── Aggregator ────────────────────────────────────────────────────────────────
@@ -219,6 +271,10 @@ class SignalAggregator:
         self.module_timeout = module_timeout
         self.max_workers = max_workers
         self._log: Deque[Dict[str, Any]] = deque(maxlen=MAX_HEALTH_LOG)
+        # Audit 2026-08-02: агрегированный статус каждого модуля за прогон
+        # (ok выигрывает у любого не-ok: модуль, отработавший хотя бы для
+        # одного протокола, считается пригодным).
+        self._module_status: Dict[str, str] = {}
 
     # ── helpers ──────────────────────────────────────────────────────────
 
@@ -226,9 +282,27 @@ class SignalAggregator:
         self._log.append({
             "ts": _utc_now_iso(),
             "module": module_name,
-            "status": status,        # ok | failed | timeout | dormant
+            "status": status,        # ok | unchecked | failed | timeout | dormant | blind
             "detail": detail,
         })
+        if status == "ok" or self._module_status.get(module_name) != "ok":
+            self._module_status[module_name] = status
+
+    def _module_status_summary(self) -> Dict[str, Any]:
+        """Сводка пригодности модулей за прогон — для _meta выходного JSON.
+
+        counts: {status: n}; not_ok: {status: [module, ...]} — явный список
+        того, что НЕ дало сигнал (unchecked/failed/dormant/timeout), чтобы
+        было видно, какие из Tier-модулей реально пригодны.
+        """
+        counts: Dict[str, int] = {}
+        not_ok: Dict[str, List[str]] = {}
+        for name in sorted(self._module_status):
+            st = self._module_status[name]
+            counts[st] = counts.get(st, 0) + 1
+            if st != "ok":
+                not_ok.setdefault(st, []).append(name)
+        return {"counts": counts, "not_ok": not_ok}
 
     def _run_module(self, module_info: Dict[str, Any], protocol: str,
                     context: Dict[str, Any]) -> Tuple[Optional[float], bool]:
@@ -237,15 +311,16 @@ class SignalAggregator:
         with ThreadPoolExecutor(max_workers=1) as ex:
             fut = ex.submit(adapter.run, protocol, context)
             try:
-                score, ok = fut.result(timeout=self.module_timeout)
+                score, status, detail = fut.result(timeout=self.module_timeout)
             except FuturesTimeout:
                 self._record(adapter.module_name, "timeout")
                 return None, False
             except Exception as exc:  # noqa: BLE001
-                self._record(adapter.module_name, "failed", str(exc))
+                self._record(adapter.module_name, "failed",
+                             f"{type(exc).__name__}: {exc}")
                 return None, False
-        self._record(adapter.module_name, "ok" if ok else "dormant")
-        return score, ok
+        self._record(adapter.module_name, status, detail)
+        return score, status == "ok"
 
     # ── Tier A ───────────────────────────────────────────────────────────
 
@@ -296,7 +371,8 @@ class SignalAggregator:
             }
         return {
             "_meta": {"timestamp": _utc_now_iso(), "tier": "A",
-                      "module_count": len(modules)},
+                      "module_count": len(modules),
+                      "module_status": self._module_status_summary()},
             "generated_at": _utc_now_iso(),
             "protocols": signals,
             "signals": signals,  # ADR-031 совместимый алиас
@@ -308,8 +384,19 @@ class SignalAggregator:
         """Возвращает {protocol: {risk_multiplier, confidence, composite_risk_0_100}}.
 
         risk_multiplier = 1.0 - (avg_score - 50) / 100, зажат в [0.5, 1.5].
-        confidence = доля модулей, реально вернувших валидный сигнал.
-        Низкая confidence → сигнал смягчается к нейтральному (mult≈1.0).
+        confidence = доля модулей, реально вернувших ПРОТОКОЛ-СПЕЦИФИЧНЫЙ
+        сигнал. Низкая confidence → сигнал смягчается к нейтральному (mult≈1.0).
+
+        Дифференциальный аудит 2026-08-02 (scripts/audit_protocol_blindness.py):
+        модули из ``PROTOCOL_BLIND_MODULES`` возвращают константный score,
+        не зависящий от ctx["protocol"] (тот же байт-в-байт даже для
+        несуществующего контрольного протокола) — протокол-специфичной
+        информации не несут. Они НЕ исполняются (детерминированно дешевле),
+        получают громкий статус "blind" (health-лог + _meta.module_status)
+        и исключаются из composite И из числителя confidence: до фикса 150
+        констант складывались в composite ≈8.6 → фиктивный risk_multiplier
+        ≈1.41 для ЛЮБОГО протокола одинаково. Advisory-слой; Tier-A (worst-
+        wins, не weighted) разметку не потребляет.
         """
         modules = registry.get_tier_modules("B")
         total_modules = max(1, len(modules))
@@ -319,10 +406,17 @@ class SignalAggregator:
             weight_total = 0.0
             ok_count = 0
             contributors: List[Dict[str, Any]] = []
+            runnable = []
+            for m in modules:
+                if m.get("module") in PROTOCOL_BLIND_MODULES:
+                    self._record(m["module"], "blind",
+                                 "protocol-blind constant (audit markup)")
+                else:
+                    runnable.append(m)
             with ThreadPoolExecutor(max_workers=self.max_workers) as ex:
                 futs = {
                     ex.submit(self._run_module, m, proto, context): m
-                    for m in modules
+                    for m in runnable
                 }
                 for fut in futs:
                     m = futs[fut]
@@ -363,7 +457,8 @@ class SignalAggregator:
             }
         return {
             "_meta": {"timestamp": _utc_now_iso(), "tier": "B",
-                      "ttl_s": TIER_B_TTL_S, "module_count": len(modules)},
+                      "ttl_s": TIER_B_TTL_S, "module_count": len(modules),
+                      "module_status": self._module_status_summary()},
             "generated_at": _utc_now_iso(),
             "protocols": signals,
             "signals": signals,
@@ -397,7 +492,8 @@ class SignalAggregator:
             }
         return {
             "_meta": {"timestamp": _utc_now_iso(), "tier": "C",
-                      "module_count": len(modules)},
+                      "module_count": len(modules),
+                      "module_status": self._module_status_summary()},
             "generated_at": _utc_now_iso(),
             "protocols": per_proto,
         }

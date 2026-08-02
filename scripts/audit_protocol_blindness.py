@@ -1,0 +1,238 @@
+#!/usr/bin/env python3
+"""
+audit_protocol_blindness.py — дифференциальный аудит протокол-слепоты Tier-B.
+
+Контекст (audit 2026-08-02): после удаления no-arg fallback в
+`_ModuleAdapter._invoke` часть Tier-B модулей всё ещё возвращает "ok" —
+они принимают context-аргумент, но внутри игнорируют ctx["protocol"]
+(читают собственные внутренние/demo-данные) → composite_risk_0_100
+байт-в-байт одинаковый для любого протокола. Слепота ушла с уровня
+адаптера, но осталась внутри модулей.
+
+Метод (дифференциальный):
+  каждый Tier-B модуль прогоняется через тот же `_ModuleAdapter`, что и в
+  проде, для набора прогонов:
+    * реальные протоколы: aave_v3, maple, pendle;
+    * повтор aave_v3 — ловит недетерминированные модули (различие score
+      при ОДНОМ протоколе ≠ протокол-чувствительность);
+    * контрольный несуществующий протокол — модуль, отдающий тот же score
+      для заведомо несуществующего протокола, гарантированно не читает
+      ctx["protocol"].
+
+Классификация ok-модулей:
+  sensitive        — score различается между реальными протоколами
+                     (и повтор aave_v3 стабилен);
+  nondeterministic — повтор aave_v3 дал другой score: сигнал нестабилен,
+                     различия между протоколами недоказуемы;
+  blind_constant   — одинаковый score на всех реальных протоколах И на
+                     контрольном несуществующем;
+  blind_equal      — одинаковый score на реальных протоколах, но контроль
+                     повёл себя иначе (код читает протокол, а данные —
+                     нет: практически слепой сегодня, data-starved).
+
+Для weight-политики blind_constant / blind_equal / nondeterministic —
+все «слепой эквивалент» (не несут протокол-специфичной информации).
+
+Запуск ТОЛЬКО в sandbox (не из живой ~/Documents/SPA_Claude — модули пишут
+свои data/*-логи относительно корня репо):
+
+    python3 scripts/audit_protocol_blindness.py --out /path/to/report.json
+
+Опционально `--emit-markup` генерирует spa_core/analytics/_protocol_blindness.py
+(машиночитаемая разметка, потребляется signal_aggregator.run_tier_b).
+stdlib-only, детерминированный порядок обхода, advisory-слой.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT))
+
+from spa_core.analytics import _module_registry as registry          # noqa: E402
+from spa_core.analytics.signal_aggregator import _ModuleAdapter      # noqa: E402
+
+REAL_PROTOCOLS = ["aave_v3", "maple", "pendle"]
+REPEAT_PROTOCOL = "aave_v3"          # повторный прогон — ловим недетерминизм
+CONTROL_PROTOCOL = "__nonexistent_control_protocol__"
+MODULE_TIMEOUT = 3.0                 # как в проде (signal_aggregator)
+MAX_WORKERS = 8
+
+BLIND_EQUIVALENT = ("blind_constant", "blind_equal", "nondeterministic")
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _run_once(module_info: Dict[str, Any], protocol: str
+              ) -> Tuple[Optional[float], str, str]:
+    """Один прогон модуля для протокола с прод-таймаутом. → (score, status, detail)."""
+    adapter = _ModuleAdapter(module_info)
+    with ThreadPoolExecutor(max_workers=1) as ex:
+        fut = ex.submit(adapter.run, protocol, {"source": "blindness_audit"})
+        try:
+            return fut.result(timeout=MODULE_TIMEOUT)
+        except FuturesTimeout:
+            return None, "timeout", ""
+        except Exception as exc:  # noqa: BLE001 — fail-open, как в проде
+            return None, "failed", f"{type(exc).__name__}: {exc}"
+
+
+def _audit_module(module_info: Dict[str, Any]) -> Dict[str, Any]:
+    """Полный дифференциальный прогон одного модуля."""
+    name = module_info.get("module", "")
+    runs: Dict[str, Dict[str, Any]] = {}
+    for label, proto in (
+        [(p, p) for p in REAL_PROTOCOLS]
+        + [(REPEAT_PROTOCOL + "#2", REPEAT_PROTOCOL), ("control", CONTROL_PROTOCOL)]
+    ):
+        score, status, detail = _run_once(module_info, proto)
+        runs[label] = {"score": score, "status": status}
+        if detail:
+            runs[label]["detail"] = detail
+
+    real = [runs[p] for p in REAL_PROTOCOLS]
+    real_ok = [r for r in real if r["status"] == "ok"]
+    # Статус модуля = худший «первичный» статус (для не-ok модулей аудит
+    # лишь подтверждает разбивку unchecked/failed/dormant/timeout).
+    if len(real_ok) == 0:
+        primary = real[0]["status"]
+        return {"module": name, "classification": primary, "runs": runs}
+    if len(real_ok) < len(real):
+        # ok не на всех реальных протоколах — уже протокол-зависимое поведение
+        return {"module": name, "classification": "sensitive",
+                "subtype": "partial_ok", "runs": runs}
+
+    scores = [r["score"] for r in real_ok]
+    repeat = runs[REPEAT_PROTOCOL + "#2"]
+    control = runs["control"]
+
+    if repeat["status"] == "ok" and repeat["score"] != runs[REPEAT_PROTOCOL]["score"]:
+        cls = "nondeterministic"
+    elif len(set(scores)) > 1:
+        cls = "sensitive"
+    elif control["status"] == "ok" and control["score"] == scores[0]:
+        cls = "blind_constant"
+    else:
+        cls = "blind_equal"
+    return {"module": name, "classification": cls, "runs": runs,
+            "weight": module_info.get("weight"),
+            "category": module_info.get("category")}
+
+
+def run_audit(tier: str = "B") -> Dict[str, Any]:
+    modules = registry.get_tier_modules(tier)
+    results: List[Dict[str, Any]] = []
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
+        for res in ex.map(_audit_module, modules):
+            results.append(res)
+    results.sort(key=lambda r: r["module"])
+
+    counts: Dict[str, int] = {}
+    for r in results:
+        counts[r["classification"]] = counts.get(r["classification"], 0) + 1
+    blind = sorted(r["module"] for r in results
+                   if r["classification"] in BLIND_EQUIVALENT)
+    sensitive = sorted(r["module"] for r in results
+                       if r["classification"] == "sensitive")
+    return {
+        "generated_at": _utc_now_iso(),
+        "tier": tier,
+        "method": {
+            "real_protocols": REAL_PROTOCOLS,
+            "repeat_protocol": REPEAT_PROTOCOL,
+            "control_protocol": CONTROL_PROTOCOL,
+            "module_timeout_s": MODULE_TIMEOUT,
+        },
+        "module_count": len(modules),
+        "counts": counts,
+        "blind_equivalent": blind,
+        "sensitive": sensitive,
+        "results": results,
+    }
+
+
+_MARKUP_TEMPLATE = '''"""
+_protocol_blindness.py — эмпирическая разметка протокол-слепых Tier-B модулей.
+
+СГЕНЕРИРОВАНО scripts/audit_protocol_blindness.py — НЕ редактировать вручную;
+перегенерация: python3 scripts/audit_protocol_blindness.py --emit-markup
+(в sandbox-чекауте, не в живом репо — модули пишут data/*-логи).
+
+Дифференциальный аудит {generated_at}: каждый Tier-B модуль прогнан для
+{real_protocols} + повтор {repeat} (недетерминизм) + контрольный
+несуществующий протокол. Модули ниже вернули «ok», но их score НЕ зависит
+от протокола (или недетерминирован) → протокол-специфичной информации не
+несут. signal_aggregator.run_tier_b исключает их из composite и из
+confidence (громкий статус "blind"), advisory-слой; Tier-A не трогаем.
+"""
+from typing import Dict, FrozenSet
+
+AUDIT_GENERATED_AT = "{generated_at}"
+
+# module_name -> подтип (blind_constant | blind_equal | nondeterministic)
+PROTOCOL_BLIND_DETAIL: Dict[str, str] = {{
+{detail_lines}
+}}
+
+PROTOCOL_BLIND_MODULES: FrozenSet[str] = frozenset(PROTOCOL_BLIND_DETAIL)
+'''
+
+
+def emit_markup(report: Dict[str, Any], path: Path) -> None:
+    detail = {
+        r["module"]: r["classification"]
+        for r in report["results"]
+        if r["classification"] in BLIND_EQUIVALENT
+    }
+    lines = "\n".join(
+        f'    "{name}": "{detail[name]}",' for name in sorted(detail)
+    )
+    text = _MARKUP_TEMPLATE.format(
+        generated_at=report["generated_at"],
+        real_protocols=REAL_PROTOCOLS,
+        repeat=REPEAT_PROTOCOL,
+        detail_lines=lines,
+    )
+    path.write_text(text, encoding="utf-8")
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
+    ap.add_argument("--out", required=True,
+                    help="Путь для JSON-отчёта (sandbox, НЕ живая data/).")
+    ap.add_argument("--tier", default="B", choices=["A", "B", "C"])
+    ap.add_argument("--emit-markup", action="store_true",
+                    help="Перегенерировать spa_core/analytics/_protocol_blindness.py")
+    args = ap.parse_args(argv)
+
+    report = run_audit(args.tier)
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(report, indent=2, ensure_ascii=False),
+                   encoding="utf-8")
+
+    if args.emit_markup:
+        if args.tier != "B":
+            print("--emit-markup поддержан только для Tier B", file=sys.stderr)
+            return 2
+        emit_markup(report, REPO_ROOT / "spa_core" / "analytics"
+                    / "_protocol_blindness.py")
+
+    c = report["counts"]
+    print(f"modules={report['module_count']} counts={c}")
+    print(f"blind_equivalent={len(report['blind_equivalent'])} "
+          f"sensitive={len(report['sensitive'])}")
+    print(f"report → {out}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
