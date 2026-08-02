@@ -1495,6 +1495,44 @@ def run_cycle(
         notes=notes,
     )
 
+    # ── Step 2f (ADR-060 phase 0): yield-trigger SHADOW ──────────────────────
+    # Records what the yield-improvement trigger WOULD decide about moving from the
+    # held book to this cycle's target — gain over total capital, cost of the move,
+    # payback, and every anti-churn gate — plus the ADR-055 obligation to explain
+    # idle cash. It changes NOTHING: ``target_usd``, the diff below and the trade
+    # decision are untouched, by design and by ADR (arming is owner-gated).
+    #
+    # Placed AFTER every risk gate so the shadow reasons about the book that could
+    # actually be adopted, not a raw pre-gate proposal. Fail-open: a reporting layer
+    # must never be able to break the cycle that feeds the track.
+    try:
+        from spa_core.paper_trading.allocation_rationale import write_shadow_rationale
+        _shadow_binders: list[dict] = []
+        _blocked = getattr(alloc, "blocked_protocols", {}) or {}
+        if _blocked:
+            _shadow_binders.append({
+                "reason": "blocked_protocols:{}".format(sorted(_blocked)),
+                "pct": 0.0,   # share unknown here; named so the reader can trace it
+            })
+        write_shadow_rationale(
+            data_dir=ddir,
+            current_positions=current_positions,
+            target_positions=target_usd,
+            apy_pct=getattr(alloc, "apy_used", {}) or apy_map,
+            apy_sources=getattr(alloc, "apy_sources", {}) or {},
+            # ADR-053 (allocator side): reuse the allocator's TVL provenance
+            # rather than deriving a second definition of "live TVL".
+            tvl_sources=(getattr(alloc, "feed_coverage", {}) or {}).get("tvl_sources"),
+            capital_usd=capital_usd,
+            cycle_date=today,
+            run_ts=run_ts,
+            cash_binders=_shadow_binders,
+            trades=_read_json(ddir / TRADES_FILENAME, []),
+            write=write,
+        )
+    except Exception as _shadow_exc:  # noqa: BLE001 — advisory only
+        log.warning("ADR-060 SHADOW skipped (%s) — cycle continues", _shadow_exc)
+
     # ── Step 3: virtual rebalance trade if allocation moved > threshold ───
     trades: list[dict] = _read_json(ddir / TRADES_FILENAME, [])
     if not isinstance(trades, list):
