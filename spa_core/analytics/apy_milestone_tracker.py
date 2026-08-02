@@ -214,10 +214,19 @@ class ApyMilestoneTracker(BaseAnalytics):
     # ------------------------------------------------------------------
 
     def _refresh_milestones_reached(self) -> None:
-        """Rebuild milestones_reached list from daily_log."""
-        # Build per-level: first date each level was reached
+        """Rebuild milestones_reached list from daily_log.
+
+        Honesty (ADR-058, owner Variant A 2026-07-23): a day flagged ``fabricated: true`` is a
+        non-measurement (a backtest fallback value the cycle used to inject, e.g. 10.115%) and
+        must NEVER earn a milestone. Skipping it here is what makes the fabricated-flag DURABLE —
+        otherwise this rebuild (run every ``record_day``) would re-derive the milestone from the
+        fabricated row on the next cycle.
+        """
+        # Build per-level: first date each level was reached — REAL (non-fabricated) days only.
         reached: dict[int, str] = {}
         for entry in sorted(self._data["daily_log"], key=lambda e: e["date"]):
+            if entry.get("fabricated"):
+                continue
             for m in APY_MILESTONES:
                 lvl = m["level"]
                 if lvl not in reached and entry["apy_pct"] >= m["target_pct"]:

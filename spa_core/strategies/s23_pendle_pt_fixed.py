@@ -142,10 +142,16 @@ class PendlePTFixedStrategy:
         self._load_adapters()
 
     def _load_adapters(self) -> None:
+        # OWNER DECISION 2026-07-23 (Variant A, ADR-059, card owner-decision-strategiya-s23):
+        # switched from the RETIRED MP-354 `pendle_pt_adapter` (raised ImportError on import →
+        # swallowed here → S23 sat on MOCK 7% forever) to the LIVE read-only MP-201 feed
+        # `pendle_pt.get_pendle_apy()`. Different API (module function returning a dict, not a
+        # canonical adapter object) — the glue lives in get_pt_apy().
+        self._pendle_apy_fn = None
         try:
-            from spa_core.adapters.pendle_pt_adapter import PendlePTAdapter
-            self._adapters["pendle_pt"] = PendlePTAdapter()
-        except Exception:   # noqa: BLE001
+            from spa_core.adapters.pendle_pt import get_pendle_apy
+            self._pendle_apy_fn = get_pendle_apy
+        except Exception:   # noqa: BLE001 — MP-201 imports cleanly; guards only runtime edge cases
             pass
         try:
             from spa_core.adapters.spark_susds_adapter import SparkSusdsAdapter
@@ -166,13 +172,20 @@ class PendlePTFixedStrategy:
         Sets `self._pt_live` to True only when a strictly-positive live rate is
         read from the Pendle adapter.
         """
-        adapter = self._adapters.get("pendle_pt")
-        if adapter is not None:
+        fn = getattr(self, "_pendle_apy_fn", None)
+        if fn is not None:
             try:
-                apy = _canonical_apy_pct(adapter, 0.0)
-                if apy > 0.0:
-                    self._pt_live = True
-                    return apy
+                # MP-201 get_pendle_apy() → {"apy": %, "source": "pendle_api"|"fallback",
+                # "is_available": bool, ...}. Only a genuinely-LIVE reading counts as live;
+                # a fallback dict (API down) is NOT dressed up as a live rate — S23 then uses
+                # its own MOCK_PT_APY and honestly flags pendle_pt_live=False.
+                info = fn(MOCK_PT_APY)
+                if (isinstance(info, dict) and info.get("source") == "pendle_api"
+                        and info.get("is_available")):
+                    apy = float(info.get("apy", 0.0) or 0.0)
+                    if apy > 0.0:
+                        self._pt_live = True
+                        return apy
             except Exception:   # noqa: BLE001
                 pass
         self._pt_live = False

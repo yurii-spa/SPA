@@ -505,10 +505,11 @@ class GoLiveChecker:
         return ok
 
     def _check_pendle_pt_adapter(self, blockers: list[str]) -> bool:
-        # Variant Б: honestly RED until the S23 decision re-points this criterion at the live
-        # canonical Pendle adapter (MP-201 `pendle_pt`). MP-354 `pendle_pt_adapter` is retired
-        # (raises ImportError on import) → this criterion fails honestly (27/29), by design.
-        ok, detail = _check_adapter_importable(self.repo_root, "pendle_pt_adapter.py")
+        # OWNER DECISION 2026-07-23 (S23 Variant A, ADR-059): re-pointed from the RETIRED MP-354
+        # `pendle_pt_adapter.py` (import-fails) to the LIVE canonical MP-201 `pendle_pt.py` — the
+        # adapter S23 now actually reads. Import-based (ADR-057). Clears the last gate blocker
+        # (→ 29/29 = TECHNICAL readiness only, NOT a go-live / real-capital decision).
+        ok, detail = _check_adapter_importable(self.repo_root, "pendle_pt.py")
         if not ok:
             blockers.append(detail)
         return ok

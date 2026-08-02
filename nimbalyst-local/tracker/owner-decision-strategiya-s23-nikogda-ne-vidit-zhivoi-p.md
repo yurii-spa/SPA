@@ -18,6 +18,7 @@ source: session-2026-07-30-cycle39
 >    карта `agent-guard-no-silent-mock-in-tournament.md`. Класс тот же, что fail-OPEN мониторы /
 >    abstract-analytics silently-dead.
 >
+> > **РЕАЛИЗОВАНО (2026-07-23, ADR-059):** S23 переключён на живой MP-201 `get_pendle_apy()` — живой замер 12.73% (был mock 7%). Критерий гейта перецелен на `pendle_pt.py` → **29/29**. Тесты: 6 (S23) + 44 (golive). В `owner-done` — только владелец (#14).
 > Карточку в `owner-done` переводит ТОЛЬКО владелец (инвариант #14).
 
 ## Что случилось и почему это важно
