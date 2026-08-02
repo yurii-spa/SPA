@@ -69,7 +69,17 @@ class DeFiLiquidationCascadeRiskAnalyzer:
             positions_detail, most_at_risk, safest_position,
             total_debt_at_risk_usd, average_health_factor,
             critical_count, timestamp_utc, config_used
+
+        Protocol-context (ADR-031 Tier-A wiring, audit 2026-08-02): если
+        вместо списка позиций передан контекст агрегатора (dict с ключом
+        ``protocol``), строится репрезентативная структурная позиция из
+        ``_protocol_facts`` (supply-only → debt 0 → cascade 0; leverage-kind
+        протоколы получают реальный структурный долг) и прогоняется через
+        тот же ``_analyze_position``. Неизвестный протокол → None (dormant).
         """
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(positions):
+            return self._analyze_protocol_context(positions)
         cfg = {**DEFAULT_CONFIG, **(config or {})}
 
         if not positions:
@@ -90,6 +100,36 @@ class DeFiLiquidationCascadeRiskAnalyzer:
             self._append_log(agg, cfg)
 
         return agg
+
+    # ------------------------------------------------------------------
+    def _analyze_protocol_context(self, context: dict):
+        """Структурный cascade-скоринг одного протокола из _protocol_facts."""
+        from spa_core.analytics import _protocol_facts as _pf
+        facts = _pf.facts_for(context["protocol"])
+        if facts is None:
+            return None
+        cas = facts["cascade"]
+        size_usd = 100_000.0  # репрезентативный размер paper-книги
+        pos = {
+            "protocol": facts["name"],
+            "collateral_token": (facts["assets"] or ["USDC"])[0],
+            "debt_token": "USDC",
+            "collateral_usd": size_usd,
+            "debt_usd": size_usd * float(cas["debt_to_collateral"]),
+            "liquidation_threshold_pct": cas["liquidation_threshold_pct"],
+            "current_price_usd": 1.0,
+            "price_30d_volatility_pct": cas["collateral_volatility_pct"],
+            "collateral_correlation_to_debt": cas["collateral_correlation_to_debt"],
+        }
+        detail = self._analyze_position(pos, dict(DEFAULT_CONFIG))
+        return {
+            "protocol": facts["name"],
+            "risk_score": detail["cascade_risk_score"],
+            "risk_label": detail["risk_label"],
+            "health_factor": detail["health_factor"],
+            "facts_source": facts["facts_source"],
+            "facts_as_of": facts["facts_as_of"],
+        }
 
     # ------------------------------------------------------------------
     # position-level helpers

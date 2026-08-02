@@ -234,6 +234,18 @@ def analyze(farms: list, config: dict = None) -> dict:
     -------
     dict with per-farm analysis and portfolio_summary.
     """
+    # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-02) ──
+    # Контекст агрегатора → единый структурный профиль протокола из
+    # _protocol_facts → СОБСТВЕННЫЙ движок модуля (рекурсивный вызов с
+    # легаси-формой аргумента) → извлечение score из вложенного агрегата.
+    # Неизвестный протокол → None (громкий dormant, не фабрикация).
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(farms):
+        _ctx_profile = _pf.generic_profile_for(farms["protocol"])
+        if _ctx_profile is None:
+            return None
+        return _pf.extract_protocol_score(
+            analyze([_ctx_profile]), _ctx_profile)
     if config is None:
         config = {}
     risk_free_rate_pct = float(config.get("risk_free_rate_pct", _DEFAULT_RISK_FREE_RATE))

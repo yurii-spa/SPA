@@ -243,21 +243,50 @@ class DeFiProtocolWithdrawalQueueRiskAnalyzer:
 
     def analyze(
         self,
-        withdrawal_type: str,
-        queue_wait_hours: float,
-        queue_size_usd: float,
-        daily_exit_capacity_usd: float,
-        position_size_usd: float,
-        annual_yield_during_wait_pct: float,
-        price_impact_risk_pct: float,
-        protocol_name: str,
-    ) -> Dict[str, Any]:
+        withdrawal_type,
+        queue_wait_hours: Optional[float] = None,
+        queue_size_usd: Optional[float] = None,
+        daily_exit_capacity_usd: Optional[float] = None,
+        position_size_usd: Optional[float] = None,
+        annual_yield_during_wait_pct: Optional[float] = None,
+        price_impact_risk_pct: Optional[float] = None,
+        protocol_name: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
         """
         Analyze withdrawal queue risk for one position.
 
         Returns a dict with all computed fields. Raises ValueError on invalid input.
         Estimated wait hours/days are returned as None when the queue is infinite.
+
+        Protocol-context (ADR-031 Tier-A wiring, audit 2026-08-02): если
+        первым аргументом передан контекст агрегатора (dict с ключом
+        ``protocol``), параметры очереди берутся из структурной базы
+        ``_protocol_facts`` и скорятся теми же pure-хелперами (без записи
+        лога). risk_score = queue_risk_score. Неизвестный протокол → None
+        (dormant). Легаси-вызов с 8 позиционными аргументами не изменён.
         """
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(withdrawal_type):
+            facts = _pf.facts_for(withdrawal_type["protocol"])
+            if facts is None:
+                return None
+            wd = facts["withdrawal"]
+            wait_hours = _compute_estimated_wait_hours(
+                float(wd["queue_wait_hours"]),
+                float(wd["queue_size_usd"]),
+                float(wd["daily_exit_capacity_usd"]),
+            )
+            score = _compute_queue_risk_score(wait_hours)
+            return {
+                "protocol": facts["name"],
+                "risk_score": float(score),
+                "queue_label": _compute_queue_label(wait_hours),
+                "withdrawal_type": wd["withdrawal_type"],
+                "estimated_wait_hours":
+                    None if wait_hours == float("inf") else wait_hours,
+                "facts_source": facts["facts_source"],
+                "facts_as_of": facts["facts_as_of"],
+            }
         _validate_inputs(
             withdrawal_type,
             queue_wait_hours,

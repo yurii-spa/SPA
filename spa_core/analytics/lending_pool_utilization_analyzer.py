@@ -260,6 +260,18 @@ def analyze(pools: list, config: dict = None) -> dict:
     dict with pools (scored list), average_utilization,
     highest_borrow_rate_pool, most_illiquid_pool, critical_count, timestamp.
     """
+    # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-02) ──
+    # Контекст агрегатора → единый структурный профиль протокола из
+    # _protocol_facts → СОБСТВЕННЫЙ движок модуля (рекурсивный вызов с
+    # легаси-формой аргумента) → извлечение score из вложенного агрегата.
+    # Неизвестный протокол → None (громкий dormant, не фабрикация).
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(pools):
+        _ctx_profile = _pf.generic_profile_for(pools["protocol"])
+        if _ctx_profile is None:
+            return None
+        return _pf.extract_protocol_score(
+            analyze([_ctx_profile]), _ctx_profile)
     cfg = config or {}
     min_liq = float(cfg.get("min_liquidity_ratio", _DEFAULT_MIN_LIQUIDITY_RATIO))
 

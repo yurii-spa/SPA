@@ -283,8 +283,16 @@ class DeFiProtocolAdminKeyControlRiskAnalyzer:
     Advisory / read-only. No execution side-effects.
     """
 
-    def analyze(self, protocols: list, config: Optional[dict] = None) -> dict:
+    def analyze(self, protocols, config: Optional[dict] = None):
         """
+        Protocol-context (ADR-031 Tier-A wiring, audit 2026-08-02): если
+        вместо списка передан контекст агрегатора (dict с ключом
+        ``protocol``), admin-профиль протокола (m-of-n, timelock,
+        upgradeability, guardian) берётся из ``_protocol_facts`` и скорится
+        тем же ``_analyze_one`` (без записи лога).
+        risk_score = admin_control_risk_score. Неизвестный протокол → None
+        (dormant).
+
         Parameters
         ----------
         protocols : list[dict]
@@ -313,6 +321,23 @@ class DeFiProtocolAdminKeyControlRiskAnalyzer:
             decentralized_count      int
             analyzed_at              str  ISO timestamp
         """
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(protocols):
+            facts = _pf.facts_for(protocols["protocol"])
+            if facts is None:
+                return None
+            p = dict(facts["admin"])
+            p["name"] = facts["name"]
+            r = _analyze_one(p)
+            return {
+                "protocol": facts["name"],
+                "risk_score": float(r["admin_control_risk_score"]),
+                "classification": r["classification"],
+                "decentralization_grade": r["decentralization_grade"],
+                "multisig": r["multisig"],
+                "facts_source": facts["facts_source"],
+                "facts_as_of": facts["facts_as_of"],
+            }
         if config is None:
             config = {}
         if not isinstance(protocols, list) or len(protocols) == 0:

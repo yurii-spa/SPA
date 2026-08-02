@@ -190,7 +190,35 @@ def analyze(protocols: list, config: dict = None) -> dict:
     Returns
     -------
     dict with per-protocol analysis and portfolio-level summary.
+
+    Protocol-context (ADR-031 Tier-A wiring, audit 2026-08-02): если вместо
+    списка передан контекст агрегатора (dict с ключом ``protocol``), входы
+    строятся из структурной базы ``_protocol_facts`` (utilization, redemption
+    coverage, stablecoin-обеспечение) и прогоняются через тот же
+    ``_analyze_protocol``. Неизвестный протокол → None (dormant).
     """
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(protocols):
+        facts = _pf.facts_for(protocols["protocol"])
+        if facts is None:
+            return None
+        tvl = facts["tvl_usd"]
+        trend = float(facts["tvl_trend_7d_pct"])
+        p = {
+            "name": facts["name"],
+            "tvl_usd": tvl,
+            "tvl_7d_ago_usd": tvl / (1.0 + trend / 100.0) if trend > -100.0 else tvl,
+            "utilization_rate_pct": facts["utilization_pct"],
+            "pending_redemptions_usd": facts["withdrawal"]["queue_size_usd"],
+            # структурный отток: дневной объём как прокси нормального оборота
+            "daily_outflow_usd": facts["daily_volume_usd"] * 0.5,
+            "stablecoin_collateral_pct": facts["stablecoin_collateral_pct"],
+            "market_stress_score": facts["market_stress_score"],
+        }
+        r = _analyze_protocol(p, _merge_config(config))
+        r["facts_source"] = facts["facts_source"]
+        r["facts_as_of"] = facts["facts_as_of"]
+        return r
     cfg = _merge_config(config)
     crisis_threshold = cfg["crisis_threshold"]
 

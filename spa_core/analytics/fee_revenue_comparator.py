@@ -61,6 +61,18 @@ def analyze(protocols: list, config: dict = None) -> dict:
     -------
     dict  (see module docstring for full schema)
     """
+    # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-02) ──
+    # Контекст агрегатора → единый структурный профиль протокола из
+    # _protocol_facts → СОБСТВЕННЫЙ движок модуля (рекурсивный вызов с
+    # легаси-формой аргумента) → извлечение score из вложенного агрегата.
+    # Неизвестный протокол → None (громкий dormant, не фабрикация).
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(protocols):
+        _ctx_profile = _pf.generic_profile_for(protocols["protocol"])
+        if _ctx_profile is None:
+            return None
+        return _pf.extract_protocol_score(
+            analyze([_ctx_profile]), _ctx_profile)
     cfg = config or {}
     # config param exists but per spec we include all protocols — no hard filter
     _min_rev = float(cfg.get("min_annualized_revenue_usd", _DEFAULT_MIN_ANNUALIZED_REVENUE))

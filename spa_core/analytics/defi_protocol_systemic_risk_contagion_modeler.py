@@ -60,6 +60,54 @@ class DeFiProtocolSystemicRiskContagionModeler:
     # Public API
     # ------------------------------------------------------------------
 
+    def analyze(self, context: dict):
+        """Protocol-context entrypoint (ADR-031 Tier-A wiring, audit 2026-08-02).
+
+        Строит системный профиль протокола из ``_protocol_facts``
+        (interconnection, долговая экспозиция, исторические contagion-события,
+        страховое покрытие) и прогоняет через тот же ``_analyze_protocol``,
+        что и ``model()`` (без записи лога).
+        risk_score = cascade_risk × (100 − resilience) / 100 — нормированный
+        нетто-риск (голая systemic importance штрафовала бы размер, а не
+        фрагильность). Неизвестный протокол → None (dormant).
+        """
+        from spa_core.analytics import _protocol_facts as _pf
+        if not _pf.is_protocol_context(context):
+            raise TypeError(
+                "analyze() expects a protocol context dict; "
+                "use model(protocols, config) for the legacy list form"
+            )
+        facts = _pf.facts_for(context["protocol"])
+        if facts is None:
+            return None
+        sy = facts["systemic"]
+        tvl = facts["tvl_usd"]
+        p = {
+            "name": facts["name"],
+            "tvl_usd": tvl,
+            "interconnection_score": float(sy["interconnection_score"]),
+            "debt_exposure_usd": tvl * float(sy["debt_ratio"]),
+            "collateral_accepted": list(facts["assets"]),
+            "tokens_issued": list(facts["assets"]),
+            "historical_contagion_events": int(sy["historical_contagion_events"]),
+            "oracle_dependencies": [facts["oracle"]["oracle_type"]],
+            "liquidity_in_crisis_pct": float(sy["liquidity_in_crisis_pct"]),
+            "insurance_coverage_usd": tvl * float(sy["insurance_pct_of_tvl"]) / 100.0,
+        }
+        r = self._analyze_protocol(p)
+        cascade = float(r["cascade_risk_score"])
+        resilience = float(r["resilience_score"])
+        risk = cascade * (100.0 - resilience) / 100.0
+        return {
+            "protocol": facts["name"],
+            "risk_score": round(max(0.0, min(100.0, risk)), 2),
+            "cascade_risk_score": cascade,
+            "resilience_score": resilience,
+            "systemic_importance_score": r.get("systemic_importance_score"),
+            "facts_source": facts["facts_source"],
+            "facts_as_of": facts["facts_as_of"],
+        }
+
     def model(self, protocols: list, config: dict) -> dict:
         """
         Model systemic risk for a list of DeFi protocols.

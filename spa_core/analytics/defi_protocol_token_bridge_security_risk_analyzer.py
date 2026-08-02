@@ -250,7 +250,53 @@ class DeFiProtocolTokenBridgeSecurityRiskAnalyzer:
         Returns
         -------
         dict with OUTPUT_KEYS
+
+        Protocol-context (ADR-031 Tier-A wiring, audit 2026-08-02): если
+        передан контекст агрегатора (dict с ключом ``protocol`` и без
+        ``bridge_name``), bridge-зависимость протокола берётся из
+        ``_protocol_facts``: mainnet-native без wrapped-активов →
+        risk_score 0.0 (bridge-зависимости нет — это честный
+        протокол-специфичный ответ); L2/wrapped → структурный профиль моста
+        через те же compute_*-функции (без записи лога). Неизвестный
+        протокол → None (dormant).
         """
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(params) and "bridge_name" not in params:
+            facts = _pf.facts_for(params["protocol"])
+            if facts is None:
+                return None
+            br = facts["bridge"]
+            if br is None:
+                return {
+                    "protocol": facts["name"],
+                    "risk_score": 0.0,
+                    "bridge_name": None,
+                    "overall_label": "NO_BRIDGE_DEPENDENCY",
+                    "facts_source": facts["facts_source"],
+                    "facts_as_of": facts["facts_as_of"],
+                }
+            vs = compute_validation_strength_score(
+                br["validation_model"], int(br["validator_count"]))
+            af = compute_audit_freshness_score(int(br["days_since_last_audit"]))
+            he = compute_hack_exposure_ratio(
+                list(br["historical_hacks"]), facts["tvl_usd"])
+            score = compute_bridge_risk_score(
+                validation_strength_score=vs,
+                audit_freshness_score=af,
+                hack_exposure_ratio=he,
+                time_to_finality_minutes=float(br["time_to_finality_minutes"]),
+                open_source=bool(br["open_source"]),
+                bug_bounty_usd=float(br["bug_bounty_usd"]),
+                tvl_usd=facts["tvl_usd"],
+            )
+            return {
+                "protocol": facts["name"],
+                "risk_score": score,
+                "bridge_name": br["bridge_name"],
+                "overall_label": compute_overall_label(score),
+                "facts_source": facts["facts_source"],
+                "facts_as_of": facts["facts_as_of"],
+            }
         self._validate(params)
 
         bridge_name = str(params["bridge_name"])

@@ -218,6 +218,52 @@ class DeFiStablecoinDepegRiskMonitor:
     data/stablecoin_depeg_log.json (cap 100, atomic writes).
     """
 
+    def analyze(self, context: dict):
+        """Protocol-context entrypoint (ADR-031 Tier-A wiring, audit 2026-08-02).
+
+        Принимает контекст агрегатора (``context["protocol"]``), строит входы
+        из структурной базы ``_protocol_facts`` и прогоняет их через ТОТ ЖЕ
+        движок, что и ``monitor()`` (pure-хелперы, без ring-buffer записи).
+        score = худшая структурная depeg-вероятность среди underlying-активов
+        протокола × 100 (структурная фрагильность механизма пега, НЕ live-пег).
+        Неизвестный протокол → None (громкий ``dormant`` в агрегаторе).
+        """
+        from spa_core.analytics import _protocol_facts as _pf
+        if not _pf.is_protocol_context(context):
+            raise TypeError(
+                "analyze() expects a protocol context dict; "
+                "use monitor(stablecoins) for the legacy list form"
+            )
+        facts = _pf.facts_for(context["protocol"])
+        if facts is None or not facts["asset_profiles"]:
+            return None
+        per_asset = []
+        for prof in facts["asset_profiles"]:
+            prob = _compute_depeg_probability(
+                prof["peg_type"], 1.0, prof["collateral_ratio"],
+                prof["historical_max_depeg_pct"], prof["mint_burn_24h_usd"],
+                prof["tvl_usd"],
+            )
+            resilience = _compute_resilience_score(
+                prof["peg_type"], prof["collateral_ratio"],
+                prof["historical_max_depeg_pct"], prof["tvl_usd"],
+                prof["audit_count"], prof["mint_burn_24h_usd"],
+            )
+            per_asset.append({
+                "asset": prof["name"],
+                "depeg_probability": round(prob, 4),
+                "resilience_score": resilience,
+            })
+        worst = max(per_asset, key=lambda a: a["depeg_probability"])
+        return {
+            "protocol": facts["name"],
+            "risk_score": round(worst["depeg_probability"] * 100.0, 2),
+            "worst_asset": worst["asset"],
+            "assets": per_asset,
+            "facts_source": facts["facts_source"],
+            "facts_as_of": facts["facts_as_of"],
+        }
+
     def monitor(self, stablecoins: list, config: dict = None) -> dict:
         """
         Analyse depeg risk for each stablecoin.

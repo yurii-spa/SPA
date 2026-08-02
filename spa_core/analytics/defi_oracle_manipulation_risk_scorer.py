@@ -78,7 +78,30 @@ class DeFiOracleManipulationRiskScorer:
         -------
         dict with keys:
             timestamp, oracle_count, results (list), aggregates (dict)
+
+        Protocol-context (ADR-031 Tier-A wiring, audit 2026-08-02): если
+        вместо списка oracle-профилей передан контекст агрегатора (dict с
+        ключом ``protocol``), oracle-профиль протокола берётся из
+        ``_protocol_facts`` и скорится тем же ``_score_single`` (без записи
+        лога). Неизвестный протокол → None (dormant).
         """
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(oracles):
+            facts = _pf.facts_for(oracles["protocol"])
+            if facts is None:
+                return None
+            oracle = dict(facts["oracle"])
+            oracle["name"] = f"{facts['name']}_price_feed"
+            oracle["protocol"] = facts["name"]
+            single = self._score_single(oracle)
+            return {
+                "protocol": facts["name"],
+                "risk_score": single["composite_risk_score"],
+                "risk_label": single["risk_label"],
+                "flags": single["flags"],
+                "facts_source": facts["facts_source"],
+                "facts_as_of": facts["facts_as_of"],
+            }
         if config is None:
             config = {}
 

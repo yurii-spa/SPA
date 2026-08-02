@@ -52,6 +52,59 @@ class DeFiLendingProtocolBadDebtMonitor:
     def __init__(self, data_file: Path = _DEFAULT_DATA_FILE):
         self.data_file = Path(data_file)
 
+    def analyze(self, context: dict):
+        """Protocol-context entrypoint (ADR-031 Tier-A wiring, audit 2026-08-02).
+
+        Строит bad-debt профиль протокола из структурной базы
+        ``_protocol_facts`` (доля bad debt, покрытие резервами, fail-ликвидации)
+        и прогоняет через тот же ``_analyze_protocol``, что и ``monitor()``
+        (без записи лога). risk_score = max(contagion, 100 − solvency).
+        Неизвестный протокол → None (dormant).
+        """
+        from spa_core.analytics import _protocol_facts as _pf
+        if not _pf.is_protocol_context(context):
+            raise TypeError(
+                "analyze() expects a protocol context dict; "
+                "use monitor(protocols) for the legacy list form"
+            )
+        facts = _pf.facts_for(context["protocol"])
+        if facts is None:
+            return None
+        bd = facts["bad_debt"]
+        borrowed = facts["tvl_usd"] * max(0.05, facts["utilization_pct"] / 100.0)
+        bad_debt = borrowed * float(bd["bad_debt_ratio_pct"]) / 100.0
+        coverage_x = float(bd["reserve_coverage_x"])
+        reserve = bad_debt * coverage_x if bad_debt > 0 else facts["tvl_usd"] * 0.005
+        liq_count = 100
+        failed = int(round(float(bd["failed_liq_pct"])))
+        p = {
+            "name": facts["name"],
+            "total_borrowed_usd": borrowed,
+            "bad_debt_usd": bad_debt,
+            "bad_debt_trend_pct_30d": float(bd["trend_pct_30d"]),
+            "reserve_fund_usd": reserve,
+            "total_tvl_usd": facts["tvl_usd"],
+            "largest_underwater_position_usd":
+                borrowed * float(bd["largest_underwater_pct_of_borrowed"]) / 100.0,
+            "avg_collateral_ratio_pct": 160.0,
+            "liquidation_count_30d": liq_count,
+            "failed_liquidation_count_30d": failed,
+            "protocol_covers_bad_debt": True,
+            "token_inflation_risk": False,
+        }
+        r = self._analyze_protocol(p)
+        risk = max(float(r["contagion_risk_score"]),
+                   100.0 - float(r["solvency_score"]))
+        return {
+            "protocol": facts["name"],
+            "risk_score": round(risk, 2),
+            "health_label": r["health_label"],
+            "contagion_risk_score": r["contagion_risk_score"],
+            "solvency_score": r["solvency_score"],
+            "facts_source": facts["facts_source"],
+            "facts_as_of": facts["facts_as_of"],
+        }
+
     # ------------------------------------------------------------------
     # Core calculations
     # ------------------------------------------------------------------

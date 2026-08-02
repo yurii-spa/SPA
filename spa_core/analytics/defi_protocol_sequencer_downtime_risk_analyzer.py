@@ -229,7 +229,49 @@ class DeFiProtocolSequencerDowntimeRiskAnalyzer:
 
         Returns:
             dict with analyzed_positions, aggregates, metadata
+
+        Protocol-context (ADR-031 Tier-A wiring, audit 2026-08-02): если
+        вместо списка позиций передан контекст агрегатора (dict с ключом
+        ``protocol``), sequencer-профиль чейна протокола берётся из
+        ``_protocol_facts``: L1/sidechain (нет sequencer'а) → risk_score 0.0
+        (честный протокол-специфичный ответ); L2 → структурный профиль через
+        тот же ``_net_downtime_risk_score`` (без записи лога). Неизвестный
+        протокол → None (dormant).
         """
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(positions):
+            facts = _pf.facts_for(positions["protocol"])
+            if facts is None:
+                return None
+            seq = facts["sequencer"]
+            if seq is None:
+                return {
+                    "protocol": facts["name"],
+                    "chain": facts["chain"],
+                    "risk_score": 0.0,
+                    "classification": "NO_SEQUENCER_DEPENDENCY",
+                    "facts_source": facts["facts_source"],
+                    "facts_as_of": facts["facts_as_of"],
+                }
+            cas = facts["cascade"]
+            debt = float(cas["debt_to_collateral"])
+            lt = float(cas["liquidation_threshold_pct"]) / 100.0
+            pos = dict(seq)
+            pos["name"] = facts["name"]
+            pos["protocol"] = facts["name"]
+            pos["chain"] = facts["chain"]
+            # HF типичного заёмщика пула; без долга ликвидационной экспозиции нет
+            pos["health_factor"] = (lt / debt) if debt > 0 else 99.0
+            net = self._net_downtime_risk_score(pos)
+            return {
+                "protocol": facts["name"],
+                "chain": facts["chain"],
+                "risk_score": round(net, 2),
+                "classification": self._classification(net),
+                "grade": self._grade(net),
+                "facts_source": facts["facts_source"],
+                "facts_as_of": facts["facts_as_of"],
+            }
         if config is None:
             config = {}
 

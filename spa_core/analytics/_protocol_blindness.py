@@ -5,7 +5,7 @@ _protocol_blindness.py — эмпирическая разметка прото�
 перегенерация: python3 scripts/audit_protocol_blindness.py --emit-markup
 (в sandbox-чекауте, не в живом репо — модули пишут data/*-логи).
 
-Дифференциальный аудит 2026-08-02T19:00:58.293209Z: каждый Tier-B модуль прогнан для
+Дифференциальный аудит 2026-08-02T21:44:45.933397Z: каждый Tier-B модуль прогнан для
 ['aave_v3', 'maple', 'pendle'] + повтор aave_v3 (недетерминизм) + контрольный
 несуществующий протокол. Модули ниже вернули «ok», но их score НЕ зависит
 от протокола (или недетерминирован) → протокол-специфичной информации не
@@ -14,19 +14,31 @@ confidence (громкий статус "blind"), advisory-слой; Tier-A не
 """
 from typing import Dict, FrozenSet
 
-AUDIT_GENERATED_AT = "2026-08-02T19:00:58.293209Z"
+AUDIT_GENERATED_AT = "2026-08-02T21:44:45.933397Z"
 
 # module_name -> подтип (blind_constant | blind_equal | nondeterministic)
 PROTOCOL_BLIND_DETAIL: Dict[str, str] = {
     "bridge_risk_assessor": "blind_constant",
+    "defi_correlation_risk_analyzer": "blind_equal",
+    "defi_gas_cost_yield_drag_analyzer": "blind_equal",
+    "defi_governance_token_utility_scorer": "blind_equal",
+    "defi_insurance_protocol_scorer": "blind_equal",
+    "defi_liquidity_concentration_risk_scorer": "blind_equal",
+    "defi_oracle_risk_scorer": "blind_equal",
+    "defi_portfolio_rebalancing_trigger_analyzer": "blind_equal",
+    "defi_portfolio_stress_tester": "blind_equal",
     "defi_protocol_autocompound_keeper_reliability_analyzer": "blind_constant",
     "defi_protocol_borrowing_power_utilization_analyzer": "blind_constant",
     "defi_protocol_cdp_stability_fee_analyzer": "blind_constant",
+    "defi_protocol_composability_risk_analyzer": "blind_equal",
     "defi_protocol_deposit_cap_headroom_analyzer": "blind_constant",
     "defi_protocol_depositor_concentration_analyzer": "blind_constant",
     "defi_protocol_emergency_withdrawal_pause_risk_analyzer": "blind_constant",
+    "defi_protocol_insurance_fund_adequacy_analyzer": "blind_equal",
     "defi_protocol_lending_market_health_scorer": "blind_constant",
+    "defi_protocol_mev_protection_effectiveness_analyzer": "blind_equal",
     "defi_protocol_minimum_profitable_position_size_analyzer": "blind_constant",
+    "defi_protocol_nft_collateral_risk_analyzer": "blind_equal",
     "defi_protocol_performance_fee_crystallization_frequency_analyzer": "blind_constant",
     "defi_protocol_performance_fee_high_water_mark_analyzer": "blind_constant",
     "defi_protocol_points_to_token_conversion_risk_analyzer": "blind_constant",
@@ -137,6 +149,11 @@ PROTOCOL_BLIND_DETAIL: Dict[str, str] = {
     "defi_protocol_vault_yield_realization_gap_analyzer": "blind_constant",
     "defi_protocol_vault_yield_variance_drag_realization_analyzer": "blind_constant",
     "defi_protocol_voting_power_concentration_analyzer": "blind_constant",
+    "defi_reward_token_sell_pressure_analyzer": "blind_equal",
+    "defi_stablecoin_reserve_quality_scorer": "blind_equal",
+    "defi_yield_curve_position_analyzer": "blind_equal",
+    "defi_yield_source_diversification_scorer": "blind_equal",
+    "defi_yield_source_verifier": "blind_equal",
     "gross_of.defi_protocol_vault_performance_fee_gross_of_basis_risk_premium_analyzer": "blind_constant",
     "gross_of.defi_protocol_vault_performance_fee_gross_of_bridge_delay_opportunity_cost_analyzer": "blind_constant",
     "gross_of.defi_protocol_vault_performance_fee_gross_of_counterparty_default_risk_premium_analyzer": "blind_constant",
@@ -151,6 +168,10 @@ PROTOCOL_BLIND_DETAIL: Dict[str, str] = {
     "gross_of.defi_protocol_vault_performance_fee_gross_of_token_vesting_unlock_pressure_analyzer": "blind_constant",
     "gross_of.defi_protocol_vault_performance_fee_gross_of_yield_aggregator_platform_fee_analyzer": "blind_constant",
     "gross_of.sequencer_tip": "blind_constant",
+    "lending_market_efficiency_scorer": "blind_equal",
+    "lending_pool_utilization_analyzer": "blind_equal",
+    "oracle_price_deviation_detector": "blind_equal",
+    "protocol_decay_risk_monitor": "blind_equal",
     "protocol_defi_apy_decomposition_analyzer": "blind_constant",
     "protocol_defi_cross_protocol_contagion_risk_analyzer": "blind_constant",
     "protocol_defi_emission_schedule_risk_analyzer": "blind_constant",
@@ -160,14 +181,31 @@ PROTOCOL_BLIND_DETAIL: Dict[str, str] = {
     "protocol_defi_protocol_fee_revenue_sustainability_analyzer": "blind_constant",
     "protocol_defi_protocol_version_migration_risk_analyzer": "blind_constant",
     "protocol_defi_stable_yield_consistency_scorer": "blind_constant",
+    "protocol_defi_vault_fee_structure_breakeven_analyzer": "blind_equal",
     "protocol_defi_wrapped_asset_backing_verifier": "blind_constant",
     "protocol_defi_yield_bearing_stablecoin_risk_analyzer": "blind_constant",
     "protocol_defi_yield_smoothing_analyzer": "blind_constant",
     "protocol_defi_yield_source_dependency_graph_analyzer": "blind_constant",
     "protocol_defi_yield_strip_pricing_analyzer": "blind_constant",
+    "protocol_exit_liquidity_analyzer": "blind_equal",
+    "protocol_fee_revenue_sustainability_analyzer": "blind_equal",
+    "protocol_fee_structure_analyzer": "blind_equal",
+    "protocol_fee_tier_migration_analyzer": "blind_equal",
+    "protocol_governance_attack_resistance_scorer": "blind_equal",
+    "protocol_governance_voter_apathy_analyzer": "blind_equal",
+    "protocol_liquidation_history_analyzer": "blind_equal",
+    "protocol_ponzi_risk_screener": "blind_equal",
     "protocol_tvl_concentration_analyzer": "blind_constant",
+    "protocol_version_risk_analyzer": "blind_equal",
     "protocol_version_risk_assessor": "blind_constant",
+    "protocol_yield_curve_arbitrage_detector": "blind_equal",
     "restaking_risk_analyzer": "blind_constant",
+    "staking_apy_ranker": "blind_equal",
+    "yield_aggregator_strategy_scorer": "blind_equal",
+    "yield_dilution_analyzer": "blind_equal",
+    "yield_opportunity_scorer": "blind_equal",
+    "yield_source_concentration_risk": "blind_equal",
+    "yield_volatility_surface_analyzer": "blind_equal",
 }
 
 PROTOCOL_BLIND_MODULES: FrozenSet[str] = frozenset(PROTOCOL_BLIND_DETAIL)

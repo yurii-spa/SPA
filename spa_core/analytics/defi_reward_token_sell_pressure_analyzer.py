@@ -77,6 +77,18 @@ class DeFiRewardTokenSellPressureAnalyzer:
     # ------------------------------------------------------------------ #
 
     def analyze(self, positions: list, config: dict = None) -> dict:
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-02) ──
+        # Контекст агрегатора → единый структурный профиль протокола из
+        # _protocol_facts → СОБСТВЕННЫЙ движок модуля (рекурсивный вызов с
+        # легаси-формой аргумента) → извлечение score из вложенного агрегата.
+        # Неизвестный протокол → None (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(positions):
+            _ctx_profile = _pf.generic_profile_for(positions["protocol"])
+            if _ctx_profile is None:
+                return None
+            return _pf.extract_protocol_score(
+                self.analyze([_ctx_profile]), _ctx_profile)
         if config is None:
             config = {}
 

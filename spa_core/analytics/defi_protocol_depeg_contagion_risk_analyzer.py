@@ -233,17 +233,27 @@ class DeFiProtocolDepegContagionRiskAnalyzer:
 
     def analyze(
         self,
-        asset_type: str,
-        collateral_usage_pct: float,
-        depeg_magnitude_pct: float,
-        protocol_interconnection_score: float,
-        insurance_coverage_pct: float,
-        tvl_exposed_usd: float,
+        asset_type,
+        collateral_usage_pct: float | None = None,
+        depeg_magnitude_pct: float | None = None,
+        protocol_interconnection_score: float | None = None,
+        insurance_coverage_pct: float | None = None,
+        tvl_exposed_usd: float | None = None,
         asset_name: str = "UNKNOWN",
         data_dir: str | None = None,
-    ) -> dict:
+    ) -> dict | None:
         """
         Analyze depeg contagion risk for a single asset event.
+
+        Protocol-context (ADR-031 Tier-A wiring, audit 2026-08-02): если
+        первым аргументом передан контекст агрегатора (dict с ключом
+        ``protocol``), строится СТРЕСС-СЦЕНАРИЙ по худшему underlying-активу
+        протокола из ``_protocol_facts`` (depeg-магнитуда = исторический
+        максимум актива) и прогоняется через этот же движок (без записи
+        лога). risk_score = contagion_spread_score. Неизвестный протокол →
+        None (dormant). Легаси-вызов с позиционными числами не изменён —
+        параметры остались обязательными по смыслу (None → TypeError, как
+        и раньше отсутствие аргумента).
 
         Parameters
         ----------
@@ -285,6 +295,51 @@ class DeFiProtocolDepegContagionRiskAnalyzer:
               "timestamp": float,
             }
         """
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(asset_type):
+            # severity стресс-сценария (spread при историческом max-депеге) —
+            # это НЕ текущий риск: без взвешивания вероятностью worst-wins
+            # Tier-A блокировал бы мейджоров за гипотетический сценарий.
+            # risk_score = spread × структурная depeg-вероятность актива
+            # (та же формула, что в DeFiStablecoinDepegRiskMonitor) —
+            # expected-severity, честная блокирующая метрика.
+            from spa_core.analytics.defi_stablecoin_depeg_risk_monitor import (
+                _compute_depeg_probability,
+            )
+            facts = _pf.facts_for(asset_type["protocol"])
+            if facts is None or not facts["asset_profiles"]:
+                return None
+            sy = facts["systemic"]
+            worst = None
+            for prof in facts["asset_profiles"]:
+                spread = _compute_contagion_spread_score(
+                    facts["asset_type"],
+                    float(prof.get("collateral_usage_pct", 10.0)),
+                    float(prof["historical_max_depeg_pct"]),
+                    float(sy["interconnection_score"]) / 100.0,
+                    float(sy["insurance_pct_of_tvl"]),
+                )
+                prob = _compute_depeg_probability(
+                    prof["peg_type"], 1.0, prof["collateral_ratio"],
+                    prof["historical_max_depeg_pct"],
+                    prof["mint_burn_24h_usd"], prof["tvl_usd"],
+                )
+                expected = spread * prob
+                if worst is None or expected > worst[0]:
+                    worst = (expected, spread, prob, prof)
+            expected, spread, prob, prof = worst
+            return {
+                "protocol": facts["name"],
+                "risk_score": round(expected, 2),
+                "worst_asset": prof["name"],
+                "stress_spread_score": round(spread, 2),
+                "structural_depeg_probability": round(prob, 4),
+                "stress_depeg_magnitude_pct": prof["historical_max_depeg_pct"],
+                "label": _contagion_label(expected),
+                "facts_source": facts["facts_source"],
+                "facts_as_of": facts["facts_as_of"],
+            }
+
         atype = str(asset_type).lower()
         col_pct = max(0.0, min(100.0, float(collateral_usage_pct)))
         dep_mag = max(0.0, min(100.0, float(depeg_magnitude_pct)))

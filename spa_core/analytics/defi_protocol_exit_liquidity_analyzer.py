@@ -90,7 +90,47 @@ class DeFiProtocolExitLiquidityAnalyzer:
         Returns
         -------
         dict with keys: results (list), aggregates (dict), run_ts (str), position_count (int)
+
+        Protocol-context (ADR-031 Tier-A wiring, audit 2026-08-02): если
+        вместо списка позиций передан контекст агрегатора (dict с ключом
+        ``protocol``), строится репрезентативная позиция из структурной базы
+        ``_protocol_facts`` (тип выхода, глубина exit-ликвидности, локи,
+        очереди, комиссии) и прогоняется через тот же ``_analyze_position``
+        (без записи лога). risk_score = exit_friction_score. Неизвестный
+        протокол → None (dormant).
         """
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(positions):
+            facts = _pf.facts_for(positions["protocol"])
+            if facts is None:
+                return None
+            ex = facts["exit"]
+            pos = {
+                "protocol": facts["name"],
+                "asset": (facts["assets"] or ["USDC"])[0],
+                "position_size_usd": 25_000.0,  # типичная paper-аллокация
+                "available_exit_liquidity_usd": facts["exit_liquidity_usd"],
+                "daily_volume_usd": facts["daily_volume_usd"],
+                "exit_type": ex["exit_type"],
+                "lock_remaining_days": ex["lock_remaining_days"],
+                "withdrawal_queue_usd": ex["withdrawal_queue_usd"],
+                "slippage_model": ex["slippage_model"],
+                "withdrawal_fee_pct": ex["withdrawal_fee_pct"],
+                "max_exit_in_single_tx_usd": facts["exit_liquidity_usd"] * 0.1,
+            }
+            detail = self._analyze_position(
+                pos,
+                instant_max_days=1.0, easy_max_days=7.0,
+                moderate_max_days=30.0, trapped_min_days=30.0,
+                large_ratio_thresh=0.1,
+            )
+            return {
+                "protocol": facts["name"],
+                "risk_score": detail["exit_friction_score"],
+                "exit_detail": detail,
+                "facts_source": facts["facts_source"],
+                "facts_as_of": facts["facts_as_of"],
+            }
         if config is None:
             config = {}
 
