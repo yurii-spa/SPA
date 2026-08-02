@@ -121,7 +121,6 @@
 - Правка чужой карточки запирает её на 3 часа — даже когда сессия прямо назвала в объявлении ДРУГУЮ карточку  ·  `agent-card-file-in-ownership-locks-a-card-it-doesnt-claim.md` · 2026-08-01
 - Шаг 0b держит карточку занятой по файлам сессии, чей pid измеримо мёртв  ·  `agent-dead-pid-still-holds-files-for-3h.md` · 2026-08-02
 - Панель идеи #17 на 6 книгах из 10 состоит из неподвижных марок — кросс-секцию на ней измерить нельзя  ·  `agent-idea17-needs-a-panel-with-daily-marks.md` · 2026-08-02
-- После починки протокольной слепоты аналитики 4 теста tier-сигналов красные на main — CI снова красный  ·  `agent-signal-aggregator-tier-tests-red-after-blindness-fix.md` · 2026-08-02
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
 - Книги aggressive_lab документированы как append-only, но история пересоздаётся — susde_dn сдвинулась на −9.7%  ·  `agent-aggressive-lab-books-are-regenerated.md` · 2026-08-01
@@ -161,6 +160,7 @@
 - RTMR-сервис отчитывается «alive» после первой из трёх стадий, а сообщения об отказе двух остальных теряются в буфере навсегда  ·  `agent-rtmr-tick-failures-are-invisible.md` · 2026-08-02
 - Сессия не может взять СВОЮ карточку, если объявилась под двумя идентификаторами — каждый блокирует другой  ·  `agent-self-claim-blocked-by-own-second-identity.md` · 2026-08-01
 - Общие документы (STATE, недельный журнал) уезжают ЦЕЛИКОМ — параллельная сессия молча затирает чужую запись  ·  `agent-shared-doc-whole-file-push-overwrites.md` · 2026-07-31
+- После починки протокольной слепоты аналитики 4 теста tier-сигналов красные на main — CI снова красный  ·  `agent-signal-aggregator-tier-tests-red-after-blindness-fix.md` · 2026-08-02
 - 404 теста живых модулей молча выключены file-level pytestmark с шаблонной отпиской  ·  `agent-silently-skipped-test-files.md` · 2026-07-30
 - Q4/Q5: числа/нейминг сайта  ·  `agent-site-numbers.md` · 2026-07-16
 - 19 тестов spa_core/tests красны на main (предсуществующие, никем не отслеживались)  ·  `agent-spa-core-tests-red-on-main.md` · 2026-07-29

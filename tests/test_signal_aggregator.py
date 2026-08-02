@@ -11,7 +11,9 @@ whose adapters return controlled scores.
 from __future__ import annotations
 
 import json
+import sys
 import time
+import types
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -61,6 +63,11 @@ def _fake_modules(tier, scores):
     return out
 
 
+# Captured at import time, BEFORE the autouse fixture below swaps the name out:
+# the guard tests at the bottom need the genuine class to compare against.
+_REAL_ADAPTER = sa._ModuleAdapter
+
+
 @pytest.fixture(autouse=True)
 def _patch_adapter(monkeypatch):
     monkeypatch.setattr(sa, "_ModuleAdapter", _FakeAdapter)
@@ -107,6 +114,12 @@ def test_tier_b_returns_neutral_on_missing_data(monkeypatch, tmp_path):
     entry = res["protocols"]["aave_v3"]
     assert entry["confidence"] == 0.0
     assert entry["risk_multiplier"] == pytest.approx(1.0, abs=1e-6)
+    # STRENGTHENED (cycle #91, additive — no existing assertion changed): pin
+    # WHY it is neutral. Neutral-on-no-data and neutral-because-the-harness-is-
+    # broken produce byte-identical output, so while the double was drifted this
+    # test stayed GREEN even though every module was dying on a ValueError.
+    # "dormant" is earned neutrality; "failed" means the double broke again.
+    assert {e["status"] for e in agg._log} == {"dormant"}
 
 
 def test_tier_b_increases_multiplier_for_low_risk(monkeypatch, tmp_path):
@@ -121,6 +134,10 @@ def test_tier_b_increases_multiplier_for_low_risk(monkeypatch, tmp_path):
     assert entry["risk_multiplier"] > 1.0
     assert entry["risk_multiplier"] <= 1.5
     assert entry["composite_risk_0_100"] < 50.0
+    # STRENGTHENED (cycle #91, additive): the multiplier must come from modules
+    # that actually ran. Without this, a harness break degrades into the neutral
+    # branch and the failure reads as "Tier-B is honestly neutral now".
+    assert entry["modules_ok"] == len(scores)
 
 
 def test_tier_b_high_risk_lowers_multiplier(monkeypatch, tmp_path):
@@ -132,6 +149,8 @@ def test_tier_b_high_risk_lowers_multiplier(monkeypatch, tmp_path):
     entry = res["protocols"]["pendle"]
     assert entry["risk_multiplier"] < 1.0
     assert entry["risk_multiplier"] >= 0.5
+    # STRENGTHENED (cycle #91, additive) — see the low-risk twin above.
+    assert entry["modules_ok"] == len(scores)
 
 
 # ─── Atomic write ───────────────────────────────────────────────────────────
@@ -204,6 +223,82 @@ def test_fresh_cache_used(tmp_path):
     # run_tier_b should return the cached payload unchanged (no recompute)
     res = sa.run_tier_b(["aave_v3"], data_dir=tmp_path, use_cache=True)
     assert res["protocols"]["aave_v3"]["risk_multiplier"] == 1.2
+
+
+# ─── Guard: the double must track the real adapter ──────────────────────────
+#
+# Added by cycle #91. Every Tier-A/Tier-B assertion in this file went red on
+# `main` — not because the aggregator's contract changed, but because
+# `_FakeAdapter.run` still returned the pre-`19666683a` 2-tuple while the real
+# `_ModuleAdapter.run` had moved to `(score, status, detail)`. The drift itself
+# was fixed in `db504c45f`; these guards make a recurrence fail LOUDLY.
+#
+# The class of defect is what makes them worth having: `_run_module` is
+# deliberately fail-open (a broken analytics module must not take down the
+# cycle), so the double's `ValueError` was caught, filed as `status="failed"`
+# and turned into a plausible-looking *neutral* result. A signature drift in a
+# test double therefore presents as a believable behavioural claim — here, "the
+# analytics layer is honestly neutral now", which is how the tracker card
+# described it, one step away from rewriting the assertions to match.
+
+def _real_adapter_for(monkeypatch, fn):
+    """A REAL `_ModuleAdapter` over a synthetic module exposing `analyze(context)`."""
+    name = "_c91_guard_mod"
+    full = "spa_core.analytics." + name
+    mod = types.ModuleType(full)
+    mod.analyze = fn
+    monkeypatch.setitem(sys.modules, full, mod)
+    # _REAL_ADAPTER, not sa._ModuleAdapter — the autouse fixture has already
+    # replaced the latter with the double we are trying to check.
+    return _REAL_ADAPTER({"module": name, "class": None, "tier": "B",
+                          "category": "test", "weight": 0.5,
+                          "protocols": ["all"]})
+
+
+def test_fake_adapter_matches_the_real_adapter_contract(monkeypatch):
+    """`_FakeAdapter.run` returns exactly what `_ModuleAdapter.run` returns.
+
+    Compared by RUNNING both, not by reading annotations: an annotation can be
+    right while the code returns something else, and it was the returned tuple
+    that broke.
+    """
+    real = _real_adapter_for(monkeypatch, lambda context: {"risk_score": 42.0})
+    real_out = real.run("aave_v3", {})
+    fake_out = _FakeAdapter(_fake_modules("B", [42.0])[0]).run("aave_v3", {})
+
+    assert len(fake_out) == len(real_out) == 3
+    assert [type(x) for x in fake_out] == [type(x) for x in real_out]
+    assert fake_out == real_out  # same score, same "ok", same empty detail
+
+    # and the no-data branch keeps the same shape
+    quiet = _FakeAdapter(_fake_modules("B", [None])[0]).run("aave_v3", {})
+    assert len(quiet) == 3
+    assert quiet[0] is None and quiet[1] == "dormant"
+    assert isinstance(quiet[2], str)
+
+
+def test_a_double_that_drifts_is_reported_as_failed_not_as_neutral(monkeypatch,
+                                                                   tmp_path):
+    """Positive control for the guard above: reintroduce the OLD 2-tuple double
+    and the aggregator files it as `failed` — proving the neutral result the
+    four red tests were getting had a broken harness behind it, not a changed
+    contract.
+    """
+    class _StaleDouble(_FakeAdapter):
+        def run(self, protocol, context):  # pre-19666683a shape
+            return float(self._score), True
+
+    monkeypatch.setattr(sa, "_ModuleAdapter", _StaleDouble)
+    monkeypatch.setattr(sa.registry, "get_tier_modules",
+                        lambda t: _fake_modules("B", [10.0] * 10))
+    agg = sa.SignalAggregator(data_dir=tmp_path)
+    entry = agg.run_tier_b(["aave_v3"], {})["protocols"]["aave_v3"]
+
+    assert entry["modules_ok"] == 0
+    assert entry["risk_multiplier"] == pytest.approx(1.0)  # the misleading part
+    statuses = {e["status"] for e in agg._log}
+    assert statuses == {"failed"}
+    assert any("ValueError" in e["detail"] for e in agg._log)
 
 
 def test_scoring_engine_consumes_advisory(monkeypatch, tmp_path):
