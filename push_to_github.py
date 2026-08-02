@@ -729,9 +729,56 @@ def _api(pat: str, method: str, path: str, payload: Optional[dict] = None) -> di
         return json.loads(body) if body else {}
 
 
-def get_base_ref(pat: str, repo: str, branch: str) -> tuple:
+# Чтение ТОЛЬКО ЧТО созданного ref'а может ответить 404: refs-API GitHub
+# согласован в конечном счёте, и ветка, созданная секунду назад через
+# `POST /git/refs`, ещё не видна точечному `GET /git/ref/heads/<branch>`.
+# Наблюдалось дважды на противоположных операциях (цикл #81, карточка
+# `agent-checkpoint-tool-crashes-on-first-use`): после POST — 404 на чтении
+# созданной ветки; после DELETE — удалённая ветка ещё в списке.
+#
+# Цена была ровно обратна назначению инструмента: ПЕРВЫЙ чекпойнт сессии падал
+# трейсбеком (`push_checkpoint` создаёт ветку, затем `batch_push` читает её
+# базу), то есть страховка от смерти сессии не срабатывала именно там, где
+# сессии и умирают — между «сделал» и «доставил» (циклы #79 и #80 подряд).
+_REF_404_RETRIES = 3
+_REF_404_BACKOFF = (0.5, 1.0, 2.0)
+
+
+def _read_ref_with_404_retry(pat: str, repo: str, branch: str, sleep=None) -> dict:
+    """Прочитать ref ветки, пережив «ещё не виден» после создания.
+
+    404 — единственный код, который ретраится (и только он): ветка могла быть
+    создана мгновение назад. Ретраев конечное число; исчерпав их, функция
+    ПРОБРАСЫВАЕТ тот же `HTTPError` — «не смог прочитать ref» не превращается в
+    «ветки нет» и не даёт пушу поехать от неверной базы (fail-CLOSED, инв. #2).
+    Любой другой код (403/409/500) и обрыв сети бросаются СРАЗУ, без ретраев:
+    недоступность API обязана валить команду.
+
+    Отдельной функцией (а не телом цикла внутри `get_base_ref`), чтобы выход
+    был только через `return` или `raise`: вариант с `ref = None` до цикла
+    давал mypy `dict | None is not indexable` — то есть тип допускал ровно ту
+    «базу из ниоткуда», которую здесь и запрещаем.
+
+    `sleep` инъецируется тестами — сеть и часы в тестах не трогаются.
+    """
+    _sleep = sleep if sleep is not None else time.sleep
+    for attempt in range(_REF_404_RETRIES + 1):
+        try:
+            return _api(pat, "GET", f"/repos/{repo}/git/ref/heads/{branch}")
+        except urllib.error.HTTPError as e:
+            if e.code != 404 or attempt == _REF_404_RETRIES:
+                raise
+            delay = _REF_404_BACKOFF[min(attempt, len(_REF_404_BACKOFF) - 1)]
+            print(f"  ref heads/{branch}: HTTP 404 (попытка {attempt + 1}/"
+                  f"{_REF_404_RETRIES + 1}) — свежесозданный ref мог быть ещё не "
+                  f"виден, повтор через {delay}с")
+            _sleep(delay)
+    raise AssertionError("недостижимо: цикл выходит только через return или raise")
+
+
+def get_base_ref(pat: str, repo: str, branch: str, sleep=None) -> tuple:
     """Шаги 1-2: вернуть (base_commit_sha, base_tree_sha)."""
-    ref = _api(pat, "GET", f"/repos/{repo}/git/ref/heads/{branch}")
+    ref = _read_ref_with_404_retry(pat, repo, branch, sleep)
     base_commit_sha = str(ref["object"]["sha"])
     commit = _api(pat, "GET", f"/repos/{repo}/git/commits/{base_commit_sha}")
     base_tree_sha = str(commit["tree"]["sha"])
