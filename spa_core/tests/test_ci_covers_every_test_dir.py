@@ -106,7 +106,12 @@ def discover_test_dirs(root: Path) -> set[str]:
     """Каталоги с файлами ``test_*.py``, путями относительно корня репо."""
     found: set[str] = set()
     for path in root.rglob("test_*.py"):
-        if any(part in _SKIP_DIR_NAMES for part in path.parts):
+        # Скип-имена проверяются по ОТНОСИТЕЛЬНЫМ частям пути: абсолютные parts
+        # включают компоненты ВНЕ репо, и checkout, живущий, например, под
+        # `.claude/worktrees/<name>/`, скипал бы ВСЁ дерево → пустой обход →
+        # ложный fail-CLOSED. Внутрирепозиторные копии (`.claude/worktrees/...`
+        # внутри самого репо) по-прежнему скипаются.
+        if any(part in _SKIP_DIR_NAMES for part in path.relative_to(root).parts):
             continue
         rel = path.parent.relative_to(root).as_posix()
         found.add(rel if rel != "." else "")

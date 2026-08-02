@@ -61,6 +61,9 @@ _EVIDENCE_MIN_COVERAGE = 3
 
 # MP-REGISTRY: fallback TVL assumption for registry-only adapters (not in orchestrator).
 # These are all established protocols with TVL >> $5M TVL floor; $50M is conservative.
+# ADR-053 (allocator side): this literal is ALWAYS labeled tvl_source="static" and
+# never counts as *verifying* the $5M floor — pools ranked on it are listed in
+# feed_coverage["tvl_floor_unverified"]; the RiskPolicy gate is the enforcement point.
 _REGISTRY_FALLBACK_TVL_USD = 50_000_000.0
 
 # Модель по умолчанию: risk-aware (SPA-V406). Раньше было "equal_weight".
@@ -523,6 +526,16 @@ class StrategyAllocator:
         self._apy_sources: dict[str, str] = {}
         self._apy_used: dict[str, float] = {}  # protocol → apy_pct actually ranked on
         self._as_of: dict[str, str] = {}       # protocol → ISO ts of the value used
+        # ADR-053 (allocator side): per-protocol TVL provenance. "live" ONLY when
+        # the orchestrator record explicitly declares tvl_source=="live" (the
+        # adapter fetched TVL from the live feed); everything else — registry
+        # merge ($50M literal / fallback_tvl_usd) and snapshot rows without the
+        # declaration (committed-constant TVL) — is "static". Fail-closed: an
+        # undeclared numeric TVL is never presented as observed.
+        self._tvl_sources: dict[str, str] = {}
+        # Pools whose TVL-floor pass rests on a static (unverified) TVL — they
+        # are ranked, but the floor is NOT evidence-verified for them.
+        self._tvl_floor_unverified: list[str] = []
         # ADR-061: evidence gate state, surfaced on AllocationResult.
         self._adapter_status_path = (
             Path(adapter_status_path) if adapter_status_path else _ADAPTER_STATUS_PATH
@@ -653,6 +666,8 @@ class StrategyAllocator:
         self._apy_sources = {}
         self._apy_used = {}
         self._as_of = {}
+        self._tvl_sources = {}
+        self._tvl_floor_unverified = []
         self._blocked = {}
         live_apy = self._get_live_apy_map()
         now_iso = datetime.now(timezone.utc).isoformat()
@@ -725,12 +740,19 @@ class StrategyAllocator:
                     apy_pct = round(live_apy[protocol] * 100.0, 4)
                 else:
                     apy_pct = snap_apy
+                # ADR-053 (allocator side): TVL provenance. "live" only when the
+                # orchestrator record DECLARES it (adapter fetched TVL from the
+                # feed). A numeric TVL without the declaration is a committed
+                # constant → "static" — it may rank, but must never be presented
+                # as verifying the $5M floor (see _filter_by_tvl).
+                tvl_source = "live" if a.get("tvl_source") == "live" else "static"
                 _row = {
                     "protocol": protocol,
                     "apy_pct": apy_pct,
                     "tvl_usd": float(a.get("tvl_usd", 0.0)),
                     "tier": a.get("tier", "T2"),
                     "apy_source": "live",
+                    "tvl_source": tvl_source,
                     "as_of": a.get("last_updated", now_iso),
                 }
                 # WS1.2: pass through an explicit per-pool APY volatility if the
@@ -744,6 +766,7 @@ class StrategyAllocator:
                 self._apy_sources[protocol] = "live"
                 self._apy_used[protocol] = apy_pct
                 self._as_of[protocol] = a.get("last_updated", now_iso)
+                self._tvl_sources[protocol] = tvl_source
 
         # MP-REGISTRY: merge active adapters from adapter_registry.json that are
         # absent from the orchestrator snapshot.
@@ -809,12 +832,17 @@ class StrategyAllocator:
                             "tvl_usd": tvl,
                             "tier": tier_str,
                             "apy_source": apy_source,
+                            # ADR-053 (allocator side): registry TVL is a literal
+                            # (fallback_tvl_usd or the $50M default) — never an
+                            # observation. Always "static".
+                            "tvl_source": "static",
                             "as_of": as_of,
                         }
                     )
                     self._apy_sources[name] = apy_source
                     self._apy_used[name] = apy_pct
                     self._as_of[name] = as_of
+                    self._tvl_sources[name] = "static"
                     log.info(
                         "WS1.1: adapter %s apy=%.2f%% source=%s tier=%s tvl=$%.0fM",
                         name, apy_pct, apy_source, tier_str, tvl / 1_000_000,
@@ -845,6 +873,18 @@ class StrategyAllocator:
             "apy_sources": dict(self._apy_sources),
             "apy_used_pct": {p: round(v, 4) for p, v in self._apy_used.items()},
             "as_of": dict(self._as_of),
+            # ADR-053 (allocator side): TVL provenance — "live" only when the
+            # orchestrator record declared its TVL as feed-observed; registry
+            # literals and undeclared snapshot TVLs are "static".
+            # ``tvl_floor_unverified`` — pools whose $5M-floor pass rests on a
+            # static TVL (ranked, but the floor is NOT evidence-verified).
+            "tvl_sources": dict(self._tvl_sources),
+            "tvl_live": sum(1 for s in self._tvl_sources.values() if s == "live"),
+            "tvl_static": sum(1 for s in self._tvl_sources.values() if s == "static"),
+            "tvl_static_adapters": sorted(
+                p for p, s in self._tvl_sources.items() if s == "static"
+            ),
+            "tvl_floor_unverified": list(self._tvl_floor_unverified),
             # ADR-061: was funding restricted to OBSERVED APYs this run, and who
             # was blocked (advisory / not_eligible / unevidenced) and why.
             "evidence_gate_applied": self._evidence_gate_applied,
@@ -900,9 +940,20 @@ class StrategyAllocator:
         RiskPolicy (``min_tvl_usd``) отклоняет любую позицию в пуле с TVL
         < $5M, поэтому такие адаптеры нельзя даже рассматривать при расчёте
         весов. Возвращает ``(прошедшие, имена отклонённых)``.
+
+        ADR-053 (allocator side): пул со СТАТИЧЕСКИМ TVL (``tvl_source !=
+        "live"`` — реестровый литерал/$50M-дефолт или снимок без live-декларации)
+        технически проходит числовой floor, но это НЕ верификация — литерал не
+        является наблюдением ликвидности. Такие проходы собираются в
+        ``self._tvl_floor_unverified`` (→ feed_coverage) и логируются WARNING.
+        Пул при этом ОСТАЁТСЯ в ранжировании: исключение static-TVL пулов
+        обнулило бы цели 4/5 текущих held-позиций (registry-merge путь) →
+        принудительная распродажа книги — это owner-решение (карточка в
+        трекере), а enforcement-точка — RiskPolicy-гейт (ADR-053 freeze).
         """
         ok: list[dict] = []
         rejected: list[str] = []
+        static_passed: list[str] = []
         for a in adapters:
             raw_tvl = a.get("tvl_usd")
             if raw_tvl is None:
@@ -920,8 +971,18 @@ class StrategyAllocator:
             # finiteness gate. Behaviour is unchanged for every finite TVL.
             if math.isfinite(tvl) and tvl >= self.TVL_FLOOR_USD:
                 ok.append(a)
+                if a.get("tvl_source") != "live":
+                    static_passed.append(str(a.get("protocol", "?")))
             else:
                 rejected.append(a.get("protocol", "?"))
+        self._tvl_floor_unverified = sorted(static_passed)
+        if static_passed:
+            log.warning(
+                "ADR-053: TVL-floor pass on STATIC (unverified) TVL for %s — "
+                "литерал не верифицирует floor; ранжирование сохранено, "
+                "enforcement — RiskPolicy-гейт",
+                self._tvl_floor_unverified,
+            )
         if rejected:
             log.warning(
                 "MP-011: TVL-floor ($%s) отфильтровал адаптеры: %s",
@@ -1181,6 +1242,19 @@ class StrategyAllocator:
                 live=_cov["live"], total=_cov["total"], stale=_cov["fallback_stale"]
             )
         )
+        # ADR-053 (allocator side): a static TVL passing the numeric floor is a
+        # ranking assumption, NOT verification — say so where a reviewer looks.
+        if self._tvl_floor_unverified:
+            notes.append(
+                "ADR-053: TVL-floor у {n} пулов держится на СТАТИЧЕСКОМ "
+                "(неверифицированном) TVL: {pools}. Это допущение ранжирования, "
+                "не наблюдение ликвидности; enforcement — RiskPolicy-гейт. "
+                "Исключение таких пулов из ранжирования обнулило бы цели "
+                "held-позиций (forced sell) — owner-gated.".format(
+                    n=len(self._tvl_floor_unverified),
+                    pools=self._tvl_floor_unverified,
+                )
+            )
         # ADR-061: capital that could NOT be deployed must say why — a blocked
         # protocol is a deliberate, logged refusal, never a silent omission.
         if self._evidence_gate_applied:
