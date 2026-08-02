@@ -33,11 +33,15 @@ class _FakeAdapter:
         self.weight = float(module_info.get("weight", 0.5) or 0.5)
 
     def run(self, protocol, context):
+        # audit 2026-08-02: реальный _ModuleAdapter.run возвращает 3-tuple
+        # (score, status, detail) — фейк обязан повторять контракт, иначе
+        # распаковка в _run_module падает → все фейки «failed» → тесты
+        # молча теряют сигналы (именно так этот файл был красным в CI).
         if self._sleep:
             time.sleep(self._sleep)
         if not self._ok or self._score is None:
-            return None, False
-        return float(self._score), True
+            return None, "dormant", "fake: no score"
+        return float(self._score), "ok", ""
 
 
 def _fake_modules(tier, scores):
