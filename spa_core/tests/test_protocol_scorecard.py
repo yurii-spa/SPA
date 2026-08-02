@@ -43,16 +43,56 @@ import spa_core.paper_trading.protocol_scorecard as sc
 
 _MODULE_PATH = Path(sc.__file__)
 
+# ─── Pinned clock ────────────────────────────────────────────────────────────
+# Почему часы фиксируются, а не берутся из `date.today()`:
+#
+# `score_age()` читает `date.today()` В МОМЕНТ ВЫЗОВА, а константы ниже раньше
+# считались НА ИМПОРТЕ модуля. Пока обе точки попадают в один календарный день,
+# 90/180 = 0.5 и всё зелёное; стоит прогону пересечь полночь — константа на день
+# старше, чем «сегодня» функции, и тот же тест видит 91/180 = 0.505556.
+#
+# Это не гипотеза: `SPA Tests` на main, run 30723870323 (коммит d995a9573),
+# job `test (3.11)` — сбор тестов 2026-08-01T23:43:50Z, ассерт 2026-08-02T00:06:15Z:
+#     FAILED …TestScoreAge::test_half_min_days_gives_approx_half
+#       - AssertionError: 0.505556 != 0.5 within 3 places
+# Прогон длится ~16 минут ⇒ окно поломки ~1% суток, и ловил его любой ночной цикл.
+#
+# Лечится не ослаблением ассерта, а снятием зависимости от стенных часов: «сегодня»
+# для тестируемого модуля фиксируется на `_PINNED_TODAY` (см. setUpModule), и ВСЕ
+# даты этого файла отсчитываются от той же точки. Ассерты от этого становятся
+# точными, а не «в пределах N знаков» — то есть строже, чем были.
+_PINNED_TODAY = date(2026, 6, 15)
+
+
+class _PinnedDate(date):
+    """`date` с фиксированным `today()`; остальное поведение — родительское."""
+
+    @classmethod
+    def today(cls) -> "_PinnedDate":
+        return cls(_PINNED_TODAY.year, _PINNED_TODAY.month, _PINNED_TODAY.day)
+
+
+_real_date = sc.date
+
+
+def setUpModule() -> None:
+    sc.date = _PinnedDate  # type: ignore[misc]
+
+
+def tearDownModule() -> None:
+    sc.date = _real_date  # type: ignore[misc]
+
+
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 # A date well in the past (3 years ago) — always passes age criteria
-_OLD_DATE = (date.today() - timedelta(days=365 * 3)).isoformat()
+_OLD_DATE = (_PINNED_TODAY - timedelta(days=365 * 3)).isoformat()
 # A date exactly min_days (180) ago
-_AT_MIN_DATE = (date.today() - timedelta(days=180)).isoformat()
+_AT_MIN_DATE = (_PINNED_TODAY - timedelta(days=180)).isoformat()
 # A date half-min (90) days ago
-_HALF_MIN_DATE = (date.today() - timedelta(days=90)).isoformat()
+_HALF_MIN_DATE = (_PINNED_TODAY - timedelta(days=90)).isoformat()
 # Future date
-_FUTURE_DATE = (date.today() + timedelta(days=10)).isoformat()
+_FUTURE_DATE = (_PINNED_TODAY + timedelta(days=10)).isoformat()
 
 
 def _approved_criteria() -> dict:
@@ -188,7 +228,7 @@ class TestScoreAge(unittest.TestCase):
         self.assertAlmostEqual(result["score"], 1.0, places=4)
 
     def test_above_min_days_gives_1(self):
-        old = (date.today() - timedelta(days=365)).isoformat()
+        old = (_PINNED_TODAY - timedelta(days=365)).isoformat()
         result = sc.score_age(old, 180)
         self.assertEqual(result["score"], 1.0)
 
@@ -214,10 +254,78 @@ class TestScoreAge(unittest.TestCase):
 
     def test_score_between_0_and_1(self):
         for days in [0, 90, 180, 365, 730]:
-            d = (date.today() - timedelta(days=days)).isoformat()
+            d = (_PINNED_TODAY - timedelta(days=days)).isoformat()
             result = sc.score_age(d, 180)
             self.assertGreaterEqual(result["score"], 0.0)
             self.assertLessEqual(result["score"], 1.0)
+
+
+# ─── score_age: независимость от стенных часов (регресс run 30723870323) ─────
+
+
+class TestScoreAgeClockIndependence(unittest.TestCase):
+    """Пиннят ПРИЧИНУ красного CI на main, а не её симптом.
+
+    `test_half_min_days_gives_approx_half` выше не ослаблен (`places=3` на месте) —
+    он просто перестал зависеть от стенных часов. Тесты ниже фиксируют, ПОЧЕМУ
+    это обязательно и что именно сломается, если константу снова посчитать от
+    `date.today()` на импорте.
+    """
+
+    @staticmethod
+    def _score_with_today(today: date, launch_date: str, min_days: int = 180) -> float:
+        """Вызвать `score_age` так, будто «сегодня» — это `today`."""
+        class _Stub(date):
+            @classmethod
+            def today(cls) -> "_Stub":
+                return cls(today.year, today.month, today.day)
+
+        saved = sc.date
+        sc.date = _Stub  # type: ignore[misc]
+        try:
+            return float(sc.score_age(launch_date, min_days)["score"])
+        finally:
+            sc.date = saved  # type: ignore[misc]
+
+    def test_half_min_days_is_exactly_half_when_clock_is_pinned(self):
+        """С зафиксированными часами ответ ТОЧНЫЙ, а не «в пределах 3 знаков»."""
+        self.assertEqual(sc.score_age(_HALF_MIN_DATE, 180)["score"], 0.5)
+
+    def test_module_clock_is_actually_pinned(self):
+        """setUpModule действительно подменил часы — иначе весь файл снова хрупкий."""
+        self.assertEqual(sc.date.today(), _PINNED_TODAY)
+
+    def test_crossing_midnight_shifts_the_score_by_one_day(self):
+        """Дословный регресс падения `SPA Tests` run 30723870323 (коммит d995a9573).
+
+        Константа посчитана 2026-08-01T23:43:50Z (сбор тестов), ассерт исполнился
+        2026-08-02T00:06:15Z. Функция увидела на день больше ⇒ 91/180.
+        """
+        import_day = date(2026, 8, 1)
+        captured_at_import = (import_day - timedelta(days=90)).isoformat()
+
+        same_day = self._score_with_today(import_day, captured_at_import)
+        after_midnight = self._score_with_today(
+            import_day + timedelta(days=1), captured_at_import
+        )
+
+        self.assertEqual(same_day, 0.5)
+        # Ровно число из лога CI — не «примерно», а побайтово то же.
+        self.assertEqual(after_midnight, 0.505556)
+        self.assertEqual(after_midnight, round(91 / 180, 6))
+        # И именно оно роняло `places=3`.
+        self.assertNotAlmostEqual(after_midnight, 0.5, places=3)
+
+    def test_score_age_counts_real_elapsed_days(self):
+        """Положительный контроль: фиксация часов НЕ сломала само свойство.
+
+        Функция обязана оставаться относительной к «сегодня» — если бы она стала
+        возвращать константу, тест выше прошёл бы по неверной причине.
+        """
+        launch = date(2026, 3, 1).isoformat()
+        for days in (0, 1, 45, 90, 179, 180, 400):
+            got = self._score_with_today(date(2026, 3, 1) + timedelta(days=days), launch)
+            self.assertEqual(got, round(min(days / 180, 1.0), 6), f"days={days}")
 
 
 # ─── score_apy_premium ───────────────────────────────────────────────────────
@@ -501,7 +609,7 @@ class TestSaveScorecard(unittest.TestCase):
         out_path = sc.save_scorecard(card, data_dir=self.tmpdir)
         fname = os.path.basename(out_path)
         self.assertIn("my_protocol", fname)
-        self.assertIn(date.today().isoformat(), fname)
+        self.assertIn(_PINNED_TODAY.isoformat(), fname)
 
     def test_special_chars_in_protocol_id_sanitized(self):
         card = self._make_scorecard("proto/with:special!chars")
@@ -680,7 +788,7 @@ class TestEndToEnd(unittest.TestCase):
             tvl_usd=10_000,
             has_audit=False,
             audit_firms=[],
-            launch_date=(date.today() - timedelta(days=5)).isoformat(),
+            launch_date=(_PINNED_TODAY - timedelta(days=5)).isoformat(),
             protocol_apy=5.0,
             t1_avg_apy=4.5,
             current_portfolio={},
