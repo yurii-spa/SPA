@@ -30,12 +30,14 @@ _CAPITAL = 100_000.0
 
 # Known-valid portfolio (T1=60%, T2=28%, T3=5%, cash=7%)
 _VALID_POSITIONS: Dict[str, float] = {
+    # All six protocols resolve to Ethereum, so deployed total must stay within
+    # the ADR-062 single-chain cap (≤90% of capital); 89% leaves margin.
     "aave_v3": 25_000.0,          # T1, 25%
     "compound_v3": 20_000.0,      # T1, 20%
     "spark_susds": 15_000.0,      # T1, 15%
     "morpho_steakhouse": 7_000.0, # T1, 7%  → T1 total = 67%
     "maple": 15_000.0,            # T2, 15%
-    "euler_v2": 11_000.0,         # T2, 11%
+    "euler_v2": 7_000.0,          # T2, 7%  → deployed = 89%
 }
 # cash = 100000 - 93000 = 7000 = 7%
 

@@ -184,18 +184,32 @@ def write_report(data_dir, *, now: Optional[datetime] = None) -> dict:
 
 
 def _alert_if_stale(report: dict) -> bool:
-    """Best-effort Telegram alert when any artifact is stale. Fail-safe: never raises."""
+    """Queue a digest entry when any artifact is stale. Fail-safe: never raises.
+
+    Staleness is advisory, not a Tier-1 interrupt, so it goes through the single
+    push authority's digest queue (folded into the one daily digest) — a direct
+    ``telegram_client.send_message`` here is a rogue sender per
+    ``test_telegram_single_authority`` and, being level-triggered, would re-fire
+    on every agent run while an artifact stays stale.
+    """
     if not report.get("any_stale"):
         return False
     try:
-        from spa_core.alerts.telegram_client import send_message
-        lines = [f"⚠️ <b>Artifact freshness</b>: {report['n_stale']} stale"]
+        from spa_core.telegram.push_policy import enqueue_digest
+        lines = []
         for s in report.get("stale", [])[:12]:
             pub = " (public)" if s.get("public") else ""
             age = s.get("age_hours")
             age_s = f"{age:.0f}h" if isinstance(age, (int, float)) else s.get("status")
-            lines.append(f"• {s['name']}{pub}: {age_s} &gt; {s['max_age_hours']:.0f}h — producer {s['producer']}")
-        return bool(send_message("\n".join(lines), parse_mode="HTML"))
+            lines.append(f"• {s['name']}{pub}: {age_s} > {s['max_age_hours']:.0f}h — producer {s['producer']}")
+        enqueue_digest(
+            "artifact_freshness",
+            f"⚠️ Artifact freshness: {report['n_stale']} stale",
+            "\n".join(lines),
+            severity="WARNING",
+            reason="advisory",
+        )
+        return True
     except Exception:  # pragma: no cover — alerting must never crash the agent
         return False
 

@@ -286,16 +286,31 @@ class TestPerProtocolMax:
         rules = [v.rule for v in result.violations]
         assert "per_protocol_max_pct" in rules
 
-    def test_accepts_per_protocol_exactly_25_pct(self):
+    def test_accepts_per_protocol_at_tier_caps(self):
+        # ADR-062: rule 2 is tier-aware — T1 → max_concentration_t1 (40%),
+        # T2/T3 → max_concentration_t2 (20%). Positions AT the tier cap pass.
+        pos = {
+            "aave_v3": 25000.0,       # T1 25% < 40%
+            "compound_v3": 25000.0,   # T1 25% < 40%
+            "spark_susds": 10000.0,   # T1 10%
+            "frax": 20000.0,          # T2 20% == T2 cap (at-cap accepted)
+        }
+        result = validate_positions(pos, CAPITAL, cash_usd=20000.0)
+        assert not any(v.rule == "per_protocol_max_pct" for v in result.violations)
+
+    def test_rejects_t2_protocol_over_t2_cap(self):
+        # ADR-062: a T2 protocol above 20% is per-protocol breach even though
+        # it is under the old flat 40% cap.
         pos = {
             "aave_v3": 25000.0,       # T1 25%
             "compound_v3": 25000.0,   # T1 25%
             "spark_susds": 15000.0,   # T1 15%
-            "frax": 25000.0,          # T2 25%
+            "frax": 25000.0,          # T2 25% > 20%
         }
-        # T1 = 65%, per-protocol all <= 25%
         result = validate_positions(pos, CAPITAL, cash_usd=10000.0)
-        assert not any(v.rule == "per_protocol_max_pct" for v in result.violations)
+        offenders = [v for v in result.violations if v.rule == "per_protocol_max_pct"]
+        assert len(offenders) == 1
+        assert "frax" in offenders[0].message
 
     def test_rejects_100pct_single_protocol(self):
         pos = {"aave_v3": 95000.0}   # 95% — T1 OK, but per-protocol > 25%

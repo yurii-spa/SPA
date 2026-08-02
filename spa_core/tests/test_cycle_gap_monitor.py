@@ -50,6 +50,43 @@ from spa_core.paper_trading.cycle_gap_monitor import (
 )
 
 
+# ─── Hermetic delivery (2026-07-31, re-pinned after the W1/W2 rewrite) ────────
+#
+# Tests in this file call ``run_cycle_gap_monitor`` / ``main`` with
+# ``dry_run=False``; without a module-wide stub the alert travels the real path
+# (``_send_telegram_alert → push_policy → telegram_client._post_message``) and
+# is DELIVERED to the owner's chat — that is how the production text
+# «🚨 Не удалось проверить, был ли сегодня цикл» reached the owner several
+# times an hour on 2026-07-31 while the production watchdog was healthy.
+# Per-test ``patch`` blocks still layer over these stubs, so
+# ``mock_send.assert_not_called()`` keeps its meaning.  The structural pin is
+# ``test_no_live_telegram_in_tests.py::TestCycleGapTestsAreStubbed``.
+_MODULE_PATCHERS: list = []
+
+
+def setUpModule():  # noqa: N802 — unittest hook name
+    """Make live Telegram delivery unreachable from this module."""
+    global _MODULE_PATCHERS
+    _MODULE_PATCHERS = [
+        # False = "nothing was sent" — what the fail-safe sender returns when it
+        # cannot deliver; alert-dedup state stays untouched (offline case).
+        patch(
+            "spa_core.paper_trading.cycle_gap_monitor._send_telegram_alert",
+            return_value=False,
+        ),
+        # The healthy path emits an edge-triggered "cycle recovered" push.
+        patch("spa_core.paper_trading.cycle_gap_monitor._resolve_cycle_gap"),
+    ]
+    for p in _MODULE_PATCHERS:
+        p.start()
+
+
+def tearDownModule():  # noqa: N802 — unittest hook name
+    for p in _MODULE_PATCHERS:
+        p.stop()
+    _MODULE_PATCHERS.clear()
+
+
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _utc(year, month, day, hour=12, minute=0, second=0) -> datetime:
