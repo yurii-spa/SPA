@@ -28,16 +28,32 @@ _spec.loader.exec_module(mod)  # type: ignore[union-attr]
 
 
 # ── loader ──────────────────────────────────────────────────────────────
-def _write_book(d: Path, name: str, start_eq: float, dailies):
+# DELIBERATE FIXTURE CHANGE (2026-08-02, card agent-idea16-17-phase-glue-contamination,
+# invariant #16 — declared, not silent): _write_book used to emit rows WITHOUT a `phase`
+# field, which the real producer never writes (aggressive_lab/fixtures.py stamps
+# phase="backtest"/"forward" on every row, and the schema in aggressive_lab/__init__.py
+# lists it as load-bearing). The fixture is brought to the producer's live form — STRICTER,
+# not weaker. No assertion below is changed; `_write_book` gains an optional forward tail so
+# the seam this card is about can be reproduced at all.
+def _write_book(d: Path, name: str, start_eq: float, dailies, forward=None, phase="backtest"):
+    """Write a book. `forward`, if given, appends phase="forward" rows RE-ANCHORED at $100k —
+    the real file layout: one accounting series glued after another in the same file.
+    `phase=None` omits the field entirely (a legacy row the producer no longer writes)."""
     sub = d / name
     sub.mkdir(parents=True, exist_ok=True)
     eq = start_eq
     lines = []
     import datetime as _dt
     day = _dt.date(2024, 1, 1)
+    tag = "" if phase is None else f', "phase": "{phase}"'
     for i, r in enumerate([0.0] + list(dailies)):
         eq = eq * (1.0 + r) if i else eq
-        lines.append(f'{{"date": "{day.isoformat()}", "equity_usd": {eq:.6f}}}')
+        lines.append(f'{{"date": "{day.isoformat()}", "equity_usd": {eq:.6f}{tag}}}')
+        day += _dt.timedelta(days=1)
+    for fwd_eq in list(forward or []):
+        lines.append(
+            f'{{"date": "{day.isoformat()}", "equity_usd": {float(fwd_eq):.6f}, "phase": "forward"}}'
+        )
         day += _dt.timedelta(days=1)
     (sub / "realized_series.jsonl").write_text("\n".join(lines) + "\n")
 
@@ -61,6 +77,77 @@ def test_common_axis_is_intersection(tmp_path):
     panel = mod.load_panel(tmp_path)
     axis = mod.common_axis(panel)
     assert len(axis) == 80  # 81 equity points → 80 returns, shared
+
+
+# ── phase discipline (card agent-idea16-17-phase-glue-contamination) ────
+# The file glues two accounting series: a phase="backtest" block compounding from $100k, then
+# phase="forward" rows of the live paper book RE-ANCHORED at ~$100k. A loader that diffs
+# equity_usd without looking at `phase` turns that re-anchor into a one-day return of −31%
+# (susde_dn) … +105% (eth_directional). These lock the boundary as CUT, never crossed.
+def test_forward_row_is_not_diffed_against_the_backtest_block(tmp_path):
+    """The exact shape of the real files: 100 backtest days grown to ~$147k, then ONE forward
+    row back at $100k. Phase-blind, the seam reads as ≈−32%; the loader must not see it."""
+    _write_book(tmp_path, "susde_like", 100_000.0, [0.004] * 100, forward=[100_000.0])
+    panel = mod.load_panel(tmp_path)
+    rets = panel["susde_like"]
+    assert len(rets) == 100                      # 101 backtest points → 100 returns
+    assert min(rets.values()) > 0.0              # every day is the real +0.4%, none is the seam
+    assert max(abs(r) for r in rets.values()) < 0.01
+
+
+def test_glued_loader_really_does_produce_the_artifact(tmp_path):
+    """POSITIVE CONTROL — without this the test above could pass on a file with no seam at all.
+    The retained phase-blind loader must still read the same seam as a huge one-day move."""
+    _write_book(tmp_path, "susde_like", 100_000.0, [0.004] * 100, forward=[100_000.0])
+    glued = mod.load_glued_panel(tmp_path)["susde_like"]
+    assert min(glued.values()) < -0.30           # the fabricated crash the registry published
+    assert len(glued) == 101                     # one MORE return than the clean panel
+
+
+def test_book_without_phase_field_is_not_assumed_to_be_backtest(tmp_path):
+    """Canonical semantics of the producer's own reader (aggressive_lab/loader.py): a missing or
+    unknown phase means "forward". Fail-CLOSED — such a book is dropped, never silently used."""
+    _write_book(tmp_path, "legacy", 100.0, [0.001] * 100, phase=None)   # no `phase` field at all
+    _write_book(tmp_path, "good", 100.0, [0.001] * 100)
+    panel = mod.load_panel(tmp_path)
+    assert "legacy" not in panel
+    assert "good" in panel
+
+
+def test_empty_after_phase_filter_raises_instead_of_fabricating(tmp_path):
+    """A whole panel of forward-only books must refuse, not return an empty/invented panel."""
+    _write_book(tmp_path, "fwd_only", 100.0, [0.001] * 100, phase="forward")
+    with pytest.raises(RuntimeError):
+        mod.load_panel(tmp_path)
+
+
+def test_unexplained_jump_inside_one_phase_block_is_refused(tmp_path):
+    """Residual discontinuity INSIDE the backtest block (a re-base the phase field did not
+    mark) is refused, not compounded — fail-CLOSED beyond the phase filter itself."""
+    dailies = [0.001] * 60 + [-0.80] + [0.001] * 60
+    _write_book(tmp_path, "rebased", 100.0, dailies)
+    with pytest.raises(ValueError, match="accounting discontinuity"):
+        mod.load_panel(tmp_path)
+
+
+def test_a_real_but_large_move_below_the_threshold_is_kept(tmp_path):
+    """POSITIVE CONTROL for the refusal above: a violent but genuine −40% day must survive, so
+    the guard cannot be read as 'clip anything big'."""
+    dailies = [0.001] * 60 + [-0.40] + [0.001] * 60
+    _write_book(tmp_path, "crashy", 100.0, dailies)
+    panel = mod.load_panel(tmp_path)
+    # tolerance is the fixture's own %.6f equity rounding, not slack in the guard
+    assert min(panel["crashy"].values()) == pytest.approx(-0.40, abs=1e-6)
+
+
+def test_glue_artifact_reports_both_panels_for_the_same_book(tmp_path):
+    """The size of the correction is reported, not asserted — section 0 of the report."""
+    _write_book(tmp_path, "susde_like", 100_000.0, [0.004] * 100, forward=[100_000.0])
+    art = mod.glue_artifact(tmp_path)["susde_like"]
+    assert art["seam_ret"] < -0.30                      # what the old loader read
+    assert art["apy_clean"] > art["apy_glued"]          # the artifact suppressed the real APY
+    assert art["maxdd_clean"] == pytest.approx(0.0)     # the only "drawdown" WAS the seam
+    assert art["maxdd_glued"] < -0.30
 
 
 # ── metrics ─────────────────────────────────────────────────────────────

@@ -435,3 +435,53 @@ def test_series_fingerprint_is_stable_and_order_independent():
     b = {"2024-01-01": 1.0, "2024-01-02": 2.0}
     assert mod.series_fingerprint(a) == mod.series_fingerprint(b)
     assert mod.series_fingerprint(a) == mod.series_fingerprint(dict(a))
+
+
+# ── phase discipline: the book loader must not diff across the accounting seam ───────────────────
+# Added 2026-08-02 with card agent-idea16-17-phase-glue-contamination. The same file layout that
+# contaminated registry ideas #16/#17 feeds CORE-A/CORE-B here. It was LATENT (the aligned grid
+# ends before the seam because the price feed does), so these pin the CUT itself, not a number.
+def _write_glued_book(root, name, backtest_eq, forward_eq):
+    d = root / name
+    d.mkdir(parents=True, exist_ok=True)
+    lines = []
+    for i, eq in enumerate(backtest_eq, start=1):
+        lines.append('{"date": "2024-01-%02d", "equity_usd": %.2f, "phase": "backtest"}' % (i, eq))
+    for j, eq in enumerate(forward_eq, start=1):
+        lines.append('{"date": "2024-02-%02d", "equity_usd": %.2f, "phase": "forward"}' % (j, eq))
+    (d / "realized_series.jsonl").write_text("\n".join(lines) + "\n")
+
+
+def test_load_book_equity_excludes_the_forward_reanchor(tmp_path, monkeypatch):
+    """Backtest block grows $100k → $147k, then the forward book re-anchors at $100k. Diffing
+    across that seam is a fabricated −32% day; the loader must not expose the forward row."""
+    _write_glued_book(tmp_path, "susde_dn", [100_000.0, 147_330.0], [100_000.0])
+    monkeypatch.setattr(mod, "BOOKS_DIR", tmp_path)
+    eq = mod.load_book_equity("susde_dn")
+    assert sorted(eq) == ["2024-01-01", "2024-01-02"]
+    assert "2024-02-01" not in eq
+    grid = sorted(eq)
+    assert min(mod.step_returns(eq, grid)) > 0.0          # no fabricated crash in the steps
+
+
+def test_load_book_equity_would_have_seen_the_seam_without_the_filter(tmp_path, monkeypatch):
+    """POSITIVE CONTROL: the fixture really does contain a seam, so the test above is not
+    vacuously passing on a file that has nothing to cut."""
+    _write_glued_book(tmp_path, "susde_dn", [100_000.0, 147_330.0], [100_000.0])
+    import json as _json
+    rows = [_json.loads(l) for l in
+            (tmp_path / "susde_dn" / "realized_series.jsonl").read_text().splitlines() if l.strip()]
+    blind = {r["date"]: float(r["equity_usd"]) for r in rows}
+    assert min(mod.step_returns(blind, sorted(blind))) < -0.30
+
+
+def test_load_book_equity_refuses_a_forward_only_book(tmp_path, monkeypatch):
+    """Fail-CLOSED: no backtest rows ⇒ refuse loudly rather than run CORE-A on an empty book."""
+    _write_glued_book(tmp_path, "susde_dn", [], [100_000.0, 100_100.0])
+    monkeypatch.setattr(mod, "BOOKS_DIR", tmp_path)
+    try:
+        mod.load_book_equity("susde_dn")
+    except ValueError as exc:
+        assert "backtest" in str(exc)
+    else:                                                  # pragma: no cover - failure path
+        raise AssertionError("a forward-only book must not load silently")

@@ -55,8 +55,15 @@ HONEST CAVEATS (printed in the verdict, mirrored into the registry)
   (a) SURVIVORSHIP: these 10 books are the surviving roster; a real forward universe would
       include books that were delisted after blowing up → cross-sectional results are an
       upper bound on real diversification.
-  (b) The panel is a REALIZED BACKTEST over the real feed history, not a live forward track;
-      phase="forward" covers only the newest day.
+  (b) The panel is a REALIZED BACKTEST over the real feed history, not a live forward track.
+      The file also carries phase="forward" rows (the live paper book, RE-ANCHORED at ~$100k);
+      they are a DIFFERENT accounting series and are excluded by load_panel — see the phase
+      note above the loader. Until 2026-08-02 they were not, and the numbers #16/#17 were
+      first published with (2026-07-16) carry that artifact; section 0 of the report prints
+      its size per book.
+  (f) The books are REGENERATED nightly (card agent-aggressive-lab-books-are-regenerated
+      measured 853/853 rows changing between backups, shifts up to −9.7%), so any number here
+      is reproducible only against the panel snapshot of the run date, which the report stamps.
   (c) De-risk to cash is frictionless here (no gas/slippage); idea #10 showed the causal
       overlay break-even is ~96 bps/switch — real costs bite only past that.
   (d) Params (θ, vol_thr, k, lookback) are swept on the full run AND re-checked OOS
@@ -91,24 +98,94 @@ CRISIS_WINDOWS = [
     ("rseth_depeg_2026_04", "2026-04-01", "2026-04-20"),
 ]
 
+# A one-day move beyond this INSIDE a single phase block is an accounting discontinuity, not
+# a return. Refuse the book rather than compound it (fail-CLOSED). Same constant/semantics as
+# scripts/edge_calm_fp_tax.py::JUMP_REFUSE — the reference implementation named by the card.
+JUMP_REFUSE = 0.50
+
 
 # ─────────────────────────── real-panel loader ───────────────────────────
+# PHASE DISCIPLINE (fixed 2026-08-02, card agent-idea16-17-phase-glue-contamination).
+# realized_series.jsonl glues TWO different accounting series into one file: the
+# phase="backtest" block (equity compounding from $100k) and the phase="forward" rows of the
+# live paper book, which RE-ANCHOR at ~$100k. Diffing equity_usd across that boundary turns a
+# change of accounting series into a fabricated one-day return of −31% (susde_dn), −84%
+# (pendle_yt_susde) or +105% (eth_directional). The original loader here did exactly that, and
+# the published numbers of registry ideas #16/#17 were computed on it. The boundary is now cut,
+# never crossed. Canonical semantics follow the producer's own reader
+# (spa_core/strategy_lab/aggressive_lab/loader.py: a missing/unknown `phase` means "forward"),
+# so a row without an explicit phase="backtest" is NOT silently treated as backtest.
+def _read_rows(path: Path) -> List[dict]:
+    out: List[dict] = []
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if line:
+            out.append(json.loads(line))
+    return out
+
+
+def backtest_block(rows: Sequence[dict]) -> List[dict]:
+    """Keep only the phase=="backtest" rows, in date order (the block that is one series)."""
+    keep = [r for r in rows if r.get("phase") == "backtest"]
+    keep.sort(key=lambda r: str(r.get("date") or r.get("as_of") or ""))
+    return keep
+
+
+def _equity_points(rows: Sequence[dict]) -> Tuple[List[str], List[float]]:
+    dates: List[str] = []
+    eq: List[float] = []
+    for row in rows:
+        d = row.get("date") or row.get("as_of")
+        e = row.get("equity_usd")
+        if d is None or e is None or float(e) <= 0:
+            continue
+        dates.append(str(d))
+        eq.append(float(e))
+    return dates, eq
+
+
 def load_panel(panel_dir: Path = PANEL_DIR) -> Dict[str, Dict[str, float]]:
-    """{book: {date: daily_return}} from the real realized_series.jsonl files.
+    """{book: {date: daily_return}} over the phase=="backtest" block of each book.
 
     Daily return is derived from equity_usd (the authoritative marked equity), NOT from
     mtm_today_pct, so a book with an odd first-day mark cannot distort the compounding.
-    Fail-CLOSED: a book with < 60 usable points is dropped (never fabricated).
+    Fail-CLOSED on three counts, none of which fabricates a point:
+      • rows outside the phase="backtest" block are never diffed against it (see above);
+      • a book with < 60 usable points is dropped;
+      • a residual same-block move beyond JUMP_REFUSE raises instead of compounding.
+    """
+    panel: Dict[str, Dict[str, float]] = {}
+    for sub in sorted(panel_dir.glob("*/realized_series.jsonl")):
+        book = sub.parent.name
+        dates, eq = _equity_points(backtest_block(_read_rows(sub)))
+        if len(dates) < 60:
+            continue
+        rets: Dict[str, float] = {}
+        for i in range(1, len(dates)):
+            ret = eq[i] / eq[i - 1] - 1.0
+            if abs(ret) > JUMP_REFUSE:
+                raise ValueError(
+                    f"{book}: {abs(ret) * 100:.1f}% one-day move at {dates[i]} inside a single "
+                    f"phase block — refusing to treat an accounting discontinuity as a return"
+                )
+            rets[dates[i]] = ret
+        panel[book] = rets
+    if not panel:
+        raise RuntimeError(f"no usable books in {panel_dir} — refusing to fabricate a panel")
+    return panel
+
+
+def load_glued_panel(panel_dir: Path = PANEL_DIR) -> Dict[str, Dict[str, float]]:
+    """The OLD phase-blind loader — kept ONLY to quantify the artifact it produced.
+
+    Never used by run_idea16 / run_idea17. main() prints the difference between this and
+    load_panel() so the size of the correction is visible instead of asserted.
     """
     panel: Dict[str, Dict[str, float]] = {}
     for sub in sorted(panel_dir.glob("*/realized_series.jsonl")):
         book = sub.parent.name
         eq: Dict[str, float] = {}
-        for line in sub.read_text().splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            row = json.loads(line)
+        for row in _read_rows(sub):
             d = row.get("date") or row.get("as_of")
             e = row.get("equity_usd")
             if d and e is not None and float(e) > 0:
@@ -116,11 +193,29 @@ def load_panel(panel_dir: Path = PANEL_DIR) -> Dict[str, Dict[str, float]]:
         dates = sorted(eq)
         if len(dates) < 60:
             continue
-        rets = {dates[i]: eq[dates[i]] / eq[dates[i - 1]] - 1.0 for i in range(1, len(dates))}
-        panel[book] = rets
-    if not panel:
-        raise RuntimeError(f"no usable books in {panel_dir} — refusing to fabricate a panel")
+        panel[book] = {dates[i]: eq[dates[i]] / eq[dates[i - 1]] - 1.0 for i in range(1, len(dates))}
     return panel
+
+
+def glue_artifact(panel_dir: Path = PANEL_DIR) -> Dict[str, Dict[str, float]]:
+    """Per book: the seam move the phase-blind loader read as a return, and the metric delta.
+
+    {book: {"seam_ret", "apy_glued", "apy_clean", "maxdd_glued", "maxdd_clean"}}.
+    Books present in only one of the two panels are omitted (nothing is invented).
+    """
+    clean, glued = load_panel(panel_dir), load_glued_panel(panel_dir)
+    out: Dict[str, Dict[str, float]] = {}
+    for book in sorted(set(clean) & set(glued)):
+        c_dates, g_dates = sorted(clean[book]), sorted(glued[book])
+        extra = [d for d in g_dates if d not in clean[book]]
+        seam = max((glued[book][d] for d in extra), key=abs, default=0.0)
+        pc, pg = perf([clean[book][d] for d in c_dates]), perf([glued[book][d] for d in g_dates])
+        out[book] = {
+            "seam_ret": seam,
+            "apy_glued": pg["apy"], "apy_clean": pc["apy"],
+            "maxdd_glued": pg["maxdd"], "maxdd_clean": pc["maxdd"],
+        }
+    return out
 
 
 def common_axis(panel: Dict[str, Dict[str, float]]) -> List[str]:
@@ -509,6 +604,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     axis = common_axis(panel)
     if target not in panel:
         target = "susde_dn" if "susde_dn" in panel else sorted(panel)[0]
+
+    # Section 0 — the size of the phase-glue artifact the old loader compounded. Printed, not
+    # asserted: the correction to already-published #16/#17 numbers must be visible.
+    art = glue_artifact()
+    if art:
+        print(f"\n{'='*74}\n0. PHASE-GLUE ARTIFACT (old phase-blind loader vs this one)")
+        print(f"  {'book':<20}{'seam read as':>14}{'APY glued':>12}{'APY clean':>12}"
+              f"{'maxDD glued':>14}{'maxDD clean':>14}")
+        for book, row in art.items():
+            print(f"  {book:<20}{row['seam_ret']*100:>13.2f}%{row['apy_glued']*100:>11.2f}%"
+                  f"{row['apy_clean']*100:>11.2f}%{row['maxdd_glued']*100:>13.2f}%"
+                  f"{row['maxdd_clean']*100:>13.2f}%")
+        print("  → the seam is a change of accounting series (forward book re-anchors at ~$100k),"
+              " not a market move.")
+
     run_idea16(panel, axis, target=target)
     run_idea17(panel, axis)
     print(f"\n{'='*74}\nEvidence: L0 (real feed-history backtest, NOT live). "

@@ -80,13 +80,38 @@ def load_funding() -> dict:
 
 
 def load_book_equity(name: str) -> dict:
+    """{date: equity_usd} over the phase=="backtest" block ONLY.
+
+    realized_series.jsonl glues two different accounting series into one file: the backtest
+    block (equity compounding from $100k) and the live forward paper book, which RE-ANCHORS at
+    ~$100k. Diffing across that seam reads a change of accounting series as a one-day return of
+    −31% (susde_dn) or −84% (pendle_yt_susde) — the defect that contaminated registry ideas
+    #16/#17 (card agent-idea16-17-phase-glue-contamination, 2026-08-02).
+
+    Here it was LATENT, not active, and that is measured rather than assumed: the aligned grid
+    intersects the book dates with ETH prices/funding, which end 2026-06-24, while the seam sits
+    at 2026-07-05→2026-08-02, so no seam step ever entered the grid — every COMPUTED number in the
+    report is byte-identical before and after this filter (verified 2026-08-02; the only lines that
+    move are the input-provenance shas/row-counts, because the seam row is no longer an input).
+    It is fail-OPEN by construction though: the day the price feed
+    reaches past the seam, the −31% step would silently enter every number below. Cut the boundary
+    now rather than leave the twin (the same reason idea #21's own ols_beta was de-duplicated).
+    Canonical semantics follow the producer's reader (aggressive_lab/loader.py): a missing or
+    unknown `phase` means "forward", so it is NOT treated as backtest.
+    """
     path = BOOKS_DIR / name / "realized_series.jsonl"
     eq = {}
     for line in path.read_text().splitlines():
         if not line.strip():
             continue
         row = json.loads(line)
+        if row.get("phase") != "backtest":
+            continue
         eq[row["date"]] = float(row["equity_usd"])
+    if not eq:
+        raise ValueError(
+            f"{name}: no phase=\"backtest\" rows in {path} — refusing to run on an empty book"
+        )
     return eq
 
 
