@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **165** · ждёт владельца: **18** · занято сессиями: **1**.
+> Всего карточек: **165** · ждёт владельца: **18** · занято сессиями: **0**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -24,12 +24,6 @@
 - **Твои решения от 23 июля 11 дней не лежали в git — доставил, подтверди что в силе** · _high_  ·  `owner-decision-tvoi-resheniya-ot-23-iyulya-11-dnei-ne-l.md`
 - **Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать** · _medium_  ·  `owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema.md`
 - **Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта**  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md`
-
-## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
-
-> Ставится `scripts/check_card_claim.py claim`, снимается `release` (и не действует после `done`/`ingested`). Перед взятием карточки — `check_card_claim.py check <карточка>`.
-
-- **CI-Lite красный с 02.08: mypy на allocator.py:244 — ADR-061 читает JSON, не проверяя, что это объект** — держит `pid19015` · с 2026-08-03T03:48:32Z  ·  `agent-task-ci-lite-krasnyi-s-02-08-mypy-na-allocato.md`
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (54)
 
@@ -130,7 +124,6 @@
 - Шаг 0b держит карточку занятой по файлам сессии, чей pid измеримо мёртв  ·  `agent-dead-pid-still-holds-files-for-3h.md` · 2026-08-02
 - Панель идеи #17 на 6 книгах из 10 состоит из неподвижных марок — кросс-секцию на ней измерить нельзя  ·  `agent-idea17-needs-a-panel-with-daily-marks.md` · 2026-08-02
 - CI на main красный — два теста Spark требуют «гарантированный fallback 5.5%», который ADR-063 намеренно убрал  ·  `agent-spark-apy-tests-assert-a-fallback-adr-063-removed.md` · 2026-08-03
-- CI-Lite красный с 02.08: mypy на allocator.py:244 — ADR-061 читает JSON, не проверяя, что это объект  ·  `agent-task-ci-lite-krasnyi-s-02-08-mypy-na-allocato.md` · 2026-08-03 · 🔒 `pid19015`
 - Красный CI-Lite невидим: гейт mypy живёт в workflow, который никто не смотрит, и его падение гасит две другие проверки  ·  `agent-task-krasnyi-ci-lite-nevidim-geit-mypy-zhivet.md` · 2026-08-03
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
@@ -178,6 +171,7 @@
 - Разбор swarm-сессии 11.07 (31 идея)  ·  `agent-swarm-review.md` · 2026-07-16
 - Bootstrap: единая доска карточек + читать историю решений при старте  ·  `agent-task-bootstrap-edinaya-doska-kartochek-chitat.md` · 2026-07-16
 - Брифинг печатает «все агенты в норме» под вердиктом WARNING и скрывает его причину  ·  `agent-task-brifing-pechataet-vse-agenty-v-norme-pod.md` · 2026-08-01
+- CI-Lite красный с 02.08: mypy на allocator.py:244 — ADR-061 читает JSON, не проверяя, что это объект  ·  `agent-task-ci-lite-krasnyi-s-02-08-mypy-na-allocato.md` · 2026-08-03
 - CI на main красный с 06:23Z — сканер мёртвого кода не укладывается в 30-секундный бюджет на раннере (локально укладывается)  ·  `agent-task-ci-na-main-krasnyi-s-06-23z-skaner-mertv.md` · 2026-07-31
 - Сторож governance отчитывается «8 ok / 0 failed», не проверяя НИ ОДИН удерживаемый протокол — пересечение с портфелем пустое  ·  `agent-task-storozh-governance-otchityvaetsya-8-ok-0.md` · 2026-08-01
 - Тесты шлют боевые Telegram-алерты владельцу (cycle_gap)  ·  `agent-tests-send-live-telegram-alerts.md` · 2026-07-31

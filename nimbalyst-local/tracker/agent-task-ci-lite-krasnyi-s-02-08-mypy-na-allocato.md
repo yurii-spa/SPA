@@ -2,11 +2,9 @@
 trackerStatus:
   type: agent-task
 title: "CI-Lite красный с 02.08: mypy на allocator.py:244 — ADR-061 читает JSON, не проверяя, что это объект"
-status: backlog
+status: done
 source: session-2026-08-03-cycle95
 created: 2026-08-03
-claimed_by: pid19015
-claimed_at: 2026-08-03T03:48:32Z
 ---
 
 ## Как найдено
@@ -139,3 +137,21 @@ status adapters=[1,2] -> AttributeError: 'list' object has no attribute 'items'
 RiskPolicy, пороги, kill-switch, живой трек `data/equity_curve_daily.json`, launchd/деплой — не
 трогал; `data/**` не публиковал. ADR не требуется: код приведён к действующим инвариантам
 #2 (fail-CLOSED) и #16.
+
+## Подтверждено РЕАЛЬНЫМ Actions, а не локалью
+
+Доставлено одним атомарным коммитом `b413fc764` (8 файлов, `skipped=0`, все 8 сверены с origin
+побайтово 8/8, стрэев в корне нет, чистый чекаут доставленного коммита — 27 passed + mypy
+Success). После доставки `workflow_dispatch` на `main`:
+
+```
+run 30784470365  SPA CI-Lite  b413fc764  2026-08-03T04:27:05Z  ->  SUCCESS
+```
+
+**Все 11 шагов джоба `Syntax & Import Check` = success**, включая шаг 9 (`Type check — mypy`) и,
+что важнее, шаги **10 `Import check — all spa_core modules import cleanly`** и
+**11 `Registry check — >= 20 strategies registered`**, которые всё время красноты уходили в
+`skipped`. Предыдущие два прогона на `49d0d1122` и `19666683a` — `failure`. Красный CI-Lite
+закрыт.
+
+**Статус карточки → `done`.**
