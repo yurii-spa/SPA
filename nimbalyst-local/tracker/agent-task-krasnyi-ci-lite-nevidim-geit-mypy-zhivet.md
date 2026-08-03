@@ -141,6 +141,22 @@ owner-gated по ADR-OWN-2026-07-repo-freeze-incident (уведомления + 
 Ровно тот класс, что #29/#31/#35–#38, #40 и текстовый пин цикла #104, — только на этот раз он
 завёлся в свежем коде и был пойман мутацией, а не следующей сессией через неделю.
 
+### Подтверждено РЕАЛЬНЫМ Actions на коммите `eed788c8` (не локалью)
+
+* **`SPA CI-Lite` — `success`, все 11 шагов зелёные.** Шаг 9 `Type check` отработал уже через
+  `scripts/mypy_gate.py`, шаги 10 `Import check` и 11 `Registry check` выполнены (а не
+  `skipped`). Прогон вызван вручную (`workflow_dispatch`), потому что по расписанию ждать 6 часов.
+* **`SPA Proof Gate` — `success`, `SPA Lint — LLM forbidden` — `success`.**
+* **`SPA CI` — `failure`, и это РОВНО одно предсуществующее падение:**
+  `1 failed, 91 222 passed, 581 skipped, 1 error` — упал
+  `test_no_live_network_in_tests.py::TestGuardIsInstalled::test_telegram_guard_stays_outermost`,
+  тот самый, что краснел и на базовом `3cd7b9808`, со своей карточкой
+  `agent-telegram-guard-outermost-fails-only-in-full-run`. Упал ТОЛЬКО шаг
+  `Run spa_core/tests (unit)`; шаг с моими тестами (`tests/`) — зелёный.
+* **`mypy==2.1.0` встал на раннере штатно** (колесо `cp311`, тянет `typing_extensions`,
+  `mypy_extensions`, `pathspec`) — риск «пиновка не поставится на матрице 3.11/3.12» снят
+  замером, а не рассуждением.
+
 ### Инвариант #16
 
 Ни один существующий ассерт не изменён и не ослаблен: правки — только ДОБАВЛЕНИЕ проверок
