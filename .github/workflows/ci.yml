@@ -30,7 +30,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pytest pytest-asyncio pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt pyflakes  # option-A full test-dep set (runtime stays stdlib-only). pyflakes = the unused-import ratchet in scripts/tests/ shells out to it (цикл #74).
+          pip install pytest pytest-asyncio pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt pyflakes mypy==2.1.0  # option-A full test-dep set (runtime stays stdlib-only). pyflakes = the unused-import ratchet in scripts/tests/ shells out to it (цикл #74). mypy = the type gate that tests/test_mypy_gate.py shells out to; ОБЯЗАТЕЛЬНА, иначе гейт красный, а не пропущенный (цикл #107, инв. #2) — версия пиннится так же, как в ci-lite.yml.
 
       - name: Smoke test — import spa_core
         run: |

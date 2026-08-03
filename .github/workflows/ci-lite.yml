@@ -26,6 +26,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
+    # ── Каждый шаг-ПРОВЕРКА независим (`if: ${{ !cancelled() }}`) ───────────
+    # Цикл #107, карточка agent-task-krasnyi-ci-lite-nevidim-geit-mypy-zhivet.
+    # По умолчанию шаг не запускается, если предыдущий упал: замер цикла #95 —
+    # при красном `Type check` шаги `Import check` и `Registry check` уходили в
+    # `skipped`, то есть ОДНА ошибка типов гасила остаток гейта, и в логе это
+    # выглядело как «проверки не нужны», а не «проверки не выполнялись».
+    # Тот же механизм цикл #31 уже находил в этом же workflow.
+    # Джоб по-прежнему КРАСНЫЙ, если упал любой шаг (проверка не ослаблена —
+    # их стало выполняться больше, а не меньше). `!cancelled()`, а не
+    # `always()`: отмену прогона по-прежнему уважаем.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,6 +46,7 @@ jobs:
           python-version: '3.11'
 
       - name: Syntax check — py_compile all .py files
+        if: ${{ !cancelled() }}
         run: |
           echo "=== Syntax check: all .py files ==="
           python3 -c "
@@ -60,6 +71,7 @@ jobs:
           "
 
       - name: Import smoke test — spa_core
+        if: ${{ !cancelled() }}
         env:
           SPA_ENV: ci
         run: |
@@ -98,6 +110,7 @@ jobs:
           "
 
       - name: Forbidden import check (risk + execution)
+        if: ${{ !cancelled() }}
         run: |
           echo "=== Forbidden import check ==="
           python3 -c "
@@ -125,6 +138,7 @@ jobs:
           "
 
       - name: Strategy registry completeness check
+        if: ${{ !cancelled() }}
         env:
           SPA_ENV: ci
         run: |
@@ -144,25 +158,22 @@ jobs:
 
       # ── MP-1233: type-check + import + registry (code-quality gate) ───────────
       - name: Install type-check tooling
+        if: ${{ !cancelled() }}
         run: pip install mypy==2.1.0
 
+      # Список модулей и флаги живут в scripts/mypy_gate.py — ОДИН источник на
+      # два вызывающих: этот шаг и tests/test_mypy_gate.py (который крутится в
+      # `SPA Tests` / `SPA CI`, то есть в том CI, который циклы реально смотрят,
+      # и на КАЖДОМ push, а не раз в 6 часов по расписанию). Список в двух
+      # местах разошёлся бы молча.
       - name: Type check — mypy on key modules
+        if: ${{ !cancelled() }}
         env:
           SPA_ENV: ci
-        run: |
-          echo "=== Type check: mypy on key modules ==="
-          MYPYPATH=. python3 -m mypy \
-            spa_core/paper_trading/cycle_runner.py \
-            spa_core/allocator/allocator.py \
-            spa_core/risk/policy.py \
-            spa_core/utils/type_utils.py \
-            --ignore-missing-imports \
-            --no-strict-optional \
-            --explicit-package-bases \
-            --follow-imports=silent
-          echo "Type check PASSED"
+        run: python3 scripts/mypy_gate.py
 
       - name: Import check — all spa_core modules import cleanly
+        if: ${{ !cancelled() }}
         env:
           SPA_ENV: ci
         run: |
@@ -211,6 +222,7 @@ jobs:
           "
 
       - name: Registry check — >= 20 strategies registered
+        if: ${{ !cancelled() }}
         env:
           SPA_ENV: ci
         run: |

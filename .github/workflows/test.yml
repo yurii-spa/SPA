@@ -43,7 +43,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Install test dependencies
-        run: pip install pytest pytest-asyncio pytest-timeout pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt pyflakes  # option-A full test-dep set (runtime stays stdlib-only). pytest-timeout = a per-test wedge backstop so a hung test fails-fast + NAMED, never wedging the runner 30min. pyflakes = the unused-import ratchet in scripts/tests/ shells out to it (цикл #74).
+        run: pip install pytest pytest-asyncio pytest-timeout pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt pyflakes mypy==2.1.0  # option-A full test-dep set (runtime stays stdlib-only). pytest-timeout = a per-test wedge backstop so a hung test fails-fast + NAMED, never wedging the runner 30min. pyflakes = the unused-import ratchet in scripts/tests/ shells out to it (цикл #74). mypy = the type gate that tests/test_mypy_gate.py shells out to; ОБЯЗАТЕЛЬНА, иначе гейт красный, а не пропущенный (цикл #107, инв. #2) — версия пиннится так же, как в ci-lite.yml.
 
       # --- Deterministic test execution (Architect N11) ---------------------
       # Two CI runs MUST produce an IDENTICAL collection order + pass/fail set

@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **176** · ждёт владельца: **18** · занято сессиями: **0**.
+> Всего карточек: **178** · ждёт владельца: **19** · занято сессиями: **0**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -20,12 +20,13 @@
 - **Сторож базисной сделки ожил и хочет слать тебе «отличная возможность» — включаем эти сообщения или нет** · _medium_  ·  `owner-decision-storozh-bazisnoi-sdelki-ozhil-i-hochet-s.md`
 - **Сторож голосований следит за чужими протоколами, а за нашими — нет: выбери, добавлять источники или убрать лишние** · _high_  ·  `owner-decision-storozh-golosovanii-sledit-za-chuzhimi-p.md`
 - **Сторож расхождения флота не запускался 21 день — его никто не зовёт**  ·  `owner-decision-storozh-rashozhdeniya-flota-ne-zapuskals.md`
+- **Третья проверка кода сломалась и 8 часов этого никто не видел — нужен сторож за всеми проверками** · _medium_  ·  `owner-decision-tretya-proverka-koda-slomalas-i-8-chasov.md`
 - **Тревога о стоп-кране до тебя больше не дойдёт — событие застряло в «плохо» с 4 июля (выбери, как чинить)** · _high_  ·  `owner-decision-trevoga-o-stop-krane-do-tebya-bolshe-ne.md`
 - **Твои решения от 23 июля 11 дней не лежали в git — доставил, подтверди что в силе** · _high_  ·  `owner-decision-tvoi-resheniya-ot-23-iyulya-11-dnei-ne-l.md`
 - **Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать** · _medium_  ·  `owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema.md`
 - **Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта**  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (54)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (55)
 
 ### · needs-owner
 - Секрет входа в кабинет засветился в переписке — сменить его (ротация SIWE_SESSION_SECRET)  ·  `own-25-siwe-secret-exposed-rotate.md` · 2026-08-02
@@ -42,6 +43,7 @@
 - Сторож базисной сделки ожил и хочет слать тебе «отличная возможность» — включаем эти сообщения или нет  ·  `owner-decision-storozh-bazisnoi-sdelki-ozhil-i-hochet-s.md` · 2026-08-01
 - Сторож голосований следит за чужими протоколами, а за нашими — нет: выбери, добавлять источники или убрать лишние  ·  `owner-decision-storozh-golosovanii-sledit-za-chuzhimi-p.md` · 2026-08-01
 - Сторож расхождения флота не запускался 21 день — его никто не зовёт  ·  `owner-decision-storozh-rashozhdeniya-flota-ne-zapuskals.md` · 2026-08-01
+- Третья проверка кода сломалась и 8 часов этого никто не видел — нужен сторож за всеми проверками  ·  `owner-decision-tretya-proverka-koda-slomalas-i-8-chasov.md` · 2026-08-03
 - Тревога о стоп-кране до тебя больше не дойдёт — событие застряло в «плохо» с 4 июля (выбери, как чинить)  ·  `owner-decision-trevoga-o-stop-krane-do-tebya-bolshe-ne.md` · 2026-07-31
 - Твои решения от 23 июля 11 дней не лежали в git — доставил, подтверди что в силе  ·  `owner-decision-tvoi-resheniya-ot-23-iyulya-11-dnei-ne-l.md` · 2026-08-02
 - Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать  ·  `owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema.md` · 2026-08-01
@@ -113,7 +115,7 @@
 - Задача разобраться почему нет свежих данных почему Pepper Тест не обновился хот…  ·  `inbox-zadacha-razobratsya-pochemu-net-svezhih.md` · 2026-07-23
 - Задача решить проблему 🚨 Пропущен ежедневный цикл  ·  `inbox-zadacha-reshit-problemu-propuschen-ezhed.md` · 2026-07-30
 
-## 🤖 Agent Tasks (что делает агент)  (73)
+## 🤖 Agent Tasks (что делает агент)  (74)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -123,9 +125,9 @@
 - Правка чужой карточки запирает её на 3 часа — даже когда сессия прямо назвала в объявлении ДРУГУЮ карточку  ·  `agent-card-file-in-ownership-locks-a-card-it-doesnt-claim.md` · 2026-08-01
 - Тесты защиты карточек пишут в НАСТОЯЩИЙ журнал объявлений — их вердикт зависит от накопленной истории, а не от кода  ·  `agent-claim-guard-tests-write-a-real-announce-journal.md` · 2026-08-03
 - Шаг 0b держит карточку занятой по файлам сессии, чей pid измеримо мёртв  ·  `agent-dead-pid-still-holds-files-for-3h.md` · 2026-08-02
+- Тесты Family Fund API держат фиксированный порт — параллельный контрольный прогон даёт фантомные падения  ·  `agent-fund-api-tests-bind-a-fixed-port.md` · 2026-08-03
 - Панель идеи #17 на 6 книгах из 10 состоит из неподвижных марок — кросс-секцию на ней измерить нельзя  ·  `agent-idea17-needs-a-panel-with-daily-marks.md` · 2026-08-02
 - Осиротевшая работа вернулась после закрытия своей карточки — циклы #97 и #98 умерли не доставив, второй прямо на подъёме работы первого  ·  `agent-orphaned-work-recurred-after-its-card-was-closed.md` · 2026-08-03
-- Красный CI-Lite невидим: гейт mypy живёт в workflow, который никто не смотрит, и его падение гасит две другие проверки  ·  `agent-task-krasnyi-ci-lite-nevidim-geit-mypy-zhivet.md` · 2026-08-03
 - Последнее падение на main — страж сети требует ПУСТОЙ журнал попыток, а к его очереди накоплено 2267 чужих записей  ·  `agent-telegram-guard-outermost-fails-only-in-full-run.md` · 2026-08-03
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
@@ -180,6 +182,7 @@
 - Брифинг печатает «все агенты в норме» под вердиктом WARNING и скрывает его причину  ·  `agent-task-brifing-pechataet-vse-agenty-v-norme-pod.md` · 2026-08-01
 - CI-Lite красный с 02.08: mypy на allocator.py:244 — ADR-061 читает JSON, не проверяя, что это объект  ·  `agent-task-ci-lite-krasnyi-s-02-08-mypy-na-allocato.md` · 2026-08-03
 - CI на main красный с 06:23Z — сканер мёртвого кода не укладывается в 30-секундный бюджет на раннере (локально укладывается)  ·  `agent-task-ci-na-main-krasnyi-s-06-23z-skaner-mertv.md` · 2026-07-31
+- Красный CI-Lite невидим: гейт mypy живёт в workflow, который никто не смотрит, и его падение гасит две другие проверки  ·  `agent-task-krasnyi-ci-lite-nevidim-geit-mypy-zhivet.md` · 2026-08-03
 - Повторное дописывание файла в одном цикле дублирует содержимое: rebase_append считает хвост от устаревшей базы, а не от remote  ·  `agent-task-povtornoe-dopisyvanie-faila-v-odnom-tsik.md` · 2026-08-03
 - Сторож governance отчитывается «8 ok / 0 failed», не проверяя НИ ОДИН удерживаемый протокол — пересечение с портфелем пустое  ·  `agent-task-storozh-governance-otchityvaetsya-8-ok-0.md` · 2026-08-01
 - Тесты шлют боевые Telegram-алерты владельцу (cycle_gap)  ·  `agent-tests-send-live-telegram-alerts.md` · 2026-07-31
