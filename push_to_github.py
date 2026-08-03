@@ -518,15 +518,61 @@ def rebase_append(base: Optional[bytes], local: Optional[bytes],
     Любая правка в СЕРЕДИНЕ (так меняется `docs/STATE.md`) ломает префикс — и
     функция честно отдаёт ``None``, чтобы вызывающий отказал. Слияния «по смыслу»
     здесь нет и быть не должно (карточка прямо это исключает).
+
+    **Хвост считается от самого длинного ИЗВЕСТНОГО префикса, а не от базы**
+    (карточка `agent-task-povtornoe-dopisyvanie-faila-v-odnom-tsik`, цикл #95).
+    ``base`` — это git HEAD рабочего дерева, и за цикл он не двигается. Поэтому
+    цикл, дописавший файл ВТОРОЙ раз (протокол требует и то и другое: §3.4
+    изолированный worktree + «Шаг 3 — обновить память»), получал::
+
+        base = B · remote = B+S1 (наш же первый пуш) · local = B+S1+S2
+        tail = local[len(B):] = S1+S2   ⇒   remote+tail = B+S1+S1+S2
+
+    Оба ``startswith(base)`` выполнены ⇒ отказа не было: расхождение считалось
+    БЕЗОПАСНЫМ «чистым дописыванием», и пушер печатал ``OK … skipped=0`` о
+    результате, которого не проверял. Измерено на `docs/journal/2026-W32.md`
+    в цикле #95 (секция уехала на origin дважды).
     """
     if base is None or local is None or remote is None:
         return None
     if not local.startswith(base) or not remote.startswith(base):
         return None
-    tail = local[len(base):]
+
+    # Наша версия уже СОДЕРЖИТ всё, что лежит на remote (типовой случай: remote —
+    # это наш же первый пуш этого цикла). Доливать нечего и не нужно ничего
+    # склеивать: результат — ровно local. Проверка идёт ДО расчёта хвоста, иначе
+    # вырожденный случай local == remote дал бы «пустой хвост» ⇒ ложный отказ.
+    if local.startswith(remote):
+        return local
+
+    tail = local[len(_common_prefix_at_line_boundary(base, local, remote)):]
     if not tail:
         return None
     return remote + tail
+
+
+def _common_prefix_at_line_boundary(base: bytes, local: bytes, remote: bytes) -> bytes:
+    """Общий префикс ``local`` и ``remote``, обрезанный по границе СТРОКИ.
+
+    Никогда не короче ``base`` (оба аргумента с него начинаются) — поэтому в
+    худшем случае поведение ровно прежнее: хвост от базы. Длиннее базы он
+    становится там, где между нашими двумя пушами дописала ЧУЖАЯ сессия: тогда
+    ``remote = B+S1+X``, ``local = B+S1+S2``, общий префикс = ``B+S1``, и на
+    remote накладывается только S2 — S1 не дублируется, а X не теряется.
+
+    Обрезка по ``\\n`` обязательна и не косметическая: две РАЗНЫЕ записи легко
+    совпадают первыми байтами (``### Цикл #98`` / ``### Цикл #99``), и «умный»
+    побайтовый префикс склеил бы их в мусор посреди строки. Границей может быть
+    только конец строки; не нашли её — откатываемся к базе (fail-CLOSED).
+    """
+    limit = min(len(local), len(remote))
+    i = len(base)
+    while i < limit and local[i] == remote[i]:
+        i += 1
+    cut = local.rfind(b"\n", len(base), i)
+    if cut == -1:
+        return base
+    return local[:cut + 1]
 
 
 def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
