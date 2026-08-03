@@ -15,6 +15,8 @@ Run:
 """
 from __future__ import annotations
 
+import base64
+import hashlib
 import io
 import json
 import os
@@ -159,6 +161,13 @@ class TestDegradeSafely(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # 2. push_to_github: 409 stale-sha → re-fetch sha → retry → success
 # ---------------------------------------------------------------------------
+def _true_blob_sha(data: bytes) -> str:
+    """git blob SHA-1 — an INDEPENDENT implementation, deliberately not
+    `ptg.git_blob_sha`: a stub that computed the expected value with the same
+    function as the code under test would agree even if hashing were broken."""
+    return hashlib.sha1(f"blob {len(data)}\0".encode() + data).hexdigest()
+
+
 class _FakeHTTP409Then200:
     """urlopen mock: first PUT raises HTTP 409, second PUT returns 200."""
 
@@ -176,9 +185,22 @@ class _FakeHTTP409Then200:
                     fp=io.BytesIO(b'{"message":"is at ... but expected ..."}'),
                 )
             # second attempt succeeds
+            # CHANGED (card `agent-pusher-does-not-verify-what-it-delivered`,
+            # cycle #102). This used to be the placeholder `"f" * 40`: nothing
+            # read `content.sha` beyond `[:8]` for display. The real Contents
+            # API returns the sha of the blob it actually stored — an equality
+            # already load-bearing in production (the idempotency skip compares
+            # the remote sha against `git_blob_sha` of the local bytes) and
+            # confirmed by direct measurement. The pusher now VERIFIES that sha,
+            # so the placeholder would mean "remote stored bytes that are not
+            # ours" ⇒ an honest refusal. No assertion is weakened: the stub got
+            # MORE faithful, so this test additionally pins that the retried PUT
+            # carries our exact bytes. Invariant #16: justified here, recorded
+            # in docs/journal/2026-W32.md.
+            sent = base64.b64decode(json.loads(req.data.decode())["content"])
             resp = mock.MagicMock()
             resp.read.return_value = json.dumps(
-                {"content": {"sha": "f" * 40}}
+                {"content": {"sha": _true_blob_sha(sent)}}
             ).encode()
             resp.__enter__ = lambda s: s
             resp.__exit__ = lambda s, *a: False

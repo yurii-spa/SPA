@@ -110,6 +110,17 @@ def _append(path: Path, text: str) -> None:
     path.write_bytes(path.read_bytes() + text.encode())
 
 
+def _true_blob_sha(data: bytes) -> str:
+    """git blob SHA-1 — СВОЯ реализация, намеренно не `ptg.git_blob_sha`.
+
+    Фейк обязан оставаться независимым оракулом: считай он ожидаемое той же
+    функцией, что и код под тестом, сверка сошлась бы даже при сломанном
+    хешировании (проверка себя собой ничего не измеряет).
+    """
+    import hashlib
+    return hashlib.sha1(f"blob {len(data)}\0".encode() + data).hexdigest()
+
+
 class FakeRemote:
     """Deterministic GitHub: помнит содержимое путей, считает записи."""
 
@@ -153,7 +164,20 @@ class FakeRemote:
             content = base64.b64decode(body["content"])
             self.files[path] = content
             self.puts.append((path, content))
-            return _Resp({"content": {"sha": "f" * 40}})
+            # ИЗМЕНЕНО (карточка `agent-pusher-does-not-verify-what-it-delivered`,
+            # цикл #102). Здесь стояла заглушка `"f" * 40`: поле `content.sha`
+            # тогда никто не читал дальше `[:8]` для печати. Настоящий Contents
+            # API возвращает sha ИМЕННО того blob'а, который сохранил, — это
+            # равенство уже несущее в проде (идемпотентный пропуск в
+            # `push_file`/`split_unchanged` сравнивает remote sha с
+            # `git_blob_sha` локальных байтов) и проверено прямым замером:
+            # `git rev-parse origin/main:README.md` совпал с `git_blob_sha`
+            # того же файла. Теперь пушер эту sha СВЕРЯЕТ, и заглушка означала
+            # бы «remote сохранил не наши байты» ⇒ честный отказ.
+            # Ни один ассерт не ослаблен: фейк стал ТОЧНЕЕ, поэтому тесты ниже
+            # вдобавок требуют, чтобы уехали ровно наши байты. Обоснование —
+            # инвариант #16, запись в `docs/journal/2026-W32.md`.
+            return _Resp({"content": {"sha": _true_blob_sha(content)}})
 
         return _open
 

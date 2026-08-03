@@ -351,6 +351,93 @@ def git_blob_sha(content: bytes) -> str:
     return hashlib.sha1(header + content).hexdigest()
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# СВЕРКА ДОСТАВЛЕННОГО
+#
+# ЗАЧЕМ (карточка `agent-pusher-does-not-verify-what-it-delivered`, найдено
+# циклом #99). Пушер печатал `OK … pushed=N, skipped=0`, ни разу не сверив, что
+# на remote легли именно наши байты: побайтовую проверку делала ДИСЦИПЛИНА
+# вызывающего (`git show origin/main:<файл> | cmp - <файл>` вручную после пуша).
+# Дубль хвоста `docs/journal/2026-W32.md` в цикле #95 поймала именно она —
+# убери сверку из протокола, и порча уехала бы в общую память проекта под
+# зелёным `OK`. Это ровно класс #29/#31/#35–#38/#40: утверждение об измерении,
+# которого не было. Живые вызывающие (`com.spa.autopush` → `auto_push.sh`,
+# дневной цикл, кастодиан сайта) в момент запуска никто не смотрит.
+#
+# ЧЕМ СВЕРЯЕМ И ПОЧЕМУ ИМЕННО ТАК. Второго GET после записи здесь НЕТ —
+# намеренно. Contents API согласован в конечном счёте (тот же эффект уже
+# измерен на refs, см. `_read_ref_with_404_retry`: только что созданная ветка
+# отвечала 404), поэтому чтение сразу после PUT могло бы вернуть ПРЕЖНЕЕ
+# содержимое ⇒ ложный красный на ровном месте, то есть тихо вставшая доставка —
+# ровно та цена, от которой карточка и предостерегает. Вместо этого сверяем
+# sha, которую вернул САМ ответ на нашу запись:
+#   * PUT   `/contents/{path}`      → `content.sha`   (push_file)
+#   * POST  `/git/blobs`            → `sha`           (create_blob_from_bytes)
+#   * PATCH `/git/refs/heads/{br}`  → `object.sha`    (update_ref)
+# Это ответ на нашу операцию, а не отдельное чтение: ни задержки согласованности,
+# ни ретраев, ни лишних запросов — стоимость сверки РОВНО НОЛЬ дополнительных
+# обращений к API на любом батче.
+#
+# ТРИ ИСХОДА, и «не измерено» НЕ выдаётся за совпадение (инвариант #2):
+#   match      — sha ответа == git-blob-SHA отправленного;
+#   mismatch   — обе sha прочитаны и РАЗНЫЕ → честный FAIL. Не «warning»:
+#                предупреждение, которое никто не читает, — это fail-OPEN;
+#   unmeasured — sha в ответе нет либо она не 40-hex → печатается явной строкой
+#                (как ноты `guard_overwrite`) и доставку НЕ блокирует.
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class DeliveryUnverified(RuntimeError):
+    """Доставленное не совпало с отправленным — доставка объявляется неуспешной.
+
+    Отдельный тип (а не общий ``RuntimeError``), чтобы вызывающий мог отличить
+    «не смогли доставить» от «доставили НЕ ТО»: второе означает, что на remote
+    уже лежит чужое/испорченное содержимое по нашему пути, и следующий шаг —
+    смотреть remote, а не повторять пуш.
+    """
+
+
+def _is_sha40(value) -> bool:
+    """Строка ли это полной git-sha (40 hex). Всё остальное — «не измерено»."""
+    if not isinstance(value, str) or len(value) != 40:
+        return False
+    return all(c in "0123456789abcdef" for c in value.lower())
+
+
+def verify_sha_delivery(expected_sha: str, returned_sha, what: str) -> dict:
+    """Сверить sha из ответа API с ожидаемой. Вернуть вердикт (не бросает).
+
+    Возвращает ``{"state": "match"|"mismatch"|"unmeasured", "what", "expected",
+    "returned", "note"}``. Решение (FAIL / печать строки) принимает вызывающий:
+    у Contents API и Git Data API разная цена ошибки, а формулировка вердикта
+    обязана быть одна — близнец такой же арифметики уже оставлял CI красным
+    (цикл #37) и рассылал файлы в корень репо (цикл #40).
+    """
+    if not _is_sha40(returned_sha):
+        return {"state": "unmeasured", "what": what,
+                "expected": expected_sha, "returned": returned_sha,
+                "note": (f"НЕ ИЗМЕРЕНО: {what} — в ответе API нет пригодной sha "
+                         f"({returned_sha!r}), сверить доставленное не с чем; "
+                         f"доставку не блокирую")}
+    if returned_sha.lower() != expected_sha.lower():
+        return {"state": "mismatch", "what": what,
+                "expected": expected_sha, "returned": returned_sha,
+                "note": (f"ДОСТАВЛЕНО НЕ ТО: {what} — отправляли {expected_sha[:8]}, "
+                         f"а remote подтвердил {returned_sha[:8]}")}
+    return {"state": "match", "what": what,
+            "expected": expected_sha, "returned": returned_sha, "note": ""}
+
+
+def verify_blob_delivery(sent: bytes, returned_sha, what: str) -> dict:
+    """То же для содержимого: ожидаемое — git-blob-SHA ОТПРАВЛЕННЫХ байтов.
+
+    Важно, что сверяются именно отправленные байты, а не файл с диска: страж
+    перезаписи (`guard_overwrite`) может отправить «свежий remote + наш хвост»,
+    и сверка с файлом краснела бы каждый раз, когда пере-база сработала по делу.
+    """
+    return verify_sha_delivery(git_blob_sha(sent), returned_sha, what)
+
+
 def get_file_sha(pat: str, repo: str, repo_path: str, branch: str = "main") -> Optional[str]:
     """Возвращает SHA файла на GitHub (на указанной ветке)."""
     import urllib.request
@@ -710,8 +797,19 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
     try:
         with urllib.request.urlopen(req) as resp:
             result = json.loads(resp.read())
-            sha_short = result.get("content", {}).get("sha", "")[:8]
-            return {"ok": True, "path": repo_path, "sha": sha_short}
+            # Сверка доставленного: `content.sha` — ответ на НАШУ запись, а не
+            # отдельное чтение (см. блок «СВЕРКА ДОСТАВЛЕННОГО»). Ноль лишних
+            # запросов, никакой задержки согласованности.
+            returned_sha = (result.get("content") or {}).get("sha")
+            verdict = verify_blob_delivery(content_bytes, returned_sha, repo_path)
+            if verdict["state"] == "mismatch":
+                return {"ok": False, "error": verdict["note"], "path": repo_path,
+                        "verified": "mismatch"}
+            if verdict["state"] == "unmeasured":
+                print(f"  {verdict['note']}")
+            sha_short = (returned_sha or "")[:8]
+            return {"ok": True, "path": repo_path, "sha": sha_short,
+                    "verified": verdict["state"]}
     except urllib.error.HTTPError as e:
         body = e.read().decode(errors="replace")
         if e.code in (429, 403) and "rate limit" in body.lower():
@@ -894,6 +992,15 @@ def create_blob_from_bytes(pat: str, repo: str, data: bytes) -> str:
     """
     blob = _api(pat, "POST", f"/repos/{repo}/git/blobs",
                 {"content": base64.b64encode(data).decode(), "encoding": "base64"})
+    # Сверка ЗДЕСЬ, а не после коммита: blob — первое звено цепочки
+    # (blob → tree → commit → ref), и расхождение на нём означает, что дерево
+    # соберётся из НЕ НАШЕГО содержимого. Ветка ещё не сдвинута ⇒ отказ здесь
+    # ничего не оставляет на remote наполовину (fail-CLOSED).
+    verdict = verify_blob_delivery(data, blob.get("sha"), "blob")
+    if verdict["state"] == "mismatch":
+        raise DeliveryUnverified(verdict["note"])
+    if verdict["state"] == "unmeasured":
+        print(f"  {verdict['note']}")
     return str(blob["sha"])
 
 
@@ -917,9 +1024,22 @@ def create_commit(pat: str, repo: str, message: str, tree_sha: str, parent_sha: 
 
 
 def update_ref(pat: str, repo: str, branch: str, commit_sha: str, force: bool = False) -> dict:
-    """Шаг 6: переместить ветку на новый коммит."""
-    return _api(pat, "PATCH", f"/repos/{repo}/git/refs/heads/{branch}",
-                {"sha": commit_sha, "force": force})
+    """Шаг 6: переместить ветку на новый коммит.
+
+    Ответ PATCH — авторитетное состояние ref'а ПОСЛЕ нашей операции. Если он
+    указывает не на наш коммит, ветку увёл кто-то другой, и `OK: 1 коммит …`
+    было бы неправдой: файлы на `main` не появились. Сверка здесь замыкает
+    цепочку доставки (blob → tree → commit → ref) и стоит ноль запросов.
+    """
+    ref = _api(pat, "PATCH", f"/repos/{repo}/git/refs/heads/{branch}",
+               {"sha": commit_sha, "force": force})
+    verdict = verify_sha_delivery(commit_sha, (ref.get("object") or {}).get("sha"),
+                                  f"ветка {branch}")
+    if verdict["state"] == "mismatch":
+        raise DeliveryUnverified(verdict["note"])
+    if verdict["state"] == "unmeasured":
+        print(f"  {verdict['note']}")
+    return ref
 
 
 def split_unchanged(pat: str, repo: str, branch: str, files: list) -> tuple:
@@ -1156,6 +1276,11 @@ def main():
         except DivergenceRefused as e:
             print(f"\nОТКАЗ (страж перезаписи): {e}", file=sys.stderr)
             sys.exit(4)
+        except DeliveryUnverified as e:
+            # Отдельно от общего FAIL: это не «не доставили», а «доставили НЕ ТО».
+            # Следующий шаг — смотреть remote, а не повторять пуш вслепую.
+            print(f"\nОТКАЗ (сверка доставленного): {e}", file=sys.stderr)
+            sys.exit(6)
         except Exception as e:
             print(f"\nFAIL: {e}")
             print("Файлы НЕ досылались по одному: рваный набор на main — то, "
@@ -1179,7 +1304,10 @@ def main():
             elif r.get("skipped"):
                 print(f"  SKIP {r['path']} (unchanged, sha: {r.get('sha', '?')})")
             else:
-                print(f"  OK {r['path']} (sha: {r.get('sha', '?')})")
+                # «сверено» видно в строке файла, а «не измерено» — не молчание:
+                # OK без пометки означает, что remote подтвердил наши байты.
+                mark = "" if r.get("verified") == "match" else "  [сверка НЕ ИЗМЕРЕНА]"
+                print(f"  OK {r['path']} (sha: {r.get('sha', '?')}){mark}")
         else:
             print(f"  FAIL {r.get('path', f)}: {r.get('error', '?')}")
         time.sleep(0.3)  # avoid rate limit
@@ -1191,7 +1319,12 @@ def main():
         print(f"\nFAIL: {len(failed)}/{len(results)}")
         sys.exit(1)
     else:
-        print(f"\nOK: {len(results)} файл(ов) (pushed={len(pushed)}, skipped={len(skipped)})")
+        # Итог не имеет права быть «зелёнее» замеров: если хоть у одного файла
+        # сверку сделать не удалось, это стоит в той же строке, что и `OK`.
+        unverified = [r for r in pushed if r.get("verified") != "match"]
+        tail = f", сверка НЕ ИЗМЕРЕНА у {len(unverified)}" if unverified else ""
+        print(f"\nOK: {len(results)} файл(ов) (pushed={len(pushed)}, "
+              f"skipped={len(skipped)}{tail})")
         sys.exit(0)
 
 

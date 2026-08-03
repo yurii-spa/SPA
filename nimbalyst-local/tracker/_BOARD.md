@@ -130,7 +130,6 @@
 - Шаг 0b держит карточку занятой по файлам сессии, чей pid измеримо мёртв  ·  `agent-dead-pid-still-holds-files-for-3h.md` · 2026-08-02
 - Панель идеи #17 на 6 книгах из 10 состоит из неподвижных марок — кросс-секцию на ней измерить нельзя  ·  `agent-idea17-needs-a-panel-with-daily-marks.md` · 2026-08-02
 - Осиротевшая работа вернулась после закрытия своей карточки — циклы #97 и #98 умерли не доставив, второй прямо на подъёме работы первого  ·  `agent-orphaned-work-recurred-after-its-card-was-closed.md` · 2026-08-03
-- Пушер печатает OK о доставке, которую не сверял — побайтовую проверку делает только дисциплина вызывающего  ·  `agent-pusher-does-not-verify-what-it-delivered.md` · 2026-08-03
 - Красный CI-Lite невидим: гейт mypy живёт в workflow, который никто не смотрит, и его падение гасит две другие проверки  ·  `agent-task-krasnyi-ci-lite-nevidim-geit-mypy-zhivet.md` · 2026-08-03
 - Последнее падение на main — страж сети требует ПУСТОЙ журнал попыток, а к его очереди накоплено 2267 чужих записей  ·  `agent-telegram-guard-outermost-fails-only-in-full-run.md` · 2026-08-03
 ### · done
@@ -169,6 +168,7 @@
 - Два теста краснят CI на main с 2026-08-01: они проверяют календарь, а не код (S12/S13 phase-gating)  ·  `agent-phase-gating-tests-measure-the-calendar.md` · 2026-08-01
 - Пуш батча идёт по одному файлу за коммит — main краснеет на промежуточных состояниях  ·  `agent-push-batch-per-file-commits.md` · 2026-07-30
 - push_to_github.py молча роняет worktree-пути в basename → файлы уезжают в корень репо  ·  `agent-push-worktree-path-collapse.md` · 2026-07-30
+- Пушер печатает OK о доставке, которую не сверял — побайтовую проверку делает только дисциплина вызывающего  ·  `agent-pusher-does-not-verify-what-it-delivered.md` · 2026-08-03
 - RTMR-сервис отчитывается «alive» после первой из трёх стадий, а сообщения об отказе двух остальных теряются в буфере навсегда  ·  `agent-rtmr-tick-failures-are-invisible.md` · 2026-08-02
 - Сессия не может взять СВОЮ карточку, если объявилась под двумя идентификаторами — каждый блокирует другой  ·  `agent-self-claim-blocked-by-own-second-identity.md` · 2026-08-01
 - Общие документы (STATE, недельный журнал) уезжают ЦЕЛИКОМ — параллельная сессия молча затирает чужую запись  ·  `agent-shared-doc-whole-file-push-overwrites.md` · 2026-07-31

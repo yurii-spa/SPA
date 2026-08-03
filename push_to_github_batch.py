@@ -99,6 +99,13 @@ DIVERGENCE_SAFE = _root_push.DIVERGENCE_SAFE
 DIVERGENCE_DIVERGED = _root_push.DIVERGENCE_DIVERGED
 DIVERGENCE_UNMEASURED = _root_push.DIVERGENCE_UNMEASURED
 
+# Сверка доставленного (карточка `agent-pusher-does-not-verify-what-it-delivered`)
+# — тоже ОДНА реализация: под этим CLI стоит `safe_site_push.py`, и «пушер
+# отчитался OK о доставке, которую не сверял» нельзя починить в одном пушере.
+DeliveryUnverified = _root_push.DeliveryUnverified
+verify_sha_delivery = _root_push.verify_sha_delivery
+verify_blob_delivery = _root_push.verify_blob_delivery
+
 # Сверка инструмента доставки (карточка `agent-host-pusher-copy-is-stale`) —
 # тоже ОДНА реализация: копия пушера в хост-репо отстала на 574 строки и без
 # сверки молча доставляла по-старому.
@@ -196,6 +203,12 @@ def main():
     except DivergenceRefused as e:
         print(f"\nОТКАЗ (страж перезаписи): {e}", file=sys.stderr)
         sys.exit(4)
+    except DeliveryUnverified as e:
+        # Не «не доставили», а «доставили НЕ ТО» — тот же код выхода, что и в
+        # каноническом CLI, чтобы вызывающие (safe_site_push, кастодиан) могли
+        # различать эти случаи одинаково в обоих путях.
+        print(f"\nОТКАЗ (сверка доставленного): {e}", file=sys.stderr)
+        sys.exit(6)
     except Exception as e:
         print(f"\nFAIL: {e}")
         sys.exit(1)
