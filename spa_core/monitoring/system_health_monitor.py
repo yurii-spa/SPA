@@ -856,7 +856,54 @@ class SystemHealthMonitor:
         out.append(self._probe_import_adapters(D))
         out.append(self._probe_import_cycle_runner(D))
         out.append(self._check_secrets(D))
+        out.append(self._probe_deployment_drift(D))
         return out
+
+    def _probe_deployment_drift(self, D: str) -> CheckResult:
+        """Is the code running here the code that was delivered? (2026-08-03)
+
+        This domain is called "Code Integrity", and until now it only probed that
+        modules IMPORT — "does the code run?", never "is this the code we shipped?".
+        A green light on the wrong question: three accepted ADRs sat on origin/main
+        while the daily cycle ran a checkout 409 commits behind on another branch,
+        still ranking 40 % of the book on a literal, and every check stayed green.
+
+        Fail-CLOSED: if the comparison cannot be made, report UNCHECKED — never OK.
+        """
+        name = "d5.deployment.drift"
+        try:
+            from spa_core.monitoring.deployment_drift_monitor import (
+                CRITICAL as _DRIFT_CRITICAL,
+                OK as _DRIFT_OK,
+                UNCHECKED as _DRIFT_UNCHECKED,
+                check_deployment_drift,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return CheckResult(
+                name, D, WARNING,
+                "deployment-drift guard unavailable in this checkout — the "
+                "version of the running code is UNVERIFIED",
+                error="{}: {}".format(type(exc).__name__, exc))
+        try:
+            rep = check_deployment_drift()
+        except Exception as exc:  # noqa: BLE001 — a probe never breaks the monitor
+            return CheckResult(name, D, WARNING,
+                               "deployment-drift check raised — version UNVERIFIED",
+                               error="{}: {}".format(type(exc).__name__, exc))
+
+        detail = "; ".join(rep.reasons) or (rep.unchecked_reason or "")
+        if rep.status == _DRIFT_OK:
+            return CheckResult(name, D, OK,
+                               "running code matches {}".format(rep.remote_ref))
+        if rep.status == _DRIFT_UNCHECKED:
+            return CheckResult(name, D, WARNING,
+                               "deployment drift UNCHECKED — version unverified",
+                               error=rep.unchecked_reason)
+        if rep.status == _DRIFT_CRITICAL:
+            return CheckResult(name, D, CRITICAL,
+                               "running code is NOT the delivered code", error=detail)
+        return CheckResult(name, D, WARNING, "delivered work is not running here",
+                           error=detail)
 
     def _run_import(self, code: str) -> tuple[bool, str]:
         try:
