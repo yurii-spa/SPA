@@ -733,22 +733,164 @@ class TestAnnounceLogField:
         assert e["card_state"] == "done"
 
     def test_entries_without_card_keep_the_old_shape(self, logger):
-        """Обратная совместимость: старые читатели журнала не должны увидеть новых ключей."""
-        e = logger.record("работа", ["/a.py"], "тесты")
+        """Обратная совместимость: старые читатели журнала не должны увидеть новых ключей.
+
+        Предусловие теперь названо ЯВНО штатным тестовым швом `record(process=…)`: «старая
+        форма» — это форма записи сессии, которая долгоживущий процесс НЕ объявила. Раньше оно
+        молча бралось из окружения прогона, поэтому под выставленным `SPA_SESSION_PID` (то есть
+        ровно в автономном цикле, где эти инструменты и работают) тест краснел, ничего при этом
+        не измеряя. Ассерт не изменён — у него появилось условие, при котором он верен, и парный
+        контроль ниже, чтобы «покрасить» его, перестав писать якорь вообще, было нельзя."""
+        e = logger.record("работа", ["/a.py"], "тесты",
+                          process=({}, "долгоживущий процесс сессией не объявлен"))
         assert set(e) == {"ts", "session", "summary", "files", "verified"}
+
+    def test_entries_of_a_session_with_a_durable_process_carry_the_anchor(self, logger):
+        """Парный контроль к тесту выше: объявила процесс — якорь в записи ЕСТЬ.
+
+        Пиннит вторую половину контракта (`agent-durable-session-id`): без неё «старую форму»
+        можно было бы удержать, просто перестав записывать якорь, и шаг 0a лишился бы
+        единственного измерения активности сессии, не покраснев нигде."""
+        e = logger.record("работа", ["/a.py"], "тесты",
+                          process=({"session_pid": 4242,
+                                    "session_pid_start": "Mon Aug  3 21:10:53 2026"}, ""))
+        assert set(e) == {"ts", "session", "summary", "files", "verified",
+                          "session_pid", "session_pid_start"}
+        assert e["session_pid"] == 4242
 
     def test_cli_accepts_card(self, logger, capsys):
         assert logger.main(["--summary", "s", "--card", "agent-x"]) == 0
         assert "card=agent-x(claim)" in capsys.readouterr().out
 
     def test_guard_reads_what_the_logger_writes(self, guard, sibling, logger, tracker):
-        """Шов между инструментами: что пишет журнал — то читает проверка."""
+        """Шов между инструментами: что пишет журнал — то читает проверка.
+
+        Захват объявляется ОТ ИМЕНИ другой сессии (`session=`) — ровно так `claim` пишет чужой
+        захват, и ровно этот случай проверка обязана прочитать как занятость. Раньше ярлык был
+        чужой, а якорь в запись всё равно уходил ЭТОГО процесса, поэтому под `SPA_SESSION_PID`
+        проверка узнавала в чужом захвате себя и отвечала `free` (карточка
+        `agent-claim-guard-blind-when-session-pid-is-set`). Ассерт не изменён."""
         write_card(tracker, "agent-x")
-        logger.record("беру", [], "", card="agent-x")
+        logger.record("беру", [], "", card="agent-x", session="pidHOLDER")
         r = guard.gather("agent-x", log=logger._LOG, tracker_dir=tracker, sibling=sibling,
                          self_session="pidOTHER", now=datetime.now(timezone.utc),
                          ps=lambda pid: (1, ""))
         assert r["verdict"] == guard.CLAIMED
+
+    def test_my_own_announcement_is_not_read_as_a_foreign_claim(self, guard, sibling, logger,
+                                                                tracker):
+        """Положительный контроль к тесту выше: своё же объявление занятостью НЕ считается.
+
+        Пиннит вторую сторону правки `record` — «чужой ярлык ⇒ без якоря» не должно превратиться
+        в «якорь не пишется никогда»: тогда сессия перестала бы узнавать саму себя и вернулся бы
+        дефект `agent-self-claim-blocked-by-own-second-identity`."""
+        write_card(tracker, "agent-x")
+        logger.record("беру", [], "", card="agent-x")          # без session= ⇒ это я
+        r = guard.gather("agent-x", log=logger._LOG, tracker_dir=tracker, sibling=sibling,
+                         self_session=logger._session_id(), now=datetime.now(timezone.utc),
+                         ps=lambda pid: (1, ""))
+        assert r["verdict"] == guard.FREE
+
+
+# ── режим автономного цикла: SPA_SESSION_PID ВЫСТАВЛЕН ───────────────────────
+
+class TestGuardUnderADeclaredDurableProcess:
+    """Защита от столкновения обязана работать в том режиме, в котором берутся карточки.
+
+    **Почему этот класс существует** (карточка `agent-claim-guard-blind-when-session-pid-is-set`).
+    Поведение инструментов зависело от переменной окружения `SPA_SESSION_PID`, которую выставляет
+    `scripts/agent_orchestrator.sh` — то есть ИМЕННО тот запуск, где автономный цикл и берёт
+    карточки. CI её не выставляет, поэтому на раннере эта ветка не исполнялась НИ РАЗУ: цикл #103
+    намерил 4 падения на чистом `origin/main`, которых CI на том же коде не видел (1 падение).
+    Дефект прожил незамеченным ровно столько, сколько «зелёный CI» означал «проверено только без
+    переменной».
+
+    Поэтому режим задаётся ВНУТРИ теста, а не окружением прогона: эти проверки идут на любом
+    раннере и не могут снова стать невидимыми из-за того, как запущен pytest. Предусловие
+    (якорь реально измерен) проверяется явно и при неудаче КРАСНОЕ, а не пропущенное — иначе
+    это был бы fail-OPEN-скип класса #37/#39: «проверка прошла», которой не было."""
+
+    @pytest.fixture()
+    def logger(self, tmp_path, monkeypatch):
+        mod = _load("_test_log_session_change_declared", "scripts/log_session_change.py")
+        monkeypatch.setattr(mod, "_LOG", tmp_path / "session_changes.jsonl")
+        return mod
+
+    @pytest.fixture()
+    def declared(self, monkeypatch, logger):
+        """Объявить долгоживущий процесс сессии — существующий и живой прямо сейчас.
+
+        `os.getpid()` годится по построению: этот процесс выполняется, значит `ps` его видит,
+        и `durable_process` обязана вернуть измеренную пару."""
+        import os
+        monkeypatch.setenv("SPA_SESSION_PID", str(os.getpid()))
+        monkeypatch.setenv("SPA_SESSION_ID", "cycle-under-test")
+        proc, why = logger.durable_process()
+        assert proc.get("session_pid") == os.getpid(), (
+            "предусловие не выполнено: долгоживущий процесс не измерен "
+            f"({why!r}) — без него класс ничего не проверяет, поэтому это КРАСНЫЙ, а не skip")
+        return proc
+
+    def test_a_foreign_claim_is_still_refused(self, guard, sibling, tracker, tmp_path,
+                                              declared, logger):
+        """Тот самый отказавший сценарий: чужой захват объявлен, я пытаюсь взять карточку.
+
+        До правки `record` чужая запись уносила якорь ЭТОГО процесса, `self_identities`
+        признавала её своей, и `claim_card` НЕ отказывал — защита от столкновения #46 была
+        выключена ровно в рабочем режиме цикла."""
+        write_card(tracker, "agent-x")
+        log = tmp_path / "journal.jsonl"
+        log.write_text("", encoding="utf-8")
+        guard.claim_card("agent-x", session="pidHOLDER", tracker_dir=tracker, now=NOW,
+                         sibling=sibling, log=log, ps=lambda pid: (1, ""))
+        with pytest.raises(guard.ClaimError):
+            guard.claim_card("agent-x", session="cycle-under-test", tracker_dir=tracker,
+                             now=NOW + timedelta(minutes=5), sibling=sibling, log=log,
+                             ps=lambda pid: (1, ""))
+
+    def test_a_foreign_claim_reads_as_claimed(self, guard, sibling, tracker, tmp_path,
+                                              declared, logger):
+        """Шаг 0b на ту же карточку обязан отвечать `claimed`, а не `free`."""
+        write_card(tracker, "agent-x")
+        log = tmp_path / "journal2.jsonl"
+        log.write_text("", encoding="utf-8")
+        guard.claim_card("agent-x", session="pidHOLDER", tracker_dir=tracker, now=NOW,
+                         sibling=sibling, log=log, ps=lambda pid: (1, ""))
+        r = guard.gather("agent-x", log=log, tracker_dir=tracker, sibling=sibling,
+                         self_session="cycle-under-test", now=NOW + timedelta(minutes=5),
+                         ps=lambda pid: (1, ""))
+        assert r["verdict"] == guard.CLAIMED
+
+    def test_a_foreign_announcement_carries_no_anchor_of_mine(self, logger, declared, tmp_path):
+        """Причина, названная по коду: запись от имени другой сессии не несёт МОЙ якорь."""
+        log = tmp_path / "journal3.jsonl"
+        e = logger.record("беру", [], "", card="agent-x", session="pidHOLDER", log=log)
+        assert e["session"] == "pidHOLDER"
+        assert "session_pid" not in e and "session_pid_start" not in e
+
+    def test_my_own_announcement_still_carries_the_anchor(self, logger, declared, tmp_path):
+        """Положительный контроль: своя запись якорь СОХРАНЯЕТ (шаг 0a им меряет активность)."""
+        import os
+        log = tmp_path / "journal4.jsonl"
+        e = logger.record("беру", [], "", card="agent-x", log=log)
+        assert e["session"] == "cycle-under-test"
+        assert e["session_pid"] == os.getpid() and e["session_pid_start"]
+
+    def test_i_can_still_take_a_card_i_hold_under_another_label(self, guard, sibling, tracker,
+                                                                tmp_path, declared):
+        """Контроль против перелёта в другую крайность (`agent-self-claim-blocked-by-own-second-identity`).
+
+        Своё же объявление, сделанное ЭТИМ процессом под другим ярлыком, обязано остаться
+        своим — иначе сессия начнёт отказывать сама себе, и выхода флагом у `claim` нет."""
+        write_card(tracker, "agent-x")
+        log = tmp_path / "journal5.jsonl"
+        log.write_text("", encoding="utf-8")
+        guard.claim_card("agent-x", tracker_dir=tracker, now=NOW, sibling=sibling, log=log,
+                         ps=lambda pid: (1, ""))
+        r = guard.gather("agent-x", log=log, tracker_dir=tracker, sibling=sibling,
+                         self_session="pid-другой-ярлык-той-же-сессии",
+                         now=NOW + timedelta(minutes=5), ps=lambda pid: (1, ""))
+        assert r["verdict"] == guard.FREE
 
 
 # ── доска: занятость видна ───────────────────────────────────────────────────

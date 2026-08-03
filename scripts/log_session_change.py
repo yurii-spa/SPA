@@ -165,10 +165,32 @@ def record(summary: str, files: list, verified: str,
 
     Kept as the single writer of this schema: ``check_card_claim.claim`` announces through it
     so a claim can never exist without an announcement (card
-    ``agent-claim-without-announce-is-invisible``)."""
+    ``agent-claim-without-announce-is-invisible``).
+
+    **The label and the durable anchor must agree about WHOSE entry this is** (card
+    ``agent-claim-guard-blind-when-session-pid-is-set``). The whole point of the ``session``
+    override is "this entry is not mine, I am only writing it down"; stamping this process's
+    ``session_pid``/``session_pid_start`` onto it anyway said the opposite in the very same
+    record. The downstream reader believes the anchor over the label — by design, because a
+    label is a nickname and a confirmed (pid, start) pair is an identity
+    (``check_card_claim.self_identities``) — so a foreign-labelled entry carrying my anchor was
+    read back as MINE. Measured consequence: with ``SPA_SESSION_PID`` exported (i.e. exactly how
+    ``scripts/agent_orchestrator.sh`` runs the autonomous cycle) step 0b answered ``free`` on a
+    held card and ``claim_card`` did not refuse it — the collision guard of card
+    ``agent-card-claim-collision-guard`` was silently off in the one mode where cards are taken.
+
+    So the anchor is written only when the entry carries this process's OWN id. Announcing for
+    somebody else yields no anchor, which is the fail-CLOSED direction: without it the reader
+    falls back to matching by label, i.e. to the behaviour that predates anchors — a foreign
+    entry stays foreign and the card reads BUSY. This does not undo
+    ``agent-self-claim-blocked-by-own-second-identity``: that fix ties together the several
+    auto-derived ``pid<N>`` labels of ONE process, and those entries pass ``session=""`` (or the
+    session's own ``SPA_SESSION_ID``), so they keep their anchor and keep being recognised."""
+    own_id = _session_id()
+    label = str(session).strip() or own_id
     entry = {
         "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "session": str(session).strip() or _session_id(),
+        "session": label,
         "summary": summary.strip(),
         "files": [str(f) for f in files],
         "verified": (verified or "").strip(),
@@ -177,7 +199,13 @@ def record(summary: str, files: list, verified: str,
     if card:
         entry["card"] = str(card).strip()
         entry["card_state"] = (card_state or "claim").strip()
-    proc, _why = durable_process() if process is None else process
+    if process is not None:
+        proc, _why = process
+    elif label == own_id:
+        proc, _why = durable_process()
+    else:
+        proc, _why = {}, (f"объявление от имени другой сессии ({label!r} ≠ {own_id!r}) — "
+                          f"долгоживущий процесс ЭТОЙ команды в чужую запись не пишется")
     entry.update(proc)
     line = json.dumps(entry, ensure_ascii=False) + "\n"
     target = Path(log) if log else _LOG
