@@ -66,3 +66,37 @@ worktree #96:
 - проверка полным срезом `spa_core/tests/` с контролем на чистом `origin/main` (дельта названа).
 
 **Не входит:** RiskPolicy / kill-switch / живой трек / launchd / `landing/**`.
+
+---
+
+## Подтверждено РЕАЛЬНЫМ Actions + вскрыта вторая половина дефекта (цикл #96)
+
+Прогон `SPA CI` на моём коммите `6dfa1f39b` (run `30790402218`, 18 мин 27 с) на настоящем раннере:
+
+```
+1 failed, 91157 passed, 581 skipped, 2 warnings, 1 error, 988 subtests passed
+FAILED tests/test_no_live_network_in_tests.py::TestGuardIsInstalled::test_telegram_guard_stays_outermost
+```
+
+Ровно ОДНО падение, и это оно: два spark-падения на CI **исчезли** ⇒ починка цикла #96
+подтверждена не локалью, а раннером.
+
+**Но лог показал то, чего не было видно локально, и это меняет диагноз.** Кроме расхождения
+списков есть ещё `ERROR at teardown` того же теста:
+
+```
+spa_telegram_guard.LiveTelegramSendAttempted: 1 live Telegram API call(s) attempted in
+  …::test_telegram_guard_stays_outermost: ['https://api.telegram.org/bot<redacted>/sendMessage'].
+A test must never message the owner's chat — this is how the production cycle-gap alert was
+spammed to the owner on 2026-07-31.
+```
+
+То есть тест **не просто читает загрязнённый соседями счётчик — он сам пытается сделать живой
+вызов Telegram API в чат владельца.** Это ровно тот класс, ради которого страж и написан
+(`agent-tests-send-live-telegram-alerts`, `agent-gap-monitor-test-still-reaches-live-telegram`),
+и он ловит сам себя.
+
+⇒ **Ветка развилки «просто почистить журнал в setUp» окончательно закрыта:** она спрятала бы
+настоящую попытку живой отправки. Начинать надо с вопроса «почему ЭТОТ тест шлёт в Telegram»,
+и только потом разбираться с 2267 чужими записями. Оба симптома — в одном тесте, но причины
+разные, и лечить их надо по отдельности.
