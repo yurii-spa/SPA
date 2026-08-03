@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **166** · ждёт владельца: **18** · занято сессиями: **0**.
+> Всего карточек: **167** · ждёт владельца: **18** · занято сессиями: **0**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -113,7 +113,7 @@
 - Задача разобраться почему нет свежих данных почему Pepper Тест не обновился хот…  ·  `inbox-zadacha-razobratsya-pochemu-net-svezhih.md` · 2026-07-23
 - Задача решить проблему 🚨 Пропущен ежедневный цикл  ·  `inbox-zadacha-reshit-problemu-propuschen-ezhed.md` · 2026-07-30
 
-## 🤖 Agent Tasks (что делает агент)  (66)
+## 🤖 Agent Tasks (что делает агент)  (67)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -123,9 +123,9 @@
 - Правка чужой карточки запирает её на 3 часа — даже когда сессия прямо назвала в объявлении ДРУГУЮ карточку  ·  `agent-card-file-in-ownership-locks-a-card-it-doesnt-claim.md` · 2026-08-01
 - Шаг 0b держит карточку занятой по файлам сессии, чей pid измеримо мёртв  ·  `agent-dead-pid-still-holds-files-for-3h.md` · 2026-08-02
 - Панель идеи #17 на 6 книгах из 10 состоит из неподвижных марок — кросс-секцию на ней измерить нельзя  ·  `agent-idea17-needs-a-panel-with-daily-marks.md` · 2026-08-02
-- CI на main красный — два теста Spark требуют «гарантированный fallback 5.5%», который ADR-063 намеренно убрал  ·  `agent-spark-apy-tests-assert-a-fallback-adr-063-removed.md` · 2026-08-03
 - Красный CI-Lite невидим: гейт mypy живёт в workflow, который никто не смотрит, и его падение гасит две другие проверки  ·  `agent-task-krasnyi-ci-lite-nevidim-geit-mypy-zhivet.md` · 2026-08-03
 - Повторное дописывание файла в одном цикле дублирует содержимое: rebase_append считает хвост от устаревшей базы, а не от remote  ·  `agent-task-povtornoe-dopisyvanie-faila-v-odnom-tsik.md` · 2026-08-03
+- Последнее падение на main — страж сети требует ПУСТОЙ журнал попыток, а к его очереди накоплено 2267 чужих записей  ·  `agent-telegram-guard-outermost-fails-only-in-full-run.md` · 2026-08-03
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
 - Книги aggressive_lab документированы как append-only, но история пересоздаётся — susde_dn сдвинулась на −9.7%  ·  `agent-aggressive-lab-books-are-regenerated.md` · 2026-08-01
@@ -169,6 +169,7 @@
 - 404 теста живых модулей молча выключены file-level pytestmark с шаблонной отпиской  ·  `agent-silently-skipped-test-files.md` · 2026-07-30
 - Q4/Q5: числа/нейминг сайта  ·  `agent-site-numbers.md` · 2026-07-16
 - 19 тестов spa_core/tests красны на main (предсуществующие, никем не отслеживались)  ·  `agent-spa-core-tests-red-on-main.md` · 2026-07-29
+- CI на main красный — два теста Spark требуют «гарантированный fallback 5.5%», который ADR-063 намеренно убрал  ·  `agent-spark-apy-tests-assert-a-fallback-adr-063-removed.md` · 2026-08-03
 - Разбор swarm-сессии 11.07 (31 идея)  ·  `agent-swarm-review.md` · 2026-07-16
 - Bootstrap: единая доска карточек + читать историю решений при старте  ·  `agent-task-bootstrap-edinaya-doska-kartochek-chitat.md` · 2026-07-16
 - Брифинг печатает «все агенты в норме» под вердиктом WARNING и скрывает его причину  ·  `agent-task-brifing-pechataet-vse-agenty-v-norme-pod.md` · 2026-08-01

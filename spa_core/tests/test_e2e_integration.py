@@ -163,26 +163,92 @@ class TestAdapterBehavior(unittest.TestCase):
         path.write_text(json.dumps(status), encoding="utf-8")
         return mod.SparkSusdsAdapter(data_dir=tmpdir)
 
-    def _get_spark(self):
+    def _get_spark_without_data(self):
+        """Адаптер, чей data_dir заведомо ПУСТ — «наблюдения нет» как явный вход."""
+        import tempfile
         mod, err = _try_import("spa_core.adapters.spark_susds_adapter")
         if mod is None:
             self.skipTest(f"spark_susds_adapter недоступен: {err}")
-        return mod.SparkSusdsAdapter()
+        return mod.SparkSusdsAdapter(data_dir=tempfile.mkdtemp())
+
+    def _get_spark_with_unobserved_live_apy(self):
+        """Адаптер на СОВРЕМЕННОЙ схеме, где продюсер честно написал ``live_apy: null``.
+
+        Это побайтово форма живого ``data/adapter_status.json`` для ``spark_susds``
+        (см. комментарий ниже) — ровно тот вход, на котором краснел ``main``.
+        """
+        import tempfile
+        mod, err = _try_import("spa_core.adapters.spark_susds_adapter")
+        if mod is None:
+            self.skipTest(f"spark_susds_adapter недоступен: {err}")
+        tmpdir = tempfile.mkdtemp()
+        status = {
+            "adapters": {
+                "spark_susds": {
+                    "apy": 5.5,          # эхо fallback_apy, НЕ наблюдение
+                    "live_apy": None,    # продюсер наблюдения не сделал
+                    "fallback_apy": 5.5,
+                    "gsm_hours": 48,
+                }
+            }
+        }
+        (Path(tmpdir) / "adapter_status.json").write_text(
+            json.dumps(status), encoding="utf-8"
+        )
+        return mod.SparkSusdsAdapter(data_dir=tmpdir)
+
+    # ADR-063 (одобрен владельцем 2026-08-02) убрал fake-fallback: нет НАБЛЮДЕНИЯ ⇒
+    # None, а не зашитые 5.5%. Профильный test_spark_susds_adapter.py тогда обновили,
+    # а этот e2e-файл пропустили — и четыре теста ниже строили адаптер БЕЗ data_dir,
+    # то есть читали ОКРУЖАЮЩИЙ data/adapter_status.json.
+    #
+    # Причина красного main (измерена здесь, а не предположена): файл на месте и он
+    # git-tracked — то есть на раннере CI он тот же самый, — а его блок
+    # adapters.spark_susds несёт "live_apy": null при "apy": 5.5. По контракту
+    # status_reader ``apy`` в современной схеме не читается вовсе (он лишь повторяет
+    # fallback_apy), поэтому get_apy_pct() честно отдаёт None. Тест же пиннил ровно
+    # ту подстановку, которую ADR-063 назвал ложью.
+    #
+    # Инвариант #16: ассерты НЕ ослаблены — те же assertIsInstance(float) /
+    # assertGreater(0.0) / assertIsInstance(bool), но вход теперь ОБЪЯВЛЕН явно
+    # (герметичный хелпер, уже бывший в файле), а не подобран из окружения.
+    # Плюс два положительных контроля ниже: они краснеют, если адаптер снова начнёт
+    # выдавать литерал под видом наблюдения.
 
     def test_spark_get_apy_pct_returns_float(self):
-        """SparkSusdsAdapter.get_apy_pct() возвращает float."""
-        adapter = self._get_spark()
+        """SparkSusdsAdapter.get_apy_pct() возвращает float, когда наблюдение ЕСТЬ."""
+        adapter = self._get_spark_with_dir(gsm_hours=48, apy=5.5)
         apy = adapter.get_apy_pct()
         self.assertIsInstance(apy, float)
 
     def test_spark_get_apy_pct_positive(self):
-        """SparkSusdsAdapter.get_apy_pct() > 0 (fallback 5.5% гарантирован)."""
-        adapter = self._get_spark()
+        """SparkSusdsAdapter.get_apy_pct() > 0, когда наблюдение ЕСТЬ."""
+        adapter = self._get_spark_with_dir(gsm_hours=48, apy=5.5)
         self.assertGreater(adapter.get_apy_pct(), 0.0)
+
+    def test_spark_get_apy_pct_is_none_without_data(self):
+        """ADR-063: данных нет ⇒ честный None, а не выдуманный fallback."""
+        adapter = self._get_spark_without_data()
+        self.assertIsNone(
+            adapter.get_apy_pct(),
+            "Без данных адаптер обязан отказать (None), а не подставить число"
+        )
+
+    def test_spark_get_apy_pct_is_none_when_live_apy_null(self):
+        """ADR-063: ``live_apy: null`` ⇒ None, даже когда рядом лежит ``apy: 5.5``.
+
+        Положительный контроль ровно на живой форме файла: вернись сюда литерал —
+        этот тест краснеет, а не молча выдаёт константу за наблюдение.
+        """
+        adapter = self._get_spark_with_unobserved_live_apy()
+        self.assertIsNone(
+            adapter.get_apy_pct(),
+            "Соседнее поле 'apy' повторяет fallback_apy и наблюдением не является"
+        )
 
     def test_spark_is_eligible_returns_bool(self):
         """SparkSusdsAdapter.is_eligible() возвращает bool."""
-        adapter = self._get_spark()
+        adapter = self._get_spark_with_dir(gsm_hours=48, apy=5.5)
         self.assertIsInstance(adapter.is_eligible(), bool)
 
     def test_spark_gsm_gate_zero_hours(self):
@@ -200,7 +266,7 @@ class TestAdapterBehavior(unittest.TestCase):
 
     def test_spark_to_dict_required_keys(self):
         """SparkSusdsAdapter.to_dict() содержит tier, apy_pct, risk_score."""
-        adapter = self._get_spark()
+        adapter = self._get_spark_with_dir(gsm_hours=48, apy=5.5)
         d = adapter.to_dict()
         self.assertIsInstance(d, dict)
         for key in ("tier", "apy_pct", "risk_score"):

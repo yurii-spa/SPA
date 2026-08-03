@@ -5,8 +5,9 @@ Vault address: 0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD
 
 Ключевые характеристики:
 - Tier T1 (TVL $3B+, Risk Score 0.28) — лимит 30% портфеля
-- APY читается из data/adapter_status.json (поле spark_susds.apy),
-  fallback = 5.5% при отсутствии / ошибке чтения
+- APY читается из data/adapter_status.json через status_reader (наблюдение —
+  поле live_apy в современной схеме). Наблюдения нет ⇒ None, БЕЗ подстановки
+  литерала: fake-fallback отменён ADR-063 (fail-CLOSED)
 - Маршрут: USDC → USDS via PSM 1:1 → sUSDS (SSR 5–6.5%)
 - GSM compliance gate: is_eligible() True только если gsm_hours >= 48 (ADR)
 - Governance-backed rate, мгновенный выход (no lockup) via PSM
@@ -39,9 +40,11 @@ _DEFAULT_DATA_DIR = _REPO_ROOT / "data"
 class SparkSusdsAdapter(BaseAdapter):
     """Read-only advisory адаптер для Spark Protocol sUSDS ERC-4626 vault (T1).
 
-    APY берётся из ``data/adapter_status.json`` → ``spark_susds.apy``
-    (значение в процентах, например 5.5). При отсутствии поля или ошибке
-    чтения используется ``DEFAULT_APY_PCT = 5.5``.
+    APY берётся из ``data/adapter_status.json`` через ``status_reader``:
+    наблюдением считается ТОЛЬКО ``live_apy`` (современная схема) либо ``apy``
+    легаси-блока верхнего уровня. Значение — в процентах (например 5.5).
+    Наблюдения нет ⇒ ``None``; подстановки ``DEFAULT_APY_PCT`` больше нет —
+    fake-fallback отменён ADR-063.
 
     GSM compliance gate: ``is_eligible()`` возвращает True только если
     gsm_hours >= 48 (ADR). Пока gsm_hours = 0 — адаптер не активен.
@@ -65,7 +68,12 @@ class SparkSusdsAdapter(BaseAdapter):
     # ── APY параметры ────────────────────────────────────────────────────
     MIN_APY_PCT: float = 4.0
     MAX_APY_PCT: float = 9.0
-    DEFAULT_APY_PCT: float = 5.5   # fallback (SSR mid-range)
+    # ВНИМАНИЕ: это НЕ fallback. После ADR-063 ни один путь адаптера сюда не
+    # обращается — ``get_apy()`` при отсутствии наблюдения отказывает (None).
+    # Константа сохранена как справочная середина диапазона SSR; вернуть её в
+    # ответ ``get_apy()`` значит выдать литерал за наблюдение (тест
+    # test_spark_get_apy_pct_is_none_when_live_apy_null покраснеет).
+    DEFAULT_APY_PCT: float = 5.5   # справочная середина SSR, НЕ подстановка
 
     TVL_USD: float = 3_000_000_000
 
@@ -108,10 +116,13 @@ class SparkSusdsAdapter(BaseAdapter):
     # ── публичный APY API ────────────────────────────────────────────────
 
     def get_apy(self) -> Optional[float]:
-        """Возвращает APY в процентах (5.5, не 0.055).
+        """Возвращает наблюдённый APY в процентах (5.5, не 0.055) либо ``None``.
 
-        Источник: data/adapter_status.json → spark_susds.apy.
-        Fallback: DEFAULT_APY_PCT (5.5%).
+        Источник: ``data/adapter_status.json`` через ``status_reader``
+        (``live_apy`` в современной схеме; ``apy`` — только в легаси-блоке).
+        Наблюдения нет ⇒ ``None``. Подстановки ``DEFAULT_APY_PCT`` НЕТ:
+        fake-fallback отменён ADR-063 (fail-CLOSED, инвариант «никаких
+        fake-fallback'ов» из .claude/rules/adapters.md).
         """
         # ADR-063: нет живых данных → None, а не зашитая константа. Раньше
         # константа уходила потребителям как наблюдение (WS1.1 штамповал её
