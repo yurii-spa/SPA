@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **162** · ждёт владельца: **18** · занято сессиями: **0**.
+> Всего карточек: **165** · ждёт владельца: **18** · занято сессиями: **1**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -24,6 +24,12 @@
 - **Твои решения от 23 июля 11 дней не лежали в git — доставил, подтверди что в силе** · _high_  ·  `owner-decision-tvoi-resheniya-ot-23-iyulya-11-dnei-ne-l.md`
 - **Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать** · _medium_  ·  `owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema.md`
 - **Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта**  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md`
+
+## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
+
+> Ставится `scripts/check_card_claim.py claim`, снимается `release` (и не действует после `done`/`ingested`). Перед взятием карточки — `check_card_claim.py check <карточка>`.
+
+- **CI-Lite красный с 02.08: mypy на allocator.py:244 — ADR-061 читает JSON, не проверяя, что это объект** — держит `pid19015` · с 2026-08-03T03:48:32Z  ·  `agent-task-ci-lite-krasnyi-s-02-08-mypy-na-allocato.md`
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (54)
 
@@ -113,7 +119,7 @@
 - Задача разобраться почему нет свежих данных почему Pepper Тест не обновился хот…  ·  `inbox-zadacha-razobratsya-pochemu-net-svezhih.md` · 2026-07-23
 - Задача решить проблему 🚨 Пропущен ежедневный цикл  ·  `inbox-zadacha-reshit-problemu-propuschen-ezhed.md` · 2026-07-30
 
-## 🤖 Agent Tasks (что делает агент)  (63)
+## 🤖 Agent Tasks (что делает агент)  (65)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -124,6 +130,8 @@
 - Шаг 0b держит карточку занятой по файлам сессии, чей pid измеримо мёртв  ·  `agent-dead-pid-still-holds-files-for-3h.md` · 2026-08-02
 - Панель идеи #17 на 6 книгах из 10 состоит из неподвижных марок — кросс-секцию на ней измерить нельзя  ·  `agent-idea17-needs-a-panel-with-daily-marks.md` · 2026-08-02
 - CI на main красный — два теста Spark требуют «гарантированный fallback 5.5%», который ADR-063 намеренно убрал  ·  `agent-spark-apy-tests-assert-a-fallback-adr-063-removed.md` · 2026-08-03
+- CI-Lite красный с 02.08: mypy на allocator.py:244 — ADR-061 читает JSON, не проверяя, что это объект  ·  `agent-task-ci-lite-krasnyi-s-02-08-mypy-na-allocato.md` · 2026-08-03 · 🔒 `pid19015`
+- Красный CI-Lite невидим: гейт mypy живёт в workflow, который никто не смотрит, и его падение гасит две другие проверки  ·  `agent-task-krasnyi-ci-lite-nevidim-geit-mypy-zhivet.md` · 2026-08-03
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
 - Книги aggressive_lab документированы как append-only, но история пересоздаётся — susde_dn сдвинулась на −9.7%  ·  `agent-aggressive-lab-books-are-regenerated.md` · 2026-08-01
@@ -182,11 +190,12 @@
 - Упоминание карточки в тексте объявления запирает её НАВСЕГДА — шаг 0b отвечает «не измерено» и после старения  ·  `agent-weak-mention-locks-card-forever.md` · 2026-07-31
 - Q11: разбор ветки yield-lab  ·  `agent-yield-lab-branch.md` · 2026-07-16
 
-## agent  (20)
+## agent  (21)
 
 ### · in-progress
 - Аллокатор заморожен на неоптимальной доходности — ребаланс только по нарушению, нет триггера «заработать больше»  ·  `agent-allocator-yield-frozen-rootcause.md` · 2026-07-23
 - Аллокатор ранжирует капитал по зашитым константам, помеченным как «live» — честный провенанс APY (D1+D2)  ·  `agent-apy-evidence-provenance.md` · 2026-08-02
+- Аудит всего проекта 2026-08-02 — три параллельных трека починки (координация, НЕ дублировать)  ·  `agent-audit-2026-08-02-fix-tracks.md` · 2026-08-02
 - Портфель нарушает два инварианта прямо сейчас — 15% в advisory-протоколах и 5% в Sky/spark при запрете (D3+D4)  ·  `agent-book-violations-advisory-and-sky.md` · 2026-08-02
 - Закрыть дыры покрытия policy_enforcer — добавить проверки T2-per-protocol + chain-caps (зеркало policy.py)  ·  `agent-enforcer-coverage-gaps.md` · 2026-07-23
 ### · backlog

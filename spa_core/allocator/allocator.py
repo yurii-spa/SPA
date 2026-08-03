@@ -239,16 +239,68 @@ def _load_evidenced_apy(
             return None
         return dec
 
-    def _read(path: Path) -> dict:
+    def _read(path: Path) -> dict[str, object]:
+        """JSON *object* or ``{}``. A non-object document is an unreadable input.
+
+        ``json.loads`` returns ``Any``, so the old ``-> dict`` annotation checked
+        nothing and a VALID JSON document that simply is not an object (``[]``,
+        ``"text"``, ``5``) flowed straight through into ``.get`` / ``.items`` —
+        ``AttributeError`` out of the money-path allocator, contradicting this
+        function's "never raises" contract (the ``try`` only ever covered reading
+        and parsing, never the shape of the result). Treated as unreadable
+        (fail-CLOSED, invariant 2); the type actually seen is quoted verbatim so
+        the refusal stays distinguishable from a genuinely quiet world.
+        """
         try:
-            return json.loads(Path(path).read_text(encoding="utf-8"))
+            doc = json.loads(Path(path).read_text(encoding="utf-8"))
         except Exception as exc:  # noqa: BLE001 — evidence is best-effort
             log.warning("ADR-061: evidence source unreadable %s (%s)", path, exc)
             return {}
+        if not isinstance(doc, dict):
+            log.warning(
+                "ADR-061: evidence source %s is valid JSON but not an object "
+                "(%s) — no evidence taken from it", path, type(doc).__name__,
+            )
+            return {}
+        return doc
+
+    def _wrong_shape(container: object, expected: str, path: Path) -> None:
+        """Log ``adapters`` of an unusable type. ``None``/empty is not a defect."""
+        if container:  # ``None`` / ``{}`` / ``[]`` is simply "nothing reported"
+            log.warning(
+                "ADR-061: evidence source %s has 'adapters' of type %s, expected "
+                "%s — no evidence taken from it",
+                path, type(container).__name__, expected,
+            )
+
+    def _as_list(container: object, path: Path) -> list:
+        """The orchestrator's ``adapters`` list, or an empty one.
+
+        Same hole one level down: a well-formed object may still carry an
+        ``adapters`` of the wrong type — ``5`` raised ``TypeError: 'int' object
+        is not iterable``. A mapping here never produced evidence anyway
+        (iterating a dict yields its keys, which are not dicts), so refusing it
+        outright changes no outcome, it only makes the reason visible.
+        """
+        if isinstance(container, list):
+            return container
+        _wrong_shape(container, "list", path)
+        return []
+
+    def _as_map(container: object, path: Path) -> dict:
+        """``adapter_status.json``'s ``adapters`` mapping, or an empty one.
+
+        ``adapters: [1, 2]`` raised ``AttributeError: 'list' object has no
+        attribute 'items'``.
+        """
+        if isinstance(container, dict):
+            return container
+        _wrong_shape(container, "mapping", path)
+        return {}
 
     orch = _read(orchestrator_path)
     orch_ts = str(orch.get("generated_at") or "")
-    for a in orch.get("adapters", []) or []:
+    for a in _as_list(orch.get("adapters"), orchestrator_path):
         if not isinstance(a, dict) or not a.get("live_data"):
             continue
         if a.get("status") not in ("ok", "partial", None):
@@ -277,7 +329,7 @@ def _load_evidenced_apy(
     # incumbent (fail-CLOSED: do not switch sources on an unknown).
     _st_dt, _orch_dt = _parsed(st_ts), _parsed(orch_ts)
     st_newer = bool(_st_dt and _orch_dt and _st_dt > _orch_dt)
-    for name, entry in (st.get("adapters", {}) or {}).items():
+    for name, entry in _as_map(st.get("adapters"), adapter_status_path).items():
         if not isinstance(entry, dict):
             continue
         dec = _band(entry.get("live_apy"))  # null ⇒ NOT observed ⇒ no evidence
