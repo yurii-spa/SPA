@@ -85,6 +85,18 @@ class LiveNetworkAccessAttempted(OSError):
 
     reason = "offline — live network disabled in the test suite"
 
+    #: This failure is DETERMINISTIC — it repeats identically for as long as
+    #: the guard is installed, so a retry loop's backoff would be waiting for
+    #: an event excluded by construction (measured: 26 s of a 28 s test, card
+    #: ``agent-offline-suite-still-pays-full-retry-backoff``).  Transport
+    #: helpers read this through
+    #: :func:`spa_core.utils.retry_backoff.is_retryable` and skip the sleep —
+    #: the failure path itself is unchanged, so no test is made less strict.
+    #: Production is untouched: this is the ONLY place in the repo that sets
+    #: the attribute, and this module is never imported by runtime code (pinned
+    #: by ``test_retry_backoff_deterministic.py``).
+    spa_deterministic_failure = True
+
 
 #: Refusals recorded since the last :func:`reset`, newest last.
 _ATTEMPTS: List[str] = []

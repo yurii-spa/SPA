@@ -42,6 +42,8 @@ import urllib.error
 import urllib.request
 from typing import Optional, Tuple
 
+from spa_core.utils.retry_backoff import is_retryable
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -233,6 +235,16 @@ class DefiLlamaFeed:
                     return None
             except Exception as exc:  # noqa: BLE001
                 last_exc = exc
+                if not is_retryable(exc):
+                    # Deterministic failure (e.g. the offline test guard): the
+                    # next attempt fails identically, so backing off waits for
+                    # an excluded event. Same outcome as exhausting the
+                    # retries — None — reached without the sleep.
+                    logger.warning(
+                        "DefiLlamaFeed: non-retriable failure on attempt %d/%d: "
+                        "%s — no backoff", attempt + 1, MAX_RETRIES, exc,
+                    )
+                    return None
                 delay = BACKOFF_BASE * (2 ** attempt)
                 logger.warning(
                     "DefiLlamaFeed: network error on attempt %d/%d: %s — retry in %.1fs",

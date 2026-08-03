@@ -23,6 +23,8 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Optional
 
+from spa_core.utils.retry_backoff import is_retryable
+
 logger = logging.getLogger(__name__)
 
 # ── API constants ─────────────────────────────────────────────────────────────
@@ -111,6 +113,16 @@ def _http_get_with_retry(
             return _http_get(url, timeout=timeout)
         except (urllib.error.URLError, urllib.error.HTTPError, OSError, ValueError) as exc:
             last_exc = exc
+            if not is_retryable(exc):
+                # Deterministic failure (e.g. the offline test guard): every
+                # further attempt fails the same way, so the backoff would wait
+                # for an excluded event. Raise the same exception the exhausted
+                # loop would have raised, just without the sleep.
+                logger.debug(
+                    "pendle_pt: attempt %d failed non-retriably (%s) — no backoff",
+                    attempt + 1, exc,
+                )
+                raise
             if attempt < max_retries:
                 logger.debug(
                     "pendle_pt: attempt %d failed (%s), retrying in %.1fs",

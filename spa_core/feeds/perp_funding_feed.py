@@ -38,6 +38,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from spa_core.utils.retry_backoff import is_retryable
+
 logger = logging.getLogger("spa.feeds.bts")
 
 # ---------------------------------------------------------------------------
@@ -190,6 +192,15 @@ class PerpFundingFeed:
                         raw = gzip.decompress(raw)
                     return raw
             except Exception as exc:
+                if not is_retryable(exc):
+                    # Deterministic failure (e.g. the offline test guard): the
+                    # backoff would wait for an event that cannot happen. Same
+                    # outcome as the exhausted loop — None — without the sleep.
+                    logger.warning(
+                        "Hyperliquid POST attempt %d/%d failed non-retriably: "
+                        "%s — no backoff", attempt + 1, MAX_RETRIES, exc,
+                    )
+                    return None
                 delay = BACKOFF_BASE * (2 ** attempt)
                 logger.warning(
                     "Hyperliquid POST attempt %d/%d failed: %s — backoff %.1fs",
