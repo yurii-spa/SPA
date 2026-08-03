@@ -443,6 +443,31 @@ import importlib.util as _ilu
 # nothing.  That is the very failure class this guard exists to stop, so the
 # module is looked up in sys.modules first and only exec'd if absent.
 _GUARD_PATH = Path(__file__).resolve().parent / "telegram_guard.py"
+
+# ---------------------------------------------------------------------------
+# No test may reach the LIVE network at all (2026-08-03, cycle #93).
+#
+# telegram_guard delegates every NON-Telegram URL to the real transport, and
+# this directory never had the blanket offline block that tests/conftest.py has
+# carried since SPA-D003. Measured cost: spa_core/tests/ stopped completing on
+# this machine — two runs stalled at the same 49% mark at ~5 tests/min and 6%
+# CPU, and a stack dump taken during the stall showed ssl.read() under
+# strategy_lab/data/_http.http_fetch (Hyperliquid funding feed) reached from
+# spa_core/dfb/alerts.compute_alerts. Rationale + the full stack:
+# spa_core/tests/network_guard.py.
+#
+# Installed BEFORE telegram_guard on purpose, so the Telegram guard ends up
+# outermost and keeps reporting api.telegram.org with its own message.
+# ---------------------------------------------------------------------------
+_NET_GUARD_PATH = Path(__file__).resolve().parent / "network_guard.py"
+network_guard = sys.modules.get("spa_network_guard")
+if network_guard is None:
+    _net_spec = _ilu.spec_from_file_location("spa_network_guard", _NET_GUARD_PATH)
+    network_guard = _ilu.module_from_spec(_net_spec)         # type: ignore[arg-type]
+    _net_spec.loader.exec_module(network_guard)              # type: ignore[union-attr]
+    sys.modules["spa_network_guard"] = network_guard
+network_guard.install()
+
 telegram_guard = sys.modules.get("spa_telegram_guard")
 if telegram_guard is None:
     _guard_spec = _ilu.spec_from_file_location("spa_telegram_guard", _GUARD_PATH)

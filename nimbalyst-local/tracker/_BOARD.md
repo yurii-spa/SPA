@@ -2,12 +2,13 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **159** · ждёт владельца: **17** · занято сессиями: **0**.
+> Всего карточек: **162** · ждёт владельца: **18** · занято сессиями: **0**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Секрет входа в кабинет засветился в переписке — сменить его (ротация SIWE_SESSION_SECRET)** · _high_  ·  `own-25-siwe-secret-exposed-rotate.md`
 - **Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда** · _high_  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md`
+- **Аллокатор ранжирует пулы на невыверенном TVL ($50M-литерал) — исключать ли их из свежих целей?**  ·  `owner-decision-allokator-ranzhiruet-puly-na-vydumannom-tvl.md`
 - **Числа трека на сайте не подтверждаются ничем в git — канон замёрз 17 июля, и сторож краснеет каждый день** · _high_  ·  `owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts.md`
 - **Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет** · _high_  ·  `owner-decision-dva-tsikla-orkestratora-rabotali-odnovre.md`
 - **Книги aggressive_lab переписывают свою историю — и это отложенно заденет числа на сайте** · _high_  ·  `owner-decision-knigi-aggressive-lab-perepisyvayut-svoyu.md`
@@ -24,11 +25,12 @@
 - **Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать** · _medium_  ·  `owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema.md`
 - **Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта**  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (53)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (54)
 
 ### · needs-owner
 - Секрет входа в кабинет засветился в переписке — сменить его (ротация SIWE_SESSION_SECRET)  ·  `own-25-siwe-secret-exposed-rotate.md` · 2026-08-02
 - Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md` · 2026-08-01
+- Аллокатор ранжирует пулы на невыверенном TVL ($50M-литерал) — исключать ли их из свежих целей?  ·  `owner-decision-allokator-ranzhiruet-puly-na-vydumannom-tvl.md` · 2026-08-02
 - Числа трека на сайте не подтверждаются ничем в git — канон замёрз 17 июля, и сторож краснеет каждый день  ·  `owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts.md` · 2026-08-02
 - Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет  ·  `owner-decision-dva-tsikla-orkestratora-rabotali-odnovre.md` · 2026-08-01
 - Книги aggressive_lab переписывают свою историю — и это отложенно заденет числа на сайте  ·  `owner-decision-knigi-aggressive-lab-perepisyvayut-svoyu.md` · 2026-08-01
@@ -111,7 +113,7 @@
 - Задача разобраться почему нет свежих данных почему Pepper Тест не обновился хот…  ·  `inbox-zadacha-razobratsya-pochemu-net-svezhih.md` · 2026-07-23
 - Задача решить проблему 🚨 Пропущен ежедневный цикл  ·  `inbox-zadacha-reshit-problemu-propuschen-ezhed.md` · 2026-07-30
 
-## 🤖 Agent Tasks (что делает агент)  (62)
+## 🤖 Agent Tasks (что делает агент)  (63)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -121,6 +123,7 @@
 - Правка чужой карточки запирает её на 3 часа — даже когда сессия прямо назвала в объявлении ДРУГУЮ карточку  ·  `agent-card-file-in-ownership-locks-a-card-it-doesnt-claim.md` · 2026-08-01
 - Шаг 0b держит карточку занятой по файлам сессии, чей pid измеримо мёртв  ·  `agent-dead-pid-still-holds-files-for-3h.md` · 2026-08-02
 - Панель идеи #17 на 6 книгах из 10 состоит из неподвижных марок — кросс-секцию на ней измерить нельзя  ·  `agent-idea17-needs-a-panel-with-daily-marks.md` · 2026-08-02
+- CI на main красный — два теста Spark требуют «гарантированный fallback 5.5%», который ADR-063 намеренно убрал  ·  `agent-spark-apy-tests-assert-a-fallback-adr-063-removed.md` · 2026-08-03
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
 - Книги aggressive_lab документированы как append-only, но история пересоздаётся — susde_dn сдвинулась на −9.7%  ·  `agent-aggressive-lab-books-are-regenerated.md` · 2026-08-01
@@ -179,7 +182,7 @@
 - Упоминание карточки в тексте объявления запирает её НАВСЕГДА — шаг 0b отвечает «не измерено» и после старения  ·  `agent-weak-mention-locks-card-forever.md` · 2026-07-31
 - Q11: разбор ветки yield-lab  ·  `agent-yield-lab-branch.md` · 2026-07-16
 
-## agent  (19)
+## agent  (20)
 
 ### · in-progress
 - Аллокатор заморожен на неоптимальной доходности — ребаланс только по нарушению, нет триггера «заработать больше»  ·  `agent-allocator-yield-frozen-rootcause.md` · 2026-07-23
@@ -204,4 +207,5 @@
 - Поле gsm_hours не производит ни один агент — GSM-гейт двух адаптеров невозможно пройти в принципе  ·  `agent-gsm-hours-never-produced.md` · 2026-08-02
 ### · done
 - Буфер обмена подсунул текст, замаскированный под системные инструкции — разбор и правило  ·  `agent-clipboard-injection-incident-2026-08-02.md` · 2026-08-02
+- TVL-floor проходят по литералу $50M — правило «только живой TVL» ссылается на поле, которого никто не пишет  ·  `agent-tvl-floor-passes-on-literals.md` · 2026-08-02
 

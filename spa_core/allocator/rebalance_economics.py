@@ -17,7 +17,6 @@ LLM forbidden. Pure stdlib. Deterministic: same inputs → same verdict.
 # LLM_FORBIDDEN
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional, Tuple
 
