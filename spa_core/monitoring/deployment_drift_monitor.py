@@ -62,6 +62,53 @@ def _is_money_path(path: str) -> bool:
     return any(path.startswith(prefix) for prefix in MONEY_PATH_PREFIXES)
 
 
+
+def _content_mismatches(root: Path, ref: str, run) -> tuple[Optional[List[str]], Optional[str]]:
+    """Files whose CONTENT on disk differs from ``ref``. Returns ``(paths, error)``.
+
+    Compares blob hashes, not git's index, because the index answers the wrong
+    question here. ``git diff <ref>`` is blind to UNTRACKED files: a file-level
+    deployment (rsync from a clean checkout) writes files that the stale checkout
+    never tracked, and git then reports them as "deleted" — a CRITICAL about code
+    that is byte-identical to what was delivered. A guard that cries wolf about a
+    correct deployment is worse than no guard: it teaches everyone to ignore it.
+
+    Two subprocess calls regardless of file count: one ``ls-tree`` for the
+    delivered hashes, one batched ``hash-object`` for what is on disk.
+    """
+    ok, listing = run(["ls-tree", "-r", ref], root)
+    if not ok:
+        return None, "git ls-tree {} failed: {}".format(ref, listing)
+
+    expected: Dict[str, str] = {}
+    for line in listing.splitlines():
+        # "<mode> <type> <sha>\t<path>"
+        head, _, path = line.partition("\t")
+        parts = head.split()
+        if len(parts) == 3 and parts[1] == "blob" and path:
+            expected[path] = parts[2]
+    if not expected:
+        return None, "ls-tree {} returned no blobs".format(ref)
+
+    paths = sorted(expected)
+    on_disk = [p for p in paths if (root / p).is_file()]
+    missing = [p for p in paths if p not in set(on_disk)]
+
+    actual: Dict[str, str] = {}
+    if on_disk:
+        ok, hashes = run(["hash-object", "--stdin-paths"], root, "\n".join(on_disk) + "\n")
+        if not ok:
+            return None, "git hash-object failed: {}".format(hashes)
+        lines = hashes.splitlines()
+        if len(lines) != len(on_disk):
+            return None, "hash-object returned {} lines for {} paths".format(
+                len(lines), len(on_disk))
+        actual = dict(zip(on_disk, lines))
+
+    changed = [p for p in on_disk if actual.get(p) != expected[p]]
+    return sorted(changed + missing), None
+
+
 @dataclass
 class DriftReport:
     status: str = UNCHECKED
@@ -82,11 +129,12 @@ class DriftReport:
         return asdict(self)
 
 
-def _git(args: List[str], cwd: Path, timeout: float = 30.0) -> tuple[bool, str]:
+def _git(args: List[str], cwd: Path, stdin: Optional[str] = None,
+         timeout: float = 60.0) -> tuple[bool, str]:
     """Run a read-only git command. Returns ``(ok, output_or_error)``."""
     try:
         proc = subprocess.run(["git", *args], cwd=str(cwd), capture_output=True,
-                              text=True, timeout=timeout)
+                              text=True, timeout=timeout, input=stdin)
     except Exception as exc:  # noqa: BLE001 — git missing / hung / not a repo
         return False, "{}: {}".format(type(exc).__name__, exc)
     if proc.returncode != 0:
@@ -112,7 +160,7 @@ def check_deployment_drift(
     precisely the failure this module exists to prevent.
     """
     root = Path(repo_root) if repo_root else _REPO_ROOT
-    run = git_runner or (lambda args, cwd: _git(args, cwd))
+    run = git_runner or (lambda args, cwd, stdin=None: _git(args, cwd, stdin))
     rep = DriftReport(
         checked_at=datetime.now(timezone.utc).isoformat(),
         repo_root=str(root),
@@ -155,11 +203,11 @@ def check_deployment_drift(
             except ValueError:
                 pass
 
-    ok, names = run(["diff", "--name-only", "HEAD", remote_ref], root)
-    if not ok:
-        rep.unchecked_reason = "git diff HEAD..{} failed: {}".format(remote_ref, names)
+    # Content comparison against the delivered ref (see _content_mismatches).
+    changed, err = _content_mismatches(root, remote_ref, run)
+    if err:
+        rep.unchecked_reason = err
         return rep
-    changed = [p for p in names.splitlines() if p.strip()]
     rep.money_path_files = sorted(p for p in changed if _is_money_path(p))
     rep.other_files = sorted(p for p in changed if not _is_money_path(p))
 
