@@ -281,6 +281,77 @@ class TestCycleGapTestsAreStubbed(unittest.TestCase):
             "spa_core.paper_trading.cycle_gap_monitor._resolve_cycle_gap", src
         )
 
+    def test_module_stubs_are_actually_started(self):
+        """The stubs must be *active*, not merely *written*.
+
+        ``test_module_stubs_both_senders`` above scans the source text.  That
+        proves the ``patch(...)`` calls were typed — it does not prove they ever
+        run.  Measured (cycle #104), not reasoned: mutating ``setUpModule`` from
+
+            for p in _MODULE_PATCHERS:
+                p.start()
+
+        to ``pass`` leaves every scanned string in place, so the text pin stays
+        **green (14 passed)** — while the module goes straight back to POSTing
+        the 2026-07-31 alert into the owner's live chat (the suite-wide guard
+        recorded 2 live ``sendMessage`` attempts in that same run).  A pin that
+        green-lights the exact regression it was written for is the "claims a
+        check it never made" class this file's docstring names.
+
+        So this asserts the *effect*: after ``setUpModule`` the two senders are
+        replaced, and after ``tearDownModule`` the originals are back.  Nothing
+        here weakens the text pin — it stays, and covers the case where the
+        stubs are deleted outright.
+        """
+        import importlib
+        from unittest import mock as _mock
+
+        cgm = importlib.import_module("spa_core.paper_trading.cycle_gap_monitor")
+        mod = importlib.import_module("spa_core.tests.test_cycle_gap_monitor")
+
+        # The stubs are module-scoped, so whether they are live right now
+        # depends on test ORDER.  Normalise to a known-clean state first and
+        # put back whatever we found, so this test cannot leak a patch that
+        # would silently muzzle a later module's guard.
+        was_active = isinstance(cgm._send_telegram_alert, _mock.Mock)
+        if was_active:
+            mod.tearDownModule()
+        try:
+            before_send = cgm._send_telegram_alert
+            before_resolve = cgm._resolve_cycle_gap
+
+            mod.setUpModule()
+            for name, before in (
+                ("_send_telegram_alert", before_send),
+                ("_resolve_cycle_gap", before_resolve),
+            ):
+                now = getattr(cgm, name)
+                self.assertIsNot(
+                    now, before,
+                    f"setUpModule() left cycle_gap_monitor.{name} unpatched — "
+                    "the stub is declared but never started, so this module "
+                    "sends the owner a real Telegram alert (incident 2026-07-31)",
+                )
+                self.assertIsInstance(
+                    now, _mock.Mock,
+                    f"cycle_gap_monitor.{name} was replaced by something that is "
+                    "not a mock — the sender is not provably inert",
+                )
+
+            mod.tearDownModule()
+            self.assertIs(
+                cgm._send_telegram_alert, before_send,
+                "tearDownModule() did not restore _send_telegram_alert — a leaked "
+                "patch makes every later test blind to a real send",
+            )
+            self.assertIs(
+                cgm._resolve_cycle_gap, before_resolve,
+                "tearDownModule() did not restore _resolve_cycle_gap",
+            )
+        finally:
+            if was_active:
+                mod.setUpModule()
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
