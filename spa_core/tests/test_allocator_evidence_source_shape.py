@@ -46,6 +46,18 @@ import pytest
 from spa_core.allocator.allocator import _load_evidenced_apy
 
 
+# ADR-060 §L0 / feed-staleness policy (2026-08-04): an observation is evidence only
+# inside EVIDENCE_MAX_AGE_H. These fixtures pin SHAPE handling (malformed sources,
+# odd types), not age, so their timestamps are now RELATIVE — a hardcoded date makes
+# a shape test start failing purely because the calendar moved, which says nothing
+# about the behaviour under test. Intent unchanged; only the clock is.
+def _fresh_ts() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat()
+
+
+
+
 # ── fixtures ────────────────────────────────────────────────────────────────
 
 
@@ -57,7 +69,7 @@ def _write(path: Path, text: str) -> Path:
 def _well_formed_orch(path: Path) -> Path:
     """An orchestrator snapshot with one genuinely observed pool."""
     return _write(path, json.dumps({
-        "generated_at": "2026-08-02T06:00:00+00:00",
+        "generated_at": _fresh_ts(),
         "adapters": [
             {"protocol": "pendle", "status": "ok", "apy_pct": 13.9419,
              "live_data": True},
@@ -68,7 +80,7 @@ def _well_formed_orch(path: Path) -> Path:
 def _well_formed_status(path: Path) -> Path:
     """An ``adapter_status.json`` with one non-null ``live_apy`` (== observed)."""
     return _write(path, json.dumps({
-        "generated_at": "2026-08-02T15:01:33+00:00",
+        "generated_at": _fresh_ts(),
         "adapters": {"morpho_steakhouse": {"live_apy": 3.4657}},
     }))
 
@@ -135,7 +147,7 @@ def test_orchestrator_adapters_that_is_not_a_list_yields_no_evidence(
     dicts — so refusing it outright changes no outcome, only adds a log line.
     """
     orch = _write(tmp_path / "orch.json", json.dumps({
-        "generated_at": "2026-08-02T06:00:00+00:00", "adapters": adapters,
+        "generated_at": _fresh_ts(), "adapters": adapters,
     }))
     status = _well_formed_status(tmp_path / "status.json")
 
@@ -151,7 +163,7 @@ def test_status_adapters_that_is_not_a_mapping_yields_no_evidence(
     """``adapters: [1, 2]`` raised ``AttributeError`` (``list.items``) before."""
     orch = _well_formed_orch(tmp_path / "orch.json")
     status = _write(tmp_path / "status.json", json.dumps({
-        "generated_at": "2026-08-02T15:01:33+00:00", "adapters": adapters,
+        "generated_at": _fresh_ts(), "adapters": adapters,
     }))
 
     assert _load_evidenced_apy(orch, status) == {
@@ -180,8 +192,8 @@ def test_well_formed_sources_still_produce_both_evidences(tmp_path: Path) -> Non
 def test_missing_adapters_key_is_still_simply_no_evidence(tmp_path: Path) -> None:
     """POSITIVE CONTROL — an object with no ``adapters`` key was always fine."""
     assert _load_evidenced_apy(
-        _write(tmp_path / "orch.json", json.dumps({"generated_at": "2026-08-02T06:00:00+00:00"})),
-        _write(tmp_path / "status.json", json.dumps({"generated_at": "2026-08-02T15:01:33+00:00"})),
+        _write(tmp_path / "orch.json", json.dumps({"generated_at": _fresh_ts()})),
+        _write(tmp_path / "status.json", json.dumps({"generated_at": _fresh_ts()})),
     ) == {}
 
 
@@ -193,7 +205,7 @@ def test_a_single_malformed_entry_does_not_discard_its_neighbours(
     Fails if the guard is hoisted from the container to the whole document.
     """
     orch = _write(tmp_path / "orch.json", json.dumps({
-        "generated_at": "2026-08-02T06:00:00+00:00",
+        "generated_at": _fresh_ts(),
         "adapters": [
             "not-a-dict",
             {"protocol": "pendle", "status": "ok", "apy_pct": 13.9419,
@@ -201,7 +213,7 @@ def test_a_single_malformed_entry_does_not_discard_its_neighbours(
         ],
     }))
     status = _write(tmp_path / "status.json", json.dumps({
-        "generated_at": "2026-08-02T15:01:33+00:00",
+        "generated_at": _fresh_ts(),
         "adapters": {"junk": "not-a-dict",
                      "morpho_steakhouse": {"live_apy": 3.4657}},
     }))

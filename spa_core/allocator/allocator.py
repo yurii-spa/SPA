@@ -59,6 +59,13 @@ _EPS = 1e-12
 # incident. min_protocols is 3, so fewer than 3 could not be allocated anyway.
 _EVIDENCE_MIN_COVERAGE = 3
 
+# How long an observation stays evidence (ADR-060 §3, paper column). An observation
+# is not invalidated by the next fetch failing — only by AGE. Before this window
+# existed the rule was binary, so one failed HTTP request blanked live_apy for all
+# 34 adapters and the gate honestly concluded "nothing is observable" — i.e. a
+# network hiccup would have evacuated the book to cash. Measured 2026-08-04 15:14Z.
+_EVIDENCE_MAX_AGE_H = 36.0
+
 # MP-REGISTRY: fallback TVL assumption for registry-only adapters (not in orchestrator).
 # These are all established protocols with TVL >> $5M TVL floor; $50M is conservative.
 # ADR-053 (allocator side): this literal is ALWAYS labeled tvl_source="static" and
@@ -315,13 +322,27 @@ def _load_evidenced_apy(
     st = _read(adapter_status_path)
     st_ts = str(st.get("generated_at") or "")
 
-    def _parsed(ts: str) -> datetime | None:
+    def _parsed(ts: str) -> "datetime | None":
         """ISO-8601 → aware datetime. Never raises; ``None`` when unparseable."""
         try:
-            dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-        except (ValueError, AttributeError):
+            dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        except (ValueError, AttributeError, TypeError):
             return None
         return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+    def _within_window(as_of: object, fallback_ts: str) -> bool:
+        """Is an observation young enough to still count as evidence?
+
+        Age is measured from when the value was OBSERVED (``live_apy_as_of``),
+        not from when the file was written — a carried-forward reading must age
+        out on its own clock. An unparseable timestamp is treated as too old:
+        unknown age is not evidence (fail-CLOSED).
+        """
+        dt = _parsed(str(as_of)) if as_of else _parsed(fallback_ts)
+        if dt is None:
+            return False
+        age_h = (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0
+        return age_h <= _EVIDENCE_MAX_AGE_H
 
     # Compare real instants, not strings: "…Z" vs "…+00:00" sort in the WRONG
     # order lexicographically ("Z" > "+"), which would silently pick the stale
@@ -334,6 +355,9 @@ def _load_evidenced_apy(
             continue
         dec = _band(entry.get("live_apy"))  # null ⇒ NOT observed ⇒ no evidence
         if dec is None:
+            continue
+        # A carried-forward reading stays evidence only inside the age window.
+        if not _within_window(entry.get("live_apy_as_of"), st_ts):
             continue
         prev = out.get(str(name))
         if prev is not None:

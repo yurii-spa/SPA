@@ -272,6 +272,23 @@ def generate(
     now_ts = datetime.now(timezone.utc).isoformat()
     live_count = 0
 
+    # Previous snapshot — the basis for carrying a last-known-good observation
+    # forward when THIS fetch failed. Without it a single failed HTTP request
+    # blanks live_apy for every adapter, and a downstream evidence gate reads that
+    # as "nothing is observable" and evacuates the book to cash. A network hiccup
+    # must not move capital; only real staleness may. Consumers decide how long an
+    # observation stays valid from ``live_apy_as_of`` (its OWN timestamp, not the
+    # time this file was written).
+    prev_adapters: dict = {}
+    try:
+        # ``output_path`` IS the file about to be overwritten — the right place to
+        # read the previous snapshot from (it was documented as logging-only).
+        _prev = json.loads(Path(output_path).read_text(encoding="utf-8"))
+        if isinstance(_prev.get("adapters"), dict):
+            prev_adapters = _prev["adapters"]
+    except Exception:  # noqa: BLE001 — no previous file is normal on a first run
+        prev_adapters = {}
+
     # ── 3. Build adapters dict ───────────────────────────────────────────────
     adapters: dict[str, Any] = {}
     for key, meta in adapters_meta.items():
@@ -292,6 +309,17 @@ def generate(
             if live_apy is not None:
                 live_count += 1
 
+        # Carry the last-known-good observation forward when this run has none.
+        # ``live_apy_as_of`` keeps the ORIGINAL observation time, so age — and
+        # therefore validity — is measured from when it was seen, not from now.
+        live_as_of: Optional[str] = now_ts if live_apy is not None else None
+        live_fresh = live_apy is not None
+        if live_apy is None:
+            _p = prev_adapters.get(key)
+            if isinstance(_p, dict) and _p.get("live_apy") is not None:
+                live_apy = _p.get("live_apy")
+                live_as_of = _p.get("live_apy_as_of") or _p.get("last_updated")
+
         apy_used = live_apy if live_apy is not None else fallback_pct
 
         # TVL from DeFiLlama exact pool hit, else static estimate
@@ -306,6 +334,11 @@ def generate(
             "display_name":     str(meta.get("protocol", key)),
             "apy":              round(apy_used, 4),
             "live_apy":         live_apy,
+            # When the observation was actually made (NOT when this file was
+            # written) + whether it came from THIS run. A consumer applies its own
+            # age window to as_of; ``fresh=False`` means "carried forward".
+            "live_apy_as_of":   live_as_of,
+            "live_apy_fresh":   live_fresh,
             "fallback_apy":     fallback_pct,
             "tvl_usd":          tvl,
             "tier":             tier_raw,
@@ -316,6 +349,10 @@ def generate(
         }
 
     live_apy_enabled = bool(pools and live_count > 0)
+    # An infrastructure fact, kept separate from "is this protocol observable":
+    # False means the FEED did not answer this run. Consumers must treat that as
+    # an incident to alert on, never as evidence that protocols became unobservable.
+    feed_reachable = bool(pools)
 
     # ── 4. Shadow top-level entries (backward compat) ────────────────────────
     # Several adapter modules and apy_aggregator.py read specific top-level
@@ -340,6 +377,8 @@ def generate(
         "generated_at":     now_ts,
         "generated_by":     "adapter_status_generator",
         "live_apy_enabled": live_apy_enabled,
+        "feed_reachable":   feed_reachable,
+        "live_fresh_count": live_count,
         "live_count":       live_count,
         # Primary adapters dict (snake_case keys) — GoLive checker reads here
         "adapters":         adapters,

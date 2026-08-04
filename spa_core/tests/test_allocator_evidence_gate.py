@@ -23,10 +23,23 @@ from pathlib import Path
 import pytest
 
 from spa_core.allocator.allocator import (
+
+
     StrategyAllocator,
     _adapter_class_gate,
     _load_evidenced_apy,
 )
+
+def _ts(hours_ago: float = 0.0) -> str:
+    """Relative timestamp.
+
+    ADR-060 §L0 / feed-staleness (2026-08-04): an observation is evidence only
+    inside EVIDENCE_MAX_AGE_H. These tests pin PROVENANCE (literal vs observation,
+    which producer wins a tie), not age — a hardcoded date would make them start
+    failing purely because the calendar moved. Intent unchanged; only the clock is.
+    """
+    from datetime import datetime, timedelta, timezone
+    return (datetime.now(timezone.utc) - timedelta(hours=hours_ago)).isoformat()
 
 
 # ── fixtures ────────────────────────────────────────────────────────────────
@@ -41,11 +54,11 @@ def _write(path: Path, doc: dict) -> Path:
 def orch(tmp_path: Path) -> Path:
     """Orchestrator snapshot: one observed pool, one that failed to poll."""
     return _write(tmp_path / "adapter_orchestrator_status.json", {
-        "generated_at": "2026-08-02T06:00:00+00:00",
+        "generated_at": _ts(9),
         "adapters": [
             {"protocol": "pendle", "tier": "T3", "status": "ok",
              "apy_pct": 13.9419, "tvl_usd": 7_006_315.0, "live_data": True,
-             "last_updated": "2026-08-02T06:00:00+00:00"},
+             "last_updated": _ts(9)},
             {"protocol": "compound_v3", "tier": "T1", "status": "error",
              "apy_pct": None, "tvl_usd": 1_500_000_000.0, "live_data": False},
         ],
@@ -56,7 +69,7 @@ def orch(tmp_path: Path) -> Path:
 def status(tmp_path: Path) -> Path:
     """adapter_status.json — ``live_apy`` non-null == OBSERVED, null == not."""
     return _write(tmp_path / "adapter_status.json", {
-        "generated_at": "2026-08-02T15:01:33+00:00",
+        "generated_at": _ts(1),
         "adapters": {
             # observed
             "maple": {"apy": 5.1097, "live_apy": 5.1097, "fallback_apy": 4.82},
@@ -89,7 +102,7 @@ def test_unpolled_orchestrator_entry_is_not_evidence(orch: Path, status: Path) -
 def test_out_of_band_reading_fails_closed(tmp_path: Path, orch: Path) -> None:
     """A 900 % reading is a malformed feed, not an opportunity."""
     st = _write(tmp_path / "s.json", {
-        "generated_at": "2026-08-02T15:00:00+00:00",
+        "generated_at": _ts(1),
         "adapters": {"x": {"live_apy": 900.0}, "y": {"live_apy": -3.0},
                      "z": {"live_apy": "5.0"}},
     })
@@ -99,18 +112,18 @@ def test_out_of_band_reading_fails_closed(tmp_path: Path, orch: Path) -> None:
 def test_fresher_producer_wins_on_divergence(tmp_path: Path) -> None:
     """D6: two producers disagree → the fresher one wins, deterministically."""
     orch = _write(tmp_path / "o.json", {
-        "generated_at": "2026-08-02T06:00:00+00:00",
+        "generated_at": _ts(9),
         "adapters": [{"protocol": "p", "status": "ok", "apy_pct": 13.94,
                       "live_data": True}],
     })
     newer = _write(tmp_path / "n.json", {
-        "generated_at": "2026-08-02T15:00:00+00:00",
+        "generated_at": _ts(1),
         "adapters": {"p": {"live_apy": 8.0}},
     })
     assert _load_evidenced_apy(orch, newer)["p"] == (pytest.approx(0.08),
                                                      "adapter_status_live")
     older = _write(tmp_path / "old.json", {
-        "generated_at": "2026-08-01T01:00:00+00:00",
+        "generated_at": _ts(40),
         "adapters": {"p": {"live_apy": 8.0}},
     })
     assert _load_evidenced_apy(orch, older)["p"][1] == "orchestrator_live"
@@ -180,7 +193,7 @@ def _allocator(tmp_path: Path, evidence: dict[str, float]) -> StrategyAllocator:
         "susde": {"status": "active", "tier": 3, "fallback_apy": 0.12,
                   "chain": "ethereum"},
     }})
-    _write(tmp_path / "orch.json", {"generated_at": "2026-08-02T06:00:00+00:00",
+    _write(tmp_path / "orch.json", {"generated_at": _ts(9),
                                     "adapters": []})
     _write(tmp_path / "scores.json", {})
     return StrategyAllocator(
@@ -246,12 +259,12 @@ def test_timezone_suffix_does_not_flip_the_freshness_tiebreak(tmp_path: Path) ->
     number. Same instants, different spellings → the newer one still wins.
     """
     orch = _write(tmp_path / "o.json", {
-        "generated_at": "2026-08-02T06:00:00Z",          # older, "Z" spelling
+        "generated_at": _ts(9),          # older, "Z" spelling
         "adapters": [{"protocol": "p", "status": "ok", "apy_pct": 13.94,
                       "live_data": True}],
     })
     st = _write(tmp_path / "s.json", {
-        "generated_at": "2026-08-02T15:00:00+00:00",     # newer, offset spelling
+        "generated_at": _ts(1),     # newer, offset spelling
         "adapters": {"p": {"live_apy": 8.0}},
     })
     assert _load_evidenced_apy(orch, st)["p"][1] == "adapter_status_live"
@@ -260,7 +273,7 @@ def test_timezone_suffix_does_not_flip_the_freshness_tiebreak(tmp_path: Path) ->
 def test_unparseable_timestamp_keeps_the_incumbent(tmp_path: Path) -> None:
     """Fail-CLOSED: an unreadable timestamp must not win a money-path tie-break."""
     orch = _write(tmp_path / "o.json", {
-        "generated_at": "2026-08-02T06:00:00+00:00",
+        "generated_at": _ts(9),
         "adapters": [{"protocol": "p", "status": "ok", "apy_pct": 13.94,
                       "live_data": True}],
     })
