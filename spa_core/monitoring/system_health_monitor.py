@@ -952,18 +952,64 @@ class SystemHealthMonitor:
         return CheckResult("d5.import.cycle_runner", D, CRITICAL,
                            "cycle_runner import failed", error=msg)
 
+    # A credential-shaped value: a long run of high-entropy characters, or an
+    # explicit assignment to a secret-ish key. Deliberately broad — a false
+    # CONFIRMATION is cheap (a human looks), a missed real key is not.
+    _SECRET_VALUE_RE = re.compile(
+        r"(?:[A-Za-z0-9_\-]{32,}"                       # long opaque token / hex / base64
+        r"|-----BEGIN [A-Z ]*PRIVATE KEY-----"           # PEM key
+        r"|(?:api[_-]?key|secret|token|password|passwd|pat)\s*[:=]\s*[\"\']?[A-Za-z0-9_\-]{16,})",
+        re.IGNORECASE)
+    _SECRET_SCAN_BYTES = 65536
+
+    def _file_holds_secret_value(self, path: str) -> Optional[bool]:
+        """Does the file actually CONTAIN something credential-shaped?
+
+        ``None`` when it could not be read — unknown is never reported as clean.
+        """
+        try:
+            full = os.path.join(str(self.repo_root), path) if not os.path.isabs(path) else path
+            if os.path.isdir(full):
+                return None
+            with open(full, "r", encoding="utf-8", errors="replace") as fh:
+                return bool(self._SECRET_VALUE_RE.search(fh.read(self._SECRET_SCAN_BYTES)))
+        except Exception:  # noqa: BLE001 — unreadable ⇒ unknown, not clean
+            return None
+
     def _check_secrets(self, D: str) -> CheckResult:
-        hits = []
+        """Untracked files that look like credentials — confirmed by CONTENT.
+
+        The name alone is not evidence. This check matched only the BASENAME, so a
+        markdown card titled "rotate the exposed secret" and a protocol
+        `token_emission_log.json` both raised CRITICAL — and being the only
+        CRITICAL, they masked the rest of the report. Meanwhile neither holds a
+        credential.
+
+        The protection is NOT weakened: a real key file still trips, because a key
+        is a long high-entropy string and that is what is now looked for. What
+        changed is the burden of proof — CRITICAL is reserved for a file whose
+        CONTENT is credential-shaped; a name-only match is reported as WARNING
+        (visible, named, actionable) rather than silence or alarm. Unreadable
+        files count as suspected, never as clean.
+        """
+        confirmed, suspected = [], []
         for path in self._git_untracked:
             base = os.path.basename(path.rstrip("/"))
             if path.endswith(_SECRET_SAFE_SUFFIXES):
                 continue
-            if _SECRET_RE.search(base):
-                hits.append(path)
-        if hits:
+            if not _SECRET_RE.search(base):
+                continue
+            holds = self._file_holds_secret_value(path)
+            (confirmed if holds is not False else suspected).append(path)
+        if confirmed:
             return CheckResult("d5.security.secrets", D, CRITICAL,
-                               f"{len(hits)} untracked secret-like file(s)",
-                               evidence={"paths": hits[:10]})
+                               f"{len(confirmed)} untracked file(s) hold a credential-shaped value",
+                               evidence={"paths": confirmed[:10], "name_only": suspected[:10]})
+        if suspected:
+            return CheckResult("d5.security.secrets", D, WARNING,
+                               f"{len(suspected)} untracked file(s) named like a secret "
+                               f"but holding no credential-shaped value",
+                               evidence={"paths": suspected[:10]})
         return CheckResult("d5.security.secrets", D, OK, "no untracked secret-like files")
 
     # ======================================================================
