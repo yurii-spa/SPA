@@ -968,7 +968,12 @@ class SystemHealthMonitor:
         ``None`` when it could not be read — unknown is never reported as clean.
         """
         try:
-            full = os.path.join(str(self.repo_root), path) if not os.path.isabs(path) else path
+            # NB: the attribute is ``project_root`` — a wrong name here made every
+            # file unreadable, and "unreadable ⇒ suspected" then reported clean
+            # files as confirmed credentials. Fail-CLOSED only helps when the
+            # path resolves; otherwise it manufactures the alarm it should catch.
+            root = str(getattr(self, "project_root", ""))
+            full = os.path.join(root, path) if not os.path.isabs(path) else path
             if os.path.isdir(full):
                 return None
             with open(full, "r", encoding="utf-8", errors="replace") as fh:

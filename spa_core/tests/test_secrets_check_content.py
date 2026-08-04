@@ -19,7 +19,7 @@ from spa_core.monitoring.system_health_monitor import SystemHealthMonitor
 
 def _monitor(tmp_path: Path, untracked) -> SystemHealthMonitor:
     m = SystemHealthMonitor.__new__(SystemHealthMonitor)
-    m.repo_root = tmp_path
+    m.project_root = tmp_path
     m._git_untracked = list(untracked)
     return m
 
@@ -53,6 +53,16 @@ def test_unreadable_file_counts_as_suspected_not_clean(tmp_path: Path) -> None:
     """Unknown is never reported as safe — that is how real leaks hide."""
     res = _monitor(tmp_path, ["token_that_does_not_exist.json"])._check_secrets("d5")
     assert res.status == "CRITICAL"     # cannot read ⇒ cannot clear it
+
+
+def test_readable_clean_file_is_not_called_a_credential(tmp_path: Path) -> None:
+    """Regression: the root attribute was misnamed, so EVERY file was 'unreadable'
+    and the fail-CLOSED branch manufactured the exact false CRITICAL it exists to
+    prevent. Path resolution is part of the check, not a detail."""
+    f = tmp_path / "token_emission_log.json"
+    f.write_text('[{"name": "euler_v2", "daily_inflation_pct": 0.0}]', encoding="utf-8")
+    res = _monitor(tmp_path, ["token_emission_log.json"])._check_secrets("d5")
+    assert res.status == "WARNING"
 
 
 def test_clean_tree_is_ok(tmp_path: Path) -> None:
