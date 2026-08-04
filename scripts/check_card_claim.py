@@ -836,14 +836,16 @@ def _unannounce_claim(cid, path, session, log, announcer=None):
               f"читаться занятой сессией {session}.", file=sys.stderr)
 
 
-def claim_card(card, *, session=None, tracker_dir=DEFAULT_TRACKER, now=None,
-               grace_hours=DEFAULT_GRACE_HOURS, sibling=None, log=DEFAULT_LOG, ps=None,
+def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None,
+               grace_hours=DEFAULT_GRACE_HOURS, sibling=None, ps=None,
                announcer=None, self_anchor=_ENV_ANCHOR):
     """Взять карточку. Отказ, если её держит другая сессия или занятость не измерена.
 
     Захват всегда сопровождается записью в общем журнале объявлений: «взял, но не объявил» —
     состояние, из-за которого работа цикла #52 была невидима, — здесь невозможно по
-    построению. Не удалось объявить ⇒ карточка НЕ берётся (fail-CLOSED, инв. #2)."""
+    построению. Не удалось объявить ⇒ карточка НЕ берётся (fail-CLOSED, инв. #2).
+
+    `log` — ОБЯЗАТЕЛЬНЫЙ аргумент, см. `release_card`."""
     sibling = sibling or load_sibling()
     session = session or self_session_id()
     now = now or datetime.now(timezone.utc)
@@ -893,9 +895,38 @@ def claim_card(card, *, session=None, tracker_dir=DEFAULT_TRACKER, now=None,
             "claimed_at": _fmt_ts(now)}
 
 
-def release_card(card, *, session=None, tracker_dir=DEFAULT_TRACKER, force=False,
-                 log=DEFAULT_LOG, announcer=None, sibling=None, self_anchor=_ENV_ANCHOR):
+def release_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, force=False,
+                 announcer=None, sibling=None, self_anchor=_ENV_ANCHOR):
     """Отпустить карточку. Чужой захват без `--force` не снимается.
+
+    **`log` — ОБЯЗАТЕЛЬНЫЙ аргумент, у пишущих путей умолчания нет** (карточка
+    `agent-claim-guard-tests-write-a-real-announce-journal`, цикл #106). Раньше здесь стояло
+    `log=DEFAULT_LOG`, и «забыть `log=`» означало не ошибку, а ТИХУЮ запись в настоящий
+    журнал координации — тот самый, который читают шаги 0a и 0b протокола. Замерено на
+    четырёх вызовах в `spa_core/tests/test_card_claim_guard.py`: файла
+    `data/session_changes.jsonl` в свежем worktree не было вовсе, один прогон набора создавал
+    его и клал туда 2 записи (`pid1` и `pid999`, карточка `agent-x`), каждый следующий прогон
+    добавлял ещё 2 — монотонно.
+
+    Обоих последствий по отдельности достаточно, чтобы умолчания не было:
+
+    * **запись не туда.** Оба кандидата в умолчание неверны, и это ЗАМЕР, а не вкус:
+      `DEFAULT_LOG` — дерево ЭТОГО файла, то есть из worktree захват уезжает в журнал,
+      которого не видит никто (а `announce_claim` существует ровно затем, чтобы захват был
+      виден немедленно и без пуша); `shared_log()` (умолчание CLI) — ГЛАВНОЕ дерево, то есть
+      прогон набора из любого worktree писал бы выдуманные захваты прямо в живой журнал
+      хост-репо (394 записи на момент замера). Вариант «просто поменять умолчание» делает
+      тестовое загрязнение строго хуже, а не лучше;
+    * **вердикт зависит от истории, а не от кода.** `selves` строится из `log`, поэтому
+      содержимое файла меняет ответ функции. Воспроизведено на неизменном коде: одна и та же
+      карточка (`claimed_by: pid999`) при пустом журнале даёт отказ, а при одной записи с
+      ярлыком `pid999` под якорем текущего процесса — НЕ даёт. Проверка, утверждающая то,
+      чего не измеряла, — тот же класс, что и сама карточка.
+
+    Теперь «забыть `log=`» — `TypeError` в точке вызова, а не тихая запись в чужой файл
+    (fail-CLOSED). Единственный не-тестовый вызывающий — CLI `main()` — журнал задаёт явно
+    (`sibling.shared_log()[0]`), поэтому поведение прода не меняется; гейт против возврата
+    умолчания — `spa_core/tests/test_claim_guard_writes_are_hermetic.py`.
 
     «Чужой» решается по `self_identities`, а не по одному ярлыку: `claim` и `release` — ДВЕ
     разные CLI-команды, поэтому без `SPA_SESSION_ID` у них разные ярлыки, и сессия отказывала

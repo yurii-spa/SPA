@@ -15,6 +15,13 @@
 
 Тесты герметичны: свой каталог карточек и свой журнал в ``tmp_path``, `ps` подменяется,
 время подаётся явно. Сети и git тут нет.
+
+Герметичность журнала теперь ПРОВЕРЯЕТСЯ, а не обещается. До цикла #106 это утверждение было
+неверным ровно для четырёх вызовов: `release_card` звался без `log=`, умолчание разрешалось в
+настоящий `data/session_changes.jsonl` того дерева, откуда запущен pytest, и каждый прогон
+дописывал в него 2 выдуманных захвата (`pid1`, `pid999`). Теперь `log` — обязательный аргумент
+пишущих путей, а гейт `test_claim_guard_writes_are_hermetic.py` краснеет, если умолчание
+вернут или вызов сделают без него.
 """
 import importlib.util
 import json
@@ -595,20 +602,21 @@ class TestClaimAndRelease:
         before = p.read_text(encoding="utf-8")
         guard.claim_card("agent-x", session="pid1", tracker_dir=tracker, now=NOW,
                          sibling=sibling, log=log, ps=lambda pid: (1, ""))
-        guard.release_card("agent-x", session="pid1", tracker_dir=tracker)
+        guard.release_card("agent-x", session="pid1", tracker_dir=tracker, log=log)
         assert p.read_text(encoding="utf-8") == before
 
-    def test_release_refuses_foreign_claim_without_force(self, guard, tracker):
+    def test_release_refuses_foreign_claim_without_force(self, guard, tracker, log):
         write_card(tracker, "agent-x", claimed_by="pid999", claimed_at=_fmt(NOW))
         with pytest.raises(guard.ClaimError):
-            guard.release_card("agent-x", session="pid1", tracker_dir=tracker)
-        res = guard.release_card("agent-x", session="pid1", tracker_dir=tracker, force=True)
+            guard.release_card("agent-x", session="pid1", tracker_dir=tracker, log=log)
+        res = guard.release_card("agent-x", session="pid1", tracker_dir=tracker, log=log,
+                                 force=True)
         assert res["released"] and res["was"] == "pid999"
 
-    def test_release_without_claim_is_a_no_op(self, guard, tracker):
+    def test_release_without_claim_is_a_no_op(self, guard, tracker, log):
         p = write_card(tracker, "agent-x")
         before = p.read_text(encoding="utf-8")
-        res = guard.release_card("agent-x", session="pid1", tracker_dir=tracker)
+        res = guard.release_card("agent-x", session="pid1", tracker_dir=tracker, log=log)
         assert res["released"] is False
         assert p.read_text(encoding="utf-8") == before
 
