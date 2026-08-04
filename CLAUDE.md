@@ -45,7 +45,9 @@ SPA — автономный DeFi yield-optimizer на стадии **paper trad
    - **идея** → `docs/ideas/<дата-slug>.md`.
    Устных договорённостей быть не должно. **Не записано — работа сессии НЕ считается завершённой.**
 5. **Path-специфичные правила** — читать перед работой в области:
-   `.claude/rules/risk-engine.md` · `.claude/rules/site-copy.md` · `.claude/rules/adapters.md`.
+   `.claude/rules/risk-engine.md` · `.claude/rules/site-copy.md` · `.claude/rules/adapters.md` ·
+   `.claude/rules/deployment.md` (любое изменение прод-дерева: acceptance до и после, каталогами
+   целиком, права — часть доставки).
 
 ## 🧭 Маршрутизация «идея ≠ инструкция»
 
