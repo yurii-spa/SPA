@@ -477,6 +477,75 @@ if telegram_guard is None:
 telegram_guard.install()
 
 
+# ---------------------------------------------------------------------------
+# The network guard's ledger belongs to ONE test (2026-08-04, cycle #115,
+# cards `agent-network-guard-attempts-never-reset` /
+# `agent-telegram-guard-outermost-fails-only-in-full-run`).
+#
+# telegram_guard has had a per-test reset since #55 (the fixture below);
+# network_guard, added in #93, never got one, so its _ATTEMPTS grew for the
+# whole session. The only assertion anywhere that reads the LIVE ledger —
+# test_no_live_network_in_tests::test_telegram_guard_stays_outermost, claiming
+# "the network guard did not swallow MY Telegram call" — was therefore
+# comparing a session-wide cumulative list against []. It passed in isolation
+# (15 passed, 0.13 s) and failed in every full run, and that single failure was
+# the whole reason `SPA Tests` / `SPA CI` were red on main.
+#
+# Measured on origin/main d07714d07: baseline 2 failed / 91279 passed / 1 error;
+# with this scoping (applied out-of-tree as a plugin, to measure before
+# changing anything) 1 failed / 91280 passed / 0 errors — the remaining failure
+# is unrelated (test_protocol_insurance_scorer, card
+# `agent-insurance-scorer-fabricates-missing-tvl`).
+#
+# This does NOT hide anyone's network calls. Those 2745 refusals were already
+# invisible — nothing consumed the ledger — and they are refusals, not leaks:
+# the guard blocked every one. They are now attributed per test and printed at
+# the end of the run by _report_network_refusals below, which is strictly more
+# visibility than before.
+# ---------------------------------------------------------------------------
+@pytest.fixture(autouse=True)
+def _scope_network_guard_ledger(request):
+    """Give every test its own network-refusal ledger, and keep what it found.
+
+    Deliberately not a gate: unlike the Telegram fixture below, this one never
+    fails a test. Refusing a live call is the guard doing its job, and the two
+    concerns are separate — messaging the owner's chat is an incident, reaching
+    a price feed under test is a design smell with 102 known instances.
+    """
+    network_guard.reset()
+    yield
+    network_guard.archive(request.node.nodeid)
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """Name the tests whose code tried to reach the live network.
+
+    Without this the refusals are recorded and never read by anyone — the
+    "claims a check nobody looks at" shape (#29/#31/#35–#38, #40). Reporting is
+    all it does: nothing here changes an exit status.
+    """
+    archived = network_guard.archived()
+    if not archived:
+        return
+    total = sum(len(items) for _, items in archived)
+    terminalreporter.write_sep("=", "live-network refusals (guard held; no call went out)")
+    terminalreporter.write_line(
+        f"{total} refusal(s) from {len(archived)} test(s). Each one is production "
+        f"code under test reaching for a live feed and getting a fail-CLOSED "
+        f"OSError. Inject a fake feed instead (.claude/rules/adapters.md)."
+    )
+    ranked = sorted(archived, key=lambda pair: -len(pair[1]))
+    shown = ranked[:20]
+    for nodeid, items in shown:
+        terminalreporter.write_line(f"  {len(items):6d}  {nodeid}")
+    if len(ranked) > len(shown):
+        # No silent caps: say what was left out rather than implying this is all.
+        terminalreporter.write_line(
+            f"  … {len(ranked) - len(shown)} more test(s) not shown, "
+            f"{sum(len(i) for _, i in ranked[len(shown):])} refusal(s) between them"
+        )
+
+
 @pytest.fixture(autouse=True)
 def _no_live_telegram(request):
     """Fail any test that tried to reach the live Telegram Bot API.

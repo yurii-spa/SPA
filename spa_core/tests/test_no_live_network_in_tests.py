@@ -104,6 +104,14 @@ class TestGuardIsInstalled(unittest.TestCase):
         the call and never record it.  Prove the specific error still wins.
         """
         self.assertIsNotNone(_live_tg, "telegram_guard is not loaded")
+        # This test intends to trip the Telegram guard; consume the record so
+        # the autouse fixture does not fail it afterwards.  Registered BEFORE
+        # the attempt and as a cleanup, not as a trailing statement: when an
+        # assertion below failed, the old trailing reset never ran and the
+        # autouse fixture added a second, confusing symptom on top of the real
+        # one (`ERROR at teardown: LiveTelegramSendAttempted`) — observed on
+        # every full run up to origin/main d07714d07.
+        self.addCleanup(_live_tg.reset)
         with self.assertRaises(_live_tg.LiveTelegramSendAttempted):
             urllib.request.urlopen(_TG_URL)
         self.assertTrue(_live_tg.attempts(), "Telegram attempt was not recorded")
@@ -113,9 +121,6 @@ class TestGuardIsInstalled(unittest.TestCase):
             "the network guard swallowed a Telegram call that telegram_guard "
             "must own",
         )
-        # This test intends to trip the Telegram guard; consume the record so
-        # the autouse fixture does not fail it afterwards.
-        _live_tg.reset()
 
 
 class TestGuardRefusesLiveNetwork(unittest.TestCase):

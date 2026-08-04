@@ -70,7 +70,7 @@ from __future__ import annotations
 
 import socket
 import urllib.request
-from typing import Any, List
+from typing import Any, List, Tuple
 
 #: Hosts that are not "the live network" — a local server is fair game.
 _LOOPBACK_HOSTS = frozenset(("127.0.0.1", "::1", "localhost", "0.0.0.0", ""))
@@ -99,7 +99,18 @@ class LiveNetworkAccessAttempted(OSError):
 
 
 #: Refusals recorded since the last :func:`reset`, newest last.
+#:
+#: Scoped to ONE test by the autouse fixture in ``conftest.py`` (2026-08-04,
+#: cycle #115).  Before that it was session-cumulative, and the only assertion
+#: that reads the live ledger — "the network guard did not swallow MY Telegram
+#: call" — was silently comparing 2745 other tests' refusals against ``[]``.
 _ATTEMPTS: List[str] = []
+
+#: ``(nodeid, refusals)`` per test, in the order the tests ran — filled by
+#: :func:`archive`.  Scoping the ledger must not make the refusals disappear:
+#: they were never reported anywhere, and "nobody looks" is how this repo's
+#: recurring failure class starts.  Kept for the end-of-run report instead.
+_ARCHIVE: List[Tuple[str, List[str]]] = []
 
 _real_urlopen = None       # set by install()
 _real_connect = None       # set by install()
@@ -123,6 +134,38 @@ def attempts() -> List[str]:
 def reset() -> None:
     """Forget recorded refusals (called between tests)."""
     _ATTEMPTS.clear()
+
+
+def archive(nodeid: str) -> List[str]:
+    """Move the current test's refusals into the archive and clear the ledger.
+
+    Counterpart to :func:`telegram_guard.assert_no_live_telegram`, with one
+    deliberate difference: this one does **not** fail the test.  A refused call
+    is the guard working as designed — production code under test tried to
+    reach a feed and got a fail-CLOSED ``OSError``, which is exactly the path
+    the suite should exercise.  Failing on it would turn 102 currently-passing
+    tests red for doing nothing wrong.
+
+    What it must not do is let the refusals vanish, so they are kept and
+    attributed here and printed by ``conftest``'s end-of-run report.  Measured
+    on ``origin/main`` d07714d07: 2745 refusals from 102 tests, 2153 of them to
+    ``yields.llama.fi``.
+    """
+    recorded = list(_ATTEMPTS)
+    reset()
+    if recorded:
+        _ARCHIVE.append((nodeid, recorded))
+    return recorded
+
+
+def archived() -> List[Tuple[str, List[str]]]:
+    """Per-test refusals archived so far, in the order the tests ran."""
+    return [(nodeid, list(items)) for nodeid, items in _ARCHIVE]
+
+
+def clear_archive() -> None:
+    """Forget the archive.  Used by this guard's own hermetic tests."""
+    _ARCHIVE.clear()
 
 
 def _url_of(req: Any) -> str:
