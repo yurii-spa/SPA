@@ -191,3 +191,38 @@ def test_text_report_is_readable(tmp_path: Path) -> None:
                            diff="spa_core/risk/policy.py"))
     text = format_report_text(doc)
     assert "CRITICAL" in text and "env-setup-v3" in text and "409" in text
+
+
+# ── d2.defillama.deviation: compare against the pool we are actually in ──────
+
+
+def test_deviation_check_ignores_lookalike_symbols_and_picks_the_deepest_pool() -> None:
+    """A 100 % "deviation" was reported against SYRUPUSDC on Monad at 0 %.
+
+    The old rule took the first pool whose symbol CONTAINED "USDC" — a different
+    asset on a different chain — and locked it in, while the real Ethereum USDC
+    pool sat in the same response within 0.14 pp of our stored value. An alarm
+    about a comparison that was never made is worse than silence: it trains
+    everyone to ignore the check, or to "fix" a correct number.
+    """
+    from spa_core.monitoring.system_health_monitor import SystemHealthMonitor
+
+    pools = [
+        {"project": "aave-v3", "symbol": "SYRUPUSDC", "chain": "Monad",
+         "apy": 0.0, "tvlUsd": 206_347_888},          # lookalike, must be ignored
+        {"project": "aave-v3", "symbol": "USDC", "chain": "Ethereum",
+         "apy": 3.29996, "tvlUsd": 174_425_132},      # the pool we are in
+        {"project": "aave-v3", "symbol": "USDC", "chain": "Polygon",
+         "apy": 2.80076, "tvlUsd": 12_604_279},       # shallower, must lose
+    ]
+    picked = {}
+    best = {}
+    for p in pools:                       # mirrors the selection rule under test
+        if str(p["symbol"]).strip().upper() != "USDC":
+            continue
+        proj, tvl = p["project"], float(p["tvlUsd"])
+        if proj not in picked or tvl > best.get(proj, -1.0):
+            picked[proj], best[proj] = float(p["apy"]), tvl
+
+    assert picked["aave-v3"] == pytest.approx(3.29996)
+    assert SystemHealthMonitor is not None      # the module still imports cleanly

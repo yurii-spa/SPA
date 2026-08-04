@@ -613,17 +613,34 @@ class SystemHealthMonitor:
 
     def _check_defillama_deviation(self, adapters: dict, live_pools, D: str) -> CheckResult:
         # Build a project->live apy map for aave/compound USDC pools (sample)
+        # Pick the pool an adapter would actually track: symbol EXACTLY "USDC" and
+        # the deepest one for that project.
+        #
+        # The previous rule — substring "USDC" + first match wins — compared our
+        # aave_v3 (3.4315 %) against `SYRUPUSDC` on Monad at 0 % and reported a
+        # 100 % deviation: a different asset on a different chain, locked in
+        # because it happened to come first in the API's order. The real Ethereum
+        # USDC pool sat in the same response at 3.29996 %, i.e. our number was
+        # right. An alarm about a comparison it never made is worse than silence:
+        # it teaches everyone to ignore the deviation check, or to "fix" a correct
+        # value. Deepest-TVL is the honest proxy for "the pool we are in".
         live_by_project: dict[str, float] = {}
         try:
+            best_tvl: dict[str, float] = {}
             for p in live_pools:
                 if not isinstance(p, dict):
                     continue
-                if str(p.get("symbol", "")).upper().find("USDC") < 0:
+                if str(p.get("symbol", "")).strip().upper() != "USDC":
                     continue
                 proj = str(p.get("project", "")).lower()
                 apy = p.get("apy")
-                if _is_finite_number(apy) and proj and proj not in live_by_project:
+                if not (_is_finite_number(apy) and proj):
+                    continue
+                tvl = p.get("tvlUsd")
+                tvl = float(tvl) if _is_finite_number(tvl) else 0.0
+                if proj not in live_by_project or tvl > best_tvl.get(proj, -1.0):
                     live_by_project[proj] = float(apy)
+                    best_tvl[proj] = tvl
         except Exception as exc:           # noqa: BLE001
             return CheckResult("d2.defillama.deviation", D, WARNING,
                                "could not parse live pools", error=repr(exc))
