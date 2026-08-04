@@ -36,6 +36,19 @@ LOG_FILE="$LOG_DIR/daily_cycle_$(date +%Y%m%d).log"
 
 echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Starting daily paper cycle (cycle_runner)" | tee -a "$LOG_FILE"
 
+# ── Step 0: code sync from origin/main (agent-prod-clean-checkout-variant2) ─
+# Pushes land on origin via API and never touch this tree; without this step the cycle
+# executes stale code (2026-08-03: prod ran July-15 code for weeks). Whole-dir sync of
+# spa_core/scripts/tests + pushers, fail-safe (rolls back on broken imports, non-zero exit).
+# NON-FATAL for the cycle: on sync failure we run on the previous (verified) code — the
+# failure is loud in data/code_sync_status.json + /tmp/spa_code_sync.log + drift monitor.
+# NOTE: this may replace run_daily_paper_cycle.sh itself on disk. Safe: git-checkout/tar
+# replace files by unlink+create (new inode), so the running shell keeps reading the OLD
+# inode to completion; code_sync additionally wraps itself in main() for the same reason.
+bash scripts/code_sync_from_origin.sh >> "$LOG_FILE" 2>&1
+SYNC_EXIT=$?
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] code_sync exit=$SYNC_EXIT (0=synced/in-sync, 1=rolled back)" | tee -a "$LOG_FILE"
+
 # ── Step 1: real cycle engine — advances the paper track ───────────────────
 # OWNER-APPROVED 2026-07-06 (money-path allocation dial): use the constrained yield
 # optimizer instead of the risk_adjusted heuristic. It concentrates into the highest-yield

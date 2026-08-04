@@ -121,8 +121,15 @@ DFB_FRESH_H = 30.0                        # data/dfb/pools.json staleness (daily
 DFB_UNKNOWN_RATIO_WARN = 0.60            # > 60% UNKNOWN → feed-outage canary (WARNING)
 RISKWIRE_MEASUREMENTS_FRESH_H = 30.0     # data/riskwire/measurements.json staleness (WS1.2 cadence + slack)
 RISKWIRE_DAY30_FRESH_D = 8.0             # data/riskwire/day30_review.json staleness in DAYS (weekly-ish + slack)
-ALLOC_CAP_PCT = 30.0                      # monitor tripwire (RiskPolicy T1 cap is 40%)
-T2_CAP_PCT = 50.0                         # ADR-019
+# Concentration caps — single source of truth is RiskConfig (spa_core/risk/policy.py).
+# The monitor previously restated its own numbers (30/50) against a DEPLOYED-capital base,
+# while the authoritative gate divides by TOTAL capital (policy.concentration_pct) — the
+# denominator mismatch produced false alarms (morpho 40% of total == 47.1% of deployed).
+from spa_core.risk.policy import RiskConfig as _RC
+ALLOC_CAP_T1_PCT = _RC.max_concentration_t1 * 100.0   # 40% of TOTAL capital
+ALLOC_CAP_T2_PCT = _RC.max_concentration_t2 * 100.0   # 20% of TOTAL capital
+ALLOC_CAP_APPROACH = 0.85                              # INFO above 85% of cap (mirrors policy.py)
+T2_CAP_PCT = _RC.max_total_t2_allocation * 100.0       # 50% of TOTAL capital (ADR-019)
 PORTFOLIO_HEALTH_FLOOR = 70.0
 DEVIATION_PCT = 50.0                      # stored vs live APY deviation
 TREND_DECLINE_PCT = -1.0                 # 7-day decline tripwire
@@ -346,10 +353,18 @@ class SystemHealthMonitor:
             out.append(CheckResult("d1.equity.exists", D, OK,
                                    f"equity_curve_daily.json loaded ({len(daily)} bars)"))
 
-            # count — honest track days (real_days = non-warmup bars), not the raw
-            # bar count (num_days) which includes pre-PAPER_REAL_START warmup bars.
-            expected = (date.today() - PAPER_REAL_START).days + 1
-            real = [b for b in daily if not b.get("is_warmup", False)]
+            # count — honest track days (real_days = EVIDENCED bars, anchored at
+            # summary.evidenced_anchor, the HONESTY-CAPSTONE reset 2026-06-22), not the raw
+            # bar count (num_days): 06-10..06-21 bars are backfill/reconstructed and are
+            # excluded from real_days by design, so expecting from PAPER_REAL_START
+            # produced a permanent phantom ~12-day deficit.
+            anchor_iso = summary.get("evidenced_anchor") or summary.get("first_real_date")
+            try:
+                anchor = date.fromisoformat(anchor_iso) if anchor_iso else PAPER_REAL_START
+            except (TypeError, ValueError):
+                anchor = PAPER_REAL_START
+            expected = (date.today() - anchor).days + 1
+            real = [b for b in daily if b.get("evidenced", not b.get("is_warmup", False))]
             num_days = summary.get("real_days", len(real) if real else len(daily))
             if isinstance(num_days, int) and num_days < expected - 1:
                 out.append(CheckResult("d1.equity.count", D, WARNING,
@@ -755,17 +770,39 @@ class SystemHealthMonitor:
                                "current_positions.json missing/unreadable",
                                error=(pos["error"] or "no positions key"))
         positions = {k: v for k, v in pos["data"]["positions"].items() if _is_finite_number(v)}
-        total = sum(positions.values())
-        if total <= 0:
-            return CheckResult("d3.alloc.cap", D, WARNING, "zero total positions")
-        over = [(k, round(v / total * 100, 1)) for k, v in positions.items()
-                if v / total * 100 > ALLOC_CAP_PCT]
+        # Denominator = TOTAL capital (same base as policy.concentration_pct); a deployed-only
+        # base overstates weights whenever cash > 0. No fallback to the deployed sum — an
+        # invented denominator is what produced the original false positive.
+        capital = pos["data"].get("capital_usd")
+        if not _is_finite_number(capital) or capital <= 0:
+            return CheckResult("d3.alloc.cap", D, SKIPPED,
+                               skipped_reason="no usable capital_usd in current_positions.json")
+        adapters = (self.src["adapter"]["data"] or {}).get("adapters") \
+            if self.src["adapter"]["data"] else None
+        over, approaching = [], []
+        for k, v in positions.items():
+            pct = v / capital * 100.0
+            tier_raw = adapters.get(k, {}).get("tier") if isinstance(adapters, dict) else None
+            tier, _unknown = _normalize_tier(tier_raw)
+            cap = ALLOC_CAP_T1_PCT if tier == "T1" else ALLOC_CAP_T2_PCT
+            if pct > cap + 1e-9:
+                over.append((k, round(pct, 1), cap))
+            elif pct > ALLOC_CAP_APPROACH * cap:
+                approaching.append((k, round(pct, 1), cap))
         if over:
             over.sort(key=lambda x: -x[1])
             return CheckResult("d3.alloc.cap", D, WARNING,
-                               f"{over[0][0]} weight {over[0][1]}% > {ALLOC_CAP_PCT}% tripwire",
+                               f"{over[0][0]} weight {over[0][1]}% of total > {over[0][2]:.0f}% cap",
                                value=over[0][1], evidence={"over_cap": over[:5]})
-        return CheckResult("d3.alloc.cap", D, OK, f"all allocations <= {ALLOC_CAP_PCT}%")
+        if approaching:
+            approaching.sort(key=lambda x: -x[1])
+            return CheckResult("d3.alloc.cap", D, INFO,
+                               f"{approaching[0][0]} at {approaching[0][1]}% of total "
+                               f"(>= {ALLOC_CAP_APPROACH:.0%} of {approaching[0][2]:.0f}% cap)",
+                               value=approaching[0][1],
+                               evidence={"approaching": approaching[:5]})
+        return CheckResult("d3.alloc.cap", D, OK,
+                           "all allocations within tier caps of total capital")
 
     # ======================================================================
     # DOMAIN 4 — External Services (network, independent probes)
@@ -1057,9 +1094,12 @@ class SystemHealthMonitor:
                                error=(pos["error"] or "no positions key"))
         adapters = ad["data"]["adapters"]
         positions = {k: v for k, v in pos["data"]["positions"].items() if _is_finite_number(v)}
-        total = sum(positions.values())
-        if total <= 0:
-            return CheckResult("d6.t2.cap", D, WARNING, "zero total positions")
+        # Same base as policy.t2_concentration_pct: TOTAL capital, not the deployed sum
+        # (deployed-only inflated T2 by cash share → 2.9pp from a false CRITICAL).
+        total = pos["data"].get("capital_usd")
+        if not _is_finite_number(total) or total <= 0:
+            return CheckResult("d6.t2.cap", D, SKIPPED,
+                               skipped_reason="no usable capital_usd in current_positions.json")
         t2_sum = 0.0
         for name, val in positions.items():
             info = adapters.get(name)

@@ -2253,6 +2253,20 @@ def _run_fundability_pack(data_dir: "str | os.PathLike | None" = None) -> None:
     except Exception as _d30_exc:  # noqa: BLE001 — never crash the cycle
         log.warning("WS5 day30_artifact write failed (non-critical): %s", _d30_exc)
 
+    # 2.1c-pre — RISKWIRE measurements (WS1.2): the facade was built but NOTHING scheduled
+    # spa_core.riskwire.facade.build_and_write (documented in test_api_riskwire_freshness),
+    # so data/riskwire/measurements.json sat 35 days stale while served public. Attached here
+    # (2026-08-04) next to its WS1.3 sibling: same package, same output dir, one accountability
+    # point; the cycle's DFB/adapter surfaces are already warm at this stage. Facade is a
+    # NO-FORK measurement layer — cannot touch RiskPolicy or relax a seed verdict.
+    try:
+        from spa_core.riskwire import facade as _rw_facade
+        _rw = _rw_facade.build_and_write(data_dir=ddir)
+        _n_subj = len((_rw or {}).get("measurements") or []) if isinstance(_rw, dict) else "?"
+        print(f"  riskwire    : measurements refreshed (subjects={_n_subj})")
+    except Exception as _rw_exc:  # noqa: BLE001 — never crash the cycle
+        log.warning("WS1.2 riskwire measurements write failed (non-critical): %s", _rw_exc)
+
     # 2.1c — RISKWIRE day-30 REVIEW pipeline (WS1.3): the comprehensive, self-verifying review a
     # reviewer/funder reads the moment the evidenced track reaches 30 CONTINUOUS days. Ordered AFTER
     # 2.1b so it embeds the fresh readiness artifact (its proof_hash anchors the review). Composes

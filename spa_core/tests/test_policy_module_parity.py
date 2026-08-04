@@ -44,3 +44,13 @@ def test_per_protocol_cap_parity():
 def test_no_t1_floor_beyond_policy():
     # policy.py has NO T1 minimum; the enforcer's 55% floor is a stale extra constraint.
     assert float(_RULES.get("t1_min_pct", 0.0)) == 0.0
+
+
+def test_health_monitor_caps_parity():
+    # Third arm (2026-08-04): system_health_monitor restated its own caps (30/50) against a
+    # deployed-capital base and drifted from the gate — pin its constants to RiskConfig.
+    from spa_core.monitoring import system_health_monitor as SHM
+
+    assert SHM.ALLOC_CAP_T1_PCT == _CFG.max_concentration_t1 * 100.0
+    assert SHM.ALLOC_CAP_T2_PCT == _CFG.max_concentration_t2 * 100.0
+    assert SHM.T2_CAP_PCT == _CFG.max_total_t2_allocation * 100.0

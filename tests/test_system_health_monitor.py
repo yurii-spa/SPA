@@ -84,6 +84,9 @@ def _good_golive():
 def _good_positions():
     return {
         "is_demo": False,
+        "capital_usd": 100_000.0,
+        "deployed_usd": 100_000.0,
+        "cash_usd": 0.0,
         "positions": {
             "aave_v3": 20_000.0, "compound_v3": 20_000.0, "yearn_v3": 15_000.0,
             "euler_v2": 15_000.0, "morpho_steakhouse": 15_000.0, "spark_susds": 15_000.0,
@@ -492,6 +495,33 @@ def test_d3_alloc_cap_ok(good_dir):
     prelude(mon)
     res = mon.check_d3_strategy_quality()
     assert by_id(res, "d3.alloc.cap").status == OK
+
+
+def test_d3_alloc_cap_uses_total_capital_not_deployed(good_dir):
+    # Regression for the 2026-08-04 false positive: morpho 40k of 100k TOTAL (=40%, at the
+    # T1 cap, compliant) read as 47.1% of the 85k DEPLOYED sum and paged a phantom breach.
+    pos = _good_positions()
+    pos["capital_usd"] = 100_000.0
+    pos["deployed_usd"] = 85_000.0
+    pos["cash_usd"] = 15_000.0
+    pos["positions"] = {"aave_v3": 5_000.0, "morpho_steakhouse": 40_000.0,
+                        "compound_v3": 40_000.0}
+    _write(good_dir / "data", "current_positions.json", pos)
+    mon = make_mon(good_dir)
+    prelude(mon)
+    res = mon.check_d3_strategy_quality()
+    assert by_id(res, "d3.alloc.cap").status in (OK, INFO)
+
+
+def test_d3_alloc_cap_missing_capital_is_skipped(good_dir):
+    # No capital_usd → SKIPPED (fail-loud), never a silent fallback to the deployed sum.
+    pos = _good_positions()
+    del pos["capital_usd"]
+    _write(good_dir / "data", "current_positions.json", pos)
+    mon = make_mon(good_dir)
+    prelude(mon)
+    res = mon.check_d3_strategy_quality()
+    assert by_id(res, "d3.alloc.cap").status == SKIPPED
 
 
 def test_d3_trend7_declining_warns(good_dir):
