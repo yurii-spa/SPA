@@ -2,53 +2,6 @@
   {
     "protocols": [
       {
-        "name": "maple",
-        "kyc_aml_score": 15.0,
-        "jurisdiction_risk_score": 4.0,
-        "securities_risk_score": 0.0,
-        "operational_opacity_score": 60.0,
-        "composite_regulatory_score": 15.25,
-        "risk_label": "COMPLIANT",
-        "flags": [
-          "ANONYMOUS_TEAM"
-        ],
-        "defi_category": "other",
-        "settlement_layer": "other"
-      }
-    ],
-    "highest_risk": "maple",
-    "lowest_risk": "maple",
-    "avg_regulatory_score": 15.25,
-    "critical_count": 0,
-    "compliant_count": 1,
-    "timestamp": 1785832621.6554115
-  },
-  {
-    "protocols": [
-      {
-        "name": "maple",
-        "regulatory_risk_score": 41,
-        "risk_level": "ELEVATED",
-        "jurisdiction_score": 20,
-        "enforcement_exposure_score": 0,
-        "token_risk_score": 12,
-        "structural_risk_score": 9,
-        "regulatory_flags": [
-          "Accessible to US users without restriction",
-          "Large TVL protocol without legal wrapper"
-        ],
-        "recommendation": "Moderate regulatory exposure. US jurisdiction watchlist."
-      }
-    ],
-    "highest_regulatory_risk": "maple",
-    "lowest_regulatory_risk": "maple",
-    "high_risk_count": 0,
-    "average_risk_score": 41.0,
-    "timestamp": 1785832621.7934585
-  },
-  {
-    "protocols": [
-      {
         "name": "pendle",
         "kyc_aml_score": 85.0,
         "jurisdiction_risk_score": 10.0,
@@ -69,7 +22,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832621.9452972
+    "timestamp": 1785833678.9898546
   },
   {
     "protocols": [
@@ -92,7 +45,7 @@
     "lowest_regulatory_risk": "pendle",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832622.0675087
+    "timestamp": 1785833679.130106
   },
   {
     "protocols": [
@@ -117,7 +70,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832622.2041137
+    "timestamp": 1785833679.285986
   },
   {
     "protocols": [
@@ -140,7 +93,7 @@
     "lowest_regulatory_risk": "spark_susds",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832622.3337219
+    "timestamp": 1785833679.4254825
   },
   {
     "protocols": [
@@ -165,7 +118,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832622.6753328
+    "timestamp": 1785833679.5946069
   },
   {
     "protocols": [
@@ -188,7 +141,7 @@
     "lowest_regulatory_risk": "aave_v3",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832622.8140845
+    "timestamp": 1785833679.7297127
   },
   {
     "protocols": [
@@ -213,7 +166,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832622.9689658
+    "timestamp": 1785833679.8755956
   },
   {
     "protocols": [
@@ -236,7 +189,7 @@
     "lowest_regulatory_risk": "compound_v3",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832623.1126533
+    "timestamp": 1785833680.0069351
   },
   {
     "protocols": [
@@ -261,7 +214,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832623.2649002
+    "timestamp": 1785833680.149702
   },
   {
     "protocols": [
@@ -284,7 +237,7 @@
     "lowest_regulatory_risk": "morpho_blue",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832623.4000757
+    "timestamp": 1785833680.2802153
   },
   {
     "protocols": [
@@ -309,7 +262,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832623.5894246
+    "timestamp": 1785833680.4194293
   },
   {
     "protocols": [
@@ -332,7 +285,7 @@
     "lowest_regulatory_risk": "yearn_v3",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832623.7269194
+    "timestamp": 1785833680.5685506
   },
   {
     "protocols": [
@@ -357,7 +310,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832623.8928027
+    "timestamp": 1785833680.7259483
   },
   {
     "protocols": [
@@ -380,7 +333,7 @@
     "lowest_regulatory_risk": "euler_v2",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832624.0400662
+    "timestamp": 1785833680.8686502
   },
   {
     "protocols": [
@@ -404,7 +357,7 @@
     "avg_regulatory_score": 15.25,
     "critical_count": 0,
     "compliant_count": 1,
-    "timestamp": 1785832624.2019982
+    "timestamp": 1785833681.0099175
   },
   {
     "protocols": [
@@ -427,7 +380,7 @@
     "lowest_regulatory_risk": "maple",
     "high_risk_count": 0,
     "average_risk_score": 41.0,
-    "timestamp": 1785832624.438282
+    "timestamp": 1785833681.139678
   },
   {
     "protocols": [
@@ -452,7 +405,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832639.7610092
+    "timestamp": 1785833681.2757118
   },
   {
     "protocols": [
@@ -475,7 +428,7 @@
     "lowest_regulatory_risk": "pendle",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832639.9324455
+    "timestamp": 1785833681.4040394
   },
   {
     "protocols": [
@@ -500,7 +453,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832640.1296418
+    "timestamp": 1785833681.543528
   },
   {
     "protocols": [
@@ -523,7 +476,7 @@
     "lowest_regulatory_risk": "spark_susds",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832640.298452
+    "timestamp": 1785833681.6865644
   },
   {
     "protocols": [
@@ -548,7 +501,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832640.6889303
+    "timestamp": 1785833682.804
   },
   {
     "protocols": [
@@ -571,7 +524,7 @@
     "lowest_regulatory_risk": "aave_v3",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832640.8642144
+    "timestamp": 1785833682.9292185
   },
   {
     "protocols": [
@@ -596,7 +549,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832641.0202463
+    "timestamp": 1785833683.0667186
   },
   {
     "protocols": [
@@ -619,7 +572,7 @@
     "lowest_regulatory_risk": "compound_v3",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832641.159891
+    "timestamp": 1785833683.1979427
   },
   {
     "protocols": [
@@ -644,7 +597,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832641.32077
+    "timestamp": 1785833683.3367972
   },
   {
     "protocols": [
@@ -667,7 +620,7 @@
     "lowest_regulatory_risk": "morpho_blue",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832641.4747157
+    "timestamp": 1785833683.4605372
   },
   {
     "protocols": [
@@ -692,7 +645,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832641.6510377
+    "timestamp": 1785833683.59598
   },
   {
     "protocols": [
@@ -715,7 +668,7 @@
     "lowest_regulatory_risk": "yearn_v3",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832641.817229
+    "timestamp": 1785833683.7280293
   },
   {
     "protocols": [
@@ -740,7 +693,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832641.9734862
+    "timestamp": 1785833683.8715887
   },
   {
     "protocols": [
@@ -763,7 +716,7 @@
     "lowest_regulatory_risk": "euler_v2",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832642.1200657
+    "timestamp": 1785833684.00786
   },
   {
     "protocols": [
@@ -787,7 +740,7 @@
     "avg_regulatory_score": 15.25,
     "critical_count": 0,
     "compliant_count": 1,
-    "timestamp": 1785832642.293604
+    "timestamp": 1785833684.1505823
   },
   {
     "protocols": [
@@ -810,7 +763,7 @@
     "lowest_regulatory_risk": "maple",
     "high_risk_count": 0,
     "average_risk_score": 41.0,
-    "timestamp": 1785832642.4692237
+    "timestamp": 1785833684.292595
   },
   {
     "protocols": [
@@ -835,7 +788,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832642.6588252
+    "timestamp": 1785833684.4526627
   },
   {
     "protocols": [
@@ -858,7 +811,7 @@
     "lowest_regulatory_risk": "pendle",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832642.8322515
+    "timestamp": 1785833684.5897088
   },
   {
     "protocols": [
@@ -883,7 +836,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832643.0105293
+    "timestamp": 1785833684.7535717
   },
   {
     "protocols": [
@@ -906,7 +859,7 @@
     "lowest_regulatory_risk": "spark_susds",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832643.157016
+    "timestamp": 1785833684.8930798
   },
   {
     "protocols": [
@@ -931,7 +884,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832643.4587998
+    "timestamp": 1785833686.0569322
   },
   {
     "protocols": [
@@ -954,7 +907,7 @@
     "lowest_regulatory_risk": "aave_v3",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832643.6035998
+    "timestamp": 1785833686.1907697
   },
   {
     "protocols": [
@@ -979,7 +932,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832643.7752883
+    "timestamp": 1785833686.3492293
   },
   {
     "protocols": [
@@ -1002,7 +955,7 @@
     "lowest_regulatory_risk": "compound_v3",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832643.9107273
+    "timestamp": 1785833686.5046873
   },
   {
     "protocols": [
@@ -1027,7 +980,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832644.0726213
+    "timestamp": 1785833686.6694703
   },
   {
     "protocols": [
@@ -1050,7 +1003,7 @@
     "lowest_regulatory_risk": "morpho_blue",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832644.2224398
+    "timestamp": 1785833686.8120086
   },
   {
     "protocols": [
@@ -1075,7 +1028,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832644.3845
+    "timestamp": 1785833686.9804184
   },
   {
     "protocols": [
@@ -1098,7 +1051,7 @@
     "lowest_regulatory_risk": "yearn_v3",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832644.53108
+    "timestamp": 1785833687.1166432
   },
   {
     "protocols": [
@@ -1123,7 +1076,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832644.6810067
+    "timestamp": 1785833687.279754
   },
   {
     "protocols": [
@@ -1146,7 +1099,7 @@
     "lowest_regulatory_risk": "euler_v2",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832644.8161008
+    "timestamp": 1785833687.4279065
   },
   {
     "protocols": [
@@ -1170,7 +1123,7 @@
     "avg_regulatory_score": 15.25,
     "critical_count": 0,
     "compliant_count": 1,
-    "timestamp": 1785832644.9670637
+    "timestamp": 1785833687.592225
   },
   {
     "protocols": [
@@ -1193,7 +1146,7 @@
     "lowest_regulatory_risk": "maple",
     "high_risk_count": 0,
     "average_risk_score": 41.0,
-    "timestamp": 1785832645.1152585
+    "timestamp": 1785833687.7427456
   },
   {
     "protocols": [
@@ -1218,7 +1171,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832645.2660716
+    "timestamp": 1785833687.8973176
   },
   {
     "protocols": [
@@ -1241,7 +1194,7 @@
     "lowest_regulatory_risk": "pendle",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832645.416066
+    "timestamp": 1785833688.0343556
   },
   {
     "protocols": [
@@ -1266,7 +1219,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832645.557449
+    "timestamp": 1785833688.1723874
   },
   {
     "protocols": [
@@ -1289,7 +1242,7 @@
     "lowest_regulatory_risk": "spark_susds",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832645.715434
+    "timestamp": 1785833688.3165662
   },
   {
     "protocols": [
@@ -1314,7 +1267,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832646.052845
+    "timestamp": 1785833688.5538394
   },
   {
     "protocols": [
@@ -1337,7 +1290,7 @@
     "lowest_regulatory_risk": "aave_v3",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832646.197682
+    "timestamp": 1785833688.687047
   },
   {
     "protocols": [
@@ -1362,7 +1315,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832646.3561203
+    "timestamp": 1785833688.8420908
   },
   {
     "protocols": [
@@ -1385,7 +1338,7 @@
     "lowest_regulatory_risk": "compound_v3",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832646.495698
+    "timestamp": 1785833688.9711645
   },
   {
     "protocols": [
@@ -1410,7 +1363,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832646.6405294
+    "timestamp": 1785833689.1153667
   },
   {
     "protocols": [
@@ -1433,7 +1386,7 @@
     "lowest_regulatory_risk": "morpho_blue",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832646.7717438
+    "timestamp": 1785833689.2499084
   },
   {
     "protocols": [
@@ -1458,7 +1411,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832646.9112418
+    "timestamp": 1785833689.3944924
   },
   {
     "protocols": [
@@ -1481,7 +1434,7 @@
     "lowest_regulatory_risk": "yearn_v3",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832647.0470476
+    "timestamp": 1785833689.536895
   },
   {
     "protocols": [
@@ -1506,7 +1459,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832647.2203398
+    "timestamp": 1785833689.6789832
   },
   {
     "protocols": [
@@ -1529,7 +1482,7 @@
     "lowest_regulatory_risk": "euler_v2",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832647.3811545
+    "timestamp": 1785833689.8149397
   },
   {
     "protocols": [
@@ -1553,7 +1506,7 @@
     "avg_regulatory_score": 15.25,
     "critical_count": 0,
     "compliant_count": 1,
-    "timestamp": 1785832647.5599525
+    "timestamp": 1785833689.9660096
   },
   {
     "protocols": [
@@ -1576,7 +1529,7 @@
     "lowest_regulatory_risk": "maple",
     "high_risk_count": 0,
     "average_risk_score": 41.0,
-    "timestamp": 1785832647.7063398
+    "timestamp": 1785833690.1003888
   },
   {
     "protocols": [
@@ -1601,7 +1554,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832647.860599
+    "timestamp": 1785833690.237589
   },
   {
     "protocols": [
@@ -1624,7 +1577,7 @@
     "lowest_regulatory_risk": "pendle",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832648.0036113
+    "timestamp": 1785833690.3786664
   },
   {
     "protocols": [
@@ -1649,7 +1602,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832648.1615806
+    "timestamp": 1785833690.5613854
   },
   {
     "protocols": [
@@ -1672,7 +1625,7 @@
     "lowest_regulatory_risk": "spark_susds",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832648.3281767
+    "timestamp": 1785833690.7158644
   },
   {
     "protocols": [
@@ -1697,7 +1650,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832648.6213255
+    "timestamp": 1785833690.9798522
   },
   {
     "protocols": [
@@ -1720,7 +1673,7 @@
     "lowest_regulatory_risk": "aave_v3",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832648.769825
+    "timestamp": 1785833691.1260037
   },
   {
     "protocols": [
@@ -1745,7 +1698,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832648.9237995
+    "timestamp": 1785833691.2752893
   },
   {
     "protocols": [
@@ -1768,7 +1721,7 @@
     "lowest_regulatory_risk": "compound_v3",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832649.068987
+    "timestamp": 1785833691.408434
   },
   {
     "protocols": [
@@ -1793,7 +1746,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832649.2407405
+    "timestamp": 1785833691.5536785
   },
   {
     "protocols": [
@@ -1816,7 +1769,7 @@
     "lowest_regulatory_risk": "morpho_blue",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832649.3788059
+    "timestamp": 1785833691.693578
   },
   {
     "protocols": [
@@ -1841,7 +1794,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832649.5259593
+    "timestamp": 1785833691.8369215
   },
   {
     "protocols": [
@@ -1864,7 +1817,7 @@
     "lowest_regulatory_risk": "yearn_v3",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832649.6615248
+    "timestamp": 1785833691.967101
   },
   {
     "protocols": [
@@ -1889,7 +1842,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832649.8151257
+    "timestamp": 1785833692.1109555
   },
   {
     "protocols": [
@@ -1912,7 +1865,7 @@
     "lowest_regulatory_risk": "euler_v2",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832649.9581897
+    "timestamp": 1785833692.242941
   },
   {
     "protocols": [
@@ -1936,7 +1889,7 @@
     "avg_regulatory_score": 15.25,
     "critical_count": 0,
     "compliant_count": 1,
-    "timestamp": 1785832650.1076384
+    "timestamp": 1785833692.399835
   },
   {
     "protocols": [
@@ -1959,7 +1912,7 @@
     "lowest_regulatory_risk": "maple",
     "high_risk_count": 0,
     "average_risk_score": 41.0,
-    "timestamp": 1785832650.24585
+    "timestamp": 1785833692.5293312
   },
   {
     "protocols": [
@@ -1984,7 +1937,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832650.3976018
+    "timestamp": 1785833692.6635065
   },
   {
     "protocols": [
@@ -2007,7 +1960,7 @@
     "lowest_regulatory_risk": "pendle",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832650.544339
+    "timestamp": 1785833692.7873816
   },
   {
     "protocols": [
@@ -2032,7 +1985,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832650.7090542
+    "timestamp": 1785833692.919942
   },
   {
     "protocols": [
@@ -2055,7 +2008,7 @@
     "lowest_regulatory_risk": "spark_susds",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832650.854376
+    "timestamp": 1785833693.0445638
   },
   {
     "protocols": [
@@ -2080,7 +2033,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832651.1644554
+    "timestamp": 1785833693.2536829
   },
   {
     "protocols": [
@@ -2103,7 +2056,7 @@
     "lowest_regulatory_risk": "aave_v3",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832651.3164268
+    "timestamp": 1785833693.3779383
   },
   {
     "protocols": [
@@ -2128,7 +2081,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832651.4730139
+    "timestamp": 1785833693.5133681
   },
   {
     "protocols": [
@@ -2151,7 +2104,7 @@
     "lowest_regulatory_risk": "compound_v3",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832651.603303
+    "timestamp": 1785833693.6512227
   },
   {
     "protocols": [
@@ -2176,7 +2129,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832651.7556496
+    "timestamp": 1785833693.797668
   },
   {
     "protocols": [
@@ -2199,7 +2152,7 @@
     "lowest_regulatory_risk": "morpho_blue",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832651.8854997
+    "timestamp": 1785833693.9362442
   },
   {
     "protocols": [
@@ -2224,7 +2177,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832652.019367
+    "timestamp": 1785833694.1001823
   },
   {
     "protocols": [
@@ -2247,7 +2200,7 @@
     "lowest_regulatory_risk": "yearn_v3",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832652.1544895
+    "timestamp": 1785833694.2418025
   },
   {
     "protocols": [
@@ -2272,7 +2225,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832652.3073559
+    "timestamp": 1785833694.3938563
   },
   {
     "protocols": [
@@ -2295,7 +2248,7 @@
     "lowest_regulatory_risk": "euler_v2",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832652.440214
+    "timestamp": 1785833694.5438697
   },
   {
     "protocols": [
@@ -2319,7 +2272,7 @@
     "avg_regulatory_score": 15.25,
     "critical_count": 0,
     "compliant_count": 1,
-    "timestamp": 1785832652.5799181
+    "timestamp": 1785833694.7120476
   },
   {
     "protocols": [
@@ -2342,7 +2295,7 @@
     "lowest_regulatory_risk": "maple",
     "high_risk_count": 0,
     "average_risk_score": 41.0,
-    "timestamp": 1785832652.706911
+    "timestamp": 1785833694.8635867
   },
   {
     "protocols": [
@@ -2367,7 +2320,7 @@
     "avg_regulatory_score": 41.25,
     "critical_count": 0,
     "compliant_count": 0,
-    "timestamp": 1785832652.848269
+    "timestamp": 1785833695.032226
   },
   {
     "protocols": [
@@ -2390,6 +2343,54 @@
     "lowest_regulatory_risk": "pendle",
     "high_risk_count": 0,
     "average_risk_score": 33.0,
-    "timestamp": 1785832652.97106
+    "timestamp": 1785833695.1912453
+  },
+  {
+    "protocols": [
+      {
+        "name": "spark_susds",
+        "kyc_aml_score": 85.0,
+        "jurisdiction_risk_score": 10.0,
+        "securities_risk_score": 0.0,
+        "operational_opacity_score": 60.0,
+        "composite_regulatory_score": 41.25,
+        "risk_label": "MODERATE_RISK",
+        "flags": [
+          "NO_AML_KYC",
+          "ANONYMOUS_TEAM"
+        ],
+        "defi_category": "other",
+        "settlement_layer": "other"
+      }
+    ],
+    "highest_risk": "spark_susds",
+    "lowest_risk": "spark_susds",
+    "avg_regulatory_score": 41.25,
+    "critical_count": 0,
+    "compliant_count": 0,
+    "timestamp": 1785833695.336739
+  },
+  {
+    "protocols": [
+      {
+        "name": "spark_susds",
+        "regulatory_risk_score": 33,
+        "risk_level": "MODERATE",
+        "jurisdiction_score": 5,
+        "enforcement_exposure_score": 7,
+        "token_risk_score": 12,
+        "structural_risk_score": 9,
+        "regulatory_flags": [
+          "Accessible to US users without restriction",
+          "Large TVL protocol without legal wrapper"
+        ],
+        "recommendation": "Some regulatory risk. spark_susds has 1 centralized components."
+      }
+    ],
+    "highest_regulatory_risk": "spark_susds",
+    "lowest_regulatory_risk": "spark_susds",
+    "high_risk_count": 0,
+    "average_risk_score": 33.0,
+    "timestamp": 1785833695.4730818
   }
 ]

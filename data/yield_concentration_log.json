@@ -31,2508 +31,6 @@
     "diversification_recommendations": [
       "Diversification is adequate across all dimensions"
     ],
-    "timestamp": 1785576485.3938181
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.25,
-      "top_protocol": "A",
-      "top_protocol_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "chain_concentration": {
-      "hhi": 0.25,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.25,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.25,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "overall_concentration_score": 25,
-    "overall_risk_label": "MODERATE",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785576485.3995304
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785576485.4043615
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785576485.4090931
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785576485.4138126
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.52,
-      "top_protocol": "A",
-      "top_protocol_share_pct": 60.0,
-      "risk_level": "HIGH"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 88,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce A from 60% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785576485.4187524
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.8200000000000001,
-      "top_protocol": "A",
-      "top_protocol_share_pct": 90.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 0.8200000000000001,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 90.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 91,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce A from 90% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 90%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785576485.4238405
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785576485.428667
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.25,
-      "top_protocol": "A",
-      "top_protocol_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "chain_concentration": {
-      "hhi": 0.25,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.25,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.25,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "overall_concentration_score": 25,
-    "overall_risk_label": "MODERATE",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785576485.4338222
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.8200000000000001,
-      "top_protocol": "Aave",
-      "top_protocol_share_pct": 90.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 95,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce Aave from 90% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785576485.4389293
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.0,
-      "top_protocol": null,
-      "top_protocol_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "chain_concentration": {
-      "hhi": 0.0,
-      "top_chain": null,
-      "top_chain_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.0,
-      "top_asset_type": null,
-      "top_asset_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.0,
-      "top_yield_type": null,
-      "top_yield_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "overall_concentration_score": 0,
-    "overall_risk_label": "WELL_DIVERSIFIED",
-    "weighted_avg_apy_pct": 0.0,
-    "total_allocation_usd": 0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785576485.4436772
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.25,
-      "top_protocol": "A",
-      "top_protocol_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "chain_concentration": {
-      "hhi": 0.25,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.25,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.25,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "overall_concentration_score": 25,
-    "overall_risk_label": "MODERATE",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785576485.448926
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.25,
-      "top_protocol": "A",
-      "top_protocol_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "chain_concentration": {
-      "hhi": 0.25,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.25,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.25,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "overall_concentration_score": 25,
-    "overall_risk_label": "MODERATE",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785576485.4539418
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.25,
-      "top_protocol": "A",
-      "top_protocol_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "chain_concentration": {
-      "hhi": 0.25,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.25,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.25,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "overall_concentration_score": 25,
-    "overall_risk_label": "MODERATE",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785576485.4596229
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.25,
-      "top_protocol": "A",
-      "top_protocol_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "chain_concentration": {
-      "hhi": 0.25,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.25,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.25,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "overall_concentration_score": 25,
-    "overall_risk_label": "MODERATE",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785576485.4643872
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.25,
-      "top_protocol": "A",
-      "top_protocol_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "chain_concentration": {
-      "hhi": 0.25,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.25,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.25,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "overall_concentration_score": 25,
-    "overall_risk_label": "MODERATE",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785576485.469501
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.25,
-      "top_protocol": "A",
-      "top_protocol_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "chain_concentration": {
-      "hhi": 0.25,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.25,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.25,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "overall_concentration_score": 25,
-    "overall_risk_label": "MODERATE",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785576485.4742649
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.25,
-      "top_protocol": "A",
-      "top_protocol_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "chain_concentration": {
-      "hhi": 0.25,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.25,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.25,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "overall_concentration_score": 25,
-    "overall_risk_label": "MODERATE",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785576485.4795353
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.25,
-      "top_protocol": "A",
-      "top_protocol_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "chain_concentration": {
-      "hhi": 0.25,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.25,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.25,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "overall_concentration_score": 25,
-    "overall_risk_label": "MODERATE",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785576485.4846745
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785576485.5525556
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 10000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785576485.5577843
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.0,
-      "top_protocol": null,
-      "top_protocol_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "chain_concentration": {
-      "hhi": 0.0,
-      "top_chain": null,
-      "top_chain_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.0,
-      "top_asset_type": null,
-      "top_asset_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.0,
-      "top_yield_type": null,
-      "top_yield_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "overall_concentration_score": 0,
-    "overall_risk_label": "WELL_DIVERSIFIED",
-    "weighted_avg_apy_pct": 0.0,
-    "total_allocation_usd": 0.0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785576485.5630963
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.33333333333334,
-      "top_protocol": "C",
-      "top_protocol_share_pct": 33.33333999999999,
-      "risk_level": "HIGH"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 83,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785576485.5680695
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.02,
-      "top_protocol": "Proto0",
-      "top_protocol_share_pct": 2.0,
-      "risk_level": "LOW"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 75,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785576485.5728729
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "UNKNOWN",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "UNKNOWN",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "UNKNOWN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "UNKNOWN",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 10000.0,
-    "diversification_recommendations": [
-      "Reduce UNKNOWN from 100% to under 40%",
-      "Diversify across chains \u2014 UNKNOWN holds 100%",
-      "Reduce UNKNOWN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 UNKNOWN is 100% of portfolio"
-    ],
-    "timestamp": 1785576485.5780163
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "A",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce A from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785576485.5827787
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.5,
-      "top_protocol": "A",
-      "top_protocol_share_pct": 50.0,
-      "risk_level": "HIGH"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 87,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce A from 50% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785576485.5864391
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.2200000000000002,
-      "top_protocol": "B",
-      "top_protocol_share_pct": 110.00000000000001,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 105,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 10000.0,
-    "diversification_recommendations": [
-      "Reduce B from 110% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785576485.5917184
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.58,
-      "top_protocol": "B",
-      "top_protocol_share_pct": 70.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 89,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce B from 70% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785576485.5965612
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "A",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce A from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785576485.6013894
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.0,
-      "top_protocol": null,
-      "top_protocol_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "chain_concentration": {
-      "hhi": 0.0,
-      "top_chain": null,
-      "top_chain_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.0,
-      "top_asset_type": null,
-      "top_asset_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.0,
-      "top_yield_type": null,
-      "top_yield_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "overall_concentration_score": 0,
-    "overall_risk_label": "WELL_DIVERSIFIED",
-    "weighted_avg_apy_pct": 0.0,
-    "total_allocation_usd": 0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785662370.4244523
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.0,
-      "top_protocol": null,
-      "top_protocol_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "chain_concentration": {
-      "hhi": 0.0,
-      "top_chain": null,
-      "top_chain_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.0,
-      "top_asset_type": null,
-      "top_asset_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.0,
-      "top_yield_type": null,
-      "top_yield_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "overall_concentration_score": 0,
-    "overall_risk_label": "WELL_DIVERSIFIED",
-    "weighted_avg_apy_pct": 0.0,
-    "total_allocation_usd": 0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785662370.4300165
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.0,
-      "top_protocol": null,
-      "top_protocol_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "chain_concentration": {
-      "hhi": 0.0,
-      "top_chain": null,
-      "top_chain_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.0,
-      "top_asset_type": null,
-      "top_asset_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.0,
-      "top_yield_type": null,
-      "top_yield_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "overall_concentration_score": 0,
-    "overall_risk_label": "WELL_DIVERSIFIED",
-    "weighted_avg_apy_pct": 0.0,
-    "total_allocation_usd": 0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785662370.4349318
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.0,
-      "top_protocol": null,
-      "top_protocol_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "chain_concentration": {
-      "hhi": 0.0,
-      "top_chain": null,
-      "top_chain_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.0,
-      "top_asset_type": null,
-      "top_asset_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.0,
-      "top_yield_type": null,
-      "top_yield_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "overall_concentration_score": 0,
-    "overall_risk_label": "WELL_DIVERSIFIED",
-    "weighted_avg_apy_pct": 0.0,
-    "total_allocation_usd": 0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785662370.4397721
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.0,
-      "top_protocol": null,
-      "top_protocol_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "chain_concentration": {
-      "hhi": 0.0,
-      "top_chain": null,
-      "top_chain_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.0,
-      "top_asset_type": null,
-      "top_asset_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.0,
-      "top_yield_type": null,
-      "top_yield_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "overall_concentration_score": 0,
-    "overall_risk_label": "WELL_DIVERSIFIED",
-    "weighted_avg_apy_pct": 0.0,
-    "total_allocation_usd": 0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785662370.4445174
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.0,
-      "top_protocol": null,
-      "top_protocol_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "chain_concentration": {
-      "hhi": 0.0,
-      "top_chain": null,
-      "top_chain_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.0,
-      "top_asset_type": null,
-      "top_asset_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.0,
-      "top_yield_type": null,
-      "top_yield_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "overall_concentration_score": 0,
-    "overall_risk_label": "WELL_DIVERSIFIED",
-    "weighted_avg_apy_pct": 0.0,
-    "total_allocation_usd": 0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785662370.4493968
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.0,
-      "top_protocol": null,
-      "top_protocol_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "chain_concentration": {
-      "hhi": 0.0,
-      "top_chain": null,
-      "top_chain_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.0,
-      "top_asset_type": null,
-      "top_asset_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.0,
-      "top_yield_type": null,
-      "top_yield_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "overall_concentration_score": 0,
-    "overall_risk_label": "WELL_DIVERSIFIED",
-    "weighted_avg_apy_pct": 0.0,
-    "total_allocation_usd": 0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785662370.4540877
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.0,
-      "top_protocol": null,
-      "top_protocol_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "chain_concentration": {
-      "hhi": 0.0,
-      "top_chain": null,
-      "top_chain_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.0,
-      "top_asset_type": null,
-      "top_asset_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.0,
-      "top_yield_type": null,
-      "top_yield_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "overall_concentration_score": 0,
-    "overall_risk_label": "WELL_DIVERSIFIED",
-    "weighted_avg_apy_pct": 0.0,
-    "total_allocation_usd": 0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785662370.4586928
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.0,
-      "top_protocol": null,
-      "top_protocol_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "chain_concentration": {
-      "hhi": 0.0,
-      "top_chain": null,
-      "top_chain_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.0,
-      "top_asset_type": null,
-      "top_asset_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.0,
-      "top_yield_type": null,
-      "top_yield_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "overall_concentration_score": 0,
-    "overall_risk_label": "WELL_DIVERSIFIED",
-    "weighted_avg_apy_pct": 0.0,
-    "total_allocation_usd": 0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785662370.4635231
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.0,
-      "top_protocol": null,
-      "top_protocol_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "chain_concentration": {
-      "hhi": 0.0,
-      "top_chain": null,
-      "top_chain_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.0,
-      "top_asset_type": null,
-      "top_asset_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.0,
-      "top_yield_type": null,
-      "top_yield_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "overall_concentration_score": 0,
-    "overall_risk_label": "WELL_DIVERSIFIED",
-    "weighted_avg_apy_pct": 0.0,
-    "total_allocation_usd": 0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785662370.4683585
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.0,
-      "top_protocol": null,
-      "top_protocol_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "chain_concentration": {
-      "hhi": 0.0,
-      "top_chain": null,
-      "top_chain_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.0,
-      "top_asset_type": null,
-      "top_asset_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.0,
-      "top_yield_type": null,
-      "top_yield_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "overall_concentration_score": 0,
-    "overall_risk_label": "WELL_DIVERSIFIED",
-    "weighted_avg_apy_pct": 0.0,
-    "total_allocation_usd": 0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785662370.4731605
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.0,
-      "top_protocol": null,
-      "top_protocol_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "chain_concentration": {
-      "hhi": 0.0,
-      "top_chain": null,
-      "top_chain_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.0,
-      "top_asset_type": null,
-      "top_asset_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.0,
-      "top_yield_type": null,
-      "top_yield_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "overall_concentration_score": 0,
-    "overall_risk_label": "WELL_DIVERSIFIED",
-    "weighted_avg_apy_pct": 0.0,
-    "total_allocation_usd": 0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785662370.4775193
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.0,
-      "top_protocol": null,
-      "top_protocol_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "chain_concentration": {
-      "hhi": 0.0,
-      "top_chain": null,
-      "top_chain_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.0,
-      "top_asset_type": null,
-      "top_asset_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.0,
-      "top_yield_type": null,
-      "top_yield_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "overall_concentration_score": 0,
-    "overall_risk_label": "WELL_DIVERSIFIED",
-    "weighted_avg_apy_pct": 0.0,
-    "total_allocation_usd": 0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785662370.4819582
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 4.0,
-    "total_allocation_usd": 50000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.4864542
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 4.0,
-    "total_allocation_usd": 50000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.490762
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 4.0,
-    "total_allocation_usd": 50000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.4951942
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 4.0,
-    "total_allocation_usd": 50000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.499648
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 4.0,
-    "total_allocation_usd": 50000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.5040042
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 4.0,
-    "total_allocation_usd": 50000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.5080082
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 4.0,
-    "total_allocation_usd": 50000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.5121663
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 4.0,
-    "total_allocation_usd": 50000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.5163186
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 4.0,
-    "total_allocation_usd": 50000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.520349
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.5,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 50.0,
-      "risk_level": "HIGH"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 87,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 50% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.5244546
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.52,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 60.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 88,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 4.6,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 60% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.5286055
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 0.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.53275
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.25,
-      "top_protocol": "A",
-      "top_protocol_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "chain_concentration": {
-      "hhi": 0.25,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.25,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.25,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "overall_concentration_score": 25,
-    "overall_risk_label": "MODERATE",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785662370.5368726
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.6800000000000002,
-      "top_protocol": "Morpho",
-      "top_protocol_share_pct": 80.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 92,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce Morpho from 80% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.5409439
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.6800000000000002,
-      "top_protocol": "Morpho",
-      "top_protocol_share_pct": 80.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 92,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce Morpho from 80% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.5450485
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.58,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 70.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 89,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 70% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.549158
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.5532396
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 0.33333333340000004,
-      "top_chain": "Optimism",
-      "top_chain_share_pct": 33.334,
-      "risk_level": "HIGH"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 83,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.557297
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 0.52,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 60.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 88,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 60%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.5613408
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.20000000000000004,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 20.0,
-      "risk_level": "MODERATE"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 80,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.565558
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.5,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 50.0,
-      "risk_level": "HIGH"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 87,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 50% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.569644
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.57373
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.5780272
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.58,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 70.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 89,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 70% of portfolio"
-    ],
-    "timestamp": 1785662370.5820858
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.5,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 50.0,
-      "risk_level": "HIGH"
-    },
-    "overall_concentration_score": 87,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 50% of portfolio"
-    ],
-    "timestamp": 1785662370.5862396
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.0,
-      "top_protocol": null,
-      "top_protocol_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "chain_concentration": {
-      "hhi": 0.0,
-      "top_chain": null,
-      "top_chain_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.0,
-      "top_asset_type": null,
-      "top_asset_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.0,
-      "top_yield_type": null,
-      "top_yield_type_share_pct": 0.0,
-      "risk_level": "LOW"
-    },
-    "overall_concentration_score": 0,
-    "overall_risk_label": "WELL_DIVERSIFIED",
-    "weighted_avg_apy_pct": 0.0,
-    "total_allocation_usd": 0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
-    "timestamp": 1785662370.590685
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 1.0,
-      "top_protocol": "AaveV3",
-      "top_protocol_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "chain_concentration": {
-      "hhi": 1.0,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "asset_type_concentration": {
-      "hhi": 1.0,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "yield_type_concentration": {
-      "hhi": 1.0,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 100.0,
-      "risk_level": "CRITICAL"
-    },
-    "overall_concentration_score": 100,
-    "overall_risk_label": "HIGHLY_CONCENTRATED",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Reduce AaveV3 from 100% to under 40%",
-      "Diversify across chains \u2014 Ethereum holds 100%",
-      "Reduce STABLECOIN exposure \u2014 100% concentration",
-      "Mix yield types \u2014 LENDING is 100% of portfolio"
-    ],
-    "timestamp": 1785662370.594774
-  },
-  {
-    "protocol_concentration": {
-      "hhi": 0.25,
-      "top_protocol": "A",
-      "top_protocol_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "chain_concentration": {
-      "hhi": 0.25,
-      "top_chain": "Ethereum",
-      "top_chain_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "asset_type_concentration": {
-      "hhi": 0.25,
-      "top_asset_type": "STABLECOIN",
-      "top_asset_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "yield_type_concentration": {
-      "hhi": 0.25,
-      "top_yield_type": "LENDING",
-      "top_yield_type_share_pct": 25.0,
-      "risk_level": "MODERATE"
-    },
-    "overall_concentration_score": 25,
-    "overall_risk_label": "MODERATE",
-    "weighted_avg_apy_pct": 5.0,
-    "total_allocation_usd": 100000.0,
-    "diversification_recommendations": [
-      "Diversification is adequate across all dimensions"
-    ],
     "timestamp": 1785662370.5988498
   },
   {
@@ -3569,5 +1067,2507 @@
       "Mix yield types \u2014 LENDING is 100% of portfolio"
     ],
     "timestamp": 1785662370.7688
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.0,
+      "top_protocol": null,
+      "top_protocol_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "chain_concentration": {
+      "hhi": 0.0,
+      "top_chain": null,
+      "top_chain_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.0,
+      "top_asset_type": null,
+      "top_asset_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.0,
+      "top_yield_type": null,
+      "top_yield_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "overall_concentration_score": 0,
+    "overall_risk_label": "WELL_DIVERSIFIED",
+    "weighted_avg_apy_pct": 0.0,
+    "total_allocation_usd": 0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833716.7702827
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.0,
+      "top_protocol": null,
+      "top_protocol_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "chain_concentration": {
+      "hhi": 0.0,
+      "top_chain": null,
+      "top_chain_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.0,
+      "top_asset_type": null,
+      "top_asset_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.0,
+      "top_yield_type": null,
+      "top_yield_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "overall_concentration_score": 0,
+    "overall_risk_label": "WELL_DIVERSIFIED",
+    "weighted_avg_apy_pct": 0.0,
+    "total_allocation_usd": 0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833716.7786698
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.0,
+      "top_protocol": null,
+      "top_protocol_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "chain_concentration": {
+      "hhi": 0.0,
+      "top_chain": null,
+      "top_chain_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.0,
+      "top_asset_type": null,
+      "top_asset_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.0,
+      "top_yield_type": null,
+      "top_yield_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "overall_concentration_score": 0,
+    "overall_risk_label": "WELL_DIVERSIFIED",
+    "weighted_avg_apy_pct": 0.0,
+    "total_allocation_usd": 0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833716.7853925
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.0,
+      "top_protocol": null,
+      "top_protocol_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "chain_concentration": {
+      "hhi": 0.0,
+      "top_chain": null,
+      "top_chain_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.0,
+      "top_asset_type": null,
+      "top_asset_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.0,
+      "top_yield_type": null,
+      "top_yield_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "overall_concentration_score": 0,
+    "overall_risk_label": "WELL_DIVERSIFIED",
+    "weighted_avg_apy_pct": 0.0,
+    "total_allocation_usd": 0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833716.7928567
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.0,
+      "top_protocol": null,
+      "top_protocol_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "chain_concentration": {
+      "hhi": 0.0,
+      "top_chain": null,
+      "top_chain_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.0,
+      "top_asset_type": null,
+      "top_asset_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.0,
+      "top_yield_type": null,
+      "top_yield_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "overall_concentration_score": 0,
+    "overall_risk_label": "WELL_DIVERSIFIED",
+    "weighted_avg_apy_pct": 0.0,
+    "total_allocation_usd": 0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833716.7995286
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.0,
+      "top_protocol": null,
+      "top_protocol_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "chain_concentration": {
+      "hhi": 0.0,
+      "top_chain": null,
+      "top_chain_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.0,
+      "top_asset_type": null,
+      "top_asset_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.0,
+      "top_yield_type": null,
+      "top_yield_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "overall_concentration_score": 0,
+    "overall_risk_label": "WELL_DIVERSIFIED",
+    "weighted_avg_apy_pct": 0.0,
+    "total_allocation_usd": 0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833716.8063564
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.0,
+      "top_protocol": null,
+      "top_protocol_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "chain_concentration": {
+      "hhi": 0.0,
+      "top_chain": null,
+      "top_chain_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.0,
+      "top_asset_type": null,
+      "top_asset_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.0,
+      "top_yield_type": null,
+      "top_yield_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "overall_concentration_score": 0,
+    "overall_risk_label": "WELL_DIVERSIFIED",
+    "weighted_avg_apy_pct": 0.0,
+    "total_allocation_usd": 0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833716.8128324
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.0,
+      "top_protocol": null,
+      "top_protocol_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "chain_concentration": {
+      "hhi": 0.0,
+      "top_chain": null,
+      "top_chain_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.0,
+      "top_asset_type": null,
+      "top_asset_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.0,
+      "top_yield_type": null,
+      "top_yield_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "overall_concentration_score": 0,
+    "overall_risk_label": "WELL_DIVERSIFIED",
+    "weighted_avg_apy_pct": 0.0,
+    "total_allocation_usd": 0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833716.819505
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.0,
+      "top_protocol": null,
+      "top_protocol_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "chain_concentration": {
+      "hhi": 0.0,
+      "top_chain": null,
+      "top_chain_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.0,
+      "top_asset_type": null,
+      "top_asset_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.0,
+      "top_yield_type": null,
+      "top_yield_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "overall_concentration_score": 0,
+    "overall_risk_label": "WELL_DIVERSIFIED",
+    "weighted_avg_apy_pct": 0.0,
+    "total_allocation_usd": 0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833716.8260016
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.0,
+      "top_protocol": null,
+      "top_protocol_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "chain_concentration": {
+      "hhi": 0.0,
+      "top_chain": null,
+      "top_chain_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.0,
+      "top_asset_type": null,
+      "top_asset_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.0,
+      "top_yield_type": null,
+      "top_yield_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "overall_concentration_score": 0,
+    "overall_risk_label": "WELL_DIVERSIFIED",
+    "weighted_avg_apy_pct": 0.0,
+    "total_allocation_usd": 0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833716.8325443
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.0,
+      "top_protocol": null,
+      "top_protocol_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "chain_concentration": {
+      "hhi": 0.0,
+      "top_chain": null,
+      "top_chain_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.0,
+      "top_asset_type": null,
+      "top_asset_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.0,
+      "top_yield_type": null,
+      "top_yield_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "overall_concentration_score": 0,
+    "overall_risk_label": "WELL_DIVERSIFIED",
+    "weighted_avg_apy_pct": 0.0,
+    "total_allocation_usd": 0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833716.8390868
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.0,
+      "top_protocol": null,
+      "top_protocol_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "chain_concentration": {
+      "hhi": 0.0,
+      "top_chain": null,
+      "top_chain_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.0,
+      "top_asset_type": null,
+      "top_asset_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.0,
+      "top_yield_type": null,
+      "top_yield_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "overall_concentration_score": 0,
+    "overall_risk_label": "WELL_DIVERSIFIED",
+    "weighted_avg_apy_pct": 0.0,
+    "total_allocation_usd": 0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833716.845855
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.0,
+      "top_protocol": null,
+      "top_protocol_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "chain_concentration": {
+      "hhi": 0.0,
+      "top_chain": null,
+      "top_chain_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.0,
+      "top_asset_type": null,
+      "top_asset_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.0,
+      "top_yield_type": null,
+      "top_yield_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "overall_concentration_score": 0,
+    "overall_risk_label": "WELL_DIVERSIFIED",
+    "weighted_avg_apy_pct": 0.0,
+    "total_allocation_usd": 0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833716.852219
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 4.0,
+    "total_allocation_usd": 50000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.8589256
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 4.0,
+    "total_allocation_usd": 50000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.865664
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 4.0,
+    "total_allocation_usd": 50000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.8726323
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 4.0,
+    "total_allocation_usd": 50000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.8794107
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 4.0,
+    "total_allocation_usd": 50000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.8859031
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 4.0,
+    "total_allocation_usd": 50000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.8927655
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 4.0,
+    "total_allocation_usd": 50000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.899661
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 4.0,
+    "total_allocation_usd": 50000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.9065788
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 4.0,
+    "total_allocation_usd": 50000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.9134853
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.5,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 50.0,
+      "risk_level": "HIGH"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 87,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 50% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.9206922
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.52,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 60.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 88,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 4.6,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 60% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.927575
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 0.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.9343464
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.25,
+      "top_protocol": "A",
+      "top_protocol_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "chain_concentration": {
+      "hhi": 0.25,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.25,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.25,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "overall_concentration_score": 25,
+    "overall_risk_label": "MODERATE",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833716.9408631
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.6800000000000002,
+      "top_protocol": "Morpho",
+      "top_protocol_share_pct": 80.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 92,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce Morpho from 80% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.9477258
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.6800000000000002,
+      "top_protocol": "Morpho",
+      "top_protocol_share_pct": 80.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 92,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce Morpho from 80% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.9550567
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.58,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 70.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 89,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 70% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.9615173
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.9681056
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 0.33333333340000004,
+      "top_chain": "Optimism",
+      "top_chain_share_pct": 33.334,
+      "risk_level": "HIGH"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 83,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.9750252
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 0.52,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 60.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 88,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 60%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.9820232
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.20000000000000004,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 20.0,
+      "risk_level": "MODERATE"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 80,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.988754
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.5,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 50.0,
+      "risk_level": "HIGH"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 87,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 50% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833716.9951012
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.0018017
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.0084925
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.58,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 70.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 89,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 70% of portfolio"
+    ],
+    "timestamp": 1785833717.014894
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.5,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 50.0,
+      "risk_level": "HIGH"
+    },
+    "overall_concentration_score": 87,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 50% of portfolio"
+    ],
+    "timestamp": 1785833717.0213273
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.0,
+      "top_protocol": null,
+      "top_protocol_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "chain_concentration": {
+      "hhi": 0.0,
+      "top_chain": null,
+      "top_chain_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.0,
+      "top_asset_type": null,
+      "top_asset_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.0,
+      "top_yield_type": null,
+      "top_yield_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "overall_concentration_score": 0,
+    "overall_risk_label": "WELL_DIVERSIFIED",
+    "weighted_avg_apy_pct": 0.0,
+    "total_allocation_usd": 0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833717.0280664
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.0346959
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.25,
+      "top_protocol": "A",
+      "top_protocol_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "chain_concentration": {
+      "hhi": 0.25,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.25,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.25,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "overall_concentration_score": 25,
+    "overall_risk_label": "MODERATE",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833717.0412066
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.25,
+      "top_protocol": "A",
+      "top_protocol_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "chain_concentration": {
+      "hhi": 0.25,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.25,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.25,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "overall_concentration_score": 25,
+    "overall_risk_label": "MODERATE",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833717.0479028
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.0554125
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.0622206
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.0688918
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.52,
+      "top_protocol": "A",
+      "top_protocol_share_pct": 60.0,
+      "risk_level": "HIGH"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 88,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce A from 60% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.0758224
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.8200000000000001,
+      "top_protocol": "A",
+      "top_protocol_share_pct": 90.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 0.8200000000000001,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 90.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 91,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce A from 90% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 90%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.0827963
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.089591
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.25,
+      "top_protocol": "A",
+      "top_protocol_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "chain_concentration": {
+      "hhi": 0.25,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.25,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.25,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "overall_concentration_score": 25,
+    "overall_risk_label": "MODERATE",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833717.096001
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.8200000000000001,
+      "top_protocol": "Aave",
+      "top_protocol_share_pct": 90.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 95,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce Aave from 90% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.1028965
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.0,
+      "top_protocol": null,
+      "top_protocol_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "chain_concentration": {
+      "hhi": 0.0,
+      "top_chain": null,
+      "top_chain_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.0,
+      "top_asset_type": null,
+      "top_asset_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.0,
+      "top_yield_type": null,
+      "top_yield_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "overall_concentration_score": 0,
+    "overall_risk_label": "WELL_DIVERSIFIED",
+    "weighted_avg_apy_pct": 0.0,
+    "total_allocation_usd": 0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833717.1095815
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.25,
+      "top_protocol": "A",
+      "top_protocol_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "chain_concentration": {
+      "hhi": 0.25,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.25,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.25,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "overall_concentration_score": 25,
+    "overall_risk_label": "MODERATE",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833717.1160777
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.25,
+      "top_protocol": "A",
+      "top_protocol_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "chain_concentration": {
+      "hhi": 0.25,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.25,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.25,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "overall_concentration_score": 25,
+    "overall_risk_label": "MODERATE",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833717.1224883
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.25,
+      "top_protocol": "A",
+      "top_protocol_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "chain_concentration": {
+      "hhi": 0.25,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.25,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.25,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "overall_concentration_score": 25,
+    "overall_risk_label": "MODERATE",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833717.1293852
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.25,
+      "top_protocol": "A",
+      "top_protocol_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "chain_concentration": {
+      "hhi": 0.25,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.25,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.25,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "overall_concentration_score": 25,
+    "overall_risk_label": "MODERATE",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833717.1359513
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.25,
+      "top_protocol": "A",
+      "top_protocol_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "chain_concentration": {
+      "hhi": 0.25,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.25,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.25,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "overall_concentration_score": 25,
+    "overall_risk_label": "MODERATE",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833717.1424704
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.25,
+      "top_protocol": "A",
+      "top_protocol_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "chain_concentration": {
+      "hhi": 0.25,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.25,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.25,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "overall_concentration_score": 25,
+    "overall_risk_label": "MODERATE",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833717.1488059
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.25,
+      "top_protocol": "A",
+      "top_protocol_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "chain_concentration": {
+      "hhi": 0.25,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.25,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.25,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "overall_concentration_score": 25,
+    "overall_risk_label": "MODERATE",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833717.1554604
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.25,
+      "top_protocol": "A",
+      "top_protocol_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "chain_concentration": {
+      "hhi": 0.25,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.25,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.25,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 25.0,
+      "risk_level": "MODERATE"
+    },
+    "overall_concentration_score": 25,
+    "overall_risk_label": "MODERATE",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833717.162083
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.271693
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "AaveV3",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 10000.0,
+    "diversification_recommendations": [
+      "Reduce AaveV3 from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.2784164
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.0,
+      "top_protocol": null,
+      "top_protocol_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "chain_concentration": {
+      "hhi": 0.0,
+      "top_chain": null,
+      "top_chain_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "asset_type_concentration": {
+      "hhi": 0.0,
+      "top_asset_type": null,
+      "top_asset_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "yield_type_concentration": {
+      "hhi": 0.0,
+      "top_yield_type": null,
+      "top_yield_type_share_pct": 0.0,
+      "risk_level": "LOW"
+    },
+    "overall_concentration_score": 0,
+    "overall_risk_label": "WELL_DIVERSIFIED",
+    "weighted_avg_apy_pct": 0.0,
+    "total_allocation_usd": 0.0,
+    "diversification_recommendations": [
+      "Diversification is adequate across all dimensions"
+    ],
+    "timestamp": 1785833717.2851849
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.33333333333334,
+      "top_protocol": "C",
+      "top_protocol_share_pct": 33.33333999999999,
+      "risk_level": "HIGH"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 83,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.2922006
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.02,
+      "top_protocol": "Proto0",
+      "top_protocol_share_pct": 2.0,
+      "risk_level": "LOW"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 75,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.298831
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "UNKNOWN",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "UNKNOWN",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "UNKNOWN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "UNKNOWN",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 10000.0,
+    "diversification_recommendations": [
+      "Reduce UNKNOWN from 100% to under 40%",
+      "Diversify across chains \u2014 UNKNOWN holds 100%",
+      "Reduce UNKNOWN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 UNKNOWN is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.3050318
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "A",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce A from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.3116949
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.5,
+      "top_protocol": "A",
+      "top_protocol_share_pct": 50.0,
+      "risk_level": "HIGH"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 87,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce A from 50% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.3167074
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.2200000000000002,
+      "top_protocol": "B",
+      "top_protocol_share_pct": 110.00000000000001,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 105,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 10000.0,
+    "diversification_recommendations": [
+      "Reduce B from 110% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.3233871
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 0.58,
+      "top_protocol": "B",
+      "top_protocol_share_pct": 70.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 89,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce B from 70% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.3297992
+  },
+  {
+    "protocol_concentration": {
+      "hhi": 1.0,
+      "top_protocol": "A",
+      "top_protocol_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "chain_concentration": {
+      "hhi": 1.0,
+      "top_chain": "Ethereum",
+      "top_chain_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "asset_type_concentration": {
+      "hhi": 1.0,
+      "top_asset_type": "STABLECOIN",
+      "top_asset_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "yield_type_concentration": {
+      "hhi": 1.0,
+      "top_yield_type": "LENDING",
+      "top_yield_type_share_pct": 100.0,
+      "risk_level": "CRITICAL"
+    },
+    "overall_concentration_score": 100,
+    "overall_risk_label": "HIGHLY_CONCENTRATED",
+    "weighted_avg_apy_pct": 5.0,
+    "total_allocation_usd": 100000.0,
+    "diversification_recommendations": [
+      "Reduce A from 100% to under 40%",
+      "Diversify across chains \u2014 Ethereum holds 100%",
+      "Reduce STABLECOIN exposure \u2014 100% concentration",
+      "Mix yield types \u2014 LENDING is 100% of portfolio"
+    ],
+    "timestamp": 1785833717.3364391
   }
 ]
