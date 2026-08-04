@@ -5,6 +5,15 @@ MP-443: Tests for scripts/fund_api_server.py
          python3 -m unittest tests.test_fund_api -v
 
 Используется только stdlib (http.client, unittest, threading, json, tempfile, os).
+
+**Порт здесь НИКОГДА не задаётся константой** (карточка `agent-fund-api-tests-bind-a-fixed-port`).
+Сервер поднимается по-настоящему, а раньше он биндил жёстко зашитые 18765/18766. Два pytest'а на
+одном хосте дрались за эти порты, и проигравший получал `OSError: [Errno 48] Address already in
+use`. Бьёт это не по продукту, а по МЕТОДИКЕ приёмки автономных циклов, где worktree и контроль на
+чистом `origin/main` гоняются ПАРАЛЛЕЛЬНО: измерено на неисправленном дереве — один прогон дал
+`1 passed, 8 errors`, второй `8 passed, 1 error`, то есть «дельта passed» между сторонами зависела
+от того, кто первым добежал до этого файла. Теперь порт запрашивает ядро (`bind` на 0), а
+фактический номер читается у уже поднятого сервера. Пин против рецидива — `EphemeralPortTestCase`.
 """
 
 import http.client
@@ -26,23 +35,41 @@ import scripts.fund_api_server as api_module
 # Helpers
 # ---------------------------------------------------------------------------
 
-PORT_MAIN = 18765   # основной тест-класс
-PORT_MISS = 18766   # тест отсутствующих файлов
+def _start_server(data_dir: str):
+    """Запускает сервер на СВОБОДНОМ порту в daemon-потоке.
 
+    Возвращает поток с атрибутами ``.server`` (для shutdown/close) и ``.port`` — фактическим
+    номером, прочитанным у уже забиндившегося сокета. Порт не принимается аргументом намеренно:
+    пока его можно было назвать, его называли константой (см. докстринг модуля).
 
-def _start_server(data_dir: str, port: int):
-    """Запускает сервер в daemon-потоке. Возвращает поток с атрибутом .server."""
+    ``allow_reuse_address`` здесь больше не выставляется: ``HTTPServer`` включает его сам, а
+    прежнее присвоение шло ПОСЛЕ конструктора, то есть уже после ``bind`` — оно не могло ни на
+    что повлиять и лишь создавало впечатление, будто конфликт портов чем-то обработан.
+    """
     # Переопределяем DATA_DIR модуля для текущего экземпляра
     api_module.DATA_DIR = Path(data_dir)
 
-    server = http.server.HTTPServer(("127.0.0.1", port), api_module.FundAPIHandler)
-    server.allow_reuse_address = True
+    # Порт 0 = «дай любой свободный»; настоящий номер известен только после bind.
+    server = http.server.HTTPServer(("127.0.0.1", 0), api_module.FundAPIHandler)
 
     t = threading.Thread(target=server.serve_forever, daemon=True)
     t.server = server  # сохраняем ссылку для shutdown
+    t.port = server.server_address[1]
     t.start()
     time.sleep(0.3)  # даём серверу подняться
     return t
+
+
+def _stop_server(thread):
+    """Останавливает цикл обслуживания И закрывает слушающий сокет.
+
+    ``shutdown()`` только выводит ``serve_forever`` из цикла — сокет остаётся забинденным до
+    ``server_close()``. Прежний код звал лишь ``shutdown()``, поэтому каждый прогон оставлял за
+    собой занятые сокеты; на фиксированном порту это ещё и продлевало ровно ту гонку, из-за
+    которой карточка и заведена.
+    """
+    thread.server.shutdown()
+    thread.server.server_close()
 
 
 import http.server as _http_server
@@ -134,13 +161,13 @@ class FundAPITestCase(unittest.TestCase):
                 json.dump(data, f)
 
         # Стартуем сервер
-        cls.server_thread = _start_server(data_dir, PORT_MAIN)
-        cls.conn = http.client.HTTPConnection("127.0.0.1", PORT_MAIN, timeout=5)
+        cls.server_thread = _start_server(data_dir)
+        cls.conn = http.client.HTTPConnection("127.0.0.1", cls.server_thread.port, timeout=5)
 
     @classmethod
     def tearDownClass(cls):
         cls.conn.close()
-        cls.server_thread.server.shutdown()
+        _stop_server(cls.server_thread)
         cls.tmp_dir.cleanup()
 
     # ---------- утилита ----------
@@ -252,13 +279,13 @@ class MissingFileTestCase(unittest.TestCase):
     def setUpClass(cls):
         cls.tmp_dir = tempfile.TemporaryDirectory()
         # Пустая папка — ни одного JSON файла
-        cls.server_thread = _start_server(cls.tmp_dir.name, PORT_MISS)
-        cls.conn = http.client.HTTPConnection("127.0.0.1", PORT_MISS, timeout=5)
+        cls.server_thread = _start_server(cls.tmp_dir.name)
+        cls.conn = http.client.HTTPConnection("127.0.0.1", cls.server_thread.port, timeout=5)
 
     @classmethod
     def tearDownClass(cls):
         cls.conn.close()
-        cls.server_thread.server.shutdown()
+        _stop_server(cls.server_thread)
         cls.tmp_dir.cleanup()
 
     def test_missing_golive_returns_sentinel(self):
@@ -268,6 +295,75 @@ class MissingFileTestCase(unittest.TestCase):
         self.assertEqual(resp.status, 200)
         self.assertFalse(data.get("available", True))
         self.assertIn("error", data)
+
+
+# ===========================
+# Гейт против рецидива: порт не должен быть константой
+# ===========================
+class EphemeralPortTestCase(unittest.TestCase):
+    """Пин «этот файл параллелится» — карточка `agent-fund-api-tests-bind-a-fixed-port`.
+
+    Проверка ПОВЕДЕНЧЕСКАЯ, а не по тексту: несколько серверов поднимаются ОДНОВРЕМЕННО — ровно
+    то, что делают два параллельных pytest'а. Пока порт берёт ядро, все живут; стоит вернуть в
+    ``_start_server`` константу — второй ``bind`` падает `OSError: Address already in use`, и тест
+    краснеет. Детерминизм здесь обеспечен настоящей одновременностью (сокеты держатся открытыми до
+    конца проверки), а НЕ надеждой на то, что ядро не переиспользует только что освобождённый
+    порт: такая надежда — это флаки-тест, притворяющийся гейтом.
+    """
+
+    SERVERS = 3
+    HISTORICAL_CONSTANTS = (18765, 18766)
+
+    def test_concurrent_servers_get_distinct_live_ports(self):
+        with tempfile.TemporaryDirectory() as data_dir:
+            started = []
+            try:
+                for _ in range(self.SERVERS):
+                    # Каждый следующий поднимается, пока предыдущие ЖИВЫ — условие гонки.
+                    started.append(_start_server(data_dir))
+
+                ports = [srv.port for srv in started]
+                self.assertEqual(
+                    len(set(ports)),
+                    len(ports),
+                    f"одновременные серверы получили совпадающие порты {ports} — "
+                    f"порт снова фиксированный?",
+                )
+                for port in ports:
+                    self.assertGreater(port, 0, "порт 0 не должен доезжать до вызывающего")
+                    self.assertNotIn(
+                        port,
+                        self.HISTORICAL_CONSTANTS,
+                        f"порт {port} — старая захардкоженная константа, а не выданный ядром",
+                    )
+
+                # Живы именно эти порты: адрес взят у сервера, а не назначен тестом.
+                for srv in started:
+                    conn = http.client.HTTPConnection("127.0.0.1", srv.port, timeout=5)
+                    try:
+                        conn.request("GET", "/health")
+                        resp = conn.getresponse()
+                        body = json.loads(resp.read().decode("utf-8"))
+                        self.assertEqual(resp.status, 200)
+                        self.assertEqual(body["status"], "ok")
+                    finally:
+                        conn.close()
+            finally:
+                for srv in started:
+                    _stop_server(srv)
+
+    def test_reported_port_is_the_one_the_socket_is_bound_to(self):
+        """`.port` читается у сокета, а не хранится рядом с ним.
+
+        Если кто-то снова начнёт присваивать номер до `bind` (или мимо сервера), эти два значения
+        разъедутся.
+        """
+        with tempfile.TemporaryDirectory() as data_dir:
+            srv = _start_server(data_dir)
+            try:
+                self.assertEqual(srv.port, srv.server.server_address[1])
+            finally:
+                _stop_server(srv)
 
 
 if __name__ == "__main__":
