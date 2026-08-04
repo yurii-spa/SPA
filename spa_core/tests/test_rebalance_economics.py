@@ -240,3 +240,27 @@ def test_median_over_fewer_than_three_pools_is_not_a_signal() -> None:
     assert below_median_cap_violations(
         positions={"a": 40_000.0, "b": 20_000.0}, apy_pct=APY,
         tier_caps={"a": 0.40, "b": 0.20}, capital_usd=CAP, evidenced=EV) == []
+
+
+def test_named_cause_is_not_reported_as_unexplained() -> None:
+    """Naming eleven blocked protocols and then calling the cash unexplained is
+    the cry-wolf failure this project keeps paying for: the alarm stops meaning
+    anything and the real case — no reason at all — hides inside it.
+
+    ADR-055 requires idle capital to be a LOGGED DECISION, not a numeric split.
+    """
+    out = explain_cash(positions={"a": 60_000.0}, capital_usd=CAP, min_cash_frac=0.05,
+                       binders=[{"reason": "blocked: 11 protocols unevidenced", "pct": 0.0}])
+    assert out["status"] == "named_not_quantified"
+    assert out["unexplained_pct"] == pytest.approx(35.0)      # still visible
+
+
+def test_silent_idle_capital_is_still_an_alarm() -> None:
+    """The case the invariant actually targets: no reason on record at all."""
+    assert explain_cash(positions={"a": 60_000.0}, capital_usd=CAP,
+                        min_cash_frac=0.05)["status"] == "UNEXPLAINED_CASH"
+
+
+def test_cash_at_the_buffer_needs_no_explanation() -> None:
+    out = explain_cash(positions={"a": 95_000.0}, capital_usd=CAP, min_cash_frac=0.05)
+    assert out["excess_pct"] == pytest.approx(0.0) and out["status"] == "explained"

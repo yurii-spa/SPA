@@ -334,6 +334,22 @@ def explain_cash(
     excess_pct = max(0.0, cash_pct - buffer_pct)
     attributed = sum(float(b.get("pct", 0.0) or 0.0) for b in (binders or []))
     unexplained = round(max(0.0, excess_pct - attributed), 4)
+
+    # Three states, not two. The invariant (ADR-055) is that idle capital must be a
+    # LOGGED DECISION rather than a default — it is not that every dollar must be
+    # split numerically. A first version had only explained/UNEXPLAINED, so a cycle
+    # that named eleven blocked protocols — a complete and sufficient reason for the
+    # idle cash — still reported UNEXPLAINED_CASH. Naming the cause and then calling
+    # it unexplained is the same cry-wolf failure this project keeps paying for: the
+    # alarm stops meaning anything and the real case (no reason at all) hides in it.
+    if excess_pct <= 1e-6:
+        status = "explained"                 # nothing above the buffer to explain
+    elif unexplained <= 1e-6:
+        status = "explained"                 # binders cover it quantitatively
+    elif binders:
+        status = "named_not_quantified"      # cause is on record, split is not
+    else:
+        status = "UNEXPLAINED_CASH"          # genuinely silent idle capital
     return {
         "cash_pct": round(cash_pct, 4),
         "buffer_pct": round(buffer_pct, 4),
@@ -341,7 +357,7 @@ def explain_cash(
         "attribution": list(binders or []),
         "attributed_pct": round(attributed, 4),
         "unexplained_pct": unexplained,
-        "status": "explained" if unexplained <= 1e-6 else "UNEXPLAINED_CASH",
+        "status": status,
     }
 
 
