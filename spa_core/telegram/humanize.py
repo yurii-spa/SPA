@@ -72,13 +72,16 @@ SEVERITY_RU: dict[str, str] = {
 }
 
 # Коды Site Custodian (`scripts/site_freshness_monitor.py`) — что это значит
-# человеку. Технический detail-хвост в алерте СОХРАНЯЕТСЯ как есть.
+# человеку. Detail-хвост переводится отдельно (`_DETAIL_RULES`); формат, для
+# которого правила нет, проходит ВЕРБАТИМ.
 SITE_CUSTODIAN_CODES: dict[str, str] = {
     "MISSING_ASOF": "нет даты актуальности данных",
     "STALE_SNAPSHOT": "снимок данных для сайта устарел",
     "STALE_API": "данные API устарели",
-    "SITE_BEHIND_SNAPSHOT": "на сайте старые числа — свежий снимок ещё не доехал",
-    "SNAPSHOT_BEHIND_API": "снимок отстал от API — его не перегенерировали после цикла",
+    # Пояснение — в скобках, а не через тире: detail-хвост теперь тоже переводится
+    # и присоединяется через « — », два тире в строке читаются плохо.
+    "SITE_BEHIND_SNAPSHOT": "на сайте старые числа (свежий снимок ещё не доехал)",
+    "SNAPSHOT_BEHIND_API": "снимок отстал от API (не перегенерировали после цикла)",
     "OVERSTATED_METRIC": "сайт показывает доходность ВЫШЕ реальной",
     "UNAVAILABLE": "страница недоступна",
     "VERIFIER_PIN_MISMATCH": "верификатор на сайте не совпадает с зафиксированной версией",
@@ -135,6 +138,62 @@ def _bps_ru(bps: str) -> str:
 # (regex, builder). ПЕРВОЕ совпадение выигрывает; совпадений нет → строка
 # проходит вербатим. Все числа/имена берутся из match-групп — ничего не выдумываем.
 _Rule = tuple[Pattern[str], Callable[[re.Match], str]]
+
+
+# ── detail-хвост строки `[SEV] CODE: detail` ─────────────────────────────────
+# Owner-задание 2026-08-04 («писать мне в чат простым языком, а не вот это вот»):
+# раньше код переводился, а хвост оставался операторским —
+# `снимок данных для сайта устарел — snapshot as_of 2026-08-03 is 32.9h old (> 30h)`.
+# Владелец видел ровно ту английскую строку, на которую жаловался. Теперь хвост
+# тоже переводится; контракт модуля не меняется:
+#   * все числа/даты/URL/пороги переносятся из match-групп — ничего не выдумываем
+#     и ничего не теряем (регресс-тест сверяет КАЖДОЕ число исходной строки);
+#   * формата нет в таблице → хвост проходит ВЕРБАТИМ (лучше по-английски, чем никак).
+_DETAIL_RULES: tuple[_Rule, ...] = (
+    # MISSING_ASOF
+    (re.compile(r"^snapshot has no parseable as_of$"),
+     lambda m: "у самого снимка данных дата не читается"),
+    (re.compile(r"^(\w+) page has no as-of label$"),
+     lambda m: f"на странице «{m.group(1)}» нет отметки «данные на …»"),
+    # STALE_SNAPSHOT / STALE_API
+    (re.compile(r"^snapshot as_of (\S+) is ([\d.]+)h old \(> ?([\d.]+)h\)$"),
+     lambda m: f"снимок сделан {m.group(1)}, ему уже {m.group(2)} ч — "
+               f"норма не старше {m.group(3)} ч"),
+    (re.compile(r"^API last bar (\S+) is ([\d.]+)h old \(> ?([\d.]+)h\)$"),
+     lambda m: f"последняя запись API — {m.group(1)}, ей уже {m.group(2)} ч — "
+               f"норма не старше {m.group(3)} ч"),
+    # SITE_BEHIND_SNAPSHOT
+    (re.compile(r"^(\w+) as-of (\S+) != snapshot as_of (\S+)$"),
+     lambda m: f"на странице «{m.group(1)}» дата {m.group(2)}, "
+               f"а в свежем снимке {m.group(3)}"),
+    (re.compile(r"^site (\S+)=(\S+) != snapshot \1=(\S+)$"),
+     lambda m: f"на сайте {m.group(1)} = {m.group(2)}, а в снимке {m.group(3)}"),
+    # SNAPSHOT_BEHIND_API
+    (re.compile(r"^snapshot days=(\S+) != API days=(\S+)$"),
+     lambda m: f"в снимке дней трека {m.group(1)}, а по API {m.group(2)}"),
+    # OVERSTATED_METRIC
+    (re.compile(r"^(\w+) shows APY ([\d.]+)% > live API ([\d.]+)% "
+                r"\(\+([\d.]+)pp tol\)$"),
+     lambda m: f"страница «{m.group(1)}» показывает {m.group(2)}% годовых, "
+               f"а живой API — {m.group(3)}% (допуск {m.group(4)} п.п.)"),
+    # UNAVAILABLE
+    (re.compile(r"^(\S+) -> HTTP (\d+)$"),
+     lambda m: f"{m.group(1)} отвечает кодом HTTP {m.group(2)}"),
+    # VERIFIER_PIN_MISMATCH
+    (re.compile(r"^live verify_spa\.py (\S+) != pin (\S+)$"),
+     lambda m: f"на сайте лежит версия {m.group(1)}, "
+               f"а закреплена {m.group(2)}"),
+)
+
+
+def _humanize_detail(detail: str) -> str:
+    """Хвост `[SEV] CODE: <detail>` простым языком. Нет правила → как есть."""
+    for pattern, build in _DETAIL_RULES:
+        m = pattern.match(detail)
+        if m:
+            return build(m)
+    return detail
+
 
 _RULES: tuple[_Rule, ...] = (
     # --- статус-строка шапки agent_health ---
@@ -211,7 +270,8 @@ _RULES: tuple[_Rule, ...] = (
      lambda m: f"Сайт-сторож: нашёл проблем — {m.group(1)} ({m.group(2)})"),
     (re.compile(r"^\[(\w+)\]\s+([A-Z_]+):\s*(.+)$"),
      lambda m: f"[{SEVERITY_RU.get(m.group(1).upper(), m.group(1))}] "
-               f"{SITE_CUSTODIAN_CODES.get(m.group(2), m.group(2))} — {m.group(3)}"),
+               f"{SITE_CUSTODIAN_CODES.get(m.group(2), m.group(2))} — "
+               f"{_humanize_detail(m.group(3).strip())}"),
     (re.compile(r"^KILL-RULE: site set to DEGRADED \((.+)\)$"),
      lambda m: f"сработало правило защиты: сайт переведён в режим «данные "
                f"устарели» (причина: {m.group(1)})"),

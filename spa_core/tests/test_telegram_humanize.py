@@ -224,9 +224,87 @@ def test_site_custodian_alert_becomes_readable_without_losing_detail():
     assert "сайт показывает доходность ВЫШЕ реальной" in out
     assert "снимок данных для сайта устарел" in out
     assert "правило защиты" in out and "SNAPSHOT_OVERSTATED" in out
-    # Технический detail (числа и пороги) обязан дожить до владельца целиком.
-    assert "home shows APY 8.0% > live API 3.3% (+0.2pp tol)" in out
-    assert "snapshot as_of 2026-07-25 is 96.0h old (> 24h)" in out
+    # Detail-хвост тоже по-русски (owner-задание 2026-08-04). ДО этой правки две
+    # проверки ниже требовали, чтобы хвост дожил ДОСЛОВНО ПО-АНГЛИЙСКИ
+    # ("home shows APY 8.0% > live API 3.3% (+0.2pp tol)" / "snapshot as_of …
+    # is 96.0h old (> 24h)") — то есть пинили ровно тот текст, на который
+    # владелец пожаловался 04.08. Проверка не ослаблена, а УСИЛЕНА: вместо
+    # одной англоязычной подстроки теперь сверяется КАЖДОЕ число исходной строки
+    # (тест ниже) — потерять данные стало труднее, а не легче.
+    # Обоснование + запись: docs/journal/2026-W32.md (инвариант #16).
+    assert "страница «home» показывает 8.0% годовых" in out
+    assert "живой API — 3.3% (допуск 0.2 п.п.)" in out
+    assert "снимок сделан 2026-07-25, ему уже 96.0 ч — норма не старше 24 ч" in out
+    assert "shows APY" not in out and "is 96.0h old" not in out
+
+
+def test_no_number_or_date_is_lost_in_translation():
+    """Контракт «никакой потери информации»: каждое число/дата исходника — в выводе."""
+    out = H.humanize_body(CUSTODIAN_MSG)
+    numbers = re.findall(r"\d+(?:[.\-:]\d+)*", CUSTODIAN_MSG)
+    assert numbers, "в примере обязаны быть числа, иначе тест ничего не проверяет"
+    for token in numbers:
+        assert token in out, f"число/дата {token!r} потеряно при переводе"
+
+
+@pytest.mark.parametrize("raw, expect", [
+    ("  [FAIL] STALE_SNAPSHOT: snapshot as_of 2026-08-03 is 32.9h old (> 30h)",
+     "снимок сделан 2026-08-03, ему уже 32.9 ч — норма не старше 30 ч"),
+    ("  [FAIL] STALE_API: API last bar 2026-08-02 is 48.5h old (> 30h)",
+     "последняя запись API — 2026-08-02, ей уже 48.5 ч — норма не старше 30 ч"),
+    ("  [FAIL] MISSING_ASOF: snapshot has no parseable as_of",
+     "у самого снимка данных дата не читается"),
+    ("  [FAIL] MISSING_ASOF: track page has no as-of label",
+     "на странице «track» нет отметки «данные на …»"),
+    ("  [FAIL] SITE_BEHIND_SNAPSHOT: home as-of 2026-07-17 != snapshot as_of 2026-08-04",
+     "на странице «home» дата 2026-07-17, а в свежем снимке 2026-08-04"),
+    ("  [FAIL] SITE_BEHIND_SNAPSHOT: site real_track_days=30 != snapshot real_track_days=42",
+     "на сайте real_track_days = 30, а в снимке 42"),
+    ("  [FAIL] SNAPSHOT_BEHIND_API: snapshot days=26 != API days=42",
+     "в снимке дней трека 26, а по API 42"),
+    ("  [FAIL] UNAVAILABLE: https://earn-defi.com/pilot/ -> HTTP 404",
+     "https://earn-defi.com/pilot/ отвечает кодом HTTP 404"),
+    ("  [FAIL] VERIFIER_PIN_MISMATCH: live verify_spa.py 1a2b3c4d5e6f… != pin 9f8e7d6c5b4a…",
+     "на сайте лежит версия 1a2b3c4d5e6f…, а закреплена 9f8e7d6c5b4a…"),
+])
+def test_every_custodian_detail_format_is_translated(raw, expect):
+    """Каждый формат detail, который умеет писать site_freshness_monitor.py."""
+    out = H.humanize_body(raw)
+    assert expect in out
+    # Латиницы из англоязычной формулировки не остаётся (URL/имена полей — можно).
+    assert " is " not in out and " != " not in out and " -> " not in out
+
+
+def test_owner_exact_complaint_2026_08_04_is_fully_readable():
+    """Ровно то сообщение, на которое пожаловался владелец (inbox 04.08)."""
+    raw = ("🛡️ SITE CUSTODIAN — 1 FAIL(s) @ 2026-08-04T08:51:55Z\n"
+           "  [FAIL] STALE_SNAPSHOT: snapshot as_of 2026-08-03 is 32.9h old (> 30h)")
+    out = H.humanize_body(raw)
+    assert out == (
+        "🛡️ Сайт-сторож: нашёл проблем — 1 (2026-08-04T08:51:55Z)\n"
+        "  [проблема] снимок данных для сайта устарел — "
+        "снимок сделан 2026-08-03, ему уже 32.9 ч — норма не старше 30 ч"
+    )
+
+
+def test_unknown_detail_format_passes_through_verbatim():
+    """Новый формат хвоста появится раньше правила — он обязан дойти как есть."""
+    raw = "  [FAIL] STALE_SNAPSHOT: some brand new phrasing nobody parsed yet"
+    out = H.humanize_body(raw)
+    assert "снимок данных для сайта устарел" in out      # код переведён
+    assert "some brand new phrasing nobody parsed yet" in out  # хвост вербатим
+
+
+def test_broken_detail_rule_does_not_kill_the_alert(monkeypatch):
+    def boom(_match):
+        raise RuntimeError("правило хвоста сломалось")
+
+    monkeypatch.setattr(
+        H, "_DETAIL_RULES",
+        ((re.compile(r"^snapshot as_of .*$"), boom),), raising=True,
+    )
+    raw = "  [FAIL] STALE_SNAPSHOT: snapshot as_of 2026-08-03 is 32.9h old (> 30h)"
+    assert H.humanize_body(raw) == raw  # исходник, исключения нет
 
 
 def test_site_custodian_indentation_is_preserved():

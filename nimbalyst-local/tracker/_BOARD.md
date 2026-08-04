@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **181** · ждёт владельца: **19** · занято сессиями: **0**.
+> Всего карточек: **185** · ждёт владельца: **19** · занято сессиями: **0**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -86,7 +86,7 @@
 - Уточнение по заметке: Давай так и сделаем  ·  `owner-decision-utochnenie-po-zametke-davai-tak-i-sdelae.md` · 2026-07-22
 - В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md` · 2026-07-29
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (25)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (26)
 
 ### · done
 - Проверь связь это тестовое сообщение.  ·  `inbox-20260715-123528-note.md` · 2026-07-15
@@ -109,13 +109,14 @@
 - Задача 1- разобраться с алентами которые мне приходят в телегам :  ·  `inbox-zadacha-1-razobratsya-s-alentami-kotorye.md` · 2026-07-27
 - Задача 2  - алерты в телеграм присылать простым языком, сейчас приходит плохо в…  ·  `inbox-zadacha-2-alerty-v-telegram-prisylat-pro.md` · 2026-07-27
 - Задача  (перевести формат алертов Site Custodian на человеческий русский).  ·  `inbox-zadacha-perevesti-format-alertov-site-cu.md` · 2026-07-20
+- Задача писать мне в чат простым языком а не вот это вот - 🛡️ SITE CUSTODIAN — 1…  ·  `inbox-zadacha-pisat-mne-v-chat-prostym-yazykom.md` · 2026-08-04
 - Задача продумать план действий после того как закончился Payper Тест  ·  `inbox-zadacha-produmat-plan-deistvii-posle-tog.md` · 2026-07-27
 - Задача проверить на сайте на всех больницах тест показывает правильные количест…  ·  `inbox-zadacha-proverit-na-saite-na-vseh-bolnit.md` · 2026-07-27
 - Задача разобраться и поправить - вот такое сообщение приходит в час несколько р…  ·  `inbox-zadacha-razobratsya-i-popravit-vot-takoe.md` · 2026-07-31
 - Задача разобраться почему нет свежих данных почему Pepper Тест не обновился хот…  ·  `inbox-zadacha-razobratsya-pochemu-net-svezhih.md` · 2026-07-23
 - Задача решить проблему 🚨 Пропущен ежедневный цикл  ·  `inbox-zadacha-reshit-problemu-propuschen-ezhed.md` · 2026-07-30
 
-## 🤖 Agent Tasks (что делает агент)  (77)
+## 🤖 Agent Tasks (что делает агент)  (80)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -128,7 +129,9 @@
 - Панель идеи #17 на 6 книгах из 10 состоит из неподвижных марок — кросс-секцию на ней измерить нельзя  ·  `agent-idea17-needs-a-panel-with-daily-marks.md` · 2026-08-02
 - Список сетевого стража копится за весь прогон — краснит охранный тест только в полной сюите  ·  `agent-network-guard-attempts-never-reset.md` · 2026-08-04
 - Осиротевшая работа вернулась после закрытия своей карточки — циклы #97 и #98 умерли не доставив, второй прямо на подъёме работы первого  ·  `agent-orphaned-work-recurred-after-its-card-was-closed.md` · 2026-08-03
+- Относительный путь в пушере читает ХОСТ-дерево, а не дерево отправки — набор уезжает как «OK, pushed=0»  ·  `agent-pusher-relative-path-silently-reads-the-host-tree.md` · 2026-08-04
 - Последнее падение на main — страж сети требует ПУСТОЙ журнал попыток, а к его очереди накоплено 2267 чужих записей  ·  `agent-telegram-guard-outermost-fails-only-in-full-run.md` · 2026-08-03
+- Тест трек-персистенса пишет в НАСТОЯЩИЙ off-site бэкап (iCloud) и вешает весь прогон spa_core/tests намертво  ·  `agent-track-persistence-test-writes-to-real-icloud-backup.md` · 2026-08-04
 - Очередь читает ХОСТ-дерево, а карточки закрываются на origin — закрытые задания всплывают как новые  ·  `agent-tracker-host-tree-drifts-from-origin.md` · 2026-08-04
 ### · done
 - Дашборд управления агентами /admin/agents  ·  `agent-agent-dashboard.md` · 2026-07-16
@@ -177,6 +180,7 @@
 - После починки протокольной слепоты аналитики 4 теста tier-сигналов красные на main — CI снова красный  ·  `agent-signal-aggregator-tier-tests-red-after-blindness-fix.md` · 2026-08-02
 - 404 теста живых модулей молча выключены file-level pytestmark с шаблонной отпиской  ·  `agent-silently-skipped-test-files.md` · 2026-07-30
 - Алерт Site Custodian уезжал владельцу сырым английским: в CI перевод НИКОГДА не запускался  ·  `agent-site-custodian-alert-raw-in-ci.md` · 2026-08-04
+- Алерт Site Custodian переведён только наполовину — код по-русски, а суть проблемы по-английски  ·  `agent-site-custodian-detail-still-english.md` · 2026-08-04
 - Q4/Q5: числа/нейминг сайта  ·  `agent-site-numbers.md` · 2026-07-16
 - 19 тестов spa_core/tests красны на main (предсуществующие, никем не отслеживались)  ·  `agent-spa-core-tests-red-on-main.md` · 2026-07-29
 - CI на main красный — два теста Spark требуют «гарантированный fallback 5.5%», который ADR-063 намеренно убрал  ·  `agent-spark-apy-tests-assert-a-fallback-adr-063-removed.md` · 2026-08-03
