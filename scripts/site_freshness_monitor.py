@@ -243,6 +243,50 @@ def _atomic_write(path, obj):
     os.replace(tmp, path)
 
 
+def _humanize_body(msg):
+    """Перевести тело алерта на простой русский. Сбой перевода → исходный текст.
+
+    Почему не хватает обычного ``from spa_core.telegram.humanize import ...``:
+    CI зовёт этот файл как ``python scripts/site_freshness_monitor.py``
+    (`.github/workflows/site_freshness.yml`), поэтому ``sys.path[0]`` — каталог
+    ``scripts/``, а НЕ корень репозитория (рабочий каталог в ``sys.path`` при
+    запуске файла не попадает). Корневого пакета ``spa_core`` на пути нет, импорт
+    падал ``ModuleNotFoundError``, ``except`` его глотал — и владельцу уезжал сырой
+    английский: прогон 2026-08-04T08:51:36Z → алерт «🛡️ SITE CUSTODIAN — 1 FAIL(s)»
+    в 08:51:55Z. На Маке (`scripts/site_content_audit.py` импортирует ``_alert``
+    пакетом) путь был исправен — поэтому дефект и жил только в CI.
+
+    Загрузка идёт ПО ПУТИ К ФАЙЛУ и намеренно НЕ трогает ``sys.path``: лестница
+    доставки (``telegram_manager`` с его дедупом/кулдауном → сырой Telegram API)
+    обязана остаться ровно такой, как сегодня. Сделать в CI достижимым ещё и
+    ``telegram_manager`` — это изменение того, каким каналом и с каким подавлением
+    уходит ТРЕВОГА (риск fail-open), а не оформления текста; отдельное решение.
+
+    Контракт ``humanize`` не меняется: нераспознанная строка проходит вербатим,
+    числа/коды переносятся как есть, ничего не выдумывается.
+    """
+    humanize_body = None
+    try:  # обычный путь: корень репозитория уже на sys.path
+        from spa_core.telegram.humanize import humanize_body  # type: ignore[no-redef]
+    except Exception:  # noqa: BLE001 — ниже загрузка по файлу
+        try:
+            import importlib.util
+            _hpath = _ROOT / "spa_core" / "telegram" / "humanize.py"
+            _spec = importlib.util.spec_from_file_location("_spa_humanize", _hpath)
+            if _spec is not None and _spec.loader is not None:
+                _mod = importlib.util.module_from_spec(_spec)
+                _spec.loader.exec_module(_mod)
+                humanize_body = _mod.humanize_body
+        except Exception:  # noqa: BLE001 — доставка важнее оформления
+            humanize_body = None
+    if humanize_body is None:
+        return msg
+    try:
+        return humanize_body(msg)
+    except Exception:  # noqa: BLE001 — алерт обязан дойти даже без перевода
+        return msg
+
+
 def _alert(report):
     """Alert via SPA's Telegram channel (token from Keychain — never in code). Best-effort."""
     if report.get("ok"):
@@ -253,14 +297,11 @@ def _alert(report):
     if report.get("degrade_triggered"):
         lines.append(f"  ⛔ KILL-RULE: site set to DEGRADED ({report['degrade_reason']})")
     msg = "\n".join(lines)
-    # Владельцу — простым русским (owner-задание 2026-07-20). Перевод чисто текстовый:
-    # нераспознанная строка проходит вербатим, технический detail сохраняется,
-    # сбой перевода отдаёт исходный текст (алерт обязан дойти).
-    try:
-        from spa_core.telegram.humanize import humanize_body
-        msg = humanize_body(msg)
-    except Exception:  # noqa: BLE001 — доставка важнее оформления
-        pass
+    # Владельцу — простым русским (owner-задание 2026-07-20, повторено 2026-08-04).
+    # Перевод чисто текстовый: нераспознанная строка проходит вербатим, технический
+    # detail сохраняется, сбой перевода отдаёт исходный текст (алерт обязан дойти).
+    # Загрузчик — `_humanize_body`: в CI пакета `spa_core` нет на sys.path (см. там).
+    msg = _humanize_body(msg)
     # 1. SPA telegram_manager (dedup/cooldown-aware). Only treat as delivered if it RETURNS truthy —
     #    it returns False (not raises) when its cooldown/creds gate suppresses the send.
     try:
