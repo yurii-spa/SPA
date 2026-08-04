@@ -259,3 +259,31 @@ class DeFiProtocolCollateralEfficiencyScorer:
         existing = existing[-RING_BUFFER_CAP:]
 
         atomic_save(existing, str(self._data_file))
+
+
+# ─── ADR-031 Tier-B context entrypoint (mass wiring 2026-08-04) ───
+def analyze(context=None):
+    """Context-entrypoint для signal_aggregator (ADR-031 Tier-B, audit 2026-08-04).
+
+    Структурный протокол-профиль (_protocol_facts) → СОБСТВЕННЫЙ движок модуля →
+    извлечение score. Неизвестный протокол → None (громкий dormant, НЕ
+    фабрикация). Сам враппер ничего не пишет в логи/ring-buffer'ы.
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    if not _pf.is_protocol_context(context):
+        return None
+    _profile = _pf.generic_profile_for(context["protocol"])
+    _facts = _pf.facts_for(context["protocol"])
+    if _profile is None or _facts is None:
+        return None
+    _result = DeFiProtocolCollateralEfficiencyScorer().score(collateral_value_usd=_profile["collateral_usd"], debt_value_usd=_profile["debt_usd"], annual_yield_earned_usd=(_profile["capital_usd"] * _profile["apy_pct"] / 100.0), liquidation_threshold_pct=_profile["liquidation_threshold_pct"], current_ltv_pct=(_profile["debt_usd"] / _profile["collateral_usd"] * 100.0), collateral_volatility_30d_pct=_facts["cascade"]["collateral_volatility_pct"], protocol_name=_profile["name"])
+    # (движок возвращает plain dict — asdict-конверсия не нужна,
+    # и модульный тест import-гигиены не допускает лишних импортов)
+    # Полярность: движок отдаёт efficiency_score (выше = ЛУЧШЕ); сигнал агрегатора —
+    # риск 0-100 (выше = хуже). Честная инверсия, не сырое значение.
+    _val = _result.get("efficiency_score")
+    if not isinstance(_val, (int, float)) or isinstance(_val, bool):
+        return None
+    return {"risk_score": max(0.0, min(100.0, 100.0 - float(_val))),
+            "protocol": _profile["name"], "polarity": "inverted:efficiency_score",
+            "facts_source": _pf.FACTS_SOURCE, "facts_as_of": _pf.FACTS_AS_OF}

@@ -304,6 +304,32 @@ class ProtocolDeFiYieldFarmingExitTimingAdvisor:
             lock_remaining_days          int
             analyzed_at                  str    ISO-8601 UTC timestamp
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(position):
+            _p = _pf.generic_profile_for(position["protocol"])
+            if _p is None:
+                return None
+            _legacy = {
+                "protocol_name": _p["name"],
+                "position_usd": _p["value_usd"],
+                "entry_apy_pct": _p["initial_apy_pct"],
+                "current_apy_pct": _p["current_apy_pct"],
+                "apy_trend_7d_pct": _p["current_apy_pct"] - _p["apy_7d_ago"],
+                "entry_date_days_ago": _p["holding_days"],
+                "exit_fee_pct": _p["withdrawal_fee_pct"],
+                "gas_cost_exit_usd": _p["gas_cost_usd"],
+                "lock_remaining_days": 0,
+                "token_price_change_since_entry_pct": 0.0,
+                "unrealized_pnl_pct": (_p["current_apy_pct"] * _p["holding_days"]
+                                       / 365.0),
+            }
+            return _pf.extract_protocol_score(
+                self.analyze(_legacy, config={**(config or {}), "write_log": False}),
+                _p)
         if config is None:
             config = {}
 
@@ -341,7 +367,8 @@ class ProtocolDeFiYieldFarmingExitTimingAdvisor:
             "analyzed_at": _iso_now(),
         }
 
-        _append_log(output)
+        if (config or {}).get("write_log", True):
+            _append_log(output)
         return output
 
 

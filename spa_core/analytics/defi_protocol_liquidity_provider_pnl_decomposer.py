@@ -83,7 +83,8 @@ class DeFiProtocolLiquidityProviderPnlDecomposer:
     # Public API
     # ------------------------------------------------------------------
 
-    def analyze(self, position: Dict[str, Any]) -> Dict[str, Any]:
+    def analyze(self, position: Dict[str, Any],
+                write_log: bool = True) -> Dict[str, Any]:
         """
         Analyze one LP position and return the PnL decomposition dict.
 
@@ -100,6 +101,29 @@ class DeFiProtocolLiquidityProviderPnlDecomposer:
         pool_type             str  ∈ {constant_product, stable_swap, concentrated}
         concentration_factor  float >= 1.0  (used only for concentrated pools)
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(position):
+            _p = _pf.generic_profile_for(position["protocol"])
+            if _p is None:
+                return None
+            _legacy = {
+                "pool_name": _p["pair"],
+                "pool_type": "constant_product",
+                "entry_price_a": 1.0,
+                "entry_price_b": 1.0,
+                "current_price_a": 1.0 - _p["basis_spread_pp"] / 200.0,
+                "current_price_b": 1.0,
+                "initial_position_usd": _p["capital_usd"],
+                "fee_income_usd": (_p["capital_usd"] * _p["apy_pct"] / 100.0
+                                   * 30.0 / 365.0 * 0.3),
+                "days_held": 30,
+            }
+            return _pf.extract_protocol_score(self.analyze(_legacy, write_log=False),
+                                              _p)
         self._validate(position)
 
         entry_a  = float(position["entry_price_a"])
@@ -153,7 +177,8 @@ class DeFiProtocolLiquidityProviderPnlDecomposer:
             "analyzed_at":          time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
 
-        self._append_log(result)
+        if write_log:
+            self._append_log(result)
         return result
 
     # ------------------------------------------------------------------

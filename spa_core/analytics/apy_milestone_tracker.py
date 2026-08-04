@@ -76,6 +76,14 @@ class ApyMilestoneTracker(BaseAnalytics):
         class is abstract and cannot be instantiated (BaseAnalytics.analyze
         is ``@abstractmethod``).
         """
+        # Dormant-by-design (audit 2026-08-04): отчёт о вехах ВСЕГО
+        # paper-трека — глобальный и протокол-слепой по построению; на
+        # protocol-контекст агрегатора честный ответ — None (dormant),
+        # а не одинаковый глобальный отчёт для каждого протокола.
+        from spa_core.analytics import _protocol_facts as _pf
+        if (args and _pf.is_protocol_context(args[0])) or \
+                _pf.is_protocol_context(kwargs.get("context")):
+            return None
         return self.get_milestone_report()
 
     def record_day(

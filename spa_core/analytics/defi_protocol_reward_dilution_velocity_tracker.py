@@ -231,6 +231,34 @@ def analyze(
 
     Returns a complete result dict.  Never raises to the caller.
     """
+    # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+    # Контекст агрегатора → структурный профиль из _protocol_facts →
+    # СОБСТВЕННЫЙ движок модуля на легаси-форме входа (лог отключён на
+    # context-пути). Неизвестный протокол → None (громкий dormant, не фабрикация).
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(data):
+        _p = _pf.generic_profile_for(data["protocol"])
+        if _p is None:
+            return None
+        _emit = _p["tvl_usd"] * (_p["apy_pct"] / 100.0) / 365.0 / 2.0
+        _legacy = {
+            "protocol_name": _p["name"],
+            "current_tvl_usd": _p["tvl_usd"],
+            # структурно: скорость притока TVL следует за утилизацией —
+            # различает протоколы детерминированно
+            "tvl_7d_ago_usd": _p["tvl_usd"]
+            * (1.0 - _p["utilization_rate_pct"] / 1000.0),
+            "tvl_30d_ago_usd": _p["tvl_usd"]
+            * (1.0 - _p["utilization_rate_pct"] / 250.0),
+            "current_reward_emission_usd_per_day": _emit,
+            "emission_7d_ago_usd_per_day": _emit
+            * (1.0 + _p["basis_spread_pp"] / 100.0),
+            "current_apy_pct": _p["apy_pct"],
+            "apy_7d_ago_pct": _p["apy_7d_ago"],
+            "apy_30d_ago_pct": _p["initial_apy_pct"],
+        }
+        return _pf.extract_protocol_score(
+            analyze(_legacy, config={"log_path": None}), _p)
     cfg = config or {}
     log_path = cfg.get("log_path", _LOG_PATH)
     d = data if isinstance(data, dict) else {}
@@ -290,7 +318,8 @@ def analyze(
     }
 
     try:
-        _atomic_log(log_path, result)
+        if log_path:
+            _atomic_log(log_path, result)
     except Exception:
         pass  # advisory — never crash caller
 
@@ -314,6 +343,7 @@ class DeFiProtocolRewardDilutionVelocityTracker:
 
     def analyze(self, data: dict | None = None, **kwargs: Any) -> dict:
         """Delegate to module-level ``analyze``."""
+        data = kwargs.pop("context", data)
         return analyze(data, config=self._config, **kwargs)
 
 

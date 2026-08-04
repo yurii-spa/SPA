@@ -298,6 +298,25 @@ class ProtocolDeFiCrossProtocolYieldArbitrageDetector:
             spread_bps, net_arb_apy_pct, execution_complexity_score,
             label, min_spread_bps, position_size_usd, timestamp
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(opportunities):
+            _p = _pf.generic_profile_for(opportunities["protocol"])
+            if _p is None:
+                return None
+            _legacy = [
+                {"protocol": _p["name"], "chain": _p["chain"], "asset": _p["asset"],
+                 "supply_apy_pct": _p["apy_pct"], "borrow_apy_pct": 0.0,
+                 "slippage_bps": max(_p["fee_pct"] * 100.0, 5.0),
+                 "bridge_cost_usd": 0.0},
+                {"protocol": "reference_floor", "chain": _p["chain"],
+                 "asset": _p["asset"], "supply_apy_pct": 4.0, "borrow_apy_pct": 0.0,
+                 "slippage_bps": 5.0, "bridge_cost_usd": 0.0},
+            ]
+            return _pf.extract_protocol_score(self.detect(_legacy), _p)
         min_spread_bps = float(min_spread_bps)
         position_size_usd = float(position_size_usd)
 

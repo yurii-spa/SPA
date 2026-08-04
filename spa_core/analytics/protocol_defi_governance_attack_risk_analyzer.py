@@ -225,6 +225,29 @@ class ProtocolDeFiGovernanceAttackRiskAnalyzer:
 
     def analyze(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze governance attack risk and return result dict."""
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(params):
+            _p = _pf.generic_profile_for(params["protocol"])
+            if _p is None:
+                return None
+            _admin = (_pf.facts_for(params["protocol"]) or {}).get("admin", {})
+            _legacy = {
+                "protocol_name": _p["name"],
+                "governance_token_market_cap_usd": _p["tvl_usd"] * 0.1,
+                "tvl_usd": _p["tvl_usd"],
+                "token_concentration_top10_pct": _p["top10_holder_pct"],
+                "timelock_hours": _p["timelock_hours"],
+                "quorum_pct": 4.0,
+                "voter_participation_pct": _p["voter_participation_pct"],
+                "has_guardian": bool(_p["multisig_required"]),
+                "multisig_threshold": int(_admin.get("multisig_threshold", 1)),
+                "days_since_last_proposal": 7,
+            }
+            return _pf.extract_protocol_score(self.analyze(_legacy), _p)
         self._validate(params)
 
         protocol_name = str(params["protocol_name"])

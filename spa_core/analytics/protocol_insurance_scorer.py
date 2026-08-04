@@ -152,7 +152,7 @@ class ProtocolInsuranceScorer:
     # Public API
     # ------------------------------------------------------------------
 
-    def score(self, protocol_data: Dict) -> Dict:
+    def score(self, protocol_data: Dict, write_log: bool = True) -> Dict:
         """
         Compute the full insurance score for a protocol.
 
@@ -170,6 +170,30 @@ class ProtocolInsuranceScorer:
 
         Returns result dict and appends to ring-buffer log.
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        # легаси-вход этого модуля тоже несёт строковый "protocol" —
+        # различаем по отсутствию доменных ключей (tvl_usd)
+        if _pf.is_protocol_context(protocol_data) and "tvl_usd" not in protocol_data:
+            _p = _pf.generic_profile_for(protocol_data["protocol"])
+            if _p is None:
+                return None
+            _legacy = {
+                "protocol": _p["name"],
+                "has_insurance": False,
+                "insurance_coverage_pct": 0.0,
+                "insurance_provider": "none",
+                "treasury_usd": _p["tvl_usd"] * 0.02,
+                "tvl_usd": _p["tvl_usd"],
+                "bug_bounty_usd": _p["bug_bounty_usd"],
+                "has_timelock": bool(_p["has_timelock"]),
+                "timelock_days": _p["timelock_hours"] / 24.0,
+            }
+            return _pf.extract_protocol_score(self.score(_legacy, write_log=False),
+                                              _p)
         self._validate(protocol_data)
 
         protocol           = protocol_data["protocol"]
@@ -216,7 +240,8 @@ class ProtocolInsuranceScorer:
         }
 
         self._last_result = result
-        _append_log(self._log_path, result)
+        if write_log:
+            _append_log(self._log_path, result)
         return result
 
     def get_protection_tier(self) -> Optional[str]:

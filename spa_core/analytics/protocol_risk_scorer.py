@@ -20,7 +20,7 @@ import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from spa_core.base import BaseAnalytics
 
@@ -249,8 +249,37 @@ class ProtocolRiskScorer(BaseAnalytics):
     KNOWN_PROTOCOLS: Dict[str, "ProtocolInput"] = {}  # populated below class def
 
     # ── abstract method implementation ─────────────────────────────────
-    def analyze(self, *args, **kwargs) -> Dict[str, Any]:
-        """Implement BaseAnalytics.analyze — runs score_all and returns dict."""
+    def analyze(self, *args, **kwargs) -> Optional[Dict[str, Any]]:
+        """Implement BaseAnalytics.analyze — runs score_all and returns dict.
+
+        Protocol-context (ADR-031 Tier-B wiring, audit 2026-08-04): для
+        контекста агрегатора скорит ОДИН протокол из СОБСТВЕННОЙ курируемой
+        базы KNOWN_PROTOCOLS (никакой подстановки чужих данных). Композит
+        модуля документирован как «выше = безопаснее» («Lower composite
+        score = higher risk») → инверсия в риск-шкалу агрегатора:
+        risk = 100 − composite. Протокол вне KNOWN_PROTOCOLS → None →
+        честный dormant (не фабрикация).
+        """
+        from spa_core.analytics import _protocol_facts as _pf
+        _ctx = kwargs.get("context")
+        if _ctx is None and args and _pf.is_protocol_context(args[0]):
+            _ctx = args[0]
+        if _pf.is_protocol_context(_ctx):
+            _key = str(_ctx["protocol"]).strip().lower()
+            _canon = _pf.PROTOCOL_ALIASES.get(_key, _key)
+            _inp = (self.KNOWN_PROTOCOLS.get(_key)
+                    or self.KNOWN_PROTOCOLS.get(_canon))
+            if _inp is None:
+                return None
+            _s = self.score(_inp)
+            return {"risk_score": round(100.0 - _s.composite_score, 4),
+                    "protocol": _inp.protocol_id,
+                    "detail": {"composite_score": _s.composite_score,
+                               "grade": _s.grade,
+                               "tier_recommendation": _s.tier_recommendation,
+                               "risk_flags": _s.risk_flags},
+                    "facts_source": "protocol_risk_scorer_known_protocols",
+                    "facts_as_of": _pf.FACTS_AS_OF}
         scores = self.score_all()
         return {
             "source": "protocol_risk_scorer",

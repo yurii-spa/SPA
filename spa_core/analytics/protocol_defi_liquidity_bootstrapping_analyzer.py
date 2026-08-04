@@ -147,6 +147,12 @@ def analyze(lbp_events: list, config: Optional[dict] = None) -> dict:
     -------
     dict with per-event analyses and aggregate summary.
     """
+    # Dormant-by-design (audit 2026-08-04): анализатор требует реальные
+    # LBP-события (цены/веса/сборы конкретных запусков); структурный
+    # протокол-профиль их дать не может → честный None (dormant).
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(lbp_events):
+        return None
     cfg = config or {}
     log_path = cfg.get("log_path", _LOG_PATH)
     log_cap = int(cfg.get("log_cap", _LOG_CAP))

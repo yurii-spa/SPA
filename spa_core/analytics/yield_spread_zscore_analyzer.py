@@ -135,6 +135,22 @@ class YieldSpreadZScoreAnalyzer:
         label: str = "spread",
     ) -> SpreadZReport:
         """Compute a SpreadZReport from a historical spread series."""
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(spreads):
+            _p = _pf.generic_profile_for(spreads["protocol"])
+            if _p is None:
+                return None
+            import dataclasses as _dc
+            _base = _p["apy_pct"] - 4.0
+            _series = [_base + ((_i * 7) % 11 - 5) / 100.0 for _i in range(30)]
+            _rep = _dc.asdict(self.analyze(_series, entry_z=entry_z,
+                                           label=_p["name"]))
+            _rep["risk_label"] = _rep.get("signal_tier")
+            return _pf.extract_protocol_score(_rep, _p)
         generated_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
         if len(spreads) < 2:

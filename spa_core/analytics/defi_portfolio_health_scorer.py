@@ -129,8 +129,15 @@ def analyze(positions, config=None):
         _ctx_profile = _pf.generic_profile_for(positions["protocol"])
         if _ctx_profile is None:
             return None
-        return _pf.extract_protocol_score(
-            analyze([_ctx_profile]), _ctx_profile)
+        _res = analyze([_ctx_profile])
+        # POLARITY (fix 2026-08-04): total_health_score is HIGHER=BETTER; coercing it
+        # verbatim inverted the risk direction (healthier protocol read as riskier).
+        _ths = _res.get("total_health_score") if isinstance(_res, dict) else None
+        if isinstance(_ths, (int, float)) and 0 <= _ths <= 100:
+            _res = dict(_res)
+            _res["risk_score"] = 100.0 - float(_ths)
+            _res.pop("total_health_score", None)
+        return _pf.extract_protocol_score(_res, _ctx_profile)
     cfg = dict(_DEFAULT_CONFIG)
     if config:
         cfg.update(config)

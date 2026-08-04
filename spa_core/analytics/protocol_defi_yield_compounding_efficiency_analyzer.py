@@ -397,6 +397,27 @@ class ProtocolDeFiYieldCompoundingEfficiencyAnalyzer:
             destroys_yield_count      int  positions labelled COMPOUNDING_DESTROYS_YIELD
             analyzed_at               str  ISO UTC timestamp
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(positions):
+            _p = _pf.generic_profile_for(positions["protocol"])
+            if _p is None:
+                return None
+            _legacy = [{
+                "name": _p["name"],
+                "base_apy_pct": _p["apy_pct"],
+                "gas_cost_per_compound_usd": _p["gas_cost_usd"],
+                "position_size_usd": _p["capital_usd"],
+                "compound_frequency_per_day": 1.0 / 30.0,
+                "auto_compound": _p["performance_fee_pct"] > 0,
+                "protocol_fee_on_compound_pct": _p["performance_fee_pct"] / 10.0,
+            }]
+            return _pf.extract_protocol_score(
+                self.analyze(_legacy, config={**(config or {}), "log_path": None}),
+                _p)
         if config is None:
             config = {}
         if not isinstance(positions, list) or len(positions) == 0:
@@ -425,7 +446,8 @@ class ProtocolDeFiYieldCompoundingEfficiencyAnalyzer:
         }
 
         log_path = config.get("log_path", self.log_path)
-        _append_log(output, log_path)
+        if log_path:
+            _append_log(output, log_path)
         return output
 
     # ------------------------------------------------------------------

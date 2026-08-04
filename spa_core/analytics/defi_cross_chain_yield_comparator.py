@@ -145,8 +145,24 @@ def analyze(
         _ctx_profile = _pf.generic_profile_for(opportunities["protocol"])
         if _ctx_profile is None:
             return None
-        return _pf.extract_protocol_score(
-            analyze([_ctx_profile]), _ctx_profile)
+        # Audit 2026-08-04 (wake dormant): вердикт движка —
+        # opportunities[0]["chain_efficiency_label"] (EXCELLENT..UNVIABLE),
+        # ключ вне словаря extract_protocol_score. Монотонный перевод
+        # собственной шкалы модуля в общий label_map; неизвестный вердикт →
+        # None → честный dormant.
+        _rows = (analyze([_ctx_profile]) or {}).get("opportunities") or []
+        _row = _rows[0] if _rows and isinstance(_rows[0], dict) else None
+        if _row is None:
+            return None
+        _shared = {"EXCELLENT": "EXCELLENT", "GOOD": "GOOD",
+                   "FAIR": "MODERATE", "POOR": "ELEVATED",
+                   "UNVIABLE": "SEVERE"}.get(
+                       str(_row.get("chain_efficiency_label", "")).upper())
+        if _shared is None:
+            return None
+        return {"risk_label": _shared, "protocol": _ctx_profile["name"],
+                "detail": _row, "facts_source": _pf.FACTS_SOURCE,
+                "facts_as_of": _pf.FACTS_AS_OF}
     cfg = config or {}
     reference_chain: str = str(cfg.get("reference_chain", "ethereum")).lower()
 

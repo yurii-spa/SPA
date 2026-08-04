@@ -367,6 +367,13 @@ class ProtocolDeFiYieldSeasonalityAnalyzer:
         dict
             Output dictionary with all seasonality metrics.
         """
+        # Dormant-by-design (audit 2026-08-04): сезонность требует средних
+        # APY за 30/90/180 дней (time-series), которых структурный профиль
+        # дать не может — равные средние дали бы слепую константу
+        # STABLE_YIELD. Честный None (dormant).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(data):
+            return None
         protocol_name = str(data.get("protocol_name", "unknown"))
         current_apy_pct = float(data.get("current_apy_pct", 0.0))
         apy_30d_avg_pct = float(data.get("apy_30d_avg_pct", 0.0))

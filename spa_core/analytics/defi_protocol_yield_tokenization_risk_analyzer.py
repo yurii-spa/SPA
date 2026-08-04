@@ -179,6 +179,23 @@ class DeFiProtocolYieldTokenizationRiskAnalyzer:
 
     def analyze(self, inp: YieldTokenizationInput) -> YieldTokenizationResult:
         """Analyse a single yield tokenization opportunity."""
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; неизвестный протокол → None (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(inp):
+            import dataclasses as _dc
+            _p = _pf.generic_profile_for(inp["protocol"])
+            if _p is None:
+                return None
+            _i = YieldTokenizationInput(
+                protocol_name=_p["name"], maturity_days=90,
+                fixed_rate_pct=_p["apy_pct"],
+                implied_apy_pct=_p["apy_pct"] + _p["basis_spread_pp"],
+                underlying_apy_pct=_p["apy_pct"], tvl_usd=_p["tvl_usd"],
+                pt_market_depth_usd=_p["tvl_usd"] * 0.01, days_to_maturity=60)
+            _rep = _dc.asdict(self.analyze(_i))
+            return _pf.extract_protocol_score(_rep, _p)
         rlvs = self._rate_lock_value_score(inp.fixed_rate_pct, inp.underlying_apy_pct)
         mrs = self._maturity_risk_score(inp.days_to_maturity)
         ler = self._liquidity_exit_risk(inp.pt_market_depth_usd, inp.tvl_usd)

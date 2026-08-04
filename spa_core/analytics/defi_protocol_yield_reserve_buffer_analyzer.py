@@ -312,3 +312,32 @@ class DeFiProtocolYieldReserveBufferAnalyzer:
         """
         results = self.analyze_batch(protocols)
         return sorted(results, key=lambda r: r["reserve_adequacy_score"], reverse=True)
+
+
+# ─── ADR-031 Tier-B context entrypoint (mass wiring 2026-08-04) ───
+def analyze(context=None):
+    """Context-entrypoint для signal_aggregator (ADR-031 Tier-B, audit 2026-08-04).
+
+    Структурный протокол-профиль (_protocol_facts) → СОБСТВЕННЫЙ движок модуля →
+    извлечение score. Неизвестный протокол → None (громкий dormant, НЕ
+    фабрикация). Сам враппер ничего не пишет в логи/ring-buffer'ы.
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    if not _pf.is_protocol_context(context):
+        return None
+    _profile = _pf.generic_profile_for(context["protocol"])
+    _facts = _pf.facts_for(context["protocol"])
+    if _profile is None or _facts is None:
+        return None
+    _result = DeFiProtocolYieldReserveBufferAnalyzer().analyze(protocol_name=_profile["name"], reserve_usd=(_profile["historical_bad_debt_usd"] * _facts["bad_debt"]["reserve_coverage_x"]), total_tvl_usd=_profile["tvl_usd"], bad_debt_history_usd=_profile["historical_bad_debt_usd"], daily_yield_usd=(_profile["tvl_usd"] * _profile["apy_pct"] / 100.0 / 365.0), insured_tvl_pct=_facts["systemic"]["insurance_pct_of_tvl"])
+    import dataclasses as _dc
+    if _dc.is_dataclass(_result) and not isinstance(_result, type):
+        _result = _dc.asdict(_result)
+    # Полярность: движок отдаёт reserve_adequacy_score (выше = ЛУЧШЕ); сигнал агрегатора —
+    # риск 0-100 (выше = хуже). Честная инверсия, не сырое значение.
+    _val = _result.get("reserve_adequacy_score")
+    if not isinstance(_val, (int, float)) or isinstance(_val, bool):
+        return None
+    return {"risk_score": max(0.0, min(100.0, 100.0 - float(_val))),
+            "protocol": _profile["name"], "polarity": "inverted:reserve_adequacy_score",
+            "facts_source": _pf.FACTS_SOURCE, "facts_as_of": _pf.FACTS_AS_OF}

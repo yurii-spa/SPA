@@ -396,6 +396,26 @@ class ProtocolDeFiProtocolUpgradeRiskAnalyzer:
         upgrade_frequency_per_year: float = 0.0,
     ) -> dict:
         """Analyze upgrade risk for a DeFi protocol.  See module-level analyze()."""
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(upgrade_mechanism):
+            _p = _pf.generic_profile_for(upgrade_mechanism["protocol"])
+            if _p is None:
+                return None
+            _mech = ("timelock" if _p["timelock_hours"] > 0
+                     else "multisig" if _p["multisig_required"] else "proxy")
+            _t1 = _p["bug_bounty_usd"] >= 1_000_000.0
+            return _pf.extract_protocol_score(
+                self.analyze(_mech,
+                             timelock_hours=_p["timelock_hours"],
+                             governance_participation_pct=
+                                 _p["voter_participation_pct"],
+                             last_upgrade_days_ago=90.0,
+                             audit_coverage_pct=95.0 if _t1 else 80.0,
+                             upgrade_frequency_per_year=2.0), _p)
         return analyze(
             upgrade_mechanism=upgrade_mechanism,
             timelock_hours=timelock_hours,

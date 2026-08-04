@@ -74,6 +74,27 @@ class DeFiProtocolYieldSourceDiversificationScorer:
 
         Returns a result dict with all required output fields.
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(positions):
+            _p = _pf.generic_profile_for(positions["protocol"])
+            if _p is None:
+                return None
+            _kind = (_pf.facts_for(positions["protocol"]) or {}).get(
+                "kind", "lending")
+            _yt = {"lending": "lending", "rwa_credit": "lending",
+                   "vault": "farming", "yield_tokenization": "farming",
+                   "synthetic_dollar": "cdp", "amm": "amm", "dex": "amm",
+                   "staking": "staking",
+                   "liquid_staking": "staking"}.get(_kind, "lending")
+            _legacy = [{"protocol": _p["name"], "chain": _p["chain"],
+                        "yield_type": _yt, "value_usd": _p["value_usd"],
+                        "apy_pct": _p["apy_pct"]}]
+            return _pf.extract_protocol_score(
+                self.score(_legacy, protocol_name=_p["name"], write_log=False), _p)
         if not positions:
             return self._empty_result(protocol_name)
 

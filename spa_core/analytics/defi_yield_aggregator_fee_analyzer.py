@@ -258,8 +258,23 @@ class DeFiYieldAggregatorFeeAnalyzer:
             _ctx_profile = _pf.generic_profile_for(aggregators["protocol"])
             if _ctx_profile is None:
                 return None
-            return _pf.extract_protocol_score(
-                self.analyze([_ctx_profile]), _ctx_profile)
+            # Audit 2026-08-04 (wake dormant): вердикт движка —
+            # aggregators[0]["fee_label"] (LOW_FEES..EXTRACTIVE), ключ вне
+            # словаря extract_protocol_score. Монотонный перевод собственной
+            # шкалы в общий label_map; неизвестный вердикт → None → dormant.
+            _rows = (self.analyze([_ctx_profile]) or {}).get("aggregators") or []
+            _row = _rows[0] if _rows and isinstance(_rows[0], dict) else None
+            if _row is None:
+                return None
+            _shared = {"LOW_FEES": "LOW", "MODERATE": "MODERATE",
+                       "HIGH": "HIGH", "VERY_HIGH": "SEVERE",
+                       "EXTRACTIVE": "CRITICAL"}.get(
+                           str(_row.get("fee_label", "")).upper())
+            if _shared is None:
+                return None
+            return {"risk_label": _shared, "protocol": _ctx_profile["name"],
+                    "detail": _row, "facts_source": _pf.FACTS_SOURCE,
+                    "facts_as_of": _pf.FACTS_AS_OF}
         if config is None:
             config = {}
 

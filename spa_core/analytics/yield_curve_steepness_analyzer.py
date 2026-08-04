@@ -270,6 +270,12 @@ def analyze(points, config: dict = None) -> dict:
     is_monotonic_increasing, curve_shape, recommended_tenor, grade,
     classification, risk_flags, recommendations, timestamp.
     """
+    # Dormant-by-design (audit 2026-08-04): кривая доходности требует ≥2
+    # тенoров (lock-up срок → APY); структурный однопротокольный профиль
+    # даёт одну точку → всегда INSUFFICIENT_POINTS. Честный None (dormant).
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(points):
+        return None
     cfg = config or {}
     flat_eps = float(cfg.get("flat_eps_bps_per_day", _DEFAULT_FLAT_EPS_BPS_PER_DAY))
     min_marginal = float(cfg.get("min_marginal_bps_per_day", _DEFAULT_MIN_MARGINAL_BPS_PER_DAY))

@@ -113,7 +113,8 @@ class ProtocolDeFiProtocolInsuranceCoverageAnalyzer:
     # Public API
     # ------------------------------------------------------------------
 
-    def analyze(self, protocol: Dict[str, Any]) -> Dict[str, Any]:
+    def analyze(self, protocol: Dict[str, Any],
+                write_log: bool = True) -> Dict[str, Any]:
         """
         Analyze insurance coverage for one protocol and return scoring dict.
 
@@ -131,6 +132,29 @@ class ProtocolDeFiProtocolInsuranceCoverageAnalyzer:
         historical_claims_paid_pct float  0–100
         max_single_claim_usd     float >= 0
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(protocol):
+            _p = _pf.generic_profile_for(protocol["protocol"])
+            if _p is None:
+                return None
+            _legacy = {
+                "protocol_name": _p["name"],
+                "tvl_usd": _p["tvl_usd"],
+                "coverage_usd": 0.0,
+                "premium_apy_pct": 0.0,
+                "coverage_provider": "none",
+                "covered_risks": [],
+                "exclusions": [],
+                "claim_processing_days": 30,
+                "historical_claims_paid_pct": 0.0,
+                "max_single_claim_usd": 0.0,
+            }
+            return _pf.extract_protocol_score(self.analyze(_legacy, write_log=False),
+                                              _p)
         self._validate(protocol)
 
         tvl          = float(protocol["tvl_usd"])
@@ -173,7 +197,8 @@ class ProtocolDeFiProtocolInsuranceCoverageAnalyzer:
             "analyzed_at":             time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
 
-        self._append_log(result)
+        if write_log:
+            self._append_log(result)
         return result
 
     # ------------------------------------------------------------------

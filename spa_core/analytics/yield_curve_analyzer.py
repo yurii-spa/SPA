@@ -117,6 +117,30 @@ def analyze(rate_data: list[dict], config: dict | None = None) -> dict:
     dict
         Full analysis result (see module docstring for schema).
     """
+    # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+    # Контекст агрегатора → структурный профиль из _protocol_facts →
+    # СОБСТВЕННЫЙ движок модуля на легаси-форме входа (структурная кривая
+    # по тенорам; лог отключён на context-пути). Неизвестный протокол →
+    # None (громкий dormant, не фабрикация).
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(rate_data):
+        _p = _pf.generic_profile_for(rate_data["protocol"])
+        if _p is None:
+            return None
+        _apy = _p["apy_pct"]
+        _b = _p["basis_spread_pp"]
+        _borrow_spread = max(_p["utilization_rate_pct"] / 20.0, 0.5)
+        _rows = []
+        for _d, _bump in ((7, -0.5 * _b), (30, 0.0), (90, _b), (180, 1.5 * _b)):
+            _supply = _apy + _bump
+            _rows.append({
+                "duration_days": _d,
+                "protocol": _p["name"],
+                "borrow_rate": _supply + _borrow_spread,
+                "supply_rate": _supply,
+            })
+        return _pf.extract_protocol_score(
+            analyze(_rows, config={**(config or {}), "write_log": False}), _p)
     cfg = config or {}
     short_max = int(cfg.get("short_max_days", DEFAULT_SHORT_MAX_DAYS))
     medium_max = int(cfg.get("medium_max_days", DEFAULT_MEDIUM_MAX_DAYS))
@@ -218,7 +242,8 @@ def analyze(rate_data: list[dict], config: dict | None = None) -> dict:
         "timestamp": time.time(),
     }
 
-    _append_log(result)
+    if cfg.get("write_log", True):
+        _append_log(result)
     return result
 
 

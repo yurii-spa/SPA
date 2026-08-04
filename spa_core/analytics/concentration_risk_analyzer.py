@@ -134,6 +134,18 @@ class ConcentrationRiskAnalyzer:
         labels: Optional[List[str]] = None,
     ) -> ConcentrationReport:
         """Compute a ConcentrationReport from a list of position sizes (USD or weights)."""
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; неизвестный протокол → None (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(positions):
+            import dataclasses as _dc
+            _p = _pf.generic_profile_for(positions["protocol"])
+            if _p is None:
+                return None
+            _rep = _dc.asdict(self.analyze([_p["value_usd"]], labels=[_p["name"]]))
+            _rep["risk_label"] = _rep.get("concentration_tier")
+            return _pf.extract_protocol_score(_rep, _p)
         generated_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
         total = sum(positions) if positions else 0.0

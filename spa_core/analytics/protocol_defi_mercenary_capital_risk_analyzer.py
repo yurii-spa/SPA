@@ -562,6 +562,30 @@ def analyze(
     dict
         Full analysis result. Never raises to the caller.
     """
+    # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+    # Контекст агрегатора → структурный профиль из _protocol_facts →
+    # СОБСТВЕННЫЙ движок модуля на легаси-форме входа (лог отключён на
+    # context-пути). Неизвестный протокол → None (громкий dormant, не фабрикация).
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(protocol):
+        _p = _pf.generic_profile_for(protocol["protocol"])
+        if _p is None:
+            return None
+        _emit = _p["tvl_usd"] * (_p["apy_pct"] / 200.0) / 365.0
+        _legacy = {
+            "name": _p["name"],
+            "total_tvl_usd": _p["tvl_usd"],
+            "incentivized_tvl_usd": _p["tvl_usd"] * 0.4,
+            "incentive_apr_pct": _p["apy_pct"] / 2.0,
+            "base_organic_apr_pct": _p["apy_pct"] / 2.0,
+            "avg_deposit_age_days": 45.0,
+            "tvl_inflow_30d_usd": _p["tvl_usd"] * 0.05,
+            "tvl_outflow_30d_usd": _p["tvl_usd"] * 0.04,
+            "reward_token_emissions_usd_per_day": _emit,
+            "protocol_revenue_usd_per_day": _emit,
+        }
+        return _pf.extract_protocol_score(
+            analyze(_legacy, config={"log_path": None}), _p)
     cfg = config or {}
     log_path = cfg.get("log_path", _LOG_PATH)
 
@@ -664,7 +688,8 @@ def analyze(
     }
 
     try:
-        _atomic_log(log_path, result)
+        if log_path:
+            _atomic_log(log_path, result)
     except Exception:
         pass  # advisory: never crash caller
 
@@ -746,6 +771,7 @@ class ProtocolDeFiMercenaryCapitalRiskAnalyzer:
 
     def analyze(self, protocol: dict | None = None, **kwargs: Any) -> dict:
         """Delegate to module-level ``analyze``."""
+        protocol = kwargs.pop("context", protocol)
         return analyze(protocol, config=self._config, **kwargs)
 
     def analyze_portfolio(self, protocols: list) -> dict:

@@ -147,6 +147,13 @@ def analyze(snapshot: dict, config: dict | None = None) -> dict:
     dict with keys: protocols, migration_pairs, net_ecosystem_flow,
                     biggest_gainer, biggest_loser, timestamp.
     """
+    # Dormant-by-design (audit 2026-08-04): детектор миграции ликвидности
+    # требует историю TVL-потоков между НЕСКОЛЬКИМИ протоколами; структурный
+    # однопротокольный профиль этого дать не может → честный None (dormant),
+    # а не прогон движка на пустых дефолтах.
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(snapshot):
+        return None
     if config is None:
         config = {}
     significant_pct = float(config.get("significant_change_pct", _DEFAULT_SIGNIFICANT_CHANGE_PCT))

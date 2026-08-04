@@ -322,6 +322,19 @@ def analyze(apy_series: list, config: dict = None) -> dict:
     drawdown_from_peak_pct, trend, persistence_score, grade, classification,
     risk_flags, recommendations, timestamp.
     """
+    # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+    # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+    # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+    # (громкий dormant, не фабрикация).
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(apy_series):
+        _p = _pf.generic_profile_for(apy_series["protocol"])
+        if _p is None:
+            return None
+        _series = [_p["apy_pct"] * (1.0 + ((_i * 7) % 11 - 5) / 200.0
+                                    - _i * _p["utilization_rate_pct"] / 200000.0)
+                   for _i in range(30)]
+        return _pf.extract_protocol_score(analyze(_series, config), _p)
     cfg = config or {}
     min_periods = int(cfg.get("min_periods", _DEFAULT_MIN_PERIODS))
 

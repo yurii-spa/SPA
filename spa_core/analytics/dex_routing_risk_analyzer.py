@@ -153,6 +153,25 @@ class DEXRoutingRiskAnalyzer:
         return warns
 
     def analyze(self, profile: RoutingProfile) -> RoutingRiskReport:
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; неизвестный протокол → None (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(profile):
+            import dataclasses as _dc
+            _p = _pf.generic_profile_for(profile["protocol"])
+            if _p is None:
+                return None
+            _hop = RoutingHop(dex_id="uniswap_v3", pool_address="ctx",
+                              token_in=_p["asset"], token_out="USDC",
+                              pool_tvl_usd=_p["tvl_usd"],
+                              hop_slippage_bps=max(_p["fee_pct"] * 100.0, 5.0))
+            _inp = RoutingProfile(route_id=_p["name"],
+                                  trade_amount_usd=_p["capital_usd"], hops=[_hop],
+                                  gas_price_gwei=20.0, eth_price_usd=3000.0,
+                                  max_slippage_tolerance_bps=50.0)
+            _rep = _dc.asdict(self.analyze(_inp))
+            return _pf.extract_protocol_score(_rep, _p)
         hop_count = len(profile.hops)
         total_slip = self._total_slippage_bps(profile.hops)
         cum_slip_pct = self._cumulative_slippage_pct(total_slip)

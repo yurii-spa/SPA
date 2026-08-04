@@ -164,6 +164,22 @@ class StablecoinPegDeviationTracker:
         depeg_threshold_bps: float = DEFAULT_DEPEG_THRESHOLD_BPS,
     ) -> PegDeviationReport:
         """Compute a PegDeviationReport from a price series clustered around *peg*."""
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(prices):
+            _p = _pf.generic_profile_for(prices["protocol"])
+            if _p is None:
+                return None
+            import dataclasses as _dc
+            _dev = _p["basis_spread_pp"] / 200.0
+            _series = [1.0 - _dev * ((_i * 3) % 7) / 7.0 for _i in range(30)]
+            _rep = _dc.asdict(self.analyze(_series, peg=peg, symbol=_p["asset"],
+                                           depeg_threshold_bps=depeg_threshold_bps))
+            _rep["risk_label"] = _rep.get("severity_tier")
+            return _pf.extract_protocol_score(_rep, _p)
         generated_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
         if not prices:

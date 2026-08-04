@@ -528,3 +528,25 @@ def main(argv: Optional[List[str]] = None) -> int:  # noqa: C901
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# ─── ADR-031 Tier-B context entrypoint (mass wiring 2026-08-04) ───
+def analyze(context=None):
+    """Context-entrypoint для signal_aggregator (ADR-031 Tier-B, audit 2026-08-04).
+
+    Структурный протокол-профиль (_protocol_facts) → СОБСТВЕННЫЙ движок модуля →
+    извлечение score. Неизвестный протокол → None (громкий dormant, НЕ
+    фабрикация). Сам враппер ничего не пишет в логи/ring-buffer'ы.
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    if not _pf.is_protocol_context(context):
+        return None
+    _profile = _pf.generic_profile_for(context["protocol"])
+    _facts = _pf.facts_for(context["protocol"])
+    if _profile is None or _facts is None:
+        return None
+    _result = LiquidationRiskHeatmap().analyze(positions=[_profile])
+    import dataclasses as _dc
+    if _dc.is_dataclass(_result) and not isinstance(_result, type):
+        _result = _dc.asdict(_result)
+    return _pf.extract_protocol_score(_result, _profile)

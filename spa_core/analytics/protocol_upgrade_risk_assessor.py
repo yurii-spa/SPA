@@ -185,6 +185,27 @@ def _action_items(proposal: UpgradeProposal, category: str) -> List[str]:
 
 def assess(proposal: UpgradeProposal) -> UpgradeRiskReport:
     """Assess a single upgrade proposal and return UpgradeRiskReport."""
+    # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+    # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+    # движок модуля; неизвестный протокол → None (громкий dormant, не фабрикация).
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(proposal):
+        import dataclasses as _dc
+        _p = _pf.generic_profile_for(proposal["protocol"])
+        if _p is None:
+            return None
+        _inp = UpgradeProposal(
+            proposal_id="ctx", protocol=_p["name"],
+            upgrade_type="PARAMETER_CHANGE", lines_changed=200,
+            audit_status=("MULTI_AUDITED"
+                          if _p["bug_bounty_usd"] >= 1_000_000.0 else "AUDITED"),
+            timelock_hours=_p["timelock_hours"], has_rollback=True,
+            affected_tvl_usd=_p["tvl_usd"],
+            community_vote_pct=50.0 + _p["voter_participation_pct"],
+            days_since_last_upgrade=90)
+        _rep = _dc.asdict(assess(_inp))
+        _rep["risk_label"] = _rep.get("risk_category")
+        return _pf.extract_protocol_score(_rep, _p)
     code   = _code_change_risk(proposal)
     audit  = _audit_risk(proposal)
     gov    = _governance_risk(proposal)

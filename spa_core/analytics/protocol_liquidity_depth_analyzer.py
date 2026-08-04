@@ -70,6 +70,16 @@ class ProtocolLiquidityDepthAnalyzer(BaseAnalytics):
                 mid_price       float            – reference mid price
                 position_size_usd float          – intended position size in USD
         """
+        # Dormant-by-design (audit 2026-08-04): анализатор требует живой
+        # ордербук (bid/ask-уровни, mid price); структурный профиль их дать
+        # не может — выдумывать стакан запрещено. Честный None (dormant).
+        # Легаси-ордербук тоже содержит "protocol" — контекст отличаем по
+        # ОТСУТСТВИЮ доменных полей стакана (bids / asks).
+        from spa_core.analytics import _protocol_facts as _pf
+        if (_pf.is_protocol_context(orderbook_data)
+                and "bids" not in orderbook_data
+                and "asks" not in orderbook_data):
+            return None
         protocol = str(orderbook_data.get("protocol", "unknown"))
         bids: list[tuple[float, float]] = [
             (float(b[0]), float(b[1])) for b in orderbook_data.get("bids", [])

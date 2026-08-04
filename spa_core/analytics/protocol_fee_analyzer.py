@@ -310,3 +310,37 @@ if __name__ == "__main__":
     import sys
     if "--check" in sys.argv or len(sys.argv) == 1:
         _demo_run()
+
+
+# ─── ADR-031 Tier-B context entrypoint (mass wiring 2026-08-04) ───
+def analyze(context=None):
+    """Context-entrypoint для signal_aggregator (ADR-031 Tier-B, audit 2026-08-04).
+
+    Структурный протокол-профиль (_protocol_facts) → СОБСТВЕННЫЙ движок модуля →
+    извлечение score. Неизвестный протокол → None (громкий dormant, НЕ
+    фабрикация). Сам враппер ничего не пишет в логи/ring-buffer'ы.
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    if not _pf.is_protocol_context(context):
+        return None
+    _profile = _pf.generic_profile_for(context["protocol"])
+    _facts = _pf.facts_for(context["protocol"])
+    if _profile is None or _facts is None:
+        return None
+    _result = analyze_market(protocols_data=[dict(
+        _profile, entry_fee_pct=0.0,
+        exit_fee_pct=_profile["withdrawal_fee_pct"],
+        hurdle_rate_pct=0.0)])
+    import dataclasses as _dc
+    if _dc.is_dataclass(_result) and not isinstance(_result, type):
+        _result = _dc.asdict(_result)
+    # У движка нет risk-ключа: fee-drag как ДОЛЯ брутто-доходности,
+    # съедаемая комиссиями (0-100%). Документированная шкала, не сырец.
+    _drag = _result.get("avg_fee_drag_pct")
+    _gross = _result.get("avg_gross_apy_pct")
+    if not isinstance(_drag, (int, float)) or isinstance(_drag, bool) or             not isinstance(_gross, (int, float)) or isinstance(_gross, bool):
+        return None
+    return {"risk_score": max(0.0, min(100.0,
+                float(_drag) / max(float(_gross), 0.01) * 100.0)),
+            "protocol": _profile["name"], "scale": "fee_drag_share_of_gross",
+            "facts_source": _pf.FACTS_SOURCE, "facts_as_of": _pf.FACTS_AS_OF}

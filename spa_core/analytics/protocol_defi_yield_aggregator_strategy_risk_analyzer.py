@@ -97,6 +97,33 @@ class ProtocolDeFiYieldAggregatorStrategyRiskAnalyzer:
         -------
         dict with all result keys listed in class docstring
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(data):
+            _p = _pf.generic_profile_for(data["protocol"])
+            if _p is None:
+                return None
+            _t1 = _p["bug_bounty_usd"] >= 1_000_000.0
+            _legacy = {
+                "aggregator_name": _p["name"],
+                "underlying_protocols": [{
+                    "name": _p["name"], "allocation_pct": 100.0,
+                    "tvl_usd": _p["tvl_usd"],
+                    "audit_count": 3 if _t1 else 2,
+                }],
+                "total_tvl_usd": _p["tvl_usd"],
+                "strategy_apy_pct": _p["apy_pct"],
+                "performance_fee_pct": _p["performance_fee_pct"],
+                "withdrawal_fee_pct": _p["withdrawal_fee_pct"],
+                "auto_compound": _p["performance_fee_pct"] > 0,
+                "days_since_last_rebalance": 7,
+                "smart_contract_layers": 2,
+            }
+            return _pf.extract_protocol_score(self.analyze(_legacy, write_log=False),
+                                              _p)
         self._validate(data)
 
         name           = str(data["aggregator_name"])

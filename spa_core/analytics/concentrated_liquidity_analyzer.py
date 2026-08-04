@@ -171,6 +171,23 @@ class ConcentratedLiquidityAnalyzer:
 
     def analyze(self, position: CLPosition) -> CLAnalysis:
         """Compute a full CLAnalysis for a single CLPosition."""
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; неизвестный протокол → None (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(position):
+            import dataclasses as _dc
+            _p = _pf.generic_profile_for(position["protocol"])
+            if _p is None:
+                return None
+            _pr = PriceRange(lower_tick_price=0.95, upper_tick_price=1.05,
+                             current_price=1.0 - _p["basis_spread_pp"] / 200.0)
+            _inp = CLPosition(token_a=_p["asset"], token_b="USDC",
+                              fee_tier=0.05 if _p["basis_spread_pp"] < 1.0 else 0.3,
+                              price_range=_pr, liquidity_usd=_p["capital_usd"])
+            _rep = _dc.asdict(self.analyze(_inp))
+            _rep["risk_label"] = _rep.get("range_quality")
+            return _pf.extract_protocol_score(_rep, _p)
         pr = position.price_range
         lower = pr.lower_tick_price
         upper = pr.upper_tick_price

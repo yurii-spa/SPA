@@ -264,6 +264,13 @@ class YieldSpreadAnalyzer:
         apy_map        : current APY (fractional) per adapter
         benchmark_apy  : override the instance benchmark for this call
         """
+        # Dormant-by-design (audit 2026-08-04): спред-анализ сравнивает
+        # НАБОР адаптеров с бенчмарком; однопротокольный контекст агрегатора
+        # раньше интерпретировался как apy_map и давал мусорные SpreadPoint
+        # по ключам контекста. Честный None (dormant).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(apy_map):
+            return None
         bench = self.benchmark_apy if benchmark_apy is None else benchmark_apy
         bench_f = _safe_float(bench)
         if bench_f is None:

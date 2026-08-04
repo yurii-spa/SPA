@@ -127,6 +127,20 @@ class ProtocolConcentrationMonitor:
         single_protocol_cap_pct: float = DEFAULT_SINGLE_PROTOCOL_CAP_PCT,
     ) -> ConcentrationReport:
         """Compute a ConcentrationReport for a basket of protocol exposures."""
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; неизвестный протокол → None (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(exposures):
+            import dataclasses as _dc
+            _p = _pf.generic_profile_for(exposures["protocol"])
+            if _p is None:
+                return None
+            _inp = [PositionExposure(protocol=_p["name"],
+                                     value_usd=_p["value_usd"])]
+            _rep = _dc.asdict(self.analyze(_inp))
+            _rep["risk_label"] = _rep.get("concentration_level")
+            return _pf.extract_protocol_score(_rep, _p)
         agg = self._aggregate(exposures)
         total = sum(agg.values())
         generated_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())

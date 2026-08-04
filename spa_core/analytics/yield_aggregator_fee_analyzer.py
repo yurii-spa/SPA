@@ -121,6 +121,25 @@ def analyze(aggregators: list, config: dict = None) -> dict:
     dict with keys: aggregators, best_net_yield, most_fee_efficient,
     market_summary, timestamp.
     """
+    # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+    # Контекст агрегатора → структурный профиль из _protocol_facts →
+    # СОБСТВЕННЫЙ движок модуля на легаси-форме входа.
+    # Неизвестный протокол → None (громкий dormant, не фабрикация).
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(aggregators):
+        _p = _pf.generic_profile_for(aggregators["protocol"])
+        if _p is None:
+            return None
+        _legacy = [{
+            "name": _p["name"],
+            "gross_apy_pct": _p["gross_apy_pct"],
+            "management_fee_pct": _p["management_fee_pct"],
+            "performance_fee_pct": _p["performance_fee_pct"],
+            "withdrawal_fee_pct": _p["withdrawal_fee_pct"],
+            "holding_period_days": _p["holding_period_days"],
+            "autocompound": _p["performance_fee_pct"] > 0,
+        }]
+        return _pf.extract_protocol_score(analyze(_legacy, config), _p)
     cfg = dict(_DEFAULT_CONFIG)
     if config:
         cfg.update(config)

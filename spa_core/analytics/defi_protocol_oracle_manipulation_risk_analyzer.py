@@ -342,6 +342,27 @@ class DeFiProtocolOracleManipulationRiskAnalyzer:
             manipulation_proof_count   int
             analyzed_at                str          ISO UTC timestamp
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(oracles):
+            _p = _pf.generic_profile_for(oracles["protocol"])
+            if _p is None:
+                return None
+            _ot = str(_p["oracle_type"])
+            _legacy = [{
+                "name": _p["name"],
+                "oracle_type": _ot,
+                "twap_window_seconds": 1800.0 if "twap" in _ot else 0.0,
+                "oracle_sources_count": 3 if _ot == "chainlink" else 1,
+                "historical_manipulation_incidents": 0,
+                "tvl_at_risk_usd": _p["tvl_usd"],
+                "manipulation_cost_usd_estimate": _p["tvl_usd"] * 0.05,
+            }]
+            return _pf.extract_protocol_score(
+                self.analyze(_legacy, config={**(config or {}), "log_path": None}), _p)
         if config is None:
             config = {}
         if not isinstance(oracles, list) or len(oracles) == 0:
@@ -370,7 +391,8 @@ class DeFiProtocolOracleManipulationRiskAnalyzer:
         }
 
         log_path = config.get("log_path", self.log_path)
-        _append_log(output, log_path)
+        if log_path:
+            _append_log(output, log_path)
         return output
 
     # ------------------------------------------------------------------

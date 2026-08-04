@@ -330,6 +330,35 @@ class DeFiProtocolStablecoinBasketCompositionRiskAnalyzer:
             component_count          int
             analyzed_at              str    ISO-8601 UTC timestamp
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(basket):
+            _p = _pf.generic_profile_for(basket["protocol"])
+            if _p is None:
+                return None
+            _facts = _pf.facts_for(basket["protocol"]) or {}
+            _kind = _facts.get("kind", "lending")
+            _bt = ("rwa_backed" if _kind == "rwa_credit"
+                   else "crypto_overcollateral" if _kind == "synthetic_dollar"
+                   else "fiat_backed")
+            _legacy = {
+                "basket_name": _p["name"],
+                "components": [{
+                    "symbol": _p["asset"], "weight_pct": 100.0, "backing_type": _bt,
+                    "depeg_history_count": 0,
+                    "current_peg_deviation_pct": _p["basis_spread_pp"] / 2.0,
+                }],
+                "total_basket_tvl_usd": _p["tvl_usd"],
+                "redemption_mechanism": ("delayed" if _p["illiquid_asset_pct"] > 30.0
+                                         else "direct"),
+                "has_insurance": False,
+            }
+            return _pf.extract_protocol_score(
+                self.analyze(_legacy, config={**(config or {}), "write_log": False}),
+                _p)
         if config is None:
             config = {}
 
@@ -359,7 +388,8 @@ class DeFiProtocolStablecoinBasketCompositionRiskAnalyzer:
             "analyzed_at": _iso_now(),
         }
 
-        _append_log(output)
+        if (config or {}).get("write_log", True):
+            _append_log(output)
         return output
 
 

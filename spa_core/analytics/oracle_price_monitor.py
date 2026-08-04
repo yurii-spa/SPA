@@ -113,6 +113,25 @@ class OraclePriceMonitor:
         return "✅ Oracle healthy — fresh price, normal deviation."
 
     def assess(self, feed: OracleFeed) -> OracleHealth:
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; неизвестный протокол → None (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(feed):
+            import dataclasses as _dc
+            _p = _pf.generic_profile_for(feed["protocol"])
+            if _p is None:
+                return None
+            import time as _t
+            _now = _t.time()
+            _inp = OracleFeed(
+                feed_id="ctx", protocol=_p["name"], asset=_p["asset"],
+                reported_price=1.0 - _p["basis_spread_pp"] / 200.0,
+                reference_price=1.0, last_update_ts=_now - 600.0,
+                current_ts=_now, heartbeat_seconds=3600)
+            _rep = _dc.asdict(self.assess(_inp))
+            _rep["risk_label"] = _rep.get("overall_status")
+            return _pf.extract_protocol_score(_rep, _p)
         age = self._age(feed)
         staleness = self._staleness(age)
         dev_pct = self._deviation_pct(feed.reported_price, feed.reference_price)

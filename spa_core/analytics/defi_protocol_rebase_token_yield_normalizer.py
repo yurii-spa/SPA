@@ -545,6 +545,30 @@ def analyze(
     dict
         Full analysis result. Never raises to the caller.
     """
+    # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+    # Контекст агрегатора → структурный профиль из _protocol_facts →
+    # СОБСТВЕННЫЙ движок модуля на легаси-форме входа (лог отключён на
+    # context-пути). Неизвестный протокол → None (громкий dormant, не фабрикация).
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(token):
+        _p = _pf.generic_profile_for(token["protocol"])
+        if _p is None:
+            return None
+        _legacy = {
+            "name": _p["name"],
+            "advertised_apy_pct": _p["apy_pct"],
+            "rebase_frequency_per_day": 1.0,
+            # структурно: рост обеспечения отстаёт от роста supply тем
+            # сильнее, чем ниже утилизация капитала протокола
+            "backing_value_growth_pct": (
+                _p["apy_pct"] / 12.0 * _p["utilization_rate_pct"] / 100.0),
+            "supply_growth_pct": _p["apy_pct"] / 12.0,
+            "token_price_change_pct": -_p["basis_spread_pp"],
+            "holder_share_pct": _p["top10_holder_pct"],
+            "data_quality": "ok",
+        }
+        return _pf.extract_protocol_score(
+            analyze(_legacy, config={"log_path": None}), _p)
     cfg = config or {}
     log_path = cfg.get("log_path", _LOG_PATH)
 
@@ -642,7 +666,8 @@ def analyze(
     }
 
     try:
-        _atomic_log(log_path, result)
+        if log_path:
+            _atomic_log(log_path, result)
     except Exception:
         pass  # advisory: never crash caller
 
@@ -731,6 +756,7 @@ class DeFiProtocolRebaseTokenYieldNormalizer:
 
     def analyze(self, token: dict | None = None, **kwargs: Any) -> dict:
         """Delegate to module-level ``analyze``."""
+        token = kwargs.pop("context", token)
         return analyze(token, config=self._config, **kwargs)
 
     def analyze_portfolio(self, positions: list) -> dict:

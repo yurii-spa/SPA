@@ -198,7 +198,8 @@ class ProtocolDeFiGasOptimizationYieldImpactAnalyzer:
     # Public API
     # ------------------------------------------------------------------
 
-    def analyze(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def analyze(self, params: Dict[str, Any],
+                write_log: bool = True) -> Dict[str, Any]:
         """
         Analyse gas impact on yield and return a result dict.
 
@@ -218,6 +219,27 @@ class ProtocolDeFiGasOptimizationYieldImpactAnalyzer:
         -------
         dict with OUTPUT_KEYS
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(params):
+            _p = _pf.generic_profile_for(params["protocol"])
+            if _p is None:
+                return None
+            _legacy = {
+                "chain": _p["chain"],
+                "compound_frequency_per_year": 12,
+                "estimated_gas_usd_per_tx": _p["gas_cost_usd"],
+                "gas_price_gwei": 20.0,
+                "gross_apy_pct": _p["gross_apy_pct"],
+                "position_usd": _p["capital_usd"],
+                "protocol_gas_rebate_pct": 0.0,
+                "txs_per_year": 24,
+            }
+            return _pf.extract_protocol_score(self.analyze(_legacy, write_log=False),
+                                              _p)
         self._validate(params)
 
         position_usd = float(params["position_usd"])
@@ -257,7 +279,8 @@ class ProtocolDeFiGasOptimizationYieldImpactAnalyzer:
             "timestamp": time.time(),
         }
 
-        self._append_log(result)
+        if write_log:
+            self._append_log(result)
         return result
 
     # ------------------------------------------------------------------

@@ -125,6 +125,22 @@ class LiquidityPoolDepthAnalyzer:
         return recs
 
     def analyze(self, p: PoolDepthProfile) -> PoolDepthReport:
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; неизвестный протокол → None (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(p):
+            import dataclasses as _dc
+            _p = _pf.generic_profile_for(p["protocol"])
+            if _p is None:
+                return None
+            _inp = PoolDepthProfile(
+                pool_id=_p["pair"], pool_type="CONSTANT_PRODUCT",
+                tvl_usd=_p["tvl_usd"], volume_24h_usd=_p["volume_24h_usd"],
+                trade_size_usd=_p["capital_usd"], tick_spacing=60,
+                active_liquidity_pct=20.0)
+            _rep = _dc.asdict(self.analyze(_inp))
+            return _pf.extract_protocol_score(_rep, _p)
         price_impact = self._price_impact_pct(p)
         fee_apy = self._fee_apy_estimate_pct(p)
         depth_score = self._depth_score(price_impact)

@@ -137,8 +137,29 @@ class DeFiProtocolLendingUtilizationElasticityAnalyzer:
             _ctx_profile = _pf.generic_profile_for(protocols["protocol"])
             if _ctx_profile is None:
                 return None
-            return _pf.extract_protocol_score(
-                self.analyze([_ctx_profile]), _ctx_profile)
+            # Audit 2026-08-04 (wake dormant): движок читает
+            # ``current_utilization`` (доля 0-1), а профиль даёт
+            # ``utilization_rate_pct`` — раньше движок видел 0.0 для всех.
+            # Легаси-аргумент строим ИЗ профиля (честная конверсия единиц),
+            # вердикт utilization_label уже в общем словаре label_map.
+            _legacy = {
+                "name": _ctx_profile["name"],
+                "category": "lending",
+                "current_utilization":
+                    float(_ctx_profile.get("utilization_rate_pct", 0.0)) / 100.0,
+                "total_supply_usd": _ctx_profile.get("total_supply_usd", 0.0),
+                "total_borrow_usd": _ctx_profile.get("total_borrow_usd", 0.0),
+            }
+            _rows = (self.analyze([_legacy]) or {}).get("protocols") or []
+            _row = _rows[0] if _rows and isinstance(_rows[0], dict) else None
+            if _row is None:
+                return None
+            _shared = str(_row.get("utilization_label", "")).upper()
+            if _shared not in ("LOW", "MODERATE", "HIGH", "CRITICAL"):
+                return None
+            return {"risk_label": _shared, "protocol": _ctx_profile["name"],
+                    "detail": _row, "facts_source": _pf.FACTS_SOURCE,
+                    "facts_as_of": _pf.FACTS_AS_OF}
         cfg = _build_default_cfg(cfg)
         results = [self._analyze_protocol(p) for p in protocols]
         agg = self._aggregate(results)

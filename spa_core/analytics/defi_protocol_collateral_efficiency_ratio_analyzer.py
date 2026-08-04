@@ -196,6 +196,29 @@ class DeFiProtocolCollateralEfficiencyRatioAnalyzer:
 
     def analyze(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze a single collateral position and return result dict."""
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(params):
+            _p = _pf.generic_profile_for(params["protocol"])
+            if _p is None:
+                return None
+            _util = float(_p["utilization_rate_pct"])
+            _legacy = {
+                "protocol_name": _p["name"],
+                "collateral_asset": _p["asset"],
+                "collateral_value_usd": _p["collateral_usd"],
+                "borrowed_value_usd": _p["debt_usd"],
+                "max_ltv_pct": max(_p["liquidation_threshold_pct"] - 5.0, 10.0),
+                "liquidation_threshold_pct": _p["liquidation_threshold_pct"],
+                "current_apy_on_collateral_pct": _p["apy_pct"],
+                "borrow_rate_pct": (_p["apy_pct"] * 100.0 / _util
+                                    if _util > 0 else _p["apy_pct"]),
+                "oracle_deviation_tolerance_pct": 1.0,
+            }
+            return _pf.extract_protocol_score(self.analyze(_legacy), _p)
         self._validate(params)
 
         protocol_name = str(params["protocol_name"])

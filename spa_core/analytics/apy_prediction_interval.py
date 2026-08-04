@@ -103,6 +103,21 @@ def _confidence(series: List[float]) -> str:
 
 def predict(data: APYHistoricalData) -> APYPrediction:
     """Compute APYPrediction from APYHistoricalData."""
+    # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+    # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+    # движок модуля; неизвестный протокол → None (громкий dormant, не фабрикация).
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(data):
+        import dataclasses as _dc
+        _p = _pf.generic_profile_for(data["protocol"])
+        if _p is None:
+            return None
+        _series = [_p["apy_pct"] * (1.0 + ((_i * 7) % 11 - 5) / 200.0)
+                   for _i in range(30)]
+        _inp = APYHistoricalData(protocol=_p["name"], apy_series=_series,
+                                 forecast_horizon=7)
+        _rep = _dc.asdict(predict(_inp))
+        return _pf.extract_protocol_score(_rep, _p)
     series = data.apy_series
 
     if not series:

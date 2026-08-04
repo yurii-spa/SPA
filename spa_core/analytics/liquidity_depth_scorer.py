@@ -361,3 +361,36 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+# ─── ADR-031 Tier-B context entrypoint (mass wiring 2026-08-04) ───
+def analyze(context=None):
+    """Context-entrypoint для signal_aggregator (ADR-031 Tier-B, audit 2026-08-04).
+
+    Структурный протокол-профиль (_protocol_facts) → СОБСТВЕННЫЙ движок модуля →
+    извлечение score. Неизвестный протокол → None (громкий dormant, НЕ
+    фабрикация). Сам враппер ничего не пишет в логи/ring-buffer'ы.
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    if not _pf.is_protocol_context(context):
+        return None
+    _profile = _pf.generic_profile_for(context["protocol"])
+    _facts = _pf.facts_for(context["protocol"])
+    if _profile is None or _facts is None:
+        return None
+    _result = analyze_portfolio(positions_data=[dict(
+        _profile,
+        total_liquidity_usd=_facts["exit_liquidity_usd"],
+        exit_liquidity_usd=_facts["exit_liquidity_usd"],
+        position_size_usd=_profile["capital_usd"])])
+    import dataclasses as _dc
+    if _dc.is_dataclass(_result) and not isinstance(_result, type):
+        _result = _dc.asdict(_result)
+    # Полярность: avg_depth_score выше = ГЛУБЖЕ ликвидность = лучше;
+    # сигнал агрегатора — риск 0-100 (выше = хуже). Честная инверсия.
+    _val = _result.get("avg_depth_score")
+    if not isinstance(_val, (int, float)) or isinstance(_val, bool):
+        return None
+    return {"risk_score": max(0.0, min(100.0, 100.0 - float(_val))),
+            "protocol": _profile["name"], "polarity": "inverted:avg_depth_score",
+            "facts_source": _pf.FACTS_SOURCE, "facts_as_of": _pf.FACTS_AS_OF}

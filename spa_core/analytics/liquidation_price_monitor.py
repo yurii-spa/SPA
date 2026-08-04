@@ -131,6 +131,26 @@ class LiquidationPriceMonitor:
 
     def monitor(self, pos: LendingPosition) -> LiquidationRiskReport:
         """Analyse a single lending position and return a risk report."""
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; неизвестный протокол → None (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(pos):
+            import dataclasses as _dc
+            _p = _pf.generic_profile_for(pos["protocol"])
+            if _p is None:
+                return None
+            import time as _t
+            _inp = LendingPosition(
+                position_id="ctx", protocol=_p["name"],
+                collateral_token=_p["asset"], debt_token="USDC",
+                collateral_amount=_p["collateral_usd"], collateral_price_usd=1.0,
+                debt_amount_usd=_p["debt_usd"],
+                liquidation_threshold=_p["liquidation_threshold"],
+                current_timestamp=_t.time())
+            _rep = _dc.asdict(self.monitor(_inp))
+            _rep["risk_label"] = _rep.get("status")
+            return _pf.extract_protocol_score(_rep, _p)
         col_val = self._collateral_value_usd(pos)
         ltv = self._current_ltv(pos.debt_amount_usd, col_val)
         hf = self._health_factor(col_val, pos.liquidation_threshold,

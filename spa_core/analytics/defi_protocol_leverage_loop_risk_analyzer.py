@@ -260,11 +260,39 @@ class DeFiProtocolLeverageLoopRiskAnalyzer:
             liquidation_price_drop_pct, margin_of_safety_pct,
             leverage_risk_label, analyzed_at
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(position):
+            _p = _pf.generic_profile_for(position["protocol"])
+            if _p is None:
+                return None
+            _util = float(_p["utilization_rate_pct"])
+            _legacy = {
+                "protocol_name": _p["name"],
+                "collateral_asset": _p["asset"],
+                "borrow_asset": "USDC",
+                "initial_capital_usd": _p["capital_usd"],
+                "supply_apy_pct": _p["apy_pct"],
+                "borrow_apy_pct": (_p["apy_pct"] * 100.0 / _util
+                                   if _util > 0 else _p["apy_pct"]),
+                "ltv_pct": max(_p["liquidation_threshold_pct"] - 10.0, 10.0),
+                "liquidation_threshold_pct": _p["liquidation_threshold_pct"],
+                "loop_count": 3,
+                "target_leverage_x": 2.0,
+                "price_drop_trigger_pct": 20.0,
+            }
+            return _pf.extract_protocol_score(
+                self.analyze(_legacy, config={**(config or {}), "write_log": False}),
+                _p)
         if config is None:
             config = {}
         result = _analyze_position(position)
         result["analyzed_at"] = _iso_now()
-        _append_log(result)
+        if (config or {}).get("write_log", True):
+            _append_log(result)
         return result
 
     def analyze_batch(self, positions: list, config: Optional[dict] = None) -> dict:

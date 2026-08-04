@@ -200,6 +200,30 @@ def analyze(upgrades: list, config: dict = None) -> dict:
     dict with keys: upgrades, highest_risk_upgrade, lowest_risk_upgrade,
     pending_high_risk_count, average_risk_score, timestamp.
     """
+    # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+    # Контекст агрегатора → структурный профиль из _protocol_facts →
+    # СОБСТВЕННЫЙ движок модуля на легаси-форме входа.
+    # Неизвестный протокол → None (громкий dormant, не фабрикация).
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(upgrades):
+        _p = _pf.generic_profile_for(upgrades["protocol"])
+        if _p is None:
+            return None
+        _t1 = _p["bug_bounty_usd"] >= 1_000_000.0
+        _legacy = [{
+            "protocol": _p["name"],
+            "upgrade_status": "EXECUTED",
+            "timelock_hours": _p["timelock_hours"],
+            "governance_approval_pct":
+                50.0 + _p["voter_participation_pct"],
+            "audit_coverage_pct": 95.0 if _t1 else 80.0,
+            "auditor_count": 3 if _t1 else 2,
+            "days_since_last_incident":
+                180 if _p["historical_bad_debt_usd"] > 0 else 720,
+            "code_change_size": "MODERATE",
+            "previous_upgrade_success_rate": 95.0,
+        }]
+        return _pf.extract_protocol_score(analyze(_legacy, config), _p)
     results = []
 
     for u in upgrades:

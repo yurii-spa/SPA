@@ -325,6 +325,26 @@ class DeFiLiquidStakingPremiumAnalyzer:
             aggregates  dict        portfolio-level summary
             timestamp   float       unix timestamp
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(tokens):
+            _p = _pf.generic_profile_for(tokens["protocol"])
+            if _p is None:
+                return None
+            _legacy = [{
+                "name": _p["asset"],
+                "market_price_usd": 1.0 - _p["basis_spread_pp"] / 200.0,
+                "nav_usd": 1.0,
+                "base_staking_apy_pct": _p["apy_pct"],
+                "redemption_days": 1.0 + _p["illiquid_asset_pct"] / 10.0,
+                "can_redeem": True,
+            }]
+            return _pf.extract_protocol_score(
+                self.analyze(_legacy, config={**(config or {}), "write_log": False}),
+                _p)
         if config is None:
             config = {}
         if not isinstance(tokens, list):

@@ -230,6 +230,29 @@ def analyze(protocol_deployments: list, config: dict = None) -> dict:
     -------
     dict with per-protocol results and aggregate metrics.
     """
+    # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+    # Контекст агрегатора → структурный профиль из _protocol_facts →
+    # СОБСТВЕННЫЙ движок модуля на легаси-форме входа (deployment из одного
+    # чейна). Неизвестный протокол → None (громкий dormant, не фабрикация).
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(protocol_deployments):
+        _p = _pf.generic_profile_for(protocol_deployments["protocol"])
+        if _p is None:
+            return None
+        _cf = _pf.CHAIN_FACTS.get(_p["chain"], {})
+        _is_l2 = bool(_cf.get("is_l2"))
+        _chain_entry = {
+            "chain_name": _p["chain"],
+            "tvl_usd": _p["tvl_usd"],
+            "bridge_type": "CANONICAL" if _is_l2 else "NONE",
+            "bridge_audit_score": 80,
+            "chain_maturity_years": 4.0 if _is_l2 else 9.0,
+            "is_evm_compatible": True,
+            "active_incidents": 0,
+        }
+        return _pf.extract_protocol_score(
+            analyze([{"protocol": _p["name"], "chains": [_chain_entry]}],
+                    config), _p)
     cfg = _merge_config(config)
 
     if not protocol_deployments:

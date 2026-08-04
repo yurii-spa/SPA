@@ -156,6 +156,24 @@ class MEVRiskDetector:
         return recs
 
     def assess(self, profile: TransactionProfile) -> MEVRiskAssessment:
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; неизвестный протокол → None (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(profile):
+            import dataclasses as _dc
+            _p = _pf.generic_profile_for(profile["protocol"])
+            if _p is None:
+                return None
+            _inp = TransactionProfile(
+                tx_type="SWAP", token_in=_p["asset"], token_out="USDC",
+                amount_usd=_p["capital_usd"], pool_tvl_usd=_p["tvl_usd"],
+                slippage_tolerance_pct=0.5, gas_price_gwei=20.0,
+                mempool_gas_gwei=25.0,
+                is_private_mempool=bool(_p["uses_private_mempool"]))
+            _rep = _dc.asdict(self.assess(_inp))
+            _rep["risk_label"] = _rep.get("risk_level")
+            return _pf.extract_protocol_score(_rep, _p)
         s = self._sandwich_risk(profile)
         f = self._frontrun_risk(profile)
         l = self._liquidation_risk(profile)

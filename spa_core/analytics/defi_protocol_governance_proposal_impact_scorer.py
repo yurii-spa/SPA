@@ -272,6 +272,30 @@ class DeFiProtocolGovernanceProposalImpactScorer:
     """
 
     def score(self, proposals: list[dict], config: dict | None = None) -> dict:
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(proposals):
+            _p = _pf.generic_profile_for(proposals["protocol"])
+            if _p is None:
+                return None
+            _legacy = [{
+                "name": "ctx-structural-proposal",
+                "proposal_type": "parameter_change",
+                "current_votes_for_pct": _p["voter_participation_pct"],
+                "current_votes_against_pct": _p["voter_participation_pct"] / 5.0,
+                "historical_pass_rate_proposer": 0.8,
+                "quorum_required_pct": 4.0,
+                "tvl_affected_usd": _p["tvl_usd"] * 0.1,
+                "protocol_tvl_usd": _p["tvl_usd"],
+                "emergency_proposal": False,
+                "days_to_vote_end": 5.0,
+                "timelock_days": _p["timelock_hours"] / 24.0,
+            }]
+            return _pf.extract_protocol_score(
+                self.score(_legacy, config={**(config or {}), "write_log": False}), _p)
         cfg = config or {}
         log_path = cfg.get("log_path", LOG_FILE)
         write_log = cfg.get("write_log", True)

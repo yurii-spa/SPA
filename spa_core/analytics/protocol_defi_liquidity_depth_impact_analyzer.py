@@ -262,6 +262,38 @@ def analyze_liquidity_depth_impact(params: Dict[str, Any]) -> Dict[str, Any]:
         source                   str
         mp_tag                   str
     """
+    # ── Protocol-context (ADR-031 Tier-B wiring, audit 2026-08-04) ──────────
+    # Контекст агрегатора → структурный профиль из _protocol_facts →
+    # СОБСТВЕННЫЙ движок модуля (легаси-форма params, честная сборка входа:
+    # глубина выхода = exit_liquidity_usd из факт-базы, размер сделки =
+    # репрезентативная paper-аллокация, fee % → bps). Вердикт движка —
+    # liquidity_label — переводится монотонно в общий label_map агрегатора.
+    # Неизвестный протокол / вердикт → None → честный dormant.
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(params):
+        _profile = _pf.generic_profile_for(params["protocol"])
+        _facts = _pf.facts_for(params["protocol"])
+        if _profile is None or _facts is None:
+            return None
+        _res = analyze_liquidity_depth_impact({
+            "pool_name": _profile["name"],
+            "total_liquidity_usd": float(_facts["exit_liquidity_usd"]),
+            "fee_tier_bps": float(_profile.get("withdrawal_fee_pct", 0.0)) * 100.0,
+            "trade_size_usd": float(_profile.get("capital_usd", 0.0)),
+            "volume_24h_usd": float(_profile.get("volume_24h_usd", 0.0)),
+            "pool_type": "constant_product",
+        })
+        _shared = {"DEEP_LIQUIDITY": "NEGLIGIBLE",
+                   "ADEQUATE_LIQUIDITY": "ACCEPTABLE",
+                   "MODERATE_IMPACT": "MODERATE",
+                   "HIGH_IMPACT": "HIGH",
+                   "AVOID_TRADE_SIZE": "CRITICAL"}.get(
+                       str(_res.get("liquidity_label", "")).upper())
+        if _shared is None:
+            return None
+        return {"risk_label": _shared, "protocol": _profile["name"],
+                "detail": _res, "facts_source": _pf.FACTS_SOURCE,
+                "facts_as_of": _pf.FACTS_AS_OF}
     warnings: List[str] = []
 
     def _flt(key: str, default: float = 0.0) -> float:

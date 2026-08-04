@@ -101,8 +101,23 @@ def analyze(positions: list, config: dict = None) -> dict:
         _ctx_profile = _pf.generic_profile_for(positions["protocol"])
         if _ctx_profile is None:
             return None
-        return _pf.extract_protocol_score(
-            analyze([_ctx_profile]), _ctx_profile)
+        # Audit 2026-08-04 (wake dormant): вердикт движка —
+        # positions[0]["staking_grade"] (A+..F по adjusted APY), ключ вне
+        # словаря extract_protocol_score. Монотонный перевод собственной
+        # шкалы оценок в общий label_map (лучше оценка = ниже score);
+        # неизвестный вердикт → None → честный dormant.
+        _rows = (analyze([_ctx_profile]) or {}).get("positions") or []
+        _row = _rows[0] if _rows and isinstance(_rows[0], dict) else None
+        if _row is None:
+            return None
+        _shared = {"A+": "EXCELLENT", "A": "STRONG", "B": "GOOD",
+                   "C": "NEUTRAL", "D": "ELEVATED", "F": "FAIL"}.get(
+                       str(_row.get("staking_grade", "")).upper())
+        if _shared is None:
+            return None
+        return {"risk_label": _shared, "protocol": _ctx_profile["name"],
+                "detail": _row, "facts_source": _pf.FACTS_SOURCE,
+                "facts_as_of": _pf.FACTS_AS_OF}
     if config is None:
         config = {}
     opportunity_cost_apy = float(config.get('opportunity_cost_apy_pct', 5.0))

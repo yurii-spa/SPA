@@ -149,6 +149,24 @@ def analyze(tenors: List[YieldTenor], data_file: Optional[str] = None) -> YieldC
     -------
     YieldCurveAnalysisResult (not saved — call save_results to persist)
     """
+    # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+    # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+    # движок модуля; неизвестный протокол → None (громкий dormant, не фабрикация).
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(tenors):
+        import dataclasses as _dc
+        _p = _pf.generic_profile_for(tenors["protocol"])
+        if _p is None:
+            return None
+        _rs = 20.0 if _p["bug_bounty_usd"] >= 1_000_000.0 else 45.0
+        _inp = [YieldTenor(label="%dd" % _d, days=_d,
+                           apy=_p["apy_pct"] + _bump, protocol=_p["name"],
+                           risk_score=_rs)
+                for _d, _bump in ((7, -0.5 * _p["basis_spread_pp"]), (30, 0.0),
+                                  (90, _p["basis_spread_pp"]),
+                                  (180, 1.5 * _p["basis_spread_pp"]))]
+        _rep = _dc.asdict(analyze(_inp, data_file))
+        return _pf.extract_protocol_score(_rep, _p)
     if data_file is None:
         data_file = _DEFAULT_DATA_FILE
 

@@ -330,6 +330,26 @@ class DeFiVolatilitySurfaceAnalyzer:
             aggregates       dict         portfolio-level aggregates
             timestamp        float        unix timestamp
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(options):
+            _p = _pf.generic_profile_for(options["protocol"])
+            if _p is None:
+                return None
+            _iv = 20.0 + _p["basis_spread_pp"] * 20.0 + _p["utilization_rate_pct"] / 5.0
+            _legacy = [{
+                "protocol": _p["name"], "underlying": _p["asset"],
+                "strike_price_usd": 1.05, "current_price_usd": 1.0,
+                "expiry_days": 30.0, "option_type": "call",
+                "implied_vol_pct": _iv, "bid_usd": 0.010, "ask_usd": 0.012,
+                "delta": 0.4,
+            }]
+            return _pf.extract_protocol_score(
+                self.analyze(_legacy, config={**(config or {}), "write_log": False}),
+                _p)
         if config is None:
             config = {}
         if not isinstance(options, list):

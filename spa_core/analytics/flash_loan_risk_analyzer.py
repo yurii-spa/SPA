@@ -143,6 +143,29 @@ class FlashLoanRiskAnalyzer:
         return advisories[tier]
 
     def analyze(self, p: ProtocolFlashLoanProfile) -> FlashLoanRisk:
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; неизвестный протокол → None (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(p):
+            import dataclasses as _dc
+            _p = _pf.generic_profile_for(p["protocol"])
+            if _p is None:
+                return None
+            _kind = (_pf.facts_for(p["protocol"]) or {}).get("kind", "lending")
+            _ptype = {"lending": "LENDING", "amm": "AMM", "dex": "AMM",
+                      "vault": "YIELD"}.get(_kind, "LENDING")
+            _otype = str(_p["oracle_type"])
+            _inp = ProtocolFlashLoanProfile(
+                protocol_id=_p["name"], protocol_type=_ptype, tvl_usd=_p["tvl_usd"],
+                uses_spot_price_oracle=(_otype != "chainlink"
+                                        and "twap" not in _otype),
+                has_time_weighted_oracle="twap" in _otype,
+                governance_token_pct_in_amm=_p["top10_holder_pct"] / 2.0,
+                min_block_delay=0, flash_loan_available=_kind == "lending")
+            _rep = _dc.asdict(self.analyze(_inp))
+            _rep["risk_label"] = _rep.get("risk_tier")
+            return _pf.extract_protocol_score(_rep, _p)
         pm = self._price_manip_risk(p)
         ora = self._oracle_risk(p)
         gov = self._governance_risk(p)

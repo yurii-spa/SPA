@@ -300,6 +300,34 @@ class ProtocolDeFiVetokenGovernancePowerAnalyzer:
             governance_captured_count int
             analyzed_at              str  ISO timestamp
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(vetoken_systems):
+            _p = _pf.generic_profile_for(vetoken_systems["protocol"])
+            if _p is None:
+                return None
+            _wk = _p["tvl_usd"] * (_p["apy_pct"] / 100.0) / 52.0
+            _legacy = [{
+                "name": "ve" + _p["name"], "protocol": _p["name"],
+                "total_token_supply": 1_000_000_000.0,
+                "tokens_locked_pct": 40.0,
+                "avg_lock_duration_years": 1.5,
+                "max_lock_duration_years": 4.0,
+                "token_price_usd": 1.0,
+                "weekly_emissions_usd": _wk / 2.0,
+                "fee_revenue_weekly_usd": _wk / 4.0,
+                "bribe_revenue_weekly_usd": 0.0,
+                "top_voter_share_pct": _p["top10_holder_pct"] / 2.0,
+                "top10_voter_share_pct": _p["top10_holder_pct"],
+                "governance_attacks_history": 0,
+                "lock_expiry_cliff_pct": 20.0,
+            }]
+            return _pf.extract_protocol_score(
+                self.analyze(_legacy, config={**(config or {}), "write_log": False}),
+                _p)
         if config is None:
             config = {}
         if not isinstance(vetoken_systems, list) or len(vetoken_systems) == 0:
@@ -348,7 +376,8 @@ class ProtocolDeFiVetokenGovernancePowerAnalyzer:
             "analyzed_at": _iso_now(),
         }
 
-        _append_log(output)
+        if (config or {}).get("write_log", True):
+            _append_log(output)
         return output
 
 

@@ -160,6 +160,21 @@ class RewardEmissionDecayTracker:
     ) -> EmissionDecayReport:
         """Build an EmissionDecayReport from a historical emission series."""
         generated_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; неизвестный протокол → None (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(emission_series):
+            import dataclasses as _dc
+            _p = _pf.generic_profile_for(emission_series["protocol"])
+            if _p is None:
+                return None
+            _base = _p["tvl_usd"] * (_p["apy_pct"] / 100.0) / 52.0 / 2.0
+            _decay = 1.0 - _p["utilization_rate_pct"] / 1000.0
+            _series = [_base * (_decay ** _i) for _i in range(12)]
+            _rep = _dc.asdict(self.analyze(_series, periods_ahead=periods_ahead,
+                                           label=_p["name"]))
+            return _pf.extract_protocol_score(_rep, _p)
         n = len(emission_series) if emission_series else 0
         pa = periods_ahead if periods_ahead and periods_ahead > 0 else 0
 

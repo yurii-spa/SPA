@@ -112,6 +112,22 @@ class RebalanceTriggerEngine(BaseAnalytics):
             the urgency ("IMMEDIATE"/"SOON"/"NONE") and ``result`` holds the
             full trigger decision plus the active thresholds.
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(slots):
+            _p = _pf.generic_profile_for(slots["protocol"])
+            if _p is None:
+                return None
+            _slot = AllocationSlot(
+                adapter_id=_p["name"], target_pct=0.25,
+                current_pct=0.25 * (1.0 + _p["utilization_rate_pct"] / 1000.0),
+                current_apy=_p["current_apy_pct"] / 100.0,
+                prev_apy=_p["apy_7d_ago"] / 100.0,
+                days_since_last=30)
+            return _pf.extract_protocol_score(self.analyze([_slot]), _p)
         if slots is None:
             slots = _build_demo_slots()
 

@@ -153,8 +153,22 @@ def analyze(positions: list, config: dict = None) -> dict:
         _ctx_profile = _pf.generic_profile_for(positions["protocol"])
         if _ctx_profile is None:
             return None
-        return _pf.extract_protocol_score(
-            analyze([_ctx_profile]), _ctx_profile)
+        # Audit 2026-08-04 (wake dormant): вердикт движка лежит в
+        # positions[0]["health_status"] — ключ вне словаря extract_protocol_score.
+        # Нормализация: собственный вердикт → общий label_map (монотонный
+        # перевод; неизвестный вердикт → None → честный dormant).
+        _rows = (analyze([_ctx_profile]) or {}).get("positions") or []
+        _row = _rows[0] if _rows and isinstance(_rows[0], dict) else None
+        if _row is None:
+            return None
+        _shared = {"SAFE": "SAFE", "WARNING": "WARNING", "DANGER": "SEVERE",
+                   "CRITICAL": "CRITICAL", "LIQUIDATABLE": "CRITICAL"}.get(
+                       str(_row.get("health_status", "")).upper())
+        if _shared is None:
+            return None
+        return {"risk_label": _shared, "protocol": _ctx_profile["name"],
+                "detail": _row, "facts_source": _pf.FACTS_SOURCE,
+                "facts_as_of": _pf.FACTS_AS_OF}
     cfg = config or {}
     safe_hf = float(cfg.get("safe_health_factor", _DEFAULT_SAFE_HF))
 

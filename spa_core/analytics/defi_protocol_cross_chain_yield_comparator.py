@@ -112,6 +112,13 @@ class DeFiProtocolCrossChainYieldComparator:
                 migration_cost_usd, net_apy_pct, break_even_days,
                 yield_advantage_pct, recommendation
         """
+        # Dormant-by-design (audit 2026-08-04): компаратор ранжирует
+        # НЕСКОЛЬКО венью между собой; единственная позиция из
+        # однопротокольного контекста всегда rank-0 → константный TOP_PICK
+        # (слепой сигнал). Честный None (dormant) вместо фабрикации ранга.
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(data):
+            return None
         raw_positions: List[dict] = list(data.get("positions") or [])
         capital_usd = float(data.get("capital_usd") or 0)
         holding_period_days = float(data.get("holding_period_days") or 1)

@@ -324,3 +324,33 @@ def _demo() -> None:
 
 if __name__ == "__main__":
     _demo()
+
+
+# ─── ADR-031 Tier-B context entrypoint (mass wiring 2026-08-04) ───
+def analyze(context=None):
+    """Context-entrypoint для signal_aggregator (ADR-031 Tier-B, audit 2026-08-04).
+
+    Структурный протокол-профиль (_protocol_facts) → СОБСТВЕННЫЙ движок модуля →
+    извлечение score. Неизвестный протокол → None (громкий dormant, НЕ
+    фабрикация). Сам враппер ничего не пишет в логи/ring-buffer'ы.
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    if not _pf.is_protocol_context(context):
+        return None
+    _profile = _pf.generic_profile_for(context["protocol"])
+    _facts = _pf.facts_for(context["protocol"])
+    if _profile is None or _facts is None:
+        return None
+    _result = DeFiProtocolYieldFeeStructureAnalyzer().analyze(gross_apy_pct=_profile["gross_apy_pct"], protocol_fee_pct=0.0, management_fee_annual_pct=_profile["management_fee_pct"], performance_fee_pct=_profile["performance_fee_pct"], withdrawal_fee_pct=_profile["withdrawal_fee_pct"], holding_period_days=_profile["holding_period_days"], position_size_usd=_profile["capital_usd"], protocol_name=_profile["name"])
+    import dataclasses as _dc
+    if _dc.is_dataclass(_result) and not isinstance(_result, type):
+        _result = _dc.asdict(_result)
+    # У движка нет risk-ключа: fee_drag_ratio (доля брутто-доходности,
+    # съедаемая комиссиями, 0..1) -> риск 0-100. Не сырое значение —
+    # документированная шкала.
+    _val = _result.get("fee_drag_ratio")
+    if not isinstance(_val, (int, float)) or isinstance(_val, bool):
+        return None
+    return {"risk_score": max(0.0, min(100.0, float(_val) * 100.0)),
+            "protocol": _profile["name"], "scale": "fee_drag_ratio*100",
+            "facts_source": _pf.FACTS_SOURCE, "facts_as_of": _pf.FACTS_AS_OF}

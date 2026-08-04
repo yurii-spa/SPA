@@ -307,3 +307,29 @@ def analyze(
         oracle_lag_seconds=oracle_lag_seconds,
         log=log,
     )
+
+
+# ─── ADR-031 Tier-B context entrypoint (mass wiring 2026-08-04) ───
+def score(context=None):
+    """Context-entrypoint для signal_aggregator (ADR-031 Tier-B, audit 2026-08-04).
+
+    Структурный протокол-профиль (_protocol_facts) → СОБСТВЕННЫЙ движок модуля →
+    извлечение score. Неизвестный протокол → None (громкий dormant, НЕ
+    фабрикация). Сам враппер ничего не пишет в логи/ring-buffer'ы.
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    if not _pf.is_protocol_context(context):
+        return None
+    _profile = _pf.generic_profile_for(context["protocol"])
+    _facts = _pf.facts_for(context["protocol"])
+    if _profile is None or _facts is None:
+        return None
+    if _profile["debt_usd"] <= 0.0:
+        # У протокола нет структурного долга — carry-сценарий
+        # неприменим; честный ответ None, а не выдуманный LTV.
+        return None
+    _result = analyze(collateral_token=_profile["asset"], underlying_apy_pct=_profile["apy_pct"], borrow_rate_pct=(_profile["apy_pct"] * 100.0 / max(_profile["utilization_rate_pct"], 1.0)), ltv_pct=(_profile["debt_usd"] / _profile["collateral_usd"] * 100.0), position_size_usd=_profile["capital_usd"])
+    import dataclasses as _dc
+    if _dc.is_dataclass(_result) and not isinstance(_result, type):
+        _result = _dc.asdict(_result)
+    return _pf.extract_protocol_score(_result, _profile)

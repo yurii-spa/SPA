@@ -207,6 +207,29 @@ class GovernanceTokenRiskAnalyzer:
 
     def analyze(self, profile: GovernanceProfile) -> GovernanceRiskReport:
         """Compute a full GovernanceRiskReport for a single protocol."""
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; неизвестный протокол → None (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(profile):
+            import dataclasses as _dc
+            _p = _pf.generic_profile_for(profile["protocol"])
+            if _p is None:
+                return None
+            _circ = _p["governance_token_circulating_pct"]
+            _inp = GovernanceProfile(
+                protocol_id=_p["name"], token_symbol=_p["name"][:4].upper(),
+                total_supply=1_000_000_000.0,
+                circulating_supply=1_000_000_000.0 * _circ / 100.0,
+                top10_holder_pct=_p["top10_holder_pct"],
+                team_held_pct=_p["top10_holder_pct"] / 2.0,
+                dao_treasury_pct=10.0,
+                active_voters_30d=int(_p["voter_participation_pct"] * 40),
+                total_proposals_90d=int(_p["proposals_last_90d"]),
+                quorum_threshold_pct=4.0, timelock_hours=_p["timelock_hours"],
+                has_veto_multisig=bool(_p["multisig_required"]))
+            _rep = _dc.asdict(self.analyze(_inp))
+            return _pf.extract_protocol_score(_rep, _p)
         centralization = self._centralization_score(
             profile.top10_holder_pct, profile.team_held_pct
         )

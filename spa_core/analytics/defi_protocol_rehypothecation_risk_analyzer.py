@@ -341,6 +341,29 @@ class DeFiProtocolRehypothecationRiskAnalyzer:
             avg_leverage_multiple      float
             analyzed_at                str  ISO timestamp
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(positions):
+            _p = _pf.generic_profile_for(positions["protocol"])
+            if _p is None:
+                return None
+            _util = float(_p["utilization_rate_pct"])
+            _legacy = [{
+                "name": _p["name"],
+                "principal_usd": _p["capital_usd"],
+                "loop_ltv_pct": max(_p["liquidation_threshold_pct"] - 15.0, 10.0),
+                "loops": 2,
+                "base_apy_pct": _p["apy_pct"],
+                "borrow_apy_pct": (_p["apy_pct"] * 100.0 / _util
+                                   if _util > 0 else _p["apy_pct"]),
+                "liquidation_ltv_pct": _p["liquidation_threshold_pct"],
+            }]
+            return _pf.extract_protocol_score(
+                self.analyze(_legacy, config={**(config or {}), "write_log": False}),
+                _p)
         if config is None:
             config = {}
         if not isinstance(positions, list) or len(positions) == 0:
@@ -375,7 +398,8 @@ class DeFiProtocolRehypothecationRiskAnalyzer:
             "analyzed_at": _iso_now(),
         }
 
-        _append_log(output)
+        if (config or {}).get("write_log", True):
+            _append_log(output)
         return output
 
 

@@ -310,6 +310,31 @@ class DeFiProtocolCrossAssetCorrelationRiskAnalyzer:
             well_diversified_count int
             analyzed_at           str  ISO timestamp
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(portfolios):
+            _p = _pf.generic_profile_for(portfolios["protocol"])
+            if _p is None:
+                return None
+            _stable = _p["asset"] in ("USDC", "USDT", "DAI", "USDe", "sUSDS")
+            _legacy = [{
+                "name": _p["name"],
+                "positions": [{
+                    "asset": _p["asset"], "weight_pct": 100.0,
+                    "volatility_30d_pct": 2.0 + _p["basis_spread_pp"] * 5.0,
+                    "correlation_matrix_row": {},
+                }],
+                "protocol_exposure": {_p["name"]: 100.0},
+                "chain_exposure": {_p["chain"]: 100.0},
+                "stablecoin_pct": 100.0 if _stable else 0.0,
+                "eth_correlated_pct": 0.0 if _stable else 80.0,
+            }]
+            return _pf.extract_protocol_score(
+                self.analyze(_legacy, config={**(config or {}), "write_log": False}),
+                _p)
         if config is None:
             config = {}
         if not isinstance(portfolios, list) or len(portfolios) == 0:
@@ -359,7 +384,8 @@ class DeFiProtocolCrossAssetCorrelationRiskAnalyzer:
         }
 
         # Append to ring-buffer log
-        _append_log(output)
+        if (config or {}).get("write_log", True):
+            _append_log(output)
         return output
 
 

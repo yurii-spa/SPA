@@ -256,6 +256,26 @@ class ProtocolRealYieldVsPaperYieldAnalyzer:
             aggregates  dict        portfolio-level summary
             timestamp   float       unix timestamp
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(protocols):
+            _p = _pf.generic_profile_for(protocols["protocol"])
+            if _p is None:
+                return None
+            _legacy = [{
+                "name": _p["name"],
+                "advertised_apy_pct": _p["apy_pct"],
+                "fee_revenue_apy_pct": _p["apy_pct"] * (1.0 - _p["utilization_rate_pct"] / 400.0),
+                "token_emission_apy_pct": _p["apy_pct"] * _p["utilization_rate_pct"] / 400.0,
+                "inflation_rate_pct": _p["utilization_rate_pct"] / 20.0,
+                "token_price_change_30d_pct": 0.0,
+            }]
+            return _pf.extract_protocol_score(
+                self.analyze(_legacy, config={**(config or {}), "write_log": False}),
+                _p)
         if config is None:
             config = {}
         if not isinstance(protocols, list):

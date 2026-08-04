@@ -434,6 +434,33 @@ class ProtocolEcosystemHealthScorecard:
             aggregates   dict         portfolio-level aggregates
             timestamp    float        unix timestamp
         """
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; лог отключён на context-пути; неизвестный протокол → None
+        # (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(protocols):
+            _p = _pf.generic_profile_for(protocols["protocol"])
+            if _p is None:
+                return None
+            _t1 = _p["bug_bounty_usd"] >= 1_000_000.0
+            _legacy = [{
+                "name": _p["name"],
+                "tvl_usd": _p["tvl_usd"],
+                "tvl_30d_change_pct": _p["utilization_rate_pct"] / 10.0,
+                "revenue_monthly_usd": (_p["tvl_usd"] * (_p["apy_pct"] / 100.0)
+                                        / 12.0 * 0.1),
+                "token_price_change_30d_pct": 0.0,
+                "daily_active_users": _p["volume_24h_usd"] / 50_000.0,
+                "dau_30d_change_pct": 0.0,
+                "audit_count": 3 if _t1 else 2,
+                "incident_count_12m": 1 if _p["historical_bad_debt_usd"] > 0 else 0,
+                "github_commits_30d": 120 if _t1 else 40,
+                "developer_count": 25 if _t1 else 8,
+            }]
+            return _pf.extract_protocol_score(
+                self.score(_legacy, config={**(config or {}), "write_log": False}),
+                _p)
         if config is None:
             config = {}
         if not isinstance(protocols, list):

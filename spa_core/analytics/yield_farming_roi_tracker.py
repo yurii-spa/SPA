@@ -71,6 +71,16 @@ def analyze(farm: Dict[str, Any], config: Optional[Dict[str, Any]] = None) -> Di
     -------
     dict with full ROI analysis.
     """
+    # Dormant-by-design (audit 2026-08-04): ROI-трекер требует историю
+    # реальной позиции (entry value, собранные награды, IL, дни в позиции);
+    # структурный профиль этого дать не может → честный None (dormant).
+    # Легаси-farm тоже содержит "protocol" — контекст отличаем по ОТСУТСТВИЮ
+    # доменных полей позиции (initial_investment_usd / current_value_usd).
+    from spa_core.analytics import _protocol_facts as _pf
+    if (_pf.is_protocol_context(farm)
+            and "initial_investment_usd" not in farm
+            and "current_value_usd" not in farm):
+        return None
     cfg = config or {}
     tax_rate_pct: float = float(cfg.get("tax_rate_pct", 0.0))
 

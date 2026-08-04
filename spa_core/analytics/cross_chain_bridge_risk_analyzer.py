@@ -146,6 +146,32 @@ class CrossChainBridgeRiskAnalyzer:
 
     def analyze(self, profile: BridgeProfile) -> BridgeRiskReport:
         """Analyze risk for a single bridge profile and return a risk report."""
+        # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+        # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+        # движок модуля; неизвестный протокол → None (громкий dormant, не фабрикация).
+        from spa_core.analytics import _protocol_facts as _pf
+        if _pf.is_protocol_context(profile):
+            import dataclasses as _dc
+            _p = _pf.generic_profile_for(profile["protocol"])
+            if _p is None:
+                return None
+            _br = (_pf.CHAIN_FACTS.get(_p["chain"]) or {}).get("bridge")
+            if _br is None:
+                return None  # mainnet-native: bridge-зависимости нет — честный dormant
+            _bt = {"optimistic": "LOCK_MINT", "zk": "ZK_PROOF"}.get(
+                _br.get("validation_model", ""), "LIQUIDITY")
+            _inp = BridgeProfile(
+                bridge_id=_br.get("bridge_name", "canonical"), bridge_type=_bt,
+                tvl_usd=_p["tvl_usd"], transfer_amount_usd=_p["capital_usd"],
+                audit_count=2, has_multisig=True,
+                validator_count=int(_br.get("validator_count", 1)),
+                has_bug_bounty=float(_br.get("bug_bounty_usd", 0.0)) > 0,
+                protocol_age_days=1000,
+                previously_hacked=bool(_br.get("historical_hacks")),
+                hack_amount_usd=0.0)
+            _rep = _dc.asdict(self.analyze(_inp))
+            _rep["risk_label"] = _rep.get("risk_level")
+            return _pf.extract_protocol_score(_rep, _p)
         arch = _arch_risk(profile.bridge_type, profile.previously_hacked)
         custody = _custody_risk(profile.validator_count, profile.has_multisig,
                                 profile.has_bug_bounty)

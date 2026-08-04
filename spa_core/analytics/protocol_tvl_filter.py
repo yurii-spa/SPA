@@ -214,6 +214,37 @@ class ProtocolTVLFilter(BaseAnalytics):
         """Returns last TVL filter result as JSON-serializable dict."""
         return dict(self._last_result) if self._last_result else {}
 
+    def analyze(self, context: Any = None, **kwargs: Any) -> Optional[Dict[str, Any]]:
+        """Protocol-context entrypoint (ADR-031 Tier-B wiring, audit 2026-08-04).
+
+        Контекст агрегатора → структурный профиль из _protocol_facts →
+        СОБСТВЕННЫЙ движок filter_protocols() → tvl_quality_score 0-100
+        (выше = ЛУЧШЕ, документированная семантика модуля) → инверсия в
+        риск-шкалу агрегатора (выше = опаснее): risk = 100 − quality.
+        Неизвестный протокол → None → честный dormant. Без контекста —
+        прежний BaseAnalytics-контракт ({}).
+        """
+        from spa_core.analytics import _protocol_facts as _pf
+        if not _pf.is_protocol_context(context):
+            return {}
+        profile = _pf.generic_profile_for(context["protocol"])
+        if profile is None:
+            return None
+        res = filter_protocols([{
+            "protocol": profile["name"],
+            "tvl_usd": float(profile.get("tvl_usd", 0.0)),
+            "tvl_7d_change_pct": float(profile.get("tvl_trend_7d_pct", 0.0)),
+        }])
+        rows = ((res.get("passed_protocols") or [])
+                + (res.get("rejected_protocols") or []))
+        if not rows or not isinstance(rows[0], dict):
+            return None
+        quality = float(rows[0].get("tvl_quality_score", 0.0))
+        return {"risk_score": round(100.0 - quality, 2),
+                "protocol": profile["name"], "detail": rows[0],
+                "facts_source": _pf.FACTS_SOURCE,
+                "facts_as_of": _pf.FACTS_AS_OF}
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------

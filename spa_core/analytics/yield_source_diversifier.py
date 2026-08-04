@@ -171,6 +171,23 @@ def analyze(
     """
     sources_data: list of dicts {protocol, chain, yield_type, allocation_usd, apy_pct}
     """
+    # ── Protocol-context (ADR-031 Tier-B mass wiring, audit 2026-08-04 step-2) ──
+    # Контекст агрегатора → структурный профиль из _protocol_facts → СОБСТВЕННЫЙ
+    # движок модуля; неизвестный протокол → None (громкий dormant, не фабрикация).
+    from spa_core.analytics import _protocol_facts as _pf
+    if _pf.is_protocol_context(sources_data):
+        import dataclasses as _dc
+        _p = _pf.generic_profile_for(sources_data["protocol"])
+        if _p is None:
+            return None
+        _kind = (_pf.facts_for(sources_data["protocol"]) or {}).get(
+            "kind", "lending")
+        _legacy = [{"protocol": _p["name"], "chain": _p["chain"],
+                    "yield_type": _kind,
+                    "allocation_usd": _p["allocation_usd"],
+                    "apy_pct": _p["apy_pct"]}]
+        _rep = _dc.asdict(analyze(_legacy, data_file))
+        return _pf.extract_protocol_score(_rep, _p)
     sources = [YieldSource(**s) for s in sources_data]
     total = sum(s.allocation_usd for s in sources)
 
