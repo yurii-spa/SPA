@@ -119,6 +119,13 @@ class DeFiProtocolVaultRelativeYieldOutlierAnalyzer:
         cfg: Optional[dict] = None,
         write_log: bool = False,
     ) -> dict:
+        # Контекст агрегатора (audit 2026-08-05, задача A2): реальные входы
+        # из _apy_series/_protocol_facts → СОБСТВЕННЫЙ движок; полярность
+        # приведена к «выше = опаснее»; недобор данных → None (dormant);
+        # записей data/ на контекст-пути нет.
+        _handled, _ctx_res = _context_branch(self, position)
+        if _handled:
+            return _ctx_res
         cfg = _build_default_cfg(cfg)
         result = self._analyze_one(position)
         if write_log:
@@ -425,3 +432,40 @@ if __name__ == "__main__":
     result = analyzer.analyze_portfolio(_demo_positions(), write_log=args.run)
     print(json.dumps(result, indent=2))
     sys.exit(0)
+
+
+# ── Protocol-context ветка (audit 2026-08-05, задача A2, линия «ряды») ───────
+_CTX_DOMAIN_KEYS = ("apr_pct", "peer_aprs_pct", "is_high_outlier",
+                    "vault", "token")
+
+
+def _context_branch(analyzer, position):
+    """(handled, result). Кросс-секция РЕАЛЬНЫХ последних точек рядов всей
+    вселенной: apr = последняя точка протокола, peers = последние точки
+    остальных протоколов (дедуп по каноническому имени). Нет своей точки /
+    тонкая когорта → None. Движок «выше = не outlier» → risk = 100 - score."""
+    from spa_core.analytics import _protocol_facts as _pf
+    if not _pf.is_context_only(position, _CTX_DOMAIN_KEYS):
+        return False, None
+    from spa_core.analytics import _apy_series as _apy
+    from spa_core.analytics._ctx_wire import engine_risk
+    proto = _apy.canonical_protocol(position["protocol"])
+    own = _apy.latest(position["protocol"],
+                      data_dir=position.get("data_dir"))
+    if proto is None or own is None:
+        return True, None
+    peers = []
+    seen = set()
+    for name, (_day, apy) in sorted(
+            _apy.latest_all(data_dir=position.get("data_dir")).items()):
+        canon = _apy.canonical_protocol(name)
+        if canon is None or canon == proto or canon in seen:
+            continue
+        seen.add(canon)
+        peers.append(apy)
+    res = analyzer._analyze_one({
+        "vault": proto,
+        "apr_pct": own[1],
+        "peer_aprs_pct": peers,
+    })
+    return True, engine_risk(res, proto, higher_is_better=True)

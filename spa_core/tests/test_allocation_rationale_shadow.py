@@ -89,9 +89,33 @@ def test_tier_caps_come_from_riskconfig() -> None:
 
 
 def test_idle_cash_above_the_buffer_is_reported(tmp_path: Path) -> None:
-    doc = _write(tmp_path, current_positions={"maple": 20_000.0})
+    """Idle cash the allocator COULD have deployed is still the loud alarm.
+
+    DELIBERATE CHANGE (инв. 16, Y2 2026-08-05, justified): before the Y2
+    attribution this asserted UNEXPLAINED_CASH on a book with NO TVL provenance
+    at all — i.e. the old code called cash "unexplained" without knowing whether
+    the idle protocols were even fundable (ADR-053 freezes pools without live
+    TVL). That verdict was a guess in alarm's clothing. The check is STRENGTHENED,
+    not weakened: with live TVL supplied the same book must still scream
+    UNEXPLAINED_CASH — and now also name the fundable headroom it is ignoring —
+    while the no-provenance case is pinned separately below as fail-closed
+    ``attribution_incomplete`` (never a silent "explained").
+    """
+    doc = _write(tmp_path, current_positions={"maple": 20_000.0},
+                 tvl_sources={k: "live" for k in APY})
     assert doc["cash"]["excess_pct"] == pytest.approx(75.0)
     assert doc["cash"]["status"] == "UNEXPLAINED_CASH"
+    kinds = {c["kind"]: c for c in doc["cash"]["components"]}
+    assert kinds["unexplained_deployable"]["usd"] > 0
+
+
+def test_unverifiable_tvl_makes_attribution_incomplete_not_explained(tmp_path: Path) -> None:
+    """No TVL provenance ⇒ UNCHECKED component, never zero (fail-closed, task Y2 §3)."""
+    doc = _write(tmp_path, current_positions={"maple": 20_000.0})   # no tvl map, no snapshot
+    assert doc["cash"]["status"] == "attribution_incomplete"
+    assert "tvl_provenance_unavailable" in doc["cash"]["unchecked"]
+    assert doc["cash"]["unexplained_pct"] is None                   # unknown ≠ 0
+    assert any(c.get("status") == "UNCHECKED" for c in doc["cash"]["components"])
 
 
 def test_tvl_that_cleared_the_floor_on_a_literal_is_surfaced(tmp_path: Path) -> None:

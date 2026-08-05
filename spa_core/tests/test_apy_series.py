@@ -7,6 +7,7 @@
 что join по дате даёт правильные пары, а недобор min_days даёт None
 (fail-closed), никакой интерполяции.
 """
+# FROZEN-DATE-OK: даты — ПРЕДМЕТ теста (выравнивание осей по дате, historical-apy-axis-misaligned); все даты — синтетические фикстуры, часы не читаются.
 import json
 
 import pytest

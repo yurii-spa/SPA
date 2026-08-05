@@ -127,6 +127,13 @@ class DeFiProtocolVaultGasBreakevenAnalyzer:
         cfg: Optional[dict] = None,
         write_log: bool = False,
     ) -> dict:
+        # Контекст агрегатора (audit 2026-08-05, задача A2): реальные входы
+        # из _apy_series/_protocol_facts → СОБСТВЕННЫЙ движок; полярность
+        # приведена к «выше = опаснее»; недобор данных → None (dormant);
+        # записей data/ на контекст-пути нет.
+        _handled, _ctx_res = _context_branch(self, position)
+        if _handled:
+            return _ctx_res
         cfg = _build_default_cfg(cfg)
         result = self._analyze_one(position)
         if write_log:
@@ -468,3 +475,46 @@ if __name__ == "__main__":
     result = analyzer.analyze_portfolio(_demo_positions(), write_log=args.run)
     print(json.dumps(result, indent=2))
     sys.exit(0)
+
+
+# ── Protocol-context ветка (audit 2026-08-05, задача A2, линия «профиль») ────
+_CTX_DOMAIN_KEYS = ("position_usd", "deposit_gas_usd", "withdrawal_gas_usd",
+                    "compound_gas_usd", "compounds_per_year", "apr_pct",
+                    "holding_days", "vault", "token")
+
+
+def _context_branch(analyzer, position):
+    """(handled, result). Газ = структурная стоимость транзакции чейна
+    (_CHAIN_GAS_USD профиля), позиция = репрезентативные $25k, APR — реальная
+    последняя точка ряда (fallback: структурный apy профиля). Компаундинг
+    ручной не требуется (lending/vault аккруирует сам) → compound gas 0.
+    Движок «выше = меньше gas-drag» → risk = 100 - score."""
+    from spa_core.analytics import _protocol_facts as _pf
+    if not _pf.is_context_only(position, _CTX_DOMAIN_KEYS):
+        return False, None
+    from spa_core.analytics import _apy_series as _apy
+    from spa_core.analytics._ctx_wire import engine_risk
+    prof = _pf.generic_profile_for(position["protocol"])
+    if prof is None:
+        return True, None
+    apr = None
+    try:
+        pt = _apy.latest(position["protocol"],
+                         data_dir=position.get("data_dir"))
+        if pt is not None and float(pt[1]) > 0.0:
+            apr = float(pt[1])
+    except Exception:
+        apr = None
+    if apr is None:
+        apr = float(prof["apy_pct"])
+    res = analyzer._analyze_one({
+        "vault": prof["name"],
+        "position_usd": float(prof["position_usd"]),
+        "deposit_gas_usd": float(prof["gas_cost_usd"]),
+        "withdrawal_gas_usd": float(prof["gas_cost_usd"]),
+        "compound_gas_usd": 0.0,
+        "compounds_per_year": 0.0,
+        "apr_pct": apr,
+        "holding_days": 365.0,
+    })
+    return True, engine_risk(res, prof["name"], higher_is_better=True)

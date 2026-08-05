@@ -187,11 +187,39 @@ def analyze(yield_series: list, config: dict = None) -> dict:
     # Неизвестный протокол → None (громкий dormant, не фабрикация).
     from spa_core.analytics import _protocol_facts as _pf
     if _pf.is_protocol_context(yield_series):
+        # Волна 2 (audit 2026-08-05, задача A2): движку нужны ОКНА РЯДА
+        # (apy_7d/30d/90d_samples) — профиль их дать не может (потому модуль
+        # был слеп). Реальный ряд _apy_series, окна = трейлинговые срезы;
+        # <7 точек → None (не измерено).
         _ctx_profile = _pf.generic_profile_for(yield_series["protocol"])
         if _ctx_profile is None:
             return None
-        return _pf.extract_protocol_score(
-            analyze([_ctx_profile]), _ctx_profile)
+        from spa_core.analytics import _apy_series as _apy
+        _series = _apy.get_series(yield_series["protocol"], min_days=7,
+                                  data_dir=yield_series.get("data_dir"))
+        if _series is None:
+            return None
+        _values = [v for _, v in _series]
+        _ctx_profile["apy_7d_samples"] = _values[-7:]
+        _ctx_profile["apy_30d_samples"] = _values[-30:]
+        _ctx_profile["apy_90d_samples"] = _values[-90:]
+        # ПОЛЯРНОСТЬ: движок отдаёт stability_score «выше = стабильнее» —
+        # generic-извлечение прочло бы его как риск (класс ошибки фазы 2);
+        # инвертируем явно.
+        _rows = (analyze([_ctx_profile]) or {}).get("protocols") or []
+        _row = _rows[0] if _rows and isinstance(_rows[0], dict) else None
+        if _row is None:
+            return None
+        _stab = _row.get("stability_score")
+        if not isinstance(_stab, (int, float)) or isinstance(_stab, bool):
+            return None
+        return {
+            "protocol": _ctx_profile["name"],
+            "risk_score": round(max(0.0, min(100.0, 100.0 - float(_stab))), 2),
+            "stability_score": float(_stab),
+            "facts_source": _pf.FACTS_SOURCE,
+            "facts_as_of": _pf.FACTS_AS_OF,
+        }
     protocols_out = []
 
     for entry in yield_series:

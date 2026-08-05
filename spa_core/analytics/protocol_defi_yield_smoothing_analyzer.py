@@ -311,7 +311,8 @@ def _smoothing_label(
 # Public analyse function
 # ---------------------------------------------------------------------------
 
-def analyze(source: dict, config: dict | None = None) -> dict:
+def analyze(source: dict, config: dict | None = None,
+            _write_log: bool = True) -> dict:
     """
     Analyze yield smoothing characteristics of a DeFi yield source.
 
@@ -333,6 +334,13 @@ def analyze(source: dict, config: dict | None = None) -> dict:
     dict
         Full smoothing analysis.  Never raises to the caller.
     """
+    # Контекст агрегатора (audit 2026-08-05, задача A2): реальный ряд APY →
+    # дневные ставки apy/365; лог на контекст-пути НЕ пишется.
+    # Полярность: smoothness_score «выше = глаже» → risk = 100 - score.
+    _handled, _ctx_res = _context_branch(source)
+    if _handled:
+        return _ctx_res
+
     cfg = config or {}
     log_path = cfg.get("log_path", _LOG_PATH)
 
@@ -367,10 +375,11 @@ def analyze(source: dict, config: dict | None = None) -> dict:
         "timestamp":                    time.time(),
     }
 
-    try:
-        _atomic_log(log_path, result)
-    except Exception:
-        pass  # advisory: never crash caller
+    if _write_log:
+        try:
+            _atomic_log(log_path, result)
+        except Exception:
+            pass  # advisory: never crash caller
 
     return result
 
@@ -523,3 +532,39 @@ if __name__ == "__main__":
     summary_view = {k: v for k, v in summary.items() if k != "results"}
     print(_json.dumps(summary_view, indent=2, default=str))
     sys.exit(0)
+
+
+# ── Protocol-context ветка (audit 2026-08-05, задача A2, линия «ряды») ───────
+_CTX_DOMAIN_KEYS = ("protocol_name", "yield_observations",
+                    "payout_frequency_days", "auto_compounds",
+                    "compounding_frequency_days", "position_size_usd")
+
+
+def _context_branch(source):
+    """(handled, result). yield_observations = реальный ряд APY, переведённый
+    в дневные ставки apy/365 (арифметика); каденция дневная, аккруал
+    автоматический (структурный факт lending/vault-вселенной). <5 точек →
+    None. smoothness_score «выше = глаже» → risk = 100 - score."""
+    from spa_core.analytics import _protocol_facts as _pf
+    if not _pf.is_context_only(source, _CTX_DOMAIN_KEYS):
+        return False, None
+    from spa_core.analytics import _apy_series as _apy
+    from spa_core.analytics._ctx_wire import engine_risk
+    prof = _pf.generic_profile_for(source["protocol"])
+    if prof is None:
+        return True, None
+    series = _apy.get_series(source["protocol"], min_days=5,
+                             data_dir=source.get("data_dir"))
+    if series is None:
+        return True, None
+    res = analyze({
+        "protocol_name": prof["name"],
+        "yield_observations": [v / 365.0 for _, v in series],
+        "payout_frequency_days": 1,
+        "auto_compounds": True,
+        "compounding_frequency_days": 1,
+        "position_size_usd": float(prof["position_usd"]),
+    }, _write_log=False)
+    return True, engine_risk(res, prof["name"], higher_is_better=True,
+                             score_key="smoothness_score")
+

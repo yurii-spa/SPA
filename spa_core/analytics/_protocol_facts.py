@@ -704,6 +704,9 @@ def facts_for(protocol: str) -> Optional[Dict[str, Any]]:
     oracle = _deep_merge(oracle, merged.pop("oracle", {}))
     admin = copy.deepcopy(_ADMIN_PROFILES[entry["admin_profile"]])
     admin = _deep_merge(admin, merged.pop("admin", {}))
+    # имя admin-профиля — реальный структурный факт таблицы (волна 2):
+    # контекст-веткам нужен человекочитаемый тип контролёра паузы.
+    admin["profile_name"] = entry["admin_profile"]
 
     facts: Dict[str, Any] = {
         "name": key,
@@ -831,6 +834,92 @@ def generic_profile_for(protocol: str) -> Optional[Dict[str, Any]]:
         "facts_source": facts["facts_source"],
         "facts_as_of": facts["facts_as_of"],
     }
+    # ── Обогащение волны 2 (audit 2026-08-05, задача A2) ────────────────────
+    # Дифференциальный аудит показал: десятки контекст-веток фазы 2 читали
+    # из профиля только 3-4 поля, которые СОВПАДАЮТ у аудиторской тройки
+    # (aave_v3/maple/pendle — все на ethereum), и модуль оставался слепым.
+    # Ниже — БОЛЕЕ БОГАТЫЙ срез той же структурной базы: каждое значение —
+    # прямое поле facts_for() или его арифметическая производная, ничего
+    # выдуманного (никаких live-величин, никакого синтетического шума).
+    wd = facts["withdrawal"]
+    systemic = facts["systemic"]
+    bad_debt = facts["bad_debt"]
+    oracle = facts["oracle"]
+    dtc = float(cas["debt_to_collateral"])
+    liq_pct = float(cas["liquidation_threshold_pct"])
+    gas = profile["gas_cost_usd"]
+    hist_bad_debt = profile["historical_bad_debt_usd"]
+    profile.update({
+        # oracle (поля _ORACLE_PROFILES как есть)
+        "oracle_count": int(oracle["num_price_sources"]),
+        "num_price_sources": int(oracle["num_price_sources"]),
+        "twap_window_minutes": float(oracle["twap_window_seconds"]) / 60.0,
+        "oracle_twap_window_sec": float(oracle["twap_window_seconds"]),
+        "has_circuit_breaker": bool(oracle["has_circuit_breaker"]),
+        "circuit_breaker": bool(oracle["has_circuit_breaker"]),
+        "circuit_breaker_exists": bool(oracle["has_circuit_breaker"]),
+        "uses_fallback": int(oracle["num_price_sources"]) > 1,
+        "historical_incidents": int(oracle["manipulation_incidents_count"]),
+        # admin (поля _ADMIN_PROFILES как есть / прямые производные)
+        "multisig_threshold_m": int(admin["multisig_threshold"]),
+        "multisig_total_n": int(admin["multisig_signers"]),
+        "timelock_days": float(admin["timelock_hours"]) / 24.0,
+        "top_10_holder_pct": 100.0 - float(admin["signer_independence_pct"]),
+        "has_pausable_withdrawals": bool(admin["pausable"]),
+        "pause_controller_type": str(facts["admin"].get(
+            "profile_name", "multisig")),
+        # exit / withdrawal (поля exit{} / withdrawal{} как есть)
+        "withdrawal_queue_usd": float(ex["withdrawal_queue_usd"]),
+        "lock_up_days_remaining": float(ex["lock_remaining_days"]),
+        "lock_remaining_days": float(ex["lock_remaining_days"]),
+        "lock_days": float(ex["lock_remaining_days"]),
+        "exit_fee_pct": float(ex["withdrawal_fee_pct"]),
+        "daily_withdrawal_limit_usd": float(wd["daily_exit_capacity_usd"]),
+        "withdrawal_delay_days": float(wd["queue_wait_hours"]) / 24.0,
+        "queue_wait_days": float(wd["queue_wait_hours"]) / 24.0,
+        "cooldown_days": float(wd["queue_wait_hours"]) / 24.0,
+        "entry_slippage_pct": float(wd["price_impact_risk_pct"]),
+        "exit_slippage_pct": float(wd["price_impact_risk_pct"]),
+        "market_depth_at_1pct_usd": float(facts["exit_liquidity_usd"]),
+        "position_usd": size,
+        "position_size_usd": size,
+        # lending / bad debt (поля cascade{} / bad_debt{})
+        "total_supplied": tvl,
+        "total_supplied_usd": tvl,
+        "total_borrowed": tvl * util / 100.0,
+        "total_borrowed_usd": tvl * util / 100.0,
+        "utilization_pct": util,
+        "bad_debt_usd": hist_bad_debt,
+        "reserve_balance_usd": hist_bad_debt * float(
+            bad_debt["reserve_coverage_x"]),
+        "avg_health_factor_collateral": (
+            (liq_pct / 100.0) / dtc if dtc > 0 else 10.0),
+        "collateral_value_usd": size,
+        "borrowed_value_usd": size * dtc,
+        "liquidation_ltv_pct": liq_pct,
+        "max_ltv_pct": liq_pct,          # верхняя граница = порог ликвидации
+        "strategy_target_ltv_pct": dtc * 100.0,
+        "asset_volatility_30d_pct": float(cas["collateral_volatility_pct"]),
+        # insurance / systemic (поля systemic{})
+        "insurance_fund_usd": float(
+            systemic["insurance_pct_of_tvl"]) * tvl / 100.0,
+        "insurance_coverage_pct": float(systemic["insurance_pct_of_tvl"]),
+        # классификация протокола (kind/asset — структурные факты)
+        "kind": facts["kind"],
+        "category": facts["kind"],
+        "underlying_asset": asset,
+        "collateral_type": asset,
+        "stablecoin_pct": float(facts["stablecoin_collateral_pct"]),
+        "eth_correlated_pct": 100.0 - float(
+            facts["stablecoin_collateral_pct"]),
+        # реальный (fee-based) vs эмиссионный компонент доходности:
+        # lp_amm/leverage_farm нашей вселенной несут emission-часть (AERO/…)
+        "real_yield": facts["kind"] not in ("lp_amm", "leverage_farm"),
+        # gas (та же _CHAIN_GAS_USD, под ключами, которые читают движки)
+        "entry_gas_usd": gas,
+        "exit_gas_usd": gas,
+        "harvest_gas_usd": gas,
+    })
     return profile
 
 

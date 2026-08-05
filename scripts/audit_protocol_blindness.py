@@ -30,8 +30,19 @@ audit_protocol_blindness.py — дифференциальный аудит пр
                      повёл себя иначе (код читает протокол, а данные —
                      нет: практически слепой сегодня, data-starved).
 
+Волна 2 (2026-08-05, задача A2) — широкая вселенная. Аудиторская тройка
+(aave_v3/maple/pendle) вся живёт на ethereum: модуль, честно различающий
+протоколы по chain/kind/fee-структуре, на тройке даёт равные score и ложно
+попадает в «слепые». Поэтому каждый trio-слепой модуль дополнительно
+прогоняется по ВСЕЙ вселенной _protocol_facts (35 протоколов, ранний выход
+при первом различии):
+  blind_equal_wide_ok — на тройке равен, но на широкой вселенной различает
+                     протоколы: ЧЕСТНЫЙ coarse-модуль, НЕ слепой эквивалент,
+                     в PROTOCOL_BLIND_MODULES не попадает (исполняется).
+
 Для weight-политики blind_constant / blind_equal / nondeterministic —
-все «слепой эквивалент» (не несут протокол-специфичной информации).
+все «слепой эквивалент» (не несут протокол-специфичной информации);
+blind_equal_wide_ok несёт (грубую) протокол-специфичную информацию.
 
 Запуск ТОЛЬКО в sandbox (не из живой ~/Documents/SPA_Claude — модули пишут
 свои data/*-логи относительно корня репо):
@@ -61,6 +72,13 @@ from spa_core.analytics.signal_aggregator import _ModuleAdapter      # noqa: E40
 REAL_PROTOCOLS = ["aave_v3", "maple", "pendle"]
 REPEAT_PROTOCOL = "aave_v3"          # повторный прогон — ловим недетерминизм
 CONTROL_PROTOCOL = "__nonexistent_control_protocol__"
+
+
+def _wide_universe():
+    """Протоколы широкой вселенной для wide-прогона (без аудиторской тройки,
+    детерминированный порядок)."""
+    from spa_core.analytics._protocol_facts import known_protocols
+    return [p for p in known_protocols() if p not in REAL_PROTOCOLS]
 MODULE_TIMEOUT = 3.0                 # как в проде (signal_aggregator)
 MAX_WORKERS = 8
 
@@ -122,9 +140,34 @@ def _audit_module(module_info: Dict[str, Any]) -> Dict[str, Any]:
         cls = "blind_constant"
     else:
         cls = "blind_equal"
-    return {"module": name, "classification": cls, "runs": runs,
-            "weight": module_info.get("weight"),
-            "category": module_info.get("category")}
+
+    out = {"module": name, "classification": cls, "runs": runs,
+           "weight": module_info.get("weight"),
+           "category": module_info.get("category")}
+
+    # Волна 2: trio-слепой ≠ слепой. Прогон по широкой вселенной
+    # _protocol_facts (ранний выход при первом отличающемся ok-score).
+    if cls in ("blind_constant", "blind_equal"):
+        trio_score = scores[0]
+        wide_ok_runs = 0
+        for proto in _wide_universe():
+            score, status, _detail = _run_once(module_info, proto)
+            if status != "ok" or score is None:
+                continue
+            wide_ok_runs += 1
+            if score != trio_score:
+                out["classification"] = "blind_equal_wide_ok"
+                out["wide"] = {
+                    "differs_at": proto,
+                    "trio_score": trio_score,
+                    "wide_score": score,
+                    "ok_runs_until_differ": wide_ok_runs,
+                }
+                break
+        else:
+            out["wide"] = {"differs_at": None,
+                           "ok_runs": wide_ok_runs}
+    return out
 
 
 def run_audit(tier: str = "B") -> Dict[str, Any]:
@@ -142,6 +185,8 @@ def run_audit(tier: str = "B") -> Dict[str, Any]:
                    if r["classification"] in BLIND_EQUIVALENT)
     sensitive = sorted(r["module"] for r in results
                        if r["classification"] == "sensitive")
+    wide_ok = sorted(r["module"] for r in results
+                     if r["classification"] == "blind_equal_wide_ok")
     return {
         "generated_at": _utc_now_iso(),
         "tier": tier,
@@ -150,11 +195,13 @@ def run_audit(tier: str = "B") -> Dict[str, Any]:
             "repeat_protocol": REPEAT_PROTOCOL,
             "control_protocol": CONTROL_PROTOCOL,
             "module_timeout_s": MODULE_TIMEOUT,
+            "wide_universe_size": len(_wide_universe()),
         },
         "module_count": len(modules),
         "counts": counts,
         "blind_equivalent": blind,
         "sensitive": sensitive,
+        "wide_ok": wide_ok,
         "results": results,
     }
 
@@ -168,10 +215,16 @@ _protocol_blindness.py — эмпирическая разметка прото�
 
 Дифференциальный аудит {generated_at}: каждый Tier-B модуль прогнан для
 {real_protocols} + повтор {repeat} (недетерминизм) + контрольный
-несуществующий протокол. Модули ниже вернули «ok», но их score НЕ зависит
-от протокола (или недетерминирован) → протокол-специфичной информации не
-несут. signal_aggregator.run_tier_b исключает их из composite и из
-confidence (громкий статус "blind"), advisory-слой; Tier-A не трогаем.
+несуществующий протокол; trio-слепые дополнительно прогнаны по ВСЕЙ
+вселенной _protocol_facts (волна 2, задача A2). Модули PROTOCOL_BLIND_DETAIL
+вернули «ok», но их score НЕ зависит от протокола (или недетерминирован) →
+протокол-специфичной информации не несут. signal_aggregator.run_tier_b
+исключает их из composite и из confidence (громкий статус "blind"),
+advisory-слой; Tier-A не трогаем.
+
+WIDE_OK_MODULES — модули, равные на аудиторской тройке (весь ethereum), но
+РАЗЛИЧАЮЩИЕ протоколы на широкой вселенной (chain/kind/fee-структура):
+честные coarse-модули, НЕ слепые, из исполнения НЕ исключаются.
 """
 from typing import Dict, FrozenSet
 
@@ -183,6 +236,11 @@ PROTOCOL_BLIND_DETAIL: Dict[str, str] = {{
 }}
 
 PROTOCOL_BLIND_MODULES: FrozenSet[str] = frozenset(PROTOCOL_BLIND_DETAIL)
+
+# Честные coarse-модули (trio-равные, wide-различающие) — исполняются.
+WIDE_OK_MODULES: FrozenSet[str] = frozenset({{
+{wide_ok_lines}
+}})
 '''
 
 
@@ -195,11 +253,17 @@ def emit_markup(report: Dict[str, Any], path: Path) -> None:
     lines = "\n".join(
         f'    "{name}": "{detail[name]}",' for name in sorted(detail)
     )
+    wide_ok = sorted(
+        r["module"] for r in report["results"]
+        if r["classification"] == "blind_equal_wide_ok"
+    )
+    wide_ok_lines = "\n".join(f'    "{name}",' for name in wide_ok)
     text = _MARKUP_TEMPLATE.format(
         generated_at=report["generated_at"],
         real_protocols=REAL_PROTOCOLS,
         repeat=REPEAT_PROTOCOL,
         detail_lines=lines,
+        wide_ok_lines=wide_ok_lines,
     )
     path.write_text(text, encoding="utf-8")
 

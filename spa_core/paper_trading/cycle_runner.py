@@ -1507,13 +1507,10 @@ def run_cycle(
     # must never be able to break the cycle that feeds the track.
     try:
         from spa_core.paper_trading.allocation_rationale import write_shadow_rationale
-        _shadow_binders: list[dict] = []
+        # Y2 (ADR-055): the blocked map goes through WHOLE (protocol → reason) so
+        # the cash attribution can price each blocked protocol's headroom, instead
+        # of the old single pct-0 "named_not_quantified" binder.
         _blocked = getattr(alloc, "blocked_protocols", {}) or {}
-        if _blocked:
-            _shadow_binders.append({
-                "reason": "blocked_protocols:{}".format(sorted(_blocked)),
-                "pct": 0.0,   # share unknown here; named so the reader can trace it
-            })
         write_shadow_rationale(
             data_dir=ddir,
             current_positions=current_positions,
@@ -1526,7 +1523,7 @@ def run_cycle(
             capital_usd=capital_usd,
             cycle_date=today,
             run_ts=run_ts,
-            cash_binders=_shadow_binders,
+            blocked_protocols={str(k): str(v) for k, v in _blocked.items()},
             trades=_read_json(ddir / TRADES_FILENAME, []),
             write=write,
         )

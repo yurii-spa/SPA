@@ -136,6 +136,128 @@ def _grade_from_score(score: float) -> str:
     return "F"
 
 
+# ── protocol-context branch (audit 2026-08-05, задача A2) ────────────────────
+#
+# Дифференциальный аудит: все 36 wrapper-модулей семейства (плюс 15 клонов в
+# gross_of/) принимали контекст агрегатора {"protocol": ...} как position-dict,
+# не находили в нём ни одного доменного ключа и возвращали КОНСТАНТУ
+# INSUFFICIENT_DATA (score 0.0) для любого протокола → blind_constant.
+# Ветка ниже строит position-вход честно:
+#   * gross yield — РЕАЛЬНАЯ последняя точка ряда _apy_series (fallback —
+#     структурный apy_pct профиля);
+#   * performance_fee_pct — структурный факт (vault=10%, остальные 0);
+#   * эрозия <kind> — ТОЛЬКО из реальных полей профиля (см. _erosion_pct);
+#     нет perf fee → gap тривиально 0 при любой эрозии (арифметика движка);
+#     fee > 0 и эрозия не измерена → None (громкий dormant, не фабрикация).
+# Полярность: движок отдаёт score «выше = честнее» → risk = 100 - score.
+# На контекст-пути НЕТ записей файлов (write_log не достигается).
+
+_CTX_COMMON_KEYS = ("performance_fee_pct", "fee_charged_pct", "vault", "token")
+
+
+def _erosion_pct(k_net: str, prof: dict) -> Optional[float]:
+    """Эрозия <kind> в процентных пунктах доходности из РЕАЛЬНЫХ полей
+    структурного профиля, или None (эрозия этого kind не измерена)."""
+    k = k_net
+    if "management_fee" in k:
+        return float(prof["management_fee_pct"])
+    if "withdrawal_fee" in k or "early_withdrawal_penalty" in k:
+        return float(prof["withdrawal_fee_pct"])
+    if "deposit_fee" in k:
+        # whitelisted-universe: депозит-фи нет ни у одного протокола базы
+        return 0.0
+    if "exit_slippage" in k:
+        return float(prof["exit_slippage_pct"])
+    if "swap_fee" in k or "lp_amm_fee" in k:
+        return float(prof["fee_pct"])
+    if "bridge" in k:
+        pos_usd = float(prof["position_usd"])
+        if pos_usd <= 0:
+            return None
+        return float(prof["bridge_cost_usd"]) / pos_usd * 100.0
+    if "net_of_il" in k or "impermanent" in k:
+        return float(prof["il_change_pct"])
+    if "borrow_cost" in k or "funding_cost" in k:
+        # нет долга → нет стоимости заимствования (реальный факт cascade);
+        # долг есть, а ставка не измерена → None
+        return 0.0 if float(prof["debt_usd"]) <= 0.0 else None
+    if "bad_debt" in k:
+        tvl = float(prof["tvl_usd"])
+        if tvl <= 0:
+            return None
+        return float(prof["bad_debt_usd"]) / tvl * 100.0
+    if "reserve" in k:
+        # vault-обёртки базы не скимят в резервный фактор
+        return 0.0 if prof.get("kind") == "vault" else None
+    if "basis_risk" in k:
+        return float(prof["basis_spread_pp"])
+    return None
+
+
+def build_context_position(protocol, k_gross: str, k_net: str,
+                           data_dir=None) -> Optional[dict]:
+    """Собрать position-вход движка из протокол-контекста, или None."""
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    prof = _pf.generic_profile_for(protocol)
+    if prof is None:
+        return None
+    gross = None
+    try:
+        pt = _apy.latest(protocol, data_dir=data_dir)
+        if pt is not None and float(pt[1]) > 0.0:
+            gross = float(pt[1])
+    except Exception:
+        gross = None
+    if gross is None:
+        gross = float(prof["apy_pct"])
+    fee_pct = float(prof.get("performance_fee_pct") or 0.0)
+    pos = {"vault": prof["name"], k_gross: gross,
+           "performance_fee_pct": fee_pct}
+    if fee_pct > 0.0:
+        erosion = _erosion_pct(k_net, prof)
+        if erosion is None:
+            return None
+        pos[k_net] = gross - erosion
+    else:
+        # fee=0 → fee_charged=0 → gap=0 → score от базы НЕ зависит
+        # (арифметика _finish); значение ниже — нейтральный плейсхолдер.
+        pos[k_net] = gross
+    return pos
+
+
+def maybe_context_result(analyze_one, position, k_gross: str, k_net: str,
+                         extra_keys=()):
+    """(True, result) если *position* — контекст агрегатора, иначе (False, None).
+
+    result — {"risk_score": 0-100 (выше=опаснее), ...} либо None (dormant).
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    domain = (k_gross, k_net) + tuple(extra_keys) + _CTX_COMMON_KEYS
+    if not _pf.is_context_only(position, domain):
+        return False, None
+    pos = build_context_position(position["protocol"], k_gross, k_net,
+                                 data_dir=position.get("data_dir"))
+    if pos is None:
+        return True, None
+    res = analyze_one(pos)
+    if not isinstance(res, dict):
+        return True, None
+    if res.get("classification") == "INSUFFICIENT_DATA":
+        return True, None
+    score = res.get("score")
+    if not isinstance(score, (int, float)) or isinstance(score, bool):
+        return True, None
+    return True, {
+        "protocol": pos["vault"],
+        "risk_score": round(max(0.0, min(100.0, 100.0 - float(score))), 2),
+        "engine_score_higher_better": round(float(score), 2),
+        "classification": res.get("classification"),
+        "facts_source": _pf.FACTS_SOURCE,
+        "facts_as_of": _pf.FACTS_AS_OF,
+    }
+
+
 # ── parameterized engine ──────────────────────────────────────────────────────
 
 class _FeeGapAnalyzerBase:
@@ -170,6 +292,15 @@ class _FeeGapAnalyzerBase:
         cfg: Optional[dict] = None,
         write_log: bool = False,
     ) -> dict:
+        # Контекст агрегатора → честный position-вход из структурного
+        # профиля + реального APY-ряда (см. maybe_context_result выше);
+        # на контекст-пути записей файлов нет.
+        s = self._SPEC
+        is_ctx, ctx_res = maybe_context_result(
+            self._analyze_one, position, s["k_gross"], s["k_net"],
+            (s["k_gap"], s["k_rate"]))
+        if is_ctx:
+            return ctx_res
         cfg = self._build_default_cfg(cfg)
         result = self._analyze_one(position)
         if write_log:

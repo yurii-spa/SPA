@@ -361,6 +361,268 @@ def explain_cash(
     }
 
 
+def attribute_cash(
+    *,
+    positions: Dict[str, float],
+    capital_usd: float,
+    min_cash_frac: float,
+    apy_pct: Dict[str, float],
+    apy_sources: Optional[Dict[str, str]],
+    tvl_live: Optional[set],
+    tier_caps: Optional[Dict[str, float]],
+    tiers: Optional[Dict[str, Optional[str]]],
+    t2_total_cap: Optional[float],
+    t3_total_cap: Optional[float],
+    min_apy_pct: Optional[float],
+    blocked: Optional[Dict[str, str]] = None,
+    external_binders: Optional[List[dict]] = None,
+) -> Dict[str, object]:
+    """Deterministic attribution of every idle dollar (ADR-055 invariant, task Y2).
+
+    Decomposes the book's cash into named components, each with USD and an
+    estimate of forgone yield (bps/yr over TOTAL capital, from live APYs):
+
+      (а) ``min_cash_buffer``            — the policy floor (never "forgone");
+      (д) ``unexplained_deployable``     — room fundable RIGHT NOW under every cap
+          with live APY+TVL evidence, left unfilled. THIS and only this is the
+          honest LAZY signal (status ``UNEXPLAINED_CASH``);
+      (в) ``aggregate_cap``              — per-protocol headroom throttled by the
+          T2-total / T3-total caps;
+      (г) ``insufficient_eligible_live`` — room that exists only in protocols we
+          may not fund: blocked (advisory/GSM), stale APY feed, no live TVL
+          (ADR-053 freeze), or APY below the entry floor;
+      (б) ``per_protocol_cap``           — what remains when every fundable
+          protocol is (or in the counterfactual max-fill becomes) pinned at its
+          40 %/20 % tier cap.
+
+    Waterfall order is FIXED and part of the contract (like tax brackets):
+    buffer → (д) → (в) → (г) → (б). It is deliberate: room we could legally use
+    today is charged to the allocator BEFORE any cap is blamed, so a cap can
+    never launder laziness.
+
+    Fail-CLOSED (task step 3): a component whose inputs are missing (no cap
+    config, no APY provenance, no TVL provenance) is reported as ``UNCHECKED``
+    with the whole attribution stamped ``attribution_incomplete`` — never as a
+    silent zero that would make the cash look explained.
+
+    Pure and deterministic: reads nothing, writes nothing, changes no cap.
+    RiskPolicy values are INPUTS here, resolved by the caller from RiskConfig.
+    """
+    if capital_usd <= 0:
+        return {"status": "error", "error": "invalid_capital"}
+
+    positions = {k: float(v or 0.0) for k, v in (positions or {}).items()}
+    deployed = sum(v for v in positions.values() if v > 0)
+    cash_usd = capital_usd - deployed
+    cash_pct = 100.0 * cash_usd / capital_usd
+    buffer_frac = max(0.0, float(min_cash_frac))
+    buffer_usd = min(max(cash_usd, 0.0), buffer_frac * capital_usd)
+    excess_usd = max(0.0, cash_usd - buffer_frac * capital_usd)
+
+    def _comp(kind: str, usd: float, *, forgone_bps: Optional[float] = None,
+              detail: str = "", protocols: Optional[list] = None,
+              status: str = "OK") -> dict:
+        c: dict = {"kind": kind, "usd": round(usd, 2),
+                   "pct": round(100.0 * usd / capital_usd, 4), "status": status}
+        if forgone_bps is not None:
+            c["forgone_bps_yr"] = round(forgone_bps, 1)
+        if detail:
+            c["detail"] = detail
+        if protocols is not None:
+            c["protocols"] = protocols
+        return c
+
+    components: List[dict] = [
+        _comp("min_cash_buffer", buffer_usd, forgone_bps=0.0,
+              detail="policy min-cash floor {:.0f}% — mandated, not forgone".format(
+                  buffer_frac * 100.0)),
+    ]
+    out_base = {
+        "capital_usd": capital_usd,
+        "cash_pct": round(cash_pct, 4),
+        "buffer_pct": round(buffer_frac * 100.0, 4),
+        "excess_pct": round(100.0 * excess_usd / capital_usd, 4),
+    }
+
+    # External, caller-supplied binders (legacy path): named causes with their own
+    # pct. They shrink the pool the waterfall must attribute — a cause already on
+    # record is not re-attributed — but can never push it below zero.
+    remaining = excess_usd
+    for b in external_binders or []:
+        pct = float(b.get("pct", 0.0) or 0.0)
+        usd = pct / 100.0 * capital_usd
+        components.append(_comp("external_binder", min(usd, remaining),
+                                detail=str(b.get("reason", ""))))
+        remaining = max(0.0, remaining - usd)
+
+    if excess_usd <= 1e-6:
+        return {**out_base, "components": components,
+                "explained_pct": out_base["cash_pct"], "unexplained_pct": 0.0,
+                "unchecked": [], "status": "explained"}
+
+    # ── fail-CLOSED gate: every dimension the split depends on must be present ──
+    unchecked: List[str] = []
+    if tier_caps is None or tiers is None or min_apy_pct is None:
+        unchecked.append("risk_caps_unresolved")
+    if t2_total_cap is None or t3_total_cap is None:
+        unchecked.append("aggregate_caps_unresolved")
+    if apy_sources is None:
+        unchecked.append("apy_provenance_unavailable")
+    if tvl_live is None:
+        unchecked.append("tvl_provenance_unavailable")
+    if unchecked:
+        components.append(_comp(
+            "unattributed", remaining, status="UNCHECKED",
+            detail="cannot split (б)/(в)/(г)/(д): missing " + ", ".join(unchecked)))
+        return {**out_base, "components": components,
+                "explained_pct": round(100.0 * (cash_usd - remaining) / capital_usd, 4),
+                "unexplained_pct": None,   # honestly unknown — NOT zero
+                "unchecked": unchecked, "status": "attribution_incomplete"}
+
+    # ── classify every candidate protocol's headroom ────────────────────────
+    universe = set(apy_sources) | set(positions) | set(blocked or {})
+    fundable: Dict[str, float] = {}          # proto → room USD (all gates pass)
+    non_eligible: Dict[str, Tuple[float, List[str]]] = {}   # proto → (room, why)
+    at_cap: List[str] = []
+    tier_unknown: List[str] = []
+    held_by_tier = {"T1": 0.0, "T2": 0.0, "T3": 0.0}
+    fundable_by_tier = {"T1": 0.0, "T2": 0.0, "T3": 0.0}
+
+    for proto in sorted(universe):
+        held = max(0.0, positions.get(proto, 0.0))
+        tier = tiers.get(proto)
+        tier = str(tier).upper() if tier else None
+        cap_frac = tier_caps.get(proto)
+        if held > 0 and tier in held_by_tier:
+            held_by_tier[tier] += held
+        if tier not in ("T1", "T2", "T3") or cap_frac is None:
+            tier_unknown.append(proto)
+            continue
+        room = max(0.0, float(cap_frac) * capital_usd - held)
+        if room <= 1e-6:
+            if held > 0:
+                at_cap.append("{}@{:.0f}%".format(proto, float(cap_frac) * 100.0))
+            continue
+        why: List[str] = []
+        if blocked and proto in blocked:
+            why.append("blocked:{}".format(blocked[proto]))
+        src = apy_sources.get(proto)
+        if src != "live":
+            why.append("apy_not_live" if src else "apy_source_missing")
+        elif float(apy_pct.get(proto, 0.0) or 0.0) < float(min_apy_pct):
+            why.append("apy_below_min:{:.2f}%<{:.2f}%".format(
+                float(apy_pct.get(proto, 0.0) or 0.0), float(min_apy_pct)))
+        if proto not in tvl_live:
+            why.append("tvl_not_live")
+        if why:
+            non_eligible[proto] = (room, why)
+        else:
+            fundable[proto] = room
+            fundable_by_tier[tier] += room
+
+    # ── aggregate caps throttle the fundable T2/T3 rooms ────────────────────
+    t2_agg_room = max(0.0, float(t2_total_cap) * capital_usd - held_by_tier["T2"])
+    t3_agg_room = max(0.0, float(t3_total_cap) * capital_usd - held_by_tier["T3"])
+    eff_t2 = min(fundable_by_tier["T2"], t2_agg_room)
+    eff_t3 = min(fundable_by_tier["T3"], t3_agg_room)
+    throttled = (fundable_by_tier["T2"] - eff_t2) + (fundable_by_tier["T3"] - eff_t3)
+    fundable_total = fundable_by_tier["T1"] + eff_t2 + eff_t3
+
+    def _best_apy(protos) -> float:
+        vals = [float(apy_pct.get(p, 0.0) or 0.0) for p in protos]
+        return max(vals) if vals else 0.0
+
+    # (д) deployable-but-idle — charged FIRST, so caps can't launder laziness.
+    deployable = min(remaining, fundable_total)
+    unexplained_usd = 0.0
+    if deployable > 1e-6:
+        best = _best_apy(fundable)
+        components.append(_comp(
+            "unexplained_deployable", deployable,
+            forgone_bps=(deployable / capital_usd) * best * 100.0,
+            detail="fundable headroom under every cap with live APY+TVL — "
+                   "idle without a recorded reason",
+            protocols=["{}(+${:,.0f} @ {:.2f}%)".format(p, fundable[p],
+                       float(apy_pct.get(p, 0.0) or 0.0))
+                       for p in sorted(fundable, key=lambda x: -fundable[x])[:6]]))
+        unexplained_usd = deployable
+        remaining -= deployable
+
+    # (в) aggregate caps (T2-total / T3-total).
+    if remaining > 1e-6 and throttled > 1e-6:
+        take = min(remaining, throttled)
+        throttled_protos = [p for p in fundable
+                            if tiers.get(p) and str(tiers[p]).upper() in ("T2", "T3")]
+        components.append(_comp(
+            "aggregate_cap", take,
+            forgone_bps=(take / capital_usd) * _best_apy(throttled_protos) * 100.0,
+            detail="per-protocol T2/T3 headroom throttled by t2_total {:.0f}% / "
+                   "t3_total {:.0f}%".format(float(t2_total_cap) * 100.0,
+                                             float(t3_total_cap) * 100.0),
+            protocols=sorted(throttled_protos)))
+        remaining -= take
+
+    # (г) room that exists only behind missing evidence / blocks.
+    if remaining > 1e-6 and non_eligible:
+        room_total = sum(r for r, _ in non_eligible.values())
+        take = min(remaining, room_total)
+        components.append(_comp(
+            "insufficient_eligible_live", take,
+            forgone_bps=(take / capital_usd) * _best_apy(non_eligible) * 100.0,
+            detail="headroom only in protocols without live evidence "
+                   "(stale feed / no live TVL / blocked / below APY floor) — "
+                   "fail-closed keeps them unfunded",
+            protocols=["{}(${:,.0f}: {})".format(p, non_eligible[p][0],
+                       ",".join(non_eligible[p][1])) for p in sorted(non_eligible)]))
+        remaining -= take
+
+    # (б) per-protocol caps — the terminal bucket when the fundable universe is
+    # pinned at 40 %/20 % (held at cap, or filled to cap in the counterfactual).
+    if remaining > 1e-6:
+        if at_cap or fundable:
+            filled_to_cap = at_cap + ["{}@cap(counterfactual)".format(p)
+                                      for p in sorted(fundable)]
+            components.append(_comp(
+                "per_protocol_cap", remaining,
+                forgone_bps=(remaining / capital_usd)
+                * _best_apy([c.split("@")[0] for c in at_cap] + list(fundable)) * 100.0,
+                detail="every fundable protocol capped at its tier limit "
+                       "(T1 40% / T2 20%)",
+                protocols=filled_to_cap))
+            remaining = 0.0
+        elif tier_unknown:
+            components.append(_comp(
+                "unattributed", remaining, status="UNCHECKED",
+                detail="tier unknown for {} — rooms uncomputable".format(
+                    sorted(tier_unknown))))
+            unchecked.append("tier_unknown:{}".format(sorted(tier_unknown)))
+            remaining = 0.0
+        else:
+            components.append(_comp(
+                "insufficient_eligible_live", remaining,
+                forgone_bps=0.0,
+                detail="no eligible protocol exists at all — universe empty",
+                protocols=[]))
+            remaining = 0.0
+
+    explained_usd = cash_usd - unexplained_usd
+    if unchecked:
+        status = "attribution_incomplete"
+    elif unexplained_usd > 1e-6:
+        status = "UNEXPLAINED_CASH"
+    else:
+        status = "explained"
+    return {
+        **out_base,
+        "components": components,
+        "explained_pct": round(100.0 * explained_usd / capital_usd, 4),
+        "unexplained_pct": (round(100.0 * unexplained_usd / capital_usd, 4)
+                            if not unchecked else None),
+        "unchecked": unchecked,
+        "status": status,
+    }
+
+
 def below_median_cap_violations(
     *,
     positions: Dict[str, float],

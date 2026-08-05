@@ -138,6 +138,13 @@ class DeFiProtocolEmergencyWithdrawalPauseRiskAnalyzer:
         cfg: Optional[dict] = None,
         write_log: bool = False,
     ) -> dict:
+        # Контекст агрегатора (audit 2026-08-05, задача A2): реальные входы
+        # из _apy_series/_protocol_facts → СОБСТВЕННЫЙ движок; полярность
+        # приведена к «выше = опаснее»; недобор данных → None (dormant);
+        # записей data/ на контекст-пути нет.
+        _handled, _ctx_res = _context_branch(self, position)
+        if _handled:
+            return _ctx_res
         cfg = _build_default_cfg(cfg)
         result = self._analyze_one(position)
         if write_log:
@@ -462,3 +469,55 @@ if __name__ == "__main__":
     result = analyzer.analyze_portfolio(_demo_positions(), write_log=args.run)
     print(json.dumps(result, indent=2))
     sys.exit(0)
+
+
+# ── Protocol-context ветка (audit 2026-08-05, задача A2, линия «профиль») ────
+_CTX_DOMAIN_KEYS = ("position_usd", "has_pausable_withdrawals",
+                    "pause_controller_type", "multisig_threshold_m",
+                    "multisig_total_n", "unpause_timelock_hours",
+                    "historical_max_pause_days",
+                    "annual_pause_probability_pct",
+                    "emergency_exit_available", "assumed_apy_pct")
+
+
+def _context_branch(analyzer, position):
+    """(handled, result). Pausability/multisig/timelock — реальные поля
+    admin-профиля facts; тип контролёра: dao_timelock_* → TIMELOCK,
+    остальные мультисиги → MULTISIG (словарь CONTROLLER_SAFETY движка).
+    Полярность: движок отдаёт trap_risk_score «выше = опаснее» — берём
+    КАК ЕСТЬ (без инверсии)."""
+    from spa_core.analytics import _protocol_facts as _pf
+    if not _pf.is_context_only(position, _CTX_DOMAIN_KEYS):
+        return False, None
+    from spa_core.analytics import _apy_series as _apy
+    from spa_core.analytics._ctx_wire import engine_risk
+    prof = _pf.generic_profile_for(position["protocol"])
+    if prof is None:
+        return True, None
+    apr = None
+    try:
+        pt = _apy.latest(position["protocol"],
+                         data_dir=position.get("data_dir"))
+        if pt is not None and float(pt[1]) > 0.0:
+            apr = float(pt[1])
+    except Exception:
+        apr = None
+    if apr is None:
+        apr = float(prof["apy_pct"])
+    controller = ("TIMELOCK"
+                  if str(prof["pause_controller_type"]).startswith(
+                      "dao_timelock")
+                  else "MULTISIG")
+    res = analyzer._analyze_one({
+        "protocol": prof["name"],
+        "position_usd": float(prof["position_usd"]),
+        "has_pausable_withdrawals": bool(prof["has_pausable_withdrawals"]),
+        "pause_controller_type": controller,
+        "multisig_threshold_m": float(prof["multisig_threshold_m"]),
+        "multisig_total_n": float(prof["multisig_total_n"]),
+        "unpause_timelock_hours": float(prof["timelock_hours"]),
+        "assumed_apy_pct": apr,
+        "emergency_exit_available": False,
+    })
+    return True, engine_risk(res, prof["name"], higher_is_better=False,
+                             score_key="trap_risk_score")

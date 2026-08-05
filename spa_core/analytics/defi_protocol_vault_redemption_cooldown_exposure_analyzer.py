@@ -126,6 +126,13 @@ class DeFiProtocolVaultRedemptionCooldownExposureAnalyzer:
         cfg: Optional[dict] = None,
         write_log: bool = False,
     ) -> dict:
+        # Контекст агрегатора (audit 2026-08-05, задача A2): реальные входы
+        # из _apy_series/_protocol_facts → СОБСТВЕННЫЙ движок; полярность
+        # приведена к «выше = опаснее»; недобор данных → None (dormant);
+        # записей data/ на контекст-пути нет.
+        _handled, _ctx_res = _context_branch(self, position)
+        if _handled:
+            return _ctx_res
         cfg = _build_default_cfg(cfg)
         result = self._analyze_one(position)
         if write_log:
@@ -449,3 +456,53 @@ if __name__ == "__main__":
     result = analyzer.analyze_portfolio(_demo_positions(), write_log=args.run)
     print(json.dumps(result, indent=2))
     sys.exit(0)
+
+
+# ── Protocol-context ветка (audit 2026-08-05, задача A2, линия «профиль») ────
+_CTX_DOMAIN_KEYS = ("position_usd", "cooldown_days", "daily_volatility_pct",
+                    "earns_during_cooldown", "vault_apr_pct",
+                    "exit_urgency_days", "vault", "token")
+
+
+def _context_branch(analyzer, position):
+    """(handled, result). Кулдаун = структурная очередь вывода
+    (queue_wait_hours facts), позиция $25k, APR — реальная точка ряда
+    (fallback: профиль). Дневная волатильность депонируемого актива:
+    stablecoin-вселенная → 0; wrapped BTC → годовая волатильность
+    collateral / sqrt(365) (арифметика, не выдумка).
+    Движок «выше = меньше cooldown-риск» → risk = 100 - score."""
+    from spa_core.analytics import _protocol_facts as _pf
+    if not _pf.is_context_only(position, _CTX_DOMAIN_KEYS):
+        return False, None
+    import math as _math
+    from spa_core.analytics import _apy_series as _apy
+    from spa_core.analytics._ctx_wire import engine_risk
+    prof = _pf.generic_profile_for(position["protocol"])
+    if prof is None:
+        return True, None
+    apr = None
+    try:
+        pt = _apy.latest(position["protocol"],
+                         data_dir=position.get("data_dir"))
+        if pt is not None and float(pt[1]) > 0.0:
+            apr = float(pt[1])
+    except Exception:
+        apr = None
+    if apr is None:
+        apr = float(prof["apy_pct"])
+    facts = _pf.facts_for(position["protocol"])
+    if facts is None:
+        return True, None
+    if facts["asset_type"] == "wrapped":
+        daily_vol = float(prof["asset_volatility_30d_pct"]) / _math.sqrt(365.0)
+    else:
+        daily_vol = 0.0
+    res = analyzer._analyze_one({
+        "vault": prof["name"],
+        "position_usd": float(prof["position_usd"]),
+        "cooldown_days": float(prof["cooldown_days"]),
+        "daily_volatility_pct": daily_vol,
+        "earns_during_cooldown": False,
+        "vault_apr_pct": apr,
+    })
+    return True, engine_risk(res, prof["name"], higher_is_better=True)

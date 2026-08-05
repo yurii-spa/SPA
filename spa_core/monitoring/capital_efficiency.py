@@ -36,10 +36,18 @@ from spa_core.utils.atomic import atomic_save  # noqa: E402
 
 _POS = _ROOT / "data" / "current_positions.json"
 _APY = _ROOT / "data" / "apy_ranking.json"
+_RATIONALE = _ROOT / "data" / "allocation_rationale.json"
 _OUT = _ROOT / "data" / "capital_efficiency.json"
 
 # idle above (min_cash + this) is flagged. Small band so we don't cry wolf on normal drift.
 _IDLE_TOLERANCE = 0.03  # 3 percentage points over the min-cash floor
+
+# Y2 (ADR-055): unexplained remainder ≤ this (% of capital) after a COMPLETE cash
+# attribution is tolerated (EXPLAINED); above it the LAZY alarm stands.
+_UNEXPLAINED_TOLERANCE_PCT = 2.0
+# An attribution older than this cannot vouch for today's book (cycle is daily;
+# 36h covers one missed run without letting a week-old story silence the alarm).
+_RATIONALE_MAX_AGE_H = 36.0
 
 
 def _load(path: Path):
@@ -121,6 +129,31 @@ def _live_apys(apy_doc) -> dict[str, tuple[float, str]]:
     return out
 
 
+def _cash_attribution() -> dict | None:
+    """Fresh, complete Y2 cash attribution from allocation_rationale.json, or None.
+
+    None ⇒ the caller falls back to the legacy headroom heuristic (fail-closed:
+    a missing / stale / incomplete attribution never vouches for the book).
+    """
+    doc = _load(_RATIONALE)
+    if not isinstance(doc, dict):
+        return None
+    cash = doc.get("cash")
+    if not isinstance(cash, dict) or "components" not in cash:
+        return None  # pre-Y2 artifact shape — cannot vouch
+    try:
+        from datetime import datetime, timezone
+        gen = datetime.fromisoformat(str(doc.get("generated_at")).replace("Z", "+00:00"))
+        if gen.tzinfo is None:
+            gen = gen.replace(tzinfo=timezone.utc)
+        age_h = (datetime.now(timezone.utc) - gen).total_seconds() / 3600.0
+    except Exception:  # noqa: BLE001 — undatable artifact cannot vouch
+        return None
+    if age_h > _RATIONALE_MAX_AGE_H:
+        return None
+    return cash
+
+
 def assess() -> dict:
     pos = _load(_POS)
     cfg = _config()
@@ -173,6 +206,53 @@ def assess() -> dict:
     else:
         verdict = "WARNING" if lazy else "OK"
     forgone_bps = round(deployable_now * best_apy * 100) if lazy else 0  # deployable × APY, in bps
+    reason = (
+        "LAZY: {:.0f}% deployable capital idle at 0% while qualifying T1/T2 headroom exists"
+        .format(deployable_now * 100)
+        if lazy else
+        ("structural: idle within tolerance or no qualifying headroom (caps exhausted) — holding cash is correct"
+         if verdict == "OK" else "unknown")
+    )
+
+    # ── Y2 (ADR-055): the cycle's own cash attribution outranks the heuristic ──
+    # The rationale writer decomposes the SAME cash into named binders with USD +
+    # forgone bps, fail-closed (missing input ⇒ UNCHECKED, not zero). When a fresh,
+    # COMPLETE attribution exists it is the better-informed witness:
+    #   * status "explained"            → EXPLAINED, not LAZY (cash is a logged decision);
+    #   * unexplained ≤ 2% of capital   → EXPLAINED (small remainder, named split shown);
+    #   * unexplained > 2% of capital   → LAZY stands, now with the honest number;
+    #   * incomplete / stale / missing  → this heuristic stays in force (fail-closed).
+    attribution = _cash_attribution()
+    attribution_status = None
+    unexplained_pct = None
+    if isinstance(attribution, dict):
+        attribution_status = str(attribution.get("status") or "")
+        if attribution_status in ("explained", "UNEXPLAINED_CASH"):
+            raw_unexpl = attribution.get("unexplained_pct")
+            unexplained_pct = float(raw_unexpl) if isinstance(raw_unexpl, (int, float)) else None
+        if attribution_status == "explained":
+            verdict = "EXPLAINED"
+            reason = "cash fully attributed by the cycle (see cash_attribution) — a logged decision, not LAZY"
+            forgone_bps = 0
+        elif attribution_status == "UNEXPLAINED_CASH" and unexplained_pct is not None:
+            comp = next((c for c in attribution.get("components", [])
+                         if isinstance(c, dict) and c.get("kind") == "unexplained_deployable"), {})
+            fb = comp.get("forgone_bps_yr")
+            if unexplained_pct > _UNEXPLAINED_TOLERANCE_PCT:
+                verdict = "WARNING"
+                forgone_bps = round(float(fb)) if isinstance(fb, (int, float)) else forgone_bps
+                reason = (
+                    "LAZY: {:.1f}% of capital idle UNEXPLAINED after attribution "
+                    "(fundable headroom under every cap left unused)".format(unexplained_pct)
+                )
+            else:
+                verdict = "EXPLAINED"
+                reason = (
+                    "cash attributed; unexplained remainder {:.1f}% ≤ {:.1f}% tolerance"
+                    .format(unexplained_pct, _UNEXPLAINED_TOLERANCE_PCT)
+                )
+                forgone_bps = 0
+        # attribution_incomplete / error → legacy verdict stands (fail-closed).
 
     return {
         "check": "capital_efficiency",
@@ -190,14 +270,12 @@ def assess() -> dict:
         "forgone_yield_bps_est": forgone_bps,
         "headroom_contributors": contributors,
         "verdict": verdict,
-        "reason": (
-            "LAZY: {:.0f}% deployable capital idle at 0% while qualifying T1/T2 headroom exists"
-            .format(deployable_now * 100)
-            if lazy else
-            ("structural: idle within tolerance or no qualifying headroom (caps exhausted) — holding cash is correct"
-             if verdict == "OK" else "unknown")
-        ),
+        "reason": reason,
         "tolerance_pct": _IDLE_TOLERANCE,
+        # Y2 (ADR-055) — the attribution this verdict leaned on (None ⇒ legacy heuristic).
+        "attribution_status": attribution_status,
+        "cash_unexplained_pct": unexplained_pct,
+        "cash_attribution": (attribution.get("components") if isinstance(attribution, dict) else None),
     }
 
 
@@ -215,7 +293,13 @@ def main() -> int:
               f"→ ~{res['forgone_yield_bps_est']}bps/yr forgone")
         for c in res.get("headroom_contributors", []):
             print(f"    · {c}")
-    return {"OK": 0, "WARNING": 1}.get(v, 2)
+    if res.get("cash_attribution"):
+        for c in res["cash_attribution"]:
+            print("    cash · {}: ${:,.0f} ({}%){}".format(
+                c.get("kind"), c.get("usd", 0), c.get("pct"),
+                " [UNCHECKED]" if c.get("status") == "UNCHECKED" else ""))
+    # EXPLAINED = attributed idle cash is a logged decision (ADR-055), same green as OK.
+    return {"OK": 0, "EXPLAINED": 0, "WARNING": 1}.get(v, 2)
 
 
 if __name__ == "__main__":

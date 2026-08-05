@@ -165,6 +165,7 @@ class BridgeRiskAssessor:
         self,
         bridge_data: Dict[str, Any],
         _now: Optional[float] = None,
+        write_log: bool = True,
     ) -> Dict[str, Any]:
         """
         Assess *bridge_data* and return a risk result dict.
@@ -178,6 +179,16 @@ class BridgeRiskAssessor:
           bridge_type            – LOCK_MINT | LIQUIDITY | NATIVE
           daily_volume_usd       – float
         """
+        # Контекст агрегатора (audit 2026-08-05, задача A2): мост протокола —
+        # реальный bridge-профиль _protocol_facts (канонический мост чейна /
+        # bridge_profile wrapped-актива); mainnet-native без моста → риск 0
+        # (bridge-зависимости нет — это факт, не подстановка). На контекст-
+        # пути лог НЕ пишется. Полярность: движок отдаёт total_bridge_score
+        # «выше = надёжнее» → risk = 100 - score.
+        _handled, _ctx_res = _context_branch(self, bridge_data, _now)
+        if _handled:
+            return _ctx_res
+
         bridge_name = str(bridge_data.get("bridge_name", "unknown"))
         tvb = float(bridge_data.get("total_value_bridged_usd", 0.0))
         incidents: List[Dict[str, Any]] = list(
@@ -224,7 +235,8 @@ class BridgeRiskAssessor:
         }
 
         self._last_result = result
-        self._append_to_log(result)
+        if write_log:
+            self._append_to_log(result)
         return result
 
     def get_bridge_tier(self) -> Optional[str]:
@@ -285,3 +297,50 @@ class BridgeRiskAssessor:
             except OSError:
                 pass
             raise
+
+
+# ── Protocol-context ветка (audit 2026-08-05, задача A2, линия «профиль») ────
+_CTX_DOMAIN_KEYS = ("bridge_name", "total_value_bridged_usd",
+                    "incident_history", "audit_count",
+                    "days_since_last_audit", "bridge_type",
+                    "daily_volume_usd")
+
+
+def _context_branch(assessor, bridge_data, _now=None):
+    """(handled, result). Реальный bridge-профиль facts_for(): имя моста,
+    дни с последнего аудита, история хаков (пустая = факт таблицы). Протокол
+    без моста (mainnet-native) → risk 0: bridge-зависимости нет. Поля, которых
+    в структурной базе нет (TVB, объём моста), НЕ выдумываются — остаются
+    дефолтами движка."""
+    from spa_core.analytics import _protocol_facts as _pf
+    if not _pf.is_context_only(bridge_data, _CTX_DOMAIN_KEYS):
+        return False, None
+    from spa_core.analytics._ctx_wire import CTX_WIRE_SOURCE
+    facts = _pf.facts_for(bridge_data["protocol"])
+    if facts is None:
+        return True, None
+    bridge = facts.get("bridge")
+    proto = facts["name"]
+    if not bridge:
+        return True, {
+            "protocol": proto,
+            "risk_score": 0.0,
+            "classification": "NO_BRIDGE_DEPENDENCY",
+            "source": CTX_WIRE_SOURCE,
+        }
+    res = assessor.assess({
+        "bridge_name": bridge["bridge_name"],
+        "incident_history": list(bridge.get("historical_hacks") or []),
+        "days_since_last_audit": float(bridge["days_since_last_audit"]),
+        "bridge_type": "LOCK_MINT",
+    }, _now, write_log=False)
+    score = res.get("total_bridge_score")
+    if not isinstance(score, (int, float)):
+        return True, None
+    return True, {
+        "protocol": proto,
+        "risk_score": round(max(0.0, min(100.0, 100.0 - float(score))), 2),
+        "engine_score": round(float(score), 2),
+        "bridge_tier": res.get("bridge_tier"),
+        "source": CTX_WIRE_SOURCE,
+    }

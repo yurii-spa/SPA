@@ -306,6 +306,14 @@ class ProtocolDeFiStableYieldConsistencyScorer:
         dict
             Output dictionary with consistency metrics.
         """
+        # Контекст агрегатора (audit 2026-08-05, задача A2): реальный ряд APY
+        # (_apy_series) + структурные факты (yield_source по kind, задержка
+        # вывода). Лог на контекст-пути НЕ пишется (write_log=False).
+        # Полярность: consistency_score «выше = стабильнее» → risk = 100-score.
+        _handled, _ctx_res = _context_branch(self, data)
+        if _handled:
+            return _ctx_res
+
         protocol_name = str(data.get("protocol_name", "unknown"))
         apy_history = [float(v) for v in data.get("apy_history", [])]
         yield_source = str(data.get("yield_source", "unknown"))
@@ -336,3 +344,53 @@ class ProtocolDeFiStableYieldConsistencyScorer:
             _atomic_append_log(self._log_path, result)
 
         return result
+
+
+# ── Protocol-context ветка (audit 2026-08-05, задача A2, линия «ряды») ───────
+_CTX_DOMAIN_KEYS = ("protocol_name", "apy_history", "yield_source",
+                    "has_rate_lock", "lock_duration_days",
+                    "withdrawal_delay_days")
+
+# kind структурной базы → категория источника доходности движка
+# (реальная классификация вселенной: lending/vault = ссудный процент,
+# rwa/fixed/synthetic = real yield, LP = торговые комиссии,
+# leverage_farm = эмиссии).
+_KIND_TO_YIELD_SOURCE = {
+    "lending": "lending_interest",
+    "vault": "lending_interest",
+    "rwa_credit": "real_yield",
+    "fixed_yield": "real_yield",
+    "synthetic_dollar": "real_yield",
+    "lp_amm": "trading_fees",
+    "leverage_farm": "emissions",
+}
+
+
+def _context_branch(scorer, data):
+    """(handled, result). apy_history = реальный ряд (_apy_series, ≥5 точек),
+    yield_source по kind, has_rate_lock только у fixed_yield (PT фиксирует
+    ставку до погашения), withdrawal_delay — структурная очередь вывода."""
+    from spa_core.analytics import _protocol_facts as _pf
+    if not _pf.is_context_only(data, _CTX_DOMAIN_KEYS):
+        return False, None
+    from spa_core.analytics import _apy_series as _apy
+    from spa_core.analytics._ctx_wire import engine_risk
+    prof = _pf.generic_profile_for(data["protocol"])
+    if prof is None:
+        return True, None
+    series = _apy.get_series(data["protocol"], min_days=5,
+                             data_dir=data.get("data_dir"))
+    if series is None:
+        return True, None
+    fixed = prof["kind"] == "fixed_yield"
+    res = scorer.score({
+        "protocol_name": prof["name"],
+        "apy_history": [v for _, v in series],
+        "yield_source": _KIND_TO_YIELD_SOURCE.get(prof["kind"], "unknown"),
+        "has_rate_lock": fixed,
+        "lock_duration_days": float(prof["date_days_from_now"]) if fixed
+        else 0.0,
+        "withdrawal_delay_days": float(prof["withdrawal_delay_days"]),
+    }, write_log=False)
+    return True, engine_risk(res, prof["name"], higher_is_better=True,
+                             score_key="consistency_score")

@@ -118,6 +118,13 @@ class DeFiProtocolVaultLossSocializationExposureAnalyzer:
         cfg: Optional[dict] = None,
         write_log: bool = False,
     ) -> dict:
+        # Контекст агрегатора (audit 2026-08-05, задача A2): реальные входы
+        # из _apy_series/_protocol_facts → СОБСТВЕННЫЙ движок; полярность
+        # приведена к «выше = опаснее»; недобор данных → None (dormant);
+        # записей data/ на контекст-пути нет.
+        _handled, _ctx_res = _context_branch(self, position)
+        if _handled:
+            return _ctx_res
         cfg = _build_default_cfg(cfg)
         result = self._analyze_one(position)
         if write_log:
@@ -434,3 +441,34 @@ if __name__ == "__main__":
     result = analyzer.analyze_portfolio(_demo_positions(), write_log=args.run)
     print(json.dumps(result, indent=2))
     sys.exit(0)
+
+
+# ── Protocol-context ветка (audit 2026-08-05, задача A2, линия «профиль») ────
+_CTX_DOMAIN_KEYS = ("vault_tvl_usd", "position_usd",
+                    "outstanding_bad_debt_usd", "insurance_buffer_usd",
+                    "has_loss_backstop", "subordinated_tranche",
+                    "vault", "token")
+
+
+def _context_branch(analyzer, position):
+    """(handled, result). Bad debt и страховой буфер — структурные поля
+    facts (bad_debt_ratio × borrowed; insurance_pct_of_tvl × TVL), позиция
+    $25k pro-rata. Движок «выше = безопаснее» → risk = 100 - score."""
+    from spa_core.analytics import _protocol_facts as _pf
+    if not _pf.is_context_only(position, _CTX_DOMAIN_KEYS):
+        return False, None
+    from spa_core.analytics._ctx_wire import engine_risk
+    prof = _pf.generic_profile_for(position["protocol"])
+    if prof is None:
+        return True, None
+    insurance = float(prof["insurance_fund_usd"])
+    res = analyzer._analyze_one({
+        "vault": prof["name"],
+        "vault_tvl_usd": float(prof["tvl_usd"]),
+        "position_usd": float(prof["position_usd"]),
+        "outstanding_bad_debt_usd": float(prof["bad_debt_usd"]),
+        "insurance_buffer_usd": insurance,
+        "has_loss_backstop": insurance > 0.0,
+        "subordinated_tranche": False,
+    })
+    return True, engine_risk(res, prof["name"], higher_is_better=True)

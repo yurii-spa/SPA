@@ -135,6 +135,13 @@ class DeFiProtocolVaultAPRAnnualizationBasisRiskAnalyzer:
         cfg: Optional[dict] = None,
         write_log: bool = False,
     ) -> dict:
+        # Контекст агрегатора (audit 2026-08-05, задача A2): реальные входы
+        # из _apy_series/_protocol_facts → СОБСТВЕННЫЙ движок; полярность
+        # приведена к «выше = опаснее»; недобор данных → None (dormant);
+        # записей data/ на контекст-пути нет.
+        _handled, _ctx_res = _context_branch(self, position)
+        if _handled:
+            return _ctx_res
         cfg = _build_default_cfg(cfg)
         result = self._analyze_one(position)
         if write_log:
@@ -486,3 +493,33 @@ if __name__ == "__main__":
     result = analyzer.analyze_portfolio(_demo_positions(), write_log=args.run)
     print(json.dumps(result, indent=2))
     sys.exit(0)
+
+
+# ── Protocol-context ветка (audit 2026-08-05, задача A2, линия «ряды») ───────
+_CTX_DOMAIN_KEYS = ("headline_apr_pct", "measurement_window_days",
+                    "expected_basis_days", "period_volatility_pct",
+                    "vault", "token")
+
+
+def _context_branch(analyzer, position):
+    """(handled, result). Реальный ряд APY: headline = последняя точка,
+    окно измерения = фактическое число дневных точек ряда, база = 365,
+    волатильность периода = pstdev ряда. <3 точек → None.
+    Движок «выше = надёжнее база» → risk = 100 - score."""
+    from spa_core.analytics import _protocol_facts as _pf
+    if not _pf.is_context_only(position, _CTX_DOMAIN_KEYS):
+        return False, None
+    from spa_core.analytics import _apy_series as _apy
+    from spa_core.analytics._ctx_wire import engine_risk
+    st = _apy.stats(position["protocol"], min_days=3,
+                    data_dir=position.get("data_dir"))
+    if st is None or st["current"] <= 0:
+        return True, None
+    res = analyzer._analyze_one({
+        "vault": st["protocol"],
+        "headline_apr_pct": st["current"],
+        "measurement_window_days": float(st["n"]),
+        "expected_basis_days": 365.0,
+        "period_volatility_pct": st["std"],
+    })
+    return True, engine_risk(res, st["protocol"], higher_is_better=True)

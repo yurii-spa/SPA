@@ -899,15 +899,30 @@ def check_system(data_dir: Path, now: datetime,
         ce_verdict = str(ce.get("verdict")).upper() if ce.get("verdict") else None
         checks["capital_efficiency"] = ce_verdict
         checks["capital_idle_excess_pct"] = ce.get("idle_excess_pct")
+        # Y2 (ADR-055): when the cycle's cash attribution exists, surface it so the
+        # verdict is auditable here (EXPLAINED = cash is a logged decision, no issue;
+        # LAZY = the UNEXPLAINED remainder specifically, not gross idle).
+        if ce.get("attribution_status") is not None:
+            checks["capital_cash_attribution"] = ce.get("attribution_status")
+            checks["capital_cash_unexplained_pct"] = ce.get("cash_unexplained_pct")
         if ce_verdict == "WARNING":
             fb = ce.get("forgone_yield_bps_est")
-            issues.append(
-                "capital-efficiency LAZY: {:.0f}% deployable capital idle at 0%{} "
-                "(allocator left safe headroom unused)".format(
-                    (ce.get("deployable_now_pct") or 0) * 100,
-                    f" — ~{fb}bps/yr forgone" if fb else "",
+            unexpl = ce.get("cash_unexplained_pct")
+            if isinstance(unexpl, (int, float)):
+                issues.append(
+                    "capital-efficiency LAZY: {:.1f}% of capital idle UNEXPLAINED "
+                    "after attribution{} (fundable headroom left unused)".format(
+                        unexpl, f" — ~{fb}bps/yr forgone" if fb else "",
+                    )
                 )
-            )
+            else:
+                issues.append(
+                    "capital-efficiency LAZY: {:.0f}% deployable capital idle at 0%{} "
+                    "(allocator left safe headroom unused)".format(
+                        (ce.get("deployable_now_pct") or 0) * 100,
+                        f" — ~{fb}bps/yr forgone" if fb else "",
+                    )
+                )
             status = _worst(status, WARNING)
         elif ce_verdict == "UNKNOWN":
             issues.append("capital-efficiency UNKNOWN (idle book, feed unreadable — fail-closed)")

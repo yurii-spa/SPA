@@ -6,8 +6,12 @@ position, and never influences the trade decision — arming it is a separate,
 owner-gated step. The point of the shadow phase is that the owner can read a
 fortnight of real verdicts before any capital depends on them.
 
-Also discharges the ADR-055 obligation that idle capital be explained every cycle:
-whatever the named binders do not cover is published as ``UNEXPLAINED_CASH``.
+Also discharges the ADR-055 obligation that idle capital be explained every cycle
+(Y2): the ``cash`` section is a deterministic attribution — buffer / deployable-
+but-idle / aggregate caps / per-protocol caps / missing live evidence — with USD
+and forgone bps per component. ``UNEXPLAINED_CASH`` is reserved for room that was
+fundable under every cap with live evidence and still left idle; a component whose
+inputs are missing is ``UNCHECKED`` (``attribution_incomplete``), never zero.
 
 Fail-open by construction: any error here is logged and swallowed. A reporting
 layer must never be able to break the cycle that feeds the track.
@@ -23,9 +27,9 @@ from typing import Dict, List, Optional
 
 from spa_core.allocator.rebalance_economics import (
     TriggerParams,
+    attribute_cash,
     below_median_cap_violations,
     evaluate,
-    explain_cash,
 )
 from spa_core.utils.atomic import atomic_save
 
@@ -63,6 +67,49 @@ def _resolve_tier_caps(protocols) -> Dict[str, float]:
             cfg.max_concentration_t1 if tier == "T1" else cfg.max_concentration_t2
         )
     return caps
+
+
+def _resolve_attribution_policy(protocols) -> dict:
+    """Everything the cash attribution needs from RiskConfig + the canonical tier map.
+
+    Read-only: values are RiskPolicy v1.0's own numbers, never redefined here.
+    Fail-CLOSED: an unresolvable source yields ``None`` fields, which
+    :func:`attribute_cash` reports as UNCHECKED — never a silent zero.
+    """
+    out: dict = {"tier_caps": None, "tiers": None, "t2_total_cap": None,
+                 "t3_total_cap": None, "min_apy_pct": None}
+    try:
+        from spa_core.risk.policy import RiskConfig
+        cfg = RiskConfig()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Y2 attribution: RiskConfig unavailable (%s) — caps UNCHECKED", exc)
+        return out
+    try:
+        from spa_core.adapters.tier_map import tier_of
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Y2 attribution: tier_map unavailable (%s) — tiers UNCHECKED", exc)
+        return out
+    tiers: Dict[str, Optional[str]] = {}
+    caps: Dict[str, float] = {}
+    for proto in protocols or []:
+        try:
+            tier = tier_of(proto)
+        except Exception:  # noqa: BLE001 — one bad lookup never breaks the report
+            tier = None
+        tiers[proto] = str(tier).upper() if tier else None
+        if tiers[proto]:
+            caps[proto] = float(
+                cfg.max_concentration_t1 if tiers[proto] == "T1"
+                else cfg.max_concentration_t2
+            )
+    out.update({
+        "tier_caps": caps,
+        "tiers": tiers,
+        "t2_total_cap": float(cfg.max_total_t2_allocation),
+        "t3_total_cap": float(getattr(cfg, "max_total_t3_allocation", 0.15)),
+        "min_apy_pct": float(cfg.min_apy_for_new_position),
+    })
+    return out
 
 
 def _parse_ts(value: object) -> Optional[datetime]:
@@ -149,6 +196,7 @@ def write_shadow_rationale(
     now: Optional[datetime] = None,
     write: bool = True,
     params: Optional[TriggerParams] = None,
+    blocked_protocols: Optional[Dict[str, str]] = None,
 ) -> dict:
     """Compute the shadow verdict and (optionally) persist it. Never raises."""
     try:
@@ -179,9 +227,14 @@ def write_shadow_rationale(
         # competing definition of the same thing — the drift this project keeps
         # paying for. The snapshot is used only as a fallback when the allocator
         # did not supply the map.
+        # ``tvl_known`` distinguishes "we looked and it is static" from "we could
+        # not look at all" — the attribution treats the latter as UNCHECKED
+        # (fail-closed), never as an empty set that would silently explain cash.
         tvl_evidenced = set()
+        tvl_known = False
         if tvl_sources:
             tvl_evidenced = {p_ for p_, src in tvl_sources.items() if src == "live"}
+            tvl_known = True
         else:
             try:
                 orch = json.loads((Path(data_dir) / "adapter_orchestrator_status.json")
@@ -189,6 +242,7 @@ def write_shadow_rationale(
                 for a in orch.get("adapters", []) or []:
                     if isinstance(a, dict) and a.get("protocol") and a.get("tvl_usd") is not None:
                         tvl_evidenced.add(str(a["protocol"]))
+                tvl_known = True
             except Exception as exc:  # noqa: BLE001
                 log.warning("ADR-060 shadow: TVL provenance unavailable (%s)", exc)
 
@@ -211,8 +265,28 @@ def write_shadow_rationale(
             tvl_evidenced=tvl_evidenced or None,
         )
 
-        cash = explain_cash(positions=current_positions or {}, capital_usd=capital_usd,
-                            min_cash_frac=min_cash_frac, binders=cash_binders)
+        # ── Y2 (ADR-055): deterministic attribution of every idle dollar ──
+        # The universe the attribution reasons over = everything the allocator
+        # saw (its APY provenance map) + the held book + what it refused to fund.
+        _universe = sorted(set(apy_sources or {})
+                           | set(current_positions or {})
+                           | set(blocked_protocols or {}))
+        _pol = _resolve_attribution_policy(_universe)
+        cash = attribute_cash(
+            positions=current_positions or {},
+            capital_usd=capital_usd,
+            min_cash_frac=min_cash_frac,
+            apy_pct=apy_pct or {},
+            apy_sources=dict(apy_sources) if apy_sources is not None else None,
+            tvl_live=(tvl_evidenced if tvl_known else None),
+            tier_caps=_pol["tier_caps"],
+            tiers=_pol["tiers"],
+            t2_total_cap=_pol["t2_total_cap"],
+            t3_total_cap=_pol["t3_total_cap"],
+            min_apy_pct=_pol["min_apy_pct"],
+            blocked=blocked_protocols,
+            external_binders=cash_binders,
+        )
         # Caps resolved here when the caller did not supply them — otherwise the
         # below-median rule silently reports nothing and looks compliant.
         _caps = tier_caps or _resolve_tier_caps(list((current_positions or {}).keys()))
@@ -248,6 +322,29 @@ def write_shadow_rationale(
                 "below_median_cap_factor": p.below_median_cap_factor,
             },
         }
+
+        # ── advisor_notes (own-27 поток 1): 13 переселённых оптимизаторов ──
+        # СТРОГО ADVISORY: рекомендации никогда не гейтят исполнение и не
+        # двигают капитал (инвариант ADR-055). Отказ советников деградирует в
+        # error-заметку — rationale и цикл продолжаются нетронутыми.
+        try:
+            from spa_core.analytics.allocator_advisors import run_advisors
+            doc["advisor_notes"] = {
+                "note": ("ADVISORY ONLY: recommendations never gate execution "
+                         "and never move capital."),
+                "recommendations": run_advisors(
+                    {
+                        "positions": dict(current_positions or {}),
+                        "capital_usd": capital_usd,
+                        "apy_pct": dict(apy_pct or {}),
+                    },
+                    Path(data_dir),
+                ),
+            }
+        except Exception as adv_exc:  # noqa: BLE001 — советники не ломают rationale
+            log.warning("advisor_notes failed (%s) — rationale continues", adv_exc)
+            doc["advisor_notes"] = {"error": type(adv_exc).__name__,
+                                    "recommendations": []}
 
         if write:
             atomic_save(doc, str(Path(data_dir) / RATIONALE_FILENAME))

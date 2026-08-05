@@ -272,6 +272,16 @@ class GrossOfLpAmmFeeDragAnalyzer:
         cfg: Optional[dict] = None,
         write_log: bool = False,
     ) -> dict:
+        # Контекст агрегатора (audit 2026-08-05, задача A2) → честный
+        # position-вход из структурного профиля + реального APY-ряда;
+        # полярность движка (выше=честнее) инвертируется в risk_score.
+        from spa_core.analytics._fee_gap_core import maybe_context_result
+        is_ctx, ctx_res = maybe_context_result(
+            self._analyze_one, position, "gross_yield_pct",
+            "net_of_lp_amm_fee_yield_pct",
+            ("lp_amm_fee_gap_pct", "lp_amm_fee_rate_pct"))
+        if is_ctx:
+            return ctx_res
         cfg = _build_default_cfg(cfg)
         result = self._analyze_one(position)
         if write_log:
