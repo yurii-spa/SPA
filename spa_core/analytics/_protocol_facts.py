@@ -33,7 +33,7 @@ AS_OF: 2026-08-02 (структурные факты сверены с публ�
 from __future__ import annotations
 
 import copy
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 FACTS_AS_OF = "2026-08-02"
 FACTS_SOURCE = "protocol_facts_v1"
@@ -43,6 +43,37 @@ def is_protocol_context(obj: Any) -> bool:
     """True, если *obj* — protocol-контекст агрегатора (ADR-031), а не
     легаси-доменная структура: dict со строковым ключом ``protocol``."""
     return isinstance(obj, dict) and isinstance(obj.get("protocol"), str)
+
+
+def is_context_only(obj: Any, domain_keys: Iterable[str]) -> bool:
+    """True только если *obj* — protocol-контекст агрегатора И не несёт НИ
+    ОДНОГО доменного ключа модуля.
+
+    Зачем отдельно от :func:`is_protocol_context`. Легаси-вход некоторых
+    модулей — тоже dict со строковым ``protocol``, поэтому им нужен второй
+    признак. Соблазнительный вариант «контекст = нет ключа K» (``and "K" not
+    in obj``) НЕУСТОЙЧИВ, если K обязателен: тогда «легаси-payload с дыркой в
+    обязательном поле» становится побитово неотличим от «пришёл контекст», и
+    вместо громкого отказа модуль ПОДСТАВЛЯЕТ число из структурного профиля.
+    Это fail-OPEN класса #29 — снаружи выглядит как валидная оценка. Ровно так
+    ``protocol_insurance_scorer`` (``"tvl_usd" not in``) перестал требовать
+    обязательный TVL и начал выводить казну литералом ``TVL × 0.02``.
+
+    Устойчивый признак — не отсутствие ОДНОГО ключа, а отсутствие ВСЕХ:
+    контекст агрегатора это ``{"cycle_ts": …, "protocol": …}`` (см.
+    ``signal_aggregator._ModuleAdapter.run``), доменных ключей в нём нет ни
+    одного, а легаси-payload с дыркой в одном поле несёт остальные — и уходит
+    на легаси-путь к своей валидации, как и должен.
+
+    Parameters
+    ----------
+    obj          : проверяемый вход entrypoint'а модуля
+    domain_keys  : доменные ключи модуля (обязательные + опциональные) —
+                   те, которых в контексте агрегатора не бывает.
+    """
+    if not is_protocol_context(obj):
+        return False
+    return not (set(domain_keys) & set(obj.keys()))
 
 
 # ─── Chain facts (sequencer / canonical bridge) ──────────────────────────────

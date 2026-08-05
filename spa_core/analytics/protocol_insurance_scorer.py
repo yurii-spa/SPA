@@ -34,6 +34,20 @@ _DEFAULT_DATA_DIR = os.path.join(
 
 _LOG_FILE = "protocol_insurance_log.json"
 
+# Доменные ключи легаси-входа score() — ими protocol-контекст агрегатора
+# ({"cycle_ts", "protocol"}) отличается от доменного payload'а. Держать в
+# синхроне с ``_validate.required`` (гард — test_context_routing_is_sound).
+_DOMAIN_KEYS = frozenset({
+    "has_insurance",
+    "insurance_coverage_pct",
+    "insurance_provider",
+    "treasury_usd",
+    "tvl_usd",
+    "bug_bounty_usd",
+    "has_timelock",
+    "timelock_days",
+})
+
 # Score component caps
 _COVERAGE_MAX    = 40.0
 _TREASURY_MAX    = 30.0
@@ -175,9 +189,12 @@ class ProtocolInsuranceScorer:
         # движок модуля; лог отключён на context-пути; неизвестный протокол → None
         # (громкий dormant, не фабрикация).
         from spa_core.analytics import _protocol_facts as _pf
-        # легаси-вход этого модуля тоже несёт строковый "protocol" —
-        # различаем по отсутствию доменных ключей (tvl_usd)
-        if _pf.is_protocol_context(protocol_data) and "tvl_usd" not in protocol_data:
+        # легаси-вход этого модуля тоже несёт строковый "protocol" — различаем
+        # по отсутствию ВСЕХ доменных ключей сразу. Признак «нет tvl_usd»
+        # (как было до 04.08) неустойчив: tvl_usd ОБЯЗАТЕЛЕН, поэтому
+        # легаси-payload с дыркой в нём переставал доходить до _validate и
+        # получал подставную казну TVL × 0.02 вместо отказа — fail-OPEN.
+        if _pf.is_context_only(protocol_data, _DOMAIN_KEYS):
             _p = _pf.generic_profile_for(protocol_data["protocol"])
             if _p is None:
                 return None

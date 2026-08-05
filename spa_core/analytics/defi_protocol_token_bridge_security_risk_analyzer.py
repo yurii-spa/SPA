@@ -24,6 +24,21 @@ from typing import Any, Dict, List
 DATA_FILE = Path("data/bridge_security_risk_log.json")
 MAX_ENTRIES = 100
 
+# Доменные ключи легаси-входа analyze() — ими protocol-контекст агрегатора
+# ({"cycle_ts", "protocol"}) отличается от доменного payload'а. Держать в
+# синхроне с ``_validate.required`` (гард — test_context_routing_is_sound).
+_DOMAIN_KEYS = frozenset({
+    "bridge_name",
+    "tvl_usd",
+    "validation_model",
+    "validator_count",
+    "days_since_last_audit",
+    "historical_hacks",
+    "open_source",
+    "bug_bounty_usd",
+    "time_to_finality_minutes",
+})
+
 # Validation model risk weights (lower score = stronger validation)
 VALIDATION_STRENGTH: Dict[str, float] = {
     "zk": 95.0,           # ZK-proof: cryptographically verified
@@ -261,7 +276,12 @@ class DeFiProtocolTokenBridgeSecurityRiskAnalyzer:
         протокол → None (dormant).
         """
         from spa_core.analytics import _protocol_facts as _pf
-        if _pf.is_protocol_context(params) and "bridge_name" not in params:
+        # Признак «нет bridge_name» неустойчив тем же образом, что в
+        # protocol_insurance_scorer: bridge_name ОБЯЗАТЕЛЕН, поэтому
+        # легаси-payload с дыркой в нём не доходил до _validate и получал
+        # структурный профиль вместо отказа (fail-OPEN). Контекст отличаем по
+        # отсутствию ВСЕХ доменных ключей сразу.
+        if _pf.is_context_only(params, _DOMAIN_KEYS):
             facts = _pf.facts_for(params["protocol"])
             if facts is None:
                 return None

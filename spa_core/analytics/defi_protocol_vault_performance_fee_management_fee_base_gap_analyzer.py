@@ -107,6 +107,32 @@ import statistics
 from datetime import datetime, timezone
 from typing import List, Optional
 
+# Публичная поверхность модуля. Имена из _fee_gap_core здесь —
+# НАМЕРЕННЫЙ ре-экспорт: их берёт ИЗ ЭТОЙ обёртки её собственный
+# тест-эквивалентности, поэтому удалить их нельзя. __all__ —
+# конвенция, по которой ре-экспорт считается использованием
+# (dead_code_scanner._collect_exported_names, так же и pyflakes).
+__all__ = [
+    "CLEAN_FRACTION",
+    "DeFiProtocolVaultPerformanceFeeManagementFeeBaseGapAnalyzer",
+    "EPS",
+    "HIGH_MGMT_FEE_PCT",
+    "LOG_CAP",
+    "LOG_PATH",
+    "MILD_FRACTION",
+    "MODERATE_FRACTION",
+    "_build_default_cfg",
+    "_clamp",
+    "_coerce_count",
+    "_coerce_num",
+    "_coerce_signed",
+    "_demo_positions",
+    "_f",
+    "_grade_from_score",
+    "_mean",
+    "_safe_div",
+]
+
 # ── constants ─────────────────────────────────────────────────────────────────
 LOG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
