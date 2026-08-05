@@ -592,3 +592,38 @@ def _no_live_push_state():
     """
     push_state_guard.reset()
     yield
+
+
+# ---------------------------------------------------------------------------
+# No test may write the LIVE off-site backup of the track (2026-08-04, #113).
+#
+# The two guards above cover the owner's Telegram and the alert state. Neither
+# covers the DR copy of the track itself: test_track_persistence calls the real
+# _default_track_persister with no backup_dir, so run_backup resolves
+# default_backup_dir() → iCloud SPA_backups on this host and writes the live
+# off-site backup — then blocks forever in os.replace on the sync layer, which
+# is why the full spa_core/tests/ run stopped completing on this machine.
+# Redirection, not a mock: the whole backup path still executes, into a sandbox
+# the suite owns. Rationale + measurements: spa_core/tests/backup_dir_guard.py.
+# ---------------------------------------------------------------------------
+_BACKUP_GUARD_PATH = Path(__file__).resolve().parent / "backup_dir_guard.py"
+backup_dir_guard = sys.modules.get("spa_backup_dir_guard")
+if backup_dir_guard is None:
+    _bak_spec = _ilu.spec_from_file_location("spa_backup_dir_guard", _BACKUP_GUARD_PATH)
+    backup_dir_guard = _ilu.module_from_spec(_bak_spec)      # type: ignore[arg-type]
+    _bak_spec.loader.exec_module(backup_dir_guard)           # type: ignore[union-attr]
+    sys.modules["spa_backup_dir_guard"] = backup_dir_guard
+backup_dir_guard.install()
+
+
+@pytest.fixture(autouse=True)
+def _no_live_backup_dir():
+    """Pin $SPA_BACKUP_DIR into a sandbox for every test, then restore it.
+
+    Per-test rather than once per session: a test may set or delete the variable
+    itself (tests/test_backup.py deletes it in a finally), and that must not
+    leak into the next test's default resolution.
+    """
+    backup_dir_guard.install()
+    yield
+    backup_dir_guard.restore()

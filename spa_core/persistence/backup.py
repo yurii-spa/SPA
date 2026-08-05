@@ -24,6 +24,20 @@ Behaviour
   if the iCloud parent exists) → ``~/SPA_backups`` fallback.
 * Fail-safe: ``run_backup()`` never raises — errors are logged as WARNING and
   returned as ``{"status": "error", ...}``.
+* Fail-CLOSED against an *unresponsive* backup root: before writing anything the
+  root is probed with a hard deadline (``$SPA_BACKUP_PROBE_TIMEOUT_S``, default
+  10 s). A stalled sync filesystem does not fail — it blocks forever, and no
+  signal, flag or timeout interrupts a blocked ``mkdir``/``os.replace``. Without
+  the probe the backup (and its caller, the daily cycle) simply never returns.
+  Measured on the production Mac host 2026-08-04: ``os.listdir`` of the iCloud
+  ``SPA_backups`` root did not return in 20 s. On timeout the backup refuses
+  with ``status="error"`` and a named entry in ``errors`` — a refusal that is
+  RECORDED, never swallowed (invariant #2).
+  The probe covers BOTH families the backup uses — the write path
+  (``_atomic_copy``) and the directory scan (``_rotate``) — because which one a
+  stalled sync filesystem parks on is not stable: on 2026-08-05 the same root
+  passed the entire write probe in 0.00 s while its enumeration still did not
+  return in 25 s.
 
 CLI: ``python3 -m spa_core.persistence.backup [--data-dir D] [--backup-dir B] [--verbose]``
 """
@@ -37,6 +51,7 @@ import os
 import re
 import shutil
 import tempfile
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -59,6 +74,86 @@ KEEP_LAST = 14  # dated folders retained by rotation
 _DATE_DIR_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 _ICLOUD_PARENT = Path.home() / "Library" / "Mobile Documents" / "com~apple~CloudDocs"
+
+# Hard deadline for the backup-root responsiveness probe, in seconds.
+# 0 (or negative) disables the probe — kept as an explicit escape hatch, not a
+# default: the default must protect the caller.
+PROBE_TIMEOUT_ENV = "SPA_BACKUP_PROBE_TIMEOUT_S"
+DEFAULT_PROBE_TIMEOUT_S = 10.0
+_PROBE_BASENAME = ".spa_backup_probe"
+
+
+def probe_timeout_s() -> float:
+    """Resolve the probe deadline: ``$SPA_BACKUP_PROBE_TIMEOUT_S`` → 10 s."""
+    raw = os.environ.get(PROBE_TIMEOUT_ENV)
+    if raw is None:
+        return DEFAULT_PROBE_TIMEOUT_S
+    try:
+        return float(raw)
+    except ValueError:
+        log.warning("%s=%r is not a number — using %ss", PROBE_TIMEOUT_ENV, raw, DEFAULT_PROBE_TIMEOUT_S)
+        return DEFAULT_PROBE_TIMEOUT_S
+
+
+def _probe_backup_root(root: Path, timeout: float) -> str | None:
+    """Check that ``root`` answers. Return ``None`` if it does, else the reason.
+
+    Runs the syscall set ``run_backup`` needs — mkdir → mkstemp → fsync →
+    ``os.replace`` → unlink (the write path, ``_atomic_copy``) **and** a
+    directory enumeration (the read path, ``_rotate``) — against a throwaway
+    file. It runs in a *daemon* thread and the deadline applies to the THREAD,
+    not to the syscall: a blocked filesystem call cannot be cancelled from
+    Python, so on timeout the worker stays parked in the kernel and the caller
+    walks away. That leaves at most one hidden temp file behind, in a directory
+    that is not answering anyway — the alternative is a run that never ends.
+
+    The enumeration is not decoration. Measured on the production Mac host
+    2026-08-05, one day after the write-path stall this probe was written for:
+    the very same iCloud root passed the whole write probe in 0.00 s while
+    ``os.listdir`` of it did **not** return in 25 s. ``_rotate`` reaches that
+    root through ``Path.iterdir`` on every single ``run_backup``, so a probe
+    covering only the write path would have waved today's stall straight
+    through and blocked in rotation instead of in ``os.replace``. Which syscall
+    a stalled sync filesystem parks on is not stable — the probe therefore has
+    to touch every family the caller does, not the one that failed last time.
+    """
+    if timeout <= 0:
+        return None  # explicitly disabled
+    outcome: list[str | None] = []
+
+    def _work() -> None:
+        tmp_name = None
+        try:
+            root.mkdir(parents=True, exist_ok=True)
+            fd, tmp_name = tempfile.mkstemp(dir=str(root), prefix=f"{_PROBE_BASENAME}.", suffix=".tmp")
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(b"spa")
+                fh.flush()
+                os.fsync(fh.fileno())
+            target = root / _PROBE_BASENAME
+            os.replace(tmp_name, target)
+            tmp_name = None
+            os.unlink(target)
+            # Read path: exactly what _rotate scans on every run_backup —
+            # full enumeration plus a stat per entry, consumed eagerly so the
+            # probe cannot pass on a lazily-yielded first element.
+            for entry in root.iterdir():
+                entry.is_dir()
+            outcome.append(None)
+        except Exception as exc:  # noqa: BLE001 — reported, never raised
+            if tmp_name is not None and os.path.exists(tmp_name):
+                try:
+                    os.remove(tmp_name)
+                except OSError:
+                    pass
+            outcome.append(f"{type(exc).__name__}: {exc}")
+
+    worker = threading.Thread(target=_work, name="spa-backup-probe", daemon=True)
+    worker.start()
+    worker.join(timeout)
+    if worker.is_alive():
+        return f"backup root did not respond within {timeout:g}s"
+    return outcome[0] if outcome else "probe produced no result"
 
 
 def default_backup_dir() -> Path:
@@ -151,8 +246,17 @@ def run_backup(
         now_dt = now or datetime.now(timezone.utc)
         date = now_dt.strftime("%Y-%m-%d")
         dest = broot / date
-        dest.mkdir(parents=True, exist_ok=True)
         result.update(backup_dir=str(broot), dest=str(dest), date=date)
+
+        # Refuse a root that does not answer, instead of blocking forever in it.
+        stall = _probe_backup_root(broot, probe_timeout_s())
+        if stall is not None:
+            log.warning("backup root %s unusable (%s) — refusing", broot, stall)
+            result["status"] = "error"
+            result["errors"].append(f"backup_root_unavailable: {stall}")
+            return result
+
+        dest.mkdir(parents=True, exist_ok=True)
 
         manifest_files: list[dict] = []
         for name in TRACK_FILES:

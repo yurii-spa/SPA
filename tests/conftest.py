@@ -213,3 +213,32 @@ def _no_live_push_state():
     """
     push_state_guard.reset()
     yield
+
+
+# ---------------------------------------------------------------------------
+# No test may write the LIVE off-site backup of the track (2026-08-04, #113).
+#
+# Same guard as spa_core/tests/conftest.py, installed from BOTH roots for the
+# same reason the two above are, and loaded by absolute path from the single
+# source of truth so the roots cannot drift. What it protects: run_backup with
+# no backup_dir resolves default_backup_dir() → the real iCloud SPA_backups on
+# this host, which is both the DR copy of the live track and (measured) a
+# directory that blocks os.replace forever. Rationale:
+# spa_core/tests/backup_dir_guard.py.
+# ---------------------------------------------------------------------------
+_BACKUP_GUARD_PATH = _ROOT / "spa_core" / "tests" / "backup_dir_guard.py"
+backup_dir_guard = sys.modules.get("spa_backup_dir_guard")
+if backup_dir_guard is None:
+    _bak_spec = _ilu.spec_from_file_location("spa_backup_dir_guard", _BACKUP_GUARD_PATH)
+    backup_dir_guard = _ilu.module_from_spec(_bak_spec)      # type: ignore[arg-type]
+    _bak_spec.loader.exec_module(backup_dir_guard)           # type: ignore[union-attr]
+    sys.modules["spa_backup_dir_guard"] = backup_dir_guard
+backup_dir_guard.install()
+
+
+@_pytest.fixture(autouse=True)
+def _no_live_backup_dir():
+    """Pin $SPA_BACKUP_DIR into a sandbox for every test, then restore it."""
+    backup_dir_guard.install()
+    yield
+    backup_dir_guard.restore()
