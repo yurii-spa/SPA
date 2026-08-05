@@ -76,6 +76,9 @@ protocol-контекст от доменного payload признаком «�
 ⇒ `safe_site_push.py` не требовался, `owner-done` не ставил. **Вопрос владельцу + notify:**
 `owner-decision-vydumannaya-kazna-protokola-v-otsenke-st` — казна протокола и на ЧЕСТНОМ
 контекст-пути выводится литералом `TVL × 0.02` (3 варианта, рекомендация — отказываться).
+**Подтверждено настоящим Actions на самом `main`** (`b9e9012a7`): `SPA Tests` — success целиком
+(`test (3.11)` + `test (3.12)` + `lint`), `SPA CI` — success, Proof Gate и LLM-lint — success;
+предыдущий прогон (`ee765f497`) был failure обоими workflow ⇒ **красный `main` закрыт**.
 ADR не требуется. Журнал: `2026-W32`. Ранее цикл #115 (2026-08-04, по протоколу, `SPA_SESSION_PID=55404`, worktree
 `/tmp/spa_wt_c115` от `origin/main d07714d07`). Очередь на origin **ПУСТА** (inbox `new`=0 /
 owner-done=0 / promotions=0 / заметок=0; единственная `new` в хост-дереве на origin уже `done` —
