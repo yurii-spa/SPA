@@ -76,7 +76,12 @@ promotions=0 / заметок=0); разбор вёлся из worktree от ori
 **НЕ трогал:** RiskPolicy/kill/пороги/гейты · живой трек · `default_backup_dir()` и приоритет
 iCloud (карточка запрещала) · `cycle_runner.py` · launchd/деплой · `landing/**` (⇒
 `safe_site_push.py` не требовался) · `data/**` не публиковал · `owner-done` не ставил.
-Журнал: `2026-W32`.)_
+**Сигнал → карточка `agent-offsite-backup-refusal-is-recorded-and-unread` (high):** отказ
+off-site бэкапа живого трека записывается (`backup_status` / `backup_errors` в
+`track_persist_status.json`) и **не читается никем** — grep по всему дереву даёт ровно двух
+писателей и один тест, ноль потребителей; соседний `track_persist_ok` намеренно развязан с
+бэкапом, поэтому не спасает. Класс fail-OPEN наизнанку: инв. #2 соблюдён, наблюдаемость нулевая.
+Молча не чинил (одна задача за цикл). Журнал: `2026-W32`.)_
 
 _Ранее: 2026-08-05 (**цикл #121, по протоколу**, worktree `/tmp/spa_wt_c121` от
 `origin/main f25b53024`). **Очередь: задание владельца из Telegram — две задачи в одном
