@@ -448,6 +448,64 @@ def _lookup_live_apy(
 _GSM_INHERITS_SKY = ("spark_susds",)
 
 
+
+# Окно годности наблюдения ставки, снятой нами самими. Ряд обновляется раз в
+# сутки; двое суток без обновления означают, что производитель встал, и число
+# перестаёт быть свидетельством своего момента.
+_ERC4626_MAX_AGE_H = 48.0
+
+
+def _merge_erc4626_rates(adapters: dict, data_dir: Path) -> None:
+    """Внести ставки, которые мы измерили сами (`erc4626_rate_monitor`).
+
+    ``stusd`` и ``wusdm`` не индексируются DeFiLlama вовсе, поэтому единственный
+    путь к наблюдению — читать цену доли хранилища и копить свой ряд. Слияние
+    делается ЗДЕСЬ, а не производителем, чтобы у ``adapter_status.json`` остался
+    один писатель: генератор переписывает карту ``adapters`` целиком и затёр бы
+    поле, записанное за его спиной.
+
+    Fail-CLOSED на каждом шаге: нет файла, нет ставки, недатированное или
+    протухшее наблюдение — поле просто не появляется, и протокол честно остаётся
+    ненаблюдаемым. Ставка ставится в ``live_apy`` (единственное поле, которое
+    доказывает наблюдение) с пометкой источника — литералом она не станет.
+    """
+    try:
+        doc = json.loads((Path(data_dir) / "erc4626_rates.json").read_text(encoding="utf-8"))
+    except Exception:
+        return
+    if not isinstance(doc, dict):
+        return
+    vaults = doc.get("vaults")
+    if not isinstance(vaults, dict):
+        return
+
+    now = datetime.now(timezone.utc)
+    for key, entry in vaults.items():
+        if not isinstance(entry, dict):
+            continue
+        row = adapters.get(key)
+        if not isinstance(row, dict):
+            continue
+        apy = entry.get("apy_pct")
+        if not isinstance(apy, (int, float)) or isinstance(apy, bool):
+            continue
+        stamp = entry.get("share_price_as_of")
+        try:
+            dt = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+        except (ValueError, TypeError, AttributeError):
+            continue
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        if (now - dt).total_seconds() / 3600.0 > _ERC4626_MAX_AGE_H:
+            continue
+        row["apy"] = round(float(apy), 4)
+        row["live_apy"] = round(float(apy), 4)
+        row["live_apy_as_of"] = stamp
+        row["live_apy_fresh"] = True
+        row["apy_source"] = "erc4626_self_measured"
+        row["apy_witnesses"] = entry.get("witnesses")
+
+
 def _merge_gsm_hours(adapters: dict, data_dir: Path) -> None:
     """Carry the observed GSM pause delay into the rows whose gate reads it.
 
@@ -689,6 +747,7 @@ def generate(
     }
 
     _merge_gsm_hours(adapters, Path(output_path).parent)
+    _merge_erc4626_rates(adapters, Path(output_path).parent)
 
     log.info(
         "adapter_status_generator: adapters=%d  live_apy_enabled=%s  live_count=%d",
