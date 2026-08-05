@@ -153,7 +153,6 @@
 - Правка чужой карточки запирает её на 3 часа — даже когда сессия прямо назвала в объявлении ДРУГУЮ карточку  ·  `agent-card-file-in-ownership-locks-a-card-it-doesnt-claim.md` · 2026-08-01
 - Шаг 0b держит карточку занятой по файлам сессии, чей pid измеримо мёртв  ·  `agent-dead-pid-still-holds-files-for-3h.md` · 2026-08-02
 - Панель идеи #17 на 6 книгах из 10 состоит из неподвижных марок — кросс-секцию на ней измерить нельзя  ·  `agent-idea17-needs-a-panel-with-daily-marks.md` · 2026-08-02
-- Отказ off-site бэкапа живого трека записывается — и не читается НИКЕМ; последний рубеж восстановления может отказывать молча  ·  `agent-offsite-backup-refusal-is-recorded-and-unread.md` · 2026-08-05
 - Осиротевшая работа вернулась после закрытия своей карточки — циклы #97 и #98 умерли не доставив, второй прямо на подъёме работы первого  ·  `agent-orphaned-work-recurred-after-its-card-was-closed.md` · 2026-08-03
 - Относительный путь в пушере читает ХОСТ-дерево, а не дерево отправки — набор уезжает как «OK, pushed=0»  ·  `agent-pusher-relative-path-silently-reads-the-host-tree.md` · 2026-08-04
 - Прогон тестов пачкает git-tracked фикстуры — «чистое дерево» перестало быть сигналом  ·  `agent-test-run-dirties-tracked-fixtures.md` · 2026-08-04
@@ -196,6 +195,7 @@
 - Утренний дайджест 9:00  ·  `agent-morning-digest.md` · 2026-07-16
 - Список сетевого стража копится за весь прогон — краснит охранный тест только в полной сюите  ·  `agent-network-guard-attempts-never-reset.md` · 2026-08-04
 - Офлайн-набор всё равно платит полный retry-backoff — 26 из 28 секунд теста уходят в sleep между попытками, которые не могут удаться  ·  `agent-offline-suite-still-pays-full-retry-backoff.md` · 2026-08-03
+- Отказ off-site бэкапа живого трека записывается — и не читается НИКЕМ; последний рубеж восстановления может отказывать молча  ·  `agent-offsite-backup-refusal-is-recorded-and-unread.md` · 2026-08-05
 - Оркестратор — раз в час  ·  `agent-orchestrator-1h.md` · 2026-07-16
 - Owner-gate: безопасный авто-шип сайта  ·  `agent-owner-gate.md` · 2026-07-16
 - Два теста краснят CI на main с 2026-08-01: они проверяют календарь, а не код (S12/S13 phase-gating)  ·  `agent-phase-gating-tests-measure-the-calendar.md` · 2026-08-01

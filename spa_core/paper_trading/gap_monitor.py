@@ -170,8 +170,6 @@ def check_unfinished_cycles(
     Отказ мягкий: нечитаемый файл ⇒ ``checked: False``, а не выдуманное
     благополучие — монитор обязан отличать «проверено и чисто» от «не смотрел».
     """
-    from datetime import date as _date
-
     path = Path(audit_path) if audit_path else AUDIT_TRAIL_FILE
     ref = now or datetime.now(timezone.utc)
     out = {"checked": False, "unfinished": [], "cycles_seen": 0}

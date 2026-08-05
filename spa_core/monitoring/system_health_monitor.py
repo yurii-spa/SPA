@@ -121,6 +121,12 @@ DFB_FRESH_H = 30.0                        # data/dfb/pools.json staleness (daily
 DFB_UNKNOWN_RATIO_WARN = 0.60            # > 60% UNKNOWN → feed-outage canary (WARNING)
 RISKWIRE_MEASUREMENTS_FRESH_H = 30.0     # data/riskwire/measurements.json staleness (WS1.2 cadence + slack)
 RISKWIRE_DAY30_FRESH_D = 8.0             # data/riskwire/day30_review.json staleness in DAYS (weekly-ish + slack)
+
+# Off-site track-backup observability (d1.track_backup.offsite). Pure/stdlib and
+# deliberately separate from this file: it holds the freshness window, the
+# streak threshold and their justifications in one place.
+from spa_core.monitoring import offsite_backup_observability as _offsite
+
 # Concentration caps — single source of truth is RiskConfig (spa_core/risk/policy.py).
 # The monitor previously restated its own numbers (30/50) against a DEPLOYED-capital base,
 # while the authoritative gate divides by TOTAL capital (policy.concentration_pct) — the
@@ -281,6 +287,9 @@ class SystemHealthMonitor:
         self.data_dir = Path(data_dir) if data_dir else self.project_root / "data"
         self.src: dict[str, Any] = {}     # loaded sources, populated by _prelude
         self._git_untracked: list[str] = []
+        self._prev_cache: Optional[dict] = None
+        # Off-site backup day series; None until d1 computes it this run.
+        self._offsite_backup_days: Optional[dict] = None
 
     # -- source loading -----------------------------------------------------
     def _load_json(self, name: str) -> tuple[Any, Optional[str]]:
@@ -515,7 +524,37 @@ class SystemHealthMonitor:
         # (track_persist_status.json) AND the file itself is stat'd here so a
         # stale/empty mirror surfaces in monitoring instead of hiding.
         out.append(self._check_track_db_mirror(D))
+
+        # --- off-site backup of the track (separate signal, NOT the mirror) --
+        # ``backup_status`` / ``backup_errors`` in the same status file had two
+        # writers and ZERO readers (measured 2026-08-05): the last line of
+        # recovery for the live track could fail for weeks in total silence.
+        # This lives BESIDE the mirror check on purpose — the decoupling of
+        # mirror_ok from the off-site backup (cycle_runner._default_track_persister)
+        # is deliberate and is not touched.
+        out.append(self._check_offsite_backup(D))
         return out
+
+    def _check_offsite_backup(self, D: str) -> CheckResult:
+        cid = "d1.track_backup.offsite"
+        prev = getattr(self, "_prev_cache", None) or {}
+        try:
+            verdict, history = _offsite.assess(
+                self.data_dir, prev.get("offsite_backup_days"))
+        except Exception as exc:               # noqa: BLE001 — health check must never raise
+            # Fail-CLOSED: an unexpected failure of the check is "not measured",
+            # never a quiet pass.
+            self._offsite_backup_days = prev.get("offsite_backup_days")
+            return CheckResult(cid, D, WARNING,
+                               "off-site backup UNCHECKED — check raised",
+                               error=repr(exc))
+        # Carried into the report the monitor already writes (system_health.json)
+        # so the day series survives between runs without a second state file.
+        self._offsite_backup_days = history
+        return CheckResult(cid, D, verdict.severity, verdict.title,
+                           value=verdict.evidence.get("streak_days"),
+                           expected=_offsite.FAIL_STREAK_CRITICAL_DAYS,
+                           evidence=verdict.evidence)
 
     def _check_track_db_mirror(self, D: str) -> CheckResult:
         cid = "d1.track_db.mirror"
@@ -1884,6 +1923,11 @@ class SystemHealthMonitor:
             "checks": [c.to_dict() for c in sorted(checks, key=lambda x: x.id)],
             "trend": trend,
             "history": self._build_history(run_id, overall, counts, fingerprint, trend),
+            # Day series for the off-site track backup. Carried forward UNCHANGED
+            # when d1 did not produce it (a timed-out domain is abandoned, not
+            # awaited) — losing the series would silently reset a running streak
+            # to zero, which is the one failure mode this signal must not have.
+            "offsite_backup_days": self._offsite_backup_days_for_report(),
         }
         return report
 
@@ -1918,6 +1962,21 @@ class SystemHealthMonitor:
             "golive_total": total,
             "golive_delta": delta,
         }
+
+    def _offsite_backup_days_for_report(self) -> dict:
+        """The off-site day series to publish.
+
+        Prefer what this run computed; fall back to the PREVIOUS report's series
+        when d1 never produced one (domain timeout / raise). Dropping it would
+        reset a running failure streak to zero on exactly the runs where the
+        system is already unwell — the streak must not be erasable by a timeout.
+        """
+        cur = getattr(self, "_offsite_backup_days", None)
+        if isinstance(cur, dict):
+            return cur
+        prev = getattr(self, "_prev_cache", None) or {}
+        carried = prev.get("offsite_backup_days")
+        return _offsite.sanitize_history(carried)
 
     def _build_history(self, run_id, overall, counts, fingerprint, trend) -> list:
         prev = self._prev_cache or {}
