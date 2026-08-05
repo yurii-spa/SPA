@@ -88,6 +88,39 @@ def test_resolve_pushes_once_on_exit_transition(tmp_path, sent):
     assert len(sent) == 2
 
 
+def test_current_record_exposes_incident_details(tmp_path, sent):
+    # own-28: self_heal reads the pending incident's fingerprint through this
+    # accessor to NAME what was down in its recovered push.
+    assert push_policy.current_record("core_agent_down", data_dir=str(tmp_path)) == {}
+    push_policy.push_critical(
+        "core_agent_down", "CRITICAL", "down", "b",
+        data_dir=str(tmp_path), dedup_key="uptime:com.spa.daily_cycle",
+    )
+    rec = push_policy.current_record("core_agent_down", data_dir=str(tmp_path))
+    assert rec.get("state") == "bad"
+    assert rec.get("fingerprint") == "uptime:com.spa.daily_cycle"
+    # Read-only: it must be a COPY — mutating it must not leak into the state.
+    rec["state"] = "ok"
+    assert push_policy.current_state("core_agent_down", data_dir=str(tmp_path)) == "bad"
+
+
+def test_core_agent_down_resolve_emits_checkmark(tmp_path, sent):
+    # own-28 end-to-end at the policy layer: a pending core_agent_down entry,
+    # then resolve → exactly one «✅ …» push and the class returns to ok.
+    push_policy.push_critical(
+        "core_agent_down", "CRITICAL", "SPA Core Agent DOWN", "x",
+        data_dir=str(tmp_path), dedup_key="uptime:com.spa.daily_cycle",
+    )
+    assert len(sent) == 1
+    ok = push_policy.resolve(
+        "core_agent_down", "агенты восстановлены", "все живы",
+        data_dir=str(tmp_path),
+    )
+    assert ok is True
+    assert len(sent) == 2 and sent[1].startswith("✅")
+    assert push_policy.current_state("core_agent_down", data_dir=str(tmp_path)) == "ok"
+
+
 def test_resolve_without_prior_bad_is_silent(tmp_path, sent):
     assert push_policy.resolve(
         "system_critical", "ok", data_dir=str(tmp_path)

@@ -503,15 +503,18 @@ class TestRunWatchdogAggregation:
             "an unmeasured rule must not make launchd report a failed run")
 
     def test_unchecked_alone_sends_no_telegram(self, sandbox, monkeypatch):
+        # NOTE 2026-08-05 (own-28 bonus): production _send_telegram grew an optional
+        # dedup_key (per-incident rules_critical fingerprint); the stubs here and
+        # below mirror the new signature. Assertions unchanged — not a weakening.
         sent = []
-        monkeypatch.setattr(w, "_send_telegram", lambda msg: sent.append(msg) or True)
+        monkeypatch.setattr(w, "_send_telegram", lambda msg, dedup_key=None: sent.append(msg) or True)
         self._patch_checks(monkeypatch, [w.CheckResult("b", "SKIPPED", "no input")])
         w.run_watchdog(write=True, send_alert=True)
         assert sent == [], "a 5-minute agent must not page the owner about an unmeasured rule"
 
     def test_critical_alert_also_lists_unchecked_rules(self, sandbox, monkeypatch):
         sent = []
-        monkeypatch.setattr(w, "_send_telegram", lambda msg: sent.append(msg) or True)
+        monkeypatch.setattr(w, "_send_telegram", lambda msg, dedup_key=None: sent.append(msg) or True)
         self._patch_checks(monkeypatch, [
             w.CheckResult("a", "CRITICAL", "breach"),
             w.CheckResult("b", "SKIPPED", "no drawdown", {"unchecked_reason": "no drawdown"}),
@@ -564,7 +567,7 @@ class TestRunWatchdogAggregation:
 class TestEndToEndOnSandboxState:
 
     def test_empty_data_dir_never_reports_ok(self, sandbox, monkeypatch):
-        monkeypatch.setattr(w, "_send_telegram", lambda msg: True)
+        monkeypatch.setattr(w, "_send_telegram", lambda msg, dedup_key=None: True)
         w.run_watchdog(write=True, send_alert=False)
         report = json.loads(sandbox.watchdog_path.read_text())[-1]
         assert report["overall"] != "OK", "an empty data dir is not a healthy system"
@@ -603,3 +606,42 @@ class TestEndToEndOnSandboxState:
         res = w.check_circuit_breaker()
         assert res.status == "OK"
         assert res.detail["kill_switch"] is False
+
+
+# ── S2 follow-up (own-28 bonus, 2026-08-05): rules_critical per-incident fingerprint ──
+# Без dedup_key нарушение A оставляло класс rules_critical в 'bad' навсегда, и
+# ПОЗЖЕ возникшее ДРУГОЕ нарушение B молча глоталось как «всё ещё bad» — тот же
+# дефект, что и у core_agent_down (self_heal/watchdog/uptime уже несут отпечаток).
+# Отпечаток = отсортированный набор имён нарушенных правил.
+
+def test_send_telegram_forwards_dedup_key(monkeypatch):
+    from spa_core.telegram import push_policy
+    seen: dict = {}
+
+    def _capture(*args, **kwargs):
+        seen["args"] = args
+        seen["kwargs"] = kwargs
+        return True
+
+    monkeypatch.setattr(push_policy, "push_critical", _capture)
+    assert w._send_telegram("breach text", dedup_key="rule_a|rule_b") is True
+    assert seen["kwargs"].get("dedup_key") == "rule_a|rule_b"
+    # и это по-прежнему entry-путь, не resolve
+    assert not seen["kwargs"].get("resolved")
+
+
+def test_run_watchdog_fingerprints_alert_by_breach_set(monkeypatch):
+    # Два CRITICAL-правила → dedup_key = их имена, отсортированные, через '|'.
+    sent: dict = {}
+    monkeypatch.setattr(
+        w, "_send_telegram",
+        lambda msg, dedup_key=None: sent.update(msg=msg, dedup_key=dedup_key) or True,
+    )
+    monkeypatch.setattr(w, "RULES_TO_CHECK", [
+        lambda: w.CheckResult("zzz_rule", "CRITICAL", "breach z"),
+        lambda: w.CheckResult("aaa_rule", "CRITICAL", "breach a"),
+    ])
+    exit_code = w.run_watchdog(write=False, send_alert=True)
+    assert exit_code == 1
+    assert sent["dedup_key"] == "aaa_rule|zzz_rule"   # сортировка = стабильность
+    assert "zzz_rule" in sent["msg"] and "aaa_rule" in sent["msg"]

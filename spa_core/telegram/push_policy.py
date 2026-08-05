@@ -563,6 +563,25 @@ def current_state(
     return rec.get("state")
 
 
+def current_record(
+    event_key: str,
+    *,
+    data_dir: Optional[str | Path] = None,
+) -> dict:
+    """Return a COPY of the recorded edge-record for ``event_key`` ({} if none).
+
+    Read-only companion to ``current_state`` for a caller that needs the
+    incident details — e.g. self_heal (owner decision own-28) reading the
+    ``fingerprint`` of the pending ``core_agent_down`` incident so its
+    "✅ восстановлено" push can NAME what was down. Never raises; the copy
+    means a caller mutating the result cannot corrupt the edge state.
+    """
+    tg_dir = _tg_dir(Path(data_dir) if data_dir is not None else None)
+    state = _load_state(tg_dir)
+    rec = state["events"].get(event_key)
+    return dict(rec) if isinstance(rec, dict) else {}
+
+
 def drain_digest_queue(
     *,
     data_dir: Optional[str | Path] = None,

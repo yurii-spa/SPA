@@ -100,7 +100,7 @@ def _get_tg_creds() -> tuple:
     return token, chat_id
 
 
-def _send_telegram(message: str) -> bool:
+def _send_telegram(message: str, dedup_key: str | None = None) -> bool:
     """Route a CRITICAL rule breach through the SINGLE push authority (Tier-1).
 
     Phase-1 rewire: the 5-min watchdog no longer POSTs Telegram directly (that
@@ -108,6 +108,13 @@ def _send_telegram(message: str) -> bool:
     ``rules_critical`` key via push_policy, which is edge-triggered — one push on
     the breach transition, silent while it persists, RESOLVED on recovery.
     Returns True if a push was emitted. Never raises.
+
+    ``dedup_key`` — stable fingerprint of the concrete incident (the sorted
+    names of the breached rules). Same pattern as self_heal/watchdog on
+    ``core_agent_down``: without it, breach A left the class ``bad`` and a
+    LATER, DIFFERENT breach B was silenced as "still bad" — a distinct
+    incident eaten by class-level dedup. The SAME breach set persisting keeps
+    the same fingerprint and stays silent.
     """
     try:
         from spa_core.telegram import push_policy
@@ -117,6 +124,7 @@ def _send_telegram(message: str) -> bool:
                 "CRITICAL",
                 "SPA Rules Watchdog — CRITICAL breach",
                 message[:4000],
+                dedup_key=dedup_key,
             )
         )
     except Exception as e:  # noqa: BLE001
@@ -785,7 +793,10 @@ def run_watchdog(write: bool = True, send_alert: bool = True) -> int:
             # unchecked rule on its own must not turn a 5-minute watchdog into alert spam.
             lines.append("❔ [{}] не проверено: {}".format(
                 html.escape(r.name), html.escape(r.detail.get("unchecked_reason") or r.message)))
-        _send_telegram("\n".join(lines))
+        # Fingerprint = the SET of breached rules: the same set persisting is
+        # deduped, a different set is a NEW incident and pushes through.
+        _send_telegram("\n".join(lines),
+                       dedup_key="|".join(sorted(r.name for r in critical)))
 
     # Exit code semantics are unchanged on purpose: 1 == rule BREACH (launchd reports it as a
     # failed run). "Not measured" is reported in the file, not by failing the agent.
