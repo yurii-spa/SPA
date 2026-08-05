@@ -44,9 +44,14 @@ POOL_WHITELIST = {
     "yearn-v3-usdc-ethereum":    {"tier": "T2", "chain": "ethereum", "protocol": "Yearn V3",     "asset": "USDC"},
     "maple-usdc-ethereum":       {"tier": "T2", "chain": "ethereum", "protocol": "Maple Finance", "asset": "USDC"},
     "euler-v2-usdc-ethereum":    {"tier": "T2", "chain": "ethereum", "protocol": "Euler V2",     "asset": "USDC"},
-    # ── Watch List (0% allocation pending conditions) ─────
-    "sky-susds-ethereum":        {"tier": "WL", "chain": "ethereum", "protocol": "Sky/sUSDS",    "asset": "USDS",
-                                  "watch_condition": "GSM Pause Delay >= 48h not yet confirmed"},
+    # Sky/sUSDS: повышен WL → T1 решением владельца 2026-08-05 (ADR-065).
+    # Условие watch-list выполнено: задержка GSM НАБЛЮДЕНА on-chain — 172800 с =
+    # 48.00 ч, кворум независимых RPC (DSPause.delay(), инвариант 10). Держать
+    # "WL" на протоколе, чьё условие подтверждено, значит врать в реестре.
+    # Фиксированная доля НЕ назначается: владелец выбрал «долю решает аллокатор»,
+    # то есть Sky ранжируется наравне со всеми под обычным кэпом T1.
+    "sky-susds-ethereum":        {"tier": "T1", "chain": "ethereum", "protocol": "Sky/sUSDS",    "asset": "USDS",
+                                  "promoted": "2026-08-05 ADR-065 (GSM 48.00h observed on-chain)"},
     # ── Pendle PT (special handling — fixed-rate, maturity-based) ─
     "pendle-pt-usdc-arbitrum":   {"tier": "T2", "chain": "arbitrum", "protocol": "Pendle PT",    "asset": "PT-USDC",
                                   "special": "fixed_rate", "note": "requires maturity-aware logic"},

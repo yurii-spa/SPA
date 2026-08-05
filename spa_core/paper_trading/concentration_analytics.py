@@ -549,3 +549,60 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# ── Концентрация по КУРАТОРУ (advisory, ADR-065 / решение владельца 2026-08-05) ──
+
+# Кто задаёт параметры риска хранилищу. Разные пулы одного куратора — это разные
+# контракты и разные сети, но ОДНА команда решает, какие залоги принимаются, какие
+# LLTV и какие оракулы. Кэп на протокол считает их независимыми и этой связи не видит.
+#
+# Замер 2026-08-05: morpho_steakhouse (40 %) + morpho_blue_base (10 %) = 50 % капитала
+# под куратором Steakhouse. Метрика ADVISORY: она ничего не гейтит и не двигает капитал —
+# менять пороги RiskPolicy можно только отдельным ADR. Сначала измерить, потом решать.
+_CURATOR_OF: dict[str, str] = {
+    "morpho_steakhouse": "steakhouse",   # Ethereum, хранилище STEAKUSDC
+    "morpho_blue_base":  "steakhouse",   # Base, хранилище STEAKUSDC — тот же куратор
+}
+
+
+def curator_concentration(
+    positions: dict,
+    capital_usd: float,
+    curator_of: dict | None = None,
+) -> dict:
+    """Доля капитала под каждым куратором. Advisory: НИЧЕГО не гейтит.
+
+    Возвращает ``{"by_curator": {куратор: {"pct", "protocols"}}, "max_pct",
+    "max_curator", "unmapped"}``.
+
+    ``unmapped`` перечисляет профинансированные протоколы, чей куратор неизвестен —
+    честнее, чем молча посчитать их «без куратора» и занизить концентрацию. Отчёт
+    обязан называть, чего он НЕ знает.
+    """
+    if capital_usd <= 0:
+        return {"by_curator": {}, "max_pct": 0.0, "max_curator": None, "unmapped": []}
+    mapping = curator_of if curator_of is not None else _CURATOR_OF
+    by: dict = {}
+    unmapped: list = []
+    for proto, usd in (positions or {}).items():
+        amount = float(usd or 0.0)
+        if amount <= 0:
+            continue
+        curator = mapping.get(proto)
+        if not curator:
+            unmapped.append(proto)
+            continue
+        row = by.setdefault(curator, {"pct": 0.0, "protocols": []})
+        row["pct"] += 100.0 * amount / capital_usd
+        row["protocols"].append(proto)
+    for row in by.values():
+        row["pct"] = round(row["pct"], 4)
+        row["protocols"].sort()
+    top = max(by.items(), key=lambda kv: kv[1]["pct"], default=None)
+    return {
+        "by_curator": by,
+        "max_pct": top[1]["pct"] if top else 0.0,
+        "max_curator": top[0] if top else None,
+        "unmapped": sorted(unmapped),
+    }
