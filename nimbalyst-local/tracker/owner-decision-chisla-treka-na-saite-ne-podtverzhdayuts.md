@@ -2,11 +2,16 @@
 trackerStatus:
   type: owner-decision
 title: Числа трека на сайте не подтверждаются ничем в git — канон замёрз 17 июля, и сторож краснеет каждый день
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-02
 priority: high
 ---
+
+> **ОТВЕТ ВЛАДЕЛЬЦА 2026-08-06: ДА, чинить — **после утреннего апдейта**.**
+>
+> Замер на момент решения: `site_freshness_report.json` обновлялся **6 июля**, месяц назад. Работа не начата намеренно. Задача — `agent-site-numbers-and-gate`.
+
 
 ## Что случилось и почему это важно
 
