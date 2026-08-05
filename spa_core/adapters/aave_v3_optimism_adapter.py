@@ -40,7 +40,7 @@ from typing import Optional
 from .base_adapter import BaseAdapter, YieldInfo
 # ADR-063 (D1): единый читатель схемы adapter_status.json — адаптер больше не
 # знает форму файла и не может прочитать не то место.
-from spa_core.adapters.status_reader import read_live_apy_pct, read_status_block
+from spa_core.adapters.status_reader import tvl_floor_verdict, read_live_apy_pct, read_status_block
 
 logger = logging.getLogger(__name__)
 
@@ -483,7 +483,7 @@ class AaveV3OptimismAdapter(BaseAdapter):
             "tier": self.TIER,
             "chain": self.CHAIN,
             "tvl_usd": self.TVL_USD,
-            "tvl_floor_ok": self.TVL_USD >= 5_000_000,
+            "tvl_floor_ok": tvl_floor_verdict(self.PROTOCOL, self._data_dir),
             "exit_latency_hours": self.EXIT_LATENCY_HOURS,
             "peg_healthy": self.is_peg_healthy(),
             "eligible": self.is_eligible(),

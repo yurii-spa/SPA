@@ -53,7 +53,11 @@ _DEFILLAMA_HINTS: dict[str, tuple[str, str, str]] = {
     "aave_v3":           ("aave-v3",     "USDC",   "Ethereum"),
     "compound_v3":       ("compound-v3", "USDC",   "Ethereum"),
     "aave_arbitrum":     ("aave-v3",     "USDC",   "Arbitrum"),
-    "aave_v3_optimism":  ("aave-v3",     "USDC",   "Optimism"),
+    # DeFiLlama calls this chain "OP Mainnet", never "Optimism" — the hint below
+    # matched nothing for as long as it said otherwise, and the adapter reported
+    # live_apy: null with no error anywhere. The label is documented in
+    # .claude/rules/adapters.md; the code had simply never been corrected.
+    "aave_v3_optimism":  ("aave-v3",     "USDC",   "OP Mainnet"),
     "aave_v3_polygon":   ("aave-v3",     "USDC",   "Polygon"),
     "morpho_blue":       ("morpho",      "USDC",   "Ethereum"),
     "morpho_steakhouse": ("morpho",      "USDC",   "Ethereum"),
@@ -68,8 +72,55 @@ _DEFILLAMA_HINTS: dict[str, tuple[str, str, str]] = {
 }
 
 # Direct DeFiLlama pool UUID match — overrides project/symbol matching
+# Pinned DeFiLlama pool UUIDs. A pin is what makes an observation *auditable*:
+# without it a protocol key is resolved by fuzzy project/chain/symbol hints and
+# "best TVL wins", which is not a stable identity. Base alone carries four
+# STEAKUSDC vaults ($587M @ 4.32%, $172M @ 3.22%, $30M, $0.3M) — a silent switch
+# between them changes the APY that ranks capital, with nothing in the record to
+# show the pool changed. Only a pinned match may stamp ``tvl_source: "live"``,
+# because the $5M TVL floor is a policy gate and a gate must not rest on a match
+# that can drift.
+#
+# The former single entry was an Ethereum contract ADDRESS, not a DeFiLlama pool
+# UUID, so it never matched ``by_id`` and morpho_steakhouse silently resolved by
+# hint anyway. Every UUID below was read off the live feed on 2026-08-05 and is
+# recorded with the chain/project/symbol/TVL it identified.
 _POOL_ID_LOOKUP: dict[str, str] = {
-    "morpho_steakhouse": "BEEF01735c132Ada46AA9aA4c54623cAA92A64CB",
+    # Ethereum / morpho-blue / STEAKUSDC — $106.5M @ 3.51%
+    "morpho_steakhouse": "931ea9be-5f4d-428e-beaf-205fc5b4e2b5",
+    # Base / morpho-blue / STEAKUSDC — $587.3M @ 4.32%; largest USDC vault on
+    # Morpho Base. NOTE: same curator (Steakhouse) as morpho_steakhouse above on
+    # a different chain — distinct pools, but correlated curator risk that the
+    # per-protocol cap does NOT see. Tracked in agent-morpho-curator-concentration.
+    "morpho_blue_base":  "ba68527f-8ec2-4c55-827a-8f4673ae047c",
+    # Ethereum / maple / USDC — $2.65B @ 4.96%
+    "maple":             "43641cf5-a92e-416b-bce9-27113d3c0db6",
+    # Ethereum / fluid-lending / USDC — $150.3M @ 4.82%. Deliberately NOT
+    # fluid-lite ($41M @ 7.24%): a different, smaller product. The higher number
+    # is not the one this adapter models.
+    "fluid_fusdc":       "4438dabc-7f0c-430b-8136-2722711ae663",
+    # Base / moonwell-lending / USDC — $2.6M @ 4.12%. Pinned precisely BECAUSE it
+    # is small: the adapter carries TVL_USD = 500_000_000, a 190x overstatement
+    # that let a sub-floor pool clear the $5M floor unnoticed.
+    "moonwell_base":     "69cf831d-624a-4f23-b5e3-c0f63ad1fa01",
+    # ── wired 2026-08-05: protocols that had NO producer at all ──────────────
+    # 19 of 34 adapters had neither a hint nor a pin — they were never wired,
+    # not broken. Only the unambiguous ones are pinned here; see
+    # agent-feeds-without-a-producer for the ones deliberately left unwired and
+    # why (a wrong pool is worse than an honest null).
+    #
+    # Ethereum / sky-lending / SUSDS — $4.75B @ 3.52%
+    "sky_susds":         "d8c4eff5-c8a9-46fc-a888-057c4c668e72",
+    # Ethereum / ondo-yield-assets / USDY — $1.11B @ 3.55%
+    "ondo_usdy":         "ac61ee82-2fe4-4f9b-a9cd-7fb33f598859",
+    # Ethereum / ethena-usde / SUSDE — $1.56B @ 3.94%. Observation only; susde
+    # stays blocked by its advisory class gate (invariant 9) regardless.
+    "susde":             "66985a81-9c51-46ca-9977-42b4fe7bc6df",
+    # Ethereum / frax / SFRAX — $65.1M @ 1.25%. NOTE: the ``frax`` key resolves
+    # to this same pool, so it is deliberately NOT pinned — two protocol keys
+    # sharing one pool is hidden concentration, and the per-protocol cap cannot
+    # see it. Enforced by test_no_two_keys_share_a_pool.
+    "sfrax":             "55de30c3-bf9f-4d4e-9e0b-536a8ef5ab35",
 }
 
 # TVL estimates (USD) used when DeFiLlama is unavailable
@@ -174,12 +225,21 @@ def _valid_apy(pool: dict) -> Optional[float]:
     return None
 
 
-def _lookup_live_apy(
+def _lookup_live_pool(
     adapter_key: str,
     by_id: dict[str, dict],
     by_pcs: dict[tuple[str, str, str], list[dict]],
-) -> Optional[float]:
-    """Look up live APY (%) for *adapter_key* using the pre-built indexes.
+) -> Optional[dict]:
+    """Return the DeFiLlama POOL matched for *adapter_key*, not just its APY.
+
+    The matcher already identifies the right pool for 14 adapters; returning only
+    the APY threw away the TVL sitting in the same record. The consequence was
+    material: with no observed TVL, every adapter fell back to a hardcoded
+    ``_TVL_ESTIMATES`` literal, ADR-053 refused to let a literal clear the $5M
+    floor, and unheld pools were frozen at their held size — i.e. **no new
+    position could be opened at all**, and 10 % of capital sat in cash with a
+    qualified candidate available. One matched pool now yields both numbers, and
+    both are provably observed.
 
     Strategy:
     1. Exact pool UUID match (``_POOL_ID_LOOKUP``).
@@ -191,10 +251,9 @@ def _lookup_live_apy(
     if raw_id:
         pool = by_id.get(raw_id.lower())
         if pool:
-            apy = _valid_apy(pool)
-            if apy is not None:
-                log.debug("DeFiLlama pool-id hit: %s → %.2f%%", adapter_key, apy)
-                return apy
+            if _valid_apy(pool) is not None:
+                log.debug("DeFiLlama pool-id hit: %s", adapter_key)
+                return pool, "pinned"
 
     # 2. Hint-based lookup
     hints = _DEFILLAMA_HINTS.get(adapter_key)
@@ -223,15 +282,80 @@ def _lookup_live_apy(
             best_tvl = tvl
             best = cand
 
-    if best is not None:
-        apy = _valid_apy(best)
-        if apy is not None:
-            log.debug("DeFiLlama hint hit: %s → %.2f%%", adapter_key, apy)
-            return apy
+    if best is not None and _valid_apy(best) is not None:
+        log.debug("DeFiLlama hint hit: %s", adapter_key)
+        return best, "hint"
     return None
 
 
+def _lookup_live_apy(
+    adapter_key: str,
+    by_id: dict[str, dict],
+    by_pcs: dict[tuple[str, str, str], list[dict]],
+) -> Optional[float]:
+    """Live APY (%) for *adapter_key* — thin wrapper over :func:`_lookup_live_pool`."""
+    match = _lookup_live_pool(adapter_key, by_id, by_pcs)
+    return _valid_apy(match[0]) if match is not None else None
+
+
 # ── Core document builder ────────────────────────────────────────────────────
+
+# Which protocol keys may inherit the Sky/Maker governance pause delay.
+#
+# Deliberately ONE key. ``fluid_fusdc`` also carries an ``is_gsm_compliant()``
+# gate, and its docstring calls the rule "analogous to Spark sUSDS" — but Fluid
+# is a different protocol with its own governance, and stamping Maker's DSPause
+# delay onto it would attribute another protocol's safety parameter. That is the
+# same class of fabrication the evidence gate exists to stop, so Fluid stays
+# unconfirmed until its OWN timelock is read (agent-fluid-timelock-source).
+_GSM_INHERITS_SKY = ("spark_susds",)
+
+
+def _merge_gsm_hours(adapters: dict, data_dir: Path) -> None:
+    """Carry the observed GSM pause delay into the rows whose gate reads it.
+
+    ``sky_monitor`` observes ``DSPause.delay()`` on-chain and owns
+    ``sky_status.json``; the adapters' gate reads ``adapter_status.json``. Until
+    now nothing joined the two, so the gate read a missing field, treated it as
+    zero, and refused — permanently. The producer ran, exited 0, and wrote an
+    honest ``null`` every time, which is why nothing ever alerted.
+
+    The merge happens HERE rather than in the producer so that
+    ``adapter_status.json`` keeps a single writer: the generator rewrites the
+    whole ``adapters`` map each run and would silently clobber a field written
+    behind its back.
+
+    Fail-CLOSED throughout: an unreadable file, a missing value, a non-numeric
+    value or a non-on-chain source all leave the field ABSENT, and an absent
+    field is what keeps the gate shut. Nothing is defaulted.
+    """
+    try:
+        doc = json.loads((Path(data_dir) / "sky_status.json").read_text(encoding="utf-8"))
+    except Exception:
+        return
+    if not isinstance(doc, dict):
+        return
+
+    hours = doc.get("gsm_hours")
+    if not isinstance(hours, (int, float)) or isinstance(hours, bool) or hours <= 0:
+        return
+    # Only an on-chain observation counts. "manual" is the hardcoded constant
+    # the module falls back to; it must never reach a gate.
+    if doc.get("source") != "onchain":
+        return
+
+    as_of = doc.get("last_checked")
+    for key in _GSM_INHERITS_SKY:
+        row = adapters.get(key)
+        if isinstance(row, dict):
+            row["gsm_hours"] = float(hours)
+            # The gate ages this off: an observation is evidence of its moment,
+            # not forever. Without a stamp a stale reading would hold a gate
+            # open indefinitely — the "producer without a schedule" class.
+            row["gsm_hours_as_of"] = as_of
+            row["gsm_source"] = "onchain"
+            row["gsm_witnesses"] = doc.get("witnesses") or []
+
 
 def generate(
     registry_path: Path = _REGISTRY_FILE,
@@ -302,10 +426,15 @@ def generate(
         chain = str(meta.get("chain", "ethereum"))
         is_active = str(meta.get("status", "active")).lower() in {"active"}
 
-        # Live APY lookup (only when DeFiLlama fetch succeeded)
+        # One matched pool → both APY and TVL, both provably observed.
         live_apy: Optional[float] = None
+        live_pool: Optional[dict] = None
+        match_kind: Optional[str] = None
         if pools:
-            live_apy = _lookup_live_apy(key, by_id, by_pcs)
+            _match = _lookup_live_pool(key, by_id, by_pcs)
+            if _match is not None:
+                live_pool, match_kind = _match
+                live_apy = _valid_apy(live_pool)
             if live_apy is not None:
                 live_count += 1
 
@@ -322,13 +451,23 @@ def generate(
 
         apy_used = live_apy if live_apy is not None else fallback_pct
 
-        # TVL from DeFiLlama exact pool hit, else static estimate
+        # TVL from the SAME matched pool when it carries one; else the static
+        # estimate — labelled honestly. ADR-053: "live" is stamped only on an
+        # observation, never on a constant, because a literal must not be able to
+        # clear the $5M floor.
+        # Only a PINNED match may be called observed. A hint match still supplies
+        # the APY (ranking, guarded by the evidence gate), but its TVL stays
+        # "static": the $5M floor is a policy gate, and a gate must not rest on an
+        # identity that "best TVL wins" can silently move to a different vault.
         tvl = _TVL_ESTIMATES.get(key, 0.0)
-        raw_pid = _POOL_ID_LOOKUP.get(key, "").lower()
-        if raw_pid and raw_pid in by_id:
-            tvl_live = float(by_id[raw_pid].get("tvlUsd", 0) or 0)
-            if tvl_live > 0:
-                tvl = tvl_live
+        tvl_source = "static"
+        tvl_pool_id: Optional[str] = None
+        if live_pool is not None and match_kind == "pinned":
+            _t = live_pool.get("tvlUsd")
+            if isinstance(_t, (int, float)) and not isinstance(_t, bool) and float(_t) > 0:
+                tvl = float(_t)
+                tvl_source = "live"
+                tvl_pool_id = str(live_pool.get("pool") or "") or None
 
         adapters[key] = {
             "display_name":     str(meta.get("protocol", key)),
@@ -341,6 +480,12 @@ def generate(
             "live_apy_fresh":   live_fresh,
             "fallback_apy":     fallback_pct,
             "tvl_usd":          tvl,
+            "tvl_source":       tvl_source,
+            # Which pool the observation came from — an auditor can re-fetch this
+            # UUID and reproduce the number. None whenever tvl_source != "live".
+            "tvl_pool_id":      tvl_pool_id,
+            # How the pool was resolved: "pinned" (UUID), "hint" (fuzzy), None.
+            "pool_match":       match_kind,
             "tier":             tier_raw,
             "chain":            chain,
             "per_protocol_cap": per_cap,
@@ -405,6 +550,8 @@ def generate(
             "protocol_key": "pendle-pt",
         },
     }
+
+    _merge_gsm_hours(adapters, Path(output_path).parent)
 
     log.info(
         "adapter_status_generator: adapters=%d  live_apy_enabled=%s  live_count=%d",

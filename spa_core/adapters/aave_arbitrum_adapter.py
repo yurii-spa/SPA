@@ -31,6 +31,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
+from spa_core.adapters.status_reader import tvl_floor_verdict
 from .base_adapter import BaseAdapter, YieldInfo
 
 logger = logging.getLogger(__name__)
@@ -335,7 +336,7 @@ class AaveArbitrumAdapter(BaseAdapter):
             "apy_source": "adapter_status" if apy_from_file is not None else "fallback",
             "tvl_usd": self.TVL_USD,
             # TVL floor RiskPolicy: ≥ $5M
-            "tvl_floor_ok": self.TVL_USD >= 5_000_000,
+            "tvl_floor_ok": tvl_floor_verdict(self.PROTOCOL, self._data_dir),
             "exit_latency_hours": self.EXIT_LATENCY_HOURS,
             "gas_advantage_usd": self.GAS_ADVANTAGE_USD,
             "allocated_capital_usd": self._allocated_capital,

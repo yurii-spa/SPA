@@ -40,12 +40,32 @@ GSM_MIN_HOURS: float = 48.0
 _DSPAUSE_ADDRESS   = "0xbE286431454714F511008713973d3B053A2d38f3"
 _DELAY_SELECTOR    = "0x6a42b8f8"   # keccak256("delay()")[:4]
 
-# Public Ethereum JSON-RPC endpoints (tried in order, first success wins)
+# Public Ethereum JSON-RPC endpoints.
+#
+# The previous three (llamarpc, cloudflare-eth, ankr) ALL stopped serving
+# anonymous requests — measured 2026-08-05: 403, 403/internal-error, and
+# "Unauthorized" respectively. Because the fetcher then returned None and the
+# gate reads a missing value as "not confirmed", the result was a producer that
+# ran on schedule, wrote ``gsm_hours: null`` every time, and locked two
+# protocols out permanently. Nothing was broken enough to alert on: the agent
+# exited 0, the file was fresh, and the field was honestly null.
+#
+# Endpoints are polled for QUORUM, not first-success — see _fetch_gsm_delay_onchain.
 _ETH_RPC_ENDPOINTS = [
-    "https://eth.llamarpc.com",
-    "https://cloudflare-eth.com",
+    "https://ethereum-rpc.publicnode.com",
+    "https://eth.drpc.org",
+    "https://1rpc.io/eth",
+    # Kept as extra witnesses: currently refuse anonymous calls, but a dead
+    # endpoint costs one timeout and quorum does not depend on any single one.
     "https://rpc.ankr.com/eth",
+    "https://eth.llamarpc.com",
 ]
+
+# How many independent endpoints must return the SAME delay before it counts as
+# observed. One endpoint is a single point of trust for a number that decides
+# whether capital may enter a protocol; two agreeing witnesses is the minimum
+# that makes a wrong answer require two independent failures.
+_GSM_QUORUM = 2
 
 # MakerDAO governance metrics API (optional secondary source)
 _GOVERNANCE_API_URL = (
@@ -70,10 +90,18 @@ def _eth_call(to: str, data: str, rpc_url: str, timeout: int = 5) -> Optional[st
         "id":      1,
     }).encode("utf-8")
 
+    # A User-Agent is not optional in practice: several public RPCs reject
+    # urllib's default agent outright, and the rejection surfaced here as
+    # "endpoint down" rather than "request refused" — which is how a working
+    # endpoint list looked dead for as long as it did.
     req = urllib.request.Request(
         rpc_url,
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "SPA-Monitor/2.0",
+        },
         method="POST",
     )
     try:
@@ -95,21 +123,57 @@ def _hex_to_seconds(hex_val: str) -> Optional[float]:
         return None
 
 
-def _fetch_gsm_delay_onchain() -> Optional[float]:
+def _fetch_gsm_delay_onchain(
+    endpoints: Optional[list] = None,
+) -> tuple[Optional[float], list]:
+    """Query ``DSPause.delay()`` on Ethereum mainnet. Returns ``(hours, witnesses)``.
+
+    Quorum, not first-success. This number decides whether capital may enter a
+    protocol, so a single endpoint is a single point of trust: one compromised
+    or simply wrong RPC would be believed outright. At least ``_GSM_QUORUM``
+    independent endpoints must return the SAME delay.
+
+    Disagreement is refused, not averaged and not majority-ruled. Two witnesses
+    reporting different governance delays means one of them is wrong about a
+    safety parameter, and we do not know which — that is exactly the case the
+    fail-CLOSED invariant exists for. ``None`` leaves the gate shut.
+
+    ``witnesses`` names the endpoints that agreed, so the observation can be
+    re-checked by hand later.
     """
-    Query DSPause.delay() on Ethereum mainnet.
-    Returns delay in hours, or None if all RPC endpoints fail.
-    """
-    for rpc in _ETH_RPC_ENDPOINTS:
-        log.debug(f"Trying RPC endpoint: {rpc}")
+    seen: dict[float, list] = {}
+    for rpc in (endpoints if endpoints is not None else _ETH_RPC_ENDPOINTS):
         hex_result = _eth_call(_DSPAUSE_ADDRESS, _DELAY_SELECTOR, rpc)
-        if hex_result:
-            seconds = _hex_to_seconds(hex_result)
-            if seconds is not None:
-                hours = seconds / 3600.0
-                log.info(f"GSM Pause Delay from on-chain ({rpc}): {hours:.2f}h")
-                return hours
-    return None
+        if not hex_result:
+            continue
+        seconds = _hex_to_seconds(hex_result)
+        if seconds is None or seconds <= 0:
+            continue
+        hours = seconds / 3600.0
+        seen.setdefault(hours, []).append(rpc)
+
+    if not seen:
+        log.warning("GSM: no RPC endpoint answered — delay NOT observed (gate stays shut)")
+        return None, []
+
+    if len(seen) > 1:
+        log.error(
+            "GSM: endpoints DISAGREE on the pause delay (%s) — refusing to pick one "
+            "(fail-CLOSED)",
+            {f"{h:.2f}h": len(w) for h, w in seen.items()},
+        )
+        return None, []
+
+    hours, witnesses = next(iter(seen.items()))
+    if len(witnesses) < _GSM_QUORUM:
+        log.warning(
+            "GSM: only %d endpoint(s) answered (quorum %d) — delay NOT confirmed",
+            len(witnesses), _GSM_QUORUM,
+        )
+        return None, []
+
+    log.info("GSM Pause Delay observed: %.2fh, %d agreeing witnesses", hours, len(witnesses))
+    return hours, witnesses
 
 
 def _fetch_gsm_delay_governance_api() -> Optional[float]:
@@ -173,7 +237,7 @@ def check_sky_status_live() -> dict:
 
     # 1. Try on-chain read (no web3 needed — raw JSON-RPC via urllib)
     try:
-        gsm_hours = _fetch_gsm_delay_onchain()
+        gsm_hours, witnesses = _fetch_gsm_delay_onchain()
         if gsm_hours is not None:
             status = "ELIGIBLE" if gsm_hours >= GSM_MIN_HOURS else "PENDING"
             return {
@@ -181,6 +245,10 @@ def check_sky_status_live() -> dict:
                 "gsm_hours":    round(gsm_hours, 4),
                 "source":       "onchain",
                 "last_checked": now_iso,
+                # Who agreed. An observation that cannot be re-checked by hand
+                # is not much better than a literal.
+                "witnesses":    list(witnesses),
+                "quorum":       _GSM_QUORUM,
             }
     except Exception as exc:
         log.warning(f"On-chain GSM check failed: {exc}")

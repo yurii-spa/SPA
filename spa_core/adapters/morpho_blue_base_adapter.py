@@ -35,6 +35,7 @@ import urllib.request
 from pathlib import Path
 from typing import Optional
 
+from spa_core.adapters.status_reader import tvl_floor_verdict
 from .base_adapter import BaseAdapter, YieldInfo
 
 logger = logging.getLogger(__name__)
@@ -389,7 +390,7 @@ class MorphoBlueBaseAdapter(BaseAdapter):
             "tier": self.TIER,
             "apy_fallback_pct": self.APY_FALLBACK,
             "tvl_usd": self.TVL_USD,
-            "tvl_floor_ok": self.TVL_USD >= 5_000_000,  # RiskPolicy floor
+            "tvl_floor_ok": tvl_floor_verdict(self.PROTOCOL, self._data_dir),  # RiskPolicy floor
             "risk_score": self.RISK_SCORE,
             "t2_cap_pct": self.T2_CAP_PCT,
             "exit_latency_hours": self.EXIT_LATENCY_HOURS,

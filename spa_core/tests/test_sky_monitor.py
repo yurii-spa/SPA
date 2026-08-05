@@ -123,30 +123,30 @@ class TestCheckSkyStatusLiveFallback:
 # ─── Test 5 & 6: GSM threshold checks via live path ──────────────────────────
 
 class TestGSMThreshold:
-    @patch("data_pipeline.sky_monitor._fetch_gsm_delay_onchain", return_value=48.0)
+    @patch("data_pipeline.sky_monitor._fetch_gsm_delay_onchain", return_value=(48.0, ["rpc-a", "rpc-b"]))
     def test_gsm_exactly_48h_is_eligible(self, mock_onchain):
         result = check_sky_status_live()
         assert result["status"] == "ELIGIBLE"
         assert result["gsm_hours"] == pytest.approx(48.0)
         assert result["source"] == "onchain"
 
-    @patch("data_pipeline.sky_monitor._fetch_gsm_delay_onchain", return_value=72.0)
+    @patch("data_pipeline.sky_monitor._fetch_gsm_delay_onchain", return_value=(72.0, ["rpc-a", "rpc-b"]))
     def test_gsm_above_48h_is_eligible(self, mock_onchain):
         result = check_sky_status_live()
         assert result["status"] == "ELIGIBLE"
 
-    @patch("data_pipeline.sky_monitor._fetch_gsm_delay_onchain", return_value=24.0)
+    @patch("data_pipeline.sky_monitor._fetch_gsm_delay_onchain", return_value=(24.0, ["rpc-a", "rpc-b"]))
     def test_gsm_below_48h_is_pending(self, mock_onchain):
         result = check_sky_status_live()
         assert result["status"] == "PENDING"
         assert result["gsm_hours"] == pytest.approx(24.0)
 
-    @patch("data_pipeline.sky_monitor._fetch_gsm_delay_onchain", return_value=47.999)
+    @patch("data_pipeline.sky_monitor._fetch_gsm_delay_onchain", return_value=(47.999, ["rpc-a", "rpc-b"]))
     def test_gsm_just_below_threshold_is_pending(self, mock_onchain):
         result = check_sky_status_live()
         assert result["status"] == "PENDING"
 
-    @patch("data_pipeline.sky_monitor._fetch_gsm_delay_onchain", return_value=0.0)
+    @patch("data_pipeline.sky_monitor._fetch_gsm_delay_onchain", return_value=(0.0, ["rpc-a", "rpc-b"]))
     def test_gsm_zero_is_pending(self, mock_onchain):
         result = check_sky_status_live()
         assert result["status"] == "PENDING"

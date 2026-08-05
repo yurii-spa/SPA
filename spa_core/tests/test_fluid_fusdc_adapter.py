@@ -26,6 +26,9 @@ from spa_core.adapters.fluid_fusdc_adapter import FluidFUSDCAdapter
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+from spa_core.tests._freshness import ts
+
+
 def _make_data_dir(apy: float = 6.5, gsm_hours: float = 0) -> Path:
     """Creates a temporary directory with adapter_status.json for testing."""
     tmp = tempfile.mkdtemp()
@@ -37,6 +40,14 @@ def _make_data_dir(apy: float = 6.5, gsm_hours: float = 0) -> Path:
             "chain": "ethereum",
             "vault_address": "0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33",
             "gsm_hours": gsm_hours,
+            # ИЗМЕНЕНИЕ ФИКСТУРЫ (2026-08-05, правило 16 — обоснование):
+            # гейт GSM теперь проверяет возраст подтверждения наравне со
+            # значением (карточка agent-gsm-hours-producer п.3) — остановившийся
+            # производитель не должен держать ворота открытыми. Значение и
+            # отметка времени в проде пишутся всегда вместе, поэтому фикстура без
+            # отметки описывала несуществующее состояние. Утверждения тестов НЕ
+            # менялись; проверки протухания — в test_gsm_hours_producer.py.
+            "gsm_hours_as_of": ts(1),
             "status": "research",
             "note": "T2 cap 20% single, GSM compliance gate required",
         }

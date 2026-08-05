@@ -33,6 +33,8 @@ from spa_core.adapters.base_adapter import BaseAdapter, YieldInfo
 from spa_core.adapters.spark_susds_adapter import SparkSusdsAdapter
 
 
+from spa_core.tests._freshness import ts
+
 # ── вспомогательные фабрики ──────────────────────────────────────────────────
 
 def _make_adapter(
@@ -59,6 +61,21 @@ def _make_adapter(
             section["apy"] = apy
         if gsm_hours is not None:
             section["gsm_hours"] = gsm_hours
+            # ИЗМЕНЕНИЕ ФИКСТУРЫ (2026-08-05, правило 16 — обоснование):
+            # гейт GSM теперь проверяет ВОЗРАСТ подтверждения наравне со
+            # значением (карточка agent-gsm-hours-producer п.3): остановившийся
+            # производитель не должен держать ворота открытыми на показании,
+            # которое никто не обновлял. Производственный писатель
+            # (_merge_gsm_hours) пишет значение и отметку времени ВСЕГДА вместе,
+            # поэтому фикстура без отметки описывает состояние, которого в
+            # проде не бывает.
+            #
+            # Утверждения тестов НЕ менялись — ни одно "должно быть compliant"
+            # не превратилось в "не должно". Добавлена только отметка времени,
+            # то есть фикстура приведена к текущей форме данных. Отдельные тесты
+            # на протухание и на отсутствие отметки — в
+            # test_gsm_hours_producer.py::TestGsmConfirmed.
+            section.setdefault("gsm_hours_as_of", ts(1))
         content = {"spark_susds": section}
 
     (Path(tmp) / "adapter_status.json").write_text(

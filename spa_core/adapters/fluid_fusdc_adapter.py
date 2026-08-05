@@ -30,7 +30,7 @@ from typing import Optional
 
 from .base_adapter import BaseAdapter, YieldInfo
 # ADR-063 (D1): единый читатель схемы adapter_status.json.
-from spa_core.adapters.status_reader import read_live_apy_pct, read_status_block
+from spa_core.adapters.status_reader import gsm_confirmed, read_live_apy_pct, read_status_block
 from spa_core.utils.atomic import atomic_save
 
 logger = logging.getLogger(__name__)
@@ -184,11 +184,7 @@ class FluidFUSDCAdapter(BaseAdapter):
         GSM (Governance Security Module) gate защищает от governance exploits —
         аналогичен правилу для Spark sUSDS в SPA.
         """
-        block = self._read_status_block()
-        gsm_hours = block.get("gsm_hours", 0)
-        if isinstance(gsm_hours, (int, float)) and not isinstance(gsm_hours, bool):
-            return float(gsm_hours) >= 48.0
-        return False
+        return gsm_confirmed(self._read_status_block(), 48.0)
 
     # ── eligibility ──────────────────────────────────────────────────────
 

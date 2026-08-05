@@ -28,7 +28,7 @@ from typing import Optional
 from .base_adapter import BaseAdapter, YieldInfo
 # ADR-063 (D1): единый читатель схемы adapter_status.json — адаптер больше не
 # знает форму файла и не может прочитать не то место.
-from spa_core.adapters.status_reader import read_live_apy_pct, read_status_block
+from spa_core.adapters.status_reader import gsm_confirmed, read_live_apy_pct, read_status_block
 
 logger = logging.getLogger(__name__)
 
@@ -150,14 +150,14 @@ class SparkSusdsAdapter(BaseAdapter):
     # ── GSM compliance ───────────────────────────────────────────────────
 
     def is_gsm_compliant(self) -> bool:
-        """True если gsm_hours >= FORBIDDEN_IF_GSM_BELOW_HOURS (48).
+        """True если задержка GSM НАБЛЮДЕНА, свежая и >= FORBIDDEN_IF_GSM_BELOW_HOURS.
 
-        По умолчанию False (safe): если поле отсутствует или < 48 — не compliant.
+        По умолчанию False (safe). Возраст проверяется наравне со значением:
+        подтверждение — свидетельство своего момента, а не навсегда. Без этого
+        остановившийся производитель оставлял бы гейт открытым на показании,
+        которое никто не обновлял (класс «производитель без расписания»).
         """
-        gsm_hours = self._read_status().get("gsm_hours", 0)
-        if not isinstance(gsm_hours, (int, float)) or isinstance(gsm_hours, bool):
-            return False
-        return float(gsm_hours) >= float(self.FORBIDDEN_IF_GSM_BELOW_HOURS)
+        return gsm_confirmed(self._read_status(), float(self.FORBIDDEN_IF_GSM_BELOW_HOURS))
 
     # ── eligibility ──────────────────────────────────────────────────────
 

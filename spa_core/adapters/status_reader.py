@@ -80,17 +80,34 @@ def read_status_doc(data_dir: Optional[Path] = None) -> dict:
 
 
 def read_status_block(protocol: str, data_dir: Optional[Path] = None) -> dict:
-    """Return the per-protocol block, modern schema first, then legacy keys."""
+    """Return the per-protocol block, modern schema first, then legacy keys.
+
+    Separator variants are treated as the same protocol. Adapters spell their key
+    both ways — ``MoonwellBaseAdapter.PROTOCOL`` is ``"moonwell-base"`` while the
+    status file writes ``moonwell_base`` — and a lookup that insisted on one form
+    returned ``{}`` for the other. That failure is silent by construction: an
+    empty block is indistinguishable from "this protocol was not observed", so
+    the caller draws a fail-CLOSED conclusion from a key mismatch rather than
+    from the data. Knowing the file's shape is exactly this module's job
+    (ADR-063), so the tolerance belongs here and not in eleven adapters.
+    """
     doc = read_status_doc(data_dir)
+    candidates = []
+    for form in (protocol, str(protocol).replace("-", "_"), str(protocol).replace("_", "-")):
+        if form not in candidates:
+            candidates.append(form)
+
     adapters = doc.get("adapters")
     if isinstance(adapters, dict):
-        block = adapters.get(protocol)
-        if isinstance(block, dict):
-            return block
-    for legacy_key in (protocol, "{}_adapter".format(protocol)):
-        block = doc.get(legacy_key)
-        if isinstance(block, dict):
-            return block
+        for key in candidates:
+            block = adapters.get(key)
+            if isinstance(block, dict):
+                return block
+    for key in candidates:
+        for legacy_key in (key, "{}_adapter".format(key)):
+            block = doc.get(legacy_key)
+            if isinstance(block, dict):
+                return block
     return {}
 
 
@@ -117,3 +134,116 @@ def read_live_apy_pct(protocol: str, data_dir: Optional[Path] = None) -> Optiona
             return _valid_pct(block.get("apy"))
 
     return None
+
+
+# ── GSM confirmation ─────────────────────────────────────────────────────────
+
+# How long an on-chain governance-delay reading stays evidence. A pause delay
+# changes only by a governance vote, so this is generous compared to an APY
+# window — but it is NOT unbounded, because "no upper bound" is how a producer
+# that quietly died keeps a gate open on a reading nobody has refreshed in
+# months (the class that left riskwire 840 hours stale while still being read).
+GSM_MAX_AGE_H = 168.0  # 7 days
+
+
+def gsm_confirmed(
+    block: dict,
+    min_hours: float,
+    max_age_h: float = GSM_MAX_AGE_H,
+    now: "object | None" = None,
+) -> bool:
+    """Is the GSM pause delay OBSERVED, fresh, and at or above *min_hours*?
+
+    Fail-CLOSED on every uncertainty, because the question this answers is
+    "may capital enter" and the safe answer to "I don't know" is no:
+
+    * field absent / non-numeric  → False (never defaulted to a passing value)
+    * timestamp absent or unparseable → False (unknown age is not freshness)
+    * older than *max_age_h*      → False (the reading has expired, and the
+      gate closing by itself is the whole point — a dead producer must not
+      leave the door open)
+    * below the threshold         → False
+
+    ``now`` is an input, not ambient state, so a test can pin both sides of the
+    window and stay valid regardless of the calendar.
+    """
+    from datetime import datetime, timezone
+
+    hours = block.get("gsm_hours")
+    if not isinstance(hours, (int, float)) or isinstance(hours, bool):
+        return False
+    if not math.isfinite(float(hours)) or float(hours) < float(min_hours):
+        return False
+
+    stamp = block.get("gsm_hours_as_of")
+    if not stamp:
+        return False
+    try:
+        dt = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except (ValueError, AttributeError, TypeError):
+        return False
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+
+    ref = now if isinstance(now, datetime) else datetime.now(timezone.utc)
+    return (ref - dt).total_seconds() / 3600.0 <= float(max_age_h)
+
+
+# ── TVL floor ────────────────────────────────────────────────────────────────
+
+# The RiskPolicy floor. Read here so the verdict below cannot drift from policy
+# by being restated; if the policy value is unavailable the caller supplies it.
+_DEFAULT_TVL_FLOOR_USD = 5_000_000.0
+
+
+def read_live_tvl_usd(protocol: str, data_dir: Optional[Path] = None) -> Optional[float]:
+    """Observed TVL (USD) for *protocol*, or ``None`` when it was not observed.
+
+    Only ``tvl_source == "live"`` counts, which the producer stamps solely on a
+    pinned pool-UUID match (ADR-064). A literal is never an observation, whatever
+    its size.
+    """
+    block = read_status_block(protocol, data_dir)
+    if block.get("tvl_source") != "live":
+        return None
+    value = block.get("tvl_usd")
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return None
+    value = float(value)
+    if not math.isfinite(value) or value <= 0:
+        return None
+    return value
+
+
+def tvl_floor_verdict(
+    protocol: str,
+    data_dir: Optional[Path] = None,
+    floor_usd: float = _DEFAULT_TVL_FLOOR_USD,
+) -> Optional[bool]:
+    """Does *protocol* clear the RiskPolicy TVL floor? ``None`` = not measured.
+
+    Eleven adapters used to answer this with ``self.TVL_USD >= 5_000_000``, where
+    ``TVL_USD`` is a hardcoded class constant. Every one of those constants is
+    larger than the floor, so the check could not return False **for any input**:
+    it was the literal ``True`` wearing the name of a risk gate.
+
+    That is not academic. ``moonwell_base`` carries ``TVL_USD = 500_000_000``
+    against $2.6M observed — a 190x overstatement — so a pool that genuinely
+    fails the floor reported passing it, every time, with nothing to notice.
+
+    Three outcomes, not two:
+
+    * ``True``  — observed TVL is at or above the floor;
+    * ``False`` — observed TVL is below it (the case the old check could never
+      produce);
+    * ``None``  — no observation, so the floor is UNMEASURED. Deliberately not
+      ``True``: an unmeasured gate that reports "pass" is the failure this
+      replaces. It is equally deliberately not ``False``, because "we did not
+      look" is not the same claim as "it fails" — the allocator already freezes
+      unverified pools (ADR-053), and overstating this as a failure would push
+      work into a queue that can never clear it.
+    """
+    observed = read_live_tvl_usd(protocol, data_dir)
+    if observed is None:
+        return None
+    return observed >= float(floor_usd)

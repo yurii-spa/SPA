@@ -147,6 +147,9 @@ class TestAdapterImports(unittest.TestCase):
 # 2. TestAdapterBehavior
 # ═══════════════════════════════════════════════════════════════════════════════
 
+from spa_core.tests._freshness import ts
+
+
 class TestAdapterBehavior(unittest.TestCase):
     """Поведение методов адаптеров: get_apy_pct, is_eligible, to_dict."""
 
@@ -158,7 +161,11 @@ class TestAdapterBehavior(unittest.TestCase):
         if mod is None:
             self.skipTest(f"spark_susds_adapter недоступен: {err}")
         tmpdir = tempfile.mkdtemp()
-        status = {"spark_susds": {"apy": apy, "gsm_hours": gsm_hours}}
+        # gsm_hours_as_of — гейт проверяет возраст подтверждения наравне со
+        # значением (2026-08-05, agent-gsm-hours-producer п.3). В проде
+        # значение и отметка пишутся вместе; утверждение теста не менялось.
+        status = {"spark_susds": {"apy": apy, "gsm_hours": gsm_hours,
+                                  "gsm_hours_as_of": ts(1)}}
         path = Path(tmpdir) / "adapter_status.json"
         path.write_text(json.dumps(status), encoding="utf-8")
         return mod.SparkSusdsAdapter(data_dir=tmpdir)

@@ -35,6 +35,7 @@ import urllib.request
 from pathlib import Path
 from typing import Optional
 
+from spa_core.adapters.status_reader import tvl_floor_verdict
 from .base_adapter import BaseAdapter, YieldInfo
 
 logger = logging.getLogger(__name__)
@@ -379,7 +380,7 @@ class AerodromeUsdcAdapter(BaseAdapter):
             "tier": self.TIER,
             "apy_fallback_pct": self.APY_FALLBACK,
             "tvl_usd": self.TVL_USD,
-            "tvl_floor_ok": self.TVL_USD >= 5_000_000,
+            "tvl_floor_ok": tvl_floor_verdict(self.PROTOCOL, self._data_dir),
             # ADR-050: LP-позиции требуют $20M floor (market-making depth)
             "lp_tvl_floor_usd": self.LP_TVL_FLOOR_USD,
             "lp_tvl_floor_ok": self.TVL_USD >= self.LP_TVL_FLOOR_USD,

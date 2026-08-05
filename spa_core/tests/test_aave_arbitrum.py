@@ -466,8 +466,18 @@ class TestHealthCheck:
 
     def test_tvl_floor_ok_true(self, tmp_path):
         """TVL $1.2B >> $5M floor из RiskPolicy."""
+        # ИЗМЕНЕНИЕ ТЕСТА (2026-08-05, правило 16 — обоснование):
+        # утверждение закрепляло ТАВТОЛОГИЮ. `tvl_floor_ok` считался как
+        # `self.TVL_USD >= 5_000_000` от зашитой константы, которая заведомо
+        # больше порога, — выражение не могло вернуть False НИ ПРИ КАКИХ данных,
+        # и здесь оно вызывалось на ПУСТОМ каталоге. То есть тест требовал
+        # «порог пройден» при полном отсутствии наблюдения.
+        # Реальная цена: moonwell_base несёт TVL_USD = 500_000_000 при
+        # наблюдаемых $2.6M — пул, не проходящий порог, проходил его всегда.
+        # Контракт изменён намеренно: True/False по наблюдению, None если не
+        # измерено. Обе стороны закреплены в test_tvl_floor_verdict.py.
         a = AaveArbitrumAdapter(data_dir=_make_data_dir_empty(tmp_path))
-        assert a.health_check()["tvl_floor_ok"] is True
+        assert a.health_check()["tvl_floor_ok"] is None
 
     def test_apy_source_fallback(self, tmp_path):
         data_dir = _make_data_dir_empty(tmp_path)

@@ -646,7 +646,17 @@ class TestGetHealth(unittest.TestCase):
         self.assertFalse(_make_adapter(apy=0.1).get_health()["apy_in_range"])
 
     def test_tvl_floor_ok(self):
-        self.assertTrue(_default().get_health()["tvl_floor_ok"])
+        # ИЗМЕНЕНИЕ ТЕСТА (2026-08-05, правило 16 — обоснование):
+        # утверждение закрепляло ТАВТОЛОГИЮ. `tvl_floor_ok` считался как
+        # `self.TVL_USD >= 5_000_000` от зашитой константы, которая заведомо
+        # больше порога, — выражение не могло вернуть False НИ ПРИ КАКИХ данных,
+        # и здесь оно вызывалось на ПУСТОМ каталоге. То есть тест требовал
+        # «порог пройден» при полном отсутствии наблюдения.
+        # Реальная цена: moonwell_base несёт TVL_USD = 500_000_000 при
+        # наблюдаемых $2.6M — пул, не проходящий порог, проходил его всегда.
+        # Контракт изменён намеренно: True/False по наблюдению, None если не
+        # измерено. Обе стороны закреплены в test_tvl_floor_verdict.py.
+        self.assertIsNone(_default().get_health()["tvl_floor_ok"])
 
     def test_peg_healthy_in_result(self):
         self.assertIn("peg_healthy", _default().get_health())

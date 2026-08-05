@@ -384,6 +384,78 @@ def _load_evidenced_apy(
     return out
 
 
+def _load_evidenced_tvl(
+    adapter_status_path: Path | None = None,
+    now: "datetime | None" = None,
+) -> dict[str, tuple[float, str]]:
+    """Return ``{protocol: (tvl_usd, pool_id)}`` for OBSERVED TVL only.
+
+    The TVL twin of :func:`_load_evidenced_apy`, and it exists for the same
+    reason the APY one does: without it the $5M floor is decided by a literal.
+
+    Evidence here is deliberately stricter than for APY. An APY literal that is
+    wrong mis-RANKS a pool; a TVL literal that is wrong lets a pool that should
+    be refused pass a gate. ``moonwell_base`` is the worked example — the adapter
+    carries ``TVL_USD = 500_000_000`` against $2.6M observed, a 190x
+    overstatement, and the pool clears a $5M floor it actually fails.
+
+    So only ``tvl_source == "live"`` counts, and the producer stamps that only on
+    a PINNED pool-UUID match: a fuzzy "best TVL wins" hint match is not a stable
+    identity (Base alone has four STEAKUSDC vaults), and a gate must not rest on
+    an identity that can drift between runs. The returned ``pool_id`` makes the
+    number reproducible — an auditor re-fetches that UUID and gets it back.
+
+    Same age window as the APY evidence, for the same reason: an observation is
+    evidence of the moment it was made, not forever. Never raises; anything
+    unreadable simply contributes nothing, leaving the caller on its literal —
+    which is labelled "static" and cannot clear the floor.
+    """
+    out: dict[str, tuple[float, str]] = {}
+    if adapter_status_path is None:
+        return out
+    try:
+        doc = json.loads(Path(adapter_status_path).read_text(encoding="utf-8"))
+    except Exception:
+        return out
+    if not isinstance(doc, dict):
+        return out
+
+    ref = now or datetime.now(timezone.utc)
+    generated_at = doc.get("generated_at")
+    rows = doc.get("adapters")
+    if not isinstance(rows, dict):
+        return out
+
+    for name, row in rows.items():
+        if not isinstance(row, dict):
+            continue
+        if row.get("tvl_source") != "live":
+            continue
+        tvl = row.get("tvl_usd")
+        if not isinstance(tvl, (int, float)) or isinstance(tvl, bool):
+            continue
+        tvl = float(tvl)
+        if not math.isfinite(tvl) or tvl <= 0:
+            continue
+        # Age it off the same clock the APY evidence uses. ``live_apy_as_of``
+        # is the observation time of the run that also produced this TVL; when
+        # it is absent fall back to the document stamp, and when NEITHER parses,
+        # refuse (fail-CLOSED) rather than treat an undateable number as fresh.
+        stamp = row.get("live_apy_as_of") or generated_at
+        try:
+            dt = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+        except (ValueError, AttributeError, TypeError):
+            continue
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        if (ref - dt).total_seconds() / 3600.0 > _EVIDENCE_MAX_AGE_H:
+            continue
+        pool_id = str(row.get("tvl_pool_id") or "") or "unknown"
+        out[str(name)] = (tvl, pool_id)
+
+    return out
+
+
 def _adapter_class_gate(protocol: str) -> tuple[bool, str | None]:
     """ADR-061 (D3/D4): may ``protocol`` receive capital at all?
 
@@ -775,6 +847,14 @@ class StrategyAllocator:
         else:
             for _p, _v in live_apy.items():
                 evidence[_p], evidence_src[_p] = _v, "injected"
+
+        # ── TVL evidence (same discipline, stricter consequence) ────────────
+        # A wrong APY literal mis-ranks; a wrong TVL literal lets a pool pass a
+        # gate it should fail. Guarded by the same PYTEST guard as the APY map:
+        # a test must never read the live repo's data/.
+        tvl_evidence: dict[str, tuple[float, str]] = {}
+        if not os.environ.get("PYTEST_CURRENT_TEST"):
+            tvl_evidence = _load_evidenced_tvl(self._adapter_status_path)
         # Fail-safe: too little evidence means the SOURCE is broken, not that the
         # world is unfundable. Ranking then keeps the legacy universe (loudly
         # noted) instead of collapsing the book to all-cash on an unreadable file.
@@ -831,6 +911,17 @@ class StrategyAllocator:
                 # constant → "static" — it may rank, but must never be presented
                 # as verifying the $5M floor (see _filter_by_tvl).
                 tvl_source = "live" if a.get("tvl_source") == "live" else "static"
+                # A pinned observation outranks the orchestrator's literal: the
+                # orchestrator reports whatever the adapter handed it, and 11
+                # adapters hand over a hardcoded TVL_USD constant.
+                if tvl_source != "live" and protocol in tvl_evidence:
+                    tvl, _pool = tvl_evidence[protocol]
+                    tvl_source = "live"
+                    log.info(
+                        "ADR-053: %s TVL from pinned observation $%.0fM (pool %s) — "
+                        "replaces the adapter literal",
+                        protocol, tvl / 1_000_000, _pool[:8],
+                    )
                 _row = {
                     "protocol": protocol,
                     "apy_pct": apy_pct,
@@ -910,6 +1001,20 @@ class StrategyAllocator:
                         apy_source = "fallback_stale"
                         as_of = entry.get("updated") or reg.get("updated") or "unknown"
 
+                    # ADR-053 (allocator side): registry TVL is a literal
+                    # (fallback_tvl_usd or the $50M default) — never an
+                    # observation. It is upgraded to "live" ONLY by a pinned
+                    # pool-UUID reading, which is reproducible by re-fetching it.
+                    reg_tvl_source = "static"
+                    if name in tvl_evidence:
+                        tvl, _pool = tvl_evidence[name]
+                        reg_tvl_source = "live"
+                        log.info(
+                            "ADR-053: %s TVL from pinned observation $%.0fM (pool %s) — "
+                            "replaces the registry literal",
+                            name, tvl / 1_000_000, _pool[:8],
+                        )
+
                     adapters.append(
                         {
                             "protocol": name,
@@ -917,17 +1022,14 @@ class StrategyAllocator:
                             "tvl_usd": tvl,
                             "tier": tier_str,
                             "apy_source": apy_source,
-                            # ADR-053 (allocator side): registry TVL is a literal
-                            # (fallback_tvl_usd or the $50M default) — never an
-                            # observation. Always "static".
-                            "tvl_source": "static",
+                            "tvl_source": reg_tvl_source,
                             "as_of": as_of,
                         }
                     )
                     self._apy_sources[name] = apy_source
                     self._apy_used[name] = apy_pct
                     self._as_of[name] = as_of
-                    self._tvl_sources[name] = "static"
+                    self._tvl_sources[name] = reg_tvl_source
                     log.info(
                         "WS1.1: adapter %s apy=%.2f%% source=%s tier=%s tvl=$%.0fM",
                         name, apy_pct, apy_source, tier_str, tvl / 1_000_000,
