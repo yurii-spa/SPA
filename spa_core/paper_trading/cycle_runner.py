@@ -727,6 +727,30 @@ def run_cycle(
     # DeFiLlama live APY.  Fail-safe: any error here is a WARNING; cycle
     # continues with the existing file on disk.  Skipped on dry-run.
     if write:
+        # Сначала снимаем цену доли ERC-4626 хранилищ, потом генерируем статус:
+        # генератор сливает наблюдение в live_apy, и порядок решает, попадёт ли
+        # СЕГОДНЯШНЯЯ точка в сегодняшний статус.
+        #
+        # Производитель живёт здесь, а не отдельным агентом, намеренно: у него нет
+        # своего расписания, а производитель без расписания — это тот самый класс,
+        # которым система уже болела (riskwire отдавал данные как живые 840 часов,
+        # sky_monitor писал null годами с кодом выхода 0). Дневной цикл — уже
+        # существующий ритм; вешать на него наблюдение дешевле, чем заводить агента,
+        # за которым потом никто не следит.
+        #
+        # stusd/wusdm не индексируются DeFiLlama вовсе, поэтому это ЕДИНСТВЕННЫЙ путь
+        # к их наблюдению. Ставка выводится из двух собственных замеров, значит первый
+        # прогон честно не даёт числа — оно появляется со второй точкой.
+        try:
+            from spa_core.data_pipeline.erc4626_rate_monitor import observe as _erc_observe
+            _erc = _erc_observe()
+            _rates = sum(1 for v in (_erc.get("vaults") or {}).values()
+                         if v.get("apy_pct") is not None)
+            log.info("erc4626_rate_monitor: %d хранилищ опрошено, ставок выведено %d",
+                     len(_erc.get("vaults") or {}), _rates)
+        except Exception as _erc_exc:  # сеть не должна ронять цикл
+            log.warning("erc4626_rate_monitor пропущен (%s) — цикл продолжается", _erc_exc)
+
         try:
             from spa_core.monitoring.adapter_status_generator import (
                 run_and_write as _asg_run,
