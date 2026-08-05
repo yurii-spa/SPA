@@ -2,18 +2,16 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **236** · ждёт владельца: **19** · занято сессиями: **1**.
+> Всего карточек: **233** · ждёт владельца: **17** · занято сессиями: **1**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Кто имеет право сказать «флот ожил» и погасить тревогу об упавших агентах?** · _medium_  ·  `own-28-kto-gasit-trevogu-core-agent-down.md`
-- **Разбор очереди — 18 вопросов одним списком, по каждому есть рекомендация** · _high_  ·  `own-30-razbor-ocheredi-vladeltsa.md`
+- **Разбор очереди — 16 вопросов одним списком, по каждому есть рекомендация** · _high_  ·  `own-30-razbor-ocheredi-vladeltsa.md`
 - **Вторая задача из твоего сообщения (волатильный ETH-пул с доходностью «79%») — сам её не беру, нужно твоё решение** · _medium_  ·  `own-aud19-volatile-clmm-vvodim-li-klass.md`
 - **own-rnd-dwell-hysteresis-paper-module** · _medium_  ·  `own-rnd-dwell-hysteresis-paper-module.md`
-- **Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда** · _high_  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md`
 - **Числа трека на сайте не подтверждаются ничем в git — канон замёрз 17 июля, и сторож краснеет каждый день** · _high_  ·  `owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts.md`
 - **Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет** · _high_  ·  `owner-decision-dva-tsikla-orkestratora-rabotali-odnovre.md`
-- **Книги aggressive_lab переписывают свою историю — и это отложенно заденет числа на сайте** · _high_  ·  `owner-decision-knigi-aggressive-lab-perepisyvayut-svoyu.md`
 - **Наступила Фаза 2 (1 августа) — включаем, сдвигаем или осознанно откладываем?**  ·  `owner-decision-nastupila-faza-2-1-avgusta-vklyuchaem-sd.md`
 - **Общая память проекта стирается пушем из рабочей копии на маке — сегодня так пропало 1729 строк истории** · _high_  ·  `owner-decision-obschaya-pamyat-stiraetsya-pushem-iz-rabo.md`
 - **Отчёт «эту карточку я НЕ беру» больше не считается захватом — подтверди или откати** · _medium_  ·  `owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc.md`
@@ -32,17 +30,15 @@
 
 - **Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать** — держит `cycle-28258` · с 2026-08-05T12:28:28Z  ·  `agent-fleet-parity-guard-never-scheduled.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (64)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (63)
 
 ### · needs-owner
 - Кто имеет право сказать «флот ожил» и погасить тревогу об упавших агентах?  ·  `own-28-kto-gasit-trevogu-core-agent-down.md` · 2026-08-05
-- Разбор очереди — 18 вопросов одним списком, по каждому есть рекомендация  ·  `own-30-razbor-ocheredi-vladeltsa.md` · 2026-08-05
+- Разбор очереди — 16 вопросов одним списком, по каждому есть рекомендация  ·  `own-30-razbor-ocheredi-vladeltsa.md` · 2026-08-05
 - Вторая задача из твоего сообщения (волатильный ETH-пул с доходностью «79%») — сам её не беру, нужно твоё решение  ·  `own-aud19-volatile-clmm-vvodim-li-klass.md` · 2026-08-05
 - own-rnd-dwell-hysteresis-paper-module  ·  `own-rnd-dwell-hysteresis-paper-module.md` · 2026-08-04
-- Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md` · 2026-08-01
 - Числа трека на сайте не подтверждаются ничем в git — канон замёрз 17 июля, и сторож краснеет каждый день  ·  `owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts.md` · 2026-08-02
 - Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет  ·  `owner-decision-dva-tsikla-orkestratora-rabotali-odnovre.md` · 2026-08-01
-- Книги aggressive_lab переписывают свою историю — и это отложенно заденет числа на сайте  ·  `owner-decision-knigi-aggressive-lab-perepisyvayut-svoyu.md` · 2026-08-01
 - Наступила Фаза 2 (1 августа) — включаем, сдвигаем или осознанно откладываем?  ·  `owner-decision-nastupila-faza-2-1-avgusta-vklyuchaem-sd.md` · 2026-07-31
 - Общая память проекта стирается пушем из рабочей копии на маке — сегодня так пропало 1729 строк истории  ·  `owner-decision-obschaya-pamyat-stiraetsya-pushem-iz-rabo.md` · 2026-08-02
 - Отчёт «эту карточку я НЕ беру» больше не считается захватом — подтверди или откати  ·  `owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc.md` · 2026-08-01
@@ -74,12 +70,12 @@
 - Письма уходят с чужого адреса onboarding@resend.dev — подтвердить домен earn-defi.com в Resend  ·  `own-26-resend-domain-verification.md` · 2026-08-02
 - Утвердить списание 55 записей из реестра аналитики — это не анализаторы  ·  `own-27-spisanie-modulei-analitiki.md` · 2026-08-04
 - Наша крупнейшая позиция ($40k в morpho) держится без живого подтверждения размера пула — что делаем?  ·  `own-29-morpho-steakhouse-demote-signal.md` · 2026-08-05
-- Запустить ежедневного агента для paper-книги «защёлка после выхода»  ·  `own-30-deploy-swarm-dwell-agent.md` · 2026-08-05
 - 10% денег стоят без работы: причина найдена — 11 протоколов закрыты из-за отсутствия живого фида, нужен твой выбор  ·  `owner-decision-10-deneg-stoyat-bez-raboty-prichina-naid.md` · 2026-08-05
 - ТЕСТ: подтверди, что очередь работает — переведи в Owner Done  ·  `owner-decision-20260715-124956-owner-done.md` · 2026-07-15T00:00:00.000Z
 - Сайт: алерт кастодиана про APY — ложное срабатывание, как чинить?  ·  `owner-decision-20260715-212059-apy.md` · 2026-07-15
 - Живой пилот k на пакет 1 (~22 июля) — запускать? + сверщик живое/бумага  ·  `owner-decision-20260716-082215-k-1-22.md` · 2026-07-16
 - Программа аудита системы + архитектурной памяти («швейцарские часы») — утвердить приоритет  ·  `owner-decision-20260716-084859-note.md` · 2026-07-16
+- Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md` · 2026-08-01
 - Аллокатор ранжирует пулы на невыверенном TVL ($50M-литерал) — исключать ли их из свежих целей?  ·  `owner-decision-allokator-ranzhiruet-puly-na-vydumannom-tvl.md` · 2026-08-02
 - Безопасность: admin-панель /admin без пароля — закрыть за Cloudflare Access  ·  `owner-decision-bezopasnost-admin-panel-admin-bez-paroly.md` · 2026-07-16
 - Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md` · 2026-07-29
@@ -88,6 +84,7 @@
 - Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить  ·  `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam.md` · 2026-07-29
 - Флот: 7 агентов не переживут reboot (swarm+DR) — разрешить сделать reboot-safe  ·  `owner-decision-flot-7-agentov-ne-perezhivut-reboot-swar.md` · 2026-07-16
 - Гейт готовности зелёный по адаптеру, который невозможно загрузить — проверяется только синтаксис файла (выбери, как чинить)  ·  `owner-decision-geit-gotovnosti-zelenyi-po-adapteru-koto.md` · 2026-07-30
+- Книги aggressive_lab переписывают свою историю — и это отложенно заденет числа на сайте  ·  `owner-decision-knigi-aggressive-lab-perepisyvayut-svoyu.md` · 2026-08-01
 - Монитор депега стейблов слеп — нет источника цены (чинить нельзя молча: связан со стоп-краном)  ·  `owner-decision-monitor-depega-steiblov-slep-net-istochn.md` · 2026-07-17
 - Отчёт готовности говорит «ГОТОВЫ», хотя трек не добран (26/30) — публичный API противоречит сам себе  ·  `owner-decision-otchet-gotovnosti-govorit-gotovy-hotya-t.md` · 2026-07-17
 - 🅰🅰🅰 Продуктовый слой агентов (Head of Product + R&D продукта + продвижение) — построить  ·  `owner-decision-produktovyi-sloi-agentov-head-of-product.md` · 2026-07-16
@@ -234,7 +231,7 @@
 - Упоминание карточки в тексте объявления запирает её НАВСЕГДА — шаг 0b отвечает «не измерено» и после старения  ·  `agent-weak-mention-locks-card-forever.md` · 2026-07-31
 - Q11: разбор ветки yield-lab  ·  `agent-yield-lab-branch.md` · 2026-07-16
 
-## agent  (50)
+## agent  (48)
 
 ### · blocked
 - Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать  ·  `agent-fleet-parity-guard-never-scheduled.md` · 2026-08-05 · 🔒 `cycle-28258`
@@ -268,7 +265,6 @@
 - ПРОДОЛЖИТЬ ОТСЮДА — дорожная карта по приоритету (сессия может оборваться, работа не должна)  ·  `agent-roadmap-continue-here.md` · 2026-08-05
 - S76 угадывает единицу измерения доходности по величине числа — настоящие 0.5 % превращаются в 50 %  ·  `agent-s76-apy-unit-guess.md` · 2026-08-05
 - Аварийный портфель обходит гейты адаптеров — финансирует spark_susds, который запрещён инвариантом 10  ·  `agent-safe-fallback-bypasses-adapter-gates.md` · 2026-08-02
-- spark_susds наблюдает чужой инструмент (sparklend lending vs sUSDS vault) — развести идентичности до допуска Sky  ·  `agent-spark-susds-identity-split.md` · 2026-08-05
 - Тесты ходят в живую сеть (Telegram + аналитика) — полный набор не проходит целиком, когда сеть медленная  ·  `agent-tests-do-live-network-io.md` · 2026-08-02
 - Сделать турнир стратегий ДОВЕРЯЕМЫМ — ранжировать по net-of-cost APY на реальных исторических данных (не Sharpe на mock)  ·  `agent-tournament-trustworthy-real-apy.md` · 2026-07-23
 - Guard — track-данные в git не должны молча протухать / молча пропускаться в CI  ·  `agent-track-data-git-durability-guard.md` · 2026-07-23
@@ -285,7 +281,6 @@
 - Храповик литеральных дат КРАСНЫЙ на main — два новых тест-файла волны 1 (A1) вошли в закрытый класс  ·  `agent-frozen-date-ratchet-red-on-main.md` · 2026-08-05
 - Простой 15 % капитала объяснён — блокировки покрывают его полностью, с разбивкой по протоколам  ·  `agent-idle-cash-quantified.md` · 2026-08-05
 - Красный тест: страховой скоринг не отказывает при отсутствующем TVL  ·  `agent-insurance-scorer-missing-tvl.md` · 2026-08-05
-- Оживить живой TVL/фид morpho-семейства (own-29 вариант 1, дедлайн 2026-08-08)  ·  `agent-morpho-feed-revival.md` · 2026-08-05
 - Учение по восстановлению проверяет ОДИН архив из двух серий — умерший производитель бэкапов останется невидим за зелёным all_ok  ·  `agent-restore-drill-single-series-blind.md` · 2026-08-05
 - Дыра в треке разобрана — не 14 дней, а 2; сторож дыр был слеп по построению  ·  `agent-track-hole-rootcause.md` · 2026-08-05
 - Проверка порога TVL в 11 адаптерах тождественно истинна — считается от зашитой константы  ·  `agent-tvl-floor-constant-true.md` · 2026-08-05
