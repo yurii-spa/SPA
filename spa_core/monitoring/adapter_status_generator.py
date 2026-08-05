@@ -121,6 +121,37 @@ _POOL_ID_LOOKUP: dict[str, str] = {
     # sharing one pool is hidden concentration, and the per-protocol cap cannot
     # see it. Enforced by test_no_two_keys_share_a_pool.
     "sfrax":             "55de30c3-bf9f-4d4e-9e0b-536a8ef5ab35",
+    # ── wired 2026-08-05 (second pass, agent-blocked-protocols-need-live-feeds) ─
+    # The first pass concluded "sdai: only a $44k sparklend dust pool exists".
+    # That was a search miss, not an absence: after the Maker→Sky rebrand the
+    # real DSR vault is listed under project "sky-lending". Verified by
+    # underlyingTokens == DAI (0x6B17...1d0F).
+    # Ethereum / sky-lending / SDAI — $210.0M @ 1.25%
+    "sdai":              "c8a24fee-ec00-4f38-86c0-9f6daebc4225",
+    # Same class of miss for scrvusd: the first pass matched the REUSD-SCRVUSD
+    # curve-dex LP and rightly refused it. The Curve Savings vault itself is
+    # listed under project "crvusd" (single exposure, underlying crvUSD
+    # 0xf939...1b4E). Ethereum / crvusd / SCRVUSD — $18.7M @ 1.10%
+    "scrvusd":           "5fd328af-4203-471b-bd16-1705c726d926",
+    # Base / extra-finance-xlend / USDC — $0.34M @ 1.51%. Pinned precisely
+    # BECAUSE it is tiny: the adapter carries TVL_USDC_LENDING = 15_000_000
+    # ("> $5M — RiskPolicy floor ok"), a ~43x overstatement of the observed
+    # pool. The observation is the fact; the live TVL honestly fails the $5M
+    # floor and the T3/advisory class gate (invariant 9) stays shut regardless.
+    "extra_finance_base": "bc6b7193-da3c-43e3-8c7b-4c9508eec893",
+    # ── NOT wired, with evidence (2026-08-05 live /pools scan) ───────────────
+    # frax  — the adapter models the FraxLend v2 USDC/FRAX pair
+    #         (0x3835a58CA93Cdb5f912519ad366826aC9a752510). No such pool is in
+    #         the feed: fraxlend/Ethereum pools are FRXUSD-era pairs with other
+    #         collateral; the only USDC pool is "sfrxETH collateral" at $31.7k
+    #         (dust, different pair). Pinning the SFRAX pool instead is
+    #         forbidden (see sfrax note above).
+    # stusd — Angle staked USDA: project "angle" has zero pools; no STUSD
+    #         symbol anywhere. Every USDA hit in the feed is a different asset
+    #         (usd-ai, gauntlet GTUSDA, Tether USDAT, Cardano USDA).
+    # wusdm — Mountain Protocol wrapped USDM: no mountain-protocol project, no
+    #         WUSDM pool; USDM hits are unrelated tokens on Cardano/MegaETH/
+    #         Celo. No honest source → stays unobserved (None, never a mock).
 }
 
 # TVL estimates (USD) used when DeFiLlama is unavailable
