@@ -60,6 +60,8 @@ from __future__ import annotations
 
 import argparse
 import logging
+import json
+import time
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -651,6 +653,77 @@ def _persist_track(
 
 
 # ─── Public entry point ──────────────────────────────────────────────────────
+
+
+
+# ── Защита от одновременных циклов ──────────────────────────────────────────
+#
+# Два цикла, идущих одновременно, пишут в одни и те же файлы трека: книгу,
+# кривую капитала, журнал сделок. Побеждает тот, кто записал последним, и
+# результат — не «чуть неточный трек», а трек, которому нельзя верить. Именно он
+# гейтит go-live.
+#
+# Это не гипотеза: карточка владельца зафиксировала, что два цикла оркестратора
+# уже работали одновременно — карточки от такого защищены, сам цикл не был.
+#
+# Форма замка взята с уже работающего в репо (`gap_monitor._acquire_lock`), а не
+# изобретена заново: O_CREAT|O_EXCL, отметка pid и времени, протухший замок
+# снимается.
+CYCLE_LOCK_FILE = "daily_cycle.lock"
+
+# Цикл занимает минуты. Два часа — с большим запасом на медленный фид и на сон
+# хоста посреди прогона (2026-08-05 прогон растянулся с 03:30 до 08:43).
+CYCLE_LOCK_STALE_SECONDS = 2 * 3600
+
+
+def _acquire_cycle_lock(data_dir: Path):
+    """Эксклюзивный замок цикла. ``None`` ⇒ другой цикл уже идёт.
+
+    Протухший замок (процесс умер, не сняв) снимается и берётся заново — иначе
+    одна смерть процесса заблокировала бы трек навсегда, а пропущенные дни мы
+    сегодня уже разбирали и восстановить их нечем.
+
+    Ошибка самой машинерии замка (нет прав, файловая система) НЕ останавливает
+    цикл: сторож, убивающий то, что охраняет, вреднее отсутствия сторожа. Такой
+    случай логируется как WARNING и цикл идёт дальше.
+    """
+    path = Path(data_dir) / CYCLE_LOCK_FILE
+    for _ in range(2):
+        try:
+            fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, json.dumps({"pid": os.getpid(),
+                                     "ts": datetime.now(timezone.utc).isoformat()}).encode())
+            return fd
+        except FileExistsError:
+            try:
+                age = time.time() - path.stat().st_mtime
+            except OSError:
+                continue                      # замок исчез между проверками
+            if age > CYCLE_LOCK_STALE_SECONDS:
+                log.warning("cycle lock протух (%.0f мин) — снимаю и беру заново", age / 60.0)
+                try:
+                    path.unlink()
+                except OSError:
+                    pass
+                continue
+            return None                       # живой замок: другой цикл идёт
+        except OSError as exc:
+            log.warning("cycle lock недоступен (%s) — цикл продолжается БЕЗ защиты", exc)
+            return False                      # False ≠ None: «не проверено», не «занято»
+    return None
+
+
+def _release_cycle_lock(fd, data_dir: Path) -> None:
+    if fd is None or fd is False:
+        return
+    try:
+        os.close(fd)
+    except OSError:
+        pass
+    try:
+        (Path(data_dir) / CYCLE_LOCK_FILE).unlink()
+    except OSError:
+        pass
 
 
 def run_cycle(
@@ -1987,7 +2060,7 @@ def _print_report(result: CycleResult) -> None:
     print("─" * 64)
 
 
-def main(argv: list[str] | None = None) -> int:
+def _main_inner(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="cycle_runner",
         description="Run one real paper-trading cycle (read-only, paper only).",
@@ -2392,6 +2465,44 @@ def _run_fundability_pack(data_dir: "str | os.PathLike | None" = None) -> None:
         print("  track_snap  : regenerated landing/src/data/track_snapshot.json")
     except Exception as _ts_exc:  # noqa: BLE001 — never crash the cycle
         log.warning("track_snapshot regeneration failed (non-critical): %s", _ts_exc)
+
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Точка входа с защитой от одновременных прогонов.
+
+    Замок живёт ЗДЕСЬ, а не внутри ``run_cycle``: у той функции девять точек
+    выхода, и надёжно снять замок на каждой невозможно — а замок, который не
+    снялся, страшнее отсутствующего: он заблокирует следующий цикл и оставит
+    в треке дыру, восстановить которую нечем (сегодня разбирали две таких).
+    ``finally`` здесь покрывает и исключение, и любой ранний возврат.
+
+    Сухой прогон замок не берёт: он ничего не пишет и не должен мешать живому.
+    """
+    import sys as _sys
+    argv = list(argv if argv is not None else _sys.argv[1:])
+    if "--dry-run" in argv:
+        return _main_inner(argv)
+
+    # Корень определяется так же, как в остальном модуле (см. _root ниже по файлу),
+    # чтобы замок лёг ровно туда, куда цикл пишет.
+    data_dir = Path(__file__).resolve().parents[2] / "data"
+    for i, a in enumerate(argv):
+        if a == "--data-dir" and i + 1 < len(argv):
+            data_dir = Path(argv[i + 1])
+        elif a.startswith("--data-dir="):
+            data_dir = Path(a.split("=", 1)[1])
+
+    lock = _acquire_cycle_lock(data_dir)
+    if lock is None:
+        log.error("ОТКАЗ: цикл уже идёт (замок %s свежий). Два прогона пишут в один трек, "
+                  "и победит записавший последним — это не «слегка неточно», это трек, "
+                  "которому нельзя верить.", CYCLE_LOCK_FILE)
+        return 2
+    try:
+        return _main_inner(argv)
+    finally:
+        _release_cycle_lock(lock, data_dir)
 
 
 if __name__ == "__main__":
