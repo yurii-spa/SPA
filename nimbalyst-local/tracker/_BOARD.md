@@ -2,11 +2,12 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **199** · ждёт владельца: **20** · занято сессиями: **0**.
+> Всего карточек: **205** · ждёт владельца: **21** · занято сессиями: **1**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **own-rnd-dwell-hysteresis-paper-module** · _medium_  ·  `own-rnd-dwell-hysteresis-paper-module.md`
+- **10% денег стоят без работы: причина найдена — 11 протоколов закрыты из-за отсутствия живого фида, нужен твой выбор** · _high_  ·  `owner-decision-10-deneg-stoyat-bez-raboty-prichina-naid.md`
 - **Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда** · _high_  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md`
 - **Аллокатор ранжирует пулы на невыверенном TVL ($50M-литерал) — исключать ли их из свежих целей?**  ·  `owner-decision-allokator-ranzhiruet-puly-na-vydumannom-tvl.md`
 - **Числа трека на сайте не подтверждаются ничем в git — канон замёрз 17 июля, и сторож краснеет каждый день** · _high_  ·  `owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts.md`
@@ -27,10 +28,17 @@
 - **Выдуманная казна протокола в оценке страховки — оставить или отказываться?** · _medium_  ·  `owner-decision-vydumannaya-kazna-protokola-v-otsenke-st.md`
 - **Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта**  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (58)
+## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
+
+> Ставится `scripts/check_card_claim.py claim`, снимается `release` (и не действует после `done`/`ingested`). Перед взятием карточки — `check_card_claim.py check <карточка>`.
+
+- **Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать** — держит `cycle-28258` · с 2026-08-05T12:28:28Z  ·  `agent-fleet-parity-guard-never-scheduled.md`
+
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (59)
 
 ### · needs-owner
 - own-rnd-dwell-hysteresis-paper-module  ·  `own-rnd-dwell-hysteresis-paper-module.md` · 2026-08-04
+- 10% денег стоят без работы: причина найдена — 11 протоколов закрыты из-за отсутствия живого фида, нужен твой выбор  ·  `owner-decision-10-deneg-stoyat-bez-raboty-prichina-naid.md` · 2026-08-05
 - Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md` · 2026-08-01
 - Аллокатор ранжирует пулы на невыверенном TVL ($50M-литерал) — исключать ли их из свежих целей?  ·  `owner-decision-allokator-ranzhiruet-puly-na-vydumannom-tvl.md` · 2026-08-02
 - Числа трека на сайте не подтверждаются ничем в git — канон замёрз 17 июля, и сторож краснеет каждый день  ·  `owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts.md` · 2026-08-02
@@ -90,7 +98,7 @@
 - Уточнение по заметке: Давай так и сделаем  ·  `owner-decision-utochnenie-po-zametke-davai-tak-i-sdelae.md` · 2026-07-22
 - В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md` · 2026-07-29
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (27)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (30)
 
 ### · done
 - Проверь связь это тестовое сообщение.  ·  `inbox-20260715-123528-note.md` · 2026-07-15
@@ -115,11 +123,14 @@
 - Задача 2  - алерты в телеграм присылать простым языком, сейчас приходит плохо в…  ·  `inbox-zadacha-2-alerty-v-telegram-prisylat-pro.md` · 2026-07-27
 - Задача  (перевести формат алертов Site Custodian на человеческий русский).  ·  `inbox-zadacha-perevesti-format-alertov-site-cu.md` · 2026-07-20
 - Задача писать мне в чат простым языком а не вот это вот - 🛡️ SITE CUSTODIAN — 1…  ·  `inbox-zadacha-pisat-mne-v-chat-prostym-yazykom.md` · 2026-08-04
+- задача - починить \"• нашёл сверх задания: тесты на main снова красные из-за одн…  ·  `inbox-zadacha-pochinit-nashel-sverh-zadaniya-t.md` · 2026-08-05
 - Задача продумать план действий после того как закончился Payper Тест  ·  `inbox-zadacha-produmat-plan-deistvii-posle-tog.md` · 2026-07-27
 - Задача проверить на сайте на всех больницах тест показывает правильные количест…  ·  `inbox-zadacha-proverit-na-saite-na-vseh-bolnit.md` · 2026-07-27
 - Задача разобраться и поправить - вот такое сообщение приходит в час несколько р…  ·  `inbox-zadacha-razobratsya-i-popravit-vot-takoe.md` · 2026-07-31
 - Задача разобраться почему нет свежих данных почему Pepper Тест не обновился хот…  ·  `inbox-zadacha-razobratsya-pochemu-net-svezhih.md` · 2026-07-23
 - Задача решить проблему 🚨 Пропущен ежедневный цикл  ·  `inbox-zadacha-reshit-problemu-propuschen-ezhed.md` · 2026-07-30
+- задача - сделать проверку агентов и поствить в расписание и разобраться почему…  ·  `inbox-zadacha-sdelat-proverku-agentov-i-postvi.md` · 2026-08-05
+- Задча • 10% денег стоят без работы под 0% — это money-path, карточка «agent-all…  ·  `inbox-zadcha-10-deneg-stoyat-bez-raboty-pod-0.md` · 2026-08-05
 
 ## 🤖 Agent Tasks (что делает агент)  (82)
 
@@ -209,8 +220,10 @@
 - Упоминание карточки в тексте объявления запирает её НАВСЕГДА — шаг 0b отвечает «не измерено» и после старения  ·  `agent-weak-mention-locks-card-forever.md` · 2026-07-31
 - Q11: разбор ветки yield-lab  ·  `agent-yield-lab-branch.md` · 2026-07-16
 
-## agent  (32)
+## agent  (34)
 
+### · blocked
+- Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать  ·  `agent-fleet-parity-guard-never-scheduled.md` · 2026-08-05 · 🔒 `cycle-28258`
 ### · in-progress
 - Аллокатор заморожен на неоптимальной доходности — ребаланс только по нарушению, нет триггера «заработать больше»  ·  `agent-allocator-yield-frozen-rootcause.md` · 2026-07-23
 - Аллокатор ранжирует капитал по зашитым константам, помеченным как «live» — честный провенанс APY (D1+D2)  ·  `agent-apy-evidence-provenance.md` · 2026-08-02
@@ -222,11 +235,11 @@
 - Вариант 2 — перевести прод на чистый чекаут origin/main (закрыть дрейф навсегда)  ·  `agent-prod-clean-checkout-variant2.md` · 2026-08-03
 ### · backlog
 - Advisory / сигнальный трек (вариант C) — отложен владельцем, держать в бэклоге  ·  `agent-advisory-signals-track-c.md` · 2026-07-23
+- 11 протоколов закрыты для капитала из-за отсутствия живого фида — вселенная выбора сужена, 10% кэша стоят под 0%  ·  `agent-blocked-protocols-need-live-feeds.md` · 2026-08-05
 - Подписка checkup отвечает ok:true, даже если письмо не отправилось — поломка жила незамеченной с июля  ·  `agent-checkup-waitlist-fail-open-ok-true.md` · 2026-08-02
 - Сверка цикла 04.08 — первый прогон на новом коде даст БОЛЬШОЙ ребаланс, это ожидаемо (не чинить)  ·  `agent-cycle-reconciliation-2026-08-04.md` · 2026-08-03
 - Сетевая икота фида может эвакуировать книгу в кэш — нужна политика устаревания вместо «есть/нет»  ·  `agent-feed-staleness-policy.md` · 2026-08-04
 - Свежая полная инвентаризация флота (73 агента) — что делает / жив ли / нужен ли / расход  ·  `agent-fleet-inventory-73.md` · 2026-07-23
-- Храповик литеральных дат КРАСНЫЙ на main — два новых тест-файла волны 1 (A1) вошли в закрытый класс  ·  `agent-frozen-date-ratchet-red-on-main.md` · 2026-08-05
 - Нет сторожа «профинансирован протокол, которого нет в реестре» — остаточная дыра кэпов по цепочкам  ·  `agent-funded-protocol-not-in-registry.md` · 2026-08-02
 - GO-LIVE — внутридневной контроль просадки (частый, не раз в сутки)  ·  `agent-golive-intraday-drawdown-monitor.md` · 2026-07-23
 - Завести производителя gsm_hours (on-chain GSM Pause Delay) — чтобы GSM-гейт перестал быть вечным замком  ·  `agent-gsm-hours-producer.md` · 2026-08-02
@@ -246,5 +259,6 @@
 ### · done
 - Буфер обмена подсунул текст, замаскированный под системные инструкции — разбор и правило  ·  `agent-clipboard-injection-incident-2026-08-02.md` · 2026-08-02
 - Прод крутит код на 409 коммитов старше origin — разрыв «запушено → выполняется» никто не проверял  ·  `agent-deployment-drift-guard.md` · 2026-08-03
+- Храповик литеральных дат КРАСНЫЙ на main — два новых тест-файла волны 1 (A1) вошли в закрытый класс  ·  `agent-frozen-date-ratchet-red-on-main.md` · 2026-08-05
 - TVL-floor проходят по литералу $50M — правило «только живой TVL» ссылается на поле, которого никто не пишет  ·  `agent-tvl-floor-passes-on-literals.md` · 2026-08-02
 

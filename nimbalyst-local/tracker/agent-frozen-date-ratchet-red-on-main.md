@@ -2,7 +2,7 @@
 trackerStatus:
   type: agent
 title: Храповик литеральных дат КРАСНЫЙ на main — два новых тест-файла волны 1 (A1) вошли в закрытый класс
-status: backlog
+status: done
 source: cycle-118
 created: 2026-08-05
 priority: high
@@ -52,3 +52,21 @@ E       test_apy_series_accumulator.py
 
 `test_no_new_file_joins_the_frozen_date_class` зелёный на свежем чекауте `origin/main`,
 `frozen_date_baseline.json` не вырос.
+
+## Закрыто 2026-08-05 (цикл #119) — ПРОВЕРЕНО, не принято на веру
+
+Задание владельца «починить» пришло уже после того, как дефект починили: волна 3 (`d1faaf6f5`)
+закрыла его **правильным способом** — не ростом базы, а объявлением предмета теста.
+
+Измерено на чистом чекауте `origin/main d1faaf6f5`:
+
+- `spa_core/tests/test_frozen_date_ratchet.py` — **5 passed** (падало
+  `test_no_new_file_joins_the_frozen_date_class`);
+- `frozen_date_baseline.json` — `count: 251`, фактических записей 251, `snapshot: 2026-08-05`
+  = **база НЕ выросла** (запрет из `.claude/rules/deployment.md` соблюдён);
+- оба файла получили обоснованные маркеры `# FROZEN-DATE-OK` (вариант 3 протокола, законный,
+  т.к. в обоих даты — предмет проверки: выравнивание осей и идемпотентность по дате;
+  в `test_apy_series_accumulator.py` часы вдобавок инжектируются через `accumulate(today=...)`);
+- CI на `main @ d1faaf6f5`: **SPA Tests / SPA CI / SPA Proof Gate / SPA Lint — все success**.
+
+Дубль-карточку не заводил (шаг 1a протокола, вердикт DONE).

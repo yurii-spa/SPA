@@ -80,5 +80,18 @@ print(CPACycleWithEvidence(base_dir='.').run())
 "$PYTHON" scripts/deploy_site_snapshot.py >> "$LOG_FILE" 2>&1 \
   || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] site snapshot deploy failed (non-fatal)" >> "$LOG_FILE"
 
+# ── Step 4: fleet-parity drift guard (Q3-2) — the THIRD watchman of .claude/rules/deployment.md:
+# "is the fleet COMPOSITION the one we declared?" (drift monitor answers "is it the code we accepted",
+# acceptance answers "can it start", agent_health answers "is it alive" — none of them answers this one).
+# It had no caller at all: written in July, invoked once by hand, then silent for 597h while
+# agent_health honestly repeated "fleet parity stale" into a void (agent-fleet-parity-guard-never-scheduled).
+# Here instead of its own LaunchAgent on purpose: the fleet must not grow by one just to watch itself,
+# and a guard that lives inside the cycle cannot be forgotten by the installer the way it just was.
+# NON-FATAL and deliberately so: exit 1 means DRIFT (a real finding to read in data/fleet_parity.json),
+# not a broken cycle. If this step stops running, fleet_parity.json goes stale and agent_health WARNs
+# within 26h — the silence itself is alarmed.
+"$PYTHON" scripts/fleet_parity_check.py >> "$LOG_FILE" 2>&1 \
+  || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] fleet parity: DRIFT or check failed (non-fatal, see data/fleet_parity.json)" >> "$LOG_FILE"
+
 echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Cycle completed (cycle_runner exit $CYCLE_EXIT)" | tee -a "$LOG_FILE"
 exit $CYCLE_EXIT
