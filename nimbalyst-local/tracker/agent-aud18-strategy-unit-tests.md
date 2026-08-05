@@ -2,13 +2,11 @@
 trackerStatus:
   type: agent
 title: AUD-18 — пять доходных стратегий турнира без собственных тестов (замер показал другой пробел, чем в задании)
-status: in-progress
+status: done
 source: задание владельца из Telegram 2026-08-05 (inbox-vot-obe-zadachi-… / inbox-pythonpath-…)
 created: 2026-08-05
 priority: medium
 domain: тесты / advisory-стратегии (НЕ risk-логика, НЕ kill-switch, НЕ живой трек, НЕ launchd)
-claimed_by: cycle-82504
-claimed_at: 2026-08-05T16:45:15Z
 ---
 
 ## Что просил владелец
