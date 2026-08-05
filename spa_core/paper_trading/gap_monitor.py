@@ -37,6 +37,12 @@ ALERT_SOURCE = "gap_monitor"
 ALERT_TYPE = "cycle_gap"
 MAX_ALERTS = 200                # страховочный cap списка alerts
 
+# Сколько дней дыра считается ВОССТАНОВИМОЙ. Пока свежая — пропущенный цикл
+# можно доиграть по логам; дальше это неизменяемый факт трека, который
+# остаётся в отчёте, но перестаёт быть активным инцидентом.
+_GAP_ACTIONABLE_DAYS = 3
+
+
 def check_day_gaps(entries: list) -> dict:
     """Проверить пропущенные дни в EVIDENCED (real-cycle) записях equity curve.
 
@@ -44,19 +50,25 @@ def check_day_gaps(entries: list) -> dict:
     daily_cycle-логом. Flat-rate backfill (``evidenced:false`` / ``source:
     "backfill"``) и reconstructed-бары исключены — они не подтверждают, что
     цикл реально отработал в тот день. История на диске сохраняется (флаги, не
-    удаление); здесь они просто не идут в трек. Берёт evidenced-записи,
-    сортирует по дате и ищет промежутки > 3 календарных дней (допускает пропуск
-    выходных: Пт→Пн = 3 дня).
+    удаление); здесь они просто не идут в трек.
+
+    Дырой считается ЛЮБОЙ пропущенный календарный день: трек ежедневный, цикл в
+    06:00 UTC, выходных он не знает. Прежний порог «> 3 дней» делал однодневную
+    дыру невидимой, и обе реальные дыры трека (2026-07-19, 2026-07-27) прошли
+    незамеченными.
 
     Args:
         entries: список daily-баров из equity_curve_daily.json ["daily"].
 
     Returns:
         dict с ключами:
-            has_gaps     — True, если найден хотя бы один пропуск > 3 дней.
-            day_gaps     — список {"from": date, "to": date, "days_missed": int}.
-            start_date   — первая evidenced дата (str ISO) или None.
-            days_count   — кол-во evidenced дней.
+            has_gaps          — True, если пропущен хотя бы один день.
+            day_gaps          — [{"from", "to", "days_missed", "age_days",
+                                  "actionable"}] — ВСЕ дыры, включая старые.
+            active_gaps       — подмножество, которое ещё можно восстановить.
+            start_date        — первая evidenced дата (str ISO) или None.
+            days_count        — сколько evidenced дней ЕСТЬ.
+            days_missed_total — сколько дней календарь недосчитался.
     """
     from datetime import date as _date
 
@@ -80,22 +92,139 @@ def check_day_gaps(entries: list) -> dict:
     if not dates:
         return {"has_gaps": False, "day_gaps": [], "start_date": None, "days_count": 0}
 
+    # ЛЮБОЙ пропущенный день — дыра.
+    #
+    # Раньше здесь стояло ``delta > 3`` с пояснением «не укладывается в пропуск
+    # выходных». Порог перенесён из мира биржевых часов: paper-трек идёт КАЖДЫЙ
+    # день, цикл в 06:00 UTC, выходные в данных присутствуют наравне с буднями
+    # (2026-07-19 — воскресенье, а соседние суббота и понедельник на месте).
+    #
+    # Из-за порога дыра длиной 1–3 дня была невидима ПО ПОСТРОЕНИЮ. Реальные
+    # дыры трека — 2026-07-19 и 2026-07-27 — обе ровно однодневные, и сторож
+    # отчитывался ``has_gaps: false`` при двух отсутствующих днях внутри
+    # собственного окна. Гейт go-live считает evidenced-дни, поэтому каждая
+    # молчаливая дыра отодвигала выход без единого сигнала.
     day_gaps = []
     for i in range(1, len(dates)):
         delta = (dates[i] - dates[i - 1]).days
-        if delta > 3:   # > 3 кал. дней — не укладывается в пропуск выходных
+        if delta > 1:
             day_gaps.append({
                 "from": dates[i - 1].isoformat(),
                 "to": dates[i].isoformat(),
                 "days_missed": delta - 1,
             })
 
+    # Дыры перечисляются ВСЕГДА — прошлое из отчёта не исчезает. Но «активной»
+    # считается только свежая: восстановить пропущенный день можно, пока живы
+    # логи цикла, а дыра месячной давности — уже неизменяемый факт трека.
+    #
+    # Без этого разделения сторож встал бы в вечный HIGH по поводу, который
+    # нельзя закрыть никаким действием, — а несбрасываемая тревога перестаёт
+    # читаться (тот же класс, что «неизменяемое "не измерено" забивает очередь»).
+    ref = _date.today()
+    for g in day_gaps:
+        age_days = (ref - _date.fromisoformat(g["to"])).days
+        g["age_days"] = age_days
+        g["actionable"] = age_days <= _GAP_ACTIONABLE_DAYS
+
     return {
         "has_gaps": bool(day_gaps),
         "day_gaps": day_gaps,
+        # Отдельно — то, на что ещё можно ПОВЛИЯТЬ. Потребители-алерты смотрят
+        # сюда, отчёт целиком — в day_gaps.
+        "active_gaps": [g for g in day_gaps if g["actionable"]],
         "start_date": dates[0].isoformat(),
         "days_count": len(dates),
+        # Сколько дней потеряно суммарно: days_count says what we HAVE, this
+        # says what the calendar says we should have had.
+        "days_missed_total": sum(g["days_missed"] for g in day_gaps),
     }
+
+
+
+# Сколько часов циклу отводится на путь от старта до вердикта риска. Реальные
+# прогоны укладываются в минуты; запас взят щедрый, чтобы «ещё идёт» никогда не
+# читалось как «умер» — ложная тревога здесь дороже, чем час задержки сигнала.
+_CYCLE_MAX_HOURS = 6.0
+
+AUDIT_TRAIL_FILE = DATA_DIR / "audit_trail.jsonl"
+
+
+def check_unfinished_cycles(
+    audit_path: Path = None,
+    now: datetime = None,
+    max_cycle_hours: float = _CYCLE_MAX_HOURS,
+) -> dict:
+    """Циклы, которые СТАРТОВАЛИ и не дошли до вердикта риска.
+
+    Зачем. Обе дыры трека (2026-07-19, 2026-07-27) выглядят в аудит-следе
+    одинаково: есть ``cycle_start`` и нет ни ``allocation_proposal``, ни
+    ``risk_verdict``. По всей истории стартов 256, предложений 254 — разница
+    ровно в эти два дня. Цикл умирал между стартом и аллокацией.
+
+    Этого не видел никто: потребителей ``cycle_start`` не было вовсе, и
+    незавершённый цикл оставлял одну строку в журнале и тишину. Пропуск дня
+    всплывал только назавтра — когда бар уже не появился, а восстанавливать
+    поздно. Здесь сигнал приходит в тот же день, пока логи прогона живы.
+
+    Отказ мягкий: нечитаемый файл ⇒ ``checked: False``, а не выдуманное
+    благополучие — монитор обязан отличать «проверено и чисто» от «не смотрел».
+    """
+    from datetime import date as _date
+
+    path = Path(audit_path) if audit_path else AUDIT_TRAIL_FILE
+    ref = now or datetime.now(timezone.utc)
+    out = {"checked": False, "unfinished": [], "cycles_seen": 0}
+    if not path.exists():
+        return out
+
+    started: dict = {}
+    finished: set = set()
+    try:
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    ev = json.loads(line)
+                except Exception:
+                    continue          # одна битая строка не отменяет проверку
+                if not isinstance(ev, dict):
+                    continue
+                day = str(ev.get("timestamp", ""))[:10]
+                if not day:
+                    continue
+                kind = ev.get("event_type")
+                if kind == "cycle_start":
+                    started.setdefault(day, str(ev.get("timestamp")))
+                elif kind in ("risk_verdict", "allocation_proposal"):
+                    finished.add(day)
+    except Exception:
+        return out
+
+    out["checked"] = True
+    out["cycles_seen"] = len(started)
+    for day, ts in sorted(started.items()):
+        if day in finished:
+            continue
+        try:
+            dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            continue
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        age_h = (ref - dt).total_seconds() / 3600.0
+        if age_h < max_cycle_hours:
+            continue              # ещё может дойти — не тревожим
+        out["unfinished"].append({
+            "date": day,
+            "started_at": str(ts),
+            "age_hours": round(age_h, 2),
+            # Восстановить можно, пока логи прогона того дня ещё на месте.
+            "recoverable": age_h <= 24.0 * _GAP_ACTIONABLE_DAYS,
+        })
+    return out
 
 
 def check_gaps() -> dict:
@@ -112,7 +241,14 @@ def check_gaps() -> dict:
         "day_gaps": [],
         "start_date": None,
         "days_count": 0,
+        # --- цикл стартовал и не дошёл до вердикта (2026-08-05) ---
+        "unfinished_cycles": [],
+        "unfinished_checked": False,
     }
+
+    _unfin = check_unfinished_cycles(now=now)
+    result["unfinished_checked"] = bool(_unfin.get("checked"))
+    result["unfinished_cycles"] = list(_unfin.get("unfinished") or [])
 
     if not EQUITY_FILE.exists():
         result.update({"gap_detected": True, "status": "no_data",
