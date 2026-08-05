@@ -108,6 +108,11 @@ DIGEST_QUEUE_FILENAME = "digest_queue.json"
 # pilot_request    — a MATERIAL /pilot lead (B2B/institutional/early-access) — instant per-lead
 #                    ping (owner decision Q-OWN-16 / ADR-OWN-2026-07-lead-pings). Non-material
 #                    leads stay demoted to the digest at the call site (interest.py).
+# architecture_conformance_critical — the fleet has diverged from the architecture manifest
+#                    (ADR-066 контур B): an agent runs undeclared, an `active` agent is gone,
+#                    a `designed` architecture activated itself, a required product has no
+#                    reader. Edge-triggered with a set-of-findings fingerprint, so a persistent
+#                    divergence pings ONCE, and a DIFFERENT set is a new incident.
 TIER1_WHITELIST: frozenset[str] = frozenset(
     {
         "kill_switch",
@@ -121,6 +126,7 @@ TIER1_WHITELIST: frozenset[str] = frozenset(
         "rules_critical",
         "golive_ready",
         "pilot_request",
+        "architecture_conformance_critical",
     }
 )
 

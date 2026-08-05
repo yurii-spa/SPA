@@ -88,6 +88,32 @@
    "notes": ""
   },
   {
+   "label": "com.spa.architecture_conformance",
+   "plist_source": "repo:launchd/com.spa.architecture_conformance.plist",
+   "reboot_safe": false,
+   "schedule": "interval:21600s",
+   "program": "agent_architecture_conformance.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "designed",
+   "produces": [
+    {
+     "artifact": "data/architecture_conformance.json",
+     "slo_hours": 8
+    }
+   ],
+   "consumes": [
+    "architecture/manifest.json",
+    "data/consumption_receipts.jsonl"
+   ],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-066"
+   ],
+   "curation": "complete",
+   "notes": "ADR-066 Фаза 1: сторож соответствия флота манифесту (B1–B5). Код и тесты доставлены; launchd-развёртывание owner-gated — карточка own-arhitekturnyi-storozh-gotov-nuzhen-deploy. После bootstrap intent → active."
+  },
+  {
    "label": "com.spa.artifact_freshness",
    "plist_source": "repo:scripts/com.spa.artifact_freshness.plist",
    "reboot_safe": false,
@@ -917,10 +943,10 @@
   },
   {
    "label": "com.spa.morning_digest",
-   "plist_source": null,
+   "plist_source": "repo:launchd/com.spa.morning_digest.plist",
    "reboot_safe": false,
-   "schedule": null,
-   "program": null,
+   "schedule": "calendar:09:00",
+   "program": "agent_morning_digest.sh",
    "layer": "product",
    "role": "other",
    "intent": "retired",
@@ -1723,10 +1749,14 @@
   },
   {
    "path": "data/architecture_conformance.json",
-   "producer": null,
-   "consumers": [],
+   "producer": "com.spa.architecture_conformance",
+   "consumers": [
+    "orchestrator_protocol",
+    "digest_daily"
+   ],
    "status": "planned",
-   "notes": "ADR-066 Фаза 1"
+   "notes": "статус planned до развёртывания агента (owner-gated); после bootstrap → active",
+   "slo_hours": 8
   },
   {
    "path": "data/consumption_receipts.jsonl",
