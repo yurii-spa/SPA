@@ -405,22 +405,13 @@
     {
      "artifact": "data/allocation_rationale.json",
      "slo_hours": 26
-    },
-    {
-     "artifact": "data/house_view_gap.json",
-     "slo_hours": 26
-    },
-    {
-     "artifact": "data/findings_bridge.json",
-     "slo_hours": 26
     }
    ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [
     "ADR-060",
-    "ADR-061",
-    "ADR-066"
+    "ADR-061"
    ],
    "curation": "complete",
    "notes": ""
@@ -456,6 +447,38 @@
    "governed_by": [],
    "curation": "partial",
    "notes": ""
+  },
+  {
+   "label": "com.spa.decision_loop",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:21600s",
+   "program": "agent_decision_loop.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/house_view_gap.json",
+     "slo_hours": 7
+    },
+    {
+     "artifact": "data/findings_bridge_report.json",
+     "slo_hours": 7
+    }
+   ],
+   "consumes": [
+    "data/architecture_conformance.json",
+    "data/house_view_gap.json",
+    "data/investment_os/chief_investment.json",
+    "data/current_positions.json"
+   ],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-066"
+   ],
+   "curation": "complete",
+   "notes": "петля решений: пересчёт house_view_gap + мост находка→карточка (Фаза 3)"
   },
   {
    "label": "com.spa.dfb_capture",
@@ -1773,14 +1796,14 @@
   },
   {
    "path": "data/house_view_gap.json",
-   "producer": "com.spa.daily_cycle",
+   "producer": "com.spa.decision_loop",
    "consumers": [
     "orchestrator_protocol",
-    "findings_bridge"
+    "findings_to_cards"
    ],
    "status": "active",
-   "notes": "ADR-066 C1: сверка house_view офиса с фактической аллокацией; только сверка, капитал не двигает",
-   "slo_hours": 26
+   "notes": "ADR-066 Фаза 3",
+   "slo_hours": 7
   },
   {
    "path": "data/loop_health.json",
@@ -1797,14 +1820,14 @@
    "notes": "ADR-066 Фаза 4"
   },
   {
-   "path": "data/findings_bridge.json",
-   "producer": "com.spa.daily_cycle",
+   "path": "data/findings_bridge_report.json",
+   "producer": "com.spa.decision_loop",
    "consumers": [
     "orchestrator_protocol"
    ],
-   "slo_hours": 26,
+   "slo_hours": 7,
    "status": "active",
-   "notes": "ADR-066 C2: отчёт моста находка→карточка (открыто/закрыто/отложено — поимённо)"
+   "notes": "ADR-066 Фаза 3: отчёт моста (created/deferred/closed) — deferred читать ОБЯЗАТЕЛЬНО"
   }
  ],
  "designed_architectures": [
