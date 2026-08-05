@@ -2,11 +2,12 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **209** · ждёт владельца: **22** · занято сессиями: **1**.
+> Всего карточек: **215** · ждёт владельца: **23** · занято сессиями: **2**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Кто имеет право сказать «флот ожил» и погасить тревогу об упавших агентах?** · _medium_  ·  `own-28-kto-gasit-trevogu-core-agent-down.md`
+- **Вторая задача из твоего сообщения (волатильный ETH-пул с доходностью «79%») — сам её не беру, нужно твоё решение** · _medium_  ·  `own-aud19-volatile-clmm-vvodim-li-klass.md`
 - **own-rnd-dwell-hysteresis-paper-module** · _medium_  ·  `own-rnd-dwell-hysteresis-paper-module.md`
 - **10% денег стоят без работы: причина найдена — 11 протоколов закрыты из-за отсутствия живого фида, нужен твой выбор** · _high_  ·  `owner-decision-10-deneg-stoyat-bez-raboty-prichina-naid.md`
 - **Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда** · _high_  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md`
@@ -33,12 +34,14 @@
 
 > Ставится `scripts/check_card_claim.py claim`, снимается `release` (и не действует после `done`/`ingested`). Перед взятием карточки — `check_card_claim.py check <карточка>`.
 
+- **AUD-18 — пять доходных стратегий турнира без собственных тестов (замер показал другой пробел, чем в задании)** — держит `cycle-82504` · с 2026-08-05T16:45:15Z  ·  `agent-aud18-strategy-unit-tests.md`
 - **Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать** — держит `cycle-28258` · с 2026-08-05T12:28:28Z  ·  `agent-fleet-parity-guard-never-scheduled.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (60)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (61)
 
 ### · needs-owner
 - Кто имеет право сказать «флот ожил» и погасить тревогу об упавших агентах?  ·  `own-28-kto-gasit-trevogu-core-agent-down.md` · 2026-08-05
+- Вторая задача из твоего сообщения (волатильный ETH-пул с доходностью «79%») — сам её не беру, нужно твоё решение  ·  `own-aud19-volatile-clmm-vvodim-li-klass.md` · 2026-08-05
 - own-rnd-dwell-hysteresis-paper-module  ·  `own-rnd-dwell-hysteresis-paper-module.md` · 2026-08-04
 - 10% денег стоят без работы: причина найдена — 11 протоколов закрыты из-за отсутствия живого фида, нужен твой выбор  ·  `owner-decision-10-deneg-stoyat-bez-raboty-prichina-naid.md` · 2026-08-05
 - Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md` · 2026-08-01
@@ -100,7 +103,7 @@
 - Уточнение по заметке: Давай так и сделаем  ·  `owner-decision-utochnenie-po-zametke-davai-tak-i-sdelae.md` · 2026-07-22
 - В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md` · 2026-07-29
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (31)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (34)
 
 ### · done
 - Проверь связь это тестовое сообщение.  ·  `inbox-20260715-123528-note.md` · 2026-07-15
@@ -116,9 +119,12 @@
 - Давай так и сделаем  ·  `inbox-davai-tak-i-sdelaem.md` · 2026-07-20
 - Проверь прям сейчас все ли ок  ·  `inbox-prover-pryam-seichas-vse-li-ok.md` · 2026-08-05
 - Проверь систему, сделай аудит, все ли ок?  ·  `inbox-prover-sistemu-sdelai-audit-vse-li-ok.md` · 2026-07-26
+- py: числа скриншота → approved:False (не DN); та же позиция с is_delta_neutral=…  ·  `inbox-py-chisla-skrinshota-approved-false-ne-d.md` · 2026-08-05
+- PYTHONPATH=/home/user/SPA pytest spa_core/tests/test_s{76,41,73,77,22}*.py -q →…  ·  `inbox-pythonpath-home-user-spa-pytest-spa-core.md` · 2026-08-05
 - Доделать ВНУТРИ дашборда — полный DeBank-вид на широкую сетку (preview)  ·  `inbox-task-dashboard-debank-inside.md` · 2026-07-15
 - Сделать названия/ID карточек человекочитаемыми (убрать нечитаемые цифры-буквы)  ·  `inbox-task-readable-card-ids.md` · 2026-07-15
 - Команда /status в Telegram-боте — сводка системы простым языком  ·  `inbox-task-status-command.md` · 2026-07-15
+- Вот обе задачи, оформленные подробно и по отдельности — в стиле карточек проект…  ·  `inbox-vot-obe-zadachi-oformlennye-podrobno-i-p.md` · 2026-08-05
 - Я хочу, чтобы ты взял 6 часов спринта. Сейчас у нас 3 часа ночи по Испании до 9…  ·  `inbox-ya-hochu-chtoby-ty-vzyal-6-chasov-sprint.md` · 2026-07-17
 - я просил тебя до этого узнать какой статус и были выполнены мои задачи и ты ска…  ·  `inbox-ya-prosil-tebya-do-etogo-uznat-kakoi-sta.md` · 2026-07-27
 - Задача 1- разобраться с алентами которые мне приходят в телегам :  ·  `inbox-zadacha-1-razobratsya-s-alentami-kotorye.md` · 2026-07-27
@@ -223,13 +229,14 @@
 - Упоминание карточки в тексте объявления запирает её НАВСЕГДА — шаг 0b отвечает «не измерено» и после старения  ·  `agent-weak-mention-locks-card-forever.md` · 2026-07-31
 - Q11: разбор ветки yield-lab  ·  `agent-yield-lab-branch.md` · 2026-07-16
 
-## agent  (36)
+## agent  (38)
 
 ### · blocked
 - Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать  ·  `agent-fleet-parity-guard-never-scheduled.md` · 2026-08-05 · 🔒 `cycle-28258`
 ### · in-progress
 - Аллокатор заморожен на неоптимальной доходности — ребаланс только по нарушению, нет триггера «заработать больше»  ·  `agent-allocator-yield-frozen-rootcause.md` · 2026-07-23
 - Аллокатор ранжирует капитал по зашитым константам, помеченным как «live» — честный провенанс APY (D1+D2)  ·  `agent-apy-evidence-provenance.md` · 2026-08-02
+- AUD-18 — пять доходных стратегий турнира без собственных тестов (замер показал другой пробел, чем в задании)  ·  `agent-aud18-strategy-unit-tests.md` · 2026-08-05 · 🔒 `cycle-82504`
 - Аудит всего проекта 2026-08-02 — три параллельных трека починки (координация, НЕ дублировать)  ·  `agent-audit-2026-08-02-fix-tracks.md` · 2026-08-02
 - Портфель нарушает два инварианта прямо сейчас — 15% в advisory-протоколах и 5% в Sky/spark при запрете (D3+D4)  ·  `agent-book-violations-advisory-and-sky.md` · 2026-08-02
 - Закрыть дыры покрытия policy_enforcer — добавить проверки T2-per-protocol + chain-caps (зеркало policy.py)  ·  `agent-enforcer-coverage-gaps.md` · 2026-07-23
@@ -252,6 +259,7 @@
 - Переселить 13 оптимизаторов в советники аллокатора (поток 1 own-27)  ·  `agent-relocate-optimizers-to-allocator-advisory.md` · 2026-08-04
 - Переселить 9 трекеров в слой отчётности (поток 2 own-27)  ·  `agent-relocate-trackers-to-reporting.md` · 2026-08-04
 - ПРОДОЛЖИТЬ ОТСЮДА — дорожная карта по приоритету (сессия может оборваться, работа не должна)  ·  `agent-roadmap-continue-here.md` · 2026-08-05
+- S76 угадывает единицу измерения доходности по величине числа — настоящие 0.5 % превращаются в 50 %  ·  `agent-s76-apy-unit-guess.md` · 2026-08-05
 - Аварийный портфель обходит гейты адаптеров — финансирует spark_susds, который запрещён инвариантом 10  ·  `agent-safe-fallback-bypasses-adapter-gates.md` · 2026-08-02
 - Тесты ходят в живую сеть (Telegram + аналитика) — полный набор не проходит целиком, когда сеть медленная  ·  `agent-tests-do-live-network-io.md` · 2026-08-02
 - Сделать турнир стратегий ДОВЕРЯЕМЫМ — ранжировать по net-of-cost APY на реальных исторических данных (не Sharpe на mock)  ·  `agent-tournament-trustworthy-real-apy.md` · 2026-07-23
