@@ -187,7 +187,8 @@
       "research_only": false,
       "per_protocol_cap": 0.2,
       "status": "active",
-      "mp": "MP-562"
+      "mp": "MP-562",
+      "note": "Наблюдаемая ставка 2026-08-05: 1.25 % (apyBase, пул Ethereum/sky-lending/SDAI, закреплён по UUID). Прежняя заметка «real DSR rate 3.6-4.75 %» УСТАРЕЛА и спорила с данными: ставка сжалась, а Sky уводит пользователей в USDS (sky_susds 3.52 %). Ранжирование идёт по live_apy; литерал fallback не является наблюдением (ADR-063)."
     },
     "frax": {
       "tier": 2,
