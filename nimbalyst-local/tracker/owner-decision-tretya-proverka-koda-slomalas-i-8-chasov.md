@@ -2,11 +2,16 @@
 trackerStatus:
   type: owner-decision
 title: Третья проверка кода сломалась и 8 часов этого никто не видел — нужен сторож за всеми проверками
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-03
 priority: medium
 ---
+
+> **СНЯТО ФАКТОМ 2026-08-05 — сторож за проверками существует и свеж.**
+>
+> `deployment_acceptance` работает и пишет `data/deployment_acceptance.json` (обновлён 23:01), отвечая на вопрос «способен ли флот стартовать». Рядом `deployment_drift` отвечает на «тот ли это код». Разделение трёх вопросов закреплено в `.claude/rules/deployment.md`.
+
 
 ## Что случилось и почему это важно
 
