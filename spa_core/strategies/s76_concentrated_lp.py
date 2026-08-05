@@ -7,6 +7,14 @@ Provide liquidity to the USDC/USDT pair on Aerodrome (Base) in a tight range
 (±0.1%). Near-zero impermanent loss since both legs are USD-pegged stablecoins.
 Earn trading fee APY typically 6–15%.
 
+UNIT CONTRACT (единый для ВСЕГО apy_data — карточка agent-s76-apy-unit-guess):
+every value in `apy_data` is a DECIMAL fraction (0.085 == 8.5%), the same unit
+`allocate()` / `current_regime()` always required and the same unit the canonical
+adapter accessor `get_yield_info().apy` returns (spa_core/adapters/apy_contract.py).
+`compute_weighted_apy` validates each value through `validate_apy_decimal`
+(fail-closed: a percent-looking value such as 3.5 is REJECTED → declared fallback,
+never magnitude-guessed) and converts decimal→percent exactly ONCE at return.
+
 Allocation switches on `apy_data.get("aerodrome_usdc_lp", 0.085)`:
   lp_apy > 0.06 (LP is attractive, above cost-of-capital):
     aerodrome_usdc_lp  60%   T2   tight-range USDC/USDT LP on Aerodrome (Base)
@@ -29,6 +37,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Dict, Optional
+
+from spa_core.adapters.apy_contract import validate_apy_decimal
 
 # ─── Module-level identity ────────────────────────────────────────────────────
 
@@ -56,10 +66,13 @@ ALLOC_LP_OFF: Dict[str, float] = {
     "cash":       0.15,
 }
 
+# All fallbacks are DECIMAL fractions (single unit for the whole module —
+# the old mix of decimal 0.085 + percent 3.5 is what forced the magnitude
+# heuristic in compute_weighted_apy; см. карточку agent-s76-apy-unit-guess).
 FALLBACK_APY: Dict[str, float] = {
     "aerodrome_usdc_lp": 0.085,  # 8.5% — typical Aerodrome USDC/USDT fees
-    "aave_v3":           3.5,
-    "compound_v3":       4.8,
+    "aave_v3":           0.035,  # 3.5%
+    "compound_v3":       0.048,  # 4.8%
     "cash":              0.0,
 }
 
@@ -126,34 +139,49 @@ class S76ConcentratedLP:
         return "lp_active" if lp_apy > LP_ATTRACTIVE_THRESHOLD else "lp_off"
 
     def compute_weighted_apy(self, apy_data: Optional[dict] = None) -> float:
-        """Blended APY for the current LP regime (%).
+        """Blended APY for the current LP regime, returned in PERCENT.
 
-        Note: aerodrome_usdc_lp APY in apy_data must be in DECIMAL form
-        (e.g. 0.085) for regime detection; but for APY blending it is
-        multiplied as a raw percentage — supply it in percent (8.5) for
-        correct blending, or the fallback (0.085) is used as 0.085%.
+        UNIT CONTRACT: every value in `apy_data` is a DECIMAL fraction
+        (0.085 == 8.5%) — the SAME unit `allocate()`/`current_regime()` read
+        from the same dict, and the unit of the canonical adapter accessor
+        `get_yield_info().apy` (spa_core/adapters/apy_contract.py). There is
+        no magnitude guessing: the unit is declared by this contract, not
+        inferred from the size of the number (the old `< 1.0 → ×100`
+        heuristic turned a TRUE 0.5% APY into 50%; карточка
+        agent-s76-apy-unit-guess).
 
-        For consistency with strategy APY blending convention, protocol APY
-        values supplied via apy_data for blending should be in percent.
+        Each supplied value is validated via `validate_apy_decimal`
+        (fail-closed): a percent value leaking in (e.g. 3.5 meaning 3.5%)
+        exceeds the decimal sane-band, is REJECTED with a log, and the
+        protocol's declared FALLBACK_APY is used instead — the S22 precedent
+        (`_canonical_apy_pct`: contract value or declared fallback, never a
+        rescaled guess). Decimal→percent conversion happens exactly ONCE, at
+        return.
 
         Args:
-            apy_data: {protocol_id: apy_pct_or_decimal}
+            apy_data: {protocol_id: apy_decimal} — decimal fractions only.
 
         Returns:
-            Blended APY in percent.
+            Blended APY in percent (e.g. 5.975).
         """
         if apy_data is None:
             apy_data = {}
         weights = self.allocate(apy_data)
-        total = 0.0
+        total_decimal = 0.0
         for protocol, weight in weights.items():
-            raw = apy_data.get(protocol, FALLBACK_APY.get(protocol, 0.0))
-            apy_pct = float(raw)
-            # aerodrome_usdc_lp fallback is stored as decimal (0.085) not percent
-            if protocol == "aerodrome_usdc_lp" and apy_pct < 1.0:
-                apy_pct = apy_pct * 100.0
-            total += weight * apy_pct
-        return total
+            fallback = FALLBACK_APY.get(protocol, 0.0)
+            raw = apy_data.get(protocol)
+            if raw is None:
+                apy_dec = fallback
+            else:
+                try:
+                    candidate: Optional[float] = float(raw)
+                except (TypeError, ValueError):
+                    candidate = None
+                validated = validate_apy_decimal(candidate, protocol=protocol)
+                apy_dec = fallback if validated is None else validated
+            total_decimal += weight * apy_dec
+        return total_decimal * 100.0
 
     def get_info(self) -> Dict:
         """Return strategy metadata dict."""

@@ -113,61 +113,96 @@ class TestS76AllocateIsolation(unittest.TestCase):
 
 
 class TestS76WeightedApy(unittest.TestCase):
-    """compute_weighted_apy — метод, который до этого файла не исполнялся ни разу."""
+    """compute_weighted_apy — единица объявлена контрактом, не угадывается.
+
+    НАМЕРЕННОЕ ИЗМЕНЕНИЕ (инв.16, карточка agent-s76-apy-unit-guess,
+    2026-08-05): цикл #121 зафиксировал эвристику `< 1.0 → ×100` тестом
+    `..._CURRENT_BEHAVIOUR` «как есть», чтобы починка стала осознанной.
+    Это ТА САМАЯ осознанная починка: весь apy_data теперь в ДОЛЯХ
+    (0.085 == 8.5%) — та же единица, что у allocate()/current_regime()
+    и у канонического контракта адаптеров (apy_contract.py). Тесты
+    заменены в сторону УСИЛЕНИЯ: (а) настоящие 0.5% остаются 0.5%,
+    никогда не 50%; (б) процентная утечка (3.5) отвергается fail-closed
+    в объявленный fallback, не домножается; (в) конверсия доля→процент —
+    ровно одна, на выходе. Обоснование — docs/journal/2026-W32.md.
+    """
 
     def setUp(self):
         self.s = S76ConcentratedLP()
 
     def test_default_matches_docstring_lp_active(self):
-        # 0.60*8.5 + 0.25*3.5 + 0.15*0.0 = 5.975 (докстринг: ≈5.97%)
+        # 0.60*8.5% + 0.25*3.5% + 0.15*0% = 5.975% (докстринг: ≈5.97%)
         self.assertAlmostEqual(self.s.compute_weighted_apy(), 5.975, places=6)
 
     def test_none_equals_empty_dict(self):
         self.assertEqual(self.s.compute_weighted_apy(None), self.s.compute_weighted_apy({}))
 
     def test_lp_off_matches_docstring(self):
-        # 0.50*3.5 + 0.35*4.8 + 0.15*0.0 = 3.43 (докстринг: ≈3.43%)
+        # 0.50*3.5% + 0.35*4.8% + 0.15*0% = 3.43% (докстринг: ≈3.43%)
         self.assertAlmostEqual(self.s.compute_weighted_apy(_apy_data(0.01)), 3.43, places=6)
 
-    def test_live_percent_values_are_blended_as_percent(self):
-        # LP отдан в процентах (12.0) — режим LP, умножения на 100 нет.
-        got = self.s.compute_weighted_apy(_apy_data(12.0, aave_v3=4.0))
-        self.assertAlmostEqual(got, 0.60 * 12.0 + 0.25 * 4.0, places=6)
+    def test_live_decimal_values_blended_and_converted_once(self):
+        # Живые ДОЛИ (0.12 = 12%, 0.04 = 4%) — конверсия в проценты ровно одна.
+        # На эвристике `<1.0 → ×100` (снятой этой правкой) LP раздулся бы до 12
+        # уже В ДОЛЯХ и итог был бы 7.21 — тест красный на нефиксенном коде.
+        got = self.s.compute_weighted_apy(_apy_data(0.12, aave_v3=0.04))
+        self.assertAlmostEqual(got, (0.60 * 0.12 + 0.25 * 0.04) * 100.0, places=6)
 
-    def test_cash_contributes_zero(self):
-        got = self.s.compute_weighted_apy(_apy_data(10.0, aave_v3=0.0, cash=99.0))
-        # cash передан явно и ВСЁ РАВНО учитывается как 99 — фиксируем как есть:
-        # метод не занулят cash принудительно, он берёт то, что дали.
-        self.assertAlmostEqual(got, 0.60 * 10.0 + 0.15 * 99.0, places=6)
+    def test_out_of_band_cash_junk_rejected_to_fallback(self):
+        # cash=99.0 (9900% в долях) — вне sane-band ⇒ отвергается fail-closed
+        # в объявленный fallback (0.0), а не учитывается как 99. Раньше метод
+        # «брал что дали» и 0.15*99 отравлял смешанную доходность.
+        got = self.s.compute_weighted_apy(_apy_data(0.10, aave_v3=0.0, cash=99.0))
+        self.assertAlmostEqual(got, 0.60 * 0.10 * 100.0, places=6)
 
-    def test_decimal_fallback_is_scaled_to_percent(self):
-        # Десятичный fallback 0.085 сознательно домножается на 100 → 8.5%.
+    def test_decimal_fallback_converted_exactly_once(self):
+        # Fallback 0.085 (доля) даёт 8.5% через ЕДИНСТВЕННУЮ конверсию на выходе.
         self.assertAlmostEqual(
             self.s.compute_weighted_apy(_apy_data(FALLBACK_APY["aerodrome_usdc_lp"])),
             5.975, places=6,
         )
 
-    def test_sub_one_percent_lp_apy_is_inflated_x100_CURRENT_BEHAVIOUR(self):
-        """ЗАФИКСИРОВАНО КАК ЕСТЬ, НЕ ИСПРАВЛЕНО (правка меняет публикуемое число).
+    def test_true_sub_one_percent_apy_stays_sub_one_percent(self):
+        """Настоящие 0.5% (=0.005 в долях) НИКОГДА не становятся 50%.
 
-        Единица измерения угадывается по величине: `apy_pct < 1.0 → *100`.
-        Настоящие 0.5 % годовых (в процентах, как требует докстринг) становятся
-        50 % и дают ~30.9 % смешанной доходности. Тест существует, чтобы
-        двусмысленность была ВИДНА и её изменение было осознанным, а не
-        случайным. Карточка: agent-s76-apy-unit-guess.
+        Замена test_sub_one_percent_lp_apy_is_inflated_x100_CURRENT_BEHAVIOUR
+        (цикл #121, фиксировал дефект «как есть»). Раньше `<1.0 → ×100`
+        читал честные 0.5% как 50% и смешанная доходность выходила ~30.9%
+        вместо честных чисел. Проверяются ОБЕ стороны контракта.
         """
-        got = self.s.compute_weighted_apy(_apy_data(0.5, aave_v3=3.5))
-        self.assertAlmostEqual(got, 0.60 * 50.0 + 0.25 * 3.5, places=6)
-        self.assertGreater(got, 30.0)
+        # Сторона 1: sub-1% доля у T1-ноги проходит НЕмасштабированной.
+        # LP активен (0.09 = 9%), aave честно даёт 0.5% (= 0.005 в долях).
+        # На эвристике ОБА значения домножились бы криво → красный тест.
+        got = self.s.compute_weighted_apy(_apy_data(0.09, aave_v3=0.005))
+        self.assertAlmostEqual(got, (0.60 * 0.09 + 0.25 * 0.005) * 100.0, places=6)
+        self.assertLess(got, 10.0)  # и близко нет «×100»-раздувания
+
+        # Сторона 2: LP-пул с честными 0.5% (= 0.005) — это lp_off по порогу
+        # 6%, смешанная = честный lp_off-бленд ~3.43%, а не ~30.9%.
+        got_low = self.s.compute_weighted_apy(_apy_data(0.005, aave_v3=0.035))
+        self.assertAlmostEqual(got_low, 3.43, places=6)
+        self.assertLess(got_low, 5.0)
+
+    def test_percent_leak_rejected_to_fallback_never_rescaled(self):
+        """Процентное значение в долевом контракте (3.5 = «3.5%») отвергается.
+
+        Вторая сторона контракта из карточки: «десятичный вход отвергается
+        или конвертируется по объявленному правилу». Правило объявлено:
+        значение вне sane-band [0, 1.0] ⇒ fail-closed в объявленный fallback
+        (прецедент S22 `_canonical_apy_pct`), НИКОГДА не домножается молча.
+        """
+        got = self.s.compute_weighted_apy(_apy_data(0.09, aave_v3=12.0))
+        # aave 12.0 отвергнут → fallback 0.035 (3.5%); LP 0.09 → 9%.
+        self.assertAlmostEqual(got, (0.60 * 0.09 + 0.25 * 0.035) * 100.0, places=6)
 
     def test_unknown_protocol_in_apy_data_is_ignored(self):
         # Веса задают вселенную; лишний ключ в снимке ничего не добавляет.
-        base = self.s.compute_weighted_apy(_apy_data(10.0))
-        with_junk = self.s.compute_weighted_apy(_apy_data(10.0, some_unknown_pool=99.0))
+        base = self.s.compute_weighted_apy(_apy_data(0.10))
+        with_junk = self.s.compute_weighted_apy(_apy_data(0.10, some_unknown_pool=0.99))
         self.assertAlmostEqual(base, with_junk, places=9)
 
     def test_deterministic(self):
-        data = _apy_data(0.09, aave_v3=3.1)
+        data = _apy_data(0.09, aave_v3=0.031)
         self.assertEqual(self.s.compute_weighted_apy(data), self.s.compute_weighted_apy(data))
 
     def test_within_declared_target_band_on_fallbacks(self):
