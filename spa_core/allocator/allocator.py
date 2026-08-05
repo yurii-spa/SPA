@@ -211,6 +211,7 @@ def _default_live_apy_provider() -> dict[str, float]:
 def _load_evidenced_apy(
     orchestrator_path: Path,
     adapter_status_path: Path | None = None,
+    now: "datetime | None" = None,
 ) -> dict[str, tuple[float, str]]:
     """Return ``{protocol: (apy_decimal, source)}`` for OBSERVED APYs only.
 
@@ -341,7 +342,15 @@ def _load_evidenced_apy(
         dt = _parsed(str(as_of)) if as_of else _parsed(fallback_ts)
         if dt is None:
             return False
-        age_h = (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0
+        # ``now`` is an INPUT, not ambient state (2026-08-04). When a freshness
+        # window reads the wall clock directly, every test fixture with a literal
+        # date becomes a time bomb: it passes today and fails in two days for a
+        # reason that has nothing to do with the behaviour under test. Three test
+        # files broke exactly that way the day this window was introduced.
+        # Injecting the clock makes such a test pin BOTH sides and stay valid
+        # forever; the default keeps production behaviour unchanged.
+        ref = now or datetime.now(timezone.utc)
+        age_h = (ref - dt).total_seconds() / 3600.0
         return age_h <= _EVIDENCE_MAX_AGE_H
 
     # Compare real instants, not strings: "…Z" vs "…+00:00" sort in the WRONG
