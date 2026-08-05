@@ -256,6 +256,105 @@ def _valid_apy(pool: dict) -> Optional[float]:
     return None
 
 
+# ── Pendle PT: закрепляем РЫНОК, а не выпуск ────────────────────────────────
+#
+# PT — датированный инструмент. Закрепить его по UUID нельзя: выпуск гасится, пул
+# исчезает, и фид выглядит рабочим ровно до дня погашения (замер 2026-08-05:
+# PT-sUSDe-13AUG2026 — до конца жизни 8 дней). Поэтому закрепляется рынок
+# (проект/сеть/базовый актив), а выпуск выбирается КАЖДЫЙ прогон.
+#
+# Различить PT от LP по symbol невозможно — он у них одинаковый, и TVL тоже:
+# на Ethereum обе записи SUSDE несут $8.24M, но APY 4.26 % против 12.39 %.
+# Различает ТОЛЬКО poolMeta: "For buying PT-..." против "For LP | Maturity ...".
+# Правило «побеждает крупнейший TVL» выбирало бы между ними монеткой, а разница
+# втрое — это не шум, это другой инструмент с другим риском.
+_PT_BUY_PREFIX = "for buying pt-"
+
+# adapter_key → (project, chain, базовый актив в symbol)
+_PENDLE_PT_MARKETS: dict[str, tuple[str, str, str]] = {
+    "pendle_pt_susde": ("pendle", "ethereum", "SUSDE"),
+}
+
+# Сколько дней до погашения выпуск ещё считается пригодным. Ближе к сроку PT
+# теряет смысл как позиция: капитал в него зайти не успеет, а доходность
+# вырождается. Порог намеренно консервативный.
+_PT_MIN_DAYS_TO_MATURITY = 7
+
+
+def _pt_maturity(pool: dict) -> "date | None":
+    """Дата погашения из poolMeta вида 'For buying PT-sUSDe-13AUG2026'.
+
+    Не парсится ⇒ ``None`` ⇒ выпуск не берётся. Датированный инструмент без
+    читаемой даты — это инструмент с неизвестным сроком, а неизвестный срок не
+    доказательство пригодности (fail-CLOSED).
+    """
+    from datetime import datetime as _dt
+
+    meta = str(pool.get("poolMeta") or "")
+    if not meta.lower().startswith(_PT_BUY_PREFIX):
+        return None
+    # "13AUG2026" — месяц приходит капсом, а %b ждёт "Aug": приводим ЗНАЧЕНИЕ,
+    # не формат. (Первая версия делала fmt.upper() и превращала %d%b%Y в %D%B%Y —
+    # парсер молча возвращал None на совершенно корректной дате.)
+    tail = meta.rsplit("-", 1)[-1].strip().title()
+    for fmt in ("%d%b%Y", "%d%B%Y"):
+        try:
+            return _dt.strptime(tail, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _lookup_pendle_pt(
+    adapter_key: str,
+    pools: list,
+    today=None,
+) -> Optional[dict]:
+    """Текущий выпуск PT для закреплённого рынка, или ``None``.
+
+    Детерминировано: среди пулов рынка берутся только записи "For buying PT-"
+    (не LP), с читаемой датой, до погашения которых осталось не меньше
+    ``_PT_MIN_DAYS_TO_MATURITY`` дней; из них выбирается БЛИЖАЙШИЙ по сроку —
+    то есть текущий торгуемый выпуск, а не самый дальний.
+
+    Выбор воспроизводим: по этим правилам аудитор получит тот же пул. Именно это
+    делает результат наблюдением, а не совпадением.
+    """
+    from datetime import date as _date
+
+    market = _PENDLE_PT_MARKETS.get(adapter_key)
+    if not market:
+        return None
+    proj, chain, asset = market
+    ref = today or _date.today()
+
+    best = None
+    best_maturity = None
+    for pool in pools or []:
+        if not isinstance(pool, dict):
+            continue
+        if proj not in str(pool.get("project", "")).lower():
+            continue
+        if chain not in str(pool.get("chain", "")).lower():
+            continue
+        if asset not in str(pool.get("symbol", "")).upper():
+            continue
+        maturity = _pt_maturity(pool)
+        if maturity is None:
+            continue                      # LP-запись или нечитаемая дата
+        if (maturity - ref).days < _PT_MIN_DAYS_TO_MATURITY:
+            continue                      # погашен или гасится вот-вот
+        if _valid_apy(pool) is None:
+            continue
+        if best_maturity is None or maturity < best_maturity:
+            best, best_maturity = pool, maturity
+
+    if best is not None:
+        log.info("Pendle PT %s: выпуск с погашением %s (пул %s)",
+                 adapter_key, best_maturity, str(best.get("pool"))[:8])
+    return best
+
+
 def _lookup_live_pool(
     adapter_key: str,
     by_id: dict[str, dict],
@@ -277,6 +376,13 @@ def _lookup_live_pool(
     2. Best-TVL pool matching project / chain / symbol hints
        (``_DEFILLAMA_HINTS``), using substring matching on each dimension.
     """
+    # 0. Pendle PT — рынок закреплён, выпуск выбирается по сроку.
+    if adapter_key in _PENDLE_PT_MARKETS:
+        pt = _lookup_pendle_pt(adapter_key, list(by_id.values()))
+        if pt is not None:
+            return pt, "pinned"
+        return None
+
     # 1. Exact pool UUID
     raw_id = _POOL_ID_LOOKUP.get(adapter_key, "")
     if raw_id:
