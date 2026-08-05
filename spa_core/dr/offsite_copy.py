@@ -47,6 +47,7 @@ from typing import List, Optional
 
 # Reuse the canonical atomic JSON writer (tmp + os.replace, fail-closed on junk paths).
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from spa_core.dr import archive_names  # noqa: E402
 from spa_core.utils.atomic import atomic_save  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
@@ -72,24 +73,37 @@ def sha256_file(path: Path, chunk: int = 1 << 20) -> str:
 
 
 def newest_archive(backup_dir: Path) -> Optional[Path]:
-    """Newest spa_state_*.tar.gz (lexical sort: the embedded date/ts is sortable)."""
+    """Newest spa_state_*.tar.gz — by the INSTANT the name encodes, not lexically.
+
+    Two producers write this directory under two naming schemes; a lexical sort put every
+    `spa_state_<YYYY-MM-DD>.tar.gz` below every `spa_state_<ts>Z.tar.gz` whatever its date,
+    so the broad daily snapshot could never be selected for the offsite copy no matter how
+    fresh it was. See `spa_core/dr/archive_names.py`.
+    """
     if not backup_dir.is_dir():
         return None
-    archives = sorted(backup_dir.glob(ARCHIVE_GLOB))
-    return archives[-1] if archives else None
+    archives = archive_names.newest_first(backup_dir.glob(ARCHIVE_GLOB))
+    return archives[0] if archives else None
 
 
 def _prune_offsite(dest_dir: Path, keep: int) -> int:
-    """Keep only the *keep* newest offsite archives. Returns count kept."""
-    archives = sorted(dest_dir.glob(ARCHIVE_GLOB))
-    if keep > 0 and len(archives) > keep:
-        for old in archives[:-keep]:
+    """Keep the *keep* newest offsite copies OF EACH series. Returns count kept.
+
+    Per-series, so introducing a second producer does not silently halve the depth of the
+    first one's history — and so no series can be swept wholesale by the other's volume.
+    """
+    archives = list(dest_dir.glob(ARCHIVE_GLOB))
+    for series in (archive_names.SERIES_DR, archive_names.SERIES_DAILY,
+                   archive_names.SERIES_UNKNOWN):
+        if series == archive_names.SERIES_UNKNOWN:
+            continue  # unparseable names are never auto-deleted (fail-CLOSED)
+        _kept, doomed = archive_names.select_for_retention(archives, series=series, keep=keep)
+        for old in doomed:
             try:
                 old.unlink()
             except OSError:
                 pass
-        archives = sorted(dest_dir.glob(ARCHIVE_GLOB))
-    return len(archives)
+    return len(list(dest_dir.glob(ARCHIVE_GLOB)))
 
 
 def _atomic_copy(src: Path, dest: Path) -> None:

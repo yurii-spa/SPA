@@ -37,6 +37,7 @@ import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from spa_core.dr import archive_names
 from spa_core.utils.atomic import atomic_write_via_tmp
 
 _ROOT = Path(__file__).resolve().parents[3]
@@ -436,24 +437,35 @@ def restore(path, dest_dir) -> dict:
 
 
 def list_backups() -> List[Path]:
-    """All spa_state_*.tar.gz archives, newest first (lexical sort works: ts is sortable)."""
+    """All spa_state_*.tar.gz archives, newest first — by the INSTANT the name encodes.
+
+    NOT a lexical sort. `data/backups/` holds two naming schemes (this module's
+    `<ts>Z` and daily_backup.py's `<YYYY-MM-DD>`), and lexically every dashed name
+    sorts below every timestamped one regardless of date — see
+    `spa_core/dr/archive_names.py` for the incident this cost us.
+    """
     backups = _backup_dir()
     if not backups.exists():
         return []
     archives = [p for p in backups.iterdir()
                 if p.is_file() and p.name.startswith(ARCHIVE_PREFIX) and p.name.endswith(ARCHIVE_SUFFIX)]
-    return sorted(archives, key=lambda p: p.name, reverse=True)
+    return archive_names.newest_first(archives)
 
 
 def prune(keep: int = 14) -> dict:
-    """Ring-buffer: keep the newest `keep` archives, delete older ones.
+    """Ring-buffer over THIS module's own `<ts>Z` series: keep the newest `keep`, delete older.
 
-    Returns {kept:[name...], deleted:[name...], keep}."""
-    if keep < 0:
-        keep = 0
-    archives = list_backups()  # newest first
-    kept = archives[:keep]
-    doomed = archives[keep:]
+    Archives written by another producer (daily_backup.py's `spa_state_<YYYY-MM-DD>.tar.gz`)
+    and any name we cannot parse are NEVER deleted here — they are reported under
+    `foreign` and left to their own owner's retention. Until 2026-08-05 this pass deleted
+    them: it sorted names lexically, the dashed series was therefore permanently in the
+    doomed tail, and the broad daily snapshot of all of data/ was destroyed the same day
+    it was written (15 archives swept in one run on 2026-08-04).
+
+    Returns {kept:[name...], deleted:[name...], foreign:[name...], keep}."""
+    archives = list_backups()  # newest first, by encoded instant
+    kept, doomed = archive_names.select_for_retention(
+        archives, series=archive_names.SERIES_DR, keep=keep)
     deleted = []
     for p in doomed:
         try:
@@ -461,7 +473,14 @@ def prune(keep: int = 14) -> dict:
             deleted.append(p.name)
         except OSError:
             pass
-    return {"keep": keep, "kept": [p.name for p in kept], "deleted": deleted}
+    foreign = [p.name for p in kept
+               if archive_names.archive_series(p.name) != archive_names.SERIES_DR]
+    return {
+        "keep": max(keep, 0),
+        "kept": [p.name for p in kept],
+        "deleted": deleted,
+        "foreign": foreign,
+    }
 
 
 def _age_seconds(ts: str, now: Optional[datetime.datetime] = None) -> Optional[float]:

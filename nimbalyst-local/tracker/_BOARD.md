@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **189** · ждёт владельца: **20** · занято сессиями: **0**.
+> Всего карточек: **199** · ждёт владельца: **20** · занято сессиями: **0**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
-- **Секрет входа в кабинет засветился в переписке — сменить его (ротация SIWE_SESSION_SECRET)** · _high_  ·  `own-25-siwe-secret-exposed-rotate.md`
+- **own-rnd-dwell-hysteresis-paper-module** · _medium_  ·  `own-rnd-dwell-hysteresis-paper-module.md`
 - **Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда** · _high_  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md`
 - **Аллокатор ранжирует пулы на невыверенном TVL ($50M-литерал) — исключать ли их из свежих целей?**  ·  `owner-decision-allokator-ranzhiruet-puly-na-vydumannom-tvl.md`
 - **Числа трека на сайте не подтверждаются ничем в git — канон замёрз 17 июля, и сторож краснеет каждый день** · _high_  ·  `owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts.md`
@@ -27,10 +27,10 @@
 - **Выдуманная казна протокола в оценке страховки — оставить или отказываться?** · _medium_  ·  `owner-decision-vydumannaya-kazna-protokola-v-otsenke-st.md`
 - **Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта**  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (56)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (58)
 
 ### · needs-owner
-- Секрет входа в кабинет засветился в переписке — сменить его (ротация SIWE_SESSION_SECRET)  ·  `own-25-siwe-secret-exposed-rotate.md` · 2026-08-02
+- own-rnd-dwell-hysteresis-paper-module  ·  `own-rnd-dwell-hysteresis-paper-module.md` · 2026-08-04
 - Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md` · 2026-08-01
 - Аллокатор ранжирует пулы на невыверенном TVL ($50M-литерал) — исключать ли их из свежих целей?  ·  `owner-decision-allokator-ranzhiruet-puly-na-vydumannom-tvl.md` · 2026-08-02
 - Числа трека на сайте не подтверждаются ничем в git — канон замёрз 17 июля, и сторож краснеет каждый день  ·  `owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts.md` · 2026-08-02
@@ -66,7 +66,9 @@
 - Ревью ветки yield-lab-scaffolding — мержить или оставить как есть  ·  `own-22-yield-lab-branch-review.md` · 2026-07-15
 - Через 2 дня (~17.07) — пересмотреть, как часто работает автономный цикл  ·  `own-23-autonomy-cadence-recheck.md` · 2026-07-15
 - Пуш в main закрыт правилом — результаты R&D ждут в PR, и висят 4 старых PR  ·  `own-24-pushi-v-main-tolko-cherez-pr.md` · 2026-07-29
+- Секрет входа в кабинет засветился в переписке — сменить его (ротация SIWE_SESSION_SECRET)  ·  `own-25-siwe-secret-exposed-rotate.md` · 2026-08-02
 - Письма уходят с чужого адреса onboarding@resend.dev — подтвердить домен earn-defi.com в Resend  ·  `own-26-resend-domain-verification.md` · 2026-08-02
+- Утвердить списание 55 записей из реестра аналитики — это не анализаторы  ·  `own-27-spisanie-modulei-analitiki.md` · 2026-08-04
 - ТЕСТ: подтверди, что очередь работает — переведи в Owner Done  ·  `owner-decision-20260715-124956-owner-done.md` · 2026-07-15T00:00:00.000Z
 - Сайт: алерт кастодиана про APY — ложное срабатывание, как чинить?  ·  `owner-decision-20260715-212059-apy.md` · 2026-07-15
 - Живой пилот k на пакет 1 (~22 июля) — запускать? + сверщик живое/бумага  ·  `owner-decision-20260716-082215-k-1-22.md` · 2026-07-16
@@ -88,7 +90,7 @@
 - Уточнение по заметке: Давай так и сделаем  ·  `owner-decision-utochnenie-po-zametke-davai-tak-i-sdelae.md` · 2026-07-22
 - В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md` · 2026-07-29
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (26)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (27)
 
 ### · done
 - Проверь связь это тестовое сообщение.  ·  `inbox-20260715-123528-note.md` · 2026-07-15
@@ -102,6 +104,7 @@
 - Утренний Telegram-дайджест «что сделано за день» (простым языком)  ·  `inbox-20260716-075934-telegram.md` · 2026-07-16
 - автономный аркестратор должен был быть раз в 1 час а не раз в 3 часа  ·  `inbox-avtonomnyi-arkestrator-dolzhen-byl-byt-r.md` · 2026-07-16
 - Давай так и сделаем  ·  `inbox-davai-tak-i-sdelaem.md` · 2026-07-20
+- Проверь прям сейчас все ли ок  ·  `inbox-prover-pryam-seichas-vse-li-ok.md` · 2026-08-05
 - Проверь систему, сделай аудит, все ли ок?  ·  `inbox-prover-sistemu-sdelai-audit-vse-li-ok.md` · 2026-07-26
 - Доделать ВНУТРИ дашборда — полный DeBank-вид на широкую сетку (preview)  ·  `inbox-task-dashboard-debank-inside.md` · 2026-07-15
 - Сделать названия/ID карточек человекочитаемыми (убрать нечитаемые цифры-буквы)  ·  `inbox-task-readable-card-ids.md` · 2026-07-15
@@ -206,7 +209,7 @@
 - Упоминание карточки в тексте объявления запирает её НАВСЕГДА — шаг 0b отвечает «не измерено» и после старения  ·  `agent-weak-mention-locks-card-forever.md` · 2026-07-31
 - Q11: разбор ветки yield-lab  ·  `agent-yield-lab-branch.md` · 2026-07-16
 
-## agent  (25)
+## agent  (32)
 
 ### · in-progress
 - Аллокатор заморожен на неоптимальной доходности — ребаланс только по нарушению, нет триггера «заработать больше»  ·  `agent-allocator-yield-frozen-rootcause.md` · 2026-07-23
@@ -215,17 +218,24 @@
 - Портфель нарушает два инварианта прямо сейчас — 15% в advisory-протоколах и 5% в Sky/spark при запрете (D3+D4)  ·  `agent-book-violations-advisory-and-sky.md` · 2026-08-02
 - Закрыть дыры покрытия policy_enforcer — добавить проверки T2-per-protocol + chain-caps (зеркало policy.py)  ·  `agent-enforcer-coverage-gaps.md` · 2026-07-23
 - Разрыв «origin → рантайм»: фиксы уезжают на GitHub, но флот исполняет старое дерево  ·  `agent-origin-runtime-sync-gap.md` · 2026-08-03
+- БОЛЬШОЙ ПЛАН — доходность · стабильность · аналитика→9 (директива владельца 05.08)  ·  `agent-plan-yield-stability-90pct.md` · 2026-08-05
+- Вариант 2 — перевести прод на чистый чекаут origin/main (закрыть дрейф навсегда)  ·  `agent-prod-clean-checkout-variant2.md` · 2026-08-03
 ### · backlog
 - Advisory / сигнальный трек (вариант C) — отложен владельцем, держать в бэклоге  ·  `agent-advisory-signals-track-c.md` · 2026-07-23
 - Подписка checkup отвечает ok:true, даже если письмо не отправилось — поломка жила незамеченной с июля  ·  `agent-checkup-waitlist-fail-open-ok-true.md` · 2026-08-02
 - Сверка цикла 04.08 — первый прогон на новом коде даст БОЛЬШОЙ ребаланс, это ожидаемо (не чинить)  ·  `agent-cycle-reconciliation-2026-08-04.md` · 2026-08-03
 - Сетевая икота фида может эвакуировать книгу в кэш — нужна политика устаревания вместо «есть/нет»  ·  `agent-feed-staleness-policy.md` · 2026-08-04
 - Свежая полная инвентаризация флота (73 агента) — что делает / жив ли / нужен ли / расход  ·  `agent-fleet-inventory-73.md` · 2026-07-23
+- Храповик литеральных дат КРАСНЫЙ на main — два новых тест-файла волны 1 (A1) вошли в закрытый класс  ·  `agent-frozen-date-ratchet-red-on-main.md` · 2026-08-05
 - Нет сторожа «профинансирован протокол, которого нет в реестре» — остаточная дыра кэпов по цепочкам  ·  `agent-funded-protocol-not-in-registry.md` · 2026-08-02
 - GO-LIVE — внутридневной контроль просадки (частый, не раз в сутки)  ·  `agent-golive-intraday-drawdown-monitor.md` · 2026-07-23
 - Завести производителя gsm_hours (on-chain GSM Pause Delay) — чтобы GSM-гейт перестал быть вечным замком  ·  `agent-gsm-hours-producer.md` · 2026-08-02
 - Guard — стратегия не должна молча падать на mock, если заявленный живой адаптер не грузится  ·  `agent-guard-no-silent-mock-in-tournament.md` · 2026-07-23
 - Построить слой инвест-агентов «Head of Investment» (кураторы тиров + капитал-по-тирам + максимизаторы + решающий)  ·  `agent-head-of-investment-layer.md` · 2026-07-23
+- Линия время-рядов для 18 форкастеров (поток 3 own-27)  ·  `agent-relocate-forecasters-to-timeseries-lane.md` · 2026-08-04
+- Переселить 13 оптимизаторов в советники аллокатора (поток 1 own-27)  ·  `agent-relocate-optimizers-to-allocator-advisory.md` · 2026-08-04
+- Переселить 9 трекеров в слой отчётности (поток 2 own-27)  ·  `agent-relocate-trackers-to-reporting.md` · 2026-08-04
+- ПРОДОЛЖИТЬ ОТСЮДА — дорожная карта по приоритету (сессия может оборваться, работа не должна)  ·  `agent-roadmap-continue-here.md` · 2026-08-05
 - Аварийный портфель обходит гейты адаптеров — финансирует spark_susds, который запрещён инвариантом 10  ·  `agent-safe-fallback-bypasses-adapter-gates.md` · 2026-08-02
 - Тесты ходят в живую сеть (Telegram + аналитика) — полный набор не проходит целиком, когда сеть медленная  ·  `agent-tests-do-live-network-io.md` · 2026-08-02
 - Сделать турнир стратегий ДОВЕРЯЕМЫМ — ранжировать по net-of-cost APY на реальных исторических данных (не Sharpe на mock)  ·  `agent-tournament-trustworthy-real-apy.md` · 2026-07-23

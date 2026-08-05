@@ -146,16 +146,36 @@ def snapshot(date_str: str = "", dry_run: bool = False) -> dict:
     date_str = date_str or _today()
     sources = _collect_sources()
 
-    # Stage consistent copies of sqlite members (track.db) in a scratch dir so the bytes we
-    # hash are exactly the bytes we tar (and they open clean). Removed in finally.
+    # EVERY member is staged into a scratch dir first, and the staged copy is what we hash
+    # AND what we tar. WHY (production, every single day until 2026-08-05): the manifest
+    # hash used to come from one read of the LIVE file and the tar body from a SECOND read
+    # of the same live file, minutes-to-hours later. ~69 agents rewrite data/*.json the
+    # whole time (and the host may sleep mid-run — 2026-08-05 the pass spanned 03:30→08:43),
+    # so members legitimately changed between the two reads and the archive shipped with a
+    # manifest that did not describe its own contents: "19 mismatches", exit 1, daily.
+    # That is not corruption — but it made the ONE integrity record we keep untrustworthy,
+    # and buried a real corruption signal under a daily false alarm. Staging costs one copy
+    # of data/ (~27 MB) and makes manifest == archived bytes true BY CONSTRUCTION, so
+    # verify() finally means what it says: this tar is intact.
     scratch = tempfile.mkdtemp(prefix="spa_daily_stage_")
     try:
         entries = []   # each: {name, sha256, size, _src}
+        vanished = []  # listed by the glob, gone before we could stage it
         total = 0
         for src in sources:
             rel = os.path.relpath(src, _DATA)  # e.g. "trades.json"
-            size = os.path.getsize(src)
-            entries.append({"name": rel, "sha256": _sha256_file(src), "size": size, "_src": src})
+            staged = os.path.join(scratch, rel)
+            os.makedirs(os.path.dirname(staged), exist_ok=True)
+            try:
+                shutil.copyfile(src, staged)  # capture the bytes ONCE
+            except FileNotFoundError:
+                # Deleted between the glob and the copy. Recorded, not guessed at, and not
+                # fatal on its own — a MUST_HAVE loss still fail-CLOSES at the gate below.
+                vanished.append(rel)
+                continue
+            size = os.path.getsize(staged)
+            entries.append({"name": rel, "sha256": _sha256_file(staged), "size": size,
+                            "_src": staged})
             total += size
 
         # Explicitly add sqlite members (NOT matched by the *.json/*.jsonl glob) via a
@@ -199,6 +219,11 @@ def snapshot(date_str: str = "", dry_run: bool = False) -> dict:
             "total_bytes": total,
             "files": manifest_files,
             "must_have": list(MUST_HAVE),
+            # Hashes describe the bytes IN THIS ARCHIVE (each member staged once, then
+            # hashed and tarred from that staged copy) — not a re-read of the live file.
+            # A per-file point-in-time capture, honestly labelled as such.
+            "capture": "staged-once",
+            "vanished_sources": sorted(vanished),
         }
         manifest_bytes = json.dumps(manifest, indent=2, sort_keys=True).encode("utf-8")
 
