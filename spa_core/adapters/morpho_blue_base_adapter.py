@@ -70,8 +70,14 @@ _REQUEST_TIMEOUT = 10  # секунд
 # Проекты Morpho на Base (DeFiLlama использует различные slug-и)
 _DEFILLAMA_PROJECTS = ("morpho", "morpho-blue")
 
-# Допустимые символы USDC-пулов на Base
+# Допустимые символы USDC-пулов на Base (точные совпадения; исторические)
 _USDC_SYMBOLS = {"USDC", "USDC.E", "USDBC", "USDBC.E"}
+
+# own-29 (2026-08-05): DeFiLlama реструктурировал Morpho Blue — пулы теперь
+# живут под vault-символами (STEAKUSDC, GTUSDCP, …), точных «USDC»-символов
+# больше нет и live-путь молча умирал в fallback. Дополнительно принимаем
+# символ, СОДЕРЖАЩИЙ "USDC" (substring), с теми же фильтрами TVL/APY.
+_USDC_SUBSTRING = "USDC"
 
 # Санитарные границы APY (%)
 _APY_MIN = 0.1
@@ -220,9 +226,10 @@ class MorphoBlueBaseAdapter(BaseAdapter):
             if not any(p in proj for p in _DEFILLAMA_PROJECTS):
                 continue
 
-            # Проверяем symbol
+            # Проверяем symbol: точное совпадение с историческим набором ИЛИ
+            # vault-символ, содержащий "USDC" (own-29 — см. _USDC_SUBSTRING).
             symbol = str(pool.get("symbol", "")).upper().strip()
-            if symbol not in _USDC_SYMBOLS:
+            if symbol not in _USDC_SYMBOLS and _USDC_SUBSTRING not in symbol:
                 continue
 
             # Проверяем TVL

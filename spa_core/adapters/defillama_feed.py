@@ -113,11 +113,17 @@ class DeFiLlamaFeed:
     # --- public -------------------------------------------------------------
 
     def get_pool(
-        self, project: str, symbol: str, chain: str = "Ethereum"
+        self, project: str, symbol: str, chain: str = "Ethereum",
+        symbol_mode: str = "exact",
     ) -> Optional[dict]:
         """Return the matching pool with the highest ``tvlUsd``.
 
         Matching is case-insensitive on project, symbol and chain.
+        ``symbol_mode`` — ``"exact"`` (default) or ``"contains"`` (``symbol``
+        is a case-insensitive substring of the pool symbol; own-29: DeFiLlama
+        lists Morpho Blue deposits only under per-vault symbols like
+        STEAKUSDC, so the exact "USDC" match finds nothing there). Any other
+        value behaves as ``"exact"`` (fail-closed: the stricter match).
         Returns ``None`` if disabled, on error, or if no pool matches.
         """
         pools = self._fetch_pools()
@@ -127,6 +133,7 @@ class DeFiLlamaFeed:
         project_l = project.lower()
         symbol_l = symbol.lower()
         chain_l = chain.lower()
+        contains = symbol_mode == "contains"
 
         best: Optional[dict] = None
         best_tvl = float("-inf")
@@ -135,7 +142,11 @@ class DeFiLlamaFeed:
                 continue
             if str(pool.get("project", "")).lower() != project_l:
                 continue
-            if str(pool.get("symbol", "")).lower() != symbol_l:
+            pool_symbol_l = str(pool.get("symbol", "")).lower()
+            if contains:
+                if symbol_l not in pool_symbol_l:
+                    continue
+            elif pool_symbol_l != symbol_l:
                 continue
             if str(pool.get("chain", "")).lower() != chain_l:
                 continue
@@ -148,10 +159,11 @@ class DeFiLlamaFeed:
         return best
 
     def get_apy(
-        self, project: str, symbol: str, chain: str = "Ethereum"
+        self, project: str, symbol: str, chain: str = "Ethereum",
+        symbol_mode: str = "exact",
     ) -> Optional[float]:
         """Return live APY as a decimal (e.g. 0.085), or ``None`` on miss/error."""
-        pool = self.get_pool(project, symbol, chain)
+        pool = self.get_pool(project, symbol, chain, symbol_mode=symbol_mode)
         if pool is None:
             return None
         apy = pool.get("apy")
@@ -166,10 +178,11 @@ class DeFiLlamaFeed:
         return apy / 100.0
 
     def get_tvl(
-        self, project: str, symbol: str, chain: str = "Ethereum"
+        self, project: str, symbol: str, chain: str = "Ethereum",
+        symbol_mode: str = "exact",
     ) -> Optional[float]:
         """Return live TVL in USD, or ``None`` on miss/error."""
-        pool = self.get_pool(project, symbol, chain)
+        pool = self.get_pool(project, symbol, chain, symbol_mode=symbol_mode)
         if pool is None:
             return None
         tvl = pool.get("tvlUsd")

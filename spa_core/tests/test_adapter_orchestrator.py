@@ -229,6 +229,68 @@ class TestOrchestratorRun(unittest.TestCase):
         tiers = {cls.__name__: tier for (_, tier, cls) in orch.ADAPTER_REGISTRY}
         self.assertEqual(tiers["AaveV3Adapter"], "T1")
         self.assertEqual(tiers["CompoundV3Adapter"], "T1")
+        # own-29 (2026-08-05): morpho_steakhouse — наша позиция $40k/40% —
+        # ОБЯЗАН опрашиваться оркестратором (иначе он попадает в аллокатор
+        # только через registry-merge, где TVL всегда "static" и $5M-floor
+        # по ADR-053 не evidence-verified).
+        self.assertIn("MorphoSteakhouseAdapter", names)
+        self.assertEqual(tiers["MorphoSteakhouseAdapter"], "T1")
+        keys = [k for (k, _, _) in orch.ADAPTER_REGISTRY]
+        self.assertIn("morpho_steakhouse", keys)
+
+
+# ─── own-29: TVL-provenance записи оркестратора (ADR-053) ───────────────────────
+
+
+def make_tvl_adapter(protocol: str, tvl, tvl_source, apy: float = 0.035):
+    """Фейковый адаптер с явной декларацией происхождения TVL."""
+
+    class _FakeTvlAdapter:
+        PROTOCOL = protocol
+
+        def __init__(self, *_a, **_k):
+            pass
+
+        def get_yield_info(self):
+            return YieldInfo(
+                protocol=protocol, asset="USDC", apy=apy, tvl_usd=tvl,
+                tier="T1", risk_score=0.22, tvl_source=tvl_source,
+            )
+
+    _FakeTvlAdapter.__name__ = f"FakeTvl_{protocol}"
+    return _FakeTvlAdapter
+
+
+class TestTvlProvenanceRecords(unittest.TestCase):
+    """own-29: критерий приёмки — morpho_steakhouse получает tvl_source="live".
+
+    Оркестратор ставит "live" ТОЛЬКО при декларации YieldInfo.tvl_source=="live";
+    числовой TVL без декларации → "static"; отсутствие TVL → None (fail-closed).
+    """
+
+    def _record(self, adapter_cls):
+        reg = [("morpho_steakhouse", "T1", adapter_cls)]
+        res = run_orchestrator(registry=reg, write=False, now_fn=fixed_now)
+        return res.adapters[0]
+
+    def test_declared_live_tvl_recorded_as_live(self):
+        rec = self._record(
+            make_tvl_adapter("morpho_steakhouse", 106_151_523.0, "live")
+        )
+        self.assertEqual(rec["tvl_source"], "live")
+        self.assertAlmostEqual(rec["tvl_usd"], 106_151_523.0)
+        self.assertEqual(rec["status"], "ok")
+
+    def test_undeclared_numeric_tvl_recorded_as_static(self):
+        rec = self._record(
+            make_tvl_adapter("morpho_steakhouse", 800_000_000.0, None)
+        )
+        self.assertEqual(rec["tvl_source"], "static")
+
+    def test_no_tvl_recorded_as_none(self):
+        rec = self._record(make_tvl_adapter("morpho_steakhouse", None, None))
+        self.assertIsNone(rec["tvl_source"])
+        self.assertIsNone(rec["tvl_usd"])
 
 
 # ─── N2: compound_v3 не фабрикует APY через оркестратор ─────────────────────────

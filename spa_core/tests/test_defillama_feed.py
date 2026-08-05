@@ -256,7 +256,20 @@ class TestAdaptersNoMock(unittest.TestCase):
             info = cls(feed=feed).get_yield_info()
             self.assertAlmostEqual(info.apy, 0.0731, msg=cls.__name__)
             self.assertEqual(info.tvl_usd, 9_999_999.0, cls.__name__)
-            feed.get_apy.assert_called_with(cls.DEFILLAMA_PROJECT, cls.DEFILLAMA_SYMBOL)
+            # own-29 (2026-08-05): проверка УСИЛЕНА, не ослаблена — теперь она
+            # пинит и режим матчинга символа. MorphoBlueAdapter обязан звать фид
+            # с symbol_mode="contains" (DeFiLlama держит пулы Morpho Blue под
+            # vault-символами STEAKUSDC/GTUSDCP…, точного "USDC" больше нет);
+            # остальные адаптеры — прежний exact-вызов без kwarg.
+            mode = getattr(cls, "DEFILLAMA_SYMBOL_MODE", "exact")
+            if mode != "exact":
+                feed.get_apy.assert_called_with(
+                    cls.DEFILLAMA_PROJECT, cls.DEFILLAMA_SYMBOL, symbol_mode=mode
+                )
+            else:
+                feed.get_apy.assert_called_with(
+                    cls.DEFILLAMA_PROJECT, cls.DEFILLAMA_SYMBOL
+                )
 
     def test_real_defillama_slugs(self):
         # Slugs verified against the live DeFiLlama yields API (SPA-V398).

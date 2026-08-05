@@ -783,7 +783,15 @@ class TestAdapterIntegration(unittest.TestCase):
             feed = self._make_feed(apy_decimal=0.07, tvl=5_000_000.0)
             cls(feed=feed).fetch()
             proj, sym = expected[cls.PROTOCOL]
-            feed.get_apy.assert_called_with(proj, sym)
+            # own-29 (2026-08-05): проверка УСИЛЕНА — пиним и режим матчинга.
+            # MorphoBlueAdapter обязан передавать symbol_mode="contains":
+            # DeFiLlama держит пулы Morpho Blue под vault-символами
+            # (STEAKUSDC, GTUSDCP, …), точный "USDC" там больше не существует.
+            mode = getattr(cls, "DEFILLAMA_SYMBOL_MODE", "exact")
+            if mode != "exact":
+                feed.get_apy.assert_called_with(proj, sym, symbol_mode=mode)
+            else:
+                feed.get_apy.assert_called_with(proj, sym)
 
     def test_feed_exception_is_absorbed_as_error(self):
         for cls in ADAPTER_CLASSES:
@@ -799,6 +807,135 @@ class TestAdapterIntegration(unittest.TestCase):
                 hasattr(cls, "MOCK_APY"),
                 f"{cls.__name__} still has MOCK_APY attribute",
             )
+
+
+# ---------------------------------------------------------------------------
+# 12. own-29 (2026-08-05): symbol_mode="contains" — новая структура DeFiLlama
+# ---------------------------------------------------------------------------
+#
+# DeFiLlama реструктурировал Morpho Blue: депозит-пулы живут под vault-
+# символами (STEAKUSDC, GTUSDCP, BBQUSDC, …), пулов с symbol=="USDC" у
+# project="morpho-blue" больше нет (остались лишь спам-пулы < $250k c apy=0).
+# Exact-матч находил НИЧЕГО → morpho_blue месяцами стоял в
+# live_feed_unavailable при живых пулах. Пины в обе стороны:
+# contains-матч находит vault-пул, exact-дефолт по-прежнему его НЕ находит.
+
+def _steak_pool(symbol: str = "STEAKUSDC", tvl: float = 106_151_523.0,
+                apy: float = 3.50916, chain: str = "Ethereum") -> dict:
+    return _pool(project="morpho-blue", symbol=symbol, chain=chain,
+                 apy=apy, tvl=tvl, pool_id="931ea9be")
+
+
+class TestSymbolModeContains(unittest.TestCase):
+
+    def test_contains_matches_vault_symbol(self):
+        feed = _fresh_feed()
+        with _mock_urlopen([_steak_pool()]):
+            pool = feed.get_pool("morpho-blue", "USDC", "Ethereum",
+                                 symbol_mode="contains")
+        self.assertIsNotNone(pool)
+        self.assertAlmostEqual(pool["apy"], 3.50916)
+        self.assertAlmostEqual(pool["tvl_usd"], 106_151_523.0)
+
+    def test_exact_default_does_not_match_vault_symbol(self):
+        # Регрессия в обратную сторону: дефолт остаётся строгим exact.
+        feed = _fresh_feed()
+        with _mock_urlopen([_steak_pool()]):
+            pool = feed.get_pool("morpho-blue", "USDC", "Ethereum")
+        self.assertIsNone(pool)
+
+    def test_unknown_mode_behaves_as_exact_fail_closed(self):
+        feed = _fresh_feed()
+        with _mock_urlopen([_steak_pool()]):
+            pool = feed.get_pool("morpho-blue", "USDC", "Ethereum",
+                                 symbol_mode="fuzzy-typo")
+        self.assertIsNone(pool)
+
+    def test_contains_picks_highest_tvl_among_vaults(self):
+        feed = _fresh_feed()
+        pools = [
+            _steak_pool(symbol="GTUSDCP", tvl=78_200_000.0, apy=3.49763),
+            _steak_pool(),  # 106.2M — должен выиграть
+            _steak_pool(symbol="BBQUSDC", tvl=45_300_000.0, apy=5.51114),
+        ]
+        with _mock_urlopen(pools):
+            pool = feed.get_pool("morpho-blue", "USDC", "Ethereum",
+                                 symbol_mode="contains")
+        self.assertAlmostEqual(pool["tvl_usd"], 106_151_523.0)
+
+    def test_contains_still_enforces_tvl_floor(self):
+        # Спам-пул symbol=="USDC" $81k (реальный остаток в /pools) — ниже
+        # MIN_TVL_USD, contains-матч его НЕ берёт (fail-closed, не мусор).
+        feed = _fresh_feed()
+        with _mock_urlopen([_steak_pool(symbol="USDC", tvl=81_246.0, apy=0.0)]):
+            pool = feed.get_pool("morpho-blue", "USDC", "Ethereum",
+                                 symbol_mode="contains")
+        self.assertIsNone(pool)
+
+    def test_get_apy_and_get_tvl_thread_symbol_mode(self):
+        feed = _fresh_feed()
+        with _mock_urlopen([_steak_pool()]):
+            apy = feed.get_apy("morpho-blue", "USDC", "Ethereum",
+                               symbol_mode="contains")
+            tvl = feed.get_tvl("morpho-blue", "USDC", "Ethereum",
+                               symbol_mode="contains")
+        self.assertAlmostEqual(apy, 0.0350916, places=6)
+        self.assertAlmostEqual(tvl, 106_151_523.0)
+
+    def test_module_get_apy_morpho_slug_resolves_on_new_structure(self):
+        # PROTOCOL_MAP morpho-записи стали 4-кортежами с "contains" — слаг
+        # обязан резолвиться на НОВОЙ структуре (только vault-символы).
+        import spa_core.feeds.defi_llama_feed as _mod
+        original = _mod._SINGLETON
+        try:
+            _mod._SINGLETON = None
+            with _mock_urlopen([_steak_pool()]):
+                apy = module_get_apy("morpho_blue")
+        finally:
+            _mod._SINGLETON = original
+        self.assertAlmostEqual(apy, 0.0350916, places=6)
+
+    def test_module_get_apy_steakhouse_slug_exact_symbol(self):
+        import spa_core.feeds.defi_llama_feed as _mod
+        original = _mod._SINGLETON
+        try:
+            _mod._SINGLETON = None
+            with _mock_urlopen([_steak_pool()]):
+                apy = module_get_apy("morpho_steakhouse")
+        finally:
+            _mod._SINGLETON = original
+        self.assertAlmostEqual(apy, 0.0350916, places=6)
+
+
+class TestMorphoBlueAdapterNewStructure(unittest.TestCase):
+    """MorphoBlueAdapter end-to-end на новой структуре DeFiLlama (офлайн)."""
+
+    def test_fetch_ok_on_vault_symbol_payload(self):
+        feed = _fresh_feed()
+        with _mock_urlopen([_steak_pool()]):
+            data = MorphoBlueAdapter(feed=feed).fetch()
+        self.assertEqual(data["status"], "ok")
+        self.assertTrue(data["live_data"])
+        self.assertAlmostEqual(data["apy"], 0.0350916, places=6)
+        self.assertAlmostEqual(data["tvl"], 106_151_523.0)
+
+    def test_yield_info_tvl_source_live_on_vault_symbol_payload(self):
+        feed = _fresh_feed()
+        with _mock_urlopen([_steak_pool()]):
+            info = MorphoBlueAdapter(feed=feed).get_yield_info()
+        self.assertEqual(info.tvl_source, "live")
+        self.assertAlmostEqual(info.tvl_usd, 106_151_523.0)
+
+    def test_fetch_fail_closed_when_no_usdc_vault_pools(self):
+        # Пулы есть, но ни один символ не содержит USDC → честный error,
+        # никогда не мок (правило adapters.md: нет данных → None).
+        feed = _fresh_feed()
+        with _mock_urlopen([_steak_pool(symbol="STEAKETH", apy=1.9)]):
+            data = MorphoBlueAdapter(feed=feed).fetch()
+        self.assertEqual(data["status"], "error")
+        self.assertEqual(data["error"], "live_feed_unavailable")
+        self.assertIsNone(data["apy"])
+        self.assertFalse(data["live_data"])
 
 
 if __name__ == "__main__":

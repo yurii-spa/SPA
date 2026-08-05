@@ -41,6 +41,7 @@ from spa_core.adapters import (
     PendleAdapter,
     YearnV3Adapter,
 )
+from spa_core.adapters.morpho_steakhouse_adapter import MorphoSteakhouseAdapter
 from spa_core.orchestrator.health_score import (
     compute_health_score,
     compute_overall_health,
@@ -76,6 +77,12 @@ ADAPTER_REGISTRY: list[tuple[str, str, type]] = [
     # of failure) and gives the allocator more headroom to fill the remainder.
     ("compound_v3", "T1", CompoundV3Adapter),
     ("morpho_blue", "T2", MorphoBlueAdapter),
+    # own-29 (2026-08-05): наша позиция $40k/40% капитала. До этого адаптер жил
+    # только в data/adapter_registry.json (merge-путь аллокатора, всегда
+    # tvl_source="static") — TVL-floor по ADR-053 не был evidence-verified.
+    # Теперь адаптер опрашивается оркестратором и декларирует живой TVL
+    # (YieldInfo.tvl_source="live") из DeFiLlama-пула STEAKUSDC.
+    ("morpho_steakhouse", "T1", MorphoSteakhouseAdapter),
     ("yearn_v3", "T2", YearnV3Adapter),
     ("euler_v2", "T2", EulerV2Adapter),
     ("maple", "T2", MapleAdapter),

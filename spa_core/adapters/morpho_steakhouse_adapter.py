@@ -1,12 +1,20 @@
-"""Morpho Blue Steakhouse USDC vault adapter (T1) — MP-355.
+"""Morpho Blue Steakhouse USDC vault adapter (T1) — MP-355 + own-29 live feed.
 
 Конкретный адаптер для хранилища Steakhouse USDC на Morpho Blue Mainnet.
 Vault address: 0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB.
 
+own-29 (2026-08-05): добавлен ЖИВОЙ путь TVL/APY через DeFiLlama
+(``project="morpho-blue"``, ``symbol="STEAKUSDC"``, chain Ethereum — после
+реструктуризации DeFiLlama vault-пулы Morpho Blue живут под vault-символами,
+не под «USDC»). ``get_yield_info()`` теперь отдаёт живые apy/tvl_usd с
+``tvl_source="live"`` (ADR-053) и fail-CLOSED ``None`` без живых данных —
+константа НИКОГДА не подставляется в TVL-floor.
+
 Ключевые характеристики:
-- Tier T1 (TVL > $500M) — лимит 40% портфеля
-- APY читается из data/adapter_status.json (поле morpho_steakhouse.apy),
-  fallback = 6.5% при отсутствии / ошибке чтения
+- Tier T1 — лимит 40% портфеля
+- APY (legacy-поверхность ``get_apy_pct``): живой фид → data/adapter_status.json
+  (поле morpho_steakhouse.apy) → fallback 6.5% (только для advisory-потребителей;
+  в YieldInfo fallback НЕ попадает)
 - Quick Win #1: +200 bps vs Aave mainnet (3.2%) → рекомендует switch при
   превышении порога 50 bps над Aave
 - Модуль строго read-only / advisory: никогда не трогает живой капитал
@@ -20,11 +28,14 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Optional
 
 from .base_adapter import BaseAdapter, YieldInfo
+from .defillama_feed import DeFiLlamaFeed
+from spa_core.utils.errors import safe_call
 
 logger = logging.getLogger(__name__)
 
@@ -72,18 +83,33 @@ class MorphoSteakhouseAdapter(BaseAdapter):
         " = +$1,650/yr on $50K"
     )
 
-    # ── DeFiLlama пул (для будущей live интеграции) ──────────────────────
+    # ── DeFiLlama пул (own-29: живая интеграция) ─────────────────────────
     DEFILLAMA_PROJECT = "morpho-blue"
+    # DeFiLlama-символ vault-пула Steakhouse USDC (точное совпадение; среди
+    # дублей выигрывает пул с максимальным TVL — конвенция фида).
+    DEFILLAMA_SYMBOL = "STEAKUSDC"
+    DEFILLAMA_CHAIN = "Ethereum"
+    # Метаданные: адрес vault-контракта (НЕ DeFiLlama uuid, НЕ источник TVL).
     DEFILLAMA_POOL_ID = "BEEF01735c132Ada46AA9aA4c54623cAA92A64CB"
 
     def __init__(
         self,
         asset: str = "USDC",
         data_dir: Optional[Path | str] = None,
+        feed: Optional[DeFiLlamaFeed] = None,
     ) -> None:
         super().__init__(asset)
         self.tier = self.TIER
         self._data_dir = Path(data_dir) if data_dir is not None else _DEFAULT_DATA_DIR
+        # own-29: живой DeFiLlama-фид. Контракт как у аллокатора (ADR-061):
+        # дефолтный фид НЕ ходит в сеть под pytest — тесты обязаны инжектить
+        # FakeFeed явно (DeFiLlama gzip офлайн падает; правило adapters.md).
+        if feed is not None:
+            self.feed = feed
+        else:
+            self.feed = DeFiLlamaFeed(
+                enabled=not os.environ.get("PYTEST_CURRENT_TEST")
+            )
         # Виртуальная аллокация (только для paper trading учёта)
         self._allocated: float = 0.0
 
@@ -107,14 +133,68 @@ class MorphoSteakhouseAdapter(BaseAdapter):
             logger.debug("morpho_steakhouse: не удалось прочитать APY из JSON: %s", exc)
         return None
 
+    # ── own-29: живой DeFiLlama-фид ──────────────────────────────────────
+
+    def fetch_live(self) -> dict:
+        """Живые APY/TVL пула STEAKUSDC из DeFiLlama. Никогда не бросает.
+
+        Возвращает плоский dict в конвенции live-адаптеров (aave_v3 и т.п.):
+        ``apy`` — decimal (0.035 = 3.5%), ``tvl`` — USD. Любой сбой фида /
+        отсутствие пула → ``status="error"``, ``apy=None``, ``tvl=None``,
+        ``live_data=False`` — НИКОГДА не константа (fail-CLOSED).
+        """
+        record: dict = {
+            "pool_id": self.PROTOCOL,
+            "protocol": self.PROTOCOL,
+            "tier": self.tier,
+            "apy": None,
+            "tvl": None,
+            "status": "error",
+            "error": "live_feed_unavailable",
+            "live_data": False,
+            "source": "defillama",
+            "ts": time.time(),
+        }
+        apy = safe_call(
+            self.feed.get_apy,
+            self.DEFILLAMA_PROJECT, self.DEFILLAMA_SYMBOL, self.DEFILLAMA_CHAIN,
+            default=None, log_error=True, logger_name=f"spa.{self.PROTOCOL}",
+        )
+        tvl = safe_call(
+            self.feed.get_tvl,
+            self.DEFILLAMA_PROJECT, self.DEFILLAMA_SYMBOL, self.DEFILLAMA_CHAIN,
+            default=None, log_error=False,
+        )
+
+        record["tvl"] = float(tvl) if isinstance(tvl, (int, float)) else None
+        if not isinstance(apy, (int, float)):
+            logger.warning(
+                "%s: DeFiLlama APY unavailable — reporting no live data",
+                self.PROTOCOL,
+            )
+            return record
+
+        record["apy"] = float(apy)
+        record["status"] = "ok"
+        record["error"] = None
+        record["live_data"] = True
+        return record
+
     # ── публичный APY API ────────────────────────────────────────────────
 
     def get_apy_pct(self) -> float:
         """Возвращает APY в процентах (6.5, а не 0.065).
 
-        Источник: data/adapter_status.json → morpho_steakhouse.apy.
-        Fallback: FALLBACK_APY_PCT (6.5%).
+        Приоритет источников (own-29):
+          1. живой DeFiLlama-фид (STEAKUSDC vault);
+          2. data/adapter_status.json → morpho_steakhouse.apy;
+          3. FALLBACK_APY_PCT (6.5%) — legacy advisory-fallback, в YieldInfo
+             НЕ попадает (см. get_yield_info).
         """
+        live = self.fetch_live()
+        live_apy = live.get("apy")
+        if isinstance(live_apy, (int, float)):
+            return float(live_apy) * 100.0
         apy = self._read_apy_from_status()
         return apy if apy is not None else self.FALLBACK_APY_PCT
 
@@ -126,15 +206,27 @@ class MorphoSteakhouseAdapter(BaseAdapter):
         return self.get_apy_pct() / 100.0
 
     def get_yield_info(self) -> YieldInfo:
-        """Возвращает нормализованный YieldInfo для оркестратора."""
+        """Возвращает нормализованный YieldInfo для оркестратора.
+
+        own-29 / ADR-053: это поверхность оркестратора → она обязана быть
+        честной о происхождении данных. Живой фид доступен → живые apy/tvl_usd
+        и ``tvl_source="live"``. Живого фида НЕТ → ``apy=None``/``tvl_usd=None``
+        (оркестратор запишет ``live_feed_unavailable``), НИКОГДА не 6.5%-константа
+        и не число из статик-файла без метки происхождения. Never stamp "live"
+        on a constant.
+        """
+        live = self.fetch_live()
+        tvl = live.get("tvl")
+        _tvl_live = isinstance(tvl, (int, float))
         return YieldInfo(
             protocol=self.PROTOCOL,
             asset=self.asset,
-            apy=self.get_apy(),
-            tvl_usd=None,      # TVL не читаем из статик-файла; None = «нет данных»
+            apy=live.get("apy"),
+            tvl_usd=float(tvl) if _tvl_live else None,
             tier=self.tier,
             risk_score=self.RISK_SCORE,
             exit_latency_hours=self.EXIT_LATENCY_HOURS,
+            tvl_source="live" if _tvl_live else None,
         )
 
     # ── switch-рекомендация ──────────────────────────────────────────────

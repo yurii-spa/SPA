@@ -24,6 +24,13 @@ class MorphoBlueAdapter(BaseAdapter):
     PROTOCOL = "morpho_blue"
     DEFILLAMA_PROJECT = "morpho-blue"
     DEFILLAMA_SYMBOL = "USDC"
+    # own-29 (2026-08-05): DeFiLlama no longer lists Morpho Blue USDC deposits
+    # under ``symbol == "USDC"`` — only per-vault symbols remain (STEAKUSDC,
+    # GTUSDCP, BBQUSDC, …), so the exact match silently found NOTHING and this
+    # adapter reported ``live_feed_unavailable`` while the pools were alive.
+    # "contains" selects the best-TVL *USDC* vault on Ethereum (feed keeps its
+    # TVL floor + APY sanity band; no pool → still None, fail-closed).
+    DEFILLAMA_SYMBOL_MODE = "contains"
     RISK_SCORE = 0.35
 
     # SPA-V412: instant exit. Morpho Blue USDC supply is a liquid lending
@@ -56,10 +63,12 @@ class MorphoBlueAdapter(BaseAdapter):
         }
         apy = safe_call(
             self.feed.get_apy, self.DEFILLAMA_PROJECT, self.DEFILLAMA_SYMBOL,
+            symbol_mode=self.DEFILLAMA_SYMBOL_MODE,
             default=None, log_error=True, logger_name=f"spa.{self.PROTOCOL}",
         )
         tvl = safe_call(
             self.feed.get_tvl, self.DEFILLAMA_PROJECT, self.DEFILLAMA_SYMBOL,
+            symbol_mode=self.DEFILLAMA_SYMBOL_MODE,
             default=None, log_error=False,
         )
 

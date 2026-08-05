@@ -18,7 +18,11 @@ Retry / resilience (v1197):
 Pool selection strategy:
     * project: case-insensitive **substring** match (robust against DeFiLlama
       slug variants, e.g. "morpho" matches "morpho-blue")
-    * symbol: exact upper-case match (e.g. "USDC")
+    * symbol: exact upper-case match (e.g. "USDC") by default; callers may opt
+      in to ``symbol_mode="contains"`` (case-insensitive substring, e.g. "USDC"
+      matches "STEAKUSDC") — needed since DeFiLlama restructured Morpho Blue:
+      there are no ``symbol == "USDC"`` pools anymore, only per-vault symbols
+      (STEAKUSDC, GTUSDCP, …). own-29, 2026-08-05.
     * chain: case-insensitive exact match (e.g. "ethereum")
     * Among qualifying pools the one with the highest ``tvlUsd`` wins
 
@@ -89,17 +93,26 @@ _USER_AGENTS: list[str] = [
 # Protocol slug → (defillama_project, asset, chain)
 # ---------------------------------------------------------------------------
 
-#: Maps SPA internal names and DeFiLlama slugs to (project, asset, chain).
-#: Used by the module-level ``get_apy(slug)`` convenience function.
-PROTOCOL_MAP: dict[str, Tuple[str, str, str]] = {
+#: Maps SPA internal names and DeFiLlama slugs to (project, asset, chain) or
+#: (project, asset, chain, symbol_mode).  The optional 4th element selects the
+#: symbol matching mode ("exact" default / "contains").  Used by the
+#: module-level ``get_apy(slug)`` convenience function.
+#:
+#: own-29 (2026-08-05): DeFiLlama no longer lists Morpho Blue deposits under
+#: ``symbol == "USDC"`` — only per-vault symbols (STEAKUSDC, GTUSDCP, BBQUSDC…)
+#: remain, so the morpho entries use ``"contains"`` (best-TVL *USDC* vault).
+PROTOCOL_MAP: dict[str, Tuple[str, ...]] = {
     # ── Yearn V3 ──────────────────────────────────────────────────────────
     "yearn_v3":       ("yearn-finance", "USDC", "Ethereum"),
     "yearn-v3":       ("yearn-finance", "USDC", "Ethereum"),
     "yearn-finance":  ("yearn-finance", "USDC", "Ethereum"),
     # ── Morpho Blue ──────────────────────────────────────────────────────
-    "morpho_blue":    ("morpho-blue", "USDC", "Ethereum"),
-    "morpho-blue":    ("morpho-blue", "USDC", "Ethereum"),
-    "morpho":         ("morpho-blue", "USDC", "Ethereum"),
+    "morpho_blue":    ("morpho-blue", "USDC", "Ethereum", "contains"),
+    "morpho-blue":    ("morpho-blue", "USDC", "Ethereum", "contains"),
+    "morpho":         ("morpho-blue", "USDC", "Ethereum", "contains"),
+    # Steakhouse USDC vault on Morpho Blue (0xBEEF01…64CB): the DeFiLlama pool
+    # symbol is exactly "STEAKUSDC" (highest-TVL match wins among duplicates).
+    "morpho_steakhouse": ("morpho-blue", "STEAKUSDC", "Ethereum"),
     # ── Euler V2 ─────────────────────────────────────────────────────────
     "euler_v2":       ("euler-v2", "USDC", "Ethereum"),
     "euler-v2":       ("euler-v2", "USDC", "Ethereum"),
@@ -309,8 +322,15 @@ class DefiLlamaFeed:
         asset: str,
         chain: str,
         min_tvl_usd: float,
+        symbol_mode: str = "exact",
     ) -> Optional[dict]:
         """Select the best pool from *pools* matching (project, asset, chain).
+
+        ``symbol_mode`` — ``"exact"`` (default: ``pool.symbol == asset``, both
+        upper-cased) or ``"contains"`` (``asset`` is a case-insensitive
+        substring of ``pool.symbol``, e.g. "USDC" matches "STEAKUSDC").
+        Any other value is treated as ``"exact"`` (fail-closed: the stricter
+        match, never a broader one by accident).
 
         Returns ``{"apy", "tvl_usd", "pool_id"}`` (without fallback_source) or
         ``None`` when no qualifying pool is found.  Never raises.
@@ -318,6 +338,7 @@ class DefiLlamaFeed:
         proj_l = project.lower()
         asset_u = asset.upper()
         chain_l = chain.lower()
+        contains = symbol_mode == "contains"
 
         best_apy: Optional[float] = None
         best_tvl: float = float("-inf")
@@ -331,8 +352,12 @@ class DefiLlamaFeed:
             if proj_l not in str(pool.get("project", "")).lower():
                 continue
 
-            # --- symbol: exact upper-case ---
-            if str(pool.get("symbol", "")).upper() != asset_u:
+            # --- symbol: exact upper-case (default) or substring (opt-in) ---
+            symbol_u = str(pool.get("symbol", "")).upper()
+            if contains:
+                if asset_u not in symbol_u:
+                    continue
+            elif symbol_u != asset_u:
                 continue
 
             # --- chain: case-insensitive exact ---
@@ -449,6 +474,7 @@ class DefiLlamaFeed:
         asset: str = "USDC",
         chain: str = "Ethereum",
         min_tvl_usd: float = MIN_TVL_USD,
+        symbol_mode: str = "exact",
     ) -> Optional[dict]:
         """Return the best matching live pool as a dict.
 
@@ -468,7 +494,9 @@ class DefiLlamaFeed:
         try:
             pools = self._load_pools()
             if pools:
-                result = self._select_pool(pools, project, asset, chain, min_tvl_usd)
+                result = self._select_pool(
+                    pools, project, asset, chain, min_tvl_usd, symbol_mode
+                )
                 if result is not None:
                     result["live_apy_fallback_source"] = "defillama"
                     return result
@@ -493,6 +521,7 @@ class DefiLlamaFeed:
         project: str,
         asset: str = "USDC",
         chain: str = "Ethereum",
+        symbol_mode: str = "exact",
     ) -> Optional[float]:
         """Return live APY as a **decimal** (e.g. ``0.085`` for 8.5%), or ``None``.
 
@@ -500,7 +529,7 @@ class DefiLlamaFeed:
         to display a percentage.  Returns ``None`` — never a fallback value —
         when the live feed is unavailable.
         """
-        result = self.get_pool(project, asset, chain)
+        result = self.get_pool(project, asset, chain, symbol_mode=symbol_mode)
         if result is None:
             return None
         return result["apy"] / 100.0
@@ -510,9 +539,10 @@ class DefiLlamaFeed:
         project: str,
         asset: str = "USDC",
         chain: str = "Ethereum",
+        symbol_mode: str = "exact",
     ) -> Optional[float]:
         """Return live TVL in USD, or ``None``."""
-        result = self.get_pool(project, asset, chain)
+        result = self.get_pool(project, asset, chain, symbol_mode=symbol_mode)
         return result["tvl_usd"] if result is not None else None
 
     def invalidate_cache(self) -> None:
@@ -555,9 +585,13 @@ def get_apy(
         APY as a decimal (e.g. ``0.085`` for 8.5%), or ``None`` if the feed is
         unavailable or no qualifying pool was found.  Never raises.
     """
+    symbol_mode = "exact"
     if protocol_slug in PROTOCOL_MAP:
-        project, asset, chain = PROTOCOL_MAP[protocol_slug]
+        entry = PROTOCOL_MAP[protocol_slug]
+        project, asset, chain = entry[0], entry[1], entry[2]
+        if len(entry) > 3:
+            symbol_mode = entry[3]
     else:
         project = protocol_slug
 
-    return _get_singleton().get_apy(project, asset, chain)
+    return _get_singleton().get_apy(project, asset, chain, symbol_mode=symbol_mode)

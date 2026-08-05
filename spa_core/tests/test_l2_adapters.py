@@ -33,34 +33,61 @@ from spa_core.risk.chain_limits import check_chain_limits, get_default_chain_map
 
 # ─── Fake feed helpers ────────────────────────────────────────────────────────
 
+# own-29 (2026-08-05): фейки отражают актуальную сигнатуру DeFiLlamaFeed —
+# get_apy/get_tvl приняли опциональный kwarg ``symbol_mode`` (нужен
+# morpho_blue_base: DeFiLlama держит пулы Morpho Blue под vault-символами
+# STEAKUSDC и т.п., см. adapter). Проверки тестов НЕ менялись.
+
 class _FakeFeedOk:
     """Injects fixed APY=0.05 (5%) and TVL=10_000_000."""
 
-    def get_apy(self, project: str, symbol: str, chain: str = "Ethereum") -> float:
+    def get_apy(self, project: str, symbol: str, chain: str = "Ethereum",
+                symbol_mode: str = "exact") -> float:
         return 0.05
 
-    def get_tvl(self, project: str, symbol: str, chain: str = "Ethereum") -> float:
+    def get_tvl(self, project: str, symbol: str, chain: str = "Ethereum",
+                symbol_mode: str = "exact") -> float:
         return 10_000_000.0
 
 
 class _FakeFeedNoneApy:
     """Returns None APY (feed unavailable scenario)."""
 
-    def get_apy(self, project: str, symbol: str, chain: str = "Ethereum") -> None:
+    def get_apy(self, project: str, symbol: str, chain: str = "Ethereum",
+                symbol_mode: str = "exact") -> None:
         return None
 
-    def get_tvl(self, project: str, symbol: str, chain: str = "Ethereum") -> Optional[float]:
+    def get_tvl(self, project: str, symbol: str, chain: str = "Ethereum",
+                symbol_mode: str = "exact") -> Optional[float]:
         return 5_000_000.0
 
 
 class _FakeFeedRaises:
     """Simulates a network error by raising on any call."""
 
-    def get_apy(self, project: str, symbol: str, chain: str = "Ethereum"):
+    def get_apy(self, project: str, symbol: str, chain: str = "Ethereum",
+                symbol_mode: str = "exact"):
         raise RuntimeError("simulated network error")
 
-    def get_tvl(self, project: str, symbol: str, chain: str = "Ethereum"):
+    def get_tvl(self, project: str, symbol: str, chain: str = "Ethereum",
+                symbol_mode: str = "exact"):
         raise RuntimeError("simulated network error")
+
+
+class _FakeFeedRecording:
+    """Records call kwargs — pins the symbol_mode wiring (own-29)."""
+
+    def __init__(self):
+        self.apy_calls: list = []
+        self.tvl_calls: list = []
+
+    def get_apy(self, *args, **kwargs) -> float:
+        self.apy_calls.append((args, kwargs))
+        return 0.05
+
+    def get_tvl(self, *args, **kwargs) -> float:
+        self.tvl_calls.append((args, kwargs))
+        return 10_000_000.0
 
 
 # ─── 1. Adapter instantiation ─────────────────────────────────────────────────
@@ -203,6 +230,24 @@ class TestFetchLiveFeedOk:
 
     def test_morpho_blue_base_ok(self):
         self._check_ok(MorphoBlueBaseAdapter)
+
+    # ── own-29: symbol_mode wiring ────────────────────────────────────────
+    # DeFiLlama держит депозиты Morpho Blue под vault-символами (STEAKUSDC…):
+    # exact-«USDC» на Base матчил спам-пул $0.2M c apy=0. Пиним, что morpho
+    # передаёт фиду symbol_mode="contains", а exact-адаптеры — легаси-вызов
+    # БЕЗ kwarg (duck-typed фейки без symbol_mode остаются валидными).
+
+    def test_morpho_blue_base_passes_contains_symbol_mode(self):
+        feed = _FakeFeedRecording()
+        MorphoBlueBaseAdapter(feed=feed).fetch()
+        assert feed.apy_calls and feed.apy_calls[0][1] == {"symbol_mode": "contains"}
+        assert feed.tvl_calls and feed.tvl_calls[0][1] == {"symbol_mode": "contains"}
+
+    def test_exact_mode_adapter_uses_legacy_call_without_kwarg(self):
+        feed = _FakeFeedRecording()
+        AaveV3ArbitrumAdapter(feed=feed).fetch()
+        assert feed.apy_calls and feed.apy_calls[0][1] == {}
+        assert feed.tvl_calls and feed.tvl_calls[0][1] == {}
 
 
 # ─── 5. fetch() — error paths ─────────────────────────────────────────────────

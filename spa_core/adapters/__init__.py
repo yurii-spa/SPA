@@ -2,6 +2,7 @@
 from .base_adapter import BaseAdapter, YieldInfo
 from .defillama_feed import DeFiLlamaFeed
 from .morpho_blue import MorphoBlueAdapter
+from .morpho_steakhouse_adapter import MorphoSteakhouseAdapter  # own-29
 from .yearn_v3 import YearnV3Adapter
 from .euler_v2 import EulerV2Adapter
 from .maple import MapleAdapter
@@ -139,6 +140,10 @@ ADAPTER_REGISTRY = [
     ("compound_v3",   "T1", CompoundV3Adapter),
     ("aave_arbitrum", "T1", AaveArbitrumAdapter),
     ("morpho_blue",   "T2", MorphoBlueAdapter),
+    # own-29 (2026-08-05): Steakhouse USDC vault (наша позиция $40k) получил
+    # живой DeFiLlama-путь и вошёл в реестр оркестратора (T1); пакетный реестр
+    # обязан оставаться надмножеством оркестраторного (test_risk_scores_regen).
+    ("morpho_steakhouse", "T1", MorphoSteakhouseAdapter),
     ("yearn_v3",      "T2", YearnV3Adapter),
     ("euler_v2",      "T2", EulerV2Adapter),
     ("maple",         "T2", MapleAdapter),
@@ -199,6 +204,7 @@ __all__ = [
     "YieldInfo",
     "DeFiLlamaFeed",
     "MorphoBlueAdapter",
+    "MorphoSteakhouseAdapter",  # own-29
     "YearnV3Adapter",
     "EulerV2Adapter",
     "MapleAdapter",

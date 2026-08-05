@@ -64,6 +64,27 @@ def _no_file() -> MorphoSteakhouseAdapter:
     return MorphoSteakhouseAdapter(data_dir="/nonexistent_spa_test_dir_xyz")
 
 
+class _FakeLiveFeed:
+    """FakeFeed интерфейса DeFiLlamaFeed (own-29): фиксированные живые значения.
+
+    apy_decimal=None имитирует «пул не найден / фид недоступен» (оба метода
+    отдают None — как настоящий фид, который никогда не выдумывает данные).
+    """
+
+    def __init__(self, apy_decimal=None, tvl_usd=None):
+        self._apy = apy_decimal
+        self._tvl = tvl_usd
+        self.calls: list = []
+
+    def get_apy(self, project, symbol, chain="Ethereum", symbol_mode="exact"):
+        self.calls.append(("get_apy", project, symbol, chain))
+        return self._apy
+
+    def get_tvl(self, project, symbol, chain="Ethereum", symbol_mode="exact"):
+        self.calls.append(("get_tvl", project, symbol, chain))
+        return self._tvl
+
+
 # ════════════════════════════════════════════════════════════════════════════
 # 1. Идентичность / тир / метаданные
 # ════════════════════════════════════════════════════════════════════════════
@@ -444,7 +465,15 @@ class TestGetYieldInfo(unittest.TestCase):
         self.assertEqual(_default().get_yield_info().tier, "T1")
 
     def test_get_yield_info_apy_is_decimal(self):
-        info = _default().get_yield_info()
+        # own-29 (2026-08-05, намеренное изменение с обоснованием — инв.16):
+        # get_yield_info() стал поверхностью оркестратора и по ADR-053 обязан
+        # отдавать ТОЛЬКО живые данные (файловое/константное значение без метки
+        # происхождения больше не выдаётся за live). Проверка «apy — decimal
+        # 0.065» СОХРАНЕНА, источником теперь служит инжектированный живой фид;
+        # fail-closed ветка (без фида → None) закреплена в TestLiveFeed ниже.
+        adapter = _default()
+        adapter.feed = _FakeLiveFeed(apy_decimal=0.065, tvl_usd=106_000_000.0)
+        info = adapter.get_yield_info()
         self.assertAlmostEqual(info.apy, 0.065)
 
     def test_get_yield_info_risk_score_valid(self):
@@ -455,6 +484,170 @@ class TestGetYieldInfo(unittest.TestCase):
 
     def test_get_yield_info_exit_latency_zero(self):
         self.assertEqual(_default().get_yield_info().exit_latency_hours, 0.0)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 8. own-29: живой DeFiLlama-путь (FakeFeed + gzip, офлайн)
+# ════════════════════════════════════════════════════════════════════════════
+#
+# Контекст: DeFiLlama реструктурировал Morpho Blue — vault-пулы живут под
+# символами STEAKUSDC/GTUSDCP/…, точного «USDC» нет. Steakhouse USDC vault =
+# project="morpho-blue", symbol="STEAKUSDC", chain=Ethereum. Эти тесты пинят:
+#   * живые APY/TVL парсятся и попадают в YieldInfo с tvl_source="live";
+#   * отсутствие пула → None/None и tvl_source=None (fail-closed, БЕЗ констант);
+#   * gzip-ответ DeFiLlama декомпрессируется (pinned Accept-Encoding: gzip);
+#   * приоритет источников get_apy_pct: live > файл > константа.
+
+import gzip as _gzip
+from unittest import mock as _mock
+
+from spa_core.adapters.defillama_feed import DeFiLlamaFeed as _RealFeed
+
+
+def _steak_pool(tvl: float = 106_151_523.0, apy: float = 3.50916,
+                pool_id: str = "931ea9be-5f4d-428e-beaf-205fc5b4e2b5",
+                symbol: str = "STEAKUSDC", chain: str = "Ethereum") -> dict:
+    """Пул в НОВОЙ структуре DeFiLlama (снимок /pools от 2026-08-05)."""
+    return {
+        "chain": chain, "project": "morpho-blue", "symbol": symbol,
+        "tvlUsd": tvl, "apy": apy, "apyBase": apy, "pool": pool_id,
+        "stablecoin": True, "exposure": "single",
+    }
+
+
+def _mock_gzip_urlopen(pools: list):
+    """urlopen → gzip-сжатый DeFiLlama-ответ (проверяет ветку декомпрессии)."""
+    payload = _gzip.compress(
+        json.dumps({"status": "success", "data": pools}).encode("utf-8")
+    )
+    resp = _mock.MagicMock()
+    resp.read.return_value = payload
+    resp.__enter__ = lambda s: s
+    resp.__exit__ = _mock.MagicMock(return_value=False)
+    return _mock.patch(
+        "spa_core.adapters.defillama_feed.urllib.request.urlopen",
+        return_value=resp,
+    )
+
+
+class TestLiveFeed(unittest.TestCase):
+    """own-29: живой TVL/APY через DeFiLlama; fail-closed без данных."""
+
+    def _live_adapter(self, pools: list) -> MorphoSteakhouseAdapter:
+        """Адаптер с НАСТОЯЩИМ DeFiLlamaFeed поверх замоканного gzip-ответа."""
+        adapter = _adapter(apy=6.5)
+        adapter.feed = _RealFeed(enabled=True)
+        self._urlopen_patch = _mock_gzip_urlopen(pools)
+        return adapter
+
+    # ── живые данные парсятся (включая gzip-ветку) ───────────────────────
+    def test_yield_info_live_tvl_source_from_gzip_payload(self):
+        adapter = self._live_adapter([_steak_pool()])
+        with self._urlopen_patch:
+            info = adapter.get_yield_info()
+        self.assertAlmostEqual(info.apy, 0.0350916, places=6)
+        self.assertAlmostEqual(info.tvl_usd, 106_151_523.0)
+        self.assertEqual(info.tvl_source, "live")
+
+    def test_duplicate_steak_pools_highest_tvl_wins(self):
+        # На Ethereum ДВА пула STEAKUSDC (106.2M и 76.0M) — конвенция фида:
+        # выигрывает максимальный TVL (флагманский vault 0xBEEF01…64CB).
+        adapter = self._live_adapter([
+            _steak_pool(tvl=76_000_000.0, apy=3.30996, pool_id="b55f43a8"),
+            _steak_pool(),
+        ])
+        with self._urlopen_patch:
+            info = adapter.get_yield_info()
+        self.assertAlmostEqual(info.tvl_usd, 106_151_523.0)
+        self.assertAlmostEqual(info.apy, 0.0350916, places=6)
+
+    # ── отсутствие пула → fail-closed None, никаких констант ─────────────
+    def test_yield_info_fail_closed_when_pool_absent(self):
+        # В ответе есть morpho-blue пулы, но НЕ STEAKUSDC/Ethereum.
+        adapter = self._live_adapter([
+            _steak_pool(symbol="GTUSDCP", pool_id="other"),
+            _steak_pool(chain="Base", pool_id="base-steak"),
+        ])
+        with self._urlopen_patch:
+            info = adapter.get_yield_info()
+        self.assertIsNone(info.apy)
+        self.assertIsNone(info.tvl_usd)
+        self.assertIsNone(info.tvl_source)
+
+    def test_yield_info_never_uses_fallback_constant_without_live(self):
+        # Фид мёртв, файл с apy=6.5 ЕСТЬ: YieldInfo обязан отдать None, а не
+        # 0.065 — файловое/константное значение не выдаётся за live (ADR-053).
+        adapter = _adapter(apy=6.5)
+        adapter.feed = _FakeLiveFeed(apy_decimal=None, tvl_usd=None)
+        info = adapter.get_yield_info()
+        self.assertIsNone(info.apy)
+        self.assertIsNone(info.tvl_usd)
+        self.assertIsNone(info.tvl_source)
+
+    # ── fetch_live: контракт live-адаптеров ──────────────────────────────
+    def test_fetch_live_ok_record(self):
+        adapter = _adapter(apy=6.5)
+        adapter.feed = _FakeLiveFeed(apy_decimal=0.0351, tvl_usd=106_000_000.0)
+        rec = adapter.fetch_live()
+        self.assertEqual(rec["status"], "ok")
+        self.assertTrue(rec["live_data"])
+        self.assertIsNone(rec["error"])
+        self.assertAlmostEqual(rec["apy"], 0.0351)
+        self.assertAlmostEqual(rec["tvl"], 106_000_000.0)
+
+    def test_fetch_live_error_record_when_feed_dead(self):
+        adapter = _adapter(apy=6.5)
+        adapter.feed = _FakeLiveFeed(apy_decimal=None, tvl_usd=None)
+        rec = adapter.fetch_live()
+        self.assertEqual(rec["status"], "error")
+        self.assertFalse(rec["live_data"])
+        self.assertEqual(rec["error"], "live_feed_unavailable")
+        self.assertIsNone(rec["apy"])
+
+    def test_fetch_live_queries_steakusdc_on_ethereum(self):
+        feed = _FakeLiveFeed(apy_decimal=0.035, tvl_usd=1.0)
+        adapter = _adapter(apy=6.5)
+        adapter.feed = feed
+        adapter.fetch_live()
+        self.assertIn(("get_apy", "morpho-blue", "STEAKUSDC", "Ethereum"), feed.calls)
+        self.assertIn(("get_tvl", "morpho-blue", "STEAKUSDC", "Ethereum"), feed.calls)
+
+    # ── приоритет источников APY (legacy-поверхность) ────────────────────
+    def test_get_apy_pct_prefers_live_over_file(self):
+        adapter = _adapter(apy=6.5)  # файл говорит 6.5
+        adapter.feed = _FakeLiveFeed(apy_decimal=0.0351, tvl_usd=1.0)
+        self.assertAlmostEqual(adapter.get_apy_pct(), 3.51)
+
+    def test_get_apy_pct_falls_back_to_file_then_constant(self):
+        # Живого фида нет → файл; файла нет → константа 6.5 (advisory-легаси,
+        # поведение существующих потребителей не менялось).
+        file_adapter = _adapter(apy=4.2)
+        file_adapter.feed = _FakeLiveFeed(apy_decimal=None)
+        self.assertAlmostEqual(file_adapter.get_apy_pct(), 4.2)
+
+        none_adapter = _no_file()
+        none_adapter.feed = _FakeLiveFeed(apy_decimal=None)
+        self.assertAlmostEqual(none_adapter.get_apy_pct(), 6.5)
+
+    # ── дефолтный фид под pytest не ходит в сеть ─────────────────────────
+    def test_default_feed_disabled_under_pytest(self):
+        import os as _os
+        with _mock.patch.dict(_os.environ, {"PYTEST_CURRENT_TEST": "sentinel"}):
+            adapter = MorphoSteakhouseAdapter(
+                data_dir="/nonexistent_spa_test_dir_xyz"
+            )
+        self.assertFalse(adapter.feed.enabled)
+
+    def test_default_feed_enabled_outside_pytest(self):
+        # Положительный контроль: в проде (без PYTEST_CURRENT_TEST) дефолтный
+        # фид ЖИВОЙ — иначе оркестратор навсегда остался бы без live TVL.
+        import os as _os
+        env = {k: v for k, v in _os.environ.items() if k != "PYTEST_CURRENT_TEST"}
+        with _mock.patch.dict(_os.environ, env, clear=True):
+            adapter = MorphoSteakhouseAdapter(
+                data_dir="/nonexistent_spa_test_dir_xyz"
+            )
+        self.assertTrue(adapter.feed.enabled)
 
 
 if __name__ == "__main__":

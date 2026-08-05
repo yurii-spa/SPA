@@ -221,9 +221,22 @@ class TestAdapterWiring:
         info = adapter.get_yield_info()
         assert info.apy == pytest.approx(0.1234)
         assert info.tvl_usd == 9_999_999.0
-        feed.get_apy.assert_called_with(
-            adapter_cls.DEFILLAMA_PROJECT, adapter_cls.DEFILLAMA_SYMBOL
-        )
+        # own-29 (2026-08-05): проверка УСИЛЕНА — пиним и режим матчинга.
+        # MorphoBlueAdapter обязан звать фид с symbol_mode="contains": DeFiLlama
+        # держит пулы Morpho Blue под vault-символами (STEAKUSDC, GTUSDCP, …),
+        # exact-"USDC" там больше не существует. Остальные адаптеры — прежний
+        # exact-вызов без kwarg (регрессия в обе стороны).
+        mode = getattr(adapter_cls, "DEFILLAMA_SYMBOL_MODE", "exact")
+        if mode != "exact":
+            feed.get_apy.assert_called_with(
+                adapter_cls.DEFILLAMA_PROJECT,
+                adapter_cls.DEFILLAMA_SYMBOL,
+                symbol_mode=mode,
+            )
+        else:
+            feed.get_apy.assert_called_with(
+                adapter_cls.DEFILLAMA_PROJECT, adapter_cls.DEFILLAMA_SYMBOL
+            )
 
     @pytest.mark.parametrize("adapter_cls", ALL_ADAPTERS)
     def test_feed_exception_is_graceful(self, adapter_cls):

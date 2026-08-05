@@ -47,6 +47,10 @@ class _L2BaseAdapter(BaseAdapter):
     PROTOCOL: str = "l2_base"
     DEFILLAMA_PROJECT: str = ""
     DEFILLAMA_SYMBOL: str = "USDC"
+    # own-29: symbol matching mode passed to the feed — "exact" (default) or
+    # "contains" (needed for Morpho Blue, whose DeFiLlama pools carry per-vault
+    # symbols like STEAKUSDC instead of plain "USDC").
+    DEFILLAMA_SYMBOL_MODE: str = "exact"
     DEFILLAMA_CHAIN: str = ""
     TIER: str = "T2"
     T2_CAP: float = 0.20
@@ -81,11 +85,20 @@ class _L2BaseAdapter(BaseAdapter):
             "ts": time.time(),
         }
         try:
+            # own-29: the kwarg is passed only when a non-default mode is set —
+            # exact-mode adapters keep the legacy 3-arg call, so existing
+            # injected fake feeds (duck-typed, no symbol_mode param) stay valid.
+            _kw = (
+                {"symbol_mode": self.DEFILLAMA_SYMBOL_MODE}
+                if self.DEFILLAMA_SYMBOL_MODE != "exact" else {}
+            )
             apy = self.feed.get_apy(
-                self.DEFILLAMA_PROJECT, self.DEFILLAMA_SYMBOL, self.DEFILLAMA_CHAIN
+                self.DEFILLAMA_PROJECT, self.DEFILLAMA_SYMBOL, self.DEFILLAMA_CHAIN,
+                **_kw,
             )
             tvl = self.feed.get_tvl(
-                self.DEFILLAMA_PROJECT, self.DEFILLAMA_SYMBOL, self.DEFILLAMA_CHAIN
+                self.DEFILLAMA_PROJECT, self.DEFILLAMA_SYMBOL, self.DEFILLAMA_CHAIN,
+                **_kw,
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("%s: live feed raised: %s", self.PROTOCOL, exc)
@@ -194,6 +207,10 @@ class MorphoBlueBaseAdapter(_L2BaseAdapter):
     PROTOCOL = "morpho_blue_base"
     DEFILLAMA_PROJECT = "morpho-blue"
     DEFILLAMA_SYMBOL = "USDC"
+    # own-29 (2026-08-05): DeFiLlama lists Morpho Blue deposits only under
+    # per-vault symbols (STEAKUSDC, GTUSDCP, …); the exact "USDC" match hit a
+    # $0.2M spam pool with apy=0. "contains" selects the best-TVL *USDC* vault.
+    DEFILLAMA_SYMBOL_MODE = "contains"
     DEFILLAMA_CHAIN = "Base"
     TIER = "T2"
     T2_CAP = 0.20
