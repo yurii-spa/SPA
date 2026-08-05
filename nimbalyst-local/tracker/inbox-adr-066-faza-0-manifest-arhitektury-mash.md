@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "ADR-066 Фаза 0: манифест архитектуры (машиночитаемая конституция)"
-status: backlog
+status: done
 source: nimbalyst
 created: 2026-08-05
 adr: ADR-066

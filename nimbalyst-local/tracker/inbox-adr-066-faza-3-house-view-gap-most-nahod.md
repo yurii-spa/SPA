@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "ADR-066 Фаза 3: house_view_gap + мост находка→карточка"
-status: backlog
+status: new
 source: nimbalyst
 created: 2026-08-05
 adr: ADR-066

@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **233** · ждёт владельца: **19** · занято сессиями: **1**.
+> Всего карточек: **236** · ждёт владельца: **19** · занято сессиями: **1**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -32,7 +32,7 @@
 
 - **Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать** — держит `cycle-28258` · с 2026-08-05T12:28:28Z  ·  `agent-fleet-parity-guard-never-scheduled.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (63)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (64)
 
 ### · needs-owner
 - Кто имеет право сказать «флот ожил» и погасить тревогу об упавших агентах?  ·  `own-28-kto-gasit-trevogu-core-agent-down.md` · 2026-08-05
@@ -74,6 +74,7 @@
 - Письма уходят с чужого адреса onboarding@resend.dev — подтвердить домен earn-defi.com в Resend  ·  `own-26-resend-domain-verification.md` · 2026-08-02
 - Утвердить списание 55 записей из реестра аналитики — это не анализаторы  ·  `own-27-spisanie-modulei-analitiki.md` · 2026-08-04
 - Наша крупнейшая позиция ($40k в morpho) держится без живого подтверждения размера пула — что делаем?  ·  `own-29-morpho-steakhouse-demote-signal.md` · 2026-08-05
+- Запустить ежедневного агента для paper-книги «защёлка после выхода»  ·  `own-30-deploy-swarm-dwell-agent.md` · 2026-08-05
 - 10% денег стоят без работы: причина найдена — 11 протоколов закрыты из-за отсутствия живого фида, нужен твой выбор  ·  `owner-decision-10-deneg-stoyat-bez-raboty-prichina-naid.md` · 2026-08-05
 - ТЕСТ: подтверди, что очередь работает — переведи в Owner Done  ·  `owner-decision-20260715-124956-owner-done.md` · 2026-07-15T00:00:00.000Z
 - Сайт: алерт кастодиана про APY — ложное срабатывание, как чинить?  ·  `owner-decision-20260715-212059-apy.md` · 2026-07-15
@@ -102,12 +103,6 @@
 
 ## 📥 Inbox (задания: Telegram / заметки / голос)  (39)
 
-### · backlog
-- ADR-066 Фаза 0: манифест архитектуры (машиночитаемая конституция)  ·  `inbox-adr-066-faza-0-manifest-arhitektury-mash.md` · 2026-08-05
-- ADR-066 Фаза 1: сторож architecture_conformance (B1–B5) + positive controls  ·  `inbox-adr-066-faza-1-storozh-architecture-conf.md` · 2026-08-05
-- ADR-066 Фаза 2: реситы потребления + оркестратор/digest читают офис  ·  `inbox-adr-066-faza-2-resity-potrebleniya-orkes.md` · 2026-08-05
-- ADR-066 Фаза 3: house_view_gap + мост находка→карточка  ·  `inbox-adr-066-faza-3-house-view-gap-most-nahod.md` · 2026-08-05
-- ADR-066 Фаза 4: loop_health + hit-rate аналитиков + weekly retro + храповик  ·  `inbox-adr-066-faza-4-loop-health-hit-rate-anal.md` · 2026-08-05
 ### · done
 - Проверь связь это тестовое сообщение.  ·  `inbox-20260715-123528-note.md` · 2026-07-15
 - Слушай, а можешь проверить связь какую-нибудь сделать?  ·  `inbox-20260715-125835-note.md` · 2026-07-15
@@ -118,6 +113,7 @@
 - И возьмите эти проблемы в работу  ·  `inbox-20260715-194819-note.md` · 2026-07-15
 - Спека уведомлений DeFi Checkup (e-mail + Telegram, диплинк по 569Xlматериальности)  ·  `inbox-20260715-212210-defi-checkup-e-mail-telegram-569xl.md` · 2026-07-15
 - Утренний Telegram-дайджест «что сделано за день» (простым языком)  ·  `inbox-20260716-075934-telegram.md` · 2026-07-16
+- ADR-066 Фаза 0: манифест архитектуры (машиночитаемая конституция)  ·  `inbox-adr-066-faza-0-manifest-arhitektury-mash.md` · 2026-08-05
 - автономный аркестратор должен был быть раз в 1 час а не раз в 3 часа  ·  `inbox-avtonomnyi-arkestrator-dolzhen-byl-byt-r.md` · 2026-07-16
 - Давай так и сделаем  ·  `inbox-davai-tak-i-sdelaem.md` · 2026-07-20
 - Проверь прям сейчас все ли ок  ·  `inbox-prover-pryam-seichas-vse-li-ok.md` · 2026-08-05
@@ -143,6 +139,11 @@
 - Задача решить проблему 🚨 Пропущен ежедневный цикл  ·  `inbox-zadacha-reshit-problemu-propuschen-ezhed.md` · 2026-07-30
 - задача - сделать проверку агентов и поствить в расписание и разобраться почему…  ·  `inbox-zadacha-sdelat-proverku-agentov-i-postvi.md` · 2026-08-05
 - Задча • 10% денег стоят без работы под 0% — это money-path, карточка «agent-all…  ·  `inbox-zadcha-10-deneg-stoyat-bez-raboty-pod-0.md` · 2026-08-05
+### · new
+- ADR-066 Фаза 1: сторож architecture_conformance (B1–B5) + positive controls  ·  `inbox-adr-066-faza-1-storozh-architecture-conf.md` · 2026-08-05
+- ADR-066 Фаза 2: реситы потребления + оркестратор/digest читают офис  ·  `inbox-adr-066-faza-2-resity-potrebleniya-orkes.md` · 2026-08-05
+- ADR-066 Фаза 3: house_view_gap + мост находка→карточка  ·  `inbox-adr-066-faza-3-house-view-gap-most-nahod.md` · 2026-08-05
+- ADR-066 Фаза 4: loop_health + hit-rate аналитиков + weekly retro + храповик  ·  `inbox-adr-066-faza-4-loop-health-hit-rate-anal.md` · 2026-08-05
 
 ## 🤖 Agent Tasks (что делает агент)  (83)
 
@@ -233,7 +234,7 @@
 - Упоминание карточки в тексте объявления запирает её НАВСЕГДА — шаг 0b отвечает «не измерено» и после старения  ·  `agent-weak-mention-locks-card-forever.md` · 2026-07-31
 - Q11: разбор ветки yield-lab  ·  `agent-yield-lab-branch.md` · 2026-07-16
 
-## agent  (48)
+## agent  (50)
 
 ### · blocked
 - Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать  ·  `agent-fleet-parity-guard-never-scheduled.md` · 2026-08-05 · 🔒 `cycle-28258`
@@ -267,6 +268,7 @@
 - ПРОДОЛЖИТЬ ОТСЮДА — дорожная карта по приоритету (сессия может оборваться, работа не должна)  ·  `agent-roadmap-continue-here.md` · 2026-08-05
 - S76 угадывает единицу измерения доходности по величине числа — настоящие 0.5 % превращаются в 50 %  ·  `agent-s76-apy-unit-guess.md` · 2026-08-05
 - Аварийный портфель обходит гейты адаптеров — финансирует spark_susds, который запрещён инвариантом 10  ·  `agent-safe-fallback-bypasses-adapter-gates.md` · 2026-08-02
+- spark_susds наблюдает чужой инструмент (sparklend lending vs sUSDS vault) — развести идентичности до допуска Sky  ·  `agent-spark-susds-identity-split.md` · 2026-08-05
 - Тесты ходят в живую сеть (Telegram + аналитика) — полный набор не проходит целиком, когда сеть медленная  ·  `agent-tests-do-live-network-io.md` · 2026-08-02
 - Сделать турнир стратегий ДОВЕРЯЕМЫМ — ранжировать по net-of-cost APY на реальных исторических данных (не Sharpe на mock)  ·  `agent-tournament-trustworthy-real-apy.md` · 2026-07-23
 - Guard — track-данные в git не должны молча протухать / молча пропускаться в CI  ·  `agent-track-data-git-durability-guard.md` · 2026-07-23
@@ -283,6 +285,7 @@
 - Храповик литеральных дат КРАСНЫЙ на main — два новых тест-файла волны 1 (A1) вошли в закрытый класс  ·  `agent-frozen-date-ratchet-red-on-main.md` · 2026-08-05
 - Простой 15 % капитала объяснён — блокировки покрывают его полностью, с разбивкой по протоколам  ·  `agent-idle-cash-quantified.md` · 2026-08-05
 - Красный тест: страховой скоринг не отказывает при отсутствующем TVL  ·  `agent-insurance-scorer-missing-tvl.md` · 2026-08-05
+- Оживить живой TVL/фид morpho-семейства (own-29 вариант 1, дедлайн 2026-08-08)  ·  `agent-morpho-feed-revival.md` · 2026-08-05
 - Учение по восстановлению проверяет ОДИН архив из двух серий — умерший производитель бэкапов останется невидим за зелёным all_ok  ·  `agent-restore-drill-single-series-blind.md` · 2026-08-05
 - Дыра в треке разобрана — не 14 дней, а 2; сторож дыр был слеп по построению  ·  `agent-track-hole-rootcause.md` · 2026-08-05
 - Проверка порога TVL в 11 адаптерах тождественно истинна — считается от зашитой константы  ·  `agent-tvl-floor-constant-true.md` · 2026-08-05

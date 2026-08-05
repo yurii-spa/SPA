@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "ADR-066 Фаза 1: сторож architecture_conformance (B1–B5) + positive controls"
-status: backlog
+status: new
 source: nimbalyst
 created: 2026-08-05
 adr: ADR-066
