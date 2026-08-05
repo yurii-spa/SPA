@@ -15,7 +15,26 @@ from spa_core.telegram.views import _base as B
 
 def _active_warnings() -> List[Dict]:
     out: List[Dict] = []
-    ah = B.read_json("agent_health.json", {})
+    # Canonical fail-CLOSED reader: a stale agent_health snapshot is itself a
+    # warning (the fleet's real state is UNKNOWN) — an 8h-old "healthy 69/69"
+    # must never read as calm (2026-08-05 incident). Fallback to raw read only
+    # if the monitor module is unavailable.
+    try:
+        from spa_core.monitoring.agent_health_monitor import load_report
+        ah = load_report(B.DATA_DIR)
+    except Exception:
+        ah = B.read_json("agent_health.json", {})
+    if isinstance(ah, dict) and ah.get("snapshot_stale"):
+        age = ah.get("snapshot_age_min")
+        age_txt = ("{:.1f}h old".format(age / 60.0)
+                   if isinstance(age, (int, float)) else "age unknown")
+        out.append({
+            "sev": "WARNING", "key": "agent_health_stale",
+            "title": "agent_health snapshot STALE",
+            "detail": "snapshot {} · fleet state UNKNOWN (monitor not running?)".format(age_txt),
+            "since": B.short_ts(ah.get("timestamp")),
+            "financial": False,
+        })
     if isinstance(ah, dict) and ah.get("overall_status") == "CRITICAL":
         n = ah.get("critical_count", 0)
         out.append({

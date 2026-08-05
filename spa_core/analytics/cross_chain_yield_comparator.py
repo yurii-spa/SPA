@@ -330,3 +330,80 @@ if __name__ == "__main__":
         _demo()
     else:
         print("Usage: python3 -m spa_core.analytics.cross_chain_yield_comparator --demo")
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → последние РЕАЛЬНЫЕ точки APY всех известных
+    протоколов (_apy_series.latest_all) → собственный движок compare()
+    (net-APY за вычетом bridge/gas-издержек, chain premium vs ETH).
+
+    Вход движка: возможность контекст-протокола + пиры с реальной точкой
+    и структурным профилем (chain / издержки из _protocol_facts).
+    eth_baseline — медиана реальных APY ethereum-пиров (не константа).
+
+    Fail-closed: нет точки у протокола / профиля / <2 возможностей → None.
+    Полярность: отрицательный chain premium (наш протокол хуже базы) →
+    риск выше 50. Без записей: write_log=False.
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    data_dir = context.get("data_dir")
+    latest = _apy.latest_all(data_dir=data_dir)
+    if proto not in latest:
+        return None
+    profile = _pf.generic_profile_for(proto)
+    if profile is None:
+        return None
+    capital = 25_000.0
+    opps = []
+    eth_apys = []
+    for name in sorted(latest):
+        p = _pf.generic_profile_for(name)
+        if p is None:
+            continue
+        apy = latest[name][1]
+        if apy < 0:
+            continue
+        opps.append({
+            "chain": p["chain"],
+            "protocol": name,
+            "apy": apy,
+            "bridge_cost_usd": p["bridge_cost_usd"],
+            "bridge_time_hours": 0.0 if p["chain"] == "ethereum" else 1.0,
+            "chain_gas_cost_daily_usd": p["gas_cost_usd"] / 30.0,
+        })
+        if p["chain"] == "ethereum":
+            eth_apys.append(apy)
+    if len(opps) < 2 or not eth_apys:
+        return None
+    eth_apys.sort()
+    n = len(eth_apys)
+    eth_baseline_pct = (eth_apys[n // 2] if n % 2
+                        else (eth_apys[n // 2 - 1] + eth_apys[n // 2]) / 2.0)
+    result = CrossChainYieldComparator().compare(
+        opps, capital_usd=capital,
+        eth_baseline_apy=eth_baseline_pct / 100.0, write_log=False)
+    ours = None
+    for entry in result.get("ranked_opportunities") or []:
+        if entry.get("protocol") == proto:
+            ours = entry
+            break
+    if ours is None:
+        return None
+    premium = float(ours.get("chain_premium_vs_eth", 0.0))
+    risk = max(0.0, min(100.0, 50.0 - max(-5.0, min(5.0, premium)) * 10.0))
+    return {
+        "protocol": proto,
+        "risk_score": round(risk, 2),
+        "net_apy_pct": ours.get("net_apy"),
+        "chain_premium_vs_eth_pp": round(premium, 4),
+        "eth_baseline_apy_pct": round(eth_baseline_pct, 4),
+        "cross_chain_arbitrage_score":
+            result.get("cross_chain_arbitrage_score"),
+        "source": _apy.SERIES_SOURCE,
+    }

@@ -415,12 +415,21 @@ def test_agent_always_on_nonzero_exit_critical():
     assert h.status == ahm.CRITICAL
 
 
-def test_agent_always_on_alive_with_stale_exit_ok():
-    # pid != 0 (server alive) + exit=1 (stale from prior restart) → OK.
-    # Avoids false CRITICAL when launchd auto-restarts the always-on server.
+def test_agent_always_on_alive_with_stale_exit_visible_not_critical():
+    # INTENTIONAL CHANGE 2026-08-05 (инв.16, S2 fail-OPEN fix; see journal W32):
+    # this test used to pin "alive + exit=1 → OK", which is exactly the
+    # measured fail-OPEN (prod: com.spa.telegram_bot pid alive, last_exit=1,
+    # reported OK — a crash of the previous incarnation hidden entirely).
+    # The false-CRITICAL hazard this test originally guarded (launchctl
+    # retaining the old exit after a CLEAN restart) is the SIGNAL case
+    # (-15 SIGTERM) — still OK, pinned by
+    # test_alive_keepalive_server_sigterm_restart_stays_ok. A POSITIVE exit
+    # code is a real crash and must stay VISIBLE (WARNING — not OK because the
+    # crash happened; not CRITICAL because the server is alive again).
     plist = {"KeepAlive": True, "StandardOutPath": "/tmp/x.log"}
     h = ahm.check_agent("com.spa.srv", plist, True, _lc("com.spa.srv", pid=7, exit=1), NOW)
-    assert h.status == ahm.OK
+    assert h.status == ahm.WARNING
+    assert "last_exit=1" in h.issue
 
 
 def test_agent_malformed_plist_warning():
@@ -987,3 +996,172 @@ def test_agent_genuinely_not_run_still_flags(tmp_path):
     h = ahm.check_agent(label, plist, True, _lc(label), NOW, project_root=tmp_path)
     assert h.status in (ahm.WARNING, ahm.CRITICAL)
     assert "missing" in h.issue
+
+
+# ===========================================================================
+# S2 (2026-08-05) — three fail-OPEN fixes, each with a POSITIVE CONTROL that
+# replays the measured incident and REDS on unfixed code.
+#
+# Incident: at 08:43 data/agent_health.json still said "healthy 69/69,
+# critical 0" while 39 agents had fallen at 07:00Z — the snapshot was 8h old
+# (the hourly monitor was itself among the fallen) and every consumer rendered
+# the stale healthy counts as CURRENT fleet state.
+# ===========================================================================
+
+# --- (а) snapshot age must be visible; stale health is NOT health ----------
+def test_report_carries_freshness_contract(tmp_path):
+    rep = ahm.build_report([], {}, ahm.OK, [], NOW)
+    assert rep["cadence_minutes"] == ahm.SNAPSHOT_CADENCE_MIN
+    assert rep["stale_after_minutes"] == ahm.SNAPSHOT_STALE_MIN
+
+
+def test_load_report_stale_healthy_snapshot_is_not_health(tmp_path):
+    # REPLAY 2026-08-05 08:43: an 8h-old snapshot claiming healthy 69/69.
+    data = tmp_path / "data"
+    data.mkdir()
+    old_ts = "2026-06-21T02:00:00+00:00"  # NOW is 10:00 → 8h old
+    (data / "agent_health.json").write_text(json.dumps({
+        "timestamp": old_ts,
+        "overall_status": "OK",
+        "healthy_count": 69, "warning_count": 0, "critical_count": 0,
+        "total_agents": 69,
+    }), encoding="utf-8")
+
+    rep = ahm.load_report(data, now=NOW)
+
+    assert rep["snapshot_stale"] is True
+    assert rep["snapshot_age_min"] == pytest.approx(480.0, abs=1.0)
+    # An 8h-old "OK" may not present itself as current health.
+    assert rep["overall_status"] == ahm.STALE
+    assert rep["raw_overall_status"] == "OK"
+    assert "old" in rep["snapshot_reason"]
+
+
+def test_load_report_fresh_snapshot_passes_through(tmp_path):
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "agent_health.json").write_text(json.dumps({
+        "timestamp": "2026-06-21T09:50:00+00:00",  # 10 min before NOW
+        "overall_status": "OK", "healthy_count": 69,
+    }), encoding="utf-8")
+    rep = ahm.load_report(data, now=NOW)
+    assert rep["snapshot_stale"] is False
+    assert rep["overall_status"] == ahm.OK
+    assert rep["snapshot_age_min"] == pytest.approx(10.0, abs=0.5)
+
+
+def test_load_report_stale_critical_stays_critical(tmp_path):
+    # Old BAD news must never soften into "STALE" (that would be the inverse
+    # fail-OPEN: reassurance replacing an unresolved CRITICAL).
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "agent_health.json").write_text(json.dumps({
+        "timestamp": "2026-06-21T02:00:00+00:00",
+        "overall_status": "CRITICAL", "critical_count": 12,
+    }), encoding="utf-8")
+    rep = ahm.load_report(data, now=NOW)
+    assert rep["snapshot_stale"] is True
+    assert rep["overall_status"] == ahm.CRITICAL
+
+
+def test_load_report_missing_file_is_unchecked_not_ok(tmp_path):
+    rep = ahm.load_report(tmp_path, now=NOW)
+    assert rep["overall_status"] == ahm.UNCHECKED
+    assert rep["snapshot_stale"] is True
+
+
+def test_load_report_unparseable_timestamp_fails_closed(tmp_path):
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "agent_health.json").write_text(json.dumps({
+        "timestamp": "not-a-time", "overall_status": "OK",
+    }), encoding="utf-8")
+    rep = ahm.load_report(data, now=NOW)
+    assert rep["snapshot_stale"] is True
+    assert rep["overall_status"] == ahm.STALE
+
+
+# --- (б) a nonzero LAST exit can never be OK --------------------------------
+def test_alive_keepalive_server_with_crash_exit_is_not_ok():
+    # REPLAY prod 2026-08-05: com.spa.telegram_bot pid=98925 last_exit=1 was
+    # reported OK — a crashed-and-restarted server hidden behind a live PID.
+    plist = {"KeepAlive": True, "StandardOutPath": "/tmp/x.log"}
+    h = ahm.check_agent("com.spa.telegram_bot", plist, True,
+                        _lc("com.spa.telegram_bot", pid=98925, exit=1), NOW)
+    assert h.status != ahm.OK
+    assert h.status == ahm.WARNING          # alive → visible, not CRITICAL
+    assert "last_exit=1" in h.issue
+
+
+def test_alive_keepalive_server_sigterm_restart_stays_ok():
+    # The documented carve-out survives: -15 (SIGTERM from a clean stop /
+    # redeploy) with a live PID is NOT an issue — no false alarms reintroduced.
+    plist = {"KeepAlive": True, "StandardOutPath": "/tmp/x.log"}
+    h = ahm.check_agent("com.spa.apiserver", plist, True,
+                        _lc("com.spa.apiserver", pid=3209, exit=-15), NOW)
+    assert h.status == ahm.OK
+
+
+def test_scheduled_agent_with_failed_exit_is_not_ok(tmp_path):
+    # A scheduled agent whose last run failed (exit 78 — the exec-bit class)
+    # can never be OK, even when its log is perfectly fresh.
+    logp = tmp_path / "a.log"
+    _touch(logp, 2)
+    plist = {"StartInterval": 300, "StandardOutPath": str(logp)}
+    h = ahm.check_agent("com.spa.a", plist, True,
+                        _lc("com.spa.a", pid=0, exit=78), NOW)
+    assert h.status != ahm.OK
+    assert "last_exit=78" in h.issue
+
+
+# --- (в) WAKE_STORM: mass simultaneous failure is a fleet-level CRITICAL ----
+def _mk_agent(label, status, last_exit, log_age_min=60.0):
+    a = ahm.AgentHealth(label=label, status=status)
+    a.last_exit = last_exit
+    a.log_age_min = log_age_min
+    return a
+
+
+def test_wake_storm_detected_on_mass_failure():
+    # REPLAY 2026-08-05 07:00Z: 39 agents with a nonzero exit at once.
+    agents = [_mk_agent(f"com.spa.a{i}", ahm.WARNING, 78, 103.0) for i in range(39)]
+    agents += [_mk_agent(f"com.spa.ok{i}", ahm.OK, 0) for i in range(30)]
+    storm = ahm.detect_wake_storm(agents)
+    assert storm is not None
+    assert storm["count"] == 39
+    assert storm["exit_codes"] == {"78": 39}
+    assert storm["clustered_count"] == 39     # same 15-min log-age bucket
+
+
+def test_no_wake_storm_on_isolated_failures():
+    # Control: today's normal noise (a few unrelated nonzero exits) must NOT
+    # scream WAKE_STORM.
+    agents = [_mk_agent("com.spa.daily_backup", ahm.WARNING, 1),
+              _mk_agent("com.spa.orchestrator", ahm.WARNING, 1)]
+    agents += [_mk_agent(f"com.spa.ok{i}", ahm.OK, 0) for i in range(60)]
+    assert ahm.detect_wake_storm(agents) is None
+
+
+def test_wake_storm_escalates_report_to_critical(tmp_path):
+    # End-to-end through collect(): 39 calendar agents loaded with exit 78 →
+    # the REPORT must carry the wake_storm block, a WAKE_STORM system issue and
+    # overall CRITICAL — 39 individual WARNINGs alone under-report the event.
+    la, data = _make_env(tmp_path)
+    lc_lines = ["PID\tStatus\tLabel"]
+    for i in range(39):
+        label = f"com.spa.storm{i:02d}"
+        logp = tmp_path / f"storm{i:02d}.log"
+        _touch(logp, 103)  # all fell ~07:00Z-equivalent, same window
+        _write_plist(la / f"{label}.plist", label=label, calendar=True,
+                     log_path=str(logp))
+        lc_lines.append(f"-\t78\t{label}")
+    mon = ahm.AgentHealthMonitor(data_dir=data, launch_agents_dir=la,
+                                 launchctl_output="\n".join(lc_lines), now=NOW)
+    rep = mon.collect()
+
+    storm = rep["system_checks"].get("wake_storm")
+    assert storm is not None and storm["count"] == 39
+    assert any("WAKE_STORM" in s for s in rep["system_issues"])
+    assert rep["overall_status"] == ahm.CRITICAL
+    # and no agent in the storm is OK (fix б holds inside the storm too)
+    assert all(a["status"] != ahm.OK for a in rep["agents"])

@@ -835,3 +835,57 @@ def _run_cli(argv: Optional[List[str]] = None) -> None:  # pragma: no cover
 
 if __name__ == "__main__":  # pragma: no cover
     _run_cli()
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → реальный ряд APY (_apy_series) → собственный
+    движок :class:`APYMomentumDetector.get_signal` (история подаётся в его
+    формате [{"adapter_id","apy_pct","ts_unix"}]; ось x — реальные даты,
+    поэтому OLS-слоуп честен и на рядах с дырами).
+
+    Fail-closed: <3 точек или trend=UNKNOWN → None.
+    Полярность: FALLING (доходность падает) → риск >50, RISING → <50.
+    Без записей в data/ на context-пути.
+    """
+    from datetime import datetime, timezone
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    series = _apy.get_series(proto, min_days=3,
+                             data_dir=context.get("data_dir"))
+    if series is None:
+        return None
+    history = []
+    for day, apy in series:
+        ts = datetime.fromisoformat(day).replace(tzinfo=timezone.utc)
+        history.append({"adapter_id": proto, "apy_pct": apy,
+                        "ts_unix": ts.timestamp()})
+    detector = APYMomentumDetector()
+    signal = detector.get_signal(proto, series[-1][1], history)
+    if signal.trend == "UNKNOWN":
+        return None
+    strength = max(0.0, min(1.0, signal.signal_strength))
+    if signal.trend == "FALLING":
+        risk = 55.0 + 30.0 * strength
+    elif signal.trend == "RISING":
+        risk = 45.0 - 25.0 * strength
+    else:  # STABLE
+        risk = 40.0
+    # Непрерывная компонента ОТ РЕАЛЬНОГО слоупа (движковый OLS %/день):
+    # внутри одного класса тренда протоколы различаются честной величиной.
+    risk += max(-0.2, min(0.2, -signal.slope_per_day)) * 50.0
+    return {
+        "protocol": proto,
+        "risk_score": round(max(0.0, min(100.0, risk)), 2),
+        "trend": signal.trend,
+        "confidence": signal.confidence,
+        "slope_per_day": signal.slope_per_day,
+        "signal_strength": signal.signal_strength,
+        "series_days": len(series),
+        "series_last_date": series[-1][0],
+        "source": _apy.SERIES_SOURCE,
+    }

@@ -625,12 +625,16 @@ def _send_agent_alert(label: str, age_minutes: int, file_hint: str | None) -> bo
     try:
         from spa_core.telegram import push_policy
         if label in CORE_AGENTS:
+            # dedup_key=label: the shared core_agent_down class must dedup PER
+            # AGENT — daily_cycle down yesterday must never silence cloudflared
+            # down today (class-level edge state is never resolved by anyone).
             return bool(
                 push_policy.push_critical(
                     "core_agent_down",
                     "CRITICAL",
                     f"SPA Core Agent DOWN: {label}",
                     text,
+                    dedup_key=f"uptime:{label}",
                 )
             )
         # Non-core: demote to the digest (never interrupt).

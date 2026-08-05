@@ -415,3 +415,75 @@ class ProtocolDeFiYieldSeasonalityAnalyzer:
             _atomic_append_log(self._log_path, result)
 
         return result
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → реальный ряд APY → собственный движок
+    ProtocolDeFiYieldSeasonalityAnalyzer.analyze (dormant-причина закрыта:
+    средние за 30/90/180 дней теперь считаются из фактического ряда
+    _apy_series, а не подставляются равными).
+
+    Средние — по последним 30/90/180 фактическим точкам; min_days=180,
+    чтобы все три окна были настоящими (не переиспользованными).
+    days_into_quarter — из реальной последней даты ряда.
+
+    Fail-closed: <180 точек → None.
+    Полярность: reversion_probability движка (вероятность отката
+    доходности вниз) и есть риск-шкала 0-100.
+    Без записей: write_log=False.
+    """
+    from datetime import date as _d
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    series = _apy.get_series(proto, min_days=180,
+                             data_dir=context.get("data_dir"))
+    if series is None:
+        return None
+    values = [v for _, v in series]
+
+    def _mean_tail(n):
+        tail = values[-n:]
+        return sum(tail) / len(tail)
+
+    last_day = _d.fromisoformat(series[-1][0])
+    quarter_start_month = 3 * ((last_day.month - 1) // 3) + 1
+    days_into_quarter = (last_day
+                         - _d(last_day.year, quarter_start_month, 1)).days
+    facts = _pf.facts_for(proto)
+    yield_type = "lending" if (facts or {}).get("kind") in (
+        "lending", "vault") else "trading_fees"
+    data = {
+        "protocol_name": proto,
+        "current_apy_pct": values[-1],
+        "apy_30d_avg_pct": _mean_tail(30),
+        "apy_90d_avg_pct": _mean_tail(90),
+        "apy_180d_avg_pct": _mean_tail(180),
+        "yield_type": yield_type,
+        "market_condition": "sideways",  # нет фида рыночного режима
+        "days_into_quarter": days_into_quarter,
+    }
+    # ВАЖНО: dormant-guard движкового analyze срабатывает на ЛЮБОЙ dict со
+    # строковым ключом "protocol" (is_protocol_context) — поэтому payload
+    # передаётся БЕЗ ключа "protocol" (имя несёт protocol_name), чтобы
+    # легаси-путь отработал штатно на настоящих средних из ряда.
+    r0 = ProtocolDeFiYieldSeasonalityAnalyzer().analyze(data, write_log=False)
+    if not isinstance(r0, dict):
+        return None
+    prob = r0.get("reversion_probability_pct")
+    if not isinstance(prob, (int, float)):
+        return None
+    return {
+        "protocol": proto,
+        "risk_score": round(max(0.0, min(100.0, float(prob))), 2),
+        "reversion_probability_pct": prob,
+        "apy_vs_90d_ratio": r0.get("apy_vs_90d_ratio"),
+        "seasonality_label": r0.get("seasonality_label"),
+        "series_days": len(values),
+        "series_last_date": series[-1][0],
+        "source": _apy.SERIES_SOURCE,
+    }

@@ -280,3 +280,18 @@ if __name__ == "__main__":
     comparator = DeFiLiquidStakingRateComparator()
     result = comparator.compare(sample_protocols, {})
     print(json.dumps(result, indent=2))
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → None ВСЕГДА (честно не измеряется).
+
+    Движку нужны LST-поля (комиссия валидаторов, peg-дисконт stETH-класса,
+    client diversity, slash-инциденты, withdrawal delay). Во вселенной SPA
+    нет liquid-staking протоколов с рядами, а в data/ нет ни одного
+    LST-фида — наполнить вход нечем. Возвращать структурную константу
+    значило бы фабриковать сигнал; None → громкий dormant. Модуль в
+    Tier-B реестр НЕ возвращён (см. docs/analytics_relocation_plan).
+    """
+    return None

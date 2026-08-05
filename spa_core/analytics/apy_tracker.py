@@ -137,3 +137,57 @@ class APYTracker(BaseAnalytics):
         if total_weight == 0:
             return 0.0
         return round(weighted_sum / total_weight, 4)
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → реальный ряд APY → собственный движок
+    get_trend() (данные инжектируются в стор инстанса в его формате
+    {"ts","apy"}; штатный apy_history.json пуст — трекер никогда не
+    накапливал снапшоты). Окно 90 дней: в ряду есть честная дыра
+    (historical_apy кончается 2026-06-20, живая точка — сегодня),
+    7-дневное окно почти всегда содержало бы <2 точек.
+
+    Fail-closed: <3 точек или trend=UNKNOWN → None.
+    Полярность: DOWN → риск выше 50 (масштаб по |change_bps|), UP → ниже.
+    Без записей: record_snapshot/_save не зовутся.
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    series = _apy.get_series(proto, min_days=3,
+                             data_dir=context.get("data_dir"))
+    if series is None:
+        return None
+    tracker = APYTracker()
+    tracker._data = {
+        "protocol_history": {
+            proto: [{"ts": day + "T00:00:00+00:00", "apy": apy}
+                    for day, apy in series]
+        },
+        "last_updated": None,
+    }
+    trend = tracker.get_trend(proto, days=90)
+    if trend.get("trend") in (None, "UNKNOWN") or trend.get("data_points", 0) < 2:
+        return None
+    change_bps = float(trend.get("change_7d_bps", 0.0) or 0.0)
+    direction = trend["trend"]
+    if direction == "DOWN":
+        risk = 55.0 + min(30.0, abs(change_bps) / 10.0)
+    elif direction == "UP":
+        risk = 45.0 - min(25.0, abs(change_bps) / 10.0)
+    else:
+        risk = 40.0
+    return {
+        "protocol": proto,
+        "risk_score": round(max(0.0, min(100.0, risk)), 2),
+        "trend": direction,
+        "change_bps": change_bps,
+        "avg_apy": trend.get("avg_apy"),
+        "data_points": trend.get("data_points"),
+        "series_last_date": series[-1][0],
+        "source": _apy.SERIES_SOURCE,
+    }

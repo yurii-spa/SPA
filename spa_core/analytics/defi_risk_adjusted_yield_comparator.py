@@ -334,3 +334,81 @@ class DeFiRiskAdjustedYieldComparator:
         except Exception:
             # Advisory module — never crash the caller
             pass
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → реальный ряд APY → собственный движок compare().
+
+    Реальные компоненты из ряда (_apy_series.stats, окно 90 точек):
+    gross_apy (текущая точка), yield_volatility (σ ряда), max_drawdown
+    (просадка APY от пика), days_of_track_record (длина ряда). Структурные
+    риск-компоненты (SC/liquidity/counterparty/IL/regulatory) — из
+    _protocol_facts (kind/tier), помечены в выходе.
+
+    Fail-closed: <30 точек или нет структурного профиля → None.
+    Полярность: composite_risk_score движка уже 0-100 (выше = хуже).
+    Без записей: compare() пишет ring-buffer лог, поэтому context-путь
+    зовёт движковый _evaluate_strategy напрямую (те же пороги-дефолты,
+    что в compare(), та же математика — без побочной записи).
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    st = _apy.stats(proto, min_days=30, window=90,
+                    data_dir=context.get("data_dir"))
+    if st is None:
+        return None
+    facts = _pf.facts_for(proto)
+    profile = _pf.generic_profile_for(proto)
+    if facts is None or profile is None:
+        return None
+    tier = facts["tier"]
+    kind = facts["kind"]
+    sc_risk = {"T1": 20.0, "T2": 40.0, "T3": 60.0}.get(tier, 60.0)
+    liq_risk = {"T1": 15.0, "T2": 35.0, "T3": 55.0}.get(tier, 55.0)
+    if kind in ("leverage_farm", "synthetic_dollar"):
+        liq_risk += 10.0
+    cp_risk = 50.0 if kind == "rwa_credit" else 20.0
+    il_risk = 25.0 if kind == "lp_amm" else 0.0
+    reg_risk = 45.0 if kind == "rwa_credit" else 20.0
+    capital = float(profile["capital_usd"])
+    strategy = {
+        "name": proto,
+        "protocol": proto,
+        "gross_apy_pct": st["current"],
+        "smart_contract_risk_score": sc_risk,
+        "liquidity_risk_score": liq_risk,
+        "counterparty_risk_score": cp_risk,
+        "il_risk_score": il_risk,
+        "regulatory_risk_score": reg_risk,
+        "gas_cost_annual_pct":
+            profile["gas_cost_usd"] * 12.0 / capital * 100.0,
+        "days_of_track_record": st["n"],
+        "max_drawdown_pct": st["max_drawdown_pct"],
+        "yield_volatility_pct": st["std"],
+    }
+    r0 = DeFiRiskAdjustedYieldComparator()._evaluate_strategy(
+        strategy,
+        top_sharpe_thresh=2.0, top_risk_thresh=40.0,
+        high_risk_thresh=60.0, risk_trap_thresh=70.0,
+        risk_trap_yield_thresh=5.0,
+    )
+    score = r0.get("composite_risk_score")
+    if not isinstance(score, (int, float)):
+        return None
+    return {
+        "protocol": proto,
+        "risk_score": round(max(0.0, min(100.0, float(score))), 2),
+        "defi_sharpe_ratio": r0.get("defi_sharpe_ratio"),
+        "label": r0.get("label"),
+        "yield_volatility_pct": round(st["std"], 4),
+        "max_drawdown_pct": round(st["max_drawdown_pct"], 2),
+        "series_days": st["n"],
+        "series_last_date": st["last_date"],
+        "structural_risk_components": "protocol_facts_v1",
+        "source": _apy.SERIES_SOURCE,
+    }

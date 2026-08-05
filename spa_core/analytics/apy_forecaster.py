@@ -430,3 +430,47 @@ def _run_cli(argv: list[str] | None = None) -> None:  # pragma: no cover
 
 if __name__ == "__main__":  # pragma: no cover
     _run_cli()
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора {"protocol": ...} → РЕАЛЬНЫЙ ряд APY из
+    ``_apy_series.get_series`` → собственный движок модуля (compute_ema /
+    compute_trend — та же математика, что в :meth:`ApyForecaster.forecast`,
+    но питается фактическим рядом, а не пустым apy_history.json).
+
+    Fail-closed: <3 фактических точек → None (сигнал НЕ измерен).
+    Полярность: прогнозное СНИЖЕНИЕ доходности → риск выше 50.
+    Без записей в data/ на context-пути.
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    series = _apy.get_series(context["protocol"], min_days=3,
+                             data_dir=context.get("data_dir"))
+    if series is None:
+        return None
+    values = [v for _, v in series]
+    fc = ApyForecaster()
+    ema = fc.compute_ema(values)
+    trend = fc.compute_trend(values)
+    current = values[-1]
+    forecast_apy = max(_FORECAST_MIN_APY,
+                       min(_FORECAST_MAX_APY, ema + trend * 7.0))
+    # Относительное 7-дневное изменение прогноза к текущему уровню:
+    # падение → риск >50, рост → <50 (кламп ±0.5 → risk 0..100).
+    rel = (forecast_apy - current) / max(abs(current), 0.1)
+    rel = max(-0.5, min(0.5, rel))
+    risk = max(0.0, min(100.0, 50.0 - rel * 100.0))
+    return {
+        "protocol": _apy.canonical_protocol(context["protocol"]),
+        "risk_score": round(risk, 2),
+        "current_apy_pct": round(current, 4),
+        "forecast_apy_pct": round(forecast_apy, 4),
+        "trend_per_day": round(trend, 6),
+        "series_days": len(values),
+        "series_last_date": series[-1][0],
+        "source": _apy.SERIES_SOURCE,
+    }

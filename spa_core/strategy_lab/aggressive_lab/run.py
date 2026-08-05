@@ -5,6 +5,8 @@ Two real-data operations, both isolation-verified, both writing only data/aggres
     python3 -m spa_core.strategy_lab.aggressive_lab.run backtest   # REAL 2024-26 replay
     python3 -m spa_core.strategy_lab.aggressive_lab.run paper       # ONE live forward tick
     python3 -m spa_core.strategy_lab.aggressive_lab.run both        # backtest then a live tick
+    # optional: paper --as-of YYYY-MM-DD stamps the tick's date (sandbox/backfill; default = today)
+    # unknown modes are REFUSED (exit 64, fail-CLOSED), never silently ignored
 
 The backtest sources the sUSDe PT/YT implied-yield series from the REAL deep Pendle dataset
 (rates_desk pendle history); the live tick builds a live snapshot from the live feeds. NO mock data.
@@ -100,13 +102,27 @@ def run_daily(as_of: Optional[str] = None) -> dict:
 def main(argv=None) -> int:
     socket.setdefaulttimeout(30)
     argv = list(sys.argv[1:] if argv is None else argv)
-    # NOTE: no argument ⇒ "both", and "both" REWRITES every book's realized_series.jsonl from
-    # scratch (harness.run_backtest), destroying the accumulated forward track. A caller that only
-    # means to advance the paper track MUST pass "paper" explicitly — and must make sure it really
-    # arrives: `export MODULE_ARGS=(paper)` in a launchd wrapper does NOT survive the hop into
-    # agent_template.sh (bash arrays are not exported), which is how the live agent has been
-    # running "both" nightly. Pinned by spa_core/tests/test_aggressive_lab_series_rewrite.py.
+    # NOTE: no argument ⇒ "both". Two defenses now stand where one incident lived (2026-08-05):
+    #   1) the launchd wrapper exports MODULE_ARGS as a plain STRING (agent_aggressive_lab.sh) and
+    #      agent_template.sh splits it — the old `export MODULE_ARGS=(paper)` was a bash ARRAY,
+    #      which does not survive a process boundary, so the module ran "both" nightly;
+    #   2) even in mode "both"/"backtest", harness.run_backtest now PRESERVES accumulated
+    #      phase="forward" rows — a replay can no longer destroy the forward track.
+    # Pinned by spa_core/tests/test_aggressive_lab_series_rewrite.py.
+    as_of: Optional[str] = None
+    if "--as-of" in argv:
+        i = argv.index("--as-of")
+        try:
+            as_of = argv[i + 1]
+        except IndexError:
+            print("--as-of requires a YYYY-MM-DD value", file=sys.stderr)
+            return 64
+        del argv[i:i + 2]
     mode = argv[0] if argv else "both"
+    if mode not in ("paper", "backtest", "both"):
+        # fail-CLOSED: an unrecognized mode must not silently do nothing (or everything)
+        print(f"unknown mode {mode!r} — expected paper | backtest | both", file=sys.stderr)
+        return 64
     out = {}
     if mode in ("backtest", "both"):
         out["backtest"] = run_real_backtest()
@@ -115,7 +131,7 @@ def main(argv=None) -> int:
         # + price, latest value = "live"), NOT a bare AggressiveFeeds() (empty live_loaders → every
         # book fail-closes on missing data, so the forward track never grows). This was the root bug
         # freezing the high-tier track: PaperService defaulted to empty feeds. (2026-07-06)
-        out["paper"] = run_daily()
+        out["paper"] = run_daily(as_of)
     print(json.dumps(out, indent=2, default=str))
     return 0
 

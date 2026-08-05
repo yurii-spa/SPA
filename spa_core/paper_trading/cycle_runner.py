@@ -2253,6 +2253,18 @@ def _run_fundability_pack(data_dir: "str | os.PathLike | None" = None) -> None:
     except Exception as _d30_exc:  # noqa: BLE001 — never crash the cycle
         log.warning("WS5 day30_artifact write failed (non-critical): %s", _d30_exc)
 
+    # 2.1c-pre-a — APY series accumulator (A1 time-series lane, 2026-08-05): the
+    # historical_apy generator died 2026-06-30, so series-hungry analytics held ONE point
+    # for 31 protocols. Appends today's live points (adapter_status) into
+    # data/apy_series_daily.json — idempotent per date, atomic, live-only, gaps stay gaps.
+    try:
+        from spa_core.analytics.apy_series_accumulator import accumulate as _apy_acc
+        _acc = _apy_acc(data_dir=ddir)
+        print(f"  apy_series  : +{_acc.get('appended', 0)} точек ({_acc.get('date')})"
+              + (f" [{_acc['error']}]" if _acc.get("error") else ""))
+    except Exception as _acc_exc:  # noqa: BLE001 — never crash the cycle
+        log.warning("apy_series_accumulator failed (non-critical): %s", _acc_exc)
+
     # 2.1c-pre — RISKWIRE measurements (WS1.2): the facade was built but NOTHING scheduled
     # spa_core.riskwire.facade.build_and_write (documented in test_api_riskwire_freshness),
     # so data/riskwire/measurements.json sat 35 days stale while served public. Attached here

@@ -278,3 +278,79 @@ def _main() -> None:
 
 if __name__ == "__main__":
     _main()
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → реальные ряды APY ВСЕЙ вселенной с ≥31 днём
+    истории → собственный движок compute(): apy_now = последняя точка,
+    apy_30d_ago = ближайшая точка ≤ (последняя дата − 30 дней) ПО ДАТЕ.
+    Контекст-протокол оценивается в рыночном контексте пиров.
+
+    Fail-closed: у контекст-протокола нет 30-дневной глубины → None.
+    Полярность: положительная compression (доходность сжалась) → риск
+    выше 50 (движковая шкала: 49 + compression·0.5, та же формула для
+    per-protocol компоненты). compute() ничего не пишет (save отдельно).
+    """
+    from datetime import date as _d, timedelta as _td
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    data_dir = context.get("data_dir")
+
+    def _pair_30d(name):
+        s = _apy.get_series(name, min_days=31, data_dir=data_dir)
+        if s is None:
+            return None
+        last_day, last_apy = s[-1]
+        target = _d.fromisoformat(last_day) - _td(days=30)
+        ago = None
+        for day, apy in reversed(s[:-1]):
+            if _d.fromisoformat(day) <= target:
+                ago = apy
+                break
+        if ago is None:
+            return None
+        return ago, last_apy
+
+    ours = _pair_30d(proto)
+    if ours is None:
+        return None
+    protocols = []
+    for name in _apy.list_protocols(data_dir=data_dir):
+        pair = _pair_30d(name)
+        if pair is None:
+            continue
+        facts = _pf.facts_for(name)
+        protocols.append({
+            "protocol": name,
+            "apy_30d_ago": pair[0],
+            "apy_now": pair[1],
+            "tvl_usd": float(facts["tvl_usd"]) if facts else 0.0,
+            "category": (facts or {}).get("kind", ""),
+        })
+    if not protocols:
+        return None
+    result = YieldCompressorScore().compute(protocols)
+    r0 = None
+    for row in result.get("per_protocol") or []:
+        if row.get("protocol") == proto:
+            r0 = row
+            break
+    if r0 is None:
+        return None
+    compression = float(r0.get("compression_pct", 0.0))
+    risk = max(0.0, min(100.0, 49.0 + compression * 0.5))
+    return {
+        "protocol": proto,
+        "risk_score": round(risk, 2),
+        "compression_pct": round(compression, 4),
+        "market_compression_score":
+            (result.get("market") or {}).get("market_compression_score"),
+        "compression_regime":
+            (result.get("market") or {}).get("compression_regime"),
+        "source": _apy.SERIES_SOURCE,
+    }

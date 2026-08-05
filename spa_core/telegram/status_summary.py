@@ -42,18 +42,32 @@ def _agents_block() -> str:
     except Exception:
         loaded = "?"
     crit = None
+    stale_txt = ""
+    snapshot_stale = False
     try:
-        d = json.loads((_REPO / "data" / "agent_health.json").read_text(encoding="utf-8"))
+        # Canonical fail-CLOSED reader: an old snapshot's "critical: 0" is
+        # HISTORY, not current health (2026-08-05: 8h-old healthy 69/69 was
+        # shown while 39 agents were down) — mark it stale, never render as OK.
+        from spa_core.monitoring.agent_health_monitor import load_report
+        d = load_report(_REPO / "data")
         crit = d.get("critical_count")
         if crit is None:
             agents = d.get("agents") or d.get("checks") or []
             if isinstance(agents, list):
                 crit = sum(1 for a in agents if str(a.get("status", "")).upper() in ("CRIT", "CRITICAL"))
+        snapshot_stale = bool(d.get("snapshot_stale"))
+        if snapshot_stale:
+            age = d.get("snapshot_age_min")
+            age_txt = f" ({age / 60.0:.1f} ч назад)" if isinstance(age, (int, float)) else ""
+            stale_txt = f" · снимок НЕСВЕЖИЙ{age_txt} — состояние флота неизвестно"
     except Exception:
         crit = None
-    icon = "✅" if crit == 0 else ("⚠️" if crit else "❔")
-    crit_txt = f", CRITICAL: {crit}" if crit is not None else ""
-    return f"{icon} <b>Агенты:</b> загружено {html.escape(str(loaded))}{crit_txt}"
+    if snapshot_stale:
+        icon = "❔"
+    else:
+        icon = "✅" if crit == 0 else ("⚠️" if crit else "❔")
+    crit_txt = f", CRITICAL: {crit}" if (crit is not None and not snapshot_stale) else ""
+    return f"{icon} <b>Агенты:</b> загружено {html.escape(str(loaded))}{crit_txt}{html.escape(stale_txt)}"
 
 
 def _sessions_block() -> str:

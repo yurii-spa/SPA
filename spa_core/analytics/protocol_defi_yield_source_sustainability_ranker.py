@@ -521,3 +521,68 @@ if __name__ == "__main__":
     ranker = ProtocolDeFiYieldSourceSustainabilityRanker()
     result = ranker.rank(sample_sources, {})
     print(json.dumps(result, indent=2))
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → реальный ряд APY → собственный движок
+    _analyze_source (та же математика, что rank(); rank() не используется,
+    потому что безусловно пишет ring-buffer лог).
+
+    Реальные поля из ряда (окно 90 точек): current_apy, apy_90d_avg,
+    apy_90d_std. Виды lending/vault/rwa_credit/fixed_yield: эмиссии 0,
+    revenue_coverage = 3.0 (эмиссионных затрат нет, процент = выручка —
+    покрытие полное по построению, порог движка ≥3 → полный балл);
+    yield_type / advantage / horizon — тировые структурные константы.
+    Прочие виды → None (делить APY на organic/emission нечем).
+
+    Fail-closed: <30 точек / не тот kind → None.
+    Полярность: sustainability_score ВЫШЕ=ЛУЧШЕ → risk = 100 − score.
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    facts = _pf.facts_for(proto)
+    if facts is None or facts.get("kind") not in (
+            "lending", "vault", "rwa_credit", "fixed_yield"):
+        return None
+    st = _apy.stats(proto, min_days=30, window=90,
+                    data_dir=context.get("data_dir"))
+    if st is None:
+        return None
+    tier = facts["tier"]
+    source = {
+        "name": proto,
+        "protocol": proto,
+        "yield_type": ("real_world_yield" if facts["kind"] == "rwa_credit"
+                       else "lending_interest"),
+        "current_apy_pct": st["current"],
+        "apy_90d_avg_pct": st["mean"],
+        "apy_90d_std_pct": st["std"],
+        "token_emission_component_pct": 0.0,
+        "has_real_revenue_backing": True,
+        "revenue_coverage_ratio": 3.0,
+        "competitive_advantage": {"T1": "network_effect", "T2": "efficiency",
+                                  "T3": "none"}.get(tier, "none"),
+        "sustainability_horizon_months": {"T1": 36.0, "T2": 18.0,
+                                          "T3": 6.0}.get(tier, 6.0),
+    }
+    r0 = ProtocolDeFiYieldSourceSustainabilityRanker()._analyze_source(
+        source, {})
+    score = r0.get("sustainability_score")
+    if not isinstance(score, (int, float)):
+        return None
+    return {
+        "protocol": proto,
+        "risk_score": round(max(0.0, min(100.0, 100.0 - float(score))), 2),
+        "sustainability_score": round(float(score), 2),
+        "apy_stability_score": r0.get("apy_stability_score"),
+        "label": r0.get("label"),
+        "series_days": st["n"],
+        "series_last_date": st["last_date"],
+        "structural_fields": "protocol_facts_v1",
+        "source": _apy.SERIES_SOURCE,
+    }

@@ -679,3 +679,85 @@ class RiskBudgetManager:
 
         # Atomic write: tmp → os.replace
         atomic_save(doc, str(out_path))
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → РЕАЛЬНЫЙ портфель (data/current_positions.json)
+    + риск-оценки протоколов из data/apy_ranking.json (risk_score 0-1,
+    живой снапшот цикла) → собственный движок get_risk_report() → вклад
+    контекст-протокола в риск-бюджет портфеля.
+
+    Fail-closed: нет позиций / у какого-то held-протокола нет risk_score в
+    ranking-снапшоте → None (бюджет по неполной карте — занижение).
+    Протокол вне портфеля → честные 2.0 (риск-бюджета не потребляет).
+    Полярность: risk = contribution_pct (0-100, выше = хуже).
+    Без записей: get_risk_report read-only (save_report не зовём).
+    """
+    import json as _json
+    from pathlib import Path as _Path
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    dd = _Path(context.get("data_dir") or _apy.DATA_DIR)
+    try:
+        positions = (_json.loads((dd / "current_positions.json")
+                                 .read_text(encoding="utf-8"))
+                     .get("positions"))
+        ranking = _json.loads((dd / "apy_ranking.json")
+                              .read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(positions, dict) or not positions:
+        return None
+    risk_by_proto = {}
+    for row in ranking.get("by_apy") or []:
+        if isinstance(row, dict) and isinstance(
+                row.get("risk_score"), (int, float)):
+            risk_by_proto[str(row.get("protocol"))] = float(row["risk_score"])
+    adapters = []
+    weights = []
+    held = {}
+    for name, usd in positions.items():
+        if not isinstance(usd, (int, float)) or usd <= 0:
+            continue
+        rs = risk_by_proto.get(name)
+        if rs is None:
+            return None  # неполная карта риска held-протоколов → отказ
+        adapters.append({"id": name, "risk_score": max(0.0, min(1.0, rs))})
+        weights.append(float(usd))
+        held[name] = float(usd)
+    if not adapters:
+        return None
+    # canonical → как записан в позициях (позиции пишутся сырыми именами)
+    held_name = None
+    for name in held:
+        if _apy.canonical_protocol(name) == proto or name == proto:
+            held_name = name
+            break
+    report = RiskBudgetManager().get_risk_report(adapters, weights)
+    if held_name is None:
+        # Неизвестный вселенной протокол → None (не «нулевой бюджет»):
+        # утверждать про него хоть что-то — фабрикация.
+        if _pf.facts_for(proto) is None:
+            return None
+        return {
+            "protocol": proto,
+            "risk_score": 2.0,
+            "note": "protocol not in current portfolio — "
+                    "no risk budget consumed",
+            "source": "current_positions+apy_ranking",
+        }
+    contrib = float((report.get("contributions") or {}).get(held_name, 0.0))
+    return {
+        "protocol": proto,
+        "risk_score": round(max(0.0, min(100.0, contrib)), 2),
+        "contribution_pct": round(contrib, 2),
+        "portfolio_vol": report.get("portfolio_vol"),
+        "diversification_ratio": report.get("diversification_ratio"),
+        "warnings": report.get("warnings"),
+        "source": "current_positions+apy_ranking",
+    }

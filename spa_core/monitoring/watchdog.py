@@ -134,11 +134,19 @@ def _status_age_minutes(status_file: Path) -> float | None:
         return None
 
 
-def _send_telegram(msg: str) -> bool | None:
+def _send_telegram(msg: str, dedup_key: str | None = None) -> bool | None:
     """Route watchdog escalation through the SINGLE push authority (Tier-1).
 
     Phase-1 rewire: a core agent down/escalation is a genuine interrupt →
     push_policy ``core_agent_down`` (edge-triggered). Never raises.
+
+    ``dedup_key`` — stable fingerprint of the concrete incident (sorted guardian
+    labels being escalated). The ``core_agent_down`` class is shared with
+    self_heal/uptime_monitor and nothing ever resolves it, so without a
+    fingerprint the FIRST incident left the class ``bad`` and every later,
+    DIFFERENT guardian incident was refused (2026-08-05: alerts_undelivered
+    [self_heal, threat_reactor], refused_by_push_policy). The same guardian
+    persisting broken keeps the same fingerprint and stays deduped.
 
     Tri-state, because "we tried" is not "the owner was told":
       * ``True``  — the push authority reports the message was sent;
@@ -155,6 +163,7 @@ def _send_telegram(msg: str) -> bool | None:
     try:
         result = push_policy.push_critical(
             "core_agent_down", "CRITICAL", "SPA Watchdog", msg,
+            dedup_key=dedup_key,
         )
     except Exception:  # noqa: BLE001 — documented as never raising; do not trust that blindly
         return None
@@ -293,7 +302,10 @@ def run_watchdog(dry_run: bool = False) -> dict:
                 lines.append(f"❌ {f}")
 
             attempted = list(send_labels)
-            outcome = _send_telegram("\n".join(lines))
+            outcome = _send_telegram(
+                "\n".join(lines),
+                dedup_key="watchdog:" + "|".join(sorted(set(send_labels))),
+            )
 
             if outcome is True:
                 delivered = list(send_labels)

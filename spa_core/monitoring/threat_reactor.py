@@ -156,7 +156,7 @@ def _kickstart_cycle() -> None:
         pass
 
 
-def _send_telegram(msg: str) -> None:
+def _send_telegram(msg: str, dedup_key: str | None = None) -> None:
     """Route the kill-switch alert through the SINGLE push authority (Tier-1).
 
     Phase-1 rewire: threat_reactor no longer calls send_message directly. The
@@ -164,6 +164,12 @@ def _send_telegram(msg: str) -> None:
     so it pushes the whitelisted ``kill_switch`` key via push_policy. It is
     edge-triggered, so a kill that stays active does not re-push every 5 min.
     Never raises.
+
+    ``dedup_key`` — stable fingerprint of THIS activation (the threat list).
+    Without it, a stale ``kill_switch`` bad-state from an old activation
+    (measured in prod: stuck ``bad`` since 2026-07-04 with entry_pushed=false)
+    silences every future, DIFFERENT kill-switch firing — the one alert that
+    must never be eaten.
     """
     try:
         from spa_core.telegram import push_policy
@@ -172,6 +178,7 @@ def _send_telegram(msg: str) -> None:
             "CRITICAL",
             "SPA Threat Reactor — Kill Switch",
             msg,
+            dedup_key=dedup_key,
         )
     except Exception:  # noqa: BLE001
         pass
@@ -197,20 +204,23 @@ def run_reactor(dry_run: bool = False) -> dict:
 
     if threats and not already and not dry_run:
         reason = "threat_reactor: " + "; ".join(threats)
+        threat_fp = "threat_reactor:" + "|".join(sorted(threats))
         if _activate(reason):
             acted = True
             _kickstart_cycle()
             _send_telegram(
                 "🚨 <b>SPA THREAT REACTOR — KILL-SWITCH ACTIVATED</b>\n"
                 + "\n".join("• " + t for t in threats)
-                + "\n→ портфель уходит в кэш на ближайшем цикле (запущен принудительно)."
+                + "\n→ портфель уходит в кэш на ближайшем цикле (запущен принудительно).",
+                dedup_key=threat_fp,
             )
         else:
             activation_failed = True
             _send_telegram(
                 "⛔ <b>SPA THREAT REACTOR — НЕ СМОГ активировать kill-switch!</b>\n"
                 + "\n".join("• " + t for t in threats)
-                + "\n→ ТРЕБУЕТСЯ РУЧНОЕ ВМЕШАТЕЛЬСТВО."
+                + "\n→ ТРЕБУЕТСЯ РУЧНОЕ ВМЕШАТЕЛЬСТВО.",
+                dedup_key="activation_failed:" + threat_fp,
             )
 
     report = {

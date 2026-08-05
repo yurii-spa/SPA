@@ -361,3 +361,72 @@ if __name__ == "__main__":
     normalizer = ProtocolDeFiCrossChainYieldNormalizer()
     result = normalizer.normalize(demo_opps, {})
     print(json.dumps(result, indent=2))
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → последняя РЕАЛЬНАЯ точка APY протокола →
+    собственная цепочка движка (bridge/gas-фрикция → chain-risk-adjusted
+    APY → net normalized APY → viability). Издержки и chain — из
+    структурного профиля _protocol_facts.
+
+    Fail-closed: нет точки / нет профиля → None.
+    Полярность: чем меньше net-APY остаётся после фрикции и chain-риска
+    относительно номинала, тем выше риск; UNVIABLE → максимум шкалы.
+    Без записей: normalize() пишет ring-buffer лог, поэтому context-путь
+    зовёт помощники движка напрямую (та же математика, без записи).
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    point = _apy.latest(proto, data_dir=context.get("data_dir"))
+    profile = _pf.generic_profile_for(proto)
+    if point is None or profile is None:
+        return None
+    nominal = point[1]
+    if nominal < 0:
+        return None
+    chain = profile["chain"]
+    opp = {
+        "name": proto,
+        "chain": chain,
+        "nominal_apy_pct": nominal,
+        "position_size_usd": float(profile["capital_usd"]),
+        "min_viable_position_usd": 1_000.0,
+        "bridge_cost_usd_one_way": float(profile["bridge_cost_usd"]),
+        "bridge_cost_usd_return": float(profile["bridge_cost_usd"]),
+        "gas_cost_per_interaction_usd": float(profile["gas_cost_usd"]),
+        "interactions_per_month": 2,
+        "bridge_time_hours": 0.0 if chain == "ethereum" else 1.0,
+    }
+    eng = ProtocolDeFiCrossChainYieldNormalizer()
+    total_bridge = eng._total_bridge_cost(opp)
+    bridge_ann = eng._bridge_cost_annualized_pct(opp, total_bridge)
+    monthly_gas = eng._monthly_gas_cost(opp)
+    friction = eng._total_friction_pct(bridge_ann, monthly_gas,
+                                       opp["position_size_usd"])
+    chain_adj = eng._chain_risk_adjusted_apy(opp)
+    net_apy = eng._net_normalized_apy(chain_adj, friction)
+    viability = eng._position_viability_score(opp, net_apy, monthly_gas)
+    label = eng._normalized_label(opp, net_apy, friction, viability, nominal)
+    if label == "UNVIABLE":
+        risk = 90.0
+    else:
+        # Доля номинала, съеденная фрикцией и chain-риском (0..1) → 0..80.
+        eaten = 0.0 if nominal <= 0 else max(0.0, min(1.0, (nominal - net_apy)
+                                                      / nominal))
+        risk = 10.0 + eaten * 70.0
+    return {
+        "protocol": proto,
+        "risk_score": round(max(0.0, min(100.0, risk)), 2),
+        "nominal_apy_pct": round(nominal, 4),
+        "net_normalized_apy_pct": round(net_apy, 4),
+        "total_friction_pct": round(friction, 4),
+        "position_viability_score": round(viability, 2),
+        "normalized_label": label,
+        "series_last_date": point[0],
+        "source": _apy.SERIES_SOURCE,
+    }

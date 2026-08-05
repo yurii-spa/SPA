@@ -63,7 +63,26 @@ _AUTOPUSH_LOG = str(_PROJECT_ROOT / "logs" / "auto_push.log")
 OK = "OK"
 WARNING = "WARNING"
 CRITICAL = "CRITICAL"
+# Reader-side verdicts (never written by the monitor itself): a snapshot older
+# than its freshness contract is STALE — its healthy counts are HISTORY, not a
+# statement about the fleet right now (2026-08-05: an 8h-old "healthy 69/69"
+# was displayed while 39 agents were down since 07:00Z).
+STALE = "STALE"
+UNCHECKED = "UNCHECKED"
 _SEVERITY = {OK: 0, WARNING: 1, CRITICAL: 2}
+
+# Snapshot freshness contract (self-describing — embedded in every report so
+# consumers do not need to hard-code the monitor's cadence):
+# com.spa.agent_health runs HOURLY; a snapshot older than 1 missed run + buffer
+# must be treated as unknown fleet state, never as current health.
+SNAPSHOT_CADENCE_MIN = 60.0
+SNAPSHOT_STALE_MIN = 90.0
+
+# WAKE_STORM: N agents carrying a nonzero last exit at the same time = a mass
+# simultaneous failure (host wake / broken deploy / exec-bit strip), a distinct
+# CRITICAL signal even when each individual agent would only be WARNING.
+# 2026-08-05 07:00Z: 39 of 69 agents fell in the same minute.
+WAKE_STORM_MIN_AGENTS = 5
 
 # Shared red-flag severity vocabulary + portfolio_health field reader (single
 # source — N8). Matching the critical SET (not a hard-coded literal) means a
@@ -533,18 +552,31 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
         issues.append("malformed plist")
         health.status = _worst(health.status, WARNING)
 
-    # 3) Non-zero last exit status
-    # Skip this check for always-on servers that are currently running (PID != 0):
-    # launchctl retains the previous exit code even after a successful restart, so
-    # -15 (SIGTERM from a clean stop) would produce a false CRITICAL while the
-    # process is alive.
+    # 3) Non-zero last exit status — an agent whose LAST exit was a failure can
+    # never be OK. The ONLY carve-out is an always-on server that is currently
+    # running (PID != 0) whose last exit was a SIGNAL (negative code): launchctl
+    # retains the previous exit even after a successful restart, so -15 (SIGTERM
+    # from a clean stop/redeploy) would produce a false alarm while the process
+    # is alive. A POSITIVE nonzero exit is a real crash of the previous
+    # incarnation and stays visible as WARNING even when KeepAlive restarted it
+    # (2026-08-05: telegram_bot last_exit=1 was reported OK — fail-OPEN).
     _server_alive = cat == CAT_ALWAYS_ON and health.pid != 0
-    if health.last_exit not in (None, 0) and not _server_alive:
-        issues.append(f"last_exit={health.last_exit}")
-        # always-on server: any nonzero exit means crash → CRITICAL.
-        if cat == CAT_ALWAYS_ON:
+    _clean_signal_restart = (
+        _server_alive
+        and isinstance(health.last_exit, int)
+        and health.last_exit < 0
+    )
+    if health.last_exit not in (None, 0) and not _clean_signal_restart:
+        if _server_alive:
+            # crashed previously, KeepAlive brought it back → visible, not OK
+            issues.append(f"last_exit={health.last_exit} (prior crash; restarted)")
+            sev = WARNING
+        elif cat == CAT_ALWAYS_ON:
+            # always-on server NOT running with a nonzero exit → crash → CRITICAL
+            issues.append(f"last_exit={health.last_exit}")
             sev = CRITICAL
         else:
+            issues.append(f"last_exit={health.last_exit}")
             sev = WARNING
         health.status = _worst(health.status, sev)
 
@@ -901,6 +933,11 @@ def build_report(agents: List[AgentHealth], system_checks: dict,
 
     return {
         "timestamp": now.isoformat(),
+        # Self-describing freshness contract: consumers (and load_report) judge
+        # snapshot age against THIS, so a dead monitor can never keep serving
+        # yesterday's "healthy 69/69" as if it were current.
+        "cadence_minutes": SNAPSHOT_CADENCE_MIN,
+        "stale_after_minutes": SNAPSHOT_STALE_MIN,
         "overall_status": overall,
         "healthy_count": healthy,
         "warning_count": warning,
@@ -910,6 +947,123 @@ def build_report(agents: List[AgentHealth], system_checks: dict,
         "system_checks": system_checks,
         "system_issues": system_issues,
     }
+
+
+# ===========================================================================
+# Mass simultaneous failure (WAKE_STORM)
+# ===========================================================================
+def detect_wake_storm(agents: List[AgentHealth],
+                      min_agents: int = WAKE_STORM_MIN_AGENTS) -> Optional[dict]:
+    """Detect a mass simultaneous agent failure.
+
+    N (>= ``min_agents``) agents carrying a nonzero last exit at the same time
+    is a fleet-level event (host wake storm / broken deploy / stripped exec
+    bits), not N independent WARNINGs — per-agent rollup alone under-reports it
+    (2026-08-04: 67/69 dead for 5h; 2026-08-05 07:00Z: 39 fell in one minute).
+
+    Only counts agents that are actually flagged (status != OK) with a nonzero
+    exit code — an alive KeepAlive server whose previous incarnation was
+    SIGTERM'd is not part of a storm. Returns None when below threshold.
+    """
+    failed = [
+        a for a in agents
+        if a.status != OK and a.last_exit not in (None, 0)
+    ]
+    if len(failed) < max(1, int(min_agents)):
+        return None
+    # Best-effort simultaneity evidence: cluster the freshest-log ages (minutes)
+    # of the failed agents into 15-min buckets; the biggest bucket approximates
+    # the common failure timestamp.
+    buckets: Dict[int, int] = {}
+    for a in failed:
+        if a.log_age_min is not None:
+            buckets[int(a.log_age_min // 15)] = buckets.get(int(a.log_age_min // 15), 0) + 1
+    cluster = max(buckets.values()) if buckets else 0
+    cluster_age_min = None
+    if buckets:
+        top = max(buckets.items(), key=lambda kv: kv[1])[0]
+        cluster_age_min = top * 15
+    exit_codes: Dict[str, int] = {}
+    for a in failed:
+        k = str(a.last_exit)
+        exit_codes[k] = exit_codes.get(k, 0) + 1
+    return {
+        "count": len(failed),
+        "labels": sorted(a.label for a in failed)[:20],
+        "exit_codes": exit_codes,
+        "clustered_count": cluster,
+        "cluster_age_min": cluster_age_min,
+    }
+
+
+# ===========================================================================
+# Canonical fail-CLOSED reader for consumers of data/agent_health.json
+# ===========================================================================
+def load_report(data_dir: Path | str = _DEFAULT_DATA_DIR,
+                now: Optional[datetime] = None) -> dict:
+    """Load ``agent_health.json`` and annotate its FRESHNESS. Never raises.
+
+    The 2026-08-05 fail-OPEN: 39 agents fell at 07:00Z, the hourly monitor was
+    among them, and at 08:43 every consumer kept rendering the 8h-old snapshot's
+    "healthy 69/69, critical 0" as if it were current. A snapshot's healthy
+    counts are claims about the moment it was WRITTEN — consumers must go
+    through this reader (or apply the same rule) so stale health is displayed
+    as UNKNOWN, not as health.
+
+    Returns the report dict with three added fields:
+      * ``snapshot_age_min``  — minutes since the report's ``timestamp`` (None
+        if the timestamp is missing/unparseable);
+      * ``snapshot_stale``    — True when the age exceeds the report's own
+        ``stale_after_minutes`` contract (default SNAPSHOT_STALE_MIN), or when
+        the age cannot be established at all (fail-CLOSED);
+      * ``snapshot_reason``   — human-readable staleness reason (only when stale).
+
+    When stale, ``overall_status`` is coerced: a stale OK/WARNING becomes
+    ``STALE`` (old good news must not read as current health), and the original
+    is preserved in ``raw_overall_status``. A stale CRITICAL stays CRITICAL —
+    old bad news never becomes reassurance. A missing/unreadable file returns a
+    minimal ``UNCHECKED`` report (fail-CLOSED, never an empty "all fine").
+    """
+    now = now or _utcnow()
+    p = Path(data_dir) / _OUTPUT_FILENAME
+    doc: Optional[dict] = None
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            loaded = json.load(f)
+        if isinstance(loaded, dict):
+            doc = loaded
+    except (OSError, ValueError) as exc:
+        log.warning("load_report: %s unreadable: %s", p, exc)
+    if doc is None:
+        return {
+            "overall_status": UNCHECKED,
+            "snapshot_age_min": None,
+            "snapshot_stale": True,
+            "snapshot_reason": f"{_OUTPUT_FILENAME} missing or unreadable",
+        }
+
+    ts = _parse_iso(doc.get("timestamp"))
+    age_min: Optional[float] = None
+    if ts is not None:
+        age_min = max(0.0, (now - ts).total_seconds() / 60.0)
+    try:
+        stale_after = float(doc.get("stale_after_minutes") or SNAPSHOT_STALE_MIN)
+    except (TypeError, ValueError):
+        stale_after = SNAPSHOT_STALE_MIN
+
+    stale = age_min is None or age_min > stale_after
+    doc["snapshot_age_min"] = round(age_min, 1) if age_min is not None else None
+    doc["snapshot_stale"] = stale
+    if stale:
+        doc["snapshot_reason"] = (
+            "timestamp missing/unparseable (fail-closed)"
+            if age_min is None
+            else f"snapshot is {_fmt_age(age_min)} old (contract: {stale_after:.0f}min)"
+        )
+        if doc.get("overall_status") != CRITICAL:
+            doc["raw_overall_status"] = doc.get("overall_status")
+            doc["overall_status"] = STALE
+    return doc
 
 
 # ===========================================================================
@@ -1062,6 +1216,20 @@ class AgentHealthMonitor:
 
         sys_checks, sys_status, sys_issues = check_system(
             self.data_dir, self.now, self.autopush_log)
+
+        # WAKE_STORM: a mass simultaneous failure is a fleet-level CRITICAL,
+        # even when each individual agent only rates WARNING (last_exit != 0).
+        storm = detect_wake_storm(agents)
+        if storm:
+            sys_checks["wake_storm"] = storm
+            codes = ", ".join(
+                f"exit {k}×{v}" for k, v in sorted(storm["exit_codes"].items()))
+            sys_issues.append(
+                f"WAKE_STORM: {storm['count']} agents failed simultaneously "
+                f"({codes}) — mass fleet failure, not isolated crashes"
+            )
+            sys_status = _worst(sys_status, CRITICAL)
+
         return build_report(agents, sys_checks, sys_status, sys_issues, self.now)
 
     def _previous(self) -> Optional[dict]:

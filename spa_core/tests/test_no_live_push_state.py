@@ -220,8 +220,15 @@ class TestNoLiveResidueFromTheFixedTests(unittest.TestCase):
         )
 
     def test_threat_reactor_test_stubs_the_sender(self):
+        # 2026-08-05: the stub literal changed with the _send_telegram API
+        # (optional dedup_key — the alerts_undelivered fix); the guard now pins
+        # the new capture-lambda. The guarded property is IDENTICAL: the
+        # owner-notification transport is replaced by an in-memory capture and
+        # restored on teardown.
         target = _REPO_ROOT / "tests" / "test_kill_switch_eval_path.py"
-        self._assert_contains(target, "tr._send_telegram = self.sent_alerts.append")
+        self._assert_contains(
+            target, "lambda msg, dedup_key=None: self.sent_alerts.append(msg)"
+        )
         self._assert_contains(target, "self._tr._send_telegram = self._orig_send")
 
     def test_derisk_e2e_stubs_the_transport(self):

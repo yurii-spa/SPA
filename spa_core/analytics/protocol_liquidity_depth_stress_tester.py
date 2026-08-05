@@ -264,3 +264,77 @@ class ProtocolLiquidityDepthStressTester:
                 os.unlink(tmp_path)
             except OSError:
                 pass
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → структурный ликвидити-профиль протокола
+    (_protocol_facts: exit_liquidity_usd, daily_volume_usd; форма
+    распределения глубины — курируемая константа ПО ВИДУ протокола,
+    помечена) → собственный движок _analyze_pool (та же математика, что
+    test(); test() не используется, потому что безусловно пишет лог).
+
+    Fail-closed: нет факт-профиля или нулевая глубина → None.
+    Полярность: stress_label движка (DEEP…ILLIQUID) + непрерывная
+    компонента от price impact $1M → 0-100 (выше = хуже).
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    facts = _pf.facts_for(proto)
+    if facts is None:
+        return None
+    depth = float(facts.get("exit_liquidity_usd", 0.0))
+    if depth <= 0:
+        return None
+    kind = facts["kind"]
+    tier = facts["tier"]
+    dist = {
+        "lending": (70.0, 90.0, 97.0),
+        "vault": (70.0, 90.0, 97.0),
+        "lp_amm": (40.0, 70.0, 85.0),
+        "fixed_yield": (35.0, 65.0, 85.0),
+        "rwa_credit": (30.0, 60.0, 80.0),
+        "synthetic_dollar": (50.0, 80.0, 92.0),
+        "leverage_farm": (30.0, 60.0, 80.0),
+    }.get(kind, (30.0, 60.0, 80.0))
+    pool = {
+        "protocol": proto,
+        "pair": f"{(facts['assets'] or ['USDC'])[0]}/USDC",
+        "total_liquidity_usd": depth,
+        "daily_volume_usd": float(facts.get("daily_volume_usd", 0.0)),
+        "liquidity_distribution": {
+            "pct_within_1pct": dist[0],
+            "pct_within_5pct": dist[1],
+            "pct_within_10pct": dist[2],
+        },
+        "top_3_lp_concentration_pct": {"T1": 30.0, "T2": 45.0,
+                                       "T3": 60.0}.get(tier, 60.0),
+        "is_concentrated_liquidity": False,
+    }
+    tester = ProtocolLiquidityDepthStressTester()
+    r0 = tester._analyze_pool(pool, dict(tester.DEFAULT_CONFIG))
+    label = r0.get("stress_label")
+    base = {
+        "DEEP_LIQUIDITY": 10.0, "ADEQUATE": 30.0, "THIN": 55.0,
+        "VERY_THIN": 75.0, "ILLIQUID": 90.0,
+        # запасные написания на случай других констант модуля
+        "DEEP": 10.0,
+    }.get(str(label), None)
+    if base is None:
+        return None
+    impact_1m = float(r0.get("price_impact_1m_pct", 0.0) or 0.0)
+    risk = base + min(9.0, impact_1m * 2.0)
+    return {
+        "protocol": proto,
+        "risk_score": round(max(0.0, min(100.0, risk)), 2),
+        "stress_label": label,
+        "price_impact_1m_pct": impact_1m,
+        "total_liquidity_usd": depth,
+        "flags": r0.get("flags"),
+        "structural_fields": "protocol_facts_v1 (форма распределения — "
+                             "курируемая константа по виду)",
+    }

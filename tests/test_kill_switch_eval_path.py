@@ -229,9 +229,14 @@ class TestThreatReactorHeldScoping(unittest.TestCase):
         # replaced — detection, activation, scoping and idempotency below run
         # exactly as before, and no assertion is relaxed (invariant #16). Sends
         # are captured rather than dropped so the alert stays observable.
+        # NOTE 2026-08-05: production _send_telegram grew an optional dedup_key
+        # (per-incident push_policy fingerprint — the alerts_undelivered fix);
+        # the stub mirrors the new signature. Capture/assertions are unchanged.
         self.sent_alerts: list[str] = []
         self._orig_send = tr._send_telegram
-        tr._send_telegram = self.sent_alerts.append  # type: ignore[assignment]
+        tr._send_telegram = (  # type: ignore[assignment]
+            lambda msg, dedup_key=None: self.sent_alerts.append(msg)
+        )
 
     def tearDown(self) -> None:
         self._tr._DATA = self._orig_data

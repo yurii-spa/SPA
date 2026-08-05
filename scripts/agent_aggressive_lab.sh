@@ -8,7 +8,12 @@
 # Log: /tmp/spa_aggressive_lab.log
 export AGENT_NAME="aggressive_lab"
 export MODULE="spa_core.strategy_lab.aggressive_lab.run"
-export MODULE_ARGS=(paper)
+# MODULE_ARGS MUST be a plain STRING here: this wrapper calls agent_template.sh as a CHILD
+# /bin/bash, and a bash ARRAY does not survive `export` across a process boundary — the old
+# `export MODULE_ARGS=(paper)` arrived as NOTHING, the module fell through to mode "both", and
+# the nightly backtest rewrote the forward paper book down to a single forward row (incident
+# measured 2026-08-05; pinned by spa_core/tests/test_aggressive_lab_series_rewrite.py).
+export MODULE_ARGS="paper"
 /bin/bash /Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_template.sh
 
 # Step 2: regenerate the 3-tier $100k paper rollup (Core/Balanced/Aggressive) — read-only view.

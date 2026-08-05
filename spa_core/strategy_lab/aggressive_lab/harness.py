@@ -9,9 +9,11 @@ Lane 2 (loader/risk/scorecard) consumes exactly these — the data contract docu
 
 THE SERIES FILE IS **NOT APPEND-ONLY** (it said so here until 2026-08-01, and that was wrong —
 card ``agent-aggressive-lab-books-are-regenerated``). Only the paper path appends;
-:func:`run_backtest` REWRITES the whole file from scratch, so a replay both re-derives every past
-backtest row from TODAY's feed data and DESTROYS any forward points already accumulated. Two
-consequences a reader must not be surprised by:
+:func:`run_backtest` REWRITES the phase="backtest" rows from scratch, so a replay re-derives every
+past backtest row from TODAY's feed data. Since 2026-08-05 the forward rows are PRESERVED across a
+replay (re-appended, re-chained) — a replay can no longer destroy the accumulated forward track,
+which is what had kept the live books at a single forward row forever. Two consequences a reader
+must not be surprised by:
   • a number published off these books is not reproducible after the fact — the same script on the
     same date grid gives a different answer once an upstream history moves. Measured on the live
     books against the 2026-07-25 repository backup: ``susde_dn`` 853 of 853 rows changed, max
@@ -281,17 +283,20 @@ def run_backtest(
     snaps: List[MarketSnapshot] = feeds.historical_snapshots(start, end)  # fail-closed if empty
     strats = build_roster(config, notional_usd=notional_usd)
 
-    # fresh backtest series: rewrite each per-strategy file FROM SCRATCH. The backtest fully owns
-    # the file it writes here — which also means it DELETES whatever was in it, including forward
-    # points a paper tick had already accumulated. That is intended for a clean replay and is fine
-    # for an on-demand run; it is NOT fine on a daily schedule, because then the forward track can
-    # never be longer than the one point the tick that follows appends (this is exactly what the
-    # live books show, and why `com.spa.aggressive_lab` — which means to run `paper` but reaches
-    # the module with no argument at all, so `main` falls through to mode "both" — keeps the higher
-    # tiers permanently at `warming_up` / `trustworthy: false`; owner card, see the module
-    # docstring). Callers who want to keep the forward track must pass mode "paper".
+    # The backtest owns ONLY the phase="backtest" rows of each series file. It rewrites those from
+    # scratch (clean replay), but phase="forward" rows the paper ticks accumulated are PRESERVED —
+    # re-appended after the fresh replay, re-chained so the proof chain stays intact. GUARD, not a
+    # nicety: until 2026-08-05 this function truncated the WHOLE file, and because the launchd
+    # wrapper's `export MODULE_ARGS=(paper)` never reached the module (bash arrays don't cross a
+    # process boundary → mode "both"), the nightly replay destroyed the forward track every night —
+    # the live books held exactly ONE forward row forever, keeping the higher tiers permanently at
+    # `warming_up` / `trustworthy: false`. The forward track is the PRODUCT (it is what proves the
+    # Balanced/Aggressive packages honestly); no replay, scheduled or manual, may shorten it.
+    # Pinned by spa_core/tests/test_aggressive_lab_series_rewrite.py.
     summary = {}
     for sid, strat in strats.items():
+        preserved_forward = [p for p in _io.read_jsonl(_series_path(root, sid))
+                             if p.get("phase") == "forward"]
         series: List[dict] = []
         prev_hash = None
         for snap in snaps:
@@ -300,6 +305,16 @@ def run_backtest(
             pt = proof.chain_point(_point(snap.date, strat, phase="backtest"), prev_hash)
             prev_hash = pt["hash"]
             series.append(pt)
+        if preserved_forward:
+            log.warning(
+                "aggressive_lab backtest %s: preserving %d forward point(s) accumulated by the "
+                "paper track (%s..%s) — a replay must NEVER shorten the forward book",
+                sid, len(preserved_forward),
+                preserved_forward[0].get("date"), preserved_forward[-1].get("date"))
+            for p in preserved_forward:
+                chained = proof.chain_point(p, prev_hash)
+                prev_hash = chained["hash"]
+                series.append(chained)
         text = "\n".join(__import__("json").dumps(p, sort_keys=True) for p in series) + "\n"
         _io.atomic_write_text(_series_path(root, sid), text, lab_root=root)
         _write_meta(root, strat)

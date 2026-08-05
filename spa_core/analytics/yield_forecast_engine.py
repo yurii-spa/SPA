@@ -570,3 +570,46 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → реальный ряд APY → собственный движок
+    ensemble_forecast (0.4·linear + 0.6·EMA, 7 дней вперёд).
+
+    Fail-closed: <8 точек → None.
+    Полярность: прогнозное снижение доходности → риск выше 50; величина
+    взвешена на confidence (R²) движка — слабый фит тянет к нейтрали.
+    ensemble_forecast ничего не пишет.
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    series = _apy.get_series(proto, min_days=8,
+                             data_dir=context.get("data_dir"))
+    if series is None:
+        return None
+    values = [v for _, v in series]
+    fr = YieldForecastEngine().ensemble_forecast(values, forecast_days=7)
+    result = fr.to_dict() if hasattr(fr, "to_dict") else dict(fr.__dict__)
+    projected = float(result.get("projected_apy", 0.0))
+    confidence = float(result.get("confidence", 0.0) or 0.0)
+    confidence = max(0.0, min(1.0, confidence))
+    current = values[-1]
+    rel = (projected - current) / max(abs(current), 0.1)
+    rel = max(-0.5, min(0.5, rel))
+    risk = 50.0 - rel * 100.0 * confidence
+    return {
+        "protocol": proto,
+        "risk_score": round(max(0.0, min(100.0, risk)), 2),
+        "projected_apy_pct": round(projected, 4),
+        "current_apy_pct": round(current, 4),
+        "confidence_r2": round(confidence, 4),
+        "trend_direction": result.get("trend_direction"),
+        "series_days": len(values),
+        "series_last_date": series[-1][0],
+        "source": _apy.SERIES_SOURCE,
+    }

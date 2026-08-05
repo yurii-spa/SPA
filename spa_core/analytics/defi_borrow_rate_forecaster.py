@@ -341,3 +341,86 @@ class DeFiBorrowRateForecaster:
             "spike_imminent_count": spike_count,
             "falling_count": fall_count,
         }
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → реальный ряд APY → собственный kink-движок.
+
+    Честная рамка: рядов utilization в data/ нет. Для LENDING-протоколов
+    ниже кинка supply-APY ≈ borrow_rate(U)·U·(1−RF), а borrow_rate ∝ U,
+    т.е. APY ∝ U² — поэтому относительное изменение utilization выводится
+    из относительного изменения РЕАЛЬНОГО APY как sqrt(apy_then/apy_now).
+    Это документированное детерминированное соотношение модели процентных
+    ставок, а не подгонка. Для не-lending видов — None (движку нечем
+    честно наполнить вход).
+
+    Fail-closed: kind≠lending, <8 точек или нет точки ≥7 дней назад → None.
+    Полярность: rate_shock_risk_score движка уже 0-100 (выше = хуже).
+    Без записей: config write_log=False.
+    """
+    import math as _math
+    from datetime import date as _d, timedelta as _td
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    facts = _pf.facts_for(proto)
+    if facts is None or facts.get("kind") != "lending":
+        return None
+    series = _apy.get_series(proto, min_days=8,
+                             data_dir=context.get("data_dir"))
+    if series is None:
+        return None
+    cur_day, cur_apy = series[-1]
+    if cur_apy <= 0:
+        return None
+    # Точка ≥7 календарных дней назад (по ДАТЕ, не по индексу).
+    target = _d.fromisoformat(cur_day) - _td(days=7)
+    apy_7d = None
+    for day, apy in reversed(series[:-1]):
+        if _d.fromisoformat(day) <= target:
+            apy_7d = apy
+            break
+    if apy_7d is None or apy_7d <= 0:
+        return None
+    util = float(facts["utilization_pct"])
+    if util <= 0:
+        return None
+    util_7d = max(1.0, min(99.0, util * _math.sqrt(apy_7d / cur_apy)))
+    vals_30 = [v for _, v in series[-30:] if v > 0]
+    if vals_30:
+        mean_30 = sum(vals_30) / len(vals_30)
+        util_30 = max(1.0, min(99.0, util * _math.sqrt(mean_30 / cur_apy)))
+    else:
+        util_30 = util
+    market = {
+        "protocol": proto,
+        "asset": (facts["assets"] or ["USDC"])[0],
+        "current_utilization_pct": util,
+        "kink_pct": 90.0,  # стандарт Aave-класса IR-кривых
+        "utilization_7d_ago_pct": util_7d,
+        "utilization_30d_avg_pct": util_30,
+        "total_supply_usd": float(facts["tvl_usd"]),
+    }
+    result = DeFiBorrowRateForecaster().forecast(
+        [market], config={"write_log": False})
+    markets = result.get("markets") or []
+    if not markets:
+        return None
+    m0 = markets[0]
+    score = m0.get("rate_shock_risk_score")
+    if not isinstance(score, (int, float)):
+        return None
+    return {
+        "protocol": proto,
+        "risk_score": round(max(0.0, min(100.0, float(score))), 2),
+        "trend_direction": m0.get("trend_direction"),
+        "rate_change_bps": m0.get("rate_change_bps"),
+        "forecast_label": m0.get("forecast_label"),
+        "series_days": len(series),
+        "series_last_date": cur_day,
+        "source": _apy.SERIES_SOURCE,
+    }

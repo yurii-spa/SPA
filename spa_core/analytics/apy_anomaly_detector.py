@@ -678,3 +678,47 @@ def main(argv: Optional[List[str]] = None) -> None:
 
 if __name__ == "__main__":
     main()
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → реальный ряд APY → собственный движок
+    detect(): история = все точки кроме последней, текущая = последняя.
+    Z-score масштабо-инвариантен, поэтому проценты подаются как есть.
+
+    Fail-closed: <8 точек → None.
+    Полярность: NORMAL → низкий риск; SPIKE/DROP → 50 + |z|·10 (кламп 100).
+    detect() ничего не пишет (save отдельным шагом — не зовём).
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    series = _apy.get_series(proto, min_days=8,
+                             data_dir=context.get("data_dir"))
+    if series is None:
+        return None
+    values = [v for _, v in series]
+    result = APYAnomalyDetector().detect(
+        {proto: values[:-1]}, {proto: values[-1]})
+    per = result.get("per_protocol") or []
+    if not per:
+        return None
+    r0 = per[0]
+    z = r0.get("z_score")
+    if r0.get("is_anomaly"):
+        risk = 50.0 + min(50.0, abs(float(z or 0.0)) * 10.0)
+    else:
+        risk = 15.0 + min(20.0, abs(float(z or 0.0)) * 10.0)
+    return {
+        "protocol": proto,
+        "risk_score": round(max(0.0, min(100.0, risk)), 2),
+        "label": r0.get("label"),
+        "z_score": z,
+        "severity": r0.get("severity"),
+        "series_days": len(values),
+        "series_last_date": series[-1][0],
+        "source": _apy.SERIES_SOURCE,
+    }

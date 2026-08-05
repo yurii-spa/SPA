@@ -299,3 +299,75 @@ class ProtocolDeFiCrossProtocolYieldArbitrageScanner:
         if ratio < _EXCELLENT_THRESHOLD:
             return "EXCELLENT_SWITCH"
         return "ARBITRAGE_BONANZA"
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → последние РЕАЛЬНЫЕ точки APY всех известных
+    протоколов → собственный движок scan(): контекст-протокол = текущая
+    позиция, остальные — кандидаты (издержки входа/выхода из газа чейна в
+    структурном профиле, риск кандидата — по тиру).
+
+    Fail-closed: нет точки / профиля / ни одного кандидата → None.
+    Полярность: это сигнал АЛЬТЕРНАТИВНОЙ СТОИМОСТИ — чем больше честный
+    net-gain от переключения из контекст-протокола, тем выше риск
+    «сидеть в нём» (yield_quality, advisory). scan() ничего не пишет
+    (пишет только scan_and_log).
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    data_dir = context.get("data_dir")
+    latest = _apy.latest_all(data_dir=data_dir)
+    if proto not in latest:
+        return None
+    cur_profile = _pf.generic_profile_for(proto)
+    if cur_profile is None:
+        return None
+    tier_risk = {"T1": 20.0, "T2": 40.0, "T3": 60.0}
+    exit_cost = float(cur_profile["gas_cost_usd"]) * 2.0
+    candidates = []
+    for name in sorted(latest):
+        if name == proto:
+            continue
+        p = _pf.generic_profile_for(name)
+        if p is None:
+            continue
+        facts = _pf.facts_for(name)
+        candidates.append({
+            "protocol": name,
+            "apy_pct": latest[name][1],
+            "entry_cost_usd": float(p["gas_cost_usd"]) * 2.0,
+            "exit_from_current_cost_usd": exit_cost,
+            "risk_score_0_to_100": tier_risk.get(
+                facts["tier"] if facts else "T3", 60.0),
+        })
+    if not candidates:
+        return None
+    position = float(cur_profile["capital_usd"])
+    result = ProtocolDeFiCrossProtocolYieldArbitrageScanner().scan(
+        current_protocol=proto,
+        current_apy_pct=latest[proto][1],
+        position_size_usd=position,
+        candidates=candidates,
+        min_apy_improvement_pct=0.5,
+        holding_days=30,
+    )
+    best = result.get("best_candidate") or {}
+    best_gain = float(best.get("net_gain_usd") or 0.0)
+    # net-gain за holding-период как доля позиции → 0..1 при 0..5%+.
+    gain_ratio = max(0.0, best_gain / position) if position > 0 else 0.0
+    risk = 15.0 + min(1.0, gain_ratio / 0.05) * 65.0
+    return {
+        "protocol": proto,
+        "risk_score": round(max(0.0, min(100.0, risk)), 2),
+        "scanner_label": result.get("scanner_label"),
+        "best_candidate": best.get("protocol"),
+        "best_net_gain_usd": round(best_gain, 2),
+        "opportunity_count": result.get("opportunity_count"),
+        "series_last_date": latest[proto][0],
+        "source": _apy.SERIES_SOURCE,
+    }

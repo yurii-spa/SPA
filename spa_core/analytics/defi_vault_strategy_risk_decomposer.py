@@ -280,3 +280,73 @@ class DeFiVaultStrategyRiskDecomposer:
             _save_log(log_path, entries)
 
         return result
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → структурная декомпозиция риска vault-класса
+    протокола (виды vault / fixed_yield / leverage_farm / synthetic_dollar)
+    через собственный движок decompose(dry_run=True — без записи лога).
+
+    Компоненты 0-10 — из структурной факт-базы: SC-риск по тиру, oracle —
+    по типу оракула, liquidity — по exit-профилю, counterparty — по виду.
+    APY стратегии — РЕАЛЬНАЯ последняя точка ряда, если есть.
+    Lending/lp/rwa-виды → None (не vault-стратегия — есть свои модули).
+
+    Fail-closed: не тот kind / нет фактов → None.
+    Полярность: composite движка уже 0-100 (выше = хуже).
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    facts = _pf.facts_for(proto)
+    if facts is None or facts.get("kind") not in (
+            "vault", "fixed_yield", "leverage_farm", "synthetic_dollar"):
+        return None
+    tier = facts["tier"]
+    kind = facts["kind"]
+    sc = {"T1": 2.0, "T2": 3.5, "T3": 5.5}.get(tier, 5.5)
+    oracle_type = str((facts.get("oracle") or {}).get("oracle_type", "custom"))
+    oracle = {"chainlink": 2.0, "internal_rate": 3.0,
+              "uniswap_twap": 4.0}.get(oracle_type, 5.0)
+    exit_type = str((facts.get("exit") or {}).get("exit_type", ""))
+    liq = 1.5 if exit_type == "instant_withdraw" else 4.5
+    cp = {"synthetic_dollar": 4.5, "leverage_farm": 4.0,
+          "fixed_yield": 3.0, "vault": 2.5}.get(kind, 4.0)
+    point = _apy.latest(proto, data_dir=context.get("data_dir"))
+    vault = {
+        "name": proto,
+        "protocol": proto,
+        "total_tvl_usd": float(facts["tvl_usd"]),
+        "insurance_coverage_pct": float(
+            (facts.get("systemic") or {}).get("insurance_pct_of_tvl", 0.0)),
+        "strategies": [{
+            "name": f"{proto}_core",
+            "allocation_pct": 100.0,
+            "smart_contract_risk": sc,
+            "liquidity_risk": liq,
+            "oracle_risk": oracle,
+            "counterparty_risk": cp,
+            "apy_pct": point[1] if point else 0.0,
+        }],
+    }
+    result = DeFiVaultStrategyRiskDecomposer().decompose(
+        [vault], {}, dry_run=True)
+    v0 = (result.get("vaults") or {}).get(proto)
+    if not isinstance(v0, dict):
+        return None
+    composite = v0.get("composite_risk_score")
+    if not isinstance(composite, (int, float)):
+        return None
+    return {
+        "protocol": proto,
+        "risk_score": round(max(0.0, min(100.0, float(composite))), 2),
+        "dominant_risk_type": v0.get("dominant_risk_type"),
+        "risk_label": v0.get("risk_label"),
+        "apy_pct_real": point[1] if point else None,
+        "structural_fields": "protocol_facts_v1",
+        "source": _apy.SERIES_SOURCE,
+    }

@@ -10,7 +10,9 @@ Tier C (BACKGROUND)  — ежедневная аналитика, не влия�
    "category": str, "weight": float 0-1, "protocols": ["all"] | [str, ...]}
 
 Сгенерировано скриптом + ручная разметка Tier-A (12 канонических модулей ADR-031).
-Счётчики: Tier-A=12, Tier-B=516, Tier-C=180 (всего 708 модулей).
+Счётчики: Tier-A=12, Tier-B=479, Tier-C=180 (всего 671 запись; живой счёт —
+``tier_counts()``). 2026-08-05: +16 Tier-B — линия A1 время-рядов (поток 3
+релокации, module-level analyze(context) на реальных APY-рядах _apy_series).
 """
 from typing import Dict, List, Any, Optional
 
@@ -30,7 +32,7 @@ TIER_A_MODULES: List[Dict[str, Any]] = [
 ]
 
 TIER_B_MODULES: List[Dict[str, Any]] = [
-    {"module": 'apy_anomaly_detector', "class": 'APYAnomalyDetector', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
+    {"module": 'apy_anomaly_detector', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},  # A1: entrypoint = module-level analyze(context), реальные ряды _apy_series
     {"module": 'apy_forecast_v2', "class": 'ForecastModel', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
     {"module": 'apy_history_bridge', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
     {"module": 'apy_milestone_tracker', "class": 'ApyMilestoneTracker', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
@@ -39,7 +41,7 @@ TIER_B_MODULES: List[Dict[str, Any]] = [
     {"module": 'apy_percentile_tracker', "class": 'APYPercentileTracker', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
     {"module": 'apy_persistence_scorer', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
     {"module": 'apy_prediction_interval', "class": 'APYHistoricalData', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
-    {"module": 'apy_tracker', "class": 'APYTracker', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
+    {"module": 'apy_tracker', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},  # A1: entrypoint = module-level analyze(context), реальные ряды _apy_series
     {"module": 'apy_volatility_forecaster', "class": 'ApyVolatilityReport', "tier": 'B', "category": 'market_conditions', "weight": 0.55, "protocols": ['all']},
     {"module": 'bridge_risk_assessor', "class": 'BridgeRiskAssessor', "tier": 'B', "category": 'protocol_health', "weight": 0.6, "protocols": ['all']},
     {"module": 'collateral_diversification_scorer', "class": None, "tier": 'B', "category": 'collateral_quality', "weight": 0.7, "protocols": ['all']},
@@ -247,7 +249,7 @@ TIER_B_MODULES: List[Dict[str, Any]] = [
     {"module": 'protocol_defi_yield_duration_mismatch_analyzer', "class": 'ProtocolDeFiYieldDurationMismatchAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
     {"module": 'protocol_defi_yield_farming_exit_timing_advisor', "class": 'ProtocolDeFiYieldFarmingExitTimingAdvisor', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
     {"module": 'protocol_defi_yield_farming_roi_calculator', "class": 'ProtocolDeFiYieldFarmingROICalculator', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
-    {"module": 'protocol_defi_yield_seasonality_analyzer', "class": 'ProtocolDeFiYieldSeasonalityAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
+    {"module": 'protocol_defi_yield_seasonality_analyzer', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},  # A1: entrypoint = module-level analyze(context), реальные ряды _apy_series
     {"module": 'protocol_defi_yield_smoothing_analyzer', "class": 'ProtocolDeFiYieldSmoothingAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
     {"module": 'protocol_defi_yield_source_dependency_graph_analyzer', "class": 'ProtocolDeFiYieldSourceDependencyGraphAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
     {"module": 'protocol_defi_yield_strip_pricing_analyzer', "class": 'ProtocolDeFiYieldStripPricingAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
@@ -330,7 +332,7 @@ TIER_B_MODULES: List[Dict[str, Any]] = [
     {"module": 'yield_breakeven_calculator', "class": 'BreakevenReport', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
     {"module": 'yield_calendar_scheduler', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
     {"module": 'yield_compounding_calculator', "class": 'CompoundingScenario', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
-    {"module": 'yield_compressor_score', "class": 'YieldCompressorScore', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
+    {"module": 'yield_compressor_score', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},  # A1: entrypoint = module-level analyze(context), реальные ряды _apy_series
     {"module": 'yield_curve_analyzer', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
     {"module": 'yield_curve_spread_analyzer', "class": 'YieldTenor', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
     {"module": 'yield_curve_steepness_analyzer', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
@@ -343,7 +345,7 @@ TIER_B_MODULES: List[Dict[str, Any]] = [
     {"module": 'yield_farming_roi_calculator', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
     {"module": 'yield_farming_roi_tracker', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
     {"module": 'yield_forecast', "class": 'YieldForecastEngine', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
-    {"module": 'yield_forecast_engine', "class": 'YieldForecastEngine', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
+    {"module": 'yield_forecast_engine', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},  # A1: entrypoint = module-level analyze(context), реальные ряды _apy_series
     {"module": 'yield_momentum_tracker', "class": 'MomentumSnapshot', "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
     {"module": 'yield_opportunity_scanner', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
     {"module": 'yield_opportunity_scorer', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
@@ -495,6 +497,31 @@ TIER_B_MODULES: List[Dict[str, Any]] = [
     {"module": 'gross_of.defi_protocol_vault_performance_fee_gross_of_rebalancing_transaction_cost_analyzer', "class": 'GrossOfRebalancingTransactionCostAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'gross_of.defi_protocol_vault_performance_fee_gross_of_token_vesting_unlock_pressure_analyzer', "class": 'GrossOfTokenVestingUnlockPressureAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
     {"module": 'gross_of.defi_protocol_vault_performance_fee_gross_of_bridge_delay_opportunity_cost_analyzer', "class": 'GrossOfBridgeDelayOpportunityCostAnalyzer', "tier": 'B', "category": 'yield_quality', "weight": 0.5, "protocols": ['all']},
+    # ── Линия A1 время-рядов (2026-08-05): возвращены 16 из 18 модулей
+    # потока 3 (docs/analytics_relocation_plan_2026-08-04.md) — каждому
+    # добавлен module-level analyze(context), питающийся РЕАЛЬНЫМИ рядами
+    # APY из spa_core.analytics._apy_series (data/historical_apy* +
+    # текущие точки adapter_status/apy_ranking; выравнивание ПО ДАТЕ).
+    # class=None НАМЕРЕННО: entrypoint — module-level analyze(context).
+    # НЕ возвращены (вход честно нечем наполнить):
+    #   defi_liquid_staking_rate_comparator (нет LST-фидов в data/),
+    #   defi_nft_collateral_valuation_model (нет NFT-collateral во вселенной).
+    {"module": 'apy_forecaster', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
+    {"module": 'apy_momentum', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
+    {"module": 'defi_borrow_rate_forecaster', "class": None, "tier": 'B', "category": 'market_conditions', "weight": 0.55, "protocols": ['all']},
+    {"module": 'cross_chain_yield_comparator', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
+    {"module": 'defi_risk_adjusted_yield_comparator', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
+    {"module": 'protocol_defi_cross_chain_yield_normalizer', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
+    {"module": 'protocol_defi_cross_protocol_yield_arbitrage_scanner', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
+    {"module": 'protocol_defi_depeg_contagion_modeler', "class": None, "tier": 'B', "category": 'collateral_quality', "weight": 0.85, "protocols": ['all']},
+    {"module": 'defi_protocol_real_yield_sustainability_rater', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
+    {"module": 'defi_yield_sustainability_rater', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
+    {"module": 'protocol_defi_yield_source_sustainability_ranker', "class": None, "tier": 'B', "category": 'yield_quality', "weight": 0.45, "protocols": ['all']},
+    {"module": 'chain_concentration', "class": None, "tier": 'B', "category": 'market_conditions', "weight": 0.55, "protocols": ['all']},
+    {"module": 'liquidity_scorer', "class": None, "tier": 'B', "category": 'liquidation_risk', "weight": 0.9, "protocols": ['all']},
+    {"module": 'protocol_liquidity_depth_stress_tester', "class": None, "tier": 'B', "category": 'liquidation_risk', "weight": 0.9, "protocols": ['all']},
+    {"module": 'risk_budget', "class": None, "tier": 'B', "category": 'market_conditions', "weight": 0.55, "protocols": ['all']},
+    {"module": 'defi_vault_strategy_risk_decomposer', "class": None, "tier": 'B', "category": 'protocol_health', "weight": 0.6, "protocols": ['all']},
 ]
 
 TIER_C_MODULES: List[Dict[str, Any]] = [

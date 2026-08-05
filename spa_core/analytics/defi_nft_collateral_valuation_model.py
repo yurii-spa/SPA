@@ -345,3 +345,17 @@ class DeFiNFTCollateralValuationModel:
             pass  # Never crash analytics
 
         return output
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → None ВСЕГДА (честно не измеряется).
+
+    Движку нужны NFT-поля (floor price, trait rarity, volume 7d/30d,
+    holder/listing counts). Вселенная SPA — стейбл-lending/vault без
+    NFT-collateral позиций, в data/ нет ни одного NFT-ряда. Подстановка
+    выдуманной коллекции была бы фабрикацией → None (громкий dormant).
+    Модуль в Tier-B реестр НЕ возвращён (см. docs/analytics_relocation_plan).
+    """
+    return None

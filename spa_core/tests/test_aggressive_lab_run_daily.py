@@ -36,7 +36,11 @@ def test_run_daily_passes_real_feeds_not_empty(monkeypatch):
 
 def test_main_paper_branch_routes_through_run_daily(monkeypatch):
     calls = {"n": 0}
-    monkeypatch.setattr(run, "run_daily", lambda: calls.__setitem__("n", calls["n"] + 1) or {"ok": True})
+    # stub mirrors the REAL run_daily(as_of=None) signature — main() now forwards --as-of
+    # positionally (2026-08-05), and a () stub would misfail on the widened call, not on routing
+    monkeypatch.setattr(
+        run, "run_daily",
+        lambda as_of=None: calls.__setitem__("n", calls["n"] + 1) or {"ok": True})
     monkeypatch.setattr(run, "run_real_backtest", lambda: {"bt": True})
     # paper-only mode → exactly one run_daily call (no divergent PaperService construction)
     assert run.main(["paper"]) == 0

@@ -330,3 +330,77 @@ class ProtocolDeFiDepegContagionModeler:
         with open(tmp_path, "w", encoding="utf-8") as fh:
             json.dump(log, fh, indent=2)
         os.replace(tmp_path, log_path)
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → стейблкоины протокола (структурные peg-профили
+    _protocol_facts.ASSET_PEG_PROFILES) + ЖИВАЯ текущая девиация пега из
+    data/peg_history.json (реальный ряд peg-монитора, если адаптер
+    мониторится) → собственный движок model().
+
+    Fail-closed: нет фактов / у протокола нет стейбл-активов с профилем →
+    None. Полярность: cascade_risk_score движка уже 0-100 (выше = хуже);
+    берём максимум по активам протокола. Без записей: config log_path=None.
+    """
+    import json as _json
+    from pathlib import Path as _Path
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    facts = _pf.facts_for(proto)
+    if facts is None:
+        return None
+    profiles = facts.get("asset_profiles") or []
+    if not profiles:
+        return None
+    # Живая девиация из peg_history.json (реальный ряд): статус этого
+    # адаптера в последнем снимке peg-монитора; нет записи → структурный 0.
+    live_dev = None
+    try:
+        dd = context.get("data_dir") or _apy.DATA_DIR
+        raw = _json.loads((_Path(dd) / "peg_history.json")
+                          .read_text(encoding="utf-8"))
+        for st in (raw.get("latest") or {}).get("statuses") or []:
+            if st.get("adapter_id") == proto:
+                dev = st.get("deviation_pct")
+                if isinstance(dev, (int, float)):
+                    live_dev = abs(float(dev))
+                break
+    except (OSError, ValueError):
+        live_dev = None
+    stablecoins = []
+    for ap in profiles:
+        stablecoins.append({
+            "name": ap.get("name", "unknown"),
+            "peg_type": ap.get("peg_type", "fiat_backed"),
+            "collateral_ratio_pct":
+                float(ap.get("collateral_ratio", 1.0)) * 100.0,
+            "current_peg_deviation_pct":
+                live_dev if live_dev is not None else 0.0,
+            "market_cap_usd": float(ap.get("tvl_usd", 0.0)),
+            "daily_redemption_capacity_usd":
+                float(ap.get("mint_burn_24h_usd", 0.0)),
+            "tvl_as_collateral_in_protocols_usd":
+                float(ap.get("tvl_usd", 0.0))
+                * float(ap.get("collateral_usage_pct", 0.0)) / 100.0,
+        })
+    result = ProtocolDeFiDepegContagionModeler().model(
+        stablecoins, config={"log_path": None})
+    results = result.get("results") or []
+    if not results:
+        return None
+    worst = max(results, key=lambda r: r.get("cascade_risk_score", 0.0))
+    score = float(worst.get("cascade_risk_score", 0.0))
+    return {
+        "protocol": proto,
+        "risk_score": round(max(0.0, min(100.0, score)), 2),
+        "worst_asset": worst.get("name"),
+        "contagion_label": worst.get("contagion_label"),
+        "assets_modeled": len(results),
+        "live_peg_deviation_pct": live_dev,
+        "source": "protocol_facts_v1+peg_history",
+    }

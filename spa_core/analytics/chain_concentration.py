@@ -290,3 +290,57 @@ def _main() -> None:
 
 if __name__ == "__main__":
     _main()
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → РЕАЛЬНЫЙ портфель (data/current_positions.json,
+    его пишет цикл) → собственный движок compute_concentrations() →
+    доля чейна контекст-протокола.
+
+    Chain протокола — из структурной факт-базы. Fail-closed: нет позиций /
+    нет chain-факта / у какого-то held-протокола нет факта → None
+    (концентрация по неполной карте занижала бы риск).
+    Полярность: risk = доля чейна в портфеле, % (0-100, выше = хуже;
+    ADR-кап 70% ложится в BLOCK-пространство сам собой). Без записей.
+    """
+    import json as _json
+    from pathlib import Path as _Path
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    facts = _pf.facts_for(proto)
+    if facts is None:
+        return None
+    dd = _Path(context.get("data_dir") or _apy.DATA_DIR)
+    try:
+        raw = _json.loads((dd / "current_positions.json")
+                          .read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    positions = raw.get("positions")
+    if not isinstance(positions, dict) or not positions:
+        return None
+    allocations = {}
+    for name, usd in positions.items():
+        if not isinstance(usd, (int, float)) or usd <= 0:
+            continue
+        f = _pf.facts_for(name)
+        if f is None:
+            return None  # неполная карта чейнов → отказ, не догадка
+        allocations[f["chain"]] = allocations.get(f["chain"], 0.0) + float(usd)
+    if not allocations:
+        return None
+    fractions = ChainConcentrationAnalyzer().compute_concentrations(allocations)
+    share = float(fractions.get(facts["chain"], 0.0)) * 100.0
+    return {
+        "protocol": proto,
+        "chain": facts["chain"],
+        "risk_score": round(max(0.0, min(100.0, share)), 2),
+        "chain_share_pct": round(share, 2),
+        "chains": {k: round(v * 100.0, 2) for k, v in fractions.items()},
+        "source": "current_positions+protocol_facts_v1",
+    }

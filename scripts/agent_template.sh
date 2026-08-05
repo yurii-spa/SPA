@@ -33,6 +33,11 @@
 #
 # CONTRACT
 #   - cd to repo root, uses the pinned miniconda python.
+#   - wake-storm hardened: the pre-python readiness section (cd + getcwd +
+#     spa_core readable + python executable) retries up to WAKE_RETRY_MAX
+#     times with WAKE_RETRY_SLEEP pauses; on give-up logs WAKE_STORM_GIVEUP
+#     and exits 75 (EX_TEMPFAIL). Python is launched exactly ONCE — module
+#     errors are never retried/masked.
 #   - logs stdout+stderr to /tmp/spa_<AGENT_NAME>.log with timestamped
 #     START / EXIT banner lines.
 #   - captures the python exit code and EXITS WITH IT (propagated to launchd).
@@ -45,13 +50,26 @@ set -uo pipefail
 AGENT_NAME="${AGENT_NAME:-}"        # e.g. "watchdog"  (blank -> taken from $1)
 MODULE="${MODULE:-}"               # e.g. "spa_core.monitoring.watchdog"
 RUN_SCRIPT="${RUN_SCRIPT:-}"        # e.g. "/abs/.../scripts/foo.py" (alt to MODULE)
-# MODULE_ARGS — extra args for the module/script. Declare as an array; leave
-# empty for none. (Declared set-u-safe below.)
-if ! declare -p MODULE_ARGS >/dev/null 2>&1; then MODULE_ARGS=(); fi
+# MODULE_ARGS — extra args for the module/script.
+#   • Copy-adapted wrapper (mode A, same file): declare an ARRAY — MODULE_ARGS=(--flag value).
+#   • Separate parent wrapper that `export`s and then calls this template as a CHILD /bin/bash:
+#     a bash ARRAY does NOT survive `export` across a process boundary — it arrives as NOTHING.
+#     (Incident 2026-08: `export MODULE_ARGS=(paper)` in agent_aggressive_lab.sh reached the
+#     module as ZERO args → mode "both" → the nightly backtest rewrote the forward paper book.)
+#     Export a plain STRING instead — MODULE_ARGS="paper" / MODULE_ARGS="--flag value" — and it
+#     is split on whitespace here. Pinned by spa_core/tests/test_aggressive_lab_series_rewrite.py.
+if ! declare -p MODULE_ARGS >/dev/null 2>&1; then
+    MODULE_ARGS=()
+elif [[ "$(declare -p MODULE_ARGS 2>/dev/null)" != "declare -a"* ]]; then
+    # arrived via the environment as a plain string (the only form that CAN arrive) → split
+    read -r -a MODULE_ARGS <<< "${MODULE_ARGS}"
+fi
 # ────────────────────────────────────────────────────────────────────────────
 
-REPO_ROOT="/Users/yuriikulieshov/Documents/SPA_Claude"
-PYTHON="/Users/yuriikulieshov/miniconda3/bin/python3"
+# SPA_AGENT_REPO_ROOT / SPA_AGENT_PYTHON exist ONLY so tests can point the
+# wrapper at a sandbox fixture; production plists never set them.
+REPO_ROOT="${SPA_AGENT_REPO_ROOT:-/Users/yuriikulieshov/Documents/SPA_Claude}"
+PYTHON="${SPA_AGENT_PYTHON:-/Users/yuriikulieshov/miniconda3/bin/python3}"
 
 # launchd hands us a minimal PATH; ensure the standard dirs are present so the
 # python (and any subprocess it spawns, e.g. /usr/bin/security for Keychain) is
@@ -85,9 +103,54 @@ fi
 
 LOG="/tmp/spa_${AGENT_NAME}.log"
 
-cd "$REPO_ROOT" || { echo "agent_template.sh: cannot cd $REPO_ROOT" >&2; exit 78; }
-
 TS() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+
+# ── Wake-storm resilience (incident 2026-08-04T07:00Z) ──────────────────────
+# After the Mac wakes from sleep, access to ~/Documents (TCC / FileProvider
+# mediated) transiently fails with EINTR for a few seconds: shell-init cannot
+# getcwd, reads of repo files are interrupted, and `python -m` reports
+# ModuleNotFoundError: 'spa_core' even though the tree is intact — 39 agents
+# exited code=1 in the same second. Response: verify the environment is REALLY
+# usable (cd by absolute path + getcwd + spa_core readable + python executable)
+# and retry ONLY this pre-python section with short pauses. Python itself is
+# launched exactly once — a genuine module error is NEVER masked by a retry.
+# Total worst-case delay: (WAKE_RETRY_MAX-1) * WAKE_RETRY_SLEEP = 4*4s = 16s,
+# well under launchd's scheduling cadence. On give-up we exit 75 (EX_TEMPFAIL)
+# with an explicit WAKE_STORM_GIVEUP marker so monitoring can tell a transient
+# wake failure apart from a logic failure (code=1) or a config failure (78).
+WAKE_RETRY_MAX="${WAKE_RETRY_MAX:-5}"
+WAKE_RETRY_SLEEP="${WAKE_RETRY_SLEEP:-4}"
+
+READY_FAIL=""
+startup_ready() {
+    # (1) cd by ABSOLUTE path — never relies on the (possibly lost) inherited cwd
+    if ! cd "$REPO_ROOT" 2>/dev/null; then READY_FAIL="cd:$REPO_ROOT"; return 1; fi
+    # (2) getcwd must actually work (the shell-init/getcwd failure class)
+    if ! pwd -P >/dev/null 2>&1; then READY_FAIL="getcwd"; return 1; fi
+    # (3) the package python will import must be READABLE right now — a real
+    #     1-byte read, because at wake the file exists but reads get EINTR
+    if ! head -c 1 "$REPO_ROOT/spa_core/__init__.py" >/dev/null 2>&1; then
+        READY_FAIL="read:spa_core/__init__.py"; return 1
+    fi
+    # (4) the interpreter itself must be executable
+    if ! [ -x "$PYTHON" ]; then READY_FAIL="python:$PYTHON"; return 1; fi
+    READY_FAIL=""
+    return 0
+}
+
+attempt=1
+until startup_ready; do
+    if [ "$attempt" -ge "$WAKE_RETRY_MAX" ]; then
+        MARKER="[$(TS)] WAKE_STORM_GIVEUP agent=${AGENT_NAME} attempts=$attempt last_fail=${READY_FAIL} repo=$REPO_ROOT"
+        # /tmp is a local FS and stays reachable during the storm; still fall
+        # back to stderr (launchd .err) if even the log append fails.
+        echo "$MARKER" >> "$LOG" 2>/dev/null || echo "$MARKER" >&2
+        exit 75  # EX_TEMPFAIL: environment not ready, NOT an agent logic error
+    fi
+    echo "[$(TS)] wake-storm retry ${attempt}/${WAKE_RETRY_MAX} agent=${AGENT_NAME} fail=${READY_FAIL}" >> "$LOG" 2>/dev/null || true
+    attempt=$((attempt + 1))
+    sleep "$WAKE_RETRY_SLEEP"
+done
 
 {
     echo "==================================================================="

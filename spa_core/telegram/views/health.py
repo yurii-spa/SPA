@@ -12,9 +12,29 @@ from spa_core.telegram.views import _base as B
 PER_PAGE = 12
 
 
+def _read_agent_health() -> Dict:
+    """agent_health.json via the canonical fail-CLOSED reader (staleness-aware).
+
+    A stale snapshot's healthy counts are history, not current fleet state
+    (2026-08-05: 8h-old "healthy 69/69" rendered while 39 agents were down).
+    Falls back to the raw read if the monitor module is unavailable.
+    """
+    try:
+        from spa_core.monitoring.agent_health_monitor import load_report
+        return load_report(B.DATA_DIR)
+    except Exception:
+        return B.read_json("agent_health.json", {})
+
+
+def _stale_line(ah: Dict) -> str:
+    age = ah.get("snapshot_age_min")
+    age_txt = " ({:.1f}h ago)".format(age / 60.0) if isinstance(age, (int, float)) else ""
+    return "⚠️ snapshot STALE{} — fleet state UNKNOWN".format(age_txt)
+
+
 def render_menu(arg: str = "", lang: str = "en", page: int = 0,
                 prefs: Dict = None) -> Tuple[str, Dict]:
-    ah = B.read_json("agent_health.json", {})
+    ah = _read_agent_health()
     sh = B.read_json("system_health.json", {})
     body = [
         "🩺  {}".format(t("crumb.health", lang)),
@@ -24,6 +44,8 @@ def render_menu(arg: str = "", lang: str = "en", page: int = 0,
             ah.get("total_agents", "?")),
         "System  {}".format(sh.get("overall_status", "?")),
     ]
+    if ah.get("snapshot_stale"):
+        body.insert(2, _stale_line(ah))
     text = B.screen("health", "monitor", body,
                     B.freshness(ah.get("timestamp"), lang), lang)
     return text, menus.standard_keyboard("health", lang)
@@ -31,7 +53,7 @@ def render_menu(arg: str = "", lang: str = "en", page: int = 0,
 
 def render_agents(arg: str = "", lang: str = "en", page: int = 0,
                   prefs: Dict = None) -> Tuple[str, Dict]:
-    ah = B.read_json("agent_health.json", {})
+    ah = _read_agent_health()
     agents = ah.get("agents", []) if isinstance(ah, dict) else []
     if not agents:
         body = [B.unavailable(lang, "agent_health.json")]
@@ -52,6 +74,8 @@ def render_agents(arg: str = "", lang: str = "en", page: int = 0,
         "                  {} {}".format(t("w.overall", lang), overall),
         "",
     ]
+    if ah.get("snapshot_stale"):
+        body.insert(2, _stale_line(ah))
     for a in sl:
         mark = "✅" if a.get("status") == "OK" else "⛔"
         label = str(a.get("label", "?")).replace("com.spa.", "")

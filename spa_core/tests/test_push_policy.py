@@ -250,3 +250,118 @@ def test_oneshot_lead_never_records_persistent_bad_state(tmp_path, sent):
     # A one-shot push must NOT leave a persistent "bad" state (that would silence the next lead).
     push_policy.push_critical("pilot_request", "INFO", "lead", "b", data_dir=str(tmp_path))
     assert push_policy.current_state("pilot_request", data_dir=str(tmp_path)) == "ok"
+
+
+# ── per-incident fingerprint (dedup_key) — the 2026-08-05 false-suppression fix
+# Prod measurement: core_agent_down stuck "bad" (no sender resolves it) ⇒ every
+# LATER, DIFFERENT incident sharing the class was refused (watchdog booked
+# alerts_undelivered [self_heal, threat_reactor], refused_by_push_policy).
+# POSITIVE CONTROLS: each test reproduces the false cut and REDS on unfixed code.
+def test_new_incident_fingerprint_pushes_through_stuck_bad_class(tmp_path, sent):
+    # Incident A (agent X down) → entry push, class goes bad.
+    assert push_policy.push_critical(
+        "core_agent_down", "CRITICAL", "down", "agent X",
+        data_dir=str(tmp_path), dedup_key="com.spa.x",
+    ) is True
+    assert len(sent) == 1
+
+    # Incident A persists (same fingerprint) → SILENT: real dedup NOT weakened.
+    assert push_policy.push_critical(
+        "core_agent_down", "CRITICAL", "down", "agent X",
+        data_dir=str(tmp_path), dedup_key="com.spa.x",
+    ) is False
+    assert len(sent) == 1
+
+    # Incident B — a DIFFERENT agent down while the class is still "bad".
+    # Unfixed code silences it as "still bad" (the measured false cut);
+    # fixed code recognises a new fingerprint = a new incident and pushes.
+    assert push_policy.push_critical(
+        "core_agent_down", "CRITICAL", "down", "agent Y",
+        data_dir=str(tmp_path), dedup_key="com.spa.y",
+    ) is True
+    assert len(sent) == 2
+
+    # Incident B persisting → silent again (dedup intact for the new incident).
+    assert push_policy.push_critical(
+        "core_agent_down", "CRITICAL", "down", "agent Y",
+        data_dir=str(tmp_path), dedup_key="com.spa.y",
+    ) is False
+    assert len(sent) == 2
+
+
+def test_no_fingerprint_keeps_legacy_class_level_dedup(tmp_path, sent):
+    # Callers that pass no dedup_key keep the old class-level edge-trigger
+    # bit-for-bit (None == None): entry once, then silence while bad.
+    assert push_policy.push_critical(
+        "system_critical", "CRITICAL", "t", "b", data_dir=str(tmp_path)
+    ) is True
+    assert push_policy.push_critical(
+        "system_critical", "CRITICAL", "t", "b", data_dir=str(tmp_path)
+    ) is False
+    assert len(sent) == 1
+
+
+def test_undelivered_entry_is_retried_until_delivered_once(tmp_path, monkeypatch):
+    # Prod measurement: kill_switch stuck "bad" with entry_pushed=false since
+    # 2026-07-04 — the entry send FAILED, the bad state was still recorded, and
+    # the alert was permanently swallowed (never delivered, never retried).
+    captured: list[str] = []
+    transport_up = {"up": False}
+
+    def flaky_send(text: str) -> bool:
+        if transport_up["up"]:
+            captured.append(text)
+            return True
+        return False
+
+    monkeypatch.setattr(push_policy, "_send", flaky_send)
+
+    # Entry attempt with the transport DOWN → not sent, state recorded bad.
+    assert push_policy.push_critical(
+        "kill_switch", "CRITICAL", "Kill", "fired", data_dir=str(tmp_path)
+    ) is False
+    assert captured == []
+    assert push_policy.current_state("kill_switch", data_dir=str(tmp_path)) == "bad"
+
+    # Transport recovers. Unfixed code: "still bad → silent" — the kill-switch
+    # alert is eaten forever. Fixed code: entry never delivered → retry ONCE.
+    transport_up["up"] = True
+    assert push_policy.push_critical(
+        "kill_switch", "CRITICAL", "Kill", "fired", data_dir=str(tmp_path)
+    ) is True
+    assert len(captured) == 1
+
+    # Delivered → subsequent persistence is silent (dedup NOT weakened).
+    assert push_policy.push_critical(
+        "kill_switch", "CRITICAL", "Kill", "fired", data_dir=str(tmp_path)
+    ) is False
+    assert len(captured) == 1
+
+
+def test_ceiling_demoted_entry_is_delivered_when_ceiling_frees(tmp_path, sent):
+    # An entry demoted by the daily ceiling (entry_pushed=False) must be
+    # delivered when capacity is available again (next UTC day), not lost.
+    day1, day2 = _dt(day=3), _dt(day=4)
+    # Exhaust a ceiling of 1 with another key.
+    assert push_policy.push_critical(
+        "cycle_failed", "CRITICAL", "c", "b",
+        data_dir=str(tmp_path), daily_ceiling=1, now=day1,
+    ) is True
+    # kill_switch enters bad over the ceiling → coalesced, entry NOT delivered.
+    assert push_policy.push_critical(
+        "kill_switch", "CRITICAL", "Kill", "fired",
+        data_dir=str(tmp_path), daily_ceiling=1, now=day1,
+    ) is False
+    sent_after_day1 = len(sent)
+    # Next day, condition still bad: unfixed code stays silent forever; fixed
+    # code delivers the never-delivered entry exactly once.
+    assert push_policy.push_critical(
+        "kill_switch", "CRITICAL", "Kill", "fired",
+        data_dir=str(tmp_path), daily_ceiling=1, now=day2,
+    ) is True
+    assert len(sent) == sent_after_day1 + 1
+    # And once delivered — silent again.
+    assert push_policy.push_critical(
+        "kill_switch", "CRITICAL", "Kill", "fired",
+        data_dir=str(tmp_path), daily_ceiling=1, now=day2,
+    ) is False

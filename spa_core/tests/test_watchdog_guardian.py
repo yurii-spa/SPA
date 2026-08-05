@@ -98,7 +98,10 @@ def _stub_send(sandbox, outcome):
     sent = []
     mp = sandbox["monkeypatch"]
 
-    def _send(msg):
+    # NOTE 2026-08-05: production _send_telegram grew an optional dedup_key
+    # (per-incident push_policy fingerprint — the alerts_undelivered fix); the
+    # stub mirrors the new signature. Recording/assertions are unchanged.
+    def _send(msg, dedup_key=None):
         sent.append(msg)
         if isinstance(outcome, Exception):
             raise outcome

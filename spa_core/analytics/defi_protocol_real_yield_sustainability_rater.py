@@ -308,3 +308,74 @@ class DeFiProtocolRealYieldSustainabilityRater:
 def rate(data: dict, config: dict | None = None) -> dict:
     """Module-level convenience wrapper around DeFiProtocolRealYieldSustainabilityRater."""
     return DeFiProtocolRealYieldSustainabilityRater().rate(data, config)
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → реальный ряд APY → собственный движок rate().
+
+    Честная рамка: для видов lending / vault / rwa_credit / fixed_yield
+    из whitelisted-вселенной supply-доходность — ОРГАНИЧЕСКИЙ процент
+    (комиссия заёмщиков/казначейские купоны), а не токен-эмиссия, поэтому:
+    revenue_7d = TVL × mean(APY за последние 7 точек)/100 × 7/365 —
+    фактически начисленный процент по РЕАЛЬНОМУ ряду; token_emission = 0
+    (обоснование выше); revenue_growth — последняя неделя ряда против
+    первой недели 35-точечного окна. Для видов с возможной эмиссионной
+    компонентой (leverage_farm, synthetic_dollar, lp_amm) — None: делить
+    их APY на organic/emission нечем, подстановка была бы фабрикацией.
+
+    Fail-closed: <14 точек / не тот kind / нет TVL → None.
+    Полярность: sustainability_score движка 0-100 ВЫШЕ=ЛУЧШЕ →
+    risk_score = 100 − score. Без записей: write_log=False.
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    facts = _pf.facts_for(proto)
+    if facts is None or facts.get("kind") not in (
+            "lending", "vault", "rwa_credit", "fixed_yield"):
+        return None
+    series = _apy.get_series(proto, min_days=14,
+                             data_dir=context.get("data_dir"))
+    if series is None:
+        return None
+    tvl = float(facts["tvl_usd"])
+    if tvl <= 0:
+        return None
+    values = [v for _, v in series]
+    last7 = values[-7:]
+    mean_last7 = sum(last7) / len(last7)
+    window = values[-35:]
+    first7 = window[:7]
+    mean_first7 = sum(first7) / len(first7)
+    growth_pct = ((mean_last7 / mean_first7 - 1.0) * 100.0
+                  if mean_first7 > 0 else 0.0)
+    revenue_7d = tvl * mean_last7 / 100.0 * 7.0 / 365.0
+    data = {
+        "protocol_name": proto,
+        "claimed_apy_pct": values[-1],
+        "protocol_revenue_7d_usd": revenue_7d,
+        "token_emission_7d_usd": 0.0,
+        "total_staked_usd": tvl,
+        "protocol_expenses_7d_usd": 0.0,
+        "revenue_growth_30d_pct": growth_pct,
+    }
+    result = DeFiProtocolRealYieldSustainabilityRater().rate(
+        data, config={"write_log": False})
+    score = result.get("sustainability_score")
+    if not isinstance(score, (int, float)):
+        return None
+    return {
+        "protocol": proto,
+        "risk_score": round(max(0.0, min(100.0, 100.0 - float(score))), 2),
+        "sustainability_score": round(float(score), 2),
+        "sustainability_label": result.get("sustainability_label"),
+        "real_yield_ratio": result.get("real_yield_ratio"),
+        "revenue_growth_window_pct": round(growth_pct, 4),
+        "series_days": len(values),
+        "series_last_date": series[-1][0],
+        "source": _apy.SERIES_SOURCE,
+    }

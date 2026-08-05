@@ -17,6 +17,30 @@ The gate, in order (ALL must pass to push):
    silent (this kills the agent-health 17×/day re-fire); on the ``bad → ok``
    transition we emit exactly one "✅ RESOLVED".
 
+   Two refinements (2026-08-05, the "alerts_undelivered [self_heal,
+   threat_reactor] refused_by_push_policy" fix — both close FALSE suppression
+   without weakening genuine dedup):
+
+   * **Per-incident fingerprint (``dedup_key``).** The edge state is keyed by
+     ``event_key`` — a CLASS of events shared by several senders (self_heal,
+     watchdog and uptime_monitor all push ``core_agent_down``). Without a
+     fingerprint, agent X down yesterday left the class ``bad`` and agent Y
+     down today was silenced as "still bad" — a DIFFERENT incident eaten by
+     class-level dedup (measured in prod: ``core_agent_down`` stuck ``bad``,
+     no sender ever resolves it). Callers may pass ``dedup_key`` describing
+     the concrete incident; persistence is silent ONLY while the fingerprint
+     is unchanged. A changed fingerprint = a new distinct incident = a push.
+     Callers that pass no ``dedup_key`` keep the old class-level behaviour.
+
+   * **Retry-until-delivered-once.** The entry push used to mark the state
+     ``bad`` even when the transport FAILED or the daily ceiling demoted it
+     (``entry_pushed: false``) — the alert was then permanently swallowed:
+     never delivered, never retried (measured in prod: ``kill_switch`` stuck
+     ``bad`` with ``entry_pushed: false`` since 2026-07-04). Now a persisting
+     bad state whose entry was never actually delivered re-attempts the entry
+     (still subject to the daily ceiling). Once delivered, persistence is
+     silent exactly as before.
+
 3. **Held-protocol scoping.** Peg / red-flag events only push when they hit a
    protocol we actually hold (``held_protocol=True``). Advisory protocols are
    demoted to the digest.
@@ -280,6 +304,7 @@ def push_critical(
     now: Optional[datetime] = None,
     daily_ceiling: int = DEFAULT_DAILY_CEILING,
     send: bool = True,
+    dedup_key: Optional[str] = None,
 ) -> bool:
     """Emit a Tier-1 push IFF it passes the policy gate. Returns ``sent?``.
 
@@ -296,6 +321,11 @@ def push_critical(
     now      : injectable UTC time (determinism / tests).
     daily_ceiling : hard cap on Tier-1 pushes per UTC day.
     send     : when False, run the full gate but do not hit the transport (tests).
+    dedup_key : optional STABLE fingerprint of the concrete incident (e.g. the
+        sorted labels of the agents that are down). While the bad state persists
+        with the SAME fingerprint the event is silent (dedup); a DIFFERENT
+        fingerprint is a new distinct incident and pushes. ``None`` keeps the
+        legacy class-level edge-trigger.
 
     Never raises. Fail-closed: an unwhitelisted / off-held event is demoted.
     """
@@ -311,6 +341,7 @@ def push_critical(
             now=now,
             daily_ceiling=daily_ceiling,
             send=send,
+            dedup_key=dedup_key,
         )
     except Exception as exc:  # noqa: BLE001 — the push authority must never crash a monitor
         log.warning("push_policy: push_critical failed for %r: %s", event_key, exc)
@@ -329,6 +360,7 @@ def _push_critical_impl(
     now: Optional[datetime],
     daily_ceiling: int,
     send: bool,
+    dedup_key: Optional[str] = None,
 ) -> bool:
     tg_dir = _tg_dir(data_dir)
     today = _today(now)
@@ -426,19 +458,39 @@ def _push_critical_impl(
 
     # Entry / persistence path.
     if prev_state == _STATE_BAD:
-        # Condition persists → SILENT (the re-fire fix). Refresh last_ts only.
-        prev["last_ts"] = ts
-        events[event_key] = prev
-        _save_state(tg_dir, state)
-        log.info("push_policy: %r still bad → silent (edge-trigger)", event_key)
-        return False
+        # Silence ONLY the genuine persistence case: the SAME incident
+        # (unchanged fingerprint) whose entry the owner has actually received.
+        #   * A different fingerprint = a NEW distinct incident hiding behind a
+        #     shared event_key (e.g. a different agent down) → falls through to
+        #     the entry path and pushes.
+        #   * entry_pushed False = the recorded entry was never delivered
+        #     (transport failure / ceiling demote) → falls through and retries
+        #     until delivered ONCE (still ceiling-capped). Booking "bad" without
+        #     delivery used to swallow the alert permanently.
+        same_incident = prev.get("fingerprint") == dedup_key
+        entry_delivered = bool(prev.get("entry_pushed", True))
+        if same_incident and entry_delivered:
+            # Condition persists → SILENT (the re-fire fix). Refresh last_ts only.
+            prev["last_ts"] = ts
+            events[event_key] = prev
+            _save_state(tg_dir, state)
+            log.info("push_policy: %r still bad → silent (edge-trigger)", event_key)
+            return False
+        log.info(
+            "push_policy: %r bad but %s → entry path",
+            event_key,
+            "new incident (fingerprint changed)" if not same_incident
+            else "entry never delivered (retry)",
+        )
 
     # ── Gate 4: daily ceiling ────────────────────────────────────────────────
     ceil = _ceiling_for_today(state, today)
     if ceil["pushed"] >= daily_ceiling:
         # Mark the new bad state so the eventual RESOLVED still fires, but do not
-        # push it individually — coalesce / demote.
-        events[event_key] = {"state": _STATE_BAD, "last_ts": ts, "entry_pushed": False}
+        # push it individually — coalesce / demote. entry_pushed=False means the
+        # persistence path will RETRY delivery once the ceiling frees up.
+        events[event_key] = {"state": _STATE_BAD, "last_ts": ts,
+                             "entry_pushed": False, "fingerprint": dedup_key}
         if not ceil["coalesced_sent"]:
             coalesced = (
                 f"⚠️ <b>Ещё критические события — их пока не показываю</b>\n\n"
@@ -467,7 +519,8 @@ def _push_critical_impl(
 
     # ── Push the entry transition ────────────────────────────────────────────
     sent = _send(_format_message(severity, title, body)) if send else True
-    events[event_key] = {"state": _STATE_BAD, "last_ts": ts, "entry_pushed": bool(sent)}
+    events[event_key] = {"state": _STATE_BAD, "last_ts": ts,
+                         "entry_pushed": bool(sent), "fingerprint": dedup_key}
     if sent:
         ceil["pushed"] = int(ceil["pushed"]) + 1
     _save_state(tg_dir, state)

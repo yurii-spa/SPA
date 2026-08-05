@@ -368,3 +368,70 @@ class DeFiYieldSustainabilityRater:
         _atomic_log_append(log_entry, self._log_path, self._log_cap)
 
         return output
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → реальный ряд APY → собственный движок
+    _rate_strategy (та же математика, что rate(); rate() не используется,
+    потому что безусловно пишет ring-buffer лог).
+
+    Реальные поля из ряда: current_apy (последняя точка), real_yield =
+    current_apy (виды lending/vault/rwa_credit/fixed_yield: органический
+    процент, эмиссии нет — обоснование в defi_protocol_real_yield_
+    sustainability_rater.analyze), revenue_per_tvl = средний APY ряда
+    (процент, реально выплаченный на TVL). TVL-тренд — из структурного
+    tvl_trend_7d_pct факт-базы; возраст/аудиты — тировые структурные
+    константы (помечены). Прочие виды → None.
+
+    Fail-closed: <14 точек / не тот kind → None.
+    Полярность: sustainability_score ВЫШЕ=ЛУЧШЕ → risk = 100 − score.
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    facts = _pf.facts_for(proto)
+    if facts is None or facts.get("kind") not in (
+            "lending", "vault", "rwa_credit", "fixed_yield"):
+        return None
+    series = _apy.get_series(proto, min_days=14,
+                             data_dir=context.get("data_dir"))
+    if series is None:
+        return None
+    values = [v for _, v in series]
+    mean_apy = sum(values) / len(values)
+    trend_pct = float(facts.get("tvl_trend_7d_pct", 0.0))
+    tvl_trend = ("growing" if trend_pct > 1.0
+                 else "declining" if trend_pct < -1.0 else "stable")
+    tier = facts["tier"]
+    strategy = {
+        "name": proto,
+        "current_apy_pct": values[-1],
+        "real_yield_pct": values[-1],
+        "emission_apy_pct": 0.0,
+        "protocol_age_months": {"T1": 36.0, "T2": 18.0, "T3": 9.0}.get(tier, 9.0),
+        "tvl_usd": float(facts["tvl_usd"]),
+        "tvl_trend": tvl_trend,
+        "token_inflation_rate_pct": 0.0,
+        "token_price_change_90d_pct": 0.0,
+        "audit_count": {"T1": 4, "T2": 2, "T3": 1}.get(tier, 1),
+        "revenue_per_tvl_pct": mean_apy,
+    }
+    r0 = _rate_strategy(strategy)
+    score = r0.get("sustainability_score")
+    if not isinstance(score, (int, float)):
+        return None
+    return {
+        "protocol": proto,
+        "risk_score": round(max(0.0, min(100.0, 100.0 - float(score))), 2),
+        "sustainability_score": round(float(score), 2),
+        "sustainability_label": r0.get("sustainability_label"),
+        "flags": r0.get("flags"),
+        "series_days": len(values),
+        "series_last_date": series[-1][0],
+        "structural_fields": "protocol_facts_v1",
+        "source": _apy.SERIES_SOURCE,
+    }

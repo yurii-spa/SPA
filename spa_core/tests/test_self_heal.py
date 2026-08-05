@@ -85,7 +85,11 @@ def heal(monkeypatch):
         self_heal, "_save_revival_history",
         lambda hist: h.__setattr__("revival_history_written", h.revival_history_written + 1),
     )
-    monkeypatch.setattr(self_heal, "_send_telegram", lambda msg: h.telegrams.append(msg))
+    # NOTE 2026-08-05: production _send_telegram grew an optional dedup_key
+    # (per-incident push_policy fingerprint — the alerts_undelivered fix); the
+    # stub mirrors the new signature. Recording/assertions are unchanged.
+    monkeypatch.setattr(self_heal, "_send_telegram",
+                        lambda msg, dedup_key=None: h.telegrams.append(msg))
 
     # --- read seams: safe hermetic defaults (overridden per-test) ----------
     monkeypatch.setattr(self_heal, "_loaded_labels", lambda: {})
@@ -415,3 +419,66 @@ def test_healthy_fleet_noop(heal, monkeypatch):
     assert report["failures"] == []
     assert report["circuit_breakers"] == []
     assert report["healthy"] is True
+
+
+# ===========================================================================
+# S2 (2026-08-05) — fail-OPEN: a breached cycle-staleness threshold reported
+# healthy:true. Measured in prod: cycle_age_h 27.05 (> CYCLE_STALE_H 26, the
+# SAME threshold agent_health CRITICALs on) while self_heal_status.json said
+# healthy:true. POSITIVE CONTROL: reds on unfixed code (healthy ignored age).
+# ===========================================================================
+def test_breached_cycle_staleness_cannot_be_healthy(heal, monkeypatch):
+    _guard_no_real_io(monkeypatch)
+    # 27.05h: inside the 26..28 window — past the staleness SLA, but below the
+    # 28h ACT (recovery) threshold, so no action fires. Exactly the prod case.
+    monkeypatch.setattr(self_heal, "_last_cycle_age_hours", lambda: 27.05)
+
+    report = self_heal.run_self_heal(dry_run=False)
+
+    assert heal.recovered == 0                       # ACT threshold (28h) not reached
+    assert report["cycle_age_h"] == 27.05
+    assert report["cycle_stale"] is True
+    assert report["healthy"] is False                # breached SLA ≠ healthy
+
+
+def test_fresh_cycle_within_sla_is_healthy(heal, monkeypatch):
+    # Control in the other direction: a fresh cycle stays healthy.
+    _guard_no_real_io(monkeypatch)
+    monkeypatch.setattr(self_heal, "_last_cycle_age_hours", lambda: 25.9)
+
+    report = self_heal.run_self_heal(dry_run=False)
+
+    assert report["cycle_stale"] is False
+    assert report["healthy"] is True
+
+
+def test_cycle_stale_threshold_matches_agent_health(heal, monkeypatch):
+    # The SENSE threshold must stay the single shared source (agent_health's
+    # CYCLE_STALE_H), so the two monitors can never disagree about "stale".
+    from spa_core.monitoring.agent_health_monitor import CYCLE_STALE_H
+    _guard_no_real_io(monkeypatch)
+    monkeypatch.setattr(self_heal, "_last_cycle_age_hours", lambda: 1.0)
+    report = self_heal.run_self_heal(dry_run=False)
+    assert report["cycle_stale_threshold_h"] == CYCLE_STALE_H == 26.0
+
+
+def test_incident_fingerprint_reaches_push_policy(heal, monkeypatch):
+    # The Telegram escalation must carry a per-incident dedup_key (the labels
+    # acted on), so a NEW incident is never silenced by an old one that left
+    # the shared core_agent_down class "bad" (alerts_undelivered fix).
+    _guard_no_real_io(monkeypatch)
+    seen = {}
+
+    def _capture(msg, dedup_key=None):
+        seen["msg"] = msg
+        seen["dedup_key"] = dedup_key
+
+    monkeypatch.setattr(self_heal, "_send_telegram", _capture)
+    monkeypatch.setattr(self_heal, "_expected_labels", lambda: ["com.spa.rtmr_sense"])
+    monkeypatch.setattr(self_heal, "_loaded_labels", lambda: {})
+    monkeypatch.setattr(self_heal, "_must_be_resident", lambda l: True)
+
+    self_heal.run_self_heal(dry_run=False)
+
+    assert "com.spa.rtmr_sense" in seen.get("msg", "")
+    assert seen.get("dedup_key") == "com.spa.rtmr_sense"

@@ -58,6 +58,7 @@ _API_STALE_LABEL = "com.spa.apiserver::stale_data"  # circuit-breaker key
 # Shared, single-source residency/classification judgement (same one
 # agent_health uses) so self_heal's expected/loaded reconcile with the monitor.
 from spa_core.monitoring.agent_health_monitor import (  # noqa: E402
+    CYCLE_STALE_H,
     RETIRED_LABELS,
     classify_agent,
     requires_residency,
@@ -234,17 +235,25 @@ def _recover_cycle() -> bool:
     return ok
 
 
-def _send_telegram(msg: str) -> None:
+def _send_telegram(msg: str, dedup_key: str | None = None) -> None:
     """Route self-heal action through the SINGLE push authority (Tier-1).
 
     Phase-1 rewire: a dead core agent being revived is a genuine real-time
     interrupt → push_policy ``core_agent_down`` (edge-triggered, so a flapping
     agent does not re-push every 5 min). Never raises.
+
+    ``dedup_key`` — stable fingerprint of the concrete incident (the sorted
+    labels acted on). Without it, the shared ``core_agent_down`` class stays
+    "bad" after the FIRST incident forever (no sender resolves it) and every
+    LATER, different incident is silently refused by the edge-trigger —
+    measured 2026-08-05: watchdog booked alerts_undelivered
+    [self_heal, threat_reactor] with refused_by_push_policy.
     """
     try:
         from spa_core.telegram import push_policy
         push_policy.push_critical(
             "core_agent_down", "CRITICAL", "SPA Self-Heal", msg,
+            dedup_key=dedup_key,
         )
     except Exception:  # noqa: BLE001
         pass
@@ -296,6 +305,10 @@ def run_self_heal(dry_run: bool = False) -> dict:
     actions: List[str] = []
     failures: List[str] = []
     breakers: List[str] = []
+    # Stable identity of THIS incident (labels acted on / broken) — becomes the
+    # push_policy dedup fingerprint so a NEW incident is never silenced by an
+    # older one that shares the same event class.
+    involved: set[str] = set()
 
     loaded = _loaded_labels()
     expected = _expected_labels()
@@ -320,14 +333,17 @@ def run_self_heal(dry_run: bool = False) -> dict:
         recent = [t for t in hist.get(label, []) if now_epoch - t < 3600.0]
         if len(recent) >= MAX_REVIVALS_PER_HOUR:
             breakers.append(f"circuit-breaker: {label} crash-looping ({len(recent)}/h) — NOT revived")
+            involved.add(label)
             continue
         if dry_run:
             actions.append(f"would bootstrap {label}")
         elif _bootstrap(label):
             actions.append(f"revived (bootstrap) {label}")
             _record_revival(hist, label, now_epoch)
+            involved.add(label)
         else:
             failures.append(f"bootstrap failed {label}")
+            involved.add(label)
 
     # 2) Always-on servers loaded but with PID 0 → kickstart.
     for label in _SERVERS:
@@ -336,8 +352,10 @@ def run_self_heal(dry_run: bool = False) -> dict:
                 actions.append(f"would kickstart down server {label}")
             elif _kickstart(label):
                 actions.append(f"restarted down server {label}")
+                involved.add(label)
             else:
                 failures.append(f"kickstart failed {label}")
+                involved.add(label)
 
     # 2b) Active liveness probes — a server can be "loaded" with a PID yet not actually
     # listening (hung/half-dead). Probe the local ports; connection refused → kickstart.
@@ -348,8 +366,10 @@ def run_self_heal(dry_run: bool = False) -> dict:
             actions.append(f"would kickstart unreachable {label} ({url})")
         elif _kickstart(label):
             actions.append(f"restarted unreachable {label} ({url})")
+            involved.add(label)
         else:
             failures.append(f"kickstart failed (unreachable) {label}")
+            involved.add(label)
 
     # 2c) R5 — apiserver DATA-staleness probe. The 2b liveness probe only proves
     # the port is LISTENING; a hung-but-listening apiserver serving FROZEN data
@@ -372,6 +392,7 @@ def run_self_heal(dry_run: bool = False) -> dict:
                     f"suppressed ({len(recent)}/h) — served cycle {served_age:.1f}h "
                     f"old while disk {disk_age:.1f}h"
                 )
+                involved.add(_API_STALE_LABEL)
             elif dry_run:
                 actions.append(
                     f"would kickstart apiserver (serving STALE data: "
@@ -383,8 +404,10 @@ def run_self_heal(dry_run: bool = False) -> dict:
                     f"(served {served_age:.1f}h old vs disk {disk_age:.1f}h)"
                 )
                 _record_revival(hist, _API_STALE_LABEL, now_epoch)
+                involved.add(_API_STALE_LABEL)
             else:
                 failures.append("kickstart failed (stale-data) com.spa.apiserver")
+                involved.add(_API_STALE_LABEL)
 
     # 3) Daily cycle gap → recover.
     age = _last_cycle_age_hours()
@@ -396,6 +419,7 @@ def run_self_heal(dry_run: bool = False) -> dict:
             (actions if ok else failures).append(
                 f"cycle recovery {'ok' if ok else 'attempted/failed'} (was {age:.1f}h)"
             )
+            involved.add("com.spa.daily_cycle")
 
     if not dry_run:
         _save_revival_history(hist)
@@ -406,6 +430,12 @@ def run_self_heal(dry_run: bool = False) -> dict:
     # RESIDENCY-REQUIRED set: every agent that MUST be resident actually is.
     resident_loaded = sum(1 for lbl in resident_expected if lbl in loaded)
     resident_missing = sorted(lbl for lbl in resident_expected if lbl not in loaded)
+    # A cycle age past the system-wide staleness contract (CYCLE_STALE_H = 26h,
+    # the SAME threshold agent_health CRITICALs on) can never report healthy —
+    # even though ACTION (gap recovery) only fires past CYCLE_GAP_HOURS (28h).
+    # 2026-08-05 fail-OPEN: cycle_age_h 27.05 sat in the 26..28 window and this
+    # file said healthy:true — a breached threshold reported as health.
+    cycle_stale = age is not None and age > CYCLE_STALE_H
     report = {
         "ts": now,
         "expected": len(expected),               # all installed (non-retired)
@@ -418,9 +448,13 @@ def run_self_heal(dry_run: bool = False) -> dict:
         "failures": failures,
         "circuit_breakers": breakers,
         "cycle_age_h": round(age, 2) if age is not None else None,
+        "cycle_stale": cycle_stale,
+        "cycle_stale_threshold_h": CYCLE_STALE_H,
         # Healthy = no failures/breakers AND every residency-required agent is
-        # resident. Calendar agents being idle does NOT make us unhealthy.
-        "healthy": (not failures and not breakers and not resident_missing),
+        # resident AND the daily cycle is within its staleness SLA. Calendar
+        # agents being idle does NOT make us unhealthy.
+        "healthy": (not failures and not breakers and not resident_missing
+                    and not cycle_stale),
         "LLM_FORBIDDEN": True,
     }
     if not dry_run:
@@ -433,7 +467,8 @@ def run_self_heal(dry_run: bool = False) -> dict:
                 lines.append(f"❌ {f}")
             for b in breakers:
                 lines.append(f"🛑 {b}")
-            _send_telegram("\n".join(lines))
+            _send_telegram("\n".join(lines),
+                           dedup_key="|".join(sorted(involved)) or None)
     return report
 
 

@@ -481,3 +481,48 @@ class LiquidityScorer:
                 base_days = base_days + t * (premium_days - base_days)
 
         return round(max(base_days, 0.0), 4)
+
+
+# ─── Protocol-context entrypoint (линия A1 время-рядов, 2026-08-05) ──────────
+
+def analyze(context=None):
+    """Контекст агрегатора → структурный профиль протокола (_protocol_facts:
+    TVL, тир, тип redemption из exit-профиля; возраст/аудиты — тировые
+    структурные константы) → собственный движок score_adapter().
+
+    Fail-closed: нет факт-профиля → None.
+    Полярность: score движка 0-100 ВЫШЕ=ЛУЧШЕ (ликвиднее) →
+    risk_score = 100 − score. Без записей (движок строго read-only).
+    """
+    from spa_core.analytics import _protocol_facts as _pf
+    from spa_core.analytics import _apy_series as _apy
+    if not _pf.is_protocol_context(context):
+        return None
+    proto = _apy.canonical_protocol(context["protocol"])
+    facts = _pf.facts_for(proto)
+    if facts is None:
+        return None
+    exit_type = str((facts.get("exit") or {}).get("exit_type", ""))
+    if exit_type == "instant_withdraw":
+        redemption = "instant"
+    elif "queue" in exit_type or "batch" in exit_type:
+        redemption = "batched"
+    else:
+        redemption = "lock"
+    tier = facts["tier"]
+    adapter = {
+        "tvl_usd": float(facts["tvl_usd"]),
+        "tier": tier,
+        "redemption_type": redemption,
+        "protocol_age_days": {"T1": 1460.0, "T2": 730.0,
+                              "T3": 365.0}.get(tier, 365.0),
+        "audit_count": {"T1": 4, "T2": 2, "T3": 1}.get(tier, 1),
+    }
+    score = LiquidityScorer().score_adapter(adapter)
+    return {
+        "protocol": proto,
+        "risk_score": round(max(0.0, min(100.0, 100.0 - float(score))), 2),
+        "liquidity_score": float(score),
+        "redemption_type": redemption,
+        "structural_fields": "protocol_facts_v1",
+    }

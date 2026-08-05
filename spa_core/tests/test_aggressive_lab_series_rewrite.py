@@ -1,30 +1,25 @@
 """
-spa_core/tests/test_aggressive_lab_series_rewrite.py — what ACTUALLY happens to
-``data/aggressive_lab/<id>/realized_series.jsonl``, pinned against the docstring that said
-otherwise.
+spa_core/tests/test_aggressive_lab_series_rewrite.py — the contract of
+``data/aggressive_lab/<id>/realized_series.jsonl`` across the two producers, AND the launchd
+argument-transmission mechanism that decides which producer runs at night.
 
-WHY THIS FILE EXISTS (card ``agent-aggressive-lab-books-are-regenerated``). ``harness.py`` opened
-by describing the file as "proof-chained, **append-only**". It is not: :func:`run_backtest` rewrites
-the whole file from scratch on every run, and cycle #66/#69 measured the consequence on the live
-books — 853 of 853 rows of ``susde_dn`` changed against the 2026-07-25 repository backup (max
-−9.70% on 2026-07-05), while the single ``phase="forward"`` row did not accumulate but was
-REPLACED. Nothing in the tree pinned either behaviour, so "append-only" could stay written next to
-code that truncates.
+HISTORY (deliberate contract change, invariant #16 — recorded in docs/journal/2026-W32.md).
+Until 2026-08-05 this file MEASURED the incident: :func:`run_backtest` truncated the whole series
+file (853/853 rows of ``susde_dn`` rewritten, forward points destroyed), and the launchd wrapper's
+``export MODULE_ARGS=(paper)`` never reached the module (bash arrays do not survive a process
+boundary) so mode "both" ran nightly — together: the forward track could never exceed ONE row and
+the Balanced/Aggressive packages stayed unprovable. The old tests pinned that destruction as fact
+and said, verbatim, that when the behaviour is deliberately fixed "this contract ... must be
+updated deliberately". This is that update. The fix is two independent defenses:
 
-These tests do NOT change behaviour — they MEASURE it, so the contract is a fact in the suite
-instead of a sentence in a docstring:
+  1. TRANSMISSION — ``agent_aggressive_lab.sh`` exports MODULE_ARGS as a plain STRING and
+     ``agent_template.sh`` splits a string arriving via the environment into the args array.
+  2. PRESERVATION — :func:`run_backtest` still rewrites its own phase="backtest" rows from
+     scratch, but phase="forward" rows are PRESERVED across a replay (re-appended, re-chained).
 
-  1. :func:`run_backtest` rewrites the series file — pre-existing points (INCLUDING forward ones a
-     paper tick appended) do not survive it.
-  2. Contrast control: the paper path (:func:`upsert_day`) really IS append-across-days, so the
-     loss in (1) is attributable to ``run_backtest`` and not to the writer they share.
-  3. :func:`run.main` with NO argv resolves to mode ``"both"`` — i.e. a caller that passes no
-     argument runs the destructive backtest, not just the forward tick.
-  4. The mechanism behind the live incident, measured on real bash: a shell ARRAY does not survive
-     ``export`` across a process boundary, so ``export MODULE_ARGS=(paper)`` in a launchd wrapper
-     reaches the child template as NOTHING — which, with (3), is why the production agent has been
-     running ``both`` nightly. (The wrapper itself is the owner's domain — card
-     ``owner-decision-*``; this test pins the shell fact the card rests on.)
+Both directions are held: the positive controls reproducing the original avaria (an exported bash
+ARRAY arrives empty → mode "both") stay in this file forever, so the fix can never be silently
+reverted without a red test.
 
 stdlib + pytest only; everything injected (no network, no live data touched); deterministic.
 """
@@ -32,15 +27,22 @@ stdlib + pytest only; everything injected (no network, no live data touched); de
 from __future__ import annotations
 
 import datetime
+import json
+import os
 import subprocess
+import sys
 import textwrap
 from pathlib import Path
 
 import pytest
 
-from spa_core.strategy_lab.aggressive_lab import _io
+from spa_core.strategy_lab.aggressive_lab import _io, proof
 from spa_core.strategy_lab.aggressive_lab.feeds import AggressiveFeeds
-from spa_core.strategy_lab.aggressive_lab.harness import run_backtest, upsert_day
+from spa_core.strategy_lab.aggressive_lab.harness import PaperService, run_backtest, upsert_day
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+TEMPLATE = REPO_ROOT / "scripts" / "agent_template.sh"
+WRAPPER = REPO_ROOT / "scripts" / "agent_aggressive_lab.sh"
 
 
 # ── a small injected history (same shape as test_aggressive_lab_producer's, no network) ──────────
@@ -79,41 +81,15 @@ def _any_book(root: Path) -> str:
 
 
 # ════════════════════════════════════════════════════════════════════════════════════════════════
-# 1. run_backtest REWRITES — the file is not append-only, and forward points do not survive it.
+# 1. THE GUARD — run_backtest rewrites ITS OWN backtest rows but PRESERVES forward rows.
+#    (Until 2026-08-05 it destroyed them; the old tests here pinned the destruction.)
 # ════════════════════════════════════════════════════════════════════════════════════════════════
-def test_run_backtest_rewrites_the_series_and_drops_pre_existing_points(tmp_path):
-    """A point already in the file before the replay is GONE after it.
+def test_run_backtest_preserves_forward_points_written_by_the_paper_path(tmp_path):
+    """The live symptom, closed: the forward track survives a replay and can therefore accumulate.
 
-    This is the behaviour the live books show (853/853 rows re-written) and the exact opposite of
-    "append-only". Pinned so the contract cannot drift back into the docstring unmeasured."""
-    feeds, dates = _feeds()
-    run_backtest(feeds, dates[0], dates[-1], state_dir=tmp_path, verify_isolation=False)
-    sid = _any_book(tmp_path)
-
-    # a pre-existing point from an EARLIER era, of the kind a paper tick leaves behind
-    upsert_day(tmp_path, sid, {"date": "2020-01-01", "as_of": "2020-01-01",
-                               "equity_usd": 12345.0, "phase": "forward"})
-    before = _series(tmp_path, sid)
-    assert any(p["date"] == "2020-01-01" for p in before), "fixture: the marker point was not stored"
-
-    run_backtest(feeds, dates[0], dates[-1], state_dir=tmp_path, verify_isolation=False)
-
-    after = _series(tmp_path, sid)
-    assert not any(p["date"] == "2020-01-01" for p in after), (
-        "run_backtest kept a pre-existing point — if that is now true, the series really did become "
-        "append-only and this contract (plus the harness docstring) must be updated deliberately"
-    )
-    assert all(p.get("phase") == "backtest" for p in after), (
-        "after a replay the file holds backtest points ONLY — a surviving forward point would mean "
-        "the two producers no longer own the file exclusively"
-    )
-
-
-def test_run_backtest_destroys_a_forward_point_written_by_the_paper_path(tmp_path):
-    """The live symptom, reproduced: the forward track cannot accumulate across a replay.
-
-    On the real books exactly ONE `phase="forward"` row is ever present, and between 2026-07-25 and
-    2026-08-01 it did not grow to two — it was replaced. That is this, not a paper-tick bug."""
+    On the live books exactly ONE `phase="forward"` row was ever present, because every nightly
+    replay truncated the file before the tick re-appended one row. This is the guard that makes
+    that impossible regardless of what mode the agent runs in."""
     feeds, dates = _feeds()
     run_backtest(feeds, dates[0], dates[-1], state_dir=tmp_path, verify_isolation=False)
     sid = _any_book(tmp_path)
@@ -127,30 +103,65 @@ def test_run_backtest_destroys_a_forward_point_written_by_the_paper_path(tmp_pat
 
     run_backtest(feeds, dates[0], dates[-1], state_dir=tmp_path, verify_isolation=False)
 
-    forward_after = [p["date"] for p in _series(tmp_path, sid) if p.get("phase") == "forward"]
-    assert forward_after == [], (
-        "a replay left forward points behind — the accumulated forward track would then survive, "
-        "which is NOT what the live books show")
+    after = _series(tmp_path, sid)
+    forward_after = [p["date"] for p in after if p.get("phase") == "forward"]
+    assert forward_after == ["2026-07-25", "2026-07-26"], (
+        "a replay LOST forward points — the 2026-08-05 destruction guard has been reverted; "
+        "the forward track is the product and no replay may shorten it")
+    # equity of the preserved points is untouched (preservation, not regeneration)
+    kept = [p for p in after if p.get("phase") == "forward"]
+    assert all(p["equity_usd"] == 100.0 for p in kept), (
+        "preserved forward points must carry their ORIGINAL economics, not re-derived ones")
+
+
+def test_run_backtest_still_rederives_its_own_backtest_rows(tmp_path):
+    """The half of the old contract that stays true: backtest rows are replaced on every replay
+    (a clean replay of history), so preservation applies to forward rows ONLY — a stale marker
+    row of phase="backtest" does NOT survive."""
+    feeds, dates = _feeds()
+    run_backtest(feeds, dates[0], dates[-1], state_dir=tmp_path, verify_isolation=False)
+    sid = _any_book(tmp_path)
+
+    upsert_day(tmp_path, sid, {"date": "2020-01-01", "as_of": "2020-01-01",
+                               "equity_usd": 12345.0, "phase": "backtest"})
+    run_backtest(feeds, dates[0], dates[-1], state_dir=tmp_path, verify_isolation=False)
+
+    after = _series(tmp_path, sid)
+    assert not any(p["date"] == "2020-01-01" for p in after), (
+        "a foreign phase='backtest' row survived the replay — the backtest no longer fully owns "
+        "its own rows, and stale backtest data can now shadow a real replay")
+
+
+def test_run_backtest_keeps_the_proof_chain_valid_across_preserved_forward_rows(tmp_path):
+    """Preservation must re-chain, not merely concatenate: the file stays ONE valid hash chain."""
+    feeds, dates = _feeds()
+    run_backtest(feeds, dates[0], dates[-1], state_dir=tmp_path, verify_isolation=False)
+    sid = _any_book(tmp_path)
+    upsert_day(tmp_path, sid, {"date": "2026-07-25", "as_of": "2026-07-25",
+                               "equity_usd": 100.0, "phase": "forward"})
+    run_backtest(feeds, dates[0], dates[-1], state_dir=tmp_path, verify_isolation=False)
+
+    ok, reason = proof.verify_chain(_series(tmp_path, sid))
+    assert ok, f"series chain broken after a preserving replay: {reason}"
 
 
 # ════════════════════════════════════════════════════════════════════════════════════════════════
-# 2. CONTRAST CONTROL — the paper writer itself is append-across-days.
-#    Without this, test 1 would not tell you WHICH producer loses the history.
+# 2. THE PAPER WRITER — append-across-days, replace-same-day (unchanged contract).
 # ════════════════════════════════════════════════════════════════════════════════════════════════
-def test_upsert_day_accumulates_across_days_so_the_loss_is_run_backtests(tmp_path):
+def test_upsert_day_accumulates_across_days(tmp_path):
     sid = "control_book"
     for day in ("2026-07-25", "2026-07-26", "2026-07-27"):
         upsert_day(tmp_path, sid, {"date": day, "as_of": day, "equity_usd": 100.0,
                                    "phase": "forward"})
     got = [p["date"] for p in _series(tmp_path, sid)]
     assert got == ["2026-07-25", "2026-07-26", "2026-07-27"], (
-        "the paper writer must APPEND distinct days — if it does not, the forward track is lost "
-        "twice over and test 1 attributes the loss to the wrong producer")
+        "the paper writer must APPEND distinct days — otherwise the forward track cannot grow "
+        "no matter what the agent mode is")
 
 
 def test_upsert_day_still_refreshes_the_same_day_in_place(tmp_path):
-    """Positive control for the idempotency the docstring DOES describe correctly (per date+phase),
-    so these tests cannot be read as 'upsert_day appends unconditionally'."""
+    """Positive control for per-(date, phase) idempotency, so these tests cannot be read as
+    'upsert_day appends unconditionally'."""
     sid = "control_book"
     upsert_day(tmp_path, sid, {"date": "2026-07-25", "as_of": "2026-07-25",
                                "equity_usd": 100.0, "phase": "forward"})
@@ -161,12 +172,35 @@ def test_upsert_day_still_refreshes_the_same_day_in_place(tmp_path):
         "re-writing the same (date, phase) must REPLACE, not double-append")
 
 
+def test_two_nights_then_a_replay_the_full_scenario(tmp_path):
+    """END-TO-END of the fixed nightly life: two paper ticks on different dates through the REAL
+    PaperService (dates injected via as_of, feeds injected — no network, no live data), then a
+    backtest replay. The book must hold BOTH forward rows after all three runs."""
+    feeds, dates = _feeds()
+    svc = PaperService(feeds, state_dir=tmp_path, verify_isolation=False)
+    s1 = svc.tick("2026-08-04")
+    assert not s1.get("gap"), f"night 1 unexpectedly gapped: {s1.get('gap_reason')}"
+    svc2 = PaperService(feeds, state_dir=tmp_path, verify_isolation=False)  # fresh process, restored
+    s2 = svc2.tick("2026-08-05")
+    assert not s2.get("gap"), f"night 2 unexpectedly gapped: {s2.get('gap_reason')}"
+
+    sid = _any_book(tmp_path)
+    forward = [p["date"] for p in _series(tmp_path, sid) if p.get("phase") == "forward"]
+    assert forward == ["2026-08-04", "2026-08-05"], (
+        f"two nights must leave two forward rows, got {forward!r}")
+
+    run_backtest(feeds, dates[0], dates[-1], state_dir=tmp_path, verify_isolation=False)
+    forward_after = [p["date"] for p in _series(tmp_path, sid) if p.get("phase") == "forward"]
+    assert forward_after == ["2026-08-04", "2026-08-05"], (
+        f"the replay must not touch the two accumulated nights, got {forward_after!r}")
+
+
 # ════════════════════════════════════════════════════════════════════════════════════════════════
-# 3. THE DEFAULT — no argv means "both", i.e. the destructive replay runs.
+# 3. THE CLI — defaults, the explicit modes, fail-closed on garbage, --as-of plumbed through.
 # ════════════════════════════════════════════════════════════════════════════════════════════════
 def test_main_without_argv_runs_the_backtest_not_only_the_paper_tick(monkeypatch):
-    """``run.main([])`` → mode "both". Nothing here is a wish about what the default SHOULD be —
-    it is the fact a caller that passes no argument gets, and the live agent is such a caller."""
+    """``run.main([])`` → mode "both". Still the fact a caller that passes no argument gets —
+    which is exactly why the transmission tests below exist: the argument must ARRIVE."""
     from spa_core.strategy_lab.aggressive_lab import run as run_mod
 
     called = []
@@ -179,8 +213,8 @@ def test_main_without_argv_runs_the_backtest_not_only_the_paper_tick(monkeypatch
 
 
 def test_main_with_paper_argument_runs_only_the_forward_tick(monkeypatch):
-    """Positive control: the argument the wrapper INTENDS to pass does the harmless thing — so the
-    live damage is about the argument never arriving, not about the argument being wrong."""
+    """Positive control: the argument the wrapper passes does the harmless thing — so the live
+    damage was about the argument never arriving, not about the argument being wrong."""
     from spa_core.strategy_lab.aggressive_lab import run as run_mod
 
     called = []
@@ -191,22 +225,40 @@ def test_main_with_paper_argument_runs_only_the_forward_tick(monkeypatch):
     assert called == ["paper"], f"'paper' must not run the replay, got {called!r}"
 
 
+def test_main_refuses_an_unknown_mode(monkeypatch, capsys):
+    """fail-CLOSED: a typo'd mode must not silently run nothing (rc 0 used to make a dead agent
+    look alive) and must certainly not fall through to the destructive default."""
+    from spa_core.strategy_lab.aggressive_lab import run as run_mod
+
+    called = []
+    monkeypatch.setattr(run_mod, "run_real_backtest", lambda: called.append("backtest") or {})
+    monkeypatch.setattr(run_mod, "run_daily", lambda *a, **k: called.append("paper") or {})
+
+    assert run_mod.main(["papr"]) == 64
+    assert called == [], f"an unknown mode must run NOTHING, got {called!r}"
+    assert "unknown mode" in capsys.readouterr().err
+
+
+def test_main_passes_as_of_to_the_paper_tick(monkeypatch):
+    from spa_core.strategy_lab.aggressive_lab import run as run_mod
+
+    seen = []
+    monkeypatch.setattr(run_mod, "run_daily", lambda as_of=None: seen.append(as_of) or {})
+
+    assert run_mod.main(["paper", "--as-of", "2026-08-04"]) == 0
+    assert seen == ["2026-08-04"], f"--as-of must reach run_daily, got {seen!r}"
+
+
 # ════════════════════════════════════════════════════════════════════════════════════════════════
-# 4. THE MECHANISM — a bash ARRAY does not cross a process boundary via `export`.
-#    Measured on the real shell, not asserted from memory.
+# 4. THE TRANSMISSION — measured on the REAL bash and the REAL agent_template.sh.
 # ════════════════════════════════════════════════════════════════════════════════════════════════
 def test_exported_bash_array_does_not_reach_a_child_shell(tmp_path):
-    """`export MODULE_ARGS=(paper)` succeeds in the parent and arrives EMPTY in the child.
-
-    This is why ``scripts/agent_aggressive_lab.sh`` — which sets exactly that and then execs
-    ``scripts/agent_template.sh`` as a separate ``/bin/bash`` — has been running the module with no
-    argument every night (verbatim in /tmp/spa_aggressive_lab.log: `... .run ` with nothing after
-    it), i.e. mode "both" per test 3. Fixing the wrapper is the owner's domain (a live launchd
-    agent); pinning the shell fact is not."""
+    """POSITIVE CONTROL, kept forever: `export MODULE_ARGS=(paper)` succeeds in the parent and
+    arrives EMPTY in the child. This is the shell fact behind the incident — the reason the fix
+    is 'export a STRING', and the test that proves the old wrapper form can never work."""
     child = tmp_path / "child.sh"
     child.write_text(textwrap.dedent("""\
         #!/bin/bash
-        # the guard agent_template.sh uses at line 50
         if ! declare -p MODULE_ARGS >/dev/null 2>&1; then MODULE_ARGS=(); fi
         echo "count=${#MODULE_ARGS[@]}"
     """), encoding="utf-8")
@@ -222,27 +274,95 @@ def test_exported_bash_array_does_not_reach_a_child_shell(tmp_path):
     assert "parent_count=1" in out.stdout, (
         f"fixture: the parent shell itself should hold one element, got {out.stdout!r}")
     assert "count=0" in out.stdout, (
-        "the child saw the array — if bash ever starts exporting arrays, the wrapper's intent "
-        f"would arrive and this whole finding changes; got {out.stdout!r}")
+        "the child saw the array — if bash ever starts exporting arrays, the transmission "
+        f"defense becomes redundant (but the preservation guard still stands); got {out.stdout!r}")
 
 
-def test_the_wrapper_and_template_still_carry_the_two_halves_of_the_mechanism():
-    """Both halves still exist in the tree, quoted from the real files.
+def _template_fixture(tmp_path):
+    """A sandbox the REAL agent_template.sh accepts: a fake repo root (spa_core/__init__.py must be
+    readable — the wake-storm readiness probe does a real 1-byte read) and a stub 'module' that
+    records its argv to a file. Uses the documented test-only overrides SPA_AGENT_REPO_ROOT /
+    SPA_AGENT_PYTHON; production plists set neither."""
+    fake_root = tmp_path / "repo"
+    (fake_root / "spa_core").mkdir(parents=True)
+    (fake_root / "spa_core" / "__init__.py").write_text("", encoding="utf-8")
+    argv_out = tmp_path / "argv_seen.json"
+    stub = tmp_path / "stub.py"
+    stub.write_text(
+        "import json, sys, pathlib\n"
+        f"pathlib.Path({str(argv_out)!r}).write_text(json.dumps(sys.argv[1:]))\n",
+        encoding="utf-8")
+    return fake_root, stub, argv_out
 
-    Deliberately NOT a guard that fails until the wrapper is fixed: the fix is owner-gated and a
-    red test on main is forbidden (invariant #16 is about not weakening tests, not about shipping
-    known-red ones). If the owner fixes the wrapper, this test is the one to update — and it says
-    so out loud, which a silent absence of coverage never did."""
-    root = Path(__file__).resolve().parents[2]
-    wrapper = root / "scripts" / "agent_aggressive_lab.sh"
-    template = root / "scripts" / "agent_template.sh"
-    if not (wrapper.is_file() and template.is_file()):
-        pytest.skip(f"wrapper/template not present in this checkout: {wrapper}, {template}")
 
-    w = wrapper.read_text(encoding="utf-8")
-    t = template.read_text(encoding="utf-8")
-    assert "MODULE=\"spa_core.strategy_lab.aggressive_lab.run\"" in w, (
-        "the wrapper no longer targets the aggressive-lab run module — re-derive this finding")
-    assert "declare -p MODULE_ARGS" in t, (
-        "agent_template.sh no longer falls back to an EMPTY MODULE_ARGS — the second half of the "
-        "mechanism changed and the owner card must be re-measured")
+def _run_real_template(tmp_path, module_args_line: str):
+    """Invoke the REAL scripts/agent_template.sh exactly the way a separate parent wrapper does
+    (child /bin/bash + exported env), with MODULE_ARGS set by `module_args_line`."""
+    fake_root, stub, argv_out = _template_fixture(tmp_path)
+    name = f"pytest_modargs_{os.getpid()}"
+    parent = tmp_path / "wrapper.sh"
+    parent.write_text(textwrap.dedent(f"""\
+        #!/bin/bash
+        export AGENT_NAME="{name}"
+        export RUN_SCRIPT="{stub}"
+        export SPA_AGENT_REPO_ROOT="{fake_root}"
+        export SPA_AGENT_PYTHON="{sys.executable}"
+        {module_args_line}
+        /bin/bash {TEMPLATE}
+    """), encoding="utf-8")
+    proc = subprocess.run(["/bin/bash", str(parent)], capture_output=True, text=True, timeout=120)
+    log = Path(f"/tmp/spa_{name}.log")
+    try:
+        assert proc.returncode == 0, (
+            f"template run failed rc={proc.returncode} stderr={proc.stderr!r} "
+            f"log={log.read_text(encoding='utf-8') if log.is_file() else '<missing>'!r}")
+        assert argv_out.is_file(), "stub module never ran — the template did not reach python"
+        return json.loads(argv_out.read_text(encoding="utf-8"))
+    finally:
+        if log.is_file():
+            log.unlink()
+
+
+def test_real_template_delivers_a_string_module_args_across_the_process_boundary(tmp_path):
+    """THE FIX, end-to-end on the real file: an exported STRING MODULE_ARGS arrives as real args.
+    This is the exact invocation shape of the fixed agent_aggressive_lab.sh."""
+    got = _run_real_template(tmp_path, 'export MODULE_ARGS="paper"')
+    assert got == ["paper"], (
+        f"the exported string did not arrive as args — the template no longer splits a "
+        f"string MODULE_ARGS and every env-mode wrapper with args is silently argless; got {got!r}")
+
+
+def test_real_template_splits_a_multi_arg_string(tmp_path):
+    got = _run_real_template(tmp_path, 'export MODULE_ARGS="--flag value"')
+    assert got == ["--flag", "value"], f"whitespace split broken: {got!r}"
+
+
+def test_real_template_still_arrives_argless_from_the_old_array_export(tmp_path):
+    """POSITIVE CONTROL replaying the avaria against today's template: the OLD wrapper form
+    (`export MODULE_ARGS=(paper)`) still arrives as ZERO args — bash, not the template, drops it.
+    If this ever starts delivering args, bash semantics changed; re-measure everything."""
+    got = _run_real_template(tmp_path, "export MODULE_ARGS=(paper)")
+    assert got == [], f"an exported ARRAY arrived across the boundary?! got {got!r}"
+
+
+def test_the_deployed_wrapper_exports_a_string_not_an_array():
+    """Both halves of the fix are present in the tree: the wrapper exports a STRING (the only
+    form that can arrive), and the template contains the string-split branch."""
+    if not (WRAPPER.is_file() and TEMPLATE.is_file()):
+        pytest.skip(f"wrapper/template not present in this checkout: {WRAPPER}, {TEMPLATE}")
+    w = WRAPPER.read_text(encoding="utf-8")
+    t = TEMPLATE.read_text(encoding="utf-8")
+    # judge the wrapper by its EFFECTIVE lines — the incident is documented in its comments,
+    # which legitimately quote the broken form
+    w_code = "\n".join(l for l in w.splitlines() if not l.lstrip().startswith("#"))
+    assert 'export MODULE_ARGS="paper"' in w_code, (
+        "agent_aggressive_lab.sh no longer exports the STRING form — mode 'paper' will not reach "
+        "the module and the nightly replay returns")
+    assert "MODULE_ARGS=(" not in w_code.replace("MODULE_ARGS=()", ""), (
+        "an ARRAY MODULE_ARGS export is back in the wrapper — it cannot cross the process "
+        "boundary (see test_exported_bash_array_does_not_reach_a_child_shell)")
+    assert 'MODULE="spa_core.strategy_lab.aggressive_lab.run"' in w, (
+        "the wrapper no longer targets the aggressive-lab run module — re-derive this contract")
+    assert "read -r -a MODULE_ARGS" in t, (
+        "agent_template.sh no longer splits a string MODULE_ARGS from the environment — half of "
+        "the transmission fix is gone")
