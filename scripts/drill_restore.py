@@ -7,9 +7,35 @@ had NEVER proven that a restore actually works. A backup you cannot restore is t
 This drill EXTRACTS the newest backup to a TEMP sandbox and VALIDATES the critical state
 files a real recovery must produce — without ever writing into the live data/ tree.
 
+ONE ARCHIVE WAS NOT ENOUGH (production defect, fixed 2026-08-05)
+----------------------------------------------------------------
+`data/backups/` is written by TWO producers with TWO naming schemes (see
+`spa_core/dr/archive_names.py`): the narrow critical-set `dr` series
+(`spa_state_20260805T084335Z.tar.gz`, tier1 dr_backup) and the broad 502-file `daily`
+series (`spa_state_2026-08-05.tar.gz`, scripts/daily_backup.py). This drill used to take
+`max(glob(spa_state_*.tar.gz), key=mtime)` — ONE archive across BOTH series. Two
+consequences, the second one the real defect:
+
+  * WHICH series got validated was decided by an mtime race between the two producers
+    (measured 2026-08-05: dr written 10:43, daily rewritten 13:09 — the morning drill
+    validated dr, the next one would have flipped to daily). Nobody chose that.
+  * A DEAD producer stayed invisible. If one series stopped being written, the drill kept
+    picking the survivor's archive and kept publishing `all_ok: true` — a verdict that is
+    honest about what it checked and silent about what it did not. That is the fail-OPEN
+    class: an assertion of a measurement that never happened. Not hypothetical: until
+    2026-08-05 `dr_backup.prune` deleted the foreign series wholesale, so the `daily`
+    series was down to a SINGLE archive while this drill reported all_ok every day.
+
+So the drill now validates the newest archive of EVERY series present, and — where the
+caller declares the producer contract (`--require dr,daily`, which is what the scheduled
+R7 step passes) — a required series that is absent or stale is a NAMED finding, not
+silence. Without `--require` no cadence is declared, so staleness cannot be judged and is
+reported without affecting the verdict.
+
 DESIGN (fail-CLOSED, stdlib-only, deterministic):
-  1. Find the NEWEST backup archive in data/backups/ (by mtime). Fail-closed if none.
-  2. Extract it to a fresh tempfile.mkdtemp() sandbox — NEVER under the live data/.
+  1. Find the newest backup archive OF EACH SERIES in data/backups/ (ordered by the
+     instant the NAME encodes, via spa_core.dr.archive_names). Fail-closed if none at all.
+  2. Extract each to a fresh tempfile.mkdtemp() sandbox — NEVER under the live data/.
      A hard guard asserts the extract dir is OUTSIDE the repo data/ before any write,
      and tar members are path-sanitised (no absolute paths / .. traversal).
   3. Validate the critical recovered files:
@@ -27,13 +53,15 @@ DESIGN (fail-CLOSED, stdlib-only, deterministic):
          member) the drill falls back to the newest bare data/backups/spa_*.db snapshot. If
          no usable source exists, track.db is reported FAIL (fail-closed).
   4. Print a clear PASS/FAIL report and write data/restore_drill_status.json (atomic).
-  5. Exit 0 iff EVERY critical file was restored + valid. Otherwise non-zero.
+  5. Exit 0 iff EVERY drilled series restored + validated every critical file, AND every
+     required series was present and fresh. Otherwise non-zero.
 
 The temp sandbox is removed on exit by default (--keep leaves it + prints the path).
 
 Usage:
-  python3 scripts/drill_restore.py                 # drill the newest archive
-  python3 scripts/drill_restore.py --archive PATH  # drill a specific archive
+  python3 scripts/drill_restore.py                 # drill the newest archive of each series
+  python3 scripts/drill_restore.py --archive PATH  # drill exactly one specific archive
+  python3 scripts/drill_restore.py --require dr,daily   # declare the producer contract
   python3 scripts/drill_restore.py --keep          # keep the temp sandbox
   python3 scripts/drill_restore.py --quiet         # only the final verdict line
 """
@@ -56,12 +84,24 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # spa_core.audit.day30_artifact); launchd hands a minimal PYTHONPATH so be explicit.
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
+from spa_core.dr import archive_names  # noqa: E402 — needs the sys.path insert above
+
 _DATA = os.path.realpath(os.path.join(_REPO_ROOT, "data"))
 _BACKUPS = os.path.join(_DATA, "backups")
 _STATUS_PATH = os.path.join(_DATA, "restore_drill_status.json")
 
 ARCHIVE_GLOB = os.path.join(_BACKUPS, "spa_state_*.tar.gz")
 DB_GLOB = os.path.join(_BACKUPS, "spa_*.db")
+
+#: The producer series this repo schedules. Used only to validate `--require` spelling —
+#: what is actually REQUIRED is whatever the caller declares, never guessed from here.
+KNOWN_SERIES = (archive_names.SERIES_DR, archive_names.SERIES_DAILY)
+
+#: A required series whose newest archive is older than this is a finding. Both producers
+#: run DAILY, so the alarm sits at 2x the cadence: one delayed run (the host slept through
+#: 2026-08-04/05 and a pass spanned 03:30→08:43) must not raise it, two missed days must.
+#: The same 2x-the-window convention agent_health uses for calendar agents.
+SERIES_STALE_H = 48.0
 
 # Critical files a restore MUST recover. Each is validated below.
 CRITICAL_JSON = (
@@ -94,11 +134,50 @@ DAY30_ARTIFACT = "day30_artifact.json"
 # selection
 # --------------------------------------------------------------------------- #
 def find_newest_archive() -> str:
-    """Newest spa_state_*.tar.gz by mtime. Fail-CLOSED (raise) if none."""
+    """Newest spa_state_*.tar.gz by mtime. Fail-CLOSED (raise) if none.
+
+    Kept as the ACROSS-series "which archive landed last" question — it is what the
+    compatibility keys at the top of the status file describe. It is deliberately NOT
+    the drill target selector any more: see `newest_by_series`.
+    """
     archives = [p for p in glob.glob(ARCHIVE_GLOB) if os.path.isfile(p)]
     if not archives:
         raise FileNotFoundError(f"no backup archives match {ARCHIVE_GLOB}")
     return max(archives, key=lambda p: (os.path.getmtime(p), p))
+
+
+def newest_by_series() -> dict:
+    """``{series: newest archive path}`` — one target per producer series.
+
+    Ordering INSIDE a series is `archive_names.newest_first` (the instant the name
+    encodes, mtime only as a documented fallback for names we cannot parse), never a
+    lexical or cross-series comparison: `'-' < '0'`, so every dated name sorts below
+    every timestamped one regardless of the date it carries — the bug that cost the
+    `daily` series 15 archives on 2026-08-04.
+
+    Unrecognised names are grouped under `archive_names.SERIES_UNKNOWN` and drilled like
+    any other series: a stray archive is still a backup someone may one day restore from,
+    and skipping it silently is how a series goes unchecked.
+    """
+    by_series: dict = {}
+    for path in glob.glob(ARCHIVE_GLOB):
+        if not os.path.isfile(path):
+            continue
+        by_series.setdefault(archive_names.archive_series(path), []).append(path)
+    return {s: archive_names.newest_first(paths)[0] for s, paths in by_series.items()}
+
+
+def _age_hours(path: str, now: "datetime.datetime | None" = None) -> float:
+    """Hours since the archive was WRITTEN (mtime).
+
+    Deliberately mtime, not the instant in the name: a `daily` name carries no time of
+    day, so `archive_names` anchors it at 00:00Z — reading a snapshot written at 05:30Z
+    as already 5.5h old, and up to 24h old by the end of its own day. For "has the
+    producer produced lately?" the write time is the honest measure.
+    """
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    written = datetime.datetime.fromtimestamp(os.path.getmtime(path), tz=datetime.timezone.utc)
+    return (now - written).total_seconds() / 3600.0
 
 
 def find_newest_db() -> str:
@@ -384,9 +463,12 @@ def _atomic_write_json(path: str, obj: dict) -> None:
 # --------------------------------------------------------------------------- #
 # drill
 # --------------------------------------------------------------------------- #
-def run_drill(archive: str = "", keep: bool = False, quiet: bool = False) -> dict:
-    """Run the inert restore drill. Returns the report dict (also written to status JSON)."""
-    archive = archive or find_newest_archive()
+def _drill_one(archive: str, keep: bool = False) -> dict:
+    """Extract + validate ONE archive. Returns
+    ``{archive, archive_path, db_snapshot, sandbox, files_validated, all_ok}``.
+
+    Pure per-archive work; the series bookkeeping lives in :func:`run_drill`.
+    """
     archive = os.path.abspath(archive)
     if not os.path.isfile(archive):
         raise FileNotFoundError(f"archive not found: {archive}")
@@ -456,15 +538,101 @@ def run_drill(archive: str = "", keep: bool = False, quiet: bool = False) -> dic
             shutil.rmtree(sandbox, ignore_errors=True)
             sandbox_note = None
 
-    report = {
-        "schema": "spa_restore_drill/v1",
-        "llm_forbidden": True,
-        "last_drill_ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    return {
         "archive": os.path.basename(archive),
         "archive_path": archive,
         "db_snapshot": db_source_label,
         "sandbox": sandbox_note,
         "files_validated": files_validated,
+        "all_ok": all_ok,
+    }
+
+
+def run_drill(archive: str = "", keep: bool = False, quiet: bool = False,
+              require: "tuple | list" = ()) -> dict:
+    """Run the inert restore drill. Returns the report dict (also written to status JSON).
+
+    * ``archive`` given → drill exactly that archive (unchanged single-target behaviour).
+    * otherwise        → drill the newest archive of EVERY series present (see
+      :func:`newest_by_series`). ``all_ok`` is true only if every one of them passed.
+    * ``require``      → producer contract declared by the caller (e.g. ``("dr","daily")``).
+      A required series with no archive at all, or whose newest archive is older than
+      ``SERIES_STALE_H``, is a NAMED finding and forces ``all_ok`` false. Without
+      ``require`` no cadence is declared, so age is reported but cannot be judged.
+
+    The top-level ``archive`` / ``archive_path`` / ``db_snapshot`` / ``files_validated``
+    keys describe the archive that landed LAST (``find_newest_archive`` semantics), so
+    existing consumers of this status file keep reading what they always read. The full
+    per-series detail is under ``series``.
+    """
+    if archive:
+        targets = {archive_names.archive_series(archive): os.path.abspath(archive)}
+    else:
+        targets = newest_by_series()
+        if not targets:
+            raise FileNotFoundError(f"no backup archives match {ARCHIVE_GLOB}")
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    series_reports = []
+    drilled: dict = {}
+    for series in sorted(targets):  # deterministic order
+        path = targets[series]
+        if not os.path.isfile(path):
+            raise FileNotFoundError(f"archive not found: {path}")
+        result = _drill_one(path, keep=keep)
+        drilled[series] = result
+        series_reports.append({
+            "series": series,
+            "archive": result["archive"],
+            "archive_path": result["archive_path"],
+            "age_h": round(_age_hours(path, now), 2),
+            "status": "ok" if result["all_ok"] else "failed",
+            "all_ok": result["all_ok"],
+            "files_validated": result["files_validated"],
+        })
+
+    # Required series the caller declared. Absent → the producer wrote NOTHING we can find;
+    # stale → it stopped writing. Both are the dead-producer case this drill exists to
+    # catch, and both are named rather than absorbed into a green verdict.
+    required = tuple(require or ())
+    for series in required:
+        found = next((s for s in series_reports if s["series"] == series), None)
+        if found is None:
+            series_reports.append({
+                "series": series,
+                "archive": None,
+                "archive_path": None,
+                "age_h": None,
+                "status": "missing",
+                "all_ok": False,
+                "files_validated": [],
+                "detail": f"required series '{series}' has NO archive in {ARCHIVE_GLOB}",
+            })
+        elif found["age_h"] is not None and found["age_h"] > SERIES_STALE_H:
+            found["status"] = "stale"
+            found["all_ok"] = False
+            found["detail"] = (f"required series '{series}' newest archive is "
+                               f"{found['age_h']:.1f}h old (>{SERIES_STALE_H:.0f}h)")
+
+    all_ok = all(s["all_ok"] for s in series_reports)
+
+    # Compatibility head: the archive that landed LAST among the ones we drilled.
+    primary_path = max((s["archive_path"] for s in series_reports if s["archive_path"]),
+                       key=lambda p: (os.path.getmtime(p), p))
+    primary = next(r for r in drilled.values() if r["archive_path"] == primary_path)
+
+    report = {
+        "schema": "spa_restore_drill/v2",
+        "llm_forbidden": True,
+        "last_drill_ts": now.isoformat(),
+        "archive": primary["archive"],
+        "archive_path": primary["archive_path"],
+        "db_snapshot": primary["db_snapshot"],
+        "sandbox": primary["sandbox"],
+        "files_validated": primary["files_validated"],
+        "series": series_reports,
+        "required_series": list(required),
+        "series_drilled": sorted(drilled),
         "all_ok": all_ok,
     }
     _atomic_write_json(_STATUS_PATH, report)
@@ -486,6 +654,17 @@ def _print_report(report: dict) -> None:
     for e in report["files_validated"]:
         mark = "PASS" if e["ok"] else "FAIL"
         print(f"  [{mark}] {e['file']:<28} {e['detail']}")
+    for s in report.get("series", []):
+        if s["archive_path"] == report.get("archive_path"):
+            continue  # already printed in full above
+        mark = "PASS" if s["all_ok"] else s["status"].upper()
+        age = f"{s['age_h']:.1f}h" if s["age_h"] is not None else "-"
+        print(f"  [{mark}] series {s['series']:<8} {str(s['archive']):<34} age {age}"
+              + (f"  {s['detail']}" if s.get("detail") else ""))
+    print("-" * 64)
+    covered = ", ".join(report.get("series_drilled", [])) or "-"
+    required = ", ".join(report.get("required_series", [])) or "(none declared)"
+    print(f"series drilled: {covered}   required: {required}")
     print("-" * 64)
     verdict = "ALL CRITICAL FILES RESTORED + VALID" if report["all_ok"] \
         else "RESTORE DRILL FAILED (fail-closed)"
@@ -495,22 +674,38 @@ def _print_report(report: dict) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="SPA inert restore drill")
-    ap.add_argument("--archive", default="", help="drill a specific archive (default: newest)")
+    ap.add_argument("--archive", default="",
+                    help="drill exactly one archive (default: newest of EACH series)")
+    ap.add_argument("--require", default="",
+                    help="comma-separated producer series that MUST be present and fresh "
+                         f"(known: {','.join(KNOWN_SERIES)})")
     ap.add_argument("--keep", action="store_true", help="keep the temp sandbox")
     ap.add_argument("--quiet", action="store_true", help="only print the verdict line")
     args = ap.parse_args()
 
+    require = tuple(s.strip() for s in args.require.split(",") if s.strip())
+    unknown = [s for s in require if s not in KNOWN_SERIES]
+    if unknown:
+        # Fail-CLOSED on a typo: a misspelled series would silently require nothing.
+        print(f"[FAIL] unknown series in --require: {unknown} (known: {list(KNOWN_SERIES)})",
+              file=sys.stderr)
+        return 2
+
     try:
-        report = run_drill(archive=args.archive, keep=args.keep, quiet=args.quiet)
+        report = run_drill(archive=args.archive, keep=args.keep, quiet=args.quiet,
+                           require=require)
     except Exception as exc:
         # fail-CLOSED: any failure to even run the drill is a non-zero exit
         print(f"[FAIL] restore drill could not run: {exc}", file=sys.stderr)
         try:
             _atomic_write_json(_STATUS_PATH, {
-                "schema": "spa_restore_drill/v1",
+                "schema": "spa_restore_drill/v2",
                 "last_drill_ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "archive": None,
                 "files_validated": [],
+                "series": [],
+                "required_series": list(require),
+                "series_drilled": [],
                 "all_ok": False,
                 "error": str(exc),
             })

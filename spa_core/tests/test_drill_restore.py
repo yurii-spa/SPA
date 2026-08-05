@@ -6,11 +6,23 @@ Proves the drill harness (scripts/drill_restore.py):
     (all_ok) and FAILS-CLOSED on a corrupted critical file,
   * NEVER writes anywhere under the real live data/ tree (sandbox guard),
   * newest-archive selection picks the latest by mtime,
+  * one target PER PRODUCER SERIES, so a dead producer cannot hide behind a green
+    all_ok (production defect 2026-08-05),
   * fail-closed when no archives exist,
   * rejects unsafe (absolute / traversal) tar member paths.
 
 All deterministic, stdlib-only. The drill is pointed at synthetic tmp archives and a
 tmp status path so the real data/ is never touched.
+
+# FROZEN-DATE-OK: the literal dates here are ARCHIVE NAMES and payload contents that
+# spa_core/dr/archive_names.py PARSES — the date is the subject under test (which series
+# a name belongs to, and which instant it encodes), not a freshness fixture. Every one of
+# them is in the past and every assertion over them is "<= today", so the calendar moving
+# can only make them safer, never redder. The freshness side of this file — the only part
+# that could rot — is expressed RELATIVELY (`time.time() - N*3600`, pattern 2 of
+# .claude/rules/deployment.md), never against a literal date. Added when the per-series
+# work introduced the words `stale`/`age_h` and so pulled the file into the ratchet's
+# at-risk class (цикл #120); the baseline was NOT touched.
 """
 from __future__ import annotations
 
@@ -18,6 +30,8 @@ import importlib.util
 import json
 import os
 import sqlite3
+import subprocess
+import sys
 import tarfile
 import time
 from pathlib import Path
@@ -265,3 +279,184 @@ def test_real_data_dir_untouched_signature(sandbox_env):
     drill.run_drill(quiet=True)
     after = set(os.listdir(_REAL_DATA))
     assert before == after, f"live data/ changed: {before ^ after}"
+
+
+# --------------------------------------------------------------------------- #
+# PER-SERIES COVERAGE (production defect 2026-08-05)
+#
+# data/backups/ is written by TWO producers with TWO naming schemes. The drill used to
+# take ONE archive across both series (max by mtime), so which series got validated was
+# an mtime race — and a DEAD producer stayed invisible behind a green all_ok.
+#
+# Every test below is a positive control: on the pre-fix drill (single mtime-max target,
+# no `series` key, no `--require`) each one fails.
+# --------------------------------------------------------------------------- #
+def _dr_name(stamp: str = "20260101T051500Z") -> str:
+    return f"spa_state_{stamp}.tar.gz"
+
+
+def test_both_producer_series_are_drilled_not_just_the_newest(sandbox_env):
+    """The core defect: with both series present, BOTH are validated — not whichever
+    the mtime race happened to favour."""
+    backups = sandbox_env["backups"]
+    _make_archive(backups / "spa_state_2026-01-01.tar.gz", _good_payloads())   # daily
+    _make_archive(backups / _dr_name(), _good_payloads())                      # dr
+    _make_db(backups / "spa_2026-01-01.db")
+
+    rep = drill.run_drill(quiet=True)
+    assert rep["all_ok"] is True, rep
+    assert sorted(rep["series_drilled"]) == ["daily", "dr"], rep["series_drilled"]
+    drilled_archives = {s["archive"] for s in rep["series"]}
+    assert drilled_archives == {"spa_state_2026-01-01.tar.gz", _dr_name()}, drilled_archives
+
+
+def test_a_broken_archive_in_the_OTHER_series_turns_the_verdict_red(sandbox_env):
+    """The whole point. The newest archive (by mtime) is healthy; the other series is
+    corrupt. Pre-fix this published all_ok=true — a green light over an unrestorable
+    backup series."""
+    backups = sandbox_env["backups"]
+    bad = dict(_good_payloads())
+    bad["golive_status.json"] = {"foo": "bar"}          # no passed/total → invalid
+    dr_arc = backups / _dr_name()
+    daily_arc = backups / "spa_state_2026-01-02.tar.gz"
+    _make_archive(dr_arc, bad)                          # the BROKEN one
+    _make_archive(daily_arc, _good_payloads())          # the healthy one
+    _make_db(backups / "spa_2026-01-02.db")
+    os.utime(dr_arc, (1000, 1000))                      # dr is OLDER by mtime
+    os.utime(daily_arc, (2000, 2000))                   # daily wins the mtime race
+
+    rep = drill.run_drill(quiet=True)
+    # compatibility head still describes the archive that landed last …
+    assert rep["archive"] == "spa_state_2026-01-02.tar.gz"
+    assert all(e["ok"] for e in rep["files_validated"])
+    # … but the verdict now accounts for the series it used to ignore
+    assert rep["all_ok"] is False, rep
+    broken = next(s for s in rep["series"] if s["series"] == "dr")
+    assert broken["status"] == "failed", broken
+
+
+def test_newest_within_a_series_is_chosen_by_the_instant_the_name_encodes(sandbox_env):
+    """Ordering INSIDE a series must not be lexical or cross-series: '-' < '0', so every
+    dated name sorts below every timestamped one whatever date it carries."""
+    backups = sandbox_env["backups"]
+    older = backups / "spa_state_2026-01-01.tar.gz"
+    newer = backups / "spa_state_2026-01-05.tar.gz"
+    _make_archive(older, _good_payloads())
+    _make_archive(newer, _good_payloads())
+    _make_db(backups / "spa_2026-01-05.db")
+    # mtimes deliberately CONTRADICT the names: the older-named file was touched last.
+    os.utime(newer, (1000, 1000))
+    os.utime(older, (2000, 2000))
+
+    picked = drill.newest_by_series()
+    assert picked["daily"] == str(newer), picked
+
+
+def test_required_series_with_no_archive_is_a_named_finding(sandbox_env):
+    """A producer that wrote NOTHING must be named, not absorbed into a green verdict."""
+    backups = sandbox_env["backups"]
+    _make_archive(backups / "spa_state_2026-01-03.tar.gz", _good_payloads())  # daily only
+    _make_db(backups / "spa_2026-01-03.db")
+
+    rep = drill.run_drill(quiet=True, require=("dr", "daily"))
+    assert rep["all_ok"] is False, rep
+    missing = next(s for s in rep["series"] if s["series"] == "dr")
+    assert missing["status"] == "missing", missing
+    assert "dr" in missing["detail"] and missing["archive"] is None
+    # and the series that IS there still passed on its own merits
+    assert next(s for s in rep["series"] if s["series"] == "daily")["all_ok"] is True
+
+
+def test_required_series_gone_stale_is_a_named_finding(sandbox_env):
+    """A producer that STOPPED writing looks identical to a healthy one from the archive
+    contents alone — only its age gives it away."""
+    backups = sandbox_env["backups"]
+    daily = backups / "spa_state_2026-01-04.tar.gz"
+    dr = backups / _dr_name()
+    _make_archive(daily, _good_payloads())
+    _make_archive(dr, _good_payloads())
+    _make_db(backups / "spa_2026-01-04.db")
+    stale_by = (drill.SERIES_STALE_H + 1.0) * 3600
+    old = time.time() - stale_by
+    os.utime(dr, (old, old))
+
+    rep = drill.run_drill(quiet=True, require=("dr", "daily"))
+    assert rep["all_ok"] is False, rep
+    stale = next(s for s in rep["series"] if s["series"] == "dr")
+    assert stale["status"] == "stale", stale
+    assert stale["age_h"] > drill.SERIES_STALE_H
+
+
+def test_one_delayed_run_does_not_raise_the_stale_alarm(sandbox_env):
+    """Positive control on the threshold itself: the host slept through 2026-08-04/05 and
+    a backup pass spanned 03:30→08:43. A single delayed daily run must stay green — the
+    alarm sits at 2x the cadence, so only two missed days trip it."""
+    backups = sandbox_env["backups"]
+    daily = backups / "spa_state_2026-01-06.tar.gz"
+    dr = backups / _dr_name()
+    _make_archive(daily, _good_payloads())
+    _make_archive(dr, _good_payloads())
+    _make_db(backups / "spa_2026-01-06.db")
+    delayed = time.time() - 29 * 3600     # a full day late and then some
+    os.utime(dr, (delayed, delayed))
+
+    rep = drill.run_drill(quiet=True, require=("dr", "daily"))
+    assert rep["all_ok"] is True, rep
+    assert next(s for s in rep["series"] if s["series"] == "dr")["status"] == "ok"
+
+
+def test_unrecognised_archive_name_is_drilled_not_skipped(sandbox_env):
+    """A name we cannot parse is still a backup someone may restore from. Skipping it
+    silently is how a series goes unchecked — it gets its own group and is validated."""
+    backups = sandbox_env["backups"]
+    stray = backups / "spa_state_handcopy.tar.gz"
+    bad = dict(_good_payloads())
+    bad["golive_status.json"] = {"foo": "bar"}
+    _make_archive(stray, bad)
+    _make_archive(backups / "spa_state_2026-01-07.tar.gz", _good_payloads())
+    _make_db(backups / "spa_2026-01-07.db")
+
+    rep = drill.run_drill(quiet=True)
+    assert "unknown" in rep["series_drilled"], rep["series_drilled"]
+    assert rep["all_ok"] is False, rep
+
+
+def test_explicit_archive_still_drills_exactly_one(sandbox_env):
+    """--archive keeps its single-target meaning: the other series is NOT pulled in."""
+    backups = sandbox_env["backups"]
+    target = backups / "spa_state_2026-01-08.tar.gz"
+    _make_archive(target, _good_payloads())
+    _make_archive(backups / _dr_name(), _good_payloads())
+    _make_db(backups / "spa_2026-01-08.db")
+
+    rep = drill.run_drill(archive=str(target), quiet=True)
+    assert rep["series_drilled"] == ["daily"], rep["series_drilled"]
+    assert rep["archive"] == "spa_state_2026-01-08.tar.gz"
+
+
+def test_scheduled_r7_step_declares_the_producer_contract():
+    """Without --require the drill cannot tell a DEAD producer from an unscheduled one.
+    The declaration therefore has to live at the scheduling site — and be pinned, because
+    a step that is only a convention is a step that gets dropped (the fleet-parity guard
+    sat un-called for 25 days for exactly that reason)."""
+    src = (Path(__file__).resolve().parents[2] / "scripts" / "resilience_cycle.py").read_text()
+    r7 = [ln for ln in src.splitlines() if "drill_restore.py" in ln and not ln.strip().startswith("#")]
+    assert r7, "R7 restore-drill step vanished from resilience_cycle.py"
+    joined = " ".join(src.splitlines()[src.splitlines().index(r7[0]):][:3])
+    assert "--require" in joined, "R7 step no longer declares --require"
+    for series in ("dr", "daily"):
+        assert series in joined, f"R7 step no longer requires the '{series}' series"
+
+
+def test_unknown_series_in_require_is_rejected(sandbox_env):
+    """A typo in --require would silently require nothing — fail-CLOSED on it instead."""
+    backups = sandbox_env["backups"]
+    _make_archive(backups / "spa_state_2026-01-10.tar.gz", _good_payloads())
+    _make_db(backups / "spa_2026-01-10.db")
+    rc = subprocess.run(
+        [sys.executable, str(_SCRIPT), "--require", "dr,dayly", "--quiet"],
+        capture_output=True, text=True,
+        cwd=str(Path(__file__).resolve().parents[2]),
+    )
+    assert rc.returncode == 2, rc.stdout + rc.stderr
+    assert "unknown series" in (rc.stdout + rc.stderr)

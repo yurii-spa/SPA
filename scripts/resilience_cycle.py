@@ -27,7 +27,14 @@ PY = sys.executable
 # up. Each runs with a hard timeout so a wedged drill can't hang the agent.
 STEPS: list[tuple[str, list[str]]] = [
     ("R6 offsite-copy", [PY, "-m", "spa_core.dr.offsite_copy"]),
-    ("R7 restore-drill", [PY, str(ROOT / "scripts" / "drill_restore.py")]),
+    # --require declares the PRODUCER CONTRACT of this host: two backup producers write
+    # data/backups/ (tier1 dr_backup → "dr", scripts/daily_backup.py → "daily"). Without
+    # it the drill validates whatever series it finds and cannot tell "this producer is
+    # dead" from "this producer was never scheduled" — which is exactly how a green
+    # all_ok covered a nearly-erased daily series until 2026-08-05. Pinned by
+    # test_drill_restore.py::test_scheduled_r7_step_declares_the_producer_contract.
+    ("R7 restore-drill", [PY, str(ROOT / "scripts" / "drill_restore.py"),
+                          "--require", "dr,daily"]),
     ("R4 fleet-down-drill", [PY, str(ROOT / "scripts" / "drill_fleet_down.py")]),
     # Q3-6: fold the money-path brake (sandboxed, de-risk-only kill-switch drill) into the
     # provably-exercised list — it now writes a dated latency/verdict artifact each cycle.

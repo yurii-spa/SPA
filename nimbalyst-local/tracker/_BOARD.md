@@ -2,10 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **205** · ждёт владельца: **21** · занято сессиями: **1**.
+> Всего карточек: **209** · ждёт владельца: **22** · занято сессиями: **1**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
+- **Кто имеет право сказать «флот ожил» и погасить тревогу об упавших агентах?** · _medium_  ·  `own-28-kto-gasit-trevogu-core-agent-down.md`
 - **own-rnd-dwell-hysteresis-paper-module** · _medium_  ·  `own-rnd-dwell-hysteresis-paper-module.md`
 - **10% денег стоят без работы: причина найдена — 11 протоколов закрыты из-за отсутствия живого фида, нужен твой выбор** · _high_  ·  `owner-decision-10-deneg-stoyat-bez-raboty-prichina-naid.md`
 - **Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда** · _high_  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md`
@@ -34,9 +35,10 @@
 
 - **Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать** — держит `cycle-28258` · с 2026-08-05T12:28:28Z  ·  `agent-fleet-parity-guard-never-scheduled.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (59)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (60)
 
 ### · needs-owner
+- Кто имеет право сказать «флот ожил» и погасить тревогу об упавших агентах?  ·  `own-28-kto-gasit-trevogu-core-agent-down.md` · 2026-08-05
 - own-rnd-dwell-hysteresis-paper-module  ·  `own-rnd-dwell-hysteresis-paper-module.md` · 2026-08-04
 - 10% денег стоят без работы: причина найдена — 11 протоколов закрыты из-за отсутствия живого фида, нужен твой выбор  ·  `owner-decision-10-deneg-stoyat-bez-raboty-prichina-naid.md` · 2026-08-05
 - Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md` · 2026-08-01
@@ -98,7 +100,7 @@
 - Уточнение по заметке: Давай так и сделаем  ·  `owner-decision-utochnenie-po-zametke-davai-tak-i-sdelae.md` · 2026-07-22
 - В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md` · 2026-07-29
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (30)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (31)
 
 ### · done
 - Проверь связь это тестовое сообщение.  ·  `inbox-20260715-123528-note.md` · 2026-07-15
@@ -128,6 +130,7 @@
 - Задача проверить на сайте на всех больницах тест показывает правильные количест…  ·  `inbox-zadacha-proverit-na-saite-na-vseh-bolnit.md` · 2026-07-27
 - Задача разобраться и поправить - вот такое сообщение приходит в час несколько р…  ·  `inbox-zadacha-razobratsya-i-popravit-vot-takoe.md` · 2026-07-31
 - Задача разобраться почему нет свежих данных почему Pepper Тест не обновился хот…  ·  `inbox-zadacha-razobratsya-pochemu-net-svezhih.md` · 2026-07-23
+- задача- разобраться \"Сторож расхождения флота не запускался 21 день — его никто…  ·  `inbox-zadacha-razobratsya-storozh-rashozhdeniy.md` · 2026-08-05
 - Задача решить проблему 🚨 Пропущен ежедневный цикл  ·  `inbox-zadacha-reshit-problemu-propuschen-ezhed.md` · 2026-07-30
 - задача - сделать проверку агентов и поствить в расписание и разобраться почему…  ·  `inbox-zadacha-sdelat-proverku-agentov-i-postvi.md` · 2026-08-05
 - Задча • 10% денег стоят без работы под 0% — это money-path, карточка «agent-all…  ·  `inbox-zadcha-10-deneg-stoyat-bez-raboty-pod-0.md` · 2026-08-05
@@ -220,7 +223,7 @@
 - Упоминание карточки в тексте объявления запирает её НАВСЕГДА — шаг 0b отвечает «не измерено» и после старения  ·  `agent-weak-mention-locks-card-forever.md` · 2026-07-31
 - Q11: разбор ветки yield-lab  ·  `agent-yield-lab-branch.md` · 2026-07-16
 
-## agent  (34)
+## agent  (36)
 
 ### · blocked
 - Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать  ·  `agent-fleet-parity-guard-never-scheduled.md` · 2026-08-05 · 🔒 `cycle-28258`
@@ -254,11 +257,13 @@
 - Сделать турнир стратегий ДОВЕРЯЕМЫМ — ранжировать по net-of-cost APY на реальных исторических данных (не Sharpe на mock)  ·  `agent-tournament-trustworthy-real-apy.md` · 2026-07-23
 - Guard — track-данные в git не должны молча протухать / молча пропускаться в CI  ·  `agent-track-data-git-durability-guard.md` · 2026-07-23
 - Constraints тюнера не зеркалят RiskPolicy + расхождение фидов по pendle (D5+D6)  ·  `agent-tuner-constraints-drift-and-feed-divergence.md` · 2026-08-02
+- Пробуждение хоста уронило 39 агентов — и все три монитора отрапортовали «всё хорошо» (fail-OPEN)  ·  `agent-wake-storm-fail-open-monitors.md` · 2026-08-04
 ### · ingested
 - Поле gsm_hours не производит ни один агент — GSM-гейт двух адаптеров невозможно пройти в принципе  ·  `agent-gsm-hours-never-produced.md` · 2026-08-02
 ### · done
 - Буфер обмена подсунул текст, замаскированный под системные инструкции — разбор и правило  ·  `agent-clipboard-injection-incident-2026-08-02.md` · 2026-08-02
 - Прод крутит код на 409 коммитов старше origin — разрыв «запушено → выполняется» никто не проверял  ·  `agent-deployment-drift-guard.md` · 2026-08-03
 - Храповик литеральных дат КРАСНЫЙ на main — два новых тест-файла волны 1 (A1) вошли в закрытый класс  ·  `agent-frozen-date-ratchet-red-on-main.md` · 2026-08-05
+- Учение по восстановлению проверяет ОДИН архив из двух серий — умерший производитель бэкапов останется невидим за зелёным all_ok  ·  `agent-restore-drill-single-series-blind.md` · 2026-08-05
 - TVL-floor проходят по литералу $50M — правило «только живой TVL» ссылается на поле, которого никто не пишет  ·  `agent-tvl-floor-passes-on-literals.md` · 2026-08-02
 
