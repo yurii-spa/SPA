@@ -107,10 +107,17 @@ def _extract_chain(data: Dict[str, Any]) -> str:
 
 
 def _extract_tier(data: Dict[str, Any]) -> str:
-    """Extract tier string from adapter data dict."""
+    """Extract tier string from adapter data dict.
+
+    Живой adapter_status.json хранит tier в двух формах: строкой (``"T1"``,
+    записи верхнего уровня) и числом (``1``, dict ``adapters``). Число
+    нормализуем в ``"T<n>"`` — иначе весь tier_breakdown уезжал в "unknown".
+    """
     tier = data.get("tier")
     if isinstance(tier, str) and tier:
         return tier
+    if not isinstance(tier, bool) and isinstance(tier, int) and tier > 0:
+        return f"T{tier}"
     return "unknown"
 
 
@@ -320,10 +327,21 @@ class YieldAttributionTracker:
                 continue
             result[key] = val
 
-        # "adapters" array
-        adapters_list = raw.get("adapters")
-        if isinstance(adapters_list, list):
-            for item in adapters_list:
+        # "adapters" container. Живая схема (schema_version ≥2, cycle_runner)
+        # хранит его СЛОВАРЁМ {adapter_id: entry}; старая — списком записей
+        # с protocol_key/adapter_id. Без dict-ветки все текущие позиции
+        # (pendle/susde/…) оставались без APY → нулевая атрибуция.
+        adapters_obj = raw.get("adapters")
+        if isinstance(adapters_obj, dict):
+            for protocol_key, item in adapters_obj.items():
+                if not isinstance(item, dict) or not isinstance(protocol_key, str):
+                    continue
+                normalized = protocol_key.replace("-", "_")
+                for k in (protocol_key, normalized):
+                    if k not in result:
+                        result[k] = item
+        elif isinstance(adapters_obj, list):
+            for item in adapters_obj:
                 if not isinstance(item, dict):
                     continue
                 protocol_key = item.get("protocol_key") or item.get("adapter_id")

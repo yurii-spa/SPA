@@ -5,6 +5,14 @@ computes the 7 core metrics — Sharpe, max drawdown, volatility, benchmark
 comparison, win/loss streaks, Calmar, concentration — and atomically writes
 ``data/analytics_summary.json``.
 
+Задача A4 (поток 2 плана docs/analytics_relocation_plan_2026-08-04.md):
+к метрикам добавлен блок ``sections`` — 9 трекеров/отчётников слоя «что
+произошло» (portfolio_stats, volatility, yield attribution, market share,
+adapter health, LP / staking / chain fees / governance tokens), собранных
+``report_sections.build_report_sections``. Каждая секция либо OK, либо
+честный SKIPPED с причиной (нет применимых данных → никакой фабрикации),
+либо ERROR (упавший трекер не ломает ни соседей, ни runner).
+
 Safety / scope
 ==============
 * STRICTLY READ-ONLY analytics over paper-trading JSON. No capital, no
@@ -189,6 +197,18 @@ def run_post_cycle_analytics(
     _safe("calmar", _calmar)
     _safe("concentration", lambda: calculate_concentration(allocation))
 
+    # A4: секции отчётного слоя (9 трекеров). Внутри build_report_sections
+    # каждая секция уже fail-safe (ERROR-секция вместо исключения); этот
+    # try/except — второй пояс на случай провала самого сборщика.
+    try:
+        from .report_sections import build_report_sections
+
+        sections = build_report_sections(ddir, doc)
+    except Exception as exc:  # noqa: BLE001 — partial summary by design
+        log.warning("analytics report sections failed: %s", exc)
+        sections = {}
+        errors.append(f"sections: {type(exc).__name__}: {exc}")
+
     summary = {
         "generated_at": now_dt.isoformat(),
         "source": "analytics_runner",
@@ -197,6 +217,7 @@ def run_post_cycle_analytics(
         "first_date": dates[0] if dates else None,
         "last_date": dates[-1] if dates else None,
         "metrics": metrics,
+        "sections": sections,
         "errors": errors,
     }
     if write:

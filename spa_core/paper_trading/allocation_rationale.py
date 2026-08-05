@@ -31,12 +31,106 @@ from spa_core.allocator.rebalance_economics import (
     below_median_cap_violations,
     evaluate,
 )
-from spa_core.utils.atomic import atomic_save
+from spa_core.utils.atomic import atomic_save, atomic_save_text
 
 log = logging.getLogger("spa.paper_trading.allocation_rationale")
 
 RATIONALE_FILENAME = "allocation_rationale.json"
 SHADOW_VERSION = "shadow-v1"
+
+# ── Y3 (ADR-060 tooling): append-only verdict history ─────────────────────────
+# ``allocation_rationale.json`` is OVERWRITTEN every cycle, so before Y3 the
+# shadow's track record lived nowhere (2026-08-05: only 2 verdicts were
+# recoverable, from cycle logs). The arming decision needs "what did the shadow
+# say vs what actually happened", which needs every day's verdict kept.
+# One JSONL line per cycle_date; a re-run of the SAME date replaces that date's
+# line (idempotent), lines for other dates are preserved BYTE-FOR-BYTE —
+# including unparseable ones (we never destroy history we cannot read).
+HISTORY_FILENAME = "allocation_rationale_history.jsonl"
+HISTORY_SCHEMA = "shadow-hist-v1"
+HISTORY_MAX_LINES = 1000  # ~3 years of daily cycles; guards against unbounded growth
+
+
+def build_history_record(
+    doc: dict,
+    *,
+    apy_pct: Dict[str, float],
+    apy_sources: Dict[str, str],
+    current_positions: Dict[str, float],
+    target_positions: Dict[str, float],
+    capital_usd: float,
+) -> dict:
+    """One compact line of shadow track-record: enough to replay the verdict later.
+
+    Keeps BOTH books (current and proposed), the day's evidenced APYs for every
+    protocol either book touches, and the verdict economics — the exact inputs
+    ``shadow_trigger_eval`` needs for the counterfactual. Deterministic; never
+    raises on missing keys (a hole becomes ``None``, which the evaluator treats
+    as UNCHECKED, not zero).
+    """
+    dec = doc.get("decision_shadow") or {}
+    universe = sorted(set(current_positions or {}) | set(target_positions or {}))
+    evidenced = {p for p, s in (apy_sources or {}).items() if s == "live"}
+    return {
+        "schema": HISTORY_SCHEMA,
+        "cycle_date": doc.get("cycle_date"),
+        "generated_at": doc.get("generated_at"),
+        "verdict": dec.get("decision"),
+        "reasons": list(dec.get("reasons") or []),
+        "capital_usd": capital_usd,
+        "current_positions": {p: round(float(v), 2)
+                              for p, v in (current_positions or {}).items()},
+        "target_positions": {p: round(float(v), 2)
+                             for p, v in (target_positions or {}).items()},
+        # Evidenced-only by design: the counterfactual must never be priced on a
+        # literal (the same rule the trigger itself lives under, ADR-061/063).
+        "apy_evidenced_pct": {p: float(apy_pct[p]) for p in universe
+                              if p in evidenced and (apy_pct or {}).get(p) is not None},
+        "apy_unevidenced": sorted(p for p in universe if p not in evidenced),
+        "book_apy_pp": dec.get("apy_now_pp"),
+        "target_apy_pp": dec.get("apy_opt_pp"),
+        "gain_pp": dec.get("gain_pp"),
+        "required_gain_pp": dec.get("required_gain_pp"),
+        "cost_usd": dec.get("cost_usd"),
+        "payback_days": dec.get("payback_days"),
+        "turnover_usd": dec.get("turnover_usd"),
+        "turnover_frac": dec.get("turnover_frac"),
+        "warnings_count": len(dec.get("warnings") or []),
+    }
+
+
+def append_rationale_history(record: dict, data_dir: Path) -> int:
+    """Append *record* to the JSONL accumulator; idempotent by ``cycle_date``.
+
+    - Same-date line is REPLACED (latest run of the day wins) — a manual re-run
+      never duplicates a day and never double-counts in the evaluator.
+    - Other lines are kept verbatim, unparseable lines included: the accumulator
+      may drop nothing it did not write this call.
+    - Atomic via tmp+``os.replace`` (invariant 5); capped at HISTORY_MAX_LINES
+      (oldest lines fall off first).
+
+    Returns the number of lines now in the file.
+    """
+    path = Path(data_dir) / HISTORY_FILENAME
+    date = record.get("cycle_date")
+    kept: List[str] = []
+    if path.exists():
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            if not raw.strip():
+                continue
+            try:
+                obj = json.loads(raw)
+            except ValueError:
+                kept.append(raw)  # unreadable ≠ deletable
+                continue
+            if isinstance(obj, dict) and date is not None \
+                    and obj.get("cycle_date") == date:
+                continue  # replaced by this call's record
+            kept.append(raw)
+    kept.append(json.dumps(record, sort_keys=True, default=str))
+    kept = kept[-HISTORY_MAX_LINES:]
+    atomic_save_text("\n".join(kept) + "\n", str(path))
+    return len(kept)
 
 
 def _resolve_tier_caps(protocols) -> Dict[str, float]:
@@ -348,6 +442,23 @@ def write_shadow_rationale(
 
         if write:
             atomic_save(doc, str(Path(data_dir) / RATIONALE_FILENAME))
+            # Y3: the per-cycle file is overwritten — the accumulator is the
+            # ONLY durable record of the shadow's verdicts. Its failure must not
+            # cost us the rationale itself (already saved above), hence own guard.
+            try:
+                append_rationale_history(
+                    build_history_record(
+                        doc,
+                        apy_pct=apy_pct or {},
+                        apy_sources=apy_sources or {},
+                        current_positions=current_positions or {},
+                        target_positions=target_positions or {},
+                        capital_usd=capital_usd,
+                    ),
+                    Path(data_dir),
+                )
+            except Exception as hist_exc:  # noqa: BLE001 — reporting never breaks the cycle
+                log.warning("Y3 history append failed (%s) — rationale intact", hist_exc)
         log.info(
             "ADR-060 SHADOW: %s | gain %.3fpp (need %.3f) | cost $%.2f | payback %s | cash %s",
             decision.decision, decision.gain_pp, decision.required_gain_pp,

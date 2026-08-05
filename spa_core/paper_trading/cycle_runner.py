@@ -1530,6 +1530,27 @@ def run_cycle(
     except Exception as _shadow_exc:  # noqa: BLE001 — advisory only
         log.warning("ADR-060 SHADOW skipped (%s) — cycle continues", _shadow_exc)
 
+    # ── Step 2g (Y3 tooling): shadow-vs-fact reconciliation ──────────────────
+    # write_shadow_rationale above just appended today's verdict to the
+    # append-only history; re-score the whole window now so the owner's
+    # arming evidence (data/shadow_trigger_evaluation.json) is refreshed daily.
+    # ADVISORY ONLY, fail-open: arming the trigger stays a separate owner-gated
+    # step (pre_cutover_gate + ADR); a reporting layer never breaks the cycle.
+    try:
+        from spa_core.paper_trading.shadow_trigger_eval import evaluate_window
+        _y3 = evaluate_window(ddir, write=write)
+        log.info(
+            "Y3 shadow-eval: %s | days=%s | ACT=%s HOLD=%s scored=%s | "
+            "hit_rate=%s | net_bps_if_followed=%s",
+            _y3.get("status"), _y3.get("observation_days"),
+            (_y3.get("counts") or {}).get("act"),
+            (_y3.get("counts") or {}).get("hold"),
+            (_y3.get("counts") or {}).get("scored"),
+            _y3.get("hit_rate"), _y3.get("net_bps_if_followed"),
+        )
+    except Exception as _y3_exc:  # noqa: BLE001 — advisory only
+        log.warning("Y3 shadow-eval skipped (%s) — cycle continues", _y3_exc)
+
     # ── Step 3: virtual rebalance trade if allocation moved > threshold ───
     trades: list[dict] = _read_json(ddir / TRADES_FILENAME, [])
     if not isinstance(trades, list):
@@ -2261,6 +2282,24 @@ def _run_fundability_pack(data_dir: "str | os.PathLike | None" = None) -> None:
               + (f" [{_acc['error']}]" if _acc.get("error") else ""))
     except Exception as _acc_exc:  # noqa: BLE001 — never crash the cycle
         log.warning("apy_series_accumulator failed (non-critical): %s", _acc_exc)
+
+    # 2.1c-pre-b — TIER CURATOR report (Y4, ADR-055 «тир — динамический», первый шаг):
+    # каждый цикл кураторы СОВЕТУЮТ, кого демоутить (деградация → немедленный сигнал,
+    # fail-CLOSED) и кого промоутить (только рекомендация; T1 owner-gated). СТРОГО
+    # ADVISORY: отчёт data/tier_curator_report.json никогда не меняет tier_map /
+    # RiskPolicy / аллокацию — автодемоушен потребует отдельного ADR.
+    try:
+        from spa_core.analytics.tier_curator import write_report as _tc_write
+        _tc = _tc_write(data_dir=ddir)
+        _tcs = _tc.get("summary") or {}
+        _held = _tcs.get("held_flagged") or []
+        print("  tier_curator: "
+              f"demote={_tcs.get('demote_signal', 0)} "
+              f"promote={_tcs.get('promote_candidate', 0)} "
+              f"keep={_tcs.get('keep', 0)} unchecked={_tcs.get('unchecked', 0)}"
+              + (f" HELD-DEMOTE⚠ {','.join(_held)}" if _held else ""))
+    except Exception as _tc_exc:  # noqa: BLE001 — never crash the cycle
+        log.warning("Y4 tier_curator report failed (non-critical): %s", _tc_exc)
 
     # 2.1c-pre — RISKWIRE measurements (WS1.2): the facade was built but NOTHING scheduled
     # spa_core.riskwire.facade.build_and_write (documented in test_api_riskwire_freshness),
