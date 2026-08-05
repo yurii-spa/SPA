@@ -89,29 +89,26 @@
   },
   {
    "label": "com.spa.architecture_conformance",
-   "plist_source": "repo:launchd/com.spa.architecture_conformance.plist",
-   "reboot_safe": false,
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
    "schedule": "interval:21600s",
    "program": "agent_architecture_conformance.sh",
    "layer": "product",
    "role": "monitoring",
-   "intent": "designed",
+   "intent": "active",
    "produces": [
     {
      "artifact": "data/architecture_conformance.json",
-     "slo_hours": 8
+     "slo_hours": 7
     }
    ],
-   "consumes": [
-    "architecture/manifest.json",
-    "data/consumption_receipts.jsonl"
-   ],
-   "consumer_required": true,
+   "consumes": [],
+   "consumer_required": false,
    "governed_by": [
     "ADR-066"
    ],
    "curation": "complete",
-   "notes": "ADR-066 Фаза 1: сторож соответствия флота манифесту (B1–B5). Код и тесты доставлены; launchd-развёртывание owner-gated — карточка own-arhitekturnyi-storozh-gotov-nuzhen-deploy. После bootstrap intent → active."
+   "notes": "сторож соответствия флота конституции (ADR-066 Фаза 1); за его свежестью следит agent_health (P4 — взаимный надзор)"
   },
   {
    "label": "com.spa.artifact_freshness",
@@ -943,10 +940,10 @@
   },
   {
    "label": "com.spa.morning_digest",
-   "plist_source": "repo:launchd/com.spa.morning_digest.plist",
+   "plist_source": null,
    "reboot_safe": false,
-   "schedule": "calendar:09:00",
-   "program": "agent_morning_digest.sh",
+   "schedule": null,
+   "program": null,
    "layer": "product",
    "role": "other",
    "intent": "retired",
@@ -1751,12 +1748,11 @@
    "path": "data/architecture_conformance.json",
    "producer": "com.spa.architecture_conformance",
    "consumers": [
-    "orchestrator_protocol",
-    "digest_daily"
+    "findings_to_cards"
    ],
-   "status": "planned",
-   "notes": "статус planned до развёртывания агента (owner-gated); после bootstrap → active",
-   "slo_hours": 8
+   "status": "active",
+   "notes": "ADR-066: отчёт сторожа; потребитель-мост — Фаза 3",
+   "slo_hours": 7
   },
   {
    "path": "data/consumption_receipts.jsonl",

@@ -2,13 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>EnvironmentVariables</key>
-	<dict>
-		<key>HOME</key>
-		<string>/Users/yuriikulieshov</string>
-		<key>PATH</key>
-		<string>/Users/yuriikulieshov/miniconda3/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
-	</dict>
 	<key>Label</key>
 	<string>com.spa.architecture_conformance</string>
 	<key>ProgramArguments</key>
