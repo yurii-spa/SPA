@@ -60,6 +60,28 @@ def _summarize_json(path: str, data) -> list[str]:
             out.append(f"   [{f.get('severity')}] {f.get('message')}")
         if (data.get("findings") or [])[8:]:
             out.append(f"   … ещё {len(data['findings']) - 8} наход(ок) в отчёте")
+    elif name == "house_view_gap.json":
+        c = data.get("counts") or {}
+        out.append(f"   вердикт: {data.get('overall')} (critical={c.get('critical')} "
+                   f"warn={c.get('warn')} aged={c.get('aged')} unchecked={c.get('unchecked')})")
+        for f in (data.get("findings") or [])[:8]:
+            out.append(f"   [{f.get('severity')}] {f.get('message')}")
+        if (data.get("findings") or [])[8:]:
+            out.append(f"   … ещё {len(data['findings']) - 8} расхожден(ий) в отчёте")
+        for u in (data.get("unchecked") or [])[:4]:
+            out.append(f"   [НЕ ИЗМЕРЕНО] {u.get('check')}: {u.get('reason')}")
+    elif name == "findings_bridge.json":
+        c = data.get("counts") or {}
+        out.append(f"   мост находка→карточка: открыто {c.get('opened')} · закрыто "
+                   f"{c.get('closed')} · отложено {c.get('deferred')} · ждут подтверждения "
+                   f"{c.get('pending')}")
+        for f in (data.get("opened") or [])[:5]:
+            out.append(f"   + карточка {f.get('card_path') or f.get('error')}")
+        for f in (data.get("deferred") or [])[:5]:
+            out.append(f"   … отложено: {f.get('key')}")
+        for src, st in (data.get("sources") or {}).items():
+            if not st.get("readable"):
+                out.append(f"   [ИСТОЧНИК НЕ ПРОЧИТАН] {src}: {st.get('reason')}")
     else:
         status = data.get("status") or data.get("overall") or data.get("posture")
         if status is not None:

@@ -405,13 +405,22 @@
     {
      "artifact": "data/allocation_rationale.json",
      "slo_hours": 26
+    },
+    {
+     "artifact": "data/house_view_gap.json",
+     "slo_hours": 26
+    },
+    {
+     "artifact": "data/findings_bridge.json",
+     "slo_hours": 26
     }
    ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [
     "ADR-060",
-    "ADR-061"
+    "ADR-061",
+    "ADR-066"
    ],
    "curation": "complete",
    "notes": ""
@@ -1764,10 +1773,14 @@
   },
   {
    "path": "data/house_view_gap.json",
-   "producer": null,
-   "consumers": [],
-   "status": "planned",
-   "notes": "ADR-066 Фаза 3"
+   "producer": "com.spa.daily_cycle",
+   "consumers": [
+    "orchestrator_protocol",
+    "findings_bridge"
+   ],
+   "status": "active",
+   "notes": "ADR-066 C1: сверка house_view офиса с фактической аллокацией; только сверка, капитал не двигает",
+   "slo_hours": 26
   },
   {
    "path": "data/loop_health.json",
@@ -1782,6 +1795,16 @@
    "consumers": [],
    "status": "planned",
    "notes": "ADR-066 Фаза 4"
+  },
+  {
+   "path": "data/findings_bridge.json",
+   "producer": "com.spa.daily_cycle",
+   "consumers": [
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 26,
+   "status": "active",
+   "notes": "ADR-066 C2: отчёт моста находка→карточка (открыто/закрыто/отложено — поимённо)"
   }
  ],
  "designed_architectures": [

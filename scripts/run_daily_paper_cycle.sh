@@ -93,5 +93,26 @@ print(CPACycleWithEvidence(base_dir='.').run())
 "$PYTHON" scripts/fleet_parity_check.py >> "$LOG_FILE" 2>&1 \
   || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] fleet parity: DRIFT or check failed (non-fatal, see data/fleet_parity.json)" >> "$LOG_FILE"
 
+# ── Step 5: сверка «что видит офис» vs «что держит книга» (ADR-066 C1) ─────
+# Аудит 05.08: 12 аналитиков io_* и chief_investment каждый день производят house_view,
+# и НИКТО не сверял его с фактической аллокацией — продукт без обязательного потребителя.
+# Здесь, а не отдельным агентом, по той же причине, что и Step 4: флот не должен расти
+# на одного ради взгляда на самого себя, а шаг внутри цикла нельзя забыть установить.
+# Только СВЕРКА: ни RiskPolicy, ни kill-switch, ни аллокатора этот шаг не касается (P5).
+# НЕ-фатально намеренно: exit 1/2 = найдено расхождение (читать data/house_view_gap.json),
+# а не сломанный цикл. Замолчит — файл протухнет, и мост ниже честно скажет «источник
+# не прочитан», а не тихо закроет карточки.
+"$PYTHON" -m spa_core.monitoring.house_view_gap --run --exit-zero >> "$LOG_FILE" 2>&1 \
+  || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] house_view_gap failed (non-fatal, see data/house_view_gap.json)" >> "$LOG_FILE"
+
+# ── Step 6: мост «находка → карточка → закрытие» (ADR-066 C2) ──────────────
+# Последнее звено петли: находки сторожей перестают лежать в JSON, который никто не
+# обязан открывать. Дисциплина против спама — в самом мосте (dedup, гистерезис,
+# лимит 5 карточек/сутки, авто-закрытие исчезнувшей находки); отложенное попадает в
+# отчёт поимённо, молчаливого обрезания нет. Карточки создаются ТОЛЬКО через
+# orchestrator_queue.py. Не-фатально: очередь важна, но цикл важнее.
+"$PYTHON" scripts/findings_to_cards.py --apply >> "$LOG_FILE" 2>&1 \
+  || echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] findings_to_cards failed (non-fatal, see data/findings_bridge.json)" >> "$LOG_FILE"
+
 echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Cycle completed (cycle_runner exit $CYCLE_EXIT)" | tee -a "$LOG_FILE"
 exit $CYCLE_EXIT
