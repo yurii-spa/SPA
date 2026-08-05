@@ -538,13 +538,29 @@ class TestPortfolioRebalancer(unittest.TestCase):
             "Safe fallback must pass policy: {}".format([v.message for v in result.violations])
         )
 
-    def test_safe_fallback_t1_at_least_55pct(self):
-        """Safe fallback positions have T1 >= 55%."""
+    def test_safe_fallback_t1_at_least_55pct_of_deployed(self):
+        """Safe fallback stays T1-dominant: T1 >= 55% of the DEPLOYED book.
+
+        DELIBERATE CHANGE (2026-08-05, card agent-safe-fallback-bypasses-
+        adapter-gates, инв.16 rationale): the old assertion measured T1 as a
+        share of TOTAL CAPITAL, which was only reachable by funding
+        `spark_susds` — a protocol the adapter class gate BLOCKS
+        (invariant 10: Sky/sUSDS = 0% until GSM Pause Delay >= 48h confirmed
+        on-chain). The fallback now routes gate-blocked shares to CASH, so a
+        capital-denominated 55% would force the test to demand a forbidden
+        allocation. The 55% T1 floor itself was retired (owner reconcile
+        2026-07-08; policy_enforcer t1_min_pct = 0.0) — what this test pins is
+        the book's conservative SHAPE: whatever IS deployed must stay
+        T1-dominant. Holds both with and without spark_susds (68.2% / 62.7%).
+        """
         from spa_core.tuner.portfolio_rebalancer import _build_safe_fallback_positions
         from spa_core.risk.policy_enforcer import validate_positions
         positions, cash_usd = _build_safe_fallback_positions(_CAPITAL)
         result = validate_positions(positions=positions, capital_usd=_CAPITAL, cash_usd=cash_usd)
-        self.assertGreaterEqual(result.portfolio_summary["t1_pct"], 55.0)
+        deployed = sum(positions.values())
+        self.assertGreater(deployed, 0.0, "fallback book unexpectedly empty")
+        t1_usd = _CAPITAL * result.portfolio_summary["t1_pct"] / 100.0
+        self.assertGreaterEqual(t1_usd / deployed * 100.0, 55.0)
 
     def test_safe_fallback_scales_to_different_capital(self):
         """Safe fallback scales to any capital (e.g., $50K)."""
@@ -749,6 +765,186 @@ class TestPortfolioRebalancer(unittest.TestCase):
                 self.assertIn(field, doc, f"Missing required field: {field}")
         finally:
             tmpdir.cleanup()
+
+
+class TestSafeFallbackAdapterClassGate(unittest.TestCase):
+    """Card agent-safe-fallback-bypasses-adapter-gates (2026-08-05).
+
+    The emergency book (`_SAFE_FALLBACK_POSITIONS`) used to bypass the
+    allocator's adapter-class gate (ADR-061 `_adapter_class_gate`) entirely and
+    funded `spark_susds` (13%) even while the gate said
+    `(False, "gsm_not_confirmed")` — invariant 10 (Sky/sUSDS = 0% until GSM
+    Pause Delay >= 48h confirmed on-chain). Every test here is a positive
+    control: on the UNFIXED builder the gate-blocking tests are RED (spark in
+    the book), and the allow-direction tests pin that a compliant protocol is
+    NOT dropped (the fix cannot "pass" by going all-cash unconditionally).
+    """
+
+    @staticmethod
+    def _gate_blocking(*blocked_map):
+        """Build a class_gate that blocks {proto: reason} pairs, allows the rest."""
+        merged = {}
+        for m in blocked_map:
+            merged.update(m)
+
+        def gate(proto):
+            if proto in merged:
+                return False, merged[proto]
+            return True, None
+        return gate
+
+    # ── direction 1: blocked protocols must NOT be funded ────────────────────
+
+    def test_gsm_blocked_spark_excluded_from_fallback_book(self):
+        """invariant 10: gate says gsm_not_confirmed → spark_susds gets $0."""
+        from spa_core.tuner.portfolio_rebalancer import _build_safe_fallback_positions
+        gate = self._gate_blocking({"spark_susds": "gsm_not_confirmed"})
+        positions, cash_usd = _build_safe_fallback_positions(_CAPITAL, class_gate=gate)
+        self.assertNotIn("spark_susds", positions)
+        self.assertGreater(len(positions), 0, "survivors must stay funded")
+
+    def test_blocked_share_goes_to_cash_not_redistributed(self):
+        """The freed 13% lands in CASH; survivors keep their absolute amounts."""
+        from spa_core.tuner.portfolio_rebalancer import _build_safe_fallback_positions
+        allow_all = self._gate_blocking()
+        blocked = self._gate_blocking({"spark_susds": "gsm_not_confirmed"})
+        full_pos, full_cash = _build_safe_fallback_positions(_CAPITAL, class_gate=allow_all)
+        filt_pos, filt_cash = _build_safe_fallback_positions(_CAPITAL, class_gate=blocked)
+        # survivors byte-identical — no protocol grew because a peer was blocked
+        for proto, usd in filt_pos.items():
+            self.assertAlmostEqual(usd, full_pos[proto], places=2,
+                                   msg=f"{proto} was re-scaled after the block")
+        # capital conserved; the blocked share moved to cash
+        self.assertAlmostEqual(
+            filt_cash, full_cash + full_pos["spark_susds"], places=2)
+        self.assertAlmostEqual(
+            sum(filt_pos.values()) + filt_cash, _CAPITAL, delta=0.05)
+
+    def test_advisory_blocked_protocol_excluded(self):
+        """invariant 9: IS_ADVISORY/RESEARCH_ONLY verdict → protocol not funded."""
+        from spa_core.tuner.portfolio_rebalancer import _build_safe_fallback_positions
+        gate = self._gate_blocking({"maple": "advisory"})
+        positions, _ = _build_safe_fallback_positions(_CAPITAL, class_gate=gate)
+        self.assertNotIn("maple", positions)
+
+    def test_all_blocked_goes_all_cash_fail_closed(self):
+        """Nothing survives the filter → all-cash, never a forbidden book."""
+        from spa_core.tuner.portfolio_rebalancer import (
+            _SAFE_FALLBACK_POSITIONS, _build_safe_fallback_positions,
+        )
+        gate = self._gate_blocking(
+            {p: "gsm_not_confirmed" for p in _SAFE_FALLBACK_POSITIONS})
+        positions, cash_usd = _build_safe_fallback_positions(_CAPITAL, class_gate=gate)
+        self.assertEqual(positions, {})
+        self.assertAlmostEqual(cash_usd, _CAPITAL, delta=0.01)
+
+    def test_gate_exception_fail_closed_for_that_protocol(self):
+        """A gate that RAISES for a protocol blocks that protocol (fail-CLOSED)."""
+        from spa_core.tuner.portfolio_rebalancer import _build_safe_fallback_positions
+
+        def gate(proto):
+            if proto == "spark_susds":
+                raise RuntimeError("gate broke")
+            return True, None
+        positions, _ = _build_safe_fallback_positions(_CAPITAL, class_gate=gate)
+        self.assertNotIn("spark_susds", positions)
+        self.assertGreater(len(positions), 0)
+
+    def test_gate_import_failure_goes_all_cash(self):
+        """Gate module unavailable → NOTHING can be verified → all-cash."""
+        import sys
+        import types
+        from unittest.mock import patch
+        from spa_core.tuner.portfolio_rebalancer import _build_safe_fallback_positions
+        hollow = types.ModuleType("spa_core.allocator.allocator")  # no gate attr
+        with patch.dict(sys.modules, {"spa_core.allocator.allocator": hollow}):
+            positions, cash_usd = _build_safe_fallback_positions(_CAPITAL)
+        self.assertEqual(positions, {})
+        self.assertAlmostEqual(cash_usd, _CAPITAL, delta=0.01)
+
+    # ── direction 2: allowed protocols must NOT be dropped ───────────────────
+
+    def test_allow_all_gate_keeps_full_book(self):
+        """Reverse control: with every protocol allowed the full 7-protocol
+        book is funded — the fix cannot 'pass' by refusing everything."""
+        from spa_core.tuner.portfolio_rebalancer import (
+            _SAFE_FALLBACK_POSITIONS, _build_safe_fallback_positions,
+        )
+        allow_all = self._gate_blocking()
+        positions, _ = _build_safe_fallback_positions(_CAPITAL, class_gate=allow_all)
+        self.assertEqual(set(positions), set(_SAFE_FALLBACK_POSITIONS))
+        self.assertIn("spark_susds", positions)
+
+    # ── default wiring: the builder consults the ALLOCATOR's gate ────────────
+
+    def test_default_gate_is_allocator_adapter_class_gate(self):
+        """POSITIVE CONTROL for the card defect: with NO injected gate the
+        builder must consult `spa_core.allocator.allocator._adapter_class_gate`.
+        On the unfixed builder this test is RED (gate never called, spark
+        funded)."""
+        from unittest.mock import patch
+        from spa_core.tuner.portfolio_rebalancer import _build_safe_fallback_positions
+
+        def fake_gate(proto):
+            if proto == "spark_susds":
+                return False, "gsm_not_confirmed"
+            return True, None
+        with patch("spa_core.allocator.allocator._adapter_class_gate",
+                   side_effect=fake_gate) as mocked:
+            positions, _ = _build_safe_fallback_positions(_CAPITAL)
+        self.assertGreater(mocked.call_count, 0,
+                           "fallback builder never consulted the adapter class gate")
+        self.assertNotIn("spark_susds", positions)
+
+    # ── the filtered book still satisfies the whole policy_enforcer ──────────
+
+    def test_filtered_book_passes_policy_enforcer(self):
+        """Card item 3: after the exclusion the book still passes ALL enforcer
+        rules (incl. ADR-062 chain caps) — more cash, same survivors."""
+        from spa_core.tuner.portfolio_rebalancer import _build_safe_fallback_positions
+        from spa_core.risk.policy_enforcer import validate_positions
+        gate = self._gate_blocking({"spark_susds": "gsm_not_confirmed"})
+        positions, cash_usd = _build_safe_fallback_positions(_CAPITAL, class_gate=gate)
+        result = validate_positions(
+            positions=positions, capital_usd=_CAPITAL, cash_usd=cash_usd)
+        self.assertTrue(
+            result.passed,
+            "filtered fallback must pass policy: {}".format(
+                [v.message for v in result.violations]))
+
+    # ── money-path consumer: risk_gate._compliant_target ─────────────────────
+
+    def test_compliant_target_fallback_respects_gate(self):
+        """The ALLOC-002 pre-diff collapse (risk_gate._compliant_target) adopts
+        the safe fallback when the rebalancer cannot run (empty sandbox). That
+        adopted book must honour the gate: blocked → no spark; allowed → spark
+        present (both directions, same harness)."""
+        from unittest.mock import patch
+        from spa_core.paper_trading.risk_gate import _compliant_target
+        # >8 protocols forces the max_protocols collapse branch
+        raw_target = {f"proto_{i}": 6_000.0 for i in range(9)}
+        raw_target["aave_v3"] = 6_000.0
+
+        def blocking_gate(proto):
+            if proto == "spark_susds":
+                return False, "gsm_not_confirmed"
+            return True, None
+
+        with tempfile.TemporaryDirectory() as d:
+            with patch("spa_core.allocator.allocator._adapter_class_gate",
+                       side_effect=blocking_gate):
+                out_blocked, collapsed_b = _compliant_target(
+                    dict(raw_target), _CAPITAL, Path(d), write=False)
+            with patch("spa_core.allocator.allocator._adapter_class_gate",
+                       return_value=(True, None)):
+                out_allowed, collapsed_a = _compliant_target(
+                    dict(raw_target), _CAPITAL, Path(d), write=False)
+        self.assertTrue(collapsed_b and collapsed_a,
+                        "harness failed to reach the safe-fallback collapse branch")
+        self.assertNotIn("spark_susds", out_blocked,
+                         "money-path fallback funded a gate-blocked protocol")
+        self.assertIn("spark_susds", out_allowed,
+                      "reverse control: allowed protocol was dropped")
 
 
 if __name__ == "__main__":

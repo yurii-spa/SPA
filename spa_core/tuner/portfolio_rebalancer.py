@@ -165,6 +165,7 @@ def _weights_to_usd(
 def _build_safe_fallback_positions(
     capital_usd: float,
     base_positions: Optional[Dict[str, float]] = None,
+    class_gate=None,
 ) -> Tuple[Dict[str, float], float]:
     """Build a known-good policy-compliant portfolio.
 
@@ -176,6 +177,9 @@ def _build_safe_fallback_positions(
     Args:
         capital_usd:    Total virtual capital.
         base_positions: Optional override of the fallback positions (for tests).
+        class_gate:     Optional ``(protocol) -> (allowed, reason)`` override
+                        (for tests). Default — the allocator's
+                        ``_adapter_class_gate`` (ADR-061).
 
     Returns:
         (positions_usd, cash_usd)
@@ -185,6 +189,54 @@ def _build_safe_fallback_positions(
     base_cash_frac = (capital_usd - base_capital) / capital_usd  # should be > 0.05
 
     if base_capital <= 0:
+        return {}, capital_usd
+
+    # ── Card agent-safe-fallback-bypasses-adapter-gates (2026-08-05) ─────────
+    # The emergency book MUST pass the SAME adapter-class gate the allocator
+    # applies (ADR-061 `_adapter_class_gate`): IS_ADVISORY / RESEARCH_ONLY
+    # (invariant 9) and is_gsm_compliant()=False (invariant 10, Sky/sUSDS = 0%
+    # until GSM Pause Delay ≥ 48h confirmed on-chain) protocols may not be
+    # funded by ANY path. Before this fix the hardcoded book funded
+    # `spark_susds` (13%) exactly when the cycle was degraded — the one moment
+    # the gates matter most.
+    #
+    # Fail-CLOSED semantics:
+    #   * gate unavailable (import failure)  → NOTHING can be verified → all-cash;
+    #   * gate call raises for a protocol    → that protocol is excluded;
+    #   * a blocked protocol's share goes to CASH — it is NOT redistributed to
+    #     the surviving protocols (the emergency book must stay conservative,
+    #     never concentrate harder because a peer got blocked);
+    #   * nothing survives the filter        → all-cash, never a forbidden book.
+    if class_gate is None:
+        try:
+            from spa_core.allocator.allocator import _adapter_class_gate as class_gate
+        except Exception as exc:  # noqa: BLE001 — fail-CLOSED, never fund unverified
+            log.error(
+                "safe-fallback: adapter class gate unavailable (%s) — "
+                "FAIL-CLOSED, emergency book goes all-cash",
+                exc,
+            )
+            return {}, capital_usd
+
+    allowed_base: Dict[str, float] = {}
+    blocked: Dict[str, str] = {}
+    for proto, usd in base.items():
+        try:
+            ok, reason = class_gate(proto)
+        except Exception as exc:  # noqa: BLE001 — fail-CLOSED per protocol
+            ok, reason = False, f"gate_error:{type(exc).__name__}"
+        if ok:
+            allowed_base[proto] = usd
+        else:
+            blocked[proto] = str(reason)
+    if blocked:
+        log.warning(
+            "safe-fallback: adapter class gate BLOCKED %s — share moved to cash "
+            "(invariants 9/10, ADR-061)",
+            blocked,
+        )
+    if not allowed_base:
+        # Every protocol in the emergency book is gate-blocked → all-cash.
         return {}, capital_usd
 
     # ADR-062 (W4.1): cash reserve raised 7% → 11%.
@@ -201,8 +253,11 @@ def _build_safe_fallback_positions(
     # the 90% cap with a margin. Tier/protocol proportions are untouched, so the
     # book's risk profile is unchanged apart from being slightly less deployed.
     _FALLBACK_CASH_FRAC = 0.11
+    # Scale over the FULL base (blocked protocols included) so the survivors
+    # keep their original absolute proportions and every blocked protocol's
+    # share lands in cash instead of being redistributed.
     scale = (capital_usd - capital_usd * _FALLBACK_CASH_FRAC) / base_capital
-    positions = {k: round(v * scale, 2) for k, v in base.items()}
+    positions = {k: round(v * scale, 2) for k, v in allowed_base.items()}
     cash_usd = round(capital_usd - sum(positions.values()), 2)
     return positions, cash_usd
 
