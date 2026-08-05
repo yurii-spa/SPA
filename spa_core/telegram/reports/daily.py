@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import json
 import logging
 import re
 from collections import Counter
@@ -102,7 +103,55 @@ def build_digest_message(
 
     section = _format_digest_section(queued)
     message = base_msg + ("\n" + section if section else "")
+
+    office, consumed = _build_office_section(ddir)
+    if office:
+        message += "\n" + office
+    data["office_consumed"] = consumed
     return message, data
+
+
+def _build_office_section(ddir: Path) -> tuple[str, list[str]]:
+    """ADR-066 Фаза 2: строка house_view + строка conformance в дайджест владельца.
+
+    Возвращает (html-секция, [repo-relative пути УСПЕШНО прочитанных файлов]) —
+    квитанции по ним пишет run_daily_digest ПОСЛЕ фактической отправки.
+    Файл не прочитан ⇒ честная строка «нет данных», в consumed не попадает.
+    Never raises.
+    """
+    lines: list[str] = []
+    consumed: list[str] = []
+    try:
+        hv_rel = "data/investment_os/chief_investment.json"
+        try:
+            hv = json.loads((ddir / "investment_os" / "chief_investment.json").read_text())
+            view = hv.get("house_view") or {}
+            conflicts = view.get("conflicts") or []
+            tail = f" · конфликт: {_esc(str(conflicts[0])[:80])}" if conflicts else ""
+            lines.append(f"🏛 Офис: постура <b>{_esc(view.get('overall_posture'))}</b>{tail}")
+            consumed.append(hv_rel)
+        except Exception:  # noqa: BLE001
+            lines.append("🏛 Офис: house_view недоступен (нет данных — это сигнал)")
+        conf_rel = "data/architecture_conformance.json"
+        try:
+            conf = json.loads((ddir / "architecture_conformance.json").read_text())
+            c = conf.get("counts") or {}
+            lines.append(
+                f"🏗 Архитектура: <b>{_esc(conf.get('overall'))}</b> — "
+                f"critical {c.get('critical', '?')} · warn {c.get('warn', '?')} · "
+                f"unchecked {c.get('unchecked', '?')}")
+            consumed.append(conf_rel)
+        except Exception:  # noqa: BLE001
+            lines.append("🏗 Архитектура: отчёт сторожа недоступен (нет данных — это сигнал)")
+        health_rel = "data/investment_os/_health.json"
+        try:
+            json.loads((ddir / "investment_os" / "_health.json").read_text())
+            consumed.append(health_rel)  # читается ради квитанции офис-здоровья
+        except Exception:  # noqa: BLE001
+            pass
+    except Exception:  # noqa: BLE001
+        return "", []
+    return "\n".join(lines), consumed
 
 
 # ── idempotency guard ────────────────────────────────────────────────────────
@@ -262,6 +311,15 @@ def run_daily_digest(
             result["sent"] = ok
             if ok:
                 _mark_sent_today(ddir, today, now_dt.isoformat())
+                # ADR-066 Фаза 2: квитанции потребления — ТОЛЬКО после реальной
+                # отправки (превью/--check не потребление) и только за то, что
+                # реально прочитано в сообщение.
+                try:
+                    from spa_core.monitoring.consumption_receipts import write_receipt
+                    for rel in data.get("office_consumed", []):
+                        write_receipt(rel, "digest_daily", root=str(ddir.parent))
+                except Exception:  # noqa: BLE001
+                    pass
                 # The go-live gate's telegram_alert_today criterion reads
                 # data/telegram_alert_state.json:daily_summary — record that the
                 # daily summary went out today so it can pass (the retired legacy

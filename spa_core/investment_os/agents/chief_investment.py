@@ -48,6 +48,17 @@ class ChiefInvestmentAgent(ProductAgent):
             v = self._load_input(a)
             if isinstance(v, dict):
                 inputs[a] = v
+        # ADR-066 Фаза 2: квитанция потребления за КАЖДЫЙ фактически прочитанный
+        # вход (и только за него) — синтез chief и есть настоящий потребитель
+        # аналитиков. Отказ записи не валит анализ (fail-open на границе).
+        try:
+            from spa_core.monitoring.consumption_receipts import write_receipt
+            root = str(self.data_dir.parent.parent)
+            for a in inputs:
+                write_receipt(f"data/investment_os/{a}.json",
+                              "com.spa.io_chief_investment", root=root)
+        except Exception:  # noqa: BLE001
+            pass
         if not inputs:
             return {"status": UNKNOWN,
                     "reason": "no analyst artifacts to synthesise yet (fail-closed)"}

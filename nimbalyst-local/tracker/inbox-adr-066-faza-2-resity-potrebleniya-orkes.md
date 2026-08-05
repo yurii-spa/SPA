@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "ADR-066 Фаза 2: реситы потребления + оркестратор/digest читают офис"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-05
 adr: ADR-066

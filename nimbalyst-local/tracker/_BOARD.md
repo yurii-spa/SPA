@@ -117,6 +117,7 @@
 - Утренний Telegram-дайджест «что сделано за день» (простым языком)  ·  `inbox-20260716-075934-telegram.md` · 2026-07-16
 - ADR-066 Фаза 0: манифест архитектуры (машиночитаемая конституция)  ·  `inbox-adr-066-faza-0-manifest-arhitektury-mash.md` · 2026-08-05
 - ADR-066 Фаза 1: сторож architecture_conformance (B1–B5) + positive controls  ·  `inbox-adr-066-faza-1-storozh-architecture-conf.md` · 2026-08-05
+- ADR-066 Фаза 2: реситы потребления + оркестратор/digest читают офис  ·  `inbox-adr-066-faza-2-resity-potrebleniya-orkes.md` · 2026-08-05
 - автономный аркестратор должен был быть раз в 1 час а не раз в 3 часа  ·  `inbox-avtonomnyi-arkestrator-dolzhen-byl-byt-r.md` · 2026-07-16
 - Давай так и сделаем  ·  `inbox-davai-tak-i-sdelaem.md` · 2026-07-20
 - Проверь прям сейчас все ли ок  ·  `inbox-prover-pryam-seichas-vse-li-ok.md` · 2026-08-05
@@ -143,7 +144,6 @@
 - задача - сделать проверку агентов и поствить в расписание и разобраться почему…  ·  `inbox-zadacha-sdelat-proverku-agentov-i-postvi.md` · 2026-08-05
 - Задча • 10% денег стоят без работы под 0% — это money-path, карточка «agent-all…  ·  `inbox-zadcha-10-deneg-stoyat-bez-raboty-pod-0.md` · 2026-08-05
 ### · new
-- ADR-066 Фаза 2: реситы потребления + оркестратор/digest читают офис  ·  `inbox-adr-066-faza-2-resity-potrebleniya-orkes.md` · 2026-08-05
 - ADR-066 Фаза 3: house_view_gap + мост находка→карточка  ·  `inbox-adr-066-faza-3-house-view-gap-most-nahod.md` · 2026-08-05
 - ADR-066 Фаза 4: loop_health + hit-rate аналитиков + weekly retro + храповик  ·  `inbox-adr-066-faza-4-loop-health-hit-rate-anal.md` · 2026-08-05
 

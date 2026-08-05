@@ -65,7 +65,9 @@ export SPA_SESSION_ID="${SPA_SESSION_ID:-cycle-$$}"
 # ── ARMED: run one headless GOVERNED-AUTONOMY cycle ─────────────────────────
 PROMPT="Ты — оркестратор SPA под НОВЫМ протоколом «управляемая автономия» (owner-approved 2026-07-15). \
 Исполни ПОЛНОСТЬЮ docs/ORCHESTRATOR_PROTOCOL.md за один цикл, включая раздел «Автономный рабочий мандат»: \
-(1) прочитай docs/STATE.md + docs/decisions/INDEX.md + docs/SYSTEM_BRIEFING.md + свежие data/session_changes.jsonl; \
+(1) прочитай docs/STATE.md + docs/decisions/INDEX.md + docs/SYSTEM_BRIEFING.md + свежие data/session_changes.jsonl, \
+затем ОБЯЗАТЕЛЬНО python3 scripts/consume_office_reports.py (ADR-066: офис+сторож архитектуры в контекст, \
+квитанции потребления; RED/CRITICAL/НЕ-ПРОЧИТАН из вывода => карточка, не молчание); \
 (2) разбери Inbox (задача/идея/непонятно) и инжест owner-done (ADR + set-status ingested через \
 scripts/orchestrator_queue.py; НИКОГДА не ставь owner-done); (3) если явных заданий нет — возьми ОДНУ \
 безопасную задачу сам (hardening/тесты/доки/мелкие НЕ-owner-gated фичи из backlog/roadmap). \

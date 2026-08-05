@@ -1607,7 +1607,7 @@
    "producer": "com.spa.io_liquidity",
    "consumers": [
     "orchestrator_protocol",
-    "digest_daily"
+    "com.spa.io_chief_investment"
    ],
    "slo_hours": 26,
    "status": "active"
@@ -1617,7 +1617,7 @@
    "producer": "com.spa.io_market_regime",
    "consumers": [
     "orchestrator_protocol",
-    "digest_daily"
+    "com.spa.io_chief_investment"
    ],
    "slo_hours": 26,
    "status": "active"
@@ -1626,8 +1626,7 @@
    "path": "data/investment_os/market_structure.json",
    "producer": "com.spa.io_market_structure",
    "consumers": [
-    "orchestrator_protocol",
-    "digest_daily"
+    "orchestrator_protocol"
    ],
    "slo_hours": 26,
    "status": "active"
@@ -1636,8 +1635,7 @@
    "path": "data/investment_os/onchain.json",
    "producer": "com.spa.io_onchain",
    "consumers": [
-    "orchestrator_protocol",
-    "digest_daily"
+    "orchestrator_protocol"
    ],
    "slo_hours": 26,
    "status": "active"
@@ -1647,7 +1645,7 @@
    "producer": "com.spa.io_protocol_risk",
    "consumers": [
     "orchestrator_protocol",
-    "digest_daily"
+    "com.spa.io_chief_investment"
    ],
    "slo_hours": 26,
    "status": "active"
@@ -1656,8 +1654,7 @@
    "path": "data/investment_os/quant.json",
    "producer": "com.spa.io_quant",
    "consumers": [
-    "orchestrator_protocol",
-    "digest_daily"
+    "orchestrator_protocol"
    ],
    "slo_hours": 26,
    "status": "active"
@@ -1667,7 +1664,7 @@
    "producer": "com.spa.io_red_team",
    "consumers": [
     "orchestrator_protocol",
-    "digest_daily"
+    "com.spa.io_chief_investment"
    ],
    "slo_hours": 26,
    "status": "active"
@@ -1677,7 +1674,7 @@
    "producer": "com.spa.io_reporting",
    "consumers": [
     "orchestrator_protocol",
-    "digest_daily"
+    "com.spa.io_chief_investment"
    ],
    "slo_hours": 26,
    "status": "active"
@@ -1687,7 +1684,7 @@
    "producer": "com.spa.io_stablecoin_yield",
    "consumers": [
     "orchestrator_protocol",
-    "digest_daily"
+    "com.spa.io_chief_investment"
    ],
    "slo_hours": 26,
    "status": "active"
@@ -1697,7 +1694,7 @@
    "producer": "com.spa.io_yield_quality",
    "consumers": [
     "orchestrator_protocol",
-    "digest_daily"
+    "com.spa.io_chief_investment"
    ],
    "slo_hours": 26,
    "status": "active"
@@ -1706,7 +1703,8 @@
    "path": "data/investment_os/_health.json",
    "producer": "com.spa.io_health",
    "consumers": [
-    "orchestrator_protocol"
+    "orchestrator_protocol",
+    "digest_daily"
    ],
    "slo_hours": 14,
    "status": "active"
@@ -1748,6 +1746,8 @@
    "path": "data/architecture_conformance.json",
    "producer": "com.spa.architecture_conformance",
    "consumers": [
+    "orchestrator_protocol",
+    "digest_daily",
     "findings_to_cards"
    ],
    "status": "active",
@@ -1758,8 +1758,9 @@
    "path": "data/consumption_receipts.jsonl",
    "producer": null,
    "consumers": [],
-   "status": "planned",
-   "notes": "ADR-066 Фаза 2"
+   "status": "active",
+   "notes": "ADR-066 Фаза 2: мульти-писатель (все потребители); producer=null осознанно",
+   "slo_hours": 26
   },
   {
    "path": "data/house_view_gap.json",
