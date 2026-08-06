@@ -229,12 +229,15 @@ class LiveAcceptance(unittest.TestCase):
             self.skipTest("не прод-хост: launchctl без com.spa.*")
         m = json.load(open(ac.MANIFEST_PATH))
         now = dt.datetime.now(dt.timezone.utc)
-        r = ac.run_checks(m, fleet, ac.artifact_timestamp, ac.load_receipts(), now)
+        drift = ac._manifest_drift_problems()
+        r = ac.run_checks(m, fleet, ac.artifact_timestamp, ac.load_receipts(), now,
+                          drift_problems=drift, drift_measured=drift is not None)
         self.assertEqual(r["unchecked"], [], "на проде всё должно быть измеримо")
         for f in r["findings"] + r["aged"]:
             self.assertTrue(f["key"].startswith(("B1:", "B2:", "B3:", "B5:")), f["key"])
         # контрфактический позитивный контроль: реситы исчезли ⇒ B3 краснеет
-        no_receipts = ac.run_checks(m, fleet, ac.artifact_timestamp, {}, now)
+        no_receipts = ac.run_checks(m, fleet, ac.artifact_timestamp, {}, now,
+                                    drift_problems=drift, drift_measured=drift is not None)
         self.assertTrue(
             any(k.startswith("B3:no_consumption:data/investment_os/")
                 for k in keys(no_receipts)),
