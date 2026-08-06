@@ -80,6 +80,13 @@ MIN_CONFIDENCE = 0.30
 # Tier-B кеш TTL (advisory результаты валидны 1 час)
 TIER_B_TTL_S = 3600
 
+# Tier-C: контрольный НЕСУЩЕСТВУЮЩИЙ протокол для in-situ дифференциального
+# замера (та же методика, что scripts/audit_protocol_blindness.py). Модуль,
+# отдающий тот же score для протокола, которого не существует, гарантированно
+# не читает ctx["protocol"] — публиковать его число «по протоколам» значит
+# утверждать измерение, которого не было.
+TIER_C_CONTROL_PROTOCOL = "__nonexistent_control_protocol__"
+
 BLOCKING_FILE = "analytics_signals_blocking.json"
 ADVISORY_FILE = "analytics_signals_advisory.json"
 HEALTH_FILE = "analytics_health.json"
@@ -322,6 +329,27 @@ class SignalAggregator:
         self._record(adapter.module_name, status, detail)
         return score, status == "ok"
 
+    def _run_module_silent(self, module_info: Dict[str, Any], protocol: str,
+                           context: Dict[str, Any]) -> Tuple[Optional[float], bool]:
+        """Как ``_run_module``, но БЕЗ записи в health-лог и module_status.
+
+        Нужен для контрольного прогона Tier-C: ``_meta.module_status`` обязан
+        описывать поведение модулей на РЕАЛЬНЫХ протоколах. Запиши туда
+        контрольный прогон — и модуль, ответивший только для несуществующего
+        протокола, попал бы в счётчик "ok", то есть счётчик пригодности начал
+        бы лгать в другую сторону.
+        """
+        adapter = _ModuleAdapter(module_info)
+        with ThreadPoolExecutor(max_workers=1) as ex:
+            fut = ex.submit(adapter.run, protocol, context)
+            try:
+                score, status, _detail = fut.result(timeout=self.module_timeout)
+            except FuturesTimeout:
+                return None, False
+            except Exception:  # noqa: BLE001 — fail-open, как в проде
+                return None, False
+        return score, status == "ok"
+
     # ── Tier A ───────────────────────────────────────────────────────────
 
     def run_tier_a(self, protocols: List[str], context: Dict[str, Any]) -> Dict[str, Any]:
@@ -466,33 +494,156 @@ class SignalAggregator:
 
     # ── Tier C ───────────────────────────────────────────────────────────
 
+    def _tier_c_pass(self, modules: List[Dict[str, Any]], protocol: str,
+                     context: Dict[str, Any], silent: bool = False
+                     ) -> Dict[str, Any]:
+        """Один прогон всех Tier-C модулей для протокола → {modules_ok, avg_score}."""
+        runner = self._run_module_silent if silent else self._run_module
+        ok_count = 0
+        scores: List[float] = []
+        with ThreadPoolExecutor(max_workers=self.max_workers) as ex:
+            futs = {
+                ex.submit(runner, m, protocol, context): m
+                for m in modules
+            }
+            for fut in futs:
+                try:
+                    score, ok = fut.result()
+                except Exception:
+                    score, ok = None, False
+                if ok and score is not None:
+                    ok_count += 1
+                    scores.append(score)
+        return {
+            "modules_ok": ok_count,
+            "avg_score": round(sum(scores) / len(scores), 2) if scores else None,
+        }
+
+    @staticmethod
+    def _tier_c_differentiation(per_proto: Dict[str, Any],
+                                control: Dict[str, Any]) -> Dict[str, Any]:
+        """Честный вердикт: несёт ли Tier-C протокол-специфичную информацию.
+
+        Замер 2026-08-06 (карточка `inbox-tier-c-analitiki-180-modulei-…`):
+        из 180 Tier-C модулей отвечали 9, и все девять отдавали ОДИН И ТОТ ЖЕ
+        score для всех 8 протоколов, для повторного прогона, для всей широкой
+        вселенной _protocol_facts И для протокола, которого не существует.
+        Артефакт при этом публиковал ``protocols: {aave_v3: {avg_score: 20.56},
+        …}`` — форму «замер по протоколу» вокруг числа, к протоколу не
+        относящегося. Это класс «утверждение об измерении, которого не было»
+        (#29/#31/#35–#38/#40), только в виде правдоподобного ЧИСЛА.
+
+        Вердикты (fail-CLOSED — неизмеримое НИКОГДА не сворачивается в OK):
+          OK        — avg_score различается между реальными протоколами;
+          NONE      — одинаков на всех реальных И на контрольном
+                      несуществующем ⇒ ctx["protocol"] не читается;
+          WEAK      — одинаков на реальных, но контрольный повёл себя иначе
+                      (код протокол читает, данные — нет: слепой сегодня);
+          UNCHECKED — измерить нечем (< 2 протоколов / никто не ответил).
+        """
+        real = [p for p in per_proto]
+        if len(real) < 2:
+            return {
+                "verdict": "UNCHECKED",
+                "reason": (
+                    "нужно >=2 протокола для дифференциального замера, дано %d"
+                    % len(real)
+                ),
+                "control_protocol": TIER_C_CONTROL_PROTOCOL,
+            }
+        avgs = [per_proto[p]["avg_score"] for p in real]
+        responding = [p for p, a in zip(real, avgs) if a is not None]
+        base: Dict[str, Any] = {
+            "control_protocol": TIER_C_CONTROL_PROTOCOL,
+            "real_protocols_measured": len(real),
+            "protocols_with_responding_modules": len(responding),
+            "control_modules_ok": control["modules_ok"],
+            "control_avg_score": control["avg_score"],
+        }
+        if not responding:
+            base.update({
+                "verdict": "UNCHECKED",
+                "reason": ("ни один Tier-C модуль не ответил ни для одного "
+                           "протокола — различать нечего"),
+            })
+            return base
+        distinct = sorted({a for a in avgs if a is not None})
+        base["distinct_avg_scores"] = len(distinct)
+        if len(responding) != len(real):
+            # Модули ответили не для всех протоколов — это уже
+            # протокол-зависимое поведение (ср. "partial_ok" в аудите).
+            base.update({
+                "verdict": "OK",
+                "subtype": "partial_ok",
+                "reason": (
+                    "модули ответили для %d из %d протоколов — поведение "
+                    "зависит от протокола" % (len(responding), len(real))
+                ),
+            })
+            return base
+        if len(distinct) > 1:
+            base.update({
+                "verdict": "OK",
+                "reason": (
+                    "avg_score различается между реальными протоколами "
+                    "(различных значений: %d на %d протоколов)"
+                    % (len(distinct), len(real))
+                ),
+            })
+            return base
+        only = distinct[0]
+        if control["avg_score"] == only and control["modules_ok"] > 0:
+            base.update({
+                "verdict": "NONE",
+                "reason": (
+                    "avg_score=%s одинаков у всех %d протоколов И у "
+                    "несуществующего контрольного ⇒ модули не читают "
+                    "ctx['protocol']" % (only, len(real))
+                ),
+            })
+            return base
+        base.update({
+            "verdict": "WEAK",
+            "reason": (
+                "avg_score=%s одинаков у всех %d реальных протоколов; "
+                "контрольный несуществующий дал %s ⇒ протокол читается кодом, "
+                "но не различается данными" % (only, len(real),
+                                               control["avg_score"])
+            ),
+        })
+        return base
+
     def run_tier_c(self, protocols: List[str], context: Dict[str, Any]) -> Dict[str, Any]:
-        """Фоновая аналитика — агрегат для дашборда, НЕ влияет на аллокацию."""
+        """Фоновая аналитика — агрегат для дашборда, НЕ влияет на аллокацию.
+
+        Помимо per-protocol агрегата пишет ``_meta.protocol_differentiation``:
+        измеренный В ЭТОТ ЖЕ ПРОГОН ответ на вопрос «а число вообще относится к
+        протоколу?». Замер in-situ, а не по статической разметке: разметка
+        протухает молча, а контрольный прогон стоит один лишний проход и
+        краснеет сам. Каждая запись ``protocols[...]`` несёт
+        ``protocol_specific`` (true/false/None) — чтобы потребитель, читающий
+        только число, не был введён в заблуждение его формой.
+        """
         modules = registry.get_tier_modules("C")
         per_proto: Dict[str, Any] = {}
         for proto in protocols:
-            ok_count = 0
-            scores: List[float] = []
-            with ThreadPoolExecutor(max_workers=self.max_workers) as ex:
-                futs = {
-                    ex.submit(self._run_module, m, proto, context): m
-                    for m in modules
-                }
-                for fut in futs:
-                    try:
-                        score, ok = fut.result()
-                    except Exception:
-                        score, ok = None, False
-                    if ok and score is not None:
-                        ok_count += 1
-                        scores.append(score)
-            per_proto[proto] = {
-                "modules_ok": ok_count,
-                "avg_score": round(sum(scores) / len(scores), 2) if scores else None,
-            }
+            per_proto[proto] = self._tier_c_pass(modules, proto, context)
+
+        # Контрольный прогон — silent: module_status обязан описывать
+        # поведение на РЕАЛЬНЫХ протоколах (см. _run_module_silent).
+        control = self._tier_c_pass(modules, TIER_C_CONTROL_PROTOCOL,
+                                    context, silent=True)
+        diff = self._tier_c_differentiation(per_proto, control)
+        specific: Optional[bool] = {
+            "OK": True, "NONE": False, "WEAK": False,
+        }.get(diff["verdict"])
+        for entry in per_proto.values():
+            entry["protocol_specific"] = specific
+
         return {
             "_meta": {"timestamp": _utc_now_iso(), "tier": "C",
                       "module_count": len(modules),
+                      "protocol_differentiation": diff,
                       "module_status": self._module_status_summary()},
             "generated_at": _utc_now_iso(),
             "protocols": per_proto,

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-audit_protocol_blindness.py — дифференциальный аудит протокол-слепоты Tier-B.
+audit_protocol_blindness.py — дифференциальный аудит протокол-слепоты
+аналитических модулей (Tier A / B / C — флаг --tier, по умолчанию B).
 
 Контекст (audit 2026-08-02): после удаления no-arg fallback в
 `_ModuleAdapter._invoke` часть Tier-B модулей всё ещё возвращает "ok" —
@@ -10,8 +11,8 @@ audit_protocol_blindness.py — дифференциальный аудит пр
 адаптера, но осталась внутри модулей.
 
 Метод (дифференциальный):
-  каждый Tier-B модуль прогоняется через тот же `_ModuleAdapter`, что и в
-  проде, для набора прогонов:
+  каждый модуль выбранного тира прогоняется через тот же `_ModuleAdapter`,
+  что и в проде, для набора прогонов:
     * реальные протоколы: aave_v3, maple, pendle;
     * повтор aave_v3 — ловит недетерминированные модули (различие score
       при ОДНОМ протоколе ≠ протокол-чувствительность);
@@ -44,10 +45,21 @@ audit_protocol_blindness.py — дифференциальный аудит пр
 все «слепой эквивалент» (не несут протокол-специфичной информации);
 blind_equal_wide_ok несёт (грубую) протокол-специфичную информацию.
 
+Tier-C (2026-08-06): метод тот же и работает для C с самого начала —
+`--tier C` принимался всегда, а `run_tier_c` гоняет модули через ТОТ ЖЕ
+`_ModuleAdapter`, что и Tier-B, поэтому прогон воспроизводит прод. Замер на
+`origin/main` 11abfaf1c: 180 модулей → 9 ok / 103 unchecked / 64 failed /
+4 dormant, и все 9 ok — `blind_constant` (одинаковый score на тройке, на
+повторе, на всей широкой вселенной и на несуществующем контрольном), sensitive
+= 0. Разметка (`--emit-markup`) остаётся Tier-B-only: Tier-C её не потребляет,
+у него честный вердикт считается in-situ каждый прогон
+(`_meta.protocol_differentiation`, см. signal_aggregator.run_tier_c).
+
 Запуск ТОЛЬКО в sandbox (не из живой ~/Documents/SPA_Claude — модули пишут
 свои data/*-логи относительно корня репо):
 
     python3 scripts/audit_protocol_blindness.py --out /path/to/report.json
+    python3 scripts/audit_protocol_blindness.py --tier C --out /path/report.json
 
 Опционально `--emit-markup` генерирует spa_core/analytics/_protocol_blindness.py
 (машиночитаемая разметка, потребляется signal_aggregator.run_tier_b).
