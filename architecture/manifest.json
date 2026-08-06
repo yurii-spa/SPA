@@ -138,13 +138,13 @@
    "program": "auto_push.sh",
    "layer": "dev",
    "role": "unknown",
-   "intent": "unresolved",
+   "intent": "retired",
    "produces": [],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
-   "curation": "none",
-   "notes": "дубль-остаток: живой флот использует com.spa.autopush — кандидат на чистку, решение владельца"
+   "curation": "complete",
+   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): дубль autopush"
   },
   {
    "label": "com.spa.autopush",
@@ -250,13 +250,13 @@
    "program": "agent_checkpoint-7day.sh",
    "layer": "product",
    "role": "monitoring",
-   "intent": "unresolved",
+   "intent": "retired",
    "produces": [],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
-   "curation": "partial",
-   "notes": "в реестре, не загружен, retired не помечен — решение владельца (Фаза 1 поднимет карточку)"
+   "curation": "complete",
+   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): эпоха прошла"
   },
   {
    "label": "com.spa.cloudflared",
@@ -294,19 +294,19 @@
   },
   {
    "label": "com.spa.competitive_watch",
-   "plist_source": "repo:launchd/com.spa.competitive_watch.plist",
-   "reboot_safe": false,
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
    "schedule": "calendar:09:30",
    "program": "agent_competitive_watch.sh",
    "layer": "product",
-   "role": "unknown",
-   "intent": "unresolved",
+   "role": "research",
+   "intent": "active",
    "produces": [],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
-   "curation": "none",
-   "notes": "репо-plist без следа во флоте/реестре — кандидат на чистку, решение владельца"
+   "curation": "partial",
+   "notes": "оживлён решением владельца 2026-08-06 (ADR-067): мониторинг конкурентов (09:30)"
   },
   {
    "label": "com.spa.cpa_daily",
@@ -316,13 +316,13 @@
    "program": "python3",
    "layer": "product",
    "role": "unknown",
-   "intent": "unresolved",
+   "intent": "retired",
    "produces": [],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
-   "curation": "none",
-   "notes": "репо-plist без следа во флоте/реестре — кандидат на чистку, решение владельца"
+   "curation": "complete",
+   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): легаси CPA-волн"
   },
   {
    "label": "com.spa.cycle_gap_monitor",
@@ -564,13 +564,13 @@
    "program": "fund_api_server.py",
    "layer": "infra",
    "role": "unknown",
-   "intent": "unresolved",
+   "intent": "retired",
    "produces": [],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
-   "curation": "none",
-   "notes": "репо-plist; живой флот использует com.spa.familyfund — кандидат на чистку, решение владельца"
+   "curation": "complete",
+   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): предок familyfund"
   },
   {
    "label": "com.spa.golive_freshness",
@@ -984,10 +984,10 @@
   },
   {
    "label": "com.spa.morning_digest",
-   "plist_source": "repo:launchd/com.spa.morning_digest.plist",
+   "plist_source": null,
    "reboot_safe": false,
-   "schedule": "calendar:09:00",
-   "program": "agent_morning_digest.sh",
+   "schedule": null,
+   "program": null,
    "layer": "product",
    "role": "other",
    "intent": "retired",
@@ -1000,19 +1000,19 @@
   },
   {
    "label": "com.spa.novel_edge_rnd",
-   "plist_source": "repo:launchd/com.spa.novel_edge_rnd.plist",
-   "reboot_safe": false,
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
    "schedule": "calendar:wd2·04:00,wd5·04:00",
    "program": "agent_novel_edge_rnd.sh",
    "layer": "product",
    "role": "research",
-   "intent": "unresolved",
+   "intent": "active",
    "produces": [],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
    "curation": "partial",
-   "notes": "standing-директива R&D (memory/docs), агент не загружен — решение владельца (Фаза 1 поднимет карточку)"
+   "notes": "оживлён решением владельца 2026-08-06 (ADR-067): standing-директива R&D edge (Вт/Пт 04:00)"
   },
   {
    "label": "com.spa.orchestrator",
@@ -1096,19 +1096,19 @@
   },
   {
    "label": "com.spa.reboot_verify",
-   "plist_source": "repo:scripts/com.spa.reboot_verify.plist",
-   "reboot_safe": false,
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
    "schedule": "manual",
    "program": "agent_reboot_verify.sh",
    "layer": "infra",
-   "role": "unknown",
-   "intent": "unresolved",
+   "role": "monitoring",
+   "intent": "active",
    "produces": [],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
-   "curation": "none",
-   "notes": "репо-plist без следа во флоте/реестре — кандидат на чистку, решение владельца"
+   "curation": "partial",
+   "notes": "оживлён решением владельца 2026-08-06 (ADR-067): проверка флота после ребута (RunAtLoad)"
   },
   {
    "label": "com.spa.red_flag_monitor",
@@ -1134,13 +1134,13 @@
    "program": "agent_redteam_rotation.sh",
    "layer": "product",
    "role": "unknown",
-   "intent": "unresolved",
+   "intent": "retired",
    "produces": [],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
-   "curation": "none",
-   "notes": "репо-plist без следа во флоте/реестре — кандидат на чистку, решение владельца"
+   "curation": "complete",
+   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): red-team живёт в research-слое"
   },
   {
    "label": "com.spa.refusal",
@@ -1482,13 +1482,13 @@
    "program": "python3",
    "layer": "product",
    "role": "unknown",
-   "intent": "unresolved",
+   "intent": "retired",
    "produces": [],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
-   "curation": "none",
-   "notes": "репо-plist; вероятный предок dashboard_watcher — кандидат на чистку, решение владельца"
+   "curation": "complete",
+   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): предок dashboard_watcher"
   },
   {
    "label": "com.spa.telegram_weekly",
@@ -1761,7 +1761,7 @@
    ],
    "slo_hours": 26,
    "status": "active",
-   "notes": "производитель ПОЯВИЛСЯ 2026-08-06: часовой com.spa.agent_health зовёт spa_core/monitoring/agent_registry_refresh.py (порог 6ч). До этого сборщик scripts/build_agent_registry.py существовал и был покрыт тестами, но его не звал никто — реестр протухал 19 дней (инцидент 2026-08-05)"
+   "notes": "регенерируется agent_registry_refresh внутри hourly agent_health (фикс 2026-08-06 по карточке петли); инцидент 19-дневного протухания закрыт"
   },
   {
    "path": "docs/SYSTEM_BRIEFING.md",

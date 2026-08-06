@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Решить судьбу 9 «зависших» агентов — 10 минут, и конституция станет полной
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-06
 adr: ADR-066
