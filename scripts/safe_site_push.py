@@ -141,7 +141,29 @@ def main(argv: list[str] | None = None) -> int:
     if args.repo:
         cmd += ["--repo", args.repo]
     cmd += ["--branch", args.branch]
-    return subprocess.run(cmd, cwd=str(_REPO_ROOT), env=env).returncode
+    rc = subprocess.run(cmd, cwd=str(_REPO_ROOT), env=env).returncode
+
+    # ── ресит ДОСТАВКИ (ADR-066 B3) ─────────────────────────────────────────
+    #
+    # Сторож соответствия умеет спрашивать «продукт кто-то прочитал?», но для сайта
+    # нужен другой вопрос — «продукт ДОШЁЛ до публики?». Разница не теоретическая:
+    # 2026-08-06 снимок трека имел возраст 23ч при SLO 26ч, то есть выглядел
+    # свежим по всем проверкам — и при этом НЕ БЫЛ доставлен, а сайт месяцами
+    # показывал вчерашние числа. Проверка свежести измеряет момент СБОРКИ.
+    #
+    # Ресит пишется ТОЛЬКО при успешном пуше (rc == 0): иначе он превратится в
+    # «доставлено» после неудачи, и сторож начнёт врать в самую опасную сторону —
+    # успокаивать. Ошибка записи ресита не отменяет уже состоявшуюся доставку.
+    if rc == 0:
+        try:
+            from spa_core.monitoring.consumption_receipts import write_receipt
+            for f in files:
+                rel = os.path.relpath(os.path.abspath(f), str(_REPO_ROOT))
+                if rel.startswith("landing/"):
+                    write_receipt(rel, "site_delivery", root=str(_REPO_ROOT))
+        except Exception as exc:  # noqa: BLE001 — учёт не важнее доставки
+            print(f"  (ресит доставки не записан: {exc})")
+    return rc
 
 
 if __name__ == "__main__":
