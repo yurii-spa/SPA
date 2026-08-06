@@ -19,6 +19,7 @@ CI-безопасно: машинные факты синтезируются в
 """
 from __future__ import annotations
 
+import glob
 import importlib.util
 import json
 import os
@@ -224,6 +225,30 @@ class RealManifest(unittest.TestCase):
         names = " ".join(d["name"] for d in self.m["designed_architectures"])
         self.assertIn("Head-of-Investment", names)
         self.assertIn("ADR-066", names)
+
+    def test_repo_plist_agents_carry_their_mechanical_fields(self):
+        """Дрейф 2026-08-06, положительный контроль: у `com.spa.morning_digest`
+        plist лежал в `launchd/`, а `plist_source`/`schedule`/`program` в манифесте
+        были `null` — генератор краснел на прод-хосте, а В CI ЭТОГО НЕ ВИДНО:
+        соседний `test_generator_check_passes_on_this_machine_or_skips` честно
+        скипается там, где нет `~/Library/LaunchAgents/com.spa.*`.
+
+        Эта проверка герметична — читает ТОЛЬКО plist'ы репозитория и чекнутый
+        манифест, поэтому класс дрейфа ловится и в CI. На манифесте до починки
+        краснеет ровно одной записью.
+        """
+        labels = {os.path.basename(p)[:-len(".plist")]
+                  for d in ("launchd", "scripts")
+                  for p in glob.glob(os.path.join(REPO_ROOT, d, "com.spa.*.plist"))}
+        self.assertTrue(labels, "в репозитории не найдено ни одного com.spa.*.plist — "
+                                "сканер сломан, молчаливого «всё хорошо» тут не будет")
+        for label in sorted(labels):
+            self.assertIn(label, self.by, f"{label}: plist в репо, записи в манифесте нет")
+            for field in ("plist_source", "schedule", "program"):
+                self.assertIsNotNone(
+                    self.by[label][field],
+                    f"{label}: plist в репо, но манифест держит {field}=null — "
+                    f"механическое поле не перегенерировано (--write)")
 
     def test_generator_check_passes_on_this_machine_or_skips(self):
         """На прод-хосте --check обязан быть зелёным; в CI (нет ~/Library

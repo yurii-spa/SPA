@@ -980,10 +980,10 @@
   },
   {
    "label": "com.spa.morning_digest",
-   "plist_source": null,
+   "plist_source": "repo:launchd/com.spa.morning_digest.plist",
    "reboot_safe": false,
-   "schedule": null,
-   "program": null,
+   "schedule": "calendar:09:00",
+   "program": "agent_morning_digest.sh",
    "layer": "product",
    "role": "other",
    "intent": "retired",

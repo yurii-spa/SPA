@@ -7,6 +7,11 @@
   - все писатели изолируются от живого data/ через root/data_dir —
     тест НИКОГДА не пишет в живой data/consumption_receipts.jsonl
     (тест, квитующий прод-потребление, фальсифицировал бы B3).
+
+Отметки времени в фикстурах — БЕЗ литеральных дат (`.claude/rules/deployment.md`):
+там, где часы инъектируются, обе стороны выводятся из одного `now`; где нельзя —
+`_freshness.ts(hours_ago=N)`. Прежние строковые литералы стояли рядом с понятием
+свежести (`generated_at` / `slo_hours`) и ввели файл в класс храповика.
 """
 from __future__ import annotations
 
@@ -19,6 +24,7 @@ import unittest
 
 from spa_core.monitoring import architecture_conformance as ac
 from spa_core.monitoring.consumption_receipts import receipts_path, write_receipt
+from spa_core.tests._freshness import ts
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -40,15 +46,19 @@ class Writer(unittest.TestCase):
     def test_roundtrip_with_b3_reader(self):
         """Квитанция писателя обязана читаться проверкой B3 (интеграция)."""
         with tempfile.TemporaryDirectory() as td:
-            root = _mkroot(td, {"data/investment_os/quant.json":
-                                {"generated_at": "2030-01-15T08:00:00+00:00"}})
+            # часы инъектируются ⇒ обе стороны выводятся из одного `now`:
+            # тест бессмертен к календарю, а проверка «отметку производителя
+            # пронесли ВЕРБАТИМ» остаётся дословной.
             now = dt.datetime(2030, 1, 15, 12, 0, tzinfo=dt.timezone.utc)
+            produced = (now - dt.timedelta(hours=4)).isoformat()
+            root = _mkroot(td, {"data/investment_os/quant.json":
+                                {"generated_at": produced}})
             self.assertTrue(write_receipt("data/investment_os/quant.json",
                                           "orchestrator_protocol", root=root, now=now))
             got = ac.load_receipts(receipts_path(root))
             self.assertEqual(got["data/investment_os/quant.json"], now)
             line = json.loads(open(receipts_path(root)).read().splitlines()[0])
-            self.assertEqual(line["producer_generated_at"], "2030-01-15T08:00:00+00:00")
+            self.assertEqual(line["producer_generated_at"], produced)
             self.assertEqual(line["consumer"], "orchestrator_protocol")
 
     def test_missing_artifact_gets_no_receipt(self):
@@ -59,7 +69,7 @@ class Writer(unittest.TestCase):
 
     def test_append_only(self):
         with tempfile.TemporaryDirectory() as td:
-            root = _mkroot(td, {"data/a.json": {"generated_at": "2030-01-01T00:00:00+00:00"}})
+            root = _mkroot(td, {"data/a.json": {"generated_at": ts(hours_ago=1)}})
             write_receipt("data/a.json", "c1", root=root)
             write_receipt("data/a.json", "c2", root=root)
             lines = open(receipts_path(root)).read().splitlines()
@@ -121,7 +131,7 @@ class ConsumeOfficeScript(unittest.TestCase):
             "data/investment_os/chief_investment.json":
                 {"house_view": {"overall_posture": "YELLOW",
                                 "conflicts": ["regime vs threat"]},
-                 "generated_at": "2030-01-15T08:00:00+00:00"},
+                 "generated_at": ts(hours_ago=2)},
             # quant.json НАМЕРЕННО отсутствует — репродукция «файла нет»
         })
 
