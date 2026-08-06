@@ -331,7 +331,11 @@ def main(argv=None) -> int:
             prev_ts = _parse_iso(json.load(open(retro_path)).get("generated_at"))
         except Exception:
             pass
-        if prev_ts is None or (dt.datetime.now(dt.timezone.utc) - prev_ts).days >= 7:
+        # Пересчёт при каждом прогоне старше 6ч (стоит миллисекунды): findings
+        # ретро кормят мост, и недельная свежесть блокировала бы авто-закрытие
+        # исчезнувшей находки на неделю (замечено на verdict_archive_lagging).
+        # «Еженедельность» ретро — это КАДЕНЦИЯ ОТЧЁТА владельцу, не свежести.
+        if prev_ts is None or (dt.datetime.now(dt.timezone.utc) - prev_ts).total_seconds() >= 6 * 3600:
             rr = loop_retro.run(root=args.root)
             print(f"loop_retro: кандидатов={len(rr['candidates'])} "
                   f"findings={len(rr['findings'])} unchecked={len(rr['unchecked'])}")

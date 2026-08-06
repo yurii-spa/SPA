@@ -180,3 +180,14 @@ class ProofSchemaCompat(unittest.TestCase):
         self.assertLess(a["stale_h"], lr.STALE_H)
         r = lr.build_report(analysts, None, 9, NOW)
         self.assertEqual([c for c in r["candidates"] if c["analyst"] == "_health"], [])
+
+
+class VerdictArchiveExpectations(unittest.TestCase):
+    def test_non_harness_summary_is_never_lagging(self):
+        """_health пишет мимо harness и вердиктов не архивирует ПО ПОСТРОЕНИЮ —
+        ложный lagging 2026-08-06; настоящий отстающий аналитик ловится."""
+        analysts = [{"analyst": "_health", "last_generated_at": "2030-01-02T00:00:00+00:00"},
+                    {"analyst": "quant", "last_generated_at": "2030-01-02T00:00:00+00:00"}]
+        v = lr.analyze_verdicts({"quant": []}, analysts)
+        self.assertEqual(v["lagging"], ["quant"])
+        self.assertEqual([e["analyst"] for e in v["analysts"]], ["quant"])

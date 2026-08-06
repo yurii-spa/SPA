@@ -79,6 +79,12 @@ def analyze_verdicts(verdict_lines: dict[str, list[dict]] | None,
     per, lagging = [], []
     for a in analysts:
         name = a["analyst"]
+        if name.startswith("_"):
+            # Служебные сводки (_health) пишутся МИМО harness (append_daily_proof)
+            # и вердиктов не архивируют ПО ПОСТРОЕНИЮ — ожидать от них архив
+            # значит сочинять находку (ложный lagging 2026-08-06, класс
+            # «читатель слеп к схеме», как ложный кандидат по каденции).
+            continue
         lines = verdict_lines.get(name, [])
         days = sorted({str(r.get("date")) for r in lines if r.get("date")})
         last_archived = days[-1] if days else None
