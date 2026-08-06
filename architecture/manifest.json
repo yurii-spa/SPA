@@ -1,1921 +1,1955 @@
 {
-  "schema_version": 1,
-  "adr": "ADR-066",
-  "agents": [
-    {
-      "label": "com.spa.agent_health",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:3600s",
-      "program": "agent_agent_health.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [
-        {
-          "artifact": "data/agent_health.json",
-          "slo_hours": 3
-        },
-        {
-          "artifact": "data/agent_registry.json",
-          "slo_hours": 26
-        }
-      ],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "complete",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.aggressive_lab",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:86400s",
-      "program": "agent_aggressive_lab.sh",
-      "layer": "product",
-      "role": "allocation",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.analytics_tier_b",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:3600s",
-      "program": "agent_analytics_tier_b.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.analytics_tier_c",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:05:00",
-      "program": "agent_analytics_tier_c.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.apiserver",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "daemon",
-      "program": "agent_apiserver.sh",
-      "layer": "infra",
-      "role": "infra",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.architecture_conformance",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:21600s",
-      "program": "agent_architecture_conformance.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [
-        {
-          "artifact": "data/architecture_conformance.json",
-          "slo_hours": 7
-        }
-      ],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [
-        "ADR-066"
-      ],
-      "curation": "complete",
-      "notes": "сторож соответствия флота конституции (ADR-066 Фаза 1); за его свежестью следит agent_health (P4 — взаимный надзор)"
-    },
-    {
-      "label": "com.spa.artifact_freshness",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:09:15",
-      "program": "agent_artifact_freshness.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": "РАБОТАЕТ, но загружен из repo:scripts/ — НЕ переживёт ребут (находка 2026-08-05); в agent_registry отсутствует"
-    },
-    {
-      "label": "com.spa.auto_push",
-      "plist_source": "repo:launchd/com.spa.auto_push.plist",
-      "reboot_safe": false,
-      "schedule": "interval:5400s",
-      "program": "auto_push.sh",
-      "layer": "dev",
-      "role": "unknown",
-      "intent": "retired",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "complete",
-      "notes": "похоронен решением владельца 2026-08-06 (ADR-067): дубль autopush"
-    },
-    {
-      "label": "com.spa.autopush",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:5400s",
-      "program": "auto_push.sh",
-      "layer": "dev",
-      "role": "infra",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.base_gas_monitor",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:06:00",
-      "program": "agent_base_gas_monitor.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.bot_commands",
-      "plist_source": null,
-      "reboot_safe": false,
-      "schedule": null,
-      "program": null,
-      "layer": "product",
-      "role": "other",
-      "intent": "retired",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.bts-feed",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:900s",
-      "program": "agent_bts-feed.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.bts-monitor",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:900s",
-      "program": "agent_bts-monitor.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.cc-kanban",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "daemon",
-      "program": "agent_cc_kanban.sh",
-      "layer": "dev",
-      "role": "infra",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.checkpoint-7day",
-      "plist_source": "repo:scripts/com.spa.checkpoint-7day.plist",
-      "reboot_safe": false,
-      "schedule": "calendar:10:00",
-      "program": "agent_checkpoint-7day.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "retired",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "complete",
-      "notes": "похоронен решением владельца 2026-08-06 (ADR-067): эпоха прошла"
-    },
-    {
-      "label": "com.spa.cloudflared",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "daemon",
-      "program": "run_cloudflared.sh",
-      "layer": "infra",
-      "role": "infra",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.cmo_editorial",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:86400s",
-      "program": "agent_cmo_editorial.sh",
-      "layer": "product",
-      "role": "editorial",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [
-        "docs/CMO_EDITORIAL_LAYER.md"
-      ],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.competitive_watch",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:09:30",
-      "program": "agent_competitive_watch.sh",
-      "layer": "product",
-      "role": "research",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": "оживлён решением владельца 2026-08-06 (ADR-067): мониторинг конкурентов (09:30)"
-    },
-    {
-      "label": "com.spa.cpa_daily",
-      "plist_source": "repo:scripts/com.spa.cpa_daily.plist",
-      "reboot_safe": false,
-      "schedule": "calendar:09:00",
-      "program": "python3",
-      "layer": "product",
-      "role": "unknown",
-      "intent": "retired",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "complete",
-      "notes": "похоронен решением владельца 2026-08-06 (ADR-067): легаси CPA-волн"
-    },
-    {
-      "label": "com.spa.cycle_gap_monitor",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:300s",
-      "program": "agent_cycle_gap_monitor.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.cycle_health",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:300s",
-      "program": "agent_cycle_health.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.daily-paper-report",
-      "plist_source": null,
-      "reboot_safe": false,
-      "schedule": null,
-      "program": null,
-      "layer": "product",
-      "role": "other",
-      "intent": "retired",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.daily_backup",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:05:30",
-      "program": "daily_backup.sh",
-      "layer": "infra",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.daily_cycle",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:08:00",
-      "program": "run_daily_paper_cycle.sh",
-      "layer": "product",
-      "role": "allocation",
-      "intent": "active",
-      "produces": [
-        {
-          "artifact": "data/equity_curve_daily.json",
-          "slo_hours": 26
-        },
-        {
-          "artifact": "data/current_positions.json",
-          "slo_hours": 26
-        },
-        {
-          "artifact": "data/allocation_rationale.json",
-          "slo_hours": 26
-        },
-        {
-          "artifact": "data/allocation_rationale_history.jsonl",
-          "slo_hours": 26
-        },
-        {
-          "artifact": "data/shadow_trigger_evaluation.json",
-          "slo_hours": 26
-        },
-        {
-          "artifact": "landing/src/data/track_snapshot.json",
-          "slo_hours": 26
-        }
-      ],
-      "consumes": [],
-      "consumer_required": true,
-      "governed_by": [
-        "ADR-060",
-        "ADR-061"
-      ],
-      "curation": "complete",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.dashboard",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "daemon",
-      "program": "agent_dashboard.sh",
-      "layer": "infra",
-      "role": "infra",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.dashboard_watcher",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:300s",
-      "program": "agent_dashboard_watcher.sh",
-      "layer": "product",
-      "role": "reporting",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.decision_loop",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:21600s",
-      "program": "agent_decision_loop.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [
-        {
-          "artifact": "data/house_view_gap.json",
-          "slo_hours": 7
-        },
-        {
-          "artifact": "data/findings_bridge_report.json",
-          "slo_hours": 7
-        },
-        {
-          "artifact": "data/loop_health.json",
-          "slo_hours": 7
-        },
-        {
-          "artifact": "data/loop_retro.json",
-          "slo_hours": 192
-        }
-      ],
-      "consumes": [
-        "data/architecture_conformance.json",
-        "data/house_view_gap.json",
-        "data/investment_os/chief_investment.json",
-        "data/current_positions.json"
-      ],
-      "consumer_required": false,
-      "governed_by": [
-        "ADR-066"
-      ],
-      "curation": "complete",
-      "notes": "петля решений: пересчёт house_view_gap + мост находка→карточка (Фаза 3)"
-    },
-    {
-      "label": "com.spa.dfb_capture",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:09:30",
-      "program": "agent_dfb_capture.sh",
-      "layer": "product",
-      "role": "research",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.digest_daily",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:08:10",
-      "program": "agent_digest_daily.sh",
-      "layer": "product",
-      "role": "reporting",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.digest_weekly",
-      "plist_source": "repo:scripts/com.spa.digest_weekly.plist",
-      "reboot_safe": false,
-      "schedule": "calendar:wd0·10:00",
-      "program": "agent_digest_weekly.sh",
-      "layer": "product",
-      "role": "other",
-      "intent": "retired",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.familyfund",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "daemon",
-      "program": "agent_familyfund.sh",
-      "layer": "infra",
-      "role": "infra",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.fund-api",
-      "plist_source": "repo:scripts/com.spa.fund-api.plist",
-      "reboot_safe": false,
-      "schedule": "manual",
-      "program": "fund_api_server.py",
-      "layer": "infra",
-      "role": "unknown",
-      "intent": "retired",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "complete",
-      "notes": "похоронен решением владельца 2026-08-06 (ADR-067): предок familyfund"
-    },
-    {
-      "label": "com.spa.golive_freshness",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:21600s",
-      "program": "agent_golive_freshness.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.governance_watcher",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:900s",
-      "program": "agent_governance_watcher.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.httpserver",
-      "plist_source": null,
-      "reboot_safe": false,
-      "schedule": null,
-      "program": null,
-      "layer": "infra",
-      "role": "other",
-      "intent": "retired",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.hy_cycle",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:3600s",
-      "program": "agent_hy_cycle.sh",
-      "layer": "product",
-      "role": "allocation",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.inbox_watch",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "event:watchpaths",
-      "program": "agent_inbox_intake.sh",
-      "layer": "dev",
-      "role": "infra",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.io_chief_investment",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:86400s",
-      "program": "agent_io_chief_investment.sh",
-      "layer": "product",
-      "role": "analytics",
-      "intent": "active",
-      "produces": [
-        {
-          "artifact": "data/investment_os/chief_investment.json",
-          "slo_hours": 26
-        }
-      ],
-      "consumes": [
-        "data/investment_os/liquidity.json",
-        "data/investment_os/market_regime.json",
-        "data/investment_os/market_structure.json",
-        "data/investment_os/onchain.json",
-        "data/investment_os/protocol_risk.json",
-        "data/investment_os/quant.json",
-        "data/investment_os/red_team.json",
-        "data/investment_os/reporting.json",
-        "data/investment_os/stablecoin_yield.json",
-        "data/investment_os/yield_quality.json"
-      ],
-      "consumer_required": true,
-      "governed_by": [
-        "ADR-055",
-        "docs/08_ai_investment_os_architecture.md"
-      ],
-      "curation": "complete",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.io_health",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:43200s",
-      "program": "agent_io_health.sh",
-      "layer": "product",
-      "role": "analytics",
-      "intent": "active",
-      "produces": [
-        {
-          "artifact": "data/investment_os/_health.json",
-          "slo_hours": 14
-        }
-      ],
-      "consumes": [],
-      "consumer_required": true,
-      "governed_by": [
-        "ADR-055"
-      ],
-      "curation": "complete",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.io_liquidity",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:86400s",
-      "program": "agent_io_liquidity.sh",
-      "layer": "product",
-      "role": "analytics",
-      "intent": "active",
-      "produces": [
-        {
-          "artifact": "data/investment_os/liquidity.json",
-          "slo_hours": 26
-        }
-      ],
-      "consumes": [],
-      "consumer_required": true,
-      "governed_by": [
-        "ADR-055",
-        "docs/08_ai_investment_os_architecture.md"
-      ],
-      "curation": "complete",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.io_market_regime",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:86400s",
-      "program": "agent_io_market_regime.sh",
-      "layer": "product",
-      "role": "analytics",
-      "intent": "active",
-      "produces": [
-        {
-          "artifact": "data/investment_os/market_regime.json",
-          "slo_hours": 26
-        }
-      ],
-      "consumes": [],
-      "consumer_required": true,
-      "governed_by": [
-        "ADR-055",
-        "docs/08_ai_investment_os_architecture.md"
-      ],
-      "curation": "complete",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.io_market_structure",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:86400s",
-      "program": "agent_io_market_structure.sh",
-      "layer": "product",
-      "role": "analytics",
-      "intent": "active",
-      "produces": [
-        {
-          "artifact": "data/investment_os/market_structure.json",
-          "slo_hours": 26
-        }
-      ],
-      "consumes": [],
-      "consumer_required": true,
-      "governed_by": [
-        "ADR-055",
-        "docs/08_ai_investment_os_architecture.md"
-      ],
-      "curation": "complete",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.io_onchain",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:86400s",
-      "program": "agent_io_onchain.sh",
-      "layer": "product",
-      "role": "analytics",
-      "intent": "active",
-      "produces": [
-        {
-          "artifact": "data/investment_os/onchain.json",
-          "slo_hours": 26
-        }
-      ],
-      "consumes": [],
-      "consumer_required": true,
-      "governed_by": [
-        "ADR-055",
-        "docs/08_ai_investment_os_architecture.md"
-      ],
-      "curation": "complete",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.io_protocol_risk",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:86400s",
-      "program": "agent_io_protocol_risk.sh",
-      "layer": "product",
-      "role": "analytics",
-      "intent": "active",
-      "produces": [
-        {
-          "artifact": "data/investment_os/protocol_risk.json",
-          "slo_hours": 26
-        }
-      ],
-      "consumes": [],
-      "consumer_required": true,
-      "governed_by": [
-        "ADR-055",
-        "docs/08_ai_investment_os_architecture.md"
-      ],
-      "curation": "complete",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.io_quant",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:86400s",
-      "program": "agent_io_quant.sh",
-      "layer": "product",
-      "role": "analytics",
-      "intent": "active",
-      "produces": [
-        {
-          "artifact": "data/investment_os/quant.json",
-          "slo_hours": 26
-        }
-      ],
-      "consumes": [],
-      "consumer_required": true,
-      "governed_by": [
-        "ADR-055",
-        "docs/08_ai_investment_os_architecture.md"
-      ],
-      "curation": "complete",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.io_red_team",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:86400s",
-      "program": "agent_io_red_team.sh",
-      "layer": "product",
-      "role": "analytics",
-      "intent": "active",
-      "produces": [
-        {
-          "artifact": "data/investment_os/red_team.json",
-          "slo_hours": 26
-        }
-      ],
-      "consumes": [],
-      "consumer_required": true,
-      "governed_by": [
-        "ADR-055",
-        "docs/08_ai_investment_os_architecture.md"
-      ],
-      "curation": "complete",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.io_reporting",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:86400s",
-      "program": "agent_io_reporting.sh",
-      "layer": "product",
-      "role": "analytics",
-      "intent": "active",
-      "produces": [
-        {
-          "artifact": "data/investment_os/reporting.json",
-          "slo_hours": 26
-        }
-      ],
-      "consumes": [],
-      "consumer_required": true,
-      "governed_by": [
-        "ADR-055",
-        "docs/08_ai_investment_os_architecture.md"
-      ],
-      "curation": "complete",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.io_stablecoin_yield",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:86400s",
-      "program": "agent_io_stablecoin_yield.sh",
-      "layer": "product",
-      "role": "analytics",
-      "intent": "active",
-      "produces": [
-        {
-          "artifact": "data/investment_os/stablecoin_yield.json",
-          "slo_hours": 26
-        }
-      ],
-      "consumes": [],
-      "consumer_required": true,
-      "governed_by": [
-        "ADR-055",
-        "docs/08_ai_investment_os_architecture.md"
-      ],
-      "curation": "complete",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.io_yield_quality",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:86400s",
-      "program": "agent_io_yield_quality.sh",
-      "layer": "product",
-      "role": "analytics",
-      "intent": "active",
-      "produces": [
-        {
-          "artifact": "data/investment_os/yield_quality.json",
-          "slo_hours": 26
-        }
-      ],
-      "consumes": [],
-      "consumer_required": true,
-      "governed_by": [
-        "ADR-055",
-        "docs/08_ai_investment_os_architecture.md"
-      ],
-      "curation": "complete",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.lp_cycle",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:3600s",
-      "program": "agent_lp_cycle.sh",
-      "layer": "product",
-      "role": "allocation",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.mass_tournament",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:06:30",
-      "program": "run_backtest_tier1.sh",
-      "layer": "product",
-      "role": "research",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.morning_digest",
-      "plist_source": null,
-      "reboot_safe": false,
-      "schedule": null,
-      "program": null,
-      "layer": "product",
-      "role": "other",
-      "intent": "retired",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.novel_edge_rnd",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:wd2·04:00,wd5·04:00",
-      "program": "agent_novel_edge_rnd.sh",
-      "layer": "product",
-      "role": "research",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": "оживлён решением владельца 2026-08-06 (ADR-067): standing-директива R&D edge (Вт/Пт 04:00)"
-    },
-    {
-      "label": "com.spa.orchestrator",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:3600s",
-      "program": "agent_orchestrator.sh",
-      "layer": "dev",
-      "role": "research",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.peg_monitor",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:300s",
-      "program": "agent_peg_monitor.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.portfolio_monitor",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:300s",
-      "program": "agent_portfolio_monitor.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.rates_desk_paper",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:3600s",
-      "program": "agent_rates_desk_paper.sh",
-      "layer": "product",
-      "role": "allocation",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.realized_at_size",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:09:20",
-      "program": "agent_realized_at_size.sh",
-      "layer": "product",
-      "role": "research",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.reboot_verify",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "manual",
-      "program": "agent_reboot_verify.sh",
-      "layer": "infra",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": "оживлён решением владельца 2026-08-06 (ADR-067): проверка флота после ребута (RunAtLoad)"
-    },
-    {
-      "label": "com.spa.red_flag_monitor",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:300s",
-      "program": "agent_red_flag_monitor.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.redteam_rotation",
-      "plist_source": "repo:scripts/com.spa.redteam_rotation.plist",
-      "reboot_safe": false,
-      "schedule": "calendar:09:30",
-      "program": "agent_redteam_rotation.sh",
-      "layer": "product",
-      "role": "unknown",
-      "intent": "retired",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "complete",
-      "notes": "похоронен решением владельца 2026-08-06 (ADR-067): red-team живёт в research-слое"
-    },
-    {
-      "label": "com.spa.refusal",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:05:45",
-      "program": "agent_refusal.sh",
-      "layer": "product",
-      "role": "research",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.resilience",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:21600s",
-      "program": "agent_resilience.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.rtmr_sense",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "daemon",
-      "program": "agent_rtmr_sense.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.rules_watchdog",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:300s",
-      "program": "agent_rules_watchdog.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [
-        {
-          "artifact": "data/watchdog_report.json",
-          "slo_hours": 1
-        }
-      ],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "complete",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.rwa_safety_board",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:05:50",
-      "program": "agent_rwa_safety_board.sh",
-      "layer": "product",
-      "role": "research",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.self_heal",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:300s",
-      "program": "agent_self_heal.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.sky_monitor",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:07:00",
-      "program": "agent_sky_monitor.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.strategy_lab_paper",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:3600s",
-      "program": "agent_strategy_lab_paper.sh",
-      "layer": "product",
-      "role": "allocation",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.swarm_blend",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:3600s",
-      "program": "agent_swarm_blend.sh",
-      "layer": "product",
-      "role": "allocation",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.swarm_brain",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:3600s",
-      "program": "agent_swarm_brain.sh",
-      "layer": "product",
-      "role": "allocation",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.swarm_dwell",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:3600s",
-      "program": "agent_swarm_dwell.sh",
-      "layer": "product",
-      "role": "swarm",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [
-        "ADR-YL-012"
-      ],
-      "curation": "partial",
-      "notes": "РАБОТАЕТ, но загружен из repo:launchd/ — НЕ переживёт ребут (находка 2026-08-05); в agent_registry отсутствует"
-    },
-    {
-      "label": "com.spa.swarm_guardian",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:3600s",
-      "program": "agent_swarm_guardian.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.swarm_health",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:3600s",
-      "program": "agent_swarm_health.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.swarm_regime",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:3600s",
-      "program": "agent_swarm_regime.sh",
-      "layer": "product",
-      "role": "allocation",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.system_briefing",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:1800s",
-      "program": "agent_system_briefing.sh",
-      "layer": "product",
-      "role": "reporting",
-      "intent": "active",
-      "produces": [
-        {
-          "artifact": "docs/SYSTEM_BRIEFING.md",
-          "slo_hours": 2
-        }
-      ],
-      "consumes": [],
-      "consumer_required": true,
-      "governed_by": [],
-      "curation": "complete",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.system_health_evening",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:20:00",
-      "program": "agent_system_health_evening.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.system_health_morning",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:08:00",
-      "program": "agent_system_health_morning.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.telegram_bot",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "daemon",
-      "program": "agent_telegram_bot.sh",
-      "layer": "infra",
-      "role": "reporting",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.telegram_daily",
-      "plist_source": null,
-      "reboot_safe": false,
-      "schedule": null,
-      "program": null,
-      "layer": "product",
-      "role": "other",
-      "intent": "retired",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.telegram_milestone",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:86400s",
-      "program": "agent_telegram_milestone.sh",
-      "layer": "product",
-      "role": "reporting",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.telegram_watcher",
-      "plist_source": "repo:launchd/com.spa.telegram_watcher.plist",
-      "reboot_safe": false,
-      "schedule": "interval:300s",
-      "program": "python3",
-      "layer": "product",
-      "role": "unknown",
-      "intent": "retired",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "complete",
-      "notes": "похоронен решением владельца 2026-08-06 (ADR-067): предок dashboard_watcher"
-    },
-    {
-      "label": "com.spa.telegram_weekly",
-      "plist_source": null,
-      "reboot_safe": false,
-      "schedule": null,
-      "program": null,
-      "layer": "product",
-      "role": "other",
-      "intent": "retired",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.threat_reactor",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:300s",
-      "program": "agent_threat_reactor.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.tier1_digest",
-      "plist_source": "repo:scripts/com.spa.tier1_digest.plist",
-      "reboot_safe": false,
-      "schedule": "calendar:wd0·09:30",
-      "program": "agent_tier1_digest.sh",
-      "layer": "product",
-      "role": "other",
-      "intent": "retired",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.tier1_governance",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:07:15",
-      "program": "run_tier1_governance.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.tournament_engine",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:09:00",
-      "program": "agent_tournament_engine.sh",
-      "layer": "product",
-      "role": "research",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.uptime_monitor",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:300s",
-      "program": "agent_uptime_monitor.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.watchdog",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "interval:600s",
-      "program": "agent_watchdog.sh",
-      "layer": "product",
-      "role": "monitoring",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.weekly_backup",
-      "plist_source": "repo:scripts/com.spa.weekly_backup.plist",
-      "reboot_safe": false,
-      "schedule": "calendar:wd6·10:00",
-      "program": "weekly_backup.sh",
-      "layer": "infra",
-      "role": "other",
-      "intent": "retired",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
-    },
-    {
-      "label": "com.spa.work_digest",
-      "plist_source": "launch_agents",
-      "reboot_safe": true,
-      "schedule": "calendar:09:00",
-      "program": "agent_work_digest.sh",
-      "layer": "product",
-      "role": "reporting",
-      "intent": "active",
-      "produces": [],
-      "consumes": [],
-      "consumer_required": false,
-      "governed_by": [],
-      "curation": "partial",
-      "notes": ""
+ "schema_version": 1,
+ "adr": "ADR-066",
+ "agents": [
+  {
+   "label": "com.spa.agent_health",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:3600s",
+   "program": "agent_agent_health.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/agent_health.json",
+     "slo_hours": 3
+    },
+    {
+     "artifact": "data/agent_registry.json",
+     "slo_hours": 26
     }
-  ],
-  "artifacts": [
+   ],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "complete",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.aggressive_lab",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:86400s",
+   "program": "agent_aggressive_lab.sh",
+   "layer": "product",
+   "role": "allocation",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.analytics_tier_b",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:3600s",
+   "program": "agent_analytics_tier_b.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.analytics_tier_c",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:05:00",
+   "program": "agent_analytics_tier_c.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.apiserver",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "daemon",
+   "program": "agent_apiserver.sh",
+   "layer": "infra",
+   "role": "infra",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.architecture_conformance",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:21600s",
+   "program": "agent_architecture_conformance.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [
     {
-      "path": "data/investment_os/chief_investment.json",
-      "producer": "com.spa.io_chief_investment",
-      "consumers": [
-        "orchestrator_protocol",
-        "digest_daily"
-      ],
-      "slo_hours": 26,
-      "status": "active"
-    },
-    {
-      "path": "data/investment_os/liquidity.json",
-      "producer": "com.spa.io_liquidity",
-      "consumers": [
-        "orchestrator_protocol",
-        "com.spa.io_chief_investment"
-      ],
-      "slo_hours": 26,
-      "status": "active"
-    },
-    {
-      "path": "data/investment_os/market_regime.json",
-      "producer": "com.spa.io_market_regime",
-      "consumers": [
-        "orchestrator_protocol",
-        "com.spa.io_chief_investment"
-      ],
-      "slo_hours": 26,
-      "status": "active"
-    },
-    {
-      "path": "data/investment_os/market_structure.json",
-      "producer": "com.spa.io_market_structure",
-      "consumers": [
-        "orchestrator_protocol"
-      ],
-      "slo_hours": 26,
-      "status": "active"
-    },
-    {
-      "path": "data/investment_os/onchain.json",
-      "producer": "com.spa.io_onchain",
-      "consumers": [
-        "orchestrator_protocol"
-      ],
-      "slo_hours": 26,
-      "status": "active"
-    },
-    {
-      "path": "data/investment_os/protocol_risk.json",
-      "producer": "com.spa.io_protocol_risk",
-      "consumers": [
-        "orchestrator_protocol",
-        "com.spa.io_chief_investment"
-      ],
-      "slo_hours": 26,
-      "status": "active"
-    },
-    {
-      "path": "data/investment_os/quant.json",
-      "producer": "com.spa.io_quant",
-      "consumers": [
-        "orchestrator_protocol"
-      ],
-      "slo_hours": 26,
-      "status": "active"
-    },
-    {
-      "path": "data/investment_os/red_team.json",
-      "producer": "com.spa.io_red_team",
-      "consumers": [
-        "orchestrator_protocol",
-        "com.spa.io_chief_investment"
-      ],
-      "slo_hours": 26,
-      "status": "active"
-    },
-    {
-      "path": "data/investment_os/reporting.json",
-      "producer": "com.spa.io_reporting",
-      "consumers": [
-        "orchestrator_protocol",
-        "com.spa.io_chief_investment"
-      ],
-      "slo_hours": 26,
-      "status": "active"
-    },
-    {
-      "path": "data/investment_os/stablecoin_yield.json",
-      "producer": "com.spa.io_stablecoin_yield",
-      "consumers": [
-        "orchestrator_protocol",
-        "com.spa.io_chief_investment"
-      ],
-      "slo_hours": 26,
-      "status": "active"
-    },
-    {
-      "path": "data/investment_os/yield_quality.json",
-      "producer": "com.spa.io_yield_quality",
-      "consumers": [
-        "orchestrator_protocol",
-        "com.spa.io_chief_investment"
-      ],
-      "slo_hours": 26,
-      "status": "active"
-    },
-    {
-      "path": "data/investment_os/_health.json",
-      "producer": "com.spa.io_health",
-      "consumers": [
-        "orchestrator_protocol",
-        "digest_daily"
-      ],
-      "slo_hours": 14,
-      "status": "active"
-    },
-    {
-      "path": "data/agent_registry.json",
-      "producer": "com.spa.agent_health",
-      "consumers": [
-        "architecture_conformance"
-      ],
-      "slo_hours": 26,
-      "status": "active",
-      "notes": "регенерируется agent_registry_refresh внутри hourly agent_health (фикс 2026-08-06 по карточке петли); инцидент 19-дневного протухания закрыт"
-    },
-    {
-      "path": "docs/SYSTEM_BRIEFING.md",
-      "producer": "com.spa.system_briefing",
-      "consumers": [
-        "orchestrator_protocol"
-      ],
-      "slo_hours": 2,
-      "status": "active"
-    },
-    {
-      "path": "data/agent_health.json",
-      "producer": "com.spa.agent_health",
-      "consumers": [],
-      "slo_hours": 3,
-      "status": "active"
-    },
-    {
-      "path": "data/watchdog_report.json",
-      "producer": "com.spa.rules_watchdog",
-      "consumers": [],
-      "slo_hours": 1,
-      "status": "active"
-    },
-    {
-      "path": "data/architecture_conformance.json",
-      "producer": "com.spa.architecture_conformance",
-      "consumers": [
-        "orchestrator_protocol",
-        "digest_daily",
-        "findings_to_cards"
-      ],
-      "status": "active",
-      "notes": "ADR-066: отчёт сторожа; потребитель-мост — Фаза 3",
-      "slo_hours": 7
-    },
-    {
-      "path": "data/consumption_receipts.jsonl",
-      "producer": null,
-      "consumers": [],
-      "status": "active",
-      "notes": "ADR-066 Фаза 2: мульти-писатель (все потребители); producer=null осознанно",
-      "slo_hours": 26
-    },
-    {
-      "path": "data/house_view_gap.json",
-      "producer": "com.spa.decision_loop",
-      "consumers": [
-        "orchestrator_protocol",
-        "findings_to_cards"
-      ],
-      "status": "active",
-      "notes": "ADR-066 Фаза 3",
-      "slo_hours": 7
-    },
-    {
-      "path": "data/findings_bridge_report.json",
-      "producer": "com.spa.decision_loop",
-      "consumers": [
-        "orchestrator_protocol"
-      ],
-      "slo_hours": 7,
-      "status": "active",
-      "notes": "ADR-066 Фаза 3: отчёт моста (created/deferred/closed) — deferred читать ОБЯЗАТЕЛЬНО"
-    },
-    {
-      "path": "data/loop_health.json",
-      "producer": "com.spa.decision_loop",
-      "consumers": [
-        "digest_daily",
-        "orchestrator_protocol"
-      ],
-      "slo_hours": 7,
-      "status": "active",
-      "notes": "ADR-066 Фаза 4: метрики петли"
-    },
-    {
-      "path": "data/loop_retro.json",
-      "producer": "com.spa.decision_loop",
-      "consumers": [
-        "findings_to_cards",
-        "orchestrator_protocol"
-      ],
-      "slo_hours": 192,
-      "status": "active",
-      "notes": "ADR-066 Фаза 4: еженедельное ретро (кандидаты — owner-gated)"
-    },
-    {
-      "path": "data/shadow_trigger_evaluation.json",
-      "producer": "com.spa.daily_cycle",
-      "consumers": [
-        "orchestrator_protocol"
-      ],
-      "slo_hours": 26,
-      "status": "active",
-      "notes": "ADR-060/067: arming-evidence (критерий 30д+net>0+hit≥60%); оркестратор читает ежедневно"
-    },
-    {
-      "path": "data/allocation_rationale_history.jsonl",
-      "producer": "com.spa.daily_cycle",
-      "consumers": [
-        "shadow_trigger_eval"
-      ],
-      "slo_hours": 26,
-      "status": "active",
-      "notes": "ADR-060 Y3: append-only история shadow-вердиктов — единственная долговременная запись"
+     "artifact": "data/architecture_conformance.json",
+     "slo_hours": 7
     }
-  ],
-  "designed_architectures": [
+   ],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-066"
+   ],
+   "curation": "complete",
+   "notes": "сторож соответствия флота конституции (ADR-066 Фаза 1); за его свежестью следит agent_health (P4 — взаимный надзор)"
+  },
+  {
+   "label": "com.spa.artifact_freshness",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:09:15",
+   "program": "agent_artifact_freshness.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": "РАБОТАЕТ, но загружен из repo:scripts/ — НЕ переживёт ребут (находка 2026-08-05); в agent_registry отсутствует"
+  },
+  {
+   "label": "com.spa.auto_push",
+   "plist_source": "repo:launchd/com.spa.auto_push.plist",
+   "reboot_safe": false,
+   "schedule": "interval:5400s",
+   "program": "auto_push.sh",
+   "layer": "dev",
+   "role": "unknown",
+   "intent": "retired",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "complete",
+   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): дубль autopush"
+  },
+  {
+   "label": "com.spa.autopush",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:5400s",
+   "program": "auto_push.sh",
+   "layer": "dev",
+   "role": "infra",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.base_gas_monitor",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:06:00",
+   "program": "agent_base_gas_monitor.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.bot_commands",
+   "plist_source": null,
+   "reboot_safe": false,
+   "schedule": null,
+   "program": null,
+   "layer": "product",
+   "role": "other",
+   "intent": "retired",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.bts-feed",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:900s",
+   "program": "agent_bts-feed.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.bts-monitor",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:900s",
+   "program": "agent_bts-monitor.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.cc-kanban",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "daemon",
+   "program": "agent_cc_kanban.sh",
+   "layer": "dev",
+   "role": "infra",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.checkpoint-7day",
+   "plist_source": "repo:scripts/com.spa.checkpoint-7day.plist",
+   "reboot_safe": false,
+   "schedule": "calendar:10:00",
+   "program": "agent_checkpoint-7day.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "retired",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "complete",
+   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): эпоха прошла"
+  },
+  {
+   "label": "com.spa.cloudflared",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "daemon",
+   "program": "run_cloudflared.sh",
+   "layer": "infra",
+   "role": "infra",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.cmo_editorial",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:86400s",
+   "program": "agent_cmo_editorial.sh",
+   "layer": "product",
+   "role": "editorial",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [
+    "docs/CMO_EDITORIAL_LAYER.md"
+   ],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.competitive_watch",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:09:30",
+   "program": "agent_competitive_watch.sh",
+   "layer": "product",
+   "role": "research",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": "оживлён решением владельца 2026-08-06 (ADR-067): мониторинг конкурентов (09:30)"
+  },
+  {
+   "label": "com.spa.cpa_daily",
+   "plist_source": "repo:scripts/com.spa.cpa_daily.plist",
+   "reboot_safe": false,
+   "schedule": "calendar:09:00",
+   "program": "python3",
+   "layer": "product",
+   "role": "unknown",
+   "intent": "retired",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "complete",
+   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): легаси CPA-волн"
+  },
+  {
+   "label": "com.spa.cycle_gap_monitor",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:300s",
+   "program": "agent_cycle_gap_monitor.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.cycle_health",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:300s",
+   "program": "agent_cycle_health.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.daily-paper-report",
+   "plist_source": null,
+   "reboot_safe": false,
+   "schedule": null,
+   "program": null,
+   "layer": "product",
+   "role": "other",
+   "intent": "retired",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.daily_backup",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:05:30",
+   "program": "daily_backup.sh",
+   "layer": "infra",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.daily_cycle",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:08:00",
+   "program": "run_daily_paper_cycle.sh",
+   "layer": "product",
+   "role": "allocation",
+   "intent": "active",
+   "produces": [
     {
-      "name": "Head-of-Investment: 4-ролевый решающий слой",
-      "governed_by": [
-        "ADR-055"
-      ],
-      "activation": "owner-gated",
-      "watch": "ни один процесс не вправе занять эти роли до активации владельцем"
+     "artifact": "data/equity_curve_daily.json",
+     "slo_hours": 26
     },
     {
-      "name": "Продуктовый слой AAA (супер-студия, 16 аналитиков)",
-      "governed_by": [
-        "ADR-004",
-        "docs/10_agent_architecture.md",
-        "docs/08_ai_investment_os_architecture.md"
-      ],
-      "activation": "owner-gated",
-      "watch": "io_* — активированная часть; остальное designed"
+     "artifact": "data/current_positions.json",
+     "slo_hours": 26
     },
     {
-      "name": "Swarm block-7 (роевое исполнение)",
-      "governed_by": [
-        "ADR-YL-012"
-      ],
-      "activation": "gate: 30 fwd days + 1 vol event",
-      "watch": "блоки 1–6 live; блок 7 не активировать до гейта"
+     "artifact": "data/allocation_rationale.json",
+     "slo_hours": 26
     },
     {
-      "name": "ADR-066 контуры B–D (conformance/петля/ретро)",
-      "governed_by": [
-        "ADR-066"
-      ],
-      "activation": "фазы 1–4 по карточкам",
-      "watch": "см. planned-артефакты"
+     "artifact": "data/allocation_rationale_history.jsonl",
+     "slo_hours": 26
+    },
+    {
+     "artifact": "data/shadow_trigger_evaluation.json",
+     "slo_hours": 26
     }
-  ]
+   ],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-060",
+    "ADR-061"
+   ],
+   "curation": "complete",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.dashboard",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "daemon",
+   "program": "agent_dashboard.sh",
+   "layer": "infra",
+   "role": "infra",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.dashboard_watcher",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:300s",
+   "program": "agent_dashboard_watcher.sh",
+   "layer": "product",
+   "role": "reporting",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.decision_loop",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:21600s",
+   "program": "agent_decision_loop.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/house_view_gap.json",
+     "slo_hours": 7
+    },
+    {
+     "artifact": "data/findings_bridge_report.json",
+     "slo_hours": 7
+    },
+    {
+     "artifact": "data/loop_health.json",
+     "slo_hours": 7
+    },
+    {
+     "artifact": "data/loop_retro.json",
+     "slo_hours": 192
+    }
+   ],
+   "consumes": [
+    "data/architecture_conformance.json",
+    "data/house_view_gap.json",
+    "data/investment_os/chief_investment.json",
+    "data/current_positions.json"
+   ],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-066"
+   ],
+   "curation": "complete",
+   "notes": "петля решений: пересчёт house_view_gap + мост находка→карточка (Фаза 3)"
+  },
+  {
+   "label": "com.spa.dfb_capture",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:09:30",
+   "program": "agent_dfb_capture.sh",
+   "layer": "product",
+   "role": "research",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.digest_daily",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:08:10",
+   "program": "agent_digest_daily.sh",
+   "layer": "product",
+   "role": "reporting",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.digest_weekly",
+   "plist_source": "repo:scripts/com.spa.digest_weekly.plist",
+   "reboot_safe": false,
+   "schedule": "calendar:wd0·10:00",
+   "program": "agent_digest_weekly.sh",
+   "layer": "product",
+   "role": "other",
+   "intent": "retired",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.familyfund",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "daemon",
+   "program": "agent_familyfund.sh",
+   "layer": "infra",
+   "role": "infra",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.fund-api",
+   "plist_source": "repo:scripts/com.spa.fund-api.plist",
+   "reboot_safe": false,
+   "schedule": "manual",
+   "program": "fund_api_server.py",
+   "layer": "infra",
+   "role": "unknown",
+   "intent": "retired",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "complete",
+   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): предок familyfund"
+  },
+  {
+   "label": "com.spa.golive_freshness",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:21600s",
+   "program": "agent_golive_freshness.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.governance_watcher",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:900s",
+   "program": "agent_governance_watcher.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.httpserver",
+   "plist_source": null,
+   "reboot_safe": false,
+   "schedule": null,
+   "program": null,
+   "layer": "infra",
+   "role": "other",
+   "intent": "retired",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.hy_cycle",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:3600s",
+   "program": "agent_hy_cycle.sh",
+   "layer": "product",
+   "role": "allocation",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.inbox_watch",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "event:watchpaths",
+   "program": "agent_inbox_intake.sh",
+   "layer": "dev",
+   "role": "infra",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.intraday_equity",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:300s",
+   "program": "agent_intraday_equity.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/intraday_equity.json",
+     "slo_hours": 1
+    }
+   ],
+   "consumes": [
+    "data/current_positions.json",
+    "data/peg_report.json",
+    "data/equity_curve_daily.json"
+   ],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-068",
+    "ADR-048"
+   ],
+   "curation": "complete",
+   "notes": "5-мин сенсор живой просадки; лестница и пороги — ТОЛЬКО governance/kill_switch (ADR-068)"
+  },
+  {
+   "label": "com.spa.io_chief_investment",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:86400s",
+   "program": "agent_io_chief_investment.sh",
+   "layer": "product",
+   "role": "analytics",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/investment_os/chief_investment.json",
+     "slo_hours": 26
+    }
+   ],
+   "consumes": [
+    "data/investment_os/liquidity.json",
+    "data/investment_os/market_regime.json",
+    "data/investment_os/market_structure.json",
+    "data/investment_os/onchain.json",
+    "data/investment_os/protocol_risk.json",
+    "data/investment_os/quant.json",
+    "data/investment_os/red_team.json",
+    "data/investment_os/reporting.json",
+    "data/investment_os/stablecoin_yield.json",
+    "data/investment_os/yield_quality.json"
+   ],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-055",
+    "docs/08_ai_investment_os_architecture.md"
+   ],
+   "curation": "complete",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.io_health",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:43200s",
+   "program": "agent_io_health.sh",
+   "layer": "product",
+   "role": "analytics",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/investment_os/_health.json",
+     "slo_hours": 14
+    }
+   ],
+   "consumes": [],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-055"
+   ],
+   "curation": "complete",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.io_liquidity",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:86400s",
+   "program": "agent_io_liquidity.sh",
+   "layer": "product",
+   "role": "analytics",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/investment_os/liquidity.json",
+     "slo_hours": 26
+    }
+   ],
+   "consumes": [],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-055",
+    "docs/08_ai_investment_os_architecture.md"
+   ],
+   "curation": "complete",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.io_market_regime",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:86400s",
+   "program": "agent_io_market_regime.sh",
+   "layer": "product",
+   "role": "analytics",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/investment_os/market_regime.json",
+     "slo_hours": 26
+    }
+   ],
+   "consumes": [],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-055",
+    "docs/08_ai_investment_os_architecture.md"
+   ],
+   "curation": "complete",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.io_market_structure",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:86400s",
+   "program": "agent_io_market_structure.sh",
+   "layer": "product",
+   "role": "analytics",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/investment_os/market_structure.json",
+     "slo_hours": 26
+    }
+   ],
+   "consumes": [],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-055",
+    "docs/08_ai_investment_os_architecture.md"
+   ],
+   "curation": "complete",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.io_onchain",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:86400s",
+   "program": "agent_io_onchain.sh",
+   "layer": "product",
+   "role": "analytics",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/investment_os/onchain.json",
+     "slo_hours": 26
+    }
+   ],
+   "consumes": [],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-055",
+    "docs/08_ai_investment_os_architecture.md"
+   ],
+   "curation": "complete",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.io_protocol_risk",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:86400s",
+   "program": "agent_io_protocol_risk.sh",
+   "layer": "product",
+   "role": "analytics",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/investment_os/protocol_risk.json",
+     "slo_hours": 26
+    }
+   ],
+   "consumes": [],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-055",
+    "docs/08_ai_investment_os_architecture.md"
+   ],
+   "curation": "complete",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.io_quant",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:86400s",
+   "program": "agent_io_quant.sh",
+   "layer": "product",
+   "role": "analytics",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/investment_os/quant.json",
+     "slo_hours": 26
+    }
+   ],
+   "consumes": [],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-055",
+    "docs/08_ai_investment_os_architecture.md"
+   ],
+   "curation": "complete",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.io_red_team",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:86400s",
+   "program": "agent_io_red_team.sh",
+   "layer": "product",
+   "role": "analytics",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/investment_os/red_team.json",
+     "slo_hours": 26
+    }
+   ],
+   "consumes": [],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-055",
+    "docs/08_ai_investment_os_architecture.md"
+   ],
+   "curation": "complete",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.io_reporting",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:86400s",
+   "program": "agent_io_reporting.sh",
+   "layer": "product",
+   "role": "analytics",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/investment_os/reporting.json",
+     "slo_hours": 26
+    }
+   ],
+   "consumes": [],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-055",
+    "docs/08_ai_investment_os_architecture.md"
+   ],
+   "curation": "complete",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.io_stablecoin_yield",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:86400s",
+   "program": "agent_io_stablecoin_yield.sh",
+   "layer": "product",
+   "role": "analytics",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/investment_os/stablecoin_yield.json",
+     "slo_hours": 26
+    }
+   ],
+   "consumes": [],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-055",
+    "docs/08_ai_investment_os_architecture.md"
+   ],
+   "curation": "complete",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.io_yield_quality",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:86400s",
+   "program": "agent_io_yield_quality.sh",
+   "layer": "product",
+   "role": "analytics",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/investment_os/yield_quality.json",
+     "slo_hours": 26
+    }
+   ],
+   "consumes": [],
+   "consumer_required": true,
+   "governed_by": [
+    "ADR-055",
+    "docs/08_ai_investment_os_architecture.md"
+   ],
+   "curation": "complete",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.lp_cycle",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:3600s",
+   "program": "agent_lp_cycle.sh",
+   "layer": "product",
+   "role": "allocation",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.mass_tournament",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:06:30",
+   "program": "run_backtest_tier1.sh",
+   "layer": "product",
+   "role": "research",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.morning_digest",
+   "plist_source": null,
+   "reboot_safe": false,
+   "schedule": null,
+   "program": null,
+   "layer": "product",
+   "role": "other",
+   "intent": "retired",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.novel_edge_rnd",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:wd2·04:00,wd5·04:00",
+   "program": "agent_novel_edge_rnd.sh",
+   "layer": "product",
+   "role": "research",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": "оживлён решением владельца 2026-08-06 (ADR-067): standing-директива R&D edge (Вт/Пт 04:00)"
+  },
+  {
+   "label": "com.spa.orchestrator",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:3600s",
+   "program": "agent_orchestrator.sh",
+   "layer": "dev",
+   "role": "research",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.peg_monitor",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:300s",
+   "program": "agent_peg_monitor.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.portfolio_monitor",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:300s",
+   "program": "agent_portfolio_monitor.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.rates_desk_paper",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:3600s",
+   "program": "agent_rates_desk_paper.sh",
+   "layer": "product",
+   "role": "allocation",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.realized_at_size",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:09:20",
+   "program": "agent_realized_at_size.sh",
+   "layer": "product",
+   "role": "research",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.reboot_verify",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "manual",
+   "program": "agent_reboot_verify.sh",
+   "layer": "infra",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": "оживлён решением владельца 2026-08-06 (ADR-067): проверка флота после ребута (RunAtLoad)"
+  },
+  {
+   "label": "com.spa.red_flag_monitor",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:300s",
+   "program": "agent_red_flag_monitor.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.redteam_rotation",
+   "plist_source": "repo:scripts/com.spa.redteam_rotation.plist",
+   "reboot_safe": false,
+   "schedule": "calendar:09:30",
+   "program": "agent_redteam_rotation.sh",
+   "layer": "product",
+   "role": "unknown",
+   "intent": "retired",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "complete",
+   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): red-team живёт в research-слое"
+  },
+  {
+   "label": "com.spa.refusal",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:05:45",
+   "program": "agent_refusal.sh",
+   "layer": "product",
+   "role": "research",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.resilience",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:21600s",
+   "program": "agent_resilience.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.rtmr_sense",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "daemon",
+   "program": "agent_rtmr_sense.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.rules_watchdog",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:300s",
+   "program": "agent_rules_watchdog.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "data/watchdog_report.json",
+     "slo_hours": 1
+    }
+   ],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "complete",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.rwa_safety_board",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:05:50",
+   "program": "agent_rwa_safety_board.sh",
+   "layer": "product",
+   "role": "research",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.self_heal",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:300s",
+   "program": "agent_self_heal.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.sky_monitor",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:07:00",
+   "program": "agent_sky_monitor.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.strategy_lab_paper",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:3600s",
+   "program": "agent_strategy_lab_paper.sh",
+   "layer": "product",
+   "role": "allocation",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.swarm_blend",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:3600s",
+   "program": "agent_swarm_blend.sh",
+   "layer": "product",
+   "role": "allocation",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.swarm_brain",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:3600s",
+   "program": "agent_swarm_brain.sh",
+   "layer": "product",
+   "role": "allocation",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.swarm_dwell",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:3600s",
+   "program": "agent_swarm_dwell.sh",
+   "layer": "product",
+   "role": "swarm",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [
+    "ADR-YL-012"
+   ],
+   "curation": "partial",
+   "notes": "РАБОТАЕТ, но загружен из repo:launchd/ — НЕ переживёт ребут (находка 2026-08-05); в agent_registry отсутствует"
+  },
+  {
+   "label": "com.spa.swarm_guardian",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:3600s",
+   "program": "agent_swarm_guardian.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.swarm_health",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:3600s",
+   "program": "agent_swarm_health.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.swarm_regime",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:3600s",
+   "program": "agent_swarm_regime.sh",
+   "layer": "product",
+   "role": "allocation",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.system_briefing",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:1800s",
+   "program": "agent_system_briefing.sh",
+   "layer": "product",
+   "role": "reporting",
+   "intent": "active",
+   "produces": [
+    {
+     "artifact": "docs/SYSTEM_BRIEFING.md",
+     "slo_hours": 2
+    }
+   ],
+   "consumes": [],
+   "consumer_required": true,
+   "governed_by": [],
+   "curation": "complete",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.system_health_evening",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:20:00",
+   "program": "agent_system_health_evening.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.system_health_morning",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:08:00",
+   "program": "agent_system_health_morning.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.telegram_bot",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "daemon",
+   "program": "agent_telegram_bot.sh",
+   "layer": "infra",
+   "role": "reporting",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.telegram_daily",
+   "plist_source": null,
+   "reboot_safe": false,
+   "schedule": null,
+   "program": null,
+   "layer": "product",
+   "role": "other",
+   "intent": "retired",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.telegram_milestone",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:86400s",
+   "program": "agent_telegram_milestone.sh",
+   "layer": "product",
+   "role": "reporting",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.telegram_watcher",
+   "plist_source": "repo:launchd/com.spa.telegram_watcher.plist",
+   "reboot_safe": false,
+   "schedule": "interval:300s",
+   "program": "python3",
+   "layer": "product",
+   "role": "unknown",
+   "intent": "retired",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "complete",
+   "notes": "похоронен решением владельца 2026-08-06 (ADR-067): предок dashboard_watcher"
+  },
+  {
+   "label": "com.spa.telegram_weekly",
+   "plist_source": null,
+   "reboot_safe": false,
+   "schedule": null,
+   "program": null,
+   "layer": "product",
+   "role": "other",
+   "intent": "retired",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.threat_reactor",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:300s",
+   "program": "agent_threat_reactor.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.tier1_digest",
+   "plist_source": "repo:scripts/com.spa.tier1_digest.plist",
+   "reboot_safe": false,
+   "schedule": "calendar:wd0·09:30",
+   "program": "agent_tier1_digest.sh",
+   "layer": "product",
+   "role": "other",
+   "intent": "retired",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.tier1_governance",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:07:15",
+   "program": "run_tier1_governance.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.tournament_engine",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:09:00",
+   "program": "agent_tournament_engine.sh",
+   "layer": "product",
+   "role": "research",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.uptime_monitor",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:300s",
+   "program": "agent_uptime_monitor.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.watchdog",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "interval:600s",
+   "program": "agent_watchdog.sh",
+   "layer": "product",
+   "role": "monitoring",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.weekly_backup",
+   "plist_source": "repo:scripts/com.spa.weekly_backup.plist",
+   "reboot_safe": false,
+   "schedule": "calendar:wd6·10:00",
+   "program": "weekly_backup.sh",
+   "layer": "infra",
+   "role": "other",
+   "intent": "retired",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  },
+  {
+   "label": "com.spa.work_digest",
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
+   "schedule": "calendar:09:00",
+   "program": "agent_work_digest.sh",
+   "layer": "product",
+   "role": "reporting",
+   "intent": "active",
+   "produces": [],
+   "consumes": [],
+   "consumer_required": false,
+   "governed_by": [],
+   "curation": "partial",
+   "notes": ""
+  }
+ ],
+ "artifacts": [
+  {
+   "path": "data/investment_os/chief_investment.json",
+   "producer": "com.spa.io_chief_investment",
+   "consumers": [
+    "orchestrator_protocol",
+    "digest_daily"
+   ],
+   "slo_hours": 26,
+   "status": "active"
+  },
+  {
+   "path": "data/investment_os/liquidity.json",
+   "producer": "com.spa.io_liquidity",
+   "consumers": [
+    "orchestrator_protocol",
+    "com.spa.io_chief_investment"
+   ],
+   "slo_hours": 26,
+   "status": "active"
+  },
+  {
+   "path": "data/investment_os/market_regime.json",
+   "producer": "com.spa.io_market_regime",
+   "consumers": [
+    "orchestrator_protocol",
+    "com.spa.io_chief_investment"
+   ],
+   "slo_hours": 26,
+   "status": "active"
+  },
+  {
+   "path": "data/investment_os/market_structure.json",
+   "producer": "com.spa.io_market_structure",
+   "consumers": [
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 26,
+   "status": "active"
+  },
+  {
+   "path": "data/investment_os/onchain.json",
+   "producer": "com.spa.io_onchain",
+   "consumers": [
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 26,
+   "status": "active"
+  },
+  {
+   "path": "data/investment_os/protocol_risk.json",
+   "producer": "com.spa.io_protocol_risk",
+   "consumers": [
+    "orchestrator_protocol",
+    "com.spa.io_chief_investment"
+   ],
+   "slo_hours": 26,
+   "status": "active"
+  },
+  {
+   "path": "data/investment_os/quant.json",
+   "producer": "com.spa.io_quant",
+   "consumers": [
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 26,
+   "status": "active"
+  },
+  {
+   "path": "data/investment_os/red_team.json",
+   "producer": "com.spa.io_red_team",
+   "consumers": [
+    "orchestrator_protocol",
+    "com.spa.io_chief_investment"
+   ],
+   "slo_hours": 26,
+   "status": "active"
+  },
+  {
+   "path": "data/investment_os/reporting.json",
+   "producer": "com.spa.io_reporting",
+   "consumers": [
+    "orchestrator_protocol",
+    "com.spa.io_chief_investment"
+   ],
+   "slo_hours": 26,
+   "status": "active"
+  },
+  {
+   "path": "data/investment_os/stablecoin_yield.json",
+   "producer": "com.spa.io_stablecoin_yield",
+   "consumers": [
+    "orchestrator_protocol",
+    "com.spa.io_chief_investment"
+   ],
+   "slo_hours": 26,
+   "status": "active"
+  },
+  {
+   "path": "data/investment_os/yield_quality.json",
+   "producer": "com.spa.io_yield_quality",
+   "consumers": [
+    "orchestrator_protocol",
+    "com.spa.io_chief_investment"
+   ],
+   "slo_hours": 26,
+   "status": "active"
+  },
+  {
+   "path": "data/investment_os/_health.json",
+   "producer": "com.spa.io_health",
+   "consumers": [
+    "orchestrator_protocol",
+    "digest_daily"
+   ],
+   "slo_hours": 14,
+   "status": "active"
+  },
+  {
+   "path": "data/agent_registry.json",
+   "producer": "com.spa.agent_health",
+   "consumers": [
+    "architecture_conformance"
+   ],
+   "slo_hours": 26,
+   "status": "active",
+   "notes": "регенерируется agent_registry_refresh внутри hourly agent_health (фикс 2026-08-06 по карточке петли); инцидент 19-дневного протухания закрыт"
+  },
+  {
+   "path": "docs/SYSTEM_BRIEFING.md",
+   "producer": "com.spa.system_briefing",
+   "consumers": [
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 2,
+   "status": "active"
+  },
+  {
+   "path": "data/agent_health.json",
+   "producer": "com.spa.agent_health",
+   "consumers": [],
+   "slo_hours": 3,
+   "status": "active"
+  },
+  {
+   "path": "data/watchdog_report.json",
+   "producer": "com.spa.rules_watchdog",
+   "consumers": [],
+   "slo_hours": 1,
+   "status": "active"
+  },
+  {
+   "path": "data/architecture_conformance.json",
+   "producer": "com.spa.architecture_conformance",
+   "consumers": [
+    "orchestrator_protocol",
+    "digest_daily",
+    "findings_to_cards"
+   ],
+   "status": "active",
+   "notes": "ADR-066: отчёт сторожа; потребитель-мост — Фаза 3",
+   "slo_hours": 7
+  },
+  {
+   "path": "data/consumption_receipts.jsonl",
+   "producer": null,
+   "consumers": [],
+   "status": "active",
+   "notes": "ADR-066 Фаза 2: мульти-писатель (все потребители); producer=null осознанно",
+   "slo_hours": 26
+  },
+  {
+   "path": "data/house_view_gap.json",
+   "producer": "com.spa.decision_loop",
+   "consumers": [
+    "orchestrator_protocol",
+    "findings_to_cards"
+   ],
+   "status": "active",
+   "notes": "ADR-066 Фаза 3",
+   "slo_hours": 7
+  },
+  {
+   "path": "data/findings_bridge_report.json",
+   "producer": "com.spa.decision_loop",
+   "consumers": [
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 7,
+   "status": "active",
+   "notes": "ADR-066 Фаза 3: отчёт моста (created/deferred/closed) — deferred читать ОБЯЗАТЕЛЬНО"
+  },
+  {
+   "path": "data/loop_health.json",
+   "producer": "com.spa.decision_loop",
+   "consumers": [
+    "digest_daily",
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 7,
+   "status": "active",
+   "notes": "ADR-066 Фаза 4: метрики петли"
+  },
+  {
+   "path": "data/loop_retro.json",
+   "producer": "com.spa.decision_loop",
+   "consumers": [
+    "findings_to_cards",
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 192,
+   "status": "active",
+   "notes": "ADR-066 Фаза 4: еженедельное ретро (кандидаты — owner-gated)"
+  },
+  {
+   "path": "data/shadow_trigger_evaluation.json",
+   "producer": "com.spa.daily_cycle",
+   "consumers": [
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 26,
+   "status": "active",
+   "notes": "ADR-060/067: arming-evidence (критерий 30д+net>0+hit≥60%); оркестратор читает ежедневно"
+  },
+  {
+   "path": "data/allocation_rationale_history.jsonl",
+   "producer": "com.spa.daily_cycle",
+   "consumers": [
+    "shadow_trigger_eval"
+   ],
+   "slo_hours": 26,
+   "status": "active",
+   "notes": "ADR-060 Y3: append-only история shadow-вердиктов — единственная долговременная запись"
+  },
+  {
+   "path": "data/intraday_equity.json",
+   "producer": "com.spa.intraday_equity",
+   "consumers": [
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 1,
+   "status": "active",
+   "notes": "ADR-068: intraday-оценка equity + вердикт лестницы; UNCHECKED = лестница не вызывалась"
+  }
+ ],
+ "designed_architectures": [
+  {
+   "name": "Head-of-Investment: 4-ролевый решающий слой",
+   "governed_by": [
+    "ADR-055"
+   ],
+   "activation": "owner-gated",
+   "watch": "ни один процесс не вправе занять эти роли до активации владельцем"
+  },
+  {
+   "name": "Продуктовый слой AAA (супер-студия, 16 аналитиков)",
+   "governed_by": [
+    "ADR-004",
+    "docs/10_agent_architecture.md",
+    "docs/08_ai_investment_os_architecture.md"
+   ],
+   "activation": "owner-gated",
+   "watch": "io_* — активированная часть; остальное designed"
+  },
+  {
+   "name": "Swarm block-7 (роевое исполнение)",
+   "governed_by": [
+    "ADR-YL-012"
+   ],
+   "activation": "gate: 30 fwd days + 1 vol event",
+   "watch": "блоки 1–6 live; блок 7 не активировать до гейта"
+  },
+  {
+   "name": "ADR-066 контуры B–D (conformance/петля/ретро)",
+   "governed_by": [
+    "ADR-066"
+   ],
+   "activation": "фазы 1–4 по карточкам",
+   "watch": "см. planned-артефакты"
+  }
+ ]
 }
