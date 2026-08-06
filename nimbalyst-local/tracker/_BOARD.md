@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **252** · ждёт владельца: **23** · занято сессиями: **1**.
+> Всего карточек: **256** · ждёт владельца: **20** · занято сессиями: **2**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -10,7 +10,6 @@
 - **Разбор очереди — 16 вопросов одним списком, по каждому есть рекомендация** · _high_  ·  `own-30-razbor-ocheredi-vladeltsa.md`
 - **Вторая задача из твоего сообщения (волатильный ETH-пул с доходностью «79%») — сам её не беру, нужно твоё решение** · _medium_  ·  `own-aud19-volatile-clmm-vvodim-li-klass.md`
 - **own-rnd-dwell-hysteresis-paper-module** · _medium_  ·  `own-rnd-dwell-hysteresis-paper-module.md`
-- **Числа трека на сайте не подтверждаются ничем в git — канон замёрз 17 июля, и сторож краснеет каждый день** · _high_  ·  `owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts.md`
 - **CI на main красный: новый протокол без оценки риска (40% книги) и два теста, отставших от честного TVL**  ·  `owner-decision-ci-na-main-krasnyi-novyi-protokol-bez-ot.md`
 - **Девять агентов висят нерешёнными: закрыть или включить**  ·  `owner-decision-devyat-agentov-visyat-nereshennymi-zakry.md`
 - **Два агента не переживут перезагрузку — разрешить доустановить их в системную папку**  ·  `owner-decision-dva-agenta-ne-perezhivut-perezagruzku-ra.md`
@@ -23,18 +22,17 @@
 - **Решить судьбу 9 «зависших» агентов — 10 минут, и конституция станет полной**  ·  `owner-decision-reshit-sudbu-9-zavisshih-agentov-10-minu.md`
 - **Сторож базисной сделки ожил и хочет слать тебе «отличная возможность» — включаем эти сообщения или нет** · _medium_  ·  `owner-decision-storozh-bazisnoi-sdelki-ozhil-i-hochet-s.md`
 - **Сторож голосований следит за чужими протоколами, а за нашими — нет: выбери, добавлять источники или убрать лишние** · _high_  ·  `owner-decision-storozh-golosovanii-sledit-za-chuzhimi-p.md`
-- **Тревога о стоп-кране до тебя больше не дойдёт — событие застряло в «плохо» с 4 июля (выбери, как чинить)** · _high_  ·  `owner-decision-trevoga-o-stop-krane-do-tebya-bolshe-ne.md`
 - **Твои решения от 23 июля 11 дней не лежали в git — доставил, подтверди что в силе** · _high_  ·  `owner-decision-tvoi-resheniya-ot-23-iyulya-11-dnei-ne-l.md`
 - **Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать** · _medium_  ·  `owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema.md`
 - **Выдуманная казна протокола в оценке страховки — оставить или отказываться?** · _medium_  ·  `owner-decision-vydumannaya-kazna-protokola-v-otsenke-st.md`
 - **Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)**  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md`
-- **Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта**  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
 > Ставится `scripts/check_card_claim.py claim`, снимается `release` (и не действует после `done`/`ingested`). Перед взятием карточки — `check_card_claim.py check <карточка>`.
 
 - **Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать** — держит `cycle-28258` · с 2026-08-05T12:28:28Z  ·  `agent-fleet-parity-guard-never-scheduled.md`
+- **Храповик литеральных дат не видит даты, записанные конструктором — половина класса вне поля зрения** — держит `cycle-74635` · с 2026-08-06T07:03:07Z  ·  `inbox-hrapovik-literalnyh-dat-ne-vidit-daty-za.md`
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (70)
 
@@ -43,7 +41,6 @@
 - Разбор очереди — 16 вопросов одним списком, по каждому есть рекомендация  ·  `own-30-razbor-ocheredi-vladeltsa.md` · 2026-08-05
 - Вторая задача из твоего сообщения (волатильный ETH-пул с доходностью «79%») — сам её не беру, нужно твоё решение  ·  `own-aud19-volatile-clmm-vvodim-li-klass.md` · 2026-08-05
 - own-rnd-dwell-hysteresis-paper-module  ·  `own-rnd-dwell-hysteresis-paper-module.md` · 2026-08-04
-- Числа трека на сайте не подтверждаются ничем в git — канон замёрз 17 июля, и сторож краснеет каждый день  ·  `owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts.md` · 2026-08-02
 - CI на main красный: новый протокол без оценки риска (40% книги) и два теста, отставших от честного TVL  ·  `owner-decision-ci-na-main-krasnyi-novyi-protokol-bez-ot.md` · 2026-08-06
 - Девять агентов висят нерешёнными: закрыть или включить  ·  `owner-decision-devyat-agentov-visyat-nereshennymi-zakry.md` · 2026-08-05
 - Два агента не переживут перезагрузку — разрешить доустановить их в системную папку  ·  `owner-decision-dva-agenta-ne-perezhivut-perezagruzku-ra.md` · 2026-08-06
@@ -56,12 +53,10 @@
 - Решить судьбу 9 «зависших» агентов — 10 минут, и конституция станет полной  ·  `owner-decision-reshit-sudbu-9-zavisshih-agentov-10-minu.md` · 2026-08-06
 - Сторож базисной сделки ожил и хочет слать тебе «отличная возможность» — включаем эти сообщения или нет  ·  `owner-decision-storozh-bazisnoi-sdelki-ozhil-i-hochet-s.md` · 2026-08-01
 - Сторож голосований следит за чужими протоколами, а за нашими — нет: выбери, добавлять источники или убрать лишние  ·  `owner-decision-storozh-golosovanii-sledit-za-chuzhimi-p.md` · 2026-08-01
-- Тревога о стоп-кране до тебя больше не дойдёт — событие застряло в «плохо» с 4 июля (выбери, как чинить)  ·  `owner-decision-trevoga-o-stop-krane-do-tebya-bolshe-ne.md` · 2026-07-31
 - Твои решения от 23 июля 11 дней не лежали в git — доставил, подтверди что в силе  ·  `owner-decision-tvoi-resheniya-ot-23-iyulya-11-dnei-ne-l.md` · 2026-08-02
 - Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать  ·  `owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema.md` · 2026-08-01
 - Выдуманная казна протокола в оценке страховки — оставить или отказываться?  ·  `owner-decision-vydumannaya-kazna-protokola-v-otsenke-st.md` · 2026-08-04
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
-- Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -92,6 +87,7 @@
 - Аллокатор ранжирует пулы на невыверенном TVL ($50M-литерал) — исключать ли их из свежих целей?  ·  `owner-decision-allokator-ranzhiruet-puly-na-vydumannom-tvl.md` · 2026-08-02
 - Безопасность: admin-панель /admin без пароля — закрыть за Cloudflare Access  ·  `owner-decision-bezopasnost-admin-panel-admin-bez-paroly.md` · 2026-07-16
 - Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md` · 2026-07-29
+- Числа трека на сайте не подтверждаются ничем в git — канон замёрз 17 июля, и сторож краснеет каждый день  ·  `owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts.md` · 2026-08-02
 - Чистка: разрешить удалять мёртвые МОДУЛИ из ядра (не только скрипты)?  ·  `owner-decision-chistka-razreshit-udalyat-mertvye-moduli.md` · 2026-07-16
 - Чистка ядра (WS-A): ~60 мёртвых/дублей + 45 аналитич. модулей раздувают paper_trading — greenlight подход  ·  `owner-decision-chistka-yadra-ws-a-60-mertvyh-dublei-45.md` · 2026-07-16
 - Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить  ·  `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam.md` · 2026-07-29
@@ -108,8 +104,10 @@
 - Сторож расхождения флота не запускался 21 день — его никто не зовёт  ·  `owner-decision-storozh-rashozhdeniya-flota-ne-zapuskals.md` · 2026-08-01
 - Стратегия S23 никогда не видит живой Pendle — адаптер «похоронен», ошибка глотается молча (выбери, как чинить)  ·  `owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p.md` · 2026-07-30
 - Третья проверка кода сломалась и 8 часов этого никто не видел — нужен сторож за всеми проверками  ·  `owner-decision-tretya-proverka-koda-slomalas-i-8-chasov.md` · 2026-08-03
+- Тревога о стоп-кране до тебя больше не дойдёт — событие застряло в «плохо» с 4 июля (выбери, как чинить)  ·  `owner-decision-trevoga-o-stop-krane-do-tebya-bolshe-ne.md` · 2026-07-31
 - Уточнение по заметке: Давай так и сделаем  ·  `owner-decision-utochnenie-po-zametke-davai-tak-i-sdelae.md` · 2026-07-22
 - В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md` · 2026-07-29
+- Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
 ## 📥 Inbox (задания: Telegram / заметки / голос)  (46)
 
@@ -159,8 +157,8 @@
 - задача - сделать проверку агентов и поствить в расписание и разобраться почему…  ·  `inbox-zadacha-sdelat-proverku-agentov-i-postvi.md` · 2026-08-05
 - Задча • 10% денег стоят без работы под 0% — это money-path, карточка «agent-all…  ·  `inbox-zadcha-10-deneg-stoyat-bez-raboty-pod-0.md` · 2026-08-05
 ### · new
-- Храповик литеральных дат не видит даты, записанные конструктором — половина класса вне поля зрения  ·  `inbox-hrapovik-literalnyh-dat-ne-vidit-daty-za.md` · 2026-08-06
-- Находка петли: архив вердиктов отстаёт от выработки: аналитики _health, liquidity, ma  ·  `inbox-nahodka-petli-arhiv-verdiktov-otstaet-ot.md` · 2026-08-06
+- Храповик литеральных дат метит ОБРАЗЦОВЫЙ паттерн: тест по преференции №1 правила (инъекция часов) не проходит сторожа  ·  `inbox-hrapovik-literalnyh-dat-metit-obraztsovy.md` · 2026-08-06
+- Храповик литеральных дат не видит даты, записанные конструктором — половина класса вне поля зрения  ·  `inbox-hrapovik-literalnyh-dat-ne-vidit-daty-za.md` · 2026-08-06 · 🔒 `cycle-74635`
 
 ## 🤖 Agent Tasks (что делает агент)  (84)
 
@@ -252,7 +250,7 @@
 - Упоминание карточки в тексте объявления запирает её НАВСЕГДА — шаг 0b отвечает «не измерено» и после старения  ·  `agent-weak-mention-locks-card-forever.md` · 2026-07-31
 - Q11: разбор ветки yield-lab  ·  `agent-yield-lab-branch.md` · 2026-07-16
 
-## agent  (52)
+## agent  (56)
 
 ### · blocked
 - Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать  ·  `agent-fleet-parity-guard-never-scheduled.md` · 2026-08-05 · 🔒 `cycle-28258`
@@ -275,10 +273,12 @@
 - Свежая полная инвентаризация флота (73 агента) — что делает / жив ли / нужен ли / расход  ·  `agent-fleet-inventory-73.md` · 2026-07-23
 - Fluid гейтится по чужому параметру — нужен собственный таймлок, а не задержка Maker  ·  `agent-fluid-timelock-source.md` · 2026-08-05
 - Нет сторожа «профинансирован протокол, которого нет в реестре» — остаточная дыра кэпов по цепочкам  ·  `agent-funded-protocol-not-in-registry.md` · 2026-08-02
+- Критерий go-live: блокируют только АКТИВНЫЕ дыры, историческая остаётся в отчёте (СТАРТ после утреннего апдейта)  ·  `agent-golive-gap-criterion.md` · 2026-08-06
 - GO-LIVE — внутридневной контроль просадки (частый, не раз в сутки)  ·  `agent-golive-intraday-drawdown-monitor.md` · 2026-07-23
 - Завести производителя gsm_hours (on-chain GSM Pause Delay) — чтобы GSM-гейт перестал быть вечным замком  ·  `agent-gsm-hours-producer.md` · 2026-08-02
 - Guard — стратегия не должна молча падать на mock, если заявленный живой адаптер не грузится  ·  `agent-guard-no-silent-mock-in-tournament.md` · 2026-07-23
 - Построить слой инвест-агентов «Head of Investment» (кураторы тиров + капитал-по-тирам + максимизаторы + решающий)  ·  `agent-head-of-investment-layer.md` · 2026-07-23
+- Тревога о стоп-кране обязана доходить — чинить сейчас, пока запас есть (СТАРТ после утреннего апдейта)  ·  `agent-killswitch-alert-path.md` · 2026-08-06
 - Манифест архитектуры не знает об агенте morning_digest — тест красный на origin  ·  `agent-manifest-drift-morning-digest.md` · 2026-08-06
 - Кэп на протокол не видит общего куратора — Steakhouse держится и на Ethereum, и на Base  ·  `agent-morpho-curator-concentration.md` · 2026-08-05
 - Линия время-рядов для 18 форкастеров (поток 3 own-27)  ·  `agent-relocate-forecasters-to-timeseries-lane.md` · 2026-08-04
@@ -287,6 +287,7 @@
 - ПРОДОЛЖИТЬ ОТСЮДА — дорожная карта по приоритету (сессия может оборваться, работа не должна)  ·  `agent-roadmap-continue-here.md` · 2026-08-05
 - S76 угадывает единицу измерения доходности по величине числа — настоящие 0.5 % превращаются в 50 %  ·  `agent-s76-apy-unit-guess.md` · 2026-08-05
 - Аварийный портфель обходит гейты адаптеров — финансирует spark_susds, который запрещён инвариантом 10  ·  `agent-safe-fallback-bypasses-adapter-gates.md` · 2026-08-02
+- Числа на сайте и обход owner-гейта — одна причина, чинить вместе (СТАРТ после утреннего апдейта)  ·  `agent-site-numbers-and-gate.md` · 2026-08-06
 - spark_susds наблюдает чужой инструмент (sparklend lending vs sUSDS vault) — развести идентичности до допуска Sky  ·  `agent-spark-susds-identity-split.md` · 2026-08-05
 - Тесты ходят в живую сеть (Telegram + аналитика) — полный набор не проходит целиком, когда сеть медленная  ·  `agent-tests-do-live-network-io.md` · 2026-08-02
 - Сделать турнир стратегий ДОВЕРЯЕМЫМ — ранжировать по net-of-cost APY на реальных исторических данных (не Sharpe на mock)  ·  `agent-tournament-trustworthy-real-apy.md` · 2026-07-23
@@ -305,6 +306,7 @@
 - Простой 15 % капитала объяснён — блокировки покрывают его полностью, с разбивкой по протоколам  ·  `agent-idle-cash-quantified.md` · 2026-08-05
 - Красный тест: страховой скоринг не отказывает при отсутствующем TVL  ·  `agent-insurance-scorer-missing-tvl.md` · 2026-08-05
 - Оживить живой TVL/фид morpho-семейства (own-29 вариант 1, дедлайн 2026-08-08)  ·  `agent-morpho-feed-revival.md` · 2026-08-05
+- НЕ ВОСПРОИЗВОДИТСЯ — два offsite-падения оказались разовыми, моё утверждение о порядке снято  ·  `agent-offsite-tests-order-dependent.md` · 2026-08-06
 - У реестра агентов нет продюсера — он протух на 475 часов и никто не заметил  ·  `agent-registry-has-no-producer.md` · 2026-08-05
 - Учение по восстановлению проверяет ОДИН архив из двух серий — умерший производитель бэкапов останется невидим за зелёным all_ok  ·  `agent-restore-drill-single-series-blind.md` · 2026-08-05
 - Дыра в треке разобрана — не 14 дней, а 2; сторож дыр был слеп по построению  ·  `agent-track-hole-rootcause.md` · 2026-08-05
