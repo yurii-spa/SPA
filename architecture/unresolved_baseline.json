@@ -1,0 +1,14 @@
+{
+ "rule": "ADR-066 Фаза 4: unresolved-агенты — ратчет, база может ТОЛЬКО уменьшаться; новый агент обязан рождаться с решённым intent",
+ "unresolved": [
+  "com.spa.auto_push",
+  "com.spa.checkpoint-7day",
+  "com.spa.competitive_watch",
+  "com.spa.cpa_daily",
+  "com.spa.fund-api",
+  "com.spa.novel_edge_rnd",
+  "com.spa.reboot_verify",
+  "com.spa.redteam_rotation",
+  "com.spa.telegram_watcher"
+ ]
+}

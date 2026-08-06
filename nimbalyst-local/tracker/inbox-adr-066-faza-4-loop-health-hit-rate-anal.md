@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "ADR-066 Фаза 4: loop_health + hit-rate аналитиков + weekly retro + храповик"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-05
 adr: ADR-066

@@ -149,6 +149,17 @@ def _build_office_section(ddir: Path) -> tuple[str, list[str]]:
             consumed.append(health_rel)  # читается ради квитанции офис-здоровья
         except Exception:  # noqa: BLE001
             pass
+        loop_rel = "data/loop_health.json"
+        try:
+            lh = json.loads((ddir / "loop_health.json").read_text())
+            fate = lh.get("cards_fate") or {}
+            lines.append(
+                f"🔁 Петля: открыто {lh.get('open_cards', '?')} · "
+                f"взято в работу {fate.get('in_progress', 0) + fate.get('done_by_human', 0)} · "
+                f"рецидивов {lh.get('recurrences_total', '?')}")
+            consumed.append(loop_rel)
+        except Exception:  # noqa: BLE001
+            pass  # петля моложе дайджеста — до первого прогона строки честно нет
     except Exception:  # noqa: BLE001
         return "", []
     return "\n".join(lines), consumed

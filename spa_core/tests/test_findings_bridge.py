@@ -139,6 +139,9 @@ class Bridge(unittest.TestCase):
         with open(os.path.join(self.root, "data", "house_view_gap.json"),
                   "w", encoding="utf-8") as f:
             json.dump({"gaps": []}, f)
+        with open(os.path.join(self.root, "data", "loop_retro.json"),
+                  "w", encoding="utf-8") as f:
+            json.dump({"findings": []}, f)
 
     def run_bridge(self, at=NOW):
         return fb.run_bridge(self.root, now=at, create=self.q.create,
@@ -216,10 +219,47 @@ class Bridge(unittest.TestCase):
         self.assertEqual(r["escalated"], ["B1:x"])
         self.assertEqual(len(self.q.notified), 1)
 
+    def test_closed_finding_reappearing_recards_and_counts_recurrence(self):
+        """Рецидив: закрытая находка вернулась — мост ОБЯЗАН снова довести её до
+        карточки (найденный при построении Фазы 4 молчаливый провал) и посчитать."""
+        self.put_conformance([self.warn()])
+        self.run_bridge()
+        self.run_bridge(NOW + dt.timedelta(hours=6))          # карточка №1
+        self.put_conformance([])
+        self.run_bridge(NOW + dt.timedelta(hours=12))         # авто-закрытие
+        self.put_conformance([self.warn()])                    # РЕЦИДИВ
+        self.run_bridge(NOW + dt.timedelta(hours=18))          # гистерезис заново
+        r = self.run_bridge(NOW + dt.timedelta(hours=24))
+        self.assertEqual(len(r["created"]), 1)                 # карточка №2
+        state = json.load(open(os.path.join(self.root, "data",
+                                            "findings_bridge_state.json")))
+        self.assertEqual(state["findings"]["B1:reboot_unsafe:com.spa.x"]["recurrences"], 1)
+
+    def test_state_loss_reconciles_from_tracker_no_duplicate_cards(self):
+        """Инцидент 2026-08-05 23:55: состояние моста исчезло между прогонами.
+        Открытая карточка с finding_key на диске ⇒ восстановление carded-записи
+        из реальности, ДУБЛЬ карточки не создаётся; авто-закрытие живо."""
+        tdir = os.path.join(self.root, "nimbalyst-local", "tracker")
+        os.makedirs(tdir)
+        card = os.path.join(tdir, "inbox-nahodka-petli-x.md")
+        with open(card, "w", encoding="utf-8") as f:
+            f.write("---\nstatus: new\nfinding_key: B1:reboot_unsafe:com.spa.x\n---\nтело\n")
+        self.put_conformance([self.warn()])           # состояние = пустое (потеряно)
+        r1 = self.run_bridge()
+        self.assertEqual(r1["reconciled_from_tracker"], 1)
+        self.assertEqual(r1["created"], [])            # дубля НЕТ
+        r2 = self.run_bridge(NOW + dt.timedelta(hours=6))
+        self.assertEqual(r2["created"], [])
+        self.assertEqual(r2["open_cards"], 1)
+        self.put_conformance([])                       # находка исчезла
+        r3 = self.run_bridge(NOW + dt.timedelta(hours=12))
+        self.assertEqual([c["card"] for c in r3["closed"]], [card])  # авто-закрытие живо
+        self.assertEqual(fb.card_status(card), "done")
+
     def test_unread_sources_are_loud_and_create_nothing(self):
         r = fb.run_bridge(self.root, now=NOW, create=self.q.create,
                           close=self.q._close, notify=self.q.notify)
-        self.assertEqual(len(r["sources_unread"]), 2)
+        self.assertEqual(len(r["sources_unread"]), 3)
         self.assertEqual(r["created"], [])
 
 

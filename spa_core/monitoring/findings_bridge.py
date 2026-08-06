@@ -68,6 +68,18 @@ def collect_findings(root: str = REPO_ROOT) -> tuple[list[dict], list[str]]:
     except Exception:
         unread.append(gap_rel)
 
+    # Фаза 4: выводы еженедельного ретро — третий источник. Рекомендация не
+    # имеет права остаться в отчёте, который никто не обязан открыть.
+    retro_rel = os.path.join("data", "loop_retro.json")
+    try:
+        retro = json.load(open(os.path.join(root, retro_rel)))
+        for f in (retro.get("findings") or []):
+            if f.get("severity") in ("WARN", "CRITICAL"):
+                findings.append({"key": f["key"], "severity": f["severity"],
+                                 "message": f["message"], "source": "loop_retro"})
+    except Exception:
+        unread.append(retro_rel)
+
     return findings, unread
 
 
@@ -157,6 +169,50 @@ def _load_state(root: str) -> dict:
         return {"findings": {}, "daily": {}}
 
 
+def _reconcile_with_tracker(root: str, st_findings: dict) -> int:
+    """Самовосстановление состояния из РЕАЛЬНОСТИ (инцидент 2026-08-05 23:55:
+    findings_bridge_state.json исчез между прогонами — виновник не установлен,
+    файл нетрекаемый). Карточки моста несут `finding_key:` во frontmatter —
+    открытая карточка на диске ⇒ находка carded, что бы ни говорило состояние.
+    Предотвращает дубли карточек после ЛЮБОЙ потери состояния. Возвращает
+    число восстановленных записей."""
+    tdir = os.path.join(root, "nimbalyst-local", "tracker")
+    if not os.path.isdir(tdir):
+        return 0
+    restored = 0
+    for fn in sorted(os.listdir(tdir)):
+        if not fn.endswith(".md"):
+            continue
+        path = os.path.join(tdir, fn)
+        fk = status = None
+        try:
+            with open(path, encoding="utf-8") as f:
+                for i, line in enumerate(f):
+                    if line.startswith("finding_key:"):
+                        fk = line.split(":", 1)[1].strip().strip("`'\"")
+                    elif line.startswith("status:"):
+                        status = line.split(":", 1)[1].strip()
+                    if i > 40:
+                        break
+        except Exception:
+            continue
+        if not fk or status not in ("new", "in-progress"):
+            continue
+        entry = st_findings.get(fk)
+        if entry is None or (entry.get("status") != "carded"):
+            now_iso = dt.datetime.now(dt.timezone.utc).isoformat()
+            prev = entry or {}
+            st_findings[fk] = {"first_seen": prev.get("first_seen", now_iso),
+                               "seen_count": int(prev.get("seen_count", 0)),
+                               "severity": prev.get("severity", "WARN"),
+                               "card": path, "status": "carded",
+                               "carded_at": prev.get("carded_at", now_iso),
+                               "recurrences": int(prev.get("recurrences", 0)),
+                               "reconciled": True}
+            restored += 1
+    return restored
+
+
 def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
                create=create_card, close=close_card, notify=notify_card) -> dict:
     now = now or dt.datetime.now(dt.timezone.utc)
@@ -165,6 +221,7 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
     findings, unread = collect_findings(root)
     current = {f["key"]: f for f in findings}
     st_findings: dict = state.setdefault("findings", {})
+    reconciled = _reconcile_with_tracker(root, st_findings)
     daily: dict = state.setdefault("daily", {})
     created_today = int(daily.get(today, 0))
 
@@ -176,6 +233,13 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
             entry = st_findings[key] = {"first_seen": now.isoformat(), "seen_count": 0,
                                         "severity": f["severity"], "card": None,
                                         "status": "observed"}
+        elif entry.get("status") in ("closed", "resolved_untouched"):
+            # РЕЦИДИВ: закрытая находка вернулась. Без сброса статуса она никогда
+            # больше не родила бы карточку (needs_card требует observed) — молчаливый
+            # провал петли, найден при построении loop_health (Фаза 4).
+            entry.update(status="observed", seen_count=0, card=None,
+                         first_seen=now.isoformat(),
+                         recurrences=int(entry.get("recurrences", 0)) + 1)
         entry["seen_count"] = int(entry.get("seen_count", 0)) + 1
         entry["last_seen"] = now.isoformat()
 
@@ -220,7 +284,7 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
     report = {"generated_at": now.isoformat(), "adr": "ADR-066",
               "created": created, "deferred": deferred, "closed": closed,
               "waiting_hysteresis": waiting, "escalated": escalated,
-              "sources_unread": unread,
+              "sources_unread": unread, "reconciled_from_tracker": reconciled,
               "open_cards": sum(1 for e in st_findings.values() if e.get("status") == "carded"),
               "rate_limit": {"max_per_day": MAX_CARDS_PER_DAY, "used_today": created_today}}
 
@@ -248,7 +312,29 @@ def main(argv=None) -> int:
     if not args.skip_gap:
         from spa_core.monitoring import house_view_gap
         house_view_gap.run(root=args.root)
+    # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
+    # launchd-агента); loop_health — каждый прогон (дёшево).
+    try:
+        from spa_core.monitoring import loop_retro
+        from spa_core.monitoring.architecture_conformance import _parse_iso
+        retro_path = os.path.join(args.root, loop_retro.RETRO_REL)
+        prev_ts = None
+        try:
+            prev_ts = _parse_iso(json.load(open(retro_path)).get("generated_at"))
+        except Exception:
+            pass
+        if prev_ts is None or (dt.datetime.now(dt.timezone.utc) - prev_ts).days >= 7:
+            rr = loop_retro.run(root=args.root)
+            print(f"loop_retro: кандидатов={len(rr['candidates'])} "
+                  f"findings={len(rr['findings'])} unchecked={len(rr['unchecked'])}")
+    except Exception as e:  # noqa: BLE001 — ретро не смеет валить мост
+        print(f"loop_retro: пропущено ({e})")
     r = run_bridge(root=args.root)
+    try:
+        from spa_core.monitoring import loop_health
+        loop_health.run(root=args.root)
+    except Exception as e:  # noqa: BLE001
+        print(f"loop_health: пропущено ({e})")
     print(f"findings_bridge: created={len(r['created'])} closed={len(r['closed'])} "
           f"deferred={len(r['deferred'])} waiting={len(r['waiting_hysteresis'])} "
           f"open_cards={r['open_cards']} unread={r['sources_unread']}")

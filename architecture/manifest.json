@@ -465,6 +465,14 @@
     {
      "artifact": "data/findings_bridge_report.json",
      "slo_hours": 7
+    },
+    {
+     "artifact": "data/loop_health.json",
+     "slo_hours": 7
+    },
+    {
+     "artifact": "data/loop_retro.json",
+     "slo_hours": 192
     }
    ],
    "consumes": [
@@ -1806,20 +1814,6 @@
    "slo_hours": 7
   },
   {
-   "path": "data/loop_health.json",
-   "producer": null,
-   "consumers": [],
-   "status": "planned",
-   "notes": "ADR-066 Фаза 4"
-  },
-  {
-   "path": "data/loop_retro.json",
-   "producer": null,
-   "consumers": [],
-   "status": "planned",
-   "notes": "ADR-066 Фаза 4"
-  },
-  {
    "path": "data/findings_bridge_report.json",
    "producer": "com.spa.decision_loop",
    "consumers": [
@@ -1828,6 +1822,28 @@
    "slo_hours": 7,
    "status": "active",
    "notes": "ADR-066 Фаза 3: отчёт моста (created/deferred/closed) — deferred читать ОБЯЗАТЕЛЬНО"
+  },
+  {
+   "path": "data/loop_health.json",
+   "producer": "com.spa.decision_loop",
+   "consumers": [
+    "digest_daily",
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 7,
+   "status": "active",
+   "notes": "ADR-066 Фаза 4: метрики петли"
+  },
+  {
+   "path": "data/loop_retro.json",
+   "producer": "com.spa.decision_loop",
+   "consumers": [
+    "findings_to_cards",
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 192,
+   "status": "active",
+   "notes": "ADR-066 Фаза 4: еженедельное ретро (кандидаты — owner-gated)"
   }
  ],
  "designed_architectures": [
