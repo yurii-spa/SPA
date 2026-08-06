@@ -178,6 +178,16 @@ class ProductAgent:
             append_daily_proof({"agent": self.agent_key, "generated_at": ts}, proof, day=day)
         except Exception:  # noqa: BLE001 — proof is best-effort, must not fail the emit
             log.warning("emit: proof append failed", exc_info=True)
+        # The proof line hashes only the FACT of an emit; `<agent>.json` is overwritten, so
+        # yesterday's verdict content is gone forever unless it is archived here (ADR-066,
+        # finding `retro:verdict_archive_missing`). Best-effort like the proof: a broken
+        # archive must never cost an analyst its artifact — a silently empty archive is
+        # caught by loop_retro, which measures archive coverage against the proof chain.
+        try:
+            from spa_core.investment_os.verdict_archive import append_verdict
+            append_verdict(self.agent_key, doc, data_dir=self.data_dir, now=now)
+        except Exception:  # noqa: BLE001
+            log.warning("emit: verdict archive append failed", exc_info=True)
         return artifact
 
     # ── subclass hook ────────────────────────────────────────────────────────

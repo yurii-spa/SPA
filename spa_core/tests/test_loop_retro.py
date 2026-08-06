@@ -117,19 +117,50 @@ class UnresolvedRatchet(unittest.TestCase):
 
 
 class LiveRetro(unittest.TestCase):
-    """ПРИЁМКА ФАЗЫ 4: первый живой ретро-отчёт — честные UNCHECKED + ≥1 вывод."""
+    """ПРИЁМКА: живой ретро-отчёт честен В ОБЕ СТОРОНЫ.
 
-    def test_first_live_retro_report(self):
+    ИЗМЕНЁН НАМЕРЕННО 2026-08-06 (инвариант #16, обоснование — docs/journal/2026-W32.md).
+    Прежняя версия требовала, чтобы в живом отчёте ВСЕГДА стояла находка
+    `retro:verdict_archive_missing`, то есть закрепляла состояние ИНЦИДЕНТА:
+    она покраснела бы ровно в тот момент, когда дыру закрыли, и была бы зелёной
+    всё то время, пока архив отсутствовал. Проверка не ослаблена, а УСИЛЕНА —
+    теперь отчёт обязан соответствовать реальности в обе стороны:
+
+      архива нет  ⇒ находка обязана БЫТЬ (старое требование сохранено целиком);
+      архив есть  ⇒ находки быть НЕ должно, а сменяемость по каждому аналитику
+                    обязана быть либо измерена, либо честно названа неизмеримой.
+
+    Подделка в любую сторону краснеет: и «архив есть, а находка висит» (сторож
+    кричит на исправное), и «архива нет, а находка исчезла» (сторож молчит на
+    сломанном). Старая версия ловила ровно ноль из этих двух случаев.
+    """
+
+    def test_live_retro_report_matches_reality_both_ways(self):
         if not os.path.isdir(os.path.join(REPO_ROOT, "data", "investment_os")):
             self.skipTest("не прод-хост: нет data/investment_os")
         path = os.path.join(REPO_ROOT, "data", "loop_retro.json")
         if not os.path.exists(path):
             self.skipTest("ретро ещё не запускался на этом хосте")
         r = json.load(open(path))
-        self.assertGreaterEqual(len(r["unchecked"]), 3)
         self.assertGreaterEqual(len(r["findings"]), 1)
-        self.assertTrue(any(f["key"] == "retro:verdict_archive_missing"
-                            for f in r["findings"]))
+        self.assertTrue(all(u["reason"] for u in r["unchecked"]),
+                        "UNCHECKED без причины — это молчание, а не честность")
+        if "verdict_archive" not in r:
+            self.skipTest("отчёт старого формата — ретро ещё не перезапускалось после правки")
+
+        arch = r["verdict_archive"]
+        missing = any(f["key"] == "retro:verdict_archive_missing" for f in r["findings"])
+        alive = bool(arch and arch.get("total_lines"))
+        self.assertEqual(missing, not alive,
+                         "находка «нет архива» обязана стоять тогда и только тогда, "
+                         f"когда архива действительно нет (строк: {arch and arch.get('total_lines')})")
+        if not alive:
+            self.assertGreaterEqual(len(r["unchecked"]), 3)
+            return
+        for a in arch["analysts"]:
+            self.assertTrue(a["flip_rate"] is not None or a["unchecked_reason"],
+                            f"{a['analyst']}: ни измеренной сменяемости, ни причины — "
+                            "молчаливый пропуск запрещён")
 
 
 if __name__ == "__main__":
