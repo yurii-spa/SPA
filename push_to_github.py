@@ -33,6 +33,7 @@ push_to_github.py — универсальный пуш файлов в GitHub.
   python3 scripts/push_to_github.py --file path/to/file.py --message "feat: описание"
 """
 import os
+import re
 import sys
 import json
 import base64
@@ -662,6 +663,131 @@ def _common_prefix_at_line_boundary(base: bytes, local: bytes, remote: bytes) ->
     return local[:cut + 1]
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# ЗАПИСЬ, КОТОРАЯ ЕСТЬ НА REMOTE, НЕ ИСЧЕЗАЕТ МОЛЧА
+#
+# ЗАЧЕМ (карточка `inbox-zhurnal-tsiklov-molcha-teryaet-zapisi-pr`, замер #139):
+# страж перезаписи выше отвечает на вопрос «не сотру ли я чужую правку», и
+# отвечает честно — но ТОЛЬКО там, где у него есть база (`base_version`). Где
+# базы нет, вердикт `DIVERGENCE_UNMEASURED` печатает ноту и пуш ПРОПУСКАЕТ:
+# направление выбрано намеренно, чтобы не остановить autopush и дневной цикл,
+# которые пушат из хост-репо. Цена этого решения измерена по истории самих
+# файлов (проход по `git log`, набор записей на каждом коммите, разность):
+#
+#   docs/journal/2026-W31.md  3 события,  33 записи
+#   docs/journal/2026-W32.md  4 события,  19 записей
+#   docs/STATE.md             5 событий, 16 записей
+#   ─────────────────────────────────────────────────
+#   ИТОГО 12 событий на 277 переходов (4.3%), 68 стёртых записей
+#
+# Все 12 — ПОСЛЕ того, как страж перезаписи появился (41af9d987, 2026-07-31), и
+# ни одно не сопровождалось отказом: пушер печатал `OK`, потому что доставил
+# ровно то, что ему дали. Инвариант #16 требует, чтобы обоснование намеренной
+# правки теста жило в журнале, — пропавшая запись делает его непроверяемым
+# задним числом, а `CLAUDE.md` §4 («не записано — работа НЕ завершена») из
+# гарантии превращается в пожелание.
+#
+# ЧТО ДЕЛАЕМ. Проверка НЕ ТРЕБУЕТ БАЗЫ и потому работает ровно там, где страж
+# перезаписи слеп: сравниваем ЗАГОЛОВКИ ЗАПИСЕЙ на remote с теми, что в
+# отправляемом содержимом. Запись с remote пропала ⇒ отказ (fail-CLOSED,
+# инвариант #2). Осознанное сокращение — `--allow-overwrite`, как и раньше:
+# решение остаётся возможным, но перестаёт быть умолчанием.
+#
+# ГРАНИЦЫ, измеренные а не предположенные:
+#   * УРОВЕНЬ ЗАПИСИ, а не любой строки. Подзаголовки (`### Проверка`) — тело
+#     записи; на них проверка даёт 9 лишних срабатываний из 155 переходов
+#     только по журналам (замерено), а построчная сверка — 88 из 122 на
+#     `STATE.md`. Обе отвергнуты замером, а не вкусом.
+#   * НЕ ловит удаление ТЕЛА записи: `a3c015f05` снёс 1729 строк `STATE.md`,
+#     не тронув ни одного заголовка, и остаётся невидимым. Это честная граница,
+#     а не недосмотр: «запись не исчезает» ≠ «содержимое не теряется».
+#   * Только объявленные ниже документы-«общие тетради». Всё прочее (код,
+#     карточки, `_BOARD.md` — он пересобирается целиком) не трогаем.
+# ══════════════════════════════════════════════════════════════════════════════
+
+#: Документы, которые ДОПИСЫВАЮТ все сессии подряд (протокол §«Шаг 3»).
+APPEND_ONLY_DOCS = ("docs/STATE.md",)
+APPEND_ONLY_PREFIXES = ("docs/journal/",)
+
+#: Заголовок ЗАПИСИ: `## …` в журнале и блок-цитата `> **…` в `docs/STATE.md`.
+ENTRY_HEADER_RE = re.compile(rb"^(?:##[ \t]+\S.*|>[ \t]*\*\*.+)$", re.M)
+
+
+class EntryLossRefused(DivergenceRefused):
+    """Пуш стёр бы запись, которая есть на remote. Отказ вместо тихой потери."""
+
+
+def is_append_only_doc(repo_path: str) -> bool:
+    """Общая тетрадь, у которой запись — единица смысла (а не просто текст)."""
+    if repo_path in APPEND_ONLY_DOCS:
+        return True
+    return (any(repo_path.startswith(p) for p in APPEND_ONLY_PREFIXES)
+            and repo_path.endswith(".md"))
+
+
+def entry_headers(blob: Optional[bytes]) -> list:
+    """Заголовки записей в порядке появления. ``None`` → пустой список.
+
+    Кратность значима: одинаковые заголовки в разных записях встречаются, и
+    пропажа ОДНОГО из двух — тоже пропажа записи. Поэтому сравнение идёт
+    мультимножеством, а не множеством.
+    """
+    if not blob:
+        return []
+    return [m.group(0).strip() for m in ENTRY_HEADER_RE.finditer(blob)]
+
+
+def dropped_entries(remote: Optional[bytes], ours: Optional[bytes]) -> list:
+    """Записи, которые есть на remote и которых НЕ будет после нашего пуша."""
+    theirs = entry_headers(remote)
+    mine = list(entry_headers(ours))
+    lost = []
+    for h in theirs:
+        if h in mine:
+            mine.remove(h)          # кратность: гасим ровно одно вхождение
+        else:
+            lost.append(h)
+    return lost
+
+
+def guard_entry_loss(repo_path: str, remote_bytes: Optional[bytes],
+                     content_bytes: bytes, remote_sha: Optional[str],
+                     allow_overwrite: bool = False) -> str:
+    """Отказать, если пуш стирает запись с remote. Возвращает ноту (может быть пустой).
+
+    Порядок проверок — fail-CLOSED:
+      * не общая тетрадь / явное `--allow-overwrite` / файла на remote нет → нечего терять;
+      * содержимое remote не прочитано, хотя файл там ЕСТЬ → это НЕ «всё в порядке»,
+        а неизмеренная потеря: отказ (Contents API молчит про файлы >1 МБ, и
+        именно на таком молчании потеря и осталась бы незамеченной).
+    """
+    if allow_overwrite or not is_append_only_doc(repo_path):
+        return ""
+    if remote_sha is None:
+        return ""                    # файла на remote нет — терять нечего
+    if remote_bytes is None:
+        raise EntryLossRefused(
+            f"{repo_path}: содержимое на remote НЕ ПРОЧИТАНО (sha {remote_sha[:8]} есть), "
+            f"а это общая тетрадь — значит нельзя сказать, не стираем ли мы чужую "
+            f"запись. Пуш отменён (fail-CLOSED, инвариант #2).\n"
+            f"Что делать: повторить (Contents API не отдаёт содержимое файлов >1 МБ); "
+            f"осознанная перезапись — `--allow-overwrite`.")
+
+    lost = dropped_entries(remote_bytes, content_bytes)
+    if not lost:
+        return ""
+
+    shown = "\n".join(f"    - {h.decode('utf-8', 'replace')[:110]}" for h in lost[:8])
+    more = f"\n    … и ещё {len(lost) - 8}" if len(lost) > 8 else ""
+    raise EntryLossRefused(
+        f"{repo_path}: пуш стёр бы {len(lost)} запис(ь/и), которые есть на "
+        f"remote и которых нет в отправляемом содержимом:\n{shown}{more}\n"
+        f"Так за неделю молча пропало 12 раз (замер #139) — пушер печатал OK, "
+        f"потому что доставлял ровно то, что ему дали. Пуш отменён (fail-CLOSED).\n"
+        f"Что делать: перечитать {repo_path} со свежего origin, перенести свою "
+        f"запись на него и запушить снова; осознанное сокращение — `--allow-overwrite`.")
+
+
 def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
                     local_bytes: bytes, remote_sha: Optional[str],
                     allow_overwrite: bool = False,
@@ -685,6 +811,11 @@ def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
     state = verdict["state"]
 
     if state == DIVERGENCE_SAFE:
+        # remote == база ⇒ содержимое remote у нас уже на руках, сеть не нужна.
+        # Проверять всё равно надо: «чужого тут нет» не значит «своего не теряем»
+        # (`f35ff96ed` уронил запись `STATE.md` ровно на этом пути).
+        guard_entry_loss(repo_path, verdict.get("base"), local_bytes, remote_sha,
+                         allow_overwrite=allow_overwrite)
         return local_bytes, ""
 
     if state == DIVERGENCE_UNMEASURED:
@@ -694,6 +825,12 @@ def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
                 f"{note}\nВызывающий потребовал измеримой базы (strict_unmeasured): "
                 f"без неё перезапись чужой правки не отслеживается. "
                 f"Пуш отменён (fail-CLOSED).")
+        # ЗДЕСЬ И БЫЛА ДЫРА: базы нет ⇒ раньше уходило как есть. Проверка записей
+        # базы не требует — только содержимого remote, и берёт его сама.
+        if not allow_overwrite and is_append_only_doc(repo_path) and remote_sha is not None:
+            guard_entry_loss(repo_path,
+                             get_file_content(pat, repo, repo_path, branch),
+                             local_bytes, remote_sha, allow_overwrite=allow_overwrite)
         return local_bytes, note
 
     # DIVERGENCE_DIVERGED
@@ -704,6 +841,11 @@ def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
     remote_bytes = get_file_content(pat, repo, repo_path, branch)
     rebased = rebase_append(verdict.get("base"), local_bytes, remote_bytes)
     if rebased is not None:
+        # Пере-база сохраняет remote целиком ПО ПОСТРОЕНИЮ (remote — префикс
+        # результата). Проверка здесь бесплатна (remote уже прочитан) и стоит
+        # ровно затем, чтобы регрессия `rebase_append` не проехала молча.
+        guard_entry_loss(repo_path, remote_bytes, rebased, remote_sha,
+                         allow_overwrite=allow_overwrite)
         return rebased, (f"🔀 пере-база {repo_path}: наша добавка наложена на свежее "
                          f"содержимое remote (обе записи сохранены)")
 
