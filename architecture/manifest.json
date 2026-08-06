@@ -15,13 +15,17 @@
     {
      "artifact": "data/agent_health.json",
      "slo_hours": 3
+    },
+    {
+     "artifact": "data/agent_registry.json",
+     "slo_hours": 26
     }
    ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
    "curation": "complete",
-   "notes": ""
+   "notes": "с 2026-08-06 попутно держит свежим data/agent_registry.json (agent_registry_refresh): у реестра не было производителя в расписании, а этот агент уже ходит раз в час в те же источники — launchctl + ~/Library/LaunchAgents"
   },
   {
    "label": "com.spa.aggressive_lab",
@@ -1751,13 +1755,13 @@
   },
   {
    "path": "data/agent_registry.json",
-   "producer": null,
+   "producer": "com.spa.agent_health",
    "consumers": [
     "architecture_conformance"
    ],
    "slo_hours": 26,
    "status": "active",
-   "notes": "производитель НЕ УСТАНОВЛЕН — реестр протухал 19 дней (инцидент 2026-08-05)"
+   "notes": "производитель ПОЯВИЛСЯ 2026-08-06: часовой com.spa.agent_health зовёт spa_core/monitoring/agent_registry_refresh.py (порог 6ч). До этого сборщик scripts/build_agent_registry.py существовал и был покрыт тестами, но его не звал никто — реестр протухал 19 дней (инцидент 2026-08-05)"
   },
   {
    "path": "docs/SYSTEM_BRIEFING.md",

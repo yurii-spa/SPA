@@ -46,6 +46,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.monitoring.agent_registry_refresh import refresh_if_stale
+
 log = logging.getLogger("spa.monitoring.agent_health_monitor")
 
 # ---------------------------------------------------------------------------
@@ -1260,8 +1262,21 @@ class AgentHealthMonitor:
     def run(self, send: bool = True) -> dict:
         """Full cycle: collect → dedup → (alert) → atomic write. Fail-safe."""
         try:
+            # data/agent_registry.json — производитель В РАСПИСАНИИ (находка ADR-066
+            # B2:stale, реестр протух на 482ч при SLO 26ч). Скрипт-сборщик существовал
+            # и был покрыт тестами, но его не звал никто: отсутствовал не код, а вызов.
+            # Место здесь, потому что этот агент уже ходит раз в час ровно в те же
+            # источники (launchctl + ~/Library/LaunchAgents), а новый агент — деплой,
+            # то есть owner-gated.
+            #
+            # ДО collect(), а не после, и это не косметика: упади сбор пульса по своей
+            # причине — реестр снова начал бы молча гнить, то есть ровно та авария,
+            # которую мы здесь и чиним, вернулась бы через чужую поломку.
+            # refresh_if_stale НЕ бросает по контракту: пульс флота важнее свежести реестра.
+            registry_refresh = refresh_if_stale(self.data_dir, now=self.now)
             previous = self._previous()
             report = self.collect()
+            report["registry_refresh"] = registry_refresh
             # should_alert() is retained for observability (new_issues), but the
             # SEND decision is now owned entirely by push_policy's edge-trigger:
             # CRITICAL → one push on entry (silent while it persists), recovery →

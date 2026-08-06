@@ -215,11 +215,32 @@ class RealManifest(unittest.TestCase):
             if art["status"] == "active":
                 self.assertGreater(art["slo_hours"], 0, art["path"])
 
-    def test_registry_artifact_declared_with_unknown_producer(self):
-        """Инцидент 19-дневного реестра: артефакт объявлен, производитель честно null."""
+    def test_registry_artifact_producer_is_declared_and_owns_it(self):
+        """Инцидент 19-дневного реестра: производитель объявлен И правда его производит.
+
+        НАМЕРЕННОЕ ИЗМЕНЕНИЕ ПРОВЕРКИ 2026-08-06 (инвариант #16, цикл #128, журнал
+        `docs/journal/2026-W32.md`). Прежняя версия называлась
+        `test_registry_artifact_declared_with_unknown_producer` и требовала
+        `producer is None` — это фиксировало не правило, а **состояние инцидента**:
+        производителя в расписании не было, и манифест честно писал `null`.
+        Производитель появился (`com.spa.agent_health` → `agent_registry_refresh`),
+        и с этого момента `null` стал бы ложью — тест краснел бы на ПОЧИНЕННОЕ.
+
+        Охраняемое свойство осталось тем же — «манифест не врёт о том, кто производит
+        реестр», — но проверка теперь СТРОЖЕ и держит обе стороны: мало назвать
+        производителя, он обязан быть объявленным агентом И сам декларировать этот
+        артефакт в `produces`. Сочинить производителя одной строкой больше нельзя.
+        """
         reg = [a for a in self.m["artifacts"] if a["path"] == "data/agent_registry.json"]
         self.assertEqual(len(reg), 1)
-        self.assertIsNone(reg[0]["producer"])
+        producer = reg[0]["producer"]
+        self.assertIsNotNone(
+            producer, "у реестра снова нет производителя — рецидив инцидента 2026-08-05")
+        self.assertIn(producer, self.by, "производитель реестра не объявлен среди агентов")
+        produced = {p["artifact"] for p in self.by[producer].get("produces", [])}
+        self.assertIn(
+            "data/agent_registry.json", produced,
+            f"{producer} назначен производителем реестра, но сам его не декларирует")
 
     def test_designed_architectures_present(self):
         names = " ".join(d["name"] for d in self.m["designed_architectures"])
