@@ -163,14 +163,17 @@ def _seed_timeline(tmp_path: Path) -> None:
              target_positions={"A": 80_000.0, "C": 20_000.0},
              apy_evidenced_pct=apy),
     ]
-    for i in range(6, 10):  # d06..d09: quiet days supplying forward APYs
+    # ADR-067: владелец поднял порог наблюдения до 30 дней — тихие дни растянуты
+    # d06..d31 (26 шт), counterfactual-утверждения не изменены (инв. 16, журнал W32)
+    for i in range(6, 31):  # d06..d30: quiet days supplying forward APYs
         rows.append(_rec(f"2026-07-{i:02d}", verdict="HOLD",
                          current_positions={"A": 100_000.0},
                          target_positions={"A": 100_000.0},
                          apy_evidenced_pct=apy))
-    # d10: material ACT on the LAST day, no recorded cost ⇒ assumption cost,
-    # no forward data ⇒ UNCHECKED
-    rows.append(_rec("2026-07-10", verdict="ACT", cost_usd=None,
+    # d31: material ACT on the LAST day, no recorded cost ⇒ assumption cost,
+    # no forward data ⇒ UNCHECKED (был d10; сдвинут в хвост при растяжке окна
+    # до порога ADR-067 — смысл «последний день без форвардов» сохранён)
+    rows.append(_rec("2026-07-31", verdict="ACT", cost_usd=None,
                      current_positions={"A": 100_000.0},
                      target_positions={"A": 90_000.0, "B": 10_000.0},
                      apy_evidenced_pct=apy))
@@ -206,7 +209,7 @@ def test_evaluator_matches_hand_computed_counterfactuals(tmp_path: Path) -> None
     assert unpriced["unchecked_reason"] == "no_evidenced_apy_for_moved_legs"
     assert unpriced["unpriced_protocols"] == ["C"]
 
-    last = by_date["2026-07-10"]
+    last = by_date["2026-07-31"]
     assert last["outcome"] == "UNCHECKED"
     assert last["unchecked_reason"] == "no_forward_data"
     # turnover $10k ⇒ 15 bps assumption = $15, labelled as such
@@ -215,7 +218,9 @@ def test_evaluator_matches_hand_computed_counterfactuals(tmp_path: Path) -> None
 
     # Aggregates: scored = {d01 hit, d02 miss, d03 miss} ⇒ hit-rate 1/3;
     # following the ACTs nets 47.53 − 38.49 = $9.04 = 0.9 bps of $100k.
-    assert doc["counts"] == {"act": 3, "hold": 7, "trivial_hold": 5,
+    # hold: d03+d04+d05 + 25 тихих (d06..d30) = 28; trivial: d04 + 25 = 26
+    # (растяжка окна до порога ADR-067; scored/unchecked не изменились)
+    assert doc["counts"] == {"act": 3, "hold": 28, "trivial_hold": 26,
                              "scored": 3, "unchecked": 2,
                              "corrupt_history_lines": 0}
     assert doc["hit_rate"] == pytest.approx(1 / 3, abs=0.001)
@@ -223,8 +228,8 @@ def test_evaluator_matches_hand_computed_counterfactuals(tmp_path: Path) -> None
     assert doc["net_bps_if_followed"] == pytest.approx(0.9, abs=0.01)
     assert doc["hold_missed_usd_total"] == pytest.approx(47.53, abs=0.01)
 
-    # 10 days observed but only 3 scored ⇒ hit-rate criterion UNCHECKED ⇒
-    # fail-closed NOT_READY.
+    # 31 день наблюдения (ADR-067: порог 30), но лишь 3 scored ⇒ hit-rate
+    # criterion UNCHECKED ⇒ fail-closed NOT_READY.
     assert doc["status"] == "NOT_READY" and doc["ready_to_arm"] is False
     st = {c["criterion"]: c["status"] for c in doc["criteria"]}
     assert st["observation_days"] == "PASS"
@@ -237,7 +242,7 @@ def test_evaluator_matches_hand_computed_counterfactuals(tmp_path: Path) -> None
 
 
 def test_all_criteria_pass_makes_ready(tmp_path: Path) -> None:
-    """5 scored ACT hits over 12 days ⇒ READY (positive control for the gate)."""
+    """5 scored ACT hits over 31 days ⇒ READY (positive control, пороги ADR-067)."""
     apy = {"A": 2.0, "B": 8.0}
     for i in range(1, 6):  # d01..d05: five paying ACTs
         append_rationale_history(
@@ -245,7 +250,8 @@ def test_all_criteria_pass_makes_ready(tmp_path: Path) -> None:
                  current_positions={"A": 100_000.0},
                  target_positions={"A": 50_000.0, "B": 50_000.0},
                  apy_evidenced_pct=apy), tmp_path)
-    for i in range(6, 13):  # d06..d12: quiet forward days
+    # ADR-067: порог наблюдения 30 дней — тихий хвост растянут до d31 (инв. 16)
+    for i in range(6, 32):  # d06..d31: quiet forward days
         append_rationale_history(
             _rec(f"2026-07-{i:02d}", verdict="HOLD",
                  current_positions={"A": 100_000.0},

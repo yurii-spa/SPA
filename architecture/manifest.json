@@ -409,6 +409,14 @@
     {
      "artifact": "data/allocation_rationale.json",
      "slo_hours": 26
+    },
+    {
+     "artifact": "data/allocation_rationale_history.jsonl",
+     "slo_hours": 26
+    },
+    {
+     "artifact": "data/shadow_trigger_evaluation.json",
+     "slo_hours": 26
     }
    ],
    "consumes": [],
@@ -1848,6 +1856,26 @@
    "slo_hours": 192,
    "status": "active",
    "notes": "ADR-066 Фаза 4: еженедельное ретро (кандидаты — owner-gated)"
+  },
+  {
+   "path": "data/shadow_trigger_evaluation.json",
+   "producer": "com.spa.daily_cycle",
+   "consumers": [
+    "orchestrator_protocol"
+   ],
+   "slo_hours": 26,
+   "status": "active",
+   "notes": "ADR-060/067: arming-evidence (критерий 30д+net>0+hit≥60%); оркестратор читает ежедневно"
+  },
+  {
+   "path": "data/allocation_rationale_history.jsonl",
+   "producer": "com.spa.daily_cycle",
+   "consumers": [
+    "shadow_trigger_eval"
+   ],
+   "slo_hours": 26,
+   "status": "active",
+   "notes": "ADR-060 Y3: append-only история shadow-вердиктов — единственная долговременная запись"
   }
  ],
  "designed_architectures": [

@@ -255,8 +255,14 @@ class LiveAcceptance(unittest.TestCase):
             rc = ac.main(["--run", "--exit-zero", "--report", report_path])
             self.assertEqual(rc, 0)
             report = json.load(open(report_path))
-            self.assertNotEqual(report["overall"], "OK")
-            self.assertGreater(report["exit_code"], 0)  # честный код сохранён в отчёте
+            # ИЗМЕНЁН ОСОЗНАННО 2026-08-06 (инв. 16, журнал W32): исходная версия
+            # требовала overall != OK — она писалась, когда прод был честно красным,
+            # и устарела в момент, когда находки погасили (блок 1 ADR-067). Проверка
+            # стала state-agnostic: exit-zero всегда 0, а честный режим обязан
+            # возвращать РОВНО exit_code отчёта — при любом живом состоянии.
+            self.assertIn(report["overall"], ("OK", "WARN", "CRITICAL", "UNCHECKED"))
+            self.assertEqual(report["exit_code"],
+                             ac.EXIT_BY_OVERALL[report["overall"]])
             rc_honest = ac.main(["--run", "--report", report_path])
             self.assertEqual(rc_honest, report["exit_code"])
 

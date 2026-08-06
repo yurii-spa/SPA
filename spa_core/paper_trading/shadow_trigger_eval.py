@@ -45,9 +45,13 @@ EVAL_VERSION = "shadow-eval-v1"
 
 # ── Evaluation parameters (documented in the output; changing them is visible) ──
 DEFAULT_HORIZON_DAYS = 7          # forward window a verdict is judged over
-MIN_OBSERVATION_DAYS = 7          # arming criterion: at least this many observed days
+# Arming criteria set BY THE OWNER (ADR-067, 2026-08-06): ≥30 observed days,
+# hit-rate ≥60%, net benefit > 0. The previous 7d/70% were the tool author's
+# placeholder; the owner's bar is the binding one. The agent brings the table,
+# arming stays an owner-gated step regardless of PASS.
+MIN_OBSERVATION_DAYS = 30         # arming criterion (ADR-067)
 MIN_EVALUATED_FOR_HIT_RATE = 5    # hit-rate is UNCHECKED below this sample size
-MIN_HIT_RATE = 0.70               # arming criterion
+MIN_HIT_RATE = 0.60               # arming criterion (ADR-067)
 ASSUMED_COST_BPS_OF_TURNOVER = 15.0  # conservative gas+slippage assumption (vs ~8bps
 #                                      slippage + gas in rebalance_economics) used ONLY
 #                                      when a material move carries no recorded cost
