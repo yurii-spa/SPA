@@ -2,13 +2,14 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **258** · ждёт владельца: **20** · занято сессиями: **1**.
+> Всего карточек: **259** · ждёт владельца: **21** · занято сессиями: **1**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Кто имеет право сказать «флот ожил» и погасить тревогу об упавших агентах?** · _medium_  ·  `own-28-kto-gasit-trevogu-core-agent-down.md`
 - **Разбор очереди — 16 вопросов одним списком, по каждому есть рекомендация** · _high_  ·  `own-30-razbor-ocheredi-vladeltsa.md`
 - **Вторая задача из твоего сообщения (волатильный ETH-пул с доходностью «79%») — сам её не беру, нужно твоё решение** · _medium_  ·  `own-aud19-volatile-clmm-vvodim-li-klass.md`
+- **own-rnd-cdr-demotion-readmission-paper-module** · _medium_  ·  `own-rnd-cdr-demotion-readmission-paper-module.md`
 - **own-rnd-dwell-hysteresis-paper-module** · _medium_  ·  `own-rnd-dwell-hysteresis-paper-module.md`
 - **CI на main красный: новый протокол без оценки риска (40% книги) и два теста, отставших от честного TVL**  ·  `owner-decision-ci-na-main-krasnyi-novyi-protokol-bez-ot.md`
 - **Девять агентов висят нерешёнными: закрыть или включить**  ·  `owner-decision-devyat-agentov-visyat-nereshennymi-zakry.md`
@@ -33,12 +34,13 @@
 
 - **Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать** — держит `cycle-28258` · с 2026-08-05T12:28:28Z  ·  `agent-fleet-parity-guard-never-scheduled.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (70)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (71)
 
 ### · needs-owner
 - Кто имеет право сказать «флот ожил» и погасить тревогу об упавших агентах?  ·  `own-28-kto-gasit-trevogu-core-agent-down.md` · 2026-08-05
 - Разбор очереди — 16 вопросов одним списком, по каждому есть рекомендация  ·  `own-30-razbor-ocheredi-vladeltsa.md` · 2026-08-05
 - Вторая задача из твоего сообщения (волатильный ETH-пул с доходностью «79%») — сам её не беру, нужно твоё решение  ·  `own-aud19-volatile-clmm-vvodim-li-klass.md` · 2026-08-05
+- own-rnd-cdr-demotion-readmission-paper-module  ·  `own-rnd-cdr-demotion-readmission-paper-module.md` · 2026-08-06
 - own-rnd-dwell-hysteresis-paper-module  ·  `own-rnd-dwell-hysteresis-paper-module.md` · 2026-08-04
 - CI на main красный: новый протокол без оценки риска (40% книги) и два теста, отставших от честного TVL  ·  `owner-decision-ci-na-main-krasnyi-novyi-protokol-bez-ot.md` · 2026-08-06
 - Девять агентов висят нерешёнными: закрыть или включить  ·  `owner-decision-devyat-agentov-visyat-nereshennymi-zakry.md` · 2026-08-05
