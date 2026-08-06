@@ -312,6 +312,14 @@ def main(argv=None) -> int:
     if not args.skip_gap:
         from spa_core.monitoring import house_view_gap
         house_view_gap.run(root=args.root)
+    # Цикл 3 ADR-067: правая половина hit-rate — строка исхода за сегодня
+    # (идемпотентно по дате; 4 шанса в день догнать evidenced-бар).
+    try:
+        from spa_core.monitoring.outcomes_archive import append_daily_outcome
+        oc = append_daily_outcome(root=args.root)
+        print(f"outcomes: {'записан ' + oc['date'] if oc['appended'] else oc['reason']}")
+    except Exception as e:  # noqa: BLE001 — архив исходов не смеет валить мост
+        print(f"outcomes: пропущено ({e})")
     # Фаза 4: ретро — раз в неделю, самозапуск внутри 6ч-агента (без нового
     # launchd-агента); loop_health — каждый прогон (дёшево).
     try:

@@ -485,6 +485,10 @@
     {
      "artifact": "data/loop_retro.json",
      "slo_hours": 192
+    },
+    {
+     "artifact": "data/investment_os/outcomes.jsonl",
+     "slo_hours": 26
     }
    ],
    "consumes": [
@@ -1914,6 +1918,16 @@
    "slo_hours": 1,
    "status": "active",
    "notes": "ADR-068: intraday-оценка equity + вердикт лестницы; UNCHECKED = лестница не вызывалась"
+  },
+  {
+   "path": "data/investment_os/outcomes.jsonl",
+   "producer": "com.spa.decision_loop",
+   "consumers": [
+    "loop_retro"
+   ],
+   "slo_hours": 26,
+   "status": "active",
+   "notes": "цикл 3 ADR-067: правая половина hit-rate — исходы по дням (идемпотентно по дате)"
   }
  ],
  "designed_architectures": [

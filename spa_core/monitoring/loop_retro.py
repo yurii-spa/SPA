@@ -94,6 +94,53 @@ def analyze_verdicts(verdict_lines: dict[str, list[dict]] | None,
     return {"total_lines": total, "analysts": per, "lagging": sorted(lagging)}
 
 
+OUTCOME_HORIZON_DAYS = 7
+OUTCOME_MIN_PAIRS = 5
+
+
+def analyze_outcomes(chief_verdicts: list[dict],
+                     outcomes: list[dict],
+                     horizon_days: int = OUTCOME_HORIZON_DAYS,
+                     min_pairs: int = OUTCOME_MIN_PAIRS) -> dict:
+    """Левая половина пары (постура офиса по дням) × правая (исходы по дням).
+
+    Подтверждение RED: форвардная доходность за ≤horizon дней ПОСЛЕ RED-дня
+    отрицательна. Пар меньше min_pairs ⇒ вердикт UNCHECKED с динамической
+    причиной (сколько собрано) — не молчание и не догадка. Дни без исхода
+    просто не образуют пару (никакой интерполяции).
+    """
+    eq_by_date = {str(r.get("date")): r.get("equity_close")
+                  for r in outcomes
+                  if r.get("date") and isinstance(r.get("equity_close"), (int, float))}
+    dates = sorted(eq_by_date)
+    pairs, red_pairs, red_confirmed = [], [], []
+    for v in chief_verdicts:
+        d = str(v.get("date") or "")
+        posture = str(v.get("posture") or "").upper()
+        if not d or not posture or d not in eq_by_date:
+            continue
+        fwd = [x for x in dates if d < x][:horizon_days]
+        if not fwd:
+            continue
+        ret_pct = (eq_by_date[fwd[-1]] - eq_by_date[d]) / eq_by_date[d] * 100.0
+        pair = {"date": d, "posture": posture,
+                "forward_days": len(fwd), "forward_return_pct": round(ret_pct, 4)}
+        pairs.append(pair)
+        if posture == "RED":
+            red_pairs.append(pair)
+            if ret_pct < 0.0:
+                red_confirmed.append(d)
+    scored = len(pairs)
+    red_rate = (round(len(red_confirmed) / len(red_pairs), 3) if red_pairs else None)
+    return {"outcome_days": len(dates), "pairs_scored": scored,
+            "red_pairs": len(red_pairs), "red_confirmed": len(red_confirmed),
+            "red_confirmation_rate": red_rate,
+            "pairs": pairs[-30:],
+            "measured": scored >= min_pairs,
+            "note": (f"пар {scored} < {min_pairs} — копится, вердикта нет"
+                     if scored < min_pairs else "")}
+
+
 def analyze_proofs(proof_lines: dict[str, list[dict]], now: dt.datetime) -> list[dict]:
     """proof_lines: analyst → строки proof.jsonl. Каденция и свежесть за окно."""
     out = []
@@ -127,7 +174,8 @@ def analyze_proofs(proof_lines: dict[str, list[dict]], now: dt.datetime) -> list
 
 def build_report(analysts: list[dict], loop_health: dict | None,
                  unresolved_now: int | None, now: dt.datetime,
-                 verdicts: dict | None = None) -> dict:
+                 verdicts: dict | None = None,
+                 outcomes_stats: dict | None = None) -> dict:
     """`verdicts` — результат analyze_verdicts; None означает «архив не измеряли»
     и трактуется как его отсутствие (fail-CLOSED): молчание не считается за «есть»."""
     candidates, findings = [], []
@@ -162,13 +210,33 @@ def build_report(analysts: list[dict], loop_health: dict | None,
                        f"{', '.join(verdicts['lagging'])} выработали, а их вердикт за этот день "
                        "не записан — архив выглядит рабочим, но hit-rate считать не по чему"})
 
+    # Динамическая честность (цикл 3 ADR-067): архив исходов снимает вечный
+    # UNCHECKED «подтверждение RED» ровно в тот момент, когда пар достаточно;
+    # до того причина называет, СКОЛЬКО уже собрано — прогресс виден, не туман.
+    unchecked = list(_UNMEASURABLE_WITH_ARCHIVE if archive_alive else _UNMEASURABLE)
+    if outcomes_stats is not None:
+        unchecked = [u for u in unchecked
+                     if u["metric"] not in ("подтверждение RED реальностью",
+                                            "реализация возможностей (forward evidenced APY)")]
+        if not outcomes_stats.get("measured"):
+            unchecked.append({"metric": "подтверждение RED реальностью",
+                              "reason": f"исходов {outcomes_stats['outcome_days']} дн., "
+                                        f"пар {outcomes_stats['pairs_scored']}/"
+                                        f"{OUTCOME_MIN_PAIRS} — копится (outcomes.jsonl)"})
+        unchecked.append({"metric": "реализация возможностей (forward evidenced APY)",
+                          "reason": f"позиции и evidenced-APY копятся в outcomes.jsonl "
+                                    f"({outcomes_stats['outcome_days']} дн.) — "
+                                    f"пропротокольный join будет включён при покрытии "
+                                    f"≥{OUTCOME_HORIZON_DAYS} дн."})
+
     return {"generated_at": now.isoformat(), "adr": "ADR-066",
             "window_days": WINDOW_DAYS,
             "analysts": analysts,
             "candidates": candidates,
             "findings": findings,
             "verdict_archive": verdicts,
-            "unchecked": list(_UNMEASURABLE_WITH_ARCHIVE if archive_alive else _UNMEASURABLE),
+            "outcomes": outcomes_stats,
+            "unchecked": unchecked,
             "loop_health_snapshot": {k: loop_health.get(k) for k in
                                      ("open_cards", "recurrences_total", "cards_fate")}
                                     if loop_health else None,
@@ -212,8 +280,16 @@ def run(root: str = REPO_ROOT, now: dt.datetime | None = None) -> dict:
     except Exception:
         pass
     analysts = analyze_proofs(proofs, now)
+    try:
+        from spa_core.monitoring.outcomes_archive import load_outcomes
+        chief_v = (verdicts or {}).get("chief_investment", [])
+        outc = load_outcomes(root)
+        outcomes_stats = analyze_outcomes(chief_v, outc) if (outc or chief_v) else None
+    except Exception:  # noqa: BLE001 — исходы не смеют валить ретро
+        outcomes_stats = None
     report = build_report(analysts, lh, unresolved, now,
-                          verdicts=analyze_verdicts(verdicts, analysts))
+                          verdicts=analyze_verdicts(verdicts, analysts),
+                          outcomes_stats=outcomes_stats)
     from spa_core.utils.atomic import atomic_save
     atomic_save(report, os.path.join(root, RETRO_REL))
     return report
