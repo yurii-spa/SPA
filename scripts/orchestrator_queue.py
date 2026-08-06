@@ -45,7 +45,7 @@ from spa_core.owner_queue.queue import (
 from spa_core.owner_queue.notify import notify_needs_owner
 
 
-def _rebuild_board() -> None:
+def _rebuild_board(tracker_dir=None) -> None:
     """Best-effort regen of nimbalyst-local/tracker/_BOARD.md (single-glance card index for bootstrap).
     Never raises — board is a derived index; card mutation must not fail on its account."""
     try:
@@ -66,7 +66,9 @@ def _rebuild_board() -> None:
         # otherwise hardcodes the real tracker, so without this a test run would
         # rewrite the git-tracked production _BOARD.md, and any TRACKER_DIR
         # repoint would silently regenerate the wrong board.
-        tracker_dir = getattr(_queue, "TRACKER_DIR", None)
+        # Явный --tracker-dir главнее умолчания модуля: иначе карточка легла бы в указанный
+        # каталог, а пересобрался бы board СОСЕДНЕГО дерева (одна команда — два дерева).
+        tracker_dir = tracker_dir or getattr(_queue, "TRACKER_DIR", None)
         if tracker_dir is not None:
             mod.TRACKER = Path(tracker_dir)
             mod.OUT = mod.TRACKER / mod.OUT.name
@@ -120,6 +122,44 @@ def cmd_set_status(args) -> int:
     return 0
 
 
+def _repo_top(path) -> str | None:
+    """Корень рабочего дерева, которому принадлежит путь. None — не измерилось."""
+    import subprocess
+    try:
+        res = subprocess.run(["git", "-C", str(path), "rev-parse", "--show-toplevel"],
+                             capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if res.returncode != 0:
+        return None
+    return res.stdout.strip() or None
+
+
+def _warn_if_foreign_tree(path: Path) -> None:
+    """ГРОМКО (в stderr) сказать, что карточка легла в ДРУГОЕ рабочее дерево, чем текущее.
+
+    **Зачем.** `create` пишет карточку в трекер того дерева, чья копия этого скрипта
+    запущена (cwd не влияет — измерено циклом #140). Протокол §3.4 обязывает работать и
+    пушить из изолированного worktree, а списки файлов на пуш собираются по нему — карточка,
+    созданная копией из хост-дерева, в них не попадает НИКОГДА. Так осиротела
+    `inbox-audit-prigodnosti-ne-videl-186-modulei-t` (создана 19:34, уже после финального
+    объявления цикла #138 в 19:18) — и нашлась случайно, сверкой имён.
+
+    Предупреждение — не гарантия (оно держится на внимательности, а она здесь однажды уже
+    отказала); сторож, который не держится ни на чьей внимательности, — сверка карточек в
+    `scripts/check_undelivered_work.py` (шаг 0a). Здесь — ранний громкий сигнал В МОМЕНТ
+    дефекта. stdout не трогается: он машинный контракт (`create` печатает ТОЛЬКО путь).
+    """
+    card_top = _repo_top(path.parent)
+    cwd_top = _repo_top(Path.cwd())
+    if card_top and cwd_top and Path(card_top).resolve() != Path(cwd_top).resolve():
+        print(f"⚠️  карточка создана в ДРУГОМ рабочем дереве: {card_top}\n"
+              f"    вы работаете в: {cwd_top}\n"
+              f"    её нет в вашем дереве ⇒ в список пуша она не попадёт. Либо создавайте "
+              f"карточку своим деревом (--tracker-dir <ваше дерево>/nimbalyst-local/tracker), "
+              f"либо добавьте {path} в пуш явно.", file=sys.stderr)
+
+
 def cmd_create(args) -> int:
     body = args.body or ""
     if args.body_file:
@@ -134,12 +174,14 @@ def cmd_create(args) -> int:
         path = create_card(
             args.type, args.title, body,
             status=args.status, source=args.source, extra_fields=extra or None,
+            tracker_dir=args.tracker_dir,
         )
     except OwnerDoneForbidden as exc:
         print(f"REFUSED: {exc}", file=sys.stderr)
         return 2
     print(str(path))
-    _rebuild_board()
+    _warn_if_foreign_tree(Path(path))
+    _rebuild_board(tracker_dir=args.tracker_dir)
     return 0
 
 
@@ -199,6 +241,9 @@ def main(argv=None) -> int:
     pc.add_argument("--status", default=None)
     pc.add_argument("--source", default=None, help="nimbalyst|obsidian|telegram|voice")
     pc.add_argument("--field", action="append", help="extra frontmatter k=v (repeatable)")
+    pc.add_argument("--tracker-dir", default=None,
+                    help="куда положить карточку (по умолчанию — трекер ДЕРЕВА ЭТОГО СКРИПТА; "
+                         "работая в worktree, указывайте свой, иначе карточка не попадёт в пуш)")
     pc.set_defaults(func=cmd_create)
 
     pi = sub.add_parser("ingest-notes", help="convert loose Obsidian inbox/ notes → Inbox cards")

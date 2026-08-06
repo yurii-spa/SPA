@@ -21,7 +21,12 @@
    рабочих деревьях репозитория (хост + линкованные worktree — работа сироты лежит именно
    там): нет на базе → ``absent``; есть незакоммиченная правка, которой нет ни в текущем
    `origin/main`, ни в его истории для этого пути → ``differs``;
-4. печатает находки и **отдельно** всё, что измерить не удалось.
+4. **отдельным вопросом** сверяет КАРТОЧКИ: карточка в НЕтерминальном статусе, лежащая в
+   рабочем дереве и отсутствующая на базе, — находка (`card_findings`). Это не частный
+   случай пункта 3: карточку, созданную посреди цикла, никто не объявляет, и разбор
+   объявлений её не увидит по построению (цикл #140, карточка
+   `inbox-kartochka-sozdannaya-posredi-tsikla-ne-d`);
+5. печатает находки и **отдельно** всё, что измерить не удалось.
 
 **Почему окно ожидания, а не только `ps`.** По умолчанию `log_session_change.py` пишет
 `pid<os.getpid()>` **однократного CLI-процесса**, поэтому «процесса нет» НЕ доказывает, что
@@ -449,6 +454,148 @@ def file_state(root, base_ref, rel, git=_git, diff_sets=None):
     return DELIVERED, f"совпадает с {base_ref} во всех рабочих деревьях", []
 
 
+# ── карточки: «создана → доставлена?» ────────────────────────────────────────
+#
+# Второй вопрос, НЕ сводимый к первому. Первый спрашивает «объявленное доехало?» и по
+# построению видит только то, что кто-то объявил. Карточка, созданная ПОСРЕДИ цикла, не
+# объявляется никогда: `orchestrator_queue.py create` пишет её в трекер ТОГО дерева, чья
+# копия скрипта запущена (измерено циклом #140: копия из worktree пишет в worktree, копия
+# из хост-дерева — в хост-дерево, cwd не влияет), а списки файлов на пуш собираются по
+# рабочему дереву цикла. Живой случай: `inbox-audit-prigodnosti-ne-videl-186-modulei-t`
+# создана 19:34, уже ПОСЛЕ финального объявления цикла #138 в 19:18 («ДОСТАВЛЕН» — честного,
+# он доставил ровно то, что было в его дереве); на origin её не было, она лежала
+# неотслеживаемой в хост-дереве и нашлась случайной сверкой имён, а не сторожем.
+#
+# Свежести здесь НЕТ намеренно (в отличие от объявлений): шаг 0a исполняется в НАЧАЛЕ цикла,
+# и карточки этого цикла в этот момент ещё не существует ⇒ любая находка — про прошлые
+# циклы. Возраст файла в находку выводится, чтобы своя минуту назад созданная карточка
+# опознавалась глазом, но тишиной она не покупается (fail-CLOSED).
+
+TRACKER_REL = "nimbalyst-local/tracker"
+BOARD_NAME = "_BOARD.md"          # производный индекс, пересобирается целиком — не карточка
+# Отработанная карточка. Список шире набора шага 0b (там он про снятие захвата, здесь — про
+# доставку): карточку, осознанно закрытую без доставки, находкой звать не за что.
+CARD_TERMINAL_STATUSES = {"done", "ingested", "owner-done", "rejected", "archived"}
+
+
+def card_status(text: str):
+    """Значение top-level ``status:`` из frontmatter карточки, либо None.
+
+    Свой минимальный разбор (как в `build_tracker_board.py` / `check_card_claim.py`):
+    скрипт остаётся stdlib-only и не тянет `spa_core`. Читается ТОЛЬКО блок frontmatter —
+    строка `status:` в теле карточки статусом не является."""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return None                      # без frontmatter статуса нет — и это не «терминальная»
+    for raw in lines[1:]:
+        if raw.strip() == "---":
+            break
+        if not raw.strip() or raw[:1].isspace():
+            continue
+        key, sep, val = raw.partition(":")
+        if sep and key.strip() == "status":
+            v = val.strip()
+            if len(v) >= 2 and v[0] == v[-1] and v[0] in ("'", '"'):
+                v = v[1:-1]
+            return v or None
+    return None
+
+
+def base_card_names(root, base_ref, git=_git):
+    """(множество имён файлов карточек на базовом ref, None) либо (None, причина).
+
+    Пустой перечень — тоже отказ, а не «на базе карточек нет»: в норме их сотни, и пустое
+    множество сделало бы находкой КАЖДУЮ карточку (fail-CLOSED в обе стороны)."""
+    rc, out, err = git(root, "ls-tree", "-r", "--name-only", base_ref, "--", f"{TRACKER_REL}/")
+    if rc != 0:
+        return None, (f"`git ls-tree {base_ref} -- {TRACKER_REL}/` rc={rc} "
+                      f"{err.strip()[:160]!r} — состав карточек на базе НЕ измерен")
+    names = {ln.rsplit("/", 1)[-1] for ln in out.splitlines() if ln.strip().endswith(".md")}
+    if not names:
+        return None, (f"на {base_ref} в {TRACKER_REL}/ не нашлось ни одной карточки — "
+                      "так не бывает в норме; сверка карточек НЕ выполнена (иначе находкой "
+                      "стала бы каждая карточка)")
+    return names, None
+
+
+def scan_tracker_cards(checkouts):
+    """({имя файла: {"statuses": {…}, "trees": [...], "age_hours": …}}, [причины «не измерено»]).
+
+    Карточка ищется во ВСЕХ рабочих деревьях по той же причине, что и файлы: цикл работает в
+    worktree (§3.4), и осиротевшая карточка лежит именно там."""
+    cards, problems = {}, []
+    now = datetime.now(timezone.utc)
+    for loc in checkouts:
+        d = Path(loc) / TRACKER_REL
+        if not d.is_dir():
+            # Чекаут без трекера — законное состояние (герметичный чекаут, старый worktree,
+            # частичный клон). Терять здесь нечего: вопрос сторожа — «лежит ли В ДЕРЕВЕ
+            # карточка, которой нет на базе», а в этом дереве карточек нет вовсе.
+            continue
+        try:
+            files = sorted(d.glob("*.md"))
+        except OSError as exc:
+            problems.append(f"{d}: каталог карточек нечитаем ({exc.__class__.__name__}) — "
+                            "карточки этого дерева НЕ сверены")
+            continue
+        for p in files:
+            if p.name == BOARD_NAME:
+                continue
+            try:
+                text = p.read_text(encoding="utf-8")
+                mtime = p.stat().st_mtime
+            except OSError as exc:
+                problems.append(f"{p}: карточка нечитаема ({exc.__class__.__name__}) — "
+                                "её статус НЕ измерен")
+                continue
+            rec = cards.setdefault(p.name, {"statuses": set(), "trees": [], "age_hours": None})
+            rec["statuses"].add(card_status(text))
+            rec["trees"].append(str(loc))
+            age = round((now - datetime.fromtimestamp(mtime, timezone.utc)).total_seconds() / 3600, 2)
+            rec["age_hours"] = age if rec["age_hours"] is None else min(rec["age_hours"], age)
+    return cards, problems
+
+
+def undelivered_cards(root, base_ref, checkouts, git=_git):
+    """([находки], [не измерено]) — карточки в НЕтерминальном статусе, которых нет на базе."""
+    findings, unmeasured = [], []
+    cards, problems = scan_tracker_cards(checkouts)
+    for pr in problems:
+        unmeasured.append({"session": None, "path": None, "reason": pr})
+    if not cards:
+        # Ни одной карточки ни в одном рабочем дереве — сверять нечего, и отказ здесь был бы
+        # ложной тревогой: недоставленной может оказаться только та карточка, что ЛЕЖИТ в
+        # дереве. Порядок важен — сперва «есть ли что сверять», и лишь потом требование
+        # к базе: обратный порядок красил бы любой чекаут без трекера (измерено на 15
+        # герметичных тестах шага 0a, которые так и покраснели).
+        return findings, unmeasured
+
+    names, err = base_card_names(root, base_ref, git=git)
+    if names is None:
+        unmeasured.append({"session": None, "path": TRACKER_REL, "reason": err})
+        return findings, unmeasured
+
+    for name in sorted(cards):
+        if name in names:
+            continue
+        rec = cards[name]
+        statuses = rec["statuses"]
+        # Статус может расходиться между деревьями — тогда карточка считается НЕтерминальной
+        # (терминальность обязана быть единодушной), иначе одно устаревшее дерево гасило бы находку.
+        if statuses and all((s or "").strip().lower() in CARD_TERMINAL_STATUSES for s in statuses):
+            continue
+        shown = "/".join(sorted((s or "(нет status:)") for s in statuses)) or "(нет status:)"
+        findings.append({
+            "card": name[:-3] if name.endswith(".md") else name,
+            "file": f"{TRACKER_REL}/{name}",
+            "status": shown,
+            "trees": sorted(set(rec["trees"])),
+            "age_hours": rec["age_hours"],
+            "reason": f"карточки нет на {base_ref} — создана и не доставлена",
+        })
+    return findings, unmeasured
+
+
 # ── сборка отчёта ────────────────────────────────────────────────────────────
 
 def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
@@ -457,7 +604,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     root = Path(root)
     now = now or datetime.now(timezone.utc)
     grace = timedelta(hours=grace_hours)
-    findings, unmeasured, fresh, stale_copies = [], [], [], []
+    findings, unmeasured, fresh, stale_copies, card_findings = [], [], [], [], []
     seen, hist_cache = {}, {}
     report = {
         "base_ref": base_ref,
@@ -468,6 +615,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         "sessions_active": 0,
         "sessions_checked": 0,
         "findings": findings,
+        "card_findings": card_findings,
         "fresh": fresh,
         "stale_copies": stale_copies,
         "unmeasured": unmeasured,
@@ -501,6 +649,12 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     for f in diff_failures:                      # чекаут не сравнён — сказать это вслух
         unmeasured.append({"session": None, "path": None,
                            "reason": f"{f} — рабочее дерево с базой НЕ сверено"})
+
+    # Второй вопрос: карточка, созданная посреди цикла, не объявляется никогда, поэтому
+    # разбор объявлений ниже её не увидит по построению (см. блок «карточки» выше).
+    cf, cu = undelivered_cards(root, base_ref, checkouts, git=git)
+    card_findings.extend(cf)
+    unmeasured.extend(cu)
 
     for entry in entries:
         state, why = session_state(entry, self_session, ps=ps)
@@ -569,7 +723,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
                              "summary": (entry.get("summary") or "")[:160],
                              "also_declared_by": []})
 
-    report["exit_code"] = 2 if unmeasured else (1 if findings else 0)
+    report["exit_code"] = 2 if unmeasured else (1 if (findings or card_findings) else 0)
     return report
 
 
@@ -599,6 +753,17 @@ def render(report) -> str:
             if f["summary"]:
                 out.append(f"      объявляла: {f['summary']}")
 
+    if report.get("card_findings"):
+        out.append("")
+        out.append(f"🗂  КАРТОЧКИ НЕ ДОСТАВЛЕНЫ ({len(report['card_findings'])}) — есть в рабочем "
+                   f"дереве в НЕтерминальном статусе, на {base} их нет:")
+        for c in report["card_findings"]:
+            out.append(f"  [{c['status']}] {c['card']}")
+            out.append(f"      {c['reason']}; в деревьях: {', '.join(c['trees'])}")
+            if c.get("age_hours") is not None:
+                out.append(f"      файлу {c['age_hours']}ч — если это карточка ЭТОГО цикла, "
+                           "добавь её в список пуша")
+
     if report["unmeasured"]:
         out.append("")
         out.append(f"❓ НЕ ИЗМЕРЕНО ({len(report['unmeasured'])}) — молчаливого «всё в порядке» "
@@ -613,7 +778,7 @@ def render(report) -> str:
         for f in report["fresh"]:
             out.append(f"  - {f['session']} ({f['ts']}, файлов: {f['files']}): {f['reason']}")
 
-    if not report["findings"] and not report["unmeasured"]:
+    if not report["findings"] and not report["unmeasured"] and not report.get("card_findings"):
         out.append("✅ измерено полностью, всё доставлено")
     return "\n".join(out)
 

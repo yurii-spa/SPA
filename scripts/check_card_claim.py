@@ -108,6 +108,7 @@ ANNOUNCER = ROOT / "scripts" / "log_session_change.py"
 
 DEFAULT_GRACE_HOURS = 3.0          # то же окно, что у шага 0a — одна семантика «свежести»
 LOCK_STALE_SEC = 300               # старше — считаем брошенным, но НЕ удаляем молча
+DEFAULT_BASE_REF = "origin/main"   # запасной источник карточки, которой нет в рабочем дереве
 
 FREE, CLAIMED, STALE, UNCHECKED = "free", "claimed", "stale", "unchecked"
 STRONG, WEAK = "strong", "weak"
@@ -225,6 +226,55 @@ def read_card(path):
     return frontmatter(text), None
 
 
+def read_card_from_base(path, base_ref=DEFAULT_BASE_REF, git=None):
+    """(meta, источник) либо (None, причина) — карточка читается с базового ref.
+
+    **Зачем.** Трекер рабочего дерева и `origin/main` расходятся по построению: пуш идёт
+    прямо в origin через API, а карточка создаётся в трекере ТОГО дерева, чья копия
+    `orchestrator_queue.py` запущена. На момент замера цикла #140 десять карточек жили
+    ТОЛЬКО на origin — и шаг 0b отвечал о каждой `НЕ ИЗМЕРЕНО`, то есть взять их было
+    нельзя никогда: fail-CLOSED-вердикт над неизвестным, который сам не может рассосаться
+    (ровно класс «необратимое „не измерено“ морит очередь»).
+
+    **Граница, названная вслух:** с origin читается ОПУБЛИКОВАННОЕ состояние захвата.
+    Захват, записанный в чужом рабочем дереве и не запушенный, отсюда невидим — но он
+    невидим и сегодня (сегодня невидима вся карточка), а второе плечо проверки (журнал
+    объявлений, общий для всех деревьев) продолжает работать в полную силу.
+    Сети проверка по-прежнему не касается: `git show` читает локальный ref, `fetch` не зовётся.
+    """
+    p = Path(path)
+    git = git or load_sibling()._git
+    rc, top, err = git(str(p.parent if p.parent.is_dir() else ROOT), "rev-parse", "--show-toplevel")
+    if rc != 0 or not top.strip():
+        return None, (f"карточки нет в дереве ({p}), и репозиторий для чтения с {base_ref} "
+                      f"не определён: `git rev-parse --show-toplevel` rc={rc} {err.strip()[:120]!r}")
+    root = Path(top.strip())
+    try:
+        rel = p.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return None, (f"карточки нет в дереве ({p}), и путь не принадлежит репозиторию {root} — "
+                      f"с {base_ref} читать нечего")
+    rc, out, err = git(str(root), "show", f"{base_ref}:{rel}")
+    if rc != 0:
+        return None, (f"карточки нет ни в дереве ({p}), ни на {base_ref} "
+                      f"(`git show {base_ref}:{rel}` rc={rc} {err.strip()[:120]!r})")
+    return frontmatter(out), f"{base_ref}:{rel}"
+
+
+def read_card_measured(path, base_ref=DEFAULT_BASE_REF, git=None):
+    """(meta, причина-если-не-прочиталась, источник). Дерево главнее базы: локальная карточка —
+    рабочее состояние, база — запасной источник ровно для карточек, которых в дереве нет."""
+    meta, err = read_card(path)
+    if meta is not None:
+        return meta, None, None
+    if not Path(path).exists():
+        base_meta, note = read_card_from_base(path, base_ref=base_ref, git=git)
+        if base_meta is not None:
+            return base_meta, None, note
+        return None, note, None
+    return None, err, None
+
+
 # ── разбор объявлений ────────────────────────────────────────────────────────
 
 def _norm_path(value) -> str:
@@ -301,7 +351,7 @@ def _fmt_ts(dt: datetime) -> str:
 def build_report(cid, path, entries, self_session, sibling, *, now=None,
                  grace_hours=DEFAULT_GRACE_HOURS, ps=None, planned_files=(),
                  log_path=None, log_error=None, malformed_lines=0, card_meta=None,
-                 card_error=None, self_anchor=None):
+                 card_error=None, self_anchor=None, card_source=None):
     """Полный отчёт о занятости карточки. Чистая функция: ни git, ни файлов — всё на входе.
 
     `self_anchor` — пара (`session_pid`, `session_pid_start`) МОЕГО долгоживящего процесса или
@@ -318,6 +368,9 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
     report = {
         "card": cid,
         "card_path": str(path) if path else None,
+        # Откуда прочитана карточка: None — из рабочего дерева; строка `<ref>:<путь>` —
+        # с базового ref, потому что в дереве её НЕТ (это факт о доставке, и он говорится вслух).
+        "card_source": card_source,
         "card_status": None,
         "self_session": self_session,
         "self_sessions": sorted(selves),
@@ -530,6 +583,11 @@ def render(report) -> str:
            f"окно свежести: {report['grace_hours']}ч",
            _VERDICT_LINE[report["verdict"]]]
 
+    if report.get("card_source"):
+        out.append(f"ℹ️  карточка прочитана с `{report['card_source']}` — в рабочем дереве её НЕТ. "
+                   "Захват виден ОПУБЛИКОВАННЫЙ; незапушенный захват чужого дерева отсюда "
+                   "не виден (журнал объявлений проверен полностью).")
+
     if report["claims"]:
         out.append("")
         out.append(f"🔒 захваты ({len(report['claims'])}):")
@@ -685,7 +743,8 @@ def _log_entries(log, sibling=None, last=None):
 
 def gather(card, *, log=DEFAULT_LOG, tracker_dir=DEFAULT_TRACKER, sibling=None,
            self_session=None, now=None, grace_hours=DEFAULT_GRACE_HOURS,
-           planned_files=(), last=None, ps=None, self_anchor=_ENV_ANCHOR):
+           planned_files=(), last=None, ps=None, self_anchor=_ENV_ANCHOR,
+           base_ref=DEFAULT_BASE_REF):
     """Прочитать карточку + журнал и собрать отчёт (файловый слой над `build_report`).
 
     `self_anchor` — мой долгоживущий процесс (`anchor_of`-пара) для опознания собственных
@@ -693,7 +752,8 @@ def gather(card, *, log=DEFAULT_LOG, tracker_dir=DEFAULT_TRACKER, sibling=None,
     (`measure_self_anchor`), `None` отключает опознание (герметичные тесты)."""
     sibling = sibling or load_sibling()
     path = card_path(card, tracker_dir)
-    meta, card_error = read_card(path)
+    meta, card_error, card_source = read_card_measured(path, base_ref=base_ref,
+                                                       git=getattr(sibling, "_git", None))
 
     entries, malformed, log_error = [], 0, None
     log_path = Path(log)
@@ -713,7 +773,8 @@ def gather(card, *, log=DEFAULT_LOG, tracker_dir=DEFAULT_TRACKER, sibling=None,
                         now=now, grace_hours=grace_hours, ps=ps,
                         planned_files=planned_files, log_path=log_path,
                         log_error=log_error, malformed_lines=malformed,
-                        card_meta=meta, card_error=card_error, self_anchor=self_anchor)
+                        card_meta=meta, card_error=card_error, self_anchor=self_anchor,
+                        card_source=card_source)
 
 
 # ── взятие / освобождение карточки ───────────────────────────────────────────
@@ -851,6 +912,16 @@ def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None
     now = now or datetime.now(timezone.utc)
     path = card_path(card, tracker_dir)
     if not path.exists():
+        # `check` умеет прочитать карточку с базового ref, а взятие — правка ФАЙЛА, и
+        # молча материализовать чужой файл в дереве захват не вправе (это доставка, а не
+        # захват). Поэтому отказ, но с названной причиной и готовой командой — иначе
+        # сообщение «карточки нет» противоречило бы `check`, который её только что прочёл.
+        on_base, _ = read_card_from_base(path, git=getattr(sibling, "_git", None))
+        if on_base is not None:
+            raise ClaimError(
+                f"карточки нет в этом дереве ({path}), но она ЕСТЬ на {DEFAULT_BASE_REF}. "
+                f"Забери её в своё дерево и пушь вместе с работой:\n"
+                f"  git show {DEFAULT_BASE_REF}:nimbalyst-local/tracker/{path.name} > {path}")
         raise ClaimError(f"карточки нет: {path}")
 
     report = gather(card, log=log, tracker_dir=tracker_dir, sibling=sibling,

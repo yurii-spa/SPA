@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **269** · ждёт владельца: **20** · занято сессиями: **2**.
+> Всего карточек: **270** · ждёт владельца: **21** · занято сессиями: **2**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -15,6 +15,7 @@
 - **Девять агентов висят нерешёнными: закрыть или включить**  ·  `owner-decision-devyat-agentov-visyat-nereshennymi-zakry.md`
 - **Два агента не переживут перезагрузку — разрешить доустановить их в системную папку**  ·  `owner-decision-dva-agenta-ne-perezhivut-perezagruzku-ra.md`
 - **Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет** · _high_  ·  `owner-decision-dva-tsikla-orkestratora-rabotali-odnovre.md`
+- **Морфо — 40% книги — при пропаже данных подставляет выдуманные 6.5% вместо честного отказа** · _high_  ·  `owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst.md`
 - **Наступила Фаза 2 (1 августа) — включаем, сдвигаем или осознанно откладываем?**  ·  `owner-decision-nastupila-faza-2-1-avgusta-vklyuchaem-sd.md`
 - **Ночью одну задачу сделали дважды — из-за этого main был красным; выбери, какую версию оставляем** · _high_  ·  `owner-decision-nochyu-odnu-zadachu-sdelali-dvazhdy-moya.md`
 - **Общая память проекта стирается пушем из рабочей копии на маке — сегодня так пропало 1729 строк истории** · _high_  ·  `owner-decision-obschaya-pamyat-stiraetsya-pushem-iz-rabo.md`
@@ -34,7 +35,7 @@
 - **Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать** — держит `cycle-28258` · с 2026-08-05T12:28:28Z  ·  `agent-fleet-parity-guard-never-scheduled.md`
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (71)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (72)
 
 ### · needs-owner
 - Кто имеет право сказать «флот ожил» и погасить тревогу об упавших агентах?  ·  `own-28-kto-gasit-trevogu-core-agent-down.md` · 2026-08-05
@@ -46,6 +47,7 @@
 - Девять агентов висят нерешёнными: закрыть или включить  ·  `owner-decision-devyat-agentov-visyat-nereshennymi-zakry.md` · 2026-08-05
 - Два агента не переживут перезагрузку — разрешить доустановить их в системную папку  ·  `owner-decision-dva-agenta-ne-perezhivut-perezagruzku-ra.md` · 2026-08-06
 - Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет  ·  `owner-decision-dva-tsikla-orkestratora-rabotali-odnovre.md` · 2026-08-01
+- Морфо — 40% книги — при пропаже данных подставляет выдуманные 6.5% вместо честного отказа  ·  `owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst.md` · 2026-08-02
 - Наступила Фаза 2 (1 августа) — включаем, сдвигаем или осознанно откладываем?  ·  `owner-decision-nastupila-faza-2-1-avgusta-vklyuchaem-sd.md` · 2026-07-31
 - Ночью одну задачу сделали дважды — из-за этого main был красным; выбери, какую версию оставляем  ·  `owner-decision-nochyu-odnu-zadachu-sdelali-dvazhdy-moya.md` · 2026-08-05
 - Общая память проекта стирается пушем из рабочей копии на маке — сегодня так пропало 1729 строк истории  ·  `owner-decision-obschaya-pamyat-stiraetsya-pushem-iz-rabo.md` · 2026-08-02
@@ -132,6 +134,7 @@
 - автономный аркестратор должен был быть раз в 1 час а не раз в 3 часа  ·  `inbox-avtonomnyi-arkestrator-dolzhen-byl-byt-r.md` · 2026-07-16
 - Давай так и сделаем  ·  `inbox-davai-tak-i-sdelaem.md` · 2026-07-20
 - Храповик литеральных дат не видит даты, записанные конструктором — половина класса вне поля зрения  ·  `inbox-hrapovik-literalnyh-dat-ne-vidit-daty-za.md` · 2026-08-06
+- Карточка, созданная посреди цикла, не доезжает: create пишет в ХОСТ-дерево, а пуш идёт из worktree  ·  `inbox-kartochka-sozdannaya-posredi-tsikla-ne-d.md` · 2026-08-06
 - Манифест архитектуры отстал от РЕАЛЬНОСТИ: три агента стали reboot-safe, тест красный на чистом origin  ·  `inbox-manifest-arhitektury-otstal-ot-realnosti.md` · 2026-08-06
 - Находка петли: аналитик _health: каденция 0% < 50% окна 14д; ни одной датированной вы  ·  `inbox-nahodka-petli-analitik-health-kadentsiya.md` · 2026-08-05
 - Находка петли: com.spa.artifact_freshness работает, но plist не персистентен (repo:sc  ·  `inbox-nahodka-petli-com-spa-artifact-freshness.md` · 2026-08-05
@@ -168,7 +171,6 @@
 - Аудит пригодности не видел 186 модулей Tier-B из 479: форма входа dict не пробовалась ни разу  ·  `inbox-audit-prigodnosti-ne-videl-186-modulei-t.md` · 2026-08-06
 - docs/STATE.md разросся до 1647 строк при собственном пределе ~150 — а его читает каждая сессия  ·  `inbox-docs-state-md-razrossya-do-1647-strok-pr.md` · 2026-08-06
 - Храповик литеральных дат метит ОБРАЗЦОВЫЙ паттерн: тест по преференции №1 правила (инъекция часов) не проходит сторожа  ·  `inbox-hrapovik-literalnyh-dat-metit-obraztsovy.md` · 2026-08-06
-- Карточка, созданная посреди цикла, не доезжает: create пишет в ХОСТ-дерево, а пуш идёт из worktree  ·  `inbox-kartochka-sozdannaya-posredi-tsikla-ne-d.md` · 2026-08-06
 - Находка петли: архив вердиктов отстаёт от выработки: аналитики _health, liquidity, ma  ·  `inbox-nahodka-petli-arhiv-verdiktov-otstaet-ot.md` · 2026-08-06
 - Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md` · 2026-08-06 · 🔒 `cycle-87477`
 - Вердикт WIRABLE подделываем: 22 из 23 «пригодных» модулей читают РОВНО ОДИН ключ  ·  `inbox-verdikt-wirable-poddelyvaem-22-iz-23-pri.md` · 2026-08-06
