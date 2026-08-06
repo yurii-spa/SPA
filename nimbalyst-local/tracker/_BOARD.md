@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **256** · ждёт владельца: **20** · занято сессиями: **2**.
+> Всего карточек: **256** · ждёт владельца: **20** · занято сессиями: **1**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -32,7 +32,6 @@
 > Ставится `scripts/check_card_claim.py claim`, снимается `release` (и не действует после `done`/`ingested`). Перед взятием карточки — `check_card_claim.py check <карточка>`.
 
 - **Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать** — держит `cycle-28258` · с 2026-08-05T12:28:28Z  ·  `agent-fleet-parity-guard-never-scheduled.md`
-- **Храповик литеральных дат не видит даты, записанные конструктором — половина класса вне поля зрения** — держит `cycle-74635` · с 2026-08-06T07:03:07Z  ·  `inbox-hrapovik-literalnyh-dat-ne-vidit-daty-za.md`
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (70)
 
@@ -128,6 +127,7 @@
 - ADR-066 Фаза 4: loop_health + hit-rate аналитиков + weekly retro + храповик  ·  `inbox-adr-066-faza-4-loop-health-hit-rate-anal.md` · 2026-08-05
 - автономный аркестратор должен был быть раз в 1 час а не раз в 3 часа  ·  `inbox-avtonomnyi-arkestrator-dolzhen-byl-byt-r.md` · 2026-07-16
 - Давай так и сделаем  ·  `inbox-davai-tak-i-sdelaem.md` · 2026-07-20
+- Храповик литеральных дат не видит даты, записанные конструктором — половина класса вне поля зрения  ·  `inbox-hrapovik-literalnyh-dat-ne-vidit-daty-za.md` · 2026-08-06
 - Находка петли: аналитик _health: каденция 0% < 50% окна 14д; ни одной датированной вы  ·  `inbox-nahodka-petli-analitik-health-kadentsiya.md` · 2026-08-05
 - Находка петли: com.spa.artifact_freshness работает, но plist не персистентен (repo:sc  ·  `inbox-nahodka-petli-com-spa-artifact-freshness.md` · 2026-08-05
 - Находка петли: com.spa.swarm_dwell работает, но plist не персистентен (repo:launchd/c  ·  `inbox-nahodka-petli-com-spa-swarm-dwell-rabota.md` · 2026-08-05
@@ -158,7 +158,6 @@
 - Задча • 10% денег стоят без работы под 0% — это money-path, карточка «agent-all…  ·  `inbox-zadcha-10-deneg-stoyat-bez-raboty-pod-0.md` · 2026-08-05
 ### · new
 - Храповик литеральных дат метит ОБРАЗЦОВЫЙ паттерн: тест по преференции №1 правила (инъекция часов) не проходит сторожа  ·  `inbox-hrapovik-literalnyh-dat-metit-obraztsovy.md` · 2026-08-06
-- Храповик литеральных дат не видит даты, записанные конструктором — половина класса вне поля зрения  ·  `inbox-hrapovik-literalnyh-dat-ne-vidit-daty-za.md` · 2026-08-06 · 🔒 `cycle-74635`
 
 ## 🤖 Agent Tasks (что делает агент)  (84)
 

@@ -2,11 +2,9 @@
 trackerStatus:
   type: inbox
 title: Храповик литеральных дат не видит даты, записанные конструктором — половина класса вне поля зрения
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-06
-claimed_by: cycle-74635
-claimed_at: 2026-08-06T07:03:07Z
 ---
 
 ## Находка
