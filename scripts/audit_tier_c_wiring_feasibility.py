@@ -46,15 +46,28 @@ audit_tier_c_wiring_feasibility.py — можно ли ЧЕСТНО провес
   RAISES           движок отверг профиль исключением (контракт не удовлетворён);
   UNCOVERED        различает, но профиль не даёт части ключей — «различается не
                    тем»: проводка дала бы правдоподобное, но не по делу число;
-  SHAPE_NOT_PROBED вход объявлен не списком записей — инструмент НЕ измеряет и
-                   говорит почему (см. `call_shape`: вызов чужой формы дал бы
-                   падение по вине инструмента, а не модуля);
+  SHAPE_NOT_PROBED вход объявлен ни списком записей, ни записью — инструмент НЕ
+                   измеряет и говорит почему (см. `call_shape`: вызов чужой формы
+                   дал бы падение по вине инструмента, а не модуля);
   NO_ENTRY         не нашли entrypoint с позиционным параметром;
   IMPORT_ERR       модуль не импортируется.
 
 **Область применимости.** Инструмент отвечает ровно на один вопрос — «даст ли
-`_protocol_facts` честный вход движку, который ждёт СПИСОК записей». Он не
-измеряет модули других форм входа и не заменяет `audit_protocol_blindness.py`.
+`_protocol_facts` честный вход движку», и задаёт его тем движкам, чей вызов
+ОПРЕДЕЛЁН их собственным контрактом: `list`-образным (`fn([profile])`) и
+`dict`-образным (`fn(profile)`). Он не заменяет `audit_protocol_blindness.py`.
+
+**Почему `dict` пробуется (цикл #137).** До 06.08 инструмент звал ТОЛЬКО
+`list`-образные движки, а всё прочее получало `SHAPE_NOT_PROBED`. Формулировка
+отказа («не список записей») читалась как принципиальная осторожность, но под
+неё попадала форма, для которой никакой выдумки не требуется: движок,
+объявивший `analyze(token: dict | None)`, ждёт РОВНО ту запись, которой и
+является профиль протокола. В результате 18 модулей Tier-C и 186 Tier-B ни разу
+не были измерены — и их непроверенность выглядела как осознанный отказ. Замер
+после расширения: из 18 Tier-C `dict`-модулей **wirable = 0** (10 BLIND, 6
+RAISES, 1 UNCOVERED, 1 NO_SCORE) — вывод цикла #133 «Tier-C wirable=0» устоял и
+на форме, которой он не видел. Граница осталась там же, где была по существу:
+`typed` (чужой доменный тип) по-прежнему НЕ зовётся.
 
 Границы: только stdlib · LLM здесь не участвует · инструмент READ-ONLY по
 отношению к прод-состоянию (ничего не пишет, кроме своего --out).
@@ -147,9 +160,16 @@ def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-#: Аннотации, при которых движок ждёт СПИСОК записей — единственная форма,
-#: которую этот инструмент вправе позвать как `fn([profile])`.
+#: Аннотации, при которых движок ждёт СПИСОК записей — форма, которую
+#: инструмент зовёт как `fn([profile])`.
 _LIST_ANNOTATIONS = ("list", "typing.list", "sequence", "iterable", "tuple")
+
+#: Формы входа, для которых вызов ОПРЕДЕЛЁН контрактом самого движка, а значит
+#: инструмент вправе его сделать. Обе зовутся ровно тем, что движок объявил:
+#: `list` → `fn([profile])`, `dict` → `fn(profile)`. Всё остальное (`typed`,
+#: `unannotated`, `no_param`) остаётся SHAPE_NOT_PROBED — там вызов пришлось бы
+#: ВЫДУМАТЬ, а падение от своей же ошибки вызова инструмент записал бы модулю.
+_PROBEABLE_SHAPES = ("list", "dict")
 
 
 def call_shape(fn: Any) -> Tuple[str, Optional[str]]:
@@ -226,14 +246,14 @@ def probe_module(module_info: Dict[str, Any],
                 "detail": "нет entrypoint с позиционным параметром"}
 
     shape, annotation = call_shape(fn)
-    if shape != "list":
+    if shape not in _PROBEABLE_SHAPES:
         # Не пробуем — и говорим, ПОЧЕМУ. Молчаливая попытка вызвать чужую
         # форму дала бы падение по вине инструмента (см. `call_shape`).
         return {"module": name, "entry": entry, "verdict": "SHAPE_NOT_PROBED",
                 "call_shape": shape, "annotation": annotation,
-                "detail": f"вход объявлен как `{annotation or shape}` — не список "
-                          "записей; пригодность facts-проводки этим инструментом "
-                          "не измеряется (не выдумываем вызов)"}
+                "detail": f"вход объявлен как `{annotation or shape}` — ни список "
+                          "записей, ни запись; пригодность facts-проводки этим "
+                          "инструментом не измеряется (не выдумываем вызов)"}
 
     scores: Dict[str, Any] = {}
     read: set = set()
@@ -247,7 +267,9 @@ def probe_module(module_info: Dict[str, Any],
             continue
         rec = RecordingProfile(raw)
         try:
-            result = fn([rec])
+            # Форма вызова — та, которую движок объявил сам (см.
+            # `_PROBEABLE_SHAPES`), а не удобная инструменту.
+            result = fn([rec]) if shape == "list" else fn(rec)
         except Exception as exc:  # noqa: BLE001 — движок отверг профиль
             raised = True
             detail = f"{type(exc).__name__}: {exc}"
@@ -262,6 +284,8 @@ def probe_module(module_info: Dict[str, Any],
     coverage = None if not read else round((len(read) - len(missing)) / len(read), 4)
     out: Dict[str, Any] = {
         "module": name, "entry": entry, "call_shape": shape,
+        # Чем именно звали — иначе вердикт нечем перепроверить.
+        "call_form": "fn([profile])" if shape == "list" else "fn(profile)",
         "annotation": annotation, "scores": scores,
         "keys_read": len(read), "keys_missing": len(missing),
         "coverage": coverage, "missing_keys": sorted(str(k) for k in missing),

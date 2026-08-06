@@ -202,21 +202,40 @@ def test_min_coverage_is_explicit_not_hidden(feas, monkeypatch):
 
 # ─── форма вызова: не выдумывать падение по своей вине ───────────────────────
 
-def test_dict_taking_engine_is_not_probed_and_says_why(feas, monkeypatch):
+def test_dict_taking_engine_is_not_miscalled_as_a_list(feas, monkeypatch):
     """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ кросс-прогона по Tier-B (цикл #133).
 
     Движок, объявивший вход как `dict`, при вызове `fn([profile])` упал бы —
     но по вине ИНСТРУМЕНТА, а не модуля, и попал бы в отчёт как «падает».
-    Так набралось 268 ложных RAISES на Tier-B. Инструмент обязан не пробовать
-    и назвать причину.
+    Так набралось 268 ложных RAISES на Tier-B.
+
+    **Изменено намеренно, цикл #137 (инв. #16), — проверка УСИЛЕНА, а не снята.**
+    Опасность здесь — вызов ЧУЖОЙ формой, и она никуда не делась; менялось
+    средство защиты. #133 защищался отказом смотреть вовсе, и цена оказалась
+    велика: 18 модулей Tier-C и 186 Tier-B ни разу не были измерены, а их
+    непроверенность читалась как осознанный отказ (тот же класс #29/#31/#35–#40 —
+    честный ответ на СВОЙ вопрос, читаемый как ответ на нужный). Между тем для
+    `dict`-формы выдумывать нечего: движок ждёт РОВНО ту запись, которой и
+    является профиль, — правильное средство не «не звать», а «звать верной
+    формой». Поэтому тест теперь пиннит саму опасность напрямую: запись
+    подаётся как запись, ложного RAISES нет. Что вызов НЕ обёрнут в список —
+    отдельный контроль
+    `test_wiring_feasibility_dict_shape.py::test_dict_shaped_engine_is_called_with_the_record_itself`.
+    Граница осталась: `typed` по-прежнему не зовётся (тест ниже).
     """
+    seen = []
+
     def analyze(context: dict):
+        seen.append(context)
         return {"risk_score": float(context.get("utilization_rate_pct", 0.0))}
 
     out = _probe(feas, monkeypatch, analyze)
-    assert out["verdict"] == "SHAPE_NOT_PROBED", out
     assert out["call_shape"] == "dict"
-    assert "не список" in out["detail"]
+    assert seen and all(isinstance(x, dict) for x in seen), (
+        "dict-движок обязан получить ЗАПИСЬ, а не список записей: %r" % (seen[:1],))
+    assert out["verdict"] != "RAISES", (
+        "ложный RAISES по вине инструмента — ровно та авария #133: %r" % (out,))
+    assert out["call_form"] == "fn(profile)"
 
 
 def test_typed_input_engine_is_not_probed(feas, monkeypatch):

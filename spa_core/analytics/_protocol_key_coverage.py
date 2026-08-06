@@ -8,7 +8,7 @@ _protocol_key_coverage.py — эмпирическая разметка Tier-B �
         --out /tmp/feas_b.json --emit-markup
 (в sandbox-чекауте, не в живом репо — модули пишут data/*-логи).
 
-Замер 2026-08-06T12:56:04.641370Z: каждый Tier-B модуль прогнан на
+Замер 2026-08-06T18:46:04.014316Z: каждый Tier-B модуль прогнан на
 `_protocol_facts.generic_profile_for` для ['aave_v3', 'maple', 'pendle', 'morpho', 'spark', 'compound_v3'];
 запись подменена на `RecordingProfile`, который помнит, какие ключи у неё
 спрашивали. Модуль попадает сюда, если его score РАЗЛИЧАЕТСЯ между
@@ -34,7 +34,7 @@ RiskPolicy её не видит.
 """
 from typing import Dict, FrozenSet, Tuple
 
-AUDIT_GENERATED_AT = "2026-08-06T12:56:04.641370Z"
+AUDIT_GENERATED_AT = "2026-08-06T18:46:04.014316Z"
 MIN_COVERAGE = 1.0
 
 #: module_name -> {"coverage": доля отданных ключей, "missing_keys": чего нет}
@@ -51,9 +51,21 @@ UNSOURCED_DETAIL: Dict[str, Dict[str, object]] = {
         "coverage": 0.5,
         "missing_keys": ("avg_collateral_ratio", "protocol_reserve_usd", "top_borrower_amounts_usd"),
     },
+    "defi_protocol_cdp_stability_fee_analyzer": {
+        "coverage": 0.1818,
+        "missing_keys": ("collateral_asset", "current_price_usd", "debt_utilization_pct", "liquidation_ratio_pct", "protocol_name", "stability_fee_pct", "surplus_buffer_usd", "target_price_usd", "total_debt_ceiling_usd"),
+    },
     "defi_protocol_composability_risk_analyzer": {
         "coverage": 0.1818,
         "missing_keys": ("auto_unwind_available", "base_protocol", "base_protocol_audit_score", "dependency_depth", "dependent_protocol", "historical_issues_count", "integration_type", "time_to_unwind_hours", "tvl_at_risk_usd"),
+    },
+    "defi_protocol_emergency_withdrawal_pause_risk_analyzer": {
+        "coverage": 0.5455,
+        "missing_keys": ("annual_pause_probability_pct", "assumed_apy_pct", "emergency_exit_available", "historical_max_pause_days", "unpause_timelock_hours"),
+    },
+    "defi_protocol_lending_market_health_scorer": {
+        "coverage": 0.4545,
+        "missing_keys": ("liquidation_incentive_pct", "paused_markets", "protocol_name", "reserve_factor_pct", "top_borrower_concentration_pct", "total_markets"),
     },
     "defi_protocol_mev_protection_effectiveness_analyzer": {
         "coverage": 0.5455,
@@ -66,6 +78,42 @@ UNSOURCED_DETAIL: Dict[str, Dict[str, object]] = {
     "defi_protocol_regulatory_risk_scorer": {
         "coverage": 0.3571,
         "missing_keys": ("dao_governance", "defi_category", "entity_incorporated", "front_end_geo_restrictions", "regulator_action_history", "sanctions_screening", "settlement_layer", "stablecoin_exposure_pct", "team_public"),
+    },
+    "defi_protocol_vault_apr_lookback_window_selection_bias_analyzer": {
+        "coverage": 0.5,
+        "missing_keys": ("data_dir",),
+    },
+    "defi_protocol_vault_apr_quote_staleness_analyzer": {
+        "coverage": 0.5,
+        "missing_keys": ("data_dir",),
+    },
+    "defi_protocol_vault_headline_spot_snapshot_vs_twap_analyzer": {
+        "coverage": 0.5,
+        "missing_keys": ("data_dir",),
+    },
+    "defi_protocol_vault_instant_exit_nav_discount_analyzer": {
+        "coverage": 0.2222,
+        "missing_keys": ("instant_exit_discount_pct", "instant_exit_price_usd", "nav_per_share_usd", "redeploy_apr_pct", "token", "vault", "vault_apr_pct"),
+    },
+    "defi_protocol_vault_redemption_cooldown_exposure_analyzer": {
+        "coverage": 0.3333,
+        "missing_keys": ("daily_volatility_pct", "earns_during_cooldown", "exit_urgency_days", "token", "vault", "vault_apr_pct"),
+    },
+    "defi_protocol_vault_relative_yield_outlier_analyzer": {
+        "coverage": 0.5,
+        "missing_keys": ("data_dir",),
+    },
+    "defi_protocol_vault_round_trip_cost_analyzer": {
+        "coverage": 0.4444,
+        "missing_keys": ("apr_advantage_pct", "deposit_fee_pct", "expected_holding_days", "token", "vault"),
+    },
+    "defi_protocol_vault_yield_realization_gap_analyzer": {
+        "coverage": 0.5,
+        "missing_keys": ("data_dir",),
+    },
+    "defi_protocol_vault_yield_variance_drag_realization_analyzer": {
+        "coverage": 0.5,
+        "missing_keys": ("data_dir",),
     },
     "defi_token_governance_power_analyzer": {
         "coverage": 0.5714,
@@ -83,9 +131,21 @@ UNSOURCED_DETAIL: Dict[str, Dict[str, object]] = {
         "coverage": 0.2,
         "missing_keys": ("audit_count", "audit_coverage_pct", "auditor_tier", "critical_findings_unresolved", "days_since_last_audit", "formal_verification", "high_findings_unresolved", "lines_of_code"),
     },
+    "protocol_defi_position_health_monitor": {
+        "coverage": 0.1667,
+        "missing_keys": ("apy_earned_pct", "current_value_usd", "days_held", "entry_value_usd", "exit_cost_usd", "health_factor", "il_pct", "position_type", "protocol_name", "unrealized_pnl_usd"),
+    },
+    "protocol_defi_stable_yield_consistency_scorer": {
+        "coverage": 0.2857,
+        "missing_keys": ("apy_history", "has_rate_lock", "lock_duration_days", "protocol_name", "yield_source"),
+    },
     "protocol_defi_vault_fee_structure_breakeven_analyzer": {
         "coverage": 0.5556,
         "missing_keys": ("aum_usd", "hurdle_rate_pct", "peer_avg_total_fee_load_pct", "target_net_apy_pct"),
+    },
+    "protocol_defi_yield_bearing_stablecoin_risk_analyzer": {
+        "coverage": 0.1667,
+        "missing_keys": ("collateral_apy_pct", "collateral_asset", "collateral_ratio_pct", "current_price_usd", "days_since_depeg_event", "peg_asset", "protocol_tvl_usd", "redemption_delay_days", "token_name", "yield_source"),
     },
     "protocol_defi_yield_duration_mismatch_analyzer": {
         "coverage": 0.4545,
