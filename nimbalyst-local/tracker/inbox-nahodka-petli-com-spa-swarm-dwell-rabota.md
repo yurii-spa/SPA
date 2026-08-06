@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: com.spa.swarm_dwell работает, но plist не персистентен (repo:launchd/c"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-05
 finding_key: "B1:reboot_unsafe:com.spa.swarm_dwell"

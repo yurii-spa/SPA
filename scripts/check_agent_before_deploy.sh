@@ -378,11 +378,22 @@ if [ "${CHECK_ONLY:-0}" = "1" ]; then
     exit 0
 fi
 
-# ── 6. bootout (idempotent) -> bootstrap -> kickstart (time-boxed) ──────────
+# ── 6. install PERSISTENTLY -> bootout -> bootstrap -> kickstart ────────────
+# ADR-066 fix (2026-08-06): bootstrapping from the REPO plist path made agents
+# non-reboot-safe — launchd reloads ONLY ~/Library/LaunchAgents after reboot.
+# Exactly this minted the artifact_freshness / swarm_dwell strays (loaded, alive,
+# and silently doomed to die at the next reboot). The plist is therefore
+# INSTALLED into ~/Library/LaunchAgents first and bootstrapped FROM THERE; the
+# repo copy stays the canonical source, the installed copy is the runtime one.
 echo "--- launchctl deploy ---"
+LA_DIR="$HOME/Library/LaunchAgents"
+LA_PLIST="$LA_DIR/${LABEL}.plist"
+mkdir -p "$LA_DIR"
+cp "$PLIST" "$LA_PLIST" || fail "could not install plist into $LA_DIR (reboot-safety)"
+info "installed persistently: $LA_PLIST"
 launchctl bootout "$GUI/$LABEL" 2>/dev/null && info "booted out prior instance" || info "no prior instance (ok)"
-launchctl bootstrap "$GUI" "$PLIST" || fail "launchctl bootstrap failed for $PLIST"
-info "bootstrapped"
+launchctl bootstrap "$GUI" "$LA_PLIST" || fail "launchctl bootstrap failed for $LA_PLIST"
+info "bootstrapped (from persistent path)"
 
 # fix #2: `kickstart -k` can wedge on KeepAlive/throttled agents — time-box it.
 # For KeepAlive agents, RunAtLoad/KeepAlive already starts the job; we DON'T

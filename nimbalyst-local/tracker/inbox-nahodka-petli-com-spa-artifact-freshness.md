@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: com.spa.artifact_freshness работает, но plist не персистентен (repo:sc"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-05
 finding_key: "B1:reboot_unsafe:com.spa.artifact_freshness"

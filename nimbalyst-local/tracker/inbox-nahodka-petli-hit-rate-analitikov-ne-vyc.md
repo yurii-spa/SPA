@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: hit-rate аналитиков не вычислим: proof.jsonl хранит только хэши, содер"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-05
 finding_key: "retro:verdict_archive_missing"

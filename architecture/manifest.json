@@ -15,17 +15,13 @@
     {
      "artifact": "data/agent_health.json",
      "slo_hours": 3
-    },
-    {
-     "artifact": "data/agent_registry.json",
-     "slo_hours": 26
     }
    ],
    "consumes": [],
    "consumer_required": false,
    "governed_by": [],
    "curation": "complete",
-   "notes": "с 2026-08-06 попутно держит свежим data/agent_registry.json (agent_registry_refresh): у реестра не было производителя в расписании, а этот агент уже ходит раз в час в те же источники — launchctl + ~/Library/LaunchAgents"
+   "notes": ""
   },
   {
    "label": "com.spa.aggressive_lab",
@@ -116,8 +112,8 @@
   },
   {
    "label": "com.spa.artifact_freshness",
-   "plist_source": "repo:scripts/com.spa.artifact_freshness.plist",
-   "reboot_safe": false,
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
    "schedule": "calendar:09:15",
    "program": "agent_artifact_freshness.sh",
    "layer": "product",
@@ -984,10 +980,10 @@
   },
   {
    "label": "com.spa.morning_digest",
-   "plist_source": "repo:launchd/com.spa.morning_digest.plist",
+   "plist_source": null,
    "reboot_safe": false,
-   "schedule": "calendar:09:00",
-   "program": "agent_morning_digest.sh",
+   "schedule": null,
+   "program": null,
    "layer": "product",
    "role": "other",
    "intent": "retired",
@@ -1309,8 +1305,8 @@
   },
   {
    "label": "com.spa.swarm_dwell",
-   "plist_source": "repo:launchd/com.spa.swarm_dwell.plist",
-   "reboot_safe": false,
+   "plist_source": "launch_agents",
+   "reboot_safe": true,
    "schedule": "interval:3600s",
    "program": "agent_swarm_dwell.sh",
    "layer": "product",
@@ -1755,13 +1751,13 @@
   },
   {
    "path": "data/agent_registry.json",
-   "producer": "com.spa.agent_health",
+   "producer": null,
    "consumers": [
     "architecture_conformance"
    ],
    "slo_hours": 26,
    "status": "active",
-   "notes": "производитель ПОЯВИЛСЯ 2026-08-06: часовой com.spa.agent_health зовёт spa_core/monitoring/agent_registry_refresh.py (порог 6ч). До этого сборщик scripts/build_agent_registry.py существовал и был покрыт тестами, но его не звал никто — реестр протухал 19 дней (инцидент 2026-08-05)"
+   "notes": "производитель НЕ УСТАНОВЛЕН — реестр протухал 19 дней (инцидент 2026-08-05)"
   },
   {
    "path": "docs/SYSTEM_BRIEFING.md",

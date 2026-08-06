@@ -102,7 +102,13 @@ def analyze_proofs(proof_lines: dict[str, list[dict]], now: dt.datetime) -> list
         days = set()
         last_ts = None
         for rec in lines:
+            # Две живые схемы proof-строк: generated_at (harness аналитиков) и
+            # date (append_daily_proof, _health) — ретро обязан читать обе.
+            # Слепота к date дала ложного кандидата «_health: каденция 0%»
+            # (2026-08-06) — аналитик работал, читатель не умел его видеть.
             ts = _parse_iso(rec.get("generated_at"))
+            if ts is None and rec.get("date"):
+                ts = _parse_iso(str(rec["date"]) + "T00:00:00+00:00")
             if ts is None:
                 continue
             if last_ts is None or ts > last_ts:

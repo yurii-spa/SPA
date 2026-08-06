@@ -165,3 +165,18 @@ class LiveRetro(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ProofSchemaCompat(unittest.TestCase):
+    def test_date_only_proof_lines_are_visible(self):
+        """Ложный кандидат «_health: каденция 0%» (2026-08-06): proof-строки
+        append_daily_proof несут date без generated_at — ретро обязан видеть обе
+        схемы, иначе сочиняет кандидата из работающего аналитика."""
+        lines = [{"date": (NOW - dt.timedelta(days=d)).date().isoformat()}
+                 for d in range(10)]
+        analysts = lr.analyze_proofs({"_health": lines}, NOW)
+        a = analysts[0]
+        self.assertGreaterEqual(a["days_covered"], 9)
+        self.assertLess(a["stale_h"], lr.STALE_H)
+        r = lr.build_report(analysts, None, 9, NOW)
+        self.assertEqual([c for c in r["candidates"] if c["analyst"] == "_health"], [])
