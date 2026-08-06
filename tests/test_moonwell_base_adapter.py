@@ -340,7 +340,19 @@ class TestMoonwellBaseValidate(unittest.TestCase):
     def test_health_check_ok(self):
         hc = self.adapter.health_check()
         self.assertEqual(hc["status"], "ok")
-        self.assertTrue(hc["tvl_floor_ok"])
+        # ИЗМЕНЕНИЕ ТЕСТА (2026-08-06, правило 16 — обоснование):
+        # утверждение закрепляло ТАВТОЛОГИЮ. `tvl_floor_ok` считался как
+        # `self.TVL_USD >= 5_000_000` от зашитой константы класса, которая
+        # заведомо больше порога — выражение не могло вернуть False НИ ПРИ
+        # КАКИХ данных. Цена: moonwell_base несёт TVL_USD = 500_000_000 при
+        # наблюдаемых $2.6M (завышение в 190 раз), то есть пул, не проходящий
+        # порог RiskPolicy, проходил его каждый день.
+        # Контракт изменён намеренно (ADR-064): True/False по НАБЛЮДЕНИЮ,
+        # None — если наблюдения нет. Здесь фикстура наблюдения не даёт,
+        # поэтому честный ответ — None, а не «порог пройден».
+        # Обе стороны закреплены в spa_core/tests/test_tvl_floor_verdict.py.
+        # Это МОЙ след: правку делал я и не прогнал срез tests/ — чиню своё.
+        self.assertIsNone(hc["tvl_floor_ok"])
         self.assertEqual(hc["chain"], "base")
         self.assertEqual(hc["tier"], "T2")
 
