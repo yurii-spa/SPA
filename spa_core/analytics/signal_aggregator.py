@@ -49,7 +49,8 @@ import logging
 import os
 import sys
 import time
-from collections import deque
+import typing
+from collections import abc, deque
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from datetime import datetime, timezone
 from pathlib import Path
@@ -137,6 +138,94 @@ def _utc_now_iso() -> str:
 # Sentinel: у модуля нет entrypoint'а, принимающего protocol-контекст —
 # сигнал НЕ измерен (в отличие от «модуль вернул None»).
 UNCHECKED = object()
+
+
+# ─── Совместимость входа entrypoint'а ─────────────────────────────────────────
+#
+# Аудит 2026-08-06 (цикл #136). `signature().bind()` проверяет ТОЛЬКО арность:
+# для `analyze(inp: BasisTradeInput)` привязка dict'а проходит, модуль
+# вызывается и падает `AttributeError: 'dict' object has no attribute
+# 'spot_yield_annual'`. В Tier-C так получилось 62 из 64 «failed» — и ни один
+# из этих модулей не сломан: агрегатор просто не умеет построить их доменный
+# вход. Ярлык «failed» звучал как «код сломан, идите чинить 64 модуля»,
+# то есть сторож честно отвечал на свой вопрос («был ли exception»), а читался
+# как ответ на нужный («работает ли модуль») — знакомый класс #29/#31/#35-#40.
+#
+# Имена аннотаций, которые Mapping удовлетворяет. Всё остальное с конкретной
+# аннотацией — НЕ вызываем: вход построить нечем, и это UNCHECKED с названной
+# причиной, а не выдуманный «отказ модуля».
+_MAPPING_ANNOTATION_NAMES = frozenset({
+    "dict", "Dict", "Mapping", "MutableMapping", "OrderedDict", "defaultdict",
+    "Any", "object",
+})
+
+# ``X | None`` — только Python 3.10+; на 3.9 такого типа нет (см. инвариант
+# совместимости в шапке модуля). Сентинел, а НЕ None: иначе `origin is None`
+# у обычного класса совпало бы с «это union».
+try:  # pragma: no cover — ветка зависит от версии интерпретатора
+    from types import UnionType as _UNION_TYPE  # type: ignore[attr-defined]
+except ImportError:  # pragma: no cover — Python 3.9
+    _UNION_TYPE = object()  # type: ignore[assignment]
+
+
+def _text_accepts_mapping(text: str) -> bool:
+    """Текстовый разбор аннотации (``from __future__ import annotations``)."""
+    for part in text.split("|"):
+        part = part.strip()
+        if part.startswith("Optional[") and part.endswith("]"):
+            part = part[len("Optional["):-1].strip()
+        head = part.split("[", 1)[0].strip().rsplit(".", 1)[-1]
+        if head in _MAPPING_ANNOTATION_NAMES:
+            return True
+    return False
+
+
+def _annotation_accepts_mapping(annotation: Any) -> bool:
+    """Может ли параметр с такой аннотацией принять наш dict-контекст.
+
+    Fail-OPEN ровно в одну сторону: аннотации НЕТ → судить не по чему,
+    поведение прежнее (вызываем). Конкретная не-Mapping аннотация → не
+    вызываем. Слепого «наверное подойдёт» здесь нет.
+    """
+    if annotation is inspect.Parameter.empty:
+        return True
+    if isinstance(annotation, str):
+        return _text_accepts_mapping(annotation)
+    if annotation is None or annotation is type(None):
+        return False   # аннотация `None` — это NoneType, а не «нет аннотации»
+    if annotation is Any or annotation is object:
+        return True
+    origin = typing.get_origin(annotation)
+    # Union / Optional / ``X | None`` — достаточно ОДНОЙ подходящей ветки
+    if origin is typing.Union or origin is _UNION_TYPE:
+        return any(_annotation_accepts_mapping(a) for a in typing.get_args(annotation))
+    base = origin if origin is not None else annotation
+    if base is Any or base is object:
+        return True
+    if isinstance(base, type):
+        try:
+            return issubclass(base, abc.Mapping)
+        except TypeError:  # pragma: no cover — экзотическая метаклассовая база
+            return False
+    return _text_accepts_mapping(str(annotation))
+
+
+def _context_param(sig: "inspect.Signature", args: Tuple[Any, ...],
+                   kwargs: Dict[str, Any], ctx: Any) -> Optional[Any]:
+    """Параметр, которому достанется ИМЕННО наш контекст (сверка по identity)."""
+    try:
+        bound = sig.bind(*args, **kwargs)
+    except (TypeError, ValueError):
+        return None
+    for name, value in bound.arguments.items():
+        param = sig.parameters[name]
+        if param.kind in (inspect.Parameter.VAR_POSITIONAL,
+                          inspect.Parameter.VAR_KEYWORD):
+            # контекст уехал в *args/**kwargs — аннотация к нему не относится
+            continue
+        if value is ctx:
+            return param
+    return None
 
 
 # ─── Module adapter ────────────────────────────────────────────────────────────
@@ -240,12 +329,16 @@ class _ModuleAdapter:
             fn = getattr(obj, meth_name, None)
             if not callable(fn):
                 continue
+            try:
+                sig = inspect.signature(fn)
+            except (TypeError, ValueError):  # pragma: no cover — C-функция без сигнатуры
+                continue
             for args, kwargs in (
                 ((), {"context": context}),
                 ((context,), {}),
             ):
                 try:
-                    inspect.signature(fn).bind(*args, **kwargs)
+                    sig.bind(*args, **kwargs)
                 except (TypeError, ValueError):
                     continue
                 # Сигнатура совместима — исключения изнутри НЕ глотаем здесь:
@@ -253,16 +346,62 @@ class _ModuleAdapter:
                 return fn(*args, **kwargs)
         return UNCHECKED
 
+    def _foreign_input_entrypoint(self, obj: Any) -> Optional[str]:
+        """Описание выбранного entrypoint'а, если его вход — НЕ Mapping.
+
+        Только диагноз, ничего не исполняет: вызывается уже ПОСЛЕ падения,
+        чтобы отличить «модуль сломан» от «агрегатору нечем построить его
+        доменный вход». Порядок перебора — тот же, что в ``_invoke``, иначе
+        диагноз относился бы к другому методу.
+
+        Судить по аннотации ДО вызова нельзя (замер #136): у части модулей
+        аннотация устарела после обвязки protocol-контекстом —
+        ``defi_liquidation_cascade_risk_analyzer`` объявляет
+        ``analyze(positions: list[dict])`` и при этом успешно принимает
+        контекст. Отказ по одной аннотации погасил бы РАБОТАЮЩИЙ модуль
+        Tier-A, то есть блокирующий сигнал.
+        """
+        probe: Dict[str, Any] = {}
+        for meth_name in _ENTRY_METHODS:
+            fn = getattr(obj, meth_name, None)
+            if not callable(fn):
+                continue
+            try:
+                sig = inspect.signature(fn)
+            except (TypeError, ValueError):  # pragma: no cover
+                continue
+            for args, kwargs in (((), {"context": probe}), ((probe,), {})):
+                try:
+                    sig.bind(*args, **kwargs)
+                except (TypeError, ValueError):
+                    continue
+                param = _context_param(sig, args, kwargs, probe)
+                if param is None or _annotation_accepts_mapping(param.annotation):
+                    return None
+                ann = param.annotation
+                ann_txt = ann if isinstance(ann, str) else getattr(
+                    ann, "__name__", str(ann))
+                return "%s(%s: %s)" % (meth_name, param.name, ann_txt)
+        return None
+
     def run(self, protocol: str, context: Dict[str, Any]) -> Tuple[Optional[float], str, str]:
         """Выполнить модуль для протокола. Возвращает (score_0_100, status, detail).
 
-        status: ``ok`` (валидный score) | ``unchecked`` (нет entrypoint,
-        принимающего protocol-контекст — модуль в принципе не может дать
-        протокол-специфичный сигнал) | ``dormant`` (вызвался, но результат
-        не коэрсится в score) | ``failed`` (исключение; detail = тип+текст).
+        status: ``ok`` (валидный score) | ``unchecked`` (сигнал НЕ измерен: нет
+        entrypoint'а, принимающего protocol-контекст, ЛИБО его вход — чужой
+        доменный тип, который агрегатору не из чего построить) | ``dormant``
+        (вызвался, но результат не коэрсится в score) | ``failed`` (исключение
+        у модуля, который контекст принять МОГ, — настоящий отказ).
         Fail-open по-прежнему: не-ok статус не валит цикл, но он ГРОМКИЙ —
         попадает в health-лог и в _meta.module_status выходного JSON.
+
+        Аудит #136: «модуль сломан» отделено от «нам нечем его вызвать».
+        Разделение делается ПОСЛЕ падения, а не вместо вызова, — иначе
+        устаревшая аннотация погасила бы работающий модуль (см.
+        ``_foreign_input_entrypoint``). Текст исключения сохраняется в обоих
+        случаях: тише не становится нигде.
         """
+        obj = None   # импорт мог упасть — диагноз ниже не должен ронять NameError
         try:
             obj = self._import_callable()
             ctx = dict(context)
@@ -277,7 +416,20 @@ class _ModuleAdapter:
                 )
             return score, "ok", ""
         except Exception as exc:  # noqa: BLE001 — fail-open, но с диагнозом
-            return None, "failed", f"{type(exc).__name__}: {exc}"
+            diagnosis = f"{type(exc).__name__}: {exc}"
+            try:
+                foreign = (self._foreign_input_entrypoint(obj)
+                           if obj is not None else None)
+            except Exception:  # pragma: no cover — диагноз не смеет ронять прогон
+                foreign = None
+            if foreign:
+                # Модуль НЕ сломан: его вход — доменный тип, а мы подали
+                # Mapping. Ярлык «failed» отправлял бы чинить исправный код.
+                return None, "unchecked", (
+                    "entrypoint requires non-mapping input, adapter supplies "
+                    "Mapping: %s; raised %s" % (foreign, diagnosis)
+                )
+            return None, "failed", diagnosis
 
 
 # ─── Aggregator ────────────────────────────────────────────────────────────────
