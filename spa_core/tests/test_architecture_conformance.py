@@ -216,20 +216,29 @@ class LiveAcceptance(unittest.TestCase):
     """Приёмка Фазы 1: на прод-хосте сторож обязан быть КРАСНЫМ ровно по
     классам находок аудита 2026-08-05. В CI (нет launchctl-флота) — skip."""
 
-    def test_red_on_prod_with_audit_finding_classes(self):
+    def test_prod_fully_measured_and_b3_detects_counterfactually(self):
+        """ИЗМЕНЁН ОСОЗНАННО 2026-08-06 (инв. 16, журнал W32): исходная версия
+        была приколочена к переходному состоянию Фазы 1 («реситов ещё нет») и
+        честно устарела, когда Фаза 2 погасила B3 настоящими реситами. Проверка
+        УСИЛЕНА: (а) на проде всё ИЗМЕРЕНО (unchecked пуст — класс fail-OPEN);
+        (б) репродукция аудита 2026-08-05 теперь КОНТРФАКТИЧЕСКАЯ — обнуляем
+        реситы и B3 ОБЯЗАН вернуть «офис в никуда» при любом живом состоянии,
+        навсегда, а не только до Фазы 2."""
         fleet = ac.gather_fleet()
         if not fleet:
             self.skipTest("не прод-хост: launchctl без com.spa.*")
         m = json.load(open(ac.MANIFEST_PATH))
-        r = ac.run_checks(m, fleet, ac.artifact_timestamp, ac.load_receipts(),
-                          dt.datetime.now(dt.timezone.utc))
-        self.assertNotEqual(r["overall"], "OK")
-        found = keys(r) | {f["key"] for f in r["aged"]}
-        # находка-ядро: офис пишет в никуда (реситов ещё нет — Фаза 2)
-        self.assertTrue(any(k.startswith("B3:no_consumption:data/investment_os/")
-                            for k in found), sorted(found))
-        # реестр: протухший generated_at против SLO
-        self.assertIn("B2:stale:data/agent_registry.json", found)
+        now = dt.datetime.now(dt.timezone.utc)
+        r = ac.run_checks(m, fleet, ac.artifact_timestamp, ac.load_receipts(), now)
+        self.assertEqual(r["unchecked"], [], "на проде всё должно быть измеримо")
+        for f in r["findings"] + r["aged"]:
+            self.assertTrue(f["key"].startswith(("B1:", "B2:", "B3:", "B5:")), f["key"])
+        # контрфактический позитивный контроль: реситы исчезли ⇒ B3 краснеет
+        no_receipts = ac.run_checks(m, fleet, ac.artifact_timestamp, {}, now)
+        self.assertTrue(
+            any(k.startswith("B3:no_consumption:data/investment_os/")
+                for k in keys(no_receipts)),
+            "B3 перестал детектировать потерю потребления — театр")
 
     def test_exit_zero_mode_reports_but_returns_zero(self):
         """Плановый launchd-режим: вердикт в отчёте, exit 0 — иначе agent_health
