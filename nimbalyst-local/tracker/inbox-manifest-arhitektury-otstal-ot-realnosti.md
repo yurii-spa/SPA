@@ -112,3 +112,27 @@ null → `74236734f`(#130) заполнено → `e923c61ed` null. Plist леж
 `data/agent_registry.json` = `com.spa.agent_health`, и он же продолжает
 декларировать этот артефакт в `produces` — то есть требование «как понять,
 что готово» выполнено целиком.
+
+---
+
+## Закрыто циклом #141 (2026-08-07): работа уже доставлена, ПРОВЕРЕНО прогоном
+
+Отчёту не верил — перемерил на чистом чекауте `origin/main` 426fd1423:
+
+```
+python3 -m pytest spa_core/tests/test_architecture_manifest.py -q  ->  25 passed
+```
+
+Проверка `test_generator_check_passes_on_this_machine_or_skips` не скипнулась
+(на этом хосте `~/Library/LaunchAgents/com.spa.*` есть) — то есть генератор
+`--check` реально отработал и дал 0. Дрейф трёх агентов вылечен коммитом
+`a4b7f088f` (цикл #132), который прямо это и записал.
+
+Контроль #130 в обе стороны, которого требовал критерий «готово», тоже зелёный:
+
+```
+producer у data/agent_registry.json  = com.spa.agent_health   (не null)
+produces у com.spa.agent_health      содержит data/agent_registry.json (slo 26ч)
+```
+
+Карточка закрыта как `done` — дубля работы не делал.
