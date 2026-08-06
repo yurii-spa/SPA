@@ -64,6 +64,18 @@ audit_tier_c_wiring_feasibility.py — можно ли ЧЕСТНО провес
 дерева пачкает прод-данные.
 
     python3 scripts/audit_tier_c_wiring_feasibility.py --tier C --out /tmp/feas.json
+
+**`--emit-markup` (только Tier B).** Записывает вердикт `UNCOVERED` в
+`spa_core/analytics/_protocol_key_coverage.py` — так же, как
+`audit_protocol_blindness.py --emit-markup` записывает слепоту. Разметку
+потребляет `signal_aggregator.run_tier_b`: помеченный модуль НЕ исполняется,
+получает громкий статус `"unsourced"` и исключается из composite и из
+числителя confidence. Причина ровно та же, что у слепых: число, посчитанное
+по молчаливым дефолтам, не имеет права складываться в оценку риска
+протокола — только теперь оно ещё и различается, поэтому глазом не видно.
+
+    python3 scripts/audit_tier_c_wiring_feasibility.py --tier B \\
+        --out /tmp/feas_b.json --emit-markup
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
@@ -302,6 +314,88 @@ def run_audit(tier: str = "C",
     }
 
 
+_MARKUP_TEMPLATE = '''"""
+_protocol_key_coverage.py — эмпирическая разметка Tier-B модулей, которые
+различают протоколы ПОБОЧНЫМИ полями.
+
+СГЕНЕРИРОВАНО scripts/audit_tier_c_wiring_feasibility.py — НЕ редактировать
+вручную; перегенерация:
+    python3 scripts/audit_tier_c_wiring_feasibility.py --tier B \\
+        --out /tmp/feas_b.json --emit-markup
+(в sandbox-чекауте, не в живом репо — модули пишут data/*-логи).
+
+Замер {generated_at}: каждый Tier-B модуль прогнан на
+`_protocol_facts.generic_profile_for` для {probe_protocols};
+запись подменена на `RecordingProfile`, который помнит, какие ключи у неё
+спрашивали. Модуль попадает сюда, если его score РАЗЛИЧАЕТСЯ между
+протоколами, но профиль не отдаёт часть ключей, которые движок читает
+(покрытие < {min_coverage}): отсутствующий ключ молча становится 0.0/False,
+и всё различие приходит из побочных полей вроде `utilization_rate_pct`.
+
+**Почему этого мало — «различается»**. Аудит слепоты
+(`audit_protocol_blindness.py`) считает такой модуль `sensitive`, «работает».
+Одинаковая константа видна глазом; правдоподобно различающееся число — нет.
+Это класс fail-OPEN мониторов (#29/#31/#35–#38/#40), вывернутый наизнанку: не
+«✅ OK о непроверенном», а РАЗЛИЧАЮЩЕЕСЯ число о неизмеренном.
+
+`signal_aggregator.run_tier_b` исключает эти модули из composite и из
+числителя confidence, статус `"unsourced"` — ровно так же, как
+`PROTOCOL_BLIND_MODULES`. Advisory-слой; Tier-A разметку не потребляет,
+RiskPolicy её не видит.
+
+Снятие пометки — не правка этого файла, а одно из трёх (карточка
+`inbox-tier-b-19-modulei-chislyatsya-rabotayusc`): дописать факт в
+`_protocol_facts`, подключить живой фид, либо честно списать модуль. После
+любого из них разметка перегенерируется и модуль уходит отсюда сам.
+"""
+from typing import Dict, FrozenSet, Tuple
+
+AUDIT_GENERATED_AT = "{generated_at}"
+MIN_COVERAGE = {min_coverage}
+
+#: module_name -> {{"coverage": доля отданных ключей, "missing_keys": чего нет}}
+UNSOURCED_DETAIL: Dict[str, Dict[str, object]] = {{
+{detail_lines}
+}}
+
+UNSOURCED_MODULES: FrozenSet[str] = frozenset(UNSOURCED_DETAIL)
+
+__all__: Tuple[str, ...] = (
+    "AUDIT_GENERATED_AT", "MIN_COVERAGE", "UNSOURCED_DETAIL", "UNSOURCED_MODULES",
+)
+'''
+
+
+def emit_markup(report: Dict[str, Any], path: Path) -> None:
+    """Записать вердикты UNCOVERED в потребляемую прод-слоем разметку.
+
+    Помечаются ВСЕ `UNCOVERED` без исключений — в том числе модуль, который
+    разметка слепоты числит `wide_ok` («честный coarse»). Вопросы у двух
+    аудитов разные: «различается ли score» и «о том ли он». Модуль, чьё
+    различие пришло из побочного поля, не измеряет свой предмет независимо от
+    того, грубо он его не измеряет или тонко. Исключение по спискам здесь
+    было бы ровно тем молчаливым послаблением, ради поимки которого инструмент
+    и написан.
+    """
+    unc = [r for r in report["results"] if r["verdict"] == "UNCOVERED"]
+    lines = []
+    for r in sorted(unc, key=lambda x: x["module"]):
+        keys = ", ".join(f'"{k}"' for k in r["missing_keys"])
+        lines.append(
+            f'    "{r["module"]}": {{\n'
+            f'        "coverage": {r["coverage"]},\n'
+            f'        "missing_keys": ({keys}{"," if len(r["missing_keys"]) == 1 else ""}),\n'
+            f'    }},'
+        )
+    text = _MARKUP_TEMPLATE.format(
+        generated_at=report["generated_at"],
+        probe_protocols=report["probe_protocols"],
+        min_coverage=report["min_coverage"],
+        detail_lines="\n".join(lines),
+    )
+    path.write_text(text, encoding="utf-8")
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument("--out", required=True, help="куда положить JSON-отчёт")
@@ -311,12 +405,29 @@ def main(argv: Optional[List[str]] = None) -> int:
                          "(1.0 = ни одного молчаливого дефолта)")
     ap.add_argument("--only", nargs="*", default=None,
                     help="ограничить набор модулей (имена как в реестре)")
+    ap.add_argument("--emit-markup", action="store_true",
+                    help="перегенерировать spa_core/analytics/_protocol_key_coverage.py")
     args = ap.parse_args(argv)
 
     report = run_audit(args.tier, only_modules=args.only,
                        min_coverage=args.min_coverage)
     Path(args.out).write_text(
         json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    if args.emit_markup:
+        # Tier-B-only по той же причине, что у аудита слепоты: разметку
+        # потребляет run_tier_b, и только он.
+        if args.tier != "B":
+            print("--emit-markup поддержан только для Tier B", file=sys.stderr)
+            return 2
+        # Частичный скан не вправе переписывать разметку целиком: не
+        # упомянутый модуль молча потерял бы пометку.
+        if args.only:
+            print("--emit-markup несовместим с --only: частичный скан стёр бы "
+                  "пометки у неизмеренных модулей", file=sys.stderr)
+            return 2
+        emit_markup(report, ROOT / "spa_core" / "analytics"
+                    / "_protocol_key_coverage.py")
 
     print(f"modules={report['module_count']} counts={report['counts']}")
     print(f"wirable={len(report['wirable'])}"

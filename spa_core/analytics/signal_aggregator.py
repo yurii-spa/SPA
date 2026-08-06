@@ -22,6 +22,11 @@ Tier C (раз в день):  фоновая аналитика  → data/analyt
   scripts/audit_protocol_blindness.py → _protocol_blindness.py): принимают
   контекст, но игнорируют ctx["protocol"] → константный score. В Tier-B не
   исполняются, статус "blind", исключены из composite и confidence.
+* Модули «различается не тем» (замер покрытия ключей 2026-08-06,
+  scripts/audit_tier_c_wiring_feasibility.py → _protocol_key_coverage.py):
+  score различается между протоколами, но профиль не даёт части ключей,
+  которые движок читает, — различие пришло из ПОБОЧНЫХ полей. В Tier-B не
+  исполняются, статус "unsourced", исключены из composite и confidence.
 * Python 3.9 совместимость: Optional[...] из typing, без str | None.
 
 Агрегация:
@@ -58,6 +63,15 @@ try:
     from spa_core.analytics._protocol_blindness import PROTOCOL_BLIND_MODULES
 except Exception:  # pragma: no cover — разметка ещё не сгенерирована
     PROTOCOL_BLIND_MODULES = frozenset()
+
+# Разметка покрытия ключей (scripts/audit_tier_c_wiring_feasibility.py --tier B
+# --emit-markup): модуль различает протоколы, но профиль не даёт части ключей,
+# которые его движок читает, — различие пришло из ПОБОЧНЫХ полей. Слепоту
+# видно глазом, это — нет. Отсутствие файла = пустой набор.
+try:
+    from spa_core.analytics._protocol_key_coverage import UNSOURCED_MODULES
+except Exception:  # pragma: no cover — разметка ещё не сгенерирована
+    UNSOURCED_MODULES = frozenset()
 
 log = logging.getLogger("spa.analytics.signal_aggregator")
 
@@ -289,7 +303,8 @@ class SignalAggregator:
         self._log.append({
             "ts": _utc_now_iso(),
             "module": module_name,
-            "status": status,        # ok | unchecked | failed | timeout | dormant | blind
+            # ok | unchecked | failed | timeout | dormant | blind | unsourced
+            "status": status,
             "detail": detail,
         })
         if status == "ok" or self._module_status.get(module_name) != "ok":
@@ -425,6 +440,19 @@ class SignalAggregator:
         констант складывались в composite ≈8.6 → фиктивный risk_multiplier
         ≈1.41 для ЛЮБОГО протокола одинаково. Advisory-слой; Tier-A (worst-
         wins, не weighted) разметку не потребляет.
+
+        Замер покрытия ключей 2026-08-06 (scripts/audit_tier_c_wiring_
+        feasibility.py --tier B): критерия «различается» НЕДОСТАТОЧНО, он
+        подделываем. 20 модулей из ``UNSOURCED_MODULES`` различают протоколы,
+        но профиль не отдаёт часть ключей, которые их движок читает
+        (покрытие 0.14…0.90): отсутствующий ключ молча становится 0.0/False, и
+        всё различие приходит из побочных полей (``utilization_rate_pct``,
+        ``tvl_usd``). Оценка регуляторного риска, оказавшаяся функцией
+        утилизации пула, проходит проверку на слепоту и складывается в
+        composite как измерение. Обходятся так же, как слепые: НЕ исполняются,
+        громкий статус "unsourced", исключены из composite И из числителя
+        confidence. Модуль в обоих наборах получает "blind" — вердикт старше и
+        строже.
         """
         modules = registry.get_tier_modules("B")
         total_modules = max(1, len(modules))
@@ -436,9 +464,14 @@ class SignalAggregator:
             contributors: List[Dict[str, Any]] = []
             runnable = []
             for m in modules:
-                if m.get("module") in PROTOCOL_BLIND_MODULES:
+                name = m.get("module")
+                if name in PROTOCOL_BLIND_MODULES:
                     self._record(m["module"], "blind",
                                  "protocol-blind constant (audit markup)")
+                elif name in UNSOURCED_MODULES:
+                    self._record(m["module"], "unsourced",
+                                 "differentiates on side fields — profile "
+                                 "lacks its subject keys (coverage markup)")
                 else:
                     runnable.append(m)
             with ThreadPoolExecutor(max_workers=self.max_workers) as ex:
