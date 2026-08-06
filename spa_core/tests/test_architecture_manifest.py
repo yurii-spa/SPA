@@ -37,6 +37,80 @@ gen = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gen)
 
 
+def _repo_plists(repo_root: str = REPO_ROOT) -> dict[str, str]:
+    """label -> путь к plist'у РЕПОЗИТОРИЯ, тем же приоритетом, что у генератора.
+
+    Генератор сканирует [~/Library/LaunchAgents, launchd/, scripts/] и берёт первое
+    вхождение label'а. Здесь ~/Library не читается (герметичность), поэтому порядок
+    внутри репо тот же: `launchd/` раньше `scripts/`. Шесть label'ов лежат в обоих
+    каталогах — без этого приоритета сверка ловила бы «расхождение» на копии,
+    которую генератор и не смотрит.
+    """
+    out: dict[str, str] = {}
+    for d in ("launchd", "scripts"):
+        for path in sorted(glob.glob(os.path.join(repo_root, d, "com.spa.*.plist"))):
+            if path.endswith(".bak"):
+                continue
+            try:
+                with open(path, "rb") as f:
+                    pl = plistlib.load(f)
+            except Exception:
+                continue
+            label = pl.get("Label") or os.path.basename(path)[:-len(".plist")]
+            out.setdefault(label, path)
+    return out
+
+
+def _repo_plist_mechanical_mismatches(by_label: dict, repo_root: str = REPO_ROOT) -> list[str]:
+    """Расхождения механических полей манифеста с plist'ами самого репозитория.
+
+    Сверяет ЗНАЧЕНИЯ, а не только «поле не null»: plist можно отредактировать
+    (сменить час, переименовать скрипт), манифест при этом останется
+    правдоподобным и непустым. Пустой список = совпало.
+
+    Fail-CLOSED: если в репозитории не нашлось ни одного `com.spa.*.plist`,
+    это НЕ чистый проход, а находка — сканер сломан (тот же принцип, что
+    «не найдено ни одного entrypoint» = CRITICAL в `deployment_acceptance`).
+    """
+    plists = _repo_plists(repo_root)
+    if not plists:
+        return ["в репозитории не найдено ни одного com.spa.*.plist — "
+                "сканер сломан, молчаливого «всё хорошо» тут не будет"]
+    out: list[str] = []
+    for label, path in sorted(plists.items()):
+        rel = os.path.relpath(path, repo_root)
+        with open(path, "rb") as f:
+            pl = plistlib.load(f)
+        a = by_label.get(label)
+        if a is None:
+            out.append(f"{label}: plist в репо ({rel}), записи в манифесте нет")
+            continue
+        src = a.get("plist_source")
+        if src is None:
+            out.append(f"{label}: plist в репо ({rel}), но манифест держит "
+                       f"plist_source=null — механика не перегенерирована (--write)")
+            continue
+        if src == "launch_agents":
+            # агент установлен ЕЩЁ И персистентно; ~/Library герметично не читаем,
+            # поэтому здесь сверяется только то, что следует из самого plist_source
+            if a.get("reboot_safe") is not True:
+                out.append(f"{label}: plist_source=launch_agents, но "
+                           f"reboot_safe={a.get('reboot_safe')!r}")
+            continue
+        if src != "repo:" + rel:
+            out.append(f"{label}: plist_source={src!r}, а plist репозитория — {rel}")
+            continue
+        if a.get("reboot_safe") is not False:
+            out.append(f"{label}: plist только в репо ({rel}), значит ребут его не "
+                       f"переживёт, но манифест держит reboot_safe={a.get('reboot_safe')!r}")
+        for field, expected in (("schedule", gen._parse_schedule(pl)),
+                                ("program", gen._parse_program(pl))):
+            if a.get(field) != expected:
+                out.append(f"{label}: {field}={a.get(field)!r}, "
+                           f"а plist {rel} даёт {expected!r}")
+    return out
+
+
 def _write_plist(directory: str, label: str, extra: dict | None = None) -> str:
     payload = {"Label": label,
                "ProgramArguments": ["/bin/bash", f"/tmp/{label}.sh"],
@@ -271,6 +345,25 @@ class RealManifest(unittest.TestCase):
                     f"{label}: plist в репо, но манифест держит {field}=null — "
                     f"механическое поле не перегенерировано (--write)")
 
+    def test_repo_plist_mechanical_fields_equal_the_plist(self):
+        """Рецидив 2026-08-06 (третий за неделю) и то, чего соседняя проверка НЕ видит.
+
+        Соседний `test_repo_plist_agents_carry_their_mechanical_fields` требует лишь
+        «поле не null». Этого хватило, чтобы поймать `com.spa.morning_digest` (циклы
+        #128/#130 чинили, следующая же сессия снова записывала null — манифест
+        генерируется от СВОЕГО дерева и уезжает пофайлово поверх чужой починки), но
+        не хватит на дрейф ЗНАЧЕНИЯ: поправили час в plist'е — манифест остаётся
+        непустым и правдоподобным, а врёт. Здесь сверяются сами значения, и
+        `reboot_safe` — тоже (репо-plist ребут не переживает).
+
+        Герметично: читаются только plist'ы репозитория и чекнутый манифест,
+        поэтому класс ловится в CI, а не только на прод-хосте.
+        """
+        self.assertEqual(
+            _repo_plist_mechanical_mismatches(self.by), [],
+            "механика манифеста разошлась с plist'ами репозитория — "
+            "перегенерировать: python3 scripts/build_architecture_manifest.py --write")
+
     def test_generator_check_passes_on_this_machine_or_skips(self):
         """На прод-хосте --check обязан быть зелёным; в CI (нет ~/Library
         с com.spa.*) проверка честно скипается, НЕ красится."""
@@ -280,6 +373,75 @@ class RealManifest(unittest.TestCase):
         r = subprocess.run([sys.executable, GEN_PATH], capture_output=True,
                            text=True, cwd=REPO_ROOT)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+
+class MechanicalMismatchControls(unittest.TestCase):
+    """Положительные контроли сверки механики (правило .claude/rules/deployment.md:
+    проверка, никогда не видевшая настоящей поломки, — украшение).
+
+    Каждый контроль берёт РЕАЛЬНЫЙ манифест, вносит ровно одну порчу и требует,
+    чтобы сверка назвала именно её. Последний контроль — в обратную сторону:
+    нетронутый манифест обязан давать пустой список, иначе «краснеет всегда»
+    ничего не доказывает.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        m = json.load(open(MANIFEST_PATH))
+        cls.by = {a["label"]: a for a in m["agents"]}
+        # подопытный: label, чей plist лежит ТОЛЬКО в репозитории
+        cls.label = next(
+            (lb for lb, a in cls.by.items()
+             if isinstance(a.get("plist_source"), str)
+             and a["plist_source"].startswith("repo:")),
+            None)
+        if cls.label is None:
+            raise unittest.SkipTest("в манифесте нет ни одного агента с репо-plist")
+
+    def _tampered(self, **fields):
+        by = {lb: dict(a) for lb, a in self.by.items()}
+        by[self.label].update(fields)
+        return by
+
+    def test_control_null_mechanical_field_is_reported(self):
+        """Ровно инцидент 2026-08-06: plist в репо, а в манифесте null."""
+        found = _repo_plist_mechanical_mismatches(
+            self._tampered(plist_source=None, schedule=None, program=None))
+        self.assertTrue(any(self.label in f and "null" in f for f in found), found)
+
+    def test_control_stale_schedule_is_reported(self):
+        """Класс, невидимый для проверки «не null»: значение расписания устарело."""
+        found = _repo_plist_mechanical_mismatches(
+            self._tampered(schedule="calendar:03:33"))
+        self.assertTrue(any(self.label in f and "schedule" in f for f in found), found)
+
+    def test_control_stale_program_is_reported(self):
+        found = _repo_plist_mechanical_mismatches(
+            self._tampered(program="agent_of_another_era.sh"))
+        self.assertTrue(any(self.label in f and "program" in f for f in found), found)
+
+    def test_control_reboot_safe_lie_is_reported(self):
+        """Репо-plist ребут не переживает; reboot_safe=True тут — ложь о живучести."""
+        found = _repo_plist_mechanical_mismatches(self._tampered(reboot_safe=True))
+        self.assertTrue(any(self.label in f and "reboot_safe" in f for f in found), found)
+
+    def test_control_missing_agent_entry_is_reported(self):
+        by = {lb: dict(a) for lb, a in self.by.items() if lb != self.label}
+        found = _repo_plist_mechanical_mismatches(by)
+        self.assertTrue(any(self.label in f and "нет" in f for f in found), found)
+
+    def test_control_empty_scan_is_not_a_clean_pass(self):
+        """Fail-CLOSED: «не нашли ни одного plist'а» — находка, а не зелёный свет
+        (тот же принцип, что «не найдено ни одного entrypoint» = CRITICAL)."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            found = _repo_plist_mechanical_mismatches({}, repo_root=d)
+        self.assertTrue(found, "пустой скан выдал чистый проход — это молчание, не проверка")
+        self.assertIn("сканер сломан", " ".join(found))
+
+    def test_control_untampered_manifest_is_clean(self):
+        """Обратная сторона: без порчи расхождений быть не должно."""
+        self.assertEqual(_repo_plist_mechanical_mismatches(self.by), [])
 
 
 if __name__ == "__main__":
