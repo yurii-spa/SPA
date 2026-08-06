@@ -1,4 +1,8 @@
-"""Тесты сверки офис ↔ книга (ADR-066 C1, `spa_core/monitoring/house_view_gap.py`).
+"""Тесты сверки офис ↔ книга (ADR-066 C1, `spa_core/monitoring/house_view_gap_c125.py`).
+
+ВНИМАНИЕ: модуль переименован 06.08 после столкновения двух независимых реализаций
+Фазы 3 за одну ночь — канонические имена остались за РАЗВЁРНУТОЙ версией
+(`com.spa.decision_loop`). Проверки не менялись ни на йоту, изменён только импорт.
 
 Каждый тест — **положительный контроль**: воспроизводит состояние живой системы
 2026-08-05 (или ту аварию, ради которой проверка написана) и краснеет на модуле без
@@ -15,7 +19,7 @@ import datetime as dt
 
 import pytest
 
-from spa_core.monitoring import house_view_gap as H
+from spa_core.monitoring import house_view_gap_c125 as H
 
 NOW = dt.datetime(2026, 8, 5, 12, 0, tzinfo=dt.timezone.utc)
 

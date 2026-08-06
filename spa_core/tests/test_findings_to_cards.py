@@ -1,4 +1,9 @@
-"""Тесты моста «находка → карточка → закрытие» (ADR-066 C2, `scripts/findings_to_cards.py`).
+"""Тесты моста «находка → карточка → закрытие» (ADR-066 C2,
+`spa_core/monitoring/findings_bridge_c125.py`).
+
+ВНИМАНИЕ: модуль переименован 06.08 после столкновения двух независимых реализаций
+Фазы 3 за одну ночь — канонические имена остались за РАЗВЁРНУТОЙ версией
+(`com.spa.decision_loop`). Проверки не менялись, изменён только путь импорта.
 
 Приёмка карточки фазы 3 сформулирована так: **искусственная находка проходит путь
 находка→карточка→закрытие без рук**. Последний тест в этом файле исполняет ровно это
@@ -23,8 +28,9 @@ from pathlib import Path
 
 import pytest
 
-BRIDGE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "findings_to_cards.py"
-_spec = importlib.util.spec_from_file_location("findings_to_cards", BRIDGE_PATH)
+BRIDGE_PATH = (Path(__file__).resolve().parents[1] / "monitoring"
+               / "findings_bridge_c125.py")
+_spec = importlib.util.spec_from_file_location("findings_bridge_c125", BRIDGE_PATH)
 B = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(B)
 
