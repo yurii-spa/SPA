@@ -928,10 +928,13 @@ class GoLiveChecker:
     # ══════════════════════════════════════════════════════════════════════════
 
     def _compute_consecutive_ready_days(self, ready: bool) -> int:
-        """Track consecutive days with ready=True (advisory metric only).
+        """Дни ПОДРЯД в состоянии ready=True (advisory-метрика).
 
-        When not ready, returns 0. When ready, increments daily from prior
-        saved value. Seeds from PAPER_REAL_START when no prior state exists.
+        Не готов ⇒ 0. Первый READY ⇒ 1. Дальше +1 за каждый новый день;
+        повторный прогон в тот же день счётчик не двигает.
+
+        НЕ подставляет возраст трека: дни до первого READY готовыми не были,
+        и выдавать их за непрерывность значит врать именем поля.
         """
         status_path = self.data_dir / STATUS_OUT_FILENAME
         prior = _read_json(status_path) or {}
@@ -948,13 +951,30 @@ class GoLiveChecker:
             prior_date = None
 
         today = self.now.date()
-        seeded_days = max(1, (today - PAPER_REAL_START).days)
 
-        if prior_date is None or prior_days == 0:
-            return seeded_days
+        # Счётчик обязан считать ТО, ЧТО ОБЕЩАЕТ ИМЕНЕМ — дни ПОДРЯД в состоянии
+        # READY, а не возраст трека.
+        #
+        # Дефект (измерен 2026-08-07): при первом READY возвращался
+        # `seeded_days = today - PAPER_REAL_START`, то есть всё расстояние от
+        # старта paper-трека. Система стала готовой ВПЕРВЫЕ в этот день (накануне
+        # было 28/29), честный ответ — 1, а отчёт показывал 58. Больше и возраста
+        # честного трека (45 дней), и расстояния от evidenced-якоря (46).
+        #
+        # Опаснее среднего по трём причинам: звучит как доказательство
+        # устойчивости («58 дней подряд без сбоя»), лежит рядом с полем, которое
+        # уходит на публичную страницу, и участвует в решении о выходе на живые
+        # деньги. Механизм тот же, что у порога TVL, который не мог отказать:
+        # max(...) гарантировал, что число НИКОГДА не будет маленьким — то есть
+        # никогда не скажет «мы только что стали готовы».
+        #
+        # Подставлять историю в счётчик НЕПРЕРЫВНОСТИ значит выдавать прошлое за
+        # подтверждение: дни до первого READY готовыми не были.
+        if prior_date is None or prior_days <= 0:
+            return 1                      # первый READY — это ровно один день
         if prior_date < today:
-            return max(prior_days + 1, seeded_days)
-        return max(prior_days, seeded_days)
+            return prior_days + 1         # ещё один день подряд
+        return prior_days                 # повторный прогон в тот же день не считается
 
     def _build_details(
         self, checks: dict[str, bool], blockers: list[str]
