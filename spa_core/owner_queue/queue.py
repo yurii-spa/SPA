@@ -118,15 +118,59 @@ def _parse_frontmatter(fm_lines: list[str]) -> dict:
     return out
 
 
+# Fallback type by filename prefix, mirroring the board builder. Last resort only:
+# a card that declares nothing still has to land in ONE bucket for both readers.
+_TYPE_BY_PREFIX = (
+    ("owner-decision", "owner-decision"),
+    ("own-", "owner-decision"),
+    ("inbox-", "inbox"),
+    ("agent-", "agent-task"),
+)
+
+
+def resolve_tracker_type(fm: dict, filename: str = "") -> str:
+    """Canonical tracker-type resolution — the ONE reader both the CLI and the board use.
+
+    Cards in the wild declare their type in two shapes and both are legitimate:
+    the nested ``trackerStatus.type`` written by ``create_card`` here, and the flat
+    ``type:`` written by R&D sessions by hand. ``fm`` may therefore be either the
+    nested parse of this module (``{"trackerStatus": {"type": ...}}``) or the
+    pre-flattened dict of ``scripts/build_tracker_board.py`` (``{"type": ...}``);
+    both are accepted so the two readers cannot drift apart again.
+
+    Why this function exists (measured, cycle #143/#144, fixed #145): the CLI read
+    ONLY the nested key while the board understood both, so three ``own-rnd-*``
+    cards in ``needs-owner`` — real questions to the owner, one of them about
+    changing the ADR-055 tier-demotion rule — were absent from the canonical
+    ``list --type owner-decision --status needs-owner`` the owner is handed in
+    ``docs/STATE.md``. 20 of 23. The board said 23, the CLI said 20, and nobody
+    compares two readers of the same directory. Same fail-OPEN class the project
+    has paid for since #29: a reader answers ITS question ("what carries a nested
+    trackerStatus.type?") and is read as answering the needed one ("what is waiting
+    for the owner?"). Precedence is declaration-before-guess: nested, then flat,
+    then filename.
+    """
+    tracker_status = fm.get("trackerStatus")
+    if isinstance(tracker_status, dict):
+        nested = str(tracker_status.get("type", "") or "").strip()
+        if nested:
+            return nested
+    flat = fm.get("type")
+    if isinstance(flat, str) and flat.strip():
+        return flat.strip()
+    name = Path(filename).name if filename else ""
+    for prefix, tracker_type in _TYPE_BY_PREFIX:
+        if name.startswith(prefix):
+            return tracker_type
+    return ""
+
+
 def load_card(path: str | Path) -> Card:
     p = Path(path)
     text = p.read_text(encoding="utf-8")
     fm_lines, body = _split_frontmatter(text)
     fm = _parse_frontmatter(fm_lines)
-    tracker_status = fm.get("trackerStatus")
-    tracker_type = ""
-    if isinstance(tracker_status, dict):
-        tracker_type = str(tracker_status.get("type", ""))
+    tracker_type = resolve_tracker_type(fm, p.name)
     top = {k: v for k, v in fm.items() if k != "trackerStatus" and not isinstance(v, dict)}
     return Card(
         path=p,

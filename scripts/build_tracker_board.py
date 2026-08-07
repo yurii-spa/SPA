@@ -20,6 +20,16 @@ REPO = Path(__file__).resolve().parents[1]
 TRACKER = REPO / "nimbalyst-local" / "tracker"
 OUT = TRACKER / "_BOARD.md"
 
+# Один читатель типа карточки на оба инструмента. Вызванный как `python3 scripts/...`,
+# скрипт получает sys.path[0] = scripts/ и корня репозитория на пути НЕТ (ровно так в CI
+# умер перевод алертов, цикл #111) — поэтому корень СВОЕГО дерева добавляем явно.
+# Импорт намеренно НЕ обёрнут в try: своя копия правила расхождения типов — это и есть
+# дефект, который здесь чинится (доска знала обе формы, CLI только вложенную ⇒ три вопроса
+# владельцу были невидимы в его же очереди). Сломанный импорт обязан быть слышен.
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+from spa_core.owner_queue.queue import resolve_tracker_type  # noqa: E402
+
 # порядок и человекочитаемые имена типов
 TYPE_ORDER = ["owner-decision", "inbox", "agent-task"]
 TYPE_LABEL = {
@@ -70,17 +80,12 @@ def parse_frontmatter(text: str) -> dict:
 
 
 def card_type(meta: dict, name: str) -> str:
-    t = meta.get("type")
-    if t:
-        return t
-    # fallback по префиксу имени файла
-    if name.startswith("owner-decision") or name.startswith("own-"):
-        return "owner-decision"
-    if name.startswith("inbox-"):
-        return "inbox"
-    if name.startswith("agent-"):
-        return "agent-task"
-    return "other"
+    """Тип карточки — через ОБЩИЙ с CLI резолвер (см. `resolve_tracker_type`).
+
+    `parse_frontmatter` выше уже сводит `trackerStatus.type` в плоский `type`, поэтому
+    резолверу приходит форма, которую он понимает наравне с вложенной.
+    """
+    return resolve_tracker_type(meta, name) or "other"
 
 
 def status_rank(s: str) -> int:
