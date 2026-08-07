@@ -259,17 +259,38 @@ def _post_message(payload_dict: dict) -> bool:
     return False
 
 
-def send_message(text: str, parse_mode: str = "Markdown") -> bool:
+def send_message(text: str, parse_mode: str = "Markdown", actions: bool = True) -> bool:
     """POST the message to the Telegram Bot API.
 
     ``parse_mode`` defaults to ``"Markdown"`` (back-compat). Pass ``"HTML"`` for
     messages that contain HTML tags such as ``<b>`` — Telegram's legacy Markdown
     parser 400s on the ``_`` in protocol names (e.g. ``aave_v3``) and on ``<>``.
 
+    ``actions`` (owner task 2026-08-07): when the message reads as a PROBLEM, action
+    buttons are attached — «Починить» / «Нужно моё решение» / «Наблюдать» / «Так и надо»,
+    one of them marked ⭐ рекомендую. A tap creates a tracker card (see
+    ``spa_core.telegram.alert_actions``). This is the single wiring point on purpose:
+    every SPA monitor sends through here, so buttons appear on ALL problem alerts and
+    not only on the one module someone remembered to update.
+
+    **Fail-CLOSED to the old behaviour:** anything not recognised as a problem (digests,
+    ✅ pulses, reports) gets NO buttons and is sent byte-identically to before. Pass
+    ``actions=False`` to force the old path.
+
     Fail-safe: missing credentials, HTTP or network errors → WARNING + False.
     One retry on network error. Never raises.
     """
-    return _post_message({"text": text, "parse_mode": parse_mode})
+    payload: dict = {"text": text, "parse_mode": parse_mode}
+    if actions:
+        try:
+            from spa_core.telegram.alert_actions import register_alert
+
+            registered = register_alert(text)
+            if registered is not None:
+                payload["reply_markup"] = json.dumps(registered[1])
+        except Exception:  # noqa: BLE001 — кнопки не имеют права помешать тревоге
+            log.debug("alert action buttons skipped", exc_info=True)
+    return _post_message(payload)
 
 
 def send_message_with_keyboard(text: str, keyboard: dict) -> bool:

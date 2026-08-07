@@ -1124,8 +1124,23 @@ class TelegramBot:
 
     # ── Polling loops ─────────────────────────────────────────────────────
 
+    def refresh_capability_beacon(self) -> None:
+        """Stamp «I am alive and I can handle alert-action taps» (ADR-069 interlock).
+
+        Alert senders check this beacon before attaching action buttons: a button nobody
+        can handle is worse than no button (an old bot would answer an unknown ``act:``
+        verb by REPLACING the alert text with the settings panel). Stamped every poll
+        iteration, so the beacon dies with the bot on its own. Never raises."""
+        try:
+            from spa_core.telegram.alert_actions import publish_handler_beacon
+
+            publish_handler_beacon()
+        except Exception:  # noqa: BLE001 — the beacon must never disturb the bot
+            pass
+
     def run_once(self) -> int:
         """Drain pending updates once, dispatch, return count processed."""
+        self.refresh_capability_beacon()
         updates = self.get_updates()
         for upd in updates:
             self.handle_update(upd)
@@ -1151,6 +1166,7 @@ class TelegramBot:
         try:
             while True:
                 self._last_beat = time.time()
+                self.refresh_capability_beacon()
                 try:
                     for upd in self.get_updates():
                         self.handle_update(upd)

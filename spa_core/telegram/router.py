@@ -28,6 +28,7 @@ import re as _re
 import time
 from typing import Any, Dict, Optional, Tuple
 
+from spa_core.telegram import alert_actions
 from spa_core.telegram import prefs as prefs_store
 from spa_core.telegram.i18n import normalize_lang, t
 from spa_core.telegram.views import get_builder
@@ -135,11 +136,44 @@ class Router:
         if not self.is_owner(chat_id):
             return None  # fail-closed: silently ignore non-owner taps
 
+        # Кнопка под алертом (`act:aa:<alert>:<option>`) — единственный callback,
+        # который отвечает НОВЫМ сообщением, а не правит текущее: править пришлось бы
+        # сам алерт, а он должен остаться в чате целиком (и с кнопками — вдруг владелец
+        # захочет выбрать ещё вариант). См. spa_core/telegram/alert_actions.py.
+        if data.startswith(alert_actions.CALLBACK_PREFIX):
+            return self.handle_alert_action(data, chat_id)
+
         path, arg, page = self.parse_callback(data, chat_id)
         lang = prefs_store.get_lang(chat_id)
         body, kb = self.render_view(path, arg, lang, page, chat_id)
         # editMessageText IN PLACE (single evolving panel — never a new bubble)
         return self.transport.edit_message_text(chat_id, message_id, body, kb)
+
+    def handle_alert_action(self, data: str, chat_id: str) -> Optional[Dict]:
+        """Нажатие кнопки под алертом → карточка + ответ владельцу НОВЫМ сообщением.
+
+        Никогда не бросает: любой сбой превращается в честное сообщение владельцу,
+        потому что молчащая кнопка неотличима от сломанной.
+        """
+        lang = prefs_store.get_lang(chat_id)
+        payload = data[len(alert_actions.CALLBACK_PREFIX):]
+        alert_id, _sep, option_id = payload.partition(":")
+        try:
+            result = alert_actions.record_choice(alert_id, option_id)
+        except Exception as exc:  # noqa: BLE001 — защита сверх защиты в record_choice
+            result = alert_actions.ChoiceResult(False, "crash:{}".format(type(exc).__name__))
+        if result.notify_needed and result.card_path:
+            try:
+                from spa_core.owner_queue.notify import notify_needs_owner
+
+                notify_needs_owner(result.card_path)
+            except Exception:  # noqa: BLE001 — уведомление не важнее карточки
+                pass
+        body = alert_actions.confirmation_text(result, lang)
+        kb = {"inline_keyboard": [[{"text": t("btn.home", lang),
+                                    "callback_data": "nav:home"}]]}
+        sent = self.transport.send_message(chat_id, html_safe(body), kb)
+        return sent if isinstance(sent, dict) else None
 
     def parse_callback(self, data: str, chat_id: str) -> Tuple[str, str, int]:
         """Decode callback_data → (view_path, arg, page). Applies act: verbs.

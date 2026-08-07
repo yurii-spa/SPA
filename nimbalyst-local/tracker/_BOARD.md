@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **280** · ждёт владельца: **23** · занято сессиями: **2**.
+> Всего карточек: **283** · ждёт владельца: **22** · занято сессиями: **2**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -13,7 +13,6 @@
 - **own-rnd-dwell-hysteresis-paper-module** · _medium_  ·  `own-rnd-dwell-hysteresis-paper-module.md`
 - **own-rnd-xsd-rank-demotion-allocator** · _medium_  ·  `own-rnd-xsd-rank-demotion-allocator.md`
 - **CI на main красный: новый протокол без оценки риска (40% книги) и два теста, отставших от честного TVL**  ·  `owner-decision-ci-na-main-krasnyi-novyi-protokol-bez-ot.md`
-- **Девять агентов висят нерешёнными: закрыть или включить**  ·  `owner-decision-devyat-agentov-visyat-nereshennymi-zakry.md`
 - **Два агента не переживут перезагрузку — разрешить доустановить их в системную папку**  ·  `owner-decision-dva-agenta-ne-perezhivut-perezagruzku-ra.md`
 - **Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет** · _high_  ·  `owner-decision-dva-tsikla-orkestratora-rabotali-odnovre.md`
 - **Морфо — 40% книги — при пропаже данных подставляет выдуманные 6.5% вместо честного отказа** · _high_  ·  `owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst.md`
@@ -47,7 +46,6 @@
 - own-rnd-dwell-hysteresis-paper-module  ·  `own-rnd-dwell-hysteresis-paper-module.md` · 2026-08-04
 - own-rnd-xsd-rank-demotion-allocator  ·  `own-rnd-xsd-rank-demotion-allocator.md` · 2026-08-07
 - CI на main красный: новый протокол без оценки риска (40% книги) и два теста, отставших от честного TVL  ·  `owner-decision-ci-na-main-krasnyi-novyi-protokol-bez-ot.md` · 2026-08-06
-- Девять агентов висят нерешёнными: закрыть или включить  ·  `owner-decision-devyat-agentov-visyat-nereshennymi-zakry.md` · 2026-08-05
 - Два агента не переживут перезагрузку — разрешить доустановить их в системную папку  ·  `owner-decision-dva-agenta-ne-perezhivut-perezagruzku-ra.md` · 2026-08-06
 - Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет  ·  `owner-decision-dva-tsikla-orkestratora-rabotali-odnovre.md` · 2026-08-01
 - Морфо — 40% книги — при пропаже данных подставляет выдуманные 6.5% вместо честного отказа  ·  `owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst.md` · 2026-08-02
@@ -97,6 +95,7 @@
 - Чистка: разрешить удалять мёртвые МОДУЛИ из ядра (не только скрипты)?  ·  `owner-decision-chistka-razreshit-udalyat-mertvye-moduli.md` · 2026-07-16
 - Чистка ядра (WS-A): ~60 мёртвых/дублей + 45 аналитич. модулей раздувают paper_trading — greenlight подход  ·  `owner-decision-chistka-yadra-ws-a-60-mertvyh-dublei-45.md` · 2026-07-16
 - Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить  ·  `owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam.md` · 2026-07-29
+- Девять агентов висят нерешёнными: закрыть или включить  ·  `owner-decision-devyat-agentov-visyat-nereshennymi-zakry.md` · 2026-08-05
 - Флот: 7 агентов не переживут reboot (swarm+DR) — разрешить сделать reboot-safe  ·  `owner-decision-flot-7-agentov-ne-perezhivut-reboot-swar.md` · 2026-07-16
 - Гейт готовности зелёный по адаптеру, который невозможно загрузить — проверяется только синтаксис файла (выбери, как чинить)  ·  `owner-decision-geit-gotovnosti-zelenyi-po-adapteru-koto.md` · 2026-07-30
 - Книги aggressive_lab переписывают свою историю — и это отложенно заденет числа на сайте  ·  `owner-decision-knigi-aggressive-lab-perepisyvayut-svoyu.md` · 2026-08-01
@@ -116,7 +115,7 @@
 - В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md` · 2026-07-29
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (64)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (67)
 
 ### · in-progress
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
@@ -165,6 +164,7 @@
 - я просил тебя до этого узнать какой статус и были выполнены мои задачи и ты ска…  ·  `inbox-ya-prosil-tebya-do-etogo-uznat-kakoi-sta.md` · 2026-07-27
 - Задача 1- разобраться с алентами которые мне приходят в телегам :  ·  `inbox-zadacha-1-razobratsya-s-alentami-kotorye.md` · 2026-07-27
 - Задача 2  - алерты в телеграм присылать простым языком, сейчас приходит плохо в…  ·  `inbox-zadacha-2-alerty-v-telegram-prisylat-pro.md` · 2026-07-27
+- Задача, хочу усовершенствовать Телеграм. Что хочу сделать, чтобы в него, если е…  ·  `inbox-zadacha-hochu-usovershenstvovat-telegram.md` · 2026-08-07
 - Задача  (перевести формат алертов Site Custodian на человеческий русский).  ·  `inbox-zadacha-perevesti-format-alertov-site-cu.md` · 2026-07-20
 - Задача писать мне в чат простым языком а не вот это вот - 🛡️ SITE CUSTODIAN — 1…  ·  `inbox-zadacha-pisat-mne-v-chat-prostym-yazykom.md` · 2026-08-04
 - задача - починить \"• нашёл сверх задания: тесты на main снова красные из-за одн…  ·  `inbox-zadacha-pochinit-nashel-sverh-zadaniya-t.md` · 2026-08-05
@@ -181,6 +181,8 @@
 - 25 модулей получили вечный вердикт «покрытие не измерено» — контекст-путь нечем мерить  ·  `inbox-25-modulei-poluchili-vechnyi-verdikt-pok.md` · 2026-08-06
 - Атрибуция кэша и гейт RiskPolicy по-разному определяют «живой TVL» — и атрибуция не знает про порог $5M  ·  `inbox-atributsiya-kesha-i-geit-riskpolicy-po-r.md` · 2026-08-07
 - Храповик литеральных дат метит ОБРАЗЦОВЫЙ паттерн: тест по преференции №1 правила (инъекция часов) не проходит сторожа  ·  `inbox-hrapovik-literalnyh-dat-metit-obraztsovy.md` · 2026-08-06
+- Кнопки действий: вторая половина задания — те же варианты внутри меню бота  ·  `inbox-knopki-deistvii-vtoraya-polovina-zadaniy.md` · 2026-08-07
+- Номер ADR-067 занят ДВУМЯ разными решениями — реестр показывает две строки  ·  `inbox-nomer-adr-067-zanyat-dvumya-raznymi-resh.md` · 2026-08-07
 - Обход owner-gate по трейлеру Owner-Approved не работал никогда: опечатка в имени аргумента, спрятанная слепым except  ·  `inbox-obhod-owner-gate-po-treileru-owner-appro.md` · 2026-08-07
 - Шаг 0a из worktree даёт 18 строк «не измерено» на пустом месте: 16 мёртвых регистраций рабочих деревьев  ·  `inbox-shag-0a-iz-worktree-daet-18-strok-ne-izm.md` · 2026-08-06
 - Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md` · 2026-08-06 · 🔒 `cycle-87477`
