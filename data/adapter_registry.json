@@ -187,7 +187,8 @@
       "research_only": false,
       "per_protocol_cap": 0.2,
       "status": "active",
-      "mp": "MP-562"
+      "mp": "MP-562",
+      "note": "Наблюдаемая ставка 2026-08-05: 1.25 % (apyBase, пул Ethereum/sky-lending/SDAI, закреплён по UUID). Прежняя заметка «real DSR rate 3.6-4.75 %» УСТАРЕЛА и спорила с данными: ставка сжалась, а Sky уводит пользователей в USDS (sky_susds 3.52 %). Ранжирование идёт по live_apy; литерал fallback не является наблюдением (ADR-063)."
     },
     "frax": {
       "tier": 2,
@@ -273,14 +274,15 @@
       "note": "RESEARCH_ONLY: paper-trading validation required"
     },
     "sky_susds": {
-      "tier": 0,
+      "tier": "T1",
       "protocol": "Sky/sUSDS (MakerDAO)",
       "chain": "ethereum",
       "fallback_apy": 0.0475,
       "research_only": true,
       "per_protocol_cap": 0.0,
       "status": "watchlist",
-      "note": "0% allocation until on-chain GSM Pause Delay >= 48h confirmed. fallback_apy=4.75% is real DSR rate (range 3.6-4.75%)."
+      "note": "GSM Pause Delay ПОДТВЕРЖДЕНА on-chain 2026-08-05: 172800с = 48.00ч, кворум независимых RPC — условие инварианта 10 выполнено (ADR-065). fallback_apy=4.75% — реальная ставка DSR (диапазон 3.6-4.75%), но она НЕ наблюдение: ранжирование идёт по live_apy. Подтверждение протухает по окну 168ч — тогда гейт закрывается сам.",
+      "promoted": "2026-08-05 ADR-065 — GSM Pause Delay 48.00h наблюдена on-chain (кворум RPC); доля не фиксирована, ранжирует аллокатор"
     },
     "pendle_pt": {
       "tier": 2,

@@ -2,1279 +2,6 @@
   {
     "positions": [
       {
-        "protocol": "compound_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093099.070273
-  },
-  {
-    "positions": [
-      {
-        "protocol": "morpho_blue",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093099.3466866
-  },
-  {
-    "positions": [
-      {
-        "protocol": "yearn_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093099.6005673
-  },
-  {
-    "positions": [
-      {
-        "protocol": "euler_v2",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093099.8592842
-  },
-  {
-    "positions": [
-      {
-        "protocol": "maple",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093100.1143918
-  },
-  {
-    "positions": [
-      {
-        "protocol": "pendle",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093100.3704712
-  },
-  {
-    "positions": [
-      {
-        "protocol": "spark_susds",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093100.6378706
-  },
-  {
-    "positions": [
-      {
-        "protocol": "aave_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093101.0655065
-  },
-  {
-    "positions": [
-      {
-        "protocol": "compound_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093101.326708
-  },
-  {
-    "positions": [
-      {
-        "protocol": "morpho_blue",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093101.5858705
-  },
-  {
-    "positions": [
-      {
-        "protocol": "yearn_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093101.851776
-  },
-  {
-    "positions": [
-      {
-        "protocol": "euler_v2",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093102.118201
-  },
-  {
-    "positions": [
-      {
-        "protocol": "maple",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093102.3416438
-  },
-  {
-    "positions": [
-      {
-        "protocol": "pendle",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093102.5712385
-  },
-  {
-    "positions": [
-      {
-        "protocol": "spark_susds",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093102.8072665
-  },
-  {
-    "positions": [
-      {
-        "protocol": "aave_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093103.1576052
-  },
-  {
-    "positions": [
-      {
-        "protocol": "compound_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093103.422362
-  },
-  {
-    "positions": [
-      {
-        "protocol": "morpho_blue",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093103.7112813
-  },
-  {
-    "positions": [
-      {
-        "protocol": "yearn_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093103.9866428
-  },
-  {
-    "positions": [
-      {
-        "protocol": "euler_v2",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093104.2640684
-  },
-  {
-    "positions": [
-      {
-        "protocol": "maple",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093104.4997394
-  },
-  {
-    "positions": [
-      {
-        "protocol": "pendle",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093104.7330945
-  },
-  {
-    "positions": [
-      {
-        "protocol": "spark_susds",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093104.9735281
-  },
-  {
-    "positions": [
-      {
-        "protocol": "aave_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093105.3903916
-  },
-  {
-    "positions": [
-      {
-        "protocol": "compound_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093105.6549785
-  },
-  {
-    "positions": [
-      {
-        "protocol": "morpho_blue",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093105.9204354
-  },
-  {
-    "positions": [
-      {
-        "protocol": "yearn_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093106.1933038
-  },
-  {
-    "positions": [
-      {
-        "protocol": "euler_v2",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093106.4544156
-  },
-  {
-    "positions": [
-      {
-        "protocol": "maple",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093106.6983764
-  },
-  {
-    "positions": [
-      {
-        "protocol": "pendle",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093106.933878
-  },
-  {
-    "positions": [
-      {
-        "protocol": "spark_susds",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093107.1728828
-  },
-  {
-    "positions": [
-      {
-        "protocol": "aave_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093107.620335
-  },
-  {
-    "positions": [
-      {
-        "protocol": "compound_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093107.885027
-  },
-  {
-    "positions": [
-      {
-        "protocol": "morpho_blue",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093108.1721296
-  },
-  {
-    "positions": [
-      {
-        "protocol": "yearn_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093108.4600778
-  },
-  {
-    "positions": [
-      {
-        "protocol": "euler_v2",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093108.7514083
-  },
-  {
-    "positions": [
-      {
-        "protocol": "maple",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093109.003818
-  },
-  {
-    "positions": [
-      {
-        "protocol": "pendle",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093109.2552774
-  },
-  {
-    "positions": [
-      {
-        "protocol": "spark_susds",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093109.4935136
-  },
-  {
-    "positions": [
-      {
-        "protocol": "aave_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093109.9160125
-  },
-  {
-    "positions": [
-      {
-        "protocol": "compound_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093110.1857297
-  },
-  {
-    "positions": [
-      {
-        "protocol": "morpho_blue",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093110.4589398
-  },
-  {
-    "positions": [
-      {
-        "protocol": "yearn_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093110.7331965
-  },
-  {
-    "positions": [
-      {
-        "protocol": "euler_v2",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093111.0216563
-  },
-  {
-    "positions": [
-      {
-        "protocol": "maple",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093111.274382
-  },
-  {
-    "positions": [
-      {
-        "protocol": "pendle",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093111.506339
-  },
-  {
-    "positions": [
-      {
-        "protocol": "spark_susds",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093111.7464676
-  },
-  {
-    "positions": [
-      {
-        "protocol": "aave_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093112.1085384
-  },
-  {
-    "positions": [
-      {
-        "protocol": "compound_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093112.3847826
-  },
-  {
-    "positions": [
-      {
-        "protocol": "morpho_blue",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093112.6758676
-  },
-  {
-    "positions": [
-      {
-        "protocol": "yearn_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093112.9784987
-  },
-  {
-    "positions": [
-      {
-        "protocol": "euler_v2",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093113.2620986
-  },
-  {
-    "positions": [
-      {
-        "protocol": "maple",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093113.5250542
-  },
-  {
-    "positions": [
-      {
-        "protocol": "pendle",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093113.8067205
-  },
-  {
-    "positions": [
-      {
-        "protocol": "spark_susds",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093114.096371
-  },
-  {
-    "positions": [
-      {
-        "protocol": "aave_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093114.4749863
-  },
-  {
-    "positions": [
-      {
-        "protocol": "compound_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093114.777984
-  },
-  {
-    "positions": [
-      {
-        "protocol": "morpho_blue",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093115.0362756
-  },
-  {
-    "positions": [
-      {
-        "protocol": "yearn_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093115.3068483
-  },
-  {
-    "positions": [
-      {
-        "protocol": "euler_v2",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093115.568574
-  },
-  {
-    "positions": [
-      {
-        "protocol": "maple",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093115.820388
-  },
-  {
-    "positions": [
-      {
-        "protocol": "pendle",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093116.087377
-  },
-  {
-    "positions": [
-      {
-        "protocol": "spark_susds",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093116.3317697
-  },
-  {
-    "positions": [
-      {
-        "protocol": "aave_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093117.0760796
-  },
-  {
-    "positions": [
-      {
-        "protocol": "compound_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093117.341417
-  },
-  {
-    "positions": [
-      {
-        "protocol": "morpho_blue",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093117.6078374
-  },
-  {
-    "positions": [
-      {
-        "protocol": "yearn_v3",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093117.867466
-  },
-  {
-    "positions": [
-      {
         "protocol": "euler_v2",
         "accrued_rewards_usd": 0.0,
         "gas_as_pct_of_rewards": 999.0,
@@ -1898,5 +625,1278 @@
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
     "timestamp": 1786093127.3269632
+  },
+  {
+    "positions": [
+      {
+        "protocol": "maple",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093127.5574915
+  },
+  {
+    "positions": [
+      {
+        "protocol": "pendle",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093127.789123
+  },
+  {
+    "positions": [
+      {
+        "protocol": "spark_susds",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093128.0377805
+  },
+  {
+    "positions": [
+      {
+        "protocol": "aave_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093128.5396633
+  },
+  {
+    "positions": [
+      {
+        "protocol": "compound_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093128.8006492
+  },
+  {
+    "positions": [
+      {
+        "protocol": "morpho_blue",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093129.062853
+  },
+  {
+    "positions": [
+      {
+        "protocol": "yearn_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093129.3293092
+  },
+  {
+    "positions": [
+      {
+        "protocol": "euler_v2",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093129.590611
+  },
+  {
+    "positions": [
+      {
+        "protocol": "maple",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093129.836916
+  },
+  {
+    "positions": [
+      {
+        "protocol": "pendle",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093130.0835202
+  },
+  {
+    "positions": [
+      {
+        "protocol": "spark_susds",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093130.3441541
+  },
+  {
+    "positions": [
+      {
+        "protocol": "aave_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093130.6993396
+  },
+  {
+    "positions": [
+      {
+        "protocol": "compound_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093130.9890845
+  },
+  {
+    "positions": [
+      {
+        "protocol": "morpho_blue",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093131.2584164
+  },
+  {
+    "positions": [
+      {
+        "protocol": "yearn_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093131.5257142
+  },
+  {
+    "positions": [
+      {
+        "protocol": "euler_v2",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093131.7889528
+  },
+  {
+    "positions": [
+      {
+        "protocol": "maple",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093132.030204
+  },
+  {
+    "positions": [
+      {
+        "protocol": "pendle",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093132.269381
+  },
+  {
+    "positions": [
+      {
+        "protocol": "spark_susds",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093132.523731
+  },
+  {
+    "positions": [
+      {
+        "protocol": "aave_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093132.8909044
+  },
+  {
+    "positions": [
+      {
+        "protocol": "compound_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093133.1841047
+  },
+  {
+    "positions": [
+      {
+        "protocol": "morpho_blue",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093133.4741013
+  },
+  {
+    "positions": [
+      {
+        "protocol": "yearn_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093133.763061
+  },
+  {
+    "positions": [
+      {
+        "protocol": "euler_v2",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093134.0297365
+  },
+  {
+    "positions": [
+      {
+        "protocol": "maple",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093134.2683995
+  },
+  {
+    "positions": [
+      {
+        "protocol": "pendle",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093134.496273
+  },
+  {
+    "positions": [
+      {
+        "protocol": "spark_susds",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093134.746497
+  },
+  {
+    "positions": [
+      {
+        "protocol": "aave_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093135.865555
+  },
+  {
+    "positions": [
+      {
+        "protocol": "compound_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093136.1406949
+  },
+  {
+    "positions": [
+      {
+        "protocol": "morpho_blue",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093136.409542
+  },
+  {
+    "positions": [
+      {
+        "protocol": "yearn_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093136.6838229
+  },
+  {
+    "positions": [
+      {
+        "protocol": "euler_v2",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093136.9531863
+  },
+  {
+    "positions": [
+      {
+        "protocol": "maple",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093137.2065027
+  },
+  {
+    "positions": [
+      {
+        "protocol": "pendle",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093137.4420955
+  },
+  {
+    "positions": [
+      {
+        "protocol": "spark_susds",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093137.6743143
+  },
+  {
+    "positions": [
+      {
+        "protocol": "aave_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093138.077642
+  },
+  {
+    "positions": [
+      {
+        "protocol": "compound_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093138.3365912
+  },
+  {
+    "positions": [
+      {
+        "protocol": "morpho_blue",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093138.5990288
+  },
+  {
+    "positions": [
+      {
+        "protocol": "yearn_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093138.8558466
+  },
+  {
+    "positions": [
+      {
+        "protocol": "euler_v2",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093139.1331532
+  },
+  {
+    "positions": [
+      {
+        "protocol": "maple",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093139.3706686
+  },
+  {
+    "positions": [
+      {
+        "protocol": "pendle",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093139.6069045
+  },
+  {
+    "positions": [
+      {
+        "protocol": "spark_susds",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093139.8454802
+  },
+  {
+    "positions": [
+      {
+        "protocol": "aave_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093140.2285364
+  },
+  {
+    "positions": [
+      {
+        "protocol": "compound_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093140.5163298
+  },
+  {
+    "positions": [
+      {
+        "protocol": "morpho_blue",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093140.7910872
+  },
+  {
+    "positions": [
+      {
+        "protocol": "yearn_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093141.0739653
+  },
+  {
+    "positions": [
+      {
+        "protocol": "euler_v2",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093141.3817327
+  },
+  {
+    "positions": [
+      {
+        "protocol": "maple",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093141.641545
+  },
+  {
+    "positions": [
+      {
+        "protocol": "pendle",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093141.9076893
+  },
+  {
+    "positions": [
+      {
+        "protocol": "spark_susds",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093142.1708248
+  },
+  {
+    "positions": [
+      {
+        "protocol": "aave_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093147.051839
+  },
+  {
+    "positions": [
+      {
+        "protocol": "compound_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093147.3477314
+  },
+  {
+    "positions": [
+      {
+        "protocol": "morpho_blue",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093147.6333213
+  },
+  {
+    "positions": [
+      {
+        "protocol": "yearn_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093147.929814
+  },
+  {
+    "positions": [
+      {
+        "protocol": "euler_v2",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093148.2169914
+  },
+  {
+    "positions": [
+      {
+        "protocol": "maple",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093148.4752567
+  },
+  {
+    "positions": [
+      {
+        "protocol": "pendle",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093148.7303116
+  },
+  {
+    "positions": [
+      {
+        "protocol": "spark_susds",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093148.9817162
+  },
+  {
+    "positions": [
+      {
+        "protocol": "aave_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093149.3895335
+  },
+  {
+    "positions": [
+      {
+        "protocol": "compound_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093149.6769829
+  },
+  {
+    "positions": [
+      {
+        "protocol": "morpho_blue",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093149.9850647
+  },
+  {
+    "positions": [
+      {
+        "protocol": "yearn_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093150.279536
+  },
+  {
+    "positions": [
+      {
+        "protocol": "euler_v2",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093150.5511014
+  },
+  {
+    "positions": [
+      {
+        "protocol": "maple",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093150.8006635
+  },
+  {
+    "positions": [
+      {
+        "protocol": "pendle",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093151.0501099
+  },
+  {
+    "positions": [
+      {
+        "protocol": "spark_susds",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093151.3304899
   }
 ]

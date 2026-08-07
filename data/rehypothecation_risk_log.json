@@ -162,7 +162,7 @@
     "riskiest_position": "Pos"
   },
   {
-    "ts": "2026-07-28T09:11:06Z",
+    "ts": "2026-07-30T09:11:54Z",
     "position_count": 2,
     "avg_rehypothecation_risk": 48.93,
     "avg_leverage_multiple": 4.229,
@@ -171,7 +171,7 @@
     "riskiest_position": "Extreme"
   },
   {
-    "ts": "2026-07-28T09:11:06Z",
+    "ts": "2026-07-30T09:11:54Z",
     "position_count": 2,
     "avg_rehypothecation_risk": 29.43,
     "avg_leverage_multiple": 2.7344,
@@ -180,7 +180,7 @@
     "riskiest_position": "P2"
   },
   {
-    "ts": "2026-07-28T09:11:06Z",
+    "ts": "2026-07-30T09:11:54Z",
     "position_count": 1,
     "avg_rehypothecation_risk": 29.43,
     "avg_leverage_multiple": 2.7344,
@@ -189,7 +189,7 @@
     "riskiest_position": "Pos"
   },
   {
-    "ts": "2026-07-29T09:54:55Z",
+    "ts": "2026-07-31T09:01:13Z",
     "position_count": 2,
     "avg_rehypothecation_risk": 48.93,
     "avg_leverage_multiple": 4.229,
@@ -198,7 +198,7 @@
     "riskiest_position": "Extreme"
   },
   {
-    "ts": "2026-07-29T09:54:55Z",
+    "ts": "2026-07-31T09:01:13Z",
     "position_count": 2,
     "avg_rehypothecation_risk": 29.43,
     "avg_leverage_multiple": 2.7344,
@@ -207,7 +207,115 @@
     "riskiest_position": "P2"
   },
   {
-    "ts": "2026-07-29T09:54:55Z",
+    "ts": "2026-07-31T09:01:13Z",
+    "position_count": 1,
+    "avg_rehypothecation_risk": 29.43,
+    "avg_leverage_multiple": 2.7344,
+    "extreme_count": 0,
+    "safest_position": "Pos",
+    "riskiest_position": "Pos"
+  },
+  {
+    "ts": "2026-08-01T08:57:12Z",
+    "position_count": 2,
+    "avg_rehypothecation_risk": 48.93,
+    "avg_leverage_multiple": 4.229,
+    "extreme_count": 1,
+    "safest_position": "NoLev",
+    "riskiest_position": "Extreme"
+  },
+  {
+    "ts": "2026-08-01T08:57:12Z",
+    "position_count": 2,
+    "avg_rehypothecation_risk": 29.43,
+    "avg_leverage_multiple": 2.7344,
+    "extreme_count": 0,
+    "safest_position": "Pos",
+    "riskiest_position": "P2"
+  },
+  {
+    "ts": "2026-08-01T08:57:12Z",
+    "position_count": 1,
+    "avg_rehypothecation_risk": 29.43,
+    "avg_leverage_multiple": 2.7344,
+    "extreme_count": 0,
+    "safest_position": "Pos",
+    "riskiest_position": "Pos"
+  },
+  {
+    "ts": "2026-08-02T08:49:47Z",
+    "position_count": 2,
+    "avg_rehypothecation_risk": 48.93,
+    "avg_leverage_multiple": 4.229,
+    "extreme_count": 1,
+    "safest_position": "NoLev",
+    "riskiest_position": "Extreme"
+  },
+  {
+    "ts": "2026-08-02T08:49:47Z",
+    "position_count": 2,
+    "avg_rehypothecation_risk": 29.43,
+    "avg_leverage_multiple": 2.7344,
+    "extreme_count": 0,
+    "safest_position": "Pos",
+    "riskiest_position": "P2"
+  },
+  {
+    "ts": "2026-08-02T08:49:47Z",
+    "position_count": 1,
+    "avg_rehypothecation_risk": 29.43,
+    "avg_leverage_multiple": 2.7344,
+    "extreme_count": 0,
+    "safest_position": "Pos",
+    "riskiest_position": "Pos"
+  },
+  {
+    "ts": "2026-08-04T08:47:38Z",
+    "position_count": 2,
+    "avg_rehypothecation_risk": 48.93,
+    "avg_leverage_multiple": 4.229,
+    "extreme_count": 1,
+    "safest_position": "NoLev",
+    "riskiest_position": "Extreme"
+  },
+  {
+    "ts": "2026-08-04T08:47:38Z",
+    "position_count": 2,
+    "avg_rehypothecation_risk": 29.43,
+    "avg_leverage_multiple": 2.7344,
+    "extreme_count": 0,
+    "safest_position": "Pos",
+    "riskiest_position": "P2"
+  },
+  {
+    "ts": "2026-08-04T08:47:38Z",
+    "position_count": 1,
+    "avg_rehypothecation_risk": 29.43,
+    "avg_leverage_multiple": 2.7344,
+    "extreme_count": 0,
+    "safest_position": "Pos",
+    "riskiest_position": "Pos"
+  },
+  {
+    "ts": "2026-08-07T08:59:47Z",
+    "position_count": 2,
+    "avg_rehypothecation_risk": 48.93,
+    "avg_leverage_multiple": 4.229,
+    "extreme_count": 1,
+    "safest_position": "NoLev",
+    "riskiest_position": "Extreme"
+  },
+  {
+    "ts": "2026-08-07T08:59:47Z",
+    "position_count": 2,
+    "avg_rehypothecation_risk": 29.43,
+    "avg_leverage_multiple": 2.7344,
+    "extreme_count": 0,
+    "safest_position": "Pos",
+    "riskiest_position": "P2"
+  },
+  {
+    "ts": "2026-08-07T08:59:47Z",
     "position_count": 1,
     "avg_rehypothecation_risk": 29.43,
     "avg_leverage_multiple": 2.7344,

@@ -162,7 +162,7 @@
     "riskiest_protocol": "Proto"
   },
   {
-    "ts": "2026-07-28T09:10:44Z",
+    "ts": "2026-07-30T09:11:36Z",
     "protocol_count": 2,
     "avg_admin_control_risk": 52.73,
     "critical_count": 1,
@@ -171,7 +171,7 @@
     "riskiest_protocol": "Critical"
   },
   {
-    "ts": "2026-07-28T09:10:44Z",
+    "ts": "2026-07-30T09:11:36Z",
     "protocol_count": 2,
     "avg_admin_control_risk": 15.56,
     "critical_count": 0,
@@ -180,7 +180,7 @@
     "riskiest_protocol": "P2"
   },
   {
-    "ts": "2026-07-28T09:10:44Z",
+    "ts": "2026-07-30T09:11:36Z",
     "protocol_count": 1,
     "avg_admin_control_risk": 15.56,
     "critical_count": 0,
@@ -189,7 +189,7 @@
     "riskiest_protocol": "Proto"
   },
   {
-    "ts": "2026-07-29T09:54:33Z",
+    "ts": "2026-07-31T09:00:55Z",
     "protocol_count": 2,
     "avg_admin_control_risk": 52.73,
     "critical_count": 1,
@@ -198,7 +198,7 @@
     "riskiest_protocol": "Critical"
   },
   {
-    "ts": "2026-07-29T09:54:33Z",
+    "ts": "2026-07-31T09:00:55Z",
     "protocol_count": 2,
     "avg_admin_control_risk": 15.56,
     "critical_count": 0,
@@ -207,7 +207,115 @@
     "riskiest_protocol": "P2"
   },
   {
-    "ts": "2026-07-29T09:54:33Z",
+    "ts": "2026-07-31T09:00:55Z",
+    "protocol_count": 1,
+    "avg_admin_control_risk": 15.56,
+    "critical_count": 0,
+    "decentralized_count": 1,
+    "safest_protocol": "Proto",
+    "riskiest_protocol": "Proto"
+  },
+  {
+    "ts": "2026-08-01T08:56:56Z",
+    "protocol_count": 2,
+    "avg_admin_control_risk": 52.73,
+    "critical_count": 1,
+    "decentralized_count": 1,
+    "safest_protocol": "Decentralized",
+    "riskiest_protocol": "Critical"
+  },
+  {
+    "ts": "2026-08-01T08:56:56Z",
+    "protocol_count": 2,
+    "avg_admin_control_risk": 15.56,
+    "critical_count": 0,
+    "decentralized_count": 2,
+    "safest_protocol": "Proto",
+    "riskiest_protocol": "P2"
+  },
+  {
+    "ts": "2026-08-01T08:56:56Z",
+    "protocol_count": 1,
+    "avg_admin_control_risk": 15.56,
+    "critical_count": 0,
+    "decentralized_count": 1,
+    "safest_protocol": "Proto",
+    "riskiest_protocol": "Proto"
+  },
+  {
+    "ts": "2026-08-02T08:49:33Z",
+    "protocol_count": 2,
+    "avg_admin_control_risk": 52.73,
+    "critical_count": 1,
+    "decentralized_count": 1,
+    "safest_protocol": "Decentralized",
+    "riskiest_protocol": "Critical"
+  },
+  {
+    "ts": "2026-08-02T08:49:33Z",
+    "protocol_count": 2,
+    "avg_admin_control_risk": 15.56,
+    "critical_count": 0,
+    "decentralized_count": 2,
+    "safest_protocol": "Proto",
+    "riskiest_protocol": "P2"
+  },
+  {
+    "ts": "2026-08-02T08:49:33Z",
+    "protocol_count": 1,
+    "avg_admin_control_risk": 15.56,
+    "critical_count": 0,
+    "decentralized_count": 1,
+    "safest_protocol": "Proto",
+    "riskiest_protocol": "Proto"
+  },
+  {
+    "ts": "2026-08-04T08:47:14Z",
+    "protocol_count": 2,
+    "avg_admin_control_risk": 52.73,
+    "critical_count": 1,
+    "decentralized_count": 1,
+    "safest_protocol": "Decentralized",
+    "riskiest_protocol": "Critical"
+  },
+  {
+    "ts": "2026-08-04T08:47:14Z",
+    "protocol_count": 2,
+    "avg_admin_control_risk": 15.56,
+    "critical_count": 0,
+    "decentralized_count": 2,
+    "safest_protocol": "Proto",
+    "riskiest_protocol": "P2"
+  },
+  {
+    "ts": "2026-08-04T08:47:14Z",
+    "protocol_count": 1,
+    "avg_admin_control_risk": 15.56,
+    "critical_count": 0,
+    "decentralized_count": 1,
+    "safest_protocol": "Proto",
+    "riskiest_protocol": "Proto"
+  },
+  {
+    "ts": "2026-08-07T08:59:28Z",
+    "protocol_count": 2,
+    "avg_admin_control_risk": 52.73,
+    "critical_count": 1,
+    "decentralized_count": 1,
+    "safest_protocol": "Decentralized",
+    "riskiest_protocol": "Critical"
+  },
+  {
+    "ts": "2026-08-07T08:59:28Z",
+    "protocol_count": 2,
+    "avg_admin_control_risk": 15.56,
+    "critical_count": 0,
+    "decentralized_count": 2,
+    "safest_protocol": "Proto",
+    "riskiest_protocol": "P2"
+  },
+  {
+    "ts": "2026-08-07T08:59:28Z",
     "protocol_count": 1,
     "avg_admin_control_risk": 15.56,
     "critical_count": 0,
