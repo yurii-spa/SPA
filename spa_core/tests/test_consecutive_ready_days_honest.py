@@ -111,3 +111,55 @@ class TestCounterCannotExceedReality(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPoisonedStateSelfHeals(unittest.TestCase):
+    """Исправить формулу оказалось МАЛО — этого случая в первом наборе не было.
+
+    После починки формулы в файле уже лежали ложные 58, и новая логика честно
+    взяла «прошлое + 1», то есть продолжила врать, унаследовав отравленное
+    начало. Симптом починен, данные остались.
+
+    Первая версия инварианта тоже не сработала: граница бралась от
+    ``PAPER_REAL_START`` (2026-06-10), а это РОВНО 58 дней до замера — граница
+    совпала с дефектным числом и пропустила его. Честный потолок — evidenced-дни
+    трека: готовым нельзя быть дольше, чем трек существует как доказанный.
+    """
+
+    def _with_track(self, tmp: Path, prior_days: int, evidenced: int):
+        (tmp / "golive_status.json").write_text(json.dumps(
+            {"consecutive_ready_days": prior_days,
+             "timestamp": "2026-08-06T12:00:00Z"}), encoding="utf-8")
+        c = GoLiveChecker(data_dir=tmp, now=_NOW)
+        c._real_track_days = evidenced          # столько дней трек ДОКАЗАН
+        return c._compute_consecutive_ready_days(True)
+
+    def test_impossible_prior_value_restarts_the_count(self):
+        """Ровно наш случай: в файле 58 при 45 evidenced-днях."""
+        with TemporaryDirectory() as t:
+            self.assertEqual(self._with_track(Path(t), 58, 45), 1)
+
+    def test_a_plausible_prior_value_is_kept(self):
+        """Обратная сторона: инвариант не должен сбрасывать нормальный счёт."""
+        with TemporaryDirectory() as t:
+            self.assertEqual(self._with_track(Path(t), 3, 45), 4)
+
+    def test_the_count_can_reach_but_not_exceed_the_track_length(self):
+        """Граница включающая: 45 подряд при 45 днях трека — возможно."""
+        with TemporaryDirectory() as t:
+            self.assertEqual(self._with_track(Path(t), 44, 45), 45)
+            self.assertEqual(self._with_track(Path(t), 45, 45), 45)
+
+    def test_self_healing_is_announced_not_silent(self):
+        """Молчаливое «оно само починилось» — тот же класс, что и сам дефект.
+
+        Число тихо стало правильным, и никто не узнал, что было неправильным.
+        """
+        import io
+        import contextlib
+
+        with TemporaryDirectory() as t:
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                self._with_track(Path(t), 58, 45)
+            self.assertIn("отравлено", err.getvalue())
