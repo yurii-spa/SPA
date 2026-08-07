@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Наступила Фаза 2 (1 августа) — включаем, сдвигаем или осознанно откладываем?
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-07-31
 ---

@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-05
 ---

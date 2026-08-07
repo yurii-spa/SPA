@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Ночью одну задачу сделали дважды — из-за этого main был красным; выбери, какую версию оставляем"
-status: needs-owner
+status: ingested
 source: session-2026-08-06-cycle125
 created: 2026-08-05
 priority: high

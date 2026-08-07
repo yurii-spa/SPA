@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Два агента не переживут перезагрузку — разрешить доустановить их в системную папку
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-06
 ---

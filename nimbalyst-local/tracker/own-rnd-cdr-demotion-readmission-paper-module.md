@@ -1,6 +1,6 @@
 ---
 type: owner-decision
-status: needs-owner
+status: ingested
 priority: medium
 created: 2026-08-06
 tags: [rnd, aggressive-tier, paper, advisory, swarm, allocator]

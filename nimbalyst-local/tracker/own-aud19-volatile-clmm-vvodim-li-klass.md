@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Вторая задача из твоего сообщения (волатильный ETH-пул с доходностью «79%») — сам её не беру, нужно твоё решение
-status: needs-owner
+status: ingested
 source: telegram
 created: 2026-08-05
 priority: medium

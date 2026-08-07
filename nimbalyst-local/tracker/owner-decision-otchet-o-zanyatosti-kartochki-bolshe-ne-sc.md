@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Отчёт «эту карточку я НЕ беру» больше не считается захватом — подтверди или откати
-status: needs-owner
+status: ingested
 priority: medium
 source: session-2026-08-01-cycle67
 created: 2026-08-01

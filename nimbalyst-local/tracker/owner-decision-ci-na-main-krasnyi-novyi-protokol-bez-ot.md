@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "CI на main красный: новый протокол без оценки риска (40% книги) и два теста, отставших от честного TVL"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-06
 ---

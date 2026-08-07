@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Перезапустить сторожа реального времени, чтобы починка начала работать (одна команда)
-status: needs-owner
+status: ingested
 created: 2026-08-02
 priority: medium
 ---

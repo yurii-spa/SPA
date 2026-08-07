@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Твои решения от 23 июля 11 дней не лежали в git — доставил, подтверди что в силе
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-02
 priority: high

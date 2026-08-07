@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Кто имеет право сказать «флот ожил» и погасить тревогу об упавших агентах?
-status: needs-owner
+status: ingested
 source: session-2026-08-05-wave1-s2
 created: 2026-08-05
 priority: medium

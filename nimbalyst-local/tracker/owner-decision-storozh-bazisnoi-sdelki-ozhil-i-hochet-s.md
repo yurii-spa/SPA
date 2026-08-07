@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Сторож базисной сделки ожил и хочет слать тебе «отличная возможность» — включаем эти сообщения или нет
-status: needs-owner
+status: ingested
 created: 2026-08-01
 priority: medium
 source: session-2026-08-02-cycle78

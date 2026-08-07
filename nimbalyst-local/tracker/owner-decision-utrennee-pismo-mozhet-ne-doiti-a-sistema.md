@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-01
 priority: medium

@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет
-status: needs-owner
+status: ingested
 priority: high
 created: 2026-08-01
 ---

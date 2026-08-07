@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Выдуманная казна протокола в оценке страховки — оставить или отказываться?
-status: needs-owner
+status: ingested
 created: 2026-08-04
 source: session-2026-08-04-cycle116
 priority: medium

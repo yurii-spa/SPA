@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Общая память проекта стирается пушем из рабочей копии на маке — сегодня так пропало 1729 строк истории
-status: needs-owner
+status: ingested
 priority: high
 source: cycle-87
 created: 2026-08-02

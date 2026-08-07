@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Сторож голосований следит за чужими протоколами, а за нашими — нет: выбери, добавлять источники или убрать лишние"
-status: needs-owner
+status: ingested
 created: 2026-08-01
 priority: high
 source: session-2026-08-01-cycle76
