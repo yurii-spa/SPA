@@ -176,3 +176,38 @@ def test_state_file_names_what_it_does_not_verify(tmp_path: Path) -> None:
     on_disk = json.loads((tmp_path / "data" / STATE_FILENAME).read_text(encoding="utf-8"))
     assert on_disk == doc
     assert "deployment_drift" in doc["note"] and "agent_health" in doc["note"]
+
+
+def test_slo_matches_the_producer_rhythm_for_daily_artifacts():
+    """SLO суточного артефакта не может быть короче суток.
+
+    Измерено 2026-08-07: adapter_status.json имел SLO 12ч, а пересобирается
+    дневным циклом раз в 24ч — тревога срабатывала КАЖДЫЙ день во второй
+    половине суток, гарантированно и без повода. Приёмка сообщала «работа не
+    запускалась», хотя цикл отработал штатно.
+
+    Сторож, который кричит по расписанию, перестаёт читаться — и на его фоне
+    теряется настоящая просрочка. Это тот же класс, что ложное «всё хорошо»,
+    только вывернутый наизнанку.
+    """
+    from spa_core.monitoring.deployment_acceptance import SCHEDULED_ARTIFACTS
+
+    for artifact in ("current_positions.json", "adapter_status.json"):
+        slo = SCHEDULED_ARTIFACTS[artifact]
+        assert slo >= 24.0, (
+            f"{artifact} производит дневной цикл (24ч), а SLO={slo}ч — "
+            f"тревога будет срабатывать каждый день без повода"
+        )
+
+
+def test_artifacts_of_the_same_producer_share_their_slo():
+    """Два артефакта одного производителя не могут иметь разный SLO без причины.
+
+    Расхождение означает, что один из них назначен наугад — и именно так
+    adapter_status.json получил 12ч рядом с 30ч у соседа по циклу.
+    """
+    from spa_core.monitoring.deployment_acceptance import SCHEDULED_ARTIFACTS
+
+    daily_cycle = ("current_positions.json", "adapter_status.json")
+    slos = {SCHEDULED_ARTIFACTS[a] for a in daily_cycle}
+    assert len(slos) == 1, f"артефакты дневного цикла разошлись по SLO: {slos}"
