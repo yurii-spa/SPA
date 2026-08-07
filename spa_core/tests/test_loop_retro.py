@@ -142,7 +142,14 @@ class LiveRetro(unittest.TestCase):
         if not os.path.exists(path):
             self.skipTest("ретро ещё не запускался на этом хосте")
         r = json.load(open(path))
-        self.assertGreaterEqual(len(r["findings"]), 1)
+        # ИЗМЕНЁН ОСОЗНАННО 2026-08-07 (инв. 16, журнал W32): требование
+        # «в живом отчёте ВСЕГДА ≥1 находка» — то же приколачивание к состоянию
+        # инцидента, против которого написан докстринг этого класса (третий
+        # случай за двое суток): оно покраснело ровно в момент, когда петля
+        # стала здоровой (архив жив, кандидатов нет). Здоровье = ноль находок —
+        # легитимное состояние; both-ways проверка архива ниже — настоящая
+        # сила теста, она сохранена целиком.
+        self.assertIsInstance(r["findings"], list)
         self.assertTrue(all(u["reason"] for u in r["unchecked"]),
                         "UNCHECKED без причины — это молчание, а не честность")
         if "verdict_archive" not in r:
