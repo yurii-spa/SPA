@@ -1,27 +1,7 @@
 {
-  "last_updated": "2026-06-20T03:00:02.430387+00:00",
+  "last_updated": "2026-08-07T09:04:47.439334+00:00",
   "digest_count": 30,
   "history": [
-    {
-      "date": {
-        "source": "cli",
-        "protocol": "morpho_blue"
-      },
-      "generated_at": "2026-06-17T03:00:03.308749+00:00",
-      "portfolio_health": "WARNING",
-      "equity_usd": 100000.0,
-      "apy_today_pct": 3.9204,
-      "top_opportunities": [],
-      "risk_flags": [],
-      "scenario_worst_case": {},
-      "active_alerts": 2,
-      "days_to_golive": 28,
-      "attribution_active": false,
-      "total_active_return": 0.0,
-      "withdrawal_count": 0,
-      "paper_days": 8,
-      "summary_verdict": "on_track"
-    },
     {
       "date": {
         "source": "cli",
@@ -600,6 +580,26 @@
       "total_active_return": 0.0,
       "withdrawal_count": 0,
       "paper_days": 2,
+      "summary_verdict": "on_track"
+    },
+    {
+      "date": {
+        "source": "test",
+        "protocol": "aave_v3"
+      },
+      "generated_at": "2026-08-07T09:04:47.438891+00:00",
+      "portfolio_health": "WARNING",
+      "equity_usd": 100000.0,
+      "apy_today_pct": 4.8117,
+      "top_opportunities": [],
+      "risk_flags": [],
+      "scenario_worst_case": {},
+      "active_alerts": 2,
+      "days_to_golive": 24,
+      "attribution_active": false,
+      "total_active_return": 0.0,
+      "withdrawal_count": 0,
+      "paper_days": 12,
       "summary_verdict": "on_track"
     }
   ]

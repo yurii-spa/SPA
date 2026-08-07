@@ -574,5 +574,21 @@
     "nim_efficiency_score": 39,
     "nim_label": "ADEQUATE_SPREAD",
     "timestamp": 1786093183.0004792
+  },
+  {
+    "protocol_name": "UNKNOWN",
+    "supply_apy_pct": 0.0,
+    "borrow_apy_pct": 0.0,
+    "utilization_rate_pct": 0.0,
+    "reserve_factor_pct": 0.0,
+    "total_supplied_usd": 0.0,
+    "total_borrowed_usd": 0.0,
+    "gross_spread_pct": 0.0,
+    "net_interest_margin_pct": 0.0,
+    "protocol_revenue_usd_annual": 0.0,
+    "supplier_effective_yield_pct": 0.0,
+    "nim_efficiency_score": 0,
+    "nim_label": "INVERTED_SPREAD",
+    "timestamp": 1786093487.4467137
   }
 ]

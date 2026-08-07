@@ -1270,5 +1270,30 @@
       "Reserve factor generates ~$6,000,000 of protocol income per year at current borrow levels."
     ],
     "timestamp": 1786093188.2639587
+  },
+  {
+    "name": "UNKNOWN",
+    "reserve_factor_pct": 0.0,
+    "borrow_apr_pct": 0.0,
+    "utilization_pct": 0.0,
+    "total_borrows_usd": 0.0,
+    "current_reserves_usd": 0.0,
+    "bad_debt_usd": 0.0,
+    "supply_apy_pct": 0.0,
+    "reserve_income_annual_usd": 0.0,
+    "supplier_apy_drag_pct": 0.0,
+    "reserve_to_borrows_pct": 0.0,
+    "bad_debt_coverage_ratio": 999.0,
+    "no_bad_debt": true,
+    "reserve_adequacy_score": 0.0,
+    "classification": "UNDERFUNDED",
+    "grade": "F",
+    "flags": [
+      "INSUFFICIENT_DATA"
+    ],
+    "recommendations": [
+      "Insufficient data: total_borrows_usd <= 0. Cannot assess reserve-factor economics for this market."
+    ],
+    "timestamp": 1786093487.4484332
   }
 ]

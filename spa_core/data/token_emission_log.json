@@ -2,50 +2,6 @@
   {
     "protocols": [
       {
-        "name": "morpho_blue",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "morpho_blue",
-    "most_sustainable": "morpho_blue",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1786093446.6993399
-  },
-  {
-    "protocols": [
-      {
-        "name": "yearn_v3",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "yearn_v3",
-    "most_sustainable": "yearn_v3",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1786093446.9909482
-  },
-  {
-    "protocols": [
-      {
         "name": "euler_v2",
         "token_symbol": "???",
         "daily_inflation_pct": 0.0,
@@ -2198,5 +2154,49 @@
     "most_sustainable": "maple",
     "average_inflation_pct": 0.0,
     "timestamp": 1786093486.2341926
+  },
+  {
+    "protocols": [
+      {
+        "name": "pendle",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "pendle",
+    "most_sustainable": "pendle",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786093486.4853125
+  },
+  {
+    "protocols": [
+      {
+        "name": "spark_susds",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "spark_susds",
+    "most_sustainable": "spark_susds",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786093486.750098
   }
 ]
