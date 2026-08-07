@@ -447,3 +447,124 @@ def _policy_version() -> str:
         return RiskConfig().version
     except Exception:
         return "unknown"
+
+
+# ── ADR-072 (мандат владельца 2026-08-07): срезанный бюджет не выбрасывается ──
+
+def redistribute_freed_budget(
+    gate_target: dict[str, float],
+    pre_gate_target: dict[str, float],
+    capital_usd: float,
+    adapters: list[dict],
+    gate_result: dict,
+    *,
+    min_cash_pct: float = 0.05,
+    t1_cap_pct: float = 0.40,
+    t2_cap_pct: float = 0.20,
+    t2_total_cap_pct: float = 0.35,
+    max_protocols: int = 8,
+) -> dict:
+    """Перераздаёт бюджет, СРЕЗАННЫЙ гейтом, в оставшихся честных кандидатов.
+
+    Диагноз 2026-08-07: оптимизатор раздаёт 95% капитала, защитные тримы гейта
+    (below-median, TVL-freeze ADR-053) срезают веса — и освобождённые ~20%
+    просто выбрасывались в кэш под 0%, хотя рядом стояли live-кандидаты с
+    положительной доходностью и свободными потолками (compound_v3 3.3%,
+    yearn 3.3%, euler 3.1%). Для простаивающего кэша правильная планка
+    сравнения — 0%, а не лучшая позиция книги (ADR-055: молчаливый простой
+    запрещён; владелец 07.08: «кэш обязан работать — срочно»).
+
+    Правила честности:
+      * кандидат обязан иметь ``tvl_source == "live"`` и конечный APY > 0
+        из снимка адаптеров (та же доказательная база, что у самого гейта;
+        литералы не годятся — ADR-061/063);
+      * пулы, которые гейт ТОЛЬКО ЧТО срезал или заморозил
+        (pre_gate > gate_target, tvl_unverified), капитал НЕ получают —
+        перераздача не смеет отменять слово гейта;
+      * потолки тиров (T1 40% / T2 20%), суммарный T2 (35%) и ALLOC-002
+        (≤ max_protocols) соблюдаются здесь И перепроверяются повторным
+        проходом самого гейта у вызывающего — ГЕЙТ ОСТАЁТСЯ ПОСЛЕДНИМ СЛОВОМ
+        (инвариант 1); буфер min_cash неприкосновенен;
+      * каждое размещение возвращается именованным (ADR-055 provenance).
+
+    Возвращает ``{"target_usd", "added": {proto: usd}, "freed_usd", "notes"}``;
+    при freed ≤ эпсилон — вход без изменений. Пороги RiskPolicy не меняются.
+    """
+    out = {"target_usd": dict(gate_target), "added": {}, "freed_usd": 0.0,
+           "notes": []}
+    try:
+        cap = float(capital_usd)
+        if not math.isfinite(cap) or cap <= 0:
+            return out
+        deployable_max = cap * (1.0 - max(0.0, float(min_cash_pct)))
+        deployed = sum(float(v) for v in gate_target.values())
+        asked = sum(float(v) for v in pre_gate_target.values())
+        # Строго мандат: перераздаётся ТОЛЬКО то, что срезал гейт (asked-deployed),
+        # и никогда сверх буфера. Недобор самого аллокатора (маленькая книга по
+        # его собственному решению) — не наш предмет: заполнять его значило бы
+        # отменять решение модели, а не спасать срезанный бюджет.
+        freed = min(deployable_max - deployed, max(0.0, asked - deployed))
+        out["freed_usd"] = round(max(0.0, freed), 2)
+        if freed <= cap * 0.005:  # < 0.5% капитала — не гоняем копейки
+            return out
+
+        frozen = set(gate_result.get("tvl_unverified") or [])
+        reduced_by_gate = {
+            p for p, pre in pre_gate_target.items()
+            if float(pre) - float(gate_target.get(p, 0.0)) > 1e-6
+        }
+        blocked = frozen | reduced_by_gate
+
+        tier_of: dict[str, str] = {}
+        candidates: list[tuple[float, str]] = []
+        for a in adapters:
+            if not isinstance(a, dict):
+                continue
+            p = a.get("protocol")
+            if not p or p in blocked:
+                continue
+            tier = str(a.get("tier", "T2")).upper()
+            tier_of[p] = tier
+            apy = a.get("apy_pct")
+            tvl_live = (a.get("tvl_source") == "live")
+            if (tvl_live and isinstance(apy, (int, float))
+                    and not isinstance(apy, bool)
+                    and math.isfinite(apy) and apy > 0.0):
+                candidates.append((-float(apy), str(p)))
+        candidates.sort()
+
+        new_target = dict(gate_target)
+        t2_deployed = sum(float(v) for p, v in new_target.items()
+                          if str(tier_of.get(p, "T2")).upper() != "T1")
+        funded = {p for p, v in new_target.items() if float(v) > 1e-6}
+
+        for _neg_apy, p in candidates:
+            if freed <= 1e-6:
+                break
+            tier = tier_of.get(p, "T2")
+            cap_pct = t1_cap_pct if tier == "T1" else t2_cap_pct
+            headroom = cap * cap_pct - float(new_target.get(p, 0.0))
+            if tier != "T1":
+                headroom = min(headroom, cap * t2_total_cap_pct - t2_deployed)
+            if headroom <= 1e-6:
+                continue
+            if p not in funded and len(funded) >= max_protocols:
+                continue  # ALLOC-002: новых имён сверх лимита не открываем
+            add = min(freed, headroom)
+            new_target[p] = float(new_target.get(p, 0.0)) + add
+            out["added"][p] = round(out["added"].get(p, 0.0) + add, 2)
+            if tier != "T1":
+                t2_deployed += add
+            funded.add(p)
+            freed -= add
+            out["notes"].append(
+                f"ADR-072: +${add:,.0f} → {p} ({tier}, {-_neg_apy:.2f}% live) — "
+                f"срезанный гейтом бюджет вместо кэша под 0%")
+
+        if out["added"]:
+            out["target_usd"] = new_target
+    except Exception as exc:  # noqa: BLE001 — перераздача не смеет валить цикл
+        log.warning("ADR-072 redistribute_freed_budget failed (%s) — вход без изменений", exc)
+        return {"target_usd": dict(gate_target), "added": {}, "freed_usd": 0.0,
+                "notes": [f"ADR-072: перераздача упала ({type(exc).__name__}) — кэш остался"]}
+    return out

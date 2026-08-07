@@ -1546,6 +1546,38 @@ def run_cycle(
             # Step-2f reporting writer.
             _policy_refusals = quantify_policy_refusals(
                 _pre_gate_target, target_usd, _tvl_frozen_pools)
+        if gate["approved"]:
+            # ── ADR-072 (мандат владельца 07.08): срезанный гейтом бюджет
+            # перераздаётся в оставшихся live-кандидатов, затем НОВЫЙ target
+            # ОБЯЗАТЕЛЬНО проходит гейт ПОВТОРНО — гейт остаётся последним
+            # словом (инвариант 1). Отказ второго гейта = перераздача отменена.
+            try:
+                from spa_core.paper_trading.risk_gate import redistribute_freed_budget
+                _re = redistribute_freed_budget(
+                    target_usd, _pre_gate_target, capital_usd, adapters, gate)
+                if _re["added"]:
+                    _gate2 = _apply_risk_policy_gate(
+                        _re["target_usd"], capital_usd, adapters, ddir=ddir,
+                        current_positions=current_positions)
+                    if (_gate2["error"] is None and _gate2["approved"]
+                            and not _gate2["violations"]):
+                        target_usd = dict(_gate2["target_usd"])
+                        notes.extend(_re["notes"])
+                        notes.append(
+                            "ADR-072: перераздано $"
+                            f"{sum(_re['added'].values()):,.0f} из срезанного "
+                            f"бюджета (${_re['freed_usd']:,.0f}); повторный "
+                            "гейт APPROVED")
+                        log.info("ADR-072 redistribution: %s", _re["added"])
+                    else:
+                        notes.append(
+                            "ADR-072: перераздача ОТКЛОНЕНА повторным гейтом "
+                            f"({'; '.join(_gate2['violations']) or _gate2['error'] or 'not approved'}) "
+                            "— принято слово гейта, кэш остался")
+            except Exception as _re_exc:  # noqa: BLE001 — не смеет валить цикл
+                log.warning("ADR-072 redistribution failed (%s) — cycle continues",
+                            _re_exc)
+
         if not gate["approved"]:
             policy_blocked = True
             log.warning(
