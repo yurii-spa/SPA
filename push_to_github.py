@@ -703,6 +703,14 @@ def _common_prefix_at_line_boundary(base: bytes, local: bytes, remote: bytes) ->
 #     а не недосмотр: «запись не исчезает» ≠ «содержимое не теряется».
 #   * Только объявленные ниже документы-«общие тетради». Всё прочее (код,
 #     карточки, `_BOARD.md` — он пересобирается целиком) не трогаем.
+#   * ПЕРЕИМЕНОВАНИЕ заголовка — не потеря (уточнение цикла #154 по замеру
+#     #150). Если тело записи совпало с remote побайтово, запись на месте, как
+#     бы ни изменился её заголовок: отказа нет, но случай НАЗЫВАЕТСЯ нотой.
+#     Отказ остаётся за настоящей потерей содержимого —
+#     см. `classify_missing_entries`.
+#   * Список находок — по ВСЕМ отправляемым файлам, а не до первого сбойного:
+#     решение «обходить или нет» принимают по этому списку, и список короче
+#     правды опаснее отсутствия списка (см. `build_entries`).
 # ══════════════════════════════════════════════════════════════════════════════
 
 #: Документы, которые ДОПИСЫВАЮТ все сессии подряд (протокол §«Шаг 3»).
@@ -794,17 +802,79 @@ def entry_headers(blob: Optional[bytes]) -> list:
     return [m.group(0).strip() for m in ENTRY_HEADER_RE.finditer(blob)]
 
 
-def dropped_entries(remote: Optional[bytes], ours: Optional[bytes]) -> list:
-    """Записи, которые есть на remote и которых НЕ будет после нашего пуша."""
-    theirs = entry_headers(remote)
-    mine = list(entry_headers(ours))
-    lost = []
-    for h in theirs:
-        if h in mine:
-            mine.remove(h)          # кратность: гасим ровно одно вхождение
+def entry_blocks(blob: Optional[bytes]) -> list:
+    """``[(заголовок, тело)]`` в порядке появления; тело — до следующего заголовка.
+
+    Нужно затем, чтобы отличить ПЕРЕИМЕНОВАНИЕ записи от её ИСЧЕЗНОВЕНИЯ: по
+    одному заголовку эти два случая неразличимы, а последствия у них разные.
+    Тело нормализуется ``strip()`` — пустые строки вокруг записи её содержимым
+    не являются и прятать потерю не могут.
+    """
+    if not blob:
+        return []
+    heads = list(ENTRY_HEADER_RE.finditer(blob))
+    out = []
+    for i, m in enumerate(heads):
+        end = heads[i + 1].start() if i + 1 < len(heads) else len(blob)
+        out.append((m.group(0).strip(), blob[m.end():end].strip()))
+    return out
+
+
+def classify_missing_entries(remote: Optional[bytes], ours: Optional[bytes]) -> tuple:
+    """``(потеряно, переименовано)`` — записи remote, чьего заголовка у нас нет.
+
+    Замер цикла #150: доставка отказала на двух строках `2026-W29.md`, которые
+    НЕ исчезали — цикл дописал к их заголовкам номер цикла, а тела совпали с
+    remote побайтово. Страж сравнивал только ТЕКСТ заголовка, поэтому
+    переименование читалось как потеря.
+
+    Две фазы, и порядок между ними значим:
+
+    1. гасим по ЗАГОЛОВКУ, с кратностью (два одинаковых заголовка и один
+       уцелевший — это потеря, и она обязана остаться потерей);
+    2. у оставшихся смотрим ТЕЛО: если ровно то же тело лежит под другим,
+       ещё не сопоставленным заголовком — запись на месте, это переименование.
+       Пустое тело в кандидаты не берётся: оно совпало бы с чем угодно.
+
+    Это НЕ ослабление проверки: отказ по-прежнему наступает всегда, когда
+    исчезает содержимое записи. Сужается ровно тот случай, где содержимое
+    доказанно на месте, — и он всё равно НАЗЫВАЕТСЯ (нота, а не молчание).
+    """
+    theirs = entry_blocks(remote)
+    unmatched_mine = entry_blocks(ours)
+
+    only_on_remote = []
+    for header, body in theirs:
+        for j, (h2, _) in enumerate(unmatched_mine):
+            if h2 == header:
+                unmatched_mine.pop(j)      # кратность: гасим ровно одно вхождение
+                break
         else:
-            lost.append(h)
-    return lost
+            only_on_remote.append((header, body))
+
+    lost, renamed = [], []
+    for header, body in only_on_remote:
+        match = None
+        if body:
+            for j, (h2, b2) in enumerate(unmatched_mine):
+                if b2 == body:
+                    match = h2
+                    unmatched_mine.pop(j)
+                    break
+        if match is None:
+            lost.append(header)
+        else:
+            renamed.append((header, match))
+    return lost, renamed
+
+
+def dropped_entries(remote: Optional[bytes], ours: Optional[bytes]) -> list:
+    """Записи, которые есть на remote и которых НЕ будет после нашего пуша.
+
+    Переименование заголовка при побайтово уцелевшем теле сюда НЕ попадает —
+    см. :func:`classify_missing_entries`.
+    """
+    return classify_missing_entries(remote, ours)[0]
 
 
 def guard_entry_loss(repo_path: str, remote_bytes: Optional[bytes],
@@ -830,19 +900,34 @@ def guard_entry_loss(repo_path: str, remote_bytes: Optional[bytes],
             f"Что делать: повторить (Contents API не отдаёт содержимое файлов >1 МБ); "
             f"осознанная перезапись — `--allow-overwrite`.")
 
-    lost = dropped_entries(remote_bytes, content_bytes)
+    lost, renamed = classify_missing_entries(remote_bytes, content_bytes)
+
+    # Переименование НАЗЫВАЕТСЯ отдельным классом, а не молчит: тело записи на
+    # месте побайтово, терять нечего — но заголовок общей тетради всё-таки
+    # изменился, и увидеть это автор доставки обязан.
+    renamed_note = ""
+    if renamed:
+        pairs = "\n".join(
+            f"    - {a.decode('utf-8', 'replace')[:70]}  →  {b.decode('utf-8', 'replace')[:70]}"
+            for a, b in renamed[:8])
+        more_r = f"\n    … и ещё {len(renamed) - 8}" if len(renamed) > 8 else ""
+        renamed_note = (f"🔤 {repo_path}: переименовано заголовков — {len(renamed)} "
+                        f"(тело каждой записи совпало с remote побайтово, потери нет):\n"
+                        f"{pairs}{more_r}")
+
     if not lost:
-        return ""
+        return renamed_note
 
     shown = "\n".join(f"    - {h.decode('utf-8', 'replace')[:110]}" for h in lost[:8])
     more = f"\n    … и ещё {len(lost) - 8}" if len(lost) > 8 else ""
+    tail = f"\n{renamed_note}" if renamed_note else ""
     raise EntryLossRefused(
         f"{repo_path}: пуш стёр бы {len(lost)} запис(ь/и), которые есть на "
         f"remote и которых нет в отправляемом содержимом:\n{shown}{more}\n"
         f"Так за неделю молча пропало 12 раз (замер #139) — пушер печатал OK, "
         f"потому что доставлял ровно то, что ему дали. Пуш отменён (fail-CLOSED).\n"
         f"Что делать: перечитать {repo_path} со свежего origin, перенести свою "
-        f"запись на него и запушить снова; осознанное сокращение — `--allow-overwrite`.")
+        f"запись на него и запушить снова; осознанное сокращение — `--allow-overwrite`.{tail}")
 
 
 def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
@@ -871,9 +956,9 @@ def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
         # remote == база ⇒ содержимое remote у нас уже на руках, сеть не нужна.
         # Проверять всё равно надо: «чужого тут нет» не значит «своего не теряем»
         # (`f35ff96ed` уронил запись `STATE.md` ровно на этом пути).
-        guard_entry_loss(repo_path, verdict.get("base"), local_bytes, remote_sha,
-                         allow_overwrite=allow_overwrite)
-        return local_bytes, ""
+        note = guard_entry_loss(repo_path, verdict.get("base"), local_bytes, remote_sha,
+                                allow_overwrite=allow_overwrite)
+        return local_bytes, note
 
     if state == DIVERGENCE_UNMEASURED:
         note = f"⚠️  расхождение НЕ ИЗМЕРЕНО для {repo_path}: {verdict['reason']}"
@@ -885,9 +970,12 @@ def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
         # ЗДЕСЬ И БЫЛА ДЫРА: базы нет ⇒ раньше уходило как есть. Проверка записей
         # базы не требует — только содержимого remote, и берёт его сама.
         if not allow_overwrite and is_append_only_doc(repo_path) and remote_sha is not None:
-            guard_entry_loss(repo_path,
-                             get_file_content(pat, repo, repo_path, branch),
-                             local_bytes, remote_sha, allow_overwrite=allow_overwrite)
+            entry_note = guard_entry_loss(repo_path,
+                                          get_file_content(pat, repo, repo_path, branch),
+                                          local_bytes, remote_sha,
+                                          allow_overwrite=allow_overwrite)
+            if entry_note:
+                note = f"{note}\n{entry_note}"
         # Общая память (ADR-070 п.7). Стоит ПОСЛЕ проверки записей намеренно: обе
         # ведут к отказу, но та называет пропадающие записи поимённо — более
         # полезное сообщение должно побеждать. Сюда доходит то, что она пропустила
@@ -916,10 +1004,11 @@ def guard_overwrite(pat: str, repo: str, branch: str, repo_path: str, abs_path,
         # Пере-база сохраняет remote целиком ПО ПОСТРОЕНИЮ (remote — префикс
         # результата). Проверка здесь бесплатна (remote уже прочитан) и стоит
         # ровно затем, чтобы регрессия `rebase_append` не проехала молча.
-        guard_entry_loss(repo_path, remote_bytes, rebased, remote_sha,
-                         allow_overwrite=allow_overwrite)
-        return rebased, (f"🔀 пере-база {repo_path}: наша добавка наложена на свежее "
-                         f"содержимое remote (обе записи сохранены)")
+        entry_note = guard_entry_loss(repo_path, remote_bytes, rebased, remote_sha,
+                                      allow_overwrite=allow_overwrite)
+        rebase_note = (f"🔀 пере-база {repo_path}: наша добавка наложена на свежее "
+                       f"содержимое remote (обе записи сохранены)")
+        return rebased, (f"{rebase_note}\n{entry_note}" if entry_note else rebase_note)
 
     raise DivergenceRefused(
         f"{verdict['reason']}.\n"
@@ -1288,13 +1377,42 @@ def build_entries(pat: str, repo: str, branch: str, changed: list,
     наших путях, и повторное использование старых blob'ов молча стёрло бы её —
     тот же дефект, что и в основном пути, только этажом ниже.
     :class:`DivergenceRefused` роняет ВЕСЬ батч (fail-CLOSED, как resolve_files).
+
+    Сначала через стража проходят ВСЕ файлы, и только потом создаются blob'ы.
+    Раньше отказ на первом же файле обрывал цикл — и сообщение об отказе, по
+    которому человек решает «обходить или нет», перечисляло находки только до
+    первого сбойного файла (замер цикла #150: переименование в `2026-W29.md`
+    названо, такое же в `2026-W31.md` — нет). Список короче правды хуже, чем
+    отсутствие списка: он выглядит полным. Побочно уходят и blob'ы-сироты,
+    которые старый порядок успевал создать до отказа.
     """
-    entries = []
+    guarded, failures = [], []
     for repo_path, abs_path, remote_sha in changed:
+        try:
+            content, note = guard_overwrite(pat, repo, branch, repo_path, abs_path,
+                                            Path(abs_path).read_bytes(), remote_sha,
+                                            allow_overwrite=allow_overwrite)
+        except DivergenceRefused as e:
+            failures.append((repo_path, e))
+            continue
+        guarded.append((repo_path, abs_path, content, note))
+
+    if len(failures) == 1:
+        raise failures[0][1]          # один файл — сообщение стража дословно
+    if failures:
+        joined = "\n\n".join(f"[{i}/{len(failures)}] {e}"
+                             for i, (_, e) in enumerate(failures, 1))
+        cls = type(failures[0][1])
+        if any(type(e) is not cls for _, e in failures):
+            cls = DivergenceRefused   # разные причины — общий, не самый узкий класс
+        raise cls(
+            f"пуш отменён целиком: файлов с находкой — {len(failures)} из "
+            f"{len(changed)} ({', '.join(p for p, _ in failures)}). Батч — один "
+            f"коммит, поэтому решение принимается по ПОЛНОМУ списку:\n\n{joined}")
+
+    entries = []
+    for repo_path, abs_path, content, note in guarded:
         mode = tree_entry_mode(repo_path, abs_path, modes, truncated)
-        content, note = guard_overwrite(pat, repo, branch, repo_path, abs_path,
-                                        Path(abs_path).read_bytes(), remote_sha,
-                                        allow_overwrite=allow_overwrite)
         if note:
             print(f"  {note}")
         blob_sha = create_blob_from_bytes(pat, repo, content)
