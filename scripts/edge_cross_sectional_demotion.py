@@ -473,7 +473,11 @@ def sweep(kind: str, ks: Sequence[int] = (1, 2, 3, 4, 5),
     print(f"{tag} — SWEEP of ΔCalmar vs raw ({base['calmar']:.2f}); rows = k books demoted, "
           f"cols = re-admission delay M")
     print("=" * 110)
-    print(f"{'k \\ M':>8s}" + "".join(f"{m:>8d}" for m in ms))
+    # The corner label is bound to a name rather than written inline: a backslash inside an
+    # f-string replacement field is a SyntaxError before Python 3.12, and the CI matrix runs
+    # 3.11 — where it is not a bad row, it is a COLLECTION error that reddens the whole suite.
+    corner = "k \\ M"
+    print(f"{corner:>8s}" + "".join(f"{m:>8d}" for m in ms))
     for k in ks:
         cells = []
         for m_days in ms:

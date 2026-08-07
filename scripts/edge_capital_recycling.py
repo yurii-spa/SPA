@@ -469,7 +469,11 @@ def cdr_sweep(readmits: Sequence[int] = (1, 2, 3, 5, 10, 20, 30, 45, 60),
     print(f"IDEA #39 CDR — SWEEP of ΔCalmar vs raw ({base['calmar']:.2f}); rows = drift window L, "
           f"cols = re-admission delay M")
     print("=" * 110)
-    print(f"{'L \\ M':>8s}" + "".join(f"{m:>8d}" for m in readmits))
+    # Bound to a name, not written inline: a backslash inside an f-string replacement field is a
+    # SyntaxError before Python 3.12, and the CI matrix runs 3.11 — where it is not one bad row
+    # but a COLLECTION error that reddens the whole run. Pinned by a test over scripts/edge_*.py.
+    corner = "L \\ M"
+    print(f"{corner:>8s}" + "".join(f"{m:>8d}" for m in readmits))
     for lkb in lookbacks:
         cells = []
         for m_days in readmits:
