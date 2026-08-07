@@ -165,15 +165,24 @@ def resolve_tracker_type(fm: dict, filename: str = "") -> str:
     return ""
 
 
-def load_card(path: str | Path) -> Card:
-    p = Path(path)
-    text = p.read_text(encoding="utf-8")
+def load_card_text(text: str, name: str = "", path: str | Path | None = None) -> Card:
+    """Разобрать карточку из ТЕКСТА — тот же и единственный парсер, что и для файла на диске.
+
+    Нужен читателям, у которых карточки нет на диске: версия карточки на ``origin/main``
+    (`scripts/check_tracker_drift.py` читает её через ``git show``, а не через файл). Отдельная
+    функция здесь ровно потому, что альтернатива — своя копия разбора frontmatter у второго
+    читателя, а это дефект, за который проект уже заплатил дважды: CLI и доска разошлись в
+    определении типа карточки и три вопроса владельца стали невидимы (#143–#145).
+
+    ``name`` — имя файла: по нему работает последний рубеж ``resolve_tracker_type`` (префикс
+    имени), когда карточка не объявила тип ни одной из двух форм.
+    """
     fm_lines, body = _split_frontmatter(text)
     fm = _parse_frontmatter(fm_lines)
-    tracker_type = resolve_tracker_type(fm, p.name)
+    tracker_type = resolve_tracker_type(fm, name)
     top = {k: v for k, v in fm.items() if k != "trackerStatus" and not isinstance(v, dict)}
     return Card(
-        path=p,
+        path=Path(path) if path is not None else Path(name),
         tracker_type=tracker_type,
         title=str(top.get("title", "")),
         status=str(top.get("status", "")),
@@ -183,6 +192,13 @@ def load_card(path: str | Path) -> Card:
         fields=top,
         body=body,
     )
+
+
+def load_card(path: str | Path) -> Card:
+    """Карточка с диска. Разбор — ТОЛЬКО через ``load_card_text``: две копии одного правила
+    разбора и есть дефект, стоивший проекту трёх невидимых вопросов владельца (#143–#145)."""
+    p = Path(path)
+    return load_card_text(p.read_text(encoding="utf-8"), p.name, path=p)
 
 
 def list_cards(

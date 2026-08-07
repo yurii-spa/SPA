@@ -32,6 +32,12 @@ from pathlib import Path
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
+# Каталог scripts/ — СВОЕГО дерева, а не чьего-то: сторож сверки с origin (check_tracker_drift)
+# должен быть той же копии, что и эта. Явно, не через sys.path[0]: при импорте модуля тестом
+# sys.path[0] — каталог pytest, и импорт сторожа молча не состоялся бы (капкан #111).
+_SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
 
 from spa_core.owner_queue.queue import (
     OwnerDoneForbidden,
@@ -96,8 +102,97 @@ def _card_dict(c) -> dict:
     }
 
 
+def _origin_read_through(cards: list, tracker_dir=None, ref: str | None = None) -> list:
+    """Сверить читаемый трекер с `origin/main` и ГРОМКО назвать расхождение (шаг 1-пред).
+
+    **Зачем.** Список карточек читается из трекера ТОГО дерева, чья копия этого скрипта
+    запущена. Циклы работают в изолированных worktree и пушат прямо на origin — хост-дерево
+    не обновляется никогда, и никто эти два набора не сверял. Измерено на живом входе
+    (#147): хост-дерево дало 5 карточек `inbox/new`, все пять на origin уже закрыты, и НЕ
+    показало 7 настоящих открытых, включая **три вопроса владельца в `needs-owner`**. Очередь
+    была неверна в обе стороны сразу.
+
+    **Что здесь происходит и чего НЕ происходит.** Карточка, содержимое которой найдено в
+    ИСТОРИИ origin для её же пути, — доказанно устаревшая копия (не «похоже старее», а
+    «это буквально прежняя версия этого файла»); такая читается с origin, и статус-фильтр
+    работает по правде. Всё остальное НЕ переписывается: у карточки со своей правкой
+    (`diverged`) кто новее — не измерено, и молча выбирать сторону нельзя; карточку, которой
+    в дереве нет (`hidden`), выдать невозможно — файла нет, а путь-фантом сломал бы
+    `set-status`. Обе называются в stderr поимённо. Массовый `checkout origin/main -- трекер`
+    запрещён по построению: он стёр бы карточки, живущие только в рабочем дереве.
+
+    stdout не трогается: он машинный контракт. Всё, что говорит сторож, идёт в stderr.
+    Не измерилось — говорим «НЕ ИЗМЕРЕНО» и причину, а не молчим.
+    """
+    try:
+        import check_tracker_drift as drift
+    except Exception as exc:  # noqa: BLE001 — сторож не должен ломать саму очередь
+        print(f"❓ сверка с origin НЕ ИЗМЕРЕНА: сторож не импортировался ({exc})", file=sys.stderr)
+        return cards
+    try:
+        report = drift.analyze(tracker_dir, ref or drift.DEFAULT_REF)
+    except drift.Unmeasured as exc:
+        print(f"❓ сверка трекера с origin/main НЕ ИЗМЕРЕНА — {exc}\n"
+              f"    список ниже НЕ подтверждён: он может показывать закрытое и прятать новое.",
+              file=sys.stderr)
+        return cards
+    if not report.findings:
+        return cards
+
+    try:
+        root = drift.repo_root_of(Path(report.tracker_dir))
+        rel = Path(report.tracker_dir).resolve().relative_to(root.resolve()).as_posix()
+    except (drift.Unmeasured, ValueError) as exc:
+        # Сторож не имеет права уронить саму очередь: сверка — довесок к списку, а не его условие.
+        print(f"❓ расхождение найдено, но версию с origin взять неоткуда ({exc})", file=sys.stderr)
+        return cards
+    by_id = {c.id: c for c in cards}
+    for f in report.of_kind(drift.KIND_STALE):
+        local = by_id.get(f.card_id)
+        if local is None:
+            continue
+        try:
+            fresh = drift.read_origin_card(root, report.ref, f"{rel}/{f.card_id}.md")
+        except drift.Unmeasured as exc:
+            print(f"❓ {f.card_id}: устарела, но версию с origin прочитать не удалось ({exc})",
+                  file=sys.stderr)
+            continue
+        fresh.path = local.path  # путь остаётся местный: по нему работает set-status
+        by_id[f.card_id] = fresh
+
+    def _ids(kind):
+        return ", ".join(sorted(x.card_id for x in report.of_kind(kind))) or "—"
+
+    stale, hidden = report.of_kind(drift.KIND_STALE), report.of_kind(drift.KIND_HIDDEN)
+    diverged, undelivered = report.of_kind(drift.KIND_DIVERGED), report.of_kind(drift.KIND_UNDELIVERED)
+    print(f"⚠️  трекер этого дерева РАСХОДИТСЯ с {report.ref} ({report.ref_sha[:9] or '?'}): "
+          f"в дереве {report.tree_count}, на {report.ref} {report.origin_count}", file=sys.stderr)
+    if stale:
+        print(f"    · устарели и прочитаны С ORIGIN ({len(stale)}): {_ids(drift.KIND_STALE)}",
+              file=sys.stderr)
+    if hidden:
+        print(f"    · ЕСТЬ НА ORIGIN, В ДЕРЕВЕ НЕТ ({len(hidden)}) — в список ниже НЕ попали, "
+              f"работайте из worktree от {report.ref}: {_ids(drift.KIND_HIDDEN)}", file=sys.stderr)
+    if diverged:
+        print(f"    · своя правка в дереве ({len(diverged)}) — кто новее НЕ измерено, сверьте "
+              f"руками: {_ids(drift.KIND_DIVERGED)}", file=sys.stderr)
+    if undelivered:
+        print(f"    · есть в дереве, на {report.ref} нет ({len(undelivered)}) — не доставлены: "
+              f"{_ids(drift.KIND_UNDELIVERED)}", file=sys.stderr)
+    return [by_id[c.id] for c in cards]
+
+
 def cmd_list(args) -> int:
-    cards = list_cards(tracker_type=args.type, status=args.status)
+    cards = list_cards(tracker_dir=getattr(args, "tracker_dir", None))
+    if getattr(args, "origin_check", True):
+        cards = _origin_read_through(cards, getattr(args, "tracker_dir", None),
+                                     getattr(args, "ref", None))
+    # Фильтры применяются ПОСЛЕ сверки с origin — иначе карточка, закрытая на origin, отсеялась
+    # бы по устаревшему статусу дерева и снова выдавалась как новая (ровно чинимый дефект).
+    if args.type is not None:
+        cards = [c for c in cards if c.tracker_type == args.type]
+    if args.status is not None:
+        cards = [c for c in cards if c.status == args.status]
     if args.json:
         print(json.dumps([_card_dict(c) for c in cards], ensure_ascii=False, indent=2))
     else:
@@ -218,7 +313,9 @@ def cmd_notify(args) -> int:
     return 0
 
 
-def main(argv=None) -> int:
+def build_parser() -> argparse.ArgumentParser:
+    """Разбор аргументов отдельно от запуска: тесты обязаны звать РЕАЛЬНЫЙ путь команды
+    (парсер + `cmd_*`), а не собирать args вручную мимо умолчаний парсера."""
     p = argparse.ArgumentParser(description="Owner-queue CLI (files-first tracker cards)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
@@ -226,7 +323,13 @@ def main(argv=None) -> int:
     pl.add_argument("--type", default=None, help="trackerStatus.type (owner-decision|inbox)")
     pl.add_argument("--status", default=None, help="status filter (needs-owner|owner-done|ingested|...)")
     pl.add_argument("--json", action="store_true", help="JSON output")
-    pl.set_defaults(func=cmd_list)
+    pl.add_argument("--tracker-dir", default=None,
+                    help="каталог трекера (по умолчанию — трекер дерева этой копии скрипта)")
+    pl.add_argument("--no-origin-check", dest="origin_check", action="store_false",
+                    help="НЕ сверять трекер с origin/main. Список станет неподтверждённым: "
+                         "он может показывать закрытое и прятать новое (дефект #147)")
+    pl.add_argument("--ref", default=None, help="с чем сверять трекер (по умолчанию origin/main)")
+    pl.set_defaults(func=cmd_list, origin_check=True, ref=None)
 
     ps = sub.add_parser("set-status", help="atomically set a card's status (owner-done FORBIDDEN)")
     ps.add_argument("path")
@@ -259,7 +362,11 @@ def main(argv=None) -> int:
     pn.add_argument("--check", action="store_true", help="build message, do not send")
     pn.set_defaults(func=cmd_notify)
 
-    args = p.parse_args(argv)
+    return p
+
+
+def main(argv=None) -> int:
+    args = build_parser().parse_args(argv)
     return args.func(args)
 
 
