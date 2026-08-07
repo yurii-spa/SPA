@@ -27,2406 +27,6 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093029.6560202
-  },
-  {
-    "farms": [
-      {
-        "protocol": "compound_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "compound_v3",
-    "worst_farm": "compound_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093029.922809
-  },
-  {
-    "farms": [
-      {
-        "protocol": "morpho_blue",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "morpho_blue",
-    "worst_farm": "morpho_blue",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093030.1789486
-  },
-  {
-    "farms": [
-      {
-        "protocol": "yearn_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "yearn_v3",
-    "worst_farm": "yearn_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093030.4457023
-  },
-  {
-    "farms": [
-      {
-        "protocol": "euler_v2",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "euler_v2",
-    "worst_farm": "euler_v2",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093030.7036467
-  },
-  {
-    "farms": [
-      {
-        "protocol": "maple",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "maple",
-    "worst_farm": "maple",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093030.9508367
-  },
-  {
-    "farms": [
-      {
-        "protocol": "pendle",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "pendle",
-    "worst_farm": "pendle",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093031.1890476
-  },
-  {
-    "farms": [
-      {
-        "protocol": "spark_susds",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "spark_susds",
-    "worst_farm": "spark_susds",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093031.4285002
-  },
-  {
-    "farms": [
-      {
-        "protocol": "aave_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "aave_v3",
-    "worst_farm": "aave_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093031.813782
-  },
-  {
-    "farms": [
-      {
-        "protocol": "compound_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "compound_v3",
-    "worst_farm": "compound_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093032.0817664
-  },
-  {
-    "farms": [
-      {
-        "protocol": "morpho_blue",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "morpho_blue",
-    "worst_farm": "morpho_blue",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093032.3430574
-  },
-  {
-    "farms": [
-      {
-        "protocol": "yearn_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "yearn_v3",
-    "worst_farm": "yearn_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093032.605407
-  },
-  {
-    "farms": [
-      {
-        "protocol": "euler_v2",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "euler_v2",
-    "worst_farm": "euler_v2",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093032.8846292
-  },
-  {
-    "farms": [
-      {
-        "protocol": "maple",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "maple",
-    "worst_farm": "maple",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093033.1513195
-  },
-  {
-    "farms": [
-      {
-        "protocol": "pendle",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "pendle",
-    "worst_farm": "pendle",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093033.4137008
-  },
-  {
-    "farms": [
-      {
-        "protocol": "spark_susds",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "spark_susds",
-    "worst_farm": "spark_susds",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093033.6775892
-  },
-  {
-    "farms": [
-      {
-        "protocol": "aave_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "aave_v3",
-    "worst_farm": "aave_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093034.0870187
-  },
-  {
-    "farms": [
-      {
-        "protocol": "compound_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "compound_v3",
-    "worst_farm": "compound_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093034.3640182
-  },
-  {
-    "farms": [
-      {
-        "protocol": "morpho_blue",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "morpho_blue",
-    "worst_farm": "morpho_blue",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093034.6479166
-  },
-  {
-    "farms": [
-      {
-        "protocol": "yearn_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "yearn_v3",
-    "worst_farm": "yearn_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093034.9327104
-  },
-  {
-    "farms": [
-      {
-        "protocol": "euler_v2",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "euler_v2",
-    "worst_farm": "euler_v2",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093035.1828392
-  },
-  {
-    "farms": [
-      {
-        "protocol": "maple",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "maple",
-    "worst_farm": "maple",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093035.4122822
-  },
-  {
-    "farms": [
-      {
-        "protocol": "pendle",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "pendle",
-    "worst_farm": "pendle",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093035.6501188
-  },
-  {
-    "farms": [
-      {
-        "protocol": "spark_susds",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "spark_susds",
-    "worst_farm": "spark_susds",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093035.884146
-  },
-  {
-    "farms": [
-      {
-        "protocol": "aave_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "aave_v3",
-    "worst_farm": "aave_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093036.2499
-  },
-  {
-    "farms": [
-      {
-        "protocol": "compound_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "compound_v3",
-    "worst_farm": "compound_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093036.505197
-  },
-  {
-    "farms": [
-      {
-        "protocol": "morpho_blue",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "morpho_blue",
-    "worst_farm": "morpho_blue",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093036.7572231
-  },
-  {
-    "farms": [
-      {
-        "protocol": "yearn_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "yearn_v3",
-    "worst_farm": "yearn_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093037.0216367
-  },
-  {
-    "farms": [
-      {
-        "protocol": "euler_v2",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "euler_v2",
-    "worst_farm": "euler_v2",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093037.2803607
-  },
-  {
-    "farms": [
-      {
-        "protocol": "maple",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "maple",
-    "worst_farm": "maple",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093037.5157902
-  },
-  {
-    "farms": [
-      {
-        "protocol": "pendle",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "pendle",
-    "worst_farm": "pendle",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093037.761681
-  },
-  {
-    "farms": [
-      {
-        "protocol": "spark_susds",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "spark_susds",
-    "worst_farm": "spark_susds",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093038.0014627
-  },
-  {
-    "farms": [
-      {
-        "protocol": "aave_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "aave_v3",
-    "worst_farm": "aave_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093038.3742802
-  },
-  {
-    "farms": [
-      {
-        "protocol": "compound_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "compound_v3",
-    "worst_farm": "compound_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093038.6777015
-  },
-  {
-    "farms": [
-      {
-        "protocol": "morpho_blue",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "morpho_blue",
-    "worst_farm": "morpho_blue",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093038.9389524
-  },
-  {
-    "farms": [
-      {
-        "protocol": "yearn_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "yearn_v3",
-    "worst_farm": "yearn_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093039.1934116
-  },
-  {
-    "farms": [
-      {
-        "protocol": "euler_v2",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "euler_v2",
-    "worst_farm": "euler_v2",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093039.4426773
-  },
-  {
-    "farms": [
-      {
-        "protocol": "maple",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "maple",
-    "worst_farm": "maple",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093039.6683786
-  },
-  {
-    "farms": [
-      {
-        "protocol": "pendle",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "pendle",
-    "worst_farm": "pendle",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093039.900145
-  },
-  {
-    "farms": [
-      {
-        "protocol": "spark_susds",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "spark_susds",
-    "worst_farm": "spark_susds",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093040.133834
-  },
-  {
-    "farms": [
-      {
-        "protocol": "aave_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "aave_v3",
-    "worst_farm": "aave_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093040.5156486
-  },
-  {
-    "farms": [
-      {
-        "protocol": "compound_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "compound_v3",
-    "worst_farm": "compound_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093040.7778099
-  },
-  {
-    "farms": [
-      {
-        "protocol": "morpho_blue",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "morpho_blue",
-    "worst_farm": "morpho_blue",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093041.049093
-  },
-  {
-    "farms": [
-      {
-        "protocol": "yearn_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "yearn_v3",
-    "worst_farm": "yearn_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093041.337848
-  },
-  {
-    "farms": [
-      {
-        "protocol": "euler_v2",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "euler_v2",
-    "worst_farm": "euler_v2",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093041.6294715
-  },
-  {
-    "farms": [
-      {
-        "protocol": "maple",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "maple",
-    "worst_farm": "maple",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093041.8904672
-  },
-  {
-    "farms": [
-      {
-        "protocol": "pendle",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "pendle",
-    "worst_farm": "pendle",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093042.1529808
-  },
-  {
-    "farms": [
-      {
-        "protocol": "spark_susds",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "spark_susds",
-    "worst_farm": "spark_susds",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093042.4130757
-  },
-  {
-    "farms": [
-      {
-        "protocol": "aave_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "aave_v3",
-    "worst_farm": "aave_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093042.8473153
-  },
-  {
-    "farms": [
-      {
-        "protocol": "compound_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "compound_v3",
-    "worst_farm": "compound_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093043.1314
-  },
-  {
-    "farms": [
-      {
-        "protocol": "morpho_blue",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "morpho_blue",
-    "worst_farm": "morpho_blue",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093043.405254
-  },
-  {
-    "farms": [
-      {
-        "protocol": "yearn_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "yearn_v3",
-    "worst_farm": "yearn_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093043.663198
-  },
-  {
-    "farms": [
-      {
-        "protocol": "euler_v2",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "euler_v2",
-    "worst_farm": "euler_v2",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093043.9112043
-  },
-  {
-    "farms": [
-      {
-        "protocol": "maple",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "maple",
-    "worst_farm": "maple",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093044.1591928
-  },
-  {
-    "farms": [
-      {
-        "protocol": "pendle",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "pendle",
-    "worst_farm": "pendle",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093044.406519
-  },
-  {
-    "farms": [
-      {
-        "protocol": "spark_susds",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "spark_susds",
-    "worst_farm": "spark_susds",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093044.65108
-  },
-  {
-    "farms": [
-      {
-        "protocol": "aave_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "aave_v3",
-    "worst_farm": "aave_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093045.0530324
-  },
-  {
-    "farms": [
-      {
-        "protocol": "compound_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "compound_v3",
-    "worst_farm": "compound_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093045.318924
-  },
-  {
-    "farms": [
-      {
-        "protocol": "morpho_blue",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "morpho_blue",
-    "worst_farm": "morpho_blue",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093045.5782135
-  },
-  {
-    "farms": [
-      {
-        "protocol": "yearn_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "yearn_v3",
-    "worst_farm": "yearn_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093045.8209696
-  },
-  {
-    "farms": [
-      {
-        "protocol": "euler_v2",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "euler_v2",
-    "worst_farm": "euler_v2",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093046.0839531
-  },
-  {
-    "farms": [
-      {
-        "protocol": "maple",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "maple",
-    "worst_farm": "maple",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093046.315405
-  },
-  {
-    "farms": [
-      {
-        "protocol": "pendle",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "pendle",
-    "worst_farm": "pendle",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093046.5466702
-  },
-  {
-    "farms": [
-      {
-        "protocol": "spark_susds",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "spark_susds",
-    "worst_farm": "spark_susds",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093046.7916086
-  },
-  {
-    "farms": [
-      {
-        "protocol": "aave_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "aave_v3",
-    "worst_farm": "aave_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093047.1934977
-  },
-  {
-    "farms": [
-      {
-        "protocol": "compound_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "compound_v3",
-    "worst_farm": "compound_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093047.4764466
-  },
-  {
-    "farms": [
-      {
-        "protocol": "morpho_blue",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "morpho_blue",
-    "worst_farm": "morpho_blue",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093047.759554
-  },
-  {
-    "farms": [
-      {
-        "protocol": "yearn_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "yearn_v3",
-    "worst_farm": "yearn_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093048.060715
-  },
-  {
-    "farms": [
-      {
-        "protocol": "euler_v2",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "euler_v2",
-    "worst_farm": "euler_v2",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093048.3481894
-  },
-  {
-    "farms": [
-      {
-        "protocol": "maple",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "maple",
-    "worst_farm": "maple",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093048.592517
-  },
-  {
-    "farms": [
-      {
-        "protocol": "pendle",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "pendle",
-    "worst_farm": "pendle",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093048.831962
-  },
-  {
-    "farms": [
-      {
-        "protocol": "spark_susds",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "spark_susds",
-    "worst_farm": "spark_susds",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093049.0969818
-  },
-  {
-    "farms": [
-      {
-        "protocol": "aave_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "aave_v3",
-    "worst_farm": "aave_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093049.4835413
-  },
-  {
-    "farms": [
-      {
-        "protocol": "compound_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "compound_v3",
-    "worst_farm": "compound_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093049.7395668
-  },
-  {
-    "farms": [
-      {
-        "protocol": "morpho_blue",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "morpho_blue",
-    "worst_farm": "morpho_blue",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093050.0376978
-  },
-  {
-    "farms": [
-      {
-        "protocol": "yearn_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "yearn_v3",
-    "worst_farm": "yearn_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093050.3488677
-  },
-  {
-    "farms": [
-      {
-        "protocol": "euler_v2",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "euler_v2",
-    "worst_farm": "euler_v2",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093050.619831
-  },
-  {
-    "farms": [
-      {
-        "protocol": "maple",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "maple",
-    "worst_farm": "maple",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093050.8613284
-  },
-  {
-    "farms": [
-      {
-        "protocol": "pendle",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "pendle",
-    "worst_farm": "pendle",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093051.104468
-  },
-  {
-    "farms": [
-      {
-        "protocol": "spark_susds",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "spark_susds",
-    "worst_farm": "spark_susds",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093051.356989
-  },
-  {
-    "farms": [
-      {
-        "protocol": "aave_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "aave_v3",
-    "worst_farm": "aave_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
     "timestamp": 1786093051.7522502
   },
   {
@@ -2998,5 +598,2405 @@
       "total_costs_usd": 0.0
     },
     "timestamp": 1786093056.9397035
+  },
+  {
+    "farms": [
+      {
+        "protocol": "euler_v2",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "euler_v2",
+    "worst_farm": "euler_v2",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093057.1769958
+  },
+  {
+    "farms": [
+      {
+        "protocol": "maple",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "maple",
+    "worst_farm": "maple",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093057.4019277
+  },
+  {
+    "farms": [
+      {
+        "protocol": "pendle",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "pendle",
+    "worst_farm": "pendle",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093057.641531
+  },
+  {
+    "farms": [
+      {
+        "protocol": "spark_susds",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "spark_susds",
+    "worst_farm": "spark_susds",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093057.9001238
+  },
+  {
+    "farms": [
+      {
+        "protocol": "aave_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "aave_v3",
+    "worst_farm": "aave_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093058.3148885
+  },
+  {
+    "farms": [
+      {
+        "protocol": "compound_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "compound_v3",
+    "worst_farm": "compound_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093058.5727108
+  },
+  {
+    "farms": [
+      {
+        "protocol": "morpho_blue",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "morpho_blue",
+    "worst_farm": "morpho_blue",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093058.8307776
+  },
+  {
+    "farms": [
+      {
+        "protocol": "yearn_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "yearn_v3",
+    "worst_farm": "yearn_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093059.1090202
+  },
+  {
+    "farms": [
+      {
+        "protocol": "euler_v2",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "euler_v2",
+    "worst_farm": "euler_v2",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093059.3662465
+  },
+  {
+    "farms": [
+      {
+        "protocol": "maple",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "maple",
+    "worst_farm": "maple",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093059.613165
+  },
+  {
+    "farms": [
+      {
+        "protocol": "pendle",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "pendle",
+    "worst_farm": "pendle",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093059.8768325
+  },
+  {
+    "farms": [
+      {
+        "protocol": "spark_susds",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "spark_susds",
+    "worst_farm": "spark_susds",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093060.1500206
+  },
+  {
+    "farms": [
+      {
+        "protocol": "aave_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "aave_v3",
+    "worst_farm": "aave_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093061.6549828
+  },
+  {
+    "farms": [
+      {
+        "protocol": "compound_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "compound_v3",
+    "worst_farm": "compound_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093061.9371421
+  },
+  {
+    "farms": [
+      {
+        "protocol": "morpho_blue",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "morpho_blue",
+    "worst_farm": "morpho_blue",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093062.2032979
+  },
+  {
+    "farms": [
+      {
+        "protocol": "yearn_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "yearn_v3",
+    "worst_farm": "yearn_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093062.448621
+  },
+  {
+    "farms": [
+      {
+        "protocol": "euler_v2",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "euler_v2",
+    "worst_farm": "euler_v2",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093062.6980205
+  },
+  {
+    "farms": [
+      {
+        "protocol": "maple",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "maple",
+    "worst_farm": "maple",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093062.9255757
+  },
+  {
+    "farms": [
+      {
+        "protocol": "pendle",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "pendle",
+    "worst_farm": "pendle",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093063.1655278
+  },
+  {
+    "farms": [
+      {
+        "protocol": "spark_susds",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "spark_susds",
+    "worst_farm": "spark_susds",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093063.397193
+  },
+  {
+    "farms": [
+      {
+        "protocol": "aave_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "aave_v3",
+    "worst_farm": "aave_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093064.9052517
+  },
+  {
+    "farms": [
+      {
+        "protocol": "compound_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "compound_v3",
+    "worst_farm": "compound_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093065.198892
+  },
+  {
+    "farms": [
+      {
+        "protocol": "morpho_blue",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "morpho_blue",
+    "worst_farm": "morpho_blue",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093065.5037575
+  },
+  {
+    "farms": [
+      {
+        "protocol": "yearn_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "yearn_v3",
+    "worst_farm": "yearn_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093065.7986238
+  },
+  {
+    "farms": [
+      {
+        "protocol": "euler_v2",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "euler_v2",
+    "worst_farm": "euler_v2",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093066.0811095
+  },
+  {
+    "farms": [
+      {
+        "protocol": "maple",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "maple",
+    "worst_farm": "maple",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093066.3603392
+  },
+  {
+    "farms": [
+      {
+        "protocol": "pendle",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "pendle",
+    "worst_farm": "pendle",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093066.6241176
+  },
+  {
+    "farms": [
+      {
+        "protocol": "spark_susds",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "spark_susds",
+    "worst_farm": "spark_susds",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093066.8696406
+  },
+  {
+    "farms": [
+      {
+        "protocol": "aave_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "aave_v3",
+    "worst_farm": "aave_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093067.3638012
+  },
+  {
+    "farms": [
+      {
+        "protocol": "compound_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "compound_v3",
+    "worst_farm": "compound_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093067.6417477
+  },
+  {
+    "farms": [
+      {
+        "protocol": "morpho_blue",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "morpho_blue",
+    "worst_farm": "morpho_blue",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093067.9015288
+  },
+  {
+    "farms": [
+      {
+        "protocol": "yearn_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "yearn_v3",
+    "worst_farm": "yearn_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093068.1709125
+  },
+  {
+    "farms": [
+      {
+        "protocol": "euler_v2",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "euler_v2",
+    "worst_farm": "euler_v2",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093068.4614394
+  },
+  {
+    "farms": [
+      {
+        "protocol": "maple",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "maple",
+    "worst_farm": "maple",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093068.703912
+  },
+  {
+    "farms": [
+      {
+        "protocol": "pendle",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "pendle",
+    "worst_farm": "pendle",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093068.9608994
+  },
+  {
+    "farms": [
+      {
+        "protocol": "spark_susds",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "spark_susds",
+    "worst_farm": "spark_susds",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093069.2065206
+  },
+  {
+    "farms": [
+      {
+        "protocol": "aave_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "aave_v3",
+    "worst_farm": "aave_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093069.5805712
+  },
+  {
+    "farms": [
+      {
+        "protocol": "compound_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "compound_v3",
+    "worst_farm": "compound_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093069.8776584
+  },
+  {
+    "farms": [
+      {
+        "protocol": "morpho_blue",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "morpho_blue",
+    "worst_farm": "morpho_blue",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093070.1774142
+  },
+  {
+    "farms": [
+      {
+        "protocol": "yearn_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "yearn_v3",
+    "worst_farm": "yearn_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093070.436064
+  },
+  {
+    "farms": [
+      {
+        "protocol": "euler_v2",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "euler_v2",
+    "worst_farm": "euler_v2",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093070.7187607
+  },
+  {
+    "farms": [
+      {
+        "protocol": "maple",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "maple",
+    "worst_farm": "maple",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093070.9761302
+  },
+  {
+    "farms": [
+      {
+        "protocol": "pendle",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "pendle",
+    "worst_farm": "pendle",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093071.2418883
+  },
+  {
+    "farms": [
+      {
+        "protocol": "spark_susds",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "spark_susds",
+    "worst_farm": "spark_susds",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093071.4998918
+  },
+  {
+    "farms": [
+      {
+        "protocol": "aave_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "aave_v3",
+    "worst_farm": "aave_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093071.870227
+  },
+  {
+    "farms": [
+      {
+        "protocol": "compound_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "compound_v3",
+    "worst_farm": "compound_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093072.14186
+  },
+  {
+    "farms": [
+      {
+        "protocol": "morpho_blue",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "morpho_blue",
+    "worst_farm": "morpho_blue",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093072.404455
+  },
+  {
+    "farms": [
+      {
+        "protocol": "yearn_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "yearn_v3",
+    "worst_farm": "yearn_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093072.6714725
+  },
+  {
+    "farms": [
+      {
+        "protocol": "euler_v2",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "euler_v2",
+    "worst_farm": "euler_v2",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093072.9394326
+  },
+  {
+    "farms": [
+      {
+        "protocol": "maple",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "maple",
+    "worst_farm": "maple",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093073.170665
+  },
+  {
+    "farms": [
+      {
+        "protocol": "pendle",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "pendle",
+    "worst_farm": "pendle",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093073.4050636
+  },
+  {
+    "farms": [
+      {
+        "protocol": "spark_susds",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "spark_susds",
+    "worst_farm": "spark_susds",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093073.648347
+  },
+  {
+    "farms": [
+      {
+        "protocol": "aave_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "aave_v3",
+    "worst_farm": "aave_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093074.0607898
+  },
+  {
+    "farms": [
+      {
+        "protocol": "compound_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "compound_v3",
+    "worst_farm": "compound_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093074.3405557
+  },
+  {
+    "farms": [
+      {
+        "protocol": "morpho_blue",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "morpho_blue",
+    "worst_farm": "morpho_blue",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093074.6062891
+  },
+  {
+    "farms": [
+      {
+        "protocol": "yearn_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "yearn_v3",
+    "worst_farm": "yearn_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093074.8636148
+  },
+  {
+    "farms": [
+      {
+        "protocol": "euler_v2",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "euler_v2",
+    "worst_farm": "euler_v2",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093075.1188943
+  },
+  {
+    "farms": [
+      {
+        "protocol": "maple",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "maple",
+    "worst_farm": "maple",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093075.353253
+  },
+  {
+    "farms": [
+      {
+        "protocol": "pendle",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "pendle",
+    "worst_farm": "pendle",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093075.5941677
+  },
+  {
+    "farms": [
+      {
+        "protocol": "spark_susds",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "spark_susds",
+    "worst_farm": "spark_susds",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093075.8334568
+  },
+  {
+    "farms": [
+      {
+        "protocol": "aave_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "aave_v3",
+    "worst_farm": "aave_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093076.2667682
+  },
+  {
+    "farms": [
+      {
+        "protocol": "compound_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "compound_v3",
+    "worst_farm": "compound_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093076.5245848
+  },
+  {
+    "farms": [
+      {
+        "protocol": "morpho_blue",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "morpho_blue",
+    "worst_farm": "morpho_blue",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093076.810707
+  },
+  {
+    "farms": [
+      {
+        "protocol": "yearn_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "yearn_v3",
+    "worst_farm": "yearn_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093077.0995405
+  },
+  {
+    "farms": [
+      {
+        "protocol": "euler_v2",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "euler_v2",
+    "worst_farm": "euler_v2",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093077.359499
+  },
+  {
+    "farms": [
+      {
+        "protocol": "maple",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "maple",
+    "worst_farm": "maple",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093077.608383
+  },
+  {
+    "farms": [
+      {
+        "protocol": "pendle",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "pendle",
+    "worst_farm": "pendle",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093077.849883
+  },
+  {
+    "farms": [
+      {
+        "protocol": "spark_susds",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "spark_susds",
+    "worst_farm": "spark_susds",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093078.0942433
+  },
+  {
+    "farms": [
+      {
+        "protocol": "aave_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "aave_v3",
+    "worst_farm": "aave_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093078.4523072
+  },
+  {
+    "farms": [
+      {
+        "protocol": "compound_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "compound_v3",
+    "worst_farm": "compound_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093078.7364545
+  },
+  {
+    "farms": [
+      {
+        "protocol": "morpho_blue",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "morpho_blue",
+    "worst_farm": "morpho_blue",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093079.0017602
+  },
+  {
+    "farms": [
+      {
+        "protocol": "yearn_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "yearn_v3",
+    "worst_farm": "yearn_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093079.2842138
+  },
+  {
+    "farms": [
+      {
+        "protocol": "euler_v2",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "euler_v2",
+    "worst_farm": "euler_v2",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093079.5613482
+  },
+  {
+    "farms": [
+      {
+        "protocol": "maple",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "maple",
+    "worst_farm": "maple",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093080.58374
+  },
+  {
+    "farms": [
+      {
+        "protocol": "pendle",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "pendle",
+    "worst_farm": "pendle",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093080.8468874
+  },
+  {
+    "farms": [
+      {
+        "protocol": "spark_susds",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "spark_susds",
+    "worst_farm": "spark_susds",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093081.1022954
+  },
+  {
+    "farms": [
+      {
+        "protocol": "aave_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "aave_v3",
+    "worst_farm": "aave_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093081.5000246
+  },
+  {
+    "farms": [
+      {
+        "protocol": "compound_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "compound_v3",
+    "worst_farm": "compound_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093081.7809553
+  },
+  {
+    "farms": [
+      {
+        "protocol": "morpho_blue",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "morpho_blue",
+    "worst_farm": "morpho_blue",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093082.0716136
+  },
+  {
+    "farms": [
+      {
+        "protocol": "yearn_v3",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "yearn_v3",
+    "worst_farm": "yearn_v3",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093082.3587759
   }
 ]
