@@ -109,6 +109,15 @@ def report(guard, repo, entries, ps=None, self_session="pid999999", now=_NOW, gr
     )
 
 
+def report_with_git(guard, repo, entries, git, **kw):
+    """То же, но с подменённым git — нужно там, где состояние репозитория подделать нельзя
+    (например «git считает дерево живым, а привязка не читается»)."""
+    kw.setdefault("ps", fake_ps({}))
+    return guard.build_report(entries=entries, root=repo, base_ref="base",
+                              self_session="pid999999", now=_NOW, grace_hours=3.0,
+                              git=git, **kw)
+
+
 # ── 1. ядро: мёртвая сессия, файла на базе нет ───────────────────────────────
 
 class TestAbsentOnBase:
@@ -508,3 +517,127 @@ class TestInvariants:
                        encoding="utf-8")
         guard.main(["--root", str(repo), "--base", "base", "--log", str(log)])
         assert calls and all(a[0] != "fetch" for a in calls)
+
+
+# ── 9. мёртвая регистрация рабочего дерева ───────────────────────────────────
+#
+# Положительный контроль замера 06.08 (карточка `inbox-shag-0a-iz-worktree-daet-18-strok-ne-izm`):
+# 16 каталогов с уцелевшими файлами и мёртвой git-привязкой давали 18 строк «НЕ ИЗМЕРЕНО» и
+# код 2 на ПУСТОМ месте — сверять там нечего, а шаг 0a обязателен каждый цикл, и разбирать
+# этот шум сессия обязана руками. Класс — «необратимое „не измерено“ морит очередь»:
+# однажды в тех же строках окажется настоящая находка, а читать их уже перестанут.
+#
+# Состояние воспроизводится точно так же, как оно возникает в жизни: у линкованного worktree
+# исчезает файл `.git`, служебная запись в `.git/worktrees/` остаётся ⇒ git продолжает
+# перечислять дерево, помечая его `prunable`, каталог с файлами на месте, а любой git-вызов
+# внутри падает с «not a git repository».
+
+def _dead_binding_worktree(repo, path):
+    """Линкованный worktree, у которого убита git-привязка (каталог и файлы остались)."""
+    _git(repo, "worktree", "add", "-q", "--detach", str(path), "base")
+    (path / ".git").unlink()                     # ровно то, что делает уборка /tmp
+    assert path.is_dir() and (path / "scripts" / "kept.py").exists()
+    return path
+
+
+class TestDeadWorktreeRegistration:
+    def test_dead_binding_is_not_unmeasured(self, guard, repo, tmp_path):
+        """ГЛАВНОЕ: 18 строк шума и код 2 больше не берутся из ничего.
+
+        На непочиненном коде каталог проходил в сверку по признаку «существует», оба
+        `git diff` падали, и каждый падёж становился строкой «НЕ ИЗМЕРЕНО»."""
+        _dead_binding_worktree(repo, tmp_path / "spa_wt_dead")
+        rep = report(guard, repo, [])
+        assert rep["unmeasured"] == [], rep["unmeasured"]
+        assert rep["exit_code"] == 0
+
+    def test_dead_binding_is_named_once_per_directory(self, guard, repo, tmp_path):
+        """Не молчание: каталог назван — но ОДНОЙ строкой, а не по строке на git-вызов."""
+        dead = _dead_binding_worktree(repo, tmp_path / "spa_wt_dead")
+        rep = report(guard, repo, [])
+        assert [d["path"] for d in rep["dead_worktrees"]] == [str(dead)]
+        assert guard.render(rep).count(str(dead)) == 1
+
+    def test_dead_binding_is_not_called_unsynced_with_base(self, guard, repo, tmp_path):
+        """Формулировка — часть находки: «с базой НЕ сверено» звучит как несделанная работа
+        сторожа, тогда как сверять там нечего (это не чекаут, а остатки файлов)."""
+        dead = _dead_binding_worktree(repo, tmp_path / "spa_wt_dead")
+        text = guard.render(report(guard, repo, []))
+        assert "рабочее дерево с базой НЕ сверено" not in text
+        assert "привязки нет" in text and str(dead) in text
+
+    def test_dead_binding_does_not_hide_live_worktree_work(self, guard, repo, tmp_path):
+        """Радиус: соседнее ЖИВОЕ дерево по-прежнему сверяется (иначе правка стала бы
+        глушилкой для главного сценария шага 0a)."""
+        _dead_binding_worktree(repo, tmp_path / "spa_wt_dead")
+        live = tmp_path / "spa_wt_live"
+        _git(repo, "worktree", "add", "-q", "--detach", str(live), "base")
+        (live / "scripts" / "kept.py").write_text("работа только в worktree\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("pid31439", [live / "scripts" / "kept.py"])])
+        assert [f["path"] for f in rep["findings"]] == ["scripts/kept.py"]
+        assert rep["findings"][0]["state"] == guard.DIFFERS
+
+    def test_cards_in_dead_binding_tree_are_still_found(self, guard, repo, tmp_path):
+        """Покрытие сторожа карточек НЕ сужается: карточки ищутся по файловой системе, git
+        для этого не нужен — недоставленная карточка в мёртвом каталоге обязана находиться."""
+        dead = _dead_binding_worktree(repo, tmp_path / "spa_wt_dead")
+        tracker = dead / guard.TRACKER_REL
+        tracker.mkdir(parents=True, exist_ok=True)
+        (tracker / "inbox-zabytaya.md").write_text("---\nstatus: new\n---\nтело\n",
+                                                   encoding="utf-8")
+        base_tracker = repo / guard.TRACKER_REL
+        base_tracker.mkdir(parents=True, exist_ok=True)
+        (base_tracker / "inbox-est-na-baze.md").write_text("---\nstatus: new\n---\nтело\n",
+                                                           encoding="utf-8")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-qm", "карточка на базе")
+        _git(repo, "branch", "-f", "base", "HEAD")
+
+        rep = report(guard, repo, [])
+        assert [c["card"] for c in rep["card_findings"]] == ["inbox-zabytaya"]
+
+    def test_live_tree_with_unreadable_binding_stays_unmeasured(self, guard, repo, tmp_path):
+        """Ослабления нет. fail-CLOSED снимается ТОЛЬКО там, где авторитетный источник — сам
+        git — объявил запись `prunable`. Если git считает дерево живым, а привязка не
+        читается, это не объяснено ничем и остаётся «не измерено» (код 2)."""
+        ghost = tmp_path / "spa_wt_ghost"
+        ghost.mkdir()
+        real = guard._git
+
+        def fake(cwd, *args):
+            if args[:2] == ("worktree", "list"):                 # git о prunable МОЛЧИТ
+                rc, out, err = real(cwd, *args)
+                return rc, out + f"\nworktree {ghost}\ndetached\n", err
+            if Path(str(cwd)) == ghost:
+                return 128, "", "fatal: not a git repository"
+            return real(cwd, *args)
+
+        rep = report_with_git(guard, repo, [], git=fake)
+        assert rep["dead_worktrees"] == []
+        assert any(str(ghost) in (u.get("path") or "") for u in rep["unmeasured"])
+        assert rep["exit_code"] == 2
+
+
+class TestDeletedWorktreeIsNamedTruthfully:
+    def test_deleted_worktree_is_not_called_a_foreign_repository(self, guard, repo, tmp_path):
+        """Живая строка каждого цикла 07.08: объявленный путь из УДАЛЁННОГО worktree
+        описывался как «путь не принадлежит этому репозиторию» — то есть как ошибка
+        объявления (объявили чужой файл), тогда как это потеря СВОЕЙ работы.
+        Вердикт не меняется (по-прежнему «не измерено», код 2) — меняется читаемое."""
+        rep = report(guard, repo, [entry("pid31439",
+                                         [tmp_path / "spa_wt_gone" / "docs" / "STATE.md"])])
+        assert rep["exit_code"] == 2
+        reason = rep["unmeasured"][0]["reason"]
+        assert "не принадлежит этому репозиторию" not in reason
+        assert "рабочее дерево удалено" in reason
+
+    def test_path_in_a_genuinely_foreign_repo_keeps_its_own_reason(self, guard, repo, tmp_path):
+        """Контроль в обратную сторону: у настоящего чужого репозитория каталоги НА МЕСТЕ,
+        и прежняя формулировка обязана сохраниться — иначе новая проглотила бы старый класс."""
+        other = tmp_path / "other"
+        (other / "scripts").mkdir(parents=True)
+        _git(tmp_path, "init", "-q", str(other))
+        (other / "scripts" / "f.py").write_text("чужое\n", encoding="utf-8")
+        rep = report(guard, repo, [entry("pid31439", [other / "scripts" / "f.py"])])
+        assert rep["exit_code"] == 2
+        assert "не принадлежит этому репозиторию" in rep["unmeasured"][0]["reason"]

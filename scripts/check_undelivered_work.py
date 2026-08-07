@@ -342,6 +342,7 @@ def resolve_rel(path_str, root, git=_git):
         pass
 
     probe = p if p.is_dir() else p.parent          # `git -C` хочет каталог, не файл
+    climbed = not probe.is_dir()                   # пришлось лезть выше — каталогов уже нет
     while not probe.is_dir() and probe != probe.parent:
         probe = probe.parent
     if not probe.is_dir() or probe == probe.parent:
@@ -350,6 +351,16 @@ def resolve_rel(path_str, root, git=_git):
     ours = _git_common_dir(root, git)
     theirs = _git_common_dir(probe, git)
     if ours is None or theirs is None or ours != theirs:
+        # Две РАЗНЫЕ причины с одинаковым исходом «измерить нельзя», и называть их одинаково
+        # нечестно. Если каталогов объявленного пути уже нет, а уцелевший предок — не наш
+        # репозиторий, то дело не в чужом репозитории: рабочее дерево УДАЛЕНО вместе с
+        # работой. Прежний текст «путь не принадлежит этому репозиторию» звучал как ошибка
+        # объявления (кто-то объявил чужой файл), тогда как это потеря своего.
+        # Вердикт не меняется — по-прежнему «не измерено» (код 2): доехала ли работа, из
+        # удалённого дерева не узнать. Меняется только то, что сессия об этом прочитает.
+        if climbed:
+            return None, (f"рабочее дерево удалено вместе с объявленным путём — доставку "
+                          f"измерить нечем: {path_str}")
         return None, f"путь не принадлежит этому репозиторию: {path_str}"
 
     rc, top, _ = git(probe, "rev-parse", "--show-toplevel")
@@ -364,23 +375,69 @@ def resolve_rel(path_str, root, git=_git):
 # ── файл: есть ли он на базе и тот ли он ─────────────────────────────────────
 
 def list_checkouts(root, git=_git):
-    """Все рабочие деревья этого репозитория: хост + линкованные worktree.
+    """(живые рабочие деревья, [мёртвые регистрации], причина-если-не-разрешилось).
 
     Осиротевшая работа лежит ИМЕННО в worktree (протокол §3.4 обязывает там работать), а в
     хост-дереве её нет — пуш идёт прямо в origin через API, локальный git дрейфует. Сверка
-    только с хост-деревом такую правку не увидит (проверено на историческом прогоне)."""
+    только с хост-деревом такую правку не увидит (проверено на историческом прогоне).
+
+    **Мёртвая регистрация ≠ рабочее дерево.** Каталог остался, а git-привязка мертва: файл
+    `.git` внутри дерева исчез, служебная запись в `.git/worktrees/` осталась. Признак «каталог
+    существует» (`p.is_dir()`) такое дерево пропускал в сверку, git-вызов в нём падал, и
+    `collect_diff_sets` честно писал «рабочее дерево с базой НЕ сверено».
+    Замер 06.08 (карточка `inbox-shag-0a-iz-worktree-daet-18-strok-ne-izm`): 16 таких
+    регистраций давали **18 строк «НЕ ИЗМЕРЕНО» и код 2** на пустом месте, и разбирать их
+    следующая сессия обязана руками — то есть очень скоро перестанет читать вовсе, а однажды
+    в этих же строках окажется настоящая находка (класс «необратимое „не измерено“ морит
+    очередь»).
+
+    Различаются ДВА состояния, и это не педантизм, а разные вопросы:
+
+    - **git сам объявил запись `prunable`** — это его собственный вердикт о СВОЁМ реестре,
+      мерить там нечего: перед нами не чекаут, а остатки файлов. Такая регистрация НАЗЫВАЕТСЯ
+      (одной строкой на каталог, с причиной от git), но «не измерено» из неё не делается.
+    - **git считает дерево живым, а привязка не читается** — вот это не объяснено ничем, и
+      остаётся `unmeasured` (код 2), как было. Ослабления нет: fail-CLOSED снимается ровно
+      там, где авторитетный источник — сам git — сказал, что мерить нечего.
+
+    Каталоги мёртвых регистраций из СВЕРКИ исключаются, но не из поиска карточек:
+    `scan_tracker_cards` читает файловую систему, а не git, и остатки трекера в таком каталоге
+    по-прежнему видит (покрытие сторожа карточек не сужается)."""
     rc, out, err = git(root, "worktree", "list", "--porcelain")
     if rc != 0:
-        return None, f"`git worktree list` завершился rc={rc}: {err.strip()[:200]!r}"
-    dirs = []
+        return None, [], f"`git worktree list` завершился rc={rc}: {err.strip()[:200]!r}"
+
+    dirs, dead = [], []
+    path, prunable = None, None
+
+    def flush():
+        if path is None or not path.is_dir():
+            return
+        if prunable is not None:
+            reason = prunable.strip() or "git пометил запись prunable без пояснения"
+            dead.append({"path": str(path), "prunable": True,
+                         "reason": f"git пометил регистрацию prunable: {reason}"})
+            return
+        # git считает дерево живым — проверяем, читается ли привязка.
+        prc, _, perr = git(path, "rev-parse", "--git-dir")
+        if prc != 0:
+            dead.append({"path": str(path), "prunable": False,
+                         "reason": f"git считает дерево живым, но привязка не читается: "
+                                   f"`rev-parse --git-dir` rc={prc} {perr.strip()[:120]!r}"})
+            return
+        dirs.append(path)
+
     for line in out.splitlines():
         if line.startswith("worktree "):
-            p = Path(line.split(" ", 1)[1].strip())
-            if p.is_dir():
-                dirs.append(p)
+            flush()
+            path, prunable = Path(line.split(" ", 1)[1].strip()), None
+        elif line == "prunable" or line.startswith("prunable "):
+            prunable = line[len("prunable"):]
+    flush()
+
     if Path(root) not in dirs:
         dirs.insert(0, Path(root))
-    return dirs, None
+    return dirs, dead, None
 
 
 def collect_diff_sets(base_ref, checkouts, git=_git):
@@ -619,6 +676,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         "fresh": fresh,
         "stale_copies": stale_copies,
         "unmeasured": unmeasured,
+        "dead_worktrees": [],
         "exit_code": 0,
     }
 
@@ -636,7 +694,7 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         return report
     report["base_sha"] = sha.strip()
 
-    checkouts, err = list_checkouts(root, git=git)
+    checkouts, dead_worktrees, err = list_checkouts(root, git=git)
     if checkouts is None:
         unmeasured.append({"session": None, "path": None,
                            "reason": f"{err} — сверка только с хост-деревом была бы "
@@ -645,6 +703,14 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
         return report
     report["checkouts"] = [str(c) for c in checkouts]
 
+    # Мёртвая регистрация: git-привязки нет, сверять нечего. Названа отдельной строкой на
+    # каталог (не молчание), а «не измерено» из неё делается только там, где git СЧИТАЕТ
+    # дерево живым — то есть где непонятность настоящая. См. list_checkouts.
+    report["dead_worktrees"] = [d for d in dead_worktrees if d["prunable"]]
+    for d in dead_worktrees:
+        if not d["prunable"]:
+            unmeasured.append({"session": None, "path": d["path"], "reason": d["reason"]})
+
     diff_sets, diff_failures = collect_diff_sets(base_ref, checkouts, git=git)
     for f in diff_failures:                      # чекаут не сравнён — сказать это вслух
         unmeasured.append({"session": None, "path": None,
@@ -652,7 +718,10 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
 
     # Второй вопрос: карточка, созданная посреди цикла, не объявляется никогда, поэтому
     # разбор объявлений ниже её не увидит по построению (см. блок «карточки» выше).
-    cf, cu = undelivered_cards(root, base_ref, checkouts, git=git)
+    # Каталоги мёртвых регистраций сюда ВХОДЯТ: карточки ищутся по файловой системе, git там
+    # не нужен, и сузить покрытие сторожа карточек эта правка не должна.
+    cf, cu = undelivered_cards(root, base_ref,
+                              checkouts + [Path(d["path"]) for d in dead_worktrees], git=git)
     card_findings.extend(cf)
     unmeasured.extend(cu)
 
@@ -771,6 +840,14 @@ def render(report) -> str:
         for u in report["unmeasured"]:
             where = f" · {u['path']}" if u.get("path") else ""
             out.append(f"  - {u.get('session') or '-'}{where}: {u['reason']}")
+
+    if report.get("dead_worktrees"):
+        out.append("")
+        out.append(f"🧹 мёртвые регистрации рабочих деревьев ({len(report['dead_worktrees'])}) — "
+                   "каталог остался, git-привязки нет; сверять нечего, но и молчать не о чем "
+                   "(лечится осознанным `git worktree prune`):")
+        for d in report["dead_worktrees"]:
+            out.append(f"  - {d['path']}: {d['reason']}")
 
     if report.get("fresh"):
         out.append("")

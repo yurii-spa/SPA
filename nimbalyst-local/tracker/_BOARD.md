@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **301** · ждёт владельца: **4** · занято сессиями: **2**.
+> Всего карточек: **302** · ждёт владельца: **4** · занято сессиями: **2**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -98,7 +98,7 @@
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (84)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (85)
 
 ### · in-progress
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
@@ -136,6 +136,7 @@
 - Проверь систему, сделай аудит, все ли ок?  ·  `inbox-prover-sistemu-sdelai-audit-vse-li-ok.md` · 2026-07-26
 - py: числа скриншота → approved:False (не DN); та же позиция с is_delta_neutral=…  ·  `inbox-py-chisla-skrinshota-approved-false-ne-d.md` · 2026-08-05
 - PYTHONPATH=/home/user/SPA pytest spa_core/tests/test_s{76,41,73,77,22}*.py -q →…  ·  `inbox-pythonpath-home-user-spa-pytest-spa-core.md` · 2026-08-05
+- Шаг 0a из worktree даёт 18 строк «не измерено» на пустом месте: 16 мёртвых регистраций рабочих деревьев  ·  `inbox-shag-0a-iz-worktree-daet-18-strok-ne-izm.md` · 2026-08-06
 - Доделать ВНУТРИ дашборда — полный DeBank-вид на широкую сетку (preview)  ·  `inbox-task-dashboard-debank-inside.md` · 2026-07-15
 - Сделать названия/ID карточек человекочитаемыми (убрать нечитаемые цифры-буквы)  ·  `inbox-task-readable-card-ids.md` · 2026-07-15
 - Команда /status в Telegram-боте — сводка системы простым языком  ·  `inbox-task-status-command.md` · 2026-07-15
@@ -184,7 +185,7 @@
 - Кнопки действий: вторая половина задания — те же варианты внутри меню бота  ·  `inbox-knopki-deistvii-vtoraya-polovina-zadaniy.md` · 2026-08-07
 - Номер ADR-067 занят ДВУМЯ разными решениями — реестр показывает две строки  ·  `inbox-nomer-adr-067-zanyat-dvumya-raznymi-resh.md` · 2026-08-07
 - Обход owner-gate по трейлеру Owner-Approved не работал никогда: опечатка в имени аргумента, спрятанная слепым except  ·  `inbox-obhod-owner-gate-po-treileru-owner-appro.md` · 2026-08-07
-- Шаг 0a из worktree даёт 18 строк «не измерено» на пустом месте: 16 мёртвых регистраций рабочих деревьев  ·  `inbox-shag-0a-iz-worktree-daet-18-strok-ne-izm.md` · 2026-08-06
+- Тест GSM Sky приколочен к до-ADR-065 состоянию  ·  `inbox-test-gsm-sky-prikolochen-k-do-adr-065-so.md` · 2026-08-07
 - Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md` · 2026-08-06 · 🔒 `cycle-87477`
 - Записи журнала за 16 циклов стёрты — и восстановимы из git-истории (кран #139 закрыл, лужу нет)  ·  `inbox-zapisi-zhurnala-za-16-tsiklov-sterty-i-v.md` · 2026-08-07
 
