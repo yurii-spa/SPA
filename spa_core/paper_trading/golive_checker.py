@@ -592,11 +592,38 @@ class GoLiveChecker:
         if not isinstance(doc, dict):
             blockers.append("gap_monitor.json: missing or unreadable")
             return False
+        # ADR-067: блокируют только АКТИВНЫЕ (восстановимые) дыры.
+        #
+        # Решение владельца 2026-08-06. Причина: критерий смотрел на ЛЮБУЮ дыру,
+        # включая невосстановимые. В треке их две — 2026-07-19 и 2026-07-27, оба
+        # дня цикл умер, не дойдя до аллокации; восстановить нечем, дорисовывать
+        # запрещено. Значит критерий нельзя было закрыть НИКАКИМ действием: это
+        # вечный замок, а не порог, и go-live стоял на 28/29 бессрочно.
+        #
+        # Это НЕ ослабление гейта. Историческая дыра остаётся в отчёте навсегда
+        # (day_gaps), прятать её нельзя — именно так трек и терял дни незаметно.
+        # Свежая дыра по-прежнему блокирует: gap_monitor помечает её actionable,
+        # пока её ещё можно восстановить, и она попадает в active_gaps.
+        #
+        # Отсутствие поля active_gaps — НЕ повод пропустить: старый файл от
+        # производителя, который его не пишет, откатывается на прежнее поведение
+        # (любая дыра блокирует). Fail-CLOSED: неизвестное не считается «чисто».
+        active = doc.get("active_gaps")
+        if isinstance(active, list):
+            if active:
+                blockers.append(
+                    f"gap_monitor.json: {len(active)} активная(ых) дыра(ы) в треке "
+                    f"— восстановимы, но не восстановлены: {active}"
+                )
+                return False
+            return True
+
         status = doc.get("status", "")
         if status != "ok":
             gap_flag = doc.get("gap_detected", "?")
             blockers.append(
-                f"gap_monitor.json: status='{status}' gap_detected={gap_flag} — equity gap found"
+                f"gap_monitor.json: status='{status}' gap_detected={gap_flag} — equity gap found "
+                f"(поля active_gaps нет — производитель старой версии, fail-CLOSED)"
             )
             return False
         return True
