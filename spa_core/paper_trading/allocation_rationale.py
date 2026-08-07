@@ -291,6 +291,7 @@ def write_shadow_rationale(
     write: bool = True,
     params: Optional[TriggerParams] = None,
     blocked_protocols: Optional[Dict[str, str]] = None,
+    policy_refusals: Optional[List[dict]] = None,
 ) -> dict:
     """Compute the shadow verdict and (optionally) persist it. Never raises."""
     try:
@@ -380,6 +381,11 @@ def write_shadow_rationale(
             min_apy_pct=_pol["min_apy_pct"],
             blocked=blocked_protocols,
             external_binders=cash_binders,
+            # ADR-053/ADR-055: what the RiskPolicy gate removed from the target
+            # AFTER the allocator built it. Provenance for the idle cash — the
+            # reason existed in the audit trail all along, it just never reached
+            # the artifact that claimed the cash had none.
+            policy_refusals=policy_refusals,
         )
         # Caps resolved here when the caller did not supply them — otherwise the
         # below-median rule silently reports nothing and looks compliant.

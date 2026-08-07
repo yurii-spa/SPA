@@ -30,6 +30,43 @@ from spa_core.paper_trading._cycle_io import _atomic_write_json, _read_json
 log = logging.getLogger("spa.cycle_runner")
 
 
+def quantify_policy_refusals(
+    pre_gate_target: dict[str, float],
+    post_gate_target: dict[str, float],
+    frozen_pools: list[str] | None,
+) -> list[dict]:
+    """How many dollars the RiskPolicy gate removed from the target, per pool.
+
+    ADR-053 freezes a pool with no observed live TVL at its held amount (or
+    drops it when not held); the freed budget honestly stays in cash. Until
+    2026-08-07 that number existed only as a warning string in the audit trail,
+    so the ADR-055 cash attribution — which runs after this gate — reported the
+    very same dollars as "idle without a recorded reason". Measured on the live
+    2026-08-06 06:00 cycle: ``tvl_unverified=["morpho_blue_base"]``, 10 % of the
+    target zeroed, 10 % of capital then flagged UNEXPLAINED for days.
+
+    Read-only and side-effect free: it compares two dicts. Nothing in the money
+    path reads the result — only the advisory rationale writer does.
+
+    Only POSITIVE removals are reported; a pool the gate did not shrink (or
+    grew, which it cannot) contributes nothing rather than a negative number.
+    """
+    out: list[dict] = []
+    for p in frozen_pools or []:
+        try:
+            removed = (float(pre_gate_target.get(p, 0.0) or 0.0)
+                       - float(post_gate_target.get(p, 0.0) or 0.0))
+        except (TypeError, ValueError):  # a non-numeric target is not a refusal
+            continue
+        if removed > 1e-6:
+            out.append({
+                "protocol": str(p),
+                "reason": "tvl_unverified_policy_gate",
+                "usd_removed_from_target": removed,
+            })
+    return out
+
+
 def apply_analytics_blocking_gate(
     target_usd: dict[str, float],
     *,

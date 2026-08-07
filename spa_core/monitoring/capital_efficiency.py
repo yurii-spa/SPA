@@ -245,6 +245,17 @@ def assess() -> dict:
                     "LAZY: {:.1f}% of capital idle UNEXPLAINED after attribution "
                     "(fundable headroom under every cap left unused)".format(unexplained_pct)
                 )
+                # ADR-055: the alarm keeps its number, but stops being anonymous
+                # when the cycle recorded WHY the budget was freed. The alarm is
+                # NOT downgraded — the dollars are still placeable elsewhere.
+                _causes = comp.get("caused_by") or attribution.get("policy_refusals") or []
+                _named = ["{}:{} (${:,.0f} removed from target)".format(
+                    c.get("protocol"), c.get("reason"),
+                    float(c.get("usd_removed_from_target") or 0.0))
+                    for c in _causes if isinstance(c, dict) and c.get("protocol")]
+                if _named:
+                    reason += " — caused by: " + "; ".join(_named) + \
+                              "; freed budget was not re-filled"
             else:
                 verdict = "EXPLAINED"
                 reason = (
@@ -276,6 +287,9 @@ def assess() -> dict:
         "attribution_status": attribution_status,
         "cash_unexplained_pct": unexplained_pct,
         "cash_attribution": (attribution.get("components") if isinstance(attribution, dict) else None),
+        # ADR-053 refusals the cycle recorded (provenance of the freed budget).
+        "cash_policy_refusals": (attribution.get("policy_refusals")
+                                 if isinstance(attribution, dict) else None),
     }
 
 

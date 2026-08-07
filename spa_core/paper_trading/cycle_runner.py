@@ -115,6 +115,7 @@ from spa_core.paper_trading.cycle_gates import (  # noqa: F401 — re-exported
     apply_kill_switch_override,
     apply_rtmr_posture_gate,
     apply_soft_derisk_gate,
+    quantify_policy_refusals,
 )
 from spa_core.paper_trading.cycle_reporting import (  # noqa: F401 — re-exported
     _last_trade_id_from_file,
@@ -1478,12 +1479,19 @@ def run_cycle(
     # ── Step 2b (MP-005): deterministic RiskPolicy gate before any trade ──
     # ADR-053: current_positions let the gate freeze unverified-TVL pools at
     # their held amount (no fresh capital) instead of fabricating a TVL.
+    # ADR-055 (cash provenance): remember what the allocator ASKED for, so the
+    # amount the gate removes below can be named in the cash attribution instead
+    # of resurfacing hours later as "idle without a recorded reason". Inert: a
+    # copy, read only by the advisory rationale writer at Step 2f.
+    _pre_gate_target = dict(target_usd)
     gate = _apply_risk_policy_gate(
         target_usd, capital_usd, adapters, ddir=ddir,
         current_positions=current_positions,
     )
     policy_checked = gate["error"] is None
     policy_blocked = False
+    # ADR-053 refusals, quantified — advisory provenance for the idle cash.
+    _policy_refusals: list[dict] = []
 
     # MP-310: record risk_verdict event (fail-safe)
     _audit_verdict_id: str | None = None
@@ -1533,6 +1541,11 @@ def run_cycle(
                 "risk_policy: TVL unverified (fail-closed, no fresh allocation): "
                 + ", ".join(_tvl_frozen_pools)
             )
+            # …and quantified, so the cash attribution can name this cause.
+            # Advisory only: nothing below reads _policy_refusals except the
+            # Step-2f reporting writer.
+            _policy_refusals = quantify_policy_refusals(
+                _pre_gate_target, target_usd, _tvl_frozen_pools)
         if not gate["approved"]:
             policy_blocked = True
             log.warning(
@@ -1658,6 +1671,10 @@ def run_cycle(
             cycle_date=today,
             run_ts=run_ts,
             blocked_protocols={str(k): str(v) for k, v in _blocked.items()},
+            # ADR-055: the gate's own refusals, quantified at Step 2b. Without
+            # them the artifact called this cycle's frozen budget "idle without
+            # a recorded reason" while RiskPolicy had recorded one.
+            policy_refusals=list(_policy_refusals),
             trades=_read_json(ddir / TRADES_FILENAME, []),
             write=write,
         )

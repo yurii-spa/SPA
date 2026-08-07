@@ -376,6 +376,7 @@ def attribute_cash(
     min_apy_pct: Optional[float],
     blocked: Optional[Dict[str, str]] = None,
     external_binders: Optional[List[dict]] = None,
+    policy_refusals: Optional[List[dict]] = None,
 ) -> Dict[str, object]:
     """Deterministic attribution of every idle dollar (ADR-055 invariant, task Y2).
 
@@ -405,9 +406,39 @@ def attribute_cash(
     with the whole attribution stamped ``attribution_incomplete`` — never as a
     silent zero that would make the cash look explained.
 
+    ``policy_refusals`` — what the RiskPolicy gate REMOVED from this cycle's
+    target AFTER the allocator built it (ADR-053 TVL-evidence freeze: a pool
+    without an observed live TVL gets no fresh capital). Each entry:
+    ``{"protocol", "reason", "usd_removed_from_target"}``. It is PROVENANCE,
+    not a binder: it does **not** move a single dollar between components and
+    does not shrink ``unexplained_deployable``. Deliberately so — the refusal
+    explains where the cash CAME FROM, but the room it left is still fundable
+    elsewhere today (measured 2026-08-06: the freeze zeroed 10 % of the target
+    and nothing re-filled it, while morpho_steakhouse/compound_v3 headroom
+    stood open). Charging it as a binder would let a fail-closed refusal
+    launder a missing re-fill — the same laundering the waterfall order exists
+    to prevent. So the number stays honest and the CAUSE stops being anonymous:
+    ``unexplained_deployable`` carries ``caused_by`` and the artifact carries
+    ``policy_refusals``.
+
     Pure and deterministic: reads nothing, writes nothing, changes no cap.
     RiskPolicy values are INPUTS here, resolved by the caller from RiskConfig.
     """
+    refusals: List[dict] = []
+    for r in policy_refusals or []:
+        if not isinstance(r, dict) or not r.get("protocol"):
+            continue
+        try:
+            usd = float(r.get("usd_removed_from_target") or 0.0)
+        except (TypeError, ValueError):
+            usd = 0.0
+        refusals.append({
+            "protocol": str(r["protocol"]),
+            "reason": str(r.get("reason") or "unnamed_refusal"),
+            "usd_removed_from_target": round(usd, 2),
+            "pct_of_capital": (round(100.0 * usd / capital_usd, 4)
+                               if capital_usd > 0 else None),
+        })
     if capital_usd <= 0:
         return {"status": "error", "error": "invalid_capital"}
 
@@ -458,7 +489,8 @@ def attribute_cash(
     if excess_usd <= 1e-6:
         return {**out_base, "components": components,
                 "explained_pct": out_base["cash_pct"], "unexplained_pct": 0.0,
-                "unchecked": [], "status": "explained"}
+                "unchecked": [], "status": "explained",
+                "policy_refusals": refusals}
 
     # ── fail-CLOSED gate: every dimension the split depends on must be present ──
     unchecked: List[str] = []
@@ -477,7 +509,8 @@ def attribute_cash(
         return {**out_base, "components": components,
                 "explained_pct": round(100.0 * (cash_usd - remaining) / capital_usd, 4),
                 "unexplained_pct": None,   # honestly unknown — NOT zero
-                "unchecked": unchecked, "status": "attribution_incomplete"}
+                "unchecked": unchecked, "status": "attribution_incomplete",
+                "policy_refusals": refusals}
 
     # ── classify every candidate protocol's headroom ────────────────────────
     universe = set(apy_sources) | set(positions) | set(blocked or {})
@@ -537,14 +570,30 @@ def attribute_cash(
     unexplained_usd = 0.0
     if deployable > 1e-6:
         best = _best_apy(fundable)
-        components.append(_comp(
+        # ADR-055: "idle without a recorded reason" was a LIE whenever the
+        # policy gate had already named one. The dollars stay unexplained (they
+        # remain placeable), but the cause is no longer anonymous.
+        _detail = ("fundable headroom under every cap with live APY+TVL — "
+                   "idle without a recorded reason")
+        if refusals:
+            _detail = (
+                "fundable headroom under every cap with live APY+TVL — still "
+                "placeable today, but ${:,.0f} of this cycle's target was "
+                "removed after the allocator by: {} (see policy_refusals); "
+                "nothing re-filled the freed budget".format(
+                    sum(r["usd_removed_from_target"] for r in refusals),
+                    ", ".join("{}:{}".format(r["protocol"], r["reason"])
+                              for r in refusals)))
+        _c = _comp(
             "unexplained_deployable", deployable,
             forgone_bps=(deployable / capital_usd) * best * 100.0,
-            detail="fundable headroom under every cap with live APY+TVL — "
-                   "idle without a recorded reason",
+            detail=_detail,
             protocols=["{}(+${:,.0f} @ {:.2f}%)".format(p, fundable[p],
                        float(apy_pct.get(p, 0.0) or 0.0))
-                       for p in sorted(fundable, key=lambda x: -fundable[x])[:6]]))
+                       for p in sorted(fundable, key=lambda x: -fundable[x])[:6]])
+        if refusals:
+            _c["caused_by"] = list(refusals)
+        components.append(_c)
         unexplained_usd = deployable
         remaining -= deployable
 
@@ -620,6 +669,7 @@ def attribute_cash(
                             if not unchecked else None),
         "unchecked": unchecked,
         "status": status,
+        "policy_refusals": refusals,
     }
 
 
