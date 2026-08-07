@@ -174,3 +174,45 @@ class TestObserveAccumulates(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestZeroGrowthIsNotZeroRate(unittest.TestCase):
+    """Нулевой рост — «не измерено», а не «доходность 0 %».
+
+    Измерено 2026-08-07. Производитель набрал вторую точку, но обе имели
+    ОДИНАКОВУЮ цену доли: за сутки стейблкоин-хранилище не выросло в пределах
+    точности числа. Расчёт честно вывел 0.0, число ушло в ``live_apy`` как
+    НАБЛЮДЕНИЕ, монитор увидел два адаптера вне вменяемого диапазона APY, и
+    оценка здоровья портфеля просела 74.7 → 69.43 — ниже критического порога.
+    Ложное критичное.
+
+    Защиты были от близких замеров (12ч) и от абсурдных значений (−5…60 %), но
+    не от нулевого роста. «Не измерено» ≠ «измерено и равно нулю» — путать их
+    значит выдавать отсутствие разрешения за результат.
+    """
+
+    def test_identical_share_price_refuses_instead_of_returning_zero(self):
+        """Ровно наш случай — обе точки с одинаковой ценой доли."""
+        p = 1.1617319305415383
+        self.assertIsNone(M.derive_apy_pct(_series([p, p], hours_apart=24.0)))
+
+    def test_a_measurable_rise_still_produces_a_rate(self):
+        """Обратная сторона: отказ не должен съесть настоящие числа."""
+        apy = M.derive_apy_pct(_series([1.0, 1.0001], hours_apart=24.0))
+        self.assertIsNotNone(apy)
+        self.assertGreater(apy, 0.0)
+
+    def test_a_fall_is_still_reported(self):
+        """Убыток — тоже измерение. Прятать его значило бы врать в другую сторону."""
+        apy = M.derive_apy_pct(_series([1.0, 0.99995], hours_apart=24.0))
+        self.assertIsNotNone(apy)
+        self.assertLess(apy, 0.0)
+
+    def test_the_series_is_kept_so_the_rate_can_appear_later(self):
+        """Отказ НЕ отменяет накопление: ставка появится с измеримым ростом.
+
+        Иначе «не измеримо сегодня» превратилось бы в «не измеримо никогда».
+        """
+        p = 1.16173193
+        self.assertIsNone(M.derive_apy_pct(_series([p, p], hours_apart=24.0)))
+        self.assertIsNotNone(M.derive_apy_pct(_series([p, p, p * 1.0001], hours_apart=24.0)))
