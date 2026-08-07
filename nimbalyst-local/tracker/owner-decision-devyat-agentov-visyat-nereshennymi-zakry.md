@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Девять агентов висят нерешёнными: закрыть или включить"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-08-05
 ---
