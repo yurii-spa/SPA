@@ -357,6 +357,27 @@ def get_alert(alert_id: str, *, state_path: Optional[str | Path] = None) -> Opti
     return None
 
 
+def recent_alerts(
+    *, limit: int = HISTORY_MAX, state_path: Optional[str | Path] = None
+) -> List[Dict]:
+    """Журнал алертов, новые первыми. Копии — читателю не положено править журнал.
+
+    Второй вход к тем же вариантам (экран «Предупреждения» в меню бота) обязан читать
+    ЭТОТ журнал, а не свой собственный: разъехавшийся список проблем хуже отсутствия
+    списка. Отсюда же и резолв пути — включая увод тестов во временный файл, который
+    иначе пришлось бы повторять в каждом читателе.
+
+    Никогда не бросает: битый журнал — пустой список, а не падение экрана.
+    """
+    try:
+        doc = _load(_state_path(state_path))
+        rows = [dict(e) for e in doc.get("alerts", []) if isinstance(e, dict)]
+    except Exception:  # noqa: BLE001 — экран важнее журнала
+        return []
+    rows.reverse()
+    return rows[: max(0, int(limit))] if limit is not None else rows
+
+
 # ── нажатие → карточка ───────────────────────────────────────────────────────
 
 

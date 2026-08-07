@@ -51,6 +51,7 @@ _STRINGS: Dict[str, Dict[str, str]] = {
     # ── Warnings sub-buttons ───────────────────────────────────────────────
     "btn.active": {"en": "⚠️ Active", "ru": "⚠️ Активные"},
     "btn.recent": {"en": "🗂️ Recent (7d)", "ru": "🗂️ Недавние (7д)"},
+    "btn.problems": {"en": "🧾 Problems", "ru": "🧾 Проблемы"},
     # ── Settings sub-buttons ───────────────────────────────────────────────
     "btn.language": {"en": "🌐 Language", "ru": "🌐 Язык"},
     "btn.digests": {"en": "🔔 Digests", "ru": "🔔 Дайджесты"},
@@ -85,6 +86,8 @@ _STRINGS: Dict[str, Dict[str, str]] = {
     "crumb.today": {"en": "Today", "ru": "Сегодня"},
     "crumb.weekly": {"en": "Weekly", "ru": "Неделя"},
     "crumb.warnings": {"en": "Warnings", "ru": "Предупреждения"},
+    "crumb.problems": {"en": "Problems", "ru": "Проблемы"},
+    "crumb.problem": {"en": "Problem", "ru": "Проблема"},
     "crumb.recent": {"en": "Recent", "ru": "Недавние"},
     "crumb.settings": {"en": "Settings", "ru": "Настройки"},
     # ── Honest labels ──────────────────────────────────────────────────────
@@ -136,6 +139,18 @@ _STRINGS: Dict[str, Dict[str, str]] = {
     "w.no_active": {"en": "No active warnings.", "ru": "Нет активных предупреждений."},
     "w.not_muted": {"en": "not muted", "ru": "без mute"},
     "w.active": {"en": "active", "ru": "активно"},
+    "w.no_problems": {"en": "No problems with reply options yet.",
+                      "ru": "Проблем с вариантами ответа пока не было."},
+    "w.problems_shown": {"en": "recent", "ru": "недавних"},
+    "w.card_done": {"en": "card created:", "ru": "карточка заведена:"},
+    "w.pick_option": {"en": "Pick an option — the same ones as under the alert:",
+                      "ru": "Выбери вариант — те же, что под самим алертом:"},
+    "w.problem_gone": {"en": "This alert has aged out of the log — nothing left to "
+                             "quote verbatim, so no card can be created from it. "
+                             "Write the task in your own words and I will file it.",
+                       "ru": "Этот алерт уже вытеснен из журнала — цитировать дословно "
+                             "нечего, поэтому и карточку из него завести нечем. "
+                             "Напиши задачу словами — заведу."},
     "w.page": {"en": "page", "ru": "стр."},
     # ── Screen titles ──────────────────────────────────────────────────────
     "ttl.home": {"en": "SPA Monitor", "ru": "SPA Monitor"},
@@ -154,6 +169,7 @@ _STRINGS: Dict[str, Dict[str, str]] = {
     "ttl.daily": {"en": "DAILY DIGEST", "ru": "ДНЕВНОЙ ОТЧЁТ"},
     "ttl.weekly": {"en": "WEEKLY REPORT", "ru": "НЕДЕЛЬНЫЙ ОТЧЁТ"},
     "ttl.warnings": {"en": "ACTIVE WARNINGS", "ru": "АКТИВНЫЕ ПРЕДУПРЕЖДЕНИЯ"},
+    "ttl.problems": {"en": "PROBLEMS WITH OPTIONS", "ru": "ПРОБЛЕМЫ С ВАРИАНТАМИ"},
     "ttl.settings": {"en": "SETTINGS", "ru": "НАСТРОЙКИ"},
     # ── Strategies copy ────────────────────────────────────────────────────
     "s.three_theses": {"en": "Three theses, honest verdicts:",

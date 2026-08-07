@@ -68,9 +68,16 @@ TREE: Dict[str, Dict] = {
     "reports.weekly": {"crumb": "crumb.weekly", "children": []},
 
     "warnings": {"crumb": "crumb.warnings", "children": [
-        "warnings.recent",
+        "warnings.problems", "warnings.recent",
     ]},
     "warnings.recent": {"crumb": "crumb.recent", "children": []},
+    # Второй вход к вариантам ответа (задание владельца 2026-08-07, вторая
+    # половина). `warnings.problems.item` — динамический лист: в `children`
+    # родителя его НЕТ (адресуется только `nav:...|<alert_id>` из списка),
+    # но узел в дереве нужен, чтобы «Назад» вело в список, а не в корень.
+    "warnings.problems": {"crumb": "crumb.problems", "children": []},
+    "warnings.problems.item": {"crumb": "crumb.problem", "children": [],
+                               "dynamic": True},
 
     "settings": {"crumb": "crumb.settings", "children": []},  # custom keyboard
 }
@@ -99,6 +106,7 @@ _CHILD_LABEL: Dict[str, str] = {
     "reports.today": "btn.today",
     "reports.weekly": "btn.weekly",
     "warnings.recent": "btn.recent",
+    "warnings.problems": "btn.problems",
 }
 
 

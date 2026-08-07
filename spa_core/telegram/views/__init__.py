@@ -56,6 +56,8 @@ VIEW_REGISTRY: Dict[str, Builder] = {
 
     "warnings": warnings.render_active,
     "warnings.recent": warnings.render_recent,
+    "warnings.problems": warnings.render_problems,
+    "warnings.problems.item": warnings.render_item,
 
     "settings": settings.render,
 }
