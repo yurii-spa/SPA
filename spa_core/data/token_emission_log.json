@@ -2,28 +2,6 @@
   {
     "protocols": [
       {
-        "name": "euler_v2",
-        "token_symbol": "???",
-        "daily_inflation_pct": 0.0,
-        "annualized_inflation_pct": 0.0,
-        "emission_value_usd_daily": 0.0,
-        "revenue_coverage_ratio": 999.0,
-        "supply_remaining_pct": null,
-        "days_to_fully_diluted": null,
-        "next_major_unlock": null,
-        "inflation_pressure": "LOW",
-        "sustainability": "DEFLATIONARY",
-        "flags": []
-      }
-    ],
-    "most_inflationary": "euler_v2",
-    "most_sustainable": "euler_v2",
-    "average_inflation_pct": 0.0,
-    "timestamp": 1786093122.7833476
-  },
-  {
-    "protocols": [
-      {
         "name": "maple",
         "token_symbol": "???",
         "daily_inflation_pct": 0.0,
@@ -41,7 +19,7 @@
     "most_inflationary": "maple",
     "most_sustainable": "maple",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093123.0523672
+    "timestamp": 1786093429.378744
   },
   {
     "protocols": [
@@ -63,7 +41,7 @@
     "most_inflationary": "pendle",
     "most_sustainable": "pendle",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093123.2999408
+    "timestamp": 1786093429.6181784
   },
   {
     "protocols": [
@@ -85,7 +63,7 @@
     "most_inflationary": "spark_susds",
     "most_sustainable": "spark_susds",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093123.5555804
+    "timestamp": 1786093429.8770146
   },
   {
     "protocols": [
@@ -107,7 +85,7 @@
     "most_inflationary": "aave_v3",
     "most_sustainable": "aave_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093123.9709175
+    "timestamp": 1786093430.2331645
   },
   {
     "protocols": [
@@ -129,7 +107,7 @@
     "most_inflationary": "compound_v3",
     "most_sustainable": "compound_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093124.2667305
+    "timestamp": 1786093430.500463
   },
   {
     "protocols": [
@@ -151,7 +129,7 @@
     "most_inflationary": "morpho_blue",
     "most_sustainable": "morpho_blue",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093124.5518563
+    "timestamp": 1786093430.770034
   },
   {
     "protocols": [
@@ -173,7 +151,7 @@
     "most_inflationary": "yearn_v3",
     "most_sustainable": "yearn_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093124.8399668
+    "timestamp": 1786093431.0485706
   },
   {
     "protocols": [
@@ -195,7 +173,7 @@
     "most_inflationary": "euler_v2",
     "most_sustainable": "euler_v2",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093125.1056201
+    "timestamp": 1786093431.3268092
   },
   {
     "protocols": [
@@ -217,7 +195,7 @@
     "most_inflationary": "maple",
     "most_sustainable": "maple",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093125.3455138
+    "timestamp": 1786093431.5875566
   },
   {
     "protocols": [
@@ -239,7 +217,7 @@
     "most_inflationary": "pendle",
     "most_sustainable": "pendle",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093125.588828
+    "timestamp": 1786093431.8468516
   },
   {
     "protocols": [
@@ -261,7 +239,7 @@
     "most_inflationary": "spark_susds",
     "most_sustainable": "spark_susds",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093125.8288314
+    "timestamp": 1786093432.0905948
   },
   {
     "protocols": [
@@ -283,7 +261,7 @@
     "most_inflationary": "aave_v3",
     "most_sustainable": "aave_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093126.1751883
+    "timestamp": 1786093432.4357188
   },
   {
     "protocols": [
@@ -305,7 +283,7 @@
     "most_inflationary": "compound_v3",
     "most_sustainable": "compound_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093126.4873452
+    "timestamp": 1786093432.709881
   },
   {
     "protocols": [
@@ -327,7 +305,7 @@
     "most_inflationary": "morpho_blue",
     "most_sustainable": "morpho_blue",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093126.808107
+    "timestamp": 1786093432.9888458
   },
   {
     "protocols": [
@@ -349,7 +327,7 @@
     "most_inflationary": "yearn_v3",
     "most_sustainable": "yearn_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093127.1307087
+    "timestamp": 1786093433.2714362
   },
   {
     "protocols": [
@@ -371,7 +349,7 @@
     "most_inflationary": "euler_v2",
     "most_sustainable": "euler_v2",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093127.4007533
+    "timestamp": 1786093433.5469935
   },
   {
     "protocols": [
@@ -393,7 +371,7 @@
     "most_inflationary": "maple",
     "most_sustainable": "maple",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093127.6351025
+    "timestamp": 1786093433.796841
   },
   {
     "protocols": [
@@ -415,7 +393,7 @@
     "most_inflationary": "pendle",
     "most_sustainable": "pendle",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093127.8732028
+    "timestamp": 1786093434.0716593
   },
   {
     "protocols": [
@@ -437,7 +415,7 @@
     "most_inflationary": "spark_susds",
     "most_sustainable": "spark_susds",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093128.115905
+    "timestamp": 1786093434.336485
   },
   {
     "protocols": [
@@ -459,7 +437,7 @@
     "most_inflationary": "aave_v3",
     "most_sustainable": "aave_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093128.6214528
+    "timestamp": 1786093434.7219708
   },
   {
     "protocols": [
@@ -481,7 +459,7 @@
     "most_inflationary": "compound_v3",
     "most_sustainable": "compound_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093128.8841288
+    "timestamp": 1786093435.0274768
   },
   {
     "protocols": [
@@ -503,7 +481,7 @@
     "most_inflationary": "morpho_blue",
     "most_sustainable": "morpho_blue",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093129.143942
+    "timestamp": 1786093435.323959
   },
   {
     "protocols": [
@@ -525,7 +503,7 @@
     "most_inflationary": "yearn_v3",
     "most_sustainable": "yearn_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093129.4084742
+    "timestamp": 1786093435.617486
   },
   {
     "protocols": [
@@ -547,7 +525,7 @@
     "most_inflationary": "euler_v2",
     "most_sustainable": "euler_v2",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093129.6698675
+    "timestamp": 1786093435.8904645
   },
   {
     "protocols": [
@@ -569,7 +547,7 @@
     "most_inflationary": "maple",
     "most_sustainable": "maple",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093129.9205818
+    "timestamp": 1786093436.144317
   },
   {
     "protocols": [
@@ -591,7 +569,7 @@
     "most_inflationary": "pendle",
     "most_sustainable": "pendle",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093130.1693838
+    "timestamp": 1786093436.37533
   },
   {
     "protocols": [
@@ -613,7 +591,7 @@
     "most_inflationary": "spark_susds",
     "most_sustainable": "spark_susds",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093130.424309
+    "timestamp": 1786093436.611728
   },
   {
     "protocols": [
@@ -635,7 +613,7 @@
     "most_inflationary": "aave_v3",
     "most_sustainable": "aave_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093130.789574
+    "timestamp": 1786093436.9604692
   },
   {
     "protocols": [
@@ -657,7 +635,7 @@
     "most_inflationary": "compound_v3",
     "most_sustainable": "compound_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093131.073437
+    "timestamp": 1786093437.2338371
   },
   {
     "protocols": [
@@ -679,7 +657,7 @@
     "most_inflationary": "morpho_blue",
     "most_sustainable": "morpho_blue",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093131.3390746
+    "timestamp": 1786093437.4993217
   },
   {
     "protocols": [
@@ -701,7 +679,7 @@
     "most_inflationary": "yearn_v3",
     "most_sustainable": "yearn_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093131.6107676
+    "timestamp": 1786093437.7632031
   },
   {
     "protocols": [
@@ -723,7 +701,7 @@
     "most_inflationary": "euler_v2",
     "most_sustainable": "euler_v2",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093131.8713183
+    "timestamp": 1786093438.0325077
   },
   {
     "protocols": [
@@ -745,7 +723,7 @@
     "most_inflationary": "maple",
     "most_sustainable": "maple",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093132.1037695
+    "timestamp": 1786093438.2800443
   },
   {
     "protocols": [
@@ -767,7 +745,7 @@
     "most_inflationary": "pendle",
     "most_sustainable": "pendle",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093132.3470366
+    "timestamp": 1786093438.5324302
   },
   {
     "protocols": [
@@ -789,7 +767,7 @@
     "most_inflationary": "spark_susds",
     "most_sustainable": "spark_susds",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093132.6196291
+    "timestamp": 1786093438.8143315
   },
   {
     "protocols": [
@@ -811,7 +789,7 @@
     "most_inflationary": "aave_v3",
     "most_sustainable": "aave_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093132.9843235
+    "timestamp": 1786093439.1964211
   },
   {
     "protocols": [
@@ -833,7 +811,7 @@
     "most_inflationary": "compound_v3",
     "most_sustainable": "compound_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093133.2813704
+    "timestamp": 1786093439.5089362
   },
   {
     "protocols": [
@@ -855,7 +833,7 @@
     "most_inflationary": "morpho_blue",
     "most_sustainable": "morpho_blue",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093133.559879
+    "timestamp": 1786093439.816978
   },
   {
     "protocols": [
@@ -877,7 +855,7 @@
     "most_inflationary": "yearn_v3",
     "most_sustainable": "yearn_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093133.8498292
+    "timestamp": 1786093440.1291995
   },
   {
     "protocols": [
@@ -899,7 +877,7 @@
     "most_inflationary": "euler_v2",
     "most_sustainable": "euler_v2",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093134.1135058
+    "timestamp": 1786093440.4004037
   },
   {
     "protocols": [
@@ -921,7 +899,7 @@
     "most_inflationary": "maple",
     "most_sustainable": "maple",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093134.3486228
+    "timestamp": 1786093440.664781
   },
   {
     "protocols": [
@@ -943,7 +921,7 @@
     "most_inflationary": "pendle",
     "most_sustainable": "pendle",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093134.5818062
+    "timestamp": 1786093440.9181104
   },
   {
     "protocols": [
@@ -965,7 +943,7 @@
     "most_inflationary": "spark_susds",
     "most_sustainable": "spark_susds",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093134.8334055
+    "timestamp": 1786093441.1564844
   },
   {
     "protocols": [
@@ -987,7 +965,7 @@
     "most_inflationary": "aave_v3",
     "most_sustainable": "aave_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093135.9490612
+    "timestamp": 1786093441.4887774
   },
   {
     "protocols": [
@@ -1009,7 +987,7 @@
     "most_inflationary": "compound_v3",
     "most_sustainable": "compound_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093136.2223616
+    "timestamp": 1786093441.769058
   },
   {
     "protocols": [
@@ -1031,7 +1009,7 @@
     "most_inflationary": "morpho_blue",
     "most_sustainable": "morpho_blue",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093136.4934983
+    "timestamp": 1786093442.0517862
   },
   {
     "protocols": [
@@ -1053,7 +1031,7 @@
     "most_inflationary": "yearn_v3",
     "most_sustainable": "yearn_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093136.7692952
+    "timestamp": 1786093442.3406467
   },
   {
     "protocols": [
@@ -1075,7 +1053,7 @@
     "most_inflationary": "euler_v2",
     "most_sustainable": "euler_v2",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093137.0378108
+    "timestamp": 1786093442.6239989
   },
   {
     "protocols": [
@@ -1097,7 +1075,7 @@
     "most_inflationary": "maple",
     "most_sustainable": "maple",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093137.28597
+    "timestamp": 1786093442.8667529
   },
   {
     "protocols": [
@@ -1119,7 +1097,7 @@
     "most_inflationary": "pendle",
     "most_sustainable": "pendle",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093137.521228
+    "timestamp": 1786093443.1088145
   },
   {
     "protocols": [
@@ -1141,7 +1119,7 @@
     "most_inflationary": "spark_susds",
     "most_sustainable": "spark_susds",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093137.7563376
+    "timestamp": 1786093443.347938
   },
   {
     "protocols": [
@@ -1163,7 +1141,7 @@
     "most_inflationary": "aave_v3",
     "most_sustainable": "aave_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093138.1646907
+    "timestamp": 1786093443.7560656
   },
   {
     "protocols": [
@@ -1185,7 +1163,7 @@
     "most_inflationary": "compound_v3",
     "most_sustainable": "compound_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093138.4184582
+    "timestamp": 1786093444.03886
   },
   {
     "protocols": [
@@ -1207,7 +1185,7 @@
     "most_inflationary": "morpho_blue",
     "most_sustainable": "morpho_blue",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093138.6803076
+    "timestamp": 1786093444.305701
   },
   {
     "protocols": [
@@ -1229,7 +1207,7 @@
     "most_inflationary": "yearn_v3",
     "most_sustainable": "yearn_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093138.938052
+    "timestamp": 1786093444.5744035
   },
   {
     "protocols": [
@@ -1251,7 +1229,7 @@
     "most_inflationary": "euler_v2",
     "most_sustainable": "euler_v2",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093139.2148876
+    "timestamp": 1786093444.8845112
   },
   {
     "protocols": [
@@ -1273,7 +1251,7 @@
     "most_inflationary": "maple",
     "most_sustainable": "maple",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093139.4505382
+    "timestamp": 1786093445.1534235
   },
   {
     "protocols": [
@@ -1295,7 +1273,7 @@
     "most_inflationary": "pendle",
     "most_sustainable": "pendle",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093139.6892703
+    "timestamp": 1786093445.4266837
   },
   {
     "protocols": [
@@ -1317,7 +1295,7 @@
     "most_inflationary": "spark_susds",
     "most_sustainable": "spark_susds",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093139.9242272
+    "timestamp": 1786093445.7335458
   },
   {
     "protocols": [
@@ -1339,7 +1317,7 @@
     "most_inflationary": "aave_v3",
     "most_sustainable": "aave_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093140.3261595
+    "timestamp": 1786093446.1293561
   },
   {
     "protocols": [
@@ -1361,7 +1339,7 @@
     "most_inflationary": "compound_v3",
     "most_sustainable": "compound_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093140.5934846
+    "timestamp": 1786093446.4107196
   },
   {
     "protocols": [
@@ -1383,7 +1361,7 @@
     "most_inflationary": "morpho_blue",
     "most_sustainable": "morpho_blue",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093140.8802397
+    "timestamp": 1786093446.6993399
   },
   {
     "protocols": [
@@ -1405,7 +1383,7 @@
     "most_inflationary": "yearn_v3",
     "most_sustainable": "yearn_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093141.1644812
+    "timestamp": 1786093446.9909482
   },
   {
     "protocols": [
@@ -1427,7 +1405,7 @@
     "most_inflationary": "euler_v2",
     "most_sustainable": "euler_v2",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093141.471201
+    "timestamp": 1786093447.3167143
   },
   {
     "protocols": [
@@ -1449,7 +1427,7 @@
     "most_inflationary": "maple",
     "most_sustainable": "maple",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093141.7262168
+    "timestamp": 1786093447.6112602
   },
   {
     "protocols": [
@@ -1471,7 +1449,7 @@
     "most_inflationary": "pendle",
     "most_sustainable": "pendle",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093141.99906
+    "timestamp": 1786093447.8835194
   },
   {
     "protocols": [
@@ -1493,7 +1471,7 @@
     "most_inflationary": "spark_susds",
     "most_sustainable": "spark_susds",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093142.2525074
+    "timestamp": 1786093448.1388967
   },
   {
     "protocols": [
@@ -1515,7 +1493,7 @@
     "most_inflationary": "aave_v3",
     "most_sustainable": "aave_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093147.1463842
+    "timestamp": 1786093448.4984589
   },
   {
     "protocols": [
@@ -1537,7 +1515,7 @@
     "most_inflationary": "compound_v3",
     "most_sustainable": "compound_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093147.4373336
+    "timestamp": 1786093448.7662427
   },
   {
     "protocols": [
@@ -1559,7 +1537,7 @@
     "most_inflationary": "morpho_blue",
     "most_sustainable": "morpho_blue",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093147.727956
+    "timestamp": 1786093449.0474715
   },
   {
     "protocols": [
@@ -1581,7 +1559,7 @@
     "most_inflationary": "yearn_v3",
     "most_sustainable": "yearn_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093148.0160663
+    "timestamp": 1786093449.3255906
   },
   {
     "protocols": [
@@ -1603,7 +1581,7 @@
     "most_inflationary": "euler_v2",
     "most_sustainable": "euler_v2",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093148.3043346
+    "timestamp": 1786093449.5959673
   },
   {
     "protocols": [
@@ -1625,7 +1603,7 @@
     "most_inflationary": "maple",
     "most_sustainable": "maple",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093148.561635
+    "timestamp": 1786093449.8405297
   },
   {
     "protocols": [
@@ -1647,7 +1625,7 @@
     "most_inflationary": "pendle",
     "most_sustainable": "pendle",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093148.8180249
+    "timestamp": 1786093450.0918553
   },
   {
     "protocols": [
@@ -1669,7 +1647,7 @@
     "most_inflationary": "spark_susds",
     "most_sustainable": "spark_susds",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093149.0680902
+    "timestamp": 1786093450.3428204
   },
   {
     "protocols": [
@@ -1691,7 +1669,7 @@
     "most_inflationary": "aave_v3",
     "most_sustainable": "aave_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093149.4857461
+    "timestamp": 1786093450.6857173
   },
   {
     "protocols": [
@@ -1713,7 +1691,7 @@
     "most_inflationary": "compound_v3",
     "most_sustainable": "compound_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093149.7699838
+    "timestamp": 1786093450.9843926
   },
   {
     "protocols": [
@@ -1735,7 +1713,7 @@
     "most_inflationary": "morpho_blue",
     "most_sustainable": "morpho_blue",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093150.0776212
+    "timestamp": 1786093451.2696476
   },
   {
     "protocols": [
@@ -1757,7 +1735,7 @@
     "most_inflationary": "yearn_v3",
     "most_sustainable": "yearn_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093150.3687751
+    "timestamp": 1786093451.5601184
   },
   {
     "protocols": [
@@ -1779,7 +1757,7 @@
     "most_inflationary": "euler_v2",
     "most_sustainable": "euler_v2",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093150.6331208
+    "timestamp": 1786093451.8690178
   },
   {
     "protocols": [
@@ -1801,7 +1779,7 @@
     "most_inflationary": "maple",
     "most_sustainable": "maple",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093150.8840187
+    "timestamp": 1786093452.1542008
   },
   {
     "protocols": [
@@ -1823,7 +1801,7 @@
     "most_inflationary": "pendle",
     "most_sustainable": "pendle",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093151.1446636
+    "timestamp": 1786093452.4453578
   },
   {
     "protocols": [
@@ -1845,7 +1823,7 @@
     "most_inflationary": "spark_susds",
     "most_sustainable": "spark_susds",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093151.42476
+    "timestamp": 1786093452.7389855
   },
   {
     "protocols": [
@@ -1867,7 +1845,7 @@
     "most_inflationary": "aave_v3",
     "most_sustainable": "aave_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093260.8729382
+    "timestamp": 1786093453.1830416
   },
   {
     "protocols": [
@@ -1889,7 +1867,7 @@
     "most_inflationary": "compound_v3",
     "most_sustainable": "compound_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093261.1388586
+    "timestamp": 1786093453.4871755
   },
   {
     "protocols": [
@@ -1911,7 +1889,7 @@
     "most_inflationary": "morpho_blue",
     "most_sustainable": "morpho_blue",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093261.4399958
+    "timestamp": 1786093453.784324
   },
   {
     "protocols": [
@@ -1933,7 +1911,7 @@
     "most_inflationary": "yearn_v3",
     "most_sustainable": "yearn_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093261.7547514
+    "timestamp": 1786093454.0686467
   },
   {
     "protocols": [
@@ -1955,7 +1933,7 @@
     "most_inflationary": "euler_v2",
     "most_sustainable": "euler_v2",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093262.0377326
+    "timestamp": 1786093454.3625226
   },
   {
     "protocols": [
@@ -1977,7 +1955,7 @@
     "most_inflationary": "maple",
     "most_sustainable": "maple",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093262.272495
+    "timestamp": 1786093454.718159
   },
   {
     "protocols": [
@@ -1999,7 +1977,7 @@
     "most_inflationary": "pendle",
     "most_sustainable": "pendle",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093262.5164046
+    "timestamp": 1786093455.0512345
   },
   {
     "protocols": [
@@ -2021,7 +1999,7 @@
     "most_inflationary": "spark_susds",
     "most_sustainable": "spark_susds",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093262.7804472
+    "timestamp": 1786093455.3275564
   },
   {
     "protocols": [
@@ -2043,7 +2021,7 @@
     "most_inflationary": "aave_v3",
     "most_sustainable": "aave_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093263.1732929
+    "timestamp": 1786093456.009173
   },
   {
     "protocols": [
@@ -2065,7 +2043,7 @@
     "most_inflationary": "compound_v3",
     "most_sustainable": "compound_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093263.446512
+    "timestamp": 1786093456.5017397
   },
   {
     "protocols": [
@@ -2087,7 +2065,7 @@
     "most_inflationary": "morpho_blue",
     "most_sustainable": "morpho_blue",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093263.7237685
+    "timestamp": 1786093456.937457
   },
   {
     "protocols": [
@@ -2109,7 +2087,7 @@
     "most_inflationary": "yearn_v3",
     "most_sustainable": "yearn_v3",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093263.999077
+    "timestamp": 1786093457.4280457
   },
   {
     "protocols": [
@@ -2131,7 +2109,7 @@
     "most_inflationary": "euler_v2",
     "most_sustainable": "euler_v2",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093264.2963786
+    "timestamp": 1786093457.77175
   },
   {
     "protocols": [
@@ -2153,7 +2131,7 @@
     "most_inflationary": "maple",
     "most_sustainable": "maple",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093264.5698044
+    "timestamp": 1786093458.0880952
   },
   {
     "protocols": [
@@ -2175,7 +2153,7 @@
     "most_inflationary": "pendle",
     "most_sustainable": "pendle",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093264.8140523
+    "timestamp": 1786093458.4241977
   },
   {
     "protocols": [
@@ -2197,6 +2175,28 @@
     "most_inflationary": "spark_susds",
     "most_sustainable": "spark_susds",
     "average_inflation_pct": 0.0,
-    "timestamp": 1786093265.0729094
+    "timestamp": 1786093458.7155867
+  },
+  {
+    "protocols": [
+      {
+        "name": "aave_v3",
+        "token_symbol": "???",
+        "daily_inflation_pct": 0.0,
+        "annualized_inflation_pct": 0.0,
+        "emission_value_usd_daily": 0.0,
+        "revenue_coverage_ratio": 999.0,
+        "supply_remaining_pct": null,
+        "days_to_fully_diluted": null,
+        "next_major_unlock": null,
+        "inflation_pressure": "LOW",
+        "sustainability": "DEFLATIONARY",
+        "flags": []
+      }
+    ],
+    "most_inflationary": "aave_v3",
+    "most_sustainable": "aave_v3",
+    "average_inflation_pct": 0.0,
+    "timestamp": 1786093459.3359761
   }
 ]

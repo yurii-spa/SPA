@@ -2,25 +2,6 @@
   {
     "positions": [
       {
-        "protocol": "euler_v2",
-        "accrued_rewards_usd": 0.0,
-        "gas_as_pct_of_rewards": 999.0,
-        "optimal_harvest_days": null,
-        "compound_benefit_usd": 0.0,
-        "harvest_recommendation": "WAIT",
-        "days_to_optimal": null,
-        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
-      }
-    ],
-    "harvest_now_count": 0,
-    "total_accrued_usd": 0.0,
-    "total_gas_if_all_harvested_usd": 0.0,
-    "highest_priority": null,
-    "timestamp": 1786093122.6904204
-  },
-  {
-    "positions": [
-      {
         "protocol": "maple",
         "accrued_rewards_usd": 0.0,
         "gas_as_pct_of_rewards": 999.0,
@@ -35,7 +16,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093122.96209
+    "timestamp": 1786093429.298768
   },
   {
     "positions": [
@@ -54,7 +35,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093123.2145433
+    "timestamp": 1786093429.538847
   },
   {
     "positions": [
@@ -73,7 +54,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093123.466615
+    "timestamp": 1786093429.7880383
   },
   {
     "positions": [
@@ -92,7 +73,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093123.88413
+    "timestamp": 1786093430.1499996
   },
   {
     "positions": [
@@ -111,7 +92,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093124.1689813
+    "timestamp": 1786093430.4165227
   },
   {
     "positions": [
@@ -130,7 +111,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093124.4696739
+    "timestamp": 1786093430.6882727
   },
   {
     "positions": [
@@ -149,7 +130,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093124.7568984
+    "timestamp": 1786093430.9589834
   },
   {
     "positions": [
@@ -168,7 +149,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093125.0222826
+    "timestamp": 1786093431.2368276
   },
   {
     "positions": [
@@ -187,7 +168,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093125.2663217
+    "timestamp": 1786093431.5000238
   },
   {
     "positions": [
@@ -206,7 +187,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093125.5046523
+    "timestamp": 1786093431.745006
   },
   {
     "positions": [
@@ -225,7 +206,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093125.7468119
+    "timestamp": 1786093432.007693
   },
   {
     "positions": [
@@ -244,7 +225,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093126.0849807
+    "timestamp": 1786093432.3450632
   },
   {
     "positions": [
@@ -263,7 +244,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093126.388639
+    "timestamp": 1786093432.6276195
   },
   {
     "positions": [
@@ -282,7 +263,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093126.7075934
+    "timestamp": 1786093432.910584
   },
   {
     "positions": [
@@ -301,7 +282,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093127.031584
+    "timestamp": 1786093433.1847937
   },
   {
     "positions": [
@@ -320,7 +301,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093127.3269632
+    "timestamp": 1786093433.4699006
   },
   {
     "positions": [
@@ -339,7 +320,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093127.5574915
+    "timestamp": 1786093433.7076106
   },
   {
     "positions": [
@@ -358,7 +339,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093127.789123
+    "timestamp": 1786093433.9781277
   },
   {
     "positions": [
@@ -377,7 +358,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093128.0377805
+    "timestamp": 1786093434.2485485
   },
   {
     "positions": [
@@ -396,7 +377,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093128.5396633
+    "timestamp": 1786093434.6300557
   },
   {
     "positions": [
@@ -415,7 +396,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093128.8006492
+    "timestamp": 1786093434.9300091
   },
   {
     "positions": [
@@ -434,7 +415,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093129.062853
+    "timestamp": 1786093435.231124
   },
   {
     "positions": [
@@ -453,7 +434,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093129.3293092
+    "timestamp": 1786093435.5326293
   },
   {
     "positions": [
@@ -472,7 +453,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093129.590611
+    "timestamp": 1786093435.801572
   },
   {
     "positions": [
@@ -491,7 +472,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093129.836916
+    "timestamp": 1786093436.0568373
   },
   {
     "positions": [
@@ -510,7 +491,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093130.0835202
+    "timestamp": 1786093436.2958882
   },
   {
     "positions": [
@@ -529,7 +510,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093130.3441541
+    "timestamp": 1786093436.531115
   },
   {
     "positions": [
@@ -548,7 +529,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093130.6993396
+    "timestamp": 1786093436.8755584
   },
   {
     "positions": [
@@ -567,7 +548,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093130.9890845
+    "timestamp": 1786093437.1515458
   },
   {
     "positions": [
@@ -586,7 +567,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093131.2584164
+    "timestamp": 1786093437.4158623
   },
   {
     "positions": [
@@ -605,7 +586,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093131.5257142
+    "timestamp": 1786093437.6848826
   },
   {
     "positions": [
@@ -624,7 +605,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093131.7889528
+    "timestamp": 1786093437.944213
   },
   {
     "positions": [
@@ -643,7 +624,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093132.030204
+    "timestamp": 1786093438.1947176
   },
   {
     "positions": [
@@ -662,7 +643,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093132.269381
+    "timestamp": 1786093438.4393473
   },
   {
     "positions": [
@@ -681,7 +662,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093132.523731
+    "timestamp": 1786093438.72278
   },
   {
     "positions": [
@@ -700,7 +681,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093132.8909044
+    "timestamp": 1786093439.0982664
   },
   {
     "positions": [
@@ -719,7 +700,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093133.1841047
+    "timestamp": 1786093439.4116583
   },
   {
     "positions": [
@@ -738,7 +719,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093133.4741013
+    "timestamp": 1786093439.7195048
   },
   {
     "positions": [
@@ -757,7 +738,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093133.763061
+    "timestamp": 1786093440.0267951
   },
   {
     "positions": [
@@ -776,7 +757,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093134.0297365
+    "timestamp": 1786093440.315704
   },
   {
     "positions": [
@@ -795,7 +776,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093134.2683995
+    "timestamp": 1786093440.5814097
   },
   {
     "positions": [
@@ -814,7 +795,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093134.496273
+    "timestamp": 1786093440.8334014
   },
   {
     "positions": [
@@ -833,7 +814,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093134.746497
+    "timestamp": 1786093441.0777805
   },
   {
     "positions": [
@@ -852,7 +833,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093135.865555
+    "timestamp": 1786093441.4073718
   },
   {
     "positions": [
@@ -871,7 +852,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093136.1406949
+    "timestamp": 1786093441.6845026
   },
   {
     "positions": [
@@ -890,7 +871,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093136.409542
+    "timestamp": 1786093441.9669192
   },
   {
     "positions": [
@@ -909,7 +890,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093136.6838229
+    "timestamp": 1786093442.2511115
   },
   {
     "positions": [
@@ -928,7 +909,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093136.9531863
+    "timestamp": 1786093442.532174
   },
   {
     "positions": [
@@ -947,7 +928,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093137.2065027
+    "timestamp": 1786093442.7843473
   },
   {
     "positions": [
@@ -966,7 +947,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093137.4420955
+    "timestamp": 1786093443.0235226
   },
   {
     "positions": [
@@ -985,7 +966,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093137.6743143
+    "timestamp": 1786093443.26672
   },
   {
     "positions": [
@@ -1004,7 +985,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093138.077642
+    "timestamp": 1786093443.6762218
   },
   {
     "positions": [
@@ -1023,7 +1004,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093138.3365912
+    "timestamp": 1786093443.956332
   },
   {
     "positions": [
@@ -1042,7 +1023,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093138.5990288
+    "timestamp": 1786093444.224715
   },
   {
     "positions": [
@@ -1061,7 +1042,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093138.8558466
+    "timestamp": 1786093444.4914134
   },
   {
     "positions": [
@@ -1080,7 +1061,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093139.1331532
+    "timestamp": 1786093444.7896552
   },
   {
     "positions": [
@@ -1099,7 +1080,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093139.3706686
+    "timestamp": 1786093445.0558321
   },
   {
     "positions": [
@@ -1118,7 +1099,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093139.6069045
+    "timestamp": 1786093445.3320894
   },
   {
     "positions": [
@@ -1137,7 +1118,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093139.8454802
+    "timestamp": 1786093445.6258535
   },
   {
     "positions": [
@@ -1156,7 +1137,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093140.2285364
+    "timestamp": 1786093446.0415592
   },
   {
     "positions": [
@@ -1175,7 +1156,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093140.5163298
+    "timestamp": 1786093446.3249938
   },
   {
     "positions": [
@@ -1194,7 +1175,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093140.7910872
+    "timestamp": 1786093446.611951
   },
   {
     "positions": [
@@ -1213,7 +1194,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093141.0739653
+    "timestamp": 1786093446.90538
   },
   {
     "positions": [
@@ -1232,7 +1213,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093141.3817327
+    "timestamp": 1786093447.2163398
   },
   {
     "positions": [
@@ -1251,7 +1232,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093141.641545
+    "timestamp": 1786093447.5156593
   },
   {
     "positions": [
@@ -1270,7 +1251,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093141.9076893
+    "timestamp": 1786093447.7988899
   },
   {
     "positions": [
@@ -1289,7 +1270,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093142.1708248
+    "timestamp": 1786093448.0526974
   },
   {
     "positions": [
@@ -1308,7 +1289,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093147.051839
+    "timestamp": 1786093448.3983302
   },
   {
     "positions": [
@@ -1327,7 +1308,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093147.3477314
+    "timestamp": 1786093448.684378
   },
   {
     "positions": [
@@ -1346,7 +1327,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093147.6333213
+    "timestamp": 1786093448.9642274
   },
   {
     "positions": [
@@ -1365,7 +1346,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093147.929814
+    "timestamp": 1786093449.244937
   },
   {
     "positions": [
@@ -1384,7 +1365,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093148.2169914
+    "timestamp": 1786093449.517844
   },
   {
     "positions": [
@@ -1403,7 +1384,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093148.4752567
+    "timestamp": 1786093449.7595909
   },
   {
     "positions": [
@@ -1422,7 +1403,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093148.7303116
+    "timestamp": 1786093450.0031335
   },
   {
     "positions": [
@@ -1441,7 +1422,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093148.9817162
+    "timestamp": 1786093450.2600012
   },
   {
     "positions": [
@@ -1460,7 +1441,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093149.3895335
+    "timestamp": 1786093450.6005633
   },
   {
     "positions": [
@@ -1479,7 +1460,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093149.6769829
+    "timestamp": 1786093450.8946671
   },
   {
     "positions": [
@@ -1498,7 +1479,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093149.9850647
+    "timestamp": 1786093451.1829212
   },
   {
     "positions": [
@@ -1517,7 +1498,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093150.279536
+    "timestamp": 1786093451.4648468
   },
   {
     "positions": [
@@ -1536,7 +1517,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093150.5511014
+    "timestamp": 1786093451.773843
   },
   {
     "positions": [
@@ -1555,7 +1536,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093150.8006635
+    "timestamp": 1786093452.0517156
   },
   {
     "positions": [
@@ -1574,7 +1555,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093151.0501099
+    "timestamp": 1786093452.345549
   },
   {
     "positions": [
@@ -1593,7 +1574,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093151.3304899
+    "timestamp": 1786093452.6426754
   },
   {
     "positions": [
@@ -1612,7 +1593,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093260.792361
+    "timestamp": 1786093453.0831037
   },
   {
     "positions": [
@@ -1631,7 +1612,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093261.0560782
+    "timestamp": 1786093453.3895102
   },
   {
     "positions": [
@@ -1650,7 +1631,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093261.3432732
+    "timestamp": 1786093453.6982322
   },
   {
     "positions": [
@@ -1669,7 +1650,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093261.6580133
+    "timestamp": 1786093453.9767785
   },
   {
     "positions": [
@@ -1688,7 +1669,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093261.9574487
+    "timestamp": 1786093454.2738922
   },
   {
     "positions": [
@@ -1707,7 +1688,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093262.192853
+    "timestamp": 1786093454.6178985
   },
   {
     "positions": [
@@ -1726,7 +1707,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093262.4304843
+    "timestamp": 1786093454.9529884
   },
   {
     "positions": [
@@ -1745,7 +1726,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093262.69364
+    "timestamp": 1786093455.238486
   },
   {
     "positions": [
@@ -1764,7 +1745,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093263.0834267
+    "timestamp": 1786093455.8664422
   },
   {
     "positions": [
@@ -1783,7 +1764,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093263.361871
+    "timestamp": 1786093456.3206544
   },
   {
     "positions": [
@@ -1802,7 +1783,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093263.635817
+    "timestamp": 1786093456.8435848
   },
   {
     "positions": [
@@ -1821,7 +1802,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093263.9070997
+    "timestamp": 1786093457.310206
   },
   {
     "positions": [
@@ -1840,7 +1821,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093264.199709
+    "timestamp": 1786093457.6855257
   },
   {
     "positions": [
@@ -1859,7 +1840,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093264.4763422
+    "timestamp": 1786093457.9842932
   },
   {
     "positions": [
@@ -1878,7 +1859,7 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093264.7294548
+    "timestamp": 1786093458.3254392
   },
   {
     "positions": [
@@ -1897,6 +1878,25 @@
     "total_accrued_usd": 0.0,
     "total_gas_if_all_harvested_usd": 0.0,
     "highest_priority": null,
-    "timestamp": 1786093264.9823978
+    "timestamp": 1786093458.611277
+  },
+  {
+    "positions": [
+      {
+        "protocol": "aave_v3",
+        "accrued_rewards_usd": 0.0,
+        "gas_as_pct_of_rewards": 999.0,
+        "optimal_harvest_days": null,
+        "compound_benefit_usd": 0.0,
+        "harvest_recommendation": "WAIT",
+        "days_to_optimal": null,
+        "urgency_reason": "Insufficient rewards accumulated to justify gas cost"
+      }
+    ],
+    "harvest_now_count": 0,
+    "total_accrued_usd": 0.0,
+    "total_gas_if_all_harvested_usd": 0.0,
+    "highest_priority": null,
+    "timestamp": 1786093459.2421317
   }
 ]
