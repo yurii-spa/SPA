@@ -62,6 +62,38 @@ export SPA_AUTONOMOUS=1
 export SPA_SESSION_PID=$$
 export SPA_SESSION_ID="${SPA_SESSION_ID:-cycle-$$}"
 
+# ── CYCLE LOCK (ADR-070 п.9, решение владельца 2026-08-07) ──────────────────
+# Один цикл за раз. Карточки от одновременной работы защищены с 30.07, сам цикл — нет:
+# захват карточки ловит столкновение уже ПОСЛЕ шагов 0/0a/0b и не ловит вовсе, когда вторая
+# сессия берёт следующую карточку и два автономных пушера идут в origin/main наперегонки.
+# Замок общий (в главном рабочем дереве — циклы работают из /tmp-worktree), atomic-mkdir,
+# живость держателя ИЗМЕРЯЕТСЯ тем же кодом, что шаги 0a/0b. Код 3 = занято живой сессией:
+# это не ошибка, а вежливый выход (agent_health не должен краснеть на здоровое поведение).
+# Поломка самого замка => `unprotected`, код 0: цикл идёт и говорит об этом вслух.
+LOCK_PY="$REPO_ROOT/scripts/orchestrator_cycle_lock.py"
+if [ ! -f "$LOCK_PY" ]; then
+    # Дерево прода отстаёт от origin (синк идёт Step 0 дневного цикла). Молчать нельзя:
+    # незаметно потерянная защита — это класс fail-OPEN, ради которого замок и написан.
+    echo "[$(ts)] lock: ⚠️ нет $LOCK_PY — цикл идёт БЕЗ защиты от одновременного прогона" >> "$LOG"
+else
+    LOCK_OUT="$("$PYTHON" "$LOCK_PY" acquire \
+                --session "$SPA_SESSION_ID" --pid "$SPA_SESSION_PID" 2>&1)"
+    LOCK_RC=$?
+    echo "[$(ts)] lock: $LOCK_OUT" >> "$LOG"
+    if [ "$LOCK_RC" -eq 3 ]; then
+        echo "[$(ts)] === orchestrator cycle END (busy, polite exit 0) ===" >> "$LOG"
+        exit 0
+    fi
+fi
+# Снимаем и при аварийном выходе — брошенный замок хоть и снимается следующим прогоном по
+# измеренной смерти держателя, но лишний круг «занято» никому не нужен.
+release_lock() {
+    [ -f "$LOCK_PY" ] || return 0
+    "$PYTHON" "$LOCK_PY" release \
+        --session "$SPA_SESSION_ID" --pid "$SPA_SESSION_PID" >> "$LOG" 2>&1
+}
+trap release_lock EXIT
+
 # ── ARMED: run one headless GOVERNED-AUTONOMY cycle ─────────────────────────
 PROMPT="Ты — оркестратор SPA под НОВЫМ протоколом «управляемая автономия» (owner-approved 2026-07-15). \
 Исполни ПОЛНОСТЬЮ docs/ORCHESTRATOR_PROTOCOL.md за один цикл, включая раздел «Автономный рабочий мандат»: \
