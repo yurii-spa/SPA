@@ -2,29 +2,6 @@
   {
     "positions": [
       {
-        "protocol": "aave_v3",
-        "position_usd": 25000.0,
-        "exit_fee_usd": 0.0,
-        "net_exit_value_usd": 25000.0,
-        "estimated_exit_days": 0.0,
-        "can_exit_in_target": true,
-        "exit_liquidity_score": 100,
-        "exit_label": "INSTANT",
-        "market_depth_coverage_pct": 8000000.0,
-        "bottleneck": null,
-        "recommendation": "Immediate exit available. Depth covers 8000000% of position."
-      }
-    ],
-    "instantly_exitable_usd": 25000.0,
-    "total_position_usd": 25000.0,
-    "liquidity_ratio_pct": 100.0,
-    "most_locked": null,
-    "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093051.689714
-  },
-  {
-    "positions": [
-      {
         "protocol": "compound_v3",
         "position_usd": 25000.0,
         "exit_fee_usd": 0.0,
@@ -43,7 +20,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093051.967658
+    "timestamp": 1786093099.1327198
   },
   {
     "positions": [
@@ -66,7 +43,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093052.2515721
+    "timestamp": 1786093099.404784
   },
   {
     "positions": [
@@ -89,7 +66,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093052.524667
+    "timestamp": 1786093099.6599622
   },
   {
     "positions": [
@@ -112,7 +89,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093052.8202076
+    "timestamp": 1786093099.9174724
   },
   {
     "positions": [
@@ -135,7 +112,7 @@
     "liquidity_ratio_pct": 0.0,
     "most_locked": "maple",
     "average_exit_liquidity_score": 40.0,
-    "timestamp": 1786093053.0669086
+    "timestamp": 1786093100.176299
   },
   {
     "positions": [
@@ -158,7 +135,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093053.3125393
+    "timestamp": 1786093100.4373338
   },
   {
     "positions": [
@@ -181,7 +158,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093053.5719373
+    "timestamp": 1786093100.699089
   },
   {
     "positions": [
@@ -204,7 +181,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093053.9568143
+    "timestamp": 1786093101.117947
   },
   {
     "positions": [
@@ -227,7 +204,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093054.2293718
+    "timestamp": 1786093101.3845057
   },
   {
     "positions": [
@@ -250,7 +227,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093054.5191185
+    "timestamp": 1786093101.6425261
   },
   {
     "positions": [
@@ -273,7 +250,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093054.7765293
+    "timestamp": 1786093101.9092336
   },
   {
     "positions": [
@@ -296,7 +273,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093055.055555
+    "timestamp": 1786093102.175771
   },
   {
     "positions": [
@@ -319,7 +296,7 @@
     "liquidity_ratio_pct": 0.0,
     "most_locked": "maple",
     "average_exit_liquidity_score": 40.0,
-    "timestamp": 1786093055.2835581
+    "timestamp": 1786093102.3952537
   },
   {
     "positions": [
@@ -342,7 +319,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093055.5103498
+    "timestamp": 1786093102.6253471
   },
   {
     "positions": [
@@ -365,7 +342,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093055.7361631
+    "timestamp": 1786093102.866019
   },
   {
     "positions": [
@@ -388,7 +365,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093056.1223025
+    "timestamp": 1786093103.2153924
   },
   {
     "positions": [
@@ -411,7 +388,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093056.3712175
+    "timestamp": 1786093103.491408
   },
   {
     "positions": [
@@ -434,7 +411,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093056.631713
+    "timestamp": 1786093103.7759373
   },
   {
     "positions": [
@@ -457,7 +434,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093056.8827302
+    "timestamp": 1786093104.0498416
   },
   {
     "positions": [
@@ -480,7 +457,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093057.1257331
+    "timestamp": 1786093104.3156533
   },
   {
     "positions": [
@@ -503,7 +480,7 @@
     "liquidity_ratio_pct": 0.0,
     "most_locked": "maple",
     "average_exit_liquidity_score": 40.0,
-    "timestamp": 1786093057.34784
+    "timestamp": 1786093104.5566962
   },
   {
     "positions": [
@@ -526,7 +503,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093057.5800328
+    "timestamp": 1786093104.7890346
   },
   {
     "positions": [
@@ -549,7 +526,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093057.8483164
+    "timestamp": 1786093105.0296798
   },
   {
     "positions": [
@@ -572,7 +549,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093058.2566125
+    "timestamp": 1786093105.4485118
   },
   {
     "positions": [
@@ -595,7 +572,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093058.5198016
+    "timestamp": 1786093105.7170534
   },
   {
     "positions": [
@@ -618,7 +595,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093058.7733653
+    "timestamp": 1786093105.984105
   },
   {
     "positions": [
@@ -641,7 +618,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093059.0374722
+    "timestamp": 1786093106.2505941
   },
   {
     "positions": [
@@ -664,7 +641,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093059.3130279
+    "timestamp": 1786093106.5084856
   },
   {
     "positions": [
@@ -687,7 +664,7 @@
     "liquidity_ratio_pct": 0.0,
     "most_locked": "maple",
     "average_exit_liquidity_score": 40.0,
-    "timestamp": 1786093059.5552604
+    "timestamp": 1786093106.7524383
   },
   {
     "positions": [
@@ -710,7 +687,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093059.8122294
+    "timestamp": 1786093106.990715
   },
   {
     "positions": [
@@ -733,7 +710,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093060.0886366
+    "timestamp": 1786093107.237575
   },
   {
     "positions": [
@@ -756,7 +733,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093061.5947843
+    "timestamp": 1786093107.6803515
   },
   {
     "positions": [
@@ -779,7 +756,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093061.881833
+    "timestamp": 1786093107.9536104
   },
   {
     "positions": [
@@ -802,7 +779,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093062.145203
+    "timestamp": 1786093108.2432857
   },
   {
     "positions": [
@@ -825,7 +802,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093062.3927746
+    "timestamp": 1786093108.5230312
   },
   {
     "positions": [
@@ -848,7 +825,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093062.6451752
+    "timestamp": 1786093108.8100517
   },
   {
     "positions": [
@@ -871,7 +848,7 @@
     "liquidity_ratio_pct": 0.0,
     "most_locked": "maple",
     "average_exit_liquidity_score": 40.0,
-    "timestamp": 1786093062.8724473
+    "timestamp": 1786093109.0673192
   },
   {
     "positions": [
@@ -894,7 +871,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093063.1071012
+    "timestamp": 1786093109.3149579
   },
   {
     "positions": [
@@ -917,7 +894,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093063.3375664
+    "timestamp": 1786093109.5446851
   },
   {
     "positions": [
@@ -940,7 +917,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093064.8359396
+    "timestamp": 1786093109.9782631
   },
   {
     "positions": [
@@ -963,7 +940,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093065.1319063
+    "timestamp": 1786093110.2533514
   },
   {
     "positions": [
@@ -986,7 +963,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093065.4405982
+    "timestamp": 1786093110.522295
   },
   {
     "positions": [
@@ -1009,7 +986,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093065.7382324
+    "timestamp": 1786093110.792294
   },
   {
     "positions": [
@@ -1032,7 +1009,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093066.0190516
+    "timestamp": 1786093111.0844593
   },
   {
     "positions": [
@@ -1055,7 +1032,7 @@
     "liquidity_ratio_pct": 0.0,
     "most_locked": "maple",
     "average_exit_liquidity_score": 40.0,
-    "timestamp": 1786093066.288189
+    "timestamp": 1786093111.32596
   },
   {
     "positions": [
@@ -1078,7 +1055,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093066.5647078
+    "timestamp": 1786093111.573511
   },
   {
     "positions": [
@@ -1101,7 +1078,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093066.8067765
+    "timestamp": 1786093111.8088262
   },
   {
     "positions": [
@@ -1124,7 +1101,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093067.299045
+    "timestamp": 1786093112.1625943
   },
   {
     "positions": [
@@ -1147,7 +1124,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093067.5761974
+    "timestamp": 1786093112.4442582
   },
   {
     "positions": [
@@ -1170,7 +1147,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093067.8388793
+    "timestamp": 1786093112.7543678
   },
   {
     "positions": [
@@ -1193,7 +1170,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093068.1090546
+    "timestamp": 1786093113.043852
   },
   {
     "positions": [
@@ -1216,7 +1193,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093068.4074507
+    "timestamp": 1786093113.3240707
   },
   {
     "positions": [
@@ -1239,7 +1216,7 @@
     "liquidity_ratio_pct": 0.0,
     "most_locked": "maple",
     "average_exit_liquidity_score": 40.0,
-    "timestamp": 1786093068.639374
+    "timestamp": 1786093113.591037
   },
   {
     "positions": [
@@ -1262,7 +1239,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093068.8975794
+    "timestamp": 1786093113.8801608
   },
   {
     "positions": [
@@ -1285,7 +1262,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093069.1466072
+    "timestamp": 1786093114.163714
   },
   {
     "positions": [
@@ -1308,7 +1285,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093069.5135293
+    "timestamp": 1786093114.541236
   },
   {
     "positions": [
@@ -1331,7 +1308,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093069.798001
+    "timestamp": 1786093114.8339922
   },
   {
     "positions": [
@@ -1354,7 +1331,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093070.1090078
+    "timestamp": 1786093115.0944238
   },
   {
     "positions": [
@@ -1377,7 +1354,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093070.3749695
+    "timestamp": 1786093115.3668876
   },
   {
     "positions": [
@@ -1400,7 +1377,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093070.6548471
+    "timestamp": 1786093115.6276085
   },
   {
     "positions": [
@@ -1423,7 +1400,7 @@
     "liquidity_ratio_pct": 0.0,
     "most_locked": "maple",
     "average_exit_liquidity_score": 40.0,
-    "timestamp": 1786093070.9232717
+    "timestamp": 1786093115.886646
   },
   {
     "positions": [
@@ -1446,7 +1423,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093071.180676
+    "timestamp": 1786093116.1487234
   },
   {
     "positions": [
@@ -1469,7 +1446,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093071.4390488
+    "timestamp": 1786093116.3883848
   },
   {
     "positions": [
@@ -1492,7 +1469,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093071.7963467
+    "timestamp": 1786093117.1421802
   },
   {
     "positions": [
@@ -1515,7 +1492,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093072.0792606
+    "timestamp": 1786093117.394254
   },
   {
     "positions": [
@@ -1538,7 +1515,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093072.3445456
+    "timestamp": 1786093117.6666105
   },
   {
     "positions": [
@@ -1561,7 +1538,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093072.6185853
+    "timestamp": 1786093117.9235597
   },
   {
     "positions": [
@@ -1584,7 +1561,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093072.8815854
+    "timestamp": 1786093118.1852593
   },
   {
     "positions": [
@@ -1607,7 +1584,7 @@
     "liquidity_ratio_pct": 0.0,
     "most_locked": "maple",
     "average_exit_liquidity_score": 40.0,
-    "timestamp": 1786093073.1128147
+    "timestamp": 1786093118.4356682
   },
   {
     "positions": [
@@ -1630,7 +1607,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093073.3468308
+    "timestamp": 1786093118.6654608
   },
   {
     "positions": [
@@ -1653,7 +1630,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093073.5894983
+    "timestamp": 1786093118.903424
   },
   {
     "positions": [
@@ -1676,7 +1653,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093073.995588
+    "timestamp": 1786093119.4089468
   },
   {
     "positions": [
@@ -1699,7 +1676,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093074.2715158
+    "timestamp": 1786093119.6811347
   },
   {
     "positions": [
@@ -1722,7 +1699,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093074.542645
+    "timestamp": 1786093119.9363267
   },
   {
     "positions": [
@@ -1745,7 +1722,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093074.8053763
+    "timestamp": 1786093120.2057564
   },
   {
     "positions": [
@@ -1768,7 +1745,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093075.0629635
+    "timestamp": 1786093120.4825642
   },
   {
     "positions": [
@@ -1791,7 +1768,7 @@
     "liquidity_ratio_pct": 0.0,
     "most_locked": "maple",
     "average_exit_liquidity_score": 40.0,
-    "timestamp": 1786093075.2990968
+    "timestamp": 1786093120.7271097
   },
   {
     "positions": [
@@ -1814,7 +1791,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093075.5381672
+    "timestamp": 1786093120.9736156
   },
   {
     "positions": [
@@ -1837,7 +1814,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093075.7735133
+    "timestamp": 1786093121.2091198
   },
   {
     "positions": [
@@ -1860,7 +1837,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093076.1974256
+    "timestamp": 1786093121.6635396
   },
   {
     "positions": [
@@ -1883,7 +1860,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093076.4652045
+    "timestamp": 1786093121.9552257
   },
   {
     "positions": [
@@ -1906,7 +1883,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093076.75063
+    "timestamp": 1786093122.2226918
   },
   {
     "positions": [
@@ -1929,7 +1906,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093077.0397902
+    "timestamp": 1786093122.486568
   },
   {
     "positions": [
@@ -1952,7 +1929,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093077.3016005
+    "timestamp": 1786093122.753392
   },
   {
     "positions": [
@@ -1975,7 +1952,7 @@
     "liquidity_ratio_pct": 0.0,
     "most_locked": "maple",
     "average_exit_liquidity_score": 40.0,
-    "timestamp": 1786093077.55218
+    "timestamp": 1786093123.0200963
   },
   {
     "positions": [
@@ -1998,7 +1975,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093077.79173
+    "timestamp": 1786093123.2778387
   },
   {
     "positions": [
@@ -2021,7 +1998,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093078.0394332
+    "timestamp": 1786093123.5306587
   },
   {
     "positions": [
@@ -2044,7 +2021,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093078.3838067
+    "timestamp": 1786093123.942061
   },
   {
     "positions": [
@@ -2067,7 +2044,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093078.6697085
+    "timestamp": 1786093124.2384748
   },
   {
     "positions": [
@@ -2090,7 +2067,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093078.9405394
+    "timestamp": 1786093124.5296447
   },
   {
     "positions": [
@@ -2113,7 +2090,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093079.2204232
+    "timestamp": 1786093124.8152835
   },
   {
     "positions": [
@@ -2136,7 +2113,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093079.500046
+    "timestamp": 1786093125.0791802
   },
   {
     "positions": [
@@ -2159,7 +2136,7 @@
     "liquidity_ratio_pct": 0.0,
     "most_locked": "maple",
     "average_exit_liquidity_score": 40.0,
-    "timestamp": 1786093080.516674
+    "timestamp": 1786093125.3268507
   },
   {
     "positions": [
@@ -2182,7 +2159,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093080.785695
+    "timestamp": 1786093125.5626981
   },
   {
     "positions": [
@@ -2205,7 +2182,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093081.0406659
+    "timestamp": 1786093125.8045738
   },
   {
     "positions": [
@@ -2228,7 +2205,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093081.4276586
+    "timestamp": 1786093126.1559098
   },
   {
     "positions": [
@@ -2251,7 +2228,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093081.7167575
+    "timestamp": 1786093126.466778
   },
   {
     "positions": [
@@ -2274,7 +2251,7 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093082.004439
+    "timestamp": 1786093126.7802832
   },
   {
     "positions": [
@@ -2297,6 +2274,29 @@
     "liquidity_ratio_pct": 100.0,
     "most_locked": null,
     "average_exit_liquidity_score": 100.0,
-    "timestamp": 1786093082.2936149
+    "timestamp": 1786093127.1055696
+  },
+  {
+    "positions": [
+      {
+        "protocol": "euler_v2",
+        "position_usd": 25000.0,
+        "exit_fee_usd": 0.0,
+        "net_exit_value_usd": 25000.0,
+        "estimated_exit_days": 0.0,
+        "can_exit_in_target": true,
+        "exit_liquidity_score": 100,
+        "exit_label": "INSTANT",
+        "market_depth_coverage_pct": 600000.0,
+        "bottleneck": null,
+        "recommendation": "Immediate exit available. Depth covers 600000% of position."
+      }
+    ],
+    "instantly_exitable_usd": 25000.0,
+    "total_position_usd": 25000.0,
+    "liquidity_ratio_pct": 100.0,
+    "most_locked": null,
+    "average_exit_liquidity_score": 100.0,
+    "timestamp": 1786093127.3822017
   }
 ]

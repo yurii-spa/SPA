@@ -2,36 +2,6 @@
   {
     "farms": [
       {
-        "protocol": "aave_v3",
-        "principal_usd": 0.0,
-        "base_yield_usd": 0.0,
-        "reward_yield_usd": 0.0,
-        "il_loss_usd": 0.0,
-        "principal_gain_usd": 0.0,
-        "total_costs_usd": 0.0,
-        "net_profit_usd": 0.0,
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "excess_return_pct": -0.410958904109589,
-        "roi_label": "POSITIVE",
-        "reward_token_impact": "NEUTRAL",
-        "recommendation": "Profitable. Watch reward token dilution if APY is high."
-      }
-    ],
-    "best_farm": "aave_v3",
-    "worst_farm": "aave_v3",
-    "profitable_farms": [],
-    "portfolio_summary": {
-      "total_principal_usd": 0.0,
-      "total_net_profit_usd": 0.0,
-      "weighted_avg_annualized_pct": 0.0,
-      "total_costs_usd": 0.0
-    },
-    "timestamp": 1786093051.7522502
-  },
-  {
-    "farms": [
-      {
         "protocol": "compound_v3",
         "principal_usd": 0.0,
         "base_yield_usd": 0.0,
@@ -57,7 +27,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093052.02502
+    "timestamp": 1786093099.1955361
   },
   {
     "farms": [
@@ -87,7 +57,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093052.3103538
+    "timestamp": 1786093099.4609833
   },
   {
     "farms": [
@@ -117,7 +87,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093052.5887077
+    "timestamp": 1786093099.7169433
   },
   {
     "farms": [
@@ -147,7 +117,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093052.8803496
+    "timestamp": 1786093099.9776294
   },
   {
     "farms": [
@@ -177,7 +147,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093053.1254234
+    "timestamp": 1786093100.2394717
   },
   {
     "farms": [
@@ -207,7 +177,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093053.374161
+    "timestamp": 1786093100.490134
   },
   {
     "farms": [
@@ -237,7 +207,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093053.6422749
+    "timestamp": 1786093100.7542408
   },
   {
     "farms": [
@@ -267,7 +237,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093054.0096786
+    "timestamp": 1786093101.1815836
   },
   {
     "farms": [
@@ -297,7 +267,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093054.2972302
+    "timestamp": 1786093101.4437315
   },
   {
     "farms": [
@@ -327,7 +297,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093054.5754573
+    "timestamp": 1786093101.6996107
   },
   {
     "farms": [
@@ -357,7 +327,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093054.8359065
+    "timestamp": 1786093101.9703076
   },
   {
     "farms": [
@@ -387,7 +357,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093055.1090505
+    "timestamp": 1786093102.2221782
   },
   {
     "farms": [
@@ -417,7 +387,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093055.3390272
+    "timestamp": 1786093102.4488025
   },
   {
     "farms": [
@@ -447,7 +417,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093055.565115
+    "timestamp": 1786093102.6849885
   },
   {
     "farms": [
@@ -477,7 +447,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093055.7955222
+    "timestamp": 1786093102.9265647
   },
   {
     "farms": [
@@ -507,7 +477,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093056.180279
+    "timestamp": 1786093103.2713902
   },
   {
     "farms": [
@@ -537,7 +507,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093056.4274652
+    "timestamp": 1786093103.5510993
   },
   {
     "farms": [
@@ -567,7 +537,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093056.6867397
+    "timestamp": 1786093103.8394256
   },
   {
     "farms": [
@@ -597,7 +567,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093056.9397035
+    "timestamp": 1786093104.1145396
   },
   {
     "farms": [
@@ -627,7 +597,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093057.1769958
+    "timestamp": 1786093104.375357
   },
   {
     "farms": [
@@ -657,7 +627,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093057.4019277
+    "timestamp": 1786093104.60877
   },
   {
     "farms": [
@@ -687,7 +657,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093057.641531
+    "timestamp": 1786093104.8485968
   },
   {
     "farms": [
@@ -717,7 +687,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093057.9001238
+    "timestamp": 1786093105.08698
   },
   {
     "farms": [
@@ -747,7 +717,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093058.3148885
+    "timestamp": 1786093105.5093572
   },
   {
     "farms": [
@@ -777,7 +747,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093058.5727108
+    "timestamp": 1786093105.769762
   },
   {
     "farms": [
@@ -807,7 +777,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093058.8307776
+    "timestamp": 1786093106.0479124
   },
   {
     "farms": [
@@ -837,7 +807,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093059.1090202
+    "timestamp": 1786093106.3104043
   },
   {
     "farms": [
@@ -867,7 +837,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093059.3662465
+    "timestamp": 1786093106.5715559
   },
   {
     "farms": [
@@ -897,7 +867,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093059.613165
+    "timestamp": 1786093106.8104877
   },
   {
     "farms": [
@@ -927,7 +897,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093059.8768325
+    "timestamp": 1786093107.0519907
   },
   {
     "farms": [
@@ -957,7 +927,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093060.1500206
+    "timestamp": 1786093107.296921
   },
   {
     "farms": [
@@ -987,7 +957,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093061.6549828
+    "timestamp": 1786093107.738904
   },
   {
     "farms": [
@@ -1017,7 +987,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093061.9371421
+    "timestamp": 1786093108.0179145
   },
   {
     "farms": [
@@ -1047,7 +1017,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093062.2032979
+    "timestamp": 1786093108.3095365
   },
   {
     "farms": [
@@ -1077,7 +1047,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093062.448621
+    "timestamp": 1786093108.5873296
   },
   {
     "farms": [
@@ -1107,7 +1077,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093062.6980205
+    "timestamp": 1786093108.8716846
   },
   {
     "farms": [
@@ -1137,7 +1107,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093062.9255757
+    "timestamp": 1786093109.1208982
   },
   {
     "farms": [
@@ -1167,7 +1137,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093063.1655278
+    "timestamp": 1786093109.3708425
   },
   {
     "farms": [
@@ -1197,7 +1167,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093063.397193
+    "timestamp": 1786093109.6086414
   },
   {
     "farms": [
@@ -1227,7 +1197,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093064.9052517
+    "timestamp": 1786093110.0382679
   },
   {
     "farms": [
@@ -1257,7 +1227,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093065.198892
+    "timestamp": 1786093110.3051722
   },
   {
     "farms": [
@@ -1287,7 +1257,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093065.5037575
+    "timestamp": 1786093110.5833066
   },
   {
     "farms": [
@@ -1317,7 +1287,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093065.7986238
+    "timestamp": 1786093110.8640256
   },
   {
     "farms": [
@@ -1347,7 +1317,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093066.0811095
+    "timestamp": 1786093111.1447937
   },
   {
     "farms": [
@@ -1377,7 +1347,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093066.3603392
+    "timestamp": 1786093111.3852854
   },
   {
     "farms": [
@@ -1407,7 +1377,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093066.6241176
+    "timestamp": 1786093111.6232557
   },
   {
     "farms": [
@@ -1437,7 +1407,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093066.8696406
+    "timestamp": 1786093111.8698459
   },
   {
     "farms": [
@@ -1467,7 +1437,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093067.3638012
+    "timestamp": 1786093112.2299185
   },
   {
     "farms": [
@@ -1497,7 +1467,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093067.6417477
+    "timestamp": 1786093112.508452
   },
   {
     "farms": [
@@ -1527,7 +1497,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093067.9015288
+    "timestamp": 1786093112.8185275
   },
   {
     "farms": [
@@ -1557,7 +1527,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093068.1709125
+    "timestamp": 1786093113.1102178
   },
   {
     "farms": [
@@ -1587,7 +1557,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093068.4614394
+    "timestamp": 1786093113.386156
   },
   {
     "farms": [
@@ -1617,7 +1587,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093068.703912
+    "timestamp": 1786093113.6571963
   },
   {
     "farms": [
@@ -1647,7 +1617,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093068.9608994
+    "timestamp": 1786093113.9477878
   },
   {
     "farms": [
@@ -1677,7 +1647,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093069.2065206
+    "timestamp": 1786093114.2318935
   },
   {
     "farms": [
@@ -1707,7 +1677,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093069.5805712
+    "timestamp": 1786093114.6120458
   },
   {
     "farms": [
@@ -1737,7 +1707,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093069.8776584
+    "timestamp": 1786093114.8907762
   },
   {
     "farms": [
@@ -1767,7 +1737,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093070.1774142
+    "timestamp": 1786093115.1525233
   },
   {
     "farms": [
@@ -1797,7 +1767,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093070.436064
+    "timestamp": 1786093115.4281487
   },
   {
     "farms": [
@@ -1827,7 +1797,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093070.7187607
+    "timestamp": 1786093115.6831117
   },
   {
     "farms": [
@@ -1857,7 +1827,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093070.9761302
+    "timestamp": 1786093115.952558
   },
   {
     "farms": [
@@ -1887,7 +1857,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093071.2418883
+    "timestamp": 1786093116.201356
   },
   {
     "farms": [
@@ -1917,7 +1887,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093071.4998918
+    "timestamp": 1786093116.447257
   },
   {
     "farms": [
@@ -1947,7 +1917,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093071.870227
+    "timestamp": 1786093117.1943762
   },
   {
     "farms": [
@@ -1977,7 +1947,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093072.14186
+    "timestamp": 1786093117.45648
   },
   {
     "farms": [
@@ -2007,7 +1977,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093072.404455
+    "timestamp": 1786093117.7188137
   },
   {
     "farms": [
@@ -2037,7 +2007,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093072.6714725
+    "timestamp": 1786093117.9833453
   },
   {
     "farms": [
@@ -2067,7 +2037,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093072.9394326
+    "timestamp": 1786093118.2352726
   },
   {
     "farms": [
@@ -2097,7 +2067,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093073.170665
+    "timestamp": 1786093118.4867826
   },
   {
     "farms": [
@@ -2127,7 +2097,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093073.4050636
+    "timestamp": 1786093118.7201197
   },
   {
     "farms": [
@@ -2157,7 +2127,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093073.648347
+    "timestamp": 1786093118.957553
   },
   {
     "farms": [
@@ -2187,7 +2157,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093074.0607898
+    "timestamp": 1786093119.4761374
   },
   {
     "farms": [
@@ -2217,7 +2187,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093074.3405557
+    "timestamp": 1786093119.7404757
   },
   {
     "farms": [
@@ -2247,7 +2217,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093074.6062891
+    "timestamp": 1786093120.0017693
   },
   {
     "farms": [
@@ -2277,7 +2247,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093074.8636148
+    "timestamp": 1786093120.2677305
   },
   {
     "farms": [
@@ -2307,7 +2277,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093075.1188943
+    "timestamp": 1786093120.541647
   },
   {
     "farms": [
@@ -2337,7 +2307,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093075.353253
+    "timestamp": 1786093120.7888248
   },
   {
     "farms": [
@@ -2367,7 +2337,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093075.5941677
+    "timestamp": 1786093121.028346
   },
   {
     "farms": [
@@ -2397,7 +2367,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093075.8334568
+    "timestamp": 1786093121.270468
   },
   {
     "farms": [
@@ -2427,7 +2397,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093076.2667682
+    "timestamp": 1786093121.7313235
   },
   {
     "farms": [
@@ -2457,7 +2427,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093076.5245848
+    "timestamp": 1786093122.0143614
   },
   {
     "farms": [
@@ -2487,7 +2457,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093076.810707
+    "timestamp": 1786093122.28373
   },
   {
     "farms": [
@@ -2517,7 +2487,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093077.0995405
+    "timestamp": 1786093122.5438728
   },
   {
     "farms": [
@@ -2547,7 +2517,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093077.359499
+    "timestamp": 1786093122.8224053
   },
   {
     "farms": [
@@ -2577,7 +2547,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093077.608383
+    "timestamp": 1786093123.0862155
   },
   {
     "farms": [
@@ -2607,7 +2577,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093077.849883
+    "timestamp": 1786093123.3336916
   },
   {
     "farms": [
@@ -2637,7 +2607,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093078.0942433
+    "timestamp": 1786093123.5934284
   },
   {
     "farms": [
@@ -2667,7 +2637,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093078.4523072
+    "timestamp": 1786093124.0092654
   },
   {
     "farms": [
@@ -2697,7 +2667,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093078.7364545
+    "timestamp": 1786093124.307482
   },
   {
     "farms": [
@@ -2727,7 +2697,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093079.0017602
+    "timestamp": 1786093124.5891967
   },
   {
     "farms": [
@@ -2757,7 +2727,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093079.2842138
+    "timestamp": 1786093124.8747935
   },
   {
     "farms": [
@@ -2787,7 +2757,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093079.5613482
+    "timestamp": 1786093125.1376324
   },
   {
     "farms": [
@@ -2817,7 +2787,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093080.58374
+    "timestamp": 1786093125.3797956
   },
   {
     "farms": [
@@ -2847,7 +2817,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093080.8468874
+    "timestamp": 1786093125.621572
   },
   {
     "farms": [
@@ -2877,7 +2847,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093081.1022954
+    "timestamp": 1786093125.8624923
   },
   {
     "farms": [
@@ -2907,7 +2877,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093081.5000246
+    "timestamp": 1786093126.217839
   },
   {
     "farms": [
@@ -2937,7 +2907,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093081.7809553
+    "timestamp": 1786093126.5326169
   },
   {
     "farms": [
@@ -2967,7 +2937,7 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093082.0716136
+    "timestamp": 1786093126.850202
   },
   {
     "farms": [
@@ -2997,6 +2967,36 @@
       "weighted_avg_annualized_pct": 0.0,
       "total_costs_usd": 0.0
     },
-    "timestamp": 1786093082.3587759
+    "timestamp": 1786093127.1681423
+  },
+  {
+    "farms": [
+      {
+        "protocol": "euler_v2",
+        "principal_usd": 0.0,
+        "base_yield_usd": 0.0,
+        "reward_yield_usd": 0.0,
+        "il_loss_usd": 0.0,
+        "principal_gain_usd": 0.0,
+        "total_costs_usd": 0.0,
+        "net_profit_usd": 0.0,
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "excess_return_pct": -0.410958904109589,
+        "roi_label": "POSITIVE",
+        "reward_token_impact": "NEUTRAL",
+        "recommendation": "Profitable. Watch reward token dilution if APY is high."
+      }
+    ],
+    "best_farm": "euler_v2",
+    "worst_farm": "euler_v2",
+    "profitable_farms": [],
+    "portfolio_summary": {
+      "total_principal_usd": 0.0,
+      "total_net_profit_usd": 0.0,
+      "weighted_avg_annualized_pct": 0.0,
+      "total_costs_usd": 0.0
+    },
+    "timestamp": 1786093127.4353852
   }
 ]
