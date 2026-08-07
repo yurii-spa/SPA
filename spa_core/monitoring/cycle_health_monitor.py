@@ -623,6 +623,46 @@ def main(argv: list[str] | None = None) -> int:
     if write_output:
         monitor.save_health_report(report, data_dir=str(data_dir))
 
+        # ── ВНУТРИДНЕВНОЙ контроль просадки ─────────────────────────────────
+        #
+        # Стоп-кран считался ТОЛЬКО в дневном цикле — раз в сутки. На бумаге
+        # терпимо, на реальных деньгах нет: между прогонами может пройти всё
+        # падение целиком, и владелец узнает о нём через 24 часа. Владелец
+        # отметил это отдельным блокером go-live.
+        #
+        # Живёт здесь, а не отдельным агентом: cycle_health уже работает каждые
+        # 300 секунд — это существующий частый ритм. Новый агент означал бы ещё
+        # одного производителя, за которым надо следить, а именно от таких за
+        # сутки нашлось шесть штук, и каждый молчал.
+        #
+        # Проверка НЕ двигает капитал: run_kill_switch_check вычисляет вердикт и
+        # пишет статус. Применяет его дневной цикл — здесь только раннее
+        # обнаружение и уведомление, чтобы владелец узнал в течение 5 минут,
+        # а не суток.
+        try:
+            from spa_core.governance.kill_switch import run_kill_switch_check
+
+            ks = run_kill_switch_check(data_dir=str(data_dir)) or {}
+            if ks.get("triggered"):
+                reason = str(ks.get("reason") or "")
+                print(f"  [CRITICAL] intraday kill-switch: {reason}")
+                try:
+                    from spa_core.alerts.telegram_manager import TelegramManager
+
+                    TelegramManager().send(
+                        f"🚨 KILL SWITCH (внутридневная проверка): {reason}",
+                        title="kill_switch",
+                        category="p0",
+                    )
+                except Exception as _alert_exc:  # noqa: BLE001
+                    # Молчать нельзя: несработавшая тревога обязана быть видна
+                    # отдельным событием, иначе мы заменим одну тишину другой.
+                    print(f"  [CRITICAL] стоп-кран сработал, ТРЕВОГА НЕ ОТПРАВЛЕНА: {_alert_exc}")
+        except Exception as _ks_exc:  # noqa: BLE001
+            # Сторож не имеет права ронять то, что охраняет: сбой проверки
+            # просадки не должен останавливать мониторинг цикла.
+            print(f"  (внутридневная проверка просадки пропущена: {_ks_exc})")
+
     # Human-readable output
     overall = report["overall"]
     print(f"\nSPA Cycle Health Monitor — {report['checked_at']}")
