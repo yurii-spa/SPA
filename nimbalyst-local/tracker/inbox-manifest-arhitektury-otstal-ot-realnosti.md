@@ -136,3 +136,25 @@ produces у com.spa.agent_health      содержит data/agent_registry.json 
 ```
 
 Карточка закрыта как `done` — дубля работы не делал.
+
+---
+
+## Закрыто циклом #146 (2026-08-07): уже доставлено, дубля не делаю
+
+Шаг 1a (проверка истории): карточку закрыл **цикл #132** (2026-08-06 10:18Z, `origin/main
+a4b7f088f` — он же брал и снимал захват, см. журнал объявлений). Перепроверено ИЗМЕРЕНИЕМ,
+а не отчётом умершей сессии — чистый чекаут `origin/main 766238822`, отдельный worktree:
+
+```
+python3 -m pytest spa_core/tests/test_architecture_manifest.py -q
+25 passed in 0.21s
+```
+
+Критерий «как понять, что готово» выполнен целиком, включая **контроль в обе стороны**
+(грабли цикла #130 — механический `--write` затирал курируемые поля):
+
+- `data/agent_registry.json` → `producer: com.spa.agent_health` (не `null`);
+- `com.spa.agent_health` → `produces` содержит `data/agent_registry.json` (slo_hours 26);
+- три агента из находки приведены к фактам:
+  `com.spa.competitive_watch` / `com.spa.novel_edge_rnd` / `com.spa.reboot_verify` —
+  `plist_source: launch_agents`, `reboot_safe: True`.

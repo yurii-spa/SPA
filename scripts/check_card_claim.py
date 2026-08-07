@@ -364,6 +364,10 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
     # на «моё ли это?» одинаково — иначе собственное второе объявление, не блокируя как захват,
     # блокировало бы как пересечение по файлам (один дефект, починенный наполовину).
     selves = self_identities(entries, self_session, self_anchor)
+    # Личность держателя карточки берётся из ТОГО ЖЕ журнала: `claim` объявляет захват, и в
+    # записи лежит долгоживущий процесс. Без этого захват из frontmatter под ярлыком без pid
+    # уходил в «не измерено» навсегда — см. `durable_by_session`.
+    durables = durable_by_session(entries, sibling)
 
     report = {
         "card": cid,
@@ -396,8 +400,10 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
         `session_pid_start`). Запись сюда приходит разобранной на (session, ts), поэтому без
         явной передачи основной критерий активности (карточка `agent-durable-session-id`) до
         шага 0b просто не доехал бы — ровно тот способ «починить одного близнеца из двух»,
-        которым цикл #37 оставил CI красным. У захвата из frontmatter такого процесса нет
-        (в карточке лежит только идентификатор сессии) — там всё как раньше."""
+        которым цикл #37 оставил CI красным. Захвату из frontmatter процесс приходит из
+        ЖУРНАЛА по ярлыку держателя (`durable_by_session`): в карточке лежит только ярлык, но
+        `claim` объявляет захват, и личность процесса есть в той же строке журнала. Ровно тот
+        же близнец: до цикла #146 «там всё как раньше» означало вечное «не измерено»."""
         rec = {"source": source, "session": session, "strength": strength, "detail": detail,
                "ts": _fmt_ts(ts) if ts else None}
         if session and session in selves:
@@ -481,7 +487,8 @@ def build_report(cid, path, entries, self_session, sibling, *, now=None,
                                 f"claimed_by={holder!r}, но claimed_at не разобран: "
                                 f"{at_raw!r} — возраст захвата не измерен")
                 else:
-                    _classify(holder, ts, "frontmatter", STRONG, "поле claimed_by в карточке")
+                    _classify(holder, ts, "frontmatter", STRONG, "поле claimed_by в карточке",
+                              durables.get(holder))
 
     # 2. журнал объявлений ───────────────────────────────────────────────────
     if log_error:
@@ -722,6 +729,46 @@ def self_identities(entries, self_session, anchor):
             if label:
                 selves.add(label)
     return selves
+
+
+def durable_by_session(entries, sibling):
+    """сессия → её поля долгоживущего процесса, ТОЛЬКО когда они однозначны. Иначе ключа нет.
+
+    **Дефект, который это закрывает** (найден догфудом цикла #146). Захват из frontmatter
+    классифицировался с `process=None`, а `session_state` для ярлыка без pid (`cycle-20906`,
+    `cycle-63608`) отдаёт `UNKNOWN` детерминированно и НЕОБРАТИМО ⇒ старый СИЛЬНЫЙ захват
+    навсегда уходил в «не измерено» (fail-CLOSED, код 2, «брать нельзя»). Замерено 07.08:
+    так были заперты `inbox-kartochka-sozdannaya-posredi-tsikla-ne-d` (8.7ч),
+    `inbox-tier-c-171-iz-180-modulei-ne-otvechayut` (14.7ч) и
+    `agent-fleet-parity-guard-never-scheduled` (44ч) — вердикт, который не может проясниться
+    сам, потому что захватившая сессия мертва, а её личность инструмент не спрашивал.
+
+    **Личность при этом БЫЛА** — в том же журнале, который инструмент уже читает: `claim`
+    объявляет захват (`announce_claim`), и запись несёт `session_pid` + `session_pid_start`.
+    Прочитать их — не ослабление сторожа, а недостающее ИЗМЕРЕНИЕ: живой процесс теперь даёт
+    `ACTIVE` и блокирует СИЛЬНЕЕ прежнего (раньше живой держатель тоже читался как «не
+    измерено»), мёртвый — честный `stale`, то есть кандидат на ручной подъём по шагу 0a, а не
+    разрешение забрать работу. Класс — зеркало fail-OPEN: необратимое «не измерено» над
+    познаваемым фактом это вечный замок (карточка `agent-weak-mention-locks-card-forever`).
+
+    **Однозначность обязательна.** Ярлык — не идентификатор процесса, и один и тот же ярлык
+    в принципе может нести разные якоря (перезапуск цикла под тем же `SPA_SESSION_ID`).
+    Разные пары ⇒ ключа нет ⇒ поведение побайтово прежнее (fail-CLOSED): угадывать, который
+    из процессов держит карточку, инструмент не станет."""
+    found, ambiguous = {}, set()
+    for entry in entries or ():
+        label = str((entry or {}).get("session") or "").strip()
+        if not label or label in ambiguous:
+            continue
+        anchor = anchor_of(entry)
+        if anchor is None:
+            continue
+        if label in found and found[label][0] != anchor:
+            del found[label]
+            ambiguous.add(label)
+            continue
+        found[label] = (anchor, sibling.durable_fields(entry))
+    return {label: fields for label, (_anchor, fields) in found.items()}
 
 
 def _log_entries(log, sibling=None, last=None):
