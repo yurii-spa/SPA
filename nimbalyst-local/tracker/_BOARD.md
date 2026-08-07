@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **306** · ждёт владельца: **4** · занято сессиями: **2**.
+> Всего карточек: **307** · ждёт владельца: **5** · занято сессиями: **2**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -10,6 +10,7 @@
 - **own-rnd-xsd-rank-demotion-allocator** · _medium_  ·  `own-rnd-xsd-rank-demotion-allocator.md`
 - **Морфо — 40% книги — при пропаже данных подставляет выдуманные 6.5% вместо честного отказа** · _high_  ·  `owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst.md`
 - **После страховки деньги остаются сиротами: 20 % капитала ($20 000) лежат в кэше, потому что освободившийся бюджет никто не перекладывает (было 10 % — простой ВЫРОС)**  ·  `owner-decision-posle-strahovki-dengi-ostayutsya-sirotam.md`
+- **Запасной ключ к защите сайта не работает — починить или убрать из инструкции?**  ·  `owner-decision-zapasnoi-klyuch-k-zaschite-saita-ne-rabo.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -18,13 +19,14 @@
 - **Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать** — держит `cycle-28258` · с 2026-08-05T12:28:28Z  ·  `agent-fleet-parity-guard-never-scheduled.md`
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (75)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (76)
 
 ### · needs-owner
 - own-rnd-duty-is-concentration-adr055  ·  `own-rnd-duty-is-concentration-adr055.md` · 2026-08-07
 - own-rnd-xsd-rank-demotion-allocator  ·  `own-rnd-xsd-rank-demotion-allocator.md` · 2026-08-07
 - Морфо — 40% книги — при пропаже данных подставляет выдуманные 6.5% вместо честного отказа  ·  `owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst.md` · 2026-08-02
 - После страховки деньги остаются сиротами: 20 % капитала ($20 000) лежат в кэше, потому что освободившийся бюджет никто не перекладывает (было 10 % — простой ВЫРОС)  ·  `owner-decision-posle-strahovki-dengi-ostayutsya-sirotam.md` · 2026-08-07
+- Запасной ключ к защите сайта не работает — починить или убрать из инструкции?  ·  `owner-decision-zapasnoi-klyuch-k-zaschite-saita-ne-rabo.md` · 2026-08-07
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -124,6 +126,7 @@
 - автономный аркестратор должен был быть раз в 1 час а не раз в 3 часа  ·  `inbox-avtonomnyi-arkestrator-dolzhen-byl-byt-r.md` · 2026-07-16
 - Давай так и сделаем  ·  `inbox-davai-tak-i-sdelaem.md` · 2026-07-20
 - docs/STATE.md разросся до 1647 строк при собственном пределе ~150 — а его читает каждая сессия  ·  `inbox-docs-state-md-razrossya-do-1647-strok-pr.md` · 2026-08-06
+- Храповик литеральных дат метит ОБРАЗЦОВЫЙ паттерн: тест по преференции №1 правила (инъекция часов) не проходит сторожа  ·  `inbox-hrapovik-literalnyh-dat-metit-obraztsovy.md` · 2026-08-06
 - Храповик литеральных дат не видит даты, записанные конструктором — половина класса вне поля зрения  ·  `inbox-hrapovik-literalnyh-dat-ne-vidit-daty-za.md` · 2026-08-06
 - Карточка, созданная посреди цикла, не доезжает: create пишет в ХОСТ-дерево, а пуш идёт из worktree  ·  `inbox-kartochka-sozdannaya-posredi-tsikla-ne-d.md` · 2026-08-06
 - Кнопки действий: вторая половина задания — те же варианты внутри меню бота  ·  `inbox-knopki-deistvii-vtoraya-polovina-zadaniy.md` · 2026-08-07
@@ -134,6 +137,7 @@
 - Находка петли: com.spa.swarm_dwell работает, но plist не персистентен (repo:launchd/c  ·  `inbox-nahodka-petli-com-spa-swarm-dwell-rabota.md` · 2026-08-05
 - Находка петли: data/agent_registry.json: возраст 477.2ч > SLO 26ч (класс agent_regist  ·  `inbox-nahodka-petli-data-agent-registry-json-v.md` · 2026-08-05
 - Находка петли: hit-rate аналитиков не вычислим: proof.jsonl хранит только хэши, содер  ·  `inbox-nahodka-petli-hit-rate-analitikov-ne-vyc.md` · 2026-08-05
+- Обход owner-gate по трейлеру Owner-Approved не работал никогда: опечатка в имени аргумента, спрятанная слепым except  ·  `inbox-obhod-owner-gate-po-treileru-owner-appro.md` · 2026-08-07
 - Очередь владельца показывает 20 карточек из 23: три вопроса не доезжают до него из-за формы frontmatter  ·  `inbox-ochered-vladeltsa-pokazyvaet-20-kartoche.md` · 2026-08-07
 - Простой капитала снова НЕ объяснён: 10% при закрытой карточке «объяснён полностью» — нарушение действующего правила ADR-055  ·  `inbox-prostoi-kapitala-snova-ne-obyasnen-10-pr.md` · 2026-08-07
 - Проверь прям сейчас все ли ок  ·  `inbox-prover-pryam-seichas-vse-li-ok.md` · 2026-08-05
@@ -184,9 +188,7 @@
 - ADR-070.5: перенести 3 гарантии дубля в живой мост  ·  `inbox-adr-070-5-perenesti-3-garantii-dublya-v.md` · 2026-08-07
 - ADR-070.6: morpho_steakhouse = оценка morpho_blue  ·  `inbox-adr-070-6-morpho-steakhouse-otsenka-morp.md` · 2026-08-07
 - Атрибуция кэша и гейт RiskPolicy по-разному определяют «живой TVL» — и атрибуция не знает про порог $5M  ·  `inbox-atributsiya-kesha-i-geit-riskpolicy-po-r.md` · 2026-08-07
-- Храповик литеральных дат метит ОБРАЗЦОВЫЙ паттерн: тест по преференции №1 правила (инъекция часов) не проходит сторожа  ·  `inbox-hrapovik-literalnyh-dat-metit-obraztsovy.md` · 2026-08-06
 - Номер ADR-067 занят ДВУМЯ разными решениями — реестр показывает две строки  ·  `inbox-nomer-adr-067-zanyat-dvumya-raznymi-resh.md` · 2026-08-07
-- Обход owner-gate по трейлеру Owner-Approved не работал никогда: опечатка в имени аргумента, спрятанная слепым except  ·  `inbox-obhod-owner-gate-po-treileru-owner-appro.md` · 2026-08-07
 - Тест GSM Sky приколочен к до-ADR-065 состоянию  ·  `inbox-test-gsm-sky-prikolochen-k-do-adr-065-so.md` · 2026-08-07
 - Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md` · 2026-08-06 · 🔒 `cycle-87477`
 - Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07
@@ -303,7 +305,6 @@
 - 11 протоколов закрыты для капитала из-за отсутствия живого фида — вселенная выбора сужена, 10% кэша стоят под 0%  ·  `agent-blocked-protocols-need-live-feeds.md` · 2026-08-05
 - Подписка checkup отвечает ok:true, даже если письмо не отправилось — поломка жила незамеченной с июля  ·  `agent-checkup-waitlist-fail-open-ok-true.md` · 2026-08-02
 - Сверка цикла 04.08 — первый прогон на новом коде даст БОЛЬШОЙ ребаланс, это ожидаемо (не чинить)  ·  `agent-cycle-reconciliation-2026-08-04.md` · 2026-08-03
-- Сетевая икота фида может эвакуировать книгу в кэш — нужна политика устаревания вместо «есть/нет»  ·  `agent-feed-staleness-policy.md` · 2026-08-04
 - Найти источники данных для семи протоколов без фида (владелец выбрал «искать дальше»)  ·  `agent-find-feeds-for-seven-protocols.md` · 2026-08-05
 - Свежая полная инвентаризация флота (73 агента) — что делает / жив ли / нужен ли / расход  ·  `agent-fleet-inventory-73.md` · 2026-07-23
 - Fluid гейтится по чужому параметру — нужен собственный таймлок, а не задержка Maker  ·  `agent-fluid-timelock-source.md` · 2026-08-05
@@ -337,6 +338,7 @@
 - Проверка целостности резерва гонится с перегенерацией артефактов — «порча», которой нет  ·  `agent-backup-integrity-races-the-cycle.md` · 2026-08-05
 - Буфер обмена подсунул текст, замаскированный под системные инструкции — разбор и правило  ·  `agent-clipboard-injection-incident-2026-08-02.md` · 2026-08-02
 - Прод крутит код на 409 коммитов старше origin — разрыв «запушено → выполняется» никто не проверял  ·  `agent-deployment-drift-guard.md` · 2026-08-03
+- Сетевая икота фида может эвакуировать книгу в кэш — нужна политика устаревания вместо «есть/нет»  ·  `agent-feed-staleness-policy.md` · 2026-08-04
 - Храповик литеральных дат КРАСНЫЙ на main — два новых тест-файла волны 1 (A1) вошли в закрытый класс  ·  `agent-frozen-date-ratchet-red-on-main.md` · 2026-08-05
 - Простой 15 % капитала объяснён — блокировки покрывают его полностью, с разбивкой по протоколам  ·  `agent-idle-cash-quantified.md` · 2026-08-05
 - Красный тест: страховой скоринг не отказывает при отсутствующем TVL  ·  `agent-insurance-scorer-missing-tvl.md` · 2026-08-05

@@ -19,7 +19,7 @@ from spa_core.monitoring import loop_health as lh
 from spa_core.monitoring import loop_retro as lr
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-NOW = dt.datetime(2030, 5, 1, 12, 0, tzinfo=dt.timezone.utc)  # FROZEN-DATE-OK: часы инъектируются
+NOW = dt.datetime(2030, 5, 1, 12, 0, tzinfo=dt.timezone.utc)  # FROZEN-DATE-OK: injected-clock — часы инъектируются
 
 
 def proof(days_ago_list, now=NOW):

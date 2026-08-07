@@ -23,7 +23,7 @@ import unittest
 from spa_core.governance.kill_switch import TIER_HARD_KILL, TIER_NONE, TIER_SOFT_DERISK
 from spa_core.monitoring import intraday_equity as ie
 
-NOW = dt.datetime(2030, 6, 10, 7, 0, tzinfo=dt.timezone.utc)  # FROZEN-DATE-OK: часы инъектируются
+NOW = dt.datetime(2030, 6, 10, 7, 0, tzinfo=dt.timezone.utc)  # FROZEN-DATE-OK: injected-clock — часы инъектируются
 
 
 def positions(book=None, cash=15000.0, ts=None):

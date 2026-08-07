@@ -21,7 +21,7 @@ import unittest
 from spa_core.monitoring import findings_bridge as fb
 from spa_core.monitoring import house_view_gap as hvg
 
-NOW = dt.datetime(2030, 3, 1, 12, 0, tzinfo=dt.timezone.utc)  # FROZEN-DATE-OK: часы инъектируются
+NOW = dt.datetime(2030, 3, 1, 12, 0, tzinfo=dt.timezone.utc)  # FROZEN-DATE-OK: injected-clock — часы инъектируются
 
 
 # ── house_view_gap ───────────────────────────────────────────────────────────

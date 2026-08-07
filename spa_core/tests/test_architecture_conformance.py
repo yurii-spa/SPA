@@ -21,7 +21,7 @@ import unittest
 
 from spa_core.monitoring import architecture_conformance as ac
 
-NOW = dt.datetime(2030, 1, 15, 12, 0, tzinfo=dt.timezone.utc)  # FROZEN-DATE-OK: часы инъектируются парой с отметками
+NOW = dt.datetime(2030, 1, 15, 12, 0, tzinfo=dt.timezone.utc)  # FROZEN-DATE-OK: injected-clock — часы инъектируются парой с отметками
 
 
 def agent(label, intent="active", reboot_safe=True, consumer_required=False):
