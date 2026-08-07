@@ -98,6 +98,14 @@ DivergenceRefused = _root_push.DivergenceRefused
 DIVERGENCE_SAFE = _root_push.DIVERGENCE_SAFE
 DIVERGENCE_DIVERGED = _root_push.DIVERGENCE_DIVERGED
 DIVERGENCE_UNMEASURED = _root_push.DIVERGENCE_UNMEASURED
+# Защита общей памяти (ADR-070 п.7) — из того же одного места. Ловля по
+# `DivergenceRefused` работала бы и без этих строк (оба отказа — его подклассы),
+# но символ, которого в CLI нет, нельзя ни поймать точечно, ни проверить тестом.
+# `EntryLossRefused` не был экспортирован с самого начала — тот же недосмотр.
+EntryLossRefused = _root_push.EntryLossRefused
+UnmeasuredBaseRefused = _root_push.UnmeasuredBaseRefused
+is_append_only_doc = _root_push.is_append_only_doc
+is_shared_memory_doc = _root_push.is_shared_memory_doc
 
 # Сверка доставленного (карточка `agent-pusher-does-not-verify-what-it-delivered`)
 # — тоже ОДНА реализация: под этим CLI стоит `safe_site_push.py`, и «пушер

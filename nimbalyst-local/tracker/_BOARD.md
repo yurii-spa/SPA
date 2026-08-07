@@ -117,6 +117,7 @@
 - ADR-066 Фаза 2: реситы потребления + оркестратор/digest читают офис  ·  `inbox-adr-066-faza-2-resity-potrebleniya-orkes.md` · 2026-08-05
 - ADR-066 Фаза 3: house_view_gap + мост находка→карточка  ·  `inbox-adr-066-faza-3-house-view-gap-most-nahod.md` · 2026-08-05
 - ADR-066 Фаза 4: loop_health + hit-rate аналитиков + weekly retro + храповик  ·  `inbox-adr-066-faza-4-loop-health-hit-rate-anal.md` · 2026-08-05
+- ADR-070.7: точечный fail-CLOSED памяти в пушере  ·  `inbox-adr-070-7-tochechnyi-fail-closed-pamyati.md` · 2026-08-07
 - Аудит пригодности не видел 186 модулей Tier-B из 479: форма входа dict не пробовалась ни разу  ·  `inbox-audit-prigodnosti-ne-videl-186-modulei-t.md` · 2026-08-06
 - автономный аркестратор должен был быть раз в 1 час а не раз в 3 часа  ·  `inbox-avtonomnyi-arkestrator-dolzhen-byl-byt-r.md` · 2026-07-16
 - Давай так и сделаем  ·  `inbox-davai-tak-i-sdelaem.md` · 2026-07-20
@@ -179,7 +180,6 @@
 - ADR-070.4: resolve застрявшим стоп-кран событиям  ·  `inbox-adr-070-4-resolve-zastryavshim-stop-kran.md` · 2026-08-07
 - ADR-070.5: перенести 3 гарантии дубля в живой мост  ·  `inbox-adr-070-5-perenesti-3-garantii-dublya-v.md` · 2026-08-07
 - ADR-070.6: morpho_steakhouse = оценка morpho_blue  ·  `inbox-adr-070-6-morpho-steakhouse-otsenka-morp.md` · 2026-08-07
-- ADR-070.7: точечный fail-CLOSED памяти в пушере  ·  `inbox-adr-070-7-tochechnyi-fail-closed-pamyati.md` · 2026-08-07
 - ADR-070.9: общий замок цикла оркестратора  ·  `inbox-adr-070-9-obschii-zamok-tsikla-orkestrat.md` · 2026-08-07
 - Атрибуция кэша и гейт RiskPolicy по-разному определяют «живой TVL» — и атрибуция не знает про порог $5M  ·  `inbox-atributsiya-kesha-i-geit-riskpolicy-po-r.md` · 2026-08-07
 - Храповик литеральных дат метит ОБРАЗЦОВЫЙ паттерн: тест по преференции №1 правила (инъекция часов) не проходит сторожа  ·  `inbox-hrapovik-literalnyh-dat-metit-obraztsovy.md` · 2026-08-06
