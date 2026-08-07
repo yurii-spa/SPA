@@ -269,3 +269,22 @@ class LiveAcceptance(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TimestampSchemaCompat(unittest.TestCase):
+    def test_date_only_stamp_falls_back_to_mtime(self):
+        """Инцидент 02:39 07.08: generated_at «2026-08-06» (без времени) читался
+        как полночь и рождал ложный stale-WARN каждую ночь. Дата без времени
+        точнее mtime не является — обязан победить mtime; полный ISO — побеждает."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "d.json")
+            with open(p, "w") as f:
+                json.dump({"generated_at": "2026-08-06"}, f)
+            ts = ac.artifact_timestamp("d.json", td)
+            mtime = dt.datetime.fromtimestamp(os.path.getmtime(p), tz=dt.timezone.utc)
+            self.assertEqual(ts, mtime)
+            with open(p, "w") as f:
+                json.dump({"generated_at": "2026-08-06T15:30:00+00:00"}, f)
+            ts2 = ac.artifact_timestamp("d.json", td)
+            self.assertEqual((ts2.hour, ts2.minute), (15, 30))

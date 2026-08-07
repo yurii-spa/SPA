@@ -32,6 +32,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import date as _date
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -372,7 +373,9 @@ def evaluate_window(
         ],
         "per_verdict": per_verdict,
     }
-    doc["generated_at"] = _date.today().isoformat()
+    # Полный ISO с временем: date-only метка читалась сторожем B2 как «полночь»
+    # и рождала ложный WARN свежести каждую ночь 02:00–06:00 (2026-08-07).
+    doc["generated_at"] = datetime.now(timezone.utc).isoformat()
     if write:
         atomic_save(doc, str(data_dir / EVAL_FILENAME))
     return doc

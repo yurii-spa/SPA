@@ -95,7 +95,14 @@ def artifact_timestamp(rel_path: str, root: str = REPO_ROOT) -> dt.datetime | No
             data = json.load(open(full))
             if isinstance(data, dict):
                 for f in _TS_FIELDS:
-                    ts = _parse_iso(data.get(f))
+                    raw = data.get(f)
+                    # date-only метка («2026-08-06») парсится как полночь и
+                    # ЗАВЫШАЕТ возраст до 24ч — ложный stale-WARN каждую ночь
+                    # (инцидент 02:39 07.08). Дата без времени точнее mtime НЕ
+                    # является — падаем на mtime.
+                    if isinstance(raw, str) and "T" not in raw:
+                        continue
+                    ts = _parse_iso(raw)
                     if ts:
                         return ts
         except Exception:
