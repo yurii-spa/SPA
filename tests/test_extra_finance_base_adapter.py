@@ -236,26 +236,26 @@ class TestExtraFinanceBaseGetApy(unittest.TestCase):
         """URLError → fallback APY_FALLBACK (8.0%)."""
         with _patch_urlopen_error(urllib.error.URLError("timeout")):
             result = self.adapter.get_apy()
-        self.assertAlmostEqual(result, APY_FALLBACK, places=5)
-        self.assertAlmostEqual(result, 8.0, places=5)
+        self.assertIsNone(result)  # 2026-08-08 (инв. №16): подстановки нет, наблюдения нет ⇒ None (решение владельца «делать все 15»)
+        self.assertIsNone(result)  # 2026-08-08 (инв. №16): литерал 8.0 удалён, наблюдения нет ⇒ None
 
     def test_fallback_on_timeout(self):
         """TimeoutError → fallback APY_FALLBACK."""
         with _patch_urlopen_error(TimeoutError("connection timed out")):
             result = self.adapter.get_apy()
-        self.assertAlmostEqual(result, APY_FALLBACK, places=5)
+        self.assertIsNone(result)  # 2026-08-08 (инв. №16): подстановки нет, наблюдения нет ⇒ None (решение владельца «делать все 15»)
 
     def test_fallback_on_generic_exception(self):
         """Любое исключение → fallback APY_FALLBACK."""
         with _patch_urlopen_error(RuntimeError("unexpected network error")):
             result = self.adapter.get_apy()
-        self.assertAlmostEqual(result, APY_FALLBACK, places=5)
+        self.assertIsNone(result)  # 2026-08-08 (инв. №16): подстановки нет, наблюдения нет ⇒ None (решение владельца «делать все 15»)
 
     def test_fallback_on_wrong_chain(self):
         """Пул на Ethereum (не Base) → не выбирается → fallback."""
         with _patch_urlopen([_make_pool(chain="Ethereum", apy=9.0)]):
             result = self.adapter.get_apy()
-        self.assertAlmostEqual(result, APY_FALLBACK, places=5)
+        self.assertIsNone(result)  # 2026-08-08 (инв. №16): подстановки нет, наблюдения нет ⇒ None (решение владельца «делать все 15»)
 
     def test_module_get_apy_returns_float(self):
         """Standalone get_apy() из модуля возвращает float."""
