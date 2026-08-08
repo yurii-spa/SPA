@@ -376,7 +376,16 @@ def _approved_scope(commit_message: str | None, repo: Path) -> dict[str, Any] | 
     by the orchestrator (owner-done is owner-only, enforced in spa_core.owner_queue)."""
     if not commit_message:
         return None
-    m = re.search(r"Owner-Approved:\s*((?:own|Q-OWN)-\S+)", commit_message, re.IGNORECASE)
+    # ЧЕТВЁРТАЯ поломка того же механизма (замер 2026-08-09, цикл #171): шаблон
+    # принимал только `own-…` / `Q-OWN-…`, а карточки, которые заводит САМ гейт
+    # (`safe_site_push._route_to_owner_card` → `create_card(tracker_type=
+    # "owner-decision")`), называются `owner-decision-…`. На «own» шаблон требовал
+    # сразу дефис, получал «e» — и ни одна машинная карточка не могла быть
+    # предъявлена как одобрение. Производитель и потребитель идентификатора не
+    # совпадали НИКОГДА. `owner-decision` стоит первым: иначе альтернатива `own`
+    # съедает префикс и всё выражение снова не совпадает.
+    m = re.search(r"Owner-Approved:\s*((?:owner-decision|own|Q-OWN)-\S+)",
+                  commit_message, re.IGNORECASE)
     if not m:
         return None
     card_id = m.group(1).strip()
@@ -413,8 +422,25 @@ def _approved_scope(commit_message: str | None, repo: Path) -> dict[str, Any] | 
         log.info("owner-gate bypass: карточка %s в статусе %r, а не owner-done — обхода нет",
                  card_id, status)
         return None
-    fm = getattr(card, "frontmatter", {}) or {}
-    return {"card": card_id, "approves": _parse_approves(fm.get("approves"))}
+    # ТРЕТЬЯ поломка того же механизма (замер 2026-08-09, цикл #171): читалось
+    # несуществующее поле. `Card` (spa_core/owner_queue/queue.py) хранит прочие
+    # ключи frontmatter в `fields`, атрибута `frontmatter` у него НЕТ — значит
+    # `getattr(..., {})` возвращал пустой словарь ВСЕГДА, scope выходил пустым, и
+    # ветка обхода не выполнялась ни разу. Снаружи это неотличимо от «владелец не
+    # одобрял»: тот же класс fail-OPEN-по-форме, что две половины, починенные
+    # 2026-08-08 по решению владельца (вариант А,
+    # `owner-decision-zapasnoi-klyuch-k-zaschite-saita-ne-rabo`).
+    fm = getattr(card, "fields", None) or getattr(card, "frontmatter", None) or {}
+    approves = _parse_approves(fm.get("approves"))
+    if not approves:
+        # Молчать здесь нельзя: карточка ОДОБРЕНА владельцем, но не разрешает
+        # ничего. Отказ верный (fail-CLOSED), а вот немота — нет: именно она
+        # прятала все предыдущие поломки этого механизма.
+        log.warning(
+            "owner-gate bypass: карточка %s одобрена (owner-done), но поле `approves:` "
+            "пусто или отсутствует — обход не открыт НИ НА ОДИН файл", card_id,
+        )
+    return {"card": card_id, "approves": approves}
 
 
 def _parse_approves(raw) -> list[str]:

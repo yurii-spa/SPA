@@ -88,8 +88,30 @@ def _open_card_with_fingerprint(fingerprint: str):
     return None
 
 
+def _rel(path: str) -> str:
+    """Repo-relative POSIX path. The gate reports violations by repo-relative path
+    (`landing/src/pages/x.astro`), while `--files` may arrive absolute; an `approves:`
+    scope written in absolute form would never match a single violation and the
+    owner's approval would silently authorise NOTHING (fail-OPEN by form)."""
+    try:
+        return os.path.relpath(os.path.abspath(path), str(_REPO_ROOT)).replace("\\", "/")
+    except Exception:  # noqa: BLE001 — вне дерева: отдаём как есть, совпадения не будет
+        return str(path).replace("\\", "/")
+
+
 def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> None:
-    """Create a needs-owner card for the blocked change and notify (best-effort)."""
+    """Create a needs-owner card for the blocked change and notify (best-effort).
+
+    Карточка несёт `approves:` — ТОЧНЫЙ перечень файлов, которые гейт заблокировал.
+    Без него одобрение владельца не значит ничего: `check_owner_gate._approved_scope`
+    снимает нарушения только по scope из этого поля, и карточка без него, даже будучи
+    `owner-done`, не разрешает НИ ОДНОГО файла. Две половины механизма (опечатка в
+    имени параметра и разбор списка) починены 2026-08-08 по решению владельца
+    (вариант А, `owner-decision-zapasnoi-klyuch-k-zaschite-saita-ne-rabo`) — но
+    генератор карточек поле не писал, и обход всё равно оставался мёртвым.
+    Scope берётся из САМИХ нарушений: одобряется ровно то, что владельцу показали,
+    и ничего сверх. Нарушений нет ⇒ пустой scope ⇒ обхода нет (fail-CLOSED).
+    """
     violations = report.get("violations", [])
     lines = [
         "## Что случилось и почему это важно",
@@ -110,7 +132,7 @@ def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> N
         "3. **Отложить** — оставить карточку открытой и вернуться к ней позже.",
         "",
         "Что именно меняется:",
-        f"- Файлы: {', '.join(site_files)}",
+        f"- Файлы: {', '.join(_rel(f) for f in site_files)}",
         f"- Коммит-сообщение оркестратора: {message}",
         "- Что зафлагано owner-gate линтером:",
     ]
@@ -147,6 +169,9 @@ def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> N
     lines.append(f"<!-- owner-gate-fingerprint: {fingerprint} -->")
     body = "\n".join(lines)
 
+    # Scope одобрения = ровно те файлы, по которым гейт выдал нарушения (repo-relative).
+    # Не список `--files`: там могут быть и чистые файлы, одобрять их незачем.
+    approves = sorted({_rel(str(v.get("file", ""))) for v in violations if v.get("file")})
     try:
         from spa_core.owner_queue.queue import create_card  # type: ignore
 
@@ -158,6 +183,10 @@ def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> N
             title="Сайт: автономная правка задела owner-gated область — нужно решение",
             body=body,
             source="orchestrator",
+            # Запятая, а НЕ YAML-список: frontmatter-парсер очереди плоский и
+            # `[a, b]` вернул бы строку со скобками, которая не совпадёт ни с одним
+            # путём. `_parse_approves` штатно принимает форму через запятую.
+            extra_fields={"approves": ", ".join(approves)} if approves else None,
         )
         print(f"safe_site_push: routed to owner card {card_path}", file=sys.stderr)
         try:
