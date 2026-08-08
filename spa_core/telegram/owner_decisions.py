@@ -131,9 +131,35 @@ _FIRST_SENTENCE_RE = re.compile(r"^(.+?)(?:\.\s|\.$|$)", re.DOTALL)
 # Голый «* **Текст**» (34 строки в 13 карточках) НАМЕРЕННО не разбирается: этой же формой
 # пишут обычные пояснения внутри секции, и выдуманный вариант — ровно то, что запрещает
 # ADR-075. Такая карточка приходит без кнопок; это видно сразу и лечится карточкой.
+# Жирное выделение НЕ обязательно: живая карточка про табличку честности пишет
+# «4. Оставить как есть — но тогда надо понимать…» простым текстом, и такой вариант
+# молча пропадал. Спрятать существующий выбор ХУЖЕ, чем не показать кнопок вовсе:
+# владелец видит три кнопки там, где карточка предлагает четыре, и не узнаёт об этом.
 _OPTION_NUMBERED_RE = re.compile(
     r"^\s*(?P<num>\d{1,2})[.)]\s+\*\*\s*(?P<label>.+?)\s*\*\*",
     re.DOTALL,
+)
+
+# Тот же нумерованный список, но БЕЗ жирного. Отдельной регуляркой, а не веткой в первой:
+# альтернатива внутри одного выражения перехватывала жирные строки целиком (замерено —
+# подпись превращалась в «**Довести правило…** Убрать подстановку…»). Отрицательный
+# просмотр вперёд гарантирует, что жирную форму разбирает ТОЛЬКО первая регулярка.
+_OPTION_PLAIN_RE = re.compile(
+    r"^\s*(?P<num>\d{1,2})[.)]\s+(?!\*\*)(?P<plain>\S.*)$",
+)
+
+# Пометка рекомендации живёт не только в заголовке варианта: карточки пишут
+# «⭐ **Рекомендация агента:** …» ВНУТРИ абзаца варианта. Смотреть только на заголовок —
+# значит потерять звёздочку там, где автор её поставил.
+_RECOMMEND_INLINE_RE = re.compile(r"⭐|рекомендац|рекомендую|recommend", re.IGNORECASE)
+
+# «можно взять несколько» / «не исключают друг друга» — карточка допускает НЕСКОЛЬКО
+# ответов. Одна кнопка, закрывающая карточку, исказила бы такой вопрос: владелец выбрал
+# бы один пункт, а остальные молча отпали. Fail-CLOSED: кнопок нет, ответ словами.
+_MULTISELECT_RE = re.compile(
+    r"можно\s+взять\s+нескольк|можно\s+выбрать\s+нескольк|"
+    r"не\s+исключают\s+друг\s+друга|выбери\s+один\s+или\s+нескольк",
+    re.IGNORECASE,
 )
 
 _RECOMMEND_RE = re.compile(r"рекоменд|recommend", re.IGNORECASE)
@@ -190,33 +216,64 @@ def _shorten(text: str, limit: int = BUTTON_LABEL_MAX) -> str:
     return cut.rstrip(".,;:—–-") + "…"
 
 
+def allows_multiple(body: str) -> bool:
+    """Разрешает ли карточка выбрать НЕСКОЛЬКО пунктов.
+
+    Живой пример: «Выбери, как поступаем — можно взять несколько». Одна кнопка, которая
+    закрывает карточку, превратила бы такой вопрос в «выбери ровно один»: остальные пункты
+    молча отпали бы, а владелец бы об этом не узнал. Кнопок в этом случае нет, и текст
+    ЧЕСТНО называет причину — не «вариантов не нашёл», а «их можно выбрать несколько».
+    """
+    return any(_MULTISELECT_RE.search(ln) for ln in _section_lines(body))
+
+
 def parse_options(body: str) -> List[ParsedOption]:
     """Варианты ответа из тела карточки. Пусто ⇒ кнопок не будет (fail-CLOSED).
 
     Разбираем ТОЛЬКО секцию «Что от тебя нужно»: в карточках слово «вариант» встречается
     и в «Что будет после», и в разборе причин — там это не выбор владельца.
     """
+    section = _section_lines(body)
+
+    # Карточка допускает НЕСКОЛЬКО ответов ⇒ одна закрывающая кнопка исказила бы вопрос.
+    if allows_multiple(body):
+        return []
+
     options: List[ParsedOption] = []
     seen: set[str] = set()
-    for ln in _section_lines(body):
+    # Продолжение абзаца принадлежит ПОСЛЕДНЕМУ варианту: пометка «⭐ Рекомендация агента»
+    # часто стоит там, а не в заголовке.
+    tails: Dict[str, List[str]] = {}
+    last_key: Optional[str] = None
+    for ln in section:
         m = _OPTION_RE.match(ln)
         numbered = False
         if m is None:
-            m = _OPTION_NUMBERED_RE.match(ln)
+            m = _OPTION_NUMBERED_RE.match(ln) or _OPTION_PLAIN_RE.match(ln)
             numbered = m is not None
         if not m:
+            if last_key is not None:
+                tails.setdefault(last_key, []).append(ln)
             continue
         num = m.group("num").strip()
         key = num.lower()
         if key in seen:  # дубль номера в карточке — берём первый, второй игнорируем
+            last_key = None
             continue
-        paren = "" if numbered else (m.group("paren") or "")
+        last_key = key
+        groups = m.groupdict()
+        paren = "" if numbered else (groups.get("paren") or "")
         # Точка в конце — часть предложения карточки, а не подписи кнопки: «Вариант 1.»
         # с точкой посреди списка читается как оборванный текст.
-        label = (m.group("label") or "").strip()
+        label = (groups.get("label") or "").strip()
+        if not label and numbered:
+            # Нумерованный пункт без жирного — тоже вариант (живая карточка 08.08).
+            plain = (groups.get("plain") or "").strip()
+            sentence = _FIRST_SENTENCE_RE.match(plain)
+            label = (sentence.group(1) if sentence else plain).strip()
         if not label and not numbered:
             # В жирном была одна пометка — суть стоит СРАЗУ ЗА ним, первым предложением.
-            tail = (m.group("tail") or "").strip()
+            tail = (groups.get("tail") or "").strip()
             sentence = _FIRST_SENTENCE_RE.match(tail)
             label = (sentence.group(1) if sentence else tail).strip()
         recommended = bool(_RECOMMEND_RE.search(paren) or _RECOMMEND_RE.search(label))
@@ -225,6 +282,15 @@ def parse_options(body: str) -> List[ParsedOption]:
             continue  # подпись состояла из одной пометки — предлагать нечего
         seen.add(key)
         options.append(ParsedOption(num=num, label=label, recommended=recommended))
+
+    # Звёздочка могла стоять в ПРОДОЛЖЕНИИ абзаца, а не в заголовке варианта.
+    if not any(o.recommended for o in options):
+        options = [
+            ParsedOption(o.num, o.label,
+                         any(_RECOMMEND_INLINE_RE.search(t)
+                             for t in tails.get(o.num.lower(), [])))
+            for o in options
+        ]
 
     # Карточка может задавать НЕСКОЛЬКО НЕЗАВИСИМЫХ вопросов, а не предлагать выбор одного
     # варианта. Живой пример (`own-31-desyat-agentov-v-reestre-bez-flota`): «Два решения:
@@ -362,7 +428,7 @@ def summarize(body: str, limit: int = SUMMARY_MAX) -> str:
 
 
 def build_message(title: str, body: str, options: List[ParsedOption],
-                  *, has_buttons: bool = True) -> str:
+                  *, has_buttons: bool = True, card_name: str = "") -> str:
     """HTML-сообщение владельцу: заголовок, суть, перечень вариантов.
 
     HTML, а не Markdown: в карточках сплошь пути с подчёркиваниями (`agent_health`),
@@ -394,12 +460,21 @@ def build_message(title: str, body: str, options: List[ParsedOption],
             # умеет). Говорим ЧЕСТНО, как ответить без кнопок, вместо ссылки на пустоту.
             parts += ["", "⚠️ Кнопки сейчас недоступны — бот не подтвердил, что готов их "
                           "обработать. Ответь номером варианта в чат, я разберу."]
+    elif allows_multiple(body):
+        # Варианты ЕСТЬ, но карточка разрешает взять несколько — кнопкой это не выразить.
+        parts += ["", "В этой карточке можно выбрать НЕСКОЛЬКО пунктов, поэтому кнопок нет.",
+                  "Ответь номерами в чат (например «1 и 3») — разберу."]
     else:
         # Fail-CLOSED: вариантов не разобрали — не выдумываем их, честно зовём в карточку.
         tail = ("Вариантов в карточке не нашёл — открой её целиком кнопкой ниже."
                 if has_buttons else
                 "Вариантов в карточке не нашёл — открой её в трекере.")
         parts += ["", tail]
+    if card_name:
+        # Имя карточки нужно всегда: без кнопок это ЕДИНСТВЕННЫЙ способ найти её в трекере,
+        # а с кнопками — способ сослаться на неё в разговоре. Раньше оно было только в
+        # запасном виде сообщения и пропало, как только заработал богатый.
+        parts += ["", f"📄 <code>{html.escape(card_name)}</code>"]
     return "\n".join(parts)
 
 
@@ -438,6 +513,7 @@ def prepare(
     body: str,
     card_id: str,
     *,
+    card_name: str = "",
     now: Optional[datetime] = None,
     beacon_path: Optional[str | Path] = None,
 ) -> Prepared:
@@ -462,7 +538,8 @@ def prepare(
 
         if handler_available(now=now, beacon_path=beacon_path):
             keyboard = build_keyboard(pid, options)
-    text = build_message(title, body, options, has_buttons=keyboard is not None)
+    text = build_message(title, body, options, has_buttons=keyboard is not None,
+                         card_name=card_name or card_id)
     return Prepared(pid=pid, text=text, keyboard=keyboard, options=options)
 
 
@@ -482,7 +559,8 @@ def register_push(
     попасть в карточку дословно.
     """
     p = Path(card_path)
-    prep = prepare(title, body, p.stem, now=now, beacon_path=beacon_path)
+    prep = prepare(title, body, p.stem, card_name=p.name, now=now,
+                   beacon_path=beacon_path)
     dt = now or datetime.now(timezone.utc)
     path_obj = _state_path(state_path)
     doc = _load(path_obj)

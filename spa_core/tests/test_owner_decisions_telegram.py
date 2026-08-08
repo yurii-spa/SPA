@@ -467,3 +467,67 @@ def test_message_does_promise_the_button_when_it_is_really_there(tmp_path):
     prep = od.prepare("Заголовок", CARD, "own-1", now=NOW, beacon_path=_beacon(tmp_path))
     assert prep.keyboard is not None
     assert "Нажми кнопку" in prep.text
+
+
+# ── формы, найденные на живой карточке про табличку честности ────────────────
+
+CARD_PLAIN_AND_INLINE_STAR = """---
+trackerStatus:
+  type: owner-decision
+title: "Табличка честности не доезжает"
+status: needs-owner
+---
+
+## Что от тебя нужно
+
+Выбери, как поступаем:
+
+1. **Дать правилу честности ту же дорогу, что и доставке**, и разрешить проходить owner-gate.
+   Табличка начнёт доезжать. ⭐ **Рекомендация агента:** правило честности должно уметь
+   исполняться — сейчас оно не работает вовсе.
+2. **Смягчить сам порог сравнения** — сравнивать среднее за сутки.
+3. Оставить как есть — но тогда надо понимать, что правило сейчас декоративное.
+"""
+
+CARD_MULTISELECT = CARD_PLAIN_AND_INLINE_STAR.replace(
+    "Выбери, как поступаем:", "Выбери, как поступаем — можно взять несколько:")
+
+
+def test_a_numbered_option_without_bold_is_still_an_option():
+    """Положительный контроль живой карточки: пункт «3. Оставить как есть — …» написан БЕЗ
+    жирного и молча пропадал.
+
+    Спрятать существующий выбор ХУЖЕ, чем не показать кнопок: владелец видел бы две кнопки
+    там, где карточка предлагает три, и не узнал бы о третьей.
+    """
+    opts = od.parse_options(CARD_PLAIN_AND_INLINE_STAR)
+    assert [o.num for o in opts] == ["1", "2", "3"]
+    assert opts[2].label.startswith("Оставить как есть")
+
+
+def test_recommendation_inside_the_option_paragraph_is_found():
+    """Звёздочка стоит в ПРОДОЛЖЕНИИ абзаца («⭐ Рекомендация агента:»), а не в заголовке.
+
+    Смотреть только на заголовок — значит потерять рекомендацию там, где автор её поставил,
+    и лишить владельца главного, ради чего он просил кнопки.
+    """
+    opts = od.parse_options(CARD_PLAIN_AND_INLINE_STAR)
+    assert [o.recommended for o in opts] == [True, False, False]
+
+
+def test_a_card_allowing_several_answers_gets_no_single_choice_buttons(tmp_path):
+    """«можно взять несколько» — одна закрывающая кнопка исказила бы вопрос: владелец выбрал
+    бы один пункт, остальные молча отпали бы. Кнопок нет, и текст называет ПРИЧИНУ."""
+    assert od.allows_multiple(CARD_MULTISELECT) is True
+    assert od.parse_options(CARD_MULTISELECT) == []
+    prep = od.prepare("Табличка", CARD_MULTISELECT, "own-x", now=NOW,
+                      beacon_path=_beacon(tmp_path))
+    assert prep.keyboard is None
+    assert "НЕСКОЛЬКО пунктов" in prep.text
+    assert "Вариантов в карточке не нашёл" not in prep.text
+
+
+def test_single_choice_card_is_not_mistaken_for_multiselect():
+    """Контроль в обратную сторону: обычная карточка кнопки получает."""
+    assert od.allows_multiple(CARD_PLAIN_AND_INLINE_STAR) is False
+    assert len(od.parse_options(CARD_PLAIN_AND_INLINE_STAR)) == 3

@@ -323,3 +323,28 @@ def test_poller_count_ignores_the_bash_wrapper(monkeypatch):
 
     monkeypatch.setattr(TH, "_run", lambda args: R())
     assert _REAL_POLLER_PIDS() == [101]
+
+
+def test_a_self_healed_incident_is_not_shouted_as_broken():
+    """Владелец жаловался на лишнюю ругань. Инцидент, который сторож УЖЕ починил и проверил,
+    к моменту чтения не сломан — 🚨 на нём вводит в заблуждение и зовёт чинить починенное.
+
+    Факты не прячутся: что ломалось и что сделано — остаётся в теле дословно.
+    """
+    rep = TH.Report(status=TH.CRITICAL, checked_at="")
+    rep.add(TH.Finding("свежесть кода", TH.CRITICAL, "процесс старше кода"))
+    rep.actions += ["перезапущен com.spa.telegram_bot", "починка подтверждена: маячок вернулся"]
+    text = TH.alert_text(rep)
+    assert "починил сам" in text
+    assert "🚨" not in text
+    assert "процесс старше кода" in text          # факт на месте
+    assert "починка подтверждена" in text
+
+
+def test_an_unhealed_break_is_still_shouted():
+    """Контроль в обратную сторону: не починили — тревога остаётся тревогой."""
+    rep = TH.Report(status=TH.CRITICAL, checked_at="")
+    rep.add(TH.Finding("поллеры", TH.CRITICAL, "их два"))
+    rep.actions += ["перезапуск ЗАБЛОКИРОВАН: сначала руками устранить — их два"]
+    text = TH.alert_text(rep)
+    assert "🚨" in text and "починил сам" not in text
