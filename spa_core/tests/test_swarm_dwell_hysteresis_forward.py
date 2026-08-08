@@ -263,3 +263,64 @@ def test_tick_forward_window_ignores_backtest_dates(tmp_path):
     assert doc["state"] == "TRACKING"
     assert doc["window"]["start"] == _dates(5)[0]  # 2026-01 backtest bars never enter the window
     assert doc["common_days"] == 5
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Требование владельца 2026-08-08 (карточка `own-rnd-duty-is-concentration-adr055`,
+# подтверждено вместе с вариантом A): каждое плечо обязано писать фактическую
+# концентрацию и долю времени «выключено» КАЖДЫЙ ДЕНЬ.
+#
+# Зачем: через 30 дней форварда без этих двух чисел нельзя отличить эффект
+# правила от премии за размер позиций. Замер #46 (2026-08-08) показал, что
+# разница между потолками 20/25/30 % — целиком размен «доходность против
+# хвоста», поэтому без концентрации в логе форвардный результат не читается.
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _arms_fixture():
+    dates = _dates(40)
+    # Панель хранит ДНЕВНУЮ доходность в процентах (mtm_today_pct), а не NAV.
+    # NAV-подобные значения дали бы +100 %/день и OverflowError в годовом
+    # пересчёте — свойство метрики, не предмет теста.
+    panel = {
+        "book_a": {d: 0.02 for d in dates},
+        "book_b": {d: (-0.01 if i % 3 else 0.03) for i, d in enumerate(dates)},
+        "book_c": {d: 0.01 for d in dates},
+    }
+    return dh.compute_arms(dates, panel)
+
+
+def test_every_arm_reports_concentration():
+    for arm, view in _arms_fixture().items():
+        assert "concentration_pct" in view, f"плечо {arm} не пишет концентрацию"
+
+
+def test_every_arm_reports_duty_out():
+    for arm, view in _arms_fixture().items():
+        assert "duty_out_pct" in view, f"плечо {arm} не пишет долю «выключено»"
+
+
+def test_raw_arm_is_never_out_and_says_so():
+    """Контроль в обратную сторону: у raw доля «выключено» обязана быть 0."""
+    raw = _arms_fixture()["raw"]
+    assert raw["duty_out_pct"] == 0.0
+    assert raw["concentration_pct"] == pytest.approx(100.0 / 3, abs=0.01)
+
+
+def test_values_are_in_percent_not_fraction():
+    """Единицы — проценты. Дробь 0.33 вместо 33 % читалась бы как «всё хорошо»."""
+    for arm, view in _arms_fixture().items():
+        c = view["concentration_pct"]
+        if c is not None:
+            assert c > 1.0, f"{arm}: концентрация похожа на долю, а не на проценты"
+            assert c <= 100.0 + 1e-9
+
+
+def test_all_books_out_gives_none_not_zero():
+    """Все книги выключены ⇒ None. «Ноль процентов» — другое утверждение."""
+    assert dh._largest_position_pct({"a": [0.0], "b": [0.0]}, ["a", "b"], -1) is None
+
+
+def test_duty_counts_book_days_not_days():
+    """Доля считается по книго-дням: одна книга вне рынка из трёх = 33 %, не 100 %."""
+    w = {"a": [0.0, 0.0], "b": [1.0, 1.0], "c": [1.0, 1.0]}
+    assert dh._duty_out_pct(w, ["a", "b", "c"], 2) == pytest.approx(100.0 / 3, abs=0.01)

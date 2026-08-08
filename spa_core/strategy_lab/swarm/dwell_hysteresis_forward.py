@@ -220,6 +220,30 @@ def _arm_weights(dates: Sequence[str], panel: Dict[str, Dict[str, float]],
     return out
 
 
+def _largest_position_pct(w: Dict[str, List[float]], books: Sequence[str],
+                          i: int) -> Optional[float]:
+    """Доля самой крупной позиции на день ``i``, в процентах капитала.
+
+    Веса плеча — это флаги «в рынке / вне рынка»; фактическая доля книги равна
+    её весу, делённому на сумму весов дня. Все книги выключены ⇒ ``None``
+    (позиции нет, а не «ноль процентов» — это разные утверждения).
+    """
+    total = sum(float(w[b][i]) for b in books)
+    if total <= 0.0:
+        return None
+    return round(100.0 * max(float(w[b][i]) for b in books) / total, 4)
+
+
+def _duty_out_pct(w: Dict[str, List[float]], books: Sequence[str],
+                  n_days: int) -> Optional[float]:
+    """Доля книго-дней, проведённых «выключенными», за всё окно, в процентах."""
+    cells = len(books) * n_days
+    if cells <= 0:
+        return None
+    out = sum(1 for b in books for i in range(n_days) if float(w[b][i]) == 0.0)
+    return round(100.0 * out / cells, 4)
+
+
 def compute_arms(dates: Sequence[str], panel: Dict[str, Dict[str, float]]) -> dict:
     """raw / baseline (latch removed) / dwell (latch k=2) over the common forward dates."""
     books = sorted(panel)
@@ -234,6 +258,15 @@ def compute_arms(dates: Sequence[str], panel: Dict[str, Dict[str, float]]) -> di
             "apy_pct": apy_pct(eq, len(dates)),
             "max_dd_pct": max_drawdown_pct(eq),
             "books_out_today": sorted(b for b in books if w[b][-1] == 0.0),
+            # Требование владельца 2026-08-08 (карточка
+            # `own-rnd-duty-is-concentration-adr055`, подтверждено вместе с
+            # вариантом A): каждый день писать фактическую концентрацию и долю
+            # времени «выключено». Без них через 30 дней форварда результат
+            # неразличим — правило его дало или премия за размер позиций.
+            # На поведение модуля не влияет: обе величины ЧИТАЮТСЯ из уже
+            # посчитанных весов.
+            "concentration_pct": _largest_position_pct(w, books, -1),
+            "duty_out_pct": _duty_out_pct(w, books, len(dates)),
         }
 
     arms = {"raw": view(raw_w), "baseline": view(base_w), "dwell": view(dwell_w)}
