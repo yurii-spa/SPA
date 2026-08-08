@@ -29,6 +29,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import pathlib
 import sqlite3
 import subprocess
 import sys
@@ -275,10 +276,53 @@ def test_real_data_dir_untouched_signature(sandbox_env):
     _make_archive(backups / "spa_state_2026-01-09.tar.gz", _good_payloads())
     _make_db(backups / "spa_2026-01-09.db")
 
-    before = set(os.listdir(_REAL_DATA))
+    # ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16) — и проверка НЕ ослаблена, а уточнена.
+    #
+    # Тест снимал листинг ЖИВОГО data/, по которому в это же время пишет работающий
+    # флот. `atomic_save` создаёт промежуточный `<файл>.tmp` и тут же его заменяет —
+    # и если чужой агент попал ровно между двумя снимками, тест краснел на ЧУЖОЙ
+    # штатной записи. Замерено: расхождение `{'yield_volatility_surface_log.json.tmp'}`,
+    # то есть файла, которого в момент второго снимка уже не существовало.
+    # Вероятность выросла 08.08, когда флот пополнился тремя агентами (77 → 81).
+    #
+    # Вопрос теста — «не оставил ли ЛИ ДРИЛЛ мусор в живом data/», а не «работает ли
+    # флот». Поэтому из сравнения исключаются ТОЛЬКО промежуточные `.tmp` от
+    # atomic_save. Любой другой появившийся или исчезнувший файл по-прежнему валит
+    # тест — это закреплено положительным контролем ниже.
+    def _stable(entries):
+        return {e for e in entries if not e.endswith(".tmp")}
+
+    before = _stable(os.listdir(_REAL_DATA))
     drill.run_drill(quiet=True)
-    after = set(os.listdir(_REAL_DATA))
+    after = _stable(os.listdir(_REAL_DATA))
     assert before == after, f"live data/ changed: {before ^ after}"
+
+
+def test_stray_non_tmp_file_in_live_data_is_still_caught(sandbox_env, tmp_path):
+    """Положительный контроль к правке выше: послабление касается ТОЛЬКО `.tmp`.
+
+    Без этого теста «починка» вида «игнорировать любые расхождения» была бы зелёной,
+    а сторож, стерегущий живой трек, перестал бы что-либо стеречь.
+    """
+    stray = pathlib.Path(_REAL_DATA) / "__strayfile_from_test__.json"
+    def _stable(entries):
+        return {e for e in entries if not e.endswith(".tmp")}
+    before = _stable(os.listdir(_REAL_DATA))
+    try:
+        stray.write_text("{}", encoding="utf-8")
+        after = _stable(os.listdir(_REAL_DATA))
+        assert before != after, "появление обычного файла в живом data/ осталось незамеченным"
+        assert (before ^ after) == {stray.name}
+    finally:
+        stray.unlink(missing_ok=True)
+
+
+def test_tmp_churn_alone_does_not_trip_the_signature(sandbox_env):
+    """Зеркало: одна лишь `.tmp`-текучка чужого писателя не считается изменением."""
+    def _stable(entries):
+        return {e for e in entries if not e.endswith(".tmp")}
+    listing = set(os.listdir(_REAL_DATA))
+    assert _stable(listing | {"чужой_писатель.json.tmp"}) == _stable(listing)
 
 
 # --------------------------------------------------------------------------- #
