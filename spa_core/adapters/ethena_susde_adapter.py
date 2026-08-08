@@ -206,7 +206,14 @@ class EthenaSusdeAdapter(BaseAdapter):
         return out
 
     @classmethod
-    def _clamp(cls, apy: float) -> float:
+    def _clamp(cls, apy):
+        """Границы применяются к НАБЛЮДЕНИЮ; ``None`` проходит насквозь.
+
+        Зажать отсутствие наблюдения в MIN_APY значило бы вернуть подстановку
+        под другим именем (2026-08-08, «делать все 15»).
+        """
+        if apy is None:
+            return None
         return max(cls.MIN_APY, min(cls.MAX_APY, apy))
 
     # -- public API --------------------------------------------------------
@@ -243,8 +250,12 @@ class EthenaSusdeAdapter(BaseAdapter):
         record["tvl"] = dl["tvl"]
 
         if apy is None:
-            apy = self.FALLBACK_APY
-            source = "cached"
+            # 2026-08-08, решение владельца «делать все 15» (карточка
+            # `agent-fake-fallback-v-15-adapterah`): подстановка удалена.
+            # Наблюдения нет ⇒ apy остаётся None; запись честно помечается
+            # stale + live_feed_unavailable. Раньше здесь появлялся литерал под
+            # ярлыком source="cached" — «кэш», которого никто не наблюдал.
+            source = "none"
             record["stale"] = True
             record["error"] = "live_feed_unavailable"
         else:
@@ -253,11 +264,14 @@ class EthenaSusdeAdapter(BaseAdapter):
         if record["tvl"] is None:
             record["tvl"] = self.FALLBACK_TVL_USD
 
-        apy = self._clamp(apy)
+        # Границы применяются к НАБЛЮДЕНИЮ. К его отсутствию — нет: зажать
+        # None в MIN_APY значило бы вернуть ту же подстановку под другим именем.
+        apy = None if apy is None else self._clamp(apy)
         record["apy"] = apy
         record["source"] = source
         # Advisory anomaly: live yield collapsed below the floor.
-        record["anomaly"] = bool(record["live_data"] and apy < self.ANOMALY_APY_FLOOR)
+        record["anomaly"] = bool(record["live_data"] and apy is not None
+                                 and apy < self.ANOMALY_APY_FLOOR)
         return record
 
     def get_apy(self) -> Optional[float]:

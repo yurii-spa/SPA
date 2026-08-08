@@ -194,13 +194,13 @@ class TestMoonwellBaseGetApy(unittest.TestCase):
     def test_fallback_on_url_error(self):
         with _patch_urlopen_error(urllib.error.URLError("timeout")):
             result = self.adapter.get_apy()
-        self.assertAlmostEqual(result, APY_FALLBACK, places=5)
-        self.assertAlmostEqual(result, 5.5, places=5)
+        self.assertIsNone(result)  # 2026-08-08 (инв. №16): подстановки нет, наблюдения нет ⇒ None
+        self.assertIsNone(result)  # 2026-08-08 (инв. №16): подстановки нет ⇒ None
 
     def test_fallback_on_generic_exception(self):
         with _patch_urlopen_error(RuntimeError("unexpected")):
             result = self.adapter.get_apy()
-        self.assertAlmostEqual(result, APY_FALLBACK, places=5)
+        self.assertIsNone(result)  # 2026-08-08 (инв. №16): подстановки нет, наблюдения нет ⇒ None
 
     def test_module_get_apy_returns_float(self):
         """Standalone функция get_apy() из модуля."""

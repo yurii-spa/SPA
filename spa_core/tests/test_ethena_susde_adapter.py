@@ -140,10 +140,14 @@ class TestFetchFailClosed:
         rec = adapter.fetch()
         assert rec["live_data"] is False
         assert rec["stale"] is True
-        assert rec["source"] == "cached"
+        # ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16). Тест проверял, что чтение вне
+        # полосы НЕ клампится, а падает в cached-stale. Первая половина — суть
+        # теста — сохранена; вторая («падает в подстановку») удалена решением
+        # владельца «делать все 15»: наблюдения нет ⇒ None.
+        assert rec["source"] == "none"
         assert rec["error"] == "live_feed_unavailable"
-        assert rec["apy"] == pytest.approx(EthenaSusdeAdapter.FALLBACK_APY)
-        # The old bug produced a live, non-stale 0.50 here.
+        assert rec["apy"] is None
+        # Главное утверждение теста НЕ ослаблено: молчаливого клампа до 0.50 нет.
         assert rec["apy"] != pytest.approx(0.50)
 
     def test_defillama_fallback_used_when_primary_dead(self):
@@ -166,9 +170,23 @@ class TestFetchFailClosed:
         assert rec["anomaly"] is True
 
     def test_apy_is_never_out_of_band_or_nan(self):
-        for pv in [0.9, 200.0, -3.0, float("nan"), 12.0, 2.0]:
-            adapter = EthenaSusdeAdapter(http_get=_make_http(primary_value=pv))
-            apy = adapter.fetch()["apy"]
-            assert apy is not None
+        """ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): было `apy is not None` для ВСЕХ входов.
+
+        Прежняя формулировка выполнялась только благодаря подстановке: мусорный
+        вход отвергался, и на его место вставал FALLBACK_APY — который, конечно,
+        лежал в полосе. То есть утверждение «apy всегда в полосе» держалось на
+        выдуманном числе, а не на данных.
+
+        Проверка УСИЛЕНА и разведена на два honest-случая: наблюдение обязано
+        лежать в полосе и не быть NaN; мусор обязан давать None, а НЕ
+        правдоподобное число.
+        """
+        for pv in [12.0, 2.0]:                       # годные чтения
+            apy = EthenaSusdeAdapter(http_get=_make_http(primary_value=pv)).fetch()["apy"]
+            assert apy is not None, pv
             assert not math.isnan(apy)
             assert EthenaSusdeAdapter.MIN_APY <= apy <= EthenaSusdeAdapter.MAX_APY
+
+        for pv in [0.9, 200.0, -3.0, float("nan")]:  # мусор / вне полосы
+            apy = EthenaSusdeAdapter(http_get=_make_http(primary_value=pv)).fetch()["apy"]
+            assert apy is None, f"мусорный вход {pv!r} дал правдоподобное число {apy!r}"

@@ -164,14 +164,14 @@ class TestAaveV3BaseAdapterGetApy(unittest.TestCase):
         adapter = AaveV3BaseAdapter()
         with _patch_urlopen_error(urllib.error.URLError("timeout")):
             result = adapter.get_apy()
-        self.assertAlmostEqual(result, APY_FALLBACK, places=5)
+        self.assertIsNone(result)  # 2026-08-08 (инв. №16): подстановки нет, наблюдения нет ⇒ None
 
     def test_10_get_apy_fallback_on_generic_exception(self):
         """get_apy() должен вернуть APY_FALLBACK при любом исключении."""
         adapter = AaveV3BaseAdapter()
         with _patch_urlopen_error(RuntimeError("connection refused")):
             result = adapter.get_apy()
-        self.assertAlmostEqual(result, APY_FALLBACK, places=5)
+        self.assertIsNone(result)  # 2026-08-08 (инв. №16): подстановки нет, наблюдения нет ⇒ None
 
 
 class TestAaveV3BaseAdapterGetWriteState(unittest.TestCase):
@@ -282,7 +282,7 @@ class TestAaveV3BaseAdapterPoolFiltering(unittest.TestCase):
         dai_pool = _make_pool(symbol="DAI", chain="Base", apy=3.0, tvl=100_000_000.0)
         with _patch_urlopen([dai_pool]):
             result = adapter.get_apy()
-        self.assertAlmostEqual(result, APY_FALLBACK, places=5)
+        self.assertIsNone(result)  # 2026-08-08 (инв. №16): подстановки нет, наблюдения нет ⇒ None
 
 
 class TestAaveV3BaseAdapterRegistry(unittest.TestCase):

@@ -18,23 +18,10 @@
   "_measured_on_commit": "785d8104d",
   "_card": "owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst.md",
   "_followup_card": "agent-fake-fallback-v-15-adapterah.md",
-  "known_violators": [
-    "aave_v3_base",
-    "aerodrome_base",
-    "dolomite_arbitrum",
-    "ethena_susde",
-    "extra_finance_base",
-    "fluid_arbitrum",
-    "fluid_usdc",
-    "moonwell_base",
-    "morpho_blue_base",
-    "pendle_pt_susde",
-    "pendle_pt_usdc",
-    "silo_arbitrum",
-    "usual_usd0pp",
-    "velodrome_optimism"
-  ],
+  "known_violators": [],
   "_progress": [
-    "2026-08-08: владелец решил «делать все 15». Вычеркнут aave_arbitrum (единственный T1)."
+    "2026-08-08: владелец решил «делать все 15» — ВСЕ 15 починены за один раунд.",
+    "База ПУСТА. Любой новый нарушитель теперь краснит test_no_new_adapter_starts_substituting_a_literal.",
+    "Дописывать сюда что-либо запрещено — чинить адаптер."
   ]
 }

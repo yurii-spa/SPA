@@ -141,9 +141,15 @@ class TestEthenaSusdeAdapter(unittest.TestCase):
         self.assertLessEqual(apy, 0.50)
         self.assertAlmostEqual(apy, 0.09, places=4)
 
-    def test_get_apy_fallback_on_failure(self):
+    def test_get_apy_is_none_on_failure(self):
+        """ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): ожидался литерал FALLBACK_APY.
+
+        Владелец решил «делать все 15» (`agent-fake-fallback-v-15-adapterah`):
+        нет наблюдения ⇒ None. Та же ветка (все живые источники недоступны)
+        проверяется по-прежнему — изменилось ожидаемое значение.
+        """
         a = EthenaSusdeAdapter(http_get=_fail)
-        self.assertEqual(a.get_apy(), EthenaSusdeAdapter.FALLBACK_APY)
+        self.assertIsNone(a.get_apy())
 
     def test_get_tvl_live_positive(self):
         a = EthenaSusdeAdapter(http_get=_ethena_live)
@@ -167,7 +173,10 @@ class TestEthenaSusdeAdapter(unittest.TestCase):
         rec = EthenaSusdeAdapter(http_get=_fail).fetch()
         self.assertTrue(rec["stale"])
         self.assertFalse(rec["live_data"])
-        self.assertEqual(rec["source"], "cached")
+        # 2026-08-08: ярлык "cached" описывал литерал, которого никто не
+        # наблюдал. Наблюдения нет ⇒ source="none", stale и live_data как были.
+        self.assertEqual(rec["source"], "none")
+        self.assertIsNone(rec["apy"])
 
     def test_fetch_live_flag(self):
         rec = EthenaSusdeAdapter(http_get=_ethena_live).fetch()
@@ -184,9 +193,25 @@ class TestEthenaSusdeAdapter(unittest.TestCase):
         # staking vault has no borrow utilization
         self.assertIsNone(EthenaSusdeAdapter(http_get=_ethena_live).get_utilization())
 
-    def test_apy_clamped_to_max(self):
+    def test_out_of_band_read_is_rejected_not_clamped(self):
+        """ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16) — и это ИСПРАВЛЕНИЕ, а не уступка.
+
+        Тест назывался `test_apy_clamped_to_max` и утверждал, что 80 % зажмётся
+        до MAX_APY. На деле `_norm_apy` такое чтение ОТВЕРГАЕТ (это записано в
+        его же докстринге: молчаливый кламп сфабриковал бы правдоподобные ~50 %
+        и спрятал обвал доходности). Отвергнутое чтение уходило в подстановку
+        FALLBACK_APY — она и проходила проверку «≤ MAX_APY».
+
+        То есть тест ЗЕЛЕНЕЛ НА ПОДСТАНОВКЕ и клампа не проверял никогда.
+        Теперь он проверяет настоящее поведение: вне полосы ⇒ None.
+        """
         a = EthenaSusdeAdapter(http_get=_ethena_clamp)
-        self.assertLessEqual(a.get_apy(), EthenaSusdeAdapter.MAX_APY)
+        self.assertIsNone(a.get_apy())
+
+    def test_in_band_read_passes_through(self):
+        """Контроль в обратную сторону: нормальное чтение не превращается в None."""
+        a = EthenaSusdeAdapter(http_get=_ethena_live)
+        self.assertAlmostEqual(a.get_apy(), 0.09, places=4)
 
     def test_anomaly_flag(self):
         # Low live yield trips the advisory anomaly flag; normal yield does not.
@@ -222,9 +247,15 @@ class TestFluidUSDCAdapter(unittest.TestCase):
         self.assertLessEqual(apy, 0.50)
         self.assertAlmostEqual(apy, 0.065, places=4)
 
-    def test_get_apy_fallback_on_failure(self):
+    def test_get_apy_is_none_on_failure(self):
+        """ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): ожидался литерал FALLBACK_APY.
+
+        Владелец решил «делать все 15» (`agent-fake-fallback-v-15-adapterah`):
+        нет наблюдения ⇒ None. Та же ветка (все живые источники недоступны)
+        проверяется по-прежнему — изменилось ожидаемое значение.
+        """
         a = FluidUSDCAdapter(http_get=_fail)
-        self.assertEqual(a.get_apy(), FluidUSDCAdapter.FALLBACK_APY)
+        self.assertIsNone(a.get_apy())
 
     def test_get_tvl_live_positive(self):
         a = FluidUSDCAdapter(http_get=_fluid_live)
@@ -248,7 +279,10 @@ class TestFluidUSDCAdapter(unittest.TestCase):
         rec = FluidUSDCAdapter(http_get=_fail).fetch()
         self.assertTrue(rec["stale"])
         self.assertFalse(rec["live_data"])
-        self.assertEqual(rec["source"], "cached")
+        # 2026-08-08: ярлык "cached" описывал литерал, которого никто не
+        # наблюдал. Наблюдения нет ⇒ source="none", stale и live_data как были.
+        self.assertEqual(rec["source"], "none")
+        self.assertIsNone(rec["apy"])
 
     def test_fetch_live_flag(self):
         rec = FluidUSDCAdapter(http_get=_fluid_live).fetch()
@@ -304,9 +338,15 @@ class TestUsualUSD0PPAdapter(unittest.TestCase):
         self.assertLessEqual(apy, 0.50)
         self.assertAlmostEqual(apy, 0.055, places=4)
 
-    def test_get_apy_fallback_on_failure(self):
+    def test_get_apy_is_none_on_failure(self):
+        """ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): ожидался литерал FALLBACK_APY.
+
+        Владелец решил «делать все 15» (`agent-fake-fallback-v-15-adapterah`):
+        нет наблюдения ⇒ None. Та же ветка (все живые источники недоступны)
+        проверяется по-прежнему — изменилось ожидаемое значение.
+        """
         a = UsualUSD0PPAdapter(http_get=_fail)
-        self.assertEqual(a.get_apy(), UsualUSD0PPAdapter.FALLBACK_APY)
+        self.assertIsNone(a.get_apy())
 
     def test_get_tvl_live_positive(self):
         a = UsualUSD0PPAdapter(http_get=_usual_live)
@@ -330,7 +370,10 @@ class TestUsualUSD0PPAdapter(unittest.TestCase):
         rec = UsualUSD0PPAdapter(http_get=_fail).fetch()
         self.assertTrue(rec["stale"])
         self.assertFalse(rec["live_data"])
-        self.assertEqual(rec["source"], "cached")
+        # 2026-08-08: ярлык "cached" описывал литерал, которого никто не
+        # наблюдал. Наблюдения нет ⇒ source="none", stale и live_data как были.
+        self.assertEqual(rec["source"], "none")
+        self.assertIsNone(rec["apy"])
 
     def test_fetch_live_flag(self):
         rec = UsualUSD0PPAdapter(http_get=_usual_live).fetch()

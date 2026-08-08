@@ -175,7 +175,14 @@ class UsualUSD0PPAdapter(BaseAdapter):
         return out
 
     @classmethod
-    def _clamp(cls, apy: float) -> float:
+    def _clamp(cls, apy):
+        """Границы применяются к НАБЛЮДЕНИЮ; ``None`` проходит насквозь.
+
+        Зажать отсутствие наблюдения в MIN_APY значило бы вернуть подстановку
+        под другим именем (2026-08-08, «делать все 15»).
+        """
+        if apy is None:
+            return None
         return max(cls.MIN_APY, min(cls.MAX_APY, apy))
 
     # -- public API --------------------------------------------------------
@@ -206,8 +213,12 @@ class UsualUSD0PPAdapter(BaseAdapter):
         record["tvl"] = dl["tvl"]
 
         if apy is None:
-            apy = self.FALLBACK_APY
-            source = "cached"
+            # 2026-08-08, решение владельца «делать все 15» (карточка
+            # `agent-fake-fallback-v-15-adapterah`): подстановка удалена.
+            # Наблюдения нет ⇒ apy остаётся None; запись честно помечается
+            # stale + live_feed_unavailable. Раньше здесь появлялся литерал под
+            # ярлыком source="cached" — «кэш», которого никто не наблюдал.
+            source = "none"
             record["stale"] = True
             record["error"] = "live_feed_unavailable"
         else:

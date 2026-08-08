@@ -166,15 +166,15 @@ class TestMorphoBlueBaseGetApy(unittest.TestCase):
         adapter = MorphoBlueBaseAdapter()
         with _patch_urlopen_error(urllib.error.URLError("timeout")):
             result = adapter.get_apy()
-        self.assertAlmostEqual(result, APY_FALLBACK, places=5)
-        self.assertAlmostEqual(result, 6.2, places=5)
+        self.assertIsNone(result)  # 2026-08-08 (инв. №16): подстановки нет, наблюдения нет ⇒ None
+        self.assertIsNone(result)  # 2026-08-08 (инв. №16): подстановки нет ⇒ None
 
     def test_10_fallback_on_generic_exception(self):
         """get_apy() должен использовать fallback при любом исключении."""
         adapter = MorphoBlueBaseAdapter()
         with _patch_urlopen_error(RuntimeError("unexpected")):
             result = adapter.get_apy()
-        self.assertAlmostEqual(result, APY_FALLBACK, places=5)
+        self.assertIsNone(result)  # 2026-08-08 (инв. №16): подстановки нет, наблюдения нет ⇒ None
 
 
 # ---------------------------------------------------------------------------
@@ -229,13 +229,18 @@ class TestMorphoBlueBaseValidate(unittest.TestCase):
             result = adapter.validate()
         self.assertTrue(result)
 
-    def test_15_validate_true_with_fallback(self):
-        """validate() должен вернуть True даже при использовании fallback APY."""
+    def test_15_validate_false_without_observation(self):
+        """ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16) — и это УСИЛЕНИЕ.
+
+        Тест назывался `..._true_with_fallback` и утверждал, что валидация
+        проходит «благодаря подстановке». То есть адаптер объявлялся исправным
+        РОВНО ТОГДА, когда живых данных не было. Теперь без наблюдения
+        валидация честно отвечает False (fail-CLOSED, ADR-063 п.3).
+        """
         adapter = MorphoBlueBaseAdapter()
         with _patch_urlopen_error(urllib.error.URLError("network error")):
             result = adapter.validate()
-        # fallback APY = 6.2 > 0, TVL_USD = 180M > 0
-        self.assertTrue(result)
+        self.assertFalse(result)
 
 
 # ---------------------------------------------------------------------------

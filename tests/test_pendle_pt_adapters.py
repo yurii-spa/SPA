@@ -91,9 +91,18 @@ def test_susde_unwind_window_is_30d():
 # 9–18: sUSDe adapter — APY, TVL, maturity, kill switch
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_susde_fallback_apy_when_feed_unavailable():
+def test_susde_apy_is_none_when_feed_unavailable():
+    """ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): ожидалось 0.10 — подставной литерал.
+
+    Владелец решил «делать все 15» (карточка `agent-fake-fallback-v-15-adapterah`):
+    нет наблюдения ⇒ None. Та же ветка кода проверяется, изменилось ожидаемое
+    значение — с выдуманного на честное.
+    """
     a = susde(apy=None)
-    assert a.fetch_apy() == pytest.approx(0.10)
+    assert a.fetch_apy() is None
+    assert a.safe_apy() is None
+    assert a.get_apy() is None
+    assert a.is_eligible() is False, "без наблюдения пул не может быть eligible"
 
 
 def test_susde_live_apy_decimal_conversion():
@@ -197,8 +206,18 @@ def test_usdc_asset_is_usdc():
     assert usdc().ASSET == "USDC"
 
 
-def test_usdc_fallback_apy_is_8pct():
-    assert usdc(apy=None).fetch_apy() == pytest.approx(0.08)
+def test_usdc_apy_is_none_without_observation():
+    """ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): ожидалось 0.08 — подставной литерал.
+
+    Отдельно закреплено то, что раньше было самым коварным: подстановка ПО
+    ПОСТРОЕНИЮ лежала внутри [MIN_APY, MAX_APY], поэтому проверка диапазона
+    в `is_eligible()` проходила РОВНО ТОГДА, когда данных не было.
+    """
+    a = usdc(apy=None)
+    assert a.fetch_apy() is None
+    assert a.safe_apy() is None
+    assert a.is_eligible() is False
+    assert a.should_rotate() is False, "ротация — действие; без данных не назначается"
 
 
 def test_usdc_live_apy_decimal_conversion():

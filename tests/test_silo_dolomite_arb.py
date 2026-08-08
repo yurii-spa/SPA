@@ -130,7 +130,7 @@ class TestSiloArbitrum(unittest.TestCase):
     def test_06_fallback_on_network_error(self):
         a = SiloArbitrumUSDCAdapter()
         with _patch_error(_SILO_MOD, urllib.error.URLError("down")):
-            self.assertAlmostEqual(a.get_apy(), SILO_FALLBACK, places=5)
+            self.assertIsNone(a.get_apy())  # ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): ожидался литерал-подстановка. Владелец решил «делать все 15» (`agent-fake-fallback-v-15-adapterah`): нет наблюдения ⇒ None. Та же ветка проверяется, изменилось ожидаемое значение.
         self.assertAlmostEqual(SILO_FALLBACK, 4.5, places=5)
 
     def test_07_ignores_wrong_chain(self):
@@ -146,7 +146,7 @@ class TestSiloArbitrum(unittest.TestCase):
         a = SiloArbitrumUSDCAdapter()
         pools = [_pool("silo-v2", "WETH", "Arbitrum", apy=12.0, tvl=9e8)]
         with _patch_pools(_SILO_MOD, pools):
-            self.assertAlmostEqual(a.get_apy(), SILO_FALLBACK, places=5)
+            self.assertIsNone(a.get_apy())  # ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): ожидался литерал-подстановка. Владелец решил «делать все 15» (`agent-fake-fallback-v-15-adapterah`): нет наблюдения ⇒ None. Та же ветка проверяется, изменилось ожидаемое значение.
 
     def test_09_yield_info_decimal(self):
         a = SiloArbitrumUSDCAdapter()
@@ -217,7 +217,7 @@ class TestDolomiteArbitrum(unittest.TestCase):
     def test_06_fallback_on_network_error(self):
         a = DolomiteArbitrumUSDCAdapter()
         with _patch_error(_DOLO_MOD, urllib.error.URLError("down")):
-            self.assertAlmostEqual(a.get_apy(), DOLOMITE_FALLBACK, places=5)
+            self.assertIsNone(a.get_apy())  # ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): ожидался литерал-подстановка. Владелец решил «делать все 15» (`agent-fake-fallback-v-15-adapterah`): нет наблюдения ⇒ None. Та же ветка проверяется, изменилось ожидаемое значение.
         self.assertAlmostEqual(DOLOMITE_FALLBACK, 4.0, places=5)
 
     def test_07_ignores_wrong_chain(self):
@@ -233,7 +233,7 @@ class TestDolomiteArbitrum(unittest.TestCase):
         a = DolomiteArbitrumUSDCAdapter()
         pools = [_pool("dolomite", "WBTC", "Arbitrum", apy=12.0, tvl=9e8)]
         with _patch_pools(_DOLO_MOD, pools):
-            self.assertAlmostEqual(a.get_apy(), DOLOMITE_FALLBACK, places=5)
+            self.assertIsNone(a.get_apy())  # ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): ожидался литерал-подстановка. Владелец решил «делать все 15» (`agent-fake-fallback-v-15-adapterah`): нет наблюдения ⇒ None. Та же ветка проверяется, изменилось ожидаемое значение.
 
     def test_09_picks_highest_tvl_pool(self):
         a = DolomiteArbitrumUSDCAdapter()

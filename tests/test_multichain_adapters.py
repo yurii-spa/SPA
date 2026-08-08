@@ -129,12 +129,12 @@ class TestVelodromeOptimism(unittest.TestCase):
         a = VelodromeOptimismAdapter()
         pools = [_pool("velodrome-v2", "USDC-OP", "Optimism", apy=20.0, tvl=9e8)]
         with _patch_pools(_VELO_MOD, pools):
-            self.assertAlmostEqual(a.get_apy(), VELO_FALLBACK, places=5)
+            self.assertIsNone(a.get_apy())  # ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): ожидался литерал-подстановка. Владелец решил «делать все 15» (`agent-fake-fallback-v-15-adapterah`): нет наблюдения ⇒ None. Та же ветка проверяется, изменилось ожидаемое значение.
 
     def test_06_fallback_on_error(self):
         a = VelodromeOptimismAdapter()
         with _patch_error(_VELO_MOD, urllib.error.URLError("down")):
-            self.assertAlmostEqual(a.get_apy(), VELO_FALLBACK, places=5)
+            self.assertIsNone(a.get_apy())  # ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): ожидался литерал-подстановка. Владелец решил «делать все 15» (`agent-fake-fallback-v-15-adapterah`): нет наблюдения ⇒ None. Та же ветка проверяется, изменилось ожидаемое значение.
 
     def test_07_ignores_wrong_chain(self):
         a = VelodromeOptimismAdapter()

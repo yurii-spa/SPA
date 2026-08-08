@@ -89,8 +89,8 @@ class TestFluidArbitrumUsdcAdapter(unittest.TestCase):
 
     def test_get_apy_fallback_on_failure(self):
         a = FluidArbitrumUsdcAdapter(http_get=_fail)
-        self.assertEqual(a.get_apy(), FluidArbitrumUsdcAdapter.FALLBACK_APY)
-        self.assertAlmostEqual(a.get_apy(), 0.045, places=6)
+        self.assertIsNone(a.get_apy())  # 2026-08-08 (инв. №16): подстановки нет
+        self.assertIsNone(a.get_apy())  # 2026-08-08 (инв. №16): подстановки нет, наблюдения нет ⇒ None
 
     def test_get_tvl_live_positive(self):
         a = FluidArbitrumUsdcAdapter(http_get=_live)
@@ -121,7 +121,9 @@ class TestFluidArbitrumUsdcAdapter(unittest.TestCase):
         rec = FluidArbitrumUsdcAdapter(http_get=_fail).fetch()
         self.assertTrue(rec["stale"])
         self.assertFalse(rec["live_data"])
-        self.assertEqual(rec["source"], "cached")
+        # 2026-08-08 (инв. №16): ярлык "cached" описывал литерал, которого никто
+        # не наблюдал. Наблюдения нет ⇒ source="none", apy=None.
+        self.assertEqual(rec["source"], "none")
 
     def test_fetch_live_flag(self):
         rec = FluidArbitrumUsdcAdapter(http_get=_live).fetch()

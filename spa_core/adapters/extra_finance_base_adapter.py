@@ -304,7 +304,7 @@ class ExtraFinanceBaseAdapter(BaseAdapter):
     # Публичные методы (BaseAdapter interface)                             #
     # ------------------------------------------------------------------ #
 
-    def get_apy(self) -> float:
+    def get_apy(self) -> Optional[float]:
         """Возвращает APY в процентах (например 8.0 == 8.0%).
 
         Приоритет:
@@ -316,12 +316,14 @@ class ExtraFinanceBaseAdapter(BaseAdapter):
         live = self._fetch_live_apy()
         if live is not None:
             return live
-        logger.info(
-            "extra_finance_base: DeFiLlama недоступен, "
-            "используем fallback APY=%.1f%%",
-            self.APY_FALLBACK,
+        logger.warning(
+            "%s: живого APY нет — возвращаю None (подстановки больше нет)",
+            self.PROTOCOL,
         )
-        return float(self.APY_FALLBACK)
+        # 2026-08-08, решение владельца «делать все 15» (карточка
+        # `agent-fake-fallback-v-15-adapterah`): подстановка литерала УДАЛЕНА.
+        # Нет наблюдения ⇒ None (ADR-063 п.3, .claude/rules/adapters.md).
+        return None
 
     def get_yield_info(self) -> dict:
         """Возвращает полную информацию о доходности.

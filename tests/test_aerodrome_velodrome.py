@@ -146,12 +146,12 @@ class TestAerodromeBase(unittest.TestCase):
         a = AerodromeUsdcAdapter()
         pools = [_pool("aerodrome-v2", "USDC-AERO", "Base", apy=30.0, tvl=9e8)]
         with _patch_pools(_AERO_MOD, pools):
-            self.assertAlmostEqual(a.get_apy(), AERO_FALLBACK, places=5)
+            self.assertIsNone(a.get_apy())  # ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): ожидался литерал-подстановка. Владелец решил «делать все 15» (`agent-fake-fallback-v-15-adapterah`): нет наблюдения ⇒ None. Та же ветка проверяется, изменилось ожидаемое значение.
 
     def test_09_fallback_on_network_error(self):
         a = AerodromeUsdcAdapter()
         with _patch_error(_AERO_MOD, urllib.error.URLError("down")):
-            self.assertAlmostEqual(a.get_apy(), AERO_FALLBACK, places=5)
+            self.assertIsNone(a.get_apy())  # ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): ожидался литерал-подстановка. Владелец решил «делать все 15» (`agent-fake-fallback-v-15-adapterah`): нет наблюдения ⇒ None. Та же ветка проверяется, изменилось ожидаемое значение.
 
     def test_10_ignores_wrong_chain(self):
         a = AerodromeUsdcAdapter()
@@ -176,14 +176,14 @@ class TestAerodromeBase(unittest.TestCase):
         a = AerodromeUsdcAdapter()
         pools = [_pool("aerodrome-v2", "USDC-USDT", "Base", apy=120.0, tvl=2e6)]
         with _patch_pools(_AERO_MOD, pools):
-            self.assertAlmostEqual(a.get_apy(), AERO_FALLBACK, places=5)
+            self.assertIsNone(a.get_apy())  # ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): ожидался литерал-подстановка. Владелец решил «делать все 15» (`agent-fake-fallback-v-15-adapterah`): нет наблюдения ⇒ None. Та же ветка проверяется, изменилось ожидаемое значение.
 
     def test_13_ignores_thin_pool(self):
         # TVL ниже _MIN_POOL_TVL (500K) не считается живым → fallback
         a = AerodromeUsdcAdapter()
         pools = [_pool("aerodrome-v2", "USDC-USDT", "Base", apy=9.0, tvl=100_000.0)]
         with _patch_pools(_AERO_MOD, pools):
-            self.assertAlmostEqual(a.get_apy(), AERO_FALLBACK, places=5)
+            self.assertIsNone(a.get_apy())  # ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): ожидался литерал-подстановка. Владелец решил «делать все 15» (`agent-fake-fallback-v-15-adapterah`): нет наблюдения ⇒ None. Та же ветка проверяется, изменилось ожидаемое значение.
 
     def test_14_yield_info_decimal(self):
         a = AerodromeUsdcAdapter()
@@ -301,7 +301,7 @@ class TestVelodromeReused(unittest.TestCase):
     def test_05_fallback_on_error(self):
         a = VelodromeOptimismAdapter()
         with _patch_error(_VELO_MOD, urllib.error.URLError("down")):
-            self.assertAlmostEqual(a.get_apy(), VELO_FALLBACK, places=5)
+            self.assertIsNone(a.get_apy())  # ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): ожидался литерал-подстановка. Владелец решил «делать все 15» (`agent-fake-fallback-v-15-adapterah`): нет наблюдения ⇒ None. Та же ветка проверяется, изменилось ожидаемое значение.
 
     def test_06_is_lp_position(self):
         a = VelodromeOptimismAdapter()

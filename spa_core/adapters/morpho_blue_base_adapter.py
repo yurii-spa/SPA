@@ -295,7 +295,7 @@ class MorphoBlueBaseAdapter(BaseAdapter):
     # Публичные методы (BaseAdapter interface)                             #
     # ------------------------------------------------------------------ #
 
-    def get_apy(self) -> float:
+    def get_apy(self) -> Optional[float]:
         """Возвращает APY в процентах (например 6.2 == 6.2%).
 
         Приоритет:
@@ -307,11 +307,14 @@ class MorphoBlueBaseAdapter(BaseAdapter):
         live = self._fetch_live_apy()
         if live is not None:
             return live
-        logger.info(
-            "morpho_blue_base: DeFiLlama недоступен, используем fallback APY=%.1f%%",
-            self.APY_FALLBACK,
+        logger.warning(
+            "%s: живого APY нет — возвращаю None (подстановки больше нет)",
+            self.PROTOCOL,
         )
-        return self.APY_FALLBACK
+        # 2026-08-08, решение владельца «делать все 15» (карточка
+        # `agent-fake-fallback-v-15-adapterah`): подстановка литерала УДАЛЕНА.
+        # Нет наблюдения ⇒ None (ADR-063 п.3, .claude/rules/adapters.md).
+        return None
 
     def get_yield_info(self) -> YieldInfo:
         """Возвращает нормализованный YieldInfo для оркестратора.
@@ -329,12 +332,14 @@ class MorphoBlueBaseAdapter(BaseAdapter):
             else None
         )
         apy_pct = (
-            float(best.get("apy", 0.0)) if best is not None else self.APY_FALLBACK
+            float(best.get("apy", 0.0)) if best is not None else None
         )
         return YieldInfo(
             protocol=self.PROTOCOL,
             asset=self.asset,
-            apy=apy_pct / 100.0,
+            # Нет наблюдения ⇒ apy=None. Падение здесь было бы ХУЖЕ
+            # литерала: оркестратор потерял бы адаптер целиком.
+            apy=None if apy_pct is None else apy_pct / 100.0,
             tvl_usd=live_tvl if live_tvl is not None else float(self.TVL_USD),
             tier=self.tier,
             risk_score=self.RISK_SCORE,

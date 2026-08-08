@@ -159,11 +159,22 @@ class PendlePTSusdeAdapter(BaseAdapter):
                     return float(raw) / 100.0
         except Exception as exc:  # noqa: BLE001
             logger.debug("%s: fetch_apy failed: %s", self.PROTOCOL, exc)
-        return self.FALLBACK_APY
+        # 2026-08-08, решение владельца «делать все 15»: подстановка удалена.
+        # Нет наблюдения ⇒ None (ADR-063 п.3, .claude/rules/adapters.md).
+        logger.warning("%s: живого APY нет — возвращаю None", self.PROTOCOL)
+        return None
 
-    def safe_apy(self) -> float:
-        """fetch_apy() clamped to [MIN_APY, MAX_APY] as a decimal."""
-        return max(self.MIN_APY, min(self.fetch_apy(), self.MAX_APY))
+    def safe_apy(self) -> Optional[float]:
+        """fetch_apy() в границах [MIN_APY, MAX_APY] (decimal), либо ``None``.
+
+        Границы применяются к НАБЛЮДЕНИЮ. К его отсутствию они не применяются:
+        зажать ``None`` в MIN_APY значило бы вернуть ту же подстановку под
+        другим именем.
+        """
+        apy = self.fetch_apy()
+        if apy is None:
+            return None
+        return max(self.MIN_APY, min(apy, self.MAX_APY))
 
     def _fetch_live_tvl(self) -> Optional[float]:
         """Live tvlUsd of the matched pool, or ``None`` — NEVER the constant.
@@ -210,7 +221,12 @@ class PendlePTSusdeAdapter(BaseAdapter):
         """
         if self.is_unwinding():
             return True
-        return self.safe_apy() < self.ROTATION_APY_FLOOR
+        apy = self.safe_apy()
+        # Fail-CLOSED: наблюдения нет ⇒ утверждать «доходность упала ниже пола»
+        # не на чем. Ротация — это ДЕЙСТВИЕ, и без данных оно не назначается.
+        if apy is None:
+            return False
+        return apy < self.ROTATION_APY_FLOOR
 
     def is_eligible(self) -> bool:
         """Allocatable only when TVL clears the floor, APY is in-band, the PT
@@ -222,6 +238,11 @@ class PendlePTSusdeAdapter(BaseAdapter):
         if self.should_rotate():
             return False
         apy = self.safe_apy()
+        # Fail-CLOSED (ADR-063 п.3): нет наблюдения ⇒ НЕ eligible. Раньше здесь
+        # проверялась подстановка, которая по построению всегда лежала в границах,
+        # то есть пул проходил проверку диапазона именно тогда, когда данных не было.
+        if apy is None:
+            return False
         return self.MIN_APY <= apy <= self.MAX_APY
 
     # ── Normalized output ────────────────────────────────────────────────
