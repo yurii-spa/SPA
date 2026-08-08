@@ -97,13 +97,20 @@ def _coverage_score(has_insurance: bool, insurance_coverage_pct: float) -> float
     return round(min(max(raw, 0.0), _COVERAGE_MAX), 4)
 
 
-def _treasury_score(treasury_usd: float, tvl_usd: float) -> float:
+def _treasury_score(treasury_usd: Optional[float], tvl_usd: float) -> Optional[float]:
     """
     0-30 pts on a log scale.
     At treasury/tvl >= 0.20 (20%) → 30 pts.
     Uses log10 scaling: score = log10(1 + ratio/0.20) / log10(2) * 30
     clamped to [0, 30].
+
+    ``treasury_usd is None`` — казна НЕ ИЗМЕРЕНА (решение владельца 2026-08-07,
+    ADR-070 п.15). Возвращается ``None``, а НЕ 0.0: ноль означал бы «казны нет»,
+    то есть такое же утверждение о протоколе, как выдуманные 2% TVL, только с
+    другим знаком. Ноль остаётся честным ответом на измеренную пустую казну.
     """
+    if treasury_usd is None:
+        return None
     if tvl_usd <= 0 or treasury_usd < 0:
         return 0.0
     ratio = treasury_usd / tvl_usd
@@ -176,7 +183,9 @@ class ProtocolInsuranceScorer:
         has_insurance          : bool
         insurance_coverage_pct : float   (0–100)
         insurance_provider     : str     (empty string OK)
-        treasury_usd           : float
+        treasury_usd           : float | None  (None = НЕ ИЗМЕРЕНО, компонента
+                                 исключается из итога и из его базы — ADR-070 п.15;
+                                 отсутствие ключа по-прежнему ValueError)
         tvl_usd                : float
         bug_bounty_usd         : float
         has_timelock           : bool
@@ -203,7 +212,14 @@ class ProtocolInsuranceScorer:
                 "has_insurance": False,
                 "insurance_coverage_pct": 0.0,
                 "insurance_provider": "none",
-                "treasury_usd": _p["tvl_usd"] * 0.02,
+                # Казна протокола в структурной базе _protocol_facts ОТСУТСТВУЕТ.
+                # До 08.08 здесь стояло ``_p["tvl_usd"] * 0.02`` — выдуманное
+                # число, одинаковое (ratio 0.02) для КАЖДОГО протокола: оно
+                # давало 4.13 «заработанных» балла из 30 на пустом месте и было
+                # одной из причин, по которым модуль размечен ``blind_equal``.
+                # Решение владельца 2026-08-07 (ADR-070 п.15): не измерено —
+                # значит отказ, а не подстановка.
+                "treasury_usd": None,
                 "tvl_usd": _p["tvl_usd"],
                 "bug_bounty_usd": _p["bug_bounty_usd"],
                 "has_timelock": bool(_p["has_timelock"]),
@@ -217,7 +233,9 @@ class ProtocolInsuranceScorer:
         has_insurance      = bool(protocol_data["has_insurance"])
         coverage_pct       = float(protocol_data.get("insurance_coverage_pct", 0.0))
         insurance_provider = str(protocol_data.get("insurance_provider", ""))
-        treasury_usd       = float(protocol_data["treasury_usd"])
+        _treasury_raw      = protocol_data["treasury_usd"]
+        treasury_usd       = (None if _treasury_raw is None
+                              else float(_treasury_raw))
         tvl_usd            = float(protocol_data["tvl_usd"])
         bug_bounty_usd     = float(protocol_data.get("bug_bounty_usd", 0.0))
         has_timelock       = bool(protocol_data["has_timelock"])
@@ -228,11 +246,41 @@ class ProtocolInsuranceScorer:
         bug_score  = _bug_bounty_score(bug_bounty_usd)
         tl_score   = _timelock_score(has_timelock, timelock_days)
 
-        total = round(cov_score + tres_score + bug_score + tl_score, 4)
+        # ── Неизмеренная компонента: вон из ЧИСЛИТЕЛЯ и из ЗНАМЕНАТЕЛЯ ──────
+        # Иначе «не измерено» превращается в «нуль баллов», то есть в обвинение
+        # протокола, ничем не подкреплённое. Итог по-прежнему в шкале 0-100
+        # (доля заработанного от ИЗМЕРИМОГО максимума) — пороги тиров
+        # калиброваны на ней, поэтому отказ не двигает тир на пустом месте
+        # (ADR-070 п.15: «UNCHECKED не блокирует протоколы»). База отказа
+        # называется вслух: unmeasured_components / score_basis_max.
+        unmeasured: List[str] = []
+        earned = 0.0
+        basis_max = 0.0
+        for name, part, part_max in (
+            ("coverage",   cov_score,  _COVERAGE_MAX),
+            ("treasury",   tres_score, _TREASURY_MAX),
+            ("bug_bounty", bug_score,  _BUG_BOUNTY_MAX),
+            ("timelock",   tl_score,   _TIMELOCK_MAX),
+        ):
+            if part is None:
+                unmeasured.append(name)
+                continue
+            earned += part
+            basis_max += part_max
+
+        if basis_max <= 0:
+            # Не измерено НИЧЕГО — score'а не существует; молча выдать 0 значило
+            # бы объявить протокол беззащитным. Fail-CLOSED: dormant.
+            return None
+
+        total = round(earned / basis_max * 100.0, 4)
         total = min(total, 100.0)   # hard cap
 
         tier = _protection_tier(total)
-        treasury_ratio = (treasury_usd / tvl_usd) if tvl_usd > 0 else 0.0
+        if treasury_usd is None:
+            treasury_ratio = None
+        else:
+            treasury_ratio = (treasury_usd / tvl_usd) if tvl_usd > 0 else 0.0
 
         result = {
             "protocol": protocol,
@@ -242,7 +290,8 @@ class ProtocolInsuranceScorer:
             "insurance_provider": insurance_provider,
             "treasury_usd": treasury_usd,
             "tvl_usd": tvl_usd,
-            "treasury_tvl_ratio": round(treasury_ratio, 6),
+            "treasury_tvl_ratio": (None if treasury_ratio is None
+                                   else round(treasury_ratio, 6)),
             "bug_bounty_usd": bug_bounty_usd,
             "has_timelock": has_timelock,
             "timelock_days": timelock_days,
@@ -253,6 +302,10 @@ class ProtocolInsuranceScorer:
             "timelock_score": tl_score,
             "total_insurance_score": total,
             "protection_tier": tier,
+            # Отказ обязан быть ВИДЕН в результате, иначе он неотличим от нуля.
+            "unmeasured_components": list(unmeasured),
+            "score_basis_max": round(basis_max, 4),
+            "earned_points": round(earned, 4),
             "computed_at": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -280,6 +333,8 @@ class ProtocolInsuranceScorer:
             "timelock_score": r["timelock_score"],
             "total_insurance_score": r["total_insurance_score"],
             "protection_tier": r["protection_tier"],
+            "unmeasured_components": list(r.get("unmeasured_components", [])),
+            "score_basis_max": r.get("score_basis_max"),
             "score_max": {
                 "coverage": _COVERAGE_MAX,
                 "treasury": _TREASURY_MAX,
@@ -321,7 +376,11 @@ class ProtocolInsuranceScorer:
         if float(data["tvl_usd"]) < 0:
             raise ValueError("tvl_usd must be >= 0")
 
-        if float(data["treasury_usd"]) < 0:
+        # ``treasury_usd is None`` — ЯВНОЕ «не измерено» (ADR-070 п.15), это
+        # разрешённое значение. Отсутствие ключа — по-прежнему ValueError:
+        # дырка в payload'е не должна тихо превращаться в отказ компоненты
+        # (именно так фабрикация 04.08 и пролезала — см. score()).
+        if data["treasury_usd"] is not None and float(data["treasury_usd"]) < 0:
             raise ValueError("treasury_usd must be >= 0")
 
         if float(data.get("bug_bounty_usd", 0)) < 0:
