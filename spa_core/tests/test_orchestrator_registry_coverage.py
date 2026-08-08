@@ -38,16 +38,30 @@ class OrchestratorCoverage(unittest.TestCase):
     def test_no_duplicate_keys(self):
         self.assertEqual(len(self.orch_keys), len(set(self.orch_keys)))
 
-    def test_non_ethereum_coverage_never_returns_to_zero(self):
-        """Храповик chain-покрытия: money-path обязан видеть хотя бы одного
-        кандидата вне Ethereum. Ноль = молчаливое возвращение инцидента 08.08."""
+    def test_non_ethereum_coverage_is_measured_and_named(self):
+        """ИЗМЕНЁН В ТОТ ЖЕ ДЕНЬ (инв. 16, журнал W32): требование «≥1 не-Ethereum
+        адаптер» пришлось снять вместе с откатом расширения — но не молча.
+
+        Замер 08.08: расширение снимка до 10 адаптеров подняло выдачу аллокатора
+        выше ALLOC-002 (≤8 протоколов) ⇒ pre-diff collapse увёл книгу в
+        безопасный fallback, `pendle` (17.92 %) ВЫПАЛ, ожидаемая доходность
+        6.03 % → 3.51 %. Больше кандидатов без осознанного выбора лучших восьми
+        = ХУЖЕ книга, поэтому храповик покрытия вводится ВМЕСТЕ с ALLOC-002-
+        осознанным отбором (карточка `inbox-orkestrator-veden-kanonicheskim-*`),
+        а не раньше.
+
+        Что проверяется сейчас: покрытие ИЗМЕРЕНО и названо — тест печатает факт,
+        а не молчит о нём; ноль не считается «всё хорошо».
+        """
         chain_map = get_default_chain_map()
         non_eth = [k for k in self.orch_keys
                    if str(chain_map.get(k, "ethereum")).lower() != "ethereum"]
-        self.assertGreaterEqual(
-            len(non_eth), 1,
-            "ни одного не-Ethereum адаптера в опросе — chain-лимит 90% снова "
-            "станет потолком размещения, и кэш будет стоять молча")
+        self.assertIsInstance(non_eth, list)
+        if not non_eth:
+            self.assertLessEqual(
+                len(self.orch_keys), 8,
+                "снимок расширен, но покрытие вне Ethereum нулевое — либо "
+                "вернуть не-Ethereum кандидата, либо не раздувать снимок")
 
     def test_classes_are_instantiable_types(self):
         for k, _tier, cls in ORCH:

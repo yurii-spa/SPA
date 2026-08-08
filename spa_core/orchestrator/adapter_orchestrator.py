@@ -91,14 +91,14 @@ ADAPTER_REGISTRY: list[tuple[str, str, type]] = [
     # MP-201: Pendle PT stablecoin markets — T2/T3 dynamic tier, fixed-rate APY
     # via the Pendle V2 REST API. Declared T2 here as registry-level default.
     ("pendle", "T2", PendleAdapter),
-    # ── 2026-08-08 (мандат владельца «оба пути»): ЖИВЫЕ кандидаты вне Ethereum.
-    # Оркестратор опрашивал ТОЛЬКО восемь адаптеров, ВСЕ на Ethereum, при
-    # каноническом реестре из 36 (`spa_core.adapters.ADAPTER_REGISTRY`).
-    # Следствие денежное: книга упиралась в лимит одной цепочки 90% (ADR-062),
-    # ~$20k кэша было НЕКУДА разместить, хотя `morpho_blue_base` отдаёт live APY
-    # 4.95% при live TVL $597M. Класс — «источник ≠ предмет наблюдения».
-    ("morpho_blue_base", "T2", MorphoBlueBaseAdapter),   # Base — снимает chain-потолок
-    ("fluid_fusdc", "T2", FluidFUSDCAdapter),            # Ethereum, 5.22% > книги
+    # ── 2026-08-08: расширение реестра ОТКАЧЕНО в тот же день (см. журнал W32).
+    # Подключение morpho_blue_base + fluid_fusdc довело снимок до 10 адаптеров,
+    # аллокатор выдал больше ALLOC-002 (≤8 протоколов), сработал pre-diff
+    # collapse `_compliant_target` → книга ушла в детерминированный safe
+    # fallback: pendle (17.92% live) ВЫПАЛ, ожидаемая доходность в песочнице
+    # 6.03% → 3.51%. Расширять снимок можно ТОЛЬКО вместе с осознанным выбором
+    # лучших 8 (ALLOC-002), иначе «больше кандидатов» = хуже книга.
+    # Карточка: inbox-orkestrator-veden-kanonicheskim-reestrom.
 ]
 
 
