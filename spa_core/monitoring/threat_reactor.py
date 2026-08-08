@@ -22,6 +22,13 @@ fallback red-flags are ignored):
 Fail-SAFE: the activation write is retried and, if it can't be written, alerts loudly
 (a swallowed error here would mean no protection). Idempotent — won't re-fire while
 the kill-switch is already active.
+
+Recovery (ADR-070 п.4, owner decision 2026-08-07): the reactor also declares the
+``bad → ok`` transition of the ``kill_switch`` alert — the switch verifiably off AND
+no standing threat. Without that exit the alert had an entry and no way back: in prod
+it sat "bad" from 2026-07-04 onward, so push_policy's edge-trigger would have silenced
+every FUTURE kill-switch firing. Thresholds (SOFT −5% / HARD −10%) and RiskPolicy are
+untouched — this is the notification layer only.
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
@@ -106,19 +113,60 @@ def _detect_threats() -> List[str]:
     return threats
 
 
-def _kill_switch_active() -> bool:
-    """Authoritative: true only when the file exists AND active is truthy.
-    (A manual /resume can leave the file present with active=false — file existence
-    alone is NOT 'active', matching how the cycle reads it.)"""
+KS_ACTIVE = "active"
+KS_CLEAR = "clear"
+KS_UNKNOWN = "unknown"
+
+
+def _kill_switch_state() -> str:
+    """Measure the kill-switch: ``active`` / ``clear`` / ``unknown``.
+
+    Three answers, not two, because the two directions need DIFFERENT evidence:
+
+    * to ACT (activate) it is enough to know the switch is not already on — an
+      unreadable state file must not stop protection, so it counts as "not
+      active" exactly as before;
+    * to declare RECOVERY ("стоп-кран снят") we need a POSITIVE measurement that
+      it is off. A file we failed to parse is not evidence of anything, and
+      announcing "✅ всё хорошо" off an unreadable file is precisely the
+      fail-OPEN shape this whole class of fix removes.
+
+    ``clear`` therefore means measured-off: the checker said so, or the file is
+    verifiably ABSENT (kill OFF = file absent, the same reading the daily cycle
+    uses), or it parsed with ``active`` falsy. A file that exists but cannot be
+    read/parsed — or whose very existence cannot be determined — is ``unknown``.
+    Never raises.
+    """
     try:
         from spa_core.governance.kill_switch import KillSwitchChecker
         res = KillSwitchChecker(data_dir=str(_DATA)).is_kill_switch_active()
-        return bool(res[0] if isinstance(res, tuple) else res)  # API returns (bool, reason)
+        return KS_ACTIVE if bool(res[0] if isinstance(res, tuple) else res) else KS_CLEAR
     except Exception:
-        d = _load("kill_switch_active.json", None)
-        if d is None:
-            return False
-        return bool(d.get("active", True))  # legacy: bare file == active
+        pass
+    path = _DATA / "kill_switch_active.json"
+    try:
+        if not path.exists():
+            return KS_CLEAR          # absent file = off, measured
+    except OSError:
+        return KS_UNKNOWN            # cannot even stat it — we do not know
+    try:
+        d = json.loads(path.read_text())
+    except Exception:
+        return KS_UNKNOWN            # present but unreadable — we do not know
+    if not isinstance(d, dict):
+        return KS_UNKNOWN
+    return KS_ACTIVE if bool(d.get("active", True)) else KS_CLEAR  # bare file == active
+
+
+def _kill_switch_active() -> bool:
+    """Authoritative: true only when the file exists AND active is truthy.
+    (A manual /resume can leave the file present with active=false — file existence
+    alone is NOT 'active', matching how the cycle reads it.)
+
+    Unchanged behaviour: everything that is not a measured ``active`` is "not
+    active" here, so an unreadable state file can never block an activation.
+    """
+    return _kill_switch_state() == KS_ACTIVE
 
 
 def _activate(reason: str) -> bool:
@@ -184,6 +232,63 @@ def _send_telegram(msg: str, dedup_key: str | None = None) -> None:
         pass
 
 
+def _pending_kill_switch_incident() -> dict | None:
+    """The push_policy edge-record for ``kill_switch`` IFF it is still ``bad``.
+
+    ``None`` when nothing is pending OR the state cannot be read — a state-read
+    error must never manufacture a recovery (fail-CLOSED). Never raises.
+    """
+    try:
+        from spa_core.telegram import push_policy
+        rec = push_policy.current_record("kill_switch")
+        if rec.get("state") == "bad":
+            return rec
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
+def _resolve_kill_switch(rec: dict) -> bool:
+    """Emit the ONE ``bad → ok`` "✅ стоп-кран снят" push. Never raises.
+
+    ADR-070 п.4 (owner decision 2026-08-07, variant A). Until this existed the
+    ``kill_switch`` key had an entry path and no exit: measured in prod it sat
+    ``bad`` since 2026-07-04 with ``entry_pushed: false``, which means the owner
+    never received that alarm AND — because push_policy is edge-triggered — would
+    never receive the NEXT one either. The one alert that must never be eaten was
+    the one being eaten.
+
+    The final word belongs to this reactor because it is the only component that
+    measures BOTH halves of "recovered": the switch is verifiably off AND no
+    CRITICAL threat is standing. The other sender (``monitoring/intraday_equity``)
+    only ever fires the switch, so it keeps entry-only rights — the same split
+    owner decision own-28 drew for ``core_agent_down``.
+
+    The message says out loud when the original alarm was never delivered:
+    "система уверена, что сообщила, а сообщения не было" is the defect being
+    closed here, so the recovery must not quietly imply the owner saw the entry.
+    """
+    stuck_since = str(rec.get("last_ts") or "")[:19].replace("T", " ")
+    body = ["Стоп-кран сейчас снят, CRITICAL-угроз не видно — тревога закрыта."]
+    if stuck_since:
+        body.append(f"Событие висело в состоянии «плохо» с {stuck_since} UTC.")
+    if not bool(rec.get("entry_pushed", True)):
+        body.append(
+            "Внимание: то, ПЕРВОЕ сообщение о срабатывании до тебя тогда не дошло "
+            "(доставка не подтверждена). Пока событие висело, следующая тревога "
+            "тоже была бы беззвучной — теперь снова прозвучит."
+        )
+    try:
+        from spa_core.telegram import push_policy
+        return bool(push_policy.resolve(
+            "kill_switch",
+            "SPA Threat Reactor — стоп-кран снят",
+            "\n".join(body),
+        ))
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _save(report: dict) -> None:
     try:
         _DATA.mkdir(parents=True, exist_ok=True)
@@ -198,7 +303,14 @@ def _save(report: dict) -> None:
 def run_reactor(dry_run: bool = False) -> dict:
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     threats = _detect_threats()
+    # Two reads on purpose. ``_kill_switch_active`` stays the seam the ACTIVATION
+    # decision hangs on (and the seam the chaos tests inject at — moving it would
+    # have silently un-tested re-activation storms); ``_kill_switch_state`` adds the
+    # third answer, "unknown", that only the RECOVERY decision needs. They can
+    # disagree only under injection, and then the "on" reading wins: any sign of the
+    # switch being up blocks a recovery announcement.
     already = _kill_switch_active()
+    ks_state = KS_ACTIVE if already else _kill_switch_state()
     acted = False
     activation_failed = False
 
@@ -223,12 +335,34 @@ def run_reactor(dry_run: bool = False) -> dict:
                 dedup_key="activation_failed:" + threat_fp,
             )
 
+    # ── Recovery: the exit the ``kill_switch`` alert never had (ADR-070 п.4) ──
+    # Only when BOTH halves are measured: the switch is verifiably off AND no
+    # CRITICAL threat is standing. Anything else (unknown state, threats still
+    # up) holds the alert bad and SAYS SO in the report — a recovery we cannot
+    # measure is not announced, and a hold-back we cannot see is not a hold-back.
+    resolved_alert = False
+    recovery_held_back = None
+    pending = None if dry_run else _pending_kill_switch_incident()
+    if pending is not None:
+        if ks_state == KS_CLEAR and not threats:
+            resolved_alert = _resolve_kill_switch(pending)
+            if not resolved_alert:
+                recovery_held_back = "resolve_not_delivered"
+        elif ks_state != KS_CLEAR:
+            recovery_held_back = f"kill_switch_state_{ks_state}"
+        else:
+            recovery_held_back = "threats_still_present"
+
     report = {
         "ts": now,
         "threats": threats,
+        "kill_switch_state": ks_state,
         "kill_switch_already_active": already,
         "acted": acted,
         "activation_failed": activation_failed,
+        "alert_pending_before_run": pending is not None,
+        "alert_resolved": resolved_alert,
+        "recovery_held_back": recovery_held_back,
         "clear": not threats,
         "LLM_FORBIDDEN": True,
     }

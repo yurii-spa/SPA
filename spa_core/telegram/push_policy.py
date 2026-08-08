@@ -133,11 +133,21 @@ TIER1_WHITELIST: frozenset[str] = frozenset(
 # Keys whose push is gated on hitting a HELD protocol (live capital at risk).
 HELD_SCOPED_KEYS: frozenset[str] = frozenset({"peg_break", "red_flag"})
 
-# One-shot keys: each occurrence is a DISTINCT real event (a new lead), NOT a persistent
-# condition. They bypass the edge-trigger (which would silence the 2nd+ occurrence as
-# "still bad") and instead always push — subject only to the daily ceiling — never recording
-# a persistent bad-state. A material lead today and another tomorrow both ping.
-ONESHOT_KEYS: frozenset[str] = frozenset({"pilot_request"})
+# One-shot keys: each occurrence is a DISTINCT real event (a new lead, a new milestone),
+# NOT a persistent condition. They bypass the edge-trigger (which would silence the 2nd+
+# occurrence as "still bad") and instead always push — subject only to the daily ceiling —
+# never recording a persistent bad-state. A material lead today and another tomorrow both ping.
+#
+# ``golive_ready`` joined this set on 2026-08-08 (ADR-070 п.4). It was never a *condition*
+# that goes bad and later recovers: its only senders (``reporting/alert_on_milestone.py``,
+# ``alerts/milestone_alert.py``) announce a MILESTONE — good news, one line of the track
+# crossing a threshold. Routing good news through the bad-state edge-trigger booked it as
+# ``bad`` and then silenced the NEXT milestone as "still bad": measured in prod, the key sat
+# ``bad`` and no sender in the repository could ever resolve it (grep for ``resolve(`` finds
+# four call sites, none of them a milestone). Re-firing is not a spam risk here because both
+# senders already dedup per milestone id in their own state file — the class-level bad-state
+# added no dedup, only silence.
+ONESHOT_KEYS: frozenset[str] = frozenset({"pilot_request", "golive_ready"})
 
 DEFAULT_DAILY_CEILING = 10
 

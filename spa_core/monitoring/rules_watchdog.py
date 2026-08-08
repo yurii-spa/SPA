@@ -24,6 +24,13 @@ Exit code: 1 если есть критические нарушения, 0 ин
 Ни один порог/правило здесь не живёт: авторитетный гейт — `spa_core/risk/policy.py`,
 лестница kill-switch — `spa_core/governance/kill_switch.py`.
 
+Выздоровление тревоги (ADR-070 п.4, решение владельца 2026-08-07): у события
+`rules_critical` был вход и не было выхода — в проде оно висело в «плохо» с 08.07,
+а push_policy срабатывает по перелому, то есть СЛЕДУЮЩЕЕ настоящее нарушение
+прозвучало бы беззвучно. Теперь при полностью чистом прогоне (`overall == "OK"`:
+нет нарушений И нет непроверенного) объявляется один `resolve`. Пороги и правила
+не менялись — это слой уведомлений.
+
 Использование:
     python3 -m spa_core.monitoring.rules_watchdog
     python3 -m spa_core.monitoring.rules_watchdog --once  # один прогон
@@ -129,6 +136,59 @@ def _send_telegram(message: str, dedup_key: str | None = None) -> bool:
         )
     except Exception as e:  # noqa: BLE001
         log.warning("rules_watchdog: push_policy send failed: %s", e)
+        return False
+
+
+def _pending_rules_incident() -> Optional[dict]:
+    """The push_policy edge-record for ``rules_critical`` IFF it is still ``bad``.
+
+    ``None`` when nothing is pending OR the state cannot be read — a state-read
+    error must never manufacture a recovery (fail-CLOSED). Never raises.
+    """
+    try:
+        from spa_core.telegram import push_policy
+        rec = push_policy.current_record("rules_critical")
+        if rec.get("state") == "bad":
+            return rec
+    except Exception as e:  # noqa: BLE001
+        log.warning("rules_watchdog: push_policy state read failed: %s", e)
+    return None
+
+
+def _resolve_rules_critical(rec: dict) -> bool:
+    """Emit the ONE ``bad → ok`` "✅ нарушений нет" push. Never raises.
+
+    ADR-070 п.4 (owner decision 2026-08-07, variant A). ``rules_critical`` had an
+    entry path and no exit: measured in prod it sat ``bad`` since 2026-07-08, and
+    push_policy is edge-triggered, so the NEXT genuine breach would have been
+    swallowed as "still bad".
+
+    Deliberately NOT symmetric with the entry condition. The alert fires on
+    ``critical``; it clears only on ``overall == "OK"`` — no breach *and* nothing
+    UNCHECKED. A rule that could not be evaluated is not a rule that passed
+    (invariant #2), and "the breach is gone" claimed from a check that never ran
+    is the same fail-OPEN we keep closing. The hold-back is named in the report,
+    so a permanently-unchecked rule shows up as a visible reason rather than as
+    silence.
+    """
+    stuck_since = str(rec.get("last_ts") or "")[:19].replace("T", " ")
+    body = ["Критических нарушений правил больше нет — тревога закрыта."]
+    if stuck_since:
+        body.append(f"Событие висело в состоянии «плохо» с {stuck_since} UTC.")
+    if not bool(rec.get("entry_pushed", True)):
+        body.append(
+            "Внимание: то, ПЕРВОЕ сообщение о нарушении до тебя тогда не дошло "
+            "(доставка не подтверждена)."
+        )
+    try:
+        from spa_core.telegram import push_policy
+        return bool(push_policy.resolve(
+            "rules_critical",
+            "SPA Rules Watchdog — нарушений нет",
+            "\n".join(body),
+        ))
+    except Exception as e:  # noqa: BLE001
+        log.warning("rules_watchdog: push_policy resolve failed: %s", e)
         return False
 
 
@@ -751,9 +811,29 @@ def run_watchdog(write: bool = True, send_alert: bool = True) -> int:
     else:
         overall = "OK"
 
+    # ── Recovery: the exit the ``rules_critical`` alert never had (ADR-070 п.4) ──
+    # Fires only on a fully clean bill of health (``overall == "OK"``: nothing
+    # breached AND nothing unmeasured). Every hold-back is NAMED in the report —
+    # an alert we keep pinned must not look like an alert nobody had to pin.
+    alert_resolved = False
+    recovery_held_back = None
+    pending = _pending_rules_incident() if send_alert else None
+    if pending is not None:
+        if not critical and overall == "OK":
+            alert_resolved = _resolve_rules_critical(pending)
+            if not alert_resolved:
+                recovery_held_back = "resolve_not_delivered"
+        elif critical:
+            recovery_held_back = "breach_still_present"
+        else:
+            recovery_held_back = f"overall_{overall.lower()}"
+
     report = {
         "checked_at": ts,
         "overall": overall,
+        "alert_pending_before_run": pending is not None,
+        "alert_resolved": alert_resolved,
+        "recovery_held_back": recovery_held_back,
         "critical_count": len(critical),
         "warning_count": len(warnings),
         "unchecked_count": len(unchecked),
