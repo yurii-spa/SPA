@@ -58,6 +58,36 @@ def _run_guard(site_files: list[str], message: str) -> tuple[int, dict]:
     return rc, report
 
 
+def _violations_fingerprint(violations: list) -> str:
+    """Стабильный отпечаток НАБОРА нарушений: файл + правило, отсортировано.
+
+    Порядок и текст совпадения намеренно не участвуют: линтер может выдать те же нарушения
+    в другом порядке, а `matched_text` меняется от правки к правке внутри той же области —
+    и то, и другое породило бы «новый инцидент» там, где решение владельцу нужно одно.
+    """
+    import hashlib
+
+    parts = sorted(f"{v.get('file')}|{v.get('rule')}" for v in violations)
+    return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()[:12]
+
+
+def _open_card_with_fingerprint(fingerprint: str):
+    """Открытая (`needs-owner`) карточка с тем же отпечатком, если она есть.
+
+    Никогда не бросает: сбой поиска не имеет права ПОДАВИТЬ карточку — в сомнении карточка
+    создаётся (лучше лишняя, чем потерянное решение владельца).
+    """
+    try:
+        from spa_core.owner_queue.queue import list_cards  # type: ignore
+
+        for card in list_cards(tracker_type="owner-decision", status="needs-owner"):
+            if f"owner-gate-fingerprint: {fingerprint}" in (card.body or ""):
+                return card.path
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
 def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> None:
     """Create a needs-owner card for the blocked change and notify (best-effort)."""
     violations = report.get("violations", [])
@@ -98,6 +128,25 @@ def _route_to_owner_card(site_files: list[str], report: dict, message: str) -> N
         "не трогает эту область.",
     ]
     body = "\n".join(lines)
+
+    # ИДЕМПОТЕНТНОСТЬ. Оркестратор повторяет попытку пуша регулярно, и КАЖДЫЙ упор в
+    # owner-gate заводил НОВУЮ карточку и слал НОВОЕ уведомление: замер 08.08 — три
+    # одинаковых карточки за 40 минут и поток одинаковых сообщений владельцу.
+    #
+    # Отпечаток — набор нарушений (файл + правило). Тот же набор ⇒ карточка уже открыта,
+    # молчим. ДРУГОЙ набор ⇒ это новое решение, заводим и говорим. Дедуп, а не подавление:
+    # ни одна проверка не ослаблена, owner-gate по-прежнему НЕ пускает правку в live.
+    fingerprint = _violations_fingerprint(violations)
+    existing = _open_card_with_fingerprint(fingerprint)
+    if existing is not None:
+        print(f"safe_site_push: owner card already open for the same violations "
+              f"({existing.name}) — not creating a duplicate, not notifying",
+              file=sys.stderr)
+        return
+    lines.append("")
+    lines.append(f"<!-- owner-gate-fingerprint: {fingerprint} -->")
+    body = "\n".join(lines)
+
     try:
         from spa_core.owner_queue.queue import create_card  # type: ignore
 
