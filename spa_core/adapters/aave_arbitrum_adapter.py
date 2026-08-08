@@ -60,7 +60,6 @@ _FINALITY_DAYS_MAINNET  = 7    # дней для bridge finality на Ethereum
 # ---------------------------------------------------------------------------
 # APY и TVL
 # ---------------------------------------------------------------------------
-_APY_FALLBACK_PCT = 4.1          # % (Arbitrum premium ~+0.9% к mainnet 3.2%)
 _APY_STATUS_KEY   = "aave_arbitrum"   # ключ в data/adapter_status.json
 _TVL_USD          = 1_200_000_000    # $1.2B TVL на Arbitrum
 
@@ -85,7 +84,6 @@ class AaveArbitrumAdapter(BaseAdapter):
     TIER           : "T1"
     T1_CAP         : 0.40 (максимум 40% портфеля)
     RISK_SCORE     : 0.22 (T1 L2 — ниже риска чем T2)
-    APY_FALLBACK   : 4.1 (%)
     """
 
     # Сетевые константы — публичные для доступа из тестов
@@ -104,7 +102,8 @@ class AaveArbitrumAdapter(BaseAdapter):
     EXIT_LATENCY_HOURS  = 0.0    # мгновенный выход (same-block на L2)
 
     # APY
-    APY_FALLBACK    = _APY_FALLBACK_PCT
+    # APY_FALLBACK УДАЛЁН 2026-08-08 (решение владельца «делать все 15»).
+    # Атрибута больше НЕТ намеренно: пока он существует, его легко вернуть.
     _APY_STATUS_KEY = _APY_STATUS_KEY
 
     # TVL
@@ -169,30 +168,37 @@ class AaveArbitrumAdapter(BaseAdapter):
             )
         return None
 
-    def get_apy(self) -> float:
-        """Возвращает APY в процентах (напр. 4.1 означает 4.1%).
+    def get_apy(self) -> Optional[float]:
+        """Возвращает APY в процентах (напр. 4.1 означает 4.1%) либо ``None``.
 
         Приоритет источника:
           1. data/adapter_status.json → ключ "aave_arbitrum" → поле "apy"
-          2. Fallback: APY_FALLBACK = 4.1%
+          2. **ничего** — наблюдения нет ⇒ ``None``.
+
+        ADR-063 п.3 / `.claude/rules/adapters.md`: «нет данных ⇒ None». Прежняя
+        подстановка ``APY_FALLBACK = 4.1`` удалена решением владельца
+        2026-08-08 (карточка `agent-fake-fallback-v-15-adapterah`, «делать все
+        15»). Это ЕДИНСТВЕННЫЙ T1 в списке, поэтому он чинится первым: его
+        литерал доходил до ``YieldInfo.apy`` — поверхности оркестратора.
         """
-        apy = self._load_apy_from_status()
-        if apy is not None:
-            return apy
-        return self.APY_FALLBACK
+        return self._load_apy_from_status()
 
     # ------------------------------------------------------------------ #
     # Обязательные методы BaseAdapter                                      #
     # ------------------------------------------------------------------ #
 
     def get_yield_info(self) -> YieldInfo:
-        """Возвращает нормализованный YieldInfo для оркестратора."""
+        """Возвращает нормализованный YieldInfo для оркестратора.
+
+        Наблюдения нет ⇒ ``apy=None``: оркестратор запишет отсутствие живых
+        данных и fail-CLOSED, а не будет ранжировать капитал по константе.
+        """
         apy_pct = self.get_apy()
         return YieldInfo(
             protocol=self.PROTOCOL,
             asset=self.asset,
             # YieldInfo.apy — decimal (0.041 для 4.1%)
-            apy=apy_pct / 100.0,
+            apy=None if apy_pct is None else apy_pct / 100.0,
             tvl_usd=float(self.TVL_USD),
             tier=self.tier,
             risk_score=self.RISK_SCORE,
@@ -229,14 +235,16 @@ class AaveArbitrumAdapter(BaseAdapter):
             )
         apy_pct = self.get_apy()
         self._allocated_capital += capital
-        annual_yield = capital * (apy_pct / 100.0)
+        # Нет наблюдения ⇒ ожидаемый доход НЕ ВЫЧИСЛЯЕТСЯ. Ноль был бы таким же
+        # выдуманным числом, как 4.1 %, только выглядел бы безобиднее.
+        annual_yield = None if apy_pct is None else capital * (apy_pct / 100.0)
 
         return {
             "status": "allocated",
             "capital_usd": capital,
             "total_allocated_usd": self._allocated_capital,
             "apy_pct": apy_pct,
-            "annual_yield_usd": round(annual_yield, 4),
+            "annual_yield_usd": None if annual_yield is None else round(annual_yield, 4),
             "network": self.NETWORK,
             "chain_id": self.CHAIN_ID,
             "pool_address": self.POOL_ADDRESS,

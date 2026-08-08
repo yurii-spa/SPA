@@ -19,7 +19,6 @@
   "_card": "owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst.md",
   "_followup_card": "agent-fake-fallback-v-15-adapterah.md",
   "known_violators": [
-    "aave_arbitrum",
     "aave_v3_base",
     "aerodrome_base",
     "dolomite_arbitrum",
@@ -34,5 +33,8 @@
     "silo_arbitrum",
     "usual_usd0pp",
     "velodrome_optimism"
+  ],
+  "_progress": [
+    "2026-08-08: владелец решил «делать все 15». Вычеркнут aave_arbitrum (единственный T1)."
   ]
 }

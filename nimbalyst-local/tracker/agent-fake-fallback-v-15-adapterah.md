@@ -91,3 +91,38 @@ tags: [adapters, adr-063, money-path, fake-fallback, ratchet]
 По мере починки адаптер **вычёркивается** из `spa_core/tests/adapter_fake_fallback_baseline.json`
 (храповик может только сокращаться). Тест `test_baseline_only_shrinks` краснеет на починенном,
 но не вычеркнутом — забыть нельзя.
+
+---
+
+## 📊 Прогресс: 1 из 15 (2026-08-08)
+
+**Готово — `aave_arbitrum` (T1, единственный T1 в списке, поэтому первым).**
+`APY_FALLBACK = 4.1` удалён **как атрибут**; `get_apy() -> Optional[float]`;
+`get_yield_info().apy` больше не несёт литерал в оркестратор; `allocate()` при отсутствии
+наблюдения отдаёт `apy_pct=None` и `annual_yield_usd=None` (ноль был бы таким же выдуманным
+числом, только тише). Вычеркнут из храповика: **осталось 14**.
+
+**Инв. №16 — намеренные изменения тестов.** Класс `TestApyFallback` в
+`spa_core/tests/test_aave_arbitrum.py` закреплял ровно удаляемое поведение (`get_apy() == 4.1`
+в четырёх ветках). Переписан на `is None`; те же четыре ветки чтения проверяются по-прежнему.
+Два теста (`> 0`, `< 100`) УСИЛЕНЫ до проверки, что границы применяются к наблюдению и не
+применяются к его отсутствию. `test_allocate_annual_yield_math` считал арифметику от подставного
+4.1 % — переписан на наблюдённый APY, случай «наблюдения нет» вынесен отдельным тестом.
+Добавлены контроли в обратную сторону (наблюдение проходит, `YieldInfo.apy` живой).
+77/77 зелёные.
+
+## Рецепт для оставшихся 14 (проверен на T1)
+
+1. `get_apy()` → `Optional[float]`, вернуть чтение статуса без подстановки.
+2. Удалить сам атрибут `APY_FALLBACK` / `FALLBACK_APY` — не «перестать использовать», а удалить.
+3. Пройти по ВСЕМ внутренним потребителям `get_apy()` в файле: `get_yield_info` (главное —
+   это поверхность оркестратора), `allocate`, `health_check`, `to_dict`. Везде `None` вместо
+   арифметики; осторожно с `round(None)` — падает `TypeError`.
+4. Тесты: класс `TestApyFallback` (или его аналог) переписать на `is None` с обоснованием в
+   докстринге; добавить контроль в обратную сторону, иначе `return None` будет зелёным.
+5. Вычеркнуть адаптер из `spa_core/tests/adapter_fake_fallback_baseline.json`.
+
+**Осталось (14):** `aave_v3_base` · `aerodrome_base` · `dolomite_arbitrum` · `ethena_susde` ·
+`extra_finance_base` (+ починить его `get_yield_info()`, падает `AttributeError`) ·
+`fluid_arbitrum` · `fluid_usdc` · `moonwell_base` · `morpho_blue_base` · `pendle_pt_susde` ·
+`pendle_pt_usdc` · `silo_arbitrum` · `usual_usd0pp` · `velodrome_optimism`.

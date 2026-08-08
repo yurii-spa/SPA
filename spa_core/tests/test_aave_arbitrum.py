@@ -200,45 +200,77 @@ class TestApyFromJson:
 # ===========================================================================
 
 class TestApyFallback:
-    """APY fallback 4.1% при отсутствии или невалидности JSON."""
+    """Наблюдения нет ⇒ None. Подстановки 4.1 % больше не существует.
 
-    def test_fallback_when_no_file(self, tmp_path):
+    ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16). Класс назывался «APY fallback 4.1 %
+    при отсутствии или невалидности JSON» и закреплял ровно то поведение,
+    которое владелец приказал убрать («делать все 15», карточка
+    `agent-fake-fallback-v-15-adapterah`).
+
+    Проверка НЕ ослаблена: те же четыре ветки чтения (нет файла / нет записи /
+    битый JSON / apy=null) проверяются по-прежнему — изменилось ожидаемое
+    значение, с выдуманного на честное. Два теста, требовавшие «> 0» и
+    «< 100», УСИЛЕНЫ: теперь они требуют, чтобы граничные проверки применялись
+    к НАБЛЮДЕНИЮ, а к его отсутствию не применялись вовсе.
+
+    Это единственный T1 в списке из пятнадцати, и его литерал доходил до
+    ``YieldInfo.apy`` — поверхности оркестратора.
+    """
+
+    def test_none_when_no_file(self, tmp_path):
         data_dir = _make_data_dir_empty(tmp_path)
         a = AaveArbitrumAdapter(data_dir=data_dir)
-        assert a.get_apy() == 4.1
+        assert a.get_apy() is None
 
-    def test_fallback_when_no_entry(self, tmp_path):
+    def test_none_when_no_entry(self, tmp_path):
         data_dir = _make_data_dir_no_entry(tmp_path)
         a = AaveArbitrumAdapter(data_dir=data_dir)
-        assert a.get_apy() == 4.1
+        assert a.get_apy() is None
 
-    def test_fallback_when_broken_json(self, tmp_path):
+    def test_none_when_broken_json(self, tmp_path):
         data_dir = _make_data_dir_broken_json(tmp_path)
         a = AaveArbitrumAdapter(data_dir=data_dir)
-        assert a.get_apy() == 4.1
+        assert a.get_apy() is None
 
-    def test_fallback_when_null_apy(self, tmp_path):
+    def test_none_when_null_apy(self, tmp_path):
         data_dir = _make_data_dir_null_apy(tmp_path)
         a = AaveArbitrumAdapter(data_dir=data_dir)
-        assert a.get_apy() == 4.1
+        assert a.get_apy() is None
 
-    def test_fallback_constant_value(self):
-        assert AaveArbitrumAdapter.APY_FALLBACK == 4.1
+    def test_fallback_constant_no_longer_exists(self):
+        """Атрибута нет СОВСЕМ — пока он есть, его легко «вернуть на минутку»."""
+        assert not hasattr(AaveArbitrumAdapter, "APY_FALLBACK")
 
     def test_load_apy_returns_none_when_no_file(self, tmp_path):
         data_dir = _make_data_dir_empty(tmp_path)
         a = AaveArbitrumAdapter(data_dir=data_dir)
         assert a._load_apy_from_status() is None
 
-    def test_fallback_never_zero(self, tmp_path):
-        data_dir = _make_data_dir_empty(tmp_path)
-        a = AaveArbitrumAdapter(data_dir=data_dir)
-        assert a.get_apy() > 0
+    def test_observed_apy_still_passes_through(self, tmp_path):
+        """Контроль в обратную сторону: наблюдение не превращается в None.
 
-    def test_apy_below_100pct(self, tmp_path):
-        data_dir = _make_data_dir_empty(tmp_path)
-        a = AaveArbitrumAdapter(data_dir=data_dir)
-        assert a.get_apy() < 100
+        Без него «починка» вида ``return None`` всегда была бы зелёной.
+        """
+        import json
+        d = tmp_path / "data_ok"
+        d.mkdir()
+        (d / "adapter_status.json").write_text(
+            json.dumps({"aave_arbitrum": {"apy": 2.3475}}), encoding="utf-8")
+        a = AaveArbitrumAdapter(data_dir=str(d))
+        assert a.get_apy() == pytest.approx(2.3475)
+        assert a.get_yield_info().apy == pytest.approx(0.023475)
+
+    def test_yield_info_apy_is_none_without_observation(self, tmp_path):
+        """Поверхность ОРКЕСТРАТОРА — то место, куда литерал доходил."""
+        a = AaveArbitrumAdapter(data_dir=_make_data_dir_empty(tmp_path))
+        assert a.get_yield_info().apy is None
+
+    def test_allocate_reports_no_yield_without_observation(self, tmp_path):
+        """Ноль был бы таким же выдуманным числом, как 4.1 — только тише."""
+        a = AaveArbitrumAdapter(data_dir=_make_data_dir_empty(tmp_path))
+        r = a.allocate(10_000.0)
+        assert r["apy_pct"] is None
+        assert r["annual_yield_usd"] is None
 
 
 # ===========================================================================
@@ -364,12 +396,21 @@ class TestAllocate:
         assert a._allocated_capital == pytest.approx(5000.0)
 
     def test_allocate_annual_yield_math(self, tmp_path):
-        """annual_yield = capital * (apy_pct / 100). При fallback APY 4.1%."""
-        data_dir = _make_data_dir_empty(tmp_path)
-        a = AaveArbitrumAdapter(data_dir=data_dir)
+        """annual_yield = capital * (apy_pct / 100) — на НАБЛЮДЁННОМ APY.
+
+        ИЗМЕНЁН НАМЕРЕННО 2026-08-08 (инв. №16): тест считал математику от
+        подставного 4.1 %, которого больше нет. Арифметика проверяется ровно
+        та же, но на наблюдении; случай «наблюдения нет» проверяется отдельно
+        (`test_allocate_reports_no_yield_without_observation`).
+        """
+        import json
+        d = tmp_path / "data_obs"
+        d.mkdir()
+        (d / "adapter_status.json").write_text(
+            json.dumps({"aave_arbitrum": {"apy": 4.1}}), encoding="utf-8")
+        a = AaveArbitrumAdapter(data_dir=str(d))
         result = a.allocate(10_000.0)
-        expected_yield = 10_000.0 * 0.041
-        assert result["annual_yield_usd"] == pytest.approx(expected_yield, rel=1e-6)
+        assert result["annual_yield_usd"] == pytest.approx(10_000.0 * 0.041, rel=1e-6)
 
     def test_allocate_raises_on_zero(self, tmp_path):
         a = AaveArbitrumAdapter(data_dir=_make_data_dir_empty(tmp_path))
