@@ -23,7 +23,8 @@ LP_CYCLE_VERSION = "lp_cycle_v1.1"
 
 # Virtual seed capital for the LP sleeve — separate book ON TOP of the $100k safe
 # sleeve, so the go-live honest track is untouched (decision 2026-06-23).
-LP_SEED_EQUITY = 10_000.0
+# 2026-08-08 (мандат владельца): пакет Balanced = $100k (HY 2 : LP 1).
+LP_SEED_EQUITY = 33_333.33
 
 # IL kill switch threshold: IL drawdown > -12% → kill switch
 IL_KILL_THRESHOLD = -0.12

@@ -21,7 +21,10 @@ HY_CYCLE_VERSION = "hy_cycle_v1.1"
 
 # Virtual seed capital for the HY sleeve — separate book ON TOP of the $100k safe
 # sleeve, so the go-live honest track is untouched (decision 2026-06-23).
-HY_SEED_EQUITY = 20_000.0
+# 2026-08-08 (мандат владельца): пакет Balanced = $100k, как Conservative и
+# Aggressive — иначе три трека несопоставимы по доходности и просадке.
+# Пропорция рукавов HY:LP = 2:1 сохранена, изменён только масштаб.
+HY_SEED_EQUITY = 66_666.67
 
 # Kill switch threshold: drawdown > 8% → EXIT
 _KILL_DRAWDOWN_THRESHOLD = -0.08
