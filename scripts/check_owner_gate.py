@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import re
 import subprocess
@@ -55,6 +56,11 @@ from typing import Any, Iterable
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
+
+# 2026-08-08: логгер добавлен вместе с починкой обхода. До этого модуль не имел
+# ни одной строки диагностики — поэтому «обход не сработал» и «обход упал»
+# выглядели снаружи одинаково, и дефект прожил незамеченным с первого дня.
+log = logging.getLogger("spa.owner_gate")
 
 # ── which paths are in scope (the deploy surface) ───────────────────────────
 _SITE_PREFIX = "landing/"
@@ -376,24 +382,60 @@ def _approved_scope(commit_message: str | None, repo: Path) -> dict[str, Any] | 
     card_id = m.group(1).strip()
     try:
         from spa_core.owner_queue.queue import load_card, list_cards  # type: ignore
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        log.warning("owner-gate bypass: очередь карточек недоступна (%s) — обхода нет", exc)
         return None
     card = None
     try:
-        for c in list_cards(card_type="owner-decision"):
+        # 2026-08-08 (решение владельца, вариант А карточки
+        # `owner-decision-zapasnoi-klyuch-k-zaschite-saita-ne-rabo`).
+        # ЗДЕСЬ БЫЛА ОПЕЧАТКА: звали `card_type=`, а параметр называется
+        # `tracker_type`. Вызов падал TypeError, TypeError молча проглатывался
+        # соседним `except Exception`, и обход НЕ РАБОТАЛ НИКОГДА — с первого дня.
+        # Опасного не произошло (замок был ЗАКРЫТ), но инструкция обещала
+        # владельцу механизм, которого не существовало.
+        for c in list_cards(tracker_type="owner-decision"):
             cid = str(getattr(c, "id", "") or getattr(c, "name", ""))
             if card_id.lower() in cid.lower() or cid.lower() in card_id.lower():
                 card = c
                 break
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        # Молчаливое проглатывание убрано: сбой проверки обязан быть СЛЫШЕН.
+        # Именно немота и позволила дефекту прожить незамеченным.
+        log.warning("owner-gate bypass: поиск карточки %s упал (%s) — обхода нет",
+                    card_id, exc)
         card = None
     if card is None:
+        log.info("owner-gate bypass: карточка %s не найдена — обхода нет", card_id)
         return None
     status = str(getattr(card, "status", "") or "").lower()
     if status != "owner-done":
+        log.info("owner-gate bypass: карточка %s в статусе %r, а не owner-done — обхода нет",
+                 card_id, status)
         return None
     fm = getattr(card, "frontmatter", {}) or {}
-    return {"card": card_id, "approves": fm.get("approves", [])}
+    return {"card": card_id, "approves": _parse_approves(fm.get("approves"))}
+
+
+def _parse_approves(raw) -> list[str]:
+    """`approves:` из карточки → СПИСОК путей/классов.
+
+    Вторая половина поломки 2026-08-08: список читался как одна сплошная строка.
+    Починить только опечатку значило бы поменять «молча не работает» на «молча
+    работает НЕ ТАК» — и второе хуже, потому что тогда обход открывался бы не на
+    те файлы. Поэтому чинятся обе половины или ни одной.
+
+    Принимаются обе формы записи: YAML-список и строка через запятую/перевод
+    строки. Пустые куски отбрасываются — пустая строка не должна превращаться
+    в разрешение на пустой путь.
+    """
+    if raw is None:
+        return []
+    if isinstance(raw, (list, tuple, set)):
+        items = [str(x) for x in raw]
+    else:
+        items = re.split(r"[,\n;]+", str(raw))
+    return [s.strip().strip("'\"") for s in items if str(s).strip().strip("'\"")]
 
 
 # ── main check ──────────────────────────────────────────────────────────────
