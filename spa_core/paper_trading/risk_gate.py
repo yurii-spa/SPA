@@ -463,6 +463,7 @@ def redistribute_freed_budget(
     t2_cap_pct: float = 0.20,
     t2_total_cap_pct: float = 0.35,
     max_protocols: int = 8,
+    max_single_chain_pct: float = 0.90,
 ) -> dict:
     """Перераздаёт бюджет, СРЕЗАННЫЙ гейтом, в оставшихся честных кандидатов.
 
@@ -515,7 +516,23 @@ def redistribute_freed_budget(
         }
         blocked = frozen | reduced_by_gate
 
+        # ADR-072.1: цепочка кандидата — из снимка, иначе из канонической карты,
+        # иначе КОНСЕРВАТИВНО «ethereum» (занижает headroom, не завышает).
+        # Без этого перераздача предлагала заведомо отвергаемое: гейт валил её
+        # на «Chain concentration on ethereum 91% > 90%» (замер 08.08).
+        try:
+            from spa_core.risk.chain_limits import get_default_chain_map
+            chain_map = dict(get_default_chain_map())
+        except Exception:  # noqa: BLE001
+            chain_map = {}
+
+        def _chain_of(proto: str, meta: dict | None = None) -> str:
+            if meta and meta.get("chain"):
+                return str(meta["chain"]).lower()
+            return str(chain_map.get(proto, "ethereum")).lower()
+
         tier_of: dict[str, str] = {}
+        chain_of: dict[str, str] = {}
         candidates: list[tuple[float, str]] = []
         for a in adapters:
             if not isinstance(a, dict):
@@ -525,6 +542,7 @@ def redistribute_freed_budget(
                 continue
             tier = str(a.get("tier", "T2")).upper()
             tier_of[p] = tier
+            chain_of[str(p)] = _chain_of(str(p), a)
             apy = a.get("apy_pct")
             tvl_live = (a.get("tvl_source") == "live")
             if (tvl_live and isinstance(apy, (int, float))
@@ -536,6 +554,11 @@ def redistribute_freed_budget(
         new_target = dict(gate_target)
         t2_deployed = sum(float(v) for p, v in new_target.items()
                           if str(tier_of.get(p, "T2")).upper() != "T1")
+        # текущая экспозиция по цепочкам (доли от КАПИТАЛА — как считает гейт)
+        chain_usd: dict[str, float] = {}
+        for p, v in new_target.items():
+            c = chain_of.get(p) or _chain_of(str(p))
+            chain_usd[c] = chain_usd.get(c, 0.0) + float(v)
         funded = {p for p, v in new_target.items() if float(v) > 1e-6}
 
         for _neg_apy, p in candidates:
@@ -546,6 +569,11 @@ def redistribute_freed_budget(
             headroom = cap * cap_pct - float(new_target.get(p, 0.0))
             if tier != "T1":
                 headroom = min(headroom, cap * t2_total_cap_pct - t2_deployed)
+            # лимит одной цепочки (ADR-062, 90% капитала): предлагаем только то,
+            # что гейт СМОЖЕТ принять — иначе он отвергает перераздачу целиком
+            chain = chain_of.get(p, "ethereum")
+            headroom = min(headroom,
+                           cap * max_single_chain_pct - chain_usd.get(chain, 0.0))
             if headroom <= 1e-6:
                 continue
             if p not in funded and len(funded) >= max_protocols:
@@ -555,6 +583,7 @@ def redistribute_freed_budget(
             out["added"][p] = round(out["added"].get(p, 0.0) + add, 2)
             if tier != "T1":
                 t2_deployed += add
+            chain_usd[chain] = chain_usd.get(chain, 0.0) + add
             funded.add(p)
             freed -= add
             out["notes"].append(
@@ -563,6 +592,12 @@ def redistribute_freed_budget(
 
         if out["added"]:
             out["target_usd"] = new_target
+        elif out["freed_usd"] > 0:
+            out["notes"].append(
+                "ADR-072: свободный бюджет $"
+                f"{out['freed_usd']:,.0f} размещать НЕКУДА под лимитами "
+                "(цепочка/тир/ALLOC-002) — cap-bound, не «непонятный простой»")
+            out["cap_bound"] = True
     except Exception as exc:  # noqa: BLE001 — перераздача не смеет валить цикл
         log.warning("ADR-072 redistribute_freed_budget failed (%s) — вход без изменений", exc)
         return {"target_usd": dict(gate_target), "added": {}, "freed_usd": 0.0,

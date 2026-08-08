@@ -43,14 +43,42 @@ class PositiveControl(unittest.TestCase):
     def test_freed_budget_goes_to_live_positive_candidates(self):
         pre, post, adapters, gate = incident()
         r = redistribute_freed_budget(post, pre, CAP, adapters, gate)
-        # строго срезанное гейтом: 95k заявлено − 70k осталось = 25k
-        self.assertAlmostEqual(sum(r["added"].values()), 25_000.0, delta=1.0)
+        # ИЗМЕНЕНО ОСОЗНАННО 2026-08-08 (инв. 16, журнал W32): было 25k «всё
+        # срезанное». Замер на проде показал, что гейт отвергает такую
+        # перераздачу целиком («Chain concentration on ethereum 91% > 90%»),
+        # т.е. прежнее ожидание описывало ЗАВЕДОМО ОТВЕРГАЕМОЕ предложение.
+        # Проверка УСИЛЕНА: срезано по-прежнему 25k (freed_usd), но предлагается
+        # ровно то, что лимит цепочки ПРОПУСТИТ: 90% × 100k − 70k(ethereum) = 20k.
         self.assertAlmostEqual(r["freed_usd"], 25_000.0, delta=1.0)
+        self.assertAlmostEqual(sum(r["added"].values()), 20_000.0, delta=1.0)
         self.assertIn("compound_v3", r["added"])          # T1 3.3% > кэш 0%
         self.assertNotIn("maple", r["added"])             # срезан гейтом
         self.assertNotIn("morpho_steakhouse", r["added"])  # срезан гейтом
         self.assertLessEqual(sum(r["target_usd"].values()), CAP * 0.95 + 1e-6)
         self.assertTrue(all("ADR-072" in n for n in r["notes"]))  # именовано
+
+    def test_chain_limit_caps_the_offer(self):
+        """Лимит одной цепочки (90% капитала) режет предложение ДО гейта —
+        иначе гейт отвергал бы перераздачу целиком (замер 08.08)."""
+        pre, post, adapters, gate = incident()
+        r = redistribute_freed_budget(post, pre, CAP, adapters, gate)
+        eth_after = sum(v for p, v in r["target_usd"].items())  # все на ethereum
+        self.assertLessEqual(eth_after, CAP * 0.90 + 1e-6)
+        # с более щедрым лимитом цепочки предложение больше — проверка живая
+        r2 = redistribute_freed_budget(post, pre, CAP, adapters, gate,
+                                       max_single_chain_pct=0.99)
+        self.assertGreater(sum(r2["added"].values()), sum(r["added"].values()))
+
+    def test_cap_bound_is_named_not_silent(self):
+        """Размещать некуда ⇒ честное имя, а не молчание (ADR-055)."""
+        pre = {"aave_v3": 40_000.0, "x": 55_000.0}
+        post = {"aave_v3": 40_000.0}          # гейт срезал x целиком
+        gate = {"tvl_unverified": ["x"], "approved": True}
+        r = redistribute_freed_budget(post, pre, CAP, [adapter("x", "T1", 5.0)],
+                                      gate)
+        self.assertEqual(r["added"], {})
+        self.assertTrue(r.get("cap_bound"))
+        self.assertTrue(any("НЕКУДА" in n for n in r["notes"]))
 
     def test_gate_frozen_pool_never_refilled(self):
         pre, post, adapters, gate = incident()
