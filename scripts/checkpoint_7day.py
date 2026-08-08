@@ -509,11 +509,52 @@ def run_checkpoint(data_dir: Path = DATA) -> int:
             f"{fail_str}\n\n{summary}"
         )
 
-    ok = notify_telegram(tg_msg)
-    if not ok:
-        print("\n[Telegram] Could not send notification (token/chat_id unavailable).")
+    # ОТПРАВКА — через push_policy, а не напрямую в транспорт.
+    #
+    # Замер 08.08: три ОДИНАКОВЫХ сообщения владельцу за шесть минут (13:06, 13:08, 13:12),
+    # каждое — про одну и ту же дыру в треке 2026-06-21 → 2026-06-30, известную с июня.
+    # Прямая отправка не помнит, что уже говорила, поэтому повторяет при каждом запуске:
+    # владелец получает шум, а на шум перестают смотреть — и следующая НАСТОЯЩАЯ поломка
+    # проедет незамеченной.
+    #
+    # `dedup_key` — отпечаток КОНКРЕТНОГО набора провалов. Тот же набор молчит; ДРУГОЙ
+    # набор (появилась новая дыра, отвалилась ещё проверка) — звучит. Это дедуп, а не
+    # подавление: ни одна проверка не ослаблена, изменился только повтор одного и того же.
+    ok = _notify_via_push_policy(passed, failures, tg_msg)
+    if not ok and not passed:
+        print("\n[Telegram] Уведомление не ушло (либо дедуп: тот же набор провалов уже сообщён).")
 
     return 0 if passed else 1
+
+
+def _notify_via_push_policy(passed: bool, failures: list, tg_msg: str) -> bool:
+    """Отправить через единственный авторитет с дедупом. Никогда не бросает.
+
+    Провал не проходит ⇒ печатаем в консоль и возвращаем False: молчание канала не имеет
+    права выглядеть как «проверка прошла».
+    """
+    try:
+        if str(BASE) not in sys.path:
+            sys.path.insert(0, str(BASE))
+        from spa_core.telegram import push_policy
+
+        if passed:
+            # Выход из тревоги обязателен: без него следующий провал был бы беззвучным
+            # («всё ещё плохо») — ровно дефект ADR-070 п.4.
+            return bool(push_policy.resolve(
+                "checkpoint_failed",
+                "7-дневный чекпойнт снова проходит",
+                tg_msg,
+            ))
+        return bool(push_policy.push_critical(
+            "checkpoint_failed",
+            "WARNING",
+            f"7-дневный чекпойнт: провалов {len(failures)}",
+            tg_msg,
+            dedup_key=",".join(sorted(str(f) for f in failures)),
+        ))
+    except Exception:  # noqa: BLE001 — уведомление не имеет права уронить сам чекпойнт
+        return False
 
 
 if __name__ == "__main__":

@@ -221,6 +221,21 @@ def test_alert_names_the_real_problem_in_russian(tmp_path):
     assert "OK" not in text  # здоровые проверки в тревогу не попадают
 
 
+@pytest.mark.parametrize("status", [TH.OK, TH.WARN, TH.UNKNOWN, TH.CRITICAL])
+def test_every_status_has_its_own_headline(status):
+    """Положительный контроль замеренного дефекта (08.08 13:15): сообщение о ВЫЗДОРОВЛЕНИИ
+    ушло владельцу с телом «⚠️ не всё измерено».
+
+    Причина — двоичный выбор заголовка «CRITICAL или всё остальное». Теперь заголовок есть
+    у каждого статуса, и забыть один нельзя: параметризация покраснеет.
+    """
+    text = TH.alert_text(TH.Report(status=status, checked_at=""))
+    assert TH._HEAD_BY_STATUS[status].split("<b>")[1] in text
+    if status == TH.OK:
+        assert "не всё измерено" not in text
+        assert "сломан" not in text
+
+
 def test_notification_goes_through_the_single_push_authority(monkeypatch):
     """Тревога уходит ЧЕРЕЗ `push_policy`, а не прямо в транспорт.
 

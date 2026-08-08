@@ -419,6 +419,8 @@ class TestEveryStatefulKeyHasAnExit(unittest.TestCase):
         "core_agent_down", "kill_switch", "rules_critical",
         # telegram_down (ADR-077): сторож Телеграма объявляет и поломку, и выздоровление.
         "telegram_down",
+        # checkpoint_failed: чекпойнт объявляет и провал, и возврат к норме.
+        "checkpoint_failed",
     }
 
     def test_every_whitelisted_key_can_leave_the_bad_state(self):
@@ -451,6 +453,7 @@ class TestEveryStatefulKeyHasAnExit(unittest.TestCase):
             "kill_switch": "spa_core/monitoring/threat_reactor.py",
             "rules_critical": "spa_core/monitoring/rules_watchdog.py",
             "telegram_down": "spa_core/monitoring/telegram_health.py",
+            "checkpoint_failed": "scripts/checkpoint_7day.py",
         }
         self.assertEqual(set(senders), self.RESOLVED_BY_SENDERS)
         for key, rel in senders.items():
