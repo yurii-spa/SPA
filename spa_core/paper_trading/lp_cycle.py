@@ -146,10 +146,20 @@ def run_lp_cycle(dry_run: bool = True) -> dict:
 
     # Self-seed: fund the sleeve ONLY when the state is genuinely fresh (never run,
     # no equity, no history). Guards against clobbering an in-flight book.
+    # 2026-08-08 (мандат владельца «три пакета должны работать»): прежнее условие
+    # требовало ПУСТОЙ истории и НУЛЯ циклов — но первый же прогон дописывал в
+    # историю запись с нулевым капиталом, и засев становился НЕВОЗМОЖЕН НАВСЕГДА.
+    # Замер: HY 918 циклов, LP 929 циклов вхолостую с 22.06 — книги нулевые,
+    # агенты живы, «работа» имитировалась. Класс «замок, который нельзя открыть»
+    # (ср. go-live на невосстановимых дырах, ADR-067).
+    # Новое условие: засеваем, если денег НЕ БЫЛО НИКОГДА — ни сейчас, ни в
+    # истории. Книга, у которой капитал БЫЛ и обнулился, НЕ засевается: это
+    # потеря, её надо разбирать, а не затирать свежим сидом (fail-closed).
+    _hist = state.get("daily_history") or []
+    _ever_funded = any(float(h.get("equity", 0) or 0) > 0 for h in _hist)
     if (float(state.get("seed_equity", 0) or 0) <= 0
             and float(state.get("equity", 0) or 0) <= 0
-            and not state.get("daily_history")
-            and int(state.get("cycles_completed", 0) or 0) == 0):
+            and not _ever_funded):
         state["seed_equity"] = LP_SEED_EQUITY
         state["equity"] = LP_SEED_EQUITY
         state["peak_equity"] = LP_SEED_EQUITY
