@@ -44,6 +44,23 @@ from spa_core.utils.atomic import atomic_save
 log = logging.getLogger("spa.monitoring.deployment_acceptance")
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def measuring_from_worktree(root: Optional[Path] = None) -> bool:
+    """Правда ли, что нас спросили из git-worktree, а не из рабочего дерева прода.
+
+    У worktree `.git` — ФАЙЛ со ссылкой на общий каталог, у обычного дерева это
+    каталог. Признак структурный: не зависит от путей и работает для любого
+    worktree, как бы он ни назывался.
+
+    Зачем. Свежесть артефактов измеряется по mtime файлов в `data/`. В worktree
+    там лежит git-копия, а не живое состояние прода: файлы «протухшие» просто
+    потому, что их выложил checkout. Сессии обязаны гонять приёмку до и после
+    изменений, работают при этом в worktree — и получают уверенный вердикт
+    «задание не отработало» про агента, который на деле отработал минуты назад.
+    """
+    r = Path(root) if root else _REPO_ROOT
+    return (r / ".git").is_file()
 STATE_FILENAME = "deployment_acceptance.json"
 DEFAULT_AGENT_DIR = Path.home() / "Library" / "LaunchAgents"
 AGENT_GLOB = "com.spa.*.plist"
@@ -91,6 +108,7 @@ class AcceptanceReport:
     entrypoints_broken: List[dict] = field(default_factory=list)
     imports_failed: List[dict] = field(default_factory=list)
     artifacts_overdue: List[dict] = field(default_factory=list)
+    artifacts_unchecked: Optional[str] = None
     reasons: List[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -263,7 +281,16 @@ def run_acceptance(
         rep.entrypoints_total = len(entries)
         rep.entrypoints_broken = check_entrypoints(agent_dir)
         rep.imports_failed = check_imports(modules, import_runner, repo_root)
-        rep.artifacts_overdue = check_scheduled_artifacts(data_dir, artifacts)
+        if data_dir is None and measuring_from_worktree(repo_root):
+            # Не измеряем то, о чём не можем судить. «Не измерено» — честный ответ;
+            # уверенное «протухло» про чужое дерево было бы ложной тревогой, а
+            # ложная тревога учит выключать проверку.
+            rep.artifacts_unchecked = (
+                "измерено из git-worktree: data/ здесь — checkout, а не живое "
+                "состояние прода. Свежесть артефактов НЕ ПРОВЕРЕНА. Запусти приёмку "
+                "из рабочего дерева прода.")
+        else:
+            rep.artifacts_overdue = check_scheduled_artifacts(data_dir, artifacts)
 
         if rep.entrypoints_broken:
             rep.reasons.append(
@@ -280,9 +307,12 @@ def run_acceptance(
                 "{} scheduled artifact(s) overdue — the job did not run: {}".format(
                     len(rep.artifacts_overdue), [a["artifact"] for a in rep.artifacts_overdue]))
 
+        if rep.artifacts_unchecked:
+            rep.reasons.append(rep.artifacts_unchecked)
+
         if rep.entrypoints_broken or rep.imports_failed:
             rep.status = CRITICAL
-        elif rep.artifacts_overdue:
+        elif rep.artifacts_overdue or rep.artifacts_unchecked:
             rep.status = WARNING
         elif rep.entrypoints_total == 0:
             # No entrypoints found at all is not a clean bill of health: it means
@@ -321,7 +351,9 @@ def format_report_text(doc: dict) -> str:
              "  entrypoints : {} checked, {} broken".format(
                  doc.get("entrypoints_total"), len(doc.get("entrypoints_broken", []))),
              "  imports     : {} failed".format(len(doc.get("imports_failed", []))),
-             "  artifacts   : {} overdue".format(len(doc.get("artifacts_overdue", [])))]
+             "  artifacts   : {}".format(
+                 doc.get("artifacts_unchecked")
+                 or "{} overdue".format(len(doc.get("artifacts_overdue", []))))]
     for e in doc.get("entrypoints_broken", [])[:10]:
         lines.append("    ✗ {}: {}".format(e.get("label"), e.get("problem")))
     for m in doc.get("imports_failed", [])[:5]:
