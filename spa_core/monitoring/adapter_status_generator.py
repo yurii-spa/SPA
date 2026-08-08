@@ -199,7 +199,12 @@ def _fetch_defillama(timeout: int = DEFILLAMA_TIMEOUT) -> Optional[list]:
     # transitively — cycles, chaos, status — would hang). Returns None → the
     # generator's existing NON-LIVE fallback (APY honestly marked non-live, never
     # fabricated). Production (SPA_ENV != ci) is unaffected.
-    if os.environ.get("SPA_ENV") == "ci":
+    # Признак прогона тестов, а не окружения — та же правка, что в base_gas_monitor
+    # 2026-08-08. Условие SPA_ENV=="ci" защищало CI и НЕ защищало машину разработчика.
+    # Здесь правка строго сохраняет поведение: сетевой поход из тестов и так кончается
+    # OSError, который ловится ниже и даёт ровно этот же None. Менялось только время и
+    # 400 отказов на прогон. В проде переменной нет — фид читается как читался.
+    if os.environ.get("SPA_ENV") == "ci" or os.environ.get("PYTEST_CURRENT_TEST"):
         return None
     try:
         req = urllib.request.Request(
