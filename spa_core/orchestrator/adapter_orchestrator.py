@@ -42,6 +42,8 @@ from spa_core.adapters import (
     YearnV3Adapter,
 )
 from spa_core.adapters.morpho_steakhouse_adapter import MorphoSteakhouseAdapter
+from spa_core.adapters.morpho_blue_base_adapter import MorphoBlueBaseAdapter
+from spa_core.adapters.fluid_fusdc_adapter import FluidFUSDCAdapter
 from spa_core.orchestrator.health_score import (
     compute_health_score,
     compute_overall_health,
@@ -89,6 +91,14 @@ ADAPTER_REGISTRY: list[tuple[str, str, type]] = [
     # MP-201: Pendle PT stablecoin markets — T2/T3 dynamic tier, fixed-rate APY
     # via the Pendle V2 REST API. Declared T2 here as registry-level default.
     ("pendle", "T2", PendleAdapter),
+    # ── 2026-08-08 (мандат владельца «оба пути»): ЖИВЫЕ кандидаты вне Ethereum.
+    # Оркестратор опрашивал ТОЛЬКО восемь адаптеров, ВСЕ на Ethereum, при
+    # каноническом реестре из 36 (`spa_core.adapters.ADAPTER_REGISTRY`).
+    # Следствие денежное: книга упиралась в лимит одной цепочки 90% (ADR-062),
+    # ~$20k кэша было НЕКУДА разместить, хотя `morpho_blue_base` отдаёт live APY
+    # 4.95% при live TVL $597M. Класс — «источник ≠ предмет наблюдения».
+    ("morpho_blue_base", "T2", MorphoBlueBaseAdapter),   # Base — снимает chain-потолок
+    ("fluid_fusdc", "T2", FluidFUSDCAdapter),            # Ethereum, 5.22% > книги
 ]
 
 
