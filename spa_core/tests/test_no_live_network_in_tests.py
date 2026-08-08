@@ -141,14 +141,25 @@ class TestGuardRefusesLiveNetwork(unittest.TestCase):
         self._saved_urlopen = urllib.request.urlopen
         self._saved_connect = socket.socket.connect
         self._saved_connect_ex = socket.socket.connect_ex
-        self.guard.install()
         # Inert transports: "delegated" must never mean "went out".
+        #
+        # Installed BEFORE install() so the guard genuinely WRAPS them
+        # (2026-08-08, cycle #163). They used to be poked into the module's
+        # `_real_*` globals afterwards, which only worked because the wrappers
+        # re-read those globals on every call — and that re-reading is exactly
+        # the defect that made re-installing both guards build the cycle
+        # `telegram_guard -> network_guard -> telegram_guard -> …`. The
+        # delegate is now bound at wrap time, so the stub has to be in place
+        # when the wrap happens. Injection technique only: every assertion in
+        # this class is unchanged, and the test now exercises the real wrapping
+        # path rather than a back door into the module's state.
         self.delegated = []
-        self.guard._real_urlopen = lambda req, *a, **kw: (
+        urllib.request.urlopen = lambda req, *a, **kw: (
             self.delegated.append(self.guard._url_of(req)) or "REAL-RESPONSE"
         )
-        self.guard._real_connect = lambda s, addr: self.delegated.append(addr)
-        self.guard._real_connect_ex = lambda s, addr: self.delegated.append(addr)
+        socket.socket.connect = lambda s, addr: self.delegated.append(addr)
+        socket.socket.connect_ex = lambda s, addr: self.delegated.append(addr)
+        self.guard.install()
 
     def tearDown(self):
         urllib.request.urlopen = self._saved_urlopen

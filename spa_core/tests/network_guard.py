@@ -112,6 +112,15 @@ _ATTEMPTS: List[str] = []
 #: recurring failure class starts.  Kept for the end-of-run report instead.
 _ARCHIVE: List[Tuple[str, List[str]]] = []
 
+#: ``(nodeid, what_was_missing)`` for every test that found this guard knocked
+#: out of the ``urlopen`` chain and had it re-installed by
+#: :func:`ensure_installed`.  Recorded rather than silently repaired: a guard
+#: that quietly puts itself back is indistinguishable from a guard that was
+#: never attacked, and "repaired without telling anyone" is the same
+#: fail-OPEN shape this module exists to close.  Printed by ``conftest``'s
+#: end-of-run report.
+_CLOBBERS: List[Tuple[str, str]] = []
+
 _real_urlopen = None       # set by install()
 _real_connect = None       # set by install()
 _real_connect_ex = None    # set by install()
@@ -121,9 +130,19 @@ _CONNECT_MARKER = "_spa_network_guard_connect"
 
 #: Marker stamped by :mod:`telegram_guard` on ITS wrapper.  This guard installs
 #: first and the Telegram guard wraps it, so after a normal conftest load the
-#: current ``urlopen`` carries the Telegram marker, not this one.  Recognising
-#: it is what keeps :func:`install` idempotent instead of double-wrapping.
+#: current ``urlopen`` carries the Telegram marker, not this one.
+#:
+#: Recognising it is NOT, however, evidence that this guard is still in the
+#: chain — see :func:`_urlopen_layer_present`.
 _TELEGRAM_MARKER = "_spa_telegram_guard"
+
+#: How a wrapper points at the callable it delegates to.  Both guards set it,
+#: which is what makes the chain walkable instead of guessable.
+_WRAPPED_ATTR = "__wrapped__"
+
+#: How deep to follow ``__wrapped__`` before declaring the chain pathological.
+#: A cycle would otherwise hang the walk; the real chain is 2 links.
+_MAX_CHAIN_DEPTH = 32
 
 
 def attempts() -> List[str]:
@@ -198,18 +217,50 @@ def is_loopback_host(host: str) -> bool:
     return host.startswith("127.")
 
 
+def urlopen_chain() -> List[Any]:
+    """The ``urlopen`` delegation chain, outermost first.
+
+    Each guard's wrapper records what it wraps in ``__wrapped__``, so the chain
+    can be *walked* rather than guessed at from whatever sits on top.
+    """
+    chain: List[Any] = []
+    current = urllib.request.urlopen
+    seen = set()
+    for _ in range(_MAX_CHAIN_DEPTH):
+        if current is None or id(current) in seen:
+            break
+        seen.add(id(current))
+        chain.append(current)
+        current = getattr(current, _WRAPPED_ATTR, None)
+    return chain
+
+
 def _urlopen_layer_present() -> bool:
-    """``True`` when this guard's ``urlopen`` wrapper is still in the chain.
+    """``True`` when THIS guard's ``urlopen`` wrapper is still in the chain.
 
     It is not necessarily the OUTERMOST callable: :mod:`telegram_guard` wraps
     it on purpose (so Telegram keeps its own, more specific report), and that
-    wrapper delegates everything else down to this one.  So both markers count
-    as "still guarded"; only an unmarked callable means a real clobber.
+    wrapper delegates everything else down to this one.
+
+    Why this walks the chain instead of reading the top marker (2026-08-08,
+    cycle #163, card ``inbox-retsidiv-setevoi-strazh-snova-krasneet-t``)
+    ---------------------------------------------------------------------
+    It used to accept EITHER marker on the outermost callable — including
+    :mod:`telegram_guard`'s.  That is a different question than the one it was
+    read as answering: "some guard is on top" is not "my layer is in the
+    chain".  ``tests/conftest.py`` breaks the two apart in every full run —
+    line 58 replaces ``urlopen`` by plain assignment (destroying the chain),
+    then line 171 re-installs ONLY the Telegram guard.  The result is
+    ``telegram_guard -> _blocked_urlopen`` with this guard gone, yet the old
+    check reported ``True``: :func:`is_installed` lied, :func:`install` took
+    its early return and did nothing, and ``TestGuardIsInstalled`` stayed
+    green while the network layer was absent.  Three tests that read the
+    ledger went red instead, and only in a full run — the exact fail-OPEN
+    shape ("a guard answers ITS question and is read as answering the needed
+    one") this repo keeps closing.
     """
-    current = urllib.request.urlopen
-    return bool(
-        getattr(current, _URLOPEN_MARKER, False)
-        or getattr(current, _TELEGRAM_MARKER, False)
+    return any(
+        getattr(link, _URLOPEN_MARKER, False) for link in urlopen_chain()
     )
 
 
@@ -247,14 +298,27 @@ def install() -> None:
 
     if not (_real_urlopen is not None and _urlopen_layer_present()):
         _real_urlopen = urllib.request.urlopen
+        # Bound HERE, once, and read from the closure — never from the module
+        # global (2026-08-08, cycle #163).  Re-installing rebinds the global, so
+        # a wrapper that read it would start delegating to whatever was
+        # installed LAST instead of what it actually wraps.  With both guards
+        # doing that, a re-install of each produced a cycle —
+        # `telegram_guard -> network_guard -> telegram_guard -> …` — and the
+        # first real call died with RecursionError (measured: three
+        # `test_chaos_resilience::test_self_heal_*` tests).  The delegate a
+        # wrapper calls must be fixed at the moment it wraps.
+        _base_urlopen = _real_urlopen
 
         def _guarded_urlopen(req, *args, **kwargs):  # type: ignore[no-untyped-def]
             url = _url_of(req)
             if not is_loopback_host(_host_of(url)):
                 raise _refuse(f"urlopen {url[:120]}")
-            return _real_urlopen(req, *args, **kwargs)  # type: ignore[misc]
+            return _base_urlopen(req, *args, **kwargs)  # type: ignore[misc]
 
         setattr(_guarded_urlopen, _URLOPEN_MARKER, True)
+        # Make the link walkable: _urlopen_layer_present() follows __wrapped__
+        # rather than trusting whatever marker happens to be outermost.
+        setattr(_guarded_urlopen, _WRAPPED_ATTR, _base_urlopen)
         urllib.request.urlopen = _guarded_urlopen  # type: ignore[assignment]
 
     if not (
@@ -263,23 +327,75 @@ def install() -> None:
     ):
         _real_connect = socket.socket.connect
         _real_connect_ex = socket.socket.connect_ex
+        # Same closure discipline as the urlopen layer above — see there.
+        _base_connect = _real_connect
+        _base_connect_ex = _real_connect_ex
 
         def _guarded_connect(self, address):  # type: ignore[no-untyped-def]
             host = address[0] if isinstance(address, tuple) and address else ""
             if not is_loopback_host(str(host)):
                 raise _refuse(f"connect {address!r}")
-            return _real_connect(self, address)  # type: ignore[misc]
+            return _base_connect(self, address)  # type: ignore[misc]
 
         def _guarded_connect_ex(self, address):  # type: ignore[no-untyped-def]
             host = address[0] if isinstance(address, tuple) and address else ""
             if not is_loopback_host(str(host)):
                 raise _refuse(f"connect_ex {address!r}")
-            return _real_connect_ex(self, address)  # type: ignore[misc]
+            return _base_connect_ex(self, address)  # type: ignore[misc]
 
         setattr(_guarded_connect, _CONNECT_MARKER, True)
         setattr(_guarded_connect_ex, _CONNECT_MARKER, True)
         socket.socket.connect = _guarded_connect        # type: ignore[assignment]
         socket.socket.connect_ex = _guarded_connect_ex  # type: ignore[assignment]
+
+
+def missing_layers() -> List[str]:
+    """Which of the two layers is NOT in effect right now, by name.
+
+    Names the gap instead of collapsing it to a bool, so a report can say what
+    was knocked out rather than only that something was.
+    """
+    missing: List[str] = []
+    if not (_real_urlopen is not None and _urlopen_layer_present()):
+        missing.append("urlopen")
+    if not (
+        _real_connect is not None
+        and getattr(socket.socket.connect, _CONNECT_MARKER, False)
+    ):
+        missing.append("socket.connect")
+    return missing
+
+
+def ensure_installed(nodeid: str = "") -> List[str]:
+    """Re-install any layer that was knocked out, and RECORD that it happened.
+
+    Called before every test by ``conftest``'s autouse fixture.  Two things
+    make this a repair rather than a papering-over:
+
+    * it is loud — the clobber is appended to :data:`_CLOBBERS` and printed at
+      the end of the run, because a guard that silently restores itself is
+      indistinguishable from one that was never attacked;
+    * it is not the only defence — the layer it restores is the one that
+      actually refuses the call, so restoring it changes what the suite
+      *enforces*, not merely what it reports.
+
+    Returns the layers that had to be restored (empty when nothing was wrong).
+    """
+    missing = missing_layers()
+    if missing:
+        install()
+        _CLOBBERS.append((nodeid, ",".join(missing)))
+    return missing
+
+
+def clobbers() -> List[Tuple[str, str]]:
+    """Tests that found this guard knocked out, in the order they ran."""
+    return [(nodeid, what) for nodeid, what in _CLOBBERS]
+
+
+def clear_clobbers() -> None:
+    """Forget recorded clobbers.  Used by this guard's own hermetic tests."""
+    _CLOBBERS.clear()
 
 
 def uninstall() -> None:

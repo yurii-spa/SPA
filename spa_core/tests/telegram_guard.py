@@ -121,6 +121,13 @@ def install() -> None:
     if is_installed():
         return
     _real_urlopen = urllib.request.urlopen
+    # Bound HERE and read from the closure, never from the module global
+    # (cycle #163). install() rebinds that global, so a wrapper reading it would
+    # delegate to whatever was installed LAST rather than to what it wraps —
+    # with network_guard doing the same, re-installing both built the cycle
+    # `telegram_guard -> network_guard -> telegram_guard -> …` and the next real
+    # call died with RecursionError.
+    _base_urlopen = _real_urlopen
 
     def _guarded_urlopen(req, *args, **kwargs):  # type: ignore[no-untyped-def]
         url = _url_of(req)
@@ -133,9 +140,14 @@ def install() -> None:
                 "sender (patch the module's _send_* / _post_message) or pass "
                 "dry_run=True."
             )
-        return _real_urlopen(req, *args, **kwargs)  # type: ignore[misc]
+        return _base_urlopen(req, *args, **kwargs)  # type: ignore[misc]
 
     setattr(_guarded_urlopen, _MARKER, True)
+    # Point at what this wrapper delegates to, so the chain can be WALKED.
+    # network_guard.is_installed() used to read only the outermost marker and
+    # therefore mistook this guard's presence for its own (cycle #163); it now
+    # follows __wrapped__ down, which only works if every link sets it.
+    setattr(_guarded_urlopen, "__wrapped__", _base_urlopen)
     urllib.request.urlopen = _guarded_urlopen  # type: ignore[assignment]
 
 

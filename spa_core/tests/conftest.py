@@ -512,6 +512,31 @@ def _scope_network_guard_ledger(request):
     concerns are separate — messaging the owner's chat is an incident, reaching
     a price feed under test is a design smell with 102 known instances.
     """
+    # Put the guard BACK if something knocked it out of the urlopen chain
+    # (2026-08-08, cycle #163, card
+    # `inbox-retsidiv-setevoi-strazh-snova-krasneet-t`).
+    #
+    # tests/conftest.py replaces urlopen by plain assignment (line 58) and then
+    # re-installs ONLY telegram_guard (line 171), so in every run that collects
+    # both roots the chain becomes `telegram_guard -> _blocked_urlopen` with
+    # network_guard gone — before the first test runs. The network was still
+    # blocked (the sibling block is also fail-CLOSED), but THIS guard's ledger
+    # stayed empty, and the three tests that read it went red only in a full
+    # run: test_a_a_refused_call_lands_in_the_live_ledger,
+    # test_c_the_previous_tests_refusal_was_archived_not_discarded,
+    # test_http_fetch_cannot_reach_the_network. Reproduced with ONE neighbour:
+    #   pytest spa_core/tests/test_network_guard_ledger_is_per_test.py \
+    #          spa_core/tests/test_no_live_network_in_tests.py \
+    #          tests/test_adapter_registry.py
+    #
+    # Repaired here rather than by relaxing those tests (invariant #16): they
+    # were right — the guard really was absent. Restoring it is done LOUDLY,
+    # via network_guard.clobbers(), reported by _report_network_refusals below.
+    if network_guard.ensure_installed(request.node.nodeid):
+        # Re-installing puts network_guard on top; telegram_guard must stay
+        # OUTERMOST so api.telegram.org keeps its specific message and its own
+        # ledger (pinned by test_telegram_guard_stays_outermost).
+        telegram_guard.install()
     network_guard.reset()
     yield
     network_guard.archive(request.node.nodeid)
@@ -524,6 +549,28 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
     "claims a check nobody looks at" shape (#29/#31/#35–#38, #40). Reporting is
     all it does: nothing here changes an exit status.
     """
+    # Reported FIRST and independently of the refusal ledger: a clobber is the
+    # more serious of the two findings, and it is precisely the state in which
+    # the ledger is empty — so hanging this report off `archived` would hide it
+    # exactly when it matters (cycle #163).
+    knocked_out = network_guard.clobbers()
+    if knocked_out:
+        terminalreporter.write_sep("=", "network guard was RE-INSTALLED mid-run")
+        terminalreporter.write_line(
+            f"{len(knocked_out)} test(s) started with the guard knocked out of "
+            f"the urlopen chain and had it restored. The suite was NOT "
+            f"unguarded for them (the fixture repairs before the test body), "
+            f"but something replaced urlopen by plain assignment instead of "
+            f"wrapping it — find it and make it wrap."
+        )
+        for nodeid, what in knocked_out[:10]:
+            terminalreporter.write_line(f"  missing[{what}]  {nodeid}")
+        if len(knocked_out) > 10:
+            # No silent caps: say what was left out.
+            terminalreporter.write_line(
+                f"  … {len(knocked_out) - 10} more test(s) not shown"
+            )
+
     archived = network_guard.archived()
     if not archived:
         return

@@ -200,12 +200,21 @@ class TestEndOfRunReport(unittest.TestCase):
         )
         self._archive = _live_net._ARCHIVE
         self._saved = list(self._archive)
+        # The report has TWO independent inputs since cycle #163 (refusals and
+        # guard-clobbers), so a test about one of them must pin the other —
+        # otherwise it reads whatever the live run happened to record and the
+        # "silent" case below fails for a reason it is not about. Isolation
+        # only: not one assertion here is relaxed.
+        self._clobbers = _live_net._CLOBBERS
+        self._saved_clobbers = list(self._clobbers)
 
     def tearDown(self):
         self._archive[:] = self._saved
+        self._clobbers[:] = self._saved_clobbers
 
-    def _render(self, entries):
+    def _render(self, entries, clobbers=()):
         self._archive[:] = entries
+        self._clobbers[:] = list(clobbers)
         reporter = _Reporter()
         self.summary(reporter, 0, None)
         return "\n".join(reporter.lines)
@@ -220,6 +229,18 @@ class TestEndOfRunReport(unittest.TestCase):
 
     def test_report_is_silent_when_nothing_was_refused(self):
         self.assertEqual(self._render([]), "")
+
+    def test_report_names_a_guard_clobber_even_with_no_refusals(self):
+        """The clobber must be reported in the state where it actually occurs.
+
+        A knocked-out guard records NOTHING, so an empty refusal ledger is the
+        normal companion of a clobber — hanging this report off the refusals
+        would hide it exactly when it matters (cycle #163).
+        """
+        out = self._render([], clobbers=[("x.py::test_x", "urlopen")])
+        self.assertIn("RE-INSTALLED", out)
+        self.assertIn("x.py::test_x", out)
+        self.assertIn("urlopen", out)
 
     def test_report_says_how_many_tests_it_left_out(self):
         """No silent caps: a truncated list must not read as the whole list."""
