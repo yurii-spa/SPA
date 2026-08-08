@@ -160,7 +160,18 @@ def _run_one_adapter(
         raw_apy = getattr(info, "apy", None)
         tvl_usd = float(info.tvl_usd) if isinstance(info.tvl_usd, (int, float)) else None
 
-        record["protocol"] = getattr(info, "protocol", protocol_key) or protocol_key
+        # 2026-08-08: ключ снимка — РЕЕСТРОВЫЙ (`protocol_key`), а не самоописание
+        # адаптера. `morpho_blue_base` называет себя «morpho-blue-base» (дефисы), и
+        # такой ключ не находится ни в `chain_limits.get_default_chain_map`, ни в
+        # tier-карте, ни в data/adapter_registry.json — протокол попадал в
+        # money-path под именем, которого система не знает: цепочка «unknown»
+        # (значит chain-лимит его не считает), тир по умолчанию, связь с реестром
+        # потеряна. Самоописание сохраняется отдельным полем — для диагностики,
+        # но властью над идентичностью не обладает.
+        _self_name = getattr(info, "protocol", None)
+        record["protocol"] = protocol_key
+        if _self_name and str(_self_name) != protocol_key:
+            record["adapter_self_name"] = str(_self_name)
         record["tier"] = getattr(info, "tier", tier) or tier
         record["tvl_usd"] = tvl_usd
         if tvl_usd is not None:
