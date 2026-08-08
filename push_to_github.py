@@ -1521,12 +1521,17 @@ def main():
     parser.add_argument("--allow-toolchain-mismatch", action="store_true",
                         help="ОСОЗНАННО пушить инструментом, который разошёлся с копией в дереве "
                              "отправляемых файлов (по умолчанию такой пуш отклоняется)")
+    parser.add_argument("--allow-adr-collision", action="store_true",
+                        help="ОСОЗНАННО доставить решение под номером, уже занятым на origin, "
+                             "или вне реестра INDEX.md (по умолчанию такой пуш отклоняется)")
     args = parser.parse_args()
 
     allow_overwrite = bool(args.allow_overwrite) or \
         os.environ.get("SPA_PUSH_ALLOW_OVERWRITE") == "1"
     allow_toolchain = bool(args.allow_toolchain_mismatch) or \
         os.environ.get("SPA_PUSH_ALLOW_TOOLCHAIN_MISMATCH") == "1"
+    allow_adr = bool(args.allow_adr_collision) or \
+        os.environ.get("SPA_PUSH_ALLOW_ADR_COLLISION") == "1"
 
     # Собираем все файлы из всех источников
     all_files: list = []
@@ -1552,6 +1557,34 @@ def main():
         enforce_delivery_toolchain(all_files, allow=allow_toolchain)
     except ToolchainMismatch:
         sys.exit(5)
+
+    # ── ИНТЕРЛОК НОМЕРОВ ADR — до сети, для ЛЮБОГО контекста ─────────────────────
+    # Номер решения выбирается взглядом на каталог в НАЧАЛЕ работы, а приземляется через
+    # час-два: 2026-08-08 две пары сессий столкнулись на ADR-073 и ADR-076 за один день.
+    # Единственный момент, когда занятость номера ещё можно измерить и уже поздно не стало,
+    # — этот. Здесь же ловится «решение уехало вне реестра»: сейчас это краснит main тестом
+    # test_live_registry_of_decisions_is_intact уже ПОСЛЕ приземления, то есть по чужим следам.
+    # Гейт судит ТОЛЬКО уезжающие решения (пуш без docs/decisions/ его не замечает), поэтому
+    # предсуществующий дубль ADR-067 не запирает посторонние доставки. Не привязан к
+    # SPA_AUTONOMOUS: столкновение номеров — объективное измерение, а не суждение владельца,
+    # и attended-сессии сталкивались ровно так же.
+    _adr = [f for f in all_files
+            if "docs/decisions/ADR-" in str(f).replace("\\", "/")]
+    if _adr and not allow_adr:
+        _adr_guard = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "scripts", "adr_number.py")
+        if not os.path.isfile(_adr_guard):
+            print(f"ОТКАЗ (номера ADR): сторож {_adr_guard} не найден — столкновение номеров "
+                  f"НЕ измерено, а решения в наборе есть (fail-CLOSED). "
+                  f"Осознанно продолжить: --allow-adr-collision.", file=sys.stderr)
+            sys.exit(7)
+        _rc = subprocess.run([sys.executable, _adr_guard, "check", "--files", *_adr]).returncode
+        if _rc != 0:
+            print(f"ОТКАЗ (номера ADR, rc={_rc}): набор не доставлен. Свободный номер — "
+                  f"`python3 scripts/adr_number.py next`; осознанно продолжить — "
+                  f"--allow-adr-collision (или SPA_PUSH_ALLOW_ADR_COLLISION=1).",
+                  file=sys.stderr)
+            sys.exit(7)
 
     # ── OWNER-GATE INTERLOCK (ADR-OWN-2026-07) — autonomous context ONLY ──────────
     # In the autonomous orchestrator (SPA_AUTONOMOUS=1) any push touching landing/ MUST
