@@ -2,16 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **331** · ждёт владельца: **6** · занято сессиями: **3**.
+> Всего карточек: **331** · ждёт владельца: **1** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
-- **Десять агентов заявлены в реестре и не работают — четыре готовы к установке, шесть на вывод** · _high_  ·  `own-31-desyat-agentov-v-reestre-bez-flota.md`
-- **own-rnd-xvd-vol-rank-second-arm** · _medium_  ·  `own-rnd-xvd-vol-rank-second-arm.md`
-- **Часовые агенты до суток крутят старый код — защита от столкновения сессий выложена, но в проде её нет**  ·  `owner-decision-chasovye-agenty-do-sutok-krutyat-staryi.md`
 - **Дневной цикл сегодня запускали 8 раз не по расписанию — и кто именно, система не записывает**  ·  `owner-decision-dnevnoi-tsikl-segodnya-zapuskali-8-raz-n.md`
-- **Замок дневного цикла не спрашивает, жив ли держатель — сегодня 18 отказов подряд из-за мёртвого процесса**  ·  `owner-decision-zamok-dnevnogo-tsikla-ne-sprashivaet-zhi.md`
-- **Запасной ключ к защите сайта не работает — починить или убрать из инструкции?**  ·  `owner-decision-zapasnoi-klyuch-k-zaschite-saita-ne-rabo.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -24,12 +19,7 @@
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (82)
 
 ### · needs-owner
-- Десять агентов заявлены в реестре и не работают — четыре готовы к установке, шесть на вывод  ·  `own-31-desyat-agentov-v-reestre-bez-flota.md` · 2026-08-08
-- own-rnd-xvd-vol-rank-second-arm  ·  `own-rnd-xvd-vol-rank-second-arm.md` · 2026-08-08
-- Часовые агенты до суток крутят старый код — защита от столкновения сессий выложена, но в проде её нет  ·  `owner-decision-chasovye-agenty-do-sutok-krutyat-staryi.md` · 2026-08-08
 - Дневной цикл сегодня запускали 8 раз не по расписанию — и кто именно, система не записывает  ·  `owner-decision-dnevnoi-tsikl-segodnya-zapuskali-8-raz-n.md` · 2026-08-08
-- Замок дневного цикла не спрашивает, жив ли держатель — сегодня 18 отказов подряд из-за мёртвого процесса  ·  `owner-decision-zamok-dnevnogo-tsikla-ne-sprashivaet-zhi.md` · 2026-08-08
-- Запасной ключ к защите сайта не работает — починить или убрать из инструкции?  ·  `owner-decision-zapasnoi-klyuch-k-zaschite-saita-ne-rabo.md` · 2026-08-07
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -53,11 +43,13 @@
 - Наша крупнейшая позиция ($40k в morpho) держится без живого подтверждения размера пула — что делаем?  ·  `own-29-morpho-steakhouse-demote-signal.md` · 2026-08-05
 - Запустить ежедневного агента для paper-книги «защёлка после выхода»  ·  `own-30-deploy-swarm-dwell-agent.md` · 2026-08-05
 - Разбор очереди — 16 вопросов одним списком, по каждому есть рекомендация  ·  `own-30-razbor-ocheredi-vladeltsa.md` · 2026-08-05
+- Десять агентов заявлены в реестре и не работают — четыре готовы к установке, шесть на вывод  ·  `own-31-desyat-agentov-v-reestre-bez-flota.md` · 2026-08-08
 - Вторая задача из твоего сообщения (волатильный ETH-пул с доходностью «79%») — сам её не беру, нужно твоё решение  ·  `own-aud19-volatile-clmm-vvodim-li-klass.md` · 2026-08-05
 - own-rnd-cdr-demotion-readmission-paper-module  ·  `own-rnd-cdr-demotion-readmission-paper-module.md` · 2026-08-06
 - own-rnd-duty-is-concentration-adr055  ·  `own-rnd-duty-is-concentration-adr055.md` · 2026-08-07
 - own-rnd-dwell-hysteresis-paper-module  ·  `own-rnd-dwell-hysteresis-paper-module.md` · 2026-08-04
 - own-rnd-xsd-rank-demotion-allocator  ·  `own-rnd-xsd-rank-demotion-allocator.md` · 2026-08-07
+- own-rnd-xvd-vol-rank-second-arm  ·  `own-rnd-xvd-vol-rank-second-arm.md` · 2026-08-08
 - 10% денег стоят без работы: причина найдена — 11 протоколов закрыты из-за отсутствия живого фида, нужен твой выбор  ·  `owner-decision-10-deneg-stoyat-bez-raboty-prichina-naid.md` · 2026-08-05
 - ТЕСТ: подтверди, что очередь работает — переведи в Owner Done  ·  `owner-decision-20260715-124956-owner-done.md` · 2026-07-15T00:00:00.000Z
 - Сайт: алерт кастодиана про APY — ложное срабатывание, как чинить?  ·  `owner-decision-20260715-212059-apy.md` · 2026-07-15
@@ -67,6 +59,7 @@
 - Аллокатор ранжирует пулы на невыверенном TVL ($50M-литерал) — исключать ли их из свежих целей?  ·  `owner-decision-allokator-ranzhiruet-puly-na-vydumannom-tvl.md` · 2026-08-02
 - Безопасность: admin-панель /admin без пароля — закрыть за Cloudflare Access  ·  `owner-decision-bezopasnost-admin-panel-admin-bez-paroly.md` · 2026-07-16
 - Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)  ·  `owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig.md` · 2026-07-29
+- Часовые агенты до суток крутят старый код — защита от столкновения сессий выложена, но в проде её нет  ·  `owner-decision-chasovye-agenty-do-sutok-krutyat-staryi.md` · 2026-08-08
 - Числа трека на сайте не подтверждаются ничем в git — канон замёрз 17 июля, и сторож краснеет каждый день  ·  `owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts.md` · 2026-08-02
 - Чистка: разрешить удалять мёртвые МОДУЛИ из ядра (не только скрипты)?  ·  `owner-decision-chistka-razreshit-udalyat-mertvye-moduli.md` · 2026-07-16
 - Чистка ядра (WS-A): ~60 мёртвых/дублей + 45 аналитич. модулей раздувают paper_trading — greenlight подход  ·  `owner-decision-chistka-yadra-ws-a-60-mertvyh-dublei-45.md` · 2026-07-16
@@ -105,6 +98,8 @@
 - Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать  ·  `owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema.md` · 2026-08-01
 - В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями  ·  `owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann.md` · 2026-07-29
 - Выдуманная казна протокола в оценке страховки — оставить или отказываться?  ·  `owner-decision-vydumannaya-kazna-protokola-v-otsenke-st.md` · 2026-08-04
+- Замок дневного цикла не спрашивает, жив ли держатель — сегодня 18 отказов подряд из-за мёртвого процесса  ·  `owner-decision-zamok-dnevnogo-tsikla-ne-sprashivaet-zhi.md` · 2026-08-08
+- Запасной ключ к защите сайта не работает — починить или убрать из инструкции?  ·  `owner-decision-zapasnoi-klyuch-k-zaschite-saita-ne-rabo.md` · 2026-08-07
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 
