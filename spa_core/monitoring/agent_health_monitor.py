@@ -47,6 +47,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from spa_core.monitoring.agent_registry_refresh import refresh_if_stale
+from spa_core.monitoring.cycle_lock_watch import check_cycle_lock
 
 log = logging.getLogger("spa.monitoring.agent_health_monitor")
 
@@ -929,6 +930,24 @@ def check_system(data_dir: Path, now: datetime,
         elif ce_verdict == "UNKNOWN":
             issues.append("capital-efficiency UNKNOWN (idle book, feed unreadable — fail-closed)")
             status = _worst(status, WARNING)
+
+    # --- застрявший замок дневного цикла (цикл #164) ---
+    # Единственный вопрос, на который здесь до сих пор не отвечал НИКТО: замок цикла
+    # держит труп? Соседние проверки его не закрывают и не могут: cycle-freshness
+    # молчит, пока цикл отработал хоть раз за сутки (08.08 он отработал в 09:52 — и
+    # тут же встал на 68 минут отказов), а `last_exit=2` у агента одинаков и для
+    # «вежливо отказал, защищая трек», и для «упал». Сторож ничего не чинит: правка
+    # самого замка — money-path и ждёт владельца
+    # (`owner-decision-zamok-dnevnogo-tsikla-ne-sprashivaet-zhi`).
+    # CRITICAL здесь безопасен: потребителей `system_issues` у kill-switch /
+    # threat_reactor нет (проверено grep'ом), self_heal читает из этого модуля
+    # только общие помощники, а не вердикт — эскалация отчётности, капитал не двигает.
+    lock_verdict = check_cycle_lock(data_dir, now)
+    checks["cycle_lock_state"] = lock_verdict.state
+    checks["cycle_lock_refusals"] = lock_verdict.refusals_since_lock
+    if lock_verdict.issue:
+        issues.append(lock_verdict.issue)
+        status = _worst(status, lock_verdict.severity)
 
     return checks, status, issues
 
