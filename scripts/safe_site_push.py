@@ -119,6 +119,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--message", "-m", required=True)
     ap.add_argument("--repo")
     ap.add_argument("--branch", default="main")
+    # Проброс осознанной перезаписи в batch-пушер. Owner-гейт проверяется РАНЬШЕ и этим
+    # флагом не отменяется — он влияет только на страж расхождения с remote, то есть на
+    # вопрос «не сотрём ли чужую правку», а не на вопрос «можно ли это публиковать».
+    # Нужен ЦЕЛИКОМ ГЕНЕРИРУЕМЫМ артефактам (`track_snapshot.json`): их прошлое содержимое
+    # на remote — не чужая правка, а предыдущее поколение того же генератора, и страж,
+    # написанный для файлов, которые правят руками, иначе запирает доставку навсегда.
+    ap.add_argument("--allow-overwrite", action="store_true",
+                    help="ОСОЗНАННО перезаписать remote-версию (для целиком генерируемых артефактов)")
     args = ap.parse_args(argv)
 
     files = [str(Path(f)) for f in args.files]
@@ -141,6 +149,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.repo:
         cmd += ["--repo", args.repo]
     cmd += ["--branch", args.branch]
+    if args.allow_overwrite:
+        cmd += ["--allow-overwrite"]
     rc = subprocess.run(cmd, cwd=str(_REPO_ROOT), env=env).returncode
 
     # ── ресит ДОСТАВКИ (ADR-066 B3) ─────────────────────────────────────────
