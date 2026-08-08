@@ -40,10 +40,11 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import live_data_dir
 
 # ── где живёт журнал алертов ─────────────────────────────────────────────────
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-STATE_PATH = _REPO_ROOT / "data" / "telegram_alert_actions.json"
+STATE_PATH = live_data_dir(_REPO_ROOT) / "telegram_alert_actions.json"
 HISTORY_MAX = 200
 
 CALLBACK_PREFIX = "act:aa:"
@@ -265,7 +266,9 @@ def make_alert_id(text: str, ts: str) -> str:
 # маячок перед тем, как навесить кнопки. Fail-CLOSED: маячка нет / протух / не тот
 # набор умений / файл битый → кнопок нет, алерт уходит как обычный текст. Никакого
 # ручного шага: как только бот перезапустится с новым кодом, кнопки включатся сами.
-BEACON_PATH = _REPO_ROOT / "data" / "telegram_bot_capabilities.json"
+# Маячок пишет ТОЛЬКО живой бот и только в прод-дерево. Искать его у себя — значит
+# не найти и молча снять кнопки со всех алертов, отправленных из worktree (замер 08.08).
+BEACON_PATH = live_data_dir(_REPO_ROOT) / "telegram_bot_capabilities.json"
 BEACON_MAX_AGE_S = 300  # маячок обновляется каждый виток long-poll (~30с)
 CAPABILITY = "alert_actions"
 

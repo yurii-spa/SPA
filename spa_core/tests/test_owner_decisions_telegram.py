@@ -441,3 +441,29 @@ def test_option_label_may_live_right_after_the_bold_marker():
     assert opts[0].label == "НЕ заводить третий paper-трек и НЕ создавать нового агента"
     # Обоснование «Почему рекомендую…» на кнопку не едет — только первое предложение.
     assert "Почему рекомендую" not in opts[0].label
+
+
+# ── текст не имеет права обещать несуществующую кнопку ───────────────────────
+
+
+def test_message_never_promises_a_button_that_will_not_be_there(tmp_path):
+    """Положительный контроль замеренной аварии: владельцу пришло решение с фразой
+    «Нажми кнопку — запишу решение» и БЕЗ единой кнопки.
+
+    Причина: текст строился ДО решения о клавиатуре и всегда обещал кнопку. Обещать
+    несуществующее хуже, чем не обещать: владелец решает, что сломан бот, и перестаёт
+    верить всему каналу. Текст и клавиатура обязаны говорить одно.
+    """
+    stale = _beacon(tmp_path, age_s=10_000)  # обработчика нет ⇒ кнопок не будет
+    prep = od.prepare("Заголовок", CARD, "own-1", now=NOW, beacon_path=stale)
+    assert prep.keyboard is None
+    assert prep.options, "варианты обязаны разобраться — проверяем именно согласованность"
+    assert "Нажми кнопку" not in prep.text
+    assert "Ответь номером варианта" in prep.text
+
+
+def test_message_does_promise_the_button_when_it_is_really_there(tmp_path):
+    """Контроль в обратную сторону: кнопки есть — зовём нажимать."""
+    prep = od.prepare("Заголовок", CARD, "own-1", now=NOW, beacon_path=_beacon(tmp_path))
+    assert prep.keyboard is not None
+    assert "Нажми кнопку" in prep.text

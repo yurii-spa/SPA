@@ -55,9 +55,13 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.live_paths import live_data_dir
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-STATE_PATH = _REPO_ROOT / "data" / "telegram_owner_decisions.json"
+# Журнал — в ЖИВОМ data/, а не в дереве вызывающего: отправлять решения может сессия
+# из своего worktree, а нажимать владелец будет по боту, который читает прод. Разойдись
+# они — кнопка нашлась бы, а записи о ней нет, и нажатие получило бы «не нашёл карточку».
+STATE_PATH = live_data_dir(_REPO_ROOT) / "telegram_owner_decisions.json"
 HISTORY_MAX = 200
 
 CALLBACK_PREFIX = "act:od:"
@@ -357,11 +361,17 @@ def summarize(body: str, limit: int = SUMMARY_MAX) -> str:
     return _shorten(cut, limit)
 
 
-def build_message(title: str, body: str, options: List[ParsedOption]) -> str:
+def build_message(title: str, body: str, options: List[ParsedOption],
+                  *, has_buttons: bool = True) -> str:
     """HTML-сообщение владельцу: заголовок, суть, перечень вариантов.
 
     HTML, а не Markdown: в карточках сплошь пути с подчёркиваниями (`agent_health`),
     на которых Markdown отдаёт 400 (урок telegram-alerts).
+
+    ``has_buttons`` — приедет ли клавиатура. Раньше текст ВСЕГДА заканчивался «Нажми
+    кнопку», и владелец получил решение с этой фразой и без единой кнопки (замер 08.08).
+    Обещать несуществующее хуже, чем не обещать ничего: владелец решает, что сломан бот,
+    и перестаёт верить всему каналу. Текст и клавиатура должны говорить ОДНО.
     """
     parts = [
         "🧑‍⚖️ <b>Нужно твоё решение</b>",
@@ -377,10 +387,19 @@ def build_message(title: str, body: str, options: List[ParsedOption]) -> str:
             star = " ⭐ <i>рекомендую</i>" if opt.recommended else ""
             label = html.escape(_capitalize(opt.label))
             parts.append(f"<b>{html.escape(opt.num)}.</b> {label}{star}")
-        parts += ["", "Нажми кнопку — запишу решение и возьму в работу."]
+        if has_buttons:
+            parts += ["", "Нажми кнопку — запишу решение и возьму в работу."]
+        else:
+            # Варианты есть, а обработать нажатие сейчас некому (бот не подтвердил, что
+            # умеет). Говорим ЧЕСТНО, как ответить без кнопок, вместо ссылки на пустоту.
+            parts += ["", "⚠️ Кнопки сейчас недоступны — бот не подтвердил, что готов их "
+                          "обработать. Ответь номером варианта в чат, я разберу."]
     else:
         # Fail-CLOSED: вариантов не разобрали — не выдумываем их, честно зовём в карточку.
-        parts += ["", "Вариантов в карточке не нашёл — открой её целиком кнопкой ниже."]
+        tail = ("Вариантов в карточке не нашёл — открой её целиком кнопкой ниже."
+                if has_buttons else
+                "Вариантов в карточке не нашёл — открой её в трекере.")
+        parts += ["", tail]
     return "\n".join(parts)
 
 
@@ -435,13 +454,15 @@ def prepare(
     """
     options = parse_options(body)
     pid = make_pid(card_id)
-    text = build_message(title, body, options)
+    # Клавиатуру решаем ПЕРВОЙ: текст обязан знать, будет ли кнопка, иначе он пообещает
+    # несуществующее (замер 08.08 — решение с «Нажми кнопку» и без кнопок).
     keyboard = None
     if options:
         from spa_core.telegram.alert_actions import handler_available
 
         if handler_available(now=now, beacon_path=beacon_path):
             keyboard = build_keyboard(pid, options)
+    text = build_message(title, body, options, has_buttons=keyboard is not None)
     return Prepared(pid=pid, text=text, keyboard=keyboard, options=options)
 
 
