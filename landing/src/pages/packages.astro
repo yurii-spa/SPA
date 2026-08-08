@@ -34,7 +34,7 @@ const tiers = [
   {
     key: 'balanced',
     en: 'Balanced', ru: 'Сбалансированный',
-    status_en: 'RESEARCH · in the validation pipeline', status_ru: 'ИССЛЕДОВАНИЕ · в очереди валидации',
+    status_en: 'RESEARCH · paper track running · not live-allocated', status_ru: 'ИССЛЕДОВАНИЕ · идёт paper-трек · без live-аллокации',
     tone: 'amber',
     live: false,
     what_en: 'sUSDe carry, Pendle YT-sUSDe. Risk-class C (yield paid for a tail). Paper-tested in the Aggressive Lab WITH its drawdowns labelled by event — never live-allocated until it passes the full lifecycle (yield-source + Red Team + ≥30-day paper + human approval).',
@@ -45,7 +45,7 @@ const tiers = [
   {
     key: 'aggressive',
     en: 'Aggressive', ru: 'Агрессивный',
-    status_en: 'RESEARCH · refused for live (by design)', status_ru: 'ИССЛЕДОВАНИЕ · отказан для live (осознанно)',
+    status_en: 'RESEARCH · paper track running · refused for live (by design)', status_ru: 'ИССЛЕДОВАНИЕ · идёт paper-трек · отказан для live (осознанно)',
     tone: 'red',
     live: false,
     what_en: 'Levered PT carry loops, points/incentive farming, unhedged directional restaking. Historically high headline (backtest: the levered loop compounds hard) — and a brutal tail: the unhedged directional book lost ~50% through the ETH crash; the levered loop carries liquidation-cascade risk.',
