@@ -2,7 +2,7 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Всего карточек: **309** · ждёт владельца: **7** · занято сессиями: **2**.
+> Всего карточек: **310** · ждёт владельца: **8** · занято сессиями: **3**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -10,6 +10,7 @@
 - **own-rnd-duty-is-concentration-adr055** · _medium_  ·  `own-rnd-duty-is-concentration-adr055.md`
 - **own-rnd-xsd-rank-demotion-allocator** · _medium_  ·  `own-rnd-xsd-rank-demotion-allocator.md`
 - **own-rnd-xvd-vol-rank-second-arm** · _medium_  ·  `own-rnd-xvd-vol-rank-second-arm.md`
+- **Часовые агенты до суток крутят старый код — защита от столкновения сессий выложена, но в проде её нет**  ·  `owner-decision-chasovye-agenty-do-sutok-krutyat-staryi.md`
 - **Морфо — 40% книги — при пропаже данных подставляет выдуманные 6.5% вместо честного отказа** · _high_  ·  `owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst.md`
 - **После страховки деньги остаются сиротами: 20 % капитала ($20 000) лежат в кэше, потому что освободившийся бюджет никто не перекладывает (было 10 % — простой ВЫРОС)**  ·  `owner-decision-posle-strahovki-dengi-ostayutsya-sirotam.md`
 - **Запасной ключ к защите сайта не работает — починить или убрать из инструкции?**  ·  `owner-decision-zapasnoi-klyuch-k-zaschite-saita-ne-rabo.md`
@@ -20,14 +21,16 @@
 
 - **Страж дрейфа флота не запускался 25 суток — у скрипта нет расписания, его просто некому звать** — держит `cycle-28258` · с 2026-08-05T12:28:28Z  ·  `agent-fleet-parity-guard-never-scheduled.md`
 - **Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет** — держит `cycle-87477` · с 2026-08-06T18:43:13Z  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md`
+- **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (78)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (79)
 
 ### · needs-owner
 - Десять агентов заявлены в реестре и не работают — четыре готовы к установке, шесть на вывод  ·  `own-31-desyat-agentov-v-reestre-bez-flota.md` · 2026-08-08
 - own-rnd-duty-is-concentration-adr055  ·  `own-rnd-duty-is-concentration-adr055.md` · 2026-08-07
 - own-rnd-xsd-rank-demotion-allocator  ·  `own-rnd-xsd-rank-demotion-allocator.md` · 2026-08-07
 - own-rnd-xvd-vol-rank-second-arm  ·  `own-rnd-xvd-vol-rank-second-arm.md` · 2026-08-08
+- Часовые агенты до суток крутят старый код — защита от столкновения сессий выложена, но в проде её нет  ·  `owner-decision-chasovye-agenty-do-sutok-krutyat-staryi.md` · 2026-08-08
 - Морфо — 40% книги — при пропаже данных подставляет выдуманные 6.5% вместо честного отказа  ·  `owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst.md` · 2026-08-02
 - После страховки деньги остаются сиротами: 20 % капитала ($20 000) лежат в кэше, потому что освободившийся бюджет никто не перекладывает (было 10 % — простой ВЫРОС)  ·  `owner-decision-posle-strahovki-dengi-ostayutsya-sirotam.md` · 2026-08-07
 - Запасной ключ к защите сайта не работает — починить или убрать из инструкции?  ·  `owner-decision-zapasnoi-klyuch-k-zaschite-saita-ne-rabo.md` · 2026-08-07
@@ -195,7 +198,7 @@
 - Номер ADR-067 занят ДВУМЯ разными решениями — реестр показывает две строки  ·  `inbox-nomer-adr-067-zanyat-dvumya-raznymi-resh.md` · 2026-08-07
 - Тест GSM Sky приколочен к до-ADR-065 состоянию  ·  `inbox-test-gsm-sky-prikolochen-k-do-adr-065-so.md` · 2026-08-07
 - Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md` · 2026-08-06 · 🔒 `cycle-87477`
-- Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07
+- Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md` · 2026-08-07 · 🔒 `cycle-81141`
 
 ## 🤖 Agent Tasks (что делает агент)  (88)
 

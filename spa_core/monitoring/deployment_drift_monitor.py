@@ -13,6 +13,22 @@ The health monitor has a domain called "Code Integrity", which is why the gap
 looked covered. It only probes that modules *import* — it answers "does the code
 run?", never "is this the code we shipped?". A green check on the wrong question.
 
+Drift is reported in three classes, because they are not the same event:
+
+* **money-path** — the risk logic in production is not the reviewed one;
+* **launchd entrypoint** — the fleet is executing a file we did not deliver;
+* **other** — delivered work is not running here, nothing executes it directly.
+
+The entrypoint class was added on 2026-08-08 after it turned out the first two
+were the same bucket. `scripts/agent_orchestrator.sh` was missing its entire
+cycle-lock block — the hourly orchestrator had run without collision protection
+since delivery — and this monitor reported it inside "241 non-money-path file(s)
+differ … no risk logic is affected", alongside 165 churning `data/*.json`. Both
+halves were wrong: the count hid WHICH file, and the reassurance was about a
+question nobody had asked. The wrapper could not raise the alarm itself, because
+#152 had put that very line inside the file whose absence it was meant to
+announce. A guard must not be the thing it guards.
+
 Read-only by construction: it NEVER pulls, checks out, or otherwise touches the
 working tree. Updating production is an owner decision, not a monitor's.
 
@@ -60,6 +76,74 @@ MONEY_PATH_PREFIXES = (
 
 def _is_money_path(path: str) -> bool:
     return any(path.startswith(prefix) for prefix in MONEY_PATH_PREFIXES)
+
+
+# How often the production tree pulls `scripts/`+`spa_core/` from origin: Step 0
+# of run_daily_paper_cycle.sh, once a day. An entrypoint that fires more often
+# than this CANNOT receive its delivered version before it next runs — the drift
+# is not a lag, it is a guaranteed number of executions of undelivered code.
+CODE_SYNC_INTERVAL_SEC = 86400.0
+
+
+def _launchd_entrypoints(
+    root: Path,
+    agent_dir: Optional[Path] = None,
+    reader: Optional[Callable[[Path], List[dict]]] = None,
+) -> tuple[Dict[str, dict], Optional[str]]:
+    """Repo-relative path → {labels, interval_sec} for what launchd EXECUTES.
+
+    Derived from the loaded plists, never a hand-kept list: a hardcoded roster
+    silently stops covering an agent the day someone adds one, and this guard
+    exists precisely because nobody notices silence.
+
+    Returns ``(entrypoints, unchecked_reason)``. A reason means the classification
+    could not be made — callers must SAY so rather than treat the bucket as empty,
+    which would quietly restore the fail-OPEN behaviour this function fixes.
+    """
+    try:
+        from spa_core.monitoring.deployment_acceptance import (
+            DEFAULT_AGENT_DIR, _entrypoints_from_plists,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return {}, "cannot import launchd plist reader: {}: {}".format(type(exc).__name__, exc)
+
+    adir = Path(agent_dir) if agent_dir else DEFAULT_AGENT_DIR
+    read = reader or _entrypoints_from_plists
+    try:
+        entries = read(adir)
+    except Exception as exc:  # noqa: BLE001
+        return {}, "cannot read launchd plists in {}: {}: {}".format(adir, type(exc).__name__, exc)
+    if not entries:
+        return {}, "no launchd plists found in {} — entrypoint drift was NOT classified".format(adir)
+
+    try:
+        root_resolved = root.resolve()
+    except Exception:  # noqa: BLE001
+        root_resolved = root
+
+    out: Dict[str, dict] = {}
+    for entry in entries:
+        script = entry.get("script")
+        if not script:
+            continue
+        try:
+            rel = str(Path(script).resolve().relative_to(root_resolved))
+        except Exception:  # noqa: BLE001 — entrypoint outside this checkout
+            continue
+        slot = out.setdefault(rel, {"labels": [], "interval_sec": None,
+                                    "unknown_schedule": False})
+        slot["labels"].append(entry.get("label"))
+        interval = entry.get("interval_sec")
+        if interval is None:
+            # One job with an unreadable schedule taints the script: we cannot
+            # claim it self-heals just because a SIBLING job runs rarely.
+            slot["unknown_schedule"] = True
+        # Several jobs can share one script; the most frequent one decides.
+        elif slot["interval_sec"] is None or interval < slot["interval_sec"]:
+            slot["interval_sec"] = interval
+    for slot in out.values():
+        slot["labels"] = sorted(x for x in slot["labels"] if x)
+    return out, None
 
 
 
@@ -121,9 +205,11 @@ class DriftReport:
     commits_behind: Optional[int] = None
     commits_ahead: Optional[int] = None
     money_path_files: List[str] = field(default_factory=list)
+    entrypoint_files: List[dict] = field(default_factory=list)
     other_files: List[str] = field(default_factory=list)
     reasons: List[str] = field(default_factory=list)
     unchecked_reason: Optional[str] = None
+    entrypoints_unchecked: Optional[str] = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -149,6 +235,8 @@ def check_deployment_drift(
     fetch: bool = True,
     expected_branch: str = "main",
     git_runner: Optional[Callable[[List[str], Path], tuple]] = None,
+    agent_dir: Optional[Path] = None,
+    plist_reader: Optional[Callable[[Path], List[dict]]] = None,
 ) -> DriftReport:
     """Compare the checkout that RUNS the code against the delivered ref.
 
@@ -209,7 +297,33 @@ def check_deployment_drift(
         rep.unchecked_reason = err
         return rep
     rep.money_path_files = sorted(p for p in changed if _is_money_path(p))
-    rep.other_files = sorted(p for p in changed if not _is_money_path(p))
+
+    # Entrypoint class. Before this existed, a launchd entrypoint landed in
+    # `other_files` — the same bucket as 165 churning data/*.json — under the
+    # verdict "no risk logic is affected". On 2026-08-08 that bucket was hiding
+    # scripts/agent_orchestrator.sh with the ENTIRE cycle-lock block missing:
+    # the hourly orchestrator had been running without its collision lock since
+    # delivery, and the wrapper could not report its own absence because the
+    # line that would have said so lived in the missing file.
+    entrypoints, rep.entrypoints_unchecked = _launchd_entrypoints(
+        root, agent_dir=agent_dir, reader=plist_reader)
+    rest = [p for p in changed if not _is_money_path(p)]
+    rep.entrypoint_files = [
+        {
+            "path": p,
+            "labels": entrypoints[p]["labels"],
+            "interval_sec": entrypoints[p]["interval_sec"],
+            # Can the daily code sync deliver this file before the agent next
+            # runs? Unknown schedule counts as NO (fail-CLOSED).
+            "self_heals_before_next_run": bool(
+                not entrypoints[p]["unknown_schedule"]
+                and entrypoints[p]["interval_sec"] is not None
+                and entrypoints[p]["interval_sec"] >= CODE_SYNC_INTERVAL_SEC
+            ),
+        }
+        for p in sorted(rest) if p in entrypoints
+    ]
+    rep.other_files = sorted(p for p in rest if p not in entrypoints)
 
     # ── verdict ────────────────────────────────────────────────────────────
     if rep.branch and rep.branch != expected_branch and rep.branch != "HEAD":
@@ -218,21 +332,55 @@ def check_deployment_drift(
             "will never appear here".format(rep.branch, expected_branch, expected_branch)
         )
 
+    # Entrypoints are NAMED, never counted: a count is what buried the missing
+    # cycle lock among 235 files. Whoever reads this must see WHICH agent.
+    unhealed = [e for e in rep.entrypoint_files if not e["self_heals_before_next_run"]]
+    if unhealed:
+        rep.reasons.append(
+            "{} launchd entrypoint(s) differ from {} and fire more often than the "
+            "daily code sync — those agents WILL execute undelivered code before "
+            "they can be fixed: {}".format(
+                len(unhealed), remote_ref,
+                ["{} ({})".format(e["path"], ",".join(e["labels"]) or "?") for e in unhealed[:8]])
+        )
+    healed = [e for e in rep.entrypoint_files if e["self_heals_before_next_run"]]
+    if healed:
+        rep.reasons.append(
+            "{} launchd entrypoint(s) differ from {} but fire no more often than "
+            "the daily code sync — expected to be delivered before the next run: "
+            "{}".format(len(healed), remote_ref,
+                        ["{} ({})".format(e["path"], ",".join(e["labels"]) or "?")
+                         for e in healed[:8]])
+        )
+
     if rep.money_path_files:
-        rep.status = CRITICAL
         rep.reasons.append(
             "{} money-path file(s) differ from {} — the risk logic running in "
             "production is NOT the reviewed one: {}".format(
                 len(rep.money_path_files), remote_ref,
                 rep.money_path_files[:10] + (["…"] if len(rep.money_path_files) > 10 else []))
         )
-    elif rep.other_files:
-        rep.status = WARNING
+    if rep.other_files:
         rep.reasons.append(
-            "{} non-money-path file(s) differ from {} — delivered work is not "
-            "running here, but no risk logic is affected".format(
+            "{} other file(s) differ from {} — delivered work is not running "
+            "here; no money-path file and no launchd entrypoint among them".format(
                 len(rep.other_files), remote_ref)
         )
+
+    # Drift we could not classify is stated, never absorbed into "other". The
+    # bucket being empty because nobody looked reads exactly like the bucket
+    # being empty because nothing is wrong — that is the fail-OPEN shape.
+    if rep.entrypoints_unchecked and changed:
+        rep.reasons.append(
+            "entrypoint classification UNAVAILABLE ({}) — {} differing file(s) were "
+            "NOT checked for being a launchd entrypoint; absence of an entrypoint "
+            "finding here means nothing".format(rep.entrypoints_unchecked, len(changed))
+        )
+
+    if rep.money_path_files or unhealed:
+        rep.status = CRITICAL
+    elif rep.entrypoint_files or rep.other_files:
+        rep.status = WARNING
     elif rep.branch and rep.branch != expected_branch and rep.branch != "HEAD":
         # Content matches today, but the branch guarantees future drift.
         rep.status = WARNING
@@ -289,6 +437,14 @@ def format_report_text(doc: dict) -> str:
             doc.get("commits_behind"), doc.get("commits_ahead")))
     if doc.get("unchecked_reason"):
         lines.append("  UNCHECKED: {}".format(doc["unchecked_reason"]))
+    for e in doc.get("entrypoint_files", []):
+        interval = e.get("interval_sec")
+        lines.append("    {} entrypoint {} [{}] — fires every {} (sync is daily)".format(
+            "🚨" if not e.get("self_heals_before_next_run") else "⚠️",
+            e.get("path"), ",".join(e.get("labels") or []) or "?",
+            "{:.0f}s".format(interval) if interval is not None else "UNKNOWN schedule"))
+    if doc.get("entrypoints_unchecked"):
+        lines.append("  entrypoints NOT classified: {}".format(doc["entrypoints_unchecked"]))
     for reason in doc.get("reasons", []):
         lines.append("  • {}".format(reason))
     return "\n".join(lines)
@@ -301,6 +457,8 @@ def main() -> int:
     ap.add_argument("--repo-root", default=None, help="checkout to inspect (default: this one)")
     ap.add_argument("--remote-ref", default=DEFAULT_REMOTE_REF)
     ap.add_argument("--expected-branch", default="main")
+    ap.add_argument("--agent-dir", default=None,
+                    help="launchd plists to derive entrypoints from (default: ~/Library/LaunchAgents)")
     ap.add_argument("--no-fetch", action="store_true", help="do not refresh remote refs")
     ap.add_argument("--no-write", action="store_true")
     args = ap.parse_args()
@@ -309,6 +467,7 @@ def main() -> int:
         repo_root=Path(args.repo_root) if args.repo_root else None,
         remote_ref=args.remote_ref,
         expected_branch=args.expected_branch,
+        agent_dir=Path(args.agent_dir) if args.agent_dir else None,
         fetch=not args.no_fetch,
         write=not args.no_write,
     )

@@ -211,3 +211,96 @@ def test_artifacts_of_the_same_producer_share_their_slo():
     daily_cycle = ("current_positions.json", "adapter_status.json")
     slos = {SCHEDULED_ARTIFACTS[a] for a in daily_cycle}
     assert len(slos) == 1, f"артефакты дневного цикла разошлись по SLO: {slos}"
+
+
+# ── schedule reading: how often does this job actually fire? ────────────────
+#
+# Added 2026-08-08 for `deployment_drift`, which needs to know whether the daily
+# code sync can deliver a drifted entrypoint before the agent next runs. Getting
+# this wrong in the "rarely" direction hides the drift, so every ambiguous case
+# below must resolve to None (fail-CLOSED) rather than to a large number.
+
+
+def test_start_interval_is_the_schedule():
+    from spa_core.monitoring.deployment_acceptance import _schedule_interval_sec
+
+    assert _schedule_interval_sec({"StartInterval": 3600}) == 3600.0
+
+
+def test_keepalive_job_is_the_most_urgent_schedule_there_is():
+    """Restarted the moment it exits: drift takes effect immediately."""
+    from spa_core.monitoring.deployment_acceptance import _schedule_interval_sec
+
+    assert _schedule_interval_sec({"KeepAlive": True}) == 0.0
+
+
+@pytest.mark.parametrize("spec,expected", [
+    ({"Hour": 8, "Minute": 0}, 86400.0),              # daily at 08:00
+    ({"Minute": 30}, 3600.0),                         # every hour at :30
+    ({}, 60.0),                                       # every minute
+    ({"Weekday": 1, "Hour": 3}, 7 * 86400.0),         # weekly
+    ({"Day": 1, "Hour": 3}, 30 * 86400.0),            # monthly
+])
+def test_calendar_interval_uses_the_coarsest_pinned_field(spec, expected):
+    from spa_core.monitoring.deployment_acceptance import _schedule_interval_sec
+
+    assert _schedule_interval_sec({"StartCalendarInterval": spec}) == expected
+
+
+def test_several_calendar_entries_fire_that_many_times_per_period():
+    """Two daily entries = twice a day. Reporting 86400 here would round toward
+    "rare" and let a drifted entrypoint pass as self-healing."""
+    from spa_core.monitoring.deployment_acceptance import _schedule_interval_sec
+
+    twice_daily = [{"Hour": 8, "Minute": 0}, {"Hour": 20, "Minute": 0}]
+    assert _schedule_interval_sec({"StartCalendarInterval": twice_daily}) == 43200.0
+
+
+@pytest.mark.parametrize("doc", [
+    {},                                               # RunAtLoad only / unscheduled
+    {"StartInterval": 0},                             # not a schedule
+    {"StartInterval": "hourly"},                      # wrong type
+    {"StartCalendarInterval": []},                    # empty
+    {"StartCalendarInterval": ["not-a-dict"]},        # malformed
+])
+def test_unreadable_schedule_is_none_never_a_guess(doc):
+    """None is the honest answer, and callers treat it as urgent. A guess here
+    would be indistinguishable from a measurement downstream."""
+    from spa_core.monitoring.deployment_acceptance import _schedule_interval_sec
+
+    assert _schedule_interval_sec(doc) is None
+
+
+def test_entrypoint_listing_carries_the_schedule(tmp_path: Path):
+    """The drift guard reads this field; it must survive the plist round-trip."""
+    from spa_core.monitoring.deployment_acceptance import _entrypoints_from_plists
+
+    agents, scripts = tmp_path / "agents", tmp_path / "scripts"
+    agents.mkdir()
+    scripts.mkdir()
+    script = scripts / "agent_orchestrator.sh"
+    script.write_text("#!/bin/bash\n", encoding="utf-8")
+    plistlib.dump(
+        {"Label": "com.spa.orchestrator",
+         "ProgramArguments": ["/bin/bash", str(script)],
+         "StartInterval": 3600},
+        open(agents / "com.spa.orchestrator.plist", "wb"))
+
+    entries = _entrypoints_from_plists(agents)
+    assert entries == [{"label": "com.spa.orchestrator", "script": str(script),
+                        "interval_sec": 3600.0, "problem": None}]
+
+
+def test_unreadable_plist_still_reports_the_schedule_field(tmp_path: Path):
+    """A broken plist must not simply lack the key the caller reads — that
+    turns "unreadable" into a KeyError somewhere far from here."""
+    from spa_core.monitoring.deployment_acceptance import _entrypoints_from_plists
+
+    agents = tmp_path / "agents"
+    agents.mkdir()
+    (agents / "com.spa.broken.plist").write_text("not a plist", encoding="utf-8")
+
+    entries = _entrypoints_from_plists(agents)
+    assert len(entries) == 1
+    assert entries[0]["interval_sec"] is None
+    assert "unreadable" in entries[0]["problem"]

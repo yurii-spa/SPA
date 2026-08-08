@@ -193,6 +193,221 @@ def test_text_report_is_readable(tmp_path: Path) -> None:
     assert "CRITICAL" in text and "env-setup-v3" in text and "409" in text
 
 
+# ── launchd entrypoints are not cosmetic drift (2026-08-08) ─────────────────
+#
+# Every test below replays the state measured on 2026-08-08 03:5x local:
+# `scripts/agent_orchestrator.sh` in production was missing its whole cycle-lock
+# block, the hourly orchestrator had been running without collision protection
+# since delivery, and this monitor said:
+#
+#   WARNING — 241 non-money-path file(s) differ from origin/main — delivered
+#             work is not running here, but no risk logic is affected
+#
+# 165 of those 241 were churning data/*.json. The finding was true, buried, and
+# wrapped in a reassurance about a different question.
+
+
+def _plists(*entries):
+    """A fake launchd plist reader: (label, script, interval_sec) triples."""
+    def read(_agent_dir):
+        return [{"label": lbl, "script": script, "interval_sec": interval,
+                 "problem": None}
+                for lbl, script, interval in entries]
+    return read
+
+
+HOURLY, DAILY = 3600.0, 86400.0
+
+
+def test_hourly_entrypoint_drift_is_critical_not_cosmetic(tmp_path: Path) -> None:
+    """THE 2026-08-08 failure: the missing cycle lock reported as a WARNING.
+
+    An agent that fires hourly cannot receive its delivered version from a daily
+    code sync before it next runs. The drift is not a lag — it is a guaranteed
+    number of executions of code we did not deliver.
+    """
+    root = _tree(tmp_path, ["scripts/agent_orchestrator.sh"])
+    rep = check_deployment_drift(
+        repo_root=root, git_runner=_runner(remote="b" * 40,
+                                           diff="scripts/agent_orchestrator.sh"),
+        agent_dir=tmp_path, plist_reader=_plists(
+            ("com.spa.orchestrator", str(root / "scripts/agent_orchestrator.sh"), HOURLY)))
+
+    assert rep.status == CRITICAL, "an hourly agent running undelivered code is not a warning"
+    assert [e["path"] for e in rep.entrypoint_files] == ["scripts/agent_orchestrator.sh"]
+    assert rep.entrypoint_files[0]["self_heals_before_next_run"] is False
+    assert rep.other_files == [], "the entrypoint must not stay in the cosmetic bucket"
+
+
+def test_entrypoint_is_named_never_only_counted(tmp_path: Path) -> None:
+    """A count is what hid it: "241 files differ" names no agent and no file."""
+    root = _tree(tmp_path, ["scripts/agent_orchestrator.sh"])
+    rep = check_deployment_drift(
+        repo_root=root, git_runner=_runner(remote="b" * 40,
+                                           diff="scripts/agent_orchestrator.sh"),
+        agent_dir=tmp_path, plist_reader=_plists(
+            ("com.spa.orchestrator", str(root / "scripts/agent_orchestrator.sh"), HOURLY)))
+
+    blob = " ".join(rep.reasons)
+    assert "scripts/agent_orchestrator.sh" in blob
+    assert "com.spa.orchestrator" in blob
+    assert "scripts/agent_orchestrator.sh" in format_report_text(rep.to_dict())
+
+
+def test_verdict_no_longer_reassures_that_no_risk_logic_is_affected(tmp_path: Path) -> None:
+    """The old sentence was the actively harmful half: it answered a question
+    nobody asked while a safety mechanism was missing from a running agent."""
+    root = _tree(tmp_path, ["scripts/agent_orchestrator.sh", "docs/STATE.md"])
+    rep = check_deployment_drift(
+        repo_root=root,
+        git_runner=_runner(remote="b" * 40,
+                           diff="scripts/agent_orchestrator.sh\ndocs/STATE.md"),
+        agent_dir=tmp_path, plist_reader=_plists(
+            ("com.spa.orchestrator", str(root / "scripts/agent_orchestrator.sh"), HOURLY)))
+
+    assert "no risk logic is affected" not in " ".join(rep.reasons)
+    assert rep.other_files == ["docs/STATE.md"]   # the genuinely cosmetic one stays
+
+
+def test_daily_entrypoint_drift_is_warning_but_still_named(tmp_path: Path) -> None:
+    """com.spa.work_digest, also drifted on 2026-08-08. It fires once a day, so
+    the sync reaches it first — worth saying, not worth an alarm."""
+    root = _tree(tmp_path, ["scripts/agent_work_digest.sh"])
+    rep = check_deployment_drift(
+        repo_root=root, git_runner=_runner(remote="b" * 40,
+                                           diff="scripts/agent_work_digest.sh"),
+        agent_dir=tmp_path, plist_reader=_plists(
+            ("com.spa.work_digest", str(root / "scripts/agent_work_digest.sh"), DAILY)))
+
+    assert rep.status == WARNING
+    assert rep.entrypoint_files[0]["self_heals_before_next_run"] is True
+    assert "scripts/agent_work_digest.sh" in " ".join(rep.reasons)
+
+
+@pytest.mark.parametrize("interval", [None, 0.0, 60.0, 3600.0, 86399.0])
+def test_anything_faster_than_the_daily_sync_is_urgent(tmp_path: Path, interval) -> None:
+    """``None`` is in this list on purpose: an unreadable schedule is fail-CLOSED.
+    "We could not tell how often it runs" must never be stored as "rarely"."""
+    root = _tree(tmp_path, ["scripts/agent_x.sh"])
+    rep = check_deployment_drift(
+        repo_root=root, git_runner=_runner(remote="b" * 40, diff="scripts/agent_x.sh"),
+        agent_dir=tmp_path,
+        plist_reader=_plists(("com.spa.x", str(root / "scripts/agent_x.sh"), interval)))
+
+    assert rep.status == CRITICAL
+    assert rep.entrypoint_files[0]["self_heals_before_next_run"] is False
+
+
+def test_a_rare_sibling_job_cannot_vouch_for_an_unreadable_one(tmp_path: Path) -> None:
+    """Two jobs share one script; one schedule is unreadable. Taking the readable
+    one as the answer would let an unknown ride in on a known — the exact shape
+    of every fail-OPEN guard in this repo."""
+    root = _tree(tmp_path, ["scripts/agent_x.sh"])
+    script = str(root / "scripts/agent_x.sh")
+    rep = check_deployment_drift(
+        repo_root=root, git_runner=_runner(remote="b" * 40, diff="scripts/agent_x.sh"),
+        agent_dir=tmp_path,
+        plist_reader=_plists(("com.spa.x_daily", script, DAILY),
+                             ("com.spa.x_unknown", script, None)))
+
+    assert rep.status == CRITICAL
+    assert rep.entrypoint_files[0]["labels"] == ["com.spa.x_daily", "com.spa.x_unknown"]
+
+
+def test_entrypoint_missing_from_disk_is_classified_too(tmp_path: Path) -> None:
+    """``scripts/orchestrator_cycle_lock.py`` was not merely stale in production
+    — the file did not exist. Absent is the worst kind of different."""
+    root = _tree(tmp_path, [])          # entrypoint deliberately NOT materialised
+    rep = check_deployment_drift(
+        repo_root=root, git_runner=_runner(remote="b" * 40, diff="scripts/agent_gone.sh"),
+        agent_dir=tmp_path, plist_reader=_plists(
+            ("com.spa.gone", str(root / "scripts/agent_gone.sh"), HOURLY)))
+
+    assert rep.status == CRITICAL
+    assert [e["path"] for e in rep.entrypoint_files] == ["scripts/agent_gone.sh"]
+
+
+def test_money_path_still_outranks_the_entrypoint_class(tmp_path: Path) -> None:
+    """Adding a class must not demote the one that was already there."""
+    root = _tree(tmp_path, ["spa_core/risk/policy.py"])
+    rep = check_deployment_drift(
+        repo_root=root, git_runner=_runner(remote="b" * 40, diff="spa_core/risk/policy.py"),
+        agent_dir=tmp_path, plist_reader=_plists(
+            ("com.spa.risk", str(root / "spa_core/risk/policy.py"), HOURLY)))
+
+    assert rep.status == CRITICAL
+    assert rep.money_path_files == ["spa_core/risk/policy.py"]
+    assert rep.entrypoint_files == []
+    assert any("NOT the reviewed one" in r for r in rep.reasons)
+
+
+def test_no_plists_found_is_stated_not_silently_empty(tmp_path: Path) -> None:
+    """On a box with no LaunchAgents (CI), the entrypoint bucket is empty because
+    nobody looked. That reads identically to "nothing is wrong" unless it is said
+    out loud — so it is said out loud."""
+    rep = check_deployment_drift(
+        repo_root=_tree(tmp_path, ["scripts/agent_orchestrator.sh"]),
+        git_runner=_runner(remote="b" * 40, diff="scripts/agent_orchestrator.sh"),
+        agent_dir=tmp_path / "nowhere", plist_reader=lambda d: [])
+
+    assert rep.entrypoints_unchecked
+    assert any("UNAVAILABLE" in r and "means nothing" in r for r in rep.reasons)
+    assert "entrypoints NOT classified" in format_report_text(rep.to_dict())
+
+
+def test_unreadable_plists_do_not_produce_a_clean_bucket(tmp_path: Path) -> None:
+    def explode(_agent_dir):
+        raise OSError("permission denied")
+
+    rep = check_deployment_drift(
+        repo_root=_tree(tmp_path, ["scripts/agent_orchestrator.sh"]),
+        git_runner=_runner(remote="b" * 40, diff="scripts/agent_orchestrator.sh"),
+        agent_dir=tmp_path, plist_reader=explode)
+
+    assert "permission denied" in (rep.entrypoints_unchecked or "")
+    assert any("UNAVAILABLE" in r for r in rep.reasons)
+
+
+def test_unchecked_entrypoints_stay_quiet_when_nothing_drifted(tmp_path: Path) -> None:
+    """No drift ⇒ nothing to classify ⇒ no blind-spot notice. A guard that talks
+    when there is nothing to say gets filtered out before the day it matters."""
+    rep = check_deployment_drift(
+        repo_root=_tree(tmp_path, []), git_runner=_runner(),
+        agent_dir=tmp_path, plist_reader=lambda d: [])
+
+    assert rep.status == OK
+    assert not any("UNAVAILABLE" in r for r in rep.reasons)
+
+
+def test_entrypoints_outside_this_checkout_are_ignored(tmp_path: Path) -> None:
+    """A plist pointing at another tree says nothing about THIS deployment."""
+    rep = check_deployment_drift(
+        repo_root=_tree(tmp_path, ["docs/STATE.md"]),
+        git_runner=_runner(remote="b" * 40, diff="docs/STATE.md"),
+        agent_dir=tmp_path,
+        plist_reader=_plists(("com.spa.elsewhere", "/opt/other/agent.sh", HOURLY)))
+
+    assert rep.status == WARNING
+    assert rep.entrypoint_files == []
+    assert rep.other_files == ["docs/STATE.md"]
+
+
+def test_state_file_carries_the_entrypoint_class(tmp_path: Path) -> None:
+    """Whoever reads data/deployment_drift.json must see it without rerunning."""
+    root = _tree(tmp_path / "repo", ["scripts/agent_orchestrator.sh"])
+    doc = run_deployment_drift_monitor(
+        data_dir=tmp_path, repo_root=root,
+        git_runner=_runner(remote="b" * 40, diff="scripts/agent_orchestrator.sh"),
+        agent_dir=tmp_path, plist_reader=_plists(
+            ("com.spa.orchestrator", str(root / "scripts/agent_orchestrator.sh"), HOURLY)))
+
+    on_disk = json.loads((tmp_path / STATE_FILENAME).read_text(encoding="utf-8"))
+    assert on_disk == doc
+    assert on_disk["status"] == CRITICAL
+    assert on_disk["entrypoint_files"][0]["labels"] == ["com.spa.orchestrator"]
+    assert on_disk["entrypoint_files"][0]["interval_sec"] == HOURLY
+
+
 # ── d2.defillama.deviation: compare against the pool we are actually in ──────
 
 

@@ -97,8 +97,54 @@ class AcceptanceReport:
         return asdict(self)
 
 
+def _schedule_interval_sec(doc: dict) -> Optional[float]:
+    """How often this job fires, in seconds. ``None`` = could not be determined.
+
+    Needed by ``deployment_drift``: an entrypoint that fires MORE OFTEN than the
+    daily code sync cannot get its delivered version before it next runs. Callers
+    must treat ``None`` as fail-CLOSED — "we do not know" is not "rarely".
+    """
+    if doc.get("KeepAlive"):
+        return 0.0  # continuously restarted; drift takes effect immediately
+    interval = doc.get("StartInterval")
+    if isinstance(interval, int) and interval > 0:
+        return float(interval)
+
+    spec = doc.get("StartCalendarInterval")
+    if spec is None:
+        return None
+    entries = spec if isinstance(spec, list) else [spec]
+    if not entries:
+        return None
+    # Coarsest field present fixes the period: an entry pinning Hour fires daily,
+    # one pinning only Minute fires hourly, and so on.
+    periods: List[float] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            return None
+        if "Month" in entry:
+            periods.append(365 * 86400.0)
+        elif "Day" in entry:
+            periods.append(30 * 86400.0)
+        elif "Weekday" in entry:
+            periods.append(7 * 86400.0)
+        elif "Hour" in entry:
+            periods.append(86400.0)
+        elif "Minute" in entry:
+            periods.append(3600.0)
+        else:
+            periods.append(60.0)
+    # N entries of the same period fire N times per period. Dividing keeps the
+    # estimate on the URGENT side — rounding the other way would hide drift.
+    return min(periods) / len(entries)
+
+
 def _entrypoints_from_plists(agent_dir: Path) -> List[dict]:
-    """(label, script) for every SPA launchd job. Unreadable plist ⇒ recorded."""
+    """(label, script, interval_sec) for every SPA launchd job.
+
+    Unreadable plist ⇒ recorded rather than skipped. ``interval_sec`` is ``None``
+    when the schedule could not be read — consumers must not read that as "rare".
+    """
     out: List[dict] = []
     try:
         plists = sorted(Path(agent_dir).glob(AGENT_GLOB))
@@ -111,14 +157,16 @@ def _entrypoints_from_plists(agent_dir: Path) -> List[dict]:
             with open(p, "rb") as fh:
                 doc = plistlib.load(fh)
         except Exception as exc:  # noqa: BLE001
-            out.append({"label": label, "script": None, "problem": "plist unreadable: {}".format(exc)})
+            out.append({"label": label, "script": None, "interval_sec": None,
+                        "problem": "plist unreadable: {}".format(exc)})
             continue
         args = doc.get("ProgramArguments") or ([doc["Program"]] if doc.get("Program") else [])
         script = next((a for a in args if isinstance(a, str) and a.endswith((".sh", ".command", ".py"))), None)
         if script is None:
             # Nothing script-like: an inline binary invocation, not our concern.
             continue
-        out.append({"label": label, "script": script, "problem": None})
+        out.append({"label": label, "script": script,
+                    "interval_sec": _schedule_interval_sec(doc), "problem": None})
     return out
 
 
