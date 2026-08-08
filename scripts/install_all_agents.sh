@@ -149,6 +149,11 @@ install_agent \
     "$REPO/launchd/com.spa.tournament_engine.plist" \
     "com.spa.tournament_engine"
 
+# 9. Telegram Health — сторож связи с владельцем, каждые 5 мин (ADR-077).
+install_agent \
+    "$REPO/scripts/com.spa.telegram_health.plist" \
+    "com.spa.telegram_health"
+
 echo ""
 echo "--- MONITORING agents (optional — skip if plist missing) ---"
 

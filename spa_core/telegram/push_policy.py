@@ -127,6 +127,10 @@ TIER1_WHITELIST: frozenset[str] = frozenset(
         "golive_ready",
         "pilot_request",
         "architecture_conformance_critical",
+        # Связь с владельцем сломана (ADR-077). Это Tier-1 по построению: пока канал
+        # лежит, ЛЮБАЯ другая тревога до владельца не дойдёт — молчание неотличимо
+        # от тишины «всё хорошо».
+        "telegram_down",
     }
 )
 

@@ -417,6 +417,8 @@ class TestEveryStatefulKeyHasAnExit(unittest.TestCase):
     RESOLVED_BY_SENDERS = {
         "cycle_gap", "system_critical", "agent_health_critical",
         "core_agent_down", "kill_switch", "rules_critical",
+        # telegram_down (ADR-077): сторож Телеграма объявляет и поломку, и выздоровление.
+        "telegram_down",
     }
 
     def test_every_whitelisted_key_can_leave_the_bad_state(self):
@@ -448,6 +450,7 @@ class TestEveryStatefulKeyHasAnExit(unittest.TestCase):
             "core_agent_down": "spa_core/monitoring/self_heal.py",
             "kill_switch": "spa_core/monitoring/threat_reactor.py",
             "rules_critical": "spa_core/monitoring/rules_watchdog.py",
+            "telegram_down": "spa_core/monitoring/telegram_health.py",
         }
         self.assertEqual(set(senders), self.RESOLVED_BY_SENDERS)
         for key, rel in senders.items():
